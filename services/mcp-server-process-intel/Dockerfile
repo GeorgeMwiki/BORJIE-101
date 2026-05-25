@@ -44,7 +44,7 @@ RUN echo "pm4py + its transitive deps are AGPL-3.0. Segregation: process boundar
 
 
 # ---------- Stage 2: Node build (MIT) -------------------------------------
-FROM node:20-bookworm-slim AS node-build
+FROM node:26-bookworm-slim AS node-build
 
 WORKDIR /build
 COPY package.json tsconfig.json ./
@@ -56,7 +56,7 @@ RUN npm install --no-audit --no-fund \
 
 
 # ---------- Stage 3: Runtime ----------------------------------------------
-FROM node:20-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 
 # Bring in Python so we can spawn the sidecar.
 RUN apt-get update \
