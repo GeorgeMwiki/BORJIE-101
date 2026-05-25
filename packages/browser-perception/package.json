@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/browser-perception",
+  "version": "0.1.0",
+  "description": "Browser-Use AXTree perception for legacy vendor portals — Playwright + a11y-tree-first, NOT raw DOM (Central Command Phase B B6)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "playwright",
+    "a11y-tree",
+    "axtree",
+    "browser-use",
+    "legacy-portal",
+    "central-command"
+  ],
+  "author": "BORJIE",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

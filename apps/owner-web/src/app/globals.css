@@ -1,0 +1,65 @@
+/**
+ * owner-web — globals.css
+ *
+ * Mining-owner strategic cockpit. Inherits the full Borjie token set
+ * from @borjie/design-system via the relative @import below. No
+ * local palette, no hex literals — tokens only.
+ */
+
+@import '../../../../packages/design-system/src/styles/globals.css';
+
+/* Load Borjie fonts at the app root */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Tailwind directives — declared locally so Tailwind's `@layer` validator
+ * resolves them in this file (PostCSS does not follow the @import above
+ * into the directive stage). Deduped at build time. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .cockpit-card {
+    @apply rounded-lg border border-border bg-surface shadow-sm p-5;
+  }
+  .cockpit-card-title {
+    @apply text-xs font-medium uppercase tracking-wide text-neutral-400 mb-3;
+  }
+  .cockpit-card-value {
+    @apply text-3xl font-display text-foreground;
+  }
+  .cockpit-card-meta {
+    @apply mt-2 text-xs text-neutral-400;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs;
+  }
+  .pill-amber {
+    @apply border-warning/40 bg-warning-subtle/20 text-warning;
+  }
+  .pill-red {
+    @apply border-destructive/40 bg-destructive/10 text-destructive;
+  }
+  .pill-green {
+    @apply border-success/40 bg-success-subtle/20 text-success;
+  }
+}
+
+/* Skip-to-main-content link — visually hidden until focused
+ * (WCAG 2.1 SC 2.4.1 Bypass Blocks). Keeps the rest of the page
+ * unchanged for sighted/mouse users while giving keyboard and
+ * screen-reader users a fast path past the sidebar. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: hsl(var(--signal-500));
+  color: hsl(var(--primary-foreground));
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 0;
+}

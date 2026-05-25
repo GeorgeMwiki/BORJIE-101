@@ -1,0 +1,142 @@
+# =============================================================================
+# field-capture-service — mobile-facing field-capture endpoints
+# Source: services/field-capture-service (port 9020, healthz at /healthz)
+# Workload class: bursty I/O — photo/video uploads + EXIF parse, modest CPU.
+# Spec: Docs/requirements/VOICE_MEMO_2026-04-18_questionnaire_analysis.md §2-§3.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: field-capture-service
+  labels:
+    app.kubernetes.io/name: field-capture-service
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: field-capture-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: field-capture-service
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "0.1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9020"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: field-capture-service
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: field-capture-service
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: field-capture-service
+      containers:
+        - name: field-capture-service
+          image: ghcr.io/georgemwiki/borjie-field-capture-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9020
+              name: http
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: field-capture-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "9020"
+            - name: HOST
+              value: 0.0.0.0
+            - name: OTEL_SERVICE_NAME
+              value: field-capture-service
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1500m"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9020
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9020
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 9020
+            failureThreshold: 30
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /repo/services/field-capture-service/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: cache
+          emptyDir:
+            sizeLimit: 512Mi
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: field-capture-service
+  labels:
+    app.kubernetes.io/name: field-capture-service
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

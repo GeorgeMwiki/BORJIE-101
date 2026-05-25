@@ -1,0 +1,68 @@
+{
+  "name": "@borjie/security-hardening",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "General security hardening: passkeys/WebAuthn, TOTP MFA, browser security headers, pluggable rate limiter, anomaly detection (impossible travel / unusual hours / device drift), HIBP breach checks, credential-stuffing detection.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./webauthn": {
+      "types": "./src/webauthn/index.ts",
+      "import": "./dist/webauthn/index.js",
+      "default": "./dist/webauthn/index.js"
+    },
+    "./mfa": {
+      "types": "./src/mfa/index.ts",
+      "import": "./dist/mfa/index.js",
+      "default": "./dist/mfa/index.js"
+    },
+    "./headers": {
+      "types": "./src/headers/index.ts",
+      "import": "./dist/headers/index.js",
+      "default": "./dist/headers/index.js"
+    },
+    "./rate-limit": {
+      "types": "./src/rate-limit/index.ts",
+      "import": "./dist/rate-limit/index.js",
+      "default": "./dist/rate-limit/index.js"
+    },
+    "./anomaly": {
+      "types": "./src/anomaly/index.ts",
+      "import": "./dist/anomaly/index.js",
+      "default": "./dist/anomaly/index.js"
+    },
+    "./credential-checks": {
+      "types": "./src/credential-checks/index.ts",
+      "import": "./dist/credential-checks/index.js",
+      "default": "./dist/credential-checks/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "echo 'no lint configured'"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@simplewebauthn/server": "^11.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@simplewebauthn/server": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

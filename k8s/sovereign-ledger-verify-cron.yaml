@@ -1,0 +1,109 @@
+# =============================================================================
+# Sovereign-ledger verify CronJob — Wave-K Tier-3 W-Ops
+# =============================================================================
+# Optional out-of-process invoker for the sovereign-ledger verify supervisor.
+# The in-process supervisor at services/api-gateway/src/composition/
+# sovereign-ledger-verify-cron.ts is the preferred path; this manifest is
+# provided for operators who want to isolate the verify workload (or scale
+# the gateway with `SOVEREIGN_LEDGER_VERIFY_INTERVAL_MS=0` so it's a no-op
+# in-process and this CronJob owns the cadence end-to-end).
+#
+# Both paths share the same DATABASE_URL secret. There's no advisory lock
+# here because verifyLedgerChain is read-only — two concurrent walks are
+# safe; they just produce duplicate "verified" emits which downstream
+# subscribers dedupe by tenant+timestamp.
+#
+# Apply: kubectl apply -f k8s/sovereign-ledger-verify-cron.yaml
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: borjie-sovereign-ledger-verify
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: sovereign-ledger-verify-cron
+    app.kubernetes.io/part-of: borjie
+spec:
+  # Default hourly cadence — same as the in-process supervisor default.
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: borjie
+            app.kubernetes.io/component: sovereign-ledger-verify-cron
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+            - name: sovereign-ledger-verify
+              image: ghcr.io/georgemwikila/borjie/api-gateway:latest
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              # Re-use the in-process supervisor by importing the
+              # composition file directly. INTERVAL_MS=0 disables the
+              # supervisor's setInterval (one-shot mode), tick fires
+              # once on start, then exits.
+              #
+              # Note: this module exports the factory + tick — running
+              # it as a CLI requires a small bootstrap. Until that lands
+              # this manifest is provided as the OPERATIONAL contract;
+              # operators with strong "verify must be out-of-process"
+              # requirements should add a CLI guard mirroring the one
+              # in wake-loop-cron.ts (~line 320). Until then run the
+              # in-process supervisor (default).
+              command:
+                - "node_modules/.bin/tsx"
+                - "-e"
+                - >
+                  import('./services/api-gateway/dist/composition/sovereign-ledger-verify-cron.js')
+                    .then(async (m) => {
+                      const db = (await import('./services/api-gateway/dist/composition/db-client.js')).getDb();
+                      const sup = m.createSovereignLedgerVerifyCronSupervisor({
+                        db,
+                        eventBus: null,
+                        logger: {
+                          info: (o, msg) => console.info('verify-cron:', msg, o),
+                          warn: (o, msg) => console.warn('verify-cron:', msg, o),
+                          error: (o, msg) => console.error('verify-cron:', msg, o),
+                        },
+                      });
+                      const r = await sup.tick();
+                      console.log('verify-cron CLI result:', r);
+                      process.exit(0);
+                    })
+                    .catch((e) => { console.error(e); process.exit(2); });
+              workingDir: /app
+              env:
+                - name: NODE_ENV
+                  value: "production"
+                - name: SOVEREIGN_LEDGER_VERIFY_INTERVAL_MS
+                  value: "0"
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: borjie-secrets
+                      key: DATABASE_URL
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi

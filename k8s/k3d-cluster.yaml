@@ -1,0 +1,81 @@
+# k3d cluster config for local BORJIE dev.
+#
+# Topology mirrors the staging cluster: 1 server + 3 agents, with a
+# local registry so Tilt can push without a round-trip to GHCR.
+#
+# Bring up:
+#   k3d cluster create --config k8s/k3d-cluster.yaml
+#
+# Tear down:
+#   k3d cluster delete borjie-dev
+#
+# Inspect:
+#   kubectl --context k3d-borjie-dev get nodes -o wide
+#
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: borjie-dev
+servers: 1
+agents: 3
+image: rancher/k3s:v1.31.4-k3s1   # match staging cluster K8s version
+network: borjie-dev
+subnet: "172.30.0.0/16"
+
+# ── Local registry on localhost:5111 ─────────────────────────────────
+# Tilt pushes images here; the cluster pulls from here. No DockerHub /
+# GHCR auth needed in dev.
+registries:
+  create:
+    name: borjie-registry
+    host: "0.0.0.0"
+    hostPort: "5111"
+  config: |
+    mirrors:
+      "localhost:5111":
+        endpoint:
+          - http://borjie-registry:5000
+
+# ── Ports exposed to the host ────────────────────────────────────────
+# 80/443 → ingress-nginx (so the 4 portal hosts work via /etc/hosts).
+# 6443   → kube API server (kubectl).
+ports:
+  - port: "80:80"
+    nodeFilters: [loadbalancer]
+  - port: "443:443"
+    nodeFilters: [loadbalancer]
+  - port: "6443:6443"
+    nodeFilters: [loadbalancer]
+
+# ── kubectl context name ─────────────────────────────────────────────
+kubeAPI:
+  hostIP: "127.0.0.1"
+
+# ── Defaults to disable on a dev cluster ─────────────────────────────
+# Traefik is the default k3s ingress; we use ingress-nginx instead to
+# match staging/prod.
+options:
+  k3s:
+    extraArgs:
+      - arg: "--disable=traefik"
+        nodeFilters: [server:*]
+      - arg: "--disable=servicelb"
+        nodeFilters: [server:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
+
+# ── Volumes (persistent data across cluster restarts) ────────────────
+# Postgres PVCs land here so `k3d cluster stop` + `start` keeps your DB.
+volumes:
+  - volume: borjie-dev-data:/var/lib/rancher/k3s/storage
+    nodeFilters: [server:*, agent:*]
+
+# ── Bonus: pin etcd to the server node (resembles prod control plane) ─
+hostAliases:
+  - ip: 127.0.0.1
+    hostnames:
+      - customer.borjie.localhost
+      - manager.borjie.localhost
+      - owner.borjie.localhost
+      - admin.borjie.localhost

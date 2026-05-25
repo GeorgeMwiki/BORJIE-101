@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scientific-discovery-sidecar"
+version = "0.1.0"
+description = "FastAPI sidecar for @borjie/scientific-discovery — DoWhy refutation battery + Tigramite PCMCIplus."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "BORJIE Engineering", email = "engineering@borjie.com" },
+]
+keywords = ["causal-inference", "dowhy", "tigramite", "fastapi", "property-management"]
+
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "python-multipart==0.0.27",
+    "dowhy==0.12",
+    "tigramite==5.2.6.7",
+    "econml==0.15.1",
+    "numpy==1.26.4",
+    "pandas==2.2.3",
+    "scipy==1.14.1",
+    "scikit-learn==1.6.0",
+    "statsmodels==0.14.4",
+    "networkx==3.4.2",
+    "pyarrow==18.1.0",
+    # Prometheus middleware — exposes /metrics on the same port as the app
+    # (k8s manifest at infra/k8s/scientific-discovery-sidecar/base/servicemonitor.yaml
+    # scrapes /metrics on port 8000).
+    "prometheus-fastapi-instrumentator==7.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "httpx==0.28.1",
+    "anyio==4.7.0",
+    "ruff==0.8.4",
+    "mypy==1.13.0",
+]
+
+[project.scripts]
+scientific-discovery-sidecar = "app.main:run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q --strict-markers"
+filterwarnings = [
+    # DoWhy + statsmodels noise — we still want the test signal.
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::UserWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "W", "UP", "N", "C4", "SIM"]
+ignore = ["E501"]

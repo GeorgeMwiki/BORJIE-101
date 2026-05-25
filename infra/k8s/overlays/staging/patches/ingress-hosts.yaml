@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: borjie }
+spec:
+  tls:
+    - hosts:
+        - staging-api.borjie.com
+        - staging.borjie.com
+        - staging-admin.borjie.com
+        - staging-owners.borjie.com
+        - staging-manage.borjie.com
+      secretName: borjie-tls
+  rules:
+    - host: staging-api.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: api-gateway, port: { number: 80 } } }
+    - host: staging.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: customer-app, port: { number: 80 } } }
+    - host: staging-admin.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: admin-web, port: { number: 80 } } }
+    - host: staging-owners.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: owner-portal, port: { number: 80 } } }
+    - host: staging-manage.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: estate-manager-app, port: { number: 80 } } }

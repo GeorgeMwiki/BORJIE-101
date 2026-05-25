@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#1F160E"/>
+      <stop offset="100%" stop-color="#0E0906"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="32" y1="8" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFE2B4"/>
+      <stop offset="35%"  stop-color="#F2C27E"/>
+      <stop offset="68%"  stop-color="#CC884A"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="mono" x1="32" y1="20" x2="32" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF6E0"/>
+      <stop offset="40%"  stop-color="#F7CC85"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="32" cy="32" r="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F7CC85" stop-opacity="0.7"/>
+      <stop offset="55%"  stop-color="#E5B26B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="11" fill="url(#bg)"/>
+  <circle cx="32" cy="32" r="16" fill="url(#glow)"/>
+  <rect x="10" y="10" width="44" height="44" rx="7" fill="none" stroke="url(#frame)" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Simplified BN for favicon size — survives rasterization at 16px -->
+  <g fill="url(#mono)">
+    <!-- B -->
+    <path d="
+      M19 22 h4.5
+      q5 0 5 4.4 q0 3.1 -2.6 3.9
+      q3.1 0.7 3.1 4.6 q0 4.7 -5.1 4.7
+      h-4.9 z
+      M21.3 24.3 v5.5
+      h1.8 q2.6 0 2.6 -2.8 q0 -2.7 -2.6 -2.7 z
+      M21.3 32 v6
+      h2 q2.7 0 2.7 -3 q0 -3 -2.7 -3 z
+    "/>
+    <!-- N -->
+    <path d="
+      M32.5 22 h2.3
+      l5.3 10.8 v-10.8
+      h2.3 v16
+      h-2.3 l-5.3 -10.8
+      v10.8 h-2.3 z
+    "/>
+  </g>
+</svg>

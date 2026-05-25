@@ -1,0 +1,14 @@
+id: kra-filing-007
+scenario: kra-filing
+title: 'KRA portal outage — retry strategy required'
+context:
+  tenant_owner: {id: own-207, kra_pin: 'P051234572A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  rental_income_minor: 480000000
+  currency: KES
+  kra_portal_status: 'last 6 attempts failed with 503'
+expected_actions:
+  - {tool: 'kra.queue_filing_for_retry', backoff: exponential, max_attempts: 12}
+  - {tool: 'kra.notify_owner_of_delay', tone: 'transparent-reassuring'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.2, communication-quality: 0.3, cost-efficiency: 0.1}

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/part-of: borjie-platform

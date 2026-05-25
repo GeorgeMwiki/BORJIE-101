@@ -1,0 +1,41 @@
+---
+# KEDA ScaledObject for owner-portal.
+# Low-traffic — scales to 0 on idle.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: owner-portal
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: owner-portal
+    app.kubernetes.io/managed-by: helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: owner-portal
+  pollingInterval: 10
+  cooldownPeriod: 900     # 15 min idle before scaling down
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  fallback:
+    failureThreshold: 3
+    replicas: 1
+  triggers:
+    # TODO(scaffold): replace host with the real owner-portal domain.
+    - type: http-add-on
+      metadata:
+        hosts: owner.borjie.example.com
+        pathPrefixes: /
+        scalingMetric: requestRate
+        targetValue: "15"
+        granularity: 1s
+        window: 1m
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-kube-prometheus-prometheus.monitoring.svc:9090
+        metricName: owner_portal_rps
+        threshold: "15"
+        query: |
+          sum(rate(http_requests_total{namespace="borjie",app="owner-portal"}[1m]))

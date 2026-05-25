@@ -1,0 +1,17 @@
+id: kra-filing-005
+scenario: kra-filing
+title: 'Mid-month ownership change — partial-period filing'
+context:
+  tenant_owner: {id: own-205, kra_pin: 'P051234571A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  ownership_transferred_at: '2026-04-15'
+  prior_owner: {id: own-205-prev, kra_pin: 'P051200000Z'}
+  rental_income_total_minor: 600000000
+  rental_income_pro_rata_minor: 290000000
+  currency: KES
+expected_actions:
+  - {tool: 'kra.compute_partial_period_mri'}
+  - {tool: 'kra.flag_for_human_tax_review'}
+expected_escalation: true
+expected_escalation_reason: 'partial-period split is non-trivial; tax review required'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

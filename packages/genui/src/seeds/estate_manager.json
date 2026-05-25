@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "personaId": "estate_manager",
+  "topbar": {
+    "logo": { "label": "Boss Nyumba — Estate", "href": "/estate", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search portfolios, owners, approvals…", "scope": "tenant" },
+    "notifications": { "enabled": true, "pollSeconds": 45 },
+    "profile": {
+      "enabled": true,
+      "menu": [
+        { "label": "Settings", "intent": "open_settings" },
+        { "label": "Profile", "intent": "open_profile" },
+        { "label": "Help", "intent": "open_help" },
+        { "label": "Sign out", "intent": "sign_out" }
+      ]
+    }
+  },
+  "sidebar": {
+    "sections": [
+      {
+        "id": "field",
+        "title": "Field operations",
+        "items": [
+          { "id": "home", "label": "Dashboard", "icon": "home", "href": "/estate" },
+          { "id": "map", "label": "Properties map", "icon": "map", "href": "/estate/map" },
+          { "id": "work-orders", "label": "Work orders", "icon": "clipboard-list", "href": "/estate/work-orders" },
+          { "id": "inspections", "label": "Inspections", "icon": "search-check", "href": "/estate/inspections" }
+        ]
+      },
+      {
+        "id": "people",
+        "title": "People",
+        "items": [
+          { "id": "managers", "label": "Managers", "icon": "user-check", "href": "/estate/managers" },
+          { "id": "vendors", "label": "Vendors", "icon": "hard-hat", "href": "/estate/vendors" },
+          { "id": "owners", "label": "Owners", "icon": "user-circle", "href": "/estate/owners" }
+        ]
+      },
+      {
+        "id": "intelligence",
+        "title": "Intelligence",
+        "items": [
+          { "id": "approvals", "label": "Approvals", "icon": "check-circle-2", "href": "/estate/approvals" },
+          { "id": "exceptions", "label": "Exceptions", "icon": "alert-octagon", "href": "/estate/exceptions" }
+        ]
+      }
+    ],
+    "defaultCollapsed": false
+  },
+  "dashboard": {
+    "columns": 12,
+    "cells": [
+      {
+        "id": "fleet-map",
+        "span": 12,
+        "kind": "map",
+        "title": "Active properties + incidents",
+        "initialProps": null
+      },
+      {
+        "id": "work-orders",
+        "span": 6,
+        "kind": "kanban",
+        "title": "Work orders by status",
+        "initialProps": null
+      },
+      {
+        "id": "incident-heatmap",
+        "span": 6,
+        "kind": "heatmap",
+        "title": "Incident density",
+        "initialProps": null
+      },
+      {
+        "id": "open-incidents",
+        "span": 4,
+        "kind": "live-counter",
+        "title": "Open incidents",
+        "initialProps": null
+      },
+      {
+        "id": "sla-trend",
+        "span": 4,
+        "kind": "metric-sparkline",
+        "title": "SLA performance",
+        "initialProps": null
+      },
+      {
+        "id": "field-prompts",
+        "span": 4,
+        "kind": "prompt-suggestions",
+        "title": "Quick prompts",
+        "initialProps": null
+      }
+    ]
+  },
+  "primaryAction": {
+    "label": "Review approvals",
+    "intent": "review_approvals",
+    "icon": "check-circle-2"
+  },
+  "theme": {
+    "mode": "dark",
+    "density": "compact",
+    "tokens": {
+      "color-primary": "oklch(0.74 0.16 50)",
+      "color-warning": "oklch(0.83 0.18 78)",
+      "color-danger": "oklch(0.62 0.21 28)"
+    }
+  },
+  "featureFlags": {
+    "estate.map.geofence": true,
+    "estate.intelligence.bandit": false
+  },
+  "accessibilityProfile": {
+    "largeText": false,
+    "highContrast": false,
+    "reduceMotion": false,
+    "screenReaderOptimized": false,
+    "voiceFirst": false,
+    "primaryModality": "hybrid"
+  }
+}

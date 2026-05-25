@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: onboarding-orchestrator
+  labels:
+    app.kubernetes.io/name: onboarding-orchestrator
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: onboarding-orchestrator
+  ports:
+    # Single port — /metrics is exposed on the same listener as the
+    # app (see services/onboarding-orchestrator/src/observability/metrics.ts).
+    - name: http
+      port: 80
+      targetPort: 3014
+      protocol: TCP

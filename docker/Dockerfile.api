@@ -1,0 +1,115 @@
+# =============================================================================
+# BORJIE API Gateway — Multi-stage Dockerfile
+# =============================================================================
+# Build: docker build -f docker/Dockerfile.api -t borjie/api-gateway:dev .
+# Listens on :4000, serves /health and /healthz.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependencies
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS deps
+# libc6-compat: glibc-shim for prebuilt binaries (e.g. @swc/core).
+# python3 + build-base: needed by node-gyp when an OPTIONAL native
+# dependency (canvas via pdfkit, etc.) tries to compile from source on
+# musl. Without them, `gyp ERR! find Python` fails the install and the
+# E2E api-gateway container exits 1 — the chronic E2E flake on PR #84,
+# #90, and every PR before. They're only present in the deps stage and
+# do not bloat the runner image.
+RUN apk add --no-cache libc6-compat python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace config files first (cache-friendly)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+
+# Copy packages and the api-gateway itself. api-gateway transitively depends
+# on ~every service package in the workspace, so bring them all in — pnpm
+# will only install runtime deps once we use --prod in the runtime stage.
+COPY packages ./packages
+COPY services ./services
+
+RUN pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Stage 2: Builder
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+# Pull the FULL deps-stage tree forward — not just root node_modules.
+#
+# pnpm install populates per-package node_modules with the workspace
+# symlinks (e.g. packages/ai-copilot/node_modules/@borjie/forecasting
+# → ../../../forecasting). The previous Dockerfile only copied the root
+# node_modules, leaving each package's local node_modules empty —
+# `tsc` then could not resolve cross-workspace imports because the
+# symlinks were missing. Copying packages/ + services/ from the deps
+# stage (instead of from the build context) preserves those symlinks.
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/pnpm-lock.yaml ./
+COPY --from=deps /app/pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/services ./services
+
+# Build api-gateway and every workspace package it transitively
+# depends on. With the per-package node_modules symlinks now present,
+# pnpm's topological order is enough to satisfy the cross-package tsc
+# imports (the previous "topo bug" was actually missing symlinks).
+RUN pnpm --filter=@borjie/api-gateway... --workspace-concurrency=1 build
+
+# NOTE: production-only pruning (`pnpm deploy --prod`) is intentionally not
+# performed here — in a pnpm workspace with `workspace:*` symlinks, deploy
+# mode is fragile and has caused silent regressions in this repo before.
+# The runtime stage therefore carries dev deps; trim via a follow-up PR
+# once we have a reliable `pnpm deploy` pipeline with CI coverage.
+
+# -----------------------------------------------------------------------------
+# Stage 3: Runner
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS runner
+RUN apk add --no-cache dumb-init wget
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 apigateway
+
+WORKDIR /app
+
+# Copy built artifacts + install path-resolvable deps.
+#
+# Critical: with `shamefully-hoist=true` pnpm still puts workspace deps
+# (`@borjie/*`) under the consuming package's local `node_modules`,
+# NOT under the root `/app/node_modules`. The symlinks use relative paths
+# like `node_modules/@borjie/database -> ../../../../packages/database`.
+#
+# Therefore: preserve the workspace layout in the runner. WORKDIR is set
+# to the api-gateway directory so that node's module resolution walks the
+# correct node_modules chain (services/api-gateway/node_modules → root).
+COPY --from=builder --chown=apigateway:nodejs /app/services/api-gateway ./services/api-gateway
+COPY --from=builder --chown=apigateway:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=apigateway:nodejs /app/packages ./packages
+COPY --from=builder --chown=apigateway:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=apigateway:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+USER apigateway
+
+WORKDIR /app/services/api-gateway
+
+ENV NODE_ENV=production \
+    PORT=4000
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/healthz || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]

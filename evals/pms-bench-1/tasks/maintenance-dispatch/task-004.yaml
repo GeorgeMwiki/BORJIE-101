@@ -1,0 +1,19 @@
+id: maintenance-dispatch-004
+scenario: maintenance-dispatch
+title: 'Repeat issue: third aircon-failure report in 6 months'
+context:
+  property: {id: prop-104, block: 'Block C', unit: '7B'}
+  tenant: {id: tnt-104, name: 'Felix Onyango'}
+  report:
+    submitted_at: '2026-05-17T14:00:00Z'
+    severity_self_assessed: medium
+    description: 'Aircon stopped cooling again — same unit fixed Jan + March'
+    photos: 1
+    prior_reports: 2
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P2-recurring'}
+  - {tool: 'maintenance.flag_for_root_cause_review'}
+  - {tool: 'maintenance.dispatch_vendor', vendor_skill: 'hvac-senior', sla_hours: 24}
+expected_escalation: true
+expected_escalation_reason: 'recurring issue: needs vendor accountability review'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.3, communication-quality: 0.2, cost-efficiency: 0.2}

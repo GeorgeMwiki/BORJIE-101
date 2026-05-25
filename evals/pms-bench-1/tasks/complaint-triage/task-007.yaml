@@ -1,0 +1,17 @@
+id: complaint-triage-007
+scenario: complaint-triage
+title: 'Service-quality complaint about cleaning vendor'
+context:
+  complainant: {id: tnt-410, name: 'Robert Karuga', unit: '4A'}
+  subject_vendor: {id: vnd-005, name: 'CleanCo'}
+  complaint:
+    submitted_at: '2026-05-17T15:00:00Z'
+    kind: 'vendor-quality'
+    severity_self_assessed: medium
+    description: 'Lobby was not cleaned today; bins still full'
+expected_actions:
+  - {tool: 'complaint.log_vendor_quality_event'}
+  - {tool: 'complaint.dispatch_corrective_task_to_vendor', sla_hours: 4}
+  - {tool: 'complaint.notify_complainant_of_action', tone: 'action-oriented'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

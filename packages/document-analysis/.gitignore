@@ -1,0 +1,12 @@
+# Tesseract.js downloads language traineddata blobs to the package dir
+# at first run. They are large binary assets — never commit them.
+*.traineddata
+
+# Build artefacts
+dist/
+
+# Coverage reports
+coverage/
+
+# IDE
+.vitest-cache/

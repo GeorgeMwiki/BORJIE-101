@@ -1,0 +1,17 @@
+id: maintenance-dispatch-010
+scenario: maintenance-dispatch
+title: 'Pest infestation in shared corridor — affects multiple units'
+context:
+  property: {id: prop-110, block: 'Block B', unit: 'common-area-floor-3'}
+  initiator: {role: 'tenant', id: tnt-110}
+  report:
+    submitted_at: '2026-05-17T08:30:00Z'
+    severity_self_assessed: high
+    description: 'Cockroaches all over floor 3 corridor since yesterday'
+    affected_units: [tnt-110, tnt-111, tnt-112]
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P2-shared'}
+  - {tool: 'maintenance.dispatch_vendor', vendor_skill: 'pest-control', sla_hours: 24}
+  - {tool: 'maintenance.notify_block_residents', tone: 'transparent-action-oriented'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

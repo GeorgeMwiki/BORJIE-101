@@ -1,0 +1,15 @@
+id: maintenance-dispatch-007
+scenario: maintenance-dispatch
+title: 'Vague report: "thing is broken" — needs clarification'
+context:
+  property: {id: prop-107, block: 'Block D', unit: '4F'}
+  tenant: {id: tnt-107, name: 'Mike Wahome'}
+  report:
+    submitted_at: '2026-05-17T11:30:00Z'
+    severity_self_assessed: unknown
+    description: 'The thing in the kitchen is broken'
+    photos: 0
+expected_actions:
+  - {tool: 'maintenance.request_clarification', questions: ['which appliance', 'how is it broken', 'photo if possible']}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.1}

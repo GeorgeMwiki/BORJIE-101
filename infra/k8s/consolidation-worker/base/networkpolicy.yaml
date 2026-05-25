@@ -1,0 +1,89 @@
+# =============================================================================
+# consolidation-worker — default-deny + targeted egress allow-list
+# =============================================================================
+# Worker has no inbound surface — only egress to Postgres (reservoir +
+# semantic memory) and OTLP collector. No external HTTPS today (stub
+# consolidator). When the Haiku consolidator is wired, add a 443 egress
+# rule mirroring brain-evolution-worker.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: consolidation-worker-default-deny
+  labels:
+    app.kubernetes.io/name: consolidation-worker
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: consolidation-worker
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: consolidation-worker-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: consolidation-worker
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: consolidation-worker
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: consolidation-worker-allow-egress
+  labels:
+    app.kubernetes.io/name: consolidation-worker
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: consolidation-worker
+  policyTypes: [Egress]
+  egress:
+    # Postgres — reservoir source + semantic memory sink. Allow both
+    # app namespaces so the same worker can be deployed against
+    # staging or prod data planes.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: borjie-prod
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: borjie-staging
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Observability — OTLP collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

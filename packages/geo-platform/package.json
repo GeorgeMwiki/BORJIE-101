@@ -1,0 +1,61 @@
+{
+  "name": "@borjie/geo-platform",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Muzima geo-platform — Google Maps Live (Aerial View, Solar, Air Quality, Pollen, Routes, Address Validation), MapLibre + photorealistic 3D, geofence engine, parcel segmentation, and area-insights advisory. Spec: .audit/sota-2026-05-24/01-geo-platform.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./dist/types.js"
+    },
+    "./react": {
+      "types": "./src/react.ts",
+      "default": "./dist/react.js"
+    },
+    "./google": {
+      "types": "./src/google/index.ts",
+      "default": "./dist/google/index.js"
+    },
+    "./geofence": {
+      "types": "./src/geofence/index.ts",
+      "default": "./dist/geofence/index.js"
+    },
+    "./advisory": {
+      "types": "./src/advisory/index.ts",
+      "default": "./dist/advisory/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/enterprise-hardening": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "maplibre-gl": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "maplibre-gl": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/react": "^18.3.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

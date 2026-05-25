@@ -1,0 +1,11 @@
+{
+  "_comment": "Baseline placeholder for knip findings. Populated on first main-push via scripts/knip.mjs --write-baseline. CI fails only when NEW findings exceed this baseline (per LITFIN parity audit #7).",
+  "_generated_by": "scripts/knip.mjs",
+  "files": [],
+  "dependencies": [],
+  "devDependencies": [],
+  "exports": [],
+  "types": [],
+  "enumMembers": [],
+  "classMembers": []
+}

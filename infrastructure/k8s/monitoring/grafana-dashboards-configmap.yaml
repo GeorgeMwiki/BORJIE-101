@@ -1,0 +1,434 @@
+# =============================================================================
+# Grafana dashboards ConfigMap + provisioning — Wave-K Tier-3 W-Ops
+# =============================================================================
+# Materialises every JSON file under monitoring/grafana-dashboards/ as keys
+# inside a single ConfigMap, paired with a `dashboards.yaml` provisioning
+# manifest that tells Grafana to auto-load anything dropped at
+# /etc/grafana/provisioning/dashboards/. The Grafana deployment mounts
+# this ConfigMap at that path so a `kubectl rollout restart deploy/grafana`
+# is the only step to pick up new dashboards.
+#
+# Two resources in this file:
+#
+#   1. ConfigMap `grafana-dashboards-provisioning` carries the per-folder
+#      provisioning rule. Grafana reads this file at boot and treats every
+#      JSON in the matching `path` as a dashboard to materialise into the
+#      DB (or refresh, when updateIntervalSeconds elapses).
+#
+#   2. ConfigMap `grafana-dashboards` carries every dashboard JSON as a
+#      separate key. Each key name MUST end in `.json` for Grafana's
+#      `foldersFromFilesStructure` to pick it up correctly.
+#
+# Operators dropping in a new dashboard JSON:
+#   - Add it to monitoring/grafana-dashboards/<name>.json (source of truth).
+#   - Re-render this ConfigMap (the body is hand-maintained for now — a
+#     follow-up will generate via `kubectl create configmap --from-file`
+#     in a CI step so the two never drift).
+#
+# Drift mitigation: a CI check that the keys here are a superset of the
+# JSON files in `monitoring/grafana-dashboards/` is the next deliverable
+# — until that lands, treat the docs in `Docs/observability.md` as the
+# operational contract for adding a dashboard.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provisioning
+  namespace: borjie
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboards-provisioning
+data:
+  # Grafana provisioning manifest — points the dashboards provider at the
+  # mounted ConfigMap volume. `foldersFromFilesStructure=false` keeps every
+  # dashboard at the root folder; flip to `true` if you sub-namespace the
+  # ConfigMap by app/team.
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: borjie
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: true
+        editable: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /etc/grafana/provisioning/dashboards/json
+          foldersFromFilesStructure: false
+---
+# =============================================================================
+# ConfigMap with the dashboard JSONs. Hand-rendered from the source files
+# under monitoring/grafana-dashboards/. To regenerate locally:
+#
+#   kubectl create configmap grafana-dashboards \
+#     --namespace=borjie \
+#     --from-file=monitoring/grafana-dashboards/ \
+#     --dry-run=client -o yaml > infrastructure/k8s/monitoring/grafana-dashboards-configmap.yaml
+#
+# (then re-add the provisioning ConfigMap above + the resource separator.)
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: borjie
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboards
+data:
+  borjie-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "BORJIE Platform Overview — consumes /api/v1/metrics",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": true,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "options": { "colorMode": "value" },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            { "expr": "sum(gateway_http_requests_total)", "refId": "A" }
+          ],
+          "title": "Total requests (24h)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "targets": [
+            { "expr": "sum(rate(gateway_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(gateway_http_requests_total[5m])) * 100", "refId": "A" }
+          ],
+          "title": "Error rate %",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "targets": [
+            { "expr": "histogram_quantile(0.95, rate(gateway_http_request_duration_ms_bucket[5m]))", "refId": "A" }
+          ],
+          "title": "p95 latency",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "targets": [
+            { "expr": "gateway_active_personas", "refId": "A" }
+          ],
+          "title": "Active personas",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "id": 10,
+          "targets": [
+            { "expr": "sum(rate(gateway_http_requests_total[5m])) by (route)", "legendFormat": "{{route}}", "refId": "A" }
+          ],
+          "title": "Requests / 5m by route",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 11,
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(gateway_http_request_duration_ms_bucket[5m])) by (le, route))", "legendFormat": "{{route}}", "refId": "A" }
+          ],
+          "title": "p95 latency by route",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["borjie", "overview"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "BORJIE Overview",
+      "uid": "borjie-overview",
+      "version": 1,
+      "weekStart": ""
+    }
+  borjie-ai.json: |
+    {
+      "description": "BORJIE AI surfaces — chat turns, workflow, ambient interventions",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "targets": [
+            { "expr": "sum(rate(ai_chat_turns_total[5m]))", "refId": "A" }
+          ],
+          "title": "Chat turns / sec",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "targets": [
+            { "expr": "histogram_quantile(0.95, rate(ai_chat_ttfb_ms_bucket[5m]))", "refId": "A" }
+          ],
+          "title": "Chat p95 TTFB (ms)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "targets": [
+            { "expr": "sum(rate(ai_workflow_completed_total[5m]))", "refId": "A" }
+          ],
+          "title": "Workflows completed / sec",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "targets": [
+            { "expr": "sum(rate(mwikila_interventions_accepted_total[5m])) / sum(rate(mwikila_interventions_total[5m]))", "refId": "A" }
+          ],
+          "title": "Intervention acceptance %",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+          "id": 10,
+          "targets": [
+            { "expr": "sum(rate(ai_llm_tokens_total[5m])) by (model)", "legendFormat": "{{model}}", "refId": "A" }
+          ],
+          "title": "LLM tokens / 5m by model",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["borjie", "ai"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "BORJIE AI",
+      "uid": "borjie-ai",
+      "version": 1
+    }
+  borjie-payments.json: |
+    {
+      "description": "BORJIE payments + ledger — GePG/M-Pesa volume, ledger integrity",
+      "editable": true,
+      "id": null,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "targets": [
+            { "expr": "sum(rate(payments_received_total[5m]))", "refId": "A" }
+          ],
+          "title": "Payments / sec",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "targets": [
+            { "expr": "sum(rate(payments_failed_total[5m])) / sum(rate(payments_received_total[5m])) * 100", "refId": "A" }
+          ],
+          "title": "Failure %",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+          "id": 10,
+          "targets": [
+            { "expr": "sum(rate(payments_received_total[5m])) by (provider)", "legendFormat": "{{provider}}", "refId": "A" }
+          ],
+          "title": "Payments / 5m by provider",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["borjie", "payments"],
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "BORJIE Payments",
+      "uid": "borjie-payments",
+      "version": 1
+    }
+  agent-spans.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Per-agent latency / throughput / error / degraded-rate. Reads the four counters emitted by services/api-gateway/src/instrumentation/agent-spans.ts (agent.call.total, agent.call.errors_total, agent.call.duration_ms, agent_port_degraded_total). Labels: agent, operation, outcome.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": true,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "options": { "colorMode": "value" },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            { "expr": "sum(rate(agent_call_total[5m]))", "refId": "A" }
+          ],
+          "title": "Total agent calls / sec",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "targets": [
+            { "expr": "sum(rate(agent_call_errors_total[5m])) / sum(rate(agent_call_total[5m])) * 100", "refId": "A" }
+          ],
+          "title": "Agent error rate %",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_ms_bucket[5m])) by (le))", "refId": "A" }
+          ],
+          "title": "Agent p95 latency",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "targets": [
+            { "expr": "sum(rate(agent_port_degraded_total[5m])) * 60", "refId": "A" }
+          ],
+          "title": "Degraded fallbacks / min",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "id": 10,
+          "targets": [
+            { "expr": "sum(rate(agent_call_total[5m])) by (agent)", "legendFormat": "{{agent}}", "refId": "A" }
+          ],
+          "title": "Calls / 5m by agent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 11,
+          "targets": [
+            { "expr": "sum(rate(agent_call_errors_total[5m])) by (agent)", "legendFormat": "{{agent}}", "refId": "A" }
+          ],
+          "title": "Errors / 5m by agent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "id": 12,
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_ms_bucket[5m])) by (le, agent))", "legendFormat": "{{agent}} p95", "refId": "A" },
+            { "expr": "histogram_quantile(0.50, sum(rate(agent_call_duration_ms_bucket[5m])) by (le, agent))", "legendFormat": "{{agent}} p50", "refId": "B" }
+          ],
+          "title": "Latency p50 / p95 by agent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "id": 13,
+          "targets": [
+            { "expr": "sum(rate(agent_call_total[5m])) by (agent, operation)", "legendFormat": "{{agent}} / {{operation}}", "refId": "A" }
+          ],
+          "title": "Calls / 5m by agent + operation",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+          "id": 14,
+          "targets": [
+            { "expr": "sum(rate(agent_call_total{outcome=\"ok\"}[5m])) by (agent) / sum(rate(agent_call_total[5m])) by (agent)", "legendFormat": "{{agent}} success", "refId": "A" }
+          ],
+          "title": "Success ratio by agent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "borjie" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+          "id": 15,
+          "targets": [
+            { "expr": "sum(rate(agent_port_degraded_total[5m])) by (agent, port, reason)", "legendFormat": "{{agent}} {{port}} ({{reason}})", "refId": "A" }
+          ],
+          "title": "Degraded-port fallbacks by agent + port",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["borjie", "agent", "ai", "observability"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "All", "value": "$__all" },
+            "datasource": { "type": "prometheus", "uid": "borjie" },
+            "definition": "label_values(agent_call_total, agent)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Agent",
+            "multi": true,
+            "name": "agent",
+            "options": [],
+            "query": { "query": "label_values(agent_call_total, agent)", "refId": "Variable-agent" },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "BORJIE Agent Spans",
+      "uid": "borjie-agent-spans",
+      "version": 1,
+      "weekStart": ""
+    }

@@ -1,0 +1,42 @@
+# BORJIE - Docker ignore patterns
+
+node_modules/
+.git/
+.gitignore
+.env
+.env.*
+.env.local
+.env.*.local
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/__tests__/
+**/__mocks__/
+coverage/
+e2e/
+e2e-report/
+test-results/
+playwright-report/
+.blob/
+dist/
+.next/
+*.tsbuildinfo
+.turbo/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+Docs/
+# api-sdk's `generate` script reads Docs/api/openapi.generated.json
+# at build time. The Dockerfile.web COPYs Docs/api/ explicitly so the
+# api-sdk build can succeed in the customer-app dep chain.
+!Docs/api/
+*.md
+!README.md
+.github/
+infra/

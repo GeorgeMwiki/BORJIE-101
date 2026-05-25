@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PaymentIntent {
+  id               String   @id
+  tenantId         String   @map("tenant_id")
+  customerId       String   @map("customer_id")
+  leaseId          String?  @map("lease_id")
+  type             String
+  amount           Int
+  currency         String   @default("KES")
+  status           String   @default("PENDING")
+  description      String?
+  externalId       String?  @map("external_id")
+  providerName     String?  @map("provider_name")
+  idempotencyKey   String?  @map("idempotency_key")
+  paymentMethodId  String?  @map("payment_method_id")
+  metadata         Json?
+  errorMessage     String?  @map("error_message")
+  refundedAmount   Int?     @map("refunded_amount")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([leaseId])
+  @@index([status])
+  @@index([externalId, providerName])
+  @@index([idempotencyKey, tenantId])
+  @@map("payment_intents")
+}
+
+model Account {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  type        String
+  name        String
+  currency    String   @default("KES")
+  balance     Int      @default(0)
+  status      String   @default("ACTIVE")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([type])
+  @@map("accounts")
+}
+
+model LedgerEntry {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  accountId     String   @map("account_id")
+  type          String
+  amount        Int
+  currency      String   @default("KES")
+  description   String?
+  referenceId   String?  @map("reference_id")
+  referenceType String?  @map("reference_type")
+  balanceAfter  Int?     @map("balance_after")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([accountId])
+  @@index([referenceId])
+  @@map("ledger_entries")
+}
+
+model Statement {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  accountId   String   @map("account_id")
+  type        String
+  periodType  String   @map("period_type")
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  status      String   @default("DRAFT")
+  data        Json?
+  sentTo      String?  @map("sent_to")
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([accountId])
+  @@map("statements")
+}
+
+model Disbursement {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  ownerId       String   @map("owner_id")
+  amount        Int
+  currency      String   @default("KES")
+  status        String   @default("PENDING")
+  destination   String
+  description   String?
+  externalId    String?  @map("external_id")
+  errorMessage  String?  @map("error_message")
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("disbursements")
+}

@@ -1,0 +1,32 @@
+id: arrears-triage-002
+scenario: arrears-triage
+title: '45-day arrears, repeat offender (third occurrence this year)'
+context:
+  tenant:
+    id: tnt-002
+    name: 'Peter Otieno'
+    arrears_days: 45
+    history: repeat-offender
+    prior_arrears_count_12mo: 2
+  property:
+    id: prop-002
+    block: 'Block C'
+    unit: '12A'
+  lease:
+    monthly_rent_minor: 120000000
+    currency: TZS
+  events:
+    - {at: '2026-04-01', kind: 'invoice.issued', amount_minor: 120000000}
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 120000000}
+    - {at: '2026-05-10', kind: 'reminder.sent'}
+    - {at: '2026-05-15', kind: 'final_notice.issued'}
+expected_actions:
+  - {tool: 'arrears.draft_demand_letter', severity: 'final-warning'}
+  - {tool: 'arrears.flag_for_legal_review'}
+expected_escalation: true
+expected_escalation_reason: 'repeat offender + >30 days + no response to reminder'
+scorer_weights:
+  action-correctness: 0.4
+  escalation-correctness: 0.3
+  communication-quality: 0.2
+  cost-efficiency: 0.1

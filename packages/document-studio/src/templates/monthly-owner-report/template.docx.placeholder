@@ -1,0 +1,31 @@
+PLACEHOLDER — Binary DOCX template lives in @borjie/document-templates.
+
+The actual `template.docx` is a Carbone Universal Templating Language
+document maintained in a separate, binary-friendly package:
+
+  packages/document-templates/monthly-owner-report/template.docx
+
+That package versions templates independently and is pulled in by
+tenants via pnpm. This placeholder exists so the runtime template
+loader has a stable filesystem path to fall back on while the binary
+asset is sourced separately.
+
+Carbone template tags expected (see ./data-schema.ts for full Zod shape):
+
+  {d.period.start}            ISO date — period start
+  {d.period.end}              ISO date — period end
+  {d.property.name}           string  — property display name
+  {d.property.address}        string  — property street address
+  {d.owner.name}              string  — owner full name
+  {d.owner.currencyPref}      string  — ISO-4217 currency code preferred by owner
+  {d.summary.rentCollected}   number  — gross rent collected in owner currency
+  {d.summary.expenses}        number  — total expenses
+  {d.summary.netOwner}        number  — net amount due to owner
+  {d.units[i].unitNumber}     string  — per-unit ledger rows
+  {d.units[i].tenantName}     string
+  {d.units[i].rentDue}        number
+  {d.units[i].rentPaid}       number
+  {d.narrative}               markdown — AI-synthesised executive summary
+  {d.citations[i].id}         per-claim citation marker
+  {d.citations[i].claim}      claim text
+  {d.citations[i].source.ref} source ref (ledger row, message id, etc.)

@@ -1,0 +1,23 @@
+---
+# Default-deny baseline. Every pod in the borjie namespace
+# starts with NO ingress and NO egress. The subsequent allow
+# manifests open the minimum required paths (kube-dns, intra-
+# namespace service-to-service, mTLS control plane).
+#
+# This single-policy approach is taken from LITFIN
+# k8s/policies/networkpolicy-strict.yaml. See ADR-0009 (composition
+# root wiring) and CLAUDE.md hard rule on RLS FORCE-enabled — same
+# defence-in-depth posture at the cluster layer.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/managed-by: helm
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

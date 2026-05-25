@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-voice-agent
+    newTag: staging
+
+patches:
+  - target:
+      kind: Deployment
+      name: voice-agent
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "150m"
+            memory: "192Mi"
+          limits:
+            cpu: "800m"
+            memory: "768Mi"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: voice-agent
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+  - target:
+      kind: ExternalSecret
+      name: voice-agent-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/voice-agent

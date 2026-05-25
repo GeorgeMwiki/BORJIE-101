@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: borjie-prod
+  labels:
+    app.kubernetes.io/part-of: borjie
+    environment: production
+    # Pod Security Standards — restricted profile (no privileged, runAsNonRoot)
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    borjie.com/managed-by: kustomize
+    borjie.com/runbook: docs/deployment/README.md

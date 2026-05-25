@@ -1,0 +1,15 @@
+id: kra-filing-003
+scenario: kra-filing
+title: 'Zero rental income month (vacant property)'
+context:
+  tenant_owner: {id: own-203, kra_pin: 'P051234569A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  rental_income_minor: 0
+  currency: KES
+  vacancy_reason: 'unit-undergoing-renovation'
+expected_actions:
+  - {tool: 'kra.compute_mri_return'}
+  - {tool: 'kra.file_nil_return', requires_approval: true}
+expected_escalation: true
+expected_escalation_reason: 'kra.file_nil_return is sovereign-tier; needs four-eye approval'
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.3, communication-quality: 0.1, cost-efficiency: 0.1}

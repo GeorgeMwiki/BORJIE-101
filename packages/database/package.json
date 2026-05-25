@@ -1,0 +1,66 @@
+{
+  "name": "@borjie/database",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "Database schemas and repository implementations for BORJIE",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./schemas": {
+      "types": "./src/schemas/index.ts",
+      "import": "./dist/schemas/index.js",
+      "require": "./dist/schemas/index.cjs",
+      "default": "./dist/schemas/index.js"
+    },
+    "./repositories": {
+      "types": "./src/repositories/index.ts",
+      "import": "./dist/repositories/index.js",
+      "require": "./dist/repositories/index.cjs",
+      "default": "./dist/repositories/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/run-migrations.ts",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed:demo": "tsx src/seed.ts",
+    "db:seed": "tsx src/seeds/run-seed.ts",
+    "db:reset": "tsx src/reset-db.ts"
+  },
+  "dependencies": {
+    "@borjie/domain-models": "workspace:*",
+    "bcrypt": "^5.1.1",
+    "drizzle-orm": "^0.45.2",
+    "pino": "^10.3.1",
+    "postgres": "^3.4.9",
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-kms": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-kms": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@aws-sdk/client-kms": "^3.1053.0",
+    "drizzle-kit": "^0.31.10",
+    "tsup": "^8.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "tsx": "^4.7.0"
+  }
+}

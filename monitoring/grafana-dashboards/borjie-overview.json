@@ -1,0 +1,88 @@
+{
+  "annotations": { "list": [] },
+  "description": "BORJIE Platform Overview — consumes /api/v1/metrics",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value" },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        { "expr": "sum(gateway_http_requests_total)", "refId": "A" }
+      ],
+      "title": "Total requests (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "expr": "sum(rate(gateway_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(gateway_http_requests_total[5m])) * 100", "refId": "A" }
+      ],
+      "title": "Error rate %",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        { "expr": "histogram_quantile(0.95, rate(gateway_http_request_duration_ms_bucket[5m]))", "refId": "A" }
+      ],
+      "title": "p95 latency",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        { "expr": "gateway_active_personas", "refId": "A" }
+      ],
+      "title": "Active personas",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        { "expr": "sum(rate(gateway_http_requests_total[5m])) by (route)", "legendFormat": "{{route}}", "refId": "A" }
+      ],
+      "title": "Requests / 5m by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 11,
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(gateway_http_request_duration_ms_bucket[5m])) by (le, route))", "legendFormat": "{{route}}", "refId": "A" }
+      ],
+      "title": "p95 latency by route",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["borjie", "overview"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "BORJIE Overview",
+  "uid": "borjie-overview",
+  "version": 1,
+  "weekStart": ""
+}

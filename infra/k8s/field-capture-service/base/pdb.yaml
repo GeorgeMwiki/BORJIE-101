@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: field-capture-service
+  labels:
+    app.kubernetes.io/name: field-capture-service
+    app.kubernetes.io/part-of: borjie
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: field-capture-service

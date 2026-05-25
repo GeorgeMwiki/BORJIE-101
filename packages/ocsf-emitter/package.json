@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/ocsf-emitter",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "OCSF 1.5 audit emitter for SIEM ingestion. Maps internal audit events to Open Cybersecurity Schema Framework v1.1/1.5 envelopes with redaction; pluggable sink (syslog/HTTP/file). Pure mapping + pure emit (PO-16).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

@@ -1,0 +1,177 @@
+# =============================================================================
+# Redis Sentinel — 3 nodes, quorum=2
+# =============================================================================
+# Sentinels run as a separate StatefulSet so they survive Redis-pod restarts
+# and so app clients can discover the current primary at a stable Service:
+#   redis-sentinel.borjie-data:26379
+#
+# Apps connect via Sentinel-aware client (REDIS_SENTINEL_HOSTS env).
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-sentinel-config
+  namespace: borjie-data
+data:
+  sentinel-bootstrap.sh: |
+    #!/bin/sh
+    set -eu
+    : "${REDIS_PASSWORD:?REDIS_PASSWORD required}"
+    : "${REDIS_SENTINEL_NAME:=borjie-master}"
+
+    SENTINEL_HOST="$HOSTNAME.redis-sentinel-headless.borjie-data.svc.cluster.local"
+
+    cat > /tmp/sentinel.conf <<EOF
+    port 26379
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel announce-ip $SENTINEL_HOST
+    sentinel announce-port 26379
+    requirepass $REDIS_PASSWORD
+    sentinel auth-pass $REDIS_SENTINEL_NAME $REDIS_PASSWORD
+    sentinel monitor $REDIS_SENTINEL_NAME redis-0.redis-headless.borjie-data.svc.cluster.local 6379 2
+    sentinel down-after-milliseconds $REDIS_SENTINEL_NAME 5000
+    sentinel parallel-syncs $REDIS_SENTINEL_NAME 1
+    sentinel failover-timeout $REDIS_SENTINEL_NAME 10000
+    sentinel deny-scripts-reconfig yes
+    logfile ""
+    loglevel notice
+    dir /tmp
+    EOF
+
+    exec redis-server /tmp/sentinel.conf --sentinel
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: redis-sentinel
+spec:
+  selector:
+    app.kubernetes.io/name: redis-sentinel
+  ports:
+    - name: sentinel
+      port: 26379
+      targetPort: 26379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-headless
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: redis-sentinel
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis-sentinel
+  ports:
+    - name: sentinel
+      port: 26379
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-sentinel
+  namespace: borjie-data
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-sentinel
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: redis-sentinel
+spec:
+  serviceName: redis-sentinel-headless
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-sentinel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis-sentinel
+        app.kubernetes.io/component: sentinel
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis-sentinel
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999          # redis:7.2-alpine ships UID 999 for the `redis` user
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sentinel
+          image: redis:7.2-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/etc/redis/sentinel-bootstrap.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-ha-credentials
+                  key: REDIS_PASSWORD
+            - name: REDIS_SENTINEL_NAME
+              value: borjie-master
+          ports:
+            - containerPort: 26379
+              name: sentinel
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -p 26379 --no-auth-warning -a "$REDIS_PASSWORD" ping
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -p 26379 --no-auth-warning -a "$REDIS_PASSWORD" ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: cfg
+              mountPath: /etc/redis
+              readOnly: true
+      volumes:
+        - name: cfg
+          configMap:
+            name: redis-sentinel-config
+            defaultMode: 0755

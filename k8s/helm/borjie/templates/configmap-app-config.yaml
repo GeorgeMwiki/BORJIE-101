@@ -1,0 +1,45 @@
+# Non-secret runtime config shared by all 8 workloads. Every deployment
+# mounts this via `envFrom.configMapRef: { name: app-config }`.
+#
+# Secrets (DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, payment provider
+# keys etc.) live in External Secrets — see secrets-external.yaml.
+#
+# Any change here triggers a pod restart via the rollout-restart
+# annotation on Deployments (checksum/config sha256 of this file).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  {{- range $k, $v := .Values.appConfig }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+  # ── Derived: cluster-internal service URLs (frontend ↔ gateway) ──
+  API_GATEWAY_URL: {{ printf "http://%s.%s.svc.cluster.local:%d" .Values.services.apiGateway.name .Release.Namespace (int .Values.services.apiGateway.port) | quote }}
+  PAYMENTS_LEDGER_URL: {{ printf "http://%s.%s.svc.cluster.local:%d" .Values.services.paymentsLedger.name .Release.Namespace (int .Values.services.paymentsLedger.port) | quote }}
+  REPORTS_URL: {{ printf "http://%s.%s.svc.cluster.local:%d" .Values.services.reports.name .Release.Namespace (int .Values.services.reports.port) | quote }}
+  NOTIFICATIONS_URL: {{ printf "http://%s.%s.svc.cluster.local:%d" .Values.services.notifications.name .Release.Namespace (int .Values.services.notifications.port) | quote }}
+  # Public frontend hosts (used by api-gateway for CORS allowlist).
+  PUBLIC_HOST_CUSTOMER: {{ .Values.hosts.customerApp | quote }}
+  PUBLIC_HOST_MANAGER: {{ .Values.hosts.estateManagerApp | quote }}
+  PUBLIC_HOST_OWNER: {{ .Values.hosts.ownerPortal | quote }}
+  PUBLIC_HOST_ADMIN: {{ .Values.hosts.adminPlatformPortal | quote }}
+  # Postgres / Redis service hints (DATABASE_URL still comes from secret).
+  {{- if and .Values.postgres.enabled (not .Values.postgres.external.enabled) }}
+  POSTGRES_HOST: {{ printf "postgres.%s.svc.cluster.local" .Release.Namespace | quote }}
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: borjie
+  {{- end }}
+  {{- if and .Values.redis.enabled (not .Values.redis.external.enabled) }}
+  REDIS_HOST: {{ printf "redis.%s.svc.cluster.local" .Release.Namespace | quote }}
+  REDIS_PORT: "6379"
+  {{- end }}
+  # Helm release metadata — useful for log enrichment.
+  HELM_RELEASE_NAME: {{ .Release.Name | quote }}
+  HELM_RELEASE_NAMESPACE: {{ .Release.Namespace | quote }}
+  HELM_CHART_VERSION: {{ .Chart.Version | quote }}
+  HELM_APP_VERSION: {{ .Chart.AppVersion | quote }}

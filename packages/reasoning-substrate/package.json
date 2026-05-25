@@ -1,0 +1,63 @@
+{
+  "name": "@borjie/reasoning-substrate",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Phase M-A reasoning substrate for BORJIE MD: adaptive thinking + interleaved tool use, Plan-and-Solve+ skeleton, Self-Discover task-class structures cached in TemporalKG, and thinking-block continuity validation. Pure-TS, provider-agnostic.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./adaptive-thinking": {
+      "types": "./dist/adaptive-thinking/index.d.ts",
+      "import": "./dist/adaptive-thinking/index.js",
+      "default": "./dist/adaptive-thinking/index.js"
+    },
+    "./plan-and-solve": {
+      "types": "./dist/plan-and-solve/index.d.ts",
+      "import": "./dist/plan-and-solve/index.js",
+      "default": "./dist/plan-and-solve/index.js"
+    },
+    "./self-discover": {
+      "types": "./dist/self-discover/index.d.ts",
+      "import": "./dist/self-discover/index.js",
+      "default": "./dist/self-discover/index.js"
+    },
+    "./continuity": {
+      "types": "./dist/continuity/index.d.ts",
+      "import": "./dist/continuity/index.js",
+      "default": "./dist/continuity/index.js"
+    },
+    "./integrations": {
+      "types": "./dist/integrations/index.d.ts",
+      "import": "./dist/integrations/index.js",
+      "default": "./dist/integrations/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.97.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
+  }
+}

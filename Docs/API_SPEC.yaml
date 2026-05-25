@@ -1,0 +1,2867 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Property Management API
+  description: |
+    Comprehensive REST API for the BORJIE multi-tenant property management SaaS platform.
+    
+    ## Authentication
+    All endpoints (except `/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/demo-users`,
+    and `/payments/mpesa/callback`) require a valid JWT Bearer token in the `Authorization` header.
+    
+    ## Multi-Tenancy
+    All data is scoped to the authenticated user's tenant. The tenant context is derived from the JWT token.
+    
+    ## Pagination
+    List endpoints support pagination via `page` and `pageSize` query parameters.
+    Responses include a `pagination` object with `page`, `pageSize`, `totalItems`, `totalPages`,
+    `hasNextPage`, and `hasPreviousPage` fields.
+    
+    ## Error Handling
+    All errors follow a consistent format:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human-readable description"
+      }
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: BORJIE Engineering
+    email: engineering@borjie.com
+  license:
+    name: Proprietary
+    url: https://borjie.com/terms
+
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local development
+  - url: https://api.borjie.com/api/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication, registration, and session management
+  - name: Tenants
+    description: Tenant (organization) management and settings
+  - name: Properties
+    description: Property CRUD and statistics
+  - name: Units
+    description: Unit CRUD within properties
+  - name: Customers
+    description: Customer (resident/tenant) management and KYC
+  - name: Leases
+    description: Lease lifecycle management
+  - name: Invoices
+    description: Invoice generation and management
+  - name: Payments
+    description: Payment recording, M-Pesa integration, and refunds
+  - name: Work Orders
+    description: Maintenance work order management
+  - name: Vendors
+    description: Vendor management for maintenance
+  - name: Notifications
+    description: Notification sending and management
+  - name: Reports
+    description: Financial, occupancy, and maintenance reports
+  - name: Feedback
+    description: User feedback and complaint management
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ===========================================================================
+  # AUTH ENDPOINTS
+  # ===========================================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      security: []
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (client-side token invalidation)
+      operationId: authLogout
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user (self-signup)
+      security: []
+      operationId: authRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh JWT token
+      operationId: authRefresh
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      operationId: authMe
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      operationId: authChangePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      security: []
+      operationId: authForgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/demo-users:
+    get:
+      tags: [Auth]
+      summary: Get demo user credentials (dev only)
+      security: []
+      operationId: authDemoUsers
+      responses:
+        '200':
+          description: List of demo users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        password:
+                          type: string
+                        name:
+                          type: string
+                        role:
+                          type: string
+
+  # ===========================================================================
+  # TENANT ENDPOINTS
+  # ===========================================================================
+  /tenants/current:
+    get:
+      tags: [Tenants]
+      summary: Get current tenant details
+      operationId: getTenant
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Tenants]
+      summary: Update current tenant
+      operationId: updateTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                address:
+                  type: string
+      responses:
+        '200':
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /tenants/current/settings:
+    get:
+      tags: [Tenants]
+      summary: Get tenant settings
+      operationId: getTenantSettings
+      responses:
+        '200':
+          description: Tenant settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    patch:
+      tags: [Tenants]
+      summary: Update tenant settings
+      operationId: updateTenantSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /tenants/current/subscription:
+    get:
+      tags: [Tenants]
+      summary: Get subscription info
+      operationId: getTenantSubscription
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ===========================================================================
+  # PROPERTY ENDPOINTS
+  # ===========================================================================
+  /properties:
+    get:
+      tags: [Properties]
+      summary: List properties
+      operationId: listProperties
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, MAINTENANCE]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [APARTMENT, COMMERCIAL, HOUSE, MIXED_USE]
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, createdAt, updatedAt, city, status]
+            default: name
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Properties]
+      summary: Create a property
+      operationId: createProperty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePropertyRequest'
+      responses:
+        '201':
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /properties/{id}:
+    get:
+      tags: [Properties]
+      summary: Get property by ID
+      operationId: getProperty
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Property details with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Properties]
+      summary: Update property
+      operationId: updateProperty
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePropertyRequest'
+      responses:
+        '200':
+          description: Property updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Properties]
+      summary: Soft-delete property
+      operationId: deleteProperty
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Property deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /properties/{id}/units:
+    get:
+      tags: [Properties]
+      summary: List units for a property
+      operationId: listPropertyUnits
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE]
+      responses:
+        '200':
+          description: List of units
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /properties/{id}/stats:
+    get:
+      tags: [Properties]
+      summary: Get property statistics (occupancy, revenue)
+      operationId: getPropertyStats
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Property statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PropertyStats'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /properties/{id}/manager:
+    put:
+      tags: [Properties]
+      summary: Assign or unassign manager to property
+      operationId: assignPropertyManager
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [managerId]
+              properties:
+                managerId:
+                  type: string
+                  nullable: true
+                  description: User ID of manager, or null to unassign
+      responses:
+        '200':
+          description: Manager assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===========================================================================
+  # UNIT ENDPOINTS
+  # ===========================================================================
+  /units:
+    get:
+      tags: [Units]
+      summary: List all units
+      operationId: listUnits
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE]
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [unitNumber, floor, rentAmount, status, createdAt]
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: List of units
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Units]
+      summary: Create a unit
+      operationId: createUnit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        '201':
+          description: Unit created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Duplicate unit number in property
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /units/{id}:
+    get:
+      tags: [Units]
+      summary: Get unit by ID (includes current lease/tenant)
+      operationId: getUnit
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Unit details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Units]
+      summary: Update unit
+      operationId: updateUnit
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUnitRequest'
+      responses:
+        '200':
+          description: Unit updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Units]
+      summary: Soft-delete unit
+      operationId: deleteUnit
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Unit deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /units/{id}/status:
+    put:
+      tags: [Units]
+      summary: Update unit status
+      operationId: updateUnitStatus
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE]
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ===========================================================================
+  # CUSTOMER ENDPOINTS
+  # ===========================================================================
+  /customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      operationId: listCustomers
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, VERIFIED, REJECTED]
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Customers]
+      summary: Create a customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer by ID (includes leases, current unit)
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Customers]
+      summary: Update customer profile
+      operationId: updateCustomer
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Customers]
+      summary: Soft-delete customer
+      operationId: deleteCustomer
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Customer deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /customers/{id}/leases:
+    get:
+      tags: [Customers]
+      summary: Get customer leases
+      operationId: getCustomerLeases
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Customer leases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /customers/{id}/payments:
+    get:
+      tags: [Customers]
+      summary: Get customer payment history
+      operationId: getCustomerPayments
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Customer payments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /customers/{id}/kyc:
+    put:
+      tags: [Customers]
+      summary: Update customer KYC status
+      operationId: updateCustomerKyc
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, VERIFIED, REJECTED]
+      responses:
+        '200':
+          description: KYC status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /customers/{id}/blacklist:
+    put:
+      tags: [Customers]
+      summary: Blacklist a customer
+      operationId: blacklistCustomer
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Customer blacklisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ===========================================================================
+  # LEASE ENDPOINTS
+  # ===========================================================================
+  /leases:
+    get:
+      tags: [Leases]
+      summary: List leases
+      operationId: listLeases
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, ACTIVE, EXPIRED, TERMINATED]
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of leases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Leases]
+      summary: Create a lease (draft)
+      operationId: createLease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeaseRequest'
+      responses:
+        '201':
+          description: Lease created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/expiring:
+    get:
+      tags: [Leases]
+      summary: Get leases expiring soon
+      operationId: getExpiringLeases
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: days
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: Expiring leases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /leases/{id}:
+    get:
+      tags: [Leases]
+      summary: Get lease by ID (includes unit, customer, property)
+      operationId: getLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Lease details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Leases]
+      summary: Update lease terms (draft only)
+      operationId: updateLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLeaseRequest'
+      responses:
+        '200':
+          description: Lease updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Only draft leases can be updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Leases]
+      summary: Cancel lease
+      operationId: cancelLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Lease cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /leases/{id}/activate:
+    post:
+      tags: [Leases]
+      summary: Activate a draft lease
+      operationId: activateLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Lease activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Only draft leases can be activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /leases/{id}/terminate:
+    post:
+      tags: [Leases]
+      summary: Terminate an active lease
+      operationId: terminateLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Lease terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leases/{id}/renew:
+    post:
+      tags: [Leases]
+      summary: Renew an active or expired lease
+      operationId: renewLease
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newEndDate:
+                  type: string
+                  format: date
+                extendMonths:
+                  type: integer
+                newRentAmount:
+                  type: number
+      responses:
+        '201':
+          description: Renewed lease created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /leases/{id}/invoices:
+    get:
+      tags: [Leases]
+      summary: Get invoices for a lease
+      operationId: getLeaseInvoices
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Lease invoices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  # ===========================================================================
+  # INVOICE ENDPOINTS
+  # ===========================================================================
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      operationId: listInvoices
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, SENT, PAID, PARTIALLY_PAID, OVERDUE, CANCELLED]
+        - name: customerId
+          in: query
+          schema:
+            type: string
+        - name: leaseId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Invoices]
+      summary: Create an invoice
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /invoices/overdue:
+    get:
+      tags: [Invoices]
+      summary: Get overdue invoices
+      operationId: getOverdueInvoices
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Overdue invoices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /invoices/{id}:
+    get:
+      tags: [Invoices]
+      summary: Get invoice by ID
+      operationId: getInvoice
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Invoices]
+      summary: Update invoice (draft only)
+      operationId: updateInvoice
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInvoiceRequest'
+      responses:
+        '200':
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Only draft invoices can be updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Invoices]
+      summary: Cancel invoice
+      operationId: cancelInvoice
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Invoice cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Paid invoices cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /invoices/{id}/pdf:
+    get:
+      tags: [Invoices]
+      summary: Generate invoice PDF
+      operationId: getInvoicePdf
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - name: download
+          in: query
+          schema:
+            type: string
+            enum: ['0', '1']
+      responses:
+        '200':
+          description: PDF metadata or binary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invoices/{id}/send:
+    post:
+      tags: [Invoices]
+      summary: Send invoice to customer
+      operationId: sendInvoice
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  enum: [email, sms, both]
+                  default: email
+                customMessage:
+                  type: string
+      responses:
+        '200':
+          description: Invoice sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ===========================================================================
+  # PAYMENT ENDPOINTS
+  # ===========================================================================
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      operationId: listPayments
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, COMPLETED, FAILED, REFUNDED]
+        - name: method
+          in: query
+          schema:
+            type: string
+            enum: [MPESA, BANK_TRANSFER, CASH, CARD]
+        - name: customerId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Payments]
+      summary: Record a manual payment
+      operationId: recordPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payments/mpesa:
+    post:
+      tags: [Payments]
+      summary: Initiate M-Pesa STK push payment
+      operationId: initiateMpesaPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MpesaPaymentRequest'
+      responses:
+        '202':
+          description: STK push initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      checkoutRequestId:
+                        type: string
+                      paymentId:
+                        type: string
+                      status:
+                        type: string
+                      message:
+                        type: string
+
+  /payments/mpesa/callback:
+    post:
+      tags: [Payments]
+      summary: M-Pesa Daraja STK callback webhook
+      security: []
+      operationId: mpesaCallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: M-Pesa callback payload
+      responses:
+        '200':
+          description: Callback processed
+        '401':
+          description: Invalid webhook signature
+
+  /payments/reconciliation:
+    get:
+      tags: [Payments]
+      summary: Get unreconciled payments
+      operationId: getReconciliation
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: reconciled
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Reconciliation data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Get payment by ID
+      operationId: getPayment
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/{id}/receipt:
+    get:
+      tags: [Payments]
+      summary: Get payment receipt
+      operationId: getPaymentReceipt
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Payment receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /payments/{id}/refund:
+    post:
+      tags: [Payments]
+      summary: Process a refund
+      operationId: refundPayment
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                amount:
+                  type: number
+                  description: Partial refund amount (defaults to full amount)
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Refund processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Only completed payments can be refunded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===========================================================================
+  # WORK ORDER ENDPOINTS
+  # ===========================================================================
+  /work-orders:
+    get:
+      tags: [Work Orders]
+      summary: List work orders
+      operationId: listWorkOrders
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [SUBMITTED, TRIAGED, APPROVED, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, EMERGENCY]
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [PLUMBING, ELECTRICAL, HVAC, STRUCTURAL, OTHER]
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of work orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /work-orders/{id}:
+    get:
+      tags: [Work Orders]
+      summary: Get work order by ID
+      operationId: getWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Work order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /work-orders/stats/summary:
+    get:
+      tags: [Work Orders]
+      summary: Get work order statistics
+      operationId: getWorkOrderStats
+      responses:
+        '200':
+          description: Work order statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/WorkOrderStats'
+
+  # ===========================================================================
+  # VENDOR ENDPOINTS
+  # ===========================================================================
+  /vendors:
+    get:
+      tags: [Vendors]
+      summary: List vendors
+      operationId: listVendors
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: available
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of vendors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Vendors]
+      summary: Create a vendor
+      operationId: createVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVendorRequest'
+      responses:
+        '201':
+          description: Vendor created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '409':
+          description: Duplicate vendor email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /vendors/available:
+    get:
+      tags: [Vendors]
+      summary: Get available vendors by category
+      operationId: getAvailableVendors
+      parameters:
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available vendors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /vendors/{id}:
+    get:
+      tags: [Vendors]
+      summary: Get vendor by ID
+      operationId: getVendor
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Vendor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Vendors]
+      summary: Update vendor
+      operationId: updateVendor
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorRequest'
+      responses:
+        '200':
+          description: Vendor updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Vendors]
+      summary: Soft-delete vendor
+      operationId: deleteVendor
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Vendor deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  # ===========================================================================
+  # NOTIFICATION ENDPOINTS
+  # ===========================================================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List user notifications
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: read
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /notifications/send:
+    post:
+      tags: [Notifications]
+      summary: Send a notification
+      operationId: sendNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendNotificationRequest'
+      responses:
+        '201':
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/bulk:
+    post:
+      tags: [Notifications]
+      summary: Send bulk notifications
+      operationId: sendBulkNotifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkNotificationRequest'
+      responses:
+        '201':
+          description: Notifications queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/templates:
+    get:
+      tags: [Notifications]
+      summary: List notification templates
+      operationId: listNotificationTemplates
+      responses:
+        '200':
+          description: Available templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ===========================================================================
+  # REPORT ENDPOINTS
+  # ===========================================================================
+  /reports/financial:
+    get:
+      tags: [Reports]
+      summary: Financial summary report
+      operationId: getFinancialReport
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Financial report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /reports/occupancy:
+    get:
+      tags: [Reports]
+      summary: Occupancy report
+      operationId: getOccupancyReport
+      responses:
+        '200':
+          description: Occupancy report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /reports/maintenance:
+    get:
+      tags: [Reports]
+      summary: Maintenance report
+      operationId: getMaintenanceReport
+      responses:
+        '200':
+          description: Maintenance report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /reports/statements:
+    get:
+      tags: [Reports]
+      summary: Generate owner statement
+      operationId: getOwnerStatement
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [current_month, last_month, last_quarter, last_year]
+            default: current_month
+      responses:
+        '200':
+          description: Owner statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /reports/export/{type}:
+    get:
+      tags: [Reports]
+      summary: Export report as CSV/PDF
+      operationId: exportReport
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [financial, occupancy, maintenance]
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, pdf]
+            default: csv
+      responses:
+        '200':
+          description: Report download URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      downloadUrl:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+
+  # ===========================================================================
+  # FEEDBACK ENDPOINTS
+  # ===========================================================================
+  /feedback:
+    get:
+      tags: [Feedback]
+      summary: List feedback
+      operationId: listFeedback
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [general, bug, feature, improvement]
+      responses:
+        '200':
+          description: List of feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+    post:
+      tags: [Feedback]
+      summary: Submit feedback
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitFeedbackRequest'
+      responses:
+        '201':
+          description: Feedback submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /feedback/{id}:
+    get:
+      tags: [Feedback]
+      summary: Get feedback by ID
+      operationId: getFeedback
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Feedback details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /feedback/complaints:
+    post:
+      tags: [Feedback]
+      summary: Create a complaint
+      operationId: createComplaint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComplaintRequest'
+      responses:
+        '201':
+          description: Complaint created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /feedback/complaints/{id}:
+    get:
+      tags: [Feedback]
+      summary: Get complaint by ID
+      operationId: getComplaint
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Complaint details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /feedback/complaints/{id}/resolve:
+    put:
+      tags: [Feedback]
+      summary: Resolve a complaint
+      operationId: resolveComplaint
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution]
+              properties:
+                resolution:
+                  type: string
+                resolutionNotes:
+                  type: string
+      responses:
+        '200':
+          description: Complaint resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+# =============================================================================
+# COMPONENTS
+# =============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from POST /auth/login.
+        Include as: `Authorization: Bearer <token>`
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Resource unique identifier
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-indexed)
+
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: Items per page
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: FORBIDDEN
+              message: Access denied
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or expired token
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                  details:
+                    type: object
+
+  schemas:
+    # =========================================================================
+    # Common schemas
+    # =========================================================================
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+              example: Resource not found
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+
+    PaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+
+    # =========================================================================
+    # Auth schemas
+    # =========================================================================
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: owner@borjie.com
+        password:
+          type: string
+          format: password
+          example: demo123
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT token
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                email:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                avatarUrl:
+                  type: string
+                role:
+                  type: string
+                tenantId:
+                  type: string
+            tenant:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                slug:
+                  type: string
+            role:
+              type: string
+              enum: [SUPER_ADMIN, ADMIN, SUPPORT, TENANT_ADMIN, PROPERTY_MANAGER, ACCOUNTANT, MAINTENANCE_STAFF, OWNER, RESIDENT]
+            permissions:
+              type: array
+              items:
+                type: string
+            expiresAt:
+              type: string
+              format: date-time
+
+    RefreshResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+            expiresAt:
+              type: string
+              format: date-time
+
+    MeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: string
+                email:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                avatarUrl:
+                  type: string
+            tenant:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                slug:
+                  type: string
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+
+    # =========================================================================
+    # Property schemas
+    # =========================================================================
+    CreatePropertyRequest:
+      type: object
+      required: [name, type, address]
+      properties:
+        name:
+          type: string
+          example: Sunrise Apartments
+        type:
+          type: string
+          enum: [APARTMENT, COMMERCIAL, HOUSE, MIXED_USE]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          default: ACTIVE
+        description:
+          type: string
+        address:
+          type: object
+          required: [line1, city]
+          properties:
+            line1:
+              type: string
+            line2:
+              type: string
+            city:
+              type: string
+            region:
+              type: string
+            country:
+              type: string
+              default: KE
+            coordinates:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            type: string
+        managerId:
+          type: string
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        settings:
+          type: object
+
+    UpdatePropertyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        description:
+          type: string
+        address:
+          type: object
+          properties:
+            line1:
+              type: string
+            line2:
+              type: string
+            city:
+              type: string
+            region:
+              type: string
+            country:
+              type: string
+        amenities:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            type: string
+        managerId:
+          type: string
+
+    PropertyStats:
+      type: object
+      properties:
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        availableUnits:
+          type: integer
+        maintenanceUnits:
+          type: integer
+        reservedUnits:
+          type: integer
+        occupancyRate:
+          type: number
+          format: float
+        expectedMonthlyRevenue:
+          type: number
+        totalPotentialRent:
+          type: number
+        actualRevenue:
+          type: number
+
+    # =========================================================================
+    # Unit schemas
+    # =========================================================================
+    CreateUnitRequest:
+      type: object
+      required: [propertyId, unitNumber, rentAmount]
+      properties:
+        propertyId:
+          type: string
+        unitNumber:
+          type: string
+          example: A101
+        floor:
+          type: integer
+        type:
+          type: string
+          enum: [STUDIO, ONE_BEDROOM, TWO_BEDROOM, THREE_BEDROOM, PENTHOUSE, OFFICE, SHOP]
+        status:
+          type: string
+          enum: [AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE]
+          default: AVAILABLE
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: number
+        squareMeters:
+          type: number
+        rentAmount:
+          type: number
+        depositAmount:
+          type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            type: string
+
+    UpdateUnitRequest:
+      type: object
+      properties:
+        unitNumber:
+          type: string
+        floor:
+          type: integer
+        type:
+          type: string
+        status:
+          type: string
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: number
+        squareMeters:
+          type: number
+        rentAmount:
+          type: number
+        depositAmount:
+          type: number
+        amenities:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            type: string
+
+    # =========================================================================
+    # Customer schemas
+    # =========================================================================
+    CreateCustomerRequest:
+      type: object
+      required: [firstName, lastName, email, phone]
+      properties:
+        type:
+          type: string
+          enum: [INDIVIDUAL, COMPANY]
+          default: INDIVIDUAL
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        idNumber:
+          type: string
+        idType:
+          type: string
+          enum: [NATIONAL_ID, PASSPORT, DRIVERS_LICENSE]
+        companyName:
+          type: string
+        companyRegNumber:
+          type: string
+        preferences:
+          type: object
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        preferences:
+          type: object
+
+    # =========================================================================
+    # Lease schemas
+    # =========================================================================
+    CreateLeaseRequest:
+      type: object
+      required: [unitId, customerId, startDate, endDate, rentAmount]
+      properties:
+        unitId:
+          type: string
+        customerId:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        rentAmount:
+          type: number
+        depositAmount:
+          type: number
+        paymentDueDay:
+          type: integer
+          minimum: 1
+          maximum: 28
+          default: 5
+        terms:
+          type: object
+          properties:
+            gracePeriodDays:
+              type: integer
+            noticePeriodDays:
+              type: integer
+            allowPets:
+              type: boolean
+            allowSubletting:
+              type: boolean
+            utilitiesIncluded:
+              type: array
+              items:
+                type: string
+
+    UpdateLeaseRequest:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        rentAmount:
+          type: number
+        depositAmount:
+          type: number
+        paymentDueDay:
+          type: integer
+        terms:
+          type: object
+
+    # =========================================================================
+    # Invoice schemas
+    # =========================================================================
+    CreateInvoiceRequest:
+      type: object
+      required: [customerId, dueDate, lineItems]
+      properties:
+        customerId:
+          type: string
+        leaseId:
+          type: string
+        type:
+          type: string
+          enum: [RENT, UTILITY, SERVICE_CHARGE, COMBINED]
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        subtotal:
+          type: number
+        tax:
+          type: number
+        currency:
+          type: string
+          default: KES
+        lineItems:
+          type: array
+          items:
+            type: object
+            required: [description, amount, total]
+            properties:
+              description:
+                type: string
+              quantity:
+                type: number
+              unitPrice:
+                type: number
+              amount:
+                type: number
+              total:
+                type: number
+
+    UpdateInvoiceRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+        leaseId:
+          type: string
+        type:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        subtotal:
+          type: number
+        tax:
+          type: number
+        lineItems:
+          type: array
+          items:
+            type: object
+
+    # =========================================================================
+    # Payment schemas
+    # =========================================================================
+    CreatePaymentRequest:
+      type: object
+      required: [invoiceId, customerId, amount, currency, method]
+      properties:
+        invoiceId:
+          type: string
+        customerId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          default: KES
+        method:
+          type: string
+          enum: [MPESA, BANK_TRANSFER, CASH, CARD]
+        reference:
+          type: string
+
+    MpesaPaymentRequest:
+      type: object
+      required: [invoiceId, customerId, amount, phoneNumber]
+      properties:
+        invoiceId:
+          type: string
+        customerId:
+          type: string
+        amount:
+          type: number
+        phoneNumber:
+          type: string
+          description: M-Pesa registered phone number (e.g. +254712345678)
+
+    # =========================================================================
+    # Vendor schemas
+    # =========================================================================
+    CreateVendorRequest:
+      type: object
+      required: [name, email, phone, categories]
+      properties:
+        name:
+          type: string
+        companyName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+          description: Service categories (e.g. plumbing, electrical)
+        isAvailable:
+          type: boolean
+          default: true
+
+    UpdateVendorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        companyName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        isAvailable:
+          type: boolean
+
+    # =========================================================================
+    # Notification schemas
+    # =========================================================================
+    SendNotificationRequest:
+      type: object
+      required: [channel, body]
+      properties:
+        userId:
+          type: string
+        channel:
+          type: string
+          enum: [email, sms, push, in_app]
+        templateId:
+          type: string
+        subject:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        data:
+          type: object
+
+    BulkNotificationRequest:
+      type: object
+      required: [userIds, channel, body]
+      properties:
+        userIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        channel:
+          type: string
+          enum: [email, sms, push, in_app]
+        templateId:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+
+    # =========================================================================
+    # Feedback schemas
+    # =========================================================================
+    SubmitFeedbackRequest:
+      type: object
+      required: [type, subject, message]
+      properties:
+        type:
+          type: string
+          enum: [general, bug, feature, improvement]
+        subject:
+          type: string
+          maxLength: 200
+        message:
+          type: string
+          maxLength: 5000
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        context:
+          type: object
+
+    CreateComplaintRequest:
+      type: object
+      required: [subject, description]
+      properties:
+        subject:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        category:
+          type: string
+          enum: [maintenance, neighbor, payment, lease, other]
+        relatedEntityType:
+          type: string
+        relatedEntityId:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          default: medium
+
+    # =========================================================================
+    # Work Order schemas
+    # =========================================================================
+    WorkOrderStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          properties:
+            submitted:
+              type: integer
+            triaged:
+              type: integer
+            approved:
+              type: integer
+            assigned:
+              type: integer
+            inProgress:
+              type: integer
+            completed:
+              type: integer
+            cancelled:
+              type: integer
+        byPriority:
+          type: object
+          properties:
+            low:
+              type: integer
+            medium:
+              type: integer
+            high:
+              type: integer
+            emergency:
+              type: integer
+        byCategory:
+          type: object
+          properties:
+            plumbing:
+              type: integer
+            electrical:
+              type: integer
+            hvac:
+              type: integer
+            structural:
+              type: integer
+            other:
+              type: integer

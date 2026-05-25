@@ -1,0 +1,106 @@
+# =============================================================================
+# Wake-loop CronJob (K7 parity-litfin Gap H)
+# =============================================================================
+# Kubernetes CronJob that invokes the kernel agency `runWakeCycle` across
+# every active tenant. Complements the in-process supervisor wired into
+# the api-gateway (services/api-gateway/src/composition/wake-loop-cron.ts):
+# the in-process supervisor is preferred for HA replica deployments
+# (cluster-wide pg advisory lock guarantees at-most-one cycle); this
+# CronJob is the explicit external invoker for operators who prefer
+# fully-scheduled control or who run the gateway as a single replica
+# without the in-process ticker.
+#
+# Both paths share the same advisory-lock key (WAKE_LOCK_ID) so they
+# never overlap. The in-process supervisor + this CronJob can coexist
+# safely.
+#
+# Idempotency: pg_try_advisory_lock returns false when another process
+# (or another tick) is mid-cycle, and the supervisor exits cleanly as
+# a no-op.
+#
+# Tenant cadence rationale (property-management horizons):
+#   - lease renewal:    30d → 15-min cadence keeps reminders fresh
+#   - maintenance SLA:   7d → 15-min cadence detects fresh work-orders
+#   - arrears chase:    14d → 15-min cadence sends first reminder w/in 1h
+#
+# Apply: kubectl apply -f k8s/wake-loop-cron.yaml
+#   (or wire into the Helm chart by moving to k8s/templates/ — the
+#    helm chart's _helpers.tpl provides borjie.fullname /
+#    borjie.labels which this manifest does not reach.)
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: borjie-wake-loop
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: wake-loop-cron
+    app.kubernetes.io/part-of: borjie
+spec:
+  # Default cadence: every 15 minutes. Operators tune for higher-touch
+  # arrears / vacancy detection by lowering to */5 or */10.
+  schedule: "*/15 * * * *"
+  # The advisory-lock acquire in the supervisor makes overlapping ticks
+  # safe; we still set concurrencyPolicy=Forbid so kube-controller-manager
+  # will not stack runs when a cycle overruns the cadence.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: borjie
+            app.kubernetes.io/component: wake-loop-cron
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+            - name: wake-loop
+              # Reuses the api-gateway image which already carries the
+              # full workspace (packages/ + node_modules/ with tsx) per
+              # docker/Dockerfile.api.
+              image: ghcr.io/georgemwikila/borjie/api-gateway:latest
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              # The wake-loop-cron module ships a CLI guard at the
+              # bottom of the file: importing it directly runs a single
+              # tick via runFromEnv() and exits. The CronJob schedule
+              # governs cadence; WAKE_LOOP_INTERVAL_MS=0 tells the
+              # supervisor to skip its in-process setInterval and behave
+              # as a one-shot, which is exactly what we want here.
+              command:
+                - "node_modules/.bin/tsx"
+                - "services/api-gateway/src/composition/wake-loop-cron.ts"
+              workingDir: /app
+              env:
+                - name: NODE_ENV
+                  value: "production"
+                - name: WAKE_LOOP_INTERVAL_MS
+                  # CLI mode — single tick, exits.
+                  value: "0"
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: borjie-secrets
+                      key: DATABASE_URL
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi

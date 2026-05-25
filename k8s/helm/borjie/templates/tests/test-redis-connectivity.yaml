@@ -1,0 +1,42 @@
+{{- if and .Values.redis.enabled (not .Values.redis.external.enabled) -}}
+# Helm test: verify Redis is reachable and accepts PING.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-redis"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- include "borjie.podSecurityContext" . | nindent 4 }}
+  containers:
+    - name: redis-test
+      image: "redis:7.4-alpine"
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -euo pipefail
+          echo "==> pinging redis.{{ .Release.Namespace }}.svc.cluster.local:6379"
+          for i in $(seq 1 30); do
+            if redis-cli -h redis.{{ .Release.Namespace }}.svc.cluster.local -p 6379 PING | grep -q PONG; then
+              echo "==> redis OK"
+              exit 0
+            fi
+            echo "  attempt $i: not ready, sleeping 1s"
+            sleep 1
+          done
+          echo "FAIL: redis did not respond within 30s"
+          exit 1
+      resources:
+        requests: { cpu: 50m, memory: 32Mi }
+        limits:   { cpu: 100m, memory: 64Mi }
+      securityContext:
+        {{- include "borjie.containerSecurityContext" . | nindent 8 }}
+{{- end }}

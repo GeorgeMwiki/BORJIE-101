@@ -1,0 +1,69 @@
+# =============================================================================
+# mcp-server-process-intel — default-deny + targeted egress allow-list
+# =============================================================================
+# pm4py runs entirely in-process (Python sidecar via stdin/stdout); no
+# external network is required for the miner itself. Egress only covers
+# observability.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-process-intel-default-deny
+  labels:
+    app.kubernetes.io/name: mcp-server-process-intel
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-process-intel
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-process-intel-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-process-intel
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-process-intel
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-process-intel-allow-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-process-intel
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-process-intel
+  policyTypes: [Egress]
+  egress:
+    # Observability only — pm4py is fully offline; no external HTTPS.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

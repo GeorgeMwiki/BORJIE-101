@@ -1,0 +1,80 @@
+# =============================================================================
+# Orchestrator-eval — Wave-K parity-litfin
+# =============================================================================
+# Companion to `kernel-eval.yml`. Where that workflow runs the 222 kernel
+# scenarios through `composeSovereign()`, this one runs the 87 ORCHESTRATOR
+# scenarios (`packages/ai-copilot/src/eval/{golden-scenarios,
+# scenarios-extended}.ts`) through the Brain orchestrator's intent-router
+# + handoff bounding + tool-dispatcher state machine.
+#
+# Two modes (driven by `ANTHROPIC_API_KEY` presence — see run-eval.ts):
+#   - mock (default in CI): the orchestrator state machine must not crash;
+#     content assertions (PROPOSED_ACTION, handoff target, tool calls) are
+#     ignored because the mock provider emits static JSON. Free, fast.
+#   - live: every structural assertion must pass. Strict.
+#
+# The mock-mode gate matches LITFIN's per-PR posture — CI flags a
+# regression the moment the orchestrator throws on a scenario it used
+# to handle. Live-mode enforcement runs on `workflow_dispatch` so we
+# can spend Anthropic budget intentionally.
+# =============================================================================
+
+name: Orchestrator Eval
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      live_mode:
+        description: 'Run the orchestrator suite against the real Anthropic API (cost!)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  orchestrator-eval:
+    name: Orchestrator Eval (87 scenarios)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build ai-copilot package
+        run: pnpm -C packages/ai-copilot build || true
+
+      - name: Run orchestrator eval suite (mock)
+        if: github.event_name != 'workflow_dispatch' || inputs.live_mode != 'true'
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: pnpm -C packages/ai-copilot eval
+
+      - name: Run orchestrator eval suite (live)
+        if: github.event_name == 'workflow_dispatch' && inputs.live_mode == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: pnpm -C packages/ai-copilot eval
+
+      - name: Run orchestrator unit tests (scenario.test.ts)
+        run: pnpm -C packages/ai-copilot test -- src/eval/__tests__/scenario.test.ts

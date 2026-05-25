@@ -1,0 +1,155 @@
+# =============================================================================
+# onboarding-orchestrator — conversational MD onboarding crew
+# Source: services/onboarding-orchestrator (port 3014)
+#   - /healthz  — liveness (always 200 once the process is up)
+#   - /readyz   — readiness; pings the DB pool when DATABASE_URL is set,
+#                 returns 200 immediately in memory mode (no DB wired)
+#   - /metrics  — Prometheus exposition (same port as the app; no
+#                 separate metrics listener)
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onboarding-orchestrator
+  labels:
+    app.kubernetes.io/name: onboarding-orchestrator
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: onboarding-orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: onboarding-orchestrator
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "0.1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        # /metrics is exposed on the same port as the app (3014) — see
+        # services/onboarding-orchestrator/src/observability/metrics.ts. No
+        # second metrics listener.
+        prometheus.io/port: "3014"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: onboarding-orchestrator
+      automountServiceAccountToken: false
+      # GHCR private registry — see infra/k8s/external-secrets/.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: onboarding-orchestrator
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: onboarding-orchestrator
+      containers:
+        - name: onboarding-orchestrator
+          image: ghcr.io/georgemwiki/borjie-onboarding-orchestrator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            # Single listener; /metrics shares the app port.
+            - containerPort: 3014
+              name: http
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: onboarding-orchestrator-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3014"
+            - name: HOST
+              value: 0.0.0.0
+            - name: OTEL_SERVICE_NAME
+              value: onboarding-orchestrator
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            # Liveness is "process is up" — keep on /healthz which is
+            # cheap + dependency-free.
+            httpGet:
+              path: /healthz
+              port: 3014
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            # Readiness reflects "can we actually serve traffic" — the
+            # /readyz handler pings the DB pool when one is wired, else
+            # falls back to immediate 200 (memory mode).
+            httpGet:
+              path: /readyz
+              port: 3014
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 3014
+            failureThreshold: 30
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /repo/services/onboarding-orchestrator/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 256Mi
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: onboarding-orchestrator
+  labels:
+    app.kubernetes.io/name: onboarding-orchestrator
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

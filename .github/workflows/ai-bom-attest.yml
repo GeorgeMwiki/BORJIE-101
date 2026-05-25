@@ -1,0 +1,86 @@
+# AI Bill of Materials — generate + Sigstore-sign on every release + nightly.
+#
+# Output artifacts (attached to the GitHub Release + uploaded to workflow):
+#   - ai-bom.json
+#   - ai-bom.json.sig    (Sigstore signature)
+#   - ai-bom.json.pem    (Fulcio leaf cert)
+#
+# Verifies a transparency-log entry exists in Rekor before declaring success.
+#
+# Refs:
+#   - EU AI Act Annex XI (technical documentation for GPAI)
+#   - NIST AI RMF 2.0 Generative AI Profile
+#   - https://docs.sigstore.dev/
+
+name: ai-bom-attest
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '0 3 * * *'  # nightly 03:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # required for Sigstore keyless OIDC
+  contents: write   # required to attach artifact to a release
+  packages: read
+
+concurrency:
+  group: ai-bom-attest
+  cancel-in-progress: false
+
+jobs:
+  build-and-sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate AI BOM
+        run: node scripts/build-ai-bom.mjs
+
+      - name: Drift check (informational)
+        run: node scripts/build-ai-bom.mjs --check || echo "::warning ::AI BOM drift detected — review and commit ai-bom.json"
+        continue-on-error: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Sign ai-bom.json (keyless OIDC via Fulcio)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+        run: bash scripts/sign-ai-artifact.sh ai-bom.json
+
+      - name: Verify signature locally
+        env:
+          EXPECTED_OIDC_ISSUER: https://token.actions.githubusercontent.com
+          EXPECTED_IDENTITY_REGEX: '^https://github.com/${{ github.repository }}/\.github/workflows/ai-bom-attest\.yml@.+$'
+        run: bash scripts/verify-ai-artifact.sh ai-bom.json
+
+      - name: Upload artifacts to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-bom-${{ github.sha }}
+          path: |
+            ai-bom.json
+            ai-bom.json.sig
+            ai-bom.json.pem
+          retention-days: 365
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ai-bom.json
+            ai-bom.json.sig
+            ai-bom.json.pem

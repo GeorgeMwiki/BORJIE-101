@@ -1,0 +1,6 @@
+# Ensures the public/ directory exists for docker/Dockerfile.web's
+# `COPY --from=builder /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public`
+# step. Without it the Docker build fails with "/public not found" because
+# PR #55 removed the previous `COPY ... 2>/dev/null || true` shell-syntax
+# escape hatch. Add real assets (favicon, manifest.json, static images) here
+# as the app grows.

@@ -1,0 +1,378 @@
+/**
+ * Boss Nyumba — Design Tokens (Wave 29)
+ *
+ * Direction A + 15% B: "Midnight Ledger with Cinematic Display."
+ *
+ * Foundation principles:
+ *   - Dark-first. Operators live in this 8 hours a day. Light mode is
+ *     the guest experience (tenants, owners, marketing, docs) and is
+ *     still first-class.
+ *   - Near-monochromatic with ONE signal color: warm amber. Semantic
+ *     colors are dialled-down so they read institutional, not alarmist.
+ *   - 4px spacing grid, 1.25 type scale (major third), radii pinned to
+ *     a 7-step scale, one light-source shadow system.
+ *   - Reference feel: Stripe × Spotify × Netflix × Anthropic.
+ *   - Anti-slop: no gradient orbs, no "Revolutionize" copy, no cutesy
+ *     proptech house-icon anything.
+ *
+ * Tokens are HSL space-separated so `hsl(var(--foo))` works in the
+ * Tailwind config without change. OKLCH comments document the
+ * perceptual intent.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   LIGHT MODE — guest surfaces
+   Warm paper-white background, deep-ink near-black text,
+   warm amber as the one signal color. Editorial, not sterile.
+   ============================================================ */
+@layer base {
+  :root {
+    /* --- Foundation --- */
+    --background:            42 30% 98%;          /* warm paper white */
+    --foreground:            30 18% 12%;          /* deep ink near-black */
+    --surface:               0 0% 100%;
+    --surface-foreground:    30 18% 12%;
+    --surface-raised:        42 30% 96%;
+    --surface-sunken:        40 25% 93%;
+
+    --popover:               0 0% 100%;
+    --popover-foreground:    30 18% 12%;
+
+    --card:                  0 0% 100%;
+    --card-foreground:       30 18% 12%;
+
+    /* --- Neutral ramp (11 steps), warm-shifted --- */
+    --neutral-50:            40 25% 98%;
+    --neutral-100:           40 22% 96%;
+    --neutral-200:           36 18% 91%;
+    --neutral-300:           34 14% 83%;
+    --neutral-400:           32 10% 65%;
+    --neutral-500:           30 8%  50%;
+    --neutral-600:           28 10% 38%;
+    --neutral-700:           28 12% 28%;
+    --neutral-800:           28 14% 18%;
+    --neutral-900:           30 16% 12%;
+    --neutral-950:           30 20% 7%;
+
+    /* --- Signal — warm amber, the one brand color ---
+       Shifted institutional; reads premium, never cheap. */
+    --signal-50:             38 80% 96%;
+    --signal-100:            38 85% 92%;
+    --signal-200:            36 85% 82%;
+    --signal-300:            34 82% 70%;
+    --signal-400:            32 78% 60%;
+    --signal-500:            30 72% 52%;   /* hero amber */
+    --signal-600:            26 70% 44%;
+    --signal-700:            22 65% 36%;
+    --signal-800:            20 60% 28%;
+    --signal-900:            20 55% 20%;
+    --signal-950:            22 50% 12%;
+
+    /* --- shadcn compat aliases --- */
+    --primary:               30 72% 52%;
+    --primary-foreground:    30 25% 10%;
+
+    --secondary:             40 22% 96%;
+    --secondary-foreground:  30 16% 15%;
+
+    --muted:                 40 22% 96%;
+    --muted-foreground:      28 10% 42%;
+
+    --accent:                40 22% 94%;
+    --accent-foreground:     30 16% 15%;
+
+    /* --- Borders + rings --- */
+    --border:                36 18% 89%;
+    --border-strong:         34 14% 80%;
+    --input:                 36 18% 89%;
+    --ring:                  30 72% 52%;
+
+    /* --- Semantic (institutional, never alarmist) --- */
+    --success:               148 55% 38%;
+    --success-foreground:    148 45% 96%;
+    --success-subtle:        148 45% 94%;
+
+    --warning:               36 85% 55%;
+    --warning-foreground:    30 18% 12%;
+    --warning-subtle:        36 85% 95%;
+
+    --danger:                12 72% 50%;
+    --danger-foreground:     12 60% 97%;
+    --danger-subtle:         12 70% 95%;
+
+    --info:                  215 55% 48%;
+    --info-foreground:       215 60% 97%;
+    --info-subtle:           215 60% 95%;
+
+    --destructive:           12 72% 50%;
+    --destructive-foreground: 12 60% 97%;
+
+    /* --- Radii (pinned scale) --- */
+    --radius-sm:   0.25rem;    /* 4px  chips, tags */
+    --radius:      0.5rem;     /* 8px  inputs, buttons */
+    --radius-md:   0.625rem;   /* 10px default card inner */
+    --radius-lg:   0.875rem;   /* 14px cards */
+    --radius-xl:   1.125rem;   /* 18px modals */
+    --radius-2xl:  1.5rem;     /* 24px hero panels */
+
+    /* --- Shadows (one light source, warm umbra) --- */
+    --shadow-xs:   0 1px 2px 0 hsl(30 20% 10% / 0.04);
+    --shadow-sm:   0 1px 2px 0 hsl(30 20% 10% / 0.06), 0 1px 1px 0 hsl(30 20% 10% / 0.04);
+    --shadow:      0 4px 8px -2px hsl(30 20% 10% / 0.08), 0 2px 4px -2px hsl(30 20% 10% / 0.04);
+    --shadow-md:   0 8px 16px -4px hsl(30 20% 10% / 0.10), 0 4px 6px -2px hsl(30 20% 10% / 0.05);
+    --shadow-lg:   0 16px 32px -8px hsl(30 20% 10% / 0.12), 0 8px 16px -4px hsl(30 20% 10% / 0.06);
+    --shadow-xl:   0 24px 48px -12px hsl(30 20% 10% / 0.18);
+
+    /* --- Typography stack ---
+       Display: Fraunces — editorial serif-adjacent, humanist warmth,
+       free, weight-variable, supports many scripts including Latin
+       Extended for European diacritics.
+       Text: Geist — Vercel's open sans; neutral, crisp, international.
+       Mono: JetBrains Mono — tabular, readable, supports code + data. */
+    --font-display: 'Fraunces', 'GT Alpina', 'Source Serif 4', Georgia, serif;
+    --font-sans:    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+    /* --- Motion tokens --- */
+    --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in:         cubic-bezier(0.7, 0, 0.84, 0);
+    --ease-in-out:     cubic-bezier(0.83, 0, 0.17, 1);
+    --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+    --duration-fast:   150ms;
+    --duration-base:   250ms;
+    --duration-slow:   400ms;
+    --duration-slower: 600ms;
+  }
+
+  /* ============================================================
+     DARK MODE — operator surfaces
+     Deep near-pure black (warm-shifted so it doesn't read cold /
+     corporate), amber becomes the only color on screen. Feels
+     like Bloomberg × Spotify × Anthropic.
+     ============================================================ */
+  .dark {
+    --background:            30 14% 7%;           /* near-pure black, warm-shifted */
+    --foreground:            40 20% 95%;          /* warm off-white */
+    --surface:               28 12% 10%;
+    --surface-foreground:    40 20% 95%;
+    --surface-raised:        28 10% 13%;
+    --surface-sunken:        28 14% 5%;
+
+    --popover:               28 10% 11%;
+    --popover-foreground:    40 20% 95%;
+
+    --card:                  28 12% 10%;
+    --card-foreground:       40 20% 95%;
+
+    --neutral-50:            30 14% 7%;
+    --neutral-100:           28 12% 10%;
+    --neutral-200:           28 10% 14%;
+    --neutral-300:           28 9%  20%;
+    --neutral-400:           28 8%  30%;
+    --neutral-500:           28 7%  48%;
+    --neutral-600:           30 8%  64%;
+    --neutral-700:           32 10% 76%;
+    --neutral-800:           34 14% 86%;
+    --neutral-900:           36 18% 93%;
+    --neutral-950:           40 20% 97%;
+
+    --signal-50:             22 45% 14%;
+    --signal-100:            22 50% 20%;
+    --signal-200:            24 55% 28%;
+    --signal-300:            26 60% 38%;
+    --signal-400:            28 65% 50%;
+    --signal-500:            34 85% 62%;   /* lamp-glow amber */
+    --signal-600:            36 85% 68%;
+    --signal-700:            38 85% 76%;
+    --signal-800:            40 80% 84%;
+    --signal-900:            42 70% 92%;
+    --signal-950:            44 55% 97%;
+
+    --primary:               34 85% 62%;
+    --primary-foreground:    30 20% 8%;
+
+    --secondary:             28 10% 14%;
+    --secondary-foreground:  40 20% 93%;
+
+    --muted:                 28 10% 14%;
+    --muted-foreground:      30 8%  64%;
+
+    --accent:                28 10% 16%;
+    --accent-foreground:     40 20% 93%;
+
+    --border:                28 8%  18%;
+    --border-strong:         28 8%  26%;
+    --input:                 28 10% 14%;
+    --ring:                  34 85% 62%;
+
+    --success:               148 50% 55%;
+    --success-foreground:    148 40% 10%;
+    --success-subtle:        148 40% 16%;
+
+    --warning:               36 85% 65%;
+    --warning-foreground:    30 20% 10%;
+    --warning-subtle:        36 55% 18%;
+
+    --danger:                12 72% 62%;
+    --danger-foreground:     12 40% 10%;
+    --danger-subtle:         12 55% 18%;
+
+    --info:                  215 65% 65%;
+    --info-foreground:       215 40% 10%;
+    --info-subtle:           215 45% 18%;
+
+    --destructive:           12 72% 62%;
+    --destructive-foreground: 12 40% 10%;
+
+    --shadow-xs:   0 1px 2px 0 hsl(0 0% 0% / 0.25);
+    --shadow-sm:   0 1px 3px 0 hsl(0 0% 0% / 0.35);
+    --shadow:      0 4px 12px -2px hsl(0 0% 0% / 0.40);
+    --shadow-md:   0 10px 20px -4px hsl(0 0% 0% / 0.50);
+    --shadow-lg:   0 20px 40px -8px hsl(0 0% 0% / 0.60);
+    --shadow-xl:   0 32px 64px -16px hsl(0 0% 0% / 0.70);
+  }
+}
+
+/* ============================================================
+   Base element defaults
+   ============================================================ */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings:
+      'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1, 'ss01' 1;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    text-wrap: pretty;
+  }
+
+  /* Display type */
+  .font-display,
+  h1.display,
+  .text-display {
+    font-family: var(--font-display);
+    font-feature-settings: 'ss01' 1, 'ss02' 1;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Numeric discipline */
+  .tabular-nums,
+  [data-numeric='true'],
+  td.numeric,
+  th.numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+  }
+
+  /* Focus rings — visible, never default browser outline */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Selection — amber tint, not browser default blue */
+  ::selection {
+    background-color: hsl(var(--signal-300) / 0.4);
+    color: hsl(var(--foreground));
+  }
+
+  /* Scrollbars — tasteful, institutional */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--neutral-400));
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+
+  /* Reduced-motion — honour user preference, always */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================
+   Utility layer — brand-specific helpers
+   ============================================================ */
+@layer utilities {
+  /* Ambient amber glow for interactive / hero accents. Subtle on
+     purpose — never reads like generic "AI glow-orb" slop. */
+  .glow-signal {
+    box-shadow:
+      0 0 0 1px hsl(var(--signal-500) / 0.30),
+      0 0 24px -8px hsl(var(--signal-500) / 0.35);
+  }
+  .glow-signal-strong {
+    box-shadow:
+      0 0 0 1px hsl(var(--signal-500) / 0.45),
+      0 0 48px -12px hsl(var(--signal-500) / 0.55);
+  }
+
+  /* Noise texture for hero backgrounds. Inline SVG — zero asset fetch. */
+  .texture-noise {
+    position: relative;
+  }
+  .texture-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+    mix-blend-mode: overlay;
+  }
+
+  /* Cinematic grid overlay for marketing hero — Netflix/Arc adjacent */
+  .cinematic-grid {
+    background-image:
+      linear-gradient(to right,  hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  /* Cinematic vignette — dark edges, focuses eye on centre */
+  .vignette {
+    position: relative;
+  }
+  .vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 50%,
+      hsl(var(--background)) 100%
+    );
+  }
+}

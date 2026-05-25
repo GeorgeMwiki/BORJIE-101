@@ -1,0 +1,23 @@
+BORJIE TENANCY AGREEMENT — Extracted OCR text
+
+Lease Reference: LC-2025-0049
+Tenant Name: Patricia Mwafula
+Property Reference: PROP-DAR-0001
+Unit Number: 12B
+Lease Start Date: 2025-02-15
+Lease End Date: 2026-02-14
+Monthly Rent: TZS 850,000
+
+Tenant signed in the presence of:
+  Asha Mwangi (Property Manager)
+  Grace Mlangwa (Legal Counsel)
+
+Notes:
+  Initial deposit equal to 2 months rent (TZS 1,700,000) lodged in escrow account.
+  Maintenance covered by Bahari Plumbing Ltd as per standing arrangement.
+
+Lease Reference  Tenant Name        Property Reference  Start Date  End Date    Monthly Rent
+LC-2025-0049     Patricia Mwafula   PROP-DAR-0001       2025-02-15  2026-02-14  850000
+LC-2025-0050     Daniel Nyongesa    PROP-DAR-0002       2025-03-01  2026-02-28  920000
+LC-2025-0051     Eunice Mhagama     PROP-DAR-0004       2025-03-15  2026-03-14  1180000
+LC-2025-0052     Frank Mwale        PROP-ARS-0001       2025-04-01  2026-03-31  720000

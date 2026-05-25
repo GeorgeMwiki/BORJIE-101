@@ -1,0 +1,22 @@
+JAMHURI YA MUUNGANO WA TANZANIA
+GOVERNMENT ELECTRONIC PAYMENT GATEWAY (GePG)
+RISITI YA MALIPO / PAYMENT RECEIPT
+
+Receipt No: GP-2025-0049817
+GePG Control Number: 991234567890
+Transaction ID: TXN-9988-4421
+
+Payer Name: Patricia Mwafula
+Payer NIDA: 19900215-44455-66677-02
+Payer Phone: 0744111222
+
+Amount Paid: TZS 850,000
+Payment Date: 2025-02-15
+Payment For: Monthly rent — February 2025
+
+Description: Monthly rent for PROP-DAR-0001, unit 12B.
+Service Provider: Bossnyumba Property Services
+
+[OFFICIAL STAMP]
+Authorised Signatory: Joseph Kibwana
+Date: 2025-02-15

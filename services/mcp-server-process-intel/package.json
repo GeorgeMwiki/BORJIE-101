@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/mcp-server-process-intel",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Sandboxed MCP server cloning MS Power Automate Process Mining's 9-tool grammar. The pm4py Python sidecar (AGPL-3.0) is process-boundary segregated from this MIT TypeScript code per AGPL section 13.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "borjie-mcp-process-intel": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

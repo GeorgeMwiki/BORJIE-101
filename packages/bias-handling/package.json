@@ -1,0 +1,29 @@
+{
+  "name": "@borjie/bias-handling",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA bias handling. Extends @borjie/fairness-eval (counterfactual / individual) with: 8 group-fairness metrics (AIF360-inspired), 3-tier mitigation (pre/in/post-process per Fairlearn taxonomy), 5 LLM bias benchmark runners (BBQ / StereoSet / CrowS-Pairs / HONEST / RealToxicityPrompts), production drift monitor (KS-test rolling-window), Slice Finder subgroup discovery, and a 5-jurisdiction anti-discrimination law map (US-FHA, US-ECOA, UK-EqA, KE-Const-Art27, TZ-Const-Art13). Pure-TS, zero runtime dependencies.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

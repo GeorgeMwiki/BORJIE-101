@@ -1,0 +1,54 @@
+name: Audit NOT_YET_WIRED
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Phase F.7 — CI gate enforcing no-NOT_YET_WIRED in production paths.
+# Threshold tunable via the NOT_YET_WIRED_THRESHOLD repo variable.
+# Default in the script: 0 — after the Phase G follow-up migrated every
+# raw `NOT_YET_WIRED` literal in JSDoc + log strings to the canonical
+# constants module (`packages/central-intelligence/src/kernel/not-yet-wired.ts`),
+# the audit counts call sites only and they're all behind the env-guarded
+# composition-fallback pattern. Any new offender that lands without a
+# matching env-guard fails the gate.
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: audit-not-yet-wired
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Run audit
+        env:
+          # Threshold is 0 after the Phase G follow-up landed the canonical
+          # constants module + audit-script comment-stripping. JSDoc and
+          # log-string references to the constants are now invisible to the
+          # scanner; only executable call sites (factory-call + Error
+          # construction) remain, and each is gated by an env-guarded
+          # composition-root fallback (whitelisted via
+          # `isCompositionFallback`). Any unguarded NOT_YET_WIRED in a
+          # production path fails the gate.
+          NOT_YET_WIRED_THRESHOLD: ${{ vars.NOT_YET_WIRED_THRESHOLD || '0' }}
+        run: node scripts/audit-not-yet-wired.mjs
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: not-yet-wired-report
+          path: .audit/not-yet-wired-targets.md
+          if-no-files-found: warn

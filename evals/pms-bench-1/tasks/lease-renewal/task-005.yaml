@@ -1,0 +1,14 @@
+id: lease-renewal-005
+scenario: lease-renewal
+title: 'Tenant with open dispute — renewal should NOT auto-send'
+context:
+  tenant: {id: tnt-305, name: 'Beatrice Wanjiru', payment_history: dispute-active}
+  property: {id: prop-305, block: 'Block D', unit: '3A'}
+  lease: {current_rent_minor: 70000000, currency: TZS, expires_at: '2026-07-17'}
+  open_disputes: [{kind: 'maintenance-offset', amount_minor: 18000000}]
+expected_actions:
+  - {tool: 'lease.halt_auto_renewal_pending_dispute'}
+  - {tool: 'lease.draft_owner_briefing', include_dispute_summary: true}
+expected_escalation: true
+expected_escalation_reason: 'open dispute — renewal needs owner discretion'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

@@ -1,0 +1,116 @@
+# =============================================================================
+# document-render — default-deny + targeted allow-list
+# =============================================================================
+# Internal renderer. Allow inbound from api-gateway, reports, document-
+# intelligence; egress for observability only (no external HTTPS needed —
+# all dependencies are baked into the image).
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: document-render-default-deny
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: document-render-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: document-render-allow-ingress
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: reports
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: document-intelligence
+      ports:
+        - protocol: TCP
+          port: 4000
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4000
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: document-render-allow-egress
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  policyTypes: [Egress]
+  egress:
+    # Observability only.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    # External HTTPS — webfonts, telemetry vendors.
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# DECISION (P4 ops resolution): staging and prod share a SINGLE jobs
+# namespace (`borjie-jobs`). This keeps the cluster topology simple —
+# adding a `borjie-jobs-staging` namespace would force us to duplicate
+# every NetworkPolicy, RBAC binding, and quota across two near-identical
+# namespaces.
+#
+# To prevent name collisions between the prod and staging CronJob (both
+# live in the same namespace), every resource in this overlay gets a
+# `-staging` name suffix via Kustomize. The pod selectors / service-
+# account names follow through automatically because Kustomize rewrites
+# the references at build time. The NetworkPolicy podSelector keeps
+# matching the original app label (`app.kubernetes.io/name:
+# brain-evolution-worker`) — Kustomize does NOT suffix label values, only
+# resource names, so prod + staging pods continue to share the same
+# default-deny policy by label match.
+namespace: borjie-jobs
+nameSuffix: -staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-brain-evolution-worker
+    newTag: staging
+
+patches:
+  - target:
+      kind: CronJob
+      name: brain-evolution-worker
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+  - target:
+      kind: ExternalSecret
+      name: brain-evolution-worker-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/brain-evolution-worker

@@ -1,0 +1,39 @@
+---
+# Default-deny baseline. Every pod in the namespace starts with NO
+# traffic allowed in either direction. Workload-specific NetworkPolicies
+# (in the Helm chart templates) then re-open exactly what each workload
+# needs.
+#
+# This is the foundation of the zero-trust model for BORJIE on k8s.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# DNS is global — every pod needs to resolve names.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector:       { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }

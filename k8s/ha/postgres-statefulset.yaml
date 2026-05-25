@@ -1,0 +1,248 @@
+# =============================================================================
+# Patroni Postgres StatefulSet — 3 nodes, etcd DCS, WAL archive to S3
+# =============================================================================
+# Uses Spilo (Zalando) which bundles Patroni 3.2 + Postgres 16 + wal-g.
+# Patroni's bootstrap config is provided via SPILO_CONFIGURATION (YAML in env);
+# this mirrors what infra/postgres-ha/patroni.yml.tpl encodes for docker.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: postgres-patroni
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres-patroni
+  ports:
+    - name: postgres
+      port: 5432
+    - name: patroni
+      port: 8008
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-patroni
+  namespace: borjie-data
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-patroni
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-patroni
+  namespace: borjie-data
+  # IRSA / Workload Identity annotation goes here in your env:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<acct>:role/borjie-wal-archive
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-patroni
+  namespace: borjie-data
+rules:
+  # Patroni's optional k8s-native DCS path also needs endpoints/configmaps;
+  # we use etcd as DCS so these are for Patroni labels on pods only.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-patroni
+  namespace: borjie-data
+subjects:
+  - kind: ServiceAccount
+    name: postgres-patroni
+    namespace: borjie-data
+roleRef:
+  kind: Role
+  name: postgres-patroni
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-patroni
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: postgres-patroni
+spec:
+  serviceName: postgres-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-patroni
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-patroni
+        app.kubernetes.io/component: postgres
+    spec:
+      serviceAccountName: postgres-patroni
+      terminationGracePeriodSeconds: 120
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: postgres-patroni
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        # Spilo bootstrap runs as root briefly to chown PGDATA, then drops
+        # to UID 101 (postgres). Postgres needs RW root for /tmp lockfiles
+        # + WAL, so we cannot enforce readOnlyRootFilesystem at pod-level.
+        # We do drop privilege-escalation + caps at container-level below.
+        fsGroup: 103            # spilo's postgres group GID inside image
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: ghcr.io/zalando/spilo-16:3.2-p2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            # NB: readOnlyRootFilesystem cannot be enforced — Spilo writes
+            # bootstrap scripts to /tmp and Patroni reloads pg config in-
+            # place. Mitigated by capabilities.drop + non-root user inside
+            # the image (Spilo drops to postgres:101 after init).
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 5432
+              name: postgres
+            - containerPort: 8008
+              name: patroni
+          env:
+            - name: SCOPE
+              value: borjie-pg
+            - name: PGROOT
+              value: /home/postgres/pgdata/pgroot
+            - name: PGDATA
+              value: /home/postgres/pgdata/pgroot/data
+            - name: PGPORT
+              value: "5432"
+            - name: PATRONI_ETCD3_HOSTS
+              value: "etcd-0.etcd-peer.borjie-data.svc.cluster.local:2379,etcd-1.etcd-peer.borjie-data.svc.cluster.local:2379,etcd-2.etcd-peer.borjie-data.svc.cluster.local:2379"
+            - name: ETCD_HOSTS
+              value: "etcd-0.etcd-peer.borjie-data.svc.cluster.local:2379,etcd-1.etcd-peer.borjie-data.svc.cluster.local:2379,etcd-2.etcd-peer.borjie-data.svc.cluster.local:2379"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PATRONI_KUBERNETES_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
+              value: "$(POD_IP):5432"
+            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
+              value: "$(POD_IP):8008"
+            - name: PATRONI_SUPERUSER_USERNAME
+              value: postgres
+            - name: PATRONI_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-ha-credentials
+                  key: POSTGRES_PASSWORD
+            - name: PATRONI_REPLICATION_USERNAME
+              value: replicator
+            - name: PATRONI_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-ha-credentials
+                  key: PATRONI_REPLICATION_PASSWORD
+            - name: PATRONI_admin_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-ha-credentials
+                  key: PATRONI_REWIND_PASSWORD
+            - name: WAL_S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: wal-archive-credentials
+                  key: WAL_S3_BUCKET
+            - name: WALG_S3_PREFIX
+              value: "s3://$(WAL_S3_BUCKET)"
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: wal-archive-credentials
+                  key: AWS_REGION
+            - name: WALG_S3_SSE_KMS_ID
+              valueFrom:
+                secretKeyRef:
+                  name: wal-archive-credentials
+                  key: WAL_ENCRYPTION_KEY
+                  optional: true
+            - name: WALG_S3_SSE
+              value: "aws:kms"
+            - name: USE_WALG_BACKUP
+              value: "true"
+            - name: USE_WALG_RESTORE
+              value: "true"
+            - name: BACKUP_SCHEDULE
+              value: "00 02 * * *"   # daily 02:00 UTC base backup
+            - name: BACKUP_NUM_TO_RETAIN
+              value: "7"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8008
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8008
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+          volumeMounts:
+            - name: pgdata
+              mountPath: /home/postgres/pgdata
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 50Gi

@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: field-capture-service
+  labels:
+    app.kubernetes.io/name: field-capture-service
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: field-capture-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: borjie-app
+      ports:
+        - protocol: TCP
+          port: 9020
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Object storage / Postgres / OTel (restrict via egress controllers
+    # in production; left open here for the base manifest).
+    - {}

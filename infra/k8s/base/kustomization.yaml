@@ -1,0 +1,45 @@
+# =============================================================================
+# Kustomize base — all-environment shared manifests
+# =============================================================================
+# Overlays patch:
+#   - replica counts
+#   - resource limits / requests
+#   - image tags (set via `images:` block)
+#   - host names (Ingress)
+#   - namespace
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmaps.yaml
+  - secrets.yaml
+  - network-policies.yaml
+  - postgres-statefulset.yaml
+  - redis-deployment.yaml
+  - api-gateway-deployment.yaml
+  - api-gateway-service.yaml
+  - api-gateway-hpa.yaml
+  - api-gateway-pdb.yaml
+  - consolidation-worker-deployment.yaml
+  - mcp-process-intel-deployment.yaml
+  - mcp-nin-deployment.yaml
+  - mcp-firs-deployment.yaml
+  - mcp-nggis-deployment.yaml
+  - mcp-opay-deployment.yaml
+  - document-intelligence-deployment.yaml
+  - domain-services-deployment.yaml
+  - identity-deployment.yaml
+  - notifications-deployment.yaml
+  - payments-deployment.yaml
+  - reports-deployment.yaml
+  - webhooks-deployment.yaml
+  - customer-app-deployment.yaml
+  - owner-portal-deployment.yaml
+  - admin-web-deployment.yaml
+  - estate-manager-app-deployment.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize

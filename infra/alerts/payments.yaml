@@ -1,0 +1,41 @@
+# Prometheus alerting rules — payments domain
+groups:
+  - name: borjie_payments
+    interval: 1m
+    rules:
+      - alert: GepgWebhookSignatureFailures
+        expr: sum(rate(gepg_callback_signature_failures[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "GePG webhook signature failures > 0.5/sec for 5 minutes"
+          runbook: "Docs/RUNBOOK.md#gepg-signature-failure"
+
+      - alert: ReconciliationLagHigh
+        expr: histogram_quantile(0.95, sum(rate(payment_reconciliation_lag_seconds_bucket[10m])) by (le)) > 3600
+        for: 15m
+        labels:
+          severity: warning
+          team: payments
+        annotations:
+          summary: "Payment reconciliation P95 lag > 1 hour"
+
+      - alert: ArrearsCasesBacklog
+        expr: sum(arrears_cases_open) > 500
+        for: 30m
+        labels:
+          severity: warning
+          team: finance
+        annotations:
+          summary: "Arrears cases backlog exceeds 500"
+
+      - alert: PaymentSuccessRateLow
+        expr: sum(rate(payment_success[15m])) / sum(rate(payment_total[15m])) < 0.95
+        for: 15m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Payment success rate below 95% for 15 minutes"

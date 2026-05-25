@@ -1,0 +1,208 @@
+# =============================================================================
+# Migration Apply (Fresh DB) — CI-enforced fresh-apply verifier.
+#
+# Closes Z-MIG verifier finding: there was no CI gate that applied every
+# SQL migration in lex order against an empty Postgres + pgvector DB. The
+# only existing gate (migration-safety-check.yml) catches NOT-NULL backfill
+# hazards via static analysis, NOT runtime apply errors like the 12 that
+# Z-MIG flagged (text=uuid, owner_statements missing, window reserved word,
+# pgvector unavailable, etc.).
+#
+# Strategy
+#   1. Spin up Postgres 16 + pgvector (paradedb/pg-vector official image
+#      OR ankane/pgvector — pgvector is bundled).
+#   2. Apply every *.sql under packages/database/src/migrations/ in lex
+#      order via scripts/migration-apply-check.mjs.
+#   3. Each migration runs with ON_ERROR_STOP=1 inside its own transaction.
+#   4. PR-block on any ERROR/FATAL across all 156+ files.
+#   5. Post the markdown report as a PR comment.
+#
+# This complements migration-safety-check.yml: that one statically scans
+# for NOT-NULL backfill hazards, THIS one runtime-applies the whole chain.
+# =============================================================================
+
+name: Migration Apply (Fresh DB)
+
+on:
+  pull_request:
+    paths:
+      - 'packages/database/src/migrations/**'
+      - 'scripts/migration-apply-check.mjs'
+      - '.github/workflows/migration-apply-fresh.yml'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: migration-apply-fresh-${{ github.ref }}
+  cancel-in-progress: true
+
+# Need `pull-requests: write` so the "Comment on PR" step (github-script
+# posts the markdown report). Default GITHUB_TOKEN permissions on PRs from
+# the same repo are read-only — without this, the step fails with
+# "Resource not accessible by integration" even though the SQL apply
+# succeeded.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  apply-fresh:
+    name: Apply all migrations on a fresh DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # pgvector/pgvector:pg16 is the official upstream image with the
+        # vector extension preinstalled. Falls back to ankane/pgvector
+        # if upstream is unavailable.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: borjie
+          POSTGRES_PASSWORD: borjie
+          POSTGRES_DB: borjie_apply_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U borjie"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://borjie:borjie@localhost:5432/borjie_apply_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U borjie && exit 0
+            sleep 1
+          done
+          echo "Postgres did not become ready in 30s"
+          exit 1
+
+      - name: Verify pgvector is available
+        run: |
+          PGPASSWORD=borjie psql -h localhost -p 5432 -U borjie -d borjie_apply_test \
+            -c "CREATE EXTENSION IF NOT EXISTS vector"
+          # NOTE: pg_extension has `extversion` (not `installed_version`).
+          # `installed_version` lives in the `pg_available_extensions` view.
+          # Use extversion against the catalog for the actual-installed check.
+          PGPASSWORD=borjie psql -h localhost -p 5432 -U borjie -d borjie_apply_test \
+            -c "SELECT extversion FROM pg_extension WHERE extname='vector'"
+
+      - name: Seed Supabase roles (authenticated, anon, service_role)
+        # Supabase Postgres provisions these roles at cluster init time. CI's
+        # vanilla pgvector image has none of them — so every RLS migration
+        # since 0155 (CREATE POLICY ... TO authenticated, GRANT ... TO anon)
+        # explodes with `role "authenticated" does not exist`. Create them
+        # idempotently before applying any migration so the fresh-DB run
+        # mirrors production. NOLOGIN matches the Supabase convention — these
+        # are JWT-claim aliases, never login users.
+        env:
+          PGPASSWORD: borjie
+        run: |
+          psql -h localhost -p 5432 -U borjie -d borjie_apply_test <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role NOLOGIN BYPASSRLS;
+            END IF;
+          END
+          $$;
+          SQL
+
+      - name: Apply all migrations and capture errors
+        id: apply
+        env:
+          PGPASSWORD: borjie
+        run: |
+          mkdir -p .audit
+          set +e
+          node scripts/migration-apply-check.mjs \
+            --db-url="$DATABASE_URL" \
+            --migrations-dir=packages/database/src/migrations \
+            --enable-vector=true \
+            --report=.audit/migration-apply-fresh.md
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Append report to job summary
+        if: always()
+        run: |
+          if [ -f .audit/migration-apply-fresh.md ]; then
+            {
+              echo "## Migration Apply (Fresh DB)"
+              echo ""
+              cat .audit/migration-apply-fresh.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-apply-fresh-report
+          path: .audit/migration-apply-fresh.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.audit/migration-apply-fresh.md';
+            if (!fs.existsSync(path)) return;
+            const body = '## Migration Apply (Fresh DB)\n\n' + fs.readFileSync(path, 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number,
+            });
+            const existing = comments.find(
+              (c) =>
+                c.user.type === 'Bot' &&
+                c.body.startsWith('## Migration Apply (Fresh DB)'),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+            }
+
+      - name: Enforce zero ERROR/FATAL
+        run: |
+          code="${{ steps.apply.outputs.exitcode }}"
+          if [ "$code" -eq 0 ]; then
+            echo "Migration apply (fresh DB): PASS"
+          elif [ "$code" -eq 1 ]; then
+            echo "::error::Migration apply (fresh DB): one or more migrations errored on fresh apply"
+            exit 1
+          else
+            echo "::error::Migration apply harness crashed (exit $code)"
+            exit "$code"
+          fi

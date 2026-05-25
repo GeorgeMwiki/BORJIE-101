@@ -1,0 +1,61 @@
+{
+  "name": "@borjie/agent-orchestrator",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA agent orchestration patterns (2026): ReAct, Plan-and-Execute, Reflexion, Self-Consistency, Constitutional Critique, multi-agent Swarm/GroupChat/Crew/Supervisor, LangGraph-style state machine, cost/budget/router/cache, durable execution, parallel tool-calling, judge panels.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./single-agent": {
+      "types": "./src/single-agent/index.ts",
+      "default": "./dist/single-agent/index.js"
+    },
+    "./multi-agent": {
+      "types": "./src/multi-agent/index.ts",
+      "default": "./dist/multi-agent/index.js"
+    },
+    "./state-machine": {
+      "types": "./src/state-machine/index.ts",
+      "default": "./dist/state-machine/index.js"
+    },
+    "./cost-optimization": {
+      "types": "./src/cost-optimization/index.ts",
+      "default": "./dist/cost-optimization/index.js"
+    },
+    "./durable-execution": {
+      "types": "./src/durable-execution/index.ts",
+      "default": "./dist/durable-execution/index.js"
+    },
+    "./tool-calling": {
+      "types": "./src/tool-calling/index.ts",
+      "default": "./dist/tool-calling/index.js"
+    },
+    "./judge-jury": {
+      "types": "./src/judge-jury/index.ts",
+      "default": "./dist/judge-jury/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

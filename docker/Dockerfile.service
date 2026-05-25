@@ -1,0 +1,109 @@
+# =============================================================================
+# BORJIE Backend Services — Generic Multi-stage Dockerfile
+# =============================================================================
+# Build:
+#   docker build -f docker/Dockerfile.service \
+#     --build-arg SERVICE_NAME=payments-ledger \
+#     --build-arg PACKAGE_NAME=@borjie/payments-ledger-service \
+#     --build-arg ENTRY_PATH=dist/services/payments-ledger/src/server.js \
+#     -t borjie/payments-ledger:dev .
+#
+# NOTE: Several "services/*" packages in this workspace are pure libraries
+# (identity, notifications, payments, document-intelligence, webhooks,
+# domain-services). They export modules but do NOT start an HTTP server and
+# therefore cannot be run as standalone containers with this Dockerfile —
+# they're consumed in-process by the api-gateway. Only services with a real
+# HTTP/CRON entrypoint should be built here (currently: payments-ledger,
+# plus reports via Dockerfile.scheduler and api-gateway via Dockerfile.api).
+# =============================================================================
+
+ARG SERVICE_NAME=payments-ledger
+ARG PACKAGE_NAME=@borjie/payments-ledger-service
+ARG ENTRY_PATH=dist/index.js
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependencies
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS deps
+# python3 + build-base for node-gyp optional native deps on musl.
+RUN apk add --no-cache libc6-compat python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+
+# Workspace deps — copy shared packages once.
+COPY packages ./packages
+
+# Copy the specific service. We copy `services/` wholesale because most
+# backend services pull in one or more sibling `services/*` packages at
+# runtime (e.g. payments-ledger uses payments/providers). `.dockerignore`
+# filters out dist/ and node_modules/ so the copy is cheap.
+COPY services ./services
+
+RUN pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Stage 2: Builder
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS builder
+ARG PACKAGE_NAME
+
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/pnpm-lock.yaml ./
+COPY --from=deps /app/pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY packages ./packages
+COPY services ./services
+
+# Build target package + its workspace deps.
+RUN pnpm --filter="${PACKAGE_NAME}..." --workspace-concurrency=1 build
+
+# -----------------------------------------------------------------------------
+# Stage 3: Production Runner
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS runner
+ARG SERVICE_NAME
+ARG ENTRY_PATH
+
+RUN apk add --no-cache dumb-init wget
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 service
+
+WORKDIR /app
+
+# Keep the full workspace tree so pnpm symlinks in node_modules resolve.
+COPY --from=builder --chown=service:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=service:nodejs /app/package.json ./
+COPY --from=builder --chown=service:nodejs /app/pnpm-workspace.yaml ./
+COPY --from=builder --chown=service:nodejs /app/packages ./packages
+COPY --from=builder --chown=service:nodejs /app/services ./services
+
+# Switch into the service directory so relative ENTRY_PATH resolves.
+WORKDIR /app/services/${SERVICE_NAME}
+
+USER service
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    SERVICE_NAME=${SERVICE_NAME} \
+    ENTRY_PATH=${ENTRY_PATH}
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/healthz || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+# Use shell form so $ENTRY_PATH expands at runtime.
+CMD node "$ENTRY_PATH"

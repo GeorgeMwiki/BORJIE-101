@@ -1,0 +1,205 @@
+{
+  "annotations": { "list": [] },
+  "description": "Per-agent / per-port telemetry — reads agent.call.success_total, agent.call.error_total, and the agent.call.duration_seconds histogram emitted by services/api-gateway/src/instrumentation/agent-spans.ts. Labels: agent, port_name, operation, outcome. Owner: D6 (Phase D).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value" },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_success_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Successful agent calls / sec",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_error_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Failed agent calls / sec",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_error_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) / (sum(rate(agent_call_success_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) + sum(rate(agent_call_error_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])))",
+          "refId": "A"
+        }
+      ],
+      "title": "Error ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_seconds_bucket{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "p95 duration (all ports)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_success_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (port_name)",
+          "legendFormat": "{{port_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Success rate by port_name",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_error_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (port_name)",
+          "legendFormat": "{{port_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Error rate by port_name",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(agent_call_duration_seconds_bucket{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (le, port_name))",
+          "legendFormat": "{{port_name}} p50",
+          "refId": "A"
+        }
+      ],
+      "title": "p50 duration by port_name",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_seconds_bucket{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (le, port_name))",
+          "legendFormat": "{{port_name}} p95",
+          "refId": "A"
+        }
+      ],
+      "title": "p95 duration by port_name",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(agent_call_duration_seconds_bucket{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (le, port_name))",
+          "legendFormat": "{{port_name}} p99",
+          "refId": "A"
+        }
+      ],
+      "title": "p99 duration by port_name",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_port_degraded_total{agent=~\"$agent\",port_name=~\"$port_name\"}[5m])) by (agent, port_name, reason)",
+          "legendFormat": "{{agent}} / {{port_name}} ({{reason}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Port-degradation fallbacks",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["borjie", "agent", "per-port", "phase-d", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(agent_call_success_total, agent)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Agent",
+        "multi": true,
+        "name": "agent",
+        "options": [],
+        "query": { "query": "label_values(agent_call_success_total, agent)", "refId": "Variable-agent" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(agent_call_success_total, port_name)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Port",
+        "multi": true,
+        "name": "port_name",
+        "options": [],
+        "query": { "query": "label_values(agent_call_success_total, port_name)", "refId": "Variable-port" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "BORJIE Agent — Per-Port",
+  "uid": "borjie-agent-per-port",
+  "version": 1,
+  "weekStart": ""
+}

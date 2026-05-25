@@ -1,0 +1,20 @@
+{
+  "signatureName": "extract_lease_terms",
+  "signatureVersion": "abc123",
+  "model": "anthropic/claude-haiku-4-5",
+  "compiledSystem": "<role>Task: extract_lease_terms (classify)</role>\n<objective>Extract structured lease terms from raw text.</objective>\n<inputs>\n<lease_text>: raw lease body\n</inputs>\n<outputs>\n<terms>: parsed term object\n</outputs>",
+  "compiledInstruction": "Read the lease text. For every numeric field, JSON-format the result. Be strict about month-counts.",
+  "demonstrations": [
+    {
+      "inputs": { "lease_text": "A 12-month lease starting June 1." },
+      "outputs": { "terms": { "months": 12, "start_iso": "2026-06-01" } }
+    },
+    {
+      "inputs": { "lease_text": "Six-month tenancy, July through December." },
+      "outputs": { "terms": { "months": 6, "start_iso": "2026-07-01" } }
+    }
+  ],
+  "compiledAt": "2026-05-19T08:00:00.000Z",
+  "compilerScore": 0.94,
+  "compilerName": "MIPROv2-port"
+}

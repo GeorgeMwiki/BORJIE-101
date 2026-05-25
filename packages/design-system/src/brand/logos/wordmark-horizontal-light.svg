@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 180" font-family="Fraunces, GT Alpina, Source Serif Pro, Georgia, serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#FBF7EE"/>
+      <stop offset="100%" stop-color="#F3EAD3"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="92" y1="28" x2="92" y2="152" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#4A2F0E"/>
+      <stop offset="35%"  stop-color="#7A4F1E"/>
+      <stop offset="68%"  stop-color="#A36A2A"/>
+      <stop offset="100%" stop-color="#4A2F0E"/>
+    </linearGradient>
+    <linearGradient id="mono" x1="92" y1="62" x2="92" y2="122" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7A4F1E"/>
+      <stop offset="40%"  stop-color="#CC884A"/>
+      <stop offset="75%"  stop-color="#B8873E"/>
+      <stop offset="100%" stop-color="#4A2F0E"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="0" y1="60" x2="0" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1E140C"/>
+      <stop offset="100%" stop-color="#4A2F0E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="92" cy="90" r="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F2C27E" stop-opacity="0.5"/>
+      <stop offset="45%"  stop-color="#E5B26B" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="780" height="180" rx="24" fill="url(#bg)"/>
+
+  <g>
+    <g filter="url(#soft)" opacity="0.85">
+      <circle cx="92" cy="90" r="46" fill="url(#glow)"/>
+    </g>
+    <rect x="30" y="28" width="124" height="124" rx="20" fill="none" stroke="url(#frame)" stroke-width="7.5" stroke-linejoin="round"/>
+    <g transform="translate(6 0)" fill="url(#mono)">
+      <path d="
+        M56 58
+        h12
+        q14 0 14 12.4
+        q0 8.6 -7.2 10.9
+        q8.5 1.8 8.5 12.2
+        q0 13 -14.2 13
+        h-13.1
+        z
+        M62 64
+        v16.6
+        h5
+        q7.7 0 7.7 -8.5
+        q0 -8.1 -7.7 -8.1
+        z
+        M62 86.5
+        v18
+        h5.9
+        q8.1 0 8.1 -9
+        q0 -9 -8.1 -9
+        z
+      "/>
+      <path d="
+        M90.5 58
+        h6.4
+        l15.3 31.4
+        v-31.4
+        h6.6
+        v48
+        h-6.4
+        l-15.3 -31.4
+        v31.4
+        h-6.6
+        z
+      "/>
+    </g>
+    <g stroke="#7A4F1E" stroke-width="1.8" stroke-linecap="round" opacity="0.3">
+      <path d="M38 30v5"/><path d="M30 38h5"/>
+      <path d="M146 30v5"/><path d="M149 38h5"/>
+      <path d="M38 149v5"/><path d="M30 148h5"/>
+      <path d="M146 149v5"/><path d="M149 148h5"/>
+    </g>
+  </g>
+
+  <text x="190" y="118" fill="url(#wordmark)" font-size="78" font-weight="500" letter-spacing="-1.8" style="font-feature-settings:'ss01' 1,'ss02' 1">
+    Boss<tspan fill="#B8873E" dx="0.05em" dy="-0.02em">·</tspan>Nyumba
+  </text>
+</svg>

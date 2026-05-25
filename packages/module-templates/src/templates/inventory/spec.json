@@ -1,0 +1,76 @@
+{
+  "entities": [
+    {
+      "slug": "sku",
+      "display_name_en": "SKU",
+      "display_name_sw": "SKU",
+      "fields": [
+        { "name": "sku_code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "category", "kind": "enum", "required": true, "values": ["material", "consumable", "tool", "equipment", "spare", "other"] },
+        { "name": "unit_of_measure", "kind": "text", "required": true, "max_length": 16 },
+        { "name": "reorder_threshold", "kind": "int", "required": false, "min": 0 },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "stock_location",
+      "display_name_en": "Stock Location",
+      "display_name_sw": "Mahali pa Ghala",
+      "fields": [
+        { "name": "code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "kind", "kind": "enum", "required": true, "values": ["warehouse", "site_stock", "vehicle", "consignment"] },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "stock_movement",
+      "display_name_en": "Stock Movement",
+      "display_name_sw": "Mzunguko wa Ghala",
+      "fields": [
+        { "name": "movement_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "sku_id", "kind": "fk", "required": true, "references": "sku" },
+        { "name": "from_location_id", "kind": "fk", "required": false, "references": "stock_location" },
+        { "name": "to_location_id", "kind": "fk", "required": false, "references": "stock_location" },
+        { "name": "qty", "kind": "numeric", "required": true, "precision": 18, "scale": 4 },
+        { "name": "happened_at", "kind": "datetime", "required": true },
+        { "name": "kind", "kind": "enum", "required": true, "values": ["receive", "issue", "transfer", "adjust", "writeoff"] }
+      ]
+    },
+    {
+      "slug": "reorder_proposal",
+      "display_name_en": "Reorder Proposal",
+      "display_name_sw": "Pendekezo la Kuongeza Stoki",
+      "fields": [
+        { "name": "proposal_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "sku_id", "kind": "fk", "required": true, "references": "sku" },
+        { "name": "suggested_qty", "kind": "numeric", "required": true, "precision": 18, "scale": 4 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["pending", "approved", "rejected", "ordered"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "create_reorder_proposal",
+      "title": "Create a reorder proposal",
+      "trigger_entity": "reorder_proposal",
+      "trigger_event": "create",
+      "steps": ["compute_eoq", "select_vendor", "draft_proposal"]
+    },
+    {
+      "slug": "post_stock_receipt",
+      "title": "Post a stock receipt",
+      "trigger_entity": "stock_movement",
+      "trigger_event": "create",
+      "steps": ["verify_quantity", "update_balances", "issue_grn"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "sku", "columns": ["sku_code", "display_name", "active"] },
+    { "kind": "table", "entity": "stock_location", "columns": ["code", "display_name", "kind"] },
+    { "kind": "table", "entity": "stock_movement", "columns": ["movement_no", "display_name"] },
+    { "kind": "table", "entity": "reorder_proposal", "columns": ["proposal_no", "display_name", "status"] },
+    { "kind": "form", "entity": "stock_movement" },
+    { "kind": "form", "entity": "reorder_proposal" },
+    { "kind": "kpi_tile", "title": "SKUs below reorder threshold", "query": "count(sku where below_threshold=true)" }
+  ]
+}

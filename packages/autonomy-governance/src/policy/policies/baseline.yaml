@@ -1,0 +1,162 @@
+# BORJIE Baseline Agent Policy
+#
+# Adapted from LITFIN default-policy.yaml
+# (`src/core/security/policies/default-policy.yaml`).
+#
+# Property-management SaaS framing: this is the fallback policy applied
+# when no tenant/role-specific overlay matches. Deny-by-default — tools
+# not listed in `allowedTools` are denied. Explicit `deniedTools`
+# patterns take precedence and exist to block destructive admin/system
+# operations even if some upstream misconfiguration later widens the
+# allow list.
+#
+# Network egress is restricted to a small allowlist of provider hosts.
+# Anything else is blocked at the policy layer; the network sandbox
+# layer is a defence-in-depth follow-up.
+
+version: "1.0"
+description: "BORJIE baseline (deny-by-default) policy for autonomous AI agents"
+
+# --- Tool allowlist ---------------------------------------------------------
+# Read + low-risk navigation + classroom/learning surfaces only by default.
+# Mutating, billing, destructive, and sovereign tools require an explicit
+# overlay (e.g. tenant-admin role policy) or a 4-eye approval.
+allowedTools:
+  - navigate-user
+  - explain-platform
+  - query-properties
+  - query-units
+  - query-tenants
+  - query-leases
+  - view-application-status
+  - view-payment-history
+  - view-maintenance-tickets
+  - generate-rent-statement
+  - suggest-next-action
+
+# --- Tool denylist ----------------------------------------------------------
+# Hard blocks. Take precedence over allowlist.
+deniedTools:
+  - query-audit
+  - "admin-*"
+  - "delete-*"
+  - "disburse-*"
+  - "modify-lease-*"
+  - "modify-payment-*"
+  - "officer-*"
+  - "approve-*"
+  - "reject-*"
+  - "assign-*"
+  - "system-*"
+  - export-bulk-data
+  - send-eviction-notice
+  - view-other-tenant-data
+  - view-other-landlord-data
+
+# --- DB table allowlist -----------------------------------------------------
+allowedDbTables:
+  - properties
+  - units
+  - tenants
+  - leases
+  - payments
+  - maintenance_tickets
+  - rent_statements
+  - learning_sessions
+  - concepts
+
+# --- DB table denylist ------------------------------------------------------
+deniedDbTables:
+  - platform_events
+  - audit_trail
+  - "admin_*"
+  - agent_registry
+  - webhook_subscriptions
+  - verification_results
+  - platform_health_metrics
+  - sovereign_action_ledger
+  - tenant_autonomy_caps
+  - killswitch_state
+
+# --- Network egress allowlist ----------------------------------------------
+# Only outbound HTTP hosts on this list are permitted. The policy layer
+# is the first gate; the runtime network sandbox is a defence-in-depth
+# follow-up wave.
+networkEgress:
+  - api.anthropic.com
+  - api.openai.com
+  - api.elevenlabs.io
+  - api.mpesa.safaricom.co.ke
+  - api.airtelmoney.co.tz
+
+# --- Human approval (escalate to 4-eye) ------------------------------------
+humanApproval:
+  - "delete-*"
+  - send-notification-external
+  - disburse-funds
+  - update-rent-amount
+  - terminate-lease
+
+# --- Audit configuration ---------------------------------------------------
+audit:
+  enabled: true
+  hashChain: true
+  retentionYears: 7
+
+# --- Action classification (sensitivity / reversibility / scope / compliance)
+actionClassification:
+  sensitivity:
+    high:
+      - "disburse-*"
+      - "modify-lease-*"
+      - "modify-payment-*"
+      - "delete-*"
+      - terminate-lease
+      - send-eviction-notice
+    medium:
+      - send-notification-external
+      - update-tenant-profile
+      - update-rent-amount
+    low:
+      - navigate-user
+      - explain-platform
+      - query-properties
+      - query-units
+  reversibility:
+    irreversible:
+      - "delete-*"
+      - "disburse-*"
+      - send-eviction-notice
+      - terminate-lease
+    reversible:
+      - navigate-user
+      - explain-platform
+      - update-tenant-profile
+  scope:
+    system:
+      - "admin-*"
+      - "system-*"
+    organization:
+      - "modify-lease-*"
+      - "modify-payment-*"
+      - update-rent-amount
+      - send-notification-external
+    individual:
+      - navigate-user
+      - explain-platform
+      - query-properties
+      - view-payment-history
+  compliance:
+    pii:
+      - update-tenant-profile
+      - query-tenants
+      - view-application-status
+    financial:
+      - "disburse-*"
+      - "modify-payment-*"
+      - update-rent-amount
+      - generate-rent-statement
+    regulated:
+      - query-audit
+      - generate-report
+      - send-eviction-notice

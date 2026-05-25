@@ -1,0 +1,79 @@
+# gitleaks configuration
+# Extends the default ruleset; adds allowlists for our test-fixture
+# fake-secret patterns (used to test PII scrubbers / output guards).
+
+title = "BORJIE gitleaks config"
+
+# Inherit gitleaks's default rules; we only ADD allowlists below.
+[extend]
+useDefault = true
+
+# Global allowlist — paths + regex patterns + commits.
+[allowlist]
+description = "Test fixtures, redacted/example secrets, doc strings"
+
+# 1. Paths — anything under test/fixture/spec dirs is allowed by default.
+paths = [
+  # Test directories
+  '''(^|/)__tests__/.*''',
+  '''(^|/)__fixtures__/.*''',
+  '''(^|/)tests?/.*''',
+  '''.*\.test\.(ts|tsx|js|jsx|mjs|cjs)$''',
+  '''.*\.spec\.(ts|tsx|js|jsx|mjs|cjs)$''',
+  '''(^|/)test-utils/.*''',
+  '''(^|/)testing/.*''',
+
+  # Built artifacts — should not be in git but if they slip in (e.g.
+  # apps/customer-app/.next/standalone/* fingerprints), don't fail CI
+  # on detector noise inside compiled JS.
+  '''(^|/)\.next/.*''',
+  '''(^|/)dist/.*''',
+  '''(^|/)build/.*''',
+  '''(^|/)coverage/.*''',
+  '''(^|/)node_modules/.*''',
+
+  # Documentation — citations, examples, redacted samples
+  '''.*\.md$''',
+
+  # Lockfile — pnpm-lock.yaml contains many hex-looking integrity
+  # hashes that gitleaks's generic-api-key detector mis-fires on.
+  '''pnpm-lock\.yaml$''',
+  '''package-lock\.json$''',
+  '''yarn\.lock$''',
+
+  # Audit + planning outputs — references to sample tokens in narrative
+  '''(^|/)\.audit/.*''',
+  '''(^|/)\.planning/.*''',
+  '''(^|/)\.research/.*''',
+]
+
+# 2. Regex patterns — explicit allowlist for obvious test/example tokens.
+# These mirror exactly what our PII scrubbers + output-guard tests use.
+regexes = [
+  # Anthropic-style fake test tokens
+  '''sk-ant-api03-(AAAA|EXAMPLE|TEST|FAKE|SAMPLE|MOCK|REDACTED|DUMMY|PLACEHOLDER)[A-Z0-9_-]*''',
+
+  # OpenAI-style fake test tokens
+  '''sk-proj-(ABCDEFG|EXAMPLE|TEST|FAKE|SAMPLE|MOCK|REDACTED|DUMMY|PLACEHOLDER)[A-Z0-9_-]*''',
+
+  # Pure-pattern placeholders for any provider
+  '''(sk|api)-(test|example|fake|sample|mock|redacted|dummy|placeholder)-[A-Za-z0-9_-]+''',
+
+  # Redacted markers (the PII scrubber outputs these)
+  '''<(api-key|kra-pin|nida-num|mpesa-txn|email|phone|model|provider)-redacted>''',
+  '''\[redacted\]''',
+  '''<redacted>''',
+]
+
+# 3. Stop-words — commit messages / file content with these markers are
+# clearly explanatory, not credentials.
+stopwords = [
+  '''example''',
+  '''placeholder''',
+  '''redacted''',
+  '''fake''',
+  '''mock''',
+  '''test''',
+  '''sample''',
+  '''dummy''',
+]

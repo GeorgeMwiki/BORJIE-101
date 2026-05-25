@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: outcomes-metering
+  labels:
+    app.kubernetes.io/name: outcomes-metering
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: outcomes-metering
+  ports:
+    # Single port — /metrics is exposed on the same listener as the
+    # app (see services/outcomes-metering/src/observability/metrics.ts).
+    - name: http
+      port: 80
+      targetPort: 3018
+      protocol: TCP

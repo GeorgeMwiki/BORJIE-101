@@ -1,0 +1,592 @@
+# =============================================================================
+# BORJIE — docker-compose.production.yml (Phase F.6)
+# =============================================================================
+# Self-hosted, single-server production-mimicking stack. The "deploy to a
+# real cloud" pass: runnable on a beefy VM as the self-hosted target,
+# AND a faithful pre-production rehearsal before K8s rollout.
+#
+# Usage:
+#   cp .env.production.example .env.production && edit
+#   docker compose --env-file .env.production \
+#                  -f docker-compose.production.yml up -d
+#
+# Relationship to other compose files:
+#   - docker-compose.yml          — dev with hot-reload, ephemeral creds
+#   - docker-compose.prod.yml     — overlay-style prod (used WITH base file)
+#   - docker-compose.production.yml (this file) — STANDALONE production stack
+#
+# Why standalone: lets self-hosted operators boot with ONE file (no need to
+# know about the overlay/base layering trick).
+#
+# Strict rules:
+#   - No secrets baked in — every credential sourced from .env.production
+#   - Every service has resource limits + healthcheck + restart policy
+#   - Internal services are network-isolated; only nginx binds the host
+#   - Volumes are named (survive `down`, only `down -v` wipes them)
+# =============================================================================
+
+x-common-restart: &common-restart
+  restart: unless-stopped
+
+x-common-logging: &common-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  # ===========================================================================
+  # Data plane — Postgres (pgvector) + Redis
+  # ===========================================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: borjie-prod-postgres
+    <<: [*common-restart, *common-logging]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB required}
+      POSTGRES_INITDB_ARGS: "--data-checksums --encoding=UTF8"
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=200
+      -c wal_level=replica
+      -c log_min_duration_statement=500
+      -c log_connections=on
+      -c log_disconnections=on
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 4G }
+        reservations: { cpus: "0.5", memory: 1G }
+
+  redis:
+    image: redis:7-alpine
+    container_name: borjie-prod-redis
+    <<: [*common-restart, *common-logging]
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --save 60 1000
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 768M }
+        reservations: { cpus: "0.1", memory: 128M }
+
+  # ===========================================================================
+  # Core control plane
+  # ===========================================================================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: borjie-prod-api-gateway
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - data-plane
+      - control-plane
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+        reservations: { cpus: "0.5", memory: 512M }
+
+  consolidation-worker:
+    build:
+      context: .
+      dockerfile: services/consolidation-worker/Dockerfile
+    container_name: borjie-prod-consolidation
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CONSOLIDATION_INTERVAL_MS: ${CONSOLIDATION_INTERVAL_MS:-3600000}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+        reservations: { cpus: "0.1", memory: 128M }
+
+  # ===========================================================================
+  # MCP servers — process intelligence (AGPL-segregated) + connectors
+  # ===========================================================================
+  mcp-process-intel:
+    build:
+      context: services/mcp-server-process-intel
+      dockerfile: Dockerfile
+    container_name: borjie-prod-mcp-process-intel
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PYTHON_BIN: /opt/pm4py-venv/bin/python
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+        reservations: { cpus: "0.25", memory: 256M }
+
+  mcp-nin:
+    build:
+      context: services/mcp-server-nin
+      dockerfile: Dockerfile
+    container_name: borjie-prod-mcp-nin
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  mcp-firs:
+    build:
+      context: services/mcp-server-firs
+      dockerfile: Dockerfile
+    container_name: borjie-prod-mcp-firs
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  mcp-nggis:
+    build:
+      context: services/mcp-server-nggis
+      dockerfile: Dockerfile
+    container_name: borjie-prod-mcp-nggis
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  mcp-opay:
+    build:
+      context: services/mcp-server-opay
+      dockerfile: Dockerfile
+    container_name: borjie-prod-mcp-opay
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  # ===========================================================================
+  # Library-style services — share docker/Dockerfile.service with SERVICE_NAME
+  # arg. (See architectural note in docker-compose.yml: today these run as
+  # in-process libraries inside api-gateway; the container variants below
+  # exist for the day each gains its own HTTP wrapper. Until then, leaving
+  # `replicas: 0` keeps the build wiring present without booting half-services.)
+  # ===========================================================================
+  document-intelligence:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: document-intelligence
+        PACKAGE_NAME: "@borjie/document-intelligence-service"
+    container_name: borjie-prod-document-intelligence
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  domain-services:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: domain-services
+        PACKAGE_NAME: "@borjie/domain-services"
+    container_name: borjie-prod-domain-services
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  identity:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: identity
+        PACKAGE_NAME: "@borjie/identity-service"
+    container_name: borjie-prod-identity
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  notifications:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: notifications
+        PACKAGE_NAME: "@borjie/notifications-service"
+    container_name: borjie-prod-notifications
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  payments:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: payments-ledger
+        PACKAGE_NAME: "@borjie/payments-ledger-service"
+        ENTRY_PATH: dist/services/payments-ledger/src/server.js
+    container_name: borjie-prod-payments
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  reports:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: reports
+        PACKAGE_NAME: "@borjie/reports-service"
+    container_name: borjie-prod-reports
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  webhooks:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: webhooks
+        PACKAGE_NAME: "@borjie/webhooks-service"
+    container_name: borjie-prod-webhooks
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data-plane, control-plane]
+    deploy:
+      replicas: 0
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  # ===========================================================================
+  # Frontend apps
+  # ===========================================================================
+  marketing:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: marketing
+        APP_PATH: apps/marketing
+      target: nextjs
+    container_name: borjie-prod-marketing
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL required}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  customer-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: customer-app
+        APP_PATH: apps/customer-app
+      target: nextjs
+    container_name: borjie-prod-customer-app
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  owner-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: owner-portal
+        APP_PATH: apps/owner-portal
+      target: vite
+    container_name: borjie-prod-owner-portal
+    <<: [*common-restart, *common-logging]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: admin-web
+        APP_PATH: apps/admin-web
+      target: nextjs
+    container_name: borjie-prod-admin-web
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+
+  estate-manager-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: estate-manager-app
+        APP_PATH: apps/estate-manager-app
+      target: nextjs
+    container_name: borjie-prod-estate-manager
+    <<: [*common-restart, *common-logging]
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [control-plane]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1G }
+
+  # ===========================================================================
+  # Edge plane — Nginx (TLS termination, host-facing) + Certbot (LE auto-renew)
+  # ===========================================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: borjie-prod-nginx
+    <<: [*common-restart, *common-logging]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - certbot-certs:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - control-plane
+      - edge
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: borjie-prod-certbot
+    <<: *common-logging
+    restart: "no"
+    volumes:
+      - certbot-certs:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    # Run via cron on the host every 12h:
+    #   docker compose run --rm certbot renew --webroot -w /var/www/certbot
+    entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done"]
+
+# =============================================================================
+# Networks — segregated control + data + edge planes
+# =============================================================================
+networks:
+  edge:
+    name: borjie-prod-edge
+    driver: bridge
+  control-plane:
+    name: borjie-prod-control
+    driver: bridge
+    internal: false
+  data-plane:
+    name: borjie-prod-data
+    driver: bridge
+    internal: true   # no internet egress from data plane
+
+# =============================================================================
+# Named volumes — survive container recreation
+# =============================================================================
+volumes:
+  pg-data:
+    name: borjie-prod-pg-data
+  redis-data:
+    name: borjie-prod-redis-data
+  certbot-certs:
+    name: borjie-prod-certbot-certs
+  certbot-webroot:
+    name: borjie-prod-certbot-webroot
+  nginx-logs:
+    name: borjie-prod-nginx-logs

@@ -1,0 +1,95 @@
+{
+  "name": "@borjie/disclosure-layer",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "IP-protected disclosure layer: 3-tier taxonomy, role-gate, CLOSE refusal, canary tokens, spotlighting, hardened SP, GDPR Art 22 counterfactuals, EU AI Act Art 50 disclosure, audit, runtime defense composer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./tier-taxonomy": {
+      "types": "./dist/tier-taxonomy/index.d.ts",
+      "import": "./dist/tier-taxonomy/index.js",
+      "default": "./dist/tier-taxonomy/index.js"
+    },
+    "./role-gate": {
+      "types": "./dist/role-gate/index.d.ts",
+      "import": "./dist/role-gate/index.js",
+      "default": "./dist/role-gate/index.js"
+    },
+    "./close-pattern": {
+      "types": "./dist/close-pattern/index.d.ts",
+      "import": "./dist/close-pattern/index.js",
+      "default": "./dist/close-pattern/index.js"
+    },
+    "./canary-tokens": {
+      "types": "./dist/canary-tokens/index.d.ts",
+      "import": "./dist/canary-tokens/index.js",
+      "default": "./dist/canary-tokens/index.js"
+    },
+    "./spotlighting": {
+      "types": "./dist/spotlighting/index.d.ts",
+      "import": "./dist/spotlighting/index.js",
+      "default": "./dist/spotlighting/index.js"
+    },
+    "./hardened-system-prompt": {
+      "types": "./dist/hardened-system-prompt/index.d.ts",
+      "import": "./dist/hardened-system-prompt/index.js",
+      "default": "./dist/hardened-system-prompt/index.js"
+    },
+    "./gdpr-art-22-explainability": {
+      "types": "./dist/gdpr-art-22-explainability/index.d.ts",
+      "import": "./dist/gdpr-art-22-explainability/index.js",
+      "default": "./dist/gdpr-art-22-explainability/index.js"
+    },
+    "./eu-ai-act-art-50": {
+      "types": "./dist/eu-ai-act-art-50/index.d.ts",
+      "import": "./dist/eu-ai-act-art-50/index.js",
+      "default": "./dist/eu-ai-act-art-50/index.js"
+    },
+    "./disclosure-audit": {
+      "types": "./dist/disclosure-audit/index.d.ts",
+      "import": "./dist/disclosure-audit/index.js",
+      "default": "./dist/disclosure-audit/index.js"
+    },
+    "./runtime-defense-composer": {
+      "types": "./dist/runtime-defense-composer/index.d.ts",
+      "import": "./dist/runtime-defense-composer/index.js",
+      "default": "./dist/runtime-defense-composer/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ai-disclosure",
+    "ip-protection",
+    "eu-ai-act",
+    "gdpr-art-22",
+    "close-pattern",
+    "canary-tokens",
+    "spotlighting",
+    "counterfactual",
+    "tier-taxonomy",
+    "role-gate"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

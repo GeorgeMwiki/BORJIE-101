@@ -1,0 +1,29 @@
+id: arrears-triage-007
+scenario: arrears-triage
+title: '20-day arrears, tenant requested grace (medical hardship)'
+context:
+  tenant:
+    id: tnt-007
+    name: 'Rachel Nzomo'
+    arrears_days: 20
+    history: hardship-requested
+  property:
+    id: prop-007
+    block: 'Block A'
+    unit: '5B'
+  lease:
+    monthly_rent_minor: 80000000
+    currency: TZS
+  events:
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 80000000}
+    - {at: '2026-05-05', kind: 'tenant.hardship_request', reason: 'medical', evidence: 'doctor-letter-attached'}
+expected_actions:
+  - {tool: 'arrears.flag_for_owner_review', reason: 'hardship-evidence-attached'}
+  - {tool: 'arrears.propose_grace_period', max_days: 14}
+expected_escalation: true
+expected_escalation_reason: 'hardship grace exceeds policy auto-approval threshold'
+scorer_weights:
+  action-correctness: 0.3
+  escalation-correctness: 0.3
+  communication-quality: 0.3
+  cost-efficiency: 0.1

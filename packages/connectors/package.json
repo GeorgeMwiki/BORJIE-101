@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/connectors",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Base connector framework for Borjie external integrations. Mirrors LITFIN's base-connector pattern: rate-limit, circuit-breaker, retry, audit, event bus, Zod validation. Every connector (M-Pesa, GePG, Twilio, MLS, credit bureaus, appraisal APIs) inherits this discipline.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "zod": "^3.25.76",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "zod": ">=3.25.0"
+  }
+}

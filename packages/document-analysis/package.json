@@ -1,0 +1,77 @@
+{
+  "name": "@borjie/document-analysis",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Piece K — document analysis pipeline: ingest → OCR → layout → semantic extract → entity resolution → routing decision → citation. The brain-to-tab loop at the document layer.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ingest": {
+      "types": "./dist/ingest.d.ts",
+      "import": "./dist/ingest.js",
+      "default": "./dist/ingest.js"
+    },
+    "./ocr": {
+      "types": "./dist/ocr/index.d.ts",
+      "import": "./dist/ocr/index.js",
+      "default": "./dist/ocr/index.js"
+    },
+    "./layout": {
+      "types": "./dist/layout/index.d.ts",
+      "import": "./dist/layout/index.js",
+      "default": "./dist/layout/index.js"
+    },
+    "./extract": {
+      "types": "./dist/extract/index.d.ts",
+      "import": "./dist/extract/index.js",
+      "default": "./dist/extract/index.js"
+    },
+    "./resolve": {
+      "types": "./dist/resolve/index.d.ts",
+      "import": "./dist/resolve/index.js",
+      "default": "./dist/resolve/index.js"
+    },
+    "./route": {
+      "types": "./dist/route/index.d.ts",
+      "import": "./dist/route/index.js",
+      "default": "./dist/route/index.js"
+    },
+    "./orchestrator": {
+      "types": "./dist/orchestrator.d.ts",
+      "import": "./dist/orchestrator.js",
+      "default": "./dist/orchestrator.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --no-error-on-unmatched-pattern"
+  },
+  "dependencies": {
+    "@borjie/dispatch-router": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.0.379",
+    "tesseract.js": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

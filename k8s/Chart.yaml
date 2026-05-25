@@ -1,0 +1,15 @@
+apiVersion: v2
+name: borjie
+description: BORJIE — multi-tenant property-management AI platform (Helm chart)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: BORJIE Platform
+    email: platform@borjie.com
+keywords:
+  - property-management
+  - saas
+  - ai
+  - multi-tenant
+home: https://borjie.com

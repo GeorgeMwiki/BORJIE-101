@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    // Hoisted transitive @types/hapi__* leak into implicit type
+    // discovery; restrict to what we actually need.
+    "types": ["node"],
+    // Same relaxation as document-intelligence — domain-models carries
+    // `string | undefined` shapes that were previously hidden behind the
+    // missing dist .d.ts. A follow-up pass will migrate the domain-model
+    // optional fields to the `field?: T` shape required by exactOptional.
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

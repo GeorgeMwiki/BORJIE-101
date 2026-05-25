@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: scientific-discovery-sidecar
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar

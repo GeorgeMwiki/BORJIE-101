@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: borjie-config
+  namespace: borjie
+data:
+  NODE_ENV: "staging"
+  LOG_LEVEL: "debug"
+  ESTATE_MANAGER_API_URL: "https://api.staging.borjie.com/api/v1"
+  CUSTOMER_APP_API_URL: "https://api.staging.borjie.com/api/v1"
+  OWNER_PORTAL_API_URL: "https://api.staging.borjie.com/api/v1"
+  ADMIN_PORTAL_API_URL: "https://api.staging.borjie.com/api/v1"

@@ -1,0 +1,44 @@
+{
+  "name": "@borjie/skill-conversation",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Chat-handoff substrate for owner-as-programmer-by-conversation: NL -> intent classification -> AOP-compiled Skill -> status loop. Used by ai-copilot (CL-B2) and internal-admin console.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "skill-by-conversation",
+    "aop",
+    "owner-as-programmer",
+    "intent-classifier",
+    "chat-handoff"
+  ],
+  "dependencies": {
+    "@borjie/aop-compiler": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

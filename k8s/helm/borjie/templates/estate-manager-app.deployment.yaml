@@ -1,0 +1,85 @@
+{{- $w := .Values.apps.estateManagerApp -}}
+{{- if $w.enabled -}}
+# Property/estate-manager portal. PUBLIC ingress at hosts.estateManagerApp.
+# Scales to 0 on idle via KEDA HTTP add-on (keda/scaledobject-estate-manager-app.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+    borjie.io/tier: frontend
+    borjie.io/visibility: public
+spec:
+  replicas: {{ .Values.replicaCount.estateManagerApp }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.labels" . | nindent 8 }}
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ $w.name }}
+        borjie.io/tier: frontend
+        borjie.io/visibility: public
+      annotations:
+        {{- include "borjie.podAnnotations" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      securityContext:
+        {{- include "borjie.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $w.name }}
+          # TODO(scaffold): pin image.tag in CI to the git SHA.
+          image: {{ include "borjie.image" (dict "Values" .Values "workload" $w) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: {{ $w.port }}, protocol: TCP }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef:    { name: app-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: NEXT_PUBLIC_APP_NAME
+              value: estate-manager-app
+            - name: API_GATEWAY_URL
+              value: http://{{ .Values.services.apiGateway.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.apiGateway.port }}
+          resources:
+            {{- toYaml $w.resources | nindent 12 }}
+          startupProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            {{- include "borjie.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp,          mountPath: /tmp }
+            - { name: nextjs-cache, mountPath: /app/.next/cache }
+      volumes:
+        - { name: tmp,          emptyDir: { sizeLimit: 256Mi } }
+        - { name: nextjs-cache, emptyDir: { sizeLimit: 512Mi } }
+{{- end }}

@@ -1,0 +1,106 @@
+{{- $w := .Values.services.apiGateway -}}
+{{- if $w.enabled -}}
+# api-gateway — ONLY backend reachable from frontend pods.
+# Routes to payments-ledger / reports / notifications / domain-services.
+# NEVER expose this Service via Ingress. Frontends call it cluster-internal.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+    borjie.io/tier: service
+    borjie.io/visibility: internal
+spec:
+  replicas: {{ .Values.replicaCount.apiGateway }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.labels" . | nindent 8 }}
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ $w.name }}
+        borjie.io/tier: service
+        borjie.io/visibility: internal
+      annotations:
+        {{- include "borjie.podAnnotations" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "borjie.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: {{ $w.name }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "borjie.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: {{ $w.name }}
+      securityContext:
+        {{- include "borjie.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $w.name }}
+          # TODO(scaffold): pin image.tag in CI to the git SHA.
+          image: {{ include "borjie.image" (dict "Values" .Values "workload" $w) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: {{ $w.port }}, protocol: TCP }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef:    { name: app-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: SERVICE_NAME
+              value: api-gateway
+            - name: PAYMENTS_LEDGER_URL
+              value: http://{{ .Values.services.paymentsLedger.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.paymentsLedger.port }}
+            - name: REPORTS_URL
+              value: http://{{ .Values.services.reports.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.reports.port }}
+            - name: NOTIFICATIONS_URL
+              value: http://{{ .Values.services.notifications.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.notifications.port }}
+          resources:
+            {{- toYaml $w.resources | nindent 12 }}
+          startupProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            {{- include "borjie.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
+{{- end }}

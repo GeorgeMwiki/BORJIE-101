@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "personaId": "internal_admin",
+  "topbar": {
+    "logo": { "label": "Boss Nyumba — Platform", "href": "/admin", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search tenants, escalations, audits…", "scope": "global" },
+    "notifications": { "enabled": true, "pollSeconds": 30 },
+    "profile": {
+      "enabled": true,
+      "menu": [
+        { "label": "Settings", "intent": "open_settings" },
+        { "label": "Profile", "intent": "open_profile" },
+        { "label": "Help", "intent": "open_help" },
+        { "label": "Sign out", "intent": "sign_out" }
+      ]
+    }
+  },
+  "sidebar": {
+    "sections": [
+      {
+        "id": "ops",
+        "title": "Operations",
+        "items": [
+          { "id": "home", "label": "Dashboard", "icon": "home", "href": "/admin" },
+          { "id": "tenants", "label": "Tenants", "icon": "building-2", "href": "/admin/tenants", "badge": 0 },
+          { "id": "escalations", "label": "Escalations", "icon": "alert-triangle", "href": "/admin/escalations" },
+          { "id": "billing", "label": "Billing", "icon": "credit-card", "href": "/admin/billing" }
+        ]
+      },
+      {
+        "id": "governance",
+        "title": "Governance",
+        "items": [
+          { "id": "compliance", "label": "Compliance", "icon": "shield-check", "href": "/admin/compliance" },
+          { "id": "audit", "label": "Audit trail", "icon": "scroll-text", "href": "/admin/audit" },
+          { "id": "policies", "label": "Policies", "icon": "gavel", "href": "/admin/policies" }
+        ]
+      },
+      {
+        "id": "system",
+        "title": "System",
+        "items": [
+          { "id": "health", "label": "System health", "icon": "activity", "href": "/admin/health" },
+          { "id": "feature-flags", "label": "Feature flags", "icon": "flag", "href": "/admin/feature-flags" }
+        ]
+      }
+    ],
+    "defaultCollapsed": false
+  },
+  "dashboard": {
+    "columns": 12,
+    "cells": [
+      {
+        "id": "kpis-platform",
+        "span": 12,
+        "kind": "kpi-grid",
+        "title": "Platform KPIs",
+        "initialProps": null
+      },
+      {
+        "id": "tenants-table",
+        "span": 6,
+        "kind": "data-table",
+        "title": "Active tenants",
+        "initialProps": null
+      },
+      {
+        "id": "escalations-queue",
+        "span": 6,
+        "kind": "notification-toast",
+        "title": "Escalations queue",
+        "initialProps": null
+      },
+      {
+        "id": "decision-trace",
+        "span": 6,
+        "kind": "decision-trace",
+        "title": "Recent autonomous decisions",
+        "initialProps": null
+      },
+      {
+        "id": "evidence",
+        "span": 6,
+        "kind": "evidence-card",
+        "title": "Latest compliance evidence",
+        "initialProps": null
+      },
+      {
+        "id": "dataflow",
+        "span": 12,
+        "kind": "dataflow-diagram",
+        "title": "System dataflow",
+        "initialProps": null
+      }
+    ]
+  },
+  "primaryAction": {
+    "label": "Open chat",
+    "intent": "open_chat",
+    "icon": "message-square"
+  },
+  "theme": {
+    "mode": "dark",
+    "density": "compact",
+    "tokens": {
+      "color-primary": "oklch(0.72 0.13 245)",
+      "color-accent": "oklch(0.68 0.18 296)"
+    }
+  },
+  "featureFlags": {
+    "admin.governance.proactive_alerts": true,
+    "admin.feature_flags.editor": true
+  },
+  "accessibilityProfile": {
+    "largeText": false,
+    "highContrast": false,
+    "reduceMotion": false,
+    "screenReaderOptimized": false,
+    "voiceFirst": false,
+    "primaryModality": "text"
+  }
+}

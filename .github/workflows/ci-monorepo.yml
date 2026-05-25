@@ -1,0 +1,169 @@
+# =============================================================================
+# Monorepo CI — parallel install / typecheck / test / build / lint
+# =============================================================================
+# This workflow runs alongside the existing `ci.yml` (which handles matrix
+# unit tests, e2e, docker-build, trivy). It is intentionally narrower and
+# faster: every job reuses one install artifact and runs in parallel where
+# possible. Typecheck fails fast (the whole workflow short-circuits) but
+# test failures do not prevent coverage + build artifact upload.
+# =============================================================================
+
+name: Monorepo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: monorepo-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8.15.0'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # install — prime the pnpm store and cache it for every downstream job.
+  # ---------------------------------------------------------------------------
+  install:
+    name: Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+  # ---------------------------------------------------------------------------
+  # typecheck — fail-fast gate. Every subsequent job `needs: typecheck`.
+  # ---------------------------------------------------------------------------
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # Build internal packages first so package-barrel `dist/` exports
+      # exist (some apps/packages import via the `import` condition).
+      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - name: pnpm -r typecheck
+        run: pnpm -r typecheck
+
+  # ---------------------------------------------------------------------------
+  # lint — runs in parallel with test/build after typecheck passes.
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r lint
+
+  # ---------------------------------------------------------------------------
+  # test — do NOT skip on test failure; still upload coverage artifacts.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      # Build internal packages first so vitest can resolve barrel
+      # `import` exports (services/api-gateway tests need
+      # @borjie/domain-services subpath dist).
+      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+
+      - name: pnpm -r test
+        run: pnpm -r test
+
+      - name: Upload coverage (always)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            packages/*/coverage
+            services/*/coverage
+            apps/*/coverage
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # build — produces dist artifacts uploaded for downstream deploy workflows.
+  # Next.js apps validate required public-env at build time; CI supplies
+  # placeholder values so the guard passes. Production deploys inject the
+  # real values via the deploy workflows.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: typecheck
+    env:
+      NEXT_PUBLIC_APP_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_API_URL: https://ci-build.borjie.invalid/api
+      NEXT_PUBLIC_TENANT_CURRENCY: USD
+      NEXT_PUBLIC_TENANT_LOCALE: en
+      NEXT_PUBLIC_TENANT_COUNTRY: TZ
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: pnpm -r build
+        run: pnpm -r build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: monorepo-build
+          path: |
+            packages/*/dist
+            services/*/dist
+            apps/*/dist
+            apps/*/.next
+          retention-days: 7
+          if-no-files-found: ignore

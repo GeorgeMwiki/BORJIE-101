@@ -1,0 +1,25 @@
+---
+# Explicit allow rule documenting the frontend → api-gateway path.
+# Note: per-app NetworkPolicies in the Helm chart also enforce this on
+# the egress side. This namespace-scoped rule is here for operators
+# applying raw manifests (not Helm).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-gateway
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: api-gateway
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: customer-app } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: estate-manager-app } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: owner-portal } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: admin-web } }
+      ports:
+        - { protocol: TCP, port: 4000 }

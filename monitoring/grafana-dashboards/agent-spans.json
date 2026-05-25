@@ -1,0 +1,187 @@
+{
+  "annotations": { "list": [] },
+  "description": "Per-agent latency / throughput / error / degraded-rate. Reads the four counters emitted by `services/api-gateway/src/instrumentation/agent-spans.ts` (agent.call.total, agent.call.errors_total, agent.call.duration_ms, agent_port_degraded_total). Labels: agent, operation, outcome.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value" },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        { "expr": "sum(rate(agent_call_total[5m]))", "refId": "A" }
+      ],
+      "title": "Total agent calls / sec",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_errors_total[5m])) / sum(rate(agent_call_total[5m])) * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Agent error rate %",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_ms_bucket[5m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "Agent p95 latency",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_port_degraded_total[5m])) * 60",
+          "refId": "A"
+        }
+      ],
+      "title": "Degraded fallbacks / min",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_total[5m])) by (agent)",
+          "legendFormat": "{{agent}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Calls / 5m by agent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_errors_total[5m])) by (agent)",
+          "legendFormat": "{{agent}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Errors / 5m by agent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(agent_call_duration_ms_bucket[5m])) by (le, agent))",
+          "legendFormat": "{{agent}} p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(agent_call_duration_ms_bucket[5m])) by (le, agent))",
+          "legendFormat": "{{agent}} p50",
+          "refId": "B"
+        }
+      ],
+      "title": "Latency p50 / p95 by agent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_total[5m])) by (agent, operation)",
+          "legendFormat": "{{agent}} / {{operation}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Calls / 5m by agent + operation",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_call_total{outcome=\"ok\"}[5m])) by (agent) / sum(rate(agent_call_total[5m])) by (agent)",
+          "legendFormat": "{{agent}} success",
+          "refId": "A"
+        }
+      ],
+      "title": "Success ratio by agent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "sum(rate(agent_port_degraded_total[5m])) by (agent, port, reason)",
+          "legendFormat": "{{agent}} {{port}} ({{reason}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Degraded-port fallbacks by agent + port",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["borjie", "agent", "ai", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "borjie" },
+        "definition": "label_values(agent_call_total, agent)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Agent",
+        "multi": true,
+        "name": "agent",
+        "options": [],
+        "query": { "query": "label_values(agent_call_total, agent)", "refId": "Variable-agent" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "BORJIE Agent Spans",
+  "uid": "borjie-agent-spans",
+  "version": 1,
+  "weekStart": ""
+}

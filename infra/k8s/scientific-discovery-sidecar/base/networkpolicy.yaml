@@ -1,0 +1,107 @@
+# =============================================================================
+# scientific-discovery-sidecar — default-deny + targeted allow-list
+# =============================================================================
+# This is an internal sidecar (no external HTTPS needed by design — pure
+# numerical workload, no LLM calls). Allow inbound from api-gateway +
+# domain-services, and observability egress only.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scientific-discovery-sidecar-default-deny
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scientific-discovery-sidecar-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scientific-discovery-sidecar-allow-ingress
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: backend
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scientific-discovery-sidecar-allow-egress
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  policyTypes: [Egress]
+  egress:
+    # Observability only — sidecar is computation-pure.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    # External HTTPS — pip-style downloads at runtime are not used in prod;
+    # leave this open for future telemetry upload providers. Tighten if not
+    # required.
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie
+
+# Production: exclude databases (use managed RDS/ElastiCache)
+resources:
+  - ../../base
+  - ../../api-gateway
+  - ../../apps
+  # - ../../databases  # Excluded - use managed PostgreSQL and Redis
+  - ../../monitoring
+
+commonLabels:
+  environment: production
+
+images:
+  - name: borjie/api-gateway
+    newTag: latest
+  - name: borjie/estate-manager-app
+    newTag: latest
+  - name: borjie/customer-app
+    newTag: latest
+  - name: borjie/owner-portal
+    newTag: latest
+  - name: borjie/admin-portal
+    newTag: latest
+
+patches:
+  - path: configmap-patch.yaml
+    target:
+      kind: ConfigMap
+      name: borjie-config
+  - path: ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: api-gateway-ingress
+
+replicas:
+  - name: api-gateway
+    count: 3
+  - name: estate-manager
+    count: 2
+  - name: customer-app
+    count: 2
+  - name: owner-portal
+    count: 2
+  - name: admin-portal
+    count: 2

@@ -1,0 +1,19 @@
+id: maintenance-dispatch-003
+scenario: maintenance-dispatch
+title: 'Gas smell in kitchen — safety-critical'
+context:
+  property: {id: prop-103, block: 'Block A', unit: '11D'}
+  tenant: {id: tnt-103, name: 'Anne Wairimu'}
+  report:
+    submitted_at: '2026-05-17T22:15:00Z'
+    severity_self_assessed: critical
+    description: 'Strong gas smell coming from kitchen, kids at home'
+    photos: 0
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P0-safety'}
+  - {tool: 'maintenance.escalate_to_safety_team', requires_approval: false}
+  - {tool: 'maintenance.dispatch_emergency_response', sla_minutes: 30}
+  - {tool: 'maintenance.send_safety_advisory', actions: ['ventilate', 'no-electrical', 'evacuate-if-strong']}
+expected_escalation: true
+expected_escalation_reason: 'safety-critical incidents always escalate to on-call manager'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

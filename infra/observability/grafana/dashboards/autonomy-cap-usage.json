@@ -1,0 +1,120 @@
+{
+  "annotations": { "list": [] },
+  "description": "Per-tenant autonomy cap usage vs ceiling; projected time-to-ceiling.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Cap usage % per tenant",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "tenant_autonomy_cap_usage / tenant_autonomy_cap_ceiling",
+          "legendFormat": "{{tenant_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1.2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "orange", "value": 0.85 },
+              { "color": "red", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "table",
+      "title": "Tenants approaching ceiling (top 20)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "topk(20, tenant_autonomy_cap_usage / tenant_autonomy_cap_ceiling)",
+          "instant": true,
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Projected hours to ceiling (linear extrapolation)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "predict_linear(tenant_autonomy_cap_usage[6h], 86400) > tenant_autonomy_cap_ceiling",
+          "legendFormat": "{{tenant_id}} — ETA",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "h" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Tenants above 90% cap usage",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 20 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "count(tenant_autonomy_cap_usage / tenant_autonomy_cap_ceiling > 0.9)",
+          "legendFormat": "tenants",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": ["autonomy", "cap-usage", "f7"],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "selected": false, "text": "Prometheus", "value": "prometheus" }
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Autonomy Cap Usage",
+  "uid": "autonomy-cap-usage",
+  "version": 1,
+  "weekStart": ""
+}

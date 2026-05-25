@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "personaId": "owner",
+  "topbar": {
+    "logo": { "label": "Boss Nyumba — Owner", "href": "/owner", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search properties, statements…", "scope": "persona" },
+    "notifications": { "enabled": true, "pollSeconds": 120 },
+    "profile": {
+      "enabled": true,
+      "menu": [
+        { "label": "Settings", "intent": "open_settings" },
+        { "label": "Profile", "intent": "open_profile" },
+        { "label": "Help", "intent": "open_help" },
+        { "label": "Sign out", "intent": "sign_out" }
+      ]
+    }
+  },
+  "sidebar": {
+    "sections": [
+      {
+        "id": "portfolio",
+        "title": "Portfolio",
+        "items": [
+          { "id": "home", "label": "Dashboard", "icon": "home", "href": "/owner" },
+          { "id": "properties", "label": "My properties", "icon": "building", "href": "/owner/properties" },
+          { "id": "statements", "label": "Statements", "icon": "scroll-text", "href": "/owner/statements" }
+        ]
+      },
+      {
+        "id": "money",
+        "title": "Money",
+        "items": [
+          { "id": "cashflow", "label": "Cash flow", "icon": "trending-up", "href": "/owner/cashflow" },
+          { "id": "disbursements", "label": "Disbursements", "icon": "banknote", "href": "/owner/disbursements" },
+          { "id": "approvals", "label": "My approvals", "icon": "check-circle-2", "href": "/owner/approvals" }
+        ]
+      },
+      {
+        "id": "advisory",
+        "title": "Advisory",
+        "items": [
+          { "id": "reports", "label": "Reports", "icon": "file-bar-chart", "href": "/owner/reports" },
+          { "id": "chat", "label": "Talk to MD", "icon": "message-square", "intent": "open_chat" }
+        ]
+      }
+    ],
+    "defaultCollapsed": false
+  },
+  "dashboard": {
+    "columns": 12,
+    "cells": [
+      {
+        "id": "portfolio-kpis",
+        "span": 12,
+        "kind": "kpi-grid",
+        "title": "Portfolio summary",
+        "initialProps": null
+      },
+      {
+        "id": "cashflow",
+        "span": 8,
+        "kind": "chart-vega",
+        "title": "Cash flow — 12 months",
+        "initialProps": null
+      },
+      {
+        "id": "property-comparison",
+        "span": 4,
+        "kind": "comparison-table",
+        "title": "Properties side-by-side",
+        "initialProps": null
+      },
+      {
+        "id": "property-list",
+        "span": 6,
+        "kind": "data-table",
+        "title": "My properties",
+        "initialProps": null
+      },
+      {
+        "id": "compliance-status",
+        "span": 6,
+        "kind": "evidence-card",
+        "title": "Compliance status",
+        "initialProps": null
+      },
+      {
+        "id": "approvals-queue",
+        "span": 12,
+        "kind": "approval",
+        "title": "Decisions awaiting you",
+        "initialProps": null
+      }
+    ]
+  },
+  "primaryAction": {
+    "label": "Open finance",
+    "intent": "open_finance",
+    "icon": "banknote"
+  },
+  "theme": {
+    "mode": "light",
+    "density": "comfortable",
+    "tokens": {
+      "color-primary": "oklch(0.62 0.16 145)",
+      "color-success": "oklch(0.72 0.16 145)",
+      "color-danger": "oklch(0.62 0.21 28)"
+    }
+  },
+  "featureFlags": {
+    "owner.advisory.chat": true,
+    "owner.reports.export": true
+  },
+  "accessibilityProfile": {
+    "largeText": false,
+    "highContrast": false,
+    "reduceMotion": false,
+    "screenReaderOptimized": false,
+    "voiceFirst": false,
+    "primaryModality": "text"
+  }
+}

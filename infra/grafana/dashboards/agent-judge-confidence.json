@@ -1,0 +1,185 @@
+{
+  "annotations": { "list": [] },
+  "description": "Judge-score + confidence histograms emitted by central-intelligence kernel.ts step 9 (judge) and step 12 (confidence). Reads judge_score_seconds_bucket and confidence_overall_seconds_bucket from the meter registered by packages/observability/src/metrics/judge-confidence-histograms.ts. Owner: D6 (Phase D).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value" },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(judge_score_seconds_bucket{stakes=~\"$stakes\"}[15m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "Judge p50",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(judge_score_seconds_bucket{stakes=~\"$stakes\"}[15m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "Judge p95",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(confidence_overall_seconds_bucket{stakes=~\"$stakes\"}[15m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "Confidence p50",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(confidence_overall_seconds_bucket{stakes=~\"$stakes\"}[15m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "title": "Confidence p95",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(increase(judge_score_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Judge score distribution (heatmap)",
+      "type": "heatmap"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "sum(increase(confidence_overall_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Confidence-overall distribution (heatmap)",
+      "type": "heatmap"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(judge_score_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le, stakes))",
+          "legendFormat": "{{stakes}} p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(judge_score_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le, stakes))",
+          "legendFormat": "{{stakes}} p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Judge p50 / p95 over time by stakes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(confidence_overall_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le, stakes))",
+          "legendFormat": "{{stakes}} p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(confidence_overall_seconds_bucket{stakes=~\"$stakes\"}[5m])) by (le, stakes))",
+          "legendFormat": "{{stakes}} p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Confidence p50 / p95 over time by stakes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum(rate(judge_score_seconds_count{stakes=~\"$stakes\",regen=\"1\"}[5m])) / sum(rate(judge_score_seconds_count{stakes=~\"$stakes\"}[5m]))",
+          "legendFormat": "regen-after-judge ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Judge regen-trigger ratio (score < 0.5 → re-call)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["borjie", "agent", "judge", "confidence", "phase-d", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(judge_score_seconds_count, stakes)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Stakes",
+        "multi": true,
+        "name": "stakes",
+        "options": [],
+        "query": { "query": "label_values(judge_score_seconds_count, stakes)", "refId": "Variable-stakes" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "BORJIE Agent — Judge & Confidence",
+  "uid": "borjie-agent-judge-confidence",
+  "version": 1,
+  "weekStart": ""
+}

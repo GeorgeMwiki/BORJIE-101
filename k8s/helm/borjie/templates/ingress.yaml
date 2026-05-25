@@ -1,0 +1,58 @@
+{{- if .Values.ingress.enabled -}}
+# Per-portal Ingress resources. Each of the 4 frontend portals gets its
+# own public hostname. The 4 backend services are NEVER exposed here.
+#
+# cert-manager auto-provisions a TLS cert per host via the configured
+# ClusterIssuer (see cert-manager-issuer.yaml).
+{{- range $key, $w := .Values.apps }}
+{{- if $w.enabled }}
+{{- $host := index $.Values.hosts $key }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+  annotations:
+    {{- if $.Values.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ $.Values.tls.issuer }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ $.Values.ingress.proxyBodySize | quote }}
+    nginx.ingress.kubernetes.io/proxy-read-timeout: {{ $.Values.ingress.proxyReadTimeout | quote }}
+    nginx.ingress.kubernetes.io/proxy-send-timeout: {{ $.Values.ingress.proxySendTimeout | quote }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "63072000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    nginx.ingress.kubernetes.io/hsts-preload: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.3 TLSv1.2"
+    {{- if eq $key "adminPlatformPortal" }}
+    # TODO(scaffold): restrict admin portal to ops VPN IP ranges.
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "1.2.3.0/24,5.6.7.0/24"
+    {{- end }}
+spec:
+  ingressClassName: {{ $.Values.ingress.className }}
+  {{- if $.Values.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ $host }}
+      secretName: {{ $.Values.tls.secretNamePrefix }}-{{ $w.name }}
+  {{- end }}
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $w.name }}
+                port:
+                  number: 80
+{{- end }}
+{{- end }}
+{{- end }}

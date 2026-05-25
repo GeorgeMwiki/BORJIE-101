@@ -1,0 +1,25 @@
+{
+  "id": "bfcl-simple-001",
+  "category": "simple",
+  "prompt": "Find the lease for tenant 'asha-mwakasege' at property 'prop-001' unit '4B'.",
+  "tools": [
+    {
+      "name": "lookup_lease",
+      "description": "Look up a lease by tenant, property, and unit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tenantId": { "type": "string" },
+          "propertyId": { "type": "string" },
+          "unitId": { "type": "string" }
+        },
+        "required": ["tenantId", "propertyId", "unitId"]
+      }
+    }
+  ],
+  "groundTruth": {
+    "kind": "expected-call",
+    "toolName": "lookup_lease",
+    "args": { "tenantId": "asha-mwakasege", "propertyId": "prop-001", "unitId": "4B" }
+  }
+}

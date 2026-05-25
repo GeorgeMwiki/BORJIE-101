@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "mode": "strict",
+    "allow": [
+      "Read",
+      "Grep",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Edit(*.md)"
+    ],
+    "deny": ["Bash(rm -rf:*)", "Bash(sudo:*)"],
+    "ask": ["Write"]
+  }
+}

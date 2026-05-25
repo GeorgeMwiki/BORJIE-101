@@ -1,0 +1,4 @@
+# Staging PDB — allow voluntary disruption (single replica anyway).
+- op: replace
+  path: /spec/minAvailable
+  value: 0

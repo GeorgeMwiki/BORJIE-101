@@ -1,0 +1,31 @@
+{
+  "name": "@borjie/brain-evolution-worker",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Sleep-time consolidator — re-reads day's traces and rewrites memory blocks. Letta sleep-time pattern + Harvey 6x task-completion lift + Anthropic 'dreaming'.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@borjie/autonomy-governance": "workspace:*",
+    "@borjie/central-intelligence": "workspace:^",
+    "@borjie/database": "workspace:*",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

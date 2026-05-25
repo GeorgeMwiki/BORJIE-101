@@ -1,0 +1,74 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "pipeline": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "clean": {
+      "cache": false
+    }
+  },
+  "globalEnv": [
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "JWT_REFRESH_SECRET",
+    "JWT_EXPIRES_IN",
+    "CLERK_SECRET_KEY",
+    "MPESA_CONSUMER_KEY",
+    "MPESA_CONSUMER_SECRET",
+    "MPESA_PASSKEY",
+    "MPESA_SHORTCODE",
+    "STRIPE_SECRET_KEY",
+    "FLUTTERWAVE_SECRET_KEY",
+    "AFRICAS_TALKING_API_KEY",
+    "AFRICAS_TALKING_USERNAME",
+    "SENDGRID_API_KEY",
+    "FIREBASE_PROJECT_ID",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_S3_BUCKET",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "AI_PROVIDER",
+    "API_URL",
+    "FRONTEND_URL",
+    "NODE_ENV",
+    "NEXT_PUBLIC_SUPPORT_PHONE",
+    "NEXT_PUBLIC_SUPPORT_WHATSAPP",
+    "NEXT_PUBLIC_API_URL"
+  ]
+}

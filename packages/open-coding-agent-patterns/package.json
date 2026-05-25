@@ -1,0 +1,68 @@
+{
+  "name": "@borjie/open-coding-agent-patterns",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Open-source Claude-Code-like coding-agent patterns ported as in-process primitives: repository map, minimal-diff editing, sandbox execution (Docker/E2B/local-subprocess), TDD loop, plan persistence (Plandex-style), browser/computer-use agents, and trajectory record/replay. Designed to plug into the internal brain layer rather than ship a runnable agent.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./repository-map": {
+      "types": "./dist/repository-map/index.d.ts",
+      "import": "./dist/repository-map/index.js",
+      "default": "./dist/repository-map/index.js"
+    },
+    "./minimal-diff-editing": {
+      "types": "./dist/minimal-diff-editing/index.d.ts",
+      "import": "./dist/minimal-diff-editing/index.js",
+      "default": "./dist/minimal-diff-editing/index.js"
+    },
+    "./sandbox-execution": {
+      "types": "./dist/sandbox-execution/index.d.ts",
+      "import": "./dist/sandbox-execution/index.js",
+      "default": "./dist/sandbox-execution/index.js"
+    },
+    "./tdd-loop": {
+      "types": "./dist/tdd-loop/index.d.ts",
+      "import": "./dist/tdd-loop/index.js",
+      "default": "./dist/tdd-loop/index.js"
+    },
+    "./plan-persistence": {
+      "types": "./dist/plan-persistence/index.d.ts",
+      "import": "./dist/plan-persistence/index.js",
+      "default": "./dist/plan-persistence/index.js"
+    },
+    "./browser-agent": {
+      "types": "./dist/browser-agent/index.d.ts",
+      "import": "./dist/browser-agent/index.js",
+      "default": "./dist/browser-agent/index.js"
+    },
+    "./trajectory": {
+      "types": "./dist/trajectory/index.d.ts",
+      "import": "./dist/trajectory/index.js",
+      "default": "./dist/trajectory/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/enterprise-hardening": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

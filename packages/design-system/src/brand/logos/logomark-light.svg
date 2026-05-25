@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#FBF7EE"/>
+      <stop offset="100%" stop-color="#F3EAD3"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="200" y1="50" x2="200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#4A2F0E"/>
+      <stop offset="35%"  stop-color="#7A4F1E"/>
+      <stop offset="68%"  stop-color="#A36A2A"/>
+      <stop offset="100%" stop-color="#4A2F0E"/>
+    </linearGradient>
+    <linearGradient id="mono" x1="200" y1="130" x2="200" y2="270" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7A4F1E"/>
+      <stop offset="40%"  stop-color="#CC884A"/>
+      <stop offset="75%"  stop-color="#B8873E"/>
+      <stop offset="100%" stop-color="#4A2F0E"/>
+    </linearGradient>
+    <linearGradient id="highlight" x1="200" y1="60" x2="200" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="200" cy="200" r="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F2C27E" stop-opacity="0.5"/>
+      <stop offset="45%"  stop-color="#E5B26B" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="innerGlow" cx="200" cy="200" r="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFE2B4" stop-opacity="0.4"/>
+      <stop offset="70%"  stop-color="#FFE2B4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="softer" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <rect width="400" height="400" rx="62" fill="url(#bg)"/>
+  <rect width="400" height="400" rx="62" fill="none" stroke="#D4C094" stroke-width="1"/>
+
+  <g filter="url(#soft)" opacity="0.85">
+    <circle cx="200" cy="200" r="100" fill="url(#glow)"/>
+  </g>
+  <g filter="url(#softer)" opacity="0.85">
+    <circle cx="200" cy="200" r="60" fill="url(#innerGlow)"/>
+  </g>
+
+  <rect x="65" y="65" width="270" height="270" rx="44" fill="none" stroke="url(#frame)" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M109 65h182a44 44 0 0 1 44 44" fill="none" stroke="url(#highlight)" stroke-width="16" stroke-linecap="round" opacity="0.7"/>
+
+  <g fill="url(#mono)">
+    <path d="
+      M118 135
+      h26
+      q30 0 30 27
+      q0 19 -16 24
+      q19 4 19 27
+      q0 29 -32 29
+      h-27
+      z
+      M132 148
+      v37
+      h11
+      q17 0 17 -19
+      q0 -18 -17 -18
+      z
+      M132 198
+      v40
+      h13
+      q18 0 18 -20
+      q0 -20 -18 -20
+      z
+    "/>
+    <path d="
+      M193 135
+      h14
+      l34 70
+      v-70
+      h15
+      v107
+      h-14
+      l-34 -70
+      v70
+      h-15
+      z
+    "/>
+  </g>
+
+  <g stroke="#7A4F1E" stroke-width="4" stroke-linecap="round" opacity="0.3">
+    <path d="M82 68v10"/><path d="M68 82h10"/>
+    <path d="M318 68v10"/><path d="M322 82h10"/>
+    <path d="M82 322v10"/><path d="M68 318h10"/>
+    <path d="M318 322v10"/><path d="M322 318h10"/>
+  </g>
+</svg>

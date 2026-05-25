@@ -1,0 +1,17 @@
+# Root Kustomization - use overlays for environment-specific builds
+# Usage:
+#   kubectl kustomize infrastructure/k8s/overlays/staging
+#   kubectl apply -k infrastructure/k8s/overlays/staging
+#   kubectl apply -k infrastructure/k8s/overlays/production
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - base
+  - api-gateway
+  - apps
+  - databases
+  - monitoring
+# NOTE: `services/` was removed — it contained deployment manifests for pure
+# library packages (notifications, payments, reports) that have no
+# Dockerfile and no HTTP entrypoint. See services/DRIFT_CLEANUP.md.

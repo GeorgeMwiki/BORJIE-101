@@ -1,0 +1,300 @@
+# =============================================================================
+# BORJIE — End-to-End test stack
+# =============================================================================
+# Spins up the SAME images CI ships (api-gateway from docker/Dockerfile.api,
+# customer-app from docker/Dockerfile.web) plus a hermetic postgres seeded by
+# e2e/fixtures/seed-runner.ts. Playwright specs then exercise the real flow
+# instead of mocking /api/v1/* via `page.route()`, which is what hid the
+# FeedbackThumbs 👍/👎 schema mismatch the wave-K audit caught.
+#
+# Usage:
+#   docker compose -f docker-compose.e2e.yml up -d --wait
+#   pnpm tsx e2e/fixtures/seed-runner.ts
+#   pnpm test:e2e --project=customer-app
+#   docker compose -f docker-compose.e2e.yml down -v
+#
+# The api-gateway and customer-app images are NOT changed here — they build
+# from the existing PR #55 Dockerfiles. Only the wiring is local.
+# =============================================================================
+
+services:
+  postgres:
+    # pgvector extends postgres:15-alpine with the `vector` extension required
+    # by document-intelligence's embedding columns (the schema migrations call
+    # `CREATE EXTENSION IF NOT EXISTS vector` so a stock postgres image fails).
+    image: pgvector/pgvector:pg15
+    container_name: borjie-e2e-postgres
+    environment:
+      POSTGRES_USER: borjie
+      POSTGRES_PASSWORD: borjie_e2e
+      POSTGRES_DB: borjie_e2e
+    ports:
+      - "55432:5432"
+    tmpfs:
+      # Volatile data — every CI run starts clean, no persistence between runs.
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U borjie -d borjie_e2e"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Redis 7-alpine matches the dev compose image. Rate-limit, per-tenant token
+  # budget on /jarvis routes, and the deep-health probe all reach for ioredis
+  # when REDIS_URL is set; without a Redis service the gateway is forced onto
+  # the in-memory fallback paths which (a) hide real-stack bugs the wave-K
+  # audit is meant to surface and (b) trip the rate-limit `lazyConnect:false`
+  # ioredis client into an immediate refused-connection error at boot.
+  # Host port is offset (16379) so this can run alongside the dev compose
+  # which already binds 6379.
+  redis:
+    image: redis:7-alpine
+    container_name: borjie-e2e-redis
+    ports:
+      - "16379:6379"
+    tmpfs:
+      # Volatile — every CI run starts with an empty cache.
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 15
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: borjie-e2e-api
+    environment:
+      # NODE_ENV=test bypasses the production-mode validateEnv() guards
+      # (SESSION_HASH_SECRET requirement, ALLOWED_ORIGINS requirement,
+      # assertApiKeyConfig() registry check). Customer-app E2E only
+      # exercises the auth/feedback/maintenance/payments/documents/messaging
+      # routes — none of which require the prod-only secrets.
+      NODE_ENV: test
+      PORT: 4000
+      DATABASE_URL: postgresql://borjie:borjie_e2e@postgres:5432/borjie_e2e
+      # Real Redis — the gateway's rate-limit middleware lazy-connects with
+      # `lazyConnect: false` so a missing/unhealthy redis crashed the boot.
+      # docker-internal port is 6379 (NOT the 16379 host offset above).
+      # Neo4j is still optional — the customer-app E2E routes don't touch
+      # the Canonical Property Graph, so we don't ship a neo4j service here.
+      REDIS_URL: redis://redis:6379
+      # Test-only signing secret — never used in prod, hard-coded so seed
+      # fixtures can mint deterministic JWTs without a key-rotation dance.
+      # 64 chars: matches the production-mode "JWT_SECRET should be ≥ 64"
+      # recommendation in validate-env.ts even though NODE_ENV=test skips it.
+      JWT_SECRET: e2e-test-secret-do-not-use-in-prod-64-chars-pad-pad-pad-pad-pad
+      # Audit-hash-chain HMAC root. Required in production by validate-env;
+      # NODE_ENV=test skips the requirement but we set a deterministic
+      # 48-char placeholder so the hash chain is keyed (not unkeyed SHA-256)
+      # even in E2E — surfaces audit-trail regressions instead of hiding them.
+      SESSION_HASH_SECRET: e2e-session-hash-secret-do-not-use-in-prod-pad-pad
+      # NextAuth secret consumed by the customer-app SSR layer when it mints
+      # session cookies during the e2e auth flow. Stable across runs so
+      # seed-runner.ts can derive predictable session IDs if it ever needs to.
+      NEXTAUTH_SECRET: e2e-nextauth-secret-do-not-use-in-prod-pad-pad-pad
+      # M-Pesa connector stub URL — payments.spec.ts swaps STK-push at the
+      # NETWORK level (page.route on daraja.safaricom.co.ke) NOT the api-gw.
+      MPESA_BASE_URL: http://localhost:9999/mock-mpesa
+      # Background tasks off — the outbox worker, wake-loop cron, intelligence
+      # history supervisor, and SLA worker all start unconditionally when
+      # require.main === module, but they're inert when this flag is `false`.
+      # Keeping them off in E2E shaves boot time and avoids a steady stream
+      # of "no work to do" log lines clouding the failure diagnosis.
+      BORJIE_BG_TASKS_ENABLED: "false"
+      # Disable the gateway's outbox worker explicitly. Belt-and-braces with
+      # the BG_TASKS flag above; both are read independently inside
+      # workers/outbox-worker.ts and composition/background-wiring.ts.
+      OUTBOX_WORKER_DISABLED: "true"
+      # OpenTelemetry off — no collector in the E2E stack. The otel bootstrap
+      # is idempotent and no-ops on this flag.
+      OTEL_ENABLED: "false"
+      # Skip dotenv on boot — repo .env files don't exist in the runner image
+      # and dotenv otherwise emits a noisy ENOENT warning per file.
+      BORJIE_SKIP_DOTENV: "true"
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:4000/healthz",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  customer-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: customer-app
+        APP_PATH: apps/customer-app
+      target: nextjs
+    container_name: borjie-e2e-customer-app
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Point the SSR fetch at the api-gateway over the compose network. The
+      # browser hits the gateway via the published 4000 port so the
+      # NEXT_PUBLIC_* var must use localhost (browser-resolvable), not the
+      # internal hostname.
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      INTERNAL_API_URL: http://api-gateway:4000/api/v1
+    ports:
+      - "3002:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # Optional: mailhog for email-flow assertions. The customer-app E2E specs
+  # under wave-K scope (communication / documents / maintenance / onboarding /
+  # payments) don't currently assert on email content, but mailhog is cheap
+  # and unblocks future move-out-notice and renewal-acceptance email checks.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: borjie-e2e-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # HTTP UI / API
+
+  # --- portal-app services (W-E2E-Portals) ---
+  # The customer-app already boots above; these three siblings boot the
+  # remaining portal bundles so the admin-portal / owner-portal / estate-manager
+  # Playwright projects exercise the REAL api-gateway (no stub-server). Each
+  # uses the same docker/Dockerfile.web pattern — only APP_NAME / APP_PATH /
+  # target differ. Host-port mapping matches what playwright.config expects
+  # (admin=3001, owner=3000, manager=3003). owner-portal is currently a Vite
+  # SPA so its target is `vite` (nginx-served static bundle); the other two
+  # are Next.js (`nextjs` target).
+  admin-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: admin-web
+        APP_PATH: apps/admin-web
+      target: nextjs
+    container_name: borjie-e2e-admin-portal
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      INTERNAL_API_URL: http://api-gateway:4000/api/v1
+    ports:
+      - "3001:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  owner-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: owner-portal
+        APP_PATH: apps/owner-portal
+      target: vite
+    container_name: borjie-e2e-owner-portal
+    environment:
+      # The vite stage is nginx serving a prebuilt SPA; runtime envs only
+      # affect the entrypoint health probe.
+      NGINX_PORT: 80
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  estate-manager-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: estate-manager-app
+        APP_PATH: apps/estate-manager-app
+      target: nextjs
+    container_name: borjie-e2e-estate-manager
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      INTERNAL_API_URL: http://api-gateway:4000/api/v1
+    ports:
+      - "3003:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+networks:
+  default:
+    name: borjie-e2e-network

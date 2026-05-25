@@ -1,0 +1,46 @@
+# =============================================================================
+# Postgres Services — Patroni-aware
+# =============================================================================
+# Patroni labels each pod with `spilo-role=master|replica` via the operator
+# pattern. Two Services select on that label, so app clients can target:
+#
+#   postgres-primary.borjie-data:5432  — writes (always current leader)
+#   postgres-replicas.borjie-data:5432 — reads (round-robin across replicas)
+#
+# If the Spilo image you pin no longer applies the `spilo-role` label, run
+# `kubectl apply -f postgres-haproxy.yaml` and point clients at the HAProxy
+# Service instead — it falls back to Patroni REST checks.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: postgres-patroni
+    app.kubernetes.io/role: primary
+spec:
+  selector:
+    app.kubernetes.io/name: postgres-patroni
+    spilo-role: master
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replicas
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: postgres-patroni
+    app.kubernetes.io/role: replica
+spec:
+  selector:
+    app.kubernetes.io/name: postgres-patroni
+    spilo-role: replica
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

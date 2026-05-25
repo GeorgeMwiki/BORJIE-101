@@ -1,0 +1,74 @@
+{{- $w := .Values.services.paymentsLedger -}}
+{{- if and $w.enabled .Values.networkPolicy.enabled -}}
+# payments-ledger PCI-adjacent NetworkPolicy. Strict on both sides:
+#   - INGRESS: ONLY api-gateway pods. NEVER frontends, NEVER cross-namespace.
+#   - EGRESS: ONLY Postgres + Redis + pinned payment-provider HTTPS endpoints + DNS.
+# Webhook callbacks (Stripe, Daraja) terminate at ingress-nginx and flow back
+# in via api-gateway → payments-ledger, so no inbound public exposure here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $w.name }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+    borjie.io/sensitivity: pci-adjacent
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        # ONLY api-gateway. No frontends, no other services, no namespaces.
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.apiGateway.name }} } }
+      ports:
+        - { protocol: TCP, port: {{ $w.port }} }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $w.name }}-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+    borjie.io/sensitivity: pci-adjacent
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: redis } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector:       { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # TODO(scaffold): replace 0.0.0.0/0 with pinned payment-provider CIDRs.
+    # Stripe egress IPs: https://stripe.com/files/ips/ips_egress.json
+    # Daraja (M-Pesa) IPs: confirm with Safaricom (typically 196.201.214.0/24 etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 169.254.169.254/32   # cloud metadata — NEVER allow.
+      ports:
+        - { protocol: TCP, port: 443 }
+{{- end }}

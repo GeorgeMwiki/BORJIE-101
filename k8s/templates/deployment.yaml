@@ -1,0 +1,114 @@
+{{- $root := . -}}
+# =============================================================================
+# Gateway deployment
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "borjie.fullname" . }}-gateway
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  {{- if not .Values.gateway.autoscaling.enabled }}
+  replicas: {{ .Values.gateway.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: gateway
+          image: {{ include "borjie.image" (list . .Values.gateway.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.gateway.service.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ include "borjie.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.gateway.envFromSecret }}
+          env:
+            {{- range $k, $v := .Values.gateway.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.gateway.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.gateway.probes.liveness.initialDelaySeconds }}
+            periodSeconds:       {{ .Values.gateway.probes.liveness.periodSeconds }}
+            timeoutSeconds:      {{ .Values.gateway.probes.liveness.timeoutSeconds }}
+            failureThreshold:    {{ .Values.gateway.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.gateway.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.gateway.probes.readiness.initialDelaySeconds }}
+            periodSeconds:       {{ .Values.gateway.probes.readiness.periodSeconds }}
+            timeoutSeconds:      {{ .Values.gateway.probes.readiness.timeoutSeconds }}
+            failureThreshold:    {{ .Values.gateway.probes.readiness.failureThreshold }}
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+---
+{{- range $name, $app := .Values.apps }}
+{{- if $app.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "borjie.fullname" $root }}-{{ $name | kebabcase }}
+  labels:
+    {{- include "borjie.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name | kebabcase }}
+spec:
+  replicas: {{ $app.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" $root | nindent 6 }}
+      app.kubernetes.io/component: {{ $name | kebabcase }}
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.selectorLabels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ $name | kebabcase }}
+    spec:
+      securityContext:
+        {{- toYaml $root.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $name | kebabcase }}
+          image: {{ include "borjie.image" (list $root $app.image) }}
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $root.Values.securityContext | nindent 12 }}
+          ports:
+            - containerPort: {{ $app.port }}
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml $app.resources | nindent 12 }}
+---
+{{- end }}
+{{- end }}

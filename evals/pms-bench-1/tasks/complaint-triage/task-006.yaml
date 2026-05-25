@@ -1,0 +1,18 @@
+id: complaint-triage-006
+scenario: complaint-triage
+title: 'Complaint about another tenants pet (barking)'
+context:
+  complainant: {id: tnt-408, name: 'Emily Adhiambo', unit: '2C'}
+  subject_tenant: {id: tnt-409, name: 'Pet owner unit 2D', unit: '2D'}
+  complaint:
+    submitted_at: '2026-05-17T13:30:00Z'
+    kind: 'pet-noise'
+    severity_self_assessed: medium
+    description: 'Dog barks all morning while owner is at work'
+    prior_complaints: 0
+expected_actions:
+  - {tool: 'complaint.classify_severity', expected_class: 'P3-pet'}
+  - {tool: 'complaint.send_friendly_advisory_to_subject', tone: 'gentle-policy-reminder'}
+  - {tool: 'complaint.acknowledge_complainant', tone: 'empathetic'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

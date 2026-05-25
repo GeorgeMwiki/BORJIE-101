@@ -1,0 +1,40 @@
+{
+  "name": "@borjie/voice-agent",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Mr. Mwikila — sub-1s realtime voice agent for rent reminders, viewing bookings, maintenance intake. Per .audit/litfin-sota-2026-05-23/14-multimodal-generative.md (Wave-2026 multimodal voice).",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/brain-llm-router": "workspace:*",
+    "@borjie/enterprise-hardening": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "fastify": "^5.8.3",
+    "jose": "^6.2.3",
+    "pino": "^10.3.1",
+    "uuid": "^14.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

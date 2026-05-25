@@ -1,0 +1,23 @@
+# =============================================================================
+# mcp-server-firs base — Deployment + NetworkPolicy + ExternalSecret
+# =============================================================================
+# stdio-only MCP server — no HTTP / Service / HPA / PDB / ServiceMonitor
+# (until an HTTP/SSE bridge is wired alongside it).
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-app
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - deployment.yaml
+  - networkpolicy.yaml
+  - externalsecret.yaml
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-mcp-server-firs
+    newTag: latest

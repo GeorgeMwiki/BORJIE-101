@@ -1,0 +1,29 @@
+id: arrears-triage-009
+scenario: arrears-triage
+title: '15-day arrears, tenant on M-Pesa autopay that failed (technical)'
+context:
+  tenant:
+    id: tnt-009
+    name: 'Samuel Wanjau'
+    arrears_days: 15
+    history: autopay-failure
+  property:
+    id: prop-009
+    block: 'Block A'
+    unit: '8E'
+  lease:
+    monthly_rent_minor: 70000000
+    currency: TZS
+  events:
+    - {at: '2026-04-30', kind: 'mpesa_autopay_attempt', amount_minor: 70000000}
+    - {at: '2026-04-30', kind: 'mpesa_autopay_failed', error_code: 'TIMEOUT'}
+    - {at: '2026-05-02', kind: 'mpesa_autopay_retry_failed', error_code: 'TIMEOUT'}
+expected_actions:
+  - {tool: 'arrears.send_technical_failure_notice', tone: 'apologetic-helpful'}
+  - {tool: 'arrears.offer_payment_link', channel: 'sms+email'}
+expected_escalation: false
+scorer_weights:
+  action-correctness: 0.4
+  escalation-correctness: 0.1
+  communication-quality: 0.4
+  cost-efficiency: 0.1

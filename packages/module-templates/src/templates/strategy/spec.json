@@ -1,0 +1,75 @@
+{
+  "entities": [
+    {
+      "slug": "objective",
+      "display_name_en": "Strategic Objective",
+      "display_name_sw": "Lengo la Mkakati",
+      "fields": [
+        { "name": "code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "horizon", "kind": "enum", "required": true, "values": ["quarter", "year", "3_year"] },
+        { "name": "owner_title", "kind": "text", "required": false, "max_length": 128 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["draft", "active", "achieved", "cancelled"] }
+      ]
+    },
+    {
+      "slug": "kpi",
+      "display_name_en": "KPI",
+      "display_name_sw": "Kipimo cha Utendaji",
+      "fields": [
+        { "name": "kpi_code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "objective_id", "kind": "fk", "required": true, "references": "objective" },
+        { "name": "target_value", "kind": "numeric", "required": true, "precision": 18, "scale": 4 },
+        { "name": "unit_of_measure", "kind": "text", "required": true, "max_length": 32 },
+        { "name": "current_value", "kind": "numeric", "required": false, "precision": 18, "scale": 4 }
+      ]
+    },
+    {
+      "slug": "executive_calendar_item",
+      "display_name_en": "Executive Calendar Item",
+      "display_name_sw": "Kalenda ya Utendaji",
+      "fields": [
+        { "name": "title", "kind": "text", "required": true, "max_length": 256 },
+        { "name": "scheduled_for", "kind": "datetime", "required": true },
+        { "name": "category", "kind": "enum", "required": true, "values": ["board", "regulatory", "strategy", "operations", "external"] },
+        { "name": "status", "kind": "enum", "required": true, "values": ["scheduled", "completed", "cancelled"] }
+      ]
+    },
+    {
+      "slug": "valuation_run",
+      "display_name_en": "Valuation Run",
+      "display_name_sw": "Tathmini ya Thamani",
+      "fields": [
+        { "name": "run_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "subject_kind", "kind": "enum", "required": true, "values": ["property", "portfolio", "company"] },
+        { "name": "method", "kind": "enum", "required": true, "values": ["dcf", "comparables", "income", "cost"] },
+        { "name": "result_value", "kind": "money", "required": false, "currency_field": "tenant_default" },
+        { "name": "status", "kind": "enum", "required": true, "values": ["queued", "running", "completed", "failed"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "add_executive_calendar_item",
+      "title": "Add a calendar item for the executive",
+      "trigger_entity": "executive_calendar_item",
+      "trigger_event": "create",
+      "steps": ["classify_priority", "notify_attendees", "block_calendar"]
+    },
+    {
+      "slug": "request_valuation_run",
+      "title": "Request a valuation run",
+      "trigger_entity": "valuation_run",
+      "trigger_event": "create",
+      "steps": ["assemble_inputs", "run_model", "publish_report"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "objective", "columns": ["code", "display_name", "status"] },
+    { "kind": "table", "entity": "kpi", "columns": ["kpi_code", "display_name"] },
+    { "kind": "table", "entity": "executive_calendar_item", "columns": ["display_name", "category", "status"] },
+    { "kind": "form", "entity": "objective" },
+    { "kind": "form", "entity": "valuation_run" },
+    { "kind": "kpi_tile", "title": "Active objectives", "query": "count(objective where status=active)" },
+    { "kind": "kpi_tile", "title": "Calendar items this month", "query": "count(executive_calendar_item this month)" }
+  ]
+}

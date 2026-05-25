@@ -1,0 +1,120 @@
+# =============================================================================
+# BORJIE — PagerDuty escalation policies
+# =============================================================================
+# Names map 1:1 to the `escalation_policy` field in `services.yaml`.
+# Each policy is a sequence of steps; if step N's targets don't ack within
+# `escalation_delay_in_minutes`, PagerDuty escalates to step N+1.
+#
+# Schedule names (e.g. `eng-primary`) reference rotations defined in
+# PagerDuty's schedule UI. They are listed in `Docs/OPERATIONS.md §6`.
+# =============================================================================
+
+apiVersion: pagerduty.com/v1
+kind: EscalationPolicy
+metadata:
+  name: eng-primary-then-exec
+  description: |
+    Default policy for api-gateway / customer-facing services.
+    Primary -> Secondary -> CTO -> CEO.
+spec:
+  num_loops: 1
+  on_call_handoff_notifications: if_has_services
+  escalation_rules:
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: eng-primary
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: eng-secondary
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: exec-escalation
+---
+apiVersion: pagerduty.com/v1
+kind: EscalationPolicy
+metadata:
+  name: payments-then-eng-primary
+  description: |
+    Payments-ledger alerts go to the payments SME first; if they don't ack
+    within 10 min the page fans out to the engineering primary rotation
+    and then exec.
+spec:
+  num_loops: 1
+  on_call_handoff_notifications: if_has_services
+  escalation_rules:
+    - escalation_delay_in_minutes: 10
+      targets:
+        - type: schedule_reference
+          name: payments-oncall
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: eng-primary
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: exec-escalation
+---
+apiVersion: pagerduty.com/v1
+kind: EscalationPolicy
+metadata:
+  name: ai-then-eng-primary
+  description: |
+    Brain / AI alerts go to the AI SME first; non-blocking so longer
+    escalation windows than payments. Falls through to eng-primary if no
+    ack in 20 min.
+spec:
+  num_loops: 1
+  on_call_handoff_notifications: if_has_services
+  escalation_rules:
+    - escalation_delay_in_minutes: 20
+      targets:
+        - type: schedule_reference
+          name: ai-oncall
+    - escalation_delay_in_minutes: 20
+      targets:
+        - type: schedule_reference
+          name: eng-primary
+---
+apiVersion: pagerduty.com/v1
+kind: EscalationPolicy
+metadata:
+  name: eng-primary-only
+  description: |
+    Single-step policy for non-customer-visible background-jobs. Loops
+    back to eng-primary up to 3 times before timing out.
+spec:
+  num_loops: 3
+  on_call_handoff_notifications: if_has_services
+  escalation_rules:
+    - escalation_delay_in_minutes: 30
+      targets:
+        - type: schedule_reference
+          name: eng-primary
+---
+apiVersion: pagerduty.com/v1
+kind: EscalationPolicy
+metadata:
+  name: db-then-eng-primary
+  description: |
+    Infrastructure / DB alerts route to the DB SME first; falls through to
+    engineering primary and exec.
+spec:
+  num_loops: 1
+  on_call_handoff_notifications: if_has_services
+  escalation_rules:
+    - escalation_delay_in_minutes: 10
+      targets:
+        - type: schedule_reference
+          name: db-oncall
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: eng-primary
+    - escalation_delay_in_minutes: 15
+      targets:
+        - type: schedule_reference
+          name: exec-escalation

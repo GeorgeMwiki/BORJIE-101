@@ -1,0 +1,110 @@
+# =============================================================================
+# proactive-triggers-worker — 1h cadence sweep (Deployment, no HTTP)
+# Source: services/proactive-triggers-worker
+#   - Long-running setInterval sweep — when PROACTIVE_TRIGGERS_INTERVAL_MS
+#     > 0 (default 3600000) the worker stays up and loops. When 0 the
+#     worker runs once and exits — that's the Kubernetes CronJob mode
+#     (see infra/k8s/proactive-triggers-worker-cron/ if/when that mode
+#     is preferred).
+#   - This manifest picks the always-on loop variant because:
+#       a) the per-tenant sweep is cheap (env-driven concurrency cap),
+#       b) running as a Deployment lets us spread sweep load across
+#          multiple cluster zones for resilience,
+#       c) avoids the cold-start cost of a fresh pod every hour.
+#   - No HTTP surface; no Service / HPA / PDB.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proactive-triggers-worker
+  labels:
+    app.kubernetes.io/name: proactive-triggers-worker
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  # Singleton — sweep tenants in a deterministic order; multiple
+  # replicas would duplicate trigger fires absent leader-election.
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proactive-triggers-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: proactive-triggers-worker
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/version: "0.1.0"
+    spec:
+      serviceAccountName: proactive-triggers-worker
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: proactive-triggers-worker
+          image: ghcr.io/georgemwiki/borjie-proactive-triggers-worker:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: proactive-triggers-worker-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PROACTIVE_TRIGGERS_INTERVAL_MS
+              value: "3600000"
+            - name: PROACTIVE_TRIGGERS_CONCURRENCY
+              value: "4"
+            # Conservative urgency floor — bump to 5 to reduce
+            # cross-tenant trigger volume during incidents.
+            - name: PROACTIVE_TRIGGERS_MIN_URGENCY
+              value: "4"
+            - name: PROACTIVE_TRIGGERS_LOOKBACK_HOURS
+              value: "24"
+            - name: OTEL_SERVICE_NAME
+              value: proactive-triggers-worker
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/services/proactive-triggers-worker/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 128Mi
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: proactive-triggers-worker
+  labels:
+    app.kubernetes.io/name: proactive-triggers-worker
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

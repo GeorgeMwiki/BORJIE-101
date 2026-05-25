@@ -1,0 +1,105 @@
+# Tiltfile — hot-reload local dev for BORJIE against k3d.
+#
+# Prereqs:
+#   - tilt   >= 0.33   (https://docs.tilt.dev/install.html)
+#   - k3d    >= 5.7    (https://k3d.io)
+#   - helm   >= 3.14   (`brew install helm`)
+#   - docker desktop or colima running
+#
+# Bring up a local cluster (one-time):
+#   k3d cluster create --config k8s/k3d-cluster.yaml
+#
+# Start the dev loop:
+#   cd k8s && tilt up
+#
+# What this does:
+#   1. Builds the 4 frontend apps + 4 backend services as docker images
+#      with `tilt_docker_build` (gets you live-reload + image sync).
+#   2. Renders the Helm chart with dev overrides
+#      (values-dev.yaml + override of image.registry → localhost:5111)
+#      and applies it.
+#   3. Wires resource dependencies so postgres + redis come up before
+#      the apps that need them.
+#
+# The k3d cluster created by `k8s/k3d-cluster.yaml` runs a local
+# registry on localhost:5111 — Tilt pushes there, the cluster pulls
+# from there. No GHCR round-trip on every edit.
+
+load('ext://restart_process', 'docker_build_with_restart')
+load('ext://helm_resource',   'helm_resource', 'helm_repo')
+
+# ── Registry the in-cluster kubelet pulls from ───────────────────────
+default_registry('localhost:5111')
+
+# ── Image: each app/service ──────────────────────────────────────────
+SERVICES = [
+    ('customer-app',          'apps/customer-app/Dockerfile',          ['apps/customer-app']),
+    ('estate-manager-app',    'apps/estate-manager-app/Dockerfile',    ['apps/estate-manager-app']),
+    ('owner-portal',          'apps/owner-portal/Dockerfile',          ['apps/owner-portal']),
+    ('admin-platform-portal', 'apps/admin-platform-portal/Dockerfile', ['apps/admin-platform-portal']),
+    ('api-gateway',           'services/api-gateway/Dockerfile',       ['services/api-gateway', 'packages']),
+    ('payments-ledger',       'services/payments-ledger/Dockerfile',   ['services/payments-ledger', 'packages']),
+    ('reports',               'services/reports/Dockerfile',           ['services/reports', 'packages']),
+    ('notifications',         'services/notifications/Dockerfile',     ['services/notifications', 'packages']),
+]
+
+for name, dockerfile, deps in SERVICES:
+    docker_build(
+        ref           = name,
+        context       = '..',                # repo root
+        dockerfile    = '../' + dockerfile,
+        only          = deps + ['package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'tsconfig.base.json'],
+        live_update   = [
+            sync('../' + deps[0], '/app/' + deps[0]),
+        ],
+    )
+
+# ── Helm release ─────────────────────────────────────────────────────
+helm_resource(
+    name        = 'borjie',
+    chart       = './helm/borjie',
+    namespace   = 'borjie-dev',
+    flags       = [
+        '--create-namespace',
+        '--set',  'image.registry=localhost:5111',
+        '--set',  'image.project=',
+        '--set',  'image.pullPolicy=Never',
+        '--set',  'tls.enabled=false',
+        '--set',  'certManager.enabled=false',
+        '--set',  'externalSecrets.enabled=false',
+        '--set',  'keda.enabled=false',
+        '--set',  'networkPolicy.enabled=false',
+        '--set',  'postgres.statefulSet.storage.storageClassName=local-path',
+        '--set',  'postgres.statefulSet.replicas=1',
+        '--set',  'postgres.statefulSet.pdb.enabled=false',
+        '--set',  'migrate.enabled=false',
+        '--set',  'replicaCount.customerApp=1',
+        '--set',  'replicaCount.apiGateway=1',
+        '--set',  'replicaCount.paymentsLedger=1',
+        '--set',  'replicaCount.notifications=1',
+    ],
+    image_deps  = [name for name, _, _ in SERVICES],
+    resource_deps = [],
+)
+
+# ── Forward ports so you can hit them on localhost ──────────────────
+k8s_resource(
+    workload   = 'borjie:customer-app',
+    port_forwards = ['3000:3000'],
+)
+k8s_resource(
+    workload   = 'borjie:owner-portal',
+    port_forwards = ['3001:3000'],
+)
+k8s_resource(
+    workload   = 'borjie:estate-manager-app',
+    port_forwards = ['3002:3000'],
+)
+k8s_resource(
+    workload   = 'borjie:admin-platform-portal',
+    port_forwards = ['3003:3000'],
+)
+k8s_resource(
+    workload   = 'borjie:api-gateway',
+    port_forwards = ['4000:4000'],
+)

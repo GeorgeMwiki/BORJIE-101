@@ -1,0 +1,49 @@
+{{- if and .Values.apps.customerApp.enabled .Values.services.apiGateway.enabled -}}
+# Helm test: validate the NetworkPolicy allow rule by curling api-gateway
+# from a pod that wears the customer-app pod label. If this fails it
+# usually means a NetworkPolicy regression — a frontend pod can no
+# longer reach the backend it depends on.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-fe-to-gw"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    {{- include "borjie.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ .Values.apps.customerApp.name }}
+    borjie.io/test: networkpolicy
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- include "borjie.podSecurityContext" . | nindent 4 }}
+  containers:
+    - name: fe-to-gw
+      image: "curlimages/curl:8.10.1"
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -euo pipefail
+          GW=http://{{ .Values.services.apiGateway.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.apiGateway.port }}{{ .Values.services.apiGateway.healthPath }}
+          echo "==> frontend → gateway connectivity check"
+          echo "    URL: $GW"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$GW" || echo 000)
+          if [ "$CODE" = "200" ]; then
+            echo "==> OK: frontend pod can reach api-gateway"
+            exit 0
+          fi
+          echo "FAIL: frontend pod could NOT reach api-gateway (HTTP $CODE)"
+          echo "  most likely a NetworkPolicy regression — see:"
+          echo "    helm/borjie/templates/api-gateway.networkpolicy.yaml"
+          echo "    helm/borjie/templates/customer-app.networkpolicy.yaml"
+          exit 1
+      resources:
+        requests: { cpu: 50m, memory: 32Mi }
+        limits:   { cpu: 100m, memory: 64Mi }
+      securityContext:
+        {{- include "borjie.containerSecurityContext" . | nindent 8 }}
+{{- end }}

@@ -1,0 +1,18 @@
+id: kra-filing-004
+scenario: kra-filing
+title: 'Late-filing window: 3 days past deadline'
+context:
+  tenant_owner: {id: own-204, kra_pin: 'P051234570A', jurisdiction: KE}
+  period: {month: 3, year: 2026}
+  filing_deadline: '2026-04-20'
+  current_date: '2026-04-23'
+  rental_income_minor: 600000000
+  currency: KES
+  late_penalty_applies: true
+expected_actions:
+  - {tool: 'kra.compute_mri_return_with_penalty'}
+  - {tool: 'kra.disclose_penalty_to_owner', tone: 'transparent-apologetic'}
+  - {tool: 'kra.file_mri_return', requires_approval: true}
+expected_escalation: true
+expected_escalation_reason: 'late filing + penalty disclosure needs owner sign-off'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.3, communication-quality: 0.3, cost-efficiency: 0.1}

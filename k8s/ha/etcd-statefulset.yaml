@@ -1,0 +1,158 @@
+# =============================================================================
+# etcd 3-node StatefulSet — DCS for Patroni leader election
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-peer
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: dcs
+spec:
+  clusterIP: None              # headless — peer discovery
+  selector:
+    app.kubernetes.io/name: etcd
+  ports:
+    - name: client
+      port: 2379
+    - name: peer
+      port: 2380
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: etcd
+    app.kubernetes.io/component: dcs
+spec:
+  selector:
+    app.kubernetes.io/name: etcd
+  ports:
+    - name: client
+      port: 2379
+      targetPort: 2379
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: etcd
+  namespace: borjie-data
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: etcd
+spec:
+  serviceName: etcd-peer
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: etcd
+        app.kubernetes.io/component: dcs
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: etcd
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 0            # NB: etcd image ships only `root` — UID is hardcoded; we cannot drop it without rebuilding.
+        # ↑ Intentional: quay.io/coreos/etcd:v3.5.12 does not include a
+        # non-root user in /etc/passwd; runAsUser: 0 + container-level
+        # caps.drop is the safest pod-spec-level mitigation today. To
+        # truly run non-root, switch to gcr.io/etcd-development/etcd or
+        # bake a wrapper image that adds the `etcd` user.
+        fsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: etcd
+          image: quay.io/coreos/etcd:v3.5.12
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # etcd writes WAL/snapshots to /var/lib/etcd (volume) AND log to /tmp.
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /usr/local/bin/etcd
+          args:
+            - --name=$(POD_NAME)
+            - --data-dir=/var/lib/etcd
+            - --listen-peer-urls=http://0.0.0.0:2380
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://$(POD_NAME).etcd-peer.borjie-data.svc.cluster.local:2379
+            - --initial-advertise-peer-urls=http://$(POD_NAME).etcd-peer.borjie-data.svc.cluster.local:2380
+            - --initial-cluster=etcd-0=http://etcd-0.etcd-peer.borjie-data.svc.cluster.local:2380,etcd-1=http://etcd-1.etcd-peer.borjie-data.svc.cluster.local:2380,etcd-2=http://etcd-2.etcd-peer.borjie-data.svc.cluster.local:2380
+            - --initial-cluster-state=new
+            - --initial-cluster-token=borjie-pgha-cluster
+            - --auto-compaction-mode=periodic
+            - --auto-compaction-retention=1h
+            - --quota-backend-bytes=2147483648
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ETCD_ENABLE_V2
+              value: "false"
+          ports:
+            - containerPort: 2379
+              name: client
+            - containerPort: 2380
+              name: peer
+          livenessProbe:
+            exec:
+              command: ["etcdctl", "endpoint", "health", "--endpoints=http://localhost:2379"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["etcdctl", "endpoint", "health", "--endpoints=http://localhost:2379"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/etcd
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 8Gi

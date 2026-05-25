@@ -1,0 +1,70 @@
+{
+  "name": "@borjie/agentic-os",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Agentic OS — the meta-synthesis layer that composes brain + agent runtime + orchestrator + MCP + open-coding patterns + OpenClaw model + constitution + knowledge-graph into a single brain-first, goal-directed, constitutionally-guarded, observation-and-trust-calibrated runtime. Duck-typed ports for in-flight packages (P55..P61) — no hard workspace deps.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./brain-first-gateway": {
+      "types": "./dist/brain-first-gateway/index.d.ts",
+      "import": "./dist/brain-first-gateway/index.js",
+      "default": "./dist/brain-first-gateway/index.js"
+    },
+    "./goal-engine": {
+      "types": "./dist/goal-engine/index.d.ts",
+      "import": "./dist/goal-engine/index.js",
+      "default": "./dist/goal-engine/index.js"
+    },
+    "./capability-registry": {
+      "types": "./dist/capability-registry/index.d.ts",
+      "import": "./dist/capability-registry/index.js",
+      "default": "./dist/capability-registry/index.js"
+    },
+    "./constitutional-preflight": {
+      "types": "./dist/constitutional-preflight/index.d.ts",
+      "import": "./dist/constitutional-preflight/index.js",
+      "default": "./dist/constitutional-preflight/index.js"
+    },
+    "./observation-loop": {
+      "types": "./dist/observation-loop/index.d.ts",
+      "import": "./dist/observation-loop/index.js",
+      "default": "./dist/observation-loop/index.js"
+    },
+    "./trust-calibration": {
+      "types": "./dist/trust-calibration/index.d.ts",
+      "import": "./dist/trust-calibration/index.js",
+      "default": "./dist/trust-calibration/index.js"
+    },
+    "./inter-agent-negotiation": {
+      "types": "./dist/inter-agent-negotiation/index.d.ts",
+      "import": "./dist/inter-agent-negotiation/index.js",
+      "default": "./dist/inter-agent-negotiation/index.js"
+    },
+    "./living-kg": {
+      "types": "./dist/living-kg/index.d.ts",
+      "import": "./dist/living-kg/index.js",
+      "default": "./dist/living-kg/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

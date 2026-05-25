@@ -1,0 +1,56 @@
+# BORJIE document-render stack
+# --------------------------------
+# Self-hosted Carbone + Typst + Puppeteer for local development.
+# Brought up in one shot:
+#
+#   cd infra/document-render
+#   docker compose up --build
+#
+# The packages/document-studio renderers point at it via:
+#
+#   CARBONE_URL=http://localhost:4000
+#   TYPST_SERVER_URL=http://localhost:8001
+#   # Puppeteer renders in-process by default; the HTTP service at
+#   # :8002 is only used by callers that prefer the network path.
+#
+# Spec: .audit/litfin-sota-2026-05-23/19-document-generation.md
+
+services:
+  document-render:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: borjie/document-render:dev
+    container_name: borjie-document-render
+    restart: unless-stopped
+    ports:
+      - "4000:4000"   # Carbone
+      - "8001:8001"   # Typst HTTP wrapper
+      - "8002:8002"   # Puppeteer HTML→PDF
+    environment:
+      NODE_ENV: production
+      CARBONE_PORT: 4000
+      TYPST_PORT: 8001
+      PUPPETEER_PORT: 8002
+      TYPST_BINARY: /usr/local/bin/typst
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      TEMPLATES_DIR: /app/templates
+    volumes:
+      # Mount the studio's bundled templates so Carbone + Typst can
+      # resolve `:templateId` lookups without baking templates into
+      # the image. Read-only so the render service can never mutate
+      # them by accident.
+      - ../../packages/document-studio/src/templates:/app/templates:ro
+    healthcheck:
+      test: ["CMD", "node", "/app/scripts/healthcheck.js"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    # Carbone + LibreOffice + Chromium together can spike RAM under
+    # parallel renders; cap it so the host doesn't OOM-kill anything
+    # else on the dev's laptop.
+    deploy:
+      resources:
+        limits:
+          memory: 2g

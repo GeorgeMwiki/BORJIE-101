@@ -1,0 +1,72 @@
+{{- if .Values.migrate.enabled -}}
+# Database migration Job. Runs as a Helm pre-upgrade / pre-install hook
+# BEFORE app pods are rolled out — so a new release that ships a
+# migration cannot start serving traffic against an un-migrated DB.
+#
+# Idempotent: `pnpm migrate` (drizzle-kit / knex) skips already-applied
+# files. Safe to re-run if the rollout retries.
+#
+# If the Job fails, Helm aborts the release (combined with --atomic in
+# the deploy runbook this triggers an auto-rollback).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-migrate-%d" .Release.Name (int .Release.Revision) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ .Values.migrate.hookWeight | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrate.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrate.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: 86400   # keep logs around for 1d post-success
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.labels" . | nindent 8 }}
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+      annotations:
+        {{- include "borjie.podAnnotations" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: borjie-migrate
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      securityContext:
+        {{- include "borjie.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.registry }}/{{ .Values.image.project }}/{{ .Values.migrate.image.repository }}:{{ default .Values.image.tag .Values.migrate.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # The api-gateway image bundles drizzle-kit + the migration files.
+          # See `packages/db/package.json` for the migrate script.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              echo "==> borjie migration starting (release={{ .Release.Name }} revision={{ .Release.Revision }})"
+              pnpm --filter @borjie/db migrate
+              echo "==> migration complete"
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef:    { name: app-secrets }
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HELM_RELEASE_REVISION
+              value: {{ .Release.Revision | quote }}
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
+          securityContext:
+            {{- include "borjie.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
+{{- end }}

@@ -1,0 +1,1993 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Cases API
+  description: |
+    Case management API for BORJIE platform.
+    Handles disputes, legal notices, escalations, and resolution workflows.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Cases
+    description: Case management and tracking
+  - name: Disputes
+    description: Dispute handling and resolution
+  - name: Notices
+    description: Legal notices and communications
+  - name: Resolution
+    description: Case resolution workflows
+
+paths:
+  /cases:
+    get:
+      tags:
+        - Cases
+      summary: List cases
+      operationId: listCases
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/CaseType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CaseStatus'
+        - name: priority
+          in: query
+          schema:
+            $ref: '#/components/schemas/CasePriority'
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: leaseId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: createdFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: createdTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - createdAt
+              - updatedAt
+              - priority
+              - dueDate
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of cases
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Case'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Cases
+      summary: Create case
+      operationId: createCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCaseRequest'
+      responses:
+        '201':
+          description: Case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /cases/{caseId}:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    get:
+      tags:
+        - Cases
+      summary: Get case details
+      operationId: getCase
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - customer
+                - lease
+                - property
+                - documents
+                - activities
+                - notices
+      responses:
+        '200':
+          description: Case details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Cases
+      summary: Update case
+      operationId: updateCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCaseRequest'
+      responses:
+        '200':
+          description: Case updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/assign:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    post:
+      tags:
+        - Cases
+      summary: Assign case
+      operationId: assignCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assignedTo
+              properties:
+                assignedTo:
+                  type: string
+                  format: uuid
+                  description: User ID to assign the case to
+                notes:
+                  type: string
+                notifyAssignee:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Case assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/escalate:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    post:
+      tags:
+        - Cases
+      summary: Escalate case
+      operationId: escalateCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                escalateTo:
+                  type: string
+                  format: uuid
+                  description: Specific user or leave empty for auto-escalation
+                newPriority:
+                  $ref: '#/components/schemas/CasePriority'
+      responses:
+        '200':
+          description: Case escalated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/activities:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    get:
+      tags:
+        - Cases
+      summary: Get case activities
+      operationId: getCaseActivities
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Case activities
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CaseActivity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Cases
+      summary: Add case activity
+      operationId: addCaseActivity
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - description
+              properties:
+                type:
+                  $ref: '#/components/schemas/ActivityType'
+                description:
+                  type: string
+                isInternal:
+                  type: boolean
+                  default: false
+                  description: Internal notes not visible to customer
+                attachmentIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '201':
+          description: Activity added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseActivity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    get:
+      tags:
+        - Cases
+      summary: Get case documents
+      operationId: getCaseDocuments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Case documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Cases
+      summary: Attach document to case
+      operationId: attachDocumentToCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - documentId
+              properties:
+                documentId:
+                  type: string
+                  format: uuid
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Document attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Disputes
+  /disputes:
+    get:
+      tags:
+        - Disputes
+      summary: List disputes
+      operationId: listDisputes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/DisputeCategory'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DisputeStatus'
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated disputes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Disputes
+      summary: File dispute
+      operationId: fileDispute
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileDisputeRequest'
+      responses:
+        '201':
+          description: Dispute filed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /disputes/{disputeId}:
+    parameters:
+      - name: disputeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Disputes
+      summary: Get dispute details
+      operationId: getDispute
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dispute details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /disputes/{disputeId}/respond:
+    parameters:
+      - name: disputeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Disputes
+      summary: Respond to dispute
+      operationId: respondToDispute
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - response
+              properties:
+                response:
+                  type: string
+                  description: Response explanation
+                proposedResolution:
+                  type: string
+                  description: Proposed resolution
+                attachmentIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /disputes/{disputeId}/resolve:
+    parameters:
+      - name: disputeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Disputes
+      summary: Resolve dispute
+      operationId: resolveDispute
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveDisputeRequest'
+      responses:
+        '200':
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Notices
+  /notices:
+    get:
+      tags:
+        - Notices
+      summary: List notices
+      operationId: listNotices
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/NoticeType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/NoticeStatus'
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: leaseId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated notices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Notices
+      summary: Create notice
+      operationId: createNotice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoticeRequest'
+      responses:
+        '201':
+          description: Notice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notice'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notices/{noticeId}:
+    parameters:
+      - name: noticeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Notices
+      summary: Get notice details
+      operationId: getNotice
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoticeWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Notices
+      summary: Update notice
+      operationId: updateNotice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoticeRequest'
+      responses:
+        '200':
+          description: Notice updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notices/{noticeId}/send:
+    parameters:
+      - name: noticeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Notices
+      summary: Send notice
+      operationId: sendNotice
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deliveryMethods:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - email
+                      - sms
+                      - mail
+                      - in_app
+                  default:
+                    - email
+                    - in_app
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  description: Schedule for later delivery
+      responses:
+        '200':
+          description: Notice sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notices/{noticeId}/acknowledge:
+    parameters:
+      - name: noticeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Notices
+      summary: Acknowledge notice receipt
+      operationId: acknowledgeNotice
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signature:
+                  type: string
+                  description: Base64 encoded signature
+                acknowledgedBy:
+                  type: string
+                  description: Name of person acknowledging
+      responses:
+        '200':
+          description: Notice acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notices/{noticeId}/void:
+    parameters:
+      - name: noticeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Notices
+      summary: Void notice
+      operationId: voidNotice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Notice voided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Resolution
+  /cases/{caseId}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    post:
+      tags:
+        - Resolution
+      summary: Resolve case
+      operationId: resolveCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveCaseRequest'
+      responses:
+        '200':
+          description: Case resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/reopen:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    post:
+      tags:
+        - Resolution
+      summary: Reopen case
+      operationId: reopenCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Case reopened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cases/{caseId}/close:
+    parameters:
+      - $ref: '#/components/parameters/CaseIdParam'
+
+    post:
+      tags:
+        - Resolution
+      summary: Close case
+      operationId: closeCase
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                closureNotes:
+                  type: string
+                satisfactionRating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '200':
+          description: Case closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Case Templates
+  /case-templates:
+    get:
+      tags:
+        - Cases
+      summary: List case templates
+      operationId: listCaseTemplates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/CaseType'
+      responses:
+        '200':
+          description: Case templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Dashboard/Stats
+  /cases/stats:
+    get:
+      tags:
+        - Cases
+      summary: Get case statistics
+      operationId: getCaseStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - today
+              - week
+              - month
+              - quarter
+              - year
+            default: month
+      responses:
+        '200':
+          description: Case statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CaseIdParam:
+      name: caseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    CaseType:
+      type: string
+      enum:
+        - dispute
+        - complaint
+        - eviction
+        - legal
+        - payment_issue
+        - maintenance_issue
+        - lease_violation
+        - noise_complaint
+        - property_damage
+        - other
+
+    CaseStatus:
+      type: string
+      enum:
+        - open
+        - in_progress
+        - pending_customer
+        - pending_internal
+        - escalated
+        - resolved
+        - closed
+
+    CasePriority:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+
+    DisputeCategory:
+      type: string
+      enum:
+        - billing
+        - security_deposit
+        - maintenance
+        - lease_terms
+        - fees
+        - property_condition
+        - service_quality
+        - other
+
+    DisputeStatus:
+      type: string
+      enum:
+        - filed
+        - under_review
+        - awaiting_response
+        - in_mediation
+        - resolved
+        - escalated
+
+    NoticeType:
+      type: string
+      enum:
+        - late_payment
+        - lease_violation
+        - eviction
+        - move_out
+        - rent_increase
+        - lease_renewal
+        - inspection
+        - policy_change
+        - general
+        - cure_or_quit
+        - pay_or_quit
+
+    NoticeStatus:
+      type: string
+      enum:
+        - draft
+        - pending
+        - sent
+        - delivered
+        - acknowledged
+        - expired
+        - voided
+
+    ActivityType:
+      type: string
+      enum:
+        - note
+        - call
+        - email
+        - meeting
+        - document_added
+        - status_change
+        - assignment
+        - escalation
+        - resolution
+        - system
+
+    ResolutionType:
+      type: string
+      enum:
+        - resolved_in_favor_customer
+        - resolved_in_favor_landlord
+        - mutual_agreement
+        - withdrawn
+        - dismissed
+        - referred_external
+
+    # Core Entities
+    Case:
+      type: object
+      required:
+        - id
+        - tenantId
+        - caseNumber
+        - type
+        - status
+        - priority
+        - subject
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        caseNumber:
+          type: string
+          example: "CASE-2024-001234"
+        type:
+          $ref: '#/components/schemas/CaseType'
+        status:
+          $ref: '#/components/schemas/CaseStatus'
+        priority:
+          $ref: '#/components/schemas/CasePriority'
+        subject:
+          type: string
+        description:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        assignedTo:
+          type: string
+          format: uuid
+        assignedToName:
+          type: string
+        reportedBy:
+          type: string
+          format: uuid
+        reportedByType:
+          type: string
+          enum:
+            - customer
+            - manager
+            - owner
+            - system
+        dueDate:
+          type: string
+          format: date
+        slaDeadline:
+          type: string
+          format: date-time
+        isOverdue:
+          type: boolean
+        escalationLevel:
+          type: integer
+          default: 0
+        tags:
+          type: array
+          items:
+            type: string
+        resolution:
+          $ref: '#/components/schemas/CaseResolution'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+
+    CaseWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Case'
+        - type: object
+          properties:
+            customer:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+            lease:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                status:
+                  type: string
+            property:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                address:
+                  type: string
+            unit:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+            documents:
+              type: array
+              items:
+                $ref: '#/components/schemas/CaseDocument'
+            activities:
+              type: array
+              items:
+                $ref: '#/components/schemas/CaseActivity'
+            notices:
+              type: array
+              items:
+                $ref: '#/components/schemas/Notice'
+            relatedDisputes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dispute'
+
+    CaseActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ActivityType'
+        description:
+          type: string
+        isInternal:
+          type: boolean
+        performedBy:
+          type: string
+          format: uuid
+        performedByName:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              url:
+                type: string
+                format: uri
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CaseDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+          format: uri
+        addedBy:
+          type: string
+          format: uuid
+        addedAt:
+          type: string
+          format: date-time
+
+    CaseResolution:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ResolutionType'
+        summary:
+          type: string
+        details:
+          type: string
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+              completedAt:
+                type: string
+                format: date-time
+        financialAdjustment:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - credit
+                - refund
+                - waiver
+                - charge
+            amount:
+              $ref: '#/components/schemas/Money'
+            description:
+              type: string
+        resolvedBy:
+          type: string
+          format: uuid
+        resolvedAt:
+          type: string
+          format: date-time
+
+    Dispute:
+      type: object
+      required:
+        - id
+        - tenantId
+        - caseId
+        - category
+        - status
+        - customerId
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        disputeNumber:
+          type: string
+        category:
+          $ref: '#/components/schemas/DisputeCategory'
+        status:
+          $ref: '#/components/schemas/DisputeStatus'
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        description:
+          type: string
+        disputedAmount:
+          $ref: '#/components/schemas/Money'
+        relatedInvoiceId:
+          type: string
+          format: uuid
+        relatedPaymentId:
+          type: string
+          format: uuid
+        customerClaim:
+          type: string
+        landlordResponse:
+          type: string
+        resolution:
+          type: object
+          properties:
+            outcome:
+              $ref: '#/components/schemas/ResolutionType'
+            summary:
+              type: string
+            adjustedAmount:
+              $ref: '#/components/schemas/Money'
+        filedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DisputeWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Dispute'
+        - type: object
+          properties:
+            case:
+              $ref: '#/components/schemas/Case'
+            customer:
+              type: object
+            evidence:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  type:
+                    type: string
+                  description:
+                    type: string
+                  documentId:
+                    type: string
+                    format: uuid
+                  submittedBy:
+                    type: string
+                  submittedAt:
+                    type: string
+                    format: date-time
+            communications:
+              type: array
+              items:
+                $ref: '#/components/schemas/CaseActivity'
+
+    Notice:
+      type: object
+      required:
+        - id
+        - tenantId
+        - type
+        - status
+        - subject
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        noticeNumber:
+          type: string
+        type:
+          $ref: '#/components/schemas/NoticeType'
+        status:
+          $ref: '#/components/schemas/NoticeStatus'
+        subject:
+          type: string
+        content:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        effectiveDate:
+          type: string
+          format: date
+        expirationDate:
+          type: string
+          format: date
+        complianceDeadline:
+          type: string
+          format: date
+        documentId:
+          type: string
+          format: uuid
+        deliveryMethods:
+          type: array
+          items:
+            type: string
+            enum:
+              - email
+              - sms
+              - mail
+              - in_app
+        deliveryStatus:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              sentAt:
+                type: string
+                format: date-time
+              deliveredAt:
+                type: string
+                format: date-time
+        acknowledgedAt:
+          type: string
+          format: date-time
+        acknowledgedBy:
+          type: string
+        voidedAt:
+          type: string
+          format: date-time
+        voidReason:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NoticeWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Notice'
+        - type: object
+          properties:
+            customer:
+              type: object
+            lease:
+              type: object
+            case:
+              $ref: '#/components/schemas/Case'
+            document:
+              type: object
+
+    CaseTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/CaseType'
+        description:
+          type: string
+        defaultPriority:
+          $ref: '#/components/schemas/CasePriority'
+        defaultAssignee:
+          type: string
+          format: uuid
+        slaDays:
+          type: integer
+        checklistItems:
+          type: array
+          items:
+            type: string
+        autoCreateNotice:
+          type: boolean
+        noticeTemplateId:
+          type: string
+          format: uuid
+
+    CaseStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        byType:
+          type: object
+          additionalProperties:
+            type: integer
+        byPriority:
+          type: object
+          additionalProperties:
+            type: integer
+        openCases:
+          type: integer
+        resolvedCases:
+          type: integer
+        overdueCase:
+          type: integer
+        averageResolutionDays:
+          type: number
+        escalationRate:
+          type: number
+        satisfactionScore:
+          type: number
+
+    # Supporting Types
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    # Request Bodies
+    CreateCaseRequest:
+      type: object
+      required:
+        - type
+        - subject
+        - description
+      properties:
+        type:
+          $ref: '#/components/schemas/CaseType'
+        subject:
+          type: string
+        description:
+          type: string
+        priority:
+          $ref: '#/components/schemas/CasePriority'
+          default: medium
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        assignedTo:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date
+        tags:
+          type: array
+          items:
+            type: string
+        attachmentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    UpdateCaseRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/CaseType'
+        subject:
+          type: string
+        description:
+          type: string
+        priority:
+          $ref: '#/components/schemas/CasePriority'
+        status:
+          $ref: '#/components/schemas/CaseStatus'
+        dueDate:
+          type: string
+          format: date
+        tags:
+          type: array
+          items:
+            type: string
+
+    FileDisputeRequest:
+      type: object
+      required:
+        - category
+        - subject
+        - description
+        - customerId
+      properties:
+        category:
+          $ref: '#/components/schemas/DisputeCategory'
+        subject:
+          type: string
+        description:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        disputedAmount:
+          $ref: '#/components/schemas/Money'
+        relatedInvoiceId:
+          type: string
+          format: uuid
+        relatedPaymentId:
+          type: string
+          format: uuid
+        evidenceDocumentIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    ResolveDisputeRequest:
+      type: object
+      required:
+        - outcome
+        - summary
+      properties:
+        outcome:
+          $ref: '#/components/schemas/ResolutionType'
+        summary:
+          type: string
+        adjustedAmount:
+          $ref: '#/components/schemas/Money'
+        createCredit:
+          type: boolean
+          default: false
+        creditAmount:
+          $ref: '#/components/schemas/Money'
+        notifyCustomer:
+          type: boolean
+          default: true
+
+    CreateNoticeRequest:
+      type: object
+      required:
+        - type
+        - subject
+        - content
+        - customerId
+      properties:
+        type:
+          $ref: '#/components/schemas/NoticeType'
+        subject:
+          type: string
+        content:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        caseId:
+          type: string
+          format: uuid
+        effectiveDate:
+          type: string
+          format: date
+        complianceDeadline:
+          type: string
+          format: date
+        templateId:
+          type: string
+          format: uuid
+        templateData:
+          type: object
+          additionalProperties: true
+        deliveryMethods:
+          type: array
+          items:
+            type: string
+            enum:
+              - email
+              - sms
+              - mail
+              - in_app
+        sendImmediately:
+          type: boolean
+          default: false
+
+    UpdateNoticeRequest:
+      type: object
+      properties:
+        subject:
+          type: string
+        content:
+          type: string
+        effectiveDate:
+          type: string
+          format: date
+        complianceDeadline:
+          type: string
+          format: date
+
+    ResolveCaseRequest:
+      type: object
+      required:
+        - resolutionType
+        - summary
+      properties:
+        resolutionType:
+          $ref: '#/components/schemas/ResolutionType'
+        summary:
+          type: string
+        details:
+          type: string
+        actions:
+          type: array
+          items:
+            type: string
+        financialAdjustment:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - credit
+                - refund
+                - waiver
+                - charge
+            amount:
+              $ref: '#/components/schemas/Money'
+            description:
+              type: string
+        notifyCustomer:
+          type: boolean
+          default: true
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

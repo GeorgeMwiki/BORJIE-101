@@ -1,0 +1,26 @@
+# Web Apps - Development image (hot reload)
+ARG APP_NAME=owner-portal
+FROM node:20-alpine
+
+# python3 + build-base required by node-gyp for optional native deps
+# (canvas, etc.) that fall back to source build on musl — without them
+# pnpm install fails with `gyp ERR! find Python`. Fixed in flaky-CI-closure.
+RUN apk add --no-cache libc6-compat python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+COPY packages ./packages
+COPY services ./services
+COPY apps ./apps
+
+RUN pnpm install --frozen-lockfile
+
+WORKDIR /app/apps/${APP_NAME}
+
+EXPOSE 5173 3000 3002 3003
+
+CMD ["pnpm", "dev"]

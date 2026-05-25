@@ -1,0 +1,78 @@
+# =============================================================================
+# BORJIE - Development Overrides (hot reload, debug ports)
+# =============================================================================
+# Usage: docker compose up (automatically merges with docker-compose.yml)
+# For hot reload: use `make dev` or run with this override
+# =============================================================================
+
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api.dev
+    volumes:
+      - ./services/api-gateway/src:/app/services/api-gateway/src
+      - ./packages:/app/packages
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: postgresql://borjie:borjie_dev@postgres:5432/borjie
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: "--inspect=0.0.0.0:9229"
+    ports:
+      - "4000:4000"
+      - "9229:9229"  # Node.js debug port
+
+  estate-manager:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.dev
+      args:
+        APP_NAME: estate-manager-app
+    volumes:
+      - ./apps/estate-manager-app:/app/apps/estate-manager-app
+      - ./packages:/app/packages
+    ports:
+      - "3003:3003"
+      - "9230:9229"  # Debug port
+    command: ["pnpm", "dev"]
+
+  customer-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.dev
+      args:
+        APP_NAME: customer-app
+    volumes:
+      - ./apps/customer-app:/app/apps/customer-app
+      - ./packages:/app/packages
+    ports:
+      - "3002:3002"
+      - "9231:9229"  # Debug port
+    command: ["pnpm", "dev"]
+
+  owner-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.dev
+      args:
+        APP_NAME: owner-portal
+    volumes:
+      - ./apps/owner-portal:/app/apps/owner-portal
+      - ./packages:/app/packages
+    ports:
+      - "3001:5173"  # Vite dev server port
+    command: ["pnpm", "dev"]
+
+  admin-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.dev
+      args:
+        APP_NAME: admin-portal
+    volumes:
+      - ./apps/admin-portal:/app/apps/admin-portal
+      - ./packages:/app/packages
+    ports:
+      - "3000:5173"  # Vite dev server port
+    command: ["pnpm", "dev"]

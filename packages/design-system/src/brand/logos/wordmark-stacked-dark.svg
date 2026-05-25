@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 500" font-family="Fraunces, GT Alpina, Source Serif Pro, Georgia, serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#1F160E"/>
+      <stop offset="55%" stop-color="#14100A"/>
+      <stop offset="100%" stop-color="#0A0604"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="210" y1="60" x2="210" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFE2B4"/>
+      <stop offset="35%"  stop-color="#F2C27E"/>
+      <stop offset="68%"  stop-color="#CC884A"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="mono" x1="210" y1="130" x2="210" y2="270" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF6E0"/>
+      <stop offset="40%"  stop-color="#F7CC85"/>
+      <stop offset="75%"  stop-color="#DFA15A"/>
+      <stop offset="100%" stop-color="#8F5A21"/>
+    </linearGradient>
+    <linearGradient id="highlight" x1="210" y1="70" x2="210" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF8E6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="0" y1="380" x2="0" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FDF4E1"/>
+      <stop offset="100%" stop-color="#D4C094"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="210" cy="200" r="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F7CC85" stop-opacity="0.75"/>
+      <stop offset="40%"  stop-color="#E5B26B" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="innerGlow" cx="210" cy="200" r="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF3D8" stop-opacity="0.45"/>
+      <stop offset="70%"  stop-color="#FFF3D8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ambient" cx="210" cy="200" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#E5B26B" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <filter id="softer" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <rect width="420" height="500" rx="40" fill="url(#bg)"/>
+  <rect width="420" height="500" rx="40" fill="url(#ambient)" opacity="0.9"/>
+  <rect width="420" height="500" rx="40" fill="none" stroke="#2A1E10" stroke-width="1"/>
+
+  <!-- Mark -->
+  <g>
+    <g filter="url(#soft)" opacity="0.95">
+      <circle cx="210" cy="200" r="100" fill="url(#glow)"/>
+    </g>
+    <g filter="url(#softer)" opacity="0.9">
+      <circle cx="210" cy="200" r="60" fill="url(#innerGlow)"/>
+    </g>
+
+    <!-- Frame -->
+    <rect x="75" y="75" width="270" height="270" rx="44" fill="none" stroke="url(#frame)" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M119 75h182a44 44 0 0 1 44 44" fill="none" stroke="url(#highlight)" stroke-width="16" stroke-linecap="round" opacity="0.9"/>
+
+    <!-- BN monogram, centered at (210, 200) -->
+    <g transform="translate(10 0)" fill="url(#mono)">
+      <!-- B -->
+      <path d="
+        M118 135
+        h26
+        q30 0 30 27
+        q0 19 -16 24
+        q19 4 19 27
+        q0 29 -32 29
+        h-27
+        z
+        M132 148
+        v37
+        h11
+        q17 0 17 -19
+        q0 -18 -17 -18
+        z
+        M132 198
+        v40
+        h13
+        q18 0 18 -20
+        q0 -20 -18 -20
+        z
+      "/>
+      <!-- N -->
+      <path d="
+        M193 135
+        h14
+        l34 70
+        v-70
+        h15
+        v107
+        h-14
+        l-34 -70
+        v70
+        h-15
+        z
+      "/>
+    </g>
+
+    <!-- Corner notches -->
+    <g stroke="#FFE2B4" stroke-width="4" stroke-linecap="round" opacity="0.4">
+      <path d="M92 78v10"/><path d="M78 92h10"/>
+      <path d="M328 78v10"/><path d="M332 92h10"/>
+      <path d="M92 332v10"/><path d="M78 328h10"/>
+      <path d="M328 332v10"/><path d="M332 328h10"/>
+    </g>
+  </g>
+
+  <!-- Wordmark (compound, amber dot separator) -->
+  <text x="210" y="420" fill="url(#wordmark)" font-size="52" font-weight="500" letter-spacing="-1.1" text-anchor="middle" style="font-feature-settings:'ss01' 1">
+    Boss<tspan fill="#E5B26B">·</tspan>Nyumba
+  </text>
+</svg>

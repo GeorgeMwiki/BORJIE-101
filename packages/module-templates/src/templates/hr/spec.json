@@ -1,0 +1,72 @@
+{
+  "entities": [
+    {
+      "slug": "department",
+      "display_name_en": "Department",
+      "display_name_sw": "Idara",
+      "fields": [
+        { "name": "code", "kind": "text", "required": true, "max_length": 16, "index": true },
+        { "name": "name", "kind": "text", "required": true, "max_length": 128 },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "employee",
+      "display_name_en": "Employee",
+      "display_name_sw": "Mfanyakazi",
+      "fields": [
+        { "name": "employee_number", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "department_id", "kind": "fk", "required": true, "references": "department" },
+        { "name": "title", "kind": "text", "required": false, "max_length": 128 },
+        { "name": "hire_date", "kind": "date", "required": true },
+        { "name": "monthly_salary", "kind": "money", "required": false, "currency_field": "tenant_default" },
+        { "name": "status", "kind": "enum", "required": true, "values": ["active", "leave", "terminated"] }
+      ]
+    },
+    {
+      "slug": "leave_request",
+      "display_name_en": "Leave Request",
+      "display_name_sw": "Ombi la Likizo",
+      "fields": [
+        { "name": "request_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "employee_id", "kind": "fk", "required": true, "references": "employee" },
+        { "name": "leave_kind", "kind": "enum", "required": true, "values": ["annual", "sick", "maternity", "paternity", "study", "other"] },
+        { "name": "start_date", "kind": "date", "required": true },
+        { "name": "end_date", "kind": "date", "required": true },
+        { "name": "status", "kind": "enum", "required": true, "values": ["draft", "submitted", "approved", "rejected"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "start_onboarding_workflow",
+      "title": "Onboard a new employee",
+      "trigger_entity": "employee",
+      "trigger_event": "create",
+      "steps": ["validate_nida", "issue_welcome_pack", "schedule_training", "assign_workstation"]
+    },
+    {
+      "slug": "start_offboarding_workflow",
+      "title": "Offboard a leaving employee",
+      "trigger_entity": "employee",
+      "trigger_event": "update",
+      "steps": ["disable_access", "exit_interview", "settle_final_pay", "archive_records"]
+    },
+    {
+      "slug": "approve_leave_request",
+      "title": "Approve a leave request",
+      "trigger_entity": "leave_request",
+      "trigger_event": "update",
+      "steps": ["check_balance", "notify_manager", "post_to_calendar"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "employee", "columns": ["employee_number", "display_name", "status"] },
+    { "kind": "table", "entity": "department", "columns": ["code", "display_name", "active"] },
+    { "kind": "table", "entity": "leave_request", "columns": ["request_no", "display_name", "status"] },
+    { "kind": "form", "entity": "employee" },
+    { "kind": "form", "entity": "leave_request" },
+    { "kind": "kpi_tile", "title": "Active staff", "query": "count(employee where status=active)" },
+    { "kind": "kpi_tile", "title": "Open leave requests", "query": "count(leave_request where status=submitted)" }
+  ]
+}

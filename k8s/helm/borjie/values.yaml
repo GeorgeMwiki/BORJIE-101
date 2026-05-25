@@ -1,0 +1,396 @@
+# BORJIE Helm chart values. Override per-environment with -f
+# values-dev.yaml / values-staging.yaml / values-prod.yaml.
+#
+# Defaults target the staging environment on EKS (gp3 storage class).
+# Override storage.storageClassName per cluster: gp3 (AWS), pd-ssd (GCP),
+# longhorn (k3s), local-path (k3d / dev).
+
+# ── Image ─────────────────────────────────────────────────────────────
+# Each app/service has its own image. CI tags by git SHA; `latest` is
+# dev-only.
+image:
+  # GitHub Container Registry — paired with `borjie-pull` imagePullSecret.
+  # CI workflow `release.yml` pushes here on every merge to `main`.
+  registry: ghcr.io
+  project: georgemwiki/borjie
+  pullPolicy: IfNotPresent
+  pullSecret: borjie-pull
+  # Global default. CI overrides with: --set image.tag=$GIT_SHA
+  tag: latest
+
+# ── Domain / TLS ──────────────────────────────────────────────────────
+# Each frontend portal gets its own public host. The 4 backend services
+# are NEVER exposed publicly — they sit behind api-gateway internally.
+domain: borjie.dev
+hosts:
+  # Staging defaults. Override in values-prod.yaml with borjie.com.
+  customerApp: customer.borjie.dev
+  estateManagerApp: manager.borjie.dev
+  ownerPortal: owner.borjie.dev
+  adminPlatformPortal: admin.borjie.dev
+tls:
+  enabled: true
+  # Use letsencrypt-staging in dev to dodge prod rate limits.
+  issuer: letsencrypt-prod
+  # cert-manager will provision a secret per portal.
+  secretNamePrefix: borjie-tls
+
+# ── Replica counts ────────────────────────────────────────────────────
+# Frontends: customer-app stays warm (tenant traffic 24/7), the other 3
+# scale to 0 on idle (KEDA HTTP add-on). Services: api-gateway always
+# warm, others can scale aggressively.
+replicaCount:
+  customerApp: 2
+  estateManagerApp: 1          # KEDA scales 0..20.
+  ownerPortal: 1               # KEDA scales 0..10.
+  adminPlatformPortal: 1       # KEDA scales 0..5.
+  apiGateway: 3
+  paymentsLedger: 2
+  reports: 1
+  notifications: 2
+
+# ── 4 Frontend apps ───────────────────────────────────────────────────
+apps:
+  customerApp:
+    enabled: true
+    name: customer-app
+    image:
+      repository: customer-app
+      tag: ""   # falls back to global image.tag
+    port: 3000
+    healthPath: /api/health
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits:   { cpu: "1", memory: 1Gi }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 30
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+  estateManagerApp:
+    enabled: true
+    name: estate-manager-app
+    image:
+      repository: estate-manager-app
+      tag: ""
+    port: 3000
+    healthPath: /api/health
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits:   { cpu: "1", memory: 1Gi }
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 20
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+  ownerPortal:
+    enabled: true
+    name: owner-portal
+    image:
+      repository: owner-portal
+      tag: ""
+    port: 3000
+    healthPath: /api/health
+    resources:
+      requests: { cpu: 150m, memory: 384Mi }
+      limits:   { cpu: 800m, memory: 768Mi }
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+  adminPlatformPortal:
+    enabled: true
+    name: admin-web
+    image:
+      repository: admin-web
+      tag: ""
+    port: 3000
+    healthPath: /api/health
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { cpu: 500m, memory: 512Mi }
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+
+# ── 4 Backend services ───────────────────────────────────────────────
+services:
+  apiGateway:
+    enabled: true
+    name: api-gateway
+    image:
+      repository: api-gateway
+      tag: ""
+    port: 4000
+    healthPath: /healthz
+    resources:
+      # api-gateway fans out to 4 backend services + Postgres + Redis.
+      # Give it generous headroom; it is the choke-point.
+      requests: { cpu: 500m, memory: 1Gi }
+      limits:   { cpu: "2", memory: 4Gi }
+    autoscaling:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 50
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+  paymentsLedger:
+    enabled: true
+    name: payments-ledger
+    image:
+      repository: payments-ledger
+      tag: ""
+    port: 4010
+    healthPath: /healthz
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits:   { cpu: "1", memory: 1Gi }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 15
+      targetCPUUtilizationPercentage: 60   # tighter — PCI workload, avoid head-of-line.
+      targetMemoryUtilizationPercentage: 75
+    # PCI-adjacent. Extra-strict NetworkPolicy applied separately.
+    strictNetworkPolicy: true
+  reports:
+    enabled: true
+    name: reports
+    image:
+      repository: reports
+      tag: ""
+    port: 4020
+    healthPath: /healthz
+    resources:
+      # Reports run heavy queries — give them headroom.
+      requests: { cpu: 300m, memory: 768Mi }
+      limits:   { cpu: "2", memory: 2Gi }
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 80
+      targetMemoryUtilizationPercentage: 80
+  notifications:
+    enabled: true
+    name: notifications
+    image:
+      repository: notifications
+      tag: ""
+    port: 4030
+    healthPath: /healthz
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { cpu: 500m, memory: 512Mi }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 75
+
+# ── Postgres ──────────────────────────────────────────────────────────
+# Default: in-cluster StatefulSet with anti-affinity + PDB. Switch to
+# managed (Cloud SQL / RDS / Supabase) by setting `postgres.external.enabled`.
+postgres:
+  enabled: true
+  external:
+    enabled: false
+    # When external, DATABASE_URL comes from ExternalSecret. Optional
+    # discovery hints:
+    # host: ""
+    # port: 5432
+    # database: borjie
+  statefulSet:
+    replicas: 3
+    image:
+      repository: postgres
+      tag: "16.4-alpine"   # pinned minor for reproducibility
+    storage:
+      # gp3 on AWS (default). Override per-cluster:
+      #   GKE: pd-ssd
+      #   k3s: longhorn
+      #   k3d: local-path
+      storageClassName: gp3
+      size: 100Gi
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits:   { cpu: "2", memory: 4Gi }
+    # Anti-affinity required: never co-locate two Postgres replicas on
+    # the same node.
+    antiAffinity: required
+    pdb:
+      enabled: true
+      minAvailable: 2
+
+# ── Redis ─────────────────────────────────────────────────────────────
+# Single-replica baseline. Full Sentinel cluster lives in `k8s/ha/`.
+redis:
+  enabled: true
+  external:
+    enabled: false
+    # When external (Upstash), REDIS_URL comes from ExternalSecret.
+  image:
+    repository: redis
+    tag: "7.4-alpine"
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 1Gi }
+  persistence:
+    enabled: false   # In-memory only by default; flip on for persistent queues.
+
+# ── KEDA HTTP-driven scaling for 3 of the 4 portals ──────────────────
+keda:
+  enabled: true
+  # KEDA HTTP add-on must be installed on the cluster. Otherwise the
+  # Prometheus fallback trigger is used.
+  promServerAddress: http://prometheus-kube-prometheus-prometheus.monitoring.svc:9090
+  scalers:
+    customerApp:
+      enabled: false   # customer-app stays warm — no scale-to-zero.
+      targetRps: 30
+    estateManagerApp:
+      enabled: true
+      targetRps: 20
+    ownerPortal:
+      enabled: true
+      targetRps: 15
+    adminPlatformPortal:
+      enabled: true
+      targetRps: 5
+
+# ── Secrets backend ──────────────────────────────────────────────────
+secrets:
+  # "gcp" -> GCP Secret Manager + Workload Identity
+  # "aws" -> AWS Secrets Manager + IRSA
+  # "vault" -> HashiCorp Vault
+  # "sealed" -> Bitnami Sealed Secrets (last resort, in-cluster)
+  provider: aws
+  gcp:
+    projectID: borjie-staging
+    workloadIdentity:
+      clusterLocation: europe-west3
+      clusterName: borjie-staging
+  aws:
+    region: eu-central-1
+    # IRSA role ARN — set per-environment in values-{env}.yaml.
+    # Example: arn:aws:iam::123456789012:role/borjie-staging-external-secrets
+    roleArn: ""
+
+# ── External Secrets ─────────────────────────────────────────────────
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+
+# ── Ingress ──────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  proxyBodySize: 25m
+  proxyReadTimeout: 180
+  proxySendTimeout: 180
+
+# ── Cert Manager ─────────────────────────────────────────────────────
+certManager:
+  enabled: true
+  # Let's Encrypt will mail renewal alerts here.
+  acmeEmail: platform-engineering@borjie.dev
+
+# ── NetworkPolicy ────────────────────────────────────────────────────
+networkPolicy:
+  enabled: true
+  # Set to true on shared K8s clusters where other tenants may be
+  # present in sibling namespaces.
+  strictMultiTenant: true
+
+# ── Service mesh ─────────────────────────────────────────────────────
+linkerd:
+  enabled: false
+  # Flip on when Linkerd is installed on the cluster and you want mTLS
+  # + retries between frontend pods and api-gateway.
+  inject: enabled
+
+# ── Pod security ─────────────────────────────────────────────────────
+podSecurity:
+  runAsNonRoot: true
+  runAsUser: 65532
+  readOnlyRootFilesystem: true
+  seccompProfile: RuntimeDefault
+
+# ── Pod disruption ───────────────────────────────────────────────────
+pdb:
+  enabled: true
+  # Per-workload PDB minAvailable derived from replicaCount.
+  defaultMinAvailable: 1
+
+# ── ServiceAccounts (per-service for IRSA / Workload Identity) ───────
+# Each workload gets its own SA so we can attach a narrowly-scoped IAM
+# role later (per-service S3 buckets, per-service Secrets Manager paths).
+serviceAccount:
+  create: true
+  # Common annotations applied to every SA. Per-service overrides below.
+  # commonAnnotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/borjie-base
+  perService:
+    customerApp:
+      annotations: {}
+    estateManagerApp:
+      annotations: {}
+    ownerPortal:
+      annotations: {}
+    adminPlatformPortal:
+      annotations: {}
+    apiGateway:
+      annotations: {}
+    paymentsLedger:
+      # PCI-adjacent: scope this role to ONLY the payment-provider secrets.
+      # eks.amazonaws.com/role-arn: arn:aws:iam::...:role/borjie-payments-ledger
+      annotations: {}
+    reports:
+      annotations: {}
+    notifications:
+      annotations: {}
+
+# ── App-level non-secret config ──────────────────────────────────────
+# Surfaces as `app-config` ConfigMap, mounted via envFrom on every pod.
+# Secrets live in External Secrets (see secrets-external.yaml).
+appConfig:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  TZ: Africa/Dar_es_Salaam
+  DEFAULT_CURRENCY: TZS
+  DEFAULT_LOCALE: en-TZ
+  # Comma-separated list of locales the frontends ship translations for.
+  SUPPORTED_LOCALES: en-TZ,sw-TZ,en-KE,en-UG
+  # Feature flags (no secrets here).
+  FEATURE_ADAPTIVE_UI: "true"
+  FEATURE_BRAIN_AUTOPILOT: "false"
+  FEATURE_MOBILE_MONEY: "true"
+  # Observability sample rates.
+  OTEL_TRACES_SAMPLER_ARG: "0.1"
+  # Cost-cap defaults — services read these to short-circuit LLM calls.
+  LLM_DAILY_COST_CAP_USD: "50"
+
+# ── DB migration (Helm pre-upgrade hook) ─────────────────────────────
+# Runs `pnpm migrate` against the configured DATABASE_URL before each
+# helm upgrade. Hook timeout matches `--timeout 10m` from the runbook.
+migrate:
+  enabled: true
+  image:
+    # Reuses the api-gateway image which bundles `pnpm migrate` script.
+    repository: api-gateway
+    tag: ""   # falls back to image.tag
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 1Gi }
+  # Hook ordering — runs after secrets but before the app rollout.
+  hookWeight: "-5"
+  backoffLimit: 3
+  activeDeadlineSeconds: 600

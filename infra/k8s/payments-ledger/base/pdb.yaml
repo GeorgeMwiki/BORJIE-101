@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payments-ledger
+  labels:
+    app.kubernetes.io/name: payments-ledger
+    app.kubernetes.io/part-of: borjie
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-ledger

@@ -1,0 +1,229 @@
+---
+# Borjie Prometheus Alert Rules
+#
+# Pattern (LITFIN-style): every alert MUST carry annotations.runbook_url
+# pointing to Docs/RUNBOOKS/<id>.md (published at
+# https://docs.borjie.com/runbooks/<id>).
+#
+# Severity ladder (labels.severity):
+#   page   - PagerDuty, wakes on-call. P0/P1 only.
+#   ticket - Slack #status-ops, business-hours follow-up.
+#   info   - Telemetry trail, no human action required.
+#
+# Teams (labels.team): sre | brain | payments | brain-eval
+#
+# Load into Prometheus via `rule_files: ["alerts/borjie-rules.yml"]`.
+# See monitoring/README.md for the wiring contract.
+
+groups:
+  - name: borjie.api
+    interval: 30s
+    rules:
+      - alert: APIErrorRateHigh
+        expr: |
+          (
+            sum(rate(gateway_http_requests_total{status=~"5.."}[10m]))
+            /
+            sum(rate(gateway_http_requests_total[10m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: page
+          team: sre
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/api-error-rate-high
+          summary: "API 5xx error rate above 1% for 10m"
+          description: |
+            5xx error rate on the gateway is {{ $value | humanizePercentage }}
+            over the last 10 minutes (threshold 1%). Likely cause: bad deploy,
+            DB pool saturation, or upstream provider 5xx. Page primary on-call.
+
+  - name: borjie.database
+    interval: 30s
+    rules:
+      - alert: DBConnectionsExhausted
+        expr: |
+          (
+            sum(pg_stat_activity_count) by (datname)
+            /
+            sum(pg_settings_max_connections) by (datname)
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: page
+          team: sre
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/db-connections-exhausted
+          summary: "Postgres pool >90% on {{ $labels.datname }}"
+          description: |
+            Database {{ $labels.datname }} pool utilization is
+            {{ $value | humanizePercentage }} (>90%) for 5m. Likely cause:
+            connection leak, idle-in-transaction, or runaway long query.
+
+  - name: borjie.ai
+    interval: 60s
+    rules:
+      - alert: AICostSpike
+        expr: |
+          (
+            sum by (tenant) (
+              increase(ai_cost_usd_total[1h])
+            )
+            -
+            avg_over_time(ai_cost_usd_hourly_baseline[30d])
+          )
+          /
+          stddev_over_time(ai_cost_usd_hourly_baseline[30d])
+          > 3
+        for: 15m
+        labels:
+          severity: ticket
+          team: brain
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/ai-cost-spike
+          summary: "Tenant {{ $labels.tenant }} AI spend >3 sigma above 30d baseline"
+          description: |
+            Tenant {{ $labels.tenant }} consumed AI USD spend that is
+            {{ $value }} sigma above the rolling 30-day hourly baseline for
+            15 consecutive minutes. Likely cause: prompt loop, model fallback
+            misconfig, or new bulk workload not capacity-planned.
+
+  - name: borjie.payments
+    interval: 30s
+    rules:
+      - alert: MpesaWebhookBacklog
+        expr: |
+          max(mpesa_webhook_queue_depth) > 100
+        for: 5m
+        labels:
+          severity: page
+          team: payments
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/mpesa-webhook-backlog
+          summary: "M-Pesa webhook queue depth {{ $value }} > 100 for 5m"
+          description: |
+            M-Pesa inbound webhook queue depth is {{ $value }} (threshold 100)
+            for 5m. Backlog risks reconciliation drift and tenant payment
+            confirmation delays. Likely cause: consumer crash, DB lock, Safaricom
+            timeout storm.
+
+  - name: borjie.brain
+    interval: 30s
+    rules:
+      - alert: BrainEventLagHigh
+        expr: |
+          max by (consumer_group) (
+            brain_event_consumer_lag_seconds
+          ) > 300
+        for: 5m
+        labels:
+          severity: page
+          team: brain
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/brain-event-lag-high
+          summary: "Brain consumer {{ $labels.consumer_group }} lag >5m"
+          description: |
+            Consumer group {{ $labels.consumer_group }} is {{ $value }}s behind
+            head-of-stream (threshold 300s = 5m). Brain reasoning will operate
+            on stale state. Likely cause: slow handler, downstream LLM latency,
+            or partition rebalance stuck.
+
+      - alert: PgvectorIndexBloat
+        expr: |
+          (
+            pgvector_hnsw_recall_at_10
+            /
+            on(index) pgvector_hnsw_recall_at_10_baseline
+          ) < 0.90
+        for: 1h
+        labels:
+          severity: ticket
+          team: brain
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/pgvector-index-bloat
+          summary: "HNSW recall@10 on {{ $labels.index }} dropped >10% vs baseline"
+          description: |
+            Index {{ $labels.index }} recall@10 is
+            {{ $value | humanizePercentage }} of its post-build baseline
+            (threshold 90%). Search quality has degraded; rebuild or REINDEX
+            CONCURRENTLY required.
+
+  - name: borjie.platform
+    interval: 30s
+    rules:
+      - alert: PodOOMKillBurst
+        expr: |
+          sum by (deployment, namespace) (
+            increase(kube_pod_container_status_terminated_reason{reason="OOMKilled"}[10m])
+          ) > 3
+        for: 0m
+        labels:
+          severity: page
+          team: sre
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/pod-oom-kill-burst
+          summary: ">3 OOMKills in 10m on {{ $labels.namespace }}/{{ $labels.deployment }}"
+          description: |
+            Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }}
+            had {{ $value }} OOMKilled containers in the last 10m. Memory limits
+            are too low, or there is a leak. Likely cause: heap leak, missing
+            stream backpressure, unbounded cache.
+
+  - name: borjie.security
+    interval: 15s
+    rules:
+      - alert: RLSViolationAttempts
+        expr: |
+          sum(increase(rls_cross_tenant_denials_total[1m])) > 0
+        for: 0m
+        labels:
+          severity: page
+          team: sre
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/rls-violation-attempts
+          summary: "Cross-tenant RLS denial detected ({{ $value }} in 1m)"
+          description: |
+            Postgres RLS denied {{ $value }} cross-tenant queries in the last
+            minute. Either an application bug is leaking tenant context, or an
+            attacker is probing. Treat as a P0 security event until proven
+            otherwise.
+
+  - name: borjie.brain-eval
+    interval: 60s
+    rules:
+      - alert: ConstitutionRefuseClauseBurst
+        expr: |
+          sum(rate(brain_constitution_refuse_total[1m])) * 60 > 10
+        for: 2m
+        labels:
+          severity: ticket
+          team: brain-eval
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/constitution-refuse-clause-burst
+          summary: "Constitution refuse clauses firing >10/min for 2m"
+          description: |
+            The brain constitution is refusing {{ $value }} requests/min
+            (threshold 10/min) for 2m. Either users are systematically triggering
+            unsafe patterns (campaign? abuse?) or a recent constitution edit is
+            over-blocking. Review refuse-reason histogram.
+
+  - name: borjie.dr
+    interval: 60s
+    rules:
+      - alert: BackupRestoreDrillFailure
+        expr: |
+          (time() - backup_restore_drill_last_success_timestamp_seconds) > 604800
+          or
+          backup_restore_drill_last_status == 0
+        for: 0m
+        labels:
+          severity: ticket
+          team: sre
+        annotations:
+          runbook_url: https://docs.borjie.com/runbooks/backup-restore-drill-failure
+          summary: "Weekly backup-restore drill failed or stale"
+          description: |
+            The weekly backup-restore drill either failed
+            (backup_restore_drill_last_status=0) or has not succeeded in over
+            7 days (604800s). DR posture is unverified. Run scripts/restore.sh
+            against the staging shard before close-of-day.

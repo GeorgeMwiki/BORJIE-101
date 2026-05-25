@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#1F160E"/>
+      <stop offset="55%" stop-color="#14100A"/>
+      <stop offset="100%" stop-color="#0A0604"/>
+    </linearGradient>
+
+    <!-- Frame: refined burnished brass, thinner stroke -->
+    <linearGradient id="frame" x1="200" y1="50" x2="200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFE2B4"/>
+      <stop offset="35%"  stop-color="#F2C27E"/>
+      <stop offset="68%"  stop-color="#CC884A"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+
+    <!-- BN monogram: hotter, brighter — reads as lit interior -->
+    <linearGradient id="mono" x1="200" y1="130" x2="200" y2="270" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF6E0"/>
+      <stop offset="40%"  stop-color="#F7CC85"/>
+      <stop offset="75%"  stop-color="#DFA15A"/>
+      <stop offset="100%" stop-color="#8F5A21"/>
+    </linearGradient>
+
+    <!-- Rim light across the top edge of the letters -->
+    <linearGradient id="monoRim" x1="200" y1="128" x2="200" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Top-edge specular on the frame -->
+    <linearGradient id="highlight" x1="200" y1="60" x2="200" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF8E6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Primary radial glow — concentrated under the monogram, the hero halo -->
+    <radialGradient id="glow" cx="200" cy="200" r="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#F7CC85" stop-opacity="0.75"/>
+      <stop offset="40%"  stop-color="#E5B26B" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Tight inner halo hugging the letters -->
+    <radialGradient id="innerGlow" cx="200" cy="200" r="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFF3D8" stop-opacity="0.45"/>
+      <stop offset="70%"  stop-color="#FFF3D8" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Ambient amber wash across the whole tile -->
+    <radialGradient id="ambient" cx="200" cy="200" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#E5B26B" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <filter id="softer" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Backdrop -->
+  <rect width="400" height="400" rx="62" fill="url(#bg)"/>
+  <rect width="400" height="400" rx="62" fill="url(#ambient)" opacity="0.9"/>
+  <rect width="400" height="400" rx="62" fill="none" stroke="#2A1E10" stroke-width="1"/>
+
+  <!-- Hero bloom behind the monogram -->
+  <g filter="url(#soft)" opacity="0.95">
+    <circle cx="200" cy="200" r="100" fill="url(#glow)"/>
+  </g>
+  <g filter="url(#softer)" opacity="0.9">
+    <circle cx="200" cy="200" r="60" fill="url(#innerGlow)"/>
+  </g>
+
+  <!-- Refined frame — thinner, more elegant -->
+  <rect x="65" y="65" width="270" height="270" rx="44" fill="none" stroke="url(#frame)" stroke-width="16" stroke-linejoin="round"/>
+
+  <!-- Frame top-edge specular -->
+  <path d="M109 65h182a44 44 0 0 1 44 44" fill="none" stroke="url(#highlight)" stroke-width="16" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- BN monogram — custom letterforms at display weight. Scaled to
+       fill roughly 190×120 inside the frame, centered at (200, 200).
+       B: spine + two flat-right bowls (Didone-adjacent).
+       N: wedge-terminal classical letterform. -->
+  <g fill="url(#mono)">
+    <!-- B -->
+    <path d="
+      M118 135
+      h26
+      q30 0 30 27
+      q0 19 -16 24
+      q19 4 19 27
+      q0 29 -32 29
+      h-27
+      z
+      M132 148
+      v37
+      h11
+      q17 0 17 -19
+      q0 -18 -17 -18
+      z
+      M132 198
+      v40
+      h13
+      q18 0 18 -20
+      q0 -20 -18 -20
+      z
+    "/>
+    <!-- N -->
+    <path d="
+      M193 135
+      h14
+      l34 70
+      v-70
+      h15
+      v107
+      h-14
+      l-34 -70
+      v70
+      h-15
+      z
+    "/>
+  </g>
+
+  <!-- Rim light across letter tops — subtle, sells the metal read -->
+  <g fill="none" stroke="url(#monoRim)" stroke-width="2.2" stroke-linecap="round" opacity="0.8">
+    <path d="M122 138q8 -4 20 -4 l20 0"/>
+    <path d="M196 138 h15"/>
+    <path d="M239 138 h15"/>
+  </g>
+
+  <!-- Corner notches — refined, subtle -->
+  <g stroke="#FFE2B4" stroke-width="4" stroke-linecap="round" opacity="0.4">
+    <path d="M82 68v10"/><path d="M68 82h10"/>
+    <path d="M318 68v10"/><path d="M322 82h10"/>
+    <path d="M82 322v10"/><path d="M68 318h10"/>
+    <path d="M318 322v10"/><path d="M322 318h10"/>
+  </g>
+</svg>

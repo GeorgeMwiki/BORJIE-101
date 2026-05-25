@@ -1,0 +1,528 @@
+# =============================================================================
+# BORJIE — docker-compose.ha.yml
+# =============================================================================
+# Opt-in High-Availability overlay for the self-hosted production stack.
+# Replaces the single-instance `postgres` + `redis` services from
+# docker-compose.production.yml with a Patroni-managed Postgres cluster and a
+# Sentinel-managed Redis cluster.
+#
+# Usage (ALWAYS layer this AFTER the production file — last definition wins):
+#
+#   docker compose \
+#     --env-file .env.production \
+#     -f docker-compose.production.yml \
+#     -f docker-compose.ha.yml \
+#     up -d
+#
+# This file overrides:
+#   - `postgres`  → routed via `postgres-haproxy` (port 5432 inside data-plane)
+#   - `redis`     → no longer started; apps must read REDIS_SENTINEL_HOSTS
+#
+# Closes audit findings A3 (Postgres SPOF) and arch-7 (Redis single) from
+# .audit/deep-audit-2026-05-20.md.
+#
+# Image pins (NO :latest anywhere):
+#   - ghcr.io/zalando/spilo-16:3.2-p2     (Patroni 3.2 + Postgres 16 + wal-g)
+#   - quay.io/coreos/etcd:v3.5.12         (DCS for Patroni)
+#   - haproxy:2.9-alpine                  (primary discovery front-end)
+#   - redis:7.2-alpine                    (redis-server + redis-sentinel)
+#
+# Failover targets:
+#   - Postgres: RTO ≤30s, RPO ≤5s (synchronous_mode=on, max_lag=1MiB)
+#   - Redis:    RTO ≤25s, RPO best-effort (async replication)
+# =============================================================================
+
+x-common-restart: &common-restart
+  restart: unless-stopped
+
+x-common-logging: &common-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  # ===========================================================================
+  # etcd 3-node — DCS for Patroni leader election
+  # ===========================================================================
+  etcd-1:
+    image: quay.io/coreos/etcd:v3.5.12
+    container_name: borjie-prod-etcd-1
+    <<: [*common-restart, *common-logging]
+    env_file:
+      - infra/postgres-ha/etcd-bootstrap.env
+    environment:
+      ETCD_NAME: etcd-1
+      ETCD_DATA_DIR: /var/lib/etcd
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-1:2380
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-1:2379
+    volumes:
+      - etcd-1-data:/var/lib/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=http://etcd-1:2379"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.3", memory: 256M }
+
+  etcd-2:
+    image: quay.io/coreos/etcd:v3.5.12
+    container_name: borjie-prod-etcd-2
+    <<: [*common-restart, *common-logging]
+    env_file:
+      - infra/postgres-ha/etcd-bootstrap.env
+    environment:
+      ETCD_NAME: etcd-2
+      ETCD_DATA_DIR: /var/lib/etcd
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-2:2380
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-2:2379
+    volumes:
+      - etcd-2-data:/var/lib/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=http://etcd-2:2379"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.3", memory: 256M }
+
+  etcd-3:
+    image: quay.io/coreos/etcd:v3.5.12
+    container_name: borjie-prod-etcd-3
+    <<: [*common-restart, *common-logging]
+    env_file:
+      - infra/postgres-ha/etcd-bootstrap.env
+    environment:
+      ETCD_NAME: etcd-3
+      ETCD_DATA_DIR: /var/lib/etcd
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-3:2380
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-3:2379
+    volumes:
+      - etcd-3-data:/var/lib/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=http://etcd-3:2379"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.3", memory: 256M }
+
+  # ===========================================================================
+  # Patroni — Postgres 16 with WAL-G archive to S3
+  # ===========================================================================
+  postgres-primary:
+    image: ghcr.io/zalando/spilo-16:3.2-p2
+    container_name: borjie-prod-pg-primary
+    <<: [*common-restart, *common-logging]
+    hostname: postgres-primary
+    environment:
+      PATRONI_NAME: postgres-primary
+      PATRONI_SCOPE: borjie-pg
+      PATRONI_NAMESPACE: /service/
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgres-primary:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgres-primary:5432
+      PATRONI_POSTGRESQL_DATA_DIR: /home/postgres/pgdata/pgroot/data
+      PGHA_ETCD_HOSTS: ${PGHA_ETCD_HOSTS:-etcd-1:2379,etcd-2:2379,etcd-3:2379}
+      PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:?PATRONI_REPLICATION_PASSWORD required}
+      PATRONI_REWIND_PASSWORD: ${PATRONI_REWIND_PASSWORD:?PATRONI_REWIND_PASSWORD required}
+      WAL_S3_BUCKET: ${WAL_S3_BUCKET:?WAL_S3_BUCKET required for HA}
+      WAL_S3_PREFIX: ${WAL_S3_PREFIX:?WAL_S3_PREFIX required for HA}
+      WAL_ENCRYPTION_KEY: ${WAL_ENCRYPTION_KEY:-}
+      AWS_REGION: ${AWS_REGION:-eu-west-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - pg-primary-data:/home/postgres/pgdata
+      - ./infra/postgres-ha/patroni.yml.tpl:/etc/patroni/patroni.yml.tpl:ro
+      - ./infra/postgres-ha/entrypoint.sh:/usr/local/bin/patroni-entrypoint.sh:ro
+      - ./infra/postgres-ha/pg_hba.conf:/etc/patroni/pg_hba.conf:ro
+    entrypoint: ["/usr/local/bin/patroni-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      etcd-1: { condition: service_healthy }
+      etcd-2: { condition: service_healthy }
+      etcd-3: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 4G }
+        reservations: { cpus: "0.5", memory: 1G }
+
+  postgres-replica-1:
+    image: ghcr.io/zalando/spilo-16:3.2-p2
+    container_name: borjie-prod-pg-replica-1
+    <<: [*common-restart, *common-logging]
+    hostname: postgres-replica-1
+    environment:
+      PATRONI_NAME: postgres-replica-1
+      PATRONI_SCOPE: borjie-pg
+      PATRONI_NAMESPACE: /service/
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgres-replica-1:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgres-replica-1:5432
+      PATRONI_POSTGRESQL_DATA_DIR: /home/postgres/pgdata/pgroot/data
+      PGHA_ETCD_HOSTS: ${PGHA_ETCD_HOSTS:-etcd-1:2379,etcd-2:2379,etcd-3:2379}
+      PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:?PATRONI_REPLICATION_PASSWORD required}
+      PATRONI_REWIND_PASSWORD: ${PATRONI_REWIND_PASSWORD:?PATRONI_REWIND_PASSWORD required}
+      WAL_S3_BUCKET: ${WAL_S3_BUCKET:?WAL_S3_BUCKET required for HA}
+      WAL_S3_PREFIX: ${WAL_S3_PREFIX:?WAL_S3_PREFIX required for HA}
+      WAL_ENCRYPTION_KEY: ${WAL_ENCRYPTION_KEY:-}
+      AWS_REGION: ${AWS_REGION:-eu-west-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - pg-replica-1-data:/home/postgres/pgdata
+      - ./infra/postgres-ha/patroni.yml.tpl:/etc/patroni/patroni.yml.tpl:ro
+      - ./infra/postgres-ha/entrypoint.sh:/usr/local/bin/patroni-entrypoint.sh:ro
+      - ./infra/postgres-ha/pg_hba.conf:/etc/patroni/pg_hba.conf:ro
+    entrypoint: ["/usr/local/bin/patroni-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      etcd-1: { condition: service_healthy }
+      etcd-2: { condition: service_healthy }
+      etcd-3: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 4G }
+        reservations: { cpus: "0.5", memory: 1G }
+
+  postgres-replica-2:
+    image: ghcr.io/zalando/spilo-16:3.2-p2
+    container_name: borjie-prod-pg-replica-2
+    <<: [*common-restart, *common-logging]
+    hostname: postgres-replica-2
+    environment:
+      PATRONI_NAME: postgres-replica-2
+      PATRONI_SCOPE: borjie-pg
+      PATRONI_NAMESPACE: /service/
+      PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+      PATRONI_RESTAPI_CONNECT_ADDRESS: postgres-replica-2:8008
+      PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: postgres-replica-2:5432
+      PATRONI_POSTGRESQL_DATA_DIR: /home/postgres/pgdata/pgroot/data
+      PGHA_ETCD_HOSTS: ${PGHA_ETCD_HOSTS:-etcd-1:2379,etcd-2:2379,etcd-3:2379}
+      PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:?PATRONI_REPLICATION_PASSWORD required}
+      PATRONI_REWIND_PASSWORD: ${PATRONI_REWIND_PASSWORD:?PATRONI_REWIND_PASSWORD required}
+      WAL_S3_BUCKET: ${WAL_S3_BUCKET:?WAL_S3_BUCKET required for HA}
+      WAL_S3_PREFIX: ${WAL_S3_PREFIX:?WAL_S3_PREFIX required for HA}
+      WAL_ENCRYPTION_KEY: ${WAL_ENCRYPTION_KEY:-}
+      AWS_REGION: ${AWS_REGION:-eu-west-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - pg-replica-2-data:/home/postgres/pgdata
+      - ./infra/postgres-ha/patroni.yml.tpl:/etc/patroni/patroni.yml.tpl:ro
+      - ./infra/postgres-ha/entrypoint.sh:/usr/local/bin/patroni-entrypoint.sh:ro
+      - ./infra/postgres-ha/pg_hba.conf:/etc/patroni/pg_hba.conf:ro
+    entrypoint: ["/usr/local/bin/patroni-entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      etcd-1: { condition: service_healthy }
+      etcd-2: { condition: service_healthy }
+      etcd-3: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 4G }
+        reservations: { cpus: "0.5", memory: 1G }
+
+  # ===========================================================================
+  # HAProxy — primary discovery (port 5432 to current leader, 5433 to replicas)
+  # ===========================================================================
+  # Apps that previously dialed `postgres:5432` now dial `postgres-haproxy:5432`.
+  # The single-instance `postgres` service from docker-compose.production.yml is
+  # overridden below so any leftover reference resolves to this HAProxy too.
+  # ===========================================================================
+  postgres-haproxy:
+    image: haproxy:2.9-alpine
+    container_name: borjie-prod-pg-haproxy
+    <<: [*common-restart, *common-logging]
+    hostname: postgres-haproxy
+    volumes:
+      - ./infra/postgres-ha/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      postgres-primary: { condition: service_healthy }
+      postgres-replica-1: { condition: service_healthy }
+      postgres-replica-2: { condition: service_healthy }
+    networks:
+      data-plane:
+        aliases:
+          - postgres        # apps wired to `postgres` keep working
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+        reservations: { cpus: "0.1", memory: 64M }
+
+  # Override base `postgres` service to a no-op stub (so it doesn't double-bind
+  # the network alias). The HAProxy above owns the `postgres` alias.
+  postgres:
+    image: alpine:3.20
+    container_name: borjie-prod-postgres-stub
+    command: ["sh", "-c", "echo 'single-instance postgres disabled in HA mode' && sleep infinity"]
+    restart: "no"
+    profiles: ["__ha_disabled__"]   # never starts; preserves the name only
+
+  # ===========================================================================
+  # Redis Sentinel — 3 sentinels + 1 primary + 2 replicas
+  # ===========================================================================
+  redis-primary:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-redis-primary
+    <<: [*common-restart, *common-logging]
+    hostname: redis-primary
+    command: >
+      redis-server /etc/redis/redis-primary.conf
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      --masterauth ${REDIS_PASSWORD}
+      --replica-announce-ip redis-primary
+      --replica-announce-port 6379
+    volumes:
+      - ./infra/redis-sentinel/redis-primary.conf:/etc/redis/redis-primary.conf:ro
+      - redis-primary-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 768M }
+        reservations: { cpus: "0.1", memory: 128M }
+
+  redis-replica-1:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-redis-replica-1
+    <<: [*common-restart, *common-logging]
+    hostname: redis-replica-1
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      REDIS_PRIMARY_HOST: redis-primary
+      REDIS_PRIMARY_PORT: "6379"
+      REDIS_REPLICA_ANNOUNCE_HOST: redis-replica-1
+    entrypoint: ["/usr/local/bin/redis-replica-entrypoint.sh"]
+    volumes:
+      - ./infra/redis-sentinel/redis-replica.conf.tpl:/etc/redis/redis-replica.conf.tpl:ro
+      - ./infra/redis-sentinel/entrypoint-replica.sh:/usr/local/bin/redis-replica-entrypoint.sh:ro
+      - redis-replica-1-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-primary: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 768M }
+        reservations: { cpus: "0.1", memory: 128M }
+
+  redis-replica-2:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-redis-replica-2
+    <<: [*common-restart, *common-logging]
+    hostname: redis-replica-2
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      REDIS_PRIMARY_HOST: redis-primary
+      REDIS_PRIMARY_PORT: "6379"
+      REDIS_REPLICA_ANNOUNCE_HOST: redis-replica-2
+    entrypoint: ["/usr/local/bin/redis-replica-entrypoint.sh"]
+    volumes:
+      - ./infra/redis-sentinel/redis-replica.conf.tpl:/etc/redis/redis-replica.conf.tpl:ro
+      - ./infra/redis-sentinel/entrypoint-replica.sh:/usr/local/bin/redis-replica-entrypoint.sh:ro
+      - redis-replica-2-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-primary: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 768M }
+        reservations: { cpus: "0.1", memory: 128M }
+
+  sentinel-1:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-sentinel-1
+    <<: [*common-restart, *common-logging]
+    hostname: sentinel-1
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      REDIS_SENTINEL_NAME: ${REDIS_SENTINEL_NAME:-borjie-master}
+      REDIS_PRIMARY_HOST: redis-primary
+      REDIS_PRIMARY_PORT: "6379"
+      REDIS_SENTINEL_QUORUM: "2"
+      SENTINEL_PORT: "26379"
+      SENTINEL_ANNOUNCE_HOST: sentinel-1
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
+    volumes:
+      - ./infra/redis-sentinel/sentinel.conf.tpl:/etc/redis/sentinel.conf.tpl:ro
+      - ./infra/redis-sentinel/entrypoint-sentinel.sh:/usr/local/bin/sentinel-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-primary: { condition: service_healthy }
+      redis-replica-1: { condition: service_healthy }
+      redis-replica-2: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.2", memory: 128M }
+
+  sentinel-2:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-sentinel-2
+    <<: [*common-restart, *common-logging]
+    hostname: sentinel-2
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      REDIS_SENTINEL_NAME: ${REDIS_SENTINEL_NAME:-borjie-master}
+      REDIS_PRIMARY_HOST: redis-primary
+      REDIS_PRIMARY_PORT: "6379"
+      REDIS_SENTINEL_QUORUM: "2"
+      SENTINEL_PORT: "26379"
+      SENTINEL_ANNOUNCE_HOST: sentinel-2
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
+    volumes:
+      - ./infra/redis-sentinel/sentinel.conf.tpl:/etc/redis/sentinel.conf.tpl:ro
+      - ./infra/redis-sentinel/entrypoint-sentinel.sh:/usr/local/bin/sentinel-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-primary: { condition: service_healthy }
+      redis-replica-1: { condition: service_healthy }
+      redis-replica-2: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.2", memory: 128M }
+
+  sentinel-3:
+    image: redis:7.2-alpine
+    container_name: borjie-prod-sentinel-3
+    <<: [*common-restart, *common-logging]
+    hostname: sentinel-3
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
+      REDIS_SENTINEL_NAME: ${REDIS_SENTINEL_NAME:-borjie-master}
+      REDIS_PRIMARY_HOST: redis-primary
+      REDIS_PRIMARY_PORT: "6379"
+      REDIS_SENTINEL_QUORUM: "2"
+      SENTINEL_PORT: "26379"
+      SENTINEL_ANNOUNCE_HOST: sentinel-3
+    entrypoint: ["/usr/local/bin/sentinel-entrypoint.sh"]
+    volumes:
+      - ./infra/redis-sentinel/sentinel.conf.tpl:/etc/redis/sentinel.conf.tpl:ro
+      - ./infra/redis-sentinel/entrypoint-sentinel.sh:/usr/local/bin/sentinel-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-primary: { condition: service_healthy }
+      redis-replica-1: { condition: service_healthy }
+      redis-replica-2: { condition: service_healthy }
+    networks:
+      - data-plane
+    deploy:
+      resources:
+        limits: { cpus: "0.2", memory: 128M }
+
+  # Override single-instance `redis` to no-op stub.
+  redis:
+    image: alpine:3.20
+    container_name: borjie-prod-redis-stub
+    command: ["sh", "-c", "echo 'single-instance redis disabled in HA mode' && sleep infinity"]
+    restart: "no"
+    profiles: ["__ha_disabled__"]
+
+# =============================================================================
+# Volumes — one per node (no shared mounts)
+# =============================================================================
+volumes:
+  etcd-1-data:
+    name: borjie-prod-etcd-1-data
+  etcd-2-data:
+    name: borjie-prod-etcd-2-data
+  etcd-3-data:
+    name: borjie-prod-etcd-3-data
+  pg-primary-data:
+    name: borjie-prod-pg-primary-data
+  pg-replica-1-data:
+    name: borjie-prod-pg-replica-1-data
+  pg-replica-2-data:
+    name: borjie-prod-pg-replica-2-data
+  redis-primary-data:
+    name: borjie-prod-redis-primary-data
+  redis-replica-1-data:
+    name: borjie-prod-redis-replica-1-data
+  redis-replica-2-data:
+    name: borjie-prod-redis-replica-2-data

@@ -1,0 +1,48 @@
+{
+  "name": "@borjie/document-studio",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "AI-generated documents (DOCX/PDF/PPTX/XLSX) for BORJIE property management. Carbone + Typst + Anthropic Citations + WORM audit. Jurisdictional templates for TZ/KE/UG/NG.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./signing": {
+      "types": "./src/signing/index.ts",
+      "default": "./dist/signing/index.js"
+    },
+    "./citations": {
+      "types": "./src/citations/index.ts",
+      "default": "./dist/citations/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "puppeteer": ">=21.0.0"
+  },
+  "peerDependenciesMeta": {
+    "puppeteer": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

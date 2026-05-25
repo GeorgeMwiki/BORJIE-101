@@ -1,0 +1,17 @@
+id: maintenance-dispatch-002
+scenario: maintenance-dispatch
+title: 'Broken bathroom door handle (cosmetic; non-urgent)'
+context:
+  property: {id: prop-102, block: 'Block B', unit: '5A'}
+  tenant: {id: tnt-102, name: 'Kevin Mutiso'}
+  report:
+    submitted_at: '2026-05-17T10:00:00Z'
+    severity_self_assessed: low
+    description: 'Bathroom door handle came loose; door still functional'
+    photos: 1
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P3-non-urgent'}
+  - {tool: 'maintenance.schedule_routine_visit', sla_business_days: 5}
+  - {tool: 'maintenance.notify_tenant', tone: 'friendly-confirming'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.1, communication-quality: 0.2, cost-efficiency: 0.2}

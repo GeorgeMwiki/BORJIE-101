@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/ai-reviewer",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Veteran-expert AI reviewer for property-management workflows. Per-kind policies (parcel edits, polygon draws, metadata updates, photo adds, inspections, leases, maintenance, documents, POs, requisitions) combine deterministic pre-checks + red-line guards with a brain-port review for nuanced cases. Coaching layer surfaces hints on work-in-progress before submission. Pure ports; no IO.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

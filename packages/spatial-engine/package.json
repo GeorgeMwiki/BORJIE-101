@@ -1,0 +1,70 @@
+{
+  "name": "@borjie/spatial-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Muzima spatial engine — shared types, geometry helpers, color-coding rules, and ParcelMap React shell. Spec: .audit/litfin-sota-2026-05-23/17-spatial-parcel-engine.md",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./src/react.ts",
+      "default": "./dist/react.js"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./dist/types.js"
+    },
+    "./geometry": {
+      "types": "./src/geometry.ts",
+      "default": "./dist/geometry.js"
+    },
+    "./snap": {
+      "types": "./src/snap-to-building.ts",
+      "default": "./dist/snap-to-building.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "maplibre-gl": "^5.0.0",
+    "@turf/turf": "^7.0.0",
+    "@geoman-io/maplibre-geoman-free": "^0.7.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "maplibre-gl": {
+      "optional": true
+    },
+    "@turf/turf": {
+      "optional": true
+    },
+    "@geoman-io/maplibre-geoman-free": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/react": "^18.3.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

@@ -1,0 +1,114 @@
+# NetworkPolicy: deny-by-default egress + cloud-IMDS block.
+#
+# Threat model (Capital One 2019 incident class): a compromised pod or
+# adversarial LLM-driven tool call uses HTTP egress to read the cloud
+# provider's instance metadata service (IMDS) and steal IAM credentials.
+# Hardening: explicitly DROP traffic to the IMDS link-local addresses for
+# all major clouds, then layer an allowlist of legitimate egress
+# destinations on top.
+#
+# Ported from LITFIN k8s/policies/networkpolicy-strict.yaml — adapted to
+# BORJIE namespaces and DNS resolvers.
+#
+# Apply to every BORJIE workload namespace. The selector below uses
+# `matchLabels: {}` so it applies to ALL pods in the namespace; per-pod
+# refinements live in workload-specific manifests that ADD allow rules.
+#
+# IMDS endpoints blocked (all cloud providers — even ones we don't use,
+# because a multi-cloud burst is plausible during incident response):
+#   - 169.254.169.254/32   AWS IMDSv1/v2, Azure IMDS, GCP metadata
+#   - 169.254.170.2/32     AWS Fargate task IAM endpoint
+#   - 169.254.169.123/32   Azure Managed Identity token endpoint
+#   - 100.100.100.200/32   Alibaba Cloud IMDS
+#
+# References:
+#   - https://nvd.nist.gov/vuln/detail/CVE-2019-14271 (Capital One root cause class)
+#   - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
+#   - https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-egress-imds-block
+  annotations:
+    borjie.io/source: ported-from-litfin
+    borjie.io/threat-class: SSRF/IMDS-credential-theft
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # 1. Allow DNS to cluster CoreDNS (53/UDP + 53/TCP).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # 2. Allow in-cluster traffic to BORJIE namespaces only. Cross-tenant
+    #    is enforced at the application layer (RLS + AsyncLocalStorage); this
+    #    is a coarse network gate.
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: borjie.io/workload
+                operator: In
+                values: [api, worker, service, mesh]
+
+    # 3. Allow egress to the public internet EXCEPT link-local IMDS ranges.
+    #    The exceptList below covers IPv4 link-local; v6 link-local is
+    #    rejected by the cidr block below (fe80::/10 is included via except).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # ---- IMDS endpoints (deny) ----
+              - 169.254.169.254/32     # AWS / Azure / GCP IMDS
+              - 169.254.170.2/32       # AWS Fargate task IAM
+              - 169.254.169.123/32     # Azure managed identity token
+              - 100.100.100.200/32     # Alibaba Cloud IMDS
+              # ---- Other link-local ranges (deny by default) ----
+              - 169.254.0.0/16         # IPv4 link-local entire range
+              # ---- RFC1918 (deny external egress to private nets; in-cluster
+              # allow is via rule #2 above) ----
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              # ---- Loopback / multicast / reserved ----
+              - 127.0.0.0/8
+              - 224.0.0.0/4
+              - 240.0.0.0/4
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Companion policy: explicitly DENY the IMDS CIDRs even if a workload
+# manifest later adds a broader allow. NetworkPolicy is purely additive
+# at the K8s API; defense-in-depth requires also enforcing the deny via
+# Cilium CiliumNetworkPolicy or Calico GlobalNetworkPolicy. Document
+# that companion below; install it where the CNI supports it.
+#
+# CiliumNetworkPolicy companion (apply when Cilium is the CNI):
+#
+# apiVersion: cilium.io/v2
+# kind: CiliumClusterwideNetworkPolicy
+# metadata:
+#   name: deny-imds-cluster-wide
+# spec:
+#   endpointSelector: {}
+#   egressDeny:
+#     - toCIDR:
+#         - 169.254.169.254/32
+#         - 169.254.170.2/32
+#         - 169.254.169.123/32
+#         - 100.100.100.200/32

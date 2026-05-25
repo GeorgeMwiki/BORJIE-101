@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/storage-adapter",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "StorageAdapter port + adapters for Supabase Storage, local disk, and in-memory testing. Tenant-scoped bucket helpers that align with the RLS policies in supabase/storage-policies.sql so the same path convention enforces isolation everywhere.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/supabase-client": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

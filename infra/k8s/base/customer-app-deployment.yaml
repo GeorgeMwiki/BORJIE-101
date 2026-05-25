@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-app
+  labels: { app.kubernetes.io/name: customer-app }
+spec:
+  selector: { app.kubernetes.io/name: customer-app }
+  ports: [{ name: http, port: 80, targetPort: 3000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-app
+  labels:
+    app.kubernetes.io/name: customer-app
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app.kubernetes.io/name: customer-app }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: customer-app
+        app.kubernetes.io/component: frontend
+    spec:
+      serviceAccountName: customer-app-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/georgemwiki/borjie-customer-app:latest
+          ports: [{ containerPort: 3000, name: http }]
+          envFrom:
+            - configMapRef: { name: borjie-public-config }
+          env:
+            - { name: NODE_ENV, value: production }
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "1Gi" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          livenessProbe: { httpGet: { path: /api/health, port: 3000 }, initialDelaySeconds: 25, periodSeconds: 15 }
+          readinessProbe: { httpGet: { path: /api/health, port: 3000 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          volumeMounts:
+            - { name: tmp,         mountPath: /tmp }
+            - { name: next-cache,  mountPath: /app/.next/cache }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+        - name: next-cache
+          emptyDir: { sizeLimit: 512Mi }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: customer-app-sa }
+automountServiceAccountToken: false

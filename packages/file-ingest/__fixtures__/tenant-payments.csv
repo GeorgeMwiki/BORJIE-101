@@ -1,0 +1,9 @@
+tenant_ref,amount,currency,paid_at,method,notes
+TEN-2024-0019,520000,TZS,2025-03-01,mpesa,On time
+TEN-2024-0020,520000,TZS,2025-03-02,mpesa,On time
+TEN-2024-0021,280000,TZS,2025-03-01,bank,On time
+TEN-2024-0019,520000,TZS,2025-04-01,mpesa,On time
+TEN-2024-0020,520000,TZS,2025-04-04,mpesa,3-day late
+TEN-2024-0021,280000,TZS,2025-04-01,bank,On time
+TEN-2024-0019,520000,TZS,2025-05-01,mpesa,On time
+TEN-2024-0022,640000,TZS,2025-05-02,bank,First month rent

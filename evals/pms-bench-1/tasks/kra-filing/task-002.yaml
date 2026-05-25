@@ -1,0 +1,17 @@
+id: kra-filing-002
+scenario: kra-filing
+title: 'Reconciliation gap — invoiced vs received mismatch'
+context:
+  tenant_owner: {id: own-202, kra_pin: 'P051234568A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  rental_income_minor: 520000000
+  payments_received_minor: 460000000
+  currency: KES
+  books_status: unreconciled
+  gap_reason: unknown
+expected_actions:
+  - {tool: 'kra.refuse_filing_until_reconciled'}
+  - {tool: 'kra.draft_reconciliation_report_for_owner'}
+expected_escalation: true
+expected_escalation_reason: 'incomplete books — must not file with mismatches'
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.4, communication-quality: 0.1, cost-efficiency: 0.1}

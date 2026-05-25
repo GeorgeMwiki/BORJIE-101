@@ -1,0 +1,42 @@
+{
+  "name": "@borjie/realtime-rooms",
+  "version": "0.1.0",
+  "description": "Liveblocks 3.0 rooms + Yjs CRDT bindings — humans and the brain as first-class peers (Central Command Phase B B6)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "liveblocks",
+    "yjs",
+    "crdt",
+    "collaborative-editing",
+    "agent-peer",
+    "central-command"
+  ],
+  "author": "BORJIE",
+  "license": "MIT",
+  "dependencies": {
+    "@liveblocks/client": "^2.0.0",
+    "@liveblocks/node": "^2.0.0",
+    "@liveblocks/react": "^2.0.0",
+    "@liveblocks/yjs": "^2.0.0",
+    "yjs": "^13.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

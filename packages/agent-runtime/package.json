@@ -1,0 +1,68 @@
+{
+  "name": "@borjie/agent-runtime",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Internal Claude-Code-compatible agent runtime: file-discovered hooks, slash commands, sub-agents, skills, MCP server hosting, file-based memory, and a three-mode permission engine. Wires to packages/agent-platform + packages/central-intelligence primitives rather than duplicating them.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js",
+      "default": "./dist/hooks/index.js"
+    },
+    "./slash-commands": {
+      "types": "./dist/slash-commands/index.d.ts",
+      "import": "./dist/slash-commands/index.js",
+      "default": "./dist/slash-commands/index.js"
+    },
+    "./sub-agents": {
+      "types": "./dist/sub-agents/index.d.ts",
+      "import": "./dist/sub-agents/index.js",
+      "default": "./dist/sub-agents/index.js"
+    },
+    "./skills": {
+      "types": "./dist/skills/index.d.ts",
+      "import": "./dist/skills/index.js",
+      "default": "./dist/skills/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js",
+      "default": "./dist/mcp/index.js"
+    },
+    "./memory": {
+      "types": "./dist/memory/index.d.ts",
+      "import": "./dist/memory/index.js",
+      "default": "./dist/memory/index.js"
+    },
+    "./permissions": {
+      "types": "./dist/permissions/index.d.ts",
+      "import": "./dist/permissions/index.js",
+      "default": "./dist/permissions/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/enterprise-hardening": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

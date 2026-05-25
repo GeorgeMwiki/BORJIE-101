@@ -1,0 +1,6 @@
+dist/
+node_modules/
+# NOTE: `src/types.ts` is auto-generated from Docs/api/openapi.generated.json,
+# but a placeholder is intentionally committed so a fresh checkout can run
+# `tsc --noEmit` before `pnpm generate`. The file is overwritten on each
+# generate; re-committing it is fine but not required.

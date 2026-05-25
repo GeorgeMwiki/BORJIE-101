@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "personaId": "property_manager",
+  "topbar": {
+    "logo": { "label": "Boss Nyumba", "href": "/portal", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search tenants, properties, leases…", "scope": "tenant" },
+    "notifications": { "enabled": true, "pollSeconds": 60 },
+    "profile": {
+      "enabled": true,
+      "menu": [
+        { "label": "Settings", "intent": "open_settings" },
+        { "label": "Profile", "intent": "open_profile" },
+        { "label": "Help", "intent": "open_help" },
+        { "label": "Sign out", "intent": "sign_out" }
+      ]
+    }
+  },
+  "sidebar": {
+    "sections": [
+      {
+        "id": "primary",
+        "title": "Day-to-day",
+        "items": [
+          { "id": "home", "label": "Dashboard", "icon": "home", "href": "/portal" },
+          { "id": "properties", "label": "Properties", "icon": "building", "href": "/portal/properties" },
+          { "id": "tenants", "label": "Tenants", "icon": "users", "href": "/portal/tenants" },
+          { "id": "leases", "label": "Leases", "icon": "file-signature", "href": "/portal/leases" }
+        ]
+      },
+      {
+        "id": "ops",
+        "title": "Operations",
+        "items": [
+          { "id": "rent", "label": "Rent & arrears", "icon": "banknote", "href": "/portal/rent" },
+          { "id": "maintenance", "label": "Maintenance", "icon": "wrench", "href": "/portal/maintenance" },
+          { "id": "renewals", "label": "Renewals", "icon": "refresh-cw", "href": "/portal/renewals" }
+        ]
+      },
+      {
+        "id": "reports",
+        "title": "Reports",
+        "items": [
+          { "id": "occupancy", "label": "Occupancy", "icon": "bar-chart-3", "href": "/portal/reports/occupancy" },
+          { "id": "ledger", "label": "Ledger", "icon": "scroll", "href": "/portal/reports/ledger" }
+        ]
+      }
+    ],
+    "defaultCollapsed": false
+  },
+  "dashboard": {
+    "columns": 12,
+    "cells": [
+      {
+        "id": "kpis",
+        "span": 12,
+        "kind": "kpi-grid",
+        "title": "Today",
+        "initialProps": null
+      },
+      {
+        "id": "rent-roll",
+        "span": 8,
+        "kind": "data-table",
+        "title": "Rent roll",
+        "initialProps": null
+      },
+      {
+        "id": "shortcuts",
+        "span": 4,
+        "kind": "prompt-suggestions",
+        "title": "Quick prompts",
+        "initialProps": null
+      },
+      {
+        "id": "maintenance-pipeline",
+        "span": 6,
+        "kind": "kanban",
+        "title": "Maintenance pipeline",
+        "initialProps": null
+      },
+      {
+        "id": "renewals-calendar",
+        "span": 6,
+        "kind": "calendar",
+        "title": "Renewals due",
+        "initialProps": null
+      },
+      {
+        "id": "activity",
+        "span": 12,
+        "kind": "timeline",
+        "title": "Recent activity",
+        "initialProps": null
+      }
+    ]
+  },
+  "primaryAction": {
+    "label": "Create lease",
+    "intent": "create_lease",
+    "icon": "file-plus"
+  },
+  "theme": {
+    "mode": "light",
+    "density": "compact",
+    "tokens": {
+      "color-primary": "oklch(0.74 0.15 60)",
+      "color-accent": "oklch(0.70 0.16 70)"
+    }
+  },
+  "featureFlags": {
+    "portal.kanban.maintenance": true,
+    "portal.calendar.renewals": true
+  },
+  "accessibilityProfile": {
+    "largeText": false,
+    "highContrast": false,
+    "reduceMotion": false,
+    "screenReaderOptimized": false,
+    "voiceFirst": false,
+    "primaryModality": "text"
+  }
+}

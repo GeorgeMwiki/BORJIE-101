@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/memory-tool-wire-adapter",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Bidirectional adapter between BORJIE internal memory shape and the Anthropic Managed Agents Memory Tool wire format (PO-9). Pure functions; no I/O.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

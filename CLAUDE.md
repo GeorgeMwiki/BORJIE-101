@@ -1,0 +1,120 @@
+# How to navigate this codebase (LLM guide)
+
+**Last Updated:** 2026-05-25
+**Audience:** Claude Code, Cursor, and any other LLM-based coding
+assistant working in this repo.
+
+This file is the entry point for any LLM acting on this repository.
+Read the documents in this order before answering or editing.
+
+## About Borjie
+
+Borjie is a mining estate planning, management, and intelligence
+operating system for Tanzanian (and pan-African) artisanal-to-mid-tier
+mining. It is a hard-fork of BossNyumba (property-management SaaS) with
+the brain layer kept verbatim and a mining domain bolted on.
+
+The product surfaces are four:
+- `apps/admin-web` — Borjie team's internal console (port 3020)
+- `apps/owner-web` — mining owner's strategic cockpit (port 3010)
+- `apps/workforce-mobile` — Expo app, role-gated for owner / manager / employee
+- `apps/buyer-mobile` — Expo app for mineral buyers, off-takers, marketplace
+
+The mining corpus (specs, regulations, mineral processing playbooks)
+lives **outside this repo** at the path set by
+`BORJIE_MINING_CORPUS_PATH` (default:
+`/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Claude Projects/Boji project/Docs/`).
+The first-boot ingestion job
+(`services/consolidation-worker/src/tasks/borjie-corpus-ingest.ts`)
+upserts every chunk into `intelligence_corpus_chunks` with
+`tenant_id = NULL` so every tenant inherits the same ground truth.
+
+## Required reads (in order)
+
+1. [`Docs/MEMORY.md`](./Docs/MEMORY.md) — long-lived invariants,
+   wave state, hard rules. Load every session.
+2. [`Docs/CODEMAPS/INDEX.md`](./Docs/CODEMAPS/INDEX.md) — module-
+   level maps for the spine, brain, apps.
+3. [`Docs/ARCHITECTURE.md`](./Docs/ARCHITECTURE.md) — developer-
+   facing architecture synthesis.
+4. [`Docs/MODULAR_MONOLITH.md`](./Docs/MODULAR_MONOLITH.md) —
+   package boundaries and import discipline.
+5. [`PROJECT_BOUNDARY.md`](./PROJECT_BOUNDARY.md) — this repo is
+   Borjie only; do not conflate with any other project.
+
+## Routing table — where things live
+
+| Topic | Codemap | Source |
+|-------|---------|--------|
+| 12-agent brain kernel (think-pipeline, sensors, debate, LATS) | [`Docs/CODEMAPS/central-intelligence.md`](./Docs/CODEMAPS/central-intelligence.md) | `packages/central-intelligence/` |
+| Personas, copilots, predictions, governance, audit-trail | [`Docs/CODEMAPS/ai-copilot.md`](./Docs/CODEMAPS/ai-copilot.md) | `packages/ai-copilot/` |
+| Hono BFF, auth, composition root, route handlers | [`Docs/CODEMAPS/api-gateway.md`](./Docs/CODEMAPS/api-gateway.md) | `services/api-gateway/` |
+| Drizzle schemas, 183 migrations, RLS, pgvector | [`Docs/CODEMAPS/database.md`](./Docs/CODEMAPS/database.md) | `packages/database/` |
+| Double-entry ledger, M-Pesa/Stripe providers, statements | [`Docs/CODEMAPS/payments-ledger.md`](./Docs/CODEMAPS/payments-ledger.md) | `services/payments-ledger/` |
+| Agent-to-agent auth, webhooks, idempotency, error codes | [`Docs/CODEMAPS/agent-platform.md`](./Docs/CODEMAPS/agent-platform.md) | `packages/agent-platform/` |
+| OTel, audit, Sentry, logging, eval, red-team | [`Docs/CODEMAPS/observability.md`](./Docs/CODEMAPS/observability.md) | `packages/observability/` + `evals/` |
+| Adaptive layout engine (UI-1) — sections rearrange themselves | [`Docs/CODEMAPS/dynamic-sections.md`](./Docs/CODEMAPS/dynamic-sections.md) | `packages/dynamic-sections/` |
+| ProactiveHint (UI-2), MasteryGate (UI-3), LearnedShortcutsPanel (UI-5) | [`Docs/CODEMAPS/chat-ui.md`](./Docs/CODEMAPS/chat-ui.md) | `packages/chat-ui/` |
+| Borjie internal admin web (Next.js — port 3020, 20 screens) | (codemap pending) | `apps/admin-web/` |
+| Owner cockpit web (Next.js — port 3010, 22 screens, 8 CEO modes) | (codemap pending) | `apps/owner-web/` |
+| Workforce mobile app (Expo, role-gated owner/manager/employee, 47 screens) | (codemap pending) | `apps/workforce-mobile/` |
+| Buyer mobile app (Expo, mineral buyers + marketplace, 12 screens) | (codemap pending) | `apps/buyer-mobile/` |
+
+## Hard rules (NEVER violate)
+
+- **Money path goes through `LedgerService.post()`** in
+  `services/payments-ledger/`. Direct ledger writes break the
+  immutable double-entry invariant.
+- **RLS is FORCE-enabled** on every tenant-scoped table. The
+  `app.current_tenant_id` GUC is bound by api-gateway middleware.
+  Never disable RLS or double-filter from app code.
+- **Supabase JWT is canonical auth.** No Clerk imports anywhere.
+- **Kill-switch fail-closed.** Never catch + ignore its errors.
+- **Webhook delivery is at-least-once.** Consumers MUST be
+  idempotent via `Idempotency-Key`.
+- **AI audit chain is hash-chained, append-only.** No mutation.
+- **Predictions APPEND to rule-based decisions.** Never replace.
+- **Migrations are immutable.** Never edit a shipped numbered file —
+  append a new one.
+- **HIGH-risk policy prefixes** (sovereign / kill_switch / four_eye
+  / policy_rollout) must hit literal policy rules; no reason-
+  resolver generalisation.
+- **OTel bootstrap runs first** in `services/api-gateway/src/index.ts`
+  before any module emits spans.
+- **Multi-currency, TZS-primary.** Every money render uses
+  `formatCurrency(amount, currencyCode)`. Domestic non-TZS contracts
+  are rejected at the API layer (post 27-Mar-2026 USD-cliff
+  remediation mode). Never hard-code TZS / USD / KES.
+- **Swahili-first.** Default user language is `sw`. Switch on
+  request. Owner personas, junior prompts, and UI copy must be
+  bilingual sw/en.
+- **Evidence-required AI output.** Every junior recommendation cites
+  ≥1 `evidence_id` from LMBM or intelligence corpus. The Auditor
+  Agent rejects responses with empty evidence chains.
+- **No `console.log` in services.** Pino logger only — it handles
+  redaction.
+- **No reflective CORS.** Origin allowlist only.
+- **No raw HTML interpolation.** DOMPurify wraps required.
+- **No reading `process.env` outside bootstrap.** Dotenv loads once
+  in `services/api-gateway/src/index.ts`.
+
+## When uncertain
+
+- Layout / location → [`Docs/CODEMAPS/INDEX.md`](./Docs/CODEMAPS/INDEX.md)
+- Tier behaviour / policy → `packages/central-intelligence/src/kernel/
+  policy-gate.ts` and `inviolable.ts`
+- Recent changes → [`CHANGELOG.md`](./CHANGELOG.md)
+- Known issues → [`Docs/KNOWN_ISSUES.md`](./Docs/KNOWN_ISSUES.md)
+- Production readiness → [`Docs/PRODUCTION_READINESS.md`](./Docs/PRODUCTION_READINESS.md)
+- Boundary / scope → [`PROJECT_BOUNDARY.md`](./PROJECT_BOUNDARY.md)
+
+## Workflow conventions
+
+- Conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`,
+  `docs:`). 1-2 sentence body focuses on the "why".
+- TDD encouraged; 80%+ test coverage required.
+- File size <800 lines, function <50 lines, nesting ≤4.
+- Immutability; zod for runtime validation.
+- Drizzle ORM only.
+- New routes: `*.hono.ts`; older `*.router.ts` deprecated.
+- For full conventions see [`CONTRIBUTING.md`](./CONTRIBUTING.md).

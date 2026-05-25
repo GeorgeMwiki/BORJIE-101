@@ -1,0 +1,14 @@
+id: lease-renewal-004
+scenario: lease-renewal
+title: 'Renewal with addendum (pet policy change)'
+context:
+  tenant: {id: tnt-304, name: 'Frank Owino', payment_history: minor-late-once}
+  property: {id: prop-304, block: 'Block A', unit: '6B'}
+  lease: {current_rent_minor: 80000000, currency: TZS, expires_at: '2026-07-17'}
+  policy_change: {kind: 'pet-deposit-required', amount_minor: 15000000}
+expected_actions:
+  - {tool: 'lease.draft_renewal_offer', term_months: 12, rent_increase_pct: 2}
+  - {tool: 'lease.attach_policy_addendum', kind: pet-deposit}
+  - {tool: 'lease.send_renewal_offer_to_tenant', tone: 'clear-transparent'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

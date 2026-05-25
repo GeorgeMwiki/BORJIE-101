@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-proactive-triggers-worker
+    newTag: staging
+
+patches:
+  - target:
+      kind: Deployment
+      name: proactive-triggers-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+  - target:
+      kind: ExternalSecret
+      name: proactive-triggers-worker-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/proactive-triggers-worker

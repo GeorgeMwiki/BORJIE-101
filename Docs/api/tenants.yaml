@@ -1,0 +1,910 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Tenants API
+  description: |
+    Multi-tenant management API for BORJIE platform.
+    Handles organization and tenant CRUD operations, settings configuration,
+    and policy constitution management.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Organizations
+    description: Organization management (billing boundary)
+  - name: Tenants
+    description: Tenant management (data isolation boundary)
+  - name: Tenant Settings
+    description: Tenant configuration and policies
+
+paths:
+  /organizations:
+    get:
+      tags:
+        - Organizations
+      summary: List organizations
+      description: List all organizations (super admin only)
+      operationId: listOrganizations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/OrganizationStatus'
+        - name: search
+          in: query
+          description: Search by name or legal name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of organizations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Organizations
+      summary: Create organization
+      description: Create a new organization with initial tenant
+      operationId: createOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationWithTenant'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationIdParam'
+    
+    get:
+      tags:
+        - Organizations
+      summary: Get organization details
+      operationId: getOrganization
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Organizations
+      summary: Update organization
+      operationId: updateOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tenants:
+    get:
+      tags:
+        - Tenants
+      summary: List tenants
+      description: List tenants for the current organization
+      operationId: listTenants
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TenantStatus'
+      responses:
+        '200':
+          description: Paginated list of tenants
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Tenant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Tenants
+      summary: Create tenant
+      description: Create a new tenant within the organization
+      operationId: createTenant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: Tenant created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /tenants/{tenantId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantIdParam'
+
+    get:
+      tags:
+        - Tenants
+      summary: Get tenant details
+      operationId: getTenant
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Tenants
+      summary: Update tenant
+      operationId: updateTenant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+      responses:
+        '200':
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Tenants
+      summary: Terminate tenant
+      description: Initiate tenant termination (soft delete with data retention)
+      operationId: terminateTenant
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Tenant termination initiated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot terminate - active leases or pending payments exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tenants/{tenantId}/settings:
+    parameters:
+      - $ref: '#/components/parameters/TenantIdParam'
+
+    get:
+      tags:
+        - Tenant Settings
+      summary: Get tenant settings
+      operationId: getTenantSettings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tenant settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Tenant Settings
+      summary: Update tenant settings
+      operationId: updateTenantSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tenants/{tenantId}/policies:
+    parameters:
+      - $ref: '#/components/parameters/TenantIdParam'
+
+    get:
+      tags:
+        - Tenant Settings
+      summary: Get tenant policies
+      description: Get the policy constitution for the tenant
+      operationId: getTenantPolicies
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tenant policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicies'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Tenant Settings
+      summary: Update tenant policies
+      description: Update the policy constitution
+      operationId: updateTenantPolicies
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantPolicies'
+      responses:
+        '200':
+          description: Policies updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicies'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tenants/{tenantId}/features:
+    parameters:
+      - $ref: '#/components/parameters/TenantIdParam'
+
+    get:
+      tags:
+        - Tenant Settings
+      summary: Get feature flags
+      operationId: getTenantFeatures
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Feature flags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlags'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Tenant Settings
+      summary: Toggle feature flags
+      operationId: updateTenantFeatures
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlags'
+      responses:
+        '200':
+          description: Features updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlags'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  parameters:
+    OrganizationIdParam:
+      name: organizationId
+      in: path
+      required: true
+      description: Organization UUID
+      schema:
+        type: string
+        format: uuid
+
+    TenantIdParam:
+      name: tenantId
+      in: path
+      required: true
+      description: Tenant UUID
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-indexed)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      description: Items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    OrganizationStatus:
+      type: string
+      enum:
+        - active
+        - suspended
+        - terminated
+
+    TenantStatus:
+      type: string
+      enum:
+        - provisioning
+        - active
+        - suspended
+        - terminated
+
+    # Core Entities
+    Organization:
+      type: object
+      required:
+        - id
+        - name
+        - legalName
+        - status
+        - billingEmail
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        legalName:
+          type: string
+          maxLength: 255
+        taxId:
+          type: string
+          maxLength: 50
+        status:
+          $ref: '#/components/schemas/OrganizationStatus'
+        billingEmail:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Tenant:
+      type: object
+      required:
+        - id
+        - organizationId
+        - name
+        - slug
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          maxLength: 63
+          description: URL-safe identifier
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        settings:
+          $ref: '#/components/schemas/TenantSettings'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TenantSettings:
+      type: object
+      properties:
+        timezone:
+          type: string
+          example: Africa/Nairobi
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: KES
+        locale:
+          type: string
+          example: en-KE
+        fiscalYearStart:
+          type: string
+          pattern: '^\d{2}-\d{2}$'
+          example: '01-01'
+          description: Month-day format (MM-DD)
+        dateFormat:
+          type: string
+          example: DD/MM/YYYY
+        numberFormat:
+          type: object
+          properties:
+            decimalSeparator:
+              type: string
+              example: '.'
+            thousandsSeparator:
+              type: string
+              example: ','
+        features:
+          $ref: '#/components/schemas/FeatureFlags'
+
+    TenantPolicies:
+      type: object
+      description: Policy constitution for tenant operations
+      properties:
+        leasePolicy:
+          type: object
+          properties:
+            defaultLeaseDurationMonths:
+              type: integer
+              minimum: 1
+              maximum: 120
+              default: 12
+            minNoticeDays:
+              type: integer
+              minimum: 0
+              default: 30
+            allowMonthToMonth:
+              type: boolean
+              default: true
+            requireDeposit:
+              type: boolean
+              default: true
+            maxDepositMonths:
+              type: number
+              minimum: 0
+              maximum: 12
+              default: 2
+        paymentPolicy:
+          type: object
+          properties:
+            defaultDueDay:
+              type: integer
+              minimum: 1
+              maximum: 28
+              default: 5
+            gracePeriodDays:
+              type: integer
+              minimum: 0
+              default: 5
+            lateFeeType:
+              type: string
+              enum:
+                - fixed
+                - percentage
+              default: fixed
+            lateFeeAmount:
+              type: number
+              description: Amount or percentage based on lateFeeType
+            enableAutoPay:
+              type: boolean
+              default: true
+            acceptedPaymentMethods:
+              type: array
+              items:
+                type: string
+                enum:
+                  - card
+                  - bank_transfer
+                  - mobile_money
+                  - cash
+                  - check
+        maintenancePolicy:
+          type: object
+          properties:
+            emergencyResponseHours:
+              type: integer
+              minimum: 1
+              default: 4
+            standardResponseHours:
+              type: integer
+              minimum: 1
+              default: 48
+            requireApprovalAbove:
+              type: number
+              description: Amount above which approval is required
+            autoAssignEnabled:
+              type: boolean
+              default: false
+        communicationPolicy:
+          type: object
+          properties:
+            enableSmsNotifications:
+              type: boolean
+              default: true
+            enableEmailNotifications:
+              type: boolean
+              default: true
+            enablePushNotifications:
+              type: boolean
+              default: true
+            paymentReminderDaysBefore:
+              type: array
+              items:
+                type: integer
+              default: [7, 3, 1]
+
+    FeatureFlags:
+      type: object
+      additionalProperties:
+        type: boolean
+      example:
+        onlinePayments: true
+        maintenanceRequests: true
+        documentSigning: true
+        mobileApp: true
+        analytics: true
+        customReports: false
+        apiAccess: true
+        ssoEnabled: false
+        auditLogs: true
+
+    OrganizationWithTenant:
+      allOf:
+        - $ref: '#/components/schemas/Organization'
+        - type: object
+          properties:
+            tenant:
+              $ref: '#/components/schemas/Tenant'
+
+    # Request Bodies
+    CreateOrganizationRequest:
+      type: object
+      required:
+        - name
+        - legalName
+        - billingEmail
+        - adminUser
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        legalName:
+          type: string
+          maxLength: 255
+        taxId:
+          type: string
+          maxLength: 50
+        billingEmail:
+          type: string
+          format: email
+        adminUser:
+          type: object
+          required:
+            - email
+            - firstName
+            - lastName
+          properties:
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+        tenantName:
+          type: string
+          description: Optional custom tenant name (defaults to organization name)
+
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        legalName:
+          type: string
+          maxLength: 255
+        taxId:
+          type: string
+          maxLength: 50
+        billingEmail:
+          type: string
+          format: email
+        status:
+          $ref: '#/components/schemas/OrganizationStatus'
+
+    CreateTenantRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          maxLength: 63
+          description: Auto-generated from name if not provided
+        settings:
+          $ref: '#/components/schemas/TenantSettings'
+
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+
+    UpdateTenantSettingsRequest:
+      $ref: '#/components/schemas/TenantSettings'
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+                - field: email
+                  message: Invalid email format
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or expired token
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: You do not have permission to perform this action
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: The requested resource was not found
+
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: CONFLICT
+              message: A resource with this identifier already exists
+
+security:
+  - bearerAuth: []

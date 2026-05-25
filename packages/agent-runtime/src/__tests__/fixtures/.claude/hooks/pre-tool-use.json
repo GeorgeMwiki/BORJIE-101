@@ -1,0 +1,10 @@
+[
+  {
+    "matcher": "Bash",
+    "handler": "block-rm-rf"
+  },
+  {
+    "matcher": "Write",
+    "handler": "annotate-write"
+  }
+]

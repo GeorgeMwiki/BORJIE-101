@@ -1,0 +1,84 @@
+# =============================================================================
+# Zero-Hardcoded Audit (Piece P)
+# =============================================================================
+# Runs the five Piece-P zero-hardcoded scanners on every PR to catch:
+#   - hardcoded user-facing English strings (must use i18n catalogue)
+#   - hardcoded role-name string-matches (must use authz-policy helpers)
+#   - hardcoded entity-type string-matches (must use polymorphic dispatch)
+#   - hardcoded frontend route paths (must use ROUTES registry)
+#   - hardcoded tenant-module-enablement lists (must use module_templates)
+#
+# These complement (do NOT replace) the existing audit-coverage workflow.
+# That workflow's scanners are JSON-only; this workflow also writes the
+# markdown summary and surfaces it on the PR check.
+#
+# Allow-lists live in `scripts/__allowlists__/`. Every entry requires a
+# justifying reason ≥ 8 characters. Stale allowlist entries (files that
+# no longer exist) FAIL the workflow.
+# =============================================================================
+
+name: Zero-Hardcoded Audit
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: zero-hardcoded-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: hardcoded-${{ matrix.audit }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        audit:
+          - strings
+          - roles
+          - entity-types
+          - routes
+          - module-list
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      # Scanners are pure ESM Node scripts — no pnpm setup needed.
+
+      - name: Run hardcoded-${{ matrix.audit }} scanner
+        id: scan
+        run: |
+          mkdir -p .audit
+          node scripts/audit-hardcoded-${{ matrix.audit }}.mjs \
+            --report .audit/hardcoded-${{ matrix.audit }}.json \
+            --summary .audit/hardcoded-${{ matrix.audit }}.md
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardcoded-${{ matrix.audit }}-report
+          path: .audit/hardcoded-${{ matrix.audit }}.*
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summarise on PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ -f .audit/hardcoded-${{ matrix.audit }}.md ]; then
+            {
+              echo "## hardcoded-${{ matrix.audit }}"
+              echo ""
+              cat .audit/hardcoded-${{ matrix.audit }}.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

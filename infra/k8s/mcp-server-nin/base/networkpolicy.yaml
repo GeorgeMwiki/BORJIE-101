@@ -1,0 +1,70 @@
+# =============================================================================
+# mcp-server-nin — default-deny + targeted egress allow-list
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-nin-default-deny
+  labels:
+    app.kubernetes.io/name: mcp-server-nin
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-nin
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-nin-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-nin
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-nin
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-nin-allow-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-nin
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-nin
+  policyTypes: [Egress]
+  egress:
+    # External HTTPS — NIMC NIVS (National Identity Verification Service)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Observability
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

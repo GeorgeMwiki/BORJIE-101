@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/agent-platform",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Cross-agent plumbing for BORJIE: HMAC-signed A2A auth, agent-card, correlation IDs, idempotency dedup, signed webhook delivery, and a structured error-code envelope for partner platforms.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./a2a": {
+      "types": "./src/a2a/index.ts",
+      "default": "./dist/a2a/index.js"
+    },
+    "./planning": {
+      "types": "./src/planning/index.ts",
+      "default": "./dist/planning/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/enterprise-hardening": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

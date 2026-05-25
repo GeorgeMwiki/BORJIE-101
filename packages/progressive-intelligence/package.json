@@ -1,0 +1,56 @@
+{
+  "name": "@borjie/progressive-intelligence",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Progressive intelligence + capture: schema-evolving entities, entity resolution, active learning, live coaching, streaming inference, multi-source profile unification, and per-user few-shot personalization. Pure (no DB), dependency-injected, deterministic.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./entity-resolution": {
+      "types": "./dist/entity-resolution/index.d.ts",
+      "default": "./dist/entity-resolution/index.js"
+    },
+    "./active-learning": {
+      "types": "./dist/active-learning/index.d.ts",
+      "default": "./dist/active-learning/index.js"
+    },
+    "./live-coaching": {
+      "types": "./dist/live-coaching/index.d.ts",
+      "default": "./dist/live-coaching/index.js"
+    },
+    "./streaming": {
+      "types": "./dist/streaming/index.d.ts",
+      "default": "./dist/streaming/index.js"
+    },
+    "./profile-unification": {
+      "types": "./dist/profile-unification/index.d.ts",
+      "default": "./dist/profile-unification/index.js"
+    },
+    "./personalization": {
+      "types": "./dist/personalization/index.d.ts",
+      "default": "./dist/personalization/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

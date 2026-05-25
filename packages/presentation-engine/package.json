@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/presentation-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Piece H — presentation engine. Renders slide decks in tenant brand using built-in themes (classic_corporate, modern_clean, minimal_dark, government_serious, africa_warm). Mounts on top of report-engine's PPTX renderer. Slide artifacts shape-compatible with Piece G's ui_artifacts.component_type='deck_slide'.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76",
+    "@borjie/report-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

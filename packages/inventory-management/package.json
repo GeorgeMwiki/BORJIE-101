@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/inventory-management",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Inventory management for estate organizations — SKU catalog, hierarchical stock locations, append-only stock movements (receipts/issues/transfers/adjustments), reorder + ABC analysis, cycle counts with variance handling, full asset lifecycle (install in unit → maintain → decommission) for appliances + security gadgets, barcode/QR lookup, and analytics (turnover, dead-stock, shrinkage). Pure functions + optional adapters for procurement-coordination and document-studio.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

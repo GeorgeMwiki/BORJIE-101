@@ -1,0 +1,30 @@
+id: arrears-triage-008
+scenario: arrears-triage
+title: 'Multi-property arrears: same tenant, 2 units delinquent'
+context:
+  tenant:
+    id: tnt-008
+    name: 'Brian Karanja'
+    arrears_days: 25
+    history: multi-property-tenant
+    properties_held: 2
+  property:
+    id: prop-008
+    block: 'Block C'
+    unit: '6A'
+  lease:
+    monthly_rent_minor: 90000000
+    currency: TZS
+  events:
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 90000000, property_id: prop-008}
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 110000000, property_id: prop-009}
+    - {at: '2026-05-15', kind: 'partial_payment', amount_minor: 60000000, property_id: prop-008}
+expected_actions:
+  - {tool: 'arrears.consolidate_view_across_properties'}
+  - {tool: 'arrears.send_consolidated_reminder', tone: 'firm-but-empathetic'}
+expected_escalation: false
+scorer_weights:
+  action-correctness: 0.5
+  escalation-correctness: 0.2
+  communication-quality: 0.2
+  cost-efficiency: 0.1

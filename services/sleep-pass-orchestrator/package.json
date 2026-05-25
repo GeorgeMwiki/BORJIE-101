@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/sleep-pass-orchestrator",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Sleep-pass orchestrator — 60s heartbeat ticks dispatch off-peak passes (DLQ replay, cache warm-up, data-quality, index maintenance, audit-chain verify, expired-token cleanup, metrics rollup, dormant-tenant detector). Each pass is time-boxed via AbortController. Adapters are injected (Drizzle/Redis ports). Ported from LITFIN PROJECT/src/core/heartbeat.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "fastify": "^5.8.3",
+    "prom-client": "^15.1.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

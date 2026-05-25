@@ -1,0 +1,52 @@
+{
+  "name": "@borjie/extended-reasoning",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Phase M-G — Extended Reasoning. Closes the five patterns L1 deferred: Graph-of-Thoughts (portfolio reasoning), LATS (long-horizon MCTS), raw Tree-of-Thoughts (fixed decision trees), PRM substrate (drop-in scoring + data collection), and Skeleton-of-Thought (mobile FMP on 3G).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./got": {
+      "types": "./dist/got/index.d.ts",
+      "import": "./dist/got/index.js"
+    },
+    "./lats": {
+      "types": "./dist/lats/index.d.ts",
+      "import": "./dist/lats/index.js"
+    },
+    "./tot": {
+      "types": "./dist/tot/index.d.ts",
+      "import": "./dist/tot/index.js"
+    },
+    "./prm-substrate": {
+      "types": "./dist/prm-substrate/index.d.ts",
+      "import": "./dist/prm-substrate/index.js"
+    },
+    "./sot": {
+      "types": "./dist/sot/index.d.ts",
+      "import": "./dist/sot/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

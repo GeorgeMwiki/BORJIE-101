@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/cross-org-denial-recorder",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Records every cross-tenant denial (RLS reject, tier-insufficient, approval-required, permission denied) for SOC2 evidence + brute-force pattern detection. Pure recorder + aggregator with rate-limit + drop-counter and pluggable sink port (PO-21).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

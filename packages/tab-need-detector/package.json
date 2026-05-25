@@ -1,0 +1,40 @@
+{
+  "name": "@borjie/tab-need-detector",
+  "version": "0.1.0",
+  "description": "Piece O — Need-detection tab spawning v2. Observes user behaviour, scores per-(user, module) signal strength with half-life decay, emits proposals when score crosses threshold, personalises section ordering per user (mastery + recency + frustration). Backs migrations 0261-0265.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo coverage"
+  },
+  "keywords": [
+    "need-detection",
+    "tab-spawning",
+    "personalization",
+    "adaptive-layout",
+    "borjie",
+    "piece-o"
+  ],
+  "author": "BORJIE",
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

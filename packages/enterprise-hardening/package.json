@@ -1,0 +1,48 @@
+{
+  "name": "@borjie/enterprise-hardening",
+  "version": "0.1.0",
+  "description": "Enterprise hardening: compliance, resilience, performance, and scale for BORJIE SaaS platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "enterprise",
+    "compliance",
+    "soc2",
+    "gdpr",
+    "resilience",
+    "circuit-breaker",
+    "rate-limiting",
+    "data-retention",
+    "disaster-recovery",
+    "finops"
+  ],
+  "author": "BORJIE",
+  "license": "MIT",
+  "dependencies": {
+    "@borjie/domain-models": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "ioredis": "^5.10.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.3",
+    "@vitest/coverage-v8": "^4.1.7",
+    "eslint": "^10.4.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+# =============================================================================
+# Terraform S3 Backend Configuration
+# =============================================================================
+# Copy to backend.hcl and fill in values. Never commit backend.hcl.
+#
+# Usage:
+#   terraform init -backend-config=backend.hcl
+#
+# For environment-specific state, use different keys:
+#   Staging:    key = "borjie/staging/terraform.tfstate"
+#   Production: key = "borjie/production/terraform.tfstate"
+#
+# Prerequisites:
+#   1. Create S3 bucket (enable versioning)
+#   2. Create DynamoDB table for state locking (partition key: LockID)
+# =============================================================================
+
+bucket         = "borjie-terraform-state"
+key            = "borjie/terraform.tfstate"
+region         = "eu-west-1"
+encrypt        = true
+dynamodb_table = "borjie-terraform-locks"

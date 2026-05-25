@@ -1,0 +1,20 @@
+# =============================================================================
+# external-secrets/ — cluster-scope ESO wiring
+# =============================================================================
+# Apply this overlay ONCE per cluster (typically right after the ESO Helm
+# chart is installed). The ClusterSecretStore + IRSA ServiceAccount must
+# exist before any application-namespace overlay is applied — otherwise the
+# per-service ExternalSecrets will park in "SecretSyncedError" until the
+# store comes up.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - service-account.yaml
+  - cluster-secret-store-aws.yaml
+  - ghcr-pull-externalsecret.yaml

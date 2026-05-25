@@ -1,0 +1,32 @@
+---
+# Allow ingress to notifications from api-gateway + scheduled-tasks
+# (reminder sweeps) + payments-ledger (settlement notifications).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notifications-ingress
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: notifications
+    app.kubernetes.io/managed-by: helm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: notifications
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: scheduled-tasks
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: payments-ledger
+      ports:
+        - protocol: TCP
+          port: 3020

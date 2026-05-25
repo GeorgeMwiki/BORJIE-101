@@ -1,0 +1,68 @@
+# =============================================================================
+# BORJIE — Local Override Example (copy to docker-compose.override.yml)
+# =============================================================================
+# docker compose automatically merges this file on `up`, so every value you
+# set here becomes the effective runtime value for your local stack.
+#
+# Usage:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   export ANTHROPIC_API_KEY=sk-ant-...
+#   docker compose up
+#
+# DO NOT commit `docker-compose.override.yml` — it is gitignored and is
+# the one place we keep live credentials for local-only development.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Environment variables consumed by services below.
+# Set them in your shell or in a `.env` file alongside docker-compose.yml.
+#
+# Required only if you hit the relevant surface:
+#   ANTHROPIC_API_KEY          — brain, doc-chat, notifications copywriting
+#   OCR_PROVIDER               — textract | google | mock (default: mock)
+#   AWS_REGION                 — Textract region, e.g. eu-west-1
+#   AWS_ACCESS_KEY_ID          — AWS SDK v3 credential (Textract / S3)
+#   AWS_SECRET_ACCESS_KEY      — AWS SDK v3 credential (Textract / S3)
+#   GOOGLE_APPLICATION_CREDENTIALS — /absolute/path/to/service-account.json
+#                                    (mount into document-intelligence below)
+#   GEPG_SP_CODE               — Tanzania GePG Service Provider code
+#   GEPG_SIGNING_KEY           — GePG HMAC signing key (sandbox or prod)
+#   GEPG_BASE_URL              — GePG endpoint (sandbox vs. production)
+#   GEPG_MODE                  — sandbox | production
+#   NOTIFICATIONS_SERVICE_URL  — auto-set inside the compose network
+#   REDIS_URL                  — auto-set inside the compose network
+#   DATABASE_URL               — auto-set inside the compose network
+#   NEO4J_URL                  — auto-set inside the compose network
+# -----------------------------------------------------------------------------
+
+services:
+  document-intelligence:
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OCR_PROVIDER: ${OCR_PROVIDER:-mock}
+      AWS_REGION: ${AWS_REGION:-eu-west-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-vision.json
+    # Uncomment to mount a Google service account JSON into the container.
+    # volumes:
+    #   - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
+
+  payments:
+    environment:
+      GEPG_SP_CODE: ${GEPG_SP_CODE:-}
+      GEPG_SIGNING_KEY: ${GEPG_SIGNING_KEY:-}
+      GEPG_BASE_URL: ${GEPG_BASE_URL:-https://sandbox.gepg.go.tz}
+      GEPG_MODE: ${GEPG_MODE:-sandbox}
+
+  webhooks:
+    environment:
+      GEPG_SIGNING_KEY: ${GEPG_SIGNING_KEY:-}
+      GEPG_SP_CODE: ${GEPG_SP_CODE:-}
+
+  scheduler:
+    environment:
+      # Flip to `true` to boot the container but skip all cron registrations —
+      # useful when running a local e2e that seeds data without worker noise.
+      SCHEDULER_DISABLED: ${SCHEDULER_DISABLED:-false}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

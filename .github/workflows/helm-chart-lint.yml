@@ -1,0 +1,74 @@
+# =============================================================================
+# Helm chart lint — F5 Wave-13 LITFIN port primitive
+# =============================================================================
+# Runs `helm lint` + `helm template` validation on the Borjie
+# Helm chart at `k8s/helm/borjie/`. Guards the F5 LITFIN port
+# (k8s + Helm chart scaffold) so a broken values.yaml / template
+# regression is caught at PR time, not at deploy time.
+#
+# `helm template` is run with the chart's default values + a smoke
+# values overlay (when present) to surface render-time errors that
+# `helm lint` alone misses (e.g. invalid resource shapes, broken
+# `tpl` evaluations, malformed annotations).
+# =============================================================================
+
+name: Helm Chart Lint
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/helm-chart-lint.yml'
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: helm-chart-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: helm lint + template render
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.16.2'
+
+      - name: Show Helm version
+        run: helm version
+
+      - name: helm lint
+        run: |
+          if [ -d k8s/helm/borjie ]; then
+            helm lint k8s/helm/borjie
+          else
+            echo 'k8s/helm/borjie not found — skipping lint'
+          fi
+
+      - name: helm template (default values)
+        run: |
+          if [ -d k8s/helm/borjie ]; then
+            mkdir -p .helm-out
+            helm template borjie k8s/helm/borjie \
+              --output-dir .helm-out \
+              --debug
+          else
+            echo 'k8s/helm/borjie not found — skipping template render'
+          fi
+
+      - name: Upload rendered manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-rendered-manifests
+          path: .helm-out
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/probe-runners",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Scheduled probe execution + threshold gating for sycophancy + defection probes. Pure runners + CI-gate decisions; injectable fetcher port for testability. Ports PO-18 + PO-19 from LITFIN sycophancy-probe/probe-runner.ts + brain/metacognition/defection-probe.ts.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

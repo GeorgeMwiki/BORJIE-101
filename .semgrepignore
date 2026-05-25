@@ -1,0 +1,60 @@
+# =============================================================================
+# Semgrep ignore — documented false-positive paths
+# =============================================================================
+# Each entry MUST include a comment explaining WHY the path is ignored.
+# Use sparingly; prefer fixing the underlying rule pattern when possible
+# (see .semgrep/borjie-rules.yml — the raw-error-response rule has
+# pattern-not exclusions for the canonical envelope, for example).
+#
+# Patterns follow .gitignore syntax:
+#   path/to/file          — exact match
+#   path/to/dir/          — directory and all contents
+#   path/*.test.ts        — glob match
+# =============================================================================
+
+# ─── Build / vendor artefacts ─────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.cache/
+coverage/
+
+# ─── Generated code ───────────────────────────────────────────────────────────
+# Drizzle-kit output is read-only by humans; rules don't apply.
+packages/database/drizzle/
+
+# OpenAPI auto-generated client types — never edited by hand.
+packages/api-types/src/generated/
+
+# ─── Test fixtures / synthetic positives ──────────────────────────────────────
+# .semgrep/tests/fixtures/ contains intentionally-vulnerable code that
+# anchors rule unit tests. Scanning it produces noise without signal.
+.semgrep/tests/
+
+# ─── Documentation snippets ───────────────────────────────────────────────────
+# Markdown code blocks in docs are illustrative and don't represent
+# production code paths.
+Docs/
+**/*.md
+
+# ─── Migrations ──────────────────────────────────────────────────────────────
+# Postgres SQL files don't run through the typescript/javascript rules;
+# Semgrep occasionally mis-identifies their content. Migration safety
+# is enforced by `scripts/validate-migration-safety.mjs` instead.
+packages/database/src/migrations/
+
+# ─── E2E test plumbing ───────────────────────────────────────────────────────
+# global-setup.ts / global-teardown.ts use `console.log` intentionally
+# for CI artifact diagnostics. These run OUTSIDE the production app
+# path so `console-statement-in-production-path` is a false positive.
+e2e/live-test/global-setup.ts
+e2e/live-test/global-teardown.ts
+
+# ─── Scheduler / composition root logging ────────────────────────────────────
+# services/reports/src/scheduler/composition-root.ts boots the reports
+# scheduler outside the request lifecycle and uses console.log for
+# bootstrap diagnostics that need to land on stderr before pino is
+# wired. Real production paths use pino.
+services/reports/src/scheduler/composition-root.ts

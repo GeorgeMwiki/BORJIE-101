@@ -1,0 +1,72 @@
+{{- if .Values.pdb.enabled -}}
+# Per-workload PodDisruptionBudgets.
+#
+#   - Frontend apps: minAvailable = 1 (lets node-drain / autoscaler
+#     proceed but keeps at least one pod warm).
+#   - Backend services: minAvailable = 1, except api-gateway which gets
+#     minAvailable = 2 (it's the choke-point; outage = full outage).
+#   - Postgres PDB lives in postgres.statefulset.yaml (minAvailable = 2).
+#
+# Skipped when replicaCount = 1 (PDB on a single replica deadlocks
+# voluntary drains).
+
+{{- /* ── Frontend PDBs ── */ -}}
+{{- range $key, $w := .Values.apps }}
+{{- if $w.enabled }}
+{{- $count := index $.Values.replicaCount $key }}
+{{- if gt (int $count) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+spec:
+  minAvailable: {{ $.Values.pdb.defaultMinAvailable }}
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  unhealthyPodEvictionPolicy: IfHealthyBudget
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* ── Backend service PDBs ── */ -}}
+{{- range $key, $w := .Values.services }}
+{{- if $w.enabled }}
+{{- $count := index $.Values.replicaCount $key }}
+{{- if gt (int $count) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+spec:
+  {{- /* api-gateway is the choke-point; protect 2 replicas. */ -}}
+  {{- if eq $key "apiGateway" }}
+  minAvailable: 2
+  {{- else }}
+  minAvailable: {{ $.Values.pdb.defaultMinAvailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  unhealthyPodEvictionPolicy: IfHealthyBudget
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* ── Redis PDB (only when in-cluster + >1 replica) ── */ -}}
+{{- if and .Values.redis.enabled (not .Values.redis.external.enabled) }}
+{{- /* Baseline Redis is 1 replica; Sentinel HA cluster is separate. */ -}}
+{{- end }}
+{{- end }}

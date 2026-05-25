@@ -1,0 +1,101 @@
+{
+  "app": {
+    "name": "Borjie Buyers",
+    "slogan": "Soko la madini halisi"
+  },
+  "tabs": {
+    "marketplace": "Soko",
+    "bids": "Zabuni",
+    "documents": "Mikataba",
+    "kyc": "KYC",
+    "profile": "Wasifu"
+  },
+  "marketplace": {
+    "title": "Vifurushi vya madini",
+    "subtitle": "Madini halisi kutoka mashamba ya wachimbaji",
+    "filters": "Chuja",
+    "search_placeholder": "Tafuta madini, mkoa, au muuzaji",
+    "grade": "Daraja",
+    "quantity": "Kiasi",
+    "origin": "Asili",
+    "price_hint": "Bei kadirio",
+    "per_kg": "kwa kilo",
+    "place_bid": "Weka zabuni",
+    "view_assay": "Tazama uchanganuzi",
+    "seller_rating": "Ukadiriaji wa muuzaji",
+    "chain_of_custody": "Mlolongo wa uangalizi",
+    "empty": "Hakuna vifurushi vinavyopatikana sasa"
+  },
+  "bids": {
+    "title": "Zabuni zangu",
+    "subtitle": "Hali ya zabuni zilizowekwa",
+    "status": {
+      "pending": "Inasubiri",
+      "accepted": "Imekubaliwa",
+      "rejected": "Imekataliwa",
+      "countered": "Pendekezo jipya"
+    },
+    "your_offer": "Toleo lako",
+    "thread": "Mazungumzo",
+    "send_message": "Tuma ujumbe",
+    "empty": "Bado hujaweka zabuni yoyote"
+  },
+  "documents": {
+    "title": "Mikataba",
+    "pending": "Inasubiri saini",
+    "signed": "Imeshasainiwa",
+    "view_pdf": "Fungua PDF",
+    "sign_biometric": "Saini kwa kidole",
+    "signed_at": "Ilisainiwa",
+    "total": "Jumla"
+  },
+  "kyc": {
+    "title": "Uthibitisho wa KYC",
+    "subtitle": "Tunahitaji vyeti vichache ili kuanza biashara",
+    "step_nida": "Kitambulisho cha NIDA",
+    "step_tin": "Namba ya TIN",
+    "step_company": "Vyeti vya kampuni",
+    "step_aml": "Tamko la AML",
+    "submit": "Wasilisha",
+    "status_pending": "Inahakikiwa",
+    "status_approved": "Imethibitishwa",
+    "status_rejected": "Imekataliwa"
+  },
+  "profile": {
+    "title": "Wasifu",
+    "company": "Kampuni",
+    "phone": "Simu",
+    "country": "Nchi",
+    "language": "Lugha",
+    "payment_methods": "Njia za malipo",
+    "notifications": "Arifa",
+    "logout": "Toka",
+    "notifications_title": "Mipangilio ya arifa",
+    "notif_new_listings": "Vifurushi vipya",
+    "notif_bid_updates": "Mabadiliko ya zabuni",
+    "notif_document_ready": "Mikataba mipya",
+    "notif_price_alerts": "Tahadhari za bei"
+  },
+  "chat": {
+    "title": "Mazungumzo na muuzaji",
+    "placeholder": "Andika ujumbe...",
+    "send": "Tuma"
+  },
+  "auth": {
+    "login_title": "Karibu Borjie Buyers",
+    "phone_label": "Nambari ya simu",
+    "phone_placeholder": "+255 712 345 678",
+    "send_otp": "Tuma OTP",
+    "otp_label": "Weka msimbo wa OTP",
+    "verify": "Thibitisha",
+    "terms": "Kwa kuingia unakubali masharti ya matumizi"
+  },
+  "common": {
+    "loading": "Inapakia...",
+    "back": "Rudi",
+    "cancel": "Ghairi",
+    "confirm": "Thibitisha",
+    "tzs": "TZS",
+    "kg": "kg"
+  }
+}

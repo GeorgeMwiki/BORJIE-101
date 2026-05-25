@@ -1,0 +1,101 @@
+{
+  "entities": [
+    {
+      "slug": "property",
+      "display_name_en": "Property",
+      "display_name_sw": "Mali",
+      "fields": [
+        { "name": "registration_no", "kind": "text", "required": true, "max_length": 64, "index": true },
+        { "name": "kind", "kind": "enum", "required": true, "values": ["land", "building", "mixed"] },
+        { "name": "address", "kind": "text", "required": true },
+        { "name": "market_value", "kind": "money", "required": false, "currency_field": "tenant_default" },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "unit",
+      "display_name_en": "Unit",
+      "display_name_sw": "Chumba",
+      "fields": [
+        { "name": "unit_code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "property_id", "kind": "fk", "required": true, "references": "property" },
+        { "name": "size_sqm", "kind": "numeric", "required": false, "precision": 8, "scale": 2 },
+        { "name": "monthly_rent", "kind": "money", "required": true, "currency_field": "tenant_default" },
+        { "name": "occupied", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "lease",
+      "display_name_en": "Lease",
+      "display_name_sw": "Pango",
+      "fields": [
+        { "name": "lease_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "unit_id", "kind": "fk", "required": true, "references": "unit" },
+        { "name": "start_date", "kind": "date", "required": true },
+        { "name": "end_date", "kind": "date", "required": true },
+        { "name": "monthly_rent", "kind": "money", "required": true },
+        { "name": "status", "kind": "enum", "required": true, "values": ["draft", "active", "expired", "terminated"] }
+      ]
+    },
+    {
+      "slug": "maintenance_case",
+      "display_name_en": "Maintenance Case",
+      "display_name_sw": "Matengenezo",
+      "fields": [
+        { "name": "case_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "unit_id", "kind": "fk", "required": true, "references": "unit" },
+        { "name": "category", "kind": "enum", "required": true, "values": ["plumbing", "electrical", "structural", "appliance", "other"] },
+        { "name": "summary", "kind": "text", "required": true },
+        { "name": "opened_at", "kind": "datetime", "required": true },
+        { "name": "closed_at", "kind": "datetime", "required": false },
+        { "name": "status", "kind": "enum", "required": true, "values": ["open", "in_progress", "resolved", "closed"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "create_lease_application",
+      "title": "Draft a new lease application",
+      "trigger_entity": "lease",
+      "trigger_event": "create",
+      "steps": ["screen_tenant", "draft_lease", "post_deposit", "schedule_signing"]
+    },
+    {
+      "slug": "open_maintenance_case",
+      "title": "Open a maintenance case",
+      "trigger_entity": "maintenance_case",
+      "trigger_event": "create",
+      "steps": ["classify_severity", "assign_technician", "notify_tenant"]
+    },
+    {
+      "slug": "schedule_renewal_negotiation",
+      "title": "Schedule a lease renewal negotiation",
+      "trigger_entity": "lease",
+      "trigger_event": "update",
+      "steps": ["compute_renewal_terms", "send_proposal", "schedule_meeting"]
+    },
+    {
+      "slug": "post_receipt_draft",
+      "title": "Record a draft receipt against a tenant",
+      "trigger_entity": "lease",
+      "trigger_event": "payment",
+      "steps": ["validate_amount", "draft_ledger_entry", "notify_manager_for_review"]
+    },
+    {
+      "slug": "bulk_mark_for_renewal_prep",
+      "title": "Flag many leases for renewal preparation",
+      "trigger_entity": "lease",
+      "trigger_event": "bulk_update",
+      "steps": ["filter_leases", "flag_each", "audit_chain"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "property", "columns": ["registration_no", "display_name", "kind", "active"] },
+    { "kind": "table", "entity": "unit", "columns": ["unit_code", "display_name", "occupied"] },
+    { "kind": "table", "entity": "lease", "columns": ["lease_no", "display_name", "status"] },
+    { "kind": "form", "entity": "lease" },
+    { "kind": "form", "entity": "maintenance_case" },
+    { "kind": "kpi_tile", "title": "Active leases", "query": "count(lease where status=active)" },
+    { "kind": "kpi_tile", "title": "Open maintenance cases", "query": "count(maintenance_case where status in (open,in_progress))" }
+  ]
+}

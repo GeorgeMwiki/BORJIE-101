@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: payments-ledger
+  labels:
+    app.kubernetes.io/name: payments-ledger
+    app.kubernetes.io/part-of: borjie
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-ledger
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - borjie-app
+      - borjie-staging
+      - borjie-prod

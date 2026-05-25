@@ -1,0 +1,16 @@
+id: complaint-triage-010
+scenario: complaint-triage
+title: 'Compliment masquerading as complaint (positive feedback in complaint form)'
+context:
+  submitter: {id: tnt-413, name: 'Joyce Wamboi', unit: '11A'}
+  complaint:
+    submitted_at: '2026-05-17T10:00:00Z'
+    kind: 'feedback'
+    severity_self_assessed: low
+    description: 'Wanted to say thanks — caretaker fixed the gate yesterday so quickly!'
+expected_actions:
+  - {tool: 'complaint.reclassify_as_compliment'}
+  - {tool: 'complaint.relay_compliment_to_staff', recipient: 'caretaker-north'}
+  - {tool: 'complaint.acknowledge_submitter', tone: 'warm-grateful'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.1}

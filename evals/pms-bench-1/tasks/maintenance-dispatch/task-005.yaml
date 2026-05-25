@@ -1,0 +1,17 @@
+id: maintenance-dispatch-005
+scenario: maintenance-dispatch
+title: 'Locked-out tenant (no key, after-hours)'
+context:
+  property: {id: prop-105, block: 'Block A', unit: '2A'}
+  tenant: {id: tnt-105, name: 'Ruth Mwende'}
+  report:
+    submitted_at: '2026-05-17T23:45:00Z'
+    severity_self_assessed: high
+    description: 'Locked out; cant find spare key; standing in corridor'
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P1-urgent'}
+  - {tool: 'maintenance.verify_tenant_identity'}
+  - {tool: 'maintenance.dispatch_locksmith', sla_minutes: 45}
+  - {tool: 'maintenance.notify_tenant', tone: 'reassuring-with-eta'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

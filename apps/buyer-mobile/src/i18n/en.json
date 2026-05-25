@@ -1,0 +1,101 @@
+{
+  "app": {
+    "name": "Borjie Buyers",
+    "slogan": "Real minerals market"
+  },
+  "tabs": {
+    "marketplace": "Marketplace",
+    "bids": "My Bids",
+    "documents": "Documents",
+    "kyc": "KYC",
+    "profile": "Profile"
+  },
+  "marketplace": {
+    "title": "Ore parcels",
+    "subtitle": "Verified minerals from licensed sites",
+    "filters": "Filters",
+    "search_placeholder": "Search mineral, region, or seller",
+    "grade": "Grade",
+    "quantity": "Quantity",
+    "origin": "Origin",
+    "price_hint": "Indicative price",
+    "per_kg": "per kg",
+    "place_bid": "Place bid",
+    "view_assay": "View assay",
+    "seller_rating": "Seller rating",
+    "chain_of_custody": "Chain of custody",
+    "empty": "No parcels available right now"
+  },
+  "bids": {
+    "title": "My bids",
+    "subtitle": "Status of placed offers",
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "countered": "Counter offer"
+    },
+    "your_offer": "Your offer",
+    "thread": "Conversation",
+    "send_message": "Send message",
+    "empty": "You haven't placed any bids yet"
+  },
+  "documents": {
+    "title": "Contracts",
+    "pending": "Pending signature",
+    "signed": "Signed",
+    "view_pdf": "Open PDF",
+    "sign_biometric": "Sign with biometrics",
+    "signed_at": "Signed on",
+    "total": "Total"
+  },
+  "kyc": {
+    "title": "KYC verification",
+    "subtitle": "We need a few documents before you can trade",
+    "step_nida": "NIDA capture",
+    "step_tin": "TIN number",
+    "step_company": "Company documents",
+    "step_aml": "AML declaration",
+    "submit": "Submit",
+    "status_pending": "Under review",
+    "status_approved": "Verified",
+    "status_rejected": "Rejected"
+  },
+  "profile": {
+    "title": "Profile",
+    "company": "Company",
+    "phone": "Phone",
+    "country": "Country",
+    "language": "Language",
+    "payment_methods": "Payment methods",
+    "notifications": "Notifications",
+    "logout": "Log out",
+    "notifications_title": "Notification settings",
+    "notif_new_listings": "New listings",
+    "notif_bid_updates": "Bid updates",
+    "notif_document_ready": "New contracts",
+    "notif_price_alerts": "Price alerts"
+  },
+  "chat": {
+    "title": "Chat with seller",
+    "placeholder": "Type a message...",
+    "send": "Send"
+  },
+  "auth": {
+    "login_title": "Welcome to Borjie Buyers",
+    "phone_label": "Phone number",
+    "phone_placeholder": "+255 712 345 678",
+    "send_otp": "Send OTP",
+    "otp_label": "Enter OTP code",
+    "verify": "Verify",
+    "terms": "By signing in you agree to the terms of service"
+  },
+  "common": {
+    "loading": "Loading...",
+    "back": "Back",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "tzs": "TZS",
+    "kg": "kg"
+  }
+}

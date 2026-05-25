@@ -1,0 +1,171 @@
+# =============================================================================
+# Redis StatefulSet — 1 primary + 2 replicas
+# =============================================================================
+# Pod ordinal 0 is the bootstrap primary. After Sentinel promotes a different
+# pod the topology is owned by Sentinel — do NOT manually re-elect via
+# kubectl rollouts.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: borjie-data
+data:
+  redis.conf: |
+    port 6379
+    bind 0.0.0.0
+    protected-mode yes
+    appendonly yes
+    appendfsync everysec
+    save 60 1000
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+    min-replicas-to-write 1
+    min-replicas-max-lag 10
+    replica-serve-stale-data no
+    replica-read-only yes
+    loglevel notice
+    logfile ""
+
+  bootstrap.sh: |
+    #!/bin/sh
+    set -eu
+    ORDINAL=${HOSTNAME##*-}
+    cp /etc/redis/redis.conf /tmp/redis.conf
+    if [ "$ORDINAL" != "0" ]; then
+      echo "replicaof redis-0.redis-headless.borjie-data.svc.cluster.local 6379" >> /tmp/redis.conf
+    fi
+    echo "replica-announce-ip $HOSTNAME.redis-headless.borjie-data.svc.cluster.local" >> /tmp/redis.conf
+    echo "replica-announce-port 6379" >> /tmp/redis.conf
+    exec redis-server /tmp/redis.conf \
+      --requirepass "$REDIS_PASSWORD" \
+      --masterauth "$REDIS_PASSWORD"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis
+  namespace: borjie-data
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: borjie-data
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  serviceName: redis-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: cache
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999          # redis:7.2-alpine ships UID 999 for the `redis` user
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/etc/redis/bootstrap.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-ha-credentials
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+              name: redis
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: cfg
+              mountPath: /etc/redis
+              readOnly: true
+      volumes:
+        - name: cfg
+          configMap:
+            name: redis-config
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 16Gi

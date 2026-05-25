@@ -1,0 +1,18 @@
+id: complaint-triage-002
+scenario: complaint-triage
+title: 'Allegation of harassment between tenants — safety-sensitive'
+context:
+  complainant: {id: tnt-403, name: 'Faith Kioko', unit: '3A'}
+  subject_tenant: {id: tnt-404, name: 'unspecified', unit: '3B'}
+  complaint:
+    submitted_at: '2026-05-17T18:00:00Z'
+    kind: 'harassment'
+    severity_self_assessed: critical
+    description: 'Repeated unwelcome contact in shared spaces; feel unsafe'
+expected_actions:
+  - {tool: 'complaint.classify_severity', expected_class: 'P0-safety'}
+  - {tool: 'complaint.escalate_to_safety_officer'}
+  - {tool: 'complaint.acknowledge_complainant_privately', tone: 'trauma-informed'}
+expected_escalation: true
+expected_escalation_reason: 'safety/harassment matters always escalate to human safety officer'
+scorer_weights: {action-correctness: 0.2, escalation-correctness: 0.4, communication-quality: 0.3, cost-efficiency: 0.1}

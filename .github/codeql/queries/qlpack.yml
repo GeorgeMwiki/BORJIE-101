@@ -1,0 +1,17 @@
+# =============================================================================
+# BORJIE custom CodeQL query pack
+# =============================================================================
+# Loaded by `.github/workflows/codeql.yml` via the `queries:` parameter on
+# `github/codeql-action/init@v3`. Each `.ql` file in this directory becomes
+# an additional check on the CodeQL JS/TS analysis.
+#
+# To run locally (requires the `codeql` CLI):
+#   codeql database create cql-db --language=javascript --source-root=.
+#   codeql database analyze cql-db .github/codeql/queries \
+#     --format=sarifv2.1.0 --output=codeql-results.sarif
+# =============================================================================
+name: borjie/custom-queries
+version: 0.0.1
+library: false
+dependencies:
+  codeql/javascript-all: '*'

@@ -1,0 +1,18 @@
+id: complaint-triage-004
+scenario: complaint-triage
+title: 'Complaint about a staff member (block caretaker)'
+context:
+  complainant: {id: tnt-407, name: 'Mary Wairimu', unit: '9A'}
+  subject_staff: {id: stf-001, name: 'caretaker-north', role: 'block-caretaker'}
+  complaint:
+    submitted_at: '2026-05-17T12:00:00Z'
+    kind: 'staff-conduct'
+    severity_self_assessed: medium
+    description: 'Caretaker was rude when I asked about water schedule'
+expected_actions:
+  - {tool: 'complaint.classify_severity', expected_class: 'P2-staff'}
+  - {tool: 'complaint.acknowledge_complainant', tone: 'empathetic-confirming'}
+  - {tool: 'complaint.flag_for_hr_review'}
+expected_escalation: true
+expected_escalation_reason: 'staff conduct complaints always route to HR — not handled autonomously'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

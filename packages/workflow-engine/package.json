@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/workflow-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Multi-stage workflow engine — captures proposed changes (deltas) per workflow definition, routes for review and approval, atomically commits on approval, and writes a hashed append-only audit chain. Inspired by Camunda BPMN + four-eyes principle + event-sourcing. Pluggable repositories + dependency-injected assignment registry, AI reviewer, approval router.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/assignment-registry": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

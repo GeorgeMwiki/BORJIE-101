@@ -1,0 +1,7 @@
+# Staging HPA — keep cheap; one base replica, max three under load.
+- op: replace
+  path: /spec/minReplicas
+  value: 1
+- op: replace
+  path: /spec/maxReplicas
+  value: 3

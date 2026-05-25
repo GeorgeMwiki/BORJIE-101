@@ -1,0 +1,39 @@
+{
+  "name": "@borjie/audio-logics-litfin",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "LITFIN-parity audio logics that augment @borjie/audio-capture: fingerprinting, voice biometrics, per-jurisdiction compliance recording, C2PA-signed evidence chain, WhatsApp voice intake bridge, emotion-based escalation, waveform UI helpers, talk-time metering, audio quality scoring.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

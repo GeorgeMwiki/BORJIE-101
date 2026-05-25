@@ -1,0 +1,14 @@
+id: kra-filing-008
+scenario: kra-filing
+title: 'Duplicate filing detection (return already submitted by accountant)'
+context:
+  tenant_owner: {id: own-208, kra_pin: 'P051234573A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  existing_return_status: 'already-filed-by-external-accountant'
+  filing_reference: 'KRA-MRI-2026-04-AB123'
+expected_actions:
+  - {tool: 'kra.detect_existing_return'}
+  - {tool: 'kra.abort_filing_with_audit_note'}
+  - {tool: 'kra.notify_owner_of_duplicate_avoidance', tone: 'informative'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.6, escalation-correctness: 0.1, communication-quality: 0.2, cost-efficiency: 0.1}

@@ -1,0 +1,181 @@
+# =============================================================================
+# document-render — Carbone + Typst + Puppeteer render stack
+# Source: infra/document-render (ports 4000 Carbone, 8001 Typst, 8002 Puppeteer)
+# Workload class: render-stack — large image (~1.4 GB), spiky RAM under
+# parallel renders (LibreOffice + Chromium).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-render
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: renderer
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: document-render
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: renderer
+        app.kubernetes.io/version: "0.1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: document-render
+      automountServiceAccountToken: false
+      # GHCR private registry — see infra/k8s/external-secrets/.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: document-render
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: document-render
+      containers:
+        - name: document-render
+          image: ghcr.io/georgemwiki/borjie-document-render:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: carbone
+              protocol: TCP
+            - containerPort: 8001
+              name: typst
+              protocol: TCP
+            - containerPort: 8002
+              name: puppeteer
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: document-render-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: CARBONE_PORT
+              value: "4000"
+            - name: TYPST_PORT
+              value: "8001"
+            - name: PUPPETEER_PORT
+              value: "8002"
+            - name: TYPST_BINARY
+              value: /usr/local/bin/typst
+            - name: PUPPETEER_EXECUTABLE_PATH
+              value: /usr/bin/chromium
+            - name: TEMPLATES_DIR
+              value: /app/templates
+            - name: OTEL_SERVICE_NAME
+              value: document-render
+          resources:
+            # Carbone + LibreOffice + Chromium under parallel renders need
+            # serious RAM; keep CPU bursty.
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "3Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            # LibreOffice and Chromium write small profile/lock files at
+            # runtime; rather than relax readOnlyRootFilesystem, we mount
+            # writable scratch volumes at every path they touch.
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            # Carbone is the slowest to warm; probe it as the canary.
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            failureThreshold: 60
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            # LibreOffice/Carbone scratch + user profile.
+            - name: carbone-render
+              mountPath: /app/render
+            - name: libreoffice-profile
+              mountPath: /home/app
+            # Chromium needs writable cache + crash dumps.
+            - name: chromium-cache
+              mountPath: /app/.cache
+            # Optional templates volume (matches docker-compose mount path).
+            - name: templates
+              mountPath: /app/templates
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: carbone-render
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: libreoffice-profile
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: chromium-cache
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: templates
+          emptyDir:
+            sizeLimit: 256Mi
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: document-render
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

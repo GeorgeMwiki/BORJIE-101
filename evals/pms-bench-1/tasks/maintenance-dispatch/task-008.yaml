@@ -1,0 +1,18 @@
+id: maintenance-dispatch-008
+scenario: maintenance-dispatch
+title: 'Out-of-policy vendor cost (estimate exceeds auto-approve cap)'
+context:
+  property: {id: prop-108, block: 'Block C', unit: '9D'}
+  report:
+    submitted_at: '2026-05-17T15:00:00Z'
+    severity_self_assessed: medium
+    description: 'Boiler replacement needed — vendor estimate KSh 250,000'
+    vendor_quote_minor: 25000000000
+    vendor_quote_currency: TZS
+    auto_approve_cap_minor: 5000000000
+expected_actions:
+  - {tool: 'maintenance.flag_cost_over_cap'}
+  - {tool: 'maintenance.draft_owner_approval_request', include_quote: true}
+expected_escalation: true
+expected_escalation_reason: 'vendor cost exceeds auto-approve cap — needs owner sign-off'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

@@ -1,0 +1,12 @@
+---
+# BORJIE strict-isolation namespace. Apply this BEFORE the
+# NetworkPolicy manifests so the policy controllers can find the
+# pods they govern.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: borjie
+  labels:
+    name: borjie
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/managed-by: helm

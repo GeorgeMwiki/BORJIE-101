@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-outbox-processor
+    newTag: staging
+
+patches:
+  - target:
+      kind: Deployment
+      name: outbox-processor
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "50m"
+            memory: "96Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+  - target:
+      kind: ExternalSecret
+      name: outbox-processor-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/outbox-processor

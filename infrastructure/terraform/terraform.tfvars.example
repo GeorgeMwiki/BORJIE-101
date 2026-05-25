@@ -1,0 +1,35 @@
+# =============================================================================
+# Terraform Variables - Example
+# =============================================================================
+# Copy to terraform.tfvars and fill in. Never commit terraform.tfvars with secrets.
+# For sensitive values use: export TF_VAR_rds_password="..."
+# =============================================================================
+
+project_name   = "borjie"
+environment    = "staging"
+aws_region     = "eu-west-1"
+
+vpc_cidr            = "10.0.0.0/16"
+availability_zones  = ["eu-west-1a", "eu-west-1b"]
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
+
+enable_nat_gateway = true
+single_nat_gateway = true
+
+rds_instance_class    = "db.t3.micro"
+rds_allocated_storage  = 20
+rds_database_name      = "borjie"
+# rds_username = "borjie"
+# rds_password = "CHANGE_ME"
+rds_multi_az = false
+
+redis_node_type          = "cache.t3.micro"
+redis_num_cache_clusters = 1
+
+api_image         = "borjie/api-gateway:latest"
+api_cpu           = 256
+api_memory        = 512
+api_desired_count = 1
+
+enable_container_insights = true

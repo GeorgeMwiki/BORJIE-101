@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/ethics-framework",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA ethics framework — codified principles (Asilomar, NIST RMF, IEEE P7000, EU AI Act), consent management (incl. parental for minors), vulnerable-population safeguards (TZ Land Act, KE Rental Housing Act, ZA RHA, FHA), GDPR Art 22 right-to-explanation with counterfactuals, Brignull dark-pattern detector (14 types), surveillance-device consent registry, WCAG 2.2 AA accessibility checks. Pure functions; composes fairness-eval + compliance-pack without editing them.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

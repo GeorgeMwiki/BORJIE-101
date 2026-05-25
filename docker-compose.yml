@@ -1,0 +1,304 @@
+# =============================================================================
+# BORJIE - Local Development Docker Compose
+# =============================================================================
+
+services:
+  postgres:
+    # pgvector image extends postgres:15-alpine with the pgvector extension
+    # required by document-intelligence's embedding/doc-chat surfaces.
+    # Enable with: CREATE EXTENSION IF NOT EXISTS vector;
+    image: pgvector/pgvector:pg15
+    container_name: borjie-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: borjie
+      POSTGRES_PASSWORD: borjie_dev
+      POSTGRES_DB: borjie
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U borjie -d borjie"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: borjie-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: borjie-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/borjie_graph_dev
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_dbms_security_procedures_allowlist: apoc.*
+    ports:
+      - "7474:7474"   # HTTP (Browser UI)
+      - "7687:7687"   # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: borjie-api-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://borjie:borjie_dev@postgres:5432/borjie
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: borjie_graph_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # IMPORTANT — architectural note
+  #
+  # The following packages under services/ are PURE LIBRARIES in this
+  # workspace. They export modules but DO NOT start an HTTP server:
+  #
+  #   identity, notifications, payments, document-intelligence,
+  #   webhooks, domain-services, reports (library surface)
+  #
+  # They are consumed in-process by api-gateway. Running them as standalone
+  # containers would boot, load modules, then immediately exit — there is
+  # no listener bound to :3000 and therefore no /healthz to probe.
+  #
+  # Only three backend services have a real process entrypoint today:
+  #   - api-gateway          (Dockerfile.api, HTTP :4000)
+  #   - payments-ledger      (Dockerfile.service, HTTP :3000 via src/server.ts)
+  #   - scheduler            (Dockerfile.scheduler, node-cron + HTTP :8080)
+  #
+  # To ship the library services as individual deployables, each needs a
+  # thin HTTP wrapper (express/hono) exposing /healthz and the relevant
+  # RPC surface. Tracked as a known gap.
+  # ---------------------------------------------------------------------------
+
+  payments-ledger:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE_NAME: payments-ledger
+        PACKAGE_NAME: "@borjie/payments-ledger-service"
+        ENTRY_PATH: dist/services/payments-ledger/src/server.js
+    container_name: borjie-payments-ledger
+    restart: unless-stopped
+    ports:
+      - "4006:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://borjie:borjie_dev@postgres:5432/borjie
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Scheduler — runs node-cron CRON workers (renewal, SLA, vendor rating,
+  # intelligence, FAR, waitlist, arrears). Shares the reports image but
+  # overrides the entrypoint. Exactly ONE replica in production.
+  # ---------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.scheduler
+    container_name: borjie-scheduler
+    restart: unless-stopped
+    ports:
+      - "4009:8080"
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      TZ: UTC
+      DATABASE_URL: postgresql://borjie:borjie_dev@postgres:5432/borjie
+      REDIS_URL: redis://redis:6379
+      NOTIFICATIONS_SERVICE_URL: http://notifications:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Consolidation worker — daily ingestion that pulls last-24h reservoir
+  # rows and writes one consolidated semantic fact per group. Reuses the
+  # api-gateway image so we don't have to maintain a separate build.
+  # Tick cadence defaults to 1h (in-process supervisor). For local dev the
+  # service comes up with the api-gateway and shares its database.
+  # ---------------------------------------------------------------------------
+  consolidation-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: borjie-consolidation-worker
+    restart: unless-stopped
+    command:
+      - "node_modules/.bin/tsx"
+      - "services/consolidation-worker/src/index.ts"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://borjie:borjie_dev@postgres:5432/borjie
+      CONSOLIDATION_INTERVAL_MS: 3600000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  estate-manager:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: estate-manager-app
+        APP_PATH: apps/estate-manager-app
+      target: nextjs
+    container_name: borjie-estate-manager
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  customer-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: customer-app
+        APP_PATH: apps/customer-app
+      target: nextjs
+    container_name: borjie-customer-app
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  owner-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: owner-portal
+        APP_PATH: apps/owner-portal
+      target: vite
+    container_name: borjie-owner-portal
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  admin-portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: admin-portal
+        APP_PATH: apps/admin-portal
+      target: vite
+    container_name: borjie-admin-portal
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  neo4j_logs:
+
+networks:
+  default:
+    name: borjie-network

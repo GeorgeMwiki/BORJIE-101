@@ -1,0 +1,1091 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Platform API
+  description: |
+    # BORJIE Property Management Platform API
+
+    Comprehensive REST API for the BORJIE multi-tenant property management platform.
+    
+    ## Overview
+    
+    BORJIE provides a complete solution for property management companies, landlords,
+    and estate managers to manage properties, tenants, leases, payments, maintenance,
+    and more.
+    
+    ## API Modules
+    
+    The API is organized into the following modules:
+    
+    | Module | Description |
+    |--------|-------------|
+    | **Tenants** | Multi-tenant management, organizations, settings, and policies |
+    | **Properties** | Properties, units, blocks, amenities, and property ownership |
+    | **Customers** | Customer lifecycle, onboarding, KYC, and applications |
+    | **Leases** | Lease CRUD, renewals, terminations, and occupancy |
+    | **Payments** | Invoices, payments, reconciliation, and disbursements |
+    | **Maintenance** | Work orders, dispatch, vendors, and completion tracking |
+    | **Documents** | Document upload, OCR, verification, and e-signatures |
+    | **Cases** | Disputes, legal notices, and resolution workflows |
+    
+    ## Authentication
+    
+    All endpoints (except explicitly public ones) require authentication using JWT Bearer tokens.
+    
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+    
+    Tokens are obtained via the `/auth/login` endpoint and can be refreshed using `/auth/refresh`.
+    
+    ## Multi-Tenancy
+    
+    BORJIE is a multi-tenant platform. The tenant context is typically embedded in the
+    JWT token, but can also be specified via the `X-Tenant-ID` header when needed.
+    
+    ## Rate Limiting
+    
+    API requests are rate-limited based on your subscription tier:
+    
+    | Tier | Requests/minute | Requests/day |
+    |------|-----------------|--------------|
+    | Free | 60 | 1,000 |
+    | Professional | 300 | 50,000 |
+    | Enterprise | 1,000 | Unlimited |
+    
+    Rate limit headers are included in all responses:
+    - `X-RateLimit-Limit`: Maximum requests allowed
+    - `X-RateLimit-Remaining`: Requests remaining in window
+    - `X-RateLimit-Reset`: Unix timestamp when limit resets
+    
+    ## Pagination
+    
+    List endpoints support cursor-based pagination:
+    
+    ```
+    GET /properties?page=1&pageSize=20
+    ```
+    
+    Response includes pagination metadata:
+    
+    ```json
+    {
+      "data": [...],
+      "pagination": {
+        "page": 1,
+        "pageSize": 20,
+        "totalItems": 150,
+        "totalPages": 8,
+        "hasNextPage": true,
+        "hasPreviousPage": false
+      }
+    }
+    ```
+    
+    ## Error Handling
+    
+    The API uses standard HTTP status codes and returns errors in a consistent format:
+    
+    ```json
+    {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Request validation failed",
+        "details": [
+          { "field": "email", "message": "Invalid email format" }
+        ],
+        "requestId": "req_abc123xyz"
+      }
+    }
+    ```
+    
+    ## Webhooks
+    
+    BORJIE supports webhooks for real-time event notifications. Configure webhooks
+    in your tenant settings to receive notifications for:
+    
+    - Payment events (completed, failed, refunded)
+    - Lease events (created, renewed, terminated)
+    - Maintenance events (created, assigned, completed)
+    - Document events (uploaded, signed)
+    
+    ## SDKs & Client Libraries
+    
+    Official client libraries are available for:
+    - JavaScript/TypeScript (npm: `@borjie/sdk`)
+    - Python (pip: `borjie`)
+    - Ruby (gem: `borjie`)
+    
+    ## Support
+    
+    For API support, contact api@borjie.com or visit our developer portal
+    at https://developers.borjie.com
+
+  version: 1.0.0
+  termsOfService: https://borjie.com/terms
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+    url: https://developers.borjie.com
+  license:
+    name: Proprietary
+    url: https://borjie.com/license
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Authentication
+    description: Authentication and session management
+  - name: Organizations
+    description: Organization management (billing boundary)
+  - name: Tenants
+    description: Tenant management (data isolation boundary)
+  - name: Properties
+    description: Property and unit management
+  - name: Customers
+    description: Customer lifecycle management
+  - name: Leases
+    description: Lease management and renewals
+  - name: Payments
+    description: Invoicing and payment processing
+  - name: Maintenance
+    description: Work orders and vendor management
+  - name: Documents
+    description: Document management and e-signatures
+  - name: Cases
+    description: Disputes, notices, and resolution
+  - name: Reports
+    description: Analytics and reporting
+  - name: Webhooks
+    description: Webhook configuration
+
+paths:
+  # Authentication
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Authenticate with email and password to obtain JWT tokens
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                mfaCode:
+                  type: string
+                  description: MFA code if enabled
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: MFA required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mfaRequired:
+                    type: boolean
+                  mfaType:
+                    type: string
+                    enum:
+                      - totp
+                      - sms
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh token
+      description: Refresh access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Invalidate current session
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logged out successfully
+
+  /auth/password/forgot:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset email sent (if account exists)
+
+  /auth/password/reset:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid or expired token
+
+  # Health check
+  /health:
+    get:
+      summary: Health check
+      description: Check API health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - healthy
+                      - degraded
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # Module References
+  # The following paths reference the individual API spec files
+  
+  # Tenants API - see tenants.yaml
+  /organizations:
+    $ref: 'tenants.yaml#/paths/~1organizations'
+  /tenants:
+    $ref: 'tenants.yaml#/paths/~1tenants'
+
+  # Properties API - see properties.yaml
+  /properties:
+    $ref: 'properties.yaml#/paths/~1properties'
+  /units/{unitId}:
+    $ref: 'properties.yaml#/paths/~1units~1{unitId}'
+
+  # Customers API - see customers.yaml
+  /customers:
+    $ref: 'customers.yaml#/paths/~1customers'
+  /applications:
+    $ref: 'customers.yaml#/paths/~1applications'
+
+  # Leases API - see leases.yaml
+  /leases:
+    $ref: 'leases.yaml#/paths/~1leases'
+
+  # Payments API - see payments.yaml
+  /invoices:
+    $ref: 'payments.yaml#/paths/~1invoices'
+  /payments:
+    $ref: 'payments.yaml#/paths/~1payments'
+  /disbursements:
+    $ref: 'payments.yaml#/paths/~1disbursements'
+
+  # Maintenance API - see maintenance.yaml
+  /maintenance-requests:
+    $ref: 'maintenance.yaml#/paths/~1maintenance-requests'
+  /work-orders:
+    $ref: 'maintenance.yaml#/paths/~1work-orders'
+  /vendors:
+    $ref: 'maintenance.yaml#/paths/~1vendors'
+
+  # Documents API - see documents.yaml
+  /documents:
+    $ref: 'documents.yaml#/paths/~1documents'
+  /templates:
+    $ref: 'documents.yaml#/paths/~1templates'
+  /signatures:
+    $ref: 'documents.yaml#/paths/~1signatures'
+
+  # Cases API - see cases.yaml
+  /cases:
+    $ref: 'cases.yaml#/paths/~1cases'
+  /disputes:
+    $ref: 'cases.yaml#/paths/~1disputes'
+  /notices:
+    $ref: 'cases.yaml#/paths/~1notices'
+
+  # Reports
+  /reports/portfolio-summary:
+    get:
+      tags:
+        - Reports
+      summary: Portfolio summary report
+      operationId: getPortfolioSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - month
+              - quarter
+              - year
+            default: month
+        - name: propertyIds
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+      responses:
+        '200':
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/collections:
+    get:
+      tags:
+        - Reports
+      summary: Collections report
+      operationId: getCollectionsReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Collections report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionsReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/occupancy:
+    get:
+      tags:
+        - Reports
+      summary: Occupancy report
+      operationId: getOccupancyReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Occupancy report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupancyReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/financial-statement:
+    get:
+      tags:
+        - Reports
+      summary: Financial statement
+      operationId: getFinancialStatement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - income
+              - balance
+              - cash_flow
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Financial statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialStatement'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Webhooks
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List webhook endpoints
+      operationId: listWebhooks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Webhook endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Webhooks
+      summary: Create webhook endpoint
+      operationId: createWebhook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks/{webhookId}:
+    parameters:
+      - name: webhookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Webhooks
+      summary: Get webhook endpoint
+      operationId: getWebhook
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Webhook endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Webhooks
+      summary: Update webhook endpoint
+      operationId: updateWebhook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '200':
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete webhook endpoint
+      operationId: deleteWebhook
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Webhook deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/{webhookId}/test:
+    parameters:
+      - name: webhookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Webhooks
+      summary: Test webhook endpoint
+      operationId: testWebhook
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Test webhook sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  responseCode:
+                    type: integer
+                  responseTime:
+                    type: integer
+                    description: Response time in milliseconds
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from `/auth/login`.
+        Include in requests as: `Authorization: Bearer <token>`
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Token expiry in seconds
+        tokenType:
+          type: string
+          default: Bearer
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            roles:
+              type: array
+              items:
+                type: string
+            tenantId:
+              type: string
+              format: uuid
+            organizationId:
+              type: string
+              format: uuid
+
+    PortfolioSummary:
+      type: object
+      properties:
+        period:
+          type: string
+        totalProperties:
+          type: integer
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        vacantUnits:
+          type: integer
+        occupancyRate:
+          type: number
+        totalRentRoll:
+          $ref: '#/components/schemas/Money'
+        collectedRent:
+          $ref: '#/components/schemas/Money'
+        collectionRate:
+          type: number
+        outstandingBalance:
+          $ref: '#/components/schemas/Money'
+        activeLeases:
+          type: integer
+        expiringLeases:
+          type: integer
+        openMaintenanceRequests:
+          type: integer
+        propertyBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              propertyId:
+                type: string
+                format: uuid
+              propertyName:
+                type: string
+              units:
+                type: integer
+              occupied:
+                type: integer
+              occupancyRate:
+                type: number
+              rentRoll:
+                $ref: '#/components/schemas/Money'
+              collected:
+                $ref: '#/components/schemas/Money'
+
+    CollectionsReport:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        totalInvoiced:
+          $ref: '#/components/schemas/Money'
+        totalCollected:
+          $ref: '#/components/schemas/Money'
+        totalOutstanding:
+          $ref: '#/components/schemas/Money'
+        collectionRate:
+          type: number
+        byPaymentMethod:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Money'
+        agingBuckets:
+          type: object
+          properties:
+            current:
+              $ref: '#/components/schemas/Money'
+            days1to30:
+              $ref: '#/components/schemas/Money'
+            days31to60:
+              $ref: '#/components/schemas/Money'
+            days61to90:
+              $ref: '#/components/schemas/Money'
+            over90days:
+              $ref: '#/components/schemas/Money'
+
+    OccupancyReport:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        vacantUnits:
+          type: integer
+        occupancyRate:
+          type: number
+        averageDaysVacant:
+          type: number
+        byUnitType:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              total:
+                type: integer
+              occupied:
+                type: integer
+              rate:
+                type: number
+        vacantUnits:
+          type: array
+          items:
+            type: object
+            properties:
+              unitId:
+                type: string
+                format: uuid
+              unitName:
+                type: string
+              propertyName:
+                type: string
+              daysVacant:
+                type: integer
+              lastOccupied:
+                type: string
+                format: date
+
+    FinancialStatement:
+      type: object
+      properties:
+        type:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        currency:
+          type: string
+        lineItems:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              name:
+                type: string
+              amount:
+                type: integer
+              type:
+                type: string
+                enum:
+                  - income
+                  - expense
+                  - asset
+                  - liability
+        totals:
+          type: object
+          additionalProperties:
+            type: integer
+
+    WebhookEndpoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+          description: Webhook signing secret (shown once on creation)
+        status:
+          type: string
+          enum:
+            - active
+            - paused
+            - failed
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateWebhookRequest:
+      type: object
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - payment.completed
+              - payment.failed
+              - payment.refunded
+              - lease.created
+              - lease.renewed
+              - lease.terminated
+              - work_order.created
+              - work_order.completed
+              - document.uploaded
+              - document.signed
+              - customer.created
+              - case.created
+              - case.resolved
+
+    UpdateWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+            - active
+            - paused
+
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit (cents)
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: KES
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - RATE_LIMITED
+                - INTERNAL_ERROR
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or expired token
+              requestId: req_abc123
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: You do not have permission to perform this action
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: The requested resource was not found
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests. Please retry after 60 seconds.
+
+security:
+  - bearerAuth: []

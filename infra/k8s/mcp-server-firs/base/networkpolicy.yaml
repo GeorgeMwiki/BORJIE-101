@@ -1,0 +1,73 @@
+# =============================================================================
+# mcp-server-firs — default-deny + targeted egress allow-list
+# =============================================================================
+# stdio-only — no Ingress port allowed. Egress restricted to DNS +
+# external HTTPS for TaxProMax / NRS Tax ID Portal calls.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-firs-default-deny
+  labels:
+    app.kubernetes.io/name: mcp-server-firs
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-firs
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-firs-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-firs
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-firs
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-firs-allow-egress
+  labels:
+    app.kubernetes.io/name: mcp-server-firs
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-firs
+  policyTypes: [Egress]
+  egress:
+    # External HTTPS — TaxProMax + NRS Tax ID Portal
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Observability
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

@@ -1,0 +1,112 @@
+# =============================================================================
+# consolidation-worker — long-running 1h cadence (Deployment, NOT CronJob)
+# Source: services/consolidation-worker
+#   - Long-running setInterval supervisor (see src/index.ts: "cron-style
+#     entrypoint that wires the abstract worker"). The cadence is set
+#     via `CONSOLIDATION_INTERVAL_MS` (default 3600000 = 1h) and the
+#     process owns its own loop, SIGTERM-handling, and exit semantics.
+#   - No HTTP surface (no `.listen()` call) — no Service / Ingress /
+#     HPA / ServiceMonitor in this base. /metrics is emitted via OTLP
+#     to the collector; Prometheus scrape happens upstream.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consolidation-worker
+  labels:
+    app.kubernetes.io/name: consolidation-worker
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  # Single replica — the worker is intentionally a singleton: the
+  # `kernel_cot_reservoir` rows it consumes are SELECTed and marked
+  # consolidated in the same transaction, but running 2 replicas would
+  # double the LLM cost without speeding the sweep. Run-many requires
+  # leader-election (not yet wired); keep at 1 until then.
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    # Recreate so the old pod's loop is reliably down before the new one
+    # starts the next tick — avoids two concurrent claim queries against
+    # the reservoir during a rolling update.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: consolidation-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: consolidation-worker
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/version: "0.1.0"
+    spec:
+      serviceAccountName: consolidation-worker
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: consolidation-worker
+          image: ghcr.io/georgemwiki/borjie-consolidation-worker:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: consolidation-worker-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            # 1h cadence — matches the 24h reservoir window divided into
+            # hourly micro-sweeps. Operators flip to a higher value
+            # during a backlog burn-down.
+            - name: CONSOLIDATION_INTERVAL_MS
+              value: "3600000"
+            - name: OTEL_SERVICE_NAME
+              value: consolidation-worker
+          resources:
+            # Modest — most work is Postgres I/O + a stub consolidator
+            # by default. When the real Haiku consolidator is wired the
+            # limits should be raised to mirror brain-evolution-worker.
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/services/consolidation-worker/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 256Mi
+      # Long enough for the in-flight tick to drain its current batch
+      # before SIGKILL — see src/index.ts SIGTERM handler.
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: consolidation-worker
+  labels:
+    app.kubernetes.io/name: consolidation-worker
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

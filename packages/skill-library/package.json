@@ -1,0 +1,58 @@
+{
+  "name": "@borjie/skill-library",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Phase K-C — programmatic subagents (per-query, isolated context), filesystem-discovered skills (~/.borjie/skills + tenant scope), MCP ToolSearch (deferred schema loading for large catalogs), and Voyager-style executable code skill library (embedding-indexed reusable procedures, no fine-tuning). Closes R1 #7, #8, #9 and R3 #1+#3. Reads/writes against the J1 IEntityStoreService contract for code-skill I/O — no global state.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./subagent-spawn": {
+      "types": "./dist/subagent-spawn/index.d.ts",
+      "import": "./dist/subagent-spawn/index.js",
+      "default": "./dist/subagent-spawn/index.js"
+    },
+    "./filesystem-skills": {
+      "types": "./dist/filesystem-skills/index.d.ts",
+      "import": "./dist/filesystem-skills/index.js",
+      "default": "./dist/filesystem-skills/index.js"
+    },
+    "./mcp-tool-search": {
+      "types": "./dist/mcp-tool-search/index.d.ts",
+      "import": "./dist/mcp-tool-search/index.js",
+      "default": "./dist/mcp-tool-search/index.js"
+    },
+    "./voyager-library": {
+      "types": "./dist/voyager-library/index.d.ts",
+      "import": "./dist/voyager-library/index.js",
+      "default": "./dist/voyager-library/index.js"
+    },
+    "./builtin-skills": {
+      "types": "./dist/builtin-skills/index.d.ts",
+      "import": "./dist/builtin-skills/index.js",
+      "default": "./dist/builtin-skills/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

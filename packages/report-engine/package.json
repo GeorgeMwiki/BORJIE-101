@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/report-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Piece H — AI-powered report engine. Renders templates (Q3 strategy, monthly revenue, condition survey, etc.) into PDF + DOCX + PPTX in tenant brand. Pulls live data through repositories (no LLM-generated SQL). Extends services/reports/ generators with multi-format orchestrator.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

@@ -1,0 +1,69 @@
+{{- $w := .Values.services.notifications -}}
+{{- if and $w.enabled .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $w.name }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.apiGateway.name }} } }
+        # Also accept Inngest / Outbox processor calls — they live next to api-gateway.
+        # TODO(scaffold): label the Inngest/Outbox processor pods to match below.
+        - podSelector: { matchLabels: { app.kubernetes.io/component: outbox-processor } }
+      ports:
+        - { protocol: TCP, port: {{ $w.port }} }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $w.name }}-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: redis } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector:       { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # Outbound HTTPS to providers (Twilio, Africa's Talking, Resend, SES).
+    # TODO(scaffold): pin provider CIDRs once known.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 169.254.169.254/32
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 587 }   # SMTP STARTTLS
+{{- end }}

@@ -1,0 +1,18 @@
+id: complaint-triage-001
+scenario: complaint-triage
+title: 'Noise complaint from upstairs neighbor (third occurrence)'
+context:
+  complainant: {id: tnt-401, name: 'Daniel Mahasi', unit: '6B'}
+  subject_tenant: {id: tnt-402, name: 'Lisa Nyaga', unit: '7B'}
+  complaint:
+    submitted_at: '2026-05-17T22:30:00Z'
+    kind: 'noise'
+    severity_self_assessed: high
+    description: 'Loud music every weekend night until 3am — third complaint'
+    prior_complaints: 2
+expected_actions:
+  - {tool: 'complaint.classify_severity', expected_class: 'P2-recurring'}
+  - {tool: 'complaint.send_formal_warning_to_subject', tone: 'firm-respectful'}
+  - {tool: 'complaint.acknowledge_complainant', tone: 'empathetic-confirming'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

@@ -1,0 +1,64 @@
+{
+  "entities": [
+    {
+      "slug": "case_file",
+      "display_name_en": "Case File",
+      "display_name_sw": "Faili la Kesi",
+      "fields": [
+        { "name": "case_no", "kind": "text", "required": true, "max_length": 64, "index": true },
+        { "name": "case_kind", "kind": "enum", "required": true, "values": ["civil", "criminal", "labour", "compliance", "advisory"] },
+        { "name": "opened_on", "kind": "date", "required": true },
+        { "name": "closed_on", "kind": "date", "required": false },
+        { "name": "status", "kind": "enum", "required": true, "values": ["open", "in_review", "stayed", "closed"] }
+      ]
+    },
+    {
+      "slug": "counsel",
+      "display_name_en": "Counsel",
+      "display_name_sw": "Mwanasheria",
+      "fields": [
+        { "name": "bar_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "specialism", "kind": "enum", "required": false, "values": ["property", "labour", "corporate", "tax", "criminal", "general"] },
+        { "name": "external", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "contract",
+      "display_name_en": "Contract",
+      "display_name_sw": "Mkataba",
+      "fields": [
+        { "name": "contract_no", "kind": "text", "required": true, "max_length": 64, "index": true },
+        { "name": "counterparty", "kind": "text", "required": true, "max_length": 256 },
+        { "name": "effective_date", "kind": "date", "required": true },
+        { "name": "expiry_date", "kind": "date", "required": false },
+        { "name": "renewal_terms", "kind": "text", "required": false },
+        { "name": "status", "kind": "enum", "required": true, "values": ["draft", "active", "expired", "terminated"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "route_to_counsel",
+      "title": "Route a document or matter to counsel",
+      "trigger_entity": "case_file",
+      "trigger_event": "create",
+      "steps": ["classify_matter", "select_counsel", "assign_case"]
+    },
+    {
+      "slug": "open_breach_case",
+      "title": "Open a contract breach case",
+      "trigger_entity": "case_file",
+      "trigger_event": "create",
+      "steps": ["capture_evidence", "compute_remedy", "draft_demand"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "case_file", "columns": ["case_no", "display_name", "status"] },
+    { "kind": "table", "entity": "contract", "columns": ["contract_no", "display_name", "status"] },
+    { "kind": "table", "entity": "counsel", "columns": ["bar_no", "display_name", "external"] },
+    { "kind": "form", "entity": "case_file" },
+    { "kind": "form", "entity": "contract" },
+    { "kind": "kpi_tile", "title": "Open cases", "query": "count(case_file where status=open)" },
+    { "kind": "kpi_tile", "title": "Contracts expiring within 90 days", "query": "count(contract where expiry_date<now+90d)" }
+  ]
+}

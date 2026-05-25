@@ -1,0 +1,1557 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Customers API
+  description: |
+    Customer lifecycle management API for BORJIE platform.
+    Handles customer onboarding, KYC verification, and customer management.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Customers
+    description: Customer management
+  - name: Onboarding
+    description: Customer onboarding and KYC
+  - name: Customer Portal
+    description: Customer self-service operations
+
+paths:
+  /customers:
+    get:
+      tags:
+        - Customers
+      summary: List customers
+      operationId: listCustomers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CustomerStatus'
+        - name: kycStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/KycStatus'
+        - name: search
+          in: query
+          description: Search by name, email, or phone
+          schema:
+            type: string
+        - name: propertyId
+          in: query
+          description: Filter by property (customers with leases at property)
+          schema:
+            type: string
+            format: uuid
+        - name: hasActiveLease
+          in: query
+          schema:
+            type: boolean
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - firstName
+              - lastName
+              - createdAt
+              - lastActivityAt
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of customers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Customers
+      summary: Create customer
+      description: Create a new customer (prospect or direct)
+      operationId: createCustomer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Customer with email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customers/{customerId}:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    get:
+      tags:
+        - Customers
+      summary: Get customer details
+      operationId: getCustomer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - leases
+                - payments
+                - documents
+                - maintenanceRequests
+                - kycRecords
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerWithRelations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Customers
+      summary: Update customer
+      operationId: updateCustomer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Customers
+      summary: Archive customer
+      description: Archive customer record (soft delete)
+      operationId: archiveCustomer
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Customer archived
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot archive - active lease exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customers/{customerId}/status:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    patch:
+      tags:
+        - Customers
+      summary: Update customer status
+      operationId: updateCustomerStatus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  $ref: '#/components/schemas/CustomerStatus'
+                reason:
+                  type: string
+                  description: Reason for status change
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Onboarding endpoints
+  /customers/{customerId}/onboarding:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    get:
+      tags:
+        - Onboarding
+      summary: Get onboarding status
+      operationId: getOnboardingStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Onboarding status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /customers/{customerId}/onboarding/start:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    post:
+      tags:
+        - Onboarding
+      summary: Start onboarding process
+      description: Initialize customer onboarding workflow
+      operationId: startOnboarding
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unitId:
+                  type: string
+                  format: uuid
+                  description: Target unit for the application
+                sendInvite:
+                  type: boolean
+                  default: true
+                  description: Send email invite to customer
+      responses:
+        '200':
+          description: Onboarding started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Onboarding already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # KYC endpoints
+  /customers/{customerId}/kyc:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    get:
+      tags:
+        - Onboarding
+      summary: Get KYC records
+      operationId: getKycRecords
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: KYC records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KycRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Onboarding
+      summary: Submit KYC document
+      operationId: submitKycDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - documentType
+                - file
+              properties:
+                documentType:
+                  $ref: '#/components/schemas/KycDocumentType'
+                file:
+                  type: string
+                  format: binary
+                documentNumber:
+                  type: string
+                expiryDate:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: KYC document submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /customers/{customerId}/kyc/{kycId}/verify:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+      - name: kycId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Onboarding
+      summary: Verify KYC document
+      description: Manually verify or reject a KYC document
+      operationId: verifyKycDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - decision
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - approved
+                    - rejected
+                rejectionReason:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: KYC verification completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Applications
+  /customers/{customerId}/applications:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    get:
+      tags:
+        - Onboarding
+      summary: List customer applications
+      operationId: listCustomerApplications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Customer applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /applications:
+    get:
+      tags:
+        - Onboarding
+      summary: List all applications
+      operationId: listApplications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApplicationStatus'
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated applications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Onboarding
+      summary: Create application
+      operationId: createApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /applications/{applicationId}:
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Onboarding
+      summary: Get application details
+      operationId: getApplication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Application details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /applications/{applicationId}/approve:
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Onboarding
+      summary: Approve application
+      operationId: approveApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                createLease:
+                  type: boolean
+                  default: false
+                  description: Immediately create lease after approval
+                leaseTerms:
+                  type: object
+                  description: Lease terms if createLease is true
+      responses:
+        '200':
+          description: Application approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Application cannot be approved in current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /applications/{applicationId}/reject:
+    parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Onboarding
+      summary: Reject application
+      operationId: rejectApplication
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                sendNotification:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Application rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Customer Portal endpoints
+  /portal/profile:
+    get:
+      tags:
+        - Customer Portal
+      summary: Get own profile
+      description: Customer retrieves their own profile
+      operationId: getOwnProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Customer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Customer Portal
+      summary: Update own profile
+      operationId: updateOwnProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portal/leases:
+    get:
+      tags:
+        - Customer Portal
+      summary: Get own leases
+      operationId: getOwnLeases
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - past
+              - all
+            default: active
+      responses:
+        '200':
+          description: Customer's leases
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerLeaseSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portal/balance:
+    get:
+      tags:
+        - Customer Portal
+      summary: Get account balance
+      operationId: getOwnBalance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerBalance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portal/payment-methods:
+    get:
+      tags:
+        - Customer Portal
+      summary: List saved payment methods
+      operationId: listPaymentMethods
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Saved payment methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentMethod'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Customer Portal
+      summary: Add payment method
+      operationId: addPaymentMethod
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPaymentMethodRequest'
+      responses:
+        '201':
+          description: Payment method added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /portal/payment-methods/{methodId}:
+    parameters:
+      - name: methodId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    delete:
+      tags:
+        - Customer Portal
+      summary: Remove payment method
+      operationId: removePaymentMethod
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Payment method removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Emergency Contact
+  /customers/{customerId}/emergency-contacts:
+    parameters:
+      - $ref: '#/components/parameters/CustomerIdParam'
+
+    get:
+      tags:
+        - Customers
+      summary: List emergency contacts
+      operationId: listEmergencyContacts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Emergency contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmergencyContact'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Customers
+      summary: Add emergency contact
+      operationId: addEmergencyContact
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyContact'
+      responses:
+        '201':
+          description: Contact added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyContact'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CustomerIdParam:
+      name: customerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    CustomerStatus:
+      type: string
+      enum:
+        - prospect
+        - applicant
+        - active
+        - former
+
+    KycStatus:
+      type: string
+      enum:
+        - pending
+        - in_progress
+        - verified
+        - failed
+        - expired
+
+    KycDocumentType:
+      type: string
+      enum:
+        - national_id
+        - passport
+        - drivers_license
+        - proof_of_income
+        - bank_statement
+        - employment_letter
+        - utility_bill
+
+    ApplicationStatus:
+      type: string
+      enum:
+        - draft
+        - submitted
+        - under_review
+        - approved
+        - rejected
+        - withdrawn
+
+    # Core Entities
+    Customer:
+      type: object
+      required:
+        - id
+        - tenantId
+        - firstName
+        - lastName
+        - email
+        - status
+        - kycStatus
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: Platform user account if created
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/CustomerStatus'
+        kycStatus:
+          $ref: '#/components/schemas/KycStatus'
+        profileImageUrl:
+          type: string
+          format: uri
+        lastActivityAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CustomerWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          properties:
+            leases:
+              type: array
+              items:
+                type: object
+                description: Lease summary
+            payments:
+              type: array
+              items:
+                type: object
+                description: Recent payments
+            documents:
+              type: array
+              items:
+                type: object
+            maintenanceRequests:
+              type: array
+              items:
+                type: object
+            kycRecords:
+              type: array
+              items:
+                $ref: '#/components/schemas/KycRecord'
+
+    CustomerProfile:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          properties:
+            currentUnit:
+              type: object
+              description: Current unit information
+            accountBalance:
+              $ref: '#/components/schemas/Money'
+            nextPaymentDue:
+              type: object
+              properties:
+                amount:
+                  $ref: '#/components/schemas/Money'
+                dueDate:
+                  type: string
+                  format: date
+
+    CustomerLeaseSummary:
+      type: object
+      properties:
+        leaseId:
+          type: string
+          format: uuid
+        unitName:
+          type: string
+        propertyName:
+          type: string
+        status:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        monthlyRent:
+          $ref: '#/components/schemas/Money'
+
+    CustomerBalance:
+      type: object
+      properties:
+        currentBalance:
+          $ref: '#/components/schemas/Money'
+        lastPaymentDate:
+          type: string
+          format: date
+        lastPaymentAmount:
+          $ref: '#/components/schemas/Money'
+        nextDueDate:
+          type: string
+          format: date
+        nextDueAmount:
+          $ref: '#/components/schemas/Money'
+        outstandingCharges:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              amount:
+                $ref: '#/components/schemas/Money'
+              dueDate:
+                type: string
+                format: date
+
+    KycRecord:
+      type: object
+      required:
+        - id
+        - customerId
+        - documentType
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        documentType:
+          $ref: '#/components/schemas/KycDocumentType'
+        documentNumber:
+          type: string
+        expiryDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - pending
+            - verified
+            - rejected
+            - expired
+        documentUrl:
+          type: string
+          format: uri
+        verifiedAt:
+          type: string
+          format: date-time
+        verifiedBy:
+          type: string
+          format: uuid
+        rejectionReason:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    OnboardingStatus:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        currentStep:
+          type: string
+          enum:
+            - not_started
+            - personal_info
+            - kyc_documents
+            - application
+            - under_review
+            - approved
+            - lease_signing
+            - completed
+        completedSteps:
+          type: array
+          items:
+            type: string
+        pendingActions:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+              description:
+                type: string
+              required:
+                type: boolean
+        applicationId:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    Application:
+      type: object
+      required:
+        - id
+        - tenantId
+        - customerId
+        - unitId
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        desiredMoveInDate:
+          type: string
+          format: date
+        leaseDurationMonths:
+          type: integer
+        employmentInfo:
+          type: object
+          properties:
+            employer:
+              type: string
+            jobTitle:
+              type: string
+            monthlyIncome:
+              $ref: '#/components/schemas/Money'
+            employmentStartDate:
+              type: string
+              format: date
+        references:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              relationship:
+                type: string
+              phone:
+                type: string
+              email:
+                type: string
+        additionalOccupants:
+          type: integer
+        hasPets:
+          type: boolean
+        petDetails:
+          type: string
+        notes:
+          type: string
+        rejectionReason:
+          type: string
+        reviewedBy:
+          type: string
+          format: uuid
+        reviewedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ApplicationWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Application'
+        - type: object
+          properties:
+            customer:
+              $ref: '#/components/schemas/Customer'
+            unit:
+              type: object
+              description: Unit details
+            kycDocuments:
+              type: array
+              items:
+                $ref: '#/components/schemas/KycRecord'
+
+    PaymentMethod:
+      type: object
+      required:
+        - id
+        - type
+        - isDefault
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - card
+            - bank_account
+            - mobile_money
+        isDefault:
+          type: boolean
+        card:
+          type: object
+          properties:
+            brand:
+              type: string
+            last4:
+              type: string
+            expiryMonth:
+              type: integer
+            expiryYear:
+              type: integer
+        bankAccount:
+          type: object
+          properties:
+            bankName:
+              type: string
+            last4:
+              type: string
+        mobileMoney:
+          type: object
+          properties:
+            provider:
+              type: string
+            phoneNumber:
+              type: string
+
+    EmergencyContact:
+      type: object
+      required:
+        - name
+        - relationship
+        - phone
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        relationship:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        isPrimary:
+          type: boolean
+          default: false
+
+    # Supporting Types
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    # Request Bodies
+    CreateCustomerRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/CustomerStatus'
+          default: prospect
+        sendInvite:
+          type: boolean
+          default: false
+          description: Send portal invite email
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        profileImageUrl:
+          type: string
+          format: uri
+
+    CreateApplicationRequest:
+      type: object
+      required:
+        - customerId
+        - unitId
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        desiredMoveInDate:
+          type: string
+          format: date
+        leaseDurationMonths:
+          type: integer
+          default: 12
+        employmentInfo:
+          type: object
+          properties:
+            employer:
+              type: string
+            jobTitle:
+              type: string
+            monthlyIncome:
+              $ref: '#/components/schemas/Money'
+        additionalOccupants:
+          type: integer
+          default: 0
+        hasPets:
+          type: boolean
+          default: false
+        petDetails:
+          type: string
+        notes:
+          type: string
+
+    AddPaymentMethodRequest:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - card
+            - bank_account
+            - mobile_money
+        setAsDefault:
+          type: boolean
+          default: false
+        cardToken:
+          type: string
+          description: Token from payment provider for card
+        bankAccount:
+          type: object
+          properties:
+            bankCode:
+              type: string
+            accountNumber:
+              type: string
+            accountName:
+              type: string
+        mobileMoney:
+          type: object
+          properties:
+            provider:
+              type: string
+            phoneNumber:
+              type: string
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Borjie Buyers",
+    "slug": "borjie-buyer",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "borjie-buyer",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A2F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.borjie.buyer"
+    },
+    "android": {
+      "package": "com.borjie.buyer",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B3A2F"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-local-authentication"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "splashTagline": "Borjie Buyers · Soko la madini halisi"
+    }
+  }
+}

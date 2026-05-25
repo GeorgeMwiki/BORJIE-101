@@ -1,0 +1,171 @@
+{
+  "name": "@borjie/ai-copilot",
+  "version": "0.1.0",
+  "description": "AI copilots, predictive workflows, and governed automation for BORJIE platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./services/migration/parsers/parse-upload": {
+      "types": "./src/services/migration/parsers/parse-upload.ts",
+      "default": "./dist/services/migration/parsers/parse-upload.js"
+    },
+    "./providers": {
+      "types": "./src/providers/index.ts",
+      "default": "./dist/providers/index.js"
+    },
+    "./reflexion": {
+      "types": "./src/reflexion/index.ts",
+      "default": "./dist/reflexion/index.js"
+    },
+    "./skill-promotion": {
+      "types": "./src/skill-promotion/index.ts",
+      "default": "./dist/skill-promotion/index.js"
+    },
+    "./agent-certification": {
+      "types": "./src/agent-certification/index.ts",
+      "default": "./dist/agent-certification/index.js"
+    },
+    "./classroom": {
+      "types": "./src/classroom/index.ts",
+      "default": "./dist/classroom/index.js"
+    },
+    "./voice": {
+      "types": "./src/voice/index.ts",
+      "default": "./dist/voice/index.js"
+    },
+    "./heartbeat": {
+      "types": "./src/heartbeat/index.ts",
+      "default": "./dist/heartbeat/index.js"
+    },
+    "./ambient-brain": {
+      "types": "./src/ambient-brain/index.ts",
+      "default": "./dist/ambient-brain/index.js"
+    },
+    "./background-intelligence": {
+      "types": "./src/background-intelligence/index.ts",
+      "default": "./dist/background-intelligence/index.js"
+    },
+    "./training": {
+      "types": "./src/training/index.ts",
+      "default": "./dist/training/index.js"
+    },
+    "./autonomy": {
+      "types": "./src/autonomy/index.ts",
+      "default": "./dist/autonomy/index.js"
+    },
+    "./task-agents": {
+      "types": "./src/task-agents/index.ts",
+      "default": "./dist/task-agents/index.js"
+    },
+    "./orchestrators": {
+      "types": "./src/orchestrators/index.ts",
+      "default": "./dist/orchestrators/index.js"
+    },
+    "./ai-native": {
+      "types": "./src/ai-native/index.ts",
+      "default": "./dist/ai-native/index.js"
+    },
+    "./approval-grants": {
+      "types": "./src/approval-grants/index.ts",
+      "default": "./dist/approval-grants/index.js"
+    },
+    "./audit-trail": {
+      "types": "./src/audit-trail/index.ts",
+      "default": "./dist/audit-trail/index.js"
+    },
+    "./head-briefing": {
+      "types": "./src/head-briefing/index.ts",
+      "default": "./dist/head-briefing/index.js"
+    },
+    "./risk-recompute": {
+      "types": "./src/risk-recompute/index.ts",
+      "default": "./dist/risk-recompute/index.js"
+    },
+    "./learning-loop": {
+      "types": "./src/learning-loop/index.ts",
+      "default": "./dist/learning-loop/index.js"
+    },
+    "./branding": {
+      "types": "./src/branding/index.ts",
+      "default": "./dist/branding/index.js"
+    },
+    "./junior-ai-factory": {
+      "types": "./src/junior-ai-factory/index.ts",
+      "default": "./dist/junior-ai-factory/index.js"
+    },
+    "./onboarding/new-head": {
+      "types": "./src/onboarding/new-head/index.ts",
+      "default": "./dist/onboarding/new-head/index.js"
+    },
+    "./sandbox": {
+      "types": "./src/sandbox/js-sandbox.ts",
+      "default": "./dist/sandbox/js-sandbox.js"
+    },
+    "./brain-event-bus": {
+      "types": "./src/brain-event-bus/index.ts",
+      "default": "./dist/brain-event-bus/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx src/eval/run-eval.ts"
+  },
+  "keywords": [
+    "ai",
+    "copilot",
+    "predictive-analytics",
+    "machine-learning",
+    "property-management",
+    "automation"
+  ],
+  "author": "BORJIE",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
+    "@borjie/brain-llm-router": "workspace:*",
+    "@borjie/forecasting": "workspace:*",
+    "jose": "^6.2.3",
+    "openai": "^6.38.0",
+    "uuid": "^14.0.0",
+    "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "isolated-vm": "^6.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.3",
+    "@vitest/coverage-v8": "^4.1.7",
+    "eslint": "^10.4.0",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "@borjie/domain-models": "*",
+    "@borjie/observability": "*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/domain-models": {
+      "optional": true
+    },
+    "@borjie/observability": {
+      "optional": true
+    }
+  }
+}

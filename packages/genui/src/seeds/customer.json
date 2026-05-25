@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "personaId": "customer",
+  "topbar": {
+    "logo": { "label": "Boss Nyumba", "href": "/", "markId": "midnight-ledger" },
+    "search": { "enabled": false },
+    "notifications": { "enabled": true, "pollSeconds": 60 },
+    "profile": {
+      "enabled": true,
+      "menu": [
+        { "label": "Profile", "intent": "open_profile" },
+        { "label": "Help", "intent": "open_help" },
+        { "label": "Sign out", "intent": "sign_out" }
+      ]
+    }
+  },
+  "sidebar": {
+    "sections": [
+      {
+        "id": "main",
+        "items": [
+          { "id": "home", "label": "Home", "icon": "home", "href": "/" },
+          { "id": "rent", "label": "Pay rent", "icon": "banknote", "intent": "pay_rent" },
+          { "id": "maintenance", "label": "Maintenance", "icon": "wrench", "intent": "request_maintenance" },
+          { "id": "messages", "label": "Messages", "icon": "message-square", "intent": "open_chat" },
+          { "id": "lease", "label": "My lease", "icon": "file-text", "href": "/lease" }
+        ]
+      }
+    ],
+    "defaultCollapsed": true
+  },
+  "dashboard": {
+    "columns": 12,
+    "cells": [
+      {
+        "id": "next-due",
+        "span": 12,
+        "kind": "kpi-grid",
+        "title": "Next due",
+        "initialProps": null
+      },
+      {
+        "id": "chat",
+        "span": 12,
+        "kind": "chat-embed",
+        "title": "Ask Boss Nyumba",
+        "initialProps": { "scope": "customer" }
+      },
+      {
+        "id": "activity",
+        "span": 12,
+        "kind": "timeline",
+        "title": "Recent activity",
+        "initialProps": null
+      },
+      {
+        "id": "lease-preview",
+        "span": 12,
+        "kind": "file-preview",
+        "title": "My lease",
+        "initialProps": null
+      }
+    ]
+  },
+  "primaryAction": {
+    "label": "Pay rent",
+    "intent": "pay_rent",
+    "icon": "banknote"
+  },
+  "theme": {
+    "mode": "light",
+    "density": "comfortable",
+    "tokens": {
+      "color-primary": "oklch(0.72 0.15 50)",
+      "color-accent": "oklch(0.80 0.14 80)",
+      "radius": "1rem"
+    }
+  },
+  "featureFlags": {
+    "customer.voice.enabled": true,
+    "customer.chat.proactive": false
+  },
+  "accessibilityProfile": {
+    "largeText": false,
+    "highContrast": false,
+    "reduceMotion": false,
+    "screenReaderOptimized": false,
+    "voiceFirst": false,
+    "primaryModality": "touch"
+  }
+}

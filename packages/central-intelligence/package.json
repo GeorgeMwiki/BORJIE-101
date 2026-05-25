@@ -1,0 +1,59 @@
+{
+  "name": "@borjie/central-intelligence",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Embodied agentic intelligence for Borjie. The organization (per-tenant) and the industry (platform) speak in first person, grounded in their own knowledge graphs, with tool-using extended-thinking agency.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./metacognition": {
+      "types": "./src/kernel/metacognition/index.ts",
+      "default": "./dist/kernel/metacognition/index.js"
+    },
+    "./aops": {
+      "types": "./src/agent/aops/index.ts",
+      "default": "./dist/agent/aops/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/brain-llm-router": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "isolated-vm": "^6.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.97.0",
+    "@borjie/forecasting": "workspace:*",
+    "@borjie/graph-privacy": "workspace:*",
+    "@borjie/graph-sync": "workspace:*",
+    "inngest": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "inngest": {
+      "optional": true
+    }
+  }
+}

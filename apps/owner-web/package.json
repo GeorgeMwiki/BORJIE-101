@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/owner-web",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Borjie Owner Cockpit — strategic web surface for mining owners (Master Brain, LMBM, cockpit dashboards, treasury, compliance).",
+  "scripts": {
+    "dev": "next dev --port 3010",
+    "build": "next build",
+    "start": "next start --port 3010",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf .next .turbo"
+  },
+  "dependencies": {
+    "@borjie/api-sdk": "workspace:*",
+    "@borjie/chat-ui": "workspace:*",
+    "@borjie/design-system": "workspace:*",
+    "@borjie/genui": "workspace:*",
+    "@borjie/observability": "workspace:^",
+    "lucide-react": "^0.460.0",
+    "next": "^15.5.15",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

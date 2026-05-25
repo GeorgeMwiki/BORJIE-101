@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/strategic-reports",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "PhD-grade strategic report engine for BORJIE. Composes acquisition / lifecycle / sustainability / expansion / green-angle advisors + user-context-store + multi-LLM synthesis + document-studio render + WORM audit into 10 typed report families (leasing financial, conditional survey, acquisition IC, disposition, refinancing, sustainability, expansion, tenant credit, rent-roll, annual estate operating review). Pure-functional core; injectable ports.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

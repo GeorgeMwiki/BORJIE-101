@@ -1,0 +1,23 @@
+apiVersion: v2
+name: borjie
+description: BORJIE multi-tenant property management SaaS — full K8s stack (4 portals + 4 services + Postgres + Redis)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - property-management
+  - real-estate
+  - saas
+  - multi-tenant
+  - tanzania
+home: https://borjie.example.com
+sources:
+  - https://github.com/GeorgeMwiki/BORJIE101
+maintainers:
+  - name: BORJIE Platform Engineering
+    email: platform-engineering@borjie.example.com
+icon: https://borjie.example.com/logo.png
+annotations:
+  category: Application
+  licenses: Proprietary
+# TODO(scaffold): bump version + appVersion in CI alongside release tagging.

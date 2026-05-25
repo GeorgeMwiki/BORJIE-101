@@ -1,0 +1,21 @@
+# API Gateway - Development image (hot reload)
+FROM node:20-alpine
+# python3 + build-base for node-gyp optional native deps on musl.
+RUN apk add --no-cache libc6-compat python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+COPY packages ./packages
+COPY services/api-gateway ./services/api-gateway
+
+RUN pnpm install --frozen-lockfile
+
+WORKDIR /app/services/api-gateway
+
+EXPOSE 4000 9229
+
+CMD ["pnpm", "dev"]

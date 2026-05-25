@@ -1,0 +1,84 @@
+{
+  "name": "@borjie/geo-intelligence",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Field-driven geo-intelligence engine — polygon editor (regular + irregular), 6-layer parcel metadata (legal/physical/financial/environmental/social/infrastructure), segmentation + heatmap engine, association graph (parcel<->units<->tenants<->leases<->payments<->docs<->maintenance), event-sourced history, PostGIS-grade spatial queries, field capture pipeline (photo/video/audio/inspection with C2PA + EXIF GPS), satellite/street-view/drone imagery adapters, and per-jurisdiction (TZ/KE/UG/RW) compliance overlays. Spec: Docs/requirements/VOICE_MEMO_2026-04-18_questionnaire_analysis.md §2-§3.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./dist/types.js"
+    },
+    "./geometry": {
+      "types": "./src/geometry/index.ts",
+      "default": "./dist/geometry/index.js"
+    },
+    "./metadata": {
+      "types": "./src/metadata/index.ts",
+      "default": "./dist/metadata/index.js"
+    },
+    "./segmentation": {
+      "types": "./src/segmentation/index.ts",
+      "default": "./dist/segmentation/index.js"
+    },
+    "./associations": {
+      "types": "./src/associations/index.ts",
+      "default": "./dist/associations/index.js"
+    },
+    "./history": {
+      "types": "./src/history/index.ts",
+      "default": "./dist/history/index.js"
+    },
+    "./queries": {
+      "types": "./src/queries/index.ts",
+      "default": "./dist/queries/index.js"
+    },
+    "./capture": {
+      "types": "./src/capture/index.ts",
+      "default": "./dist/capture/index.js"
+    },
+    "./imagery": {
+      "types": "./src/imagery/index.ts",
+      "default": "./dist/imagery/index.js"
+    },
+    "./compliance": {
+      "types": "./src/compliance/index.ts",
+      "default": "./dist/compliance/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@borjie/geo-platform": "workspace:*",
+    "@borjie/spatial-engine": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/geo-platform": {
+      "optional": true
+    },
+    "@borjie/spatial-engine": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

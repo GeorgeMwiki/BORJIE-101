@@ -1,0 +1,14 @@
+id: lease-renewal-003
+scenario: lease-renewal
+title: 'Tenant signals non-renewal intent (informal channel)'
+context:
+  tenant: {id: tnt-303, name: 'Naomi Saidi', payment_history: spotless}
+  property: {id: prop-303, block: 'Block C', unit: '11D'}
+  lease: {current_rent_minor: 95000000, currency: TZS, expires_at: '2026-07-17'}
+  events:
+    - {at: '2026-05-10', kind: 'tenant.message', content: 'thinking of moving when lease ends'}
+expected_actions:
+  - {tool: 'lease.send_renewal_inquiry', tone: 'curious-non-pressuring'}
+  - {tool: 'lease.prepare_vacate_workflow_draft'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

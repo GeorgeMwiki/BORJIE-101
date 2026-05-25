@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/fairness-eval",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Counterfactual fairness eval. Flips a single protected attribute (Fair Housing Act categories + TZ anti-discrimination categories) in a fixture profile, scores whether outcomes diverge by attribute alone. Pluggable jurisdiction registry. Ported from LITFIN PROJECT/src/core/credit-mind/fairness + src/core/brain/counterfactual.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

@@ -1,0 +1,4 @@
+# Single-op JSON Patch: collapse replica count to 1 (used by staging overlay).
+- op: replace
+  path: /spec/replicas
+  value: 1

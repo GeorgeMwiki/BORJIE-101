@@ -1,0 +1,17 @@
+id: maintenance-dispatch-001
+scenario: maintenance-dispatch
+title: 'Leaking ceiling, severe (water dripping into living room)'
+context:
+  property: {id: prop-101, block: 'Block A', unit: '3C'}
+  tenant: {id: tnt-101, name: 'Stella Mutua'}
+  report:
+    submitted_at: '2026-05-17T19:30:00Z'
+    severity_self_assessed: high
+    description: 'Water dripping continuously from ceiling above sofa, started 1hr ago'
+    photos: 2
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P1-urgent'}
+  - {tool: 'maintenance.dispatch_vendor', vendor_skill: 'plumbing-emergency', sla_hours: 2}
+  - {tool: 'maintenance.notify_tenant', tone: 'reassuring-with-eta'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

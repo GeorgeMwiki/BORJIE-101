@@ -1,0 +1,44 @@
+{
+  "description": "BORJIE payments + ledger — GePG/M-Pesa volume, ledger integrity",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        { "expr": "sum(rate(payments_received_total[5m]))", "refId": "A" }
+      ],
+      "title": "Payments / sec",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "expr": "sum(rate(payments_failed_total[5m])) / sum(rate(payments_received_total[5m])) * 100", "refId": "A" }
+      ],
+      "title": "Failure %",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "borjie" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        { "expr": "sum(rate(payments_received_total[5m])) by (provider)", "legendFormat": "{{provider}}", "refId": "A" }
+      ],
+      "title": "Payments / 5m by provider",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["borjie", "payments"],
+  "time": { "from": "now-24h", "to": "now" },
+  "title": "BORJIE Payments",
+  "uid": "borjie-payments",
+  "version": 1
+}

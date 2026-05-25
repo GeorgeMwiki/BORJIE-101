@@ -1,0 +1,93 @@
+# =============================================================================
+# BORJIE — outbox-processor
+# =============================================================================
+# Standalone supervisor that drains the transactional outbox by calling
+# `EventBus.processOutbox()` on a fixed cadence. Sibling to the in-process
+# drainer wired into the api-gateway boot path.
+#
+# Important caveat (see services/outbox-processor/README.md): the default
+# EventBus uses an in-memory outbox store. A shared, durable IOutboxStore
+# must be wired before this container can drain the api-gateway's events.
+# Until then, `docker-compose.production.yml` keeps replicas: 0 — the
+# image still BUILDS so the topology is honest and ready to flip on.
+#
+# Build:
+#   docker build -f docker/Dockerfile.outbox-processor \
+#     -t borjie/outbox-processor:dev .
+#
+# Run:
+#   docker run --rm \
+#     -e DATABASE_URL=postgres://... \
+#     -e OUTBOX_PROCESSOR_INTERVAL_MS=5000 \
+#     borjie/outbox-processor:dev
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependencies
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+COPY packages ./packages
+COPY services ./services
+
+RUN pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Stage 2: Builder
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/pnpm-lock.yaml ./
+COPY --from=deps /app/pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY packages ./packages
+COPY services ./services
+
+RUN pnpm --filter=@borjie/outbox-processor... --workspace-concurrency=1 build
+
+# -----------------------------------------------------------------------------
+# Stage 3: Runner
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS runner
+
+RUN apk add --no-cache dumb-init
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 worker
+
+WORKDIR /app
+
+# Keep the full workspace tree so pnpm symlinks resolve at runtime.
+COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=worker:nodejs /app/package.json ./
+COPY --from=builder --chown=worker:nodejs /app/pnpm-workspace.yaml ./
+COPY --from=builder --chown=worker:nodejs /app/packages ./packages
+COPY --from=builder --chown=worker:nodejs /app/services ./services
+
+WORKDIR /app/services/outbox-processor
+USER worker
+
+ENV NODE_ENV=production \
+    OUTBOX_PROCESSOR_INTERVAL_MS=5000 \
+    OUTBOX_PROCESSOR_BATCH_SIZE=50
+
+# Liveness fallback — same pattern as consolidation-worker. The processor is
+# a long-running supervisor with no HTTP listener, so `node --version` proves
+# the entrypoint binary is reachable. A wedged event-loop would still pass —
+# track that gap with a heartbeat file in a follow-up.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node --version >/dev/null 2>&1 || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]

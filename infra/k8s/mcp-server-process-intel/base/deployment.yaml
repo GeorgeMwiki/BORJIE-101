@@ -1,0 +1,100 @@
+# =============================================================================
+# mcp-server-process-intel — Process Intel MCP server (Deployment, stdio + Python sidecar)
+# Source: services/mcp-server-process-intel
+#   - 9 tools mirroring Microsoft Power Automate Process Mining MCP server.
+#   - pm4py (AGPL-3.0) is segregated from this MIT codebase via a process
+#     boundary — the TS host never imports pm4py symbols, only spawns the
+#     Python interpreter at $PYTHON_BIN as a child process.
+#   - Pure stdio (Anthropic default). HTTP/SSE bridge is optional via
+#     MCP_PROCESS_INTEL_HTTP_PORT (see services/mcp-server-process-intel/
+#     src/index.ts comment); not wired in this manifest because the
+#     api-gateway connects via stdio sub-process in the current adapter.
+#   - CRITICAL-4 + CRITICAL-5 — per-tenant allowlist guard + Zod
+#     validation of {tenantId} are enforced at the dispatcher level.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-process-intel
+  labels:
+    app.kubernetes.io/name: mcp-server-process-intel
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-server-process-intel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-server-process-intel
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: mcp-server
+        app.kubernetes.io/version: "0.1.0"
+    spec:
+      serviceAccountName: mcp-server-process-intel
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp-server-process-intel
+          image: ghcr.io/georgemwiki/borjie-mcp-server-process-intel:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mcp-server-process-intel-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: OTEL_SERVICE_NAME
+              value: mcp-server-process-intel
+            # pm4py venv path — Dockerfile installs to /opt/pm4py-venv.
+            - name: PYTHON_BIN
+              value: /opt/pm4py-venv/bin/python
+          resources:
+            # pm4py event-log mining is memory-heavy on real workloads —
+            # bumped from the other MCP servers' 512Mi cap to 1Gi.
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Python venv runs from /opt/pm4py-venv (read-only OK), but
+            # pm4py writes temp files under /tmp during alpha-miner +
+            # heuristics-miner passes.
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-server-process-intel
+  labels:
+    app.kubernetes.io/name: mcp-server-process-intel
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

@@ -1,0 +1,15 @@
+id: lease-renewal-002
+scenario: lease-renewal
+title: 'Large rent jump request from owner (>15% increase)'
+context:
+  tenant: {id: tnt-302, name: 'Paul Mutua', payment_history: spotless}
+  property: {id: prop-302, block: 'Block B', unit: '8A'}
+  lease: {current_rent_minor: 60000000, currency: TZS, expires_at: '2026-07-17'}
+  owner_directive: {target_rent_minor: 75000000, increase_pct: 25}
+  market: {p50_minor: 62000000, p75_minor: 66000000}
+expected_actions:
+  - {tool: 'lease.flag_above_market_request'}
+  - {tool: 'lease.draft_owner_advisory', tone: 'data-driven-honest'}
+expected_escalation: true
+expected_escalation_reason: 'rent jump exceeds market p75 — owner needs market-data context'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

@@ -1,0 +1,24 @@
+# =============================================================================
+# proactive-triggers-worker base — Deployment + NetworkPolicy + ExternalSecret
+# =============================================================================
+# Singleton always-on worker; loop mode by default. CronJob mode (one-shot
+# every hour) requires PROACTIVE_TRIGGERS_INTERVAL_MS=0 and a wrapping
+# CronJob manifest — out of scope for the loop variant.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-app
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - deployment.yaml
+  - networkpolicy.yaml
+  - externalsecret.yaml
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-proactive-triggers-worker
+    newTag: latest

@@ -1,0 +1,23 @@
+{
+  "id": "bfcl-irrelevant-001",
+  "category": "irrelevant",
+  "prompt": "What's the weather in Mwanza tomorrow?",
+  "tools": [
+    {
+      "name": "lookup_lease",
+      "description": "Look up a lease by tenant, property, and unit.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tenantId": { "type": "string" },
+          "propertyId": { "type": "string" },
+          "unitId": { "type": "string" }
+        }
+      }
+    }
+  ],
+  "groundTruth": {
+    "kind": "no-call",
+    "rationaleHint": "no weather tool available; the lookup_lease tool is irrelevant; chat reply expected"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "@borjie/analytics",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA 2026 analytics + dashboards + AI-chart authoring. Cube-style semantic layer, Vega-Lite v6 chart spec builders, multi-LLM natural-language-to-chart authoring, pluggable parsers (CSV/XLSX/JSON + Unstructured.io/LlamaParse ports), and SOTA dashboard templates. Pure functions with injectable ports for brain/realtime/storage.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@borjie/ai-copilot": "workspace:*",
+    "@borjie/realtime-adapter": "workspace:*",
+    "@borjie/storage-adapter": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/ai-copilot": {
+      "optional": true
+    },
+    "@borjie/realtime-adapter": {
+      "optional": true
+    },
+    "@borjie/storage-adapter": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

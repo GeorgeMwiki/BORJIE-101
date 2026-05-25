@@ -1,0 +1,16 @@
+id: kra-filing-009
+scenario: kra-filing
+title: 'Owner objects to computed amount via comment'
+context:
+  tenant_owner: {id: own-209, kra_pin: 'P051234574A', jurisdiction: KE}
+  period: {month: 4, year: 2026}
+  computed_due_minor: 48000000
+  owner_objection: 'Computed amount excludes my 2 March maintenance offsets'
+  currency: KES
+expected_actions:
+  - {tool: 'kra.halt_filing_pending_owner_input'}
+  - {tool: 'kra.recompute_with_disclosed_offsets'}
+  - {tool: 'kra.preview_for_owner_approval'}
+expected_escalation: true
+expected_escalation_reason: 'owner challenged figures — substrate must not file until reconciled'
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.3, communication-quality: 0.2, cost-efficiency: 0.1}

@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/graph-sync",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Canonical Property Graph (CPG) — Neo4j graph sync, schema, and query service for Boss Nyumba",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "graph:init": "tsx src/scripts/init-graph.ts",
+    "graph:sync": "tsx src/scripts/run-sync.ts"
+  },
+  "dependencies": {
+    "neo4j-driver": "^5.27.0",
+    "zod": "^3.25.76",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "tsx": "^4.7.0",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@borjie/database": "workspace:*",
+    "@borjie/domain-models": "workspace:*"
+  }
+}

@@ -1,0 +1,124 @@
+# =============================================================================
+# BORJIE Web Apps - Generic Multi-stage Dockerfile (Next.js / Vite)
+# =============================================================================
+# Build with: docker build -f docker/Dockerfile.web --build-arg APP_NAME=owner-portal
+# For Vite:   --target vite (default)
+# For Next.js: --target nextjs
+# =============================================================================
+
+ARG APP_NAME=owner-portal
+ARG APP_PATH=apps/owner-portal
+
+# =============================================================================
+# Stage 1: Dependencies
+# =============================================================================
+FROM node:20-alpine AS deps
+# python3 + build-base required by node-gyp when optional native deps
+# (canvas via pdfkit, etc.) fall back to source compilation on musl.
+# Without them, `gyp ERR! find Python` aborts the install and the E2E
+# portal-app containers exit 1 — chronic flake fixed in flaky-CI-closure.
+RUN apk add --no-cache libc6-compat python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY .npmrc ./
+COPY packages ./packages
+COPY services ./services
+COPY apps ./apps
+
+RUN pnpm install --frozen-lockfile
+
+# =============================================================================
+# Stage 2: Builder
+# =============================================================================
+FROM node:20-alpine AS builder
+ARG APP_NAME
+ARG APP_PATH
+
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
+
+WORKDIR /app
+
+# Pull the FULL deps-stage tree forward — not just root node_modules.
+# Per-package node_modules contain the workspace symlinks that `tsc`
+# needs to resolve cross-package imports. See Dockerfile.api for the
+# full rationale on this fix.
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/pnpm-lock.yaml ./
+COPY --from=deps /app/pnpm-workspace.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/services ./services
+COPY --from=deps /app/apps ./apps
+
+# customer-app → @borjie/api-sdk's build script reads
+# `Docs/api/openapi.generated.json` to emit typed fetch helpers.
+# That file isn't in any package's node_modules — it's tracked in the
+# repo at `Docs/api/`. Copy it explicitly so api-sdk's generate runs.
+COPY Docs/api ./Docs/api
+
+# Build the target app + every workspace package it transitively
+# depends on. The per-package node_modules symlinks (preserved by the
+# COPY --from=deps above) make pnpm's topological order sufficient.
+RUN pnpm --filter=@borjie/${APP_NAME}... --workspace-concurrency=1 build
+
+# =============================================================================
+# Stage 3a: Vite (SPA) - Nginx serves static files
+# =============================================================================
+FROM nginx:alpine AS vite
+ARG APP_NAME
+ARG APP_PATH
+
+COPY --from=builder /app/apps/${APP_NAME}/dist /usr/share/nginx/html
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
+
+# =============================================================================
+# Stage 3b: Next.js - Node standalone server
+# Requires next.config.js: output: 'standalone'
+# =============================================================================
+FROM node:20-alpine AS nextjs
+ARG APP_NAME
+ARG APP_PATH
+
+RUN apk add --no-cache dumb-init wget
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+WORKDIR /app
+
+# Next.js standalone output
+COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
+# NOTE: previous version had `COPY ... 2>/dev/null || true` which is
+# invalid Dockerfile syntax (shell redirection doesn't work in
+# directives — `2>/dev/null` got treated as a literal source path).
+# customer-app has a `public/` directory committed (icons, manifest.json,
+# sw.js for PWA), so the COPY succeeds. If a future app lacks public/,
+# add an empty placeholder file there instead of bringing shell logic
+# back into the directive.
+COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
+
+USER nextjs
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "apps/${APP_NAME}/server.js"]

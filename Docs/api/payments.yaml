@@ -1,0 +1,818 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Payments API
+  description: Payment and invoicing API for BORJIE platform.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Invoices
+    description: Invoice management
+  - name: Payments
+    description: Payment processing
+  - name: Reconciliation
+    description: Payment reconciliation
+  - name: Disbursements
+    description: Owner disbursements
+
+paths:
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      operationId: listInvoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/InvoiceStatus'
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: overdue
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated invoices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Invoices]
+      summary: Create invoice
+      operationId: createInvoice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /invoices/{invoiceId}:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+    get:
+      tags: [Invoices]
+      summary: Get invoice details
+      operationId: getInvoice
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invoices/{invoiceId}/send:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+    post:
+      tags: [Invoices]
+      summary: Send invoice to customer
+      operationId: sendInvoice
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice sent
+
+  /invoices/{invoiceId}/void:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+    post:
+      tags: [Invoices]
+      summary: Void invoice
+      operationId: voidInvoice
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Invoice voided
+
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      operationId: listPayments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PaymentStatus'
+        - name: method
+          in: query
+          schema:
+            $ref: '#/components/schemas/PaymentMethod'
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated payments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Payment'
+
+    post:
+      tags: [Payments]
+      summary: Create payment
+      operationId: createPayment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}:
+    parameters:
+      - $ref: '#/components/parameters/PaymentIdParam'
+    get:
+      tags: [Payments]
+      summary: Get payment details
+      operationId: getPayment
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}/process:
+    parameters:
+      - $ref: '#/components/parameters/PaymentIdParam'
+    post:
+      tags: [Payments]
+      summary: Process payment
+      operationId: processPayment
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}/refund:
+    parameters:
+      - $ref: '#/components/parameters/PaymentIdParam'
+    post:
+      tags: [Payments]
+      summary: Refund payment
+      operationId: refundPayment
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  $ref: '#/components/schemas/Money'
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Refund processed
+
+  /reconciliation/unmatched:
+    get:
+      tags: [Reconciliation]
+      summary: List unmatched payments
+      operationId: listUnmatchedPayments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Unmatched payments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UnmatchedPayment'
+
+  /reconciliation/match:
+    post:
+      tags: [Reconciliation]
+      summary: Match payment to invoice
+      operationId: matchPayment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalPaymentId, invoiceId]
+              properties:
+                externalPaymentId:
+                  type: string
+                invoiceId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Payment matched
+
+  /reconciliation/bank-statement:
+    post:
+      tags: [Reconciliation]
+      summary: Upload bank statement for reconciliation
+      operationId: uploadBankStatement
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                bankAccountId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Statement processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResult'
+
+  /disbursements:
+    get:
+      tags: [Disbursements]
+      summary: List disbursements
+      operationId: listDisbursements
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DisbursementStatus'
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated disbursements
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Disbursement'
+
+    post:
+      tags: [Disbursements]
+      summary: Create disbursement
+      operationId: createDisbursement
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDisbursementRequest'
+      responses:
+        '201':
+          description: Disbursement created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Disbursement'
+
+  /disbursements/{disbursementId}:
+    parameters:
+      - name: disbursementId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Disbursements]
+      summary: Get disbursement details
+      operationId: getDisbursement
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Disbursement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Disbursement'
+
+  /disbursements/{disbursementId}/approve:
+    parameters:
+      - name: disbursementId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Disbursements]
+      summary: Approve disbursement
+      operationId: approveDisbursement
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Disbursement approved
+
+  /disbursements/{disbursementId}/process:
+    parameters:
+      - name: disbursementId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Disbursements]
+      summary: Process disbursement payment
+      operationId: processDisbursement
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Disbursement processed
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    InvoiceIdParam:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentIdParam:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    InvoiceStatus:
+      type: string
+      enum: [draft, sent, paid, partial, overdue, voided]
+
+    PaymentStatus:
+      type: string
+      enum: [pending, processing, succeeded, failed, refunded, disputed]
+
+    PaymentMethod:
+      type: string
+      enum: [card, bank_transfer, mobile_money, cash, check]
+
+    DisbursementStatus:
+      type: string
+      enum: [pending, approved, processing, completed, failed]
+
+    Invoice:
+      type: object
+      required: [id, tenantId, customerId, invoiceNumber, status, totalAmount, dueDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLineItem'
+        subtotal:
+          $ref: '#/components/schemas/Money'
+        taxAmount:
+          $ref: '#/components/schemas/Money'
+        totalAmount:
+          $ref: '#/components/schemas/Money'
+        paidAmount:
+          $ref: '#/components/schemas/Money'
+        balanceDue:
+          $ref: '#/components/schemas/Money'
+        issueDate:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        paidDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+
+    InvoiceLineItem:
+      type: object
+      properties:
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          $ref: '#/components/schemas/Money'
+        amount:
+          $ref: '#/components/schemas/Money'
+        type:
+          type: string
+          enum: [rent, deposit, fee, utility, other]
+
+    Payment:
+      type: object
+      required: [id, tenantId, customerId, amount, method, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        invoiceId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [rent, deposit, fee, other]
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        amount:
+          $ref: '#/components/schemas/Money'
+        fees:
+          $ref: '#/components/schemas/Money'
+        netAmount:
+          $ref: '#/components/schemas/Money'
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        externalId:
+          type: string
+        referenceNumber:
+          type: string
+        processedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    UnmatchedPayment:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        externalId:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Money'
+        senderName:
+          type: string
+        senderPhone:
+          type: string
+        reference:
+          type: string
+        receivedAt:
+          type: string
+          format: date-time
+        suggestedMatches:
+          type: array
+          items:
+            type: object
+            properties:
+              customerId:
+                type: string
+                format: uuid
+              invoiceId:
+                type: string
+                format: uuid
+              confidence:
+                type: number
+
+    ReconciliationResult:
+      type: object
+      properties:
+        totalTransactions:
+          type: integer
+        matchedTransactions:
+          type: integer
+        unmatchedTransactions:
+          type: integer
+        createdPayments:
+          type: integer
+
+    Disbursement:
+      type: object
+      required: [id, tenantId, propertyOwnerId, propertyId, periodStart, periodEnd, status, netAmount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        propertyOwnerId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        grossAmount:
+          $ref: '#/components/schemas/Money'
+        managementFee:
+          $ref: '#/components/schemas/Money'
+        maintenanceCosts:
+          $ref: '#/components/schemas/Money'
+        otherDeductions:
+          $ref: '#/components/schemas/Money'
+        netAmount:
+          $ref: '#/components/schemas/Money'
+        status:
+          $ref: '#/components/schemas/DisbursementStatus'
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        processedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    CreateInvoiceRequest:
+      type: object
+      required: [customerId, lineItems, dueDate]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        lineItems:
+          type: array
+          items:
+            type: object
+            required: [description, amount]
+            properties:
+              description:
+                type: string
+              quantity:
+                type: number
+              amount:
+                $ref: '#/components/schemas/Money'
+        dueDate:
+          type: string
+          format: date
+        sendImmediately:
+          type: boolean
+          default: false
+
+    CreatePaymentRequest:
+      type: object
+      required: [customerId, amount, method]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        invoiceId:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        referenceNumber:
+          type: string
+
+    CreateDisbursementRequest:
+      type: object
+      required: [propertyOwnerId, periodStart, periodEnd]
+      properties:
+        propertyOwnerId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

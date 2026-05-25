@@ -1,0 +1,63 @@
+{
+  "entities": [
+    {
+      "slug": "lead",
+      "display_name_en": "Lead",
+      "display_name_sw": "Mteja Tarajiwa",
+      "fields": [
+        { "name": "lead_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "source", "kind": "enum", "required": true, "values": ["walk_in", "referral", "campaign", "online", "agent"] },
+        { "name": "interest_kind", "kind": "enum", "required": true, "values": ["lease", "buy", "service", "other"] },
+        { "name": "status", "kind": "enum", "required": true, "values": ["new", "contacted", "qualified", "won", "lost"] }
+      ]
+    },
+    {
+      "slug": "complaint",
+      "display_name_en": "Complaint",
+      "display_name_sw": "Lalamiko",
+      "fields": [
+        { "name": "ticket_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "category", "kind": "enum", "required": true, "values": ["maintenance", "billing", "service", "policy", "other"] },
+        { "name": "severity", "kind": "enum", "required": true, "values": ["low", "medium", "high", "critical"] },
+        { "name": "opened_at", "kind": "datetime", "required": true },
+        { "name": "resolved_at", "kind": "datetime", "required": false },
+        { "name": "status", "kind": "enum", "required": true, "values": ["open", "in_progress", "resolved", "escalated"] }
+      ]
+    },
+    {
+      "slug": "touchpoint",
+      "display_name_en": "Touchpoint",
+      "display_name_sw": "Mawasiliano",
+      "fields": [
+        { "name": "channel", "kind": "enum", "required": true, "values": ["call", "email", "whatsapp", "sms", "visit"] },
+        { "name": "happened_at", "kind": "datetime", "required": true },
+        { "name": "summary", "kind": "text", "required": false }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "create_lead",
+      "title": "Capture a new lead",
+      "trigger_entity": "lead",
+      "trigger_event": "create",
+      "steps": ["qualify_lead", "assign_owner", "schedule_followup"]
+    },
+    {
+      "slug": "open_complaint_ticket",
+      "title": "Open a complaint ticket",
+      "trigger_entity": "complaint",
+      "trigger_event": "create",
+      "steps": ["classify_severity", "assign_owner", "send_acknowledgement", "schedule_resolution"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "lead", "columns": ["lead_no", "display_name", "status"] },
+    { "kind": "table", "entity": "complaint", "columns": ["ticket_no", "display_name", "status"] },
+    { "kind": "table", "entity": "touchpoint", "columns": ["display_name", "channel"] },
+    { "kind": "form", "entity": "lead" },
+    { "kind": "form", "entity": "complaint" },
+    { "kind": "kpi_tile", "title": "New leads this week", "query": "count(lead this week)" },
+    { "kind": "kpi_tile", "title": "Open complaints", "query": "count(complaint where status=open)" }
+  ]
+}

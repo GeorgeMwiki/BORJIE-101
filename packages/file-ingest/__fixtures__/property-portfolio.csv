@@ -1,0 +1,9 @@
+reference,address,city,unit_count,monthly_rent,valuation,manager
+PROP-DAR-0001,Plot 12 Masaki Peninsula Road,Dar es Salaam,24,5200000,1450000000,Asha Mwangi
+PROP-DAR-0002,Block B Mikocheni Light,Dar es Salaam,12,2800000,690000000,Asha Mwangi
+PROP-ARS-0001,House 17 Njiro Estate,Arusha,1,950000,210000000,Brian Otieno
+PROP-DAR-0003,Plot 4 Oysterbay Crescent,Dar es Salaam,8,4400000,920000000,Hassan Said
+PROP-MZA-0001,Block A Nyamuhongolo,Mwanza,6,1600000,340000000,Daudi Massawe
+PROP-DAR-0004,Plot 22 Upanga East,Dar es Salaam,36,7800000,2100000000,Asha Mwangi
+PROP-ZNZ-0001,Stone Town Heritage Block,Zanzibar,4,3200000,840000000,Hassan Said
+PROP-DAR-0005,Kariakoo Mixed-Use Tower,Dar es Salaam,48,9100000,2950000000,Hassan Said

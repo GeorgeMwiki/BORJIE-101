@@ -1,0 +1,75 @@
+# =============================================================================
+# Security Route Coverage Gate
+# =============================================================================
+# Phase D agent D9 — A3/A5 Tier-1 closure.
+#
+# Enforces that >=90% of mutating HTTP route handlers (POST | PUT | DELETE |
+# PATCH) across `services/*/src/routes/` wrap with the `withSecurityEvents`
+# HOF, so every state-changing call emits a structured SecurityEvent row
+# (SOC 2 CC7.2, GDPR Art. 30 recordkeeping).
+#
+# Read-only and deliberately-public routes are exempted via
+# `.github/security-route-allowlist.yml`. Each allowlist entry carries a
+# documented reason so auditors can trace the exemption.
+# =============================================================================
+
+name: Security Route Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: security-route-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Mutation-route withSecurityEvents coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Run security-route-coverage scanner
+        id: scan
+        run: |
+          node scripts/security-route-coverage.mjs \
+            --report coverage-report.json \
+            --threshold 0.9 > /dev/null
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-route-coverage-report
+          path: coverage-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summarise on PR
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ -f coverage-report.json ]; then
+            COV=$(node -e "const r=require('./coverage-report.json');console.log((r.totals.coverage*100).toFixed(1))")
+            WRAPPED=$(node -e "const r=require('./coverage-report.json');console.log(r.totals.handlersWrapped)")
+            TOTAL=$(node -e "const r=require('./coverage-report.json');console.log(r.totals.handlersConsidered)")
+            PASSED=$(node -e "const r=require('./coverage-report.json');console.log(r.passed)")
+            {
+              echo "## Security Route Coverage"
+              echo ""
+              echo "| metric | value |"
+              echo "|---|---|"
+              echo "| coverage | ${COV}% |"
+              echo "| wrapped / considered | ${WRAPPED} / ${TOTAL} |"
+              echo "| threshold | 90% |"
+              echo "| passed | ${PASSED} |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

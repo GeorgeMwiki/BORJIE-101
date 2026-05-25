@@ -1,0 +1,16 @@
+# =============================================================================
+# Terraform Backend Configuration
+# =============================================================================
+# Copy to backend.hcl and fill in your values:
+#   cp backend.hcl.example backend.hcl
+#
+# Then initialize:
+#   cd environments/staging && terraform init -backend-config=backend.hcl
+#   cd environments/production && terraform init -backend-config=../backend.hcl
+# =============================================================================
+
+bucket         = "borjie-terraform-state"
+key            = "staging/terraform.tfstate"  # Use production/terraform.tfstate for prod
+region         = "eu-west-1"
+encrypt        = true
+dynamodb_table = "borjie-terraform-locks"

@@ -1,0 +1,160 @@
+# =============================================================================
+# payments-ledger — double-entry ledger HTTP service (Deployment + Service)
+# Source: services/payments-ledger
+#   - Express HTTP server on PORT (default 3001), health probe at /health.
+#   - Owns the money path — every credit / debit goes through
+#     LedgerService.post() (CLAUDE.md hard rule). Stripe + M-Pesa
+#     providers wired; reconciliation, statement-generation, and
+#     disbursement jobs run inside the same process.
+#   - Bumped resources vs other backend services: jobs serialise large
+#     batches when statement-day rolls.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-ledger
+  labels:
+    app.kubernetes.io/name: payments-ledger
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payments-ledger
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: payments-ledger
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "0.1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: payments-ledger
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: payments-ledger
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: payments-ledger
+      containers:
+        - name: payments-ledger
+          image: ghcr.io/georgemwiki/borjie-payments-ledger:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+              name: http
+              protocol: TCP
+            - containerPort: 9464
+              name: metrics
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: payments-ledger-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3001"
+            - name: HOST
+              value: 0.0.0.0
+            - name: LOG_LEVEL
+              value: info
+            - name: OTEL_SERVICE_NAME
+              value: payments-ledger
+            - name: OTEL_METRICS_EXPORTER_PORT
+              value: "9464"
+            # PLATFORM_FEE_BPS / MPESA_ENVIRONMENT MUST come from the
+            # ExternalSecret payload — entrypoint throws on silent
+            # sandbox defaults in prod (audit P50).
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            failureThreshold: 30
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/services/payments-ledger/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 256Mi
+      # Long grace — let in-flight Stripe / M-Pesa callbacks settle
+      # before the pod terminates. The reconciliation job will pick
+      # up any partial state on next tick.
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-ledger
+  labels:
+    app.kubernetes.io/name: payments-ledger
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

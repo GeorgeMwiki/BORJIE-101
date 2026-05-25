@@ -1,0 +1,28 @@
+id: arrears-triage-010
+scenario: arrears-triage
+title: 'New tenant, first month, 5-day arrears'
+context:
+  tenant:
+    id: tnt-010
+    name: 'Linda Achieng'
+    arrears_days: 5
+    history: new-tenant
+    move_in_date: '2026-04-15'
+  property:
+    id: prop-010
+    block: 'Block D'
+    unit: '1B'
+  lease:
+    monthly_rent_minor: 55000000
+    currency: TZS
+  events:
+    - {at: '2026-04-15', kind: 'lease.activated'}
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 55000000}
+expected_actions:
+  - {tool: 'arrears.send_first_invoice_followup', tone: 'welcoming-clear'}
+expected_escalation: false
+scorer_weights:
+  action-correctness: 0.4
+  escalation-correctness: 0.1
+  communication-quality: 0.4
+  cost-efficiency: 0.1

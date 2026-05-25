@@ -1,0 +1,81 @@
+{
+  "$schema": "./_registry.schema.json",
+  "description": "Down-migration registry. Maps up-migrations to their reverse. Used by migration-runner --down to pick the right script. Not every up has a down — gold-standard append-only invariants (audit chain, event store) require explicit dev/staging-only down-flags. See LITFIN-parity item 5.",
+  "version": 1,
+  "updatedAt": "2026-05-25",
+  "scope": "10 highest-blast-radius migrations from 0252..0273 (this session). Older migrations get down scripts in follow-up passes.",
+  "mappings": [
+    {
+      "up": "0252_land_areas.sql",
+      "down": "down/0252_down_land_areas.sql",
+      "reverses": "CREATE TABLE land_areas + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0253_parcels.sql",
+      "down": "down/0253_down_parcels.sql",
+      "reverses": "CREATE TABLE parcels + RLS (CASCADEs 0254..0260)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0264_layout_overrides.sql",
+      "down": "down/0264_down_layout_overrides.sql",
+      "reverses": "CREATE TABLE layout_overrides + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0266_agency_missions.sql",
+      "down": "down/0266_down_agency_missions.sql",
+      "reverses": "CREATE TABLE agency_missions + RLS (CASCADEs 0267..0270)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0267_mission_steps.sql",
+      "down": "down/0267_down_mission_steps.sql",
+      "reverses": "CREATE TABLE mission_steps + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0268_mission_checkpoints.sql",
+      "down": "down/0268_down_mission_checkpoints.sql",
+      "reverses": "CREATE TABLE mission_checkpoints + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0269_mission_outcomes.sql",
+      "down": "down/0269_down_mission_outcomes.sql",
+      "reverses": "CREATE TABLE mission_outcomes + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0270_mission_drift_log.sql",
+      "down": "down/0270_down_mission_drift_log.sql",
+      "reverses": "CREATE TABLE mission_drift_log + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0272_tenant_llm_budgets.sql",
+      "down": "down/0272_down_tenant_llm_budgets.sql",
+      "reverses": "CREATE TABLE tenant_llm_budgets + tenant_llm_budget_caps + index",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0273_payment_event_store.sql",
+      "down": "down/0273_down_payment_event_store.sql",
+      "reverses": "CREATE TABLE payment_event_store + triggers + functions + indexes + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"],
+      "criticality": "high",
+      "notes": "Event store is audit substrate for rent + arrears. Production down requires export-then-restore plan."
+    }
+  ]
+}

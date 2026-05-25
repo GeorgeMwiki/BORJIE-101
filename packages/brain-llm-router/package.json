@@ -1,0 +1,112 @@
+{
+  "name": "@borjie/brain-llm-router",
+  "version": "0.1.0",
+  "description": "LLM-as-Soul brain router — LiteLLM-style universal client, DSPy compile, provider fallback, cost cascade, hedged requests, eval-drift logger (Phase N-C).",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./universal-client": {
+      "types": "./src/universal-client/index.ts",
+      "default": "./src/universal-client/index.ts"
+    },
+    "./task-ladder": {
+      "types": "./src/task-ladder/index.ts",
+      "default": "./src/task-ladder/index.ts"
+    },
+    "./provider-fallback": {
+      "types": "./src/provider-fallback/index.ts",
+      "default": "./src/provider-fallback/index.ts"
+    },
+    "./cost-cascade": {
+      "types": "./src/cost-cascade/index.ts",
+      "default": "./src/cost-cascade/index.ts"
+    },
+    "./dspy-compile": {
+      "types": "./src/dspy-compile/index.ts",
+      "default": "./src/dspy-compile/index.ts"
+    },
+    "./hedged-requests": {
+      "types": "./src/hedged-requests/index.ts",
+      "default": "./src/hedged-requests/index.ts"
+    },
+    "./prompt-portability": {
+      "types": "./src/prompt-portability/index.ts",
+      "default": "./src/prompt-portability/index.ts"
+    },
+    "./cost-cap": {
+      "types": "./src/cost-cap/index.ts",
+      "default": "./src/cost-cap/index.ts"
+    },
+    "./eval-drift-logger": {
+      "types": "./src/eval-drift-logger/index.ts",
+      "default": "./src/eval-drift-logger/index.ts"
+    },
+    "./brain-call-orchestrator": {
+      "types": "./src/brain-call-orchestrator/index.ts",
+      "default": "./src/brain-call-orchestrator/index.ts"
+    },
+    "./dynamic-registry": {
+      "types": "./src/dynamic-registry/index.ts",
+      "default": "./src/dynamic-registry/index.ts"
+    },
+    "./rate-limit-preflight": {
+      "types": "./src/rate-limit-preflight/index.ts",
+      "default": "./src/rate-limit-preflight/index.ts"
+    },
+    "./concurrency-gate": {
+      "types": "./src/concurrency-gate/index.ts",
+      "default": "./src/concurrency-gate/index.ts"
+    },
+    "./provider-fingerprint-scrubber": {
+      "types": "./src/provider-fingerprint-scrubber/index.ts",
+      "default": "./src/provider-fingerprint-scrubber/index.ts"
+    },
+    "./pii-input-scrubber": {
+      "types": "./src/pii-input-scrubber/index.ts",
+      "default": "./src/pii-input-scrubber/index.ts"
+    },
+    "./kill-switch": {
+      "types": "./src/kill-switch/index.ts",
+      "default": "./src/kill-switch/index.ts"
+    },
+    "./routing-overrides": {
+      "types": "./src/routing-overrides/index.ts",
+      "default": "./src/routing-overrides/index.ts"
+    },
+    "./cost-meter": {
+      "types": "./src/cost-meter/index.ts",
+      "default": "./src/cost-meter/index.ts"
+    },
+    "./policy-audit": {
+      "types": "./src/policy-audit/index.ts",
+      "default": "./src/policy-audit/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

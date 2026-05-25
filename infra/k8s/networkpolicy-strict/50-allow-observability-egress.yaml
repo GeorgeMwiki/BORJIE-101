@@ -1,0 +1,31 @@
+---
+# Allow every borjie pod to push spans / metrics / logs to the
+# observability namespace (OTel collector, Loki, Tempo, Mimir).
+# Without this, OTel bootstrap appears to succeed but no telemetry
+# leaves the namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-observability-egress
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/managed-by: helm
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4317  # OTLP gRPC
+        - protocol: TCP
+          port: 4318  # OTLP HTTP
+        - protocol: TCP
+          port: 3100  # Loki
+        - protocol: TCP
+          port: 9095  # Mimir

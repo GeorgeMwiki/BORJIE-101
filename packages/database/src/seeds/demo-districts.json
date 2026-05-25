@@ -1,0 +1,107 @@
+{
+  "_comment": "Simplified demo-org district catchment polygons. Coordinates are GeoJSON [lng, lat] per RFC 7946. Approximate bounding shapes only — not survey-grade boundaries. Intended for seed/demo purposes modeling a multi-district public-sector estate client. Replace with the customer's authoritative shapefiles before any production rollout.",
+  "districts": [
+    {
+      "code": "DEMO-DAR",
+      "name": "Dar es Salaam District",
+      "description": "Dar es Salaam + Pwani + 50% Morogoro",
+      "centroid": { "lat": -7.0, "lng": 38.8 },
+      "color": "#1f77b4",
+      "regions": [
+        "Dar es Salaam",
+        "Pwani South",
+        "Morogoro South"
+      ],
+      "polygon": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [37.20, -8.90],
+            [39.55, -8.90],
+            [39.55, -6.30],
+            [37.20, -6.30],
+            [37.20, -8.90]
+          ]
+        ]
+      }
+    },
+    {
+      "code": "DEMO-DOD",
+      "name": "Dodoma District",
+      "description": "50% Morogoro + Dodoma + Singida + 50% Tabora",
+      "centroid": { "lat": -5.9, "lng": 34.9 },
+      "color": "#2ca02c",
+      "regions": [
+        "Morogoro North",
+        "Dodoma",
+        "Singida",
+        "Tabora East"
+      ],
+      "polygon": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [32.90, -7.80],
+            [37.20, -7.80],
+            [37.20, -4.80],
+            [32.90, -4.80],
+            [32.90, -7.80]
+          ]
+        ]
+      }
+    },
+    {
+      "code": "DEMO-TAB",
+      "name": "Tabora District",
+      "description": "50% Tabora + Rukwa + Kigoma + Shinyanga + Simiyu + Mwanza",
+      "centroid": { "lat": -5.0, "lng": 31.5 },
+      "color": "#ff7f0e",
+      "regions": [
+        "Tabora West",
+        "Rukwa",
+        "Kigoma",
+        "Shinyanga",
+        "Simiyu",
+        "Mwanza"
+      ],
+      "polygon": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [29.30, -8.90],
+            [32.90, -8.90],
+            [32.90, -1.00],
+            [29.30, -1.00],
+            [29.30, -8.90]
+          ]
+        ]
+      }
+    },
+    {
+      "code": "DEMO-TNG",
+      "name": "Tanga District",
+      "description": "North Pwani + Tanga + Moshi + Arusha + Mara",
+      "centroid": { "lat": -3.8, "lng": 37.3 },
+      "color": "#d62728",
+      "regions": [
+        "Pwani North",
+        "Tanga",
+        "Kilimanjaro (Moshi)",
+        "Arusha",
+        "Mara"
+      ],
+      "polygon": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [33.50, -6.30],
+            [39.80, -6.30],
+            [39.80, -1.00],
+            [33.50, -1.00],
+            [33.50, -6.30]
+          ]
+        ]
+      }
+    }
+  ]
+}

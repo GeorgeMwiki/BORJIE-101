@@ -1,0 +1,12 @@
+# =============================================================================
+# Staging - Terraform S3 Backend Configuration
+# =============================================================================
+# Copy to backend.hcl: cp backend.hcl.example backend.hcl
+# Then: terraform init -backend-config=backend.hcl
+# =============================================================================
+
+bucket         = "borjie-terraform-state"
+key            = "borjie/staging/terraform.tfstate"
+region         = "eu-west-1"
+encrypt        = true
+dynamodb_table = "borjie-terraform-locks"

@@ -1,0 +1,55 @@
+{{- if .Values.migrationJob.enabled -}}
+# =============================================================================
+# Database migration Job (Helm pre-install / pre-upgrade hook)
+# =============================================================================
+# Runs `packages/database/src/run-migrations.ts` against DATABASE_URL before
+# the gateway rolls over. Reuses the api-gateway image, which already carries
+# the full workspace (packages/ + node_modules/ with tsx) per docker/Dockerfile.api.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "borjie.fullname" . }}-migrate
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrationJob.backoffLimit | default 3 }}
+  activeDeadlineSeconds: {{ .Values.migrationJob.activeDeadlineSeconds | default 600 }}
+  ttlSecondsAfterFinished: {{ .Values.migrationJob.ttlSecondsAfterFinished | default 3600 }}
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrations
+    spec:
+      restartPolicy: Never
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          {{- if .Values.migrationJob.image }}
+          image: {{ .Values.migrationJob.image }}
+          {{- else }}
+          image: {{ include "borjie.image" (list . .Values.gateway.image) }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command: ["node_modules/.bin/tsx", "packages/database/src/run-migrations.ts"]
+          workingDir: /app
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gateway.envFromSecret }}
+                  key: {{ .Values.migrationJob.databaseUrlSecretKey | default "DATABASE_URL" }}
+          resources:
+            {{- toYaml .Values.migrationJob.resources | nindent 12 }}
+{{- end -}}

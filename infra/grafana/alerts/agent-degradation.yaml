@@ -1,0 +1,122 @@
+# Prometheus alerting rules — BORJIE agent degradation (Phase D6).
+#
+# Wired into the platform Prometheus instance and routed via Alertmanager:
+#   - severity=critical → PagerDuty (24/7)
+#   - severity=warning  → Slack #ops-ai
+#
+# Source of truth for the rules that read the central-intelligence kernel
+# histograms (judge_score_seconds, confidence_overall_seconds) and the
+# per-port agent counters (agent_call_success_total, agent_call_error_total,
+# agent_port_degraded_total, persona_drift_event_count).
+#
+# Owner: D6 (Phase D — comprehensive gap closure).
+groups:
+  - name: borjie_agent_degradation
+    interval: 1m
+    rules:
+      # --------------------------------------------------------------------
+      # Agent port degradation — sustained spike in fallbacks suggests the
+      # primary adapter is failing health checks more often than the
+      # failover budget tolerates. Threshold tuned for the 5-port matrix in
+      # services/api-gateway/src/instrumentation/agent-spans.ts (Phase B/C).
+      # --------------------------------------------------------------------
+      - alert: AgentPortDegradedHigh
+        expr: |
+          sum(increase(agent_port_degraded_total[10m])) > 5
+        for: 10m
+        labels:
+          severity: critical
+          team: platform-ai
+          phase: d6
+        annotations:
+          summary: >-
+            Agent port degraded >5 times in 10m (current: {{ $value }})
+          description: >-
+            agent_port_degraded_total has spiked above the failover budget.
+            Inspect the per-port dashboard
+            (BORJIE Agent — Per-Port) for the affected agent +
+            port_name labels. Primary remediation: check the underlying
+            adapter health and consider toggling killswitch DEGRADED.
+          runbook_url: https://docs.borjie.internal/runbooks/agent-port-degraded
+
+      # --------------------------------------------------------------------
+      # Judge p50 collapse — self-review judge consistently flagging drafts
+      # as low quality. p50 < 0.5 sustained for 15m means more than half of
+      # high-stakes turns are landing in the regen-trigger band, which
+      # usually points at a model regression or a sensor-router misroute.
+      # --------------------------------------------------------------------
+      - alert: JudgeScoreDropP50
+        expr: |
+          histogram_quantile(
+            0.5,
+            sum by (le) (rate(judge_score_seconds_bucket[15m]))
+          ) < 0.5
+        for: 15m
+        labels:
+          severity: critical
+          team: platform-ai
+          phase: d6
+        annotations:
+          summary: >-
+            Judge p50 < 0.5 sustained 15m (current: {{ $value | printf "%.2f" }})
+          description: >-
+            More than half of judge-reviewed drafts are scoring below the
+            regen threshold. Likely root causes: (1) sensor-router
+            promoted a degraded model, (2) prompt-evolution shipped a
+            regression, (3) tenant-specific persona drift. Inspect the
+            BORJIE Agent — Judge & Confidence dashboard.
+          runbook_url: https://docs.borjie.internal/runbooks/judge-score-drop
+
+      # --------------------------------------------------------------------
+      # Persona-drift breach — the 24-dim probe is flagging persona drift
+      # more often than the steady-state baseline tolerates. Doesn't page
+      # (drift is mostly recoverable) — notifies Slack so the on-call
+      # AI engineer can decide whether to roll back a persona patch.
+      # --------------------------------------------------------------------
+      - alert: PersonaDriftBreach
+        expr: |
+          sum(increase(persona_drift_event_count[1h])) > 10
+        for: 1h
+        labels:
+          severity: warning
+          team: platform-ai
+          phase: d6
+        annotations:
+          summary: >-
+            Persona drift events > 10 in 1h (current: {{ $value }})
+          description: >-
+            The 24-dim drift probe has fired more than 10 events in the
+            last hour. Inspect the BORJIE Agent — Persona Drift
+            dashboard. Common triggers: a recent persona patch, a
+            tenant-skin override that conflicts with the surface
+            default, or a prompt-evolution rollout.
+          runbook_url: https://docs.borjie.internal/runbooks/persona-drift
+
+      # --------------------------------------------------------------------
+      # Confidence collapse — overall confidence p50 below 0.4 sustained
+      # for 15m. This is a strong signal that grounding / citation
+      # extraction is broken or the sensor is producing noise.
+      # --------------------------------------------------------------------
+      - alert: ConfidenceCollapse
+        expr: |
+          histogram_quantile(
+            0.5,
+            sum by (le) (rate(confidence_overall_seconds_bucket[15m]))
+          ) < 0.4
+        for: 15m
+        labels:
+          severity: critical
+          team: platform-ai
+          phase: d6
+        annotations:
+          summary: >-
+            Confidence-overall p50 < 0.4 sustained 15m (current: {{ $value | printf "%.2f" }})
+          description: >-
+            scoreConfidence(...) is collapsing for the median request.
+            Inspect the per-component breakdown (groundedness / stability
+            / review / numerical-consistency) on the BORJIE Agent —
+            Judge & Confidence dashboard. Likely culprits: citation
+            extractor returning empty arrays, grounding-facts provider
+            unreachable, or the tool-result number collector deserialising
+            into NaN.
+          runbook_url: https://docs.borjie.internal/runbooks/confidence-collapse

@@ -1,0 +1,90 @@
+# =============================================================================
+# Trivy allowlist — documented accept-risk findings
+# =============================================================================
+# Each entry MUST include: CVE id, package, reason, tracked_in, next_review.
+# Mirror the shape of scripts/audit-with-allowlist.mjs so the security
+# review picks both files up together.
+#
+# Format: one CVE id per line; trailing `#` comment captures the rationale.
+# Trivy reads only the first whitespace-delimited token, so the comment
+# is human-only and does not affect filtering.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Allowlisted CVEs — these mirror entries in scripts/audit-with-allowlist.mjs.
+# When that file is updated, this one must be too (and vice-versa).
+# -----------------------------------------------------------------------------
+
+# wave-L upgrade (W1, 2026-05-17): CVE-2026-44902
+# (@opentelemetry/auto-instrumentations-node + @opentelemetry/sdk-node,
+# GHSA-q7rr-3cgh-j5r3) is patched by sdk-node 0.218.0 +
+# auto-instrumentations-node 0.76.0 in this PR — the allowlist entry
+# has been removed alongside the matching entries in
+# scripts/audit-with-allowlist.mjs.
+
+CVE-2026-39356 # package=drizzle-orm, severity=HIGH
+#   reason:       SQL injection via improperly escaped identifier strings —
+#                 only reachable when callers pass tenant-controlled
+#                 identifier strings into raw SQL. Codebase audit confirmed
+#                 all our calls use Drizzle's typed builders.
+#   tracked_in:   Docs/DEP_HYGIENE.md (drizzle-orm 0.45 migration)
+#   next_review:  2026-Q2
+
+CVE-2026-4800 # package=lodash, severity=HIGH
+#   reason:       Arbitrary code execution via `_.template` accepting
+#                 untrusted input. Codebase audit confirmed no `_.template`
+#                 calls accept tenant-controlled input. The patched
+#                 version >=4.18.0 does not exist on npm (latest is 4.17.21).
+#   tracked_in:   Docs/DEP_HYGIENE.md (lodash migration)
+#   next_review:  2026-Q3
+
+CVE-2025-59840 # package=vega + vega-expression, severity=HIGH
+#   GHSA-7f2v-3qq3-vvjf
+#   reason:       Vega XSS via expressions abusing toString calls in
+#                 environments using the VEGA_DEBUG global variable.
+#                 BORJIE never sets VEGA_DEBUG in production; C3
+#                 generative-UI pipeline server-emits Vega-Lite specs
+#                 that ajv-check against the v5 JSON schema BEFORE
+#                 render. LLM never reaches the expression-builder
+#                 surface. vega 6.x is a major version with a different
+#                 rendering pipeline; sticking with 5.x until upstream
+#                 lands a 5.x backport or we plan the 6.x migration.
+#   tracked_in:   Docs/DEP_HYGIENE.md (vega 6.x migration)
+#   next_review:  2026-Q4
+#   wave-L audit: 2026-05-17 (W4) re-verified all three mitigations —
+#                 VEGA_DEBUG grep returns ZERO hits outside the
+#                 allowlist files; ajv validates every Vega-Lite spec
+#                 before render in both the server render-block and
+#                 the client VegaChart consumer; no setdata call sites
+#                 exist in genui/ or render-blocks/. Mitigations hold.
+
+CVE-2025-66648 # package=vega-functions, severity=HIGH
+#   GHSA-m9rg-mr6g-75gm
+#   reason:       vega-functions XSS via setdata function. setdata-XSS
+#                 requires attacker-controlled data injection into a
+#                 setdata call site, which doesn't exist in our pipeline.
+#                 C3 server emits + ajv-validates Vega-Lite specs; LLM
+#                 never reaches client-side setdata; setdata is invoked
+#                 only by the Vega runtime against server-controlled
+#                 data payloads.
+#   tracked_in:   Docs/DEP_HYGIENE.md (vega 6.x migration)
+#   next_review:  2026-Q4
+#   wave-L audit: 2026-05-17 (W4) confirmed — VegaChart uses the
+#                 declarative `data: { values: props.data }` injection
+#                 pattern and never invokes setdata client-side.
+
+CVE-2026-25223 # package=fastify, severity=HIGH
+#   GHSA-jx2c-rxcm-jvmq
+#   reason:       Fastify Content-Type header tab-character validation
+#                 bypass. Six internal services pin fastify ^4.27.0
+#                 (sleep-pass-orchestrator, parcel-service,
+#                 onboarding-orchestrator, outcomes-metering,
+#                 field-capture-service, voice-agent). All six are
+#                 internal-only — they sit behind the api-gateway BFF and
+#                 only accept service-to-service traffic with the agent-
+#                 platform mTLS-style JWT, never raw public Content-Type
+#                 headers. The fix lands in fastify 5.7.2; fastify 4 → 5
+#                 is a major-version migration (Node 20 baseline + error-
+#                 handler signature changes) deferred to its own PR.
+#   tracked_in:   Docs/DEP_HYGIENE.md (fastify 5.x migration)
+#   next_review:  2026-Q3

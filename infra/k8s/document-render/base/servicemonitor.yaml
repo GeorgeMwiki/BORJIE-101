@@ -1,0 +1,34 @@
+# NOTE: scrapes /metrics on each of the three render sub-services. The
+# server modules do not currently expose /metrics — wire prom-client (Node)
+# in server/{carbone,typst,puppeteer}-server.js to enable. Until then,
+# scrapes will 404 (tracked as follow-up).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: document-render
+  labels:
+    app.kubernetes.io/name: document-render
+    app.kubernetes.io/part-of: borjie
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: document-render
+  endpoints:
+    - port: carbone
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+    - port: typst
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+    - port: puppeteer
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - borjie-app
+      - borjie-staging
+      - borjie-prod

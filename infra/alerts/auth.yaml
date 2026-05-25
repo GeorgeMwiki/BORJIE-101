@@ -1,0 +1,30 @@
+groups:
+  - name: borjie_auth
+    interval: 1m
+    rules:
+      - alert: OtpFailureRateHigh
+        expr: sum(rate(otp_verify_failures[5m])) / sum(rate(otp_verify_total[5m])) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          team: identity
+        annotations:
+          summary: "OTP verification failure rate > 30% — possible abuse or SMS delivery issue"
+
+      - alert: InviteCodeBruteForce
+        expr: sum(rate(invite_code_redeem_failures{reason=\"not_found\"}[1m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: identity
+        annotations:
+          summary: "High rate of invalid invite-code attempts — possible brute force"
+
+      - alert: JwtVerificationSpike
+        expr: sum(rate(jwt_verify_failures[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "JWT verification failures > 10/sec"

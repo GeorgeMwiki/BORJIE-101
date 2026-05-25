@@ -1,0 +1,71 @@
+{
+  "entities": [
+    {
+      "slug": "account",
+      "display_name_en": "Account",
+      "display_name_sw": "Akaunti",
+      "fields": [
+        { "name": "account_code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "account_kind", "kind": "enum", "required": true, "values": ["asset", "liability", "equity", "income", "expense"] },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "receipt",
+      "display_name_en": "Receipt",
+      "display_name_sw": "Risiti",
+      "fields": [
+        { "name": "receipt_no", "kind": "text", "required": true, "max_length": 64, "index": true },
+        { "name": "received_on", "kind": "date", "required": true },
+        { "name": "amount", "kind": "money", "required": true, "currency_field": "tenant_default" },
+        { "name": "channel", "kind": "enum", "required": true, "values": ["cash", "mpesa", "bank", "card", "cheque"] }
+      ]
+    },
+    {
+      "slug": "budget_line",
+      "display_name_en": "Budget Line",
+      "display_name_sw": "Mstari wa Bajeti",
+      "fields": [
+        { "name": "period", "kind": "text", "required": true, "max_length": 16, "index": true },
+        { "name": "account_id", "kind": "fk", "required": true, "references": "account" },
+        { "name": "planned_amount", "kind": "money", "required": true },
+        { "name": "actual_amount", "kind": "money", "required": false }
+      ]
+    },
+    {
+      "slug": "variance_alert",
+      "display_name_en": "Variance Alert",
+      "display_name_sw": "Tahadhari ya Tofauti",
+      "fields": [
+        { "name": "period", "kind": "text", "required": true, "max_length": 16, "index": true },
+        { "name": "account_id", "kind": "fk", "required": true, "references": "account" },
+        { "name": "variance_pct", "kind": "numeric", "required": true, "precision": 6, "scale": 2 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["open", "acknowledged", "resolved"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "post_receipt_draft",
+      "title": "Draft a receipt to post",
+      "trigger_entity": "receipt",
+      "trigger_event": "create",
+      "steps": ["match_payer", "match_invoice", "post_via_ledger", "send_acknowledgement"]
+    },
+    {
+      "slug": "flag_variance_alert",
+      "title": "Flag a budget variance alert",
+      "trigger_entity": "variance_alert",
+      "trigger_event": "create",
+      "steps": ["compute_variance", "classify_severity", "notify_owner"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "receipt", "columns": ["receipt_no", "display_name", "channel"] },
+    { "kind": "table", "entity": "budget_line", "columns": ["period", "display_name"] },
+    { "kind": "table", "entity": "variance_alert", "columns": ["period", "display_name", "status"] },
+    { "kind": "form", "entity": "receipt" },
+    { "kind": "kpi_tile", "title": "Receipts this month", "query": "sum(receipt this month)" },
+    { "kind": "kpi_tile", "title": "Open variance alerts", "query": "count(variance_alert where status=open)" }
+  ]
+}

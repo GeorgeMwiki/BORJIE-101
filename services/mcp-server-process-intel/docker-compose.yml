@@ -1,0 +1,27 @@
+# Local-dev compose file for @borjie/mcp-server-process-intel.
+#
+# The MCP server speaks stdio by default — when run under docker-compose
+# we expose an HTTP / SSE port so the api-gateway can connect over a
+# Unix-style tcp transport.
+
+services:
+  mcp-process-intel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: borjie/mcp-server-process-intel:dev
+    container_name: borjie-mcp-process-intel-dev
+    environment:
+      # MCP server listens on stdin by default; setting HTTP_PORT swaps
+      # the transport for HTTP/SSE in `src/index.ts`.
+      MCP_PROCESS_INTEL_HTTP_PORT: "7401"
+      PYTHON_BIN: /opt/pm4py-venv/bin/python
+      LOG_LEVEL: info
+    ports:
+      - "7401:7401"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

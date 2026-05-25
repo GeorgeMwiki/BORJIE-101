@@ -1,0 +1,32 @@
+-- ─────────────────────────────────────────────────────────────────────
+-- Migration 0144 — Sovereign action-ledger rollback payload column.
+--
+-- Phase D D2 — Comprehensive Gap Closure.
+--
+-- The sovereign action-ledger (migration 0129) records *what* a
+-- sovereign-tier action did, but until now it carried no machine-
+-- readable description of *how to undo* that action. Operators with
+-- a tampered chain or a misconfigured policy could only roll back
+-- by hand — risky and slow.
+--
+-- This column carries an OPTIONAL JSONB payload that describes the
+-- reversal plan associated with the action (e.g. for a tenant
+-- eviction: the unit-id to restore + the customer-id to re-bind;
+-- for an owner payout: the disbursement-id to clawback). The shape
+-- is action-type specific; the executor + four-eye approver own
+-- validation.
+--
+-- Idempotent — uses ADD COLUMN IF NOT EXISTS so the migration is
+-- safe to re-apply on a partially-migrated cluster (sentry'd on
+-- 2026-05 against the staging chain).
+--
+-- NOTE: the hash chain does NOT include rollback_payload — the
+-- verifier walks (prev_hash, tenant_id, action_type, payload_hash,
+-- executed_at) untouched. The rollback payload is an OUT-OF-BAND
+-- recovery hint; tampering it does not break the chain (a future
+-- migration may extend the hash to cover it once the rollback
+-- semantics stabilise).
+-- ─────────────────────────────────────────────────────────────────────
+
+ALTER TABLE sovereign_action_ledger
+  ADD COLUMN IF NOT EXISTS rollback_payload JSONB;

@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/field-capture-service",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Field capture service — mobile-facing endpoints for surveyor photo/video/audio/inspection/polygon uploads, with EXIF GPS extraction, C2PA-style signatures, offline sync, and observability. Spec: Docs/requirements/VOICE_MEMO_2026-04-18_questionnaire_analysis.md §2-§3.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/geo-intelligence": "workspace:*",
+    "@borjie/observability": "workspace:^",
+    "@borjie/storage-adapter": "workspace:*",
+    "fastify": "^5.8.3",
+    "jose": "^6.2.3",
+    "pino": "^10.3.1",
+    "prom-client": "^15.1.0",
+    "uuid": "^14.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

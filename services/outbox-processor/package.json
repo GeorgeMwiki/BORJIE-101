@@ -1,0 +1,26 @@
+{
+  "name": "@borjie/outbox-processor",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Standalone supervisor that drains the transactional outbox by calling EventBus.processOutbox() on a configurable interval. Sibling to the in-process drainer wired into the api-gateway boot path.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@borjie/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

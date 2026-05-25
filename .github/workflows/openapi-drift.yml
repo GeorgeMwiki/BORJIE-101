@@ -1,0 +1,67 @@
+# =============================================================================
+# OpenAPI Drift Check
+# =============================================================================
+# Regenerates the OpenAPI spec from the api-gateway route definitions and
+# diffs it against the committed `Docs/api/openapi.generated.json`. Fails if
+# there is drift so that every schema change ships with an updated spec
+# (which the @borjie/api-sdk package also depends on).
+# =============================================================================
+
+name: OpenAPI Drift
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: openapi-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-drift:
+    name: Check OpenAPI spec drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.0'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate OpenAPI spec
+        run: pnpm openapi:export
+
+      - name: Diff against committed spec
+        id: diff
+        run: |
+          set -o pipefail
+          if git diff --exit-code --stat -- Docs/api/openapi.generated.json; then
+            echo "No drift detected."
+          else
+            echo "::error title=OpenAPI drift::The committed Docs/api/openapi.generated.json is out of date. Run 'pnpm openapi:export' locally and commit the result."
+            echo
+            echo "--- drift ---"
+            git --no-pager diff -- Docs/api/openapi.generated.json | head -200
+            exit 1
+          fi
+
+      - name: Upload regenerated spec (on drift)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: openapi-regenerated
+          path: Docs/api/openapi.generated.json
+          retention-days: 7

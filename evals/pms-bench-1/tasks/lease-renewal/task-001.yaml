@@ -1,0 +1,13 @@
+id: lease-renewal-001
+scenario: lease-renewal
+title: 'Lease expires in 60 days, tenant in good standing, market rent unchanged'
+context:
+  tenant: {id: tnt-301, name: 'Eve Mwanza', payment_history: spotless}
+  property: {id: prop-301, block: 'Block A', unit: '5C'}
+  lease: {current_rent_minor: 75000000, currency: TZS, expires_at: '2026-07-17'}
+  market: {p50_minor: 76000000, p75_minor: 78000000}
+expected_actions:
+  - {tool: 'lease.draft_renewal_offer', term_months: 12, rent_increase_pct: 1.3}
+  - {tool: 'lease.send_renewal_offer_to_tenant', tone: 'warm-professional'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

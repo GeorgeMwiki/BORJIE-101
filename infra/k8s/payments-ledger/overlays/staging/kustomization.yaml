@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-payments-ledger
+    newTag: staging
+
+patches:
+  - target:
+      kind: Deployment
+      name: payments-ledger
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "100m"
+            memory: "192Mi"
+          limits:
+            cpu: "500m"
+            memory: "768Mi"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: payments-ledger
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+  - target:
+      kind: ExternalSecret
+      name: payments-ledger-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/payments-ledger

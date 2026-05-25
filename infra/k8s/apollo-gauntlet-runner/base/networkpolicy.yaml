@@ -1,0 +1,92 @@
+# =============================================================================
+# apollo-gauntlet-runner — default-deny + targeted egress allow-list
+# =============================================================================
+# Runner has no inbound surface — only egress to the agent under test, the
+# report sink, observability, and external HTTPS (LLM-as-judge calls).
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apollo-gauntlet-runner-default-deny
+  labels:
+    app.kubernetes.io/name: apollo-gauntlet-runner
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apollo-gauntlet-runner
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apollo-gauntlet-runner-allow-dns-egress
+  labels:
+    app.kubernetes.io/name: apollo-gauntlet-runner
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apollo-gauntlet-runner
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apollo-gauntlet-runner-allow-egress
+  labels:
+    app.kubernetes.io/name: apollo-gauntlet-runner
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apollo-gauntlet-runner
+  policyTypes: [Egress]
+  egress:
+    # Agent under test — api-gateway in either env. Same staging/prod
+    # convention as brain-evolution-worker: jobs namespace egresses into
+    # the per-env application namespace.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: borjie-prod
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: borjie-staging
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Observability
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    # External HTTPS — LLM-as-judge (Anthropic / OpenAI / Google) + sink push
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

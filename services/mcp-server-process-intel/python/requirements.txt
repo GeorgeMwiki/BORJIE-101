@@ -1,0 +1,18 @@
+# pm4py — process mining (Inductive Miner-infrequent, token replay,
+# variant analysis, social network discovery, drift detection).
+#
+# LICENSE NOTE: pm4py is AGPL-3.0. By running it as a separate process
+# behind a JSON-line stdin/stdout protocol, we keep the AGPL'd code
+# segregated from the MIT-licensed TypeScript host (AGPL section 13).
+# Do not vendor pm4py source into the TS package and do not link it
+# into any compiled bundle.
+pm4py>=2.7.22,<3.0.0
+
+# Numerical + stats stack pm4py expects
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.11.0
+networkx>=3.2
+
+# Split Miner is not on PyPI — it's invoked as a JAR. The Dockerfile
+# downloads the JAR in stage 1 and exposes it via SPLIT_MINER_JAR_PATH.

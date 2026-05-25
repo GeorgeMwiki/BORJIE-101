@@ -1,0 +1,171 @@
+# =============================================================================
+# Migration Safety Check
+# =============================================================================
+# Pre-deploy validator for NOT NULL backfill hazards in
+# packages/database/src/migrations/**.
+#
+# Closes the MEDIUM finding in .audit/deep-audit-2026-05-20.md
+# ("No NOT_NULL-with-backfill validation pre-deploy script for migrations").
+#
+# Strategy
+#   1. Spin up an ephemeral Postgres 16 service container.
+#   2. Run `pnpm migrate` against the empty DB → "expected schema + zero rows"
+#      baseline. NOTE: this catches schemas where the migration would fail
+#      against an empty DB, but it does NOT catch missing backfills against
+#      real production data — see Docs/RUNBOOK.md §"Migration safety check"
+#      for the limitation and the upgrade path (snapshot fixture).
+#   3. Run validate-migration-safety.mjs with --db-url=<ephemeral DB> and
+#      --fail-on=fail.
+#   4. Post the markdown report as a PR comment.
+# =============================================================================
+
+name: Migration Safety Check
+
+on:
+  pull_request:
+    paths:
+      - 'packages/database/src/migrations/**'
+      - 'scripts/validate-migration-safety.mjs'
+      - '.github/workflows/migration-safety-check.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: migration-safety-${{ github.ref }}
+  cancel-in-progress: true
+
+# `pull-requests: write` so the post-validate Comment-on-PR step can post
+# its markdown report via github-script. Without this, the step fails with
+# "Resource not accessible by integration".
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate NOT NULL backfill safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: borjie
+          POSTGRES_PASSWORD: borjie
+          POSTGRES_DB: borjie_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U borjie"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://borjie:borjie@localhost:5432/borjie_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U borjie && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Apply migrations to baseline DB (empty schema + zero rows)
+        # Best-effort: a real production-snapshot fixture would catch
+        # missing-backfill hazards against actual data. Until that fixture
+        # lands, an empty DB still catches the case where the migration
+        # would fail to even reach the SET NOT NULL on its own.
+        run: |
+          pnpm migrate || \
+            pnpm -F @borjie/database exec tsx src/run-migrations.ts || \
+            true
+
+      - name: Run NOT NULL backfill validator
+        id: validate
+        run: |
+          mkdir -p .audit
+          set +e
+          node scripts/validate-migration-safety.mjs \
+            --migrations-dir=packages/database/src/migrations \
+            --db-url="$DATABASE_URL" \
+            --fail-on=fail \
+            --output=markdown \
+            --report=.audit/migration-safety.md
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Append report to job summary
+        if: always()
+        run: |
+          if [ -f .audit/migration-safety.md ]; then
+            {
+              echo "## Migration Safety Check"
+              echo ""
+              cat .audit/migration-safety.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-safety-report
+          path: .audit/migration-safety.*
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.audit/migration-safety.md';
+            if (!fs.existsSync(path)) return;
+            const body = '## Migration Safety Check\n\n' + fs.readFileSync(path, 'utf8');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number,
+            });
+            const existing = comments.find(
+              (c) =>
+                c.user.type === 'Bot' &&
+                c.body.startsWith('## Migration Safety Check'),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body,
+              });
+            }
+
+      - name: Enforce threshold
+        run: |
+          code="${{ steps.validate.outputs.exitcode }}"
+          if [ "$code" -eq 0 ]; then
+            echo "Migration safety: PASS"
+          elif [ "$code" -eq 1 ]; then
+            echo "::error::Migration safety: one or more migrations would block deploy"
+            exit 1
+          else
+            echo "::error::Migration safety validator crashed (exit $code)"
+            exit "$code"
+          fi

@@ -1,0 +1,120 @@
+{
+  "annotations": { "list": [] },
+  "description": "Tenant-onboarding funnel: signup → first-property → first-chat → first-skill-installed.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "bargauge",
+      "title": "Funnel stages (last 7d)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum(increase(tenant_signup_total[7d]))",
+          "legendFormat": "1. Signup",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(tenant_first_property_total[7d]))",
+          "legendFormat": "2. First property added",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(increase(tenant_first_chat_total[7d]))",
+          "legendFormat": "3. First chat with copilot",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(increase(tenant_first_skill_installed_total[7d]))",
+          "legendFormat": "4. First skill installed",
+          "refId": "D"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Daily signups",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 12 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(increase(tenant_signup_total[1d]))",
+          "legendFormat": "signups",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Stage conversion rates",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 12 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(increase(tenant_first_property_total[7d])) / sum(increase(tenant_signup_total[7d]))",
+          "legendFormat": "signup→property",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(tenant_first_chat_total[7d])) / sum(increase(tenant_first_property_total[7d]))",
+          "legendFormat": "property→chat",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(increase(tenant_first_skill_installed_total[7d])) / sum(increase(tenant_first_chat_total[7d]))",
+          "legendFormat": "chat→skill",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.3 },
+              { "color": "green", "value": 0.5 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["onboarding", "funnel", "f7"],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "selected": false, "text": "Prometheus", "value": "prometheus" }
+      }
+    ]
+  },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Tenant Onboarding Funnel",
+  "uid": "tenant-onboarding-funnel",
+  "version": 1,
+  "weekStart": ""
+}

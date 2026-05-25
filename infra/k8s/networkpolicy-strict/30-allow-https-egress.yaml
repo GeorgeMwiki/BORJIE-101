@@ -1,0 +1,31 @@
+---
+# Allow HTTPS egress (443) to the public internet, EXCEPT for the
+# cloud-provider metadata endpoint (169.254.169.254) — a compromised
+# pod must not be able to fetch instance IAM creds. Also blocks the
+# RFC1918 private ranges to prevent lateral movement to other
+# namespaces / tenants on the same cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-https-egress
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/managed-by: helm
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+              - 169.254.0.0/16
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,74 @@
+# =============================================================================
+# Ingress — nginx-ingress-controller + cert-manager (Let's Encrypt)
+# =============================================================================
+# Requires:
+#   - ingress-nginx installed (kubectl apply -k github.com/kubernetes/ingress-nginx)
+#   - cert-manager installed with a ClusterIssuer named "letsencrypt-prod"
+# Overlays patch host names per environment.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: borjie
+  labels: { app.kubernetes.io/name: borjie-ingress }
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-connections: "64"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.borjie.com
+        - borjie.com
+        - www.borjie.com
+        - admin.borjie.com
+        - owners.borjie.com
+        - manage.borjie.com
+      secretName: borjie-tls
+  rules:
+    - host: api.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: api-gateway, port: { number: 80 } } }
+    - host: borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: customer-app, port: { number: 80 } } }
+    - host: www.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: customer-app, port: { number: 80 } } }
+    - host: admin.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: admin-web, port: { number: 80 } } }
+    - host: owners.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: owner-portal, port: { number: 80 } } }
+    - host: manage.borjie.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: estate-manager-app, port: { number: 80 } } }

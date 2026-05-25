@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+packages/*/dist/
+services/*/dist/
+apps/*/dist/
+apps/*/.next/
+*.tsbuildinfo
+
+# Storybook
+storybook-static/
+
+# Test coverage
+coverage/
+
+# Playwright
+e2e-report/
+test-results/
+playwright-report/
+.blob/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Turbo
+.turbo/
+
+# Generated AI BOM artifact — produced by scripts/build-ai-bom.mjs in CI.
+# Committed copies are not authoritative; the workflow regenerates per release.
+ai-bom.json
+ai-bom.json.sig
+ai-bom.json.pem
+
+# Cache
+.cache/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+!backend.hcl.example
+backend.hcl
+crash.log
+override.tf
+override.tf.json
+*.override.tf
+*.override.tf.json
+
+# Working artifacts — audit drafts, research notes, ad-hoc scans, agent worktrees
+.audit/
+.research/
+.semgrep/
+.claude/worktrees/
+
+# Borjie additions
+.env
+.env.local
+.env.*.local
+.audit/
+.research/
+audit-reports/
+.planning/
+*.log
+.turbo/
+.next/
+dist/
+build/
+coverage/
+expo-env.d.ts
+.expo/
+*.tsbuildinfo

@@ -1,0 +1,62 @@
+{
+  "name": "@borjie/file-ingest",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Conversational ingest pipeline (Phase J2). Owner drops a CSV/Excel/PDF/image into chat; MD does schema-sniff -> entity-type proposal -> 4-eye approval -> ingest-with-provenance via the J1 IEntityStoreService contract.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./entity-store": {
+      "types": "./dist/entity-store/index.d.ts",
+      "import": "./dist/entity-store/index.js",
+      "default": "./dist/entity-store/index.js"
+    },
+    "./schema-sniff": {
+      "types": "./dist/schema-sniff/index.d.ts",
+      "import": "./dist/schema-sniff/index.js",
+      "default": "./dist/schema-sniff/index.js"
+    },
+    "./proposal": {
+      "types": "./dist/proposal/index.d.ts",
+      "import": "./dist/proposal/index.js",
+      "default": "./dist/proposal/index.js"
+    },
+    "./approval": {
+      "types": "./dist/approval/index.d.ts",
+      "import": "./dist/approval/index.js",
+      "default": "./dist/approval/index.js"
+    },
+    "./provenance": {
+      "types": "./dist/provenance/index.d.ts",
+      "import": "./dist/provenance/index.js",
+      "default": "./dist/provenance/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --no-error-on-unmatched-pattern"
+  },
+  "dependencies": {
+    "papaparse": "^5.4.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/papaparse": "^5.3.14",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

@@ -1,0 +1,145 @@
+# =============================================================================
+# sleep-pass-orchestrator — always-on 60s heartbeat (Deployment)
+# Source: services/sleep-pass-orchestrator (port 3040)
+#   - /healthz  — liveness (always 200 once the process is up)
+#   - /readyz   — readiness (memory mode today; DB ping when adapters land)
+#   - /metrics  — Prometheus exposition (same port as the app)
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep-pass-orchestrator
+  labels:
+    app.kubernetes.io/name: sleep-pass-orchestrator
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sleep-pass-orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sleep-pass-orchestrator
+        app.kubernetes.io/part-of: borjie
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/version: "0.1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3040"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: sleep-pass-orchestrator
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: sleep-pass-orchestrator
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: sleep-pass-orchestrator
+      containers:
+        - name: sleep-pass-orchestrator
+          image: ghcr.io/georgemwiki/borjie-sleep-pass-orchestrator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3040
+              name: http
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: sleep-pass-orchestrator-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3040"
+            - name: HOST
+              value: 0.0.0.0
+            - name: HEARTBEAT_INTERVAL_MS
+              value: "60000"
+            - name: OTEL_SERVICE_NAME
+              value: sleep-pass-orchestrator
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3040
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3040
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 3040
+            failureThreshold: 30
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/services/sleep-pass-orchestrator/.cache
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 256Mi
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sleep-pass-orchestrator
+  labels:
+    app.kubernetes.io/name: sleep-pass-orchestrator
+    app.kubernetes.io/part-of: borjie
+automountServiceAccountToken: false

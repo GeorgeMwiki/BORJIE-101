@@ -1,0 +1,16 @@
+id: complaint-triage-005
+scenario: complaint-triage
+title: 'Anonymous complaint via dropbox — limited info'
+context:
+  complainant: {id: anonymous}
+  complaint:
+    submitted_at: '2026-05-17T11:00:00Z'
+    kind: 'unknown'
+    severity_self_assessed: medium
+    description: 'Someone is renting their unit on Airbnb — against rules'
+expected_actions:
+  - {tool: 'complaint.log_anonymous_tip'}
+  - {tool: 'complaint.flag_for_investigation', dispatch: 'compliance-officer'}
+expected_escalation: true
+expected_escalation_reason: 'investigation actions require human discretion — substrate logs only'
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.3, communication-quality: 0.2, cost-efficiency: 0.1}

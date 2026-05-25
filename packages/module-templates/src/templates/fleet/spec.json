@@ -1,0 +1,66 @@
+{
+  "entities": [
+    {
+      "slug": "vehicle",
+      "display_name_en": "Vehicle",
+      "display_name_sw": "Gari",
+      "fields": [
+        { "name": "registration_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "kind", "kind": "enum", "required": true, "values": ["sedan", "suv", "van", "truck", "lorry", "bus", "motorcycle"] },
+        { "name": "make", "kind": "text", "required": true, "max_length": 64 },
+        { "name": "model", "kind": "text", "required": true, "max_length": 64 },
+        { "name": "year", "kind": "int", "required": true, "min": 1900, "max": 2100 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["active", "service", "retired"] }
+      ]
+    },
+    {
+      "slug": "driver",
+      "display_name_en": "Driver",
+      "display_name_sw": "Dereva",
+      "fields": [
+        { "name": "license_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "license_class", "kind": "enum", "required": true, "values": ["a", "b", "c", "ce", "d"] },
+        { "name": "license_expiry", "kind": "date", "required": true },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "trip",
+      "display_name_en": "Trip",
+      "display_name_sw": "Safari",
+      "fields": [
+        { "name": "trip_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "vehicle_id", "kind": "fk", "required": true, "references": "vehicle" },
+        { "name": "driver_id", "kind": "fk", "required": true, "references": "driver" },
+        { "name": "started_at", "kind": "datetime", "required": true },
+        { "name": "ended_at", "kind": "datetime", "required": false },
+        { "name": "start_odometer", "kind": "int", "required": true, "min": 0 },
+        { "name": "end_odometer", "kind": "int", "required": false, "min": 0 }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "create_assignment",
+      "title": "Assign a vehicle to a driver",
+      "trigger_entity": "trip",
+      "trigger_event": "create",
+      "steps": ["check_license_valid", "check_vehicle_status", "post_assignment", "notify_dispatcher"]
+    },
+    {
+      "slug": "schedule_service",
+      "title": "Schedule vehicle service",
+      "trigger_entity": "vehicle",
+      "trigger_event": "update",
+      "steps": ["assess_due", "book_workshop", "log_kilometers"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "vehicle", "columns": ["registration_no", "display_name", "status"] },
+    { "kind": "table", "entity": "driver", "columns": ["license_no", "display_name", "active"] },
+    { "kind": "table", "entity": "trip", "columns": ["trip_no", "display_name"] },
+    { "kind": "form", "entity": "trip" },
+    { "kind": "kpi_tile", "title": "Active vehicles", "query": "count(vehicle where status=active)" },
+    { "kind": "kpi_tile", "title": "Drivers with valid licence", "query": "count(driver where active=true)" }
+  ]
+}

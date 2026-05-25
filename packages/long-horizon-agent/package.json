@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/long-horizon-agent",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Piece Q — long-horizon agency loop. Multi-day / multi-week mission lifecycle: decompose → dispatch → checkpoint → drift-detect → replan → outcome + Reflexion feedback. Tenant-scoped, HITL-aware, cost-budget-aware.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

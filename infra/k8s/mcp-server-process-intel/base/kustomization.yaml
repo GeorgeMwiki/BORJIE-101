@@ -1,0 +1,24 @@
+# =============================================================================
+# mcp-server-process-intel base — Deployment + NetworkPolicy + ExternalSecret
+# =============================================================================
+# stdio-only MCP server with embedded pm4py Python sidecar. No HTTP /
+# Service / HPA / PDB / ServiceMonitor (pure stdio; api-gateway adapter
+# spawns the process directly).
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-app
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - deployment.yaml
+  - networkpolicy.yaml
+  - externalsecret.yaml
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-mcp-server-process-intel
+    newTag: latest

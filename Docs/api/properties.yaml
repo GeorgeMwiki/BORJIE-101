@@ -1,0 +1,1608 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Properties API
+  description: |
+    Property management API for BORJIE platform.
+    Manages properties, units, blocks, amenities, and property ownership.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Properties
+    description: Property management
+  - name: Units
+    description: Unit management within properties
+  - name: Blocks
+    description: Block/building management within properties
+  - name: Property Owners
+    description: Property owner management
+  - name: Amenities
+    description: Amenity management
+
+paths:
+  /properties:
+    get:
+      tags:
+        - Properties
+      summary: List properties
+      operationId: listProperties
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PropertyStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/PropertyType'
+        - name: search
+          in: query
+          description: Search by name or address
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          description: Filter by property owner
+          schema:
+            type: string
+            format: uuid
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - name
+              - createdAt
+              - totalUnits
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of properties
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Property'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Properties
+      summary: Create property
+      operationId: createProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePropertyRequest'
+      responses:
+        '201':
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /properties/{propertyId}:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Properties
+      summary: Get property details
+      operationId: getProperty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          description: Related resources to include
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - units
+                - blocks
+                - owners
+                - amenities
+                - stats
+      responses:
+        '200':
+          description: Property details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyWithRelations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Properties
+      summary: Update property
+      operationId: updateProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePropertyRequest'
+      responses:
+        '200':
+          description: Property updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Properties
+      summary: Archive property
+      description: Archive property (soft delete). Requires no active leases.
+      operationId: archiveProperty
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Property archived
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot archive - active leases exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /properties/{propertyId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Properties
+      summary: Get property statistics
+      operationId: getPropertyStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Property statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Units endpoints
+  /properties/{propertyId}/units:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Units
+      summary: List units for property
+      operationId: listPropertyUnits
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UnitStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/UnitType'
+        - name: blockId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: floor
+          in: query
+          schema:
+            type: integer
+        - name: minBedrooms
+          in: query
+          schema:
+            type: integer
+        - name: maxRent
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Paginated list of units
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Unit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Units
+      summary: Create unit
+      operationId: createUnit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUnitRequest'
+      responses:
+        '201':
+          description: Unit created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unit'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /properties/{propertyId}/units/bulk:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    post:
+      tags:
+        - Units
+      summary: Bulk create units
+      description: Create multiple units at once with pattern-based naming
+      operationId: bulkCreateUnits
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkCreateUnitsRequest'
+      responses:
+        '201':
+          description: Units created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: integer
+                  units:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Unit'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /units/{unitId}:
+    parameters:
+      - $ref: '#/components/parameters/UnitIdParam'
+
+    get:
+      tags:
+        - Units
+      summary: Get unit details
+      operationId: getUnit
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - property
+                - currentLease
+                - currentOccupant
+                - maintenanceHistory
+      responses:
+        '200':
+          description: Unit details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnitWithRelations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Units
+      summary: Update unit
+      operationId: updateUnit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUnitRequest'
+      responses:
+        '200':
+          description: Unit updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unit'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Units
+      summary: Deactivate unit
+      operationId: deactivateUnit
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Unit deactivated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot deactivate - active lease exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Blocks endpoints
+  /properties/{propertyId}/blocks:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Blocks
+      summary: List blocks for property
+      operationId: listPropertyBlocks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of blocks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Block'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Blocks
+      summary: Create block
+      operationId: createBlock
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBlockRequest'
+      responses:
+        '201':
+          description: Block created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /blocks/{blockId}:
+    parameters:
+      - $ref: '#/components/parameters/BlockIdParam'
+
+    get:
+      tags:
+        - Blocks
+      summary: Get block details
+      operationId: getBlock
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Block details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockWithUnits'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Blocks
+      summary: Update block
+      operationId: updateBlock
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBlockRequest'
+      responses:
+        '200':
+          description: Block updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Blocks
+      summary: Delete block
+      operationId: deleteBlock
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Block deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete - units exist in block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Property Owners endpoints
+  /property-owners:
+    get:
+      tags:
+        - Property Owners
+      summary: List property owners
+      operationId: listPropertyOwners
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of property owners
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PropertyOwner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Property Owners
+      summary: Create property owner
+      operationId: createPropertyOwner
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePropertyOwnerRequest'
+      responses:
+        '201':
+          description: Property owner created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwner'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /property-owners/{ownerId}:
+    parameters:
+      - $ref: '#/components/parameters/OwnerIdParam'
+
+    get:
+      tags:
+        - Property Owners
+      summary: Get property owner details
+      operationId: getPropertyOwner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - properties
+                - disbursements
+      responses:
+        '200':
+          description: Property owner details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnerWithRelations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Property Owners
+      summary: Update property owner
+      operationId: updatePropertyOwner
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePropertyOwnerRequest'
+      responses:
+        '200':
+          description: Property owner updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwner'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /properties/{propertyId}/ownership:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Property Owners
+      summary: Get property ownership
+      operationId: getPropertyOwnership
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Property ownership details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PropertyOwnership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Property Owners
+      summary: Assign property ownership
+      operationId: assignPropertyOwnership
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignOwnershipRequest'
+      responses:
+        '201':
+          description: Ownership assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnership'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Amenities endpoints
+  /properties/{propertyId}/amenities:
+    parameters:
+      - $ref: '#/components/parameters/PropertyIdParam'
+
+    get:
+      tags:
+        - Amenities
+      summary: List property amenities
+      operationId: listPropertyAmenities
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of amenities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Amenity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Amenities
+      summary: Add amenity
+      operationId: addPropertyAmenity
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAmenityRequest'
+      responses:
+        '201':
+          description: Amenity added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Amenity'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PropertyIdParam:
+      name: propertyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UnitIdParam:
+      name: unitId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    BlockIdParam:
+      name: blockId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    OwnerIdParam:
+      name: ownerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    PropertyType:
+      type: string
+      enum:
+        - residential_single
+        - residential_multi
+        - commercial
+        - mixed_use
+        - land
+
+    PropertyStatus:
+      type: string
+      enum:
+        - active
+        - inactive
+        - archived
+
+    UnitType:
+      type: string
+      enum:
+        - apartment
+        - studio
+        - house
+        - townhouse
+        - office
+        - retail
+        - warehouse
+        - parking
+
+    UnitStatus:
+      type: string
+      enum:
+        - available
+        - occupied
+        - reserved
+        - maintenance
+        - inactive
+
+    # Core Entities
+    Property:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - type
+        - address
+        - status
+        - totalUnits
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        type:
+          $ref: '#/components/schemas/PropertyType'
+        address:
+          $ref: '#/components/schemas/Address'
+        geoLocation:
+          $ref: '#/components/schemas/GeoPoint'
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        yearBuilt:
+          type: integer
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+        imageUrl:
+          type: string
+          format: uri
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PropertyWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Property'
+        - type: object
+          properties:
+            units:
+              type: array
+              items:
+                $ref: '#/components/schemas/Unit'
+            blocks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Block'
+            owners:
+              type: array
+              items:
+                $ref: '#/components/schemas/PropertyOwnership'
+            amenities:
+              type: array
+              items:
+                $ref: '#/components/schemas/Amenity'
+            stats:
+              $ref: '#/components/schemas/PropertyStats'
+
+    PropertyStats:
+      type: object
+      properties:
+        totalUnits:
+          type: integer
+        occupiedUnits:
+          type: integer
+        vacantUnits:
+          type: integer
+        maintenanceUnits:
+          type: integer
+        occupancyRate:
+          type: number
+          format: float
+        totalMonthlyRent:
+          $ref: '#/components/schemas/Money'
+        collectedThisMonth:
+          $ref: '#/components/schemas/Money'
+        pendingMaintenance:
+          type: integer
+        activeLeases:
+          type: integer
+        expiringLeases:
+          type: integer
+          description: Leases expiring in next 60 days
+
+    Unit:
+      type: object
+      required:
+        - id
+        - tenantId
+        - propertyId
+        - name
+        - type
+        - status
+        - monthlyRent
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        blockId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+          example: "Unit 101"
+        type:
+          $ref: '#/components/schemas/UnitType'
+        status:
+          $ref: '#/components/schemas/UnitStatus'
+        floor:
+          type: integer
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: number
+          format: float
+        squareFootage:
+          type: number
+        monthlyRent:
+          $ref: '#/components/schemas/Money'
+        securityDeposit:
+          $ref: '#/components/schemas/Money'
+        amenities:
+          type: array
+          items:
+            type: string
+        imageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UnitWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Unit'
+        - type: object
+          properties:
+            property:
+              $ref: '#/components/schemas/Property'
+            currentLease:
+              type: object
+              description: Current active lease summary
+            currentOccupant:
+              type: object
+              description: Current occupant info
+            maintenanceHistory:
+              type: array
+              items:
+                type: object
+
+    Block:
+      type: object
+      required:
+        - id
+        - propertyId
+        - name
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+          example: "Block A"
+        description:
+          type: string
+        floors:
+          type: integer
+        totalUnits:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    BlockWithUnits:
+      allOf:
+        - $ref: '#/components/schemas/Block'
+        - type: object
+          properties:
+            units:
+              type: array
+              items:
+                $ref: '#/components/schemas/Unit'
+
+    PropertyOwner:
+      type: object
+      required:
+        - id
+        - tenantId
+        - firstName
+        - lastName
+        - email
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: If owner has platform account
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        taxId:
+          type: string
+        bankAccount:
+          $ref: '#/components/schemas/BankAccount'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PropertyOwnerWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/PropertyOwner'
+        - type: object
+          properties:
+            properties:
+              type: array
+              items:
+                $ref: '#/components/schemas/PropertyOwnership'
+            disbursements:
+              type: array
+              items:
+                type: object
+
+    PropertyOwnership:
+      type: object
+      required:
+        - propertyOwnerId
+        - propertyId
+        - ownershipPercentage
+        - effectiveFrom
+      properties:
+        propertyOwnerId:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        ownershipPercentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+        owner:
+          $ref: '#/components/schemas/PropertyOwner'
+        property:
+          $ref: '#/components/schemas/Property'
+
+    Amenity:
+      type: object
+      required:
+        - id
+        - name
+        - category
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - building
+            - unit
+            - outdoor
+            - security
+            - utility
+        description:
+          type: string
+        iconName:
+          type: string
+
+    # Supporting Types
+    Address:
+      type: object
+      required:
+        - line1
+        - city
+        - country
+      properties:
+        line1:
+          type: string
+          maxLength: 255
+        line2:
+          type: string
+          maxLength: 255
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: KE
+
+    GeoPoint:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit (cents)
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: KES
+
+    BankAccount:
+      type: object
+      properties:
+        bankName:
+          type: string
+        accountName:
+          type: string
+        accountNumber:
+          type: string
+        branchCode:
+          type: string
+        swiftCode:
+          type: string
+
+    # Request Bodies
+    CreatePropertyRequest:
+      type: object
+      required:
+        - name
+        - type
+        - address
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        type:
+          $ref: '#/components/schemas/PropertyType'
+        address:
+          $ref: '#/components/schemas/Address'
+        geoLocation:
+          $ref: '#/components/schemas/GeoPoint'
+        yearBuilt:
+          type: integer
+        ownerId:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    UpdatePropertyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/PropertyType'
+        address:
+          $ref: '#/components/schemas/Address'
+        geoLocation:
+          $ref: '#/components/schemas/GeoPoint'
+        yearBuilt:
+          type: integer
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+        imageUrl:
+          type: string
+          format: uri
+        metadata:
+          type: object
+
+    CreateUnitRequest:
+      type: object
+      required:
+        - name
+        - type
+        - monthlyRent
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        type:
+          $ref: '#/components/schemas/UnitType'
+        blockId:
+          type: string
+          format: uuid
+        floor:
+          type: integer
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: number
+        squareFootage:
+          type: number
+        monthlyRent:
+          $ref: '#/components/schemas/Money'
+        securityDeposit:
+          $ref: '#/components/schemas/Money'
+        amenities:
+          type: array
+          items:
+            type: string
+
+    UpdateUnitRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/UnitType'
+        blockId:
+          type: string
+          format: uuid
+        floor:
+          type: integer
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: number
+        squareFootage:
+          type: number
+        monthlyRent:
+          $ref: '#/components/schemas/Money'
+        securityDeposit:
+          $ref: '#/components/schemas/Money'
+        status:
+          $ref: '#/components/schemas/UnitStatus'
+        amenities:
+          type: array
+          items:
+            type: string
+
+    BulkCreateUnitsRequest:
+      type: object
+      required:
+        - count
+        - template
+      properties:
+        count:
+          type: integer
+          minimum: 1
+          maximum: 100
+        blockId:
+          type: string
+          format: uuid
+        namePattern:
+          type: string
+          description: Pattern with {n} placeholder, e.g., "Unit {n}"
+          example: "Apt {n}"
+        startNumber:
+          type: integer
+          default: 1
+        template:
+          $ref: '#/components/schemas/CreateUnitRequest'
+
+    CreateBlockRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        floors:
+          type: integer
+
+    UpdateBlockRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        floors:
+          type: integer
+
+    CreatePropertyOwnerRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        taxId:
+          type: string
+        bankAccount:
+          $ref: '#/components/schemas/BankAccount'
+        inviteToPortal:
+          type: boolean
+          default: false
+
+    UpdatePropertyOwnerRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        taxId:
+          type: string
+        bankAccount:
+          $ref: '#/components/schemas/BankAccount'
+
+    AssignOwnershipRequest:
+      type: object
+      required:
+        - propertyOwnerId
+        - ownershipPercentage
+        - effectiveFrom
+      properties:
+        propertyOwnerId:
+          type: string
+          format: uuid
+        ownershipPercentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+
+    CreateAmenityRequest:
+      type: object
+      required:
+        - name
+        - category
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - building
+            - unit
+            - outdoor
+            - security
+            - utility
+        description:
+          type: string
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

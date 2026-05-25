@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/compliance-pack",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Compliance pack — SOC2/ISO27001/GDPR/CCPA/POPIA/TZ/KE/UG/RW/NG control catalogs + DSAR automation + right-to-erasure cascade with legal-hold + envelope encryption with cross-tenant context binding + per-region residency policy + per-jurisdiction breach notification. Pure functions, no DB or KMS dependency at type level.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

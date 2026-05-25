@@ -1,0 +1,71 @@
+{
+  "name": "@borjie/dynamic-sections",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Phase J3 — Dynamic-tabs / lazy-load framework. Section registry + visibility predicates + DynamicTabBar + deferred SectionMount. Mobile-first. Portals adopt this in a follow-up so tabs only render once their entity type exists in the tenant.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./seed": {
+      "types": "./src/seed/index.ts",
+      "import": "./dist/seed.mjs",
+      "require": "./dist/seed.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "storybook": "storybook dev -p 6007",
+    "build-storybook": "storybook build",
+    "clean": "rm -rf dist .turbo storybook-static"
+  },
+  "dependencies": {
+    "clsx": "^2.1.0"
+  },
+  "devDependencies": {
+    "@storybook/addon-links": "^10.4.0",
+    "@storybook/react": "^10.4.0",
+    "@storybook/react-vite": "^10.4.0",
+    "@tanstack/react-query": "^5.24.0",
+    "@testing-library/jest-dom": "^6.2.0",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "jsdom": "^24.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "storybook": "^10.4.0",
+    "tsup": "^8.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.24.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": false
+    }
+  }
+}

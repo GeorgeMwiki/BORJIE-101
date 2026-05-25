@@ -1,0 +1,29 @@
+id: arrears-triage-001
+scenario: arrears-triage
+title: '12-day arrears, first-time delinquency, partial payment in window'
+context:
+  tenant:
+    id: tnt-001
+    name: 'Asha Mwakasege'
+    arrears_days: 12
+    history: first-delinquency
+  property:
+    id: prop-001
+    block: 'Block A'
+    unit: '4B'
+  lease:
+    monthly_rent_minor: 65000000
+    currency: TZS
+  events:
+    - {at: '2026-04-15', kind: 'invoice.issued', amount_minor: 65000000}
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 65000000}
+    - {at: '2026-05-12', kind: 'partial_payment', amount_minor: 20000000}
+expected_actions:
+  - {tool: 'arrears.send_reminder', tone: 'firm-but-empathetic'}
+  - {tool: 'arrears.propose_payment_plan', max_installments: 3}
+expected_escalation: false
+scorer_weights:
+  action-correctness: 0.4
+  escalation-correctness: 0.2
+  communication-quality: 0.3
+  cost-efficiency: 0.1

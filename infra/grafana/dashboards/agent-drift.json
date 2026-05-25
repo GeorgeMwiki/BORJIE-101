@@ -1,0 +1,157 @@
+{
+  "annotations": { "list": [] },
+  "description": "Persona-drift events over time. Reads persona_drift_event_count (24-dim probe verdicts from packages/central-intelligence/src/kernel/persona-drift/ and self-awareness.ts step 10). Highlights drift verdicts (warn / soften / block) per agent + dimension. Owner: D6 (Phase D).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value" },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(persona_drift_event_count{agent=~\"$agent\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Drift events / 1h",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(increase(persona_drift_event_count{agent=~\"$agent\",verdict=\"block\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Block verdicts / 1h",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum(increase(persona_drift_event_count{agent=~\"$agent\",verdict=\"soften\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Soften verdicts / 1h",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(increase(persona_drift_event_count{agent=~\"$agent\",verdict=\"warn\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Warn verdicts / 1h",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 4 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(rate(persona_drift_event_count{agent=~\"$agent\"}[5m])) by (verdict)",
+          "legendFormat": "{{verdict}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Drift events / sec by verdict",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "topk(10, sum by (dimension) (increase(persona_drift_event_count{agent=~\"$agent\"}[6h])))",
+          "legendFormat": "{{dimension}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Top 10 24-dim probe dimensions (6h)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum(rate(persona_drift_event_count{agent=~\"$agent\"}[5m])) by (agent)",
+          "legendFormat": "{{agent}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Drift event rate by agent",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 22 },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "sum(rate(persona_drift_event_count{agent=~\"$agent\",verdict=~\"soften|block\"}[5m])) by (agent, dimension)",
+          "legendFormat": "{{agent}} / {{dimension}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Hard-verdict (soften / block) drift events by agent + dimension",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["borjie", "agent", "drift", "persona", "phase-d", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(persona_drift_event_count, agent)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Agent",
+        "multi": true,
+        "name": "agent",
+        "options": [],
+        "query": { "query": "label_values(persona_drift_event_count, agent)", "refId": "Variable-agent" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "BORJIE Agent — Persona Drift",
+  "uid": "borjie-agent-drift",
+  "version": 1,
+  "weekStart": ""
+}

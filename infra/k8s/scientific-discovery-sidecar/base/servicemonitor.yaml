@@ -1,0 +1,26 @@
+# NOTE: This ServiceMonitor scrapes /metrics on the app port (8000). The
+# FastAPI service does NOT currently expose a Prometheus /metrics handler —
+# wire `prometheus-fastapi-instrumentator` in app/main.py to enable scraping.
+# Until then, scrapes will 404 (harmless for Prometheus; tracked as follow-up).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: scientific-discovery-sidecar
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - borjie-app
+      - borjie-staging
+      - borjie-prod

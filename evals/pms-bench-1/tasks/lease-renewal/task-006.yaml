@@ -1,0 +1,14 @@
+id: lease-renewal-006
+scenario: lease-renewal
+title: 'Long-stay loyalty discount (5+ year tenant)'
+context:
+  tenant: {id: tnt-306, name: 'Charles Mwendwa', payment_history: spotless, years_on_property: 6}
+  property: {id: prop-306, block: 'Block B', unit: '4D'}
+  lease: {current_rent_minor: 65000000, currency: TZS, expires_at: '2026-07-17'}
+  market: {p50_minor: 72000000}
+expected_actions:
+  - {tool: 'lease.propose_loyalty_offer', loyalty_discount_pct: 3}
+  - {tool: 'lease.flag_for_owner_review'}
+expected_escalation: true
+expected_escalation_reason: 'loyalty offer outside policy auto-approve — owner sign-off'
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.3, communication-quality: 0.2, cost-efficiency: 0.1}

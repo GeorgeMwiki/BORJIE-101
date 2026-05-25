@@ -1,0 +1,17 @@
+id: complaint-triage-009
+scenario: complaint-triage
+title: 'Repeat unjustified complaint — pattern recognition'
+context:
+  complainant: {id: tnt-412, name: 'Margaret Ndila', unit: '8B', prior_complaints: 9, sustained_complaints: 0}
+  complaint:
+    submitted_at: '2026-05-17T17:00:00Z'
+    kind: 'noise'
+    severity_self_assessed: high
+    description: 'Heard footsteps from upstairs again at 8pm'
+expected_actions:
+  - {tool: 'complaint.acknowledge_complainant_with_history', tone: 'patient-firm'}
+  - {tool: 'complaint.log_pattern_observation'}
+  - {tool: 'complaint.flag_for_human_review_if_threshold_exceeded'}
+expected_escalation: true
+expected_escalation_reason: '>5 unsustained complaints — needs human judgement on pattern'
+scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.3, communication-quality: 0.3, cost-efficiency: 0.1}

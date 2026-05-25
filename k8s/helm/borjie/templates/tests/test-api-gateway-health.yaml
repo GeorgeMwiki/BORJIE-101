@@ -1,0 +1,52 @@
+{{- if .Values.services.apiGateway.enabled -}}
+# Helm test: verify api-gateway responds 200 on /healthz.
+# This is the canary check — if api-gateway is up, all 4 frontends can
+# reach business logic.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-api-gateway"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- include "borjie.podSecurityContext" . | nindent 4 }}
+  containers:
+    - name: curl-test
+      image: "curlimages/curl:8.10.1"
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -euo pipefail
+          URL=http://{{ .Values.services.apiGateway.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.services.apiGateway.port }}{{ .Values.services.apiGateway.healthPath }}
+          echo "==> probing $URL"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 5 "$URL" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "==> api-gateway healthy (HTTP $CODE)"
+              cat /tmp/body
+              exit 0
+            fi
+            echo "  attempt $i: HTTP $CODE, sleeping 2s"
+            sleep 2
+          done
+          echo "FAIL: api-gateway did not return 200 within 60s"
+          cat /tmp/body || true
+          exit 1
+      resources:
+        requests: { cpu: 50m, memory: 32Mi }
+        limits:   { cpu: 100m, memory: 64Mi }
+      securityContext:
+        {{- include "borjie.containerSecurityContext" . | nindent 8 }}
+      volumeMounts:
+        - { name: tmp, mountPath: /tmp }
+  volumes:
+    - { name: tmp, emptyDir: { sizeLimit: 32Mi } }
+{{- end }}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "scripts/*.ts", "scripts/*.js"],
+      "project": ["scripts/**/*.{ts,mjs,js}"]
+    },
+    "packages/*": {
+      "entry": [
+        "src/index.ts",
+        "src/**/__tests__/**/*.test.ts",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts"
+      ],
+      "project": "src/**/*.{ts,tsx}"
+    },
+    "services/*": {
+      "entry": [
+        "src/index.ts",
+        "src/server.ts",
+        "src/**/__tests__/**/*.test.ts",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts"
+      ],
+      "project": "src/**/*.{ts,tsx}"
+    },
+    "apps/*": {
+      "entry": [
+        "src/app/**/page.tsx",
+        "src/app/**/layout.tsx",
+        "src/app/**/route.ts",
+        "src/main.tsx",
+        "src/main.ts",
+        "src/index.tsx",
+        "src/index.ts"
+      ],
+      "project": "src/**/*.{ts,tsx}"
+    }
+  },
+  "ignore": [
+    "**/dist/**",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/__mocks__/**",
+    "**/__fixtures__/**",
+    "evals/**",
+    "e2e/**"
+  ],
+  "ignoreBinaries": ["docker", "docker-compose", "pnpm", "tsx", "pgroll", "atlas"],
+  "ignoreDependencies": ["@borjie/*"]
+}

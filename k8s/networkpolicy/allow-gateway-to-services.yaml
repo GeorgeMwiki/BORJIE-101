@@ -1,0 +1,24 @@
+---
+# api-gateway is the only pod allowed to talk to the 3 internal services.
+# This rule sits at the namespace level so it's auditable as a single object.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-services
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [payments-ledger, reports, notifications]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: api-gateway } }
+      ports:
+        - { protocol: TCP, port: 4010 }   # payments-ledger
+        - { protocol: TCP, port: 4020 }   # reports
+        - { protocol: TCP, port: 4030 }   # notifications

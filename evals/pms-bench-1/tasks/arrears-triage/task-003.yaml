@@ -1,0 +1,28 @@
+id: arrears-triage-003
+scenario: arrears-triage
+title: '3-day arrears, long-standing tenant, payment failure (bank reject)'
+context:
+  tenant:
+    id: tnt-003
+    name: 'Grace Mboya'
+    arrears_days: 3
+    history: 5-year-tenant-zero-prior-arrears
+  property:
+    id: prop-003
+    block: 'Block B'
+    unit: '7C'
+  lease:
+    monthly_rent_minor: 85000000
+    currency: TZS
+  events:
+    - {at: '2026-04-30', kind: 'payment_attempted', amount_minor: 85000000}
+    - {at: '2026-05-01', kind: 'payment_failed', reason: 'insufficient_funds'}
+expected_actions:
+  - {tool: 'arrears.send_friendly_nudge', tone: 'warm-respectful'}
+  - {tool: 'arrears.offer_payment_retry', delay_hours: 48}
+expected_escalation: false
+scorer_weights:
+  action-correctness: 0.3
+  escalation-correctness: 0.2
+  communication-quality: 0.4
+  cost-efficiency: 0.1

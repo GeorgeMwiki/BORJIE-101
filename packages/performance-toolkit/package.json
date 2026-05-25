@@ -1,0 +1,60 @@
+{
+  "name": "@borjie/performance-toolkit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA 2026 performance toolkit: lazy-load primitives (lazyWithRetry handles ChunkLoadError after deploys), streaming SSE helpers, cache strategies (ETag/304, stale-while-revalidate, Brotli, Cache-Control presets), bundle-budget enforcement, Anthropic prompt-cache helpers (90% savings on stable system prefixes), web-vitals v5 + RED metrics sink. Zero hard runtime deps — peerDeps for React/Hono.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "borjie-bundle-check": "./dist/bundle-budget/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./lazy-load": {
+      "types": "./dist/lazy-load/index.d.ts",
+      "import": "./dist/lazy-load/index.js"
+    },
+    "./streaming": {
+      "types": "./dist/streaming/index.d.ts",
+      "import": "./dist/streaming/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    },
+    "./bundle-budget": {
+      "types": "./dist/bundle-budget/index.d.ts",
+      "import": "./dist/bundle-budget/index.js"
+    },
+    "./prompt-cache": {
+      "types": "./dist/prompt-cache/index.d.ts",
+      "import": "./dist/prompt-cache/index.js"
+    },
+    "./perf-metrics": {
+      "types": "./dist/perf-metrics/index.d.ts",
+      "import": "./dist/perf-metrics/index.js"
+    },
+    "./yield-and-chunk": {
+      "types": "./dist/yield-and-chunk/index.d.ts",
+      "import": "./dist/yield-and-chunk/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

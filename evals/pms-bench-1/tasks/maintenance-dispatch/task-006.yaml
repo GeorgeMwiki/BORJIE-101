@@ -1,0 +1,16 @@
+id: maintenance-dispatch-006
+scenario: maintenance-dispatch
+title: 'Owner-side request: routine block fire extinguisher service'
+context:
+  property: {id: prop-106, block: 'Block B', unit: 'common-area'}
+  initiator: {role: 'block-owner', id: own-106}
+  report:
+    submitted_at: '2026-05-17T09:00:00Z'
+    severity_self_assessed: low
+    description: 'Annual fire extinguisher inspection per compliance schedule'
+expected_actions:
+  - {tool: 'maintenance.classify_severity', expected_class: 'P3-compliance'}
+  - {tool: 'maintenance.schedule_compliance_visit', service: 'fire-extinguisher-annual'}
+  - {tool: 'maintenance.notify_owner', tone: 'professional-confirming'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.1, communication-quality: 0.2, cost-efficiency: 0.2}

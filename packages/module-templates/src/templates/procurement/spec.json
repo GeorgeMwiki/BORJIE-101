@@ -1,0 +1,66 @@
+{
+  "entities": [
+    {
+      "slug": "vendor",
+      "display_name_en": "Vendor",
+      "display_name_sw": "Muuzaji",
+      "fields": [
+        { "name": "vendor_code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "tin", "kind": "text", "required": false, "max_length": 32 },
+        { "name": "preferred_payment_terms_days", "kind": "int", "required": false, "min": 0, "max": 365 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["active", "blocked", "deactivated"] }
+      ]
+    },
+    {
+      "slug": "purchase_order",
+      "display_name_en": "Purchase Order",
+      "display_name_sw": "Oda ya Manunuzi",
+      "fields": [
+        { "name": "po_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "vendor_id", "kind": "fk", "required": true, "references": "vendor" },
+        { "name": "issued_on", "kind": "date", "required": true },
+        { "name": "total_amount", "kind": "money", "required": true, "currency_field": "tenant_default" },
+        { "name": "status", "kind": "enum", "required": true, "values": ["draft", "issued", "received", "closed", "cancelled"] }
+      ]
+    },
+    {
+      "slug": "invoice",
+      "display_name_en": "Invoice",
+      "display_name_sw": "Ankara",
+      "fields": [
+        { "name": "invoice_no", "kind": "text", "required": true, "max_length": 64, "index": true },
+        { "name": "vendor_id", "kind": "fk", "required": true, "references": "vendor" },
+        { "name": "po_id", "kind": "fk", "required": false, "references": "purchase_order" },
+        { "name": "invoice_date", "kind": "date", "required": true },
+        { "name": "due_date", "kind": "date", "required": true },
+        { "name": "total_amount", "kind": "money", "required": true },
+        { "name": "status", "kind": "enum", "required": true, "values": ["received", "approved", "paid", "disputed"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "create_invoice_draft",
+      "title": "Draft a new invoice",
+      "trigger_entity": "invoice",
+      "trigger_event": "create",
+      "steps": ["match_po", "verify_grn", "post_payable_draft"]
+    },
+    {
+      "slug": "approve_purchase_order",
+      "title": "Approve a purchase order",
+      "trigger_entity": "purchase_order",
+      "trigger_event": "update",
+      "steps": ["budget_check", "supplier_qualification", "issue_po"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "vendor", "columns": ["vendor_code", "display_name", "status"] },
+    { "kind": "table", "entity": "purchase_order", "columns": ["po_no", "display_name", "status"] },
+    { "kind": "table", "entity": "invoice", "columns": ["invoice_no", "display_name", "status"] },
+    { "kind": "form", "entity": "purchase_order" },
+    { "kind": "form", "entity": "invoice" },
+    { "kind": "kpi_tile", "title": "Open POs", "query": "count(purchase_order where status=issued)" },
+    { "kind": "kpi_tile", "title": "Invoices awaiting approval", "query": "count(invoice where status=received)" }
+  ]
+}

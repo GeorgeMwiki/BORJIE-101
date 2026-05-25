@@ -1,0 +1,53 @@
+# scientific-discovery-sidecar — pinned runtime + test deps.
+#
+# Implements the FastAPI service spec'd in
+# packages/scientific-discovery/src/sidecar/python-sidecar-spec.md.
+#
+# Pins are MAJOR-locked so unattended `pip install -r requirements.txt`
+# in CI is reproducible while leaving room for security patches.
+
+# --- web framework ---------------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.27
+# Bumped 2026-05-25 from 0.0.20 to clear CVE-2026-24486 (arbitrary file
+# write) + CVE-2026-42561 (parser DoS). Patch-only; API-compat with 0.0.20.
+
+# --- causal-inference engines ---------------------------------------------
+# DoWhy: ATE estimation + the refutation battery (placebo, bootstrap,
+# dummy-outcome / unobserved-confounder).
+dowhy==0.12
+
+# Tigramite: PCMCIplus time-series causal discovery.
+tigramite==5.2.6.7
+
+# EconML is a soft-dep of DoWhy for some estimators; pin to silence
+# version-resolver warnings and keep the heuristic-IV estimator alive.
+econml==0.15.1
+
+# --- numerical stack -------------------------------------------------------
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+scikit-learn==1.6.0
+statsmodels==0.14.4
+networkx==3.4.2
+
+# --- I/O ------------------------------------------------------------------
+pyarrow==18.1.0  # parquet support
+
+# --- observability --------------------------------------------------------
+# Prometheus middleware: registers /metrics on the same FastAPI app so the
+# ServiceMonitor scrape (infra/k8s/scientific-discovery-sidecar/base/
+# servicemonitor.yaml) hits the app port (8000) rather than needing a
+# second metrics listener.
+prometheus-fastapi-instrumentator==7.1.0
+
+# --- testing --------------------------------------------------------------
+pytest==9.0.3
+# Bumped 2026-05-25 from 8.3.4 to clear GHSA-6w46-j5rx-g56g (pytest path
+# traversal in test report paths). Patch-only; tests on this codebase do
+# not rely on pytest 8.x-only behaviors.
+httpx==0.28.1  # FastAPI TestClient transport
+anyio==4.7.0

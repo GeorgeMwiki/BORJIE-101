@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/user-context-store",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Role-aware user-context store — builds rich per-user dossiers (profile + signals + triggers + scoped semantic search) so the advisor has an unfair information advantage over generic LLMs. Implements P7's DataPort contract; ports for embedder, audit, and persistence are injected.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

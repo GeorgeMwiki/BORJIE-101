@@ -1,0 +1,31 @@
+---
+# Allow ingress to payments-ledger from api-gateway + the
+# scheduled-tasks runner (cron sweeps for daily/monthly settlement).
+# No external ingress — payment writes always flow through the
+# api-gateway middleware.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-payments-ledger-ingress
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: payments-ledger
+    app.kubernetes.io/managed-by: helm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: payments-ledger
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api-gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: scheduled-tasks
+      ports:
+        - protocol: TCP
+          port: 3010

@@ -1,0 +1,12 @@
+id: lease-renewal-007
+scenario: lease-renewal
+title: 'Lease auto-renewing on rolling clause — silent renewal allowed'
+context:
+  tenant: {id: tnt-307, name: 'Ann Wambui', payment_history: spotless}
+  property: {id: prop-307, block: 'Block A', unit: '9C'}
+  lease: {current_rent_minor: 78000000, currency: TZS, expires_at: '2026-07-17', auto_renew_clause: 'rolling-monthly'}
+expected_actions:
+  - {tool: 'lease.confirm_silent_renewal_allowed'}
+  - {tool: 'lease.notify_tenant_renewal_confirmed', tone: 'minimal-courteous'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.5, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.1}

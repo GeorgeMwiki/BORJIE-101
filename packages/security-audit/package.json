@@ -1,0 +1,42 @@
+{
+  "name": "@borjie/security-audit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Security-audit toolchain: hardcoded-data scanner, RLS gap scanner, cross-tenant regression harness, PII-redaction helpers.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./scanners": {
+      "types": "./src/scanners/index.ts",
+      "import": "./dist/scanners/index.js",
+      "default": "./dist/scanners/index.js"
+    },
+    "./regression": {
+      "types": "./src/regression/index.ts",
+      "import": "./dist/regression/index.js",
+      "default": "./dist/regression/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "echo 'no lint configured'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

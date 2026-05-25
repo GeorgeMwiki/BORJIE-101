@@ -1,0 +1,53 @@
+# =============================================================================
+# Production overlay — full replica counts, prod hosts, hardened HPA + PDB
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-prod
+
+resources:
+  - ../../namespaces/borjie-prod.yaml
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-api-gateway
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-consolidation-worker
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-mcp-process-intel
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-mcp-nin
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-mcp-firs
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-mcp-nggis
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-mcp-opay
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-document-intelligence
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-domain-services
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-identity
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-notifications
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-payments
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-reports
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-webhooks
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-customer-app
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-owner-portal
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-admin-web
+    newTag: latest
+  - name: ghcr.io/georgemwiki/borjie-estate-manager-app
+    newTag: latest
+
+patches:
+  - path: patches/hpa-prod.yaml
+  - path: patches/anti-affinity.yaml

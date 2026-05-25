@@ -1,0 +1,83 @@
+{{- $w := .Values.services.reports -}}
+{{- if $w.enabled -}}
+# reports — heavy-query service. Internal-only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $w.name }}
+    borjie.io/tier: service
+    borjie.io/visibility: internal
+spec:
+  replicas: {{ .Values.replicaCount.reports }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $w.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.labels" . | nindent 8 }}
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ $w.name }}
+        borjie.io/tier: service
+        borjie.io/visibility: internal
+      annotations:
+        {{- include "borjie.podAnnotations" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      securityContext:
+        {{- include "borjie.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $w.name }}
+          # TODO(scaffold): pin image.tag in CI to the git SHA.
+          image: {{ include "borjie.image" (dict "Values" .Values "workload" $w) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: {{ $w.port }}, protocol: TCP }
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef:    { name: app-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: SERVICE_NAME
+              value: reports
+            # Reports often hits Postgres directly — allow R/W split via
+            # DATABASE_URL_READ.
+            # TODO(scaffold): wire DATABASE_URL_READ to a Postgres replica.
+          resources:
+            {{- toYaml $w.resources | nindent 12 }}
+          startupProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: {{ $w.healthPath }}, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            {{- include "borjie.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
+{{- end }}

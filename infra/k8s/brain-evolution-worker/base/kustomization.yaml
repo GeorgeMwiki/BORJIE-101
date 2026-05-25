@@ -1,0 +1,24 @@
+# =============================================================================
+# brain-evolution-worker base — CronJob (no HTTP, no Service, no HPA/PDB)
+# =============================================================================
+# A CronJob has no Pod-controller revisions for HPA to scale, no continuous
+# pods for PDB to protect, and no Service/ServiceMonitor because the worker
+# never exposes an HTTP surface. Only the four files below apply.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-jobs
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - cronjob.yaml
+  - networkpolicy.yaml
+  - externalsecret.yaml
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-brain-evolution-worker
+    newTag: latest

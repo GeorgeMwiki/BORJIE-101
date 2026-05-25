@@ -1,0 +1,102 @@
+# =============================================================================
+# DB Migrations Check
+# =============================================================================
+# Lints migration files for forward-only compatibility and dry-runs each
+# migration against an empty Postgres container.
+# =============================================================================
+
+name: DB Migrations Check
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**/migrations/**'
+      - 'services/**/migrations/**'
+      - 'infrastructure/**/migrations/**'
+      - 'prisma/**'
+      - '**/schema.prisma'
+  workflow_dispatch:
+
+concurrency:
+  group: db-migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-migrations:
+    name: Lint migrations (forward-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Disallow destructive statements in new migrations
+        run: |
+          set -e
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE_SHA" ]; then BASE_SHA="HEAD~1"; fi
+          CHANGED=$(git diff --name-only "$BASE_SHA" HEAD | grep -E '(migrations/.*\.(sql|ts|js)|schema\.prisma)$' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No migration changes detected."
+            exit 0
+          fi
+          echo "Changed migration files:"; echo "$CHANGED"
+          BAD=0
+          for f in $CHANGED; do
+            if grep -E -i '\b(DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM)\b' "$f" > /dev/null 2>&1; then
+              echo "::warning file=$f::Destructive statement detected; migrations should be forward-only."
+              BAD=1
+            fi
+          done
+          if [ "$BAD" -ne 0 ]; then
+            echo "::error::One or more migrations contain destructive statements."
+            exit 1
+          fi
+
+  dry-run-migrations:
+    name: Dry-run against empty Postgres
+    runs-on: ubuntu-latest
+    needs: lint-migrations
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: borjie
+          POSTGRES_PASSWORD: borjie
+          POSTGRES_DB: borjie_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U borjie"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://borjie:borjie@localhost:5432/borjie_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U borjie && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run migrations (dry-run)
+        run: |
+          if pnpm --silent has:migrations 2>/dev/null; then
+            pnpm migrate:dry-run || pnpm migrate
+          else
+            # Fallback: attempt common entry points
+            pnpm -w run migrate --if-present || true
+            pnpm exec prisma migrate deploy || true
+          fi

@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: parcel-service
+  labels:
+    app.kubernetes.io/name: parcel-service
+    app.kubernetes.io/part-of: borjie
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: parcel-service
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - borjie-app
+      - borjie-staging
+      - borjie-prod

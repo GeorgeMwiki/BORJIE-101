@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-app
+
+resources:
+  - ../../base
+
+commonLabels:
+  app.kubernetes.io/instance: prod
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-field-capture-service
+    newTag: prod

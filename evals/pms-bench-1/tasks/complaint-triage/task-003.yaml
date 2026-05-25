@@ -1,0 +1,17 @@
+id: complaint-triage-003
+scenario: complaint-triage
+title: 'Parking dispute (one tenant blocking anothers car)'
+context:
+  complainant: {id: tnt-405, name: 'Stephen Onyango', unit: '5C'}
+  subject_tenant: {id: tnt-406, name: 'Visitor of unit 5D', unit: 'guest-of-5D'}
+  complaint:
+    submitted_at: '2026-05-17T07:30:00Z'
+    kind: 'parking'
+    severity_self_assessed: medium
+    description: 'Guest car blocking my reserved spot for 2 days'
+expected_actions:
+  - {tool: 'complaint.classify_severity', expected_class: 'P3-disputes'}
+  - {tool: 'complaint.contact_host_unit', host: '5D', tone: 'neutral-factual'}
+  - {tool: 'complaint.update_complainant', tone: 'informative-supportive'}
+expected_escalation: false
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

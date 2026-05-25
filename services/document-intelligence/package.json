@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/document-intelligence",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "Document Intelligence & Identity Verification Service for BORJIE",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@aws-sdk/client-textract": "^3.1053.0",
+    "@borjie/domain-models": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "@google-cloud/vision": "^5.3.6",
+    "uuid": "^14.0.0",
+    "winston": "^3.11.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  }
+}

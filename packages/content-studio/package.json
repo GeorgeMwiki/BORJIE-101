@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/content-studio",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Multi-modal content generation (image/video/voice) for property management. Provider-agnostic router + per-tenant brand-LoRA registry + C2PA provenance. Scaffold-only stubs; real API wiring is a follow-up when keys land.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/enterprise-hardening": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "c2pa-node": ">=0.5.0"
+  },
+  "peerDependenciesMeta": {
+    "c2pa-node": {
+      "optional": true
+    }
+  }
+}

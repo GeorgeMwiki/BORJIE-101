@@ -1,0 +1,142 @@
+{{- if and .Values.postgres.enabled (not .Values.postgres.external.enabled) -}}
+{{- $pg := .Values.postgres.statefulSet -}}
+# Postgres 16 StatefulSet with anti-affinity + PDB.
+# For full HA (Patroni / etcd / streaming replication) see k8s/ha/.
+# This baseline assumes the StatefulSet runs as 3 replicas with shared
+# storage class; promote to k8s/ha/ when going to production.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None   # Headless service for StatefulSet.
+  selector:
+    {{- include "borjie.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres, protocol: TCP }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: postgres
+  replicas: {{ $pg.replicas }}
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        {{- include "borjie.labels" . | nindent 8 }}
+        {{- include "borjie.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          {{- if eq $pg.antiAffinity "required" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "borjie.selectorLabels" . | nindent 18 }}
+                  app.kubernetes.io/component: postgres
+              topologyKey: kubernetes.io/hostname
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "borjie.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: postgres
+          {{- end }}
+      securityContext:
+        {{- include "borjie.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: postgres
+          image: "{{ $pg.image.repository }}:{{ $pg.image.tag }}"
+          ports:
+            - { name: postgres, containerPort: 5432, protocol: TCP }
+          env:
+            - name: POSTGRES_DB
+              value: borjie
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_PASSWORD } }
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            {{- toYaml $pg.resources | nindent 12 }}
+          livenessProbe:
+            exec: { command: ["pg_isready", "-U", "$(POSTGRES_USER)"] }
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "$(POSTGRES_USER)"] }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          securityContext:
+            # Postgres needs to write its data dir — readOnlyRootFilesystem doesn't fit.
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: {{ .Values.podSecurity.runAsUser }}
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "borjie.labels" . | nindent 10 }}
+          app.kubernetes.io/component: postgres
+      spec:
+        accessModes: [ReadWriteOnce]
+        # TODO(scaffold): set storageClassName to match your cluster (gce-pd, gp3, longhorn, ...).
+        {{- if $pg.storage.storageClassName }}
+        storageClassName: {{ $pg.storage.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $pg.storage.size }}
+{{- if $pg.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  minAvailable: {{ $pg.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  unhealthyPodEvictionPolicy: IfHealthyBudget
+{{- end }}
+{{- else if .Values.postgres.external.enabled }}
+# External Postgres path. The application receives DATABASE_URL via the
+# ExternalSecret (see templates/secrets-external.yaml). No StatefulSet
+# is rendered. This file is intentionally empty in that case.
+{{- end }}

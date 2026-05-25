@@ -1,0 +1,73 @@
+{
+  "name": "@borjie/document-ai",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "AI amplification for document-studio: OCR pipeline, chat-with-doc, multi-doc reasoning, schema-guided form extraction, multilingual TZ/KE/UG translation, e-signature ports (DocuSign/HelloSign/Adobe + local pdf-lib fallback), and PDF/A + PDF/UA accessibility validators. Provider-agnostic. Scaffold-first; real API wiring lands when keys arrive.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ocr": {
+      "types": "./dist/ocr/index.d.ts",
+      "default": "./dist/ocr/index.js"
+    },
+    "./chat-with-doc": {
+      "types": "./dist/chat-with-doc/index.d.ts",
+      "default": "./dist/chat-with-doc/index.js"
+    },
+    "./form-extraction": {
+      "types": "./dist/form-extraction/index.d.ts",
+      "default": "./dist/form-extraction/index.js"
+    },
+    "./multilingual": {
+      "types": "./dist/multilingual/index.d.ts",
+      "default": "./dist/multilingual/index.js"
+    },
+    "./e-signature": {
+      "types": "./dist/e-signature/index.d.ts",
+      "default": "./dist/e-signature/index.js"
+    },
+    "./accessibility": {
+      "types": "./dist/accessibility/index.d.ts",
+      "default": "./dist/accessibility/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/brain-llm-router": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "tesseract.js": ">=5.0.0",
+    "pdf-lib": ">=1.17.0",
+    "franc-min": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "tesseract.js": {
+      "optional": true
+    },
+    "pdf-lib": {
+      "optional": true
+    },
+    "franc-min": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

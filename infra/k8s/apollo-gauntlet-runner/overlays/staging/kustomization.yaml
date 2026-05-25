@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Staging and prod share `borjie-jobs` — same convention as
+# brain-evolution-worker. Suffix every resource with `-staging` to avoid
+# name collisions inside the shared namespace.
+namespace: borjie-jobs
+nameSuffix: -staging
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-apollo-gauntlet-runner
+    newTag: staging
+
+patches:
+  - target:
+      kind: CronJob
+      name: apollo-gauntlet-runner
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+  - target:
+      kind: ExternalSecret
+      name: apollo-gauntlet-runner-secrets
+    patch: |-
+      - op: replace
+        path: /spec/dataFrom/0/extract/key
+        value: borjie/staging/apollo-gauntlet-runner

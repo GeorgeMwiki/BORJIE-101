@@ -1,0 +1,13 @@
+# Prod — REQUIRE pods on distinct nodes (harder than the preferred rule in base)
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api-gateway }
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: { app.kubernetes.io/name: api-gateway }
+              topologyKey: kubernetes.io/hostname

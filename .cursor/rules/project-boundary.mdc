@@ -1,0 +1,10 @@
+---
+description: This repo is BORJIE only; Pongezi is a separate project.
+alwaysApply: true
+---
+
+# Project boundary
+
+- **This repository is BORJIE only.** Property management SaaS (East Africa).
+- **Pongezi is a separate project.** Different repo, different product. Do not conflate or mix with BORJIE.
+- In this codebase: no Pongezi-specific code, config, or references. All work here is for BORJIE.

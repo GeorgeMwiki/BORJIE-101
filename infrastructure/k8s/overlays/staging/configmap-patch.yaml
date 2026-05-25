@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: borjie-config
+  namespace: borjie
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  API_URL: "https://api.staging.borjie.com/api/v1"
+  POSTGRES_HOST: "postgres-service.borjie.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "borjie"
+  REDIS_HOST: "redis-service.borjie.svc.cluster.local"
+  REDIS_PORT: "6379"

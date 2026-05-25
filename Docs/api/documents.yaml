@@ -1,0 +1,1928 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Documents API
+  description: |
+    Document management API for BORJIE platform.
+    Handles document upload, OCR processing, verification, templates, and electronic signatures.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Documents
+    description: Document management and storage
+  - name: OCR
+    description: Optical Character Recognition processing
+  - name: Verification
+    description: Document verification and validation
+  - name: Templates
+    description: Document template management
+  - name: Signatures
+    description: Electronic signature management
+
+paths:
+  /documents:
+    get:
+      tags:
+        - Documents
+      summary: List documents
+      operationId: listDocuments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocumentType'
+        - name: associatedType
+          in: query
+          description: Filter by associated entity type
+          schema:
+            type: string
+            enum:
+              - lease
+              - property
+              - unit
+              - customer
+              - work_order
+              - payment
+        - name: associatedId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: uploadedBy
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocumentStatus'
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated list of documents
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Documents
+      summary: Upload document
+      operationId: uploadDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to upload
+                type:
+                  $ref: '#/components/schemas/DocumentType'
+                name:
+                  type: string
+                  description: Custom name (auto-generated from filename if not provided)
+                description:
+                  type: string
+                associatedType:
+                  type: string
+                  enum:
+                    - lease
+                    - property
+                    - unit
+                    - customer
+                    - work_order
+                    - payment
+                associatedId:
+                  type: string
+                  format: uuid
+                tags:
+                  type: array
+                  items:
+                    type: string
+                processOcr:
+                  type: boolean
+                  default: false
+                  description: Process document with OCR
+                expiresAt:
+                  type: string
+                  format: date-time
+                  description: Optional expiration date for the document
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/bulk:
+    post:
+      tags:
+        - Documents
+      summary: Bulk upload documents
+      operationId: bulkUploadDocuments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 10
+                type:
+                  $ref: '#/components/schemas/DocumentType'
+                associatedType:
+                  type: string
+                associatedId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Documents uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploaded:
+                    type: integer
+                  failed:
+                    type: integer
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        filename:
+                          type: string
+                        error:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - Documents
+      summary: Get document details
+      operationId: getDocument
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Documents
+      summary: Update document metadata
+      operationId: updateDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDocumentRequest'
+      responses:
+        '200':
+          description: Document updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Documents
+      summary: Delete document
+      operationId: deleteDocument
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Document deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete - document is referenced by other entities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents/{documentId}/download:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - Documents
+      summary: Download document
+      operationId: downloadDocument
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Document file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '302':
+          description: Redirect to signed URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{documentId}/url:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - Documents
+      summary: Get signed download URL
+      operationId: getDocumentUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: expiresIn
+          in: query
+          description: URL expiration in seconds
+          schema:
+            type: integer
+            minimum: 60
+            maximum: 86400
+            default: 3600
+      responses:
+        '200':
+          description: Signed URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{documentId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - Documents
+      summary: List document versions
+      operationId: listDocumentVersions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Document versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Documents
+      summary: Upload new version
+      operationId: uploadDocumentVersion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                changeNote:
+                  type: string
+      responses:
+        '201':
+          description: New version uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # OCR Endpoints
+  /documents/{documentId}/ocr:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - OCR
+      summary: Get OCR results
+      operationId: getOcrResults
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OCR results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - OCR
+      summary: Process document with OCR
+      operationId: processOcr
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                language:
+                  type: string
+                  default: en
+                  description: OCR language hint
+                extractStructured:
+                  type: boolean
+                  default: true
+                  description: Extract structured data (forms, tables)
+                documentClass:
+                  type: string
+                  enum:
+                    - identity
+                    - financial
+                    - lease
+                    - invoice
+                    - receipt
+                    - general
+                  description: Document classification hint for better extraction
+      responses:
+        '202':
+          description: OCR processing started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - queued
+                      - processing
+                  estimatedCompletionTime:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ocr/jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - OCR
+      summary: Get OCR job status
+      operationId: getOcrJobStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Verification Endpoints
+  /documents/{documentId}/verify:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    post:
+      tags:
+        - Verification
+      summary: Submit document for verification
+      operationId: submitForVerification
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verificationType:
+                  type: string
+                  enum:
+                    - manual
+                    - automated
+                    - third_party
+                  default: manual
+                priority:
+                  type: string
+                  enum:
+                    - low
+                    - normal
+                    - high
+                  default: normal
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Verification initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{documentId}/verification:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdParam'
+
+    get:
+      tags:
+        - Verification
+      summary: Get verification status
+      operationId: getVerificationStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Verification
+      summary: Update verification decision
+      description: Manual verification decision by authorized personnel
+      operationId: updateVerification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - decision
+              properties:
+                decision:
+                  type: string
+                  enum:
+                    - verified
+                    - rejected
+                    - needs_review
+                reason:
+                  type: string
+                notes:
+                  type: string
+                expiresAt:
+                  type: string
+                  format: date
+                  description: Verification expiry date
+      responses:
+        '200':
+          description: Verification updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verifications/pending:
+    get:
+      tags:
+        - Verification
+      summary: List pending verifications
+      operationId: listPendingVerifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: documentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocumentType'
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum:
+              - low
+              - normal
+              - high
+      responses:
+        '200':
+          description: Pending verifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/VerificationRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Templates Endpoints
+  /templates:
+    get:
+      tags:
+        - Templates
+      summary: List document templates
+      operationId: listTemplates
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum:
+              - lease
+              - notice
+              - inspection
+              - financial
+              - legal
+              - other
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - active
+              - archived
+      responses:
+        '200':
+          description: Paginated templates
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Templates
+      summary: Create template
+      operationId: createTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /templates/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Templates
+      summary: Get template details
+      operationId: getTemplate
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Templates
+      summary: Update template
+      operationId: updateTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Templates
+      summary: Delete template
+      operationId: deleteTemplate
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Template deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/{templateId}/generate:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Templates
+      summary: Generate document from template
+      operationId: generateFromTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                  description: Template variable values
+                  additionalProperties: true
+                format:
+                  type: string
+                  enum:
+                    - pdf
+                    - docx
+                  default: pdf
+                associatedType:
+                  type: string
+                associatedId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Document generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /templates/{templateId}/preview:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Templates
+      summary: Preview template with sample data
+      operationId: previewTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Template preview
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Signature Endpoints
+  /signatures:
+    get:
+      tags:
+        - Signatures
+      summary: List signature requests
+      operationId: listSignatureRequests
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SignatureStatus'
+        - name: documentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated signature requests
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SignatureRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Signatures
+      summary: Create signature request
+      operationId: createSignatureRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSignatureRequest'
+      responses:
+        '201':
+          description: Signature request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureRequest'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /signatures/{signatureId}:
+    parameters:
+      - name: signatureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Signatures
+      summary: Get signature request details
+      operationId: getSignatureRequest
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Signature request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureRequestWithDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /signatures/{signatureId}/cancel:
+    parameters:
+      - name: signatureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Signatures
+      summary: Cancel signature request
+      operationId: cancelSignatureRequest
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Signature request cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /signatures/{signatureId}/remind:
+    parameters:
+      - name: signatureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      tags:
+        - Signatures
+      summary: Send reminder to pending signers
+      operationId: sendSignatureReminder
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signerIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Specific signers to remind (all pending if empty)
+                message:
+                  type: string
+                  description: Custom reminder message
+      responses:
+        '200':
+          description: Reminders sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                  signers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        sentAt:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /signatures/sign:
+    post:
+      tags:
+        - Signatures
+      summary: Sign document (self-service)
+      description: Sign a document using a signing token
+      operationId: signDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - signature
+              properties:
+                token:
+                  type: string
+                  description: Signing token from invitation
+                signature:
+                  type: string
+                  description: Base64-encoded signature image or typed signature
+                signatureType:
+                  type: string
+                  enum:
+                    - drawn
+                    - typed
+                    - uploaded
+                  default: drawn
+                ipAddress:
+                  type: string
+                  description: Signer's IP address (for audit)
+                userAgent:
+                  type: string
+                  description: Signer's user agent (for audit)
+      responses:
+        '200':
+          description: Document signed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  signedAt:
+                    type: string
+                    format: date-time
+                  documentUrl:
+                    type: string
+                    format: uri
+                    description: URL to view signed document
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    DocumentIdParam:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    DocumentType:
+      type: string
+      enum:
+        - lease_agreement
+        - addendum
+        - inspection_report
+        - invoice
+        - receipt
+        - identity_document
+        - proof_of_income
+        - bank_statement
+        - insurance
+        - notice
+        - photo
+        - floor_plan
+        - contract
+        - certificate
+        - other
+
+    DocumentStatus:
+      type: string
+      enum:
+        - uploading
+        - processing
+        - active
+        - archived
+        - deleted
+
+    SignatureStatus:
+      type: string
+      enum:
+        - pending
+        - partially_signed
+        - completed
+        - declined
+        - expired
+        - cancelled
+
+    # Core Entities
+    Document:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - type
+        - mimeType
+        - sizeBytes
+        - status
+        - uploadedBy
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        description:
+          type: string
+        mimeType:
+          type: string
+          example: application/pdf
+        sizeBytes:
+          type: integer
+        storageKey:
+          type: string
+          description: Internal storage reference
+        uploadedBy:
+          type: string
+          format: uuid
+        associatedType:
+          type: string
+        associatedId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        verificationStatus:
+          type: string
+          enum:
+            - not_required
+            - pending
+            - verified
+            - rejected
+        ocrProcessed:
+          type: boolean
+        thumbnailUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/Document'
+        - type: object
+          properties:
+            uploadedByUser:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                email:
+                  type: string
+            ocrResult:
+              $ref: '#/components/schemas/OcrResult'
+            verificationHistory:
+              type: array
+              items:
+                $ref: '#/components/schemas/VerificationStatus'
+            signatureRequests:
+              type: array
+              items:
+                $ref: '#/components/schemas/SignatureRequest'
+
+    DocumentVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        sizeBytes:
+          type: integer
+        changeNote:
+          type: string
+        uploadedBy:
+          type: string
+          format: uuid
+        uploadedByName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    OcrResult:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+        rawText:
+          type: string
+          description: Full extracted text
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Overall confidence score
+        structuredData:
+          type: object
+          description: Extracted structured fields
+          additionalProperties: true
+        tables:
+          type: array
+          items:
+            type: object
+            properties:
+              headers:
+                type: array
+                items:
+                  type: string
+              rows:
+                type: array
+                items:
+                  type: array
+                  items:
+                    type: string
+        detectedLanguage:
+          type: string
+        pageCount:
+          type: integer
+        processedAt:
+          type: string
+          format: date-time
+        processingTimeMs:
+          type: integer
+
+    OcrJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - queued
+            - processing
+            - completed
+            - failed
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error:
+          type: string
+        result:
+          $ref: '#/components/schemas/OcrResult'
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    VerificationRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        document:
+          $ref: '#/components/schemas/Document'
+        verificationType:
+          type: string
+          enum:
+            - manual
+            - automated
+            - third_party
+        priority:
+          type: string
+          enum:
+            - low
+            - normal
+            - high
+        status:
+          type: string
+          enum:
+            - pending
+            - in_progress
+            - completed
+        requestedBy:
+          type: string
+          format: uuid
+        requestedAt:
+          type: string
+          format: date-time
+
+    VerificationStatus:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - verified
+            - rejected
+            - needs_review
+            - expired
+        decision:
+          type: string
+          enum:
+            - verified
+            - rejected
+            - needs_review
+        reason:
+          type: string
+        notes:
+          type: string
+        verifiedBy:
+          type: string
+          format: uuid
+        verifiedByName:
+          type: string
+        verifiedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date
+
+    Template:
+      type: object
+      required:
+        - id
+        - tenantId
+        - name
+        - category
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            - lease
+            - notice
+            - inspection
+            - financial
+            - legal
+            - other
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - archived
+        content:
+          type: string
+          description: Template content with placeholders
+        variables:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum:
+                  - string
+                  - number
+                  - date
+                  - boolean
+                  - array
+              required:
+                type: boolean
+              defaultValue:
+                type: string
+              description:
+                type: string
+        format:
+          type: string
+          enum:
+            - html
+            - markdown
+            - docx
+        signatureRequired:
+          type: boolean
+        signaturePositions:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+              page:
+                type: integer
+              x:
+                type: number
+              y:
+                type: number
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SignatureRequest:
+      type: object
+      required:
+        - id
+        - tenantId
+        - documentId
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SignatureStatus'
+        signers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signer'
+        message:
+          type: string
+          description: Message to signers
+        expiresAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    SignatureRequestWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/SignatureRequest'
+        - type: object
+          properties:
+            document:
+              $ref: '#/components/schemas/Document'
+            auditTrail:
+              type: array
+              items:
+                type: object
+                properties:
+                  action:
+                    type: string
+                  actor:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  ipAddress:
+                    type: string
+
+    Signer:
+      type: object
+      required:
+        - email
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: Platform user ID if applicable
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          example: tenant
+        order:
+          type: integer
+          description: Signing order (for sequential signing)
+        status:
+          type: string
+          enum:
+            - pending
+            - sent
+            - viewed
+            - signed
+            - declined
+        signedAt:
+          type: string
+          format: date-time
+        declineReason:
+          type: string
+        signatureImageUrl:
+          type: string
+          format: uri
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+
+    # Request Bodies
+    UpdateDocumentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        tags:
+          type: array
+          items:
+            type: string
+        associatedType:
+          type: string
+        associatedId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+
+    CreateTemplateRequest:
+      type: object
+      required:
+        - name
+        - category
+        - content
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            - lease
+            - notice
+            - inspection
+            - financial
+            - legal
+            - other
+        content:
+          type: string
+        variables:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              required:
+                type: boolean
+              defaultValue:
+                type: string
+        format:
+          type: string
+          enum:
+            - html
+            - markdown
+            - docx
+          default: html
+        signatureRequired:
+          type: boolean
+          default: false
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        variables:
+          type: array
+          items:
+            type: object
+        status:
+          type: string
+          enum:
+            - draft
+            - active
+            - archived
+        signatureRequired:
+          type: boolean
+
+    CreateSignatureRequest:
+      type: object
+      required:
+        - documentId
+        - signers
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        signers:
+          type: array
+          items:
+            type: object
+            required:
+              - email
+              - name
+              - role
+            properties:
+              userId:
+                type: string
+                format: uuid
+              email:
+                type: string
+                format: email
+              name:
+                type: string
+              role:
+                type: string
+              order:
+                type: integer
+        message:
+          type: string
+          description: Custom message for signers
+        expiresInDays:
+          type: integer
+          minimum: 1
+          maximum: 90
+          default: 14
+        sendImmediately:
+          type: boolean
+          default: true
+        sequentialSigning:
+          type: boolean
+          default: false
+          description: Signers must sign in order
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

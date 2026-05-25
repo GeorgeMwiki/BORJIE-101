@@ -1,0 +1,15 @@
+id: lease-renewal-010
+scenario: lease-renewal
+title: 'Tenant counter-offer to renewal terms'
+context:
+  tenant: {id: tnt-310, name: 'Patricia Achieng', payment_history: spotless}
+  property: {id: prop-312, block: 'Block A', unit: '12B'}
+  lease: {current_rent_minor: 92000000, currency: TZS, expires_at: '2026-07-17'}
+  sent_offer: {new_rent_minor: 95000000}
+  tenant_counter: {requested_rent_minor: 92000000, request: 'same rent + cabinet repaint'}
+expected_actions:
+  - {tool: 'lease.evaluate_counter_offer_against_policy'}
+  - {tool: 'lease.draft_owner_decision_request', include_market_data: true}
+expected_escalation: true
+expected_escalation_reason: 'counter-offer deviates from baseline — owner decision needed'
+scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.3, communication-quality: 0.2, cost-efficiency: 0.1}

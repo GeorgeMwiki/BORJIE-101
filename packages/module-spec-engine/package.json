@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/module-spec-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Piece B — Module spec DSL: Zod grammar, validator, deterministic compiler from JSON spec to safe Drizzle migration SQL + per-entity Zod validators, dry-run preview.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --no-error-on-unmatched-pattern",
+    "lint:fix": "eslint src --fix"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@types/node": "^25.8.0"
+  }
+}

@@ -1,0 +1,1702 @@
+openapi: 3.0.3
+info:
+  title: BORJIE Leases API
+  description: |
+    Lease management API for BORJIE platform.
+    Handles lease CRUD operations, renewals, terminations, and occupancy management.
+  version: 1.0.0
+  contact:
+    name: BORJIE API Support
+    email: api@borjie.com
+
+servers:
+  - url: https://api.borjie.com/v1
+    description: Production
+  - url: https://api.staging.borjie.com/v1
+    description: Staging
+  - url: http://localhost:4000/api/v1
+    description: Local Development
+
+tags:
+  - name: Leases
+    description: Lease management
+  - name: Renewals
+    description: Lease renewal operations
+  - name: Occupancy
+    description: Occupancy management
+  - name: Lease Documents
+    description: Lease document and signing
+
+paths:
+  /leases:
+    get:
+      tags:
+        - Leases
+      summary: List leases
+      operationId: listLeases
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/LeaseStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/LeaseType'
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: unitId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: expiringWithinDays
+          in: query
+          description: Filter leases expiring within N days
+          schema:
+            type: integer
+        - name: startDateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: startDateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - startDate
+              - endDate
+              - createdAt
+              - monthlyRent
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of leases
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Lease'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Leases
+      summary: Create lease
+      operationId: createLease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeaseRequest'
+      responses:
+        '201':
+          description: Lease created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Unit already has an active lease
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leases/{leaseId}:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    get:
+      tags:
+        - Leases
+      summary: Get lease details
+      operationId: getLease
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - customer
+                - unit
+                - property
+                - occupants
+                - documents
+                - payments
+                - charges
+      responses:
+        '200':
+          description: Lease details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseWithRelations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Leases
+      summary: Update lease
+      description: Update lease details (limited fields after activation)
+      operationId: updateLease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLeaseRequest'
+      responses:
+        '200':
+          description: Lease updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot update lease in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Leases
+      summary: Delete draft lease
+      description: Delete lease (only if status is draft)
+      operationId: deleteLease
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Lease deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete - lease is not in draft status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leases/{leaseId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Leases
+      summary: Activate lease
+      description: Activate a pending/signed lease
+      operationId: activateLease
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                effectiveDate:
+                  type: string
+                  format: date
+                  description: Override start date if needed
+                generateFirstInvoice:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Lease activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot activate lease
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leases/{leaseId}/terminate:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Leases
+      summary: Terminate lease
+      description: Terminate an active lease
+      operationId: terminateLease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminateLeaseRequest'
+      responses:
+        '200':
+          description: Lease terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lease'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot terminate - outstanding balance or other restrictions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Renewals
+  /leases/{leaseId}/renew:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Renewals
+      summary: Renew lease
+      description: Create a renewal for an expiring/active lease
+      operationId: renewLease
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenewLeaseRequest'
+      responses:
+        '201':
+          description: Renewal lease created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseRenewal'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot renew - lease not eligible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leases/{leaseId}/renewal-offer:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    get:
+      tags:
+        - Renewals
+      summary: Get renewal offer
+      description: Get auto-generated renewal offer for expiring lease
+      operationId: getRenewalOffer
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Renewal offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewalOffer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Renewals
+      summary: Send renewal offer
+      description: Send renewal offer to customer
+      operationId: sendRenewalOffer
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customTerms:
+                  $ref: '#/components/schemas/LeaseTerms'
+                expiresInDays:
+                  type: integer
+                  default: 14
+                message:
+                  type: string
+                  description: Custom message to include
+      responses:
+        '200':
+          description: Renewal offer sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewalOffer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/expiring:
+    get:
+      tags:
+        - Renewals
+      summary: List expiring leases
+      description: List leases expiring within a time period
+      operationId: listExpiringLeases
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: withinDays
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 60
+        - name: renewalStatus
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - offered
+              - accepted
+              - declined
+              - none
+      responses:
+        '200':
+          description: Expiring leases
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ExpiringLease'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Occupancy
+  /leases/{leaseId}/occupants:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    get:
+      tags:
+        - Occupancy
+      summary: List occupants
+      operationId: listLeaseOccupants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lease occupants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Occupancy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Occupancy
+      summary: Add occupant
+      operationId: addOccupant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddOccupantRequest'
+      responses:
+        '201':
+          description: Occupant added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Occupancy'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/{leaseId}/occupants/{occupantId}:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+      - name: occupantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    put:
+      tags:
+        - Occupancy
+      summary: Update occupant
+      operationId: updateOccupant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOccupantRequest'
+      responses:
+        '200':
+          description: Occupant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Occupancy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Occupancy
+      summary: Remove occupant
+      operationId: removeOccupant
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                moveOutDate:
+                  type: string
+                  format: date
+                reason:
+                  type: string
+      responses:
+        '204':
+          description: Occupant removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot remove primary occupant while lease is active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /leases/{leaseId}/move-in:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Occupancy
+      summary: Record move-in
+      description: Record move-in with inspection
+      operationId: recordMoveIn
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveInRequest'
+      responses:
+        '200':
+          description: Move-in recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveInRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/{leaseId}/move-out:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Occupancy
+      summary: Record move-out
+      description: Record move-out with inspection and deposit handling
+      operationId: recordMoveOut
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveOutRequest'
+      responses:
+        '200':
+          description: Move-out recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveOutRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Lease Documents
+  /leases/{leaseId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    get:
+      tags:
+        - Lease Documents
+      summary: List lease documents
+      operationId: listLeaseDocuments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lease documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaseDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/{leaseId}/generate-agreement:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Lease Documents
+      summary: Generate lease agreement
+      description: Generate lease agreement document from template
+      operationId: generateLeaseAgreement
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+                  format: uuid
+                  description: Custom template (uses default if not specified)
+                additionalClauses:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Agreement generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/{leaseId}/send-for-signature:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    post:
+      tags:
+        - Lease Documents
+      summary: Send for signature
+      description: Send lease agreement for electronic signature
+      operationId: sendForSignature
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                documentId:
+                  type: string
+                  format: uuid
+                signers:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - email
+                      - name
+                      - role
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      name:
+                        type: string
+                      role:
+                        type: string
+                        enum:
+                          - tenant
+                          - landlord
+                          - witness
+                          - guarantor
+                expiresInDays:
+                  type: integer
+                  default: 7
+                message:
+                  type: string
+      responses:
+        '200':
+          description: Sent for signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureRequest'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leases/{leaseId}/charges:
+    parameters:
+      - $ref: '#/components/parameters/LeaseIdParam'
+
+    get:
+      tags:
+        - Leases
+      summary: Get lease charges
+      description: Get all charges associated with the lease
+      operationId: getLeaseCharges
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - paid
+              - partial
+              - overdue
+              - waived
+      responses:
+        '200':
+          description: Lease charges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LeaseCharge'
+                  summary:
+                    type: object
+                    properties:
+                      totalDue:
+                        $ref: '#/components/schemas/Money'
+                      totalPaid:
+                        $ref: '#/components/schemas/Money'
+                      balance:
+                        $ref: '#/components/schemas/Money'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Leases
+      summary: Add charge to lease
+      operationId: addLeaseCharge
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddChargeRequest'
+      responses:
+        '201':
+          description: Charge added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseCharge'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    LeaseIdParam:
+      name: leaseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    # Enums
+    LeaseStatus:
+      type: string
+      enum:
+        - draft
+        - pending_signature
+        - active
+        - expiring
+        - expired
+        - terminated
+        - renewed
+
+    LeaseType:
+      type: string
+      enum:
+        - fixed_term
+        - month_to_month
+        - periodic
+
+    # Core Entities
+    Lease:
+      type: object
+      required:
+        - id
+        - tenantId
+        - customerId
+        - unitId
+        - status
+        - type
+        - startDate
+        - terms
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/LeaseStatus'
+        type:
+          $ref: '#/components/schemas/LeaseType'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        terms:
+          $ref: '#/components/schemas/LeaseTerms'
+        signedAt:
+          type: string
+          format: date-time
+        terminatedAt:
+          type: string
+          format: date-time
+        terminationReason:
+          type: string
+        renewedFromLeaseId:
+          type: string
+          format: uuid
+        renewedToLeaseId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    LeaseWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Lease'
+        - type: object
+          properties:
+            customer:
+              type: object
+              description: Customer details
+            unit:
+              type: object
+              description: Unit details
+            property:
+              type: object
+              description: Property details
+            occupants:
+              type: array
+              items:
+                $ref: '#/components/schemas/Occupancy'
+            documents:
+              type: array
+              items:
+                $ref: '#/components/schemas/LeaseDocument'
+            payments:
+              type: array
+              items:
+                type: object
+            charges:
+              type: array
+              items:
+                $ref: '#/components/schemas/LeaseCharge'
+            balance:
+              $ref: '#/components/schemas/Money'
+
+    LeaseTerms:
+      type: object
+      required:
+        - monthlyRent
+        - paymentDueDay
+      properties:
+        monthlyRent:
+          $ref: '#/components/schemas/Money'
+        securityDeposit:
+          $ref: '#/components/schemas/Money'
+        paymentDueDay:
+          type: integer
+          minimum: 1
+          maximum: 28
+        lateFeeAmount:
+          $ref: '#/components/schemas/Money'
+        lateFeeGraceDays:
+          type: integer
+          minimum: 0
+        utilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/UtilityResponsibility'
+        petPolicy:
+          $ref: '#/components/schemas/PetPolicy'
+        specialTerms:
+          type: string
+        rentEscalation:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - fixed
+                - percentage
+            amount:
+              type: number
+            frequency:
+              type: string
+              enum:
+                - annual
+                - biannual
+
+    UtilityResponsibility:
+      type: object
+      properties:
+        utility:
+          type: string
+          enum:
+            - electricity
+            - water
+            - gas
+            - internet
+            - trash
+            - sewage
+        responsibility:
+          type: string
+          enum:
+            - landlord
+            - tenant
+        estimatedCost:
+          $ref: '#/components/schemas/Money'
+
+    PetPolicy:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        deposit:
+          $ref: '#/components/schemas/Money'
+        monthlyFee:
+          $ref: '#/components/schemas/Money'
+        restrictions:
+          type: string
+        maxPets:
+          type: integer
+
+    Occupancy:
+      type: object
+      required:
+        - id
+        - tenantId
+        - leaseId
+        - customerId
+        - unitId
+        - isPrimary
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        isPrimary:
+          type: boolean
+        moveInDate:
+          type: string
+          format: date
+        moveOutDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - scheduled
+            - active
+            - vacated
+        customer:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            phone:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ExpiringLease:
+      allOf:
+        - $ref: '#/components/schemas/Lease'
+        - type: object
+          properties:
+            daysUntilExpiry:
+              type: integer
+            renewalStatus:
+              type: string
+              enum:
+                - pending
+                - offered
+                - accepted
+                - declined
+                - none
+            renewalOffer:
+              $ref: '#/components/schemas/RenewalOffer'
+            customer:
+              type: object
+            unit:
+              type: object
+
+    LeaseRenewal:
+      type: object
+      properties:
+        originalLeaseId:
+          type: string
+          format: uuid
+        newLease:
+          $ref: '#/components/schemas/Lease'
+        changes:
+          type: object
+          properties:
+            rentChange:
+              $ref: '#/components/schemas/Money'
+            rentChangePercent:
+              type: number
+            termChange:
+              type: string
+
+    RenewalOffer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - draft
+            - sent
+            - viewed
+            - accepted
+            - declined
+            - expired
+        proposedTerms:
+          $ref: '#/components/schemas/LeaseTerms'
+        proposedStartDate:
+          type: string
+          format: date
+        proposedEndDate:
+          type: string
+          format: date
+        expiresAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: string
+          format: date-time
+        declineReason:
+          type: string
+
+    LeaseDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - lease_agreement
+            - addendum
+            - move_in_inspection
+            - move_out_inspection
+            - notice
+            - other
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        signatureStatus:
+          type: string
+          enum:
+            - not_required
+            - pending
+            - partially_signed
+            - completed
+        createdAt:
+          type: string
+          format: date-time
+
+    SignatureRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - signed
+            - declined
+            - expired
+            - cancelled
+        signers:
+          type: array
+          items:
+            type: object
+            properties:
+              email:
+                type: string
+              name:
+                type: string
+              role:
+                type: string
+              status:
+                type: string
+              signedAt:
+                type: string
+                format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    LeaseCharge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leaseId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - rent
+            - deposit
+            - late_fee
+            - utility
+            - maintenance
+            - pet_fee
+            - other
+        description:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Money'
+        dueDate:
+          type: string
+          format: date
+        paidAmount:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+          enum:
+            - pending
+            - paid
+            - partial
+            - overdue
+            - waived
+        createdAt:
+          type: string
+          format: date-time
+
+    MoveInRecord:
+      type: object
+      properties:
+        leaseId:
+          type: string
+          format: uuid
+        moveInDate:
+          type: string
+          format: date
+        inspectionCompleted:
+          type: boolean
+        inspectionDocumentId:
+          type: string
+          format: uuid
+        keysHandedOver:
+          type: boolean
+        meterReadings:
+          type: object
+          additionalProperties:
+            type: number
+        notes:
+          type: string
+        recordedBy:
+          type: string
+          format: uuid
+        recordedAt:
+          type: string
+          format: date-time
+
+    MoveOutRecord:
+      type: object
+      properties:
+        leaseId:
+          type: string
+          format: uuid
+        moveOutDate:
+          type: string
+          format: date
+        inspectionCompleted:
+          type: boolean
+        inspectionDocumentId:
+          type: string
+          format: uuid
+        keysReturned:
+          type: boolean
+        meterReadings:
+          type: object
+          additionalProperties:
+            type: number
+        damages:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              estimatedCost:
+                $ref: '#/components/schemas/Money'
+              photos:
+                type: array
+                items:
+                  type: string
+                  format: uri
+        depositDeductions:
+          type: array
+          items:
+            type: object
+            properties:
+              reason:
+                type: string
+              amount:
+                $ref: '#/components/schemas/Money'
+        depositRefundAmount:
+          $ref: '#/components/schemas/Money'
+        notes:
+          type: string
+        recordedBy:
+          type: string
+          format: uuid
+        recordedAt:
+          type: string
+          format: date-time
+
+    # Supporting Types
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+
+    # Request Bodies
+    CreateLeaseRequest:
+      type: object
+      required:
+        - customerId
+        - unitId
+        - type
+        - startDate
+        - terms
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/LeaseType'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          description: Required for fixed_term leases
+        terms:
+          $ref: '#/components/schemas/LeaseTerms'
+        generateAgreement:
+          type: boolean
+          default: true
+        sendForSignature:
+          type: boolean
+          default: false
+
+    UpdateLeaseRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/LeaseType'
+        endDate:
+          type: string
+          format: date
+        terms:
+          $ref: '#/components/schemas/LeaseTerms'
+
+    TerminateLeaseRequest:
+      type: object
+      required:
+        - terminationDate
+        - reason
+      properties:
+        terminationDate:
+          type: string
+          format: date
+        reason:
+          type: string
+          enum:
+            - end_of_term
+            - mutual_agreement
+            - tenant_breach
+            - landlord_breach
+            - sale_of_property
+            - other
+        reasonDetails:
+          type: string
+        waiveNotice:
+          type: boolean
+          default: false
+        forceTerminate:
+          type: boolean
+          default: false
+          description: Terminate even with outstanding balance (admin only)
+
+    RenewLeaseRequest:
+      type: object
+      required:
+        - newEndDate
+      properties:
+        newEndDate:
+          type: string
+          format: date
+        newType:
+          $ref: '#/components/schemas/LeaseType'
+        newTerms:
+          $ref: '#/components/schemas/LeaseTerms'
+        generateAgreement:
+          type: boolean
+          default: true
+
+    AddOccupantRequest:
+      type: object
+      required:
+        - customerId
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        isPrimary:
+          type: boolean
+          default: false
+        moveInDate:
+          type: string
+          format: date
+
+    UpdateOccupantRequest:
+      type: object
+      properties:
+        isPrimary:
+          type: boolean
+        moveInDate:
+          type: string
+          format: date
+
+    MoveInRequest:
+      type: object
+      required:
+        - moveInDate
+      properties:
+        moveInDate:
+          type: string
+          format: date
+        inspectionDocumentId:
+          type: string
+          format: uuid
+        keysHandedOver:
+          type: boolean
+          default: true
+        meterReadings:
+          type: object
+          additionalProperties:
+            type: number
+        notes:
+          type: string
+
+    MoveOutRequest:
+      type: object
+      required:
+        - moveOutDate
+      properties:
+        moveOutDate:
+          type: string
+          format: date
+        inspectionDocumentId:
+          type: string
+          format: uuid
+        keysReturned:
+          type: boolean
+          default: true
+        meterReadings:
+          type: object
+          additionalProperties:
+            type: number
+        damages:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              estimatedCost:
+                $ref: '#/components/schemas/Money'
+        depositDeductions:
+          type: array
+          items:
+            type: object
+            properties:
+              reason:
+                type: string
+              amount:
+                $ref: '#/components/schemas/Money'
+        notes:
+          type: string
+        processDepositRefund:
+          type: boolean
+          default: true
+
+    AddChargeRequest:
+      type: object
+      required:
+        - type
+        - amount
+        - dueDate
+      properties:
+        type:
+          type: string
+          enum:
+            - rent
+            - deposit
+            - late_fee
+            - utility
+            - maintenance
+            - pet_fee
+            - other
+        description:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Money'
+        dueDate:
+          type: string
+          format: date
+
+    # Common Schemas
+    PaginatedResponse:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNextPage:
+              type: boolean
+            hasPreviousPage:
+              type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - bearerAuth: []

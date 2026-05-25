@@ -1,0 +1,64 @@
+{
+  "entities": [
+    {
+      "slug": "obligation",
+      "display_name_en": "Obligation",
+      "display_name_sw": "Wajibu",
+      "fields": [
+        { "name": "code", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "domain", "kind": "enum", "required": true, "values": ["tax", "labour", "data_privacy", "health_safety", "environment", "sector"] },
+        { "name": "frequency", "kind": "enum", "required": true, "values": ["monthly", "quarterly", "annual", "ad_hoc"] },
+        { "name": "active", "kind": "boolean", "required": true }
+      ]
+    },
+    {
+      "slug": "compliance_task",
+      "display_name_en": "Compliance Task",
+      "display_name_sw": "Kazi ya Utii",
+      "fields": [
+        { "name": "task_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "obligation_id", "kind": "fk", "required": true, "references": "obligation" },
+        { "name": "due_date", "kind": "date", "required": true },
+        { "name": "owner_title", "kind": "text", "required": false, "max_length": 128 },
+        { "name": "status", "kind": "enum", "required": true, "values": ["open", "in_progress", "submitted", "accepted", "rejected"] }
+      ]
+    },
+    {
+      "slug": "audit",
+      "display_name_en": "Audit",
+      "display_name_sw": "Ukaguzi",
+      "fields": [
+        { "name": "audit_no", "kind": "text", "required": true, "max_length": 32, "index": true },
+        { "name": "scope", "kind": "text", "required": true },
+        { "name": "started_on", "kind": "date", "required": true },
+        { "name": "concluded_on", "kind": "date", "required": false },
+        { "name": "verdict", "kind": "enum", "required": false, "values": ["clean", "qualified", "adverse", "disclaimer"] }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "slug": "open_compliance_task",
+      "title": "Open a compliance task",
+      "trigger_entity": "compliance_task",
+      "trigger_event": "create",
+      "steps": ["assign_owner", "schedule_reminder", "create_evidence_folder"]
+    },
+    {
+      "slug": "submit_compliance_task",
+      "title": "Submit a completed compliance task",
+      "trigger_entity": "compliance_task",
+      "trigger_event": "update",
+      "steps": ["validate_evidence", "post_submission", "notify_regulator"]
+    }
+  ],
+  "ui_sections": [
+    { "kind": "table", "entity": "obligation", "columns": ["code", "display_name", "active"] },
+    { "kind": "table", "entity": "compliance_task", "columns": ["task_no", "display_name", "status"] },
+    { "kind": "table", "entity": "audit", "columns": ["audit_no", "display_name"] },
+    { "kind": "form", "entity": "compliance_task" },
+    { "kind": "form", "entity": "audit" },
+    { "kind": "kpi_tile", "title": "Tasks due in 30 days", "query": "count(compliance_task due_within 30d)" },
+    { "kind": "kpi_tile", "title": "Active obligations", "query": "count(obligation where active=true)" }
+  ]
+}

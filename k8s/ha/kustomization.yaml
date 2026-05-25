@@ -1,0 +1,36 @@
+# =============================================================================
+# k8s/ha — kustomization
+# =============================================================================
+# Bundles all HA manifests so a single `kubectl apply -k k8s/ha/` deploys the
+# full Postgres + Redis HA topology into the `borjie-data` namespace.
+#
+# Closes audit findings A3 + arch-7 from .audit/deep-audit-2026-05-20.md.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-data
+
+resources:
+  - namespace.yaml
+  - etcd-statefulset.yaml
+  - postgres-statefulset.yaml
+  - postgres-services.yaml
+  - postgres-haproxy.yaml
+  - redis-statefulset.yaml
+  - redis-sentinel-statefulset.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: borjie
+  app.kubernetes.io/managed-by: kustomize
+
+# Pinned image references (kustomize-level — overrides any drift in manifests)
+images:
+  - name: ghcr.io/zalando/spilo-16
+    newTag: 3.2-p2
+  - name: quay.io/coreos/etcd
+    newTag: v3.5.12
+  - name: haproxy
+    newTag: 2.9-alpine
+  - name: redis
+    newTag: 7.2-alpine

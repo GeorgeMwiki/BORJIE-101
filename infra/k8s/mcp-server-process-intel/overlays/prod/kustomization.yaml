@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: borjie-prod
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/georgemwiki/borjie-mcp-server-process-intel
+    newTag: ${IMAGE_TAG}
+
+patches:
+  - target:
+      kind: Deployment
+      name: mcp-server-process-intel
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "500m"
+            memory: "768Mi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"

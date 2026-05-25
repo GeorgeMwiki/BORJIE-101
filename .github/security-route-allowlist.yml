@@ -1,0 +1,56 @@
+# Security route coverage — allowlist.
+#
+# Routes listed here are exempted from the `withSecurityEvents` ≥90%
+# coverage requirement enforced by
+# `.github/workflows/security-route-coverage.yml`.
+#
+# Each entry MUST include a `reason` that explains why a mutating
+# handler is safe without an explicit SecurityEvent emission. Two
+# legitimate cases:
+#
+#   1. The route is genuinely public (no tenant context, no PII surface,
+#      no privileged action) — e.g. anonymous waitlist sign-up, public
+#      sandbox playground.
+#
+#   2. The handler already emits a richer audit record via a different
+#      sink (e.g. the sovereign-ledger writes its own append-only row),
+#      and a second SecurityEvent emission would double-count.
+#
+# Auditors: any entry whose `next_review` date is in the past should be
+# treated as expired.
+#
+# Schema:
+#   routes:
+#     - path: <repo-relative file path>
+#       verbs: [post|put|delete|patch]   # OR omitted to exempt all
+#       reason: <free text>
+#       next_review: YYYY-MM-DD
+
+routes:
+  - path: services/api-gateway/src/routes/public-marketing.router.ts
+    verbs: [post]
+    reason: Public marketing leads (waitlist email capture). No tenant ctx; throttled at gateway via public-ai-rate-limit. Captures captcha + classification-scrubber.
+    next_review: 2026-12-01
+
+  - path: services/api-gateway/src/routes/public-sandbox.router.ts
+    verbs: [post]
+    reason: Anonymous demo sandbox endpoints. Synthetic data only — no real tenants reachable.
+    next_review: 2026-12-01
+
+  - path: services/api-gateway/src/routes/waitlist.router.ts
+    verbs: [post]
+    reason: Pre-onboarding waitlist signups. Public; no tenant binding yet. Captcha + IP-bucket rate limit applied.
+    next_review: 2026-12-01
+
+  - path: services/api-gateway/src/routes/public-leads.router.ts
+    verbs: [post]
+    reason: Public lead capture form. No PII beyond contact info; routed straight into CRM with explicit consent flag.
+    next_review: 2026-12-01
+
+  - path: services/api-gateway/src/routes/sovereign-ledger.router.ts
+    reason: Every handler already writes an append-only sovereign-ledger row that is strictly stronger than a SecurityEvent. Double-emission would inflate metrics.
+    next_review: 2026-12-01
+
+  - path: services/api-gateway/src/routes/audit-trail.router.ts
+    reason: The audit-trail router itself is the SecurityEvent emitter; wrapping each handler would cause recursive emission.
+    next_review: 2026-12-01

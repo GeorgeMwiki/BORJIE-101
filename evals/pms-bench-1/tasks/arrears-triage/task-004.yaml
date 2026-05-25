@@ -1,0 +1,30 @@
+id: arrears-triage-004
+scenario: arrears-triage
+title: '60-day arrears, tenant disputes amount (alleges maintenance offset)'
+context:
+  tenant:
+    id: tnt-004
+    name: 'Joseph Kimani'
+    arrears_days: 60
+    history: dispute-active
+  property:
+    id: prop-004
+    block: 'Block A'
+    unit: '2D'
+  lease:
+    monthly_rent_minor: 95000000
+    currency: TZS
+  events:
+    - {at: '2026-03-30', kind: 'invoice.due', amount_minor: 95000000}
+    - {at: '2026-04-15', kind: 'tenant.dispute.opened', basis: 'maintenance-offset', claimed_minor: 40000000}
+    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 95000000}
+expected_actions:
+  - {tool: 'arrears.hold_collection_pending_dispute'}
+  - {tool: 'arrears.flag_for_legal_review'}
+expected_escalation: true
+expected_escalation_reason: 'active dispute — must not collect until resolved'
+scorer_weights:
+  action-correctness: 0.3
+  escalation-correctness: 0.4
+  communication-quality: 0.2
+  cost-efficiency: 0.1

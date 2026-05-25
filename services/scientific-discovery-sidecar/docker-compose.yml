@@ -1,0 +1,33 @@
+# Standalone dev entry for the scientific-discovery sidecar.
+#
+# Usage:
+#   cd services/scientific-discovery-sidecar
+#   docker compose up --build
+#
+# The TS-side client picks the URL up via DISCOVERY_SIDECAR_URL.
+# Default here matches packages/scientific-discovery defaults.
+
+services:
+  scientific-discovery-sidecar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: borjie/scientific-discovery-sidecar:dev
+    container_name: scientific-discovery-sidecar
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DISCOVERY_SIDECAR_HOST: "0.0.0.0"
+      DISCOVERY_SIDECAR_PORT: "8000"
+      DISCOVERY_SIDECAR_LOG_LEVEL: "info"
+      DISCOVERY_SIDECAR_BOOTSTRAP_SAMPLES: "50"
+      DISCOVERY_SIDECAR_DOWHY_SIMULATIONS: "50"
+      DISCOVERY_SIDECAR_PCMCI_ALPHA: "0.05"
+      DISCOVERY_SIDECAR_PCMCI_TAU_MAX: "5"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

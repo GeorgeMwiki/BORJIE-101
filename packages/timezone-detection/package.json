@@ -1,0 +1,29 @@
+{
+  "name": "@borjie/timezone-detection",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA timezone detection + per-user TZ rendering. Composite priority resolver (account > jwt-claim > browser > ip > jurisdiction > UTC), 54 African + ROW jurisdiction defaults, DST edge-case handlers (spring-forward / fall-back), per-user render helpers, Hono + Fastify middleware. Zero runtime dependencies — uses native Intl + tzdata shipped with Node 20+.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

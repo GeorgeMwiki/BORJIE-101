@@ -1,0 +1,55 @@
+{{- if and .Values.postgres.enabled (not .Values.postgres.external.enabled) -}}
+# Helm test: verify a freshly-installed release can reach Postgres and
+# that the borjie DB exists.
+# Run via:  helm test <release> -n <namespace>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-postgres"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- include "borjie.podSecurityContext" . | nindent 4 }}
+  containers:
+    - name: pg-test
+      image: "postgres:16.4-alpine"
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -euo pipefail
+          echo "==> waiting for postgres to accept connections"
+          for i in $(seq 1 30); do
+            if pg_isready -h postgres.{{ .Release.Namespace }}.svc.cluster.local -p 5432 -U "$POSTGRES_USER"; then
+              break
+            fi
+            echo "  attempt $i: not ready, sleeping 2s"
+            sleep 2
+          done
+          echo "==> postgres reachable; verifying borjie database"
+          export PGPASSWORD="$POSTGRES_PASSWORD"
+          psql \
+            -h postgres.{{ .Release.Namespace }}.svc.cluster.local \
+            -U "$POSTGRES_USER" \
+            -d borjie \
+            -c "SELECT 1 AS healthcheck;" \
+            -t -A
+          echo "==> postgres connectivity OK"
+      env:
+        - name: POSTGRES_USER
+          valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_USER } }
+        - name: POSTGRES_PASSWORD
+          valueFrom: { secretKeyRef: { name: postgres-secrets, key: POSTGRES_PASSWORD } }
+      resources:
+        requests: { cpu: 50m, memory: 64Mi }
+        limits:   { cpu: 200m, memory: 128Mi }
+      securityContext:
+        {{- include "borjie.containerSecurityContext" . | nindent 8 }}
+{{- end }}

@@ -1,0 +1,50 @@
+{
+  "name": "@borjie/openclaw-operating-model",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "OpenClaw + NemoClaw operating-model layer — autonomy ladders (L0..L5), agent task-domain catalog, context architecture, per-tenant policy DSL, kill switches, Agent-as-a-Service primitives, and Chief Agent Officer dashboards. Built on injection ports — no hard deps on agent-runtime / mcp / agent-orchestrator.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "openclaw",
+    "nemoclaw",
+    "agentic",
+    "autonomy-ladders",
+    "agent-as-a-service",
+    "chief-agent-officer",
+    "policy-engine",
+    "kill-switch",
+    "saas"
+  ],
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@vitest/coverage-v8": "^4.1.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

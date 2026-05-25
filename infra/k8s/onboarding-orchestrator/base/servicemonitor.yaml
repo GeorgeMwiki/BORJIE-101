@@ -1,0 +1,26 @@
+# Prometheus Operator ServiceMonitor — scrape /metrics on the app port.
+# The onboarding-orchestrator service exposes /metrics on the same
+# listener as the app (no separate metrics port), so the scrape
+# targets the `http` Service port.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: onboarding-orchestrator
+  labels:
+    app.kubernetes.io/name: onboarding-orchestrator
+    app.kubernetes.io/part-of: borjie
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: onboarding-orchestrator
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - borjie-app
+      - borjie-staging
+      - borjie-prod

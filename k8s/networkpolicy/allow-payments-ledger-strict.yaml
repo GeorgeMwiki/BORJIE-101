@@ -1,0 +1,55 @@
+---
+# Extra-strict NetworkPolicy for payments-ledger. PCI-adjacent.
+# Tightens beyond `allow-gateway-to-services.yaml` by also restricting
+# egress to a deny-by-default + explicit allow.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payments-ledger-deny-cross-tenant
+  namespace: borjie
+  labels:
+    app.kubernetes.io/name: borjie
+    app.kubernetes.io/component: payments-ledger
+    borjie.io/sensitivity: pci-adjacent
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: payments-ledger
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # ONLY api-gateway. NO frontends, NO other services, NO ingress-nginx.
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: api-gateway } }
+      ports:
+        - { protocol: TCP, port: 4010 }
+  egress:
+    # Postgres only.
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    # Redis only.
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: redis } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    # DNS.
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector:       { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # External payment providers via HTTPS, with cloud metadata blocked.
+    # TODO(scaffold): replace 0.0.0.0/0 with pinned Stripe + Daraja CIDRs once stable.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 169.254.169.254/32   # cloud metadata — block.
+      ports:
+        - { protocol: TCP, port: 443 }

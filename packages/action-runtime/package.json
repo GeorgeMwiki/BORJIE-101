@@ -1,0 +1,37 @@
+{
+  "name": "@borjie/action-runtime",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Action runtime — saga orchestrator, HITL gates, per-step compensation, action quotas. Piece E of the BORJIE master plan.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
+  },
+  "dependencies": {
+    "@borjie/approval-matrix-dsl": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@types/node": "^25.8.0"
+  }
+}

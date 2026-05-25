@@ -1,0 +1,203 @@
+# =============================================================================
+# Migration Apply Check — every migration must apply cleanly on a fresh DB
+# =============================================================================
+#
+# Spins up an ephemeral Postgres 17 service container, then applies every
+# *.sql file in `packages/database/src/migrations/` in lexical order
+# against it. A single failed apply fails the job — earlier migrations
+# break later ones, so the whole chain is the unit of correctness.
+#
+# This workflow is the runtime complement to:
+#   - .github/workflows/db-migrations-check.yml — destructive-statement lint
+#     and a less-strict dry-run path used by the legacy pipeline.
+#   - scripts/validate-migration-safety.mjs — static NOT NULL backfill +
+#     DROP/TRUNCATE/CREATE INDEX dangerous-pattern detection.
+#
+# Together they form the migration CI gate: lint -> static safety pass ->
+# runtime apply. A migration MUST pass all three before it can merge.
+#
+# Trigger:
+#   - PR: every migration / schema change
+#   - push to main: belt-and-braces guard for direct main commits
+# =============================================================================
+
+name: Migration Apply Check
+
+on:
+  pull_request:
+    paths:
+      - 'packages/database/src/migrations/**'
+      - 'packages/database/src/schemas/**'
+      - 'scripts/migration-apply-check.mjs'
+      - 'scripts/validate-migration-safety.mjs'
+      - '.github/workflows/migration-apply-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/database/src/migrations/**'
+      - 'packages/database/src/schemas/**'
+  workflow_dispatch:
+
+concurrency:
+  group: migration-apply-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply-all-migrations:
+    name: Apply every migration in order against Postgres 17
+    runs-on: ubuntu-latest
+    # Pin Postgres major version to the production target. Bump in lockstep
+    # with the production cluster's PostgreSQL version.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: borjie
+          POSTGRES_PASSWORD: borjie
+          POSTGRES_DB: borjie_migration_check
+        ports:
+          - 5432:5432
+        # Wait for the server to actually accept connections before any
+        # job step runs. 30-second budget is conservative — pg_isready
+        # typically returns within 3-4s on GitHub's runners.
+        options: >-
+          --health-cmd "pg_isready -U borjie"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://borjie:borjie@localhost:5432/borjie_migration_check
+      # The apply-check script's defaults match the production layout —
+      # we set MIGRATIONS_DIR explicitly so a path rename can't silently
+      # cause the job to scan the wrong directory and report zero failures.
+      MIGRATIONS_DIR: packages/database/src/migrations
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Wait for Postgres to be ready
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 -U borjie >/dev/null 2>&1; then
+              echo "Postgres ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Postgres did not become ready within 30s"
+          exit 1
+
+      - name: Try CREATE EXTENSION vector (best-effort)
+        # pgvector is bundled in postgres:17 starting with the official
+        # bookworm builds. If the extension isn't available the apply
+        # script falls back to the 0178 schema guard and continues.
+        run: |
+          PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check \
+            -c "CREATE EXTENSION IF NOT EXISTS vector" 2>&1 | tail -3 || \
+            echo "::warning::pgvector not available — migrations that depend on it may fail"
+
+      - name: Seed Supabase roles (authenticated, anon, service_role)
+        # Supabase Postgres provisions these roles at cluster init time. CI's
+        # vanilla postgres:17 image has none of them — so every RLS migration
+        # since 0155 (CREATE POLICY ... TO authenticated, GRANT ... TO anon)
+        # explodes with `role "authenticated" does not exist`. Create them
+        # idempotently before applying any migration so the fresh-DB run
+        # mirrors production. NOLOGIN matches the Supabase convention — these
+        # are JWT-claim aliases, never login users.
+        env:
+          PGPASSWORD: borjie
+        run: |
+          psql -h localhost -p 5432 -U borjie -d borjie_migration_check <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role NOLOGIN BYPASSRLS;
+            END IF;
+          END
+          $$;
+          SQL
+
+      - name: Apply all migrations against fresh Postgres
+        # Drives `scripts/migration-apply-check.mjs` which iterates every
+        # *.sql file in lex order, wrapping each in a transaction via
+        # `psql -v ON_ERROR_STOP=1`. The script writes a markdown report
+        # to .audit/migration-apply.md that captures the first ERROR
+        # line per failed file for fast triage.
+        run: |
+          node scripts/migration-apply-check.mjs \
+            --migrations-dir="${MIGRATIONS_DIR}" \
+            --db-url="${DATABASE_URL}" \
+            --report=.audit/migration-apply.md
+
+      - name: Smoke query — verify public schema landed
+        # Belt-and-braces: list 5 public tables so the job log shows the
+        # schema actually shaped after the apply. Empty output means the
+        # apply silently no-op'd and we should hard-fail.
+        run: |
+          set -e
+          ROWS=$(PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check -tA \
+            -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' LIMIT 5")
+          if [ -z "$ROWS" ]; then
+            echo "::error::Smoke query returned zero rows — public schema did not materialize"
+            exit 1
+          fi
+          echo "Sample tables in public schema:"
+          echo "$ROWS"
+
+      - name: Upload migration-apply report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-apply-report
+          path: .audit/migration-apply.md
+          if-no-files-found: warn
+
+  validate-migration-safety:
+    name: Lint dangerous patterns in new migrations
+    runs-on: ubuntu-latest
+    # Runs in parallel with the apply check — the safety lint catches
+    # patterns the apply check might not surface against an empty DB
+    # (e.g. NOT NULL backfill hazards on tables that don't have rows in
+    # CI but will in production), plus DROP / TRUNCATE / blocking-index
+    # patterns that would break production.
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need full history so the --since-ref diff works against the
+          # PR base. The lint scopes its new dangerous-pattern detectors
+          # to changed files only; legacy migrations are not re-scored.
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: Run migration safety lint
+        env:
+          # On PRs, scope to files changed vs the PR base; on push to
+          # main, scope to the previous commit so the gate ratchets
+          # forward without re-flagging legacy migrations.
+          SINCE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}
+        run: |
+          node scripts/validate-migration-safety.mjs \
+            --migrations-dir=packages/database/src/migrations \
+            --since-ref="${SINCE_REF}" \
+            --fail-on=fail \
+            --output=markdown \
+            --report=.audit/migration-safety.md
+      - name: Upload safety report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-safety-report
+          path: .audit/migration-safety.md
+          if-no-files-found: warn

@@ -1,0 +1,52 @@
+{
+  "name": "@borjie/brain-self-awareness",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Brain self-awareness core: capability cards, refusal grammar, plan view, decision provenance, automation suggestions. Pure functions over injected ports - no cross-package coupling.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./capability-card": {
+      "types": "./dist/capability-card/index.d.ts",
+      "import": "./dist/capability-card/index.js"
+    },
+    "./refusal-grammar": {
+      "types": "./dist/refusal-grammar/index.d.ts",
+      "import": "./dist/refusal-grammar/index.js"
+    },
+    "./plan-view": {
+      "types": "./dist/plan-view/index.d.ts",
+      "import": "./dist/plan-view/index.js"
+    },
+    "./decision-provenance": {
+      "types": "./dist/decision-provenance/index.d.ts",
+      "import": "./dist/decision-provenance/index.js"
+    },
+    "./automation-suggester": {
+      "types": "./dist/automation-suggester/index.d.ts",
+      "import": "./dist/automation-suggester/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

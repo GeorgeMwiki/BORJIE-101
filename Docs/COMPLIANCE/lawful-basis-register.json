@@ -1,0 +1,677 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_documentation": "Article 30 GDPR / PDPA s.7 / DPA s.30 / NDPA s.25 Record of Processing Activities (RoPA). Every PII column the platform stores is enumerated with its lawful basis. Generated from packages/database/src/security/data-classification.ts (entries=51). Update both files together — drift between them is a compliance audit finding.",
+  "controllerOfRecord": {
+    "name": "BORJIE Ltd",
+    "address": "<CONTROLLER_ADDRESS>",
+    "contactDpo": "<DPO_CONTACT>",
+    "euRepresentativeArt27": "<EU_REP_CONTACT>"
+  },
+  "jurisdictions": [
+    "TZ",
+    "KE",
+    "NG",
+    "EU"
+  ],
+  "version": "1.0.0",
+  "lastUpdatedAt": "2026-05-18",
+  "totalPiiColumns": 51,
+  "columns": [
+    {
+      "table": "customers",
+      "column": "email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Account communications + invoices",
+      "lawfulBasis": {
+        "primary": "contract",
+        "gdprArt6": "Art. 6(1)(b)",
+        "pdpaTzS7": "s. 7(b)",
+        "dpaKeS30": "s. 30(1)(b)",
+        "ndpaNgS25": "s. 25(1)(b)"
+      },
+      "recipients": ["internal", "email-provider-sub-processor"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred + null"
+    },
+    {
+      "table": "customers",
+      "column": "phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Account auth, mobile-money payment notifications, lease comms",
+      "lawfulBasis": {
+        "primary": "contract",
+        "gdprArt6": "Art. 6(1)(b)",
+        "pdpaTzS7": "s. 7(b)",
+        "dpaKeS30": "s. 30(1)(b)",
+        "ndpaNgS25": "s. 25(1)(b)"
+      },
+      "recipients": ["internal", "sms-provider", "whatsapp-provider"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred + null"
+    },
+    {
+      "table": "customers",
+      "column": "alternate_phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Backup contact, emergency reach",
+      "lawfulBasis": {
+        "primary": "contract",
+        "gdprArt6": "Art. 6(1)(b)"
+      },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred + null"
+    },
+    {
+      "table": "customers",
+      "column": "first_name",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Identity, addressing in comms",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "last_name",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Identity, lease documents",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "lease-counterparty"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "middle_name",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Identity disambiguation",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "date_of_birth",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "KYC age verification (statutory)",
+      "lawfulBasis": {
+        "primary": "legal_obligation",
+        "gdprArt6": "Art. 6(1)(c)",
+        "pdpaTzS7": "s. 7(c) + POCAMLA 2006",
+        "dpaKeS30": "s. 30(1)(c) + POCAMLA 2009",
+        "ndpaNgS25": "s. 25(1)(c) + CBN AML/CFT 2022"
+      },
+      "recipients": ["internal-kyc"],
+      "retention": "7y AML/CFT",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "id_document_number",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Statutory identity verification (NIDA/Huduma/NIN)",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal-kyc", "NIDA-MCP", "Huduma-MCP", "NIN-MCP"],
+      "retention": "7y AML/CFT",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "id_document_front_url",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Statutory KYC evidence",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal-kyc"],
+      "retention": "7y AML/CFT",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-object"
+    },
+    {
+      "table": "customers",
+      "column": "id_document_back_url",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Statutory KYC evidence",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal-kyc"],
+      "retention": "7y AML/CFT",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-object"
+    },
+    {
+      "table": "customers",
+      "column": "kra_pin",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "KE statutory tax linkage (KRA filings)",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)", "dpaKeS30": "s. 30(1)(c) + KRA Act s. 5" },
+      "recipients": ["internal", "KRA-MCP"],
+      "retention": "7y Tax Procedures Act",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "tin_number",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "TZ statutory tax linkage (TRA filings)",
+      "lawfulBasis": { "primary": "legal_obligation", "pdpaTzS7": "s. 7(c) + TRA Act" },
+      "recipients": ["internal", "TRA-MCP"],
+      "retention": "7y Tax Procedures Act",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "monthly_income",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Lease eligibility, credit-scoring feature",
+      "lawfulBasis": { "primary": "legitimate_interest", "gdprArt6": "Art. 6(1)(f)" },
+      "recipients": ["internal-scoring"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "occupation",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "Lease eligibility, statistical analytics",
+      "lawfulBasis": { "primary": "legitimate_interest", "gdprArt6": "Art. 6(1)(f)" },
+      "recipients": ["internal"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "employer",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "Lease eligibility verification",
+      "lawfulBasis": { "primary": "legitimate_interest", "gdprArt6": "Art. 6(1)(f)" },
+      "recipients": ["internal"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "customers",
+      "column": "current_address_line1",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Lease, billing, statutory notices",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "current_address_line2",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Lease, billing",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "emergency_contact_phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Habitability / safety emergency",
+      "lawfulBasis": { "primary": "vital_interests", "gdprArt6": "Art. 6(1)(d)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "emergency_contact_email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Habitability / safety emergency",
+      "lawfulBasis": { "primary": "vital_interests", "gdprArt6": "Art. 6(1)(d)" },
+      "recipients": ["internal"],
+      "retention": "7y from last activity",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "customers",
+      "column": "kyc_notes",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Statutory KYC audit trail",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal-kyc"],
+      "retention": "7y AML/CFT",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "users",
+      "column": "email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Operator account access, ops comms",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from off-boarding",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "users",
+      "column": "phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Operator MFA, recovery, ops comms",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "sms-provider"],
+      "retention": "7y from off-boarding",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "users",
+      "column": "password_hash",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Authentication",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from off-boarding",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred (never expose in DSAR)"
+    },
+    {
+      "table": "users",
+      "column": "mfa_secret",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "MFA TOTP secret",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from off-boarding",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred (never expose in DSAR)"
+    },
+    {
+      "table": "leases",
+      "column": "rent_amount",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "Lease & invoicing",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from termination",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain (statute of limitations)"
+    },
+    {
+      "table": "leases",
+      "column": "security_deposit_amount",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "Lease & refund tracking",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y from termination",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "leases",
+      "column": "tenant_signature_url",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Lease execution evidence",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "counterparty"],
+      "retention": "7y from termination",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-object after limitation period"
+    },
+    {
+      "table": "payments",
+      "column": "amount",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Rent payment record, tax filing",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal", "tax-authority-MCP"],
+      "retention": "7y tax",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain (tax obligation)"
+    },
+    {
+      "table": "payments",
+      "column": "mpesa_phone",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "M-Pesa transaction tracking",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "M-Pesa-Daraja"],
+      "retention": "7y AML",
+      "crossBorder": "SCC + TIA + CBK localisation",
+      "rtbfStrategy": "crypto-shred after AML window"
+    },
+    {
+      "table": "payments",
+      "column": "mpesa_transaction_id",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Payment reconciliation",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal", "M-Pesa-Daraja", "tax-authority-MCP"],
+      "retention": "7y AML/tax",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain (AML)"
+    },
+    {
+      "table": "payments",
+      "column": "bank_reference",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Bank-rail reconciliation",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal", "bank-rail"],
+      "retention": "7y AML",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "invoices",
+      "column": "total_amount",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Invoicing, tax filing",
+      "lawfulBasis": { "primary": "legal_obligation", "gdprArt6": "Art. 6(1)(c)" },
+      "recipients": ["internal", "tax-authority-MCP"],
+      "retention": "7y tax",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "invoices",
+      "column": "customer_notes",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Customer-supplied invoice context",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal"],
+      "retention": "7y or consent withdrawn",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null on RTBF"
+    },
+    {
+      "table": "gepg_transactions",
+      "column": "payer_name",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "TZ GEPG statutory payment rail",
+      "lawfulBasis": { "primary": "legal_obligation", "pdpaTzS7": "s. 7(c) + Public Finance Act" },
+      "recipients": ["internal", "GEPG"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain (statutory)"
+    },
+    {
+      "table": "gepg_transactions",
+      "column": "payer_phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "TZ GEPG payment notification",
+      "lawfulBasis": { "primary": "legal_obligation", "pdpaTzS7": "s. 7(c)" },
+      "recipients": ["internal", "GEPG"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "gepg_transactions",
+      "column": "payer_email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "TZ GEPG payment notification",
+      "lawfulBasis": { "primary": "legal_obligation", "pdpaTzS7": "s. 7(c)" },
+      "recipients": ["internal", "GEPG"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "gepg_transactions",
+      "column": "control_number",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "GEPG reconciliation",
+      "lawfulBasis": { "primary": "legal_obligation", "pdpaTzS7": "s. 7(c)" },
+      "recipients": ["internal", "GEPG"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "retain"
+    },
+    {
+      "table": "messages",
+      "column": "body",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Operational messaging (rent reminders, lease comms)",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "sms-provider", "whatsapp-provider", "email-provider"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "messages",
+      "column": "recipient_phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Delivery target",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "sms-provider", "whatsapp-provider"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "messages",
+      "column": "recipient_email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Delivery target",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal", "email-provider"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "voice_turns",
+      "column": "transcript",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Voice-agent interaction, QA",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal"],
+      "retention": "90d (minimisation)",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete + crypto-shred"
+    },
+    {
+      "table": "voice_turns",
+      "column": "audio_url",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Voice-agent QA, dispute resolution",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal"],
+      "retention": "90d (minimisation)",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-object"
+    },
+    {
+      "table": "feedback",
+      "column": "body",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Service-improvement feedback",
+      "lawfulBasis": { "primary": "legitimate_interest", "gdprArt6": "Art. 6(1)(f)" },
+      "recipients": ["internal"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "feedback",
+      "column": "submitted_by_email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Feedback follow-up",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "tenant_predictions",
+      "column": "feature_payload",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "ML feature snapshot for explainability",
+      "lawfulBasis": { "primary": "legitimate_interest", "gdprArt6": "Art. 6(1)(f) + Art. 22 safeguards" },
+      "recipients": ["internal"],
+      "retention": "365d",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "null"
+    },
+    {
+      "table": "documents",
+      "column": "storage_url",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "Document storage (KYC, lease PDFs)",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-object"
+    },
+    {
+      "table": "documents",
+      "column": "extracted_text",
+      "level": "RESTRICTED",
+      "purposeOfProcessing": "OCR-derived searchable content",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "inspections",
+      "column": "photos",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Property inspection evidence",
+      "lawfulBasis": { "primary": "contract", "gdprArt6": "Art. 6(1)(b)" },
+      "recipients": ["internal"],
+      "retention": "7y",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "delete-S3-objects"
+    },
+    {
+      "table": "marketplace_listings",
+      "column": "lister_phone",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Marketplace contact channel",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal", "marketplace-counterparty"],
+      "retention": "365d or consent withdrawn",
+      "crossBorder": "SCC + TIA + Art. 49(1)(a) consent",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "marketplace_listings",
+      "column": "lister_email",
+      "level": "CONFIDENTIAL",
+      "purposeOfProcessing": "Marketplace contact channel",
+      "lawfulBasis": { "primary": "consent", "gdprArt6": "Art. 6(1)(a)" },
+      "recipients": ["internal", "marketplace-counterparty"],
+      "retention": "365d or consent withdrawn",
+      "crossBorder": "SCC + TIA + Art. 49(1)(a) consent",
+      "rtbfStrategy": "crypto-shred"
+    },
+    {
+      "table": "audit_events",
+      "column": "actor_email",
+      "level": "INTERNAL",
+      "purposeOfProcessing": "Algorithmic-accountability audit trail",
+      "lawfulBasis": {
+        "primary": "legal_obligation",
+        "gdprArt6": "Art. 6(1)(c) + Art. 5(2) accountability",
+        "pdpaTzS7": "s. 7(c) + s. 27(2)",
+        "dpaKeS30": "s. 30(1)(c) + s. 39",
+        "ndpaNgS25": "s. 25(1)(c) + s. 38(1)(b)"
+      },
+      "recipients": ["internal-DPO", "internal-audit"],
+      "retention": "Permanent (pseudonymised on RTBF)",
+      "crossBorder": "SCC + TIA",
+      "rtbfStrategy": "pseudonymise via per-tenant salted SHA-256 (preserve audit trail)"
+    }
+  ],
+  "processingActivities": [
+    {
+      "id": "PA-001-LEASE",
+      "name": "Lease management & rent collection",
+      "lawfulBasis": "contract (Art. 6(1)(b))",
+      "dataCategories": ["customers.basic", "customers.address", "leases.*", "payments.*"],
+      "dpiaRequired": false,
+      "subProcessors": ["AWS Ireland", "M-Pesa Daraja (KE/TZ)", "OPay/PalmPay/Moniepoint (NG)", "GEPG (TZ)"]
+    },
+    {
+      "id": "PA-002-KYC",
+      "name": "Statutory KYC verification",
+      "lawfulBasis": "legal_obligation (Art. 6(1)(c) + POCAMLA / CBN AML / TZ AML)",
+      "dataCategories": ["customers.id_document_*", "customers.date_of_birth", "customers.kra_pin", "customers.tin_number"],
+      "dpiaRequired": true,
+      "subProcessors": ["NIDA verifier MCP", "Huduma verifier MCP", "NIN verifier MCP", "KRA TIN verifier MCP", "TRA TIN verifier MCP"]
+    },
+    {
+      "id": "PA-003-TAX",
+      "name": "Tax filing & remittance",
+      "lawfulBasis": "legal_obligation (Art. 6(1)(c))",
+      "dataCategories": ["customers.kra_pin", "customers.tin_number", "payments.*", "invoices.*", "gepg_transactions.*"],
+      "dpiaRequired": false,
+      "subProcessors": ["KRA iTax", "TRA portal", "FIRS TaxProMax"]
+    },
+    {
+      "id": "PA-004-CREDIT-SCORING",
+      "name": "Automated tenant credit-scoring + decision support",
+      "lawfulBasis": "legitimate_interest (Art. 6(1)(f)) + Art. 22 safeguards",
+      "dataCategories": ["customers.monthly_income", "payments.history", "tenant_predictions.feature_payload"],
+      "dpiaRequired": true,
+      "subProcessors": [],
+      "art22Notes": "Subject right to obtain human review, express viewpoint, contest decision. Manual override available."
+    },
+    {
+      "id": "PA-005-VOICE",
+      "name": "Voice-agent interactions",
+      "lawfulBasis": "consent (Art. 6(1)(a))",
+      "dataCategories": ["voice_turns.transcript", "voice_turns.audio_url"],
+      "dpiaRequired": true,
+      "subProcessors": ["voice-STT-provider"],
+      "minimisation": "90-day retention; biometric-adjacent classification"
+    },
+    {
+      "id": "PA-006-MARKETING",
+      "name": "Marketing communications",
+      "lawfulBasis": "consent (Art. 6(1)(a))",
+      "dataCategories": ["customers.email", "customers.phone", "messages.*"],
+      "dpiaRequired": false,
+      "subProcessors": ["email-provider", "sms-provider", "whatsapp-provider"]
+    },
+    {
+      "id": "PA-007-MARKETPLACE",
+      "name": "Marketplace listings & cross-tenant discovery",
+      "lawfulBasis": "consent (Art. 6(1)(a))",
+      "dataCategories": ["marketplace_listings.*", "customers.basic"],
+      "dpiaRequired": false,
+      "subProcessors": ["search-index-provider"]
+    },
+    {
+      "id": "PA-008-AUDIT",
+      "name": "Algorithmic-accountability audit logging",
+      "lawfulBasis": "legal_obligation (Art. 6(1)(c) + Art. 5(2))",
+      "dataCategories": ["audit_events.*", "sovereign_action_ledger.*"],
+      "dpiaRequired": false,
+      "subProcessors": ["observability-backend"]
+    }
+  ]
+}

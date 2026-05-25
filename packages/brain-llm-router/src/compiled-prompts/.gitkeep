@@ -1,0 +1,21 @@
+DSPy-compiled prompt cache. Layout:
+
+  compiled-prompts/
+    <task-name>/
+      <normalised-model>.json
+
+e.g.
+
+  compiled-prompts/
+    extract_lease_terms/
+      claude-haiku-4-5.json
+      claude-sonnet-4-6.json
+      gpt-5.json
+
+CompiledPrompts are produced at deploy time by `compileSignature()`
+against a target model and stored here. Runtime loads via `PromptCache`.
+
+Re-compile when:
+  - the Signature's versionHash changes (Signature.inputs/outputs/objective edit)
+  - the routed model changes (new file under <task>/)
+  - Inspect harness flags a regression (caller deletes the stale file)
