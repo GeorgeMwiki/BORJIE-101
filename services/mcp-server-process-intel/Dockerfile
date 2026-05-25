@@ -18,7 +18,7 @@
 # AGPL section 13) keeps the AGPL'd code separate from our MIT codebase.
 
 # ---------- Stage 1: Python (AGPL) ----------------------------------------
-FROM python:3.12-slim-bookworm AS python-deps
+FROM python:3.14-slim-bookworm AS python-deps
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
