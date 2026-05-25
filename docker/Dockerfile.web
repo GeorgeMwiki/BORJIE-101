@@ -12,7 +12,7 @@ ARG APP_PATH=apps/owner-portal
 # =============================================================================
 # Stage 1: Dependencies
 # =============================================================================
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 # python3 + build-base required by node-gyp when optional native deps
 # (canvas via pdfkit, etc.) fall back to source compilation on musl.
 # Without them, `gyp ERR! find Python` aborts the install and the E2E
@@ -34,7 +34,7 @@ RUN pnpm install --frozen-lockfile
 # =============================================================================
 # Stage 2: Builder
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 ARG APP_NAME
 ARG APP_PATH
 
@@ -87,7 +87,7 @@ CMD ["nginx", "-g", "daemon off;"]
 # Stage 3b: Next.js - Node standalone server
 # Requires next.config.js: output: 'standalone'
 # =============================================================================
-FROM node:20-alpine AS nextjs
+FROM node:26-alpine AS nextjs
 ARG APP_NAME
 ARG APP_PATH
 

@@ -1,6 +1,6 @@
 # Web Apps - Development image (hot reload)
 ARG APP_NAME=owner-portal
-FROM node:20-alpine
+FROM node:26-alpine
 
 # python3 + build-base required by node-gyp for optional native deps
 # (canvas, etc.) that fall back to source build on musl — without them
