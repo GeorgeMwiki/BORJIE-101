@@ -15,7 +15,6 @@
 
 import { createDatabaseClient } from '../client.js';
 import { seedDemoOrg } from './demo-org-seed.js';
-import { seedMaintenanceTaxonomyPlatformDefaults } from './maintenance-taxonomy.seed.js';
 import { seedTrcTestOrg } from './trc-test-org-seed.js';
 
 interface ParsedArgs {
@@ -63,11 +62,12 @@ const ORG_SEEDS: Record<string, OrgSeedRunner> = {
 // run in every environment. Invoked via --org=platform-defaults (no
 // SEED_ORG_SEEDS gate).
 const PLATFORM_SEEDS: Record<string, OrgSeedRunner> = {
-  'platform-defaults': async (db) => {
-    const res = await seedMaintenanceTaxonomyPlatformDefaults(db);
-    console.log(
-      `[run-seed]   maintenance taxonomy: ${res.categoriesInserted} categories, ${res.problemsInserted} problems`,
-    );
+  'platform-defaults': async (_db) => {
+    // TODO(borjie-hard-fork): maintenance-taxonomy was property-domain
+    // and shipped with BossNyumba. Rebuild a mining-equivalent
+    // (drilling-incident-taxonomy, equipment-failure-taxonomy, etc.)
+    // and re-wire here.
+    console.log('[run-seed]   platform-defaults: no-op (mining taxonomies pending)');
   },
   // Knowledge-base RAG corpus. The runner logs guidance for wiring the
   // Drizzle knowledge store — the authoritative seed function lives in the

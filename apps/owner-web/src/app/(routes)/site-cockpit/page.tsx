@@ -1,30 +1,22 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { PlaceholderCard } from '@/components/PlaceholderCard';
+import { SiteCockpitSurface } from '@/components/site-cockpit/SiteCockpitSurface';
+import { getOwnerSession } from '@/lib/session';
 
 /**
  * O-W-06 — Site cockpit.
  *
- * Per-site operating cockpit. The currently-selected site (top bar)
- * scopes the page. Three vertical slices: what the shift delivered,
- * what the rock looks like, what it cost.
+ * Three tabs: Shift (latest shift card, blockers list, photo gallery),
+ * Geology (composite score gauge + 30-day trend), Cost (unit-economics
+ * table with all-in TZS/g and trend arrows). Site selection comes from
+ * the top-bar SiteSelector via session.activeSiteId.
  */
-export default function SiteCockpitPage() {
+export default async function SiteCockpitPage() {
+  const session = await getOwnerSession();
   return (
     <>
       <ScreenHeader slug="site-cockpit" />
-      <div className="grid grid-cols-1 gap-4 px-8 py-6 md:grid-cols-3">
-        <PlaceholderCard title="Shift reconciliation">
-          Day vs night shift: tonnes mined, grade, recovered grammes, variance
-          to plan. Reconciles signed-off SIC against the brain&apos;s estimate.
-        </PlaceholderCard>
-        <PlaceholderCard title="Geology score">
-          Composite score from drill-hole density, assay QA/QC, vein
-          continuity. Trend over last 30 days.
-        </PlaceholderCard>
-        <PlaceholderCard title="Unit economics">
-          TZS / g all-in cost, broken out: extraction, processing, royalty,
-          treasury haircut, CSR, overhead.
-        </PlaceholderCard>
+      <div className="px-8 py-6">
+        <SiteCockpitSurface siteId={session.activeSiteId} />
       </div>
     </>
   );

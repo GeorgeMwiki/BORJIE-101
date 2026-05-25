@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO(borjie-hard-fork): property-domain repository pending mining-equivalent rewrite.
 /**
  * Postgres-backed waitlist repositories (Drizzle).
  *

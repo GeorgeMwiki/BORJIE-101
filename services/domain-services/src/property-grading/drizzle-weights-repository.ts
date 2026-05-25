@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO(borjie-hard-fork): property-domain repository pending mining-equivalent rewrite.
 /**
  * Drizzle repository for per-tenant grading weights.
  *

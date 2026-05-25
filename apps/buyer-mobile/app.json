@@ -28,7 +28,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Borjie Buyers needs camera and gallery access to capture NIDA, TIN and contract images for KYC.",
+          "cameraPermission": "Borjie Buyers needs the camera to capture NIDA front/back and selfie checks."
+        }
+      ],
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true

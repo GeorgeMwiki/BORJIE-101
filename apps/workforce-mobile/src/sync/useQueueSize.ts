@@ -1,28 +1,26 @@
 import { useEffect, useState } from 'react'
-import { getQueueSize } from './queue'
+import { getQueueSize, subscribeQueue } from './queue'
 
 /**
- * Polls the sync queue size every 4s. Lightweight enough for the offline
- * banner; replace with an event emitter when the flush worker lands.
+ * Live queue size. Uses the queue's pub/sub for synchronous updates on
+ * enqueue/remove, plus an initial fetch for the first paint.
  */
 export function useQueueSize(): number {
   const [size, setSize] = useState<number>(0)
 
   useEffect(() => {
     let cancelled = false
-    async function tick(): Promise<void> {
-      const next = await getQueueSize()
+    void getQueueSize().then((next) => {
       if (!cancelled) {
         setSize(next)
       }
-    }
-    void tick()
-    const handle = setInterval(() => {
-      void tick()
-    }, 4000)
+    })
+    const unsubscribe = subscribeQueue((next) => {
+      setSize(next)
+    })
     return () => {
       cancelled = true
-      clearInterval(handle)
+      unsubscribe()
     }
   }, [])
 

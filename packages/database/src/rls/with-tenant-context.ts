@@ -63,7 +63,7 @@ export async function withTenantContext<T>(
     await tx.execute(
       sql`SELECT set_config('app.is_service_role', ${isService ? 'true' : 'false'}, true)`,
     );
-    return await fn(tx as DatabaseClient);
+    return await fn(tx as unknown as DatabaseClient);
   });
 }
 

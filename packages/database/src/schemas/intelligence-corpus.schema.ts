@@ -24,6 +24,7 @@ import {
   jsonb,
   customType,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { tenants } from './tenant.schema.js';
 
@@ -73,10 +74,16 @@ export const intelligenceCorpusChunks = pgTable(
   },
   (t) => ({
     tenantIdx: index('intelligence_corpus_chunks_tenant_idx').on(t.tenantId),
-    sourceIdx: index('intelligence_corpus_chunks_source_section_idx').on(
-      t.sourceFile,
-      t.section,
-    ),
+    /**
+     * Unique on `(source_file, section)` so the consolidation worker can
+     * `INSERT ... ON CONFLICT (source_file, section) DO UPDATE` keyed by
+     * the chunk's natural identity. The base migration shipped only a
+     * non-unique index — `drizzle generate` against this schema will
+     * emit a follow-up migration that promotes it to UNIQUE.
+     */
+    sourceSectionUniq: uniqueIndex(
+      'intelligence_corpus_chunks_source_section_uniq',
+    ).on(t.sourceFile, t.section),
     langIdx: index('intelligence_corpus_chunks_lang_idx').on(t.language),
     supersededIdx: index('intelligence_corpus_chunks_superseded_idx').on(
       t.supersededById,

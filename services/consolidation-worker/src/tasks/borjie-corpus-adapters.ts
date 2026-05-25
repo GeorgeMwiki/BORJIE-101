@@ -62,38 +62,66 @@ export function createStubEmbedder(): Embedder {
   };
 }
 
+/**
+ * Minimum Drizzle surface this adapter needs. `insert(...)` returns the
+ * fluent builder ending in `.onConflictDoUpdate(...)`, typed once the
+ * schema map is passed at client construction.
+ */
 interface DrizzleLikeClient {
   execute(q: unknown): Promise<unknown>;
+  insert: (table: unknown) => {
+    values: (
+      row: Record<string, unknown>,
+    ) => {
+      onConflictDoUpdate: (args: {
+        target: ReadonlyArray<unknown>;
+        set: Record<string, unknown>;
+      }) => Promise<unknown>;
+    };
+  };
 }
 
 /**
- * Drizzle-backed CorpusSink. Issues a raw INSERT ... ON CONFLICT upsert
- * keyed on `(source_file, section)` because the
- * `intelligence_corpus_chunks` Drizzle schema is not yet present under
- * `packages/database/src/schemas/`.
+ * Drizzle-backed CorpusSink. Typed insert against the
+ * `intelligenceCorpusChunks` schema with an upsert keyed on
+ * `(source_file, section)`.
  *
- * TODO(phase-3): replace with a typed
- * `db.insert(intelligenceCorpusChunks).onConflictDoUpdate(...)` once the
- * schema is added and re-exported from `@borjie/database`.
+ * Note: the base migration `0003_mining_domain.sql` shipped only a
+ * non-unique index on `(source_file, section)`. The Drizzle schema now
+ * declares `intelligence_corpus_chunks_source_section_uniq` as
+ * `uniqueIndex(...)`; running `drizzle generate` will emit a follow-up
+ * migration that promotes the index to UNIQUE so this ON CONFLICT
+ * clause is enforceable in production.
  */
 export function createDrizzleCorpusSink(db: DrizzleLikeClient): CorpusSink {
   return {
     async upsert(row) {
       // Dynamic import so the module compiles in environments without
       // drizzle-orm installed (unit tests, fresh checkout).
-      const { sql } = await import('drizzle-orm');
-      const vectorLiteral = `[${row.embedding.join(',')}]`;
-      await db.execute(
-        sql`INSERT INTO intelligence_corpus_chunks
-              (id, tenant_id, source_file, section, text, embedding, ingested_at)
-            VALUES (${row.id}, NULL, ${row.sourceFile}, ${row.sectionHeading},
-                    ${row.content}, ${vectorLiteral}::vector, ${row.ingestedAt}::timestamptz)
-            ON CONFLICT (source_file, section)
-            DO UPDATE SET
-              text = EXCLUDED.text,
-              embedding = EXCLUDED.embedding,
-              ingested_at = EXCLUDED.ingested_at`,
-      );
+      const { intelligenceCorpusChunks } = await import('@borjie/database');
+
+      await db
+        .insert(intelligenceCorpusChunks)
+        .values({
+          id: row.id,
+          tenantId: null,
+          sourceFile: row.sourceFile,
+          section: row.sectionHeading,
+          text: row.content,
+          embedding: [...row.embedding],
+          ingestedAt: new Date(row.ingestedAt),
+        })
+        .onConflictDoUpdate({
+          target: [
+            intelligenceCorpusChunks.sourceFile,
+            intelligenceCorpusChunks.section,
+          ],
+          set: {
+            text: row.content,
+            embedding: [...row.embedding],
+            ingestedAt: new Date(row.ingestedAt),
+          },
+        });
     },
   };
 }

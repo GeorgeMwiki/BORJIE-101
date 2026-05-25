@@ -190,7 +190,8 @@ export function createDocumentAgent(deps: DocumentAgentDeps) {
       const parsed = parseClaudeJson(raw);
       if (!parsed.ok) {
         deps.logger?.warn('document-agent: malformed claude json', { raw: raw.slice(0, 256) });
-        return { success: false, evidenceIds, error: `parse_failed: ${parsed.error}` };
+        const parseErr = (parsed as { ok: false; error: string }).error;
+        return { success: false, evidenceIds, error: `parse_failed: ${parseErr}` };
       }
 
       const validation = PMLExtractionSchema.safeParse(parsed.value);

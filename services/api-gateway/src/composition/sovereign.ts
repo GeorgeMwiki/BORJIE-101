@@ -80,11 +80,19 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
-import {
-  createAirbnbMarketDataAdapter,
-  createZillowMarketDataAdapter,
-  type MarketDataPort,
-} from '@borjie/market-intelligence';
+// TODO(borjie-hard-fork): `@borjie/market-intelligence` was a property-
+// vertical package (Zillow / Airbnb rental comps). Mining equivalents
+// (LME spot prices, Argus DRC tin index, etc.) will live under a new
+// `@borjie/commodity-intelligence` package. Until that lands the
+// MarketDataPort is stubbed and `buildMarketDataPort` always returns
+// null so the kernel tools singleton becomes a no-op.
+type MarketDataPort = unknown;
+function createAirbnbMarketDataAdapter(_opts: unknown): MarketDataPort | null {
+  return null;
+}
+function createZillowMarketDataAdapter(_opts: unknown): MarketDataPort | null {
+  return null;
+}
 import { logger } from '../utils/logger.js';
 
 // Visibility role — mirrored locally so this composition root doesn't
@@ -619,7 +627,13 @@ export function getMarketDataKernelTools():
     return null;
   }
 
-  marketDataKernelToolsSingleton = kernelTools.createMarketDataKernelTools(port);
+  // Cast: market-data port shape was provided by @borjie/market-intelligence
+  // (deleted in the hard-fork). The runtime path is unreachable because the
+  // stubbed factories above always return null, so coerce to the kernel-tools
+  // port shape to keep the typecheck happy.
+  marketDataKernelToolsSingleton = kernelTools.createMarketDataKernelTools(
+    port as Parameters<typeof kernelTools.createMarketDataKernelTools>[0],
+  );
   return marketDataKernelToolsSingleton;
 }
 

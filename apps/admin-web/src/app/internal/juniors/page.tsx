@@ -1,7 +1,8 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
-import { MOCK_JUNIORS } from '@/lib/internal/mock-data';
+import { MOCK_JUNIORS } from '@/lib/mocks/juniors';
+import { JuniorActions } from '@/components/internal/juniors/JuniorActions';
 
 const SCREEN = findScreen('juniors')!;
 
@@ -37,17 +38,7 @@ export default function JuniorsPage(): JSX.Element {
             <p className="text-xs text-neutral-400 mb-3">{junior.role}</p>
             <p className="text-xs text-neutral-500 mb-4 font-mono">{junior.model}</p>
             <div className="flex gap-2">
-              <button type="button" className="text-xs text-signal-500 hover:underline">
-                Provision
-              </button>
-              <span className="text-xs text-neutral-600" aria-hidden="true">·</span>
-              <button type="button" className="text-xs text-warning hover:underline">
-                Suspend
-              </button>
-              <span className="text-xs text-neutral-600" aria-hidden="true">·</span>
-              <button type="button" className="text-xs text-danger hover:underline">
-                Revoke
-              </button>
+              <JuniorActions junior={junior} />
             </div>
           </article>
         ))}

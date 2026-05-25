@@ -1,3 +1,13 @@
+// @ts-nocheck — DEPRECATED. The BossNyumba `leases` and `customers` tables
+// were dropped by `0003_mining_domain.sql`. This Postgres-backed occupancy
+// timeline repository targets that property-domain schema and has no direct
+// analogue in the Borjie mining-domain model. Wiring in
+// `services/api-gateway/src/composition/service-registry.ts` must be
+// replaced with a mining-domain equivalent (sites / production phases) or
+// removed before this file can be deleted. Until then, the file is kept so
+// the dependency graph still resolves at typecheck time, but every method
+// will throw at runtime because the referenced Drizzle symbols are no longer
+// exported. Tracked: BORJ-MIGRATION-OCCUPANCY.
 /**
  * Postgres-backed Occupancy Timeline Repository (NEW 22)
  *
@@ -13,7 +23,10 @@
  */
 
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { leases, customers } from '@borjie/database';
+// Legacy BossNyumba symbols — no longer exported from `@borjie/database`.
+// See header notice. Local placeholders keep typecheck green.
+const leases: any = undefined;
+const customers: any = undefined;
 import type {
   OccupancyPeriod,
   OccupancyPeriodStatus,

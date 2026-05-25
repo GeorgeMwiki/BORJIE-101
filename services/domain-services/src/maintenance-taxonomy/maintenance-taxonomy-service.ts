@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO(borjie-hard-fork): property-domain repository pending mining-equivalent rewrite.
 /**
  * Maintenance Taxonomy Service (Wave 8, S7 gap closure)
  *

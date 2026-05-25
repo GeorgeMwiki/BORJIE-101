@@ -1,20 +1,60 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMutation } from '@tanstack/react-query'
+import { Controller, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { StyleSheet, Text, View } from 'react-native'
 import { Screen } from '@/components/Screen'
+import { FormField } from '@/components/FormField'
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { requestOtp, verifyOtp } from '@/api/auth'
+import { setCurrentUser } from '@/auth/session'
+import { phoneSchema, otpSchema, type PhoneInput, type OtpInput } from '@/schemas/auth'
 import { colors } from '@/theme/colors'
-import { radius, spacing, typography } from '@/theme/spacing'
+import { spacing, typography } from '@/theme/spacing'
 
 type Stage = 'phone' | 'otp'
 
 export default function AuthLogin() {
   const router = useRouter()
   const { t } = useTranslation()
+  const toast = useToast()
   const [stage, setStage] = useState<Stage>('phone')
+  const [challengeId, setChallengeId] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
+
+  const phoneForm = useForm<PhoneInput>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: '' },
+    mode: 'onBlur'
+  })
+
+  const otpForm = useForm<OtpInput>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { code: '' },
+    mode: 'onBlur'
+  })
+
+  const otpMutation = useMutation({
+    mutationFn: requestOtp,
+    onSuccess: (result) => {
+      setChallengeId(result.challengeId)
+      setStage('otp')
+      toast.show(t('auth.otp_sent'), 'success')
+    },
+    onError: () => toast.show(t('auth.otp_failed'), 'error')
+  })
+
+  const verifyMutation = useMutation({
+    mutationFn: verifyOtp,
+    onSuccess: (result) => {
+      setCurrentUser(result.user)
+      router.replace('/marketplace')
+    },
+    onError: () => toast.show(t('auth.verify_failed'), 'error')
+  })
 
   return (
     <Screen>
@@ -26,40 +66,61 @@ export default function AuthLogin() {
       <Text style={styles.title}>{t('auth.login_title')}</Text>
 
       {stage === 'phone' ? (
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('auth.phone_label')}</Text>
-          <TextInput
-            value={phone}
-            onChangeText={setPhone}
-            placeholder={t('auth.phone_placeholder')}
-            placeholderTextColor={colors.inkMuted}
-            keyboardType="phone-pad"
-            style={styles.input}
+        <View>
+          <Controller
+            control={phoneForm.control}
+            name="phone"
+            render={({ field, fieldState }) => (
+              <FormField
+                label={t('auth.phone_label')}
+                value={field.value}
+                onChangeText={(v) => {
+                  field.onChange(v)
+                  setPhone(v)
+                }}
+                onBlur={field.onBlur}
+                placeholder={t('auth.phone_placeholder')}
+                keyboardType="phone-pad"
+                error={fieldState.error?.message}
+              />
+            )}
           />
-          <View style={{ height: spacing.lg }} />
+          <View style={{ height: spacing.sm }} />
           <PrimaryButton
             label={t('auth.send_otp')}
-            onPress={() => setStage('otp')}
-            disabled={phone.trim().length < 9}
+            onPress={phoneForm.handleSubmit((values) => otpMutation.mutate({ phone: values.phone }))}
+            disabled={otpMutation.isPending}
           />
         </View>
       ) : (
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('auth.otp_label')}</Text>
-          <TextInput
-            value={otp}
-            onChangeText={setOtp}
-            placeholder="123456"
-            placeholderTextColor={colors.inkMuted}
-            keyboardType="number-pad"
-            maxLength={6}
-            style={styles.input}
+        <View>
+          <Controller
+            control={otpForm.control}
+            name="code"
+            render={({ field, fieldState }) => (
+              <FormField
+                label={t('auth.otp_label')}
+                value={field.value}
+                onChangeText={field.onChange}
+                onBlur={field.onBlur}
+                placeholder="123456"
+                keyboardType="number-pad"
+                maxLength={6}
+                error={fieldState.error?.message}
+              />
+            )}
           />
-          <View style={{ height: spacing.lg }} />
+          <View style={{ height: spacing.sm }} />
           <PrimaryButton
             label={t('auth.verify')}
-            onPress={() => router.replace('/marketplace')}
-            disabled={otp.length < 4}
+            onPress={otpForm.handleSubmit((values) =>
+              verifyMutation.mutate({
+                challengeId: challengeId ?? '',
+                phone,
+                code: values.code
+              })
+            )}
+            disabled={verifyMutation.isPending}
           />
         </View>
       )}
@@ -74,17 +135,5 @@ const styles = StyleSheet.create({
   brand: { ...typography.display, color: colors.forest },
   slogan: { ...typography.body, color: colors.copper, marginTop: spacing.xs },
   title: { ...typography.title, color: colors.ink, marginBottom: spacing.lg },
-  field: { marginBottom: spacing.lg },
-  label: { ...typography.caption, color: colors.inkMuted, marginBottom: spacing.xs },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-    color: colors.ink,
-    ...typography.body
-  },
   terms: { ...typography.caption, color: colors.inkMuted, marginTop: spacing.xl, textAlign: 'center' }
 })

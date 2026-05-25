@@ -21,7 +21,14 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- TimescaleDB is optional in dev; cash_balances falls back to a plain table
+-- when the extension is absent (see DO block near the bottom of this file).
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS timescaledb;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'timescaledb extension not available — skipping';
+END$$;
 -- Apache AGE is optional for v1 (graph-on-Postgres); install if available.
 -- Wrapped in DO block so absence does not fail the migration.
 DO $$
@@ -36,6 +43,24 @@ END$$;
 -- -----------------------------------------------------------------------------
 -- These tables were created by the legacy property migrations (0001*-0270*).
 -- CASCADE removes dependent FKs, indexes, RLS policies, views.
+
+-- Drop FK constraints from surviving AI-OS infra tables that still carry
+-- legacy `customer_id` columns. Without this, the schema-defined Drizzle
+-- column (now FK-less, see documents.schema.ts / communications.schema.ts)
+-- would disagree with the live constraint until CASCADE catches up.
+-- IF EXISTS makes each statement idempotent and safe on fresh databases.
+ALTER TABLE IF EXISTS document_uploads
+  DROP CONSTRAINT IF EXISTS document_uploads_customer_id_fkey;
+ALTER TABLE IF EXISTS message_instances
+  DROP CONSTRAINT IF EXISTS message_instances_customer_id_fkey;
+ALTER TABLE IF EXISTS communication_consents
+  DROP CONSTRAINT IF EXISTS communication_consents_customer_id_fkey;
+ALTER TABLE IF EXISTS escalation_chain_runs
+  DROP CONSTRAINT IF EXISTS escalation_chain_runs_customer_id_fkey;
+ALTER TABLE IF EXISTS identity_profiles
+  DROP CONSTRAINT IF EXISTS identity_profiles_customer_id_fkey;
+ALTER TABLE IF EXISTS verification_badges
+  DROP CONSTRAINT IF EXISTS verification_badges_customer_id_fkey;
 
 DROP TABLE IF EXISTS
   vendor_assignments,
@@ -676,12 +701,19 @@ CREATE INDEX IF NOT EXISTS cash_balances_account_ts_idx
 
 -- Promote cash_balances to a Timescale hypertable on recorded_at.
 -- if_not_exists => safe to re-run.
-SELECT create_hypertable(
-  'cash_balances',
-  'recorded_at',
-  if_not_exists => true,
-  migrate_data => true
-);
+-- timescaledb is optional in dev; wrap in DO so cash_balances falls back
+-- to a regular table when the extension is not loaded.
+DO $$
+BEGIN
+  PERFORM create_hypertable(
+    'cash_balances',
+    'recorded_at',
+    if_not_exists => true,
+    migrate_data => true
+  );
+EXCEPTION WHEN undefined_function THEN
+  RAISE NOTICE '[0003] create_hypertable unavailable — cash_balances stays a plain table';
+END$$;
 
 CREATE TABLE IF NOT EXISTS fx_rates (
   id      text PRIMARY KEY,

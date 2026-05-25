@@ -63,6 +63,8 @@ import { casesRouter } from './routes/cases.hono';
 import { brainRouter } from './routes/brain.hono';
 import { maintenanceRouter } from './routes/maintenance.hono';
 import { hrRouter } from './routes/hr.hono';
+// Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
+import { miningRouter } from './routes/mining/index';
 // Wave 1-2 routers (new domain features)
 import applicationsRouter from './routes/applications.router';
 import arrearsRouter from './routes/arrears.router';
@@ -737,6 +739,12 @@ api.route('/cases', casesRouter);
 api.route('/brain', brainRouter);
 api.route('/maintenance', maintenanceRouter);
 api.route('/hr', hrRouter);
+// Borjie mining-domain: aggregates /mining/sites, /licences, /drill-holes,
+// /samples, /shift-reports, /attendance, /fuel-logs, /maintenance,
+// /ore-parcels, /sales, /incidents, /grievances, /cockpit, /chat (SSE),
+// /lmbm, /documents, /reports, /portfolio-map, /marketplace, /bids,
+// /buyers/kyc, plus /internal/* (admin-console SUPER_ADMIN surfaces).
+api.route('/mining', miningRouter);
 api.route('/customer', customerAppRouter);
 api.route('/owner', ownerPortalRouter);
 api.route('/manager', estateManagerAppRouter);

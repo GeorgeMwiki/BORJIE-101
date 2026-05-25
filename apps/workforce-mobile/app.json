@@ -14,26 +14,70 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.borjie.workforce"
+      "bundleIdentifier": "com.borjie.workforce",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Borjie uses the camera to capture weighbridge plates, drill-hole photos, and shift-report evidence.",
+        "NSMicrophoneUsageDescription": "Borjie uses the microphone to record voice notes on shift reports and incident logs.",
+        "NSLocationWhenInUseUsageDescription": "Borjie uses your location to log drill-hole GPS, attendance check-in fences, and geo-tagged photos.",
+        "NSPhotoLibraryUsageDescription": "Borjie uses photos for evidence attached to shift reports and incidents.",
+        "NSFaceIDUsageDescription": "Borjie uses biometric sign-off to confirm letters and acknowledgements."
+      }
     },
     "android": {
       "package": "com.borjie.workforce",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3D2B1F"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Borjie uses the camera to capture mining evidence."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Borjie attaches photos to shift reports and incidents.",
+          "cameraPermission": "Borjie uses the camera to capture mining evidence."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Borjie uses your location for attendance fences and drill-hole logs."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Borjie records voice notes for shift reports and incidents."
+        }
+      ],
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "splashTagline": "Borjie · Ofisi ya Mgodi"
+      "splashTagline": "Borjie · Ofisi ya Mgodi",
+      "apiGatewayUrl": "https://api.borjie.local"
     }
   }
 }

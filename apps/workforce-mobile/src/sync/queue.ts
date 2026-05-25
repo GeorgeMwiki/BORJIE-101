@@ -27,6 +27,23 @@ export interface QueuedWrite {
   payload: unknown
   enqueuedAt: number
   attempts: number
+  lastError?: string
+}
+
+type Listener = (size: number) => void
+const listeners = new Set<Listener>()
+
+function notify(size: number): void {
+  for (const listener of listeners) {
+    listener(size)
+  }
+}
+
+export function subscribeQueue(listener: Listener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 function newId(): string {
@@ -53,15 +70,16 @@ async function readQueue(): Promise<ReadonlyArray<QueuedWrite>> {
 async function writeQueue(next: ReadonlyArray<QueuedWrite>): Promise<void> {
   try {
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(next))
-  } catch {
-    // Storage failure: surface via getQueueSize() warning UX in a later phase.
+    notify(next.length)
+  } catch (error) {
+    console.error('Failed to persist sync queue:', error)
   }
 }
 
 /**
  * Enqueue a write that will be flushed to the backend when connectivity
- * returns. Pure stub: never attempts network. The flush implementation will
- * land alongside the API client work.
+ * returns. Returns the entry so call sites can show optimistic confirmation
+ * with the queue id.
  */
 export async function enqueueWrite(
   entityType: EntityType,
@@ -91,4 +109,25 @@ export async function listQueued(): Promise<ReadonlyArray<QueuedWrite>> {
 
 export async function clearQueue(): Promise<void> {
   await writeQueue([])
+}
+
+export async function removeFromQueue(id: string): Promise<void> {
+  const current = await readQueue()
+  const next = current.filter((entry) => entry.id !== id)
+  await writeQueue(next)
+}
+
+export async function recordAttempt(id: string, errorMessage: string): Promise<void> {
+  const current = await readQueue()
+  const next = current.map((entry) => {
+    if (entry.id !== id) {
+      return entry
+    }
+    return {
+      ...entry,
+      attempts: entry.attempts + 1,
+      lastError: errorMessage
+    }
+  })
+  await writeQueue(next)
 }

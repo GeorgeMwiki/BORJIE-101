@@ -1,74 +1,128 @@
-import { useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { useLocalSearchParams } from 'expo-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
+import { MessageBubble } from '@/components/MessageBubble'
 import { PrimaryButton } from '@/components/PrimaryButton'
+import { EmptyState } from '@/components/EmptyState'
+import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { fetchBids, fetchBid, sendBidMessage } from '@/api/marketplace'
+import { queryKeys } from '@/api/queryKeys'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
 
-interface Msg {
-  readonly id: string
-  readonly from: 'buyer' | 'seller'
-  readonly body: string
-}
-
-const seed: readonly Msg[] = [
-  { id: 'm1', from: 'seller', body: 'Habari. Karibu kuangalia kifurushi cha Geita.' },
-  { id: 'm2', from: 'buyer', body: 'Asante. Naomba uthibitisho wa assay.' }
-] as const
-
+// The chat screen is scoped to an active bid (the seller is implied by the
+// bid). If no bidId comes in via params we default to the first active bid
+// so the screen is still reachable from the bottom nav / deep link.
 export default function ChatIndex() {
   const { t } = useTranslation()
-  const [messages, setMessages] = useState<readonly Msg[]>(seed)
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const params = useLocalSearchParams<{ bidId?: string }>()
   const [draft, setDraft] = useState('')
 
+  const bidsQuery = useQuery({ queryKey: queryKeys.bids(), queryFn: fetchBids, enabled: !params.bidId })
+  const activeBidId = useMemo<string | null>(() => {
+    if (params.bidId) {
+      return String(params.bidId)
+    }
+    const first = bidsQuery.data?.find((b) => b.status === 'pending' || b.status === 'countered')
+    return first?.id ?? bidsQuery.data?.[0]?.id ?? null
+  }, [params.bidId, bidsQuery.data])
+
+  const bidQuery = useQuery({
+    queryKey: activeBidId ? queryKeys.bid(activeBidId) : ['bid', 'none'],
+    queryFn: () => (activeBidId ? fetchBid(activeBidId) : Promise.resolve(undefined)),
+    enabled: Boolean(activeBidId)
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: sendBidMessage,
+    onSuccess: async () => {
+      setDraft('')
+      if (activeBidId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.bid(activeBidId) })
+      }
+    },
+    onError: () => toast.show(t('bids.bid_failed'), 'error')
+  })
+
+  if (bidsQuery.isLoading || bidQuery.isLoading) {
+    return (
+      <Screen>
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.forest} />
+        </View>
+      </Screen>
+    )
+  }
+
+  if (!activeBidId || !bidQuery.data) {
+    return (
+      <Screen>
+        <SectionHeader title={t('chat.title')} />
+        <EmptyState message={t('chat.empty')} />
+      </Screen>
+    )
+  }
+
+  const bid = bidQuery.data
+
   function handleSend(): void {
-    const trimmed = draft.trim()
-    if (!trimmed) {
+    const text = draft.trim()
+    if (!text || !activeBidId) {
       return
     }
-    const next: Msg = { id: `m${messages.length + 1}`, from: 'buyer', body: trimmed }
-    setMessages((prev) => [...prev, next])
-    setDraft('')
+    sendMutation.mutate({ bidId: activeBidId, body: text })
   }
 
   return (
     <Screen scroll={false}>
-      <SectionHeader title={t('chat.title')} />
+      <SectionHeader title={t('chat.title')} subtitle={bid.listingTitle} />
 
-      <View style={styles.list}>
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[styles.bubble, msg.from === 'buyer' ? styles.bubbleBuyer : styles.bubbleSeller]}
-          >
-            <Text style={styles.body}>{msg.body}</Text>
-          </View>
-        ))}
-      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.list}>
+          {bid.thread.length === 0 ? (
+            <Text style={styles.empty}>{t('chat.empty')}</Text>
+          ) : (
+            bid.thread.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                from={msg.from}
+                body={msg.body}
+                authorLabel={msg.from === 'buyer' ? t('profile.title') : 'Seller'}
+              />
+            ))
+          )}
+        </ScrollView>
 
-      <View style={styles.composer}>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={t('chat.placeholder')}
-          placeholderTextColor={colors.inkMuted}
-          style={styles.input}
-        />
-        <PrimaryButton label={t('chat.send')} onPress={handleSend} />
-      </View>
+        <View style={styles.composer}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t('chat.placeholder')}
+            placeholderTextColor={colors.inkMuted}
+            style={styles.input}
+            multiline
+          />
+          <PrimaryButton
+            label={t('chat.send')}
+            onPress={handleSend}
+            disabled={sendMutation.isPending || draft.trim().length === 0}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1, marginBottom: spacing.md },
-  bubble: { padding: spacing.md, borderRadius: radius.md, marginBottom: spacing.sm, maxWidth: '85%' },
-  bubbleBuyer: { backgroundColor: colors.cream, alignSelf: 'flex-end' },
-  bubbleSeller: { backgroundColor: colors.white, alignSelf: 'flex-start', borderWidth: 1, borderColor: colors.line },
-  body: { ...typography.body, color: colors.ink },
-  composer: { gap: spacing.sm },
+  flex: { flex: 1 },
+  list: { paddingBottom: spacing.lg },
+  composer: { paddingTop: spacing.sm, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line },
   input: {
     borderWidth: 1,
     borderColor: colors.line,
@@ -77,6 +131,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.white,
     color: colors.ink,
+    minHeight: 56,
+    textAlignVertical: 'top',
     ...typography.body
-  }
+  },
+  loader: { paddingVertical: spacing.xxl, alignItems: 'center' },
+  empty: { ...typography.body, color: colors.inkMuted, textAlign: 'center', paddingVertical: spacing.xl }
 })

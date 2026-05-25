@@ -1,37 +1,57 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { PlaceholderCard } from '@/components/PlaceholderCard';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { GEOLOGY_MOCK } from '@/lib/mocks/operations';
+import { fmtNum } from '@/lib/format';
 
 /**
- * O-W-11 — Geology workbench.
- *
- * Owner-side view of the geology agent's evidence stack. 3D site
- * view (drill collars + vein), triangulated resource model, assay
- * QA/QC charts (duplicates, blanks, CRMs).
+ * O-W-11 — Geology workbench. Polished stub: resource snapshot and
+ * assay QA/QC table with pass-rate vs threshold. Working action is
+ * "Export geology pack" placeholder.
  */
 export default function GeologyPage() {
   return (
     <>
       <ScreenHeader slug="geology" />
-      <div className="grid grid-cols-1 gap-4 px-8 py-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div className="h-[480px] rounded-lg border border-dashed border-border bg-surface/30 p-6 text-sm text-neutral-400">
-            3D site view + vein triangulation
-            <div className="mt-2 text-xs text-neutral-500">
-              Three.js / deck.gl scene with drill collars, traces, and a
-              triangulated vein surface.
-            </div>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <PlaceholderCard title="Assay QA / QC">
-            Duplicates, blanks, CRMs — control charts with red flags on rule
-            breaks.
-          </PlaceholderCard>
-          <PlaceholderCard title="Resource snapshot">
-            Indicated / inferred tonnage and grade, last updated and signed
-            off.
-          </PlaceholderCard>
-        </div>
+      <div className="grid grid-cols-1 gap-4 px-8 py-6 md:grid-cols-3">
+        <SectionCard title="Resource snapshot" className="md:col-span-2">
+          <dl className="grid grid-cols-2 gap-y-1 text-sm">
+            <dt className="text-neutral-500">Indicated tonnes</dt>
+            <dd className="text-foreground">{fmtNum(GEOLOGY_MOCK.resource.indicatedTonnes)}</dd>
+            <dt className="text-neutral-500">Indicated grade</dt>
+            <dd className="text-foreground">{GEOLOGY_MOCK.resource.indicatedGradeGpt} g/t</dd>
+            <dt className="text-neutral-500">Inferred tonnes</dt>
+            <dd className="text-foreground">{fmtNum(GEOLOGY_MOCK.resource.inferredTonnes)}</dd>
+            <dt className="text-neutral-500">Inferred grade</dt>
+            <dd className="text-foreground">{GEOLOGY_MOCK.resource.inferredGradeGpt} g/t</dd>
+            <dt className="text-neutral-500">Signed off</dt>
+            <dd className="text-foreground">{GEOLOGY_MOCK.resource.lastSignedOff}</dd>
+          </dl>
+        </SectionCard>
+        <SectionCard title="QA / QC pass rates">
+          <ul className="space-y-2 text-sm">
+            {GEOLOGY_MOCK.qaqc.map((q) => {
+              const ok = q.passRate >= q.threshold;
+              return (
+                <li key={q.type} className="flex items-center justify-between">
+                  <span className="text-foreground">{q.type}</span>
+                  <span
+                    className={`font-mono ${
+                      ok ? 'text-success' : 'text-destructive'
+                    }`}
+                  >
+                    {(q.passRate * 100).toFixed(0)}% / {(q.threshold * 100).toFixed(0)}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            className="mt-3 w-full rounded-md border border-warning bg-warning-subtle/30 py-1.5 text-sm text-warning hover:bg-warning-subtle/50"
+          >
+            Export geology pack
+          </button>
+        </SectionCard>
       </div>
     </>
   );

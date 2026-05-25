@@ -1,5 +1,6 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { findScreen } from '@/lib/internal/screens';
+import { ExportFunnelCsv } from '@/components/internal/analytics/ExportFunnelCsv';
 
 const SCREEN = findScreen('analytics')!;
 
@@ -33,7 +34,7 @@ const COHORTS: ReadonlyArray<Cohort> = [
 export default function AnalyticsPage(): JSX.Element {
   const max = FUNNEL[0]?.count ?? 1;
   return (
-    <ScreenShell screen={SCREEN}>
+    <ScreenShell screen={SCREEN} actions={<ExportFunnelCsv />}>
       <section className="rounded-lg border border-border bg-surface p-6">
         <h3 className="text-sm font-medium text-foreground mb-4">Activation funnel (90d)</h3>
         <ul className="space-y-2">

@@ -11,6 +11,7 @@ export function getDictionary(lang: LanguageCode): Dictionary {
 }
 
 export type TranslationPath = string
+export type TranslationVars = Readonly<Record<string, string | number>>
 
 function resolvePath(dict: Dictionary, path: TranslationPath): string {
   const segments = path.split('.')
@@ -25,6 +26,16 @@ function resolvePath(dict: Dictionary, path: TranslationPath): string {
   return typeof current === 'string' ? current : path
 }
 
-export function translate(lang: LanguageCode, path: TranslationPath): string {
-  return resolvePath(getDictionary(lang), path)
+function interpolate(template: string, vars?: TranslationVars): string {
+  if (!vars) {
+    return template
+  }
+  return template.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => {
+    const value = vars[key]
+    return value === undefined ? `{{${key}}}` : String(value)
+  })
+}
+
+export function translate(lang: LanguageCode, path: TranslationPath, vars?: TranslationVars): string {
+  return interpolate(resolvePath(getDictionary(lang), path), vars)
 }

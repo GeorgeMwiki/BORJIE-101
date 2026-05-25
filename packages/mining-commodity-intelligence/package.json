@@ -1,0 +1,43 @@
+{
+  "name": "@borjie/mining-commodity-intelligence",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "LME / Kitco price feeds, gold-window trend analysis, off-take pricing intelligence for mining commodities. Pluggable source adapters; pure analytic core.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@borjie/database": "workspace:*",
+    "@borjie/ai-copilot": "workspace:*",
+    "@borjie/observability": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/database": { "optional": true },
+    "@borjie/ai-copilot": { "optional": true },
+    "@borjie/observability": { "optional": true }
+  }
+}

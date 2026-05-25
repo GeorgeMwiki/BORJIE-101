@@ -6,6 +6,7 @@ interface ScreenShellProps {
   readonly screen: InternalScreen;
   readonly children: ReactNode;
   readonly actions?: ReactNode;
+  readonly stub?: boolean;
 }
 
 /**
@@ -13,7 +14,7 @@ interface ScreenShellProps {
  * page-level files tiny so each stub stays well under the 200-line
  * route budget.
  */
-export function ScreenShell({ screen, children, actions }: ScreenShellProps): JSX.Element {
+export function ScreenShell({ screen, children, actions, stub = false }: ScreenShellProps): JSX.Element {
   return (
     <main id="main-content" className="mx-auto max-w-7xl px-6 py-10">
       <nav aria-label="Breadcrumb" className="mb-4 text-xs text-neutral-500">
@@ -39,10 +40,12 @@ export function ScreenShell({ screen, children, actions }: ScreenShellProps): JS
 
       <section className="space-y-6">{children}</section>
 
-      <footer className="mt-12 pt-6 border-t border-border text-xs text-neutral-500">
-        Stub page — data above is illustrative. Wire to live services in
-        subsequent build phases.
-      </footer>
+      {stub ? (
+        <footer className="mt-12 pt-6 border-t border-border text-xs text-neutral-500">
+          Stub page — data above is illustrative. Wire to live services in
+          subsequent build phases.
+        </footer>
+      ) : null}
     </main>
   );
 }

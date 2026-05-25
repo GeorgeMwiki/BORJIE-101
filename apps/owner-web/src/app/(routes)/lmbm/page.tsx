@@ -1,32 +1,20 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { PlaceholderCard } from '@/components/PlaceholderCard';
+import { LmbmSurface } from '@/components/lmbm/LmbmSurface';
 
 /**
- * O-W-03 — Living Mining Business Map (LMBM) graph explorer.
+ * O-W-03 — LMBM graph explorer.
  *
- * Read-only Cytoscape / Sigma graph over the LMBM (companies,
- * licences, sites, people, documents, events). Clicking any node
- * opens a provenance trace showing the evidence chain that put it
- * in the graph.
+ * Real graph viz with a deterministic radial layout (company at the
+ * centre, licences / sites / docs / people / events in rings). Each
+ * node opens a side panel showing attributes, validity window, and
+ * the evidence chain that wrote it. A time-travel slider at the top
+ * changes the as-of-date so the owner can replay history.
  */
 export default function LmbmPage() {
   return (
     <>
       <ScreenHeader slug="lmbm" />
-      <div className="space-y-4 px-8 py-6">
-        <PlaceholderCard title="Graph canvas">
-          Force-directed graph of the LMBM — Company, Licence, Site, Person,
-          Document, Event nodes. Wired via @borjie/graph-privacy.
-        </PlaceholderCard>
-        <PlaceholderCard title="Provenance trace">
-          Selected node detail: source document(s), confidence band, last
-          updated, junior agent that wrote it.
-        </PlaceholderCard>
-        <PlaceholderCard title="Query bar">
-          Cypher-like query input for advanced owners ("show every licence
-          with a fee gate in the next 60 days").
-        </PlaceholderCard>
-      </div>
+      <LmbmSurface />
     </>
   );
 }

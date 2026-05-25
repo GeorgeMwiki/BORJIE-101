@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
+import { MintPackForm } from '@/components/internal/audit-pack/MintPackForm';
 
 const SCREEN = findScreen('audit-pack')!;
 
@@ -21,42 +22,7 @@ const ISSUED: ReadonlyArray<Issued> = [
 export default function AuditPackPage(): JSX.Element {
   return (
     <ScreenShell screen={SCREEN}>
-      <form className="rounded-lg border border-border bg-surface p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label className="text-sm">
-          <span className="block text-xs uppercase tracking-wider text-neutral-500 mb-1">Tenant</span>
-          <select className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground">
-            <option>Geita Dhahabu Mines</option>
-            <option>Kahama Shaba Holdings</option>
-            <option>Kiwira Coltan Cooperative</option>
-            <option>Mererani Tanzanite Cluster</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="block text-xs uppercase tracking-wider text-neutral-500 mb-1">Regulator</span>
-          <select className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground">
-            <option>TMAA</option>
-            <option>NEMC</option>
-            <option>BoT</option>
-            <option>Ministry of Minerals</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="block text-xs uppercase tracking-wider text-neutral-500 mb-1">Expires in</span>
-          <select className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground">
-            <option>24 hours</option>
-            <option>7 days</option>
-            <option>30 days</option>
-          </select>
-        </label>
-        <div className="md:col-span-3 flex justify-end">
-          <button
-            type="button"
-            className="rounded-md bg-signal-500 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-signal-500/90"
-          >
-            Mint signed URL
-          </button>
-        </div>
-      </form>
+      <MintPackForm />
 
       <div className="rounded-lg border border-border bg-surface overflow-x-auto">
         <table className="w-full text-sm">

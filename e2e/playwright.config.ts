@@ -134,6 +134,20 @@ export default defineConfig({
     },
 
     /*
+     * Borjie golden-path smoke (admin-web 3020 + owner-web 3010 + Expo
+     * mobile static checks + api-gateway 3001). Each spec self-skips
+     * when its target isn't reachable so a broken dev server never
+     * fails this project on PR runs.
+     */
+    {
+      name: 'borjie',
+      testMatch: /borjie\/[^/]+\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
+    /*
      * Phase F.5 owner-live journey suite — 10 specs covering critical
      * owner workflows (signup → maintenance → arrears → KRA → briefing →
      * plan-mode → Skills → slash-commands). Each spec self-skips when

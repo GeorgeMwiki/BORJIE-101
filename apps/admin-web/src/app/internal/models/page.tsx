@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
+import { RefreshModelMetrics } from '@/components/internal/models/RefreshModelMetrics';
 
 const SCREEN = findScreen('models')!;
 
@@ -24,7 +25,7 @@ const MODELS: ReadonlyArray<ModelRow> = [
 
 export default function ModelsPage(): JSX.Element {
   return (
-    <ScreenShell screen={SCREEN}>
+    <ScreenShell screen={SCREEN} actions={<RefreshModelMetrics />}>
       <div className="rounded-lg border border-border bg-surface overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-surface-sunken">

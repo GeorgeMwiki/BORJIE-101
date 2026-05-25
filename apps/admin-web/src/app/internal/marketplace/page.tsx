@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
+import { ListingActions } from '@/components/internal/marketplace/ListingActions';
 
 const SCREEN = findScreen('marketplace')!;
 
@@ -56,9 +57,7 @@ export default function MarketplacePage(): JSX.Element {
                   <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button type="button" className="text-xs text-signal-500 hover:underline">
-                    Review
-                  </button>
+                  <ListingActions id={row.id} title={row.title} status={row.status} />
                 </td>
               </tr>
             ))}

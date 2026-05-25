@@ -86,6 +86,25 @@ async function resolveSink(logger: WorkerLogger): Promise<CorpusSink> {
 function noopLogger(): WorkerLogger {
   // TODO: replace with `import { logger } from '../logger.js'` once the
   // pino dep is hoisted into this service's runtime image.
+  //
+  // BORJIE_DEBUG=1 surfaces ingest progress on stdout/stderr so dev runs
+  // are observable without re-wiring pino.
+  if (process.env.BORJIE_DEBUG === '1') {
+    return {
+      info: (msg, ctx) =>
+        process.stdout.write(
+          `[INFO] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
+        ),
+      warn: (msg, ctx) =>
+        process.stdout.write(
+          `[WARN] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
+        ),
+      error: (msg, ctx) =>
+        process.stderr.write(
+          `[ERROR] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
+        ),
+    };
+  }
   return {
     info: () => undefined,
     warn: () => undefined,
@@ -104,10 +123,17 @@ const isDirect =
   /borjie-corpus-cli(\.js|\.ts)?$/.test(process.argv[1]);
 
 if (isDirect) {
-  main().catch((error) => {
-    process.stderr.write(
-      `borjie-corpus-ingest fatal: ${error instanceof Error ? error.message : String(error)}\n`,
-    );
-    process.exit(2);
-  });
+  main()
+    .then((report) => {
+      process.stdout.write(
+        `[REPORT] ${JSON.stringify(report)}\n`,
+      );
+      process.exit(0);
+    })
+    .catch((error) => {
+      process.stderr.write(
+        `borjie-corpus-ingest fatal: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exit(2);
+    });
 }

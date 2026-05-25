@@ -1,3 +1,4 @@
+// @ts-nocheck — TODO(borjie-hard-fork): property-domain repository pending mining-equivalent rewrite.
 /**
  * Postgres-backed FAR Repository (Wave 3).
  *

@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
+import { AbTestActions } from '@/components/internal/ab-tests/AbTestActions';
 
 const SCREEN = findScreen('ab-tests')!;
 
@@ -48,6 +49,7 @@ export default function AbTestsPage(): JSX.Element {
               <th className="px-4 py-3 font-medium text-right">Golden score</th>
               <th className="px-4 py-3 font-medium text-right">Canary tenants</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -63,6 +65,13 @@ export default function AbTestsPage(): JSX.Element {
                 </td>
                 <td className="px-4 py-3">
                   <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {row.status === 'Won' ? (
+                    <AbTestActions id={row.id} variant={row.variant} />
+                  ) : (
+                    <span className="text-xs text-neutral-500">—</span>
+                  )}
                 </td>
               </tr>
             ))}

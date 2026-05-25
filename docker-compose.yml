@@ -7,7 +7,10 @@ services:
     # pgvector image extends postgres:15-alpine with the pgvector extension
     # required by document-intelligence's embedding/doc-chat surfaces.
     # Enable with: CREATE EXTENSION IF NOT EXISTS vector;
-    image: pgvector/pgvector:pg15
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: borjie/postgres-pgvector-postgis:pg15
     container_name: borjie-postgres
     restart: unless-stopped
     environment:

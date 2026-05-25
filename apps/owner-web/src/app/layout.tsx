@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { OwnerShell } from '@/components/OwnerShell';
+import { AppProviders } from './providers';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -27,7 +28,9 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
-        <OwnerShell>{children}</OwnerShell>
+        <AppProviders>
+          <OwnerShell>{children}</OwnerShell>
+        </AppProviders>
       </body>
     </html>
   );

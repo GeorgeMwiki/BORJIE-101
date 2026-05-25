@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { findScreen } from '@/lib/internal/screens';
 import { MOCK_FLAGS } from '@/lib/internal/mock-data';
+import { FlagRolloutForm } from '@/components/internal/flags/FlagRolloutForm';
 
 const SCREEN = findScreen('flags')!;
 
@@ -27,12 +28,7 @@ export default function FlagsPage(): JSX.Element {
               <span className="text-xs text-neutral-300 tabular-nums w-10 text-right">
                 {flag.rolloutPct}%
               </span>
-              <button
-                type="button"
-                className="text-xs text-signal-500 hover:underline shrink-0"
-              >
-                Edit
-              </button>
+              <FlagRolloutForm flagKey={flag.key} current={flag.rolloutPct} />
             </div>
           </div>
         ))}

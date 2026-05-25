@@ -135,6 +135,10 @@ export * from './action-runtime.schema.js';
 // Temporal entity graph
 export * from './temporal-entity-graph.schema.js';
 
+// Cross-schema relations (must come AFTER every table import so the
+// referenced tables are already in scope when relations() runs).
+export * from './relations.js';
+
 // Session replay (rrweb)
 export * from './session-replay-chunks.schema.js';
 

@@ -2,6 +2,7 @@ import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
 import { MOCK_TICKETS } from '@/lib/internal/mock-data';
+import { TicketAck } from '@/components/internal/support/TicketAck';
 
 const SCREEN = findScreen('support')!;
 
@@ -43,6 +44,7 @@ export default function SupportPage(): JSX.Element {
               <th className="px-4 py-3 font-medium">Subject</th>
               <th className="px-4 py-3 font-medium">SLA</th>
               <th className="px-4 py-3 font-medium text-right">CSAT</th>
+              <th className="px-4 py-3 font-medium" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -56,6 +58,9 @@ export default function SupportPage(): JSX.Element {
                 </td>
                 <td className="px-4 py-3 text-right text-neutral-300 tabular-nums">
                   {row.csat == null ? '—' : `${row.csat}/5`}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <TicketAck id={row.id} />
                 </td>
               </tr>
             ))}

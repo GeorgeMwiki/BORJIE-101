@@ -132,6 +132,7 @@
   "author": "BORJIE",
   "license": "MIT",
   "dependencies": {
+    "@borjie/database": "workspace:*",
     "@anthropic-ai/sdk": "^0.97.1",
     "@borjie/brain-llm-router": "workspace:*",
     "@borjie/forecasting": "workspace:*",

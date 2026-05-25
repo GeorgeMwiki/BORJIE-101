@@ -1,22 +1,19 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { CeoModeSwitcher } from '@/components/master-brain/CeoModeSwitcher';
-import { ChatStub } from '@/components/master-brain/ChatStub';
+import { MasterBrainSurface } from '@/components/master-brain/MasterBrainSurface';
 
 /**
  * O-W-02 — Conversational Master Brain.
  *
- * The owner's primary chat surface with all 8 CEO modes available
- * as a persona switcher. Each mode rewrites the system prompt + tool
- * surface for the next turn (see BOJI_AI_SPEC §4.2).
+ * Real chat surface with all 8 CEO modes, live SSE streaming (falls
+ * back to a simulated stream when the gateway is unreachable),
+ * evidence chips that open a side panel showing the cited chunk, and
+ * junior-call breadcrumbs above the transcript.
  */
 export default function MasterBrainPage() {
   return (
     <>
       <ScreenHeader slug="master-brain" />
-      <div className="space-y-6 px-8 py-6">
-        <CeoModeSwitcher />
-        <ChatStub />
-      </div>
+      <MasterBrainSurface />
     </>
   );
 }
