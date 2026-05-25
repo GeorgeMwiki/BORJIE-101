@@ -1,10 +1,3 @@
-// @ts-nocheck — TODO(borjie-hard-fork): this file dynamically imports
-// `@borjie/database` via `await import('@borjie/database')` to avoid a
-// hard workspace dependency. The package isn't declared in this
-// manifest's `dependencies`, so the typechecker can't resolve the
-// import or the resulting Drizzle table refs. Behaviour is correct at
-// runtime (pnpm symlink graph resolves it); re-enable strict typing
-// once `@borjie/database` is added to package.json deps.
 /**
  * Adapters for `document-agent.ts` — concrete PdfReader, ClaudeClient,
  * LicenceWriter, TemporalEntityWriter implementations. Kept separate so
@@ -274,7 +267,7 @@ async function loadDb(): Promise<DrizzleLikeClient | null> {
     return null;
   }
   try {
-    const mod = (await import('@borjie/database')) as {
+    const mod = (await import('@borjie/database')) as unknown as {
       createDatabaseClient?: (u: string) => DrizzleLikeClient;
     };
     if (typeof mod.createDatabaseClient !== 'function') {
