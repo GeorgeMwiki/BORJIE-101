@@ -19,7 +19,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Dependencies
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
@@ -36,7 +36,7 @@ RUN pnpm install --frozen-lockfile
 # -----------------------------------------------------------------------------
 # Stage 2: Builder
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
 WORKDIR /app
@@ -54,7 +54,7 @@ RUN pnpm --filter=@borjie/consolidation-worker... --workspace-concurrency=1 buil
 # -----------------------------------------------------------------------------
 # Stage 3: Runner
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 
 RUN apk add --no-cache dumb-init
 RUN addgroup --system --gid 1001 nodejs \
