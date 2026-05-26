@@ -70,6 +70,23 @@ export {
   COMPLIANCE_MODE,
 } from './mining-ceo-modes.js';
 
+// ----- Universal-creator meta-tool (Wave 18Q) -----
+// Mr. Mwikila dispatches owner intent to the five atomic capabilities:
+// research, tab, doc, media, campaign. See
+// `Docs/DESIGN/CAPABILITIES_UNIFICATION.md`.
+export type {
+  AuthorityTier,
+  ComposeAnythingCapability,
+  ComposeAnythingInput,
+  ComposeAnythingOutput,
+  ComposeAnythingToolDescriptor,
+  DataJoinRef,
+} from './tools/compose-anything.js';
+export {
+  composeAnythingV1Tool,
+  COMPOSE_ANYTHING_V1_TOOL_ID,
+} from './tools/compose-anything.js';
+
 // ----- New sub-persona differential layer API -----
 export type {
   SubPersonaId,

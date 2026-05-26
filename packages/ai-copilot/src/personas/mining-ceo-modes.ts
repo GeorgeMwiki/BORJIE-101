@@ -12,6 +12,7 @@
  */
 
 import type { MiningCeoMode } from './mining-ceo-persona.js';
+import { COMPOSE_ANYTHING_V1_TOOL_ID } from './tools/compose-anything.js';
 
 /**
  * Hard rules every mode inherits. Mirrors AGENT_PROMPT_LIBRARY.md §0
@@ -80,6 +81,7 @@ export const BUILD_MODE: MiningCeoMode = {
     'lmbm.upsert_site',
     'task.create',
     'corpus.lookup',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Build',
@@ -108,6 +110,7 @@ export const STRATEGY_MODE: MiningCeoMode = {
     'forecaster.unit_economics',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Strategy',
@@ -138,6 +141,7 @@ export const OPERATIONS_MODE: MiningCeoMode = {
     'inventory.read',
     'task.create',
     'corpus.lookup',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Operations',
@@ -167,6 +171,7 @@ export const DOCUMENT_MODE: MiningCeoMode = {
     'document.generate_pack',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Document',
@@ -198,6 +203,7 @@ export const FINANCE_MODE: MiningCeoMode = {
     'tz.gepgGateway.queryBill',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Finance',
@@ -227,6 +233,7 @@ export const RISK_MODE: MiningCeoMode = {
     'tz.nemcPortal.fetchPermit',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Risk',
@@ -255,6 +262,7 @@ export const BOARD_INVESTOR_MODE: MiningCeoMode = {
     'lmbm.read_portfolio',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Board / Investor',
@@ -284,6 +292,7 @@ export const COMPLIANCE_MODE: MiningCeoMode = {
     'tz.gepgGateway.queryBill',
     'corpus.lookup',
     'task.create',
+    COMPOSE_ANYTHING_V1_TOOL_ID,
   ],
   system_prompt: composeModePrompt({
     mode: 'Compliance',
