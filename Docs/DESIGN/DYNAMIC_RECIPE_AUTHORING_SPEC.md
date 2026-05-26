@@ -4,7 +4,7 @@
 > Persona: **Mr. Mwikila** — Borjie's autonomous Managing Director for
 > Tanzanian mining operators.
 > Companion package: `@borjie/dynamic-recipe-authoring`.
-> Companion migration: `0060_dynamic_authored_recipes.sql`.
+> Companion migration: `0066_dynamic_authored_recipes.sql`.
 >
 > **Cross-links:**
 > [`ANTICIPATORY_UX_SPEC.md`](./ANTICIPATORY_UX_SPEC.md) (Wave 18B —
@@ -204,10 +204,12 @@ CHECK constraints enforce the kind/lifecycle enums. Two indices:
 and `(audit_hash)` for forensic replay. RLS uses the canonical
 `current_setting('app.tenant_id', true)` policy.
 
-Migration number 0058 was reserved by Wave PERF-1
-(`employee_perf_followup`); 0059 was reserved by Wave 18DD (wave
-resilience). We use 0060 — the next free slot on `main` at authoring
-time.
+Migration number 0058 is reserved by Wave PERF-1
+(`employee_perf_followup`); 0059 by Wave 18DD (wave resilience);
+0060 through 0065 are claimed by other in-flight waves visible in
+the local tree (swarm coordination, work cycle, voice Swahili, org
+legibility, strategic layer, RLVR). We use **0066** — the next free
+slot at authoring time.
 
 ---
 
