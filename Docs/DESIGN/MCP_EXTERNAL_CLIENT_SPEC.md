@@ -296,3 +296,23 @@ read-only from inside the kernel.
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked SOTA findings that validate this MCP-client direction. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### § Industry convergence — May 2026 ServiceNow announcement
+
+**Source**: ServiceNow announcement May 2026 — opening the ServiceNow system of action to *"every AI agent via Model Context Protocol"*. Reference: https://www.servicenow.com/company/media/press-room/mcp-every-ai-agent.html (and the ServiceNow MCP developer portal).
+
+**Implication for Borjie (verbatim)**: *This validates the MCP-server-first architecture we already shipped (`mcp-server-tra`, `mcp-server-tumemadini`, `mcp-server-process-intel`). The industry is converging on MCP as the integration protocol of choice — meaning every external system Mr. Mwikila will eventually touch (Salesforce, HubSpot, Linear, Jira, etc.) will likely expose MCP endpoints in the next 12 months. Our connector strategy should be: MCP-first wherever the provider supports it; native API as a fallback only.*
+
+**Effect on this spec**:
+- The MCP external-client priority is **strategically core, not optional**. Task #154 ("KEEP `@modelcontextprotocol/sdk`") status is firmer.
+- The `mcp_external_connections` credentials record gains a `mcp_server_url` optional field (already a property of any MCP connection); the founder-locked policy is that when this field is populated, the dispatcher MUST prefer MCP RPCs over any native-API fallback for the same logical action.
+- Wave M5-6 `legibility` package surfaces MCP-vs-native ingress per connector in the org-legibility map.
+- The OMNI connector specs (`OMNI_P1_CONNECTORS_SPEC.md`, `OMNI_P2_SOCIAL_CONNECTORS_SPEC.md`) carry a §MCP-first capability check row per provider that, when the provider exposes an official MCP server, makes the connector default to MCP RPCs.
+
+**Rationale**: Founder-locked direction: external SOTA validation confirms the bet on MCP as the integration substrate; the dispatcher policy of "MCP-first, native-API as fallback only" prevents drift toward native-API code paths that would otherwise be cheaper to ship in the short term but lose the long-term portability benefit MCP provides.
