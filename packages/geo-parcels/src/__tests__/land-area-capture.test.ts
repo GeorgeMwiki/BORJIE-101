@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { captureLandArea } from '../land-area-capture.js';
+import { logger } from '../logger.js';
 import { GeoParcelsError } from '../types.js';
 import {
   InMemoryPort,
@@ -123,7 +124,7 @@ describe('captureLandArea', () => {
 
   it('continues silently if reverse geocoder throws', async () => {
     const port = new InMemoryPort();
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const loggerSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const geocoder = {
       resolve: vi.fn().mockRejectedValue(new Error('network down')),
     };
@@ -141,8 +142,8 @@ describe('captureLandArea', () => {
       geocoder,
     );
     expect(result.id).toBe('la6');
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+    expect(loggerSpy).toHaveBeenCalled();
+    loggerSpy.mockRestore();
   });
 
   it('does not call geocoder when region+ward already provided', async () => {
