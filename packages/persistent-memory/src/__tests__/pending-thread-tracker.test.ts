@@ -41,8 +41,8 @@ describe('pending-thread-tracker', () => {
     const insert = createPendingThreadInsert({ repo, audit });
 
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      insert(ctx, { pending_kind: 'nope' as any, payload: {} }),
+      // @ts-expect-error -- intentionally invalid pending_kind to exercise the runtime guard
+      insert(ctx, { pending_kind: 'nope', payload: {} }),
     ).rejects.toBeInstanceOf(PersistentMemoryError);
   });
 
