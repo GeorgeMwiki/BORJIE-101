@@ -861,3 +861,24 @@ export * from './marketing-promotion.schema.js';
 // Consumed by @borjie/language-packs.
 // See Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.
 export * from './universal-language-packs.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave PERF-1 — Employee Daily Performance Follow-up (migration 0058)
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration
+// 0058_employee_perf_followup.sql:
+//   kpi_templates        — per-(tenant, role) catalogue of KPI definitions.
+//                          Seed rows live under sentinel tenant_id
+//                          '__seed__' and are read-visible cross-tenant.
+//                          UNIQUE(tenant_id, role).
+//   employee_scorecards  — one row per (tenant, employee, date) with
+//                          per-KPI raw measurements + computed bands +
+//                          overall_score + signals. Hash-chained via
+//                          (prev_hash, audit_hash). UNIQUE(tenant_id,
+//                          employee_user_id, date).
+//   perf_nudges          — one row per dispatched nudge.
+//                          recipient_tier in {subject, supervisor, owner}
+//                          per FOUNDER_LOCKED_DECISIONS_2026_05_26.md §3.
+// Consumed by @borjie/employee-perf-followup.
+// See Docs/DESIGN/EMPLOYEE_DAILY_PERFORMANCE_FOLLOWUP_SPEC.md.
+export * from './employee-perf-followup.schema.js';
