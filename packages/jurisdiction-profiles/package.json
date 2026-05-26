@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/jurisdiction-profiles",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Universal Jurisdiction Profile + Compliance Framework registry (Wave UNIV-1, Mr. Mwikila). Pluggable registry of country/subdivision rule-sets (`tz`, `gb-eng`, `us-ca`, …) + named compliance regulations (`gdpr`, `tz_dpa_2022`, `ccpa`, `lgpd`, `pipl`, `pdpa_sg`, `dpdp_in`, `ke_dpa_2019`, `ndpa_2023`, `popia`, `kvkk`, `lfpdppp`, `pipeda`, `appi`, `hipaa`, `ferpa`, `coppa`). Implements Docs/DESIGN/UNIVERSAL_JURISDICTION_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./seed": {
+      "types": "./dist/seed/index.d.ts",
+      "import": "./dist/seed/index.js",
+      "default": "./dist/seed/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
