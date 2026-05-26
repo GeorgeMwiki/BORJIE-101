@@ -1,0 +1,43 @@
+{
+  "name": "@borjie/session-mirror",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Universal observability scaffold (Wave 18R) — FieldStateMirror + UiStateGraph + client-side capture hooks + server-side snapshot readers. Implements docs/DESIGN/UNIVERSAL_OBSERVABILITY_SPEC.md. The MD reads in-flight form values and the live workspace topology through this surface.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.3.1",
+    "@types/node": "^25.8.0",
+    "@types/react": "^18.0.0",
+    "jsdom": "^24.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
