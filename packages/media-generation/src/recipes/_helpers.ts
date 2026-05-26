@@ -30,6 +30,10 @@ import {
   buildC2paManifest,
   embedC2paManifest,
 } from '../watermark/c2pa-embedder.js';
+import {
+  planVisibleWatermark,
+  type VisibleWatermarkPlan,
+} from '../watermark/visible-watermark.js';
 import { getBrandSpec } from '../brand-lock/brand-spec.js';
 import { createClassBudgetTracker } from '../budgets/cost-tracker.js';
 import { buildMediaAuditLink } from '../audit/audit-chain-link.js';
@@ -100,7 +104,9 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
     safety_scan: safety,
   };
 
-  // Embed the C2PA manifest into the artifact bytes.
+  // Embed the C2PA manifest into the artifact bytes. The manifest is
+  // tenant-scoped so regulators can verify provenance against the
+  // tenant id (Caveat 1 — tenant-scoped C2PA provenance).
   const manifest = buildC2paManifest({
     recipe_id: args.recipe.id,
     recipe_version: args.recipe.version,
@@ -108,11 +114,23 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
     checksum: artifact.checksum,
     provenance: sealedProvenance,
     generated_at: artifact.generated_at,
+    tenant_id: args.ctx.tenant_id,
+    brand: brand.brand,
   });
   const bytesWithC2pa = embedC2paManifest({
     bytes: artifact.body,
     manifest,
   });
+
+  // Plan the visible watermark for public-facing variants — Tier-2
+  // recipes ALWAYS get the wordmark composited; Tier-0/1 recipes get
+  // the plan attached so the caller can render it when promoting to a
+  // public surface. Pure planner — actual sharp/ffmpeg invocation
+  // lives in the production worker (Caveat 1 — visible watermark
+  // wired into the pipeline).
+  const visibleWatermarkPlan = args.expect_wordmark
+    ? planVisibleWatermark({ format: artifact.format, brand })
+    : null;
 
   // Re-seal the audit hash with the safety-scan result baked in.
   const resealed = buildMediaAuditLink({
@@ -130,12 +148,39 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
     generated_at: artifact.generated_at,
   });
 
-  return {
+  const final: MediaArtifact = {
     ...artifact,
     provenance: sealedProvenance,
     body: bytesWithC2pa,
     audit_hash: resealed.audit_hash,
   };
+
+  // Attach the watermark plan + tenant id via a non-enumerable
+  // backchannel so the artifact stays MediaArtifact-shaped (no schema
+  // drift) but the caller can still read the plan for rendering.
+  if (visibleWatermarkPlan) {
+    Object.defineProperty(final, '__visibleWatermarkPlan', {
+      value: visibleWatermarkPlan,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
+  return final;
+}
+
+/**
+ * Read the visible-watermark plan attached to an artifact by
+ * `runRecipe`. Returns null when the recipe did not request the
+ * wordmark (e.g. internal sketches). Public so callers don't have to
+ * touch the non-enumerable backchannel directly.
+ */
+export function readVisibleWatermarkPlan(
+  artifact: MediaArtifact,
+): VisibleWatermarkPlan | null {
+  const v = (artifact as unknown as { readonly __visibleWatermarkPlan?: VisibleWatermarkPlan })
+    .__visibleWatermarkPlan;
+  return v ?? null;
 }
 
 function assertRequiredInputs(

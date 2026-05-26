@@ -47,12 +47,21 @@ export interface BuildManifestArgs {
   readonly provenance: MediaProvenance;
   readonly generated_at: string;
   readonly tenant_secret?: string;
+  /** Tenant id — sealed into the C2PA manifest so regulators can verify
+   *  the artifact was produced for a specific tenant. Mr. Mwikila's
+   *  brand-DNA layer is tenant-scoped from day one. */
+  readonly tenant_id?: string;
+  /** Brand attribution — defaults to 'borjie' but multi-brand tenants
+   *  override it (BossNyumba sibling fork). */
+  readonly brand?: string;
 }
 
 export function buildC2paManifest(args: BuildManifestArgs): C2paManifest {
   const promptHash = createHash('sha256')
     .update(args.provenance.prompt_text)
     .digest('hex');
+  const brand = args.brand ?? 'borjie';
+  const tenant_id = args.tenant_id ?? '';
   const manifest = {
     version: '1.4' as const,
     claim_generator: 'borjie/media-generation' as const,
@@ -76,6 +85,7 @@ export function buildC2paManifest(args: BuildManifestArgs): C2paManifest {
                 seed: args.provenance.seed,
                 audit_hash: args.audit_hash,
                 checksum: args.checksum,
+                tenant_id,
               },
             },
           ],
@@ -84,7 +94,8 @@ export function buildC2paManifest(args: BuildManifestArgs): C2paManifest {
       {
         label: 'borjie.brand_credentials',
         data: {
-          brand: 'borjie',
+          brand,
+          tenant_id,
           recipe_id: args.recipe_id,
           recipe_version: args.recipe_version,
           generated_at: args.generated_at,
@@ -100,6 +111,8 @@ export function buildC2paManifest(args: BuildManifestArgs): C2paManifest {
             args.audit_hash,
             args.checksum,
             promptHash,
+            tenant_id,
+            brand,
             args.tenant_secret ?? '',
           ].join('|'),
         )

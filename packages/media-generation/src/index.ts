@@ -292,4 +292,9 @@ export {
   buildSocialPostStillRecipe,
 } from './recipes/social-post-still.js';
 
-export { runRecipe, readData, type RunRecipeArgs } from './recipes/_helpers.js';
+export {
+  runRecipe,
+  readData,
+  readVisibleWatermarkPlan,
+  type RunRecipeArgs,
+} from './recipes/_helpers.js';
