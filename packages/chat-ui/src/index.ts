@@ -64,3 +64,10 @@ export * as Dopamine from './dopamine/index.js';
 // and apps/admin-web (authenticated variant). See `./borjie/` for the
 // component, panel, mode selector, bubble, and SSE hook.
 export * from './borjie/index.js';
+// Canonical display identity — locked by founder directive. Every UI
+// surface that renders the persona name/title must source from here so
+// the string never drifts. See `./canonical-display.ts`.
+export {
+  MR_MWIKILA_CANONICAL_DISPLAY,
+  type MrMwikilaCanonicalDisplay,
+} from './canonical-display.js';
