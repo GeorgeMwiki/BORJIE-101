@@ -922,3 +922,31 @@ integration).
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked decisions that override prior defaults in this spec. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### Override — Decision #2 (Strategic memo monthly budget cap — $0 bundled)
+
+**Verbatim**: *Default: $0 — bundled in base package, no additional cost. Strategic memos (monthly direction briefings produced by `packages/strategic-layer/`) are part of the Borjie base subscription. Do NOT meter per memo, do NOT cap monthly count, do NOT bill add-ons.*
+
+Spec-required statement: *"Strategic memos ship at $0 — bundled in the base package. No tenant-side metering. No premium tier gate. Cost accounting is internal-only (we track our LLM token spend in `epsilon_ledger` for capacity planning, but the tenant sees no bill line for memos)."*
+
+**Action**: The `monthly_budget_usd_cents` field is removed entirely from `north_star_objectives` and from this spec's prior wording. Internal epsilon-ledger accounting remains for capacity planning but is never surfaced to the tenant as a metered line.
+
+**Rationale**: Founder-locked: strategic memos are a core part of the persona experience, not a monetisable add-on; pricing them per-memo would distort owner behaviour and discourage the very strategic visibility the persona is built to provide.
+
+### Override — Decision #5 (Cross-tenant template sharing — folded into federation_consents)
+
+**Verbatim**: *FOLD into federation consent. Cross-tenant template sharing IS a federation-consent surface; do NOT build a separate consent UI.*
+
+**Effect on this spec**:
+- The federation-consent dashboard (M10 deliverable inside this layer) gains a "Templates" row in its consent surface; toggling it on/off is a single click that flips `federation_consents.scope = 'tools'` rows on/off.
+- No new consent table or UI; reuses migration 0040 `federation_consents` with `scope = 'tools'`.
+- Meta-learning weekly reports (Wave SELFIMPROVE) consume the same `federation_consents` table; this layer is the canonical consent surface for both meta-learning and template sharing.
+- Cross-references: `Docs/DESIGN/ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md` (template producer side) and `Docs/DESIGN/SELF_IMPROVE_AND_DP_FEDERATION_SPEC.md` (meta-learning consumer side) share this consent path.
+
+**Rationale**: Founder-locked unification: one consent surface for every cross-tenant data flow keeps the owner's mental model crisp and prevents consent drift across separately-evolved UIs.
