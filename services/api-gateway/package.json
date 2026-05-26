@@ -6,7 +6,7 @@
   "description": "API Gateway / BFF for BORJIE platform",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "dev": "tsx watch --env-file=../../.env.local src/index.ts",
     "dev:no-env": "tsx watch src/index.ts",
     "prebuild": "node ../../scripts/generate-openapi-spec.mjs",
     "build": "tsup",

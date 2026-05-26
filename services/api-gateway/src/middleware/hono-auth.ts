@@ -6,11 +6,24 @@
 
 import { createMiddleware } from 'hono/factory';
 import jwt from 'jsonwebtoken';
+import { jwtVerify, createRemoteJWKSet, type JWTPayload as JoseJWTPayload } from 'jose';
 import type { UserRole } from '../types/user-role';
 import { getJwtSecret } from '../config/jwt';
 import { tokenBlocklist } from './token-blocklist';
+import { mapSupabaseRolesToUserRole } from '../auth/supabase/supabase-auth-middleware';
 
 const JWT_SECRET = getJwtSecret();
+
+// Borjie hard-fork: accept Supabase Auth ES256 tokens via JWKS. The .well-known/jwks.json
+// endpoint is public — the project's JWKS contains an EC P-256 key per kid.
+const SUPABASE_BASE_URL =
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_JWKS_URL = SUPABASE_BASE_URL
+  ? `${SUPABASE_BASE_URL.replace(/\/+$/, '')}/auth/v1/.well-known/jwks.json`
+  : '';
+const SUPABASE_JWKS = SUPABASE_JWKS_URL
+  ? createRemoteJWKSet(new URL(SUPABASE_JWKS_URL))
+  : null;
 
 export interface AuthContext {
   userId: string;
@@ -60,10 +73,43 @@ export const authMiddleware = createMiddleware(async (c, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // Pin algorithm to prevent alg=none / RS256-vs-HS256 confusion.
-    const decoded = jwt.verify(token, JWT_SECRET, {
-      algorithms: ['HS256'],
-    }) as JWTPayload;
+    // Borjie: detect Supabase ES256 tokens by header alg + iss, verify via JWKS.
+    // Falls back to legacy HS256 (jsonwebtoken + JWT_SECRET) for service-to-service
+    // tokens minted by Borjie itself.
+    let decoded: JWTPayload;
+    const headerB64 = token.split('.')[0];
+    const headerAlg = headerB64
+      ? JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8')).alg
+      : '';
+
+    if (headerAlg === 'ES256' || headerAlg === 'RS256') {
+      if (!SUPABASE_JWKS) {
+        throw new Error('SUPABASE_URL not set — cannot verify ES256 tokens');
+      }
+      const { payload } = await jwtVerify(token, SUPABASE_JWKS, {
+        algorithms: ['ES256', 'RS256'],
+      });
+      const sp = payload as JoseJWTPayload & {
+        app_metadata?: { tenant_id?: string; mining_role?: string };
+      };
+      decoded = {
+        userId: String(sp.sub ?? ''),
+        tenantId: sp.app_metadata?.tenant_id ?? '',
+        role: mapSupabaseRolesToUserRole(
+          sp.app_metadata?.mining_role ? [sp.app_metadata.mining_role] : [],
+        ),
+        permissions: sp.app_metadata?.mining_role ? [sp.app_metadata.mining_role] : [],
+        propertyAccess: [],
+        jti: typeof sp.jti === 'string' ? sp.jti : undefined,
+        exp: typeof sp.exp === 'number' ? sp.exp : 0,
+        iat: typeof sp.iat === 'number' ? sp.iat : 0,
+      };
+    } else {
+      // Pin algorithm to prevent alg=none / RS256-vs-HS256 confusion.
+      decoded = jwt.verify(token, JWT_SECRET, {
+        algorithms: ['HS256'],
+      }) as JWTPayload;
+    }
 
     if (decoded.jti && tokenBlocklist.isRevoked(decoded.jti)) {
       return c.json(

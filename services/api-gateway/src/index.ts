@@ -67,14 +67,14 @@ import { hrRouter } from './routes/hr.hono';
 import { miningRouter } from './routes/mining/index';
 // Wave 1-2 routers (new domain features)
 import applicationsRouter from './routes/applications.router';
-import arrearsRouter from './routes/arrears.router';
+// REMOVED (borjie hard-fork): import arrearsRouter from './routes/arrears.router';
 import complianceRouter from './routes/compliance.router';
 import compliancePluginsRouter from './routes/compliance-plugins.router';
 import docChatRouter from './routes/doc-chat.router';
 import documentRenderRouter from './routes/document-render.router';
 import financialProfileRouter from './routes/financial-profile.router';
-import gamificationRouter from './routes/gamification.router';
-import gepgRouter from './routes/gepg.router';
+// REMOVED (borjie hard-fork): import gamificationRouter from './routes/gamification.router';
+// REMOVED (borjie hard-fork): import gepgRouter from './routes/gepg.router';
 import interactiveReportsRouter from './routes/interactive-reports.router';
 import lettersRouter from './routes/letters.router';
 import { marketplaceRouter } from './routes/marketplace.router';
@@ -87,16 +87,16 @@ import { universalMarketplaceRouter } from './routes/marketplace/index.js';
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
 import { createMigrationRouter } from './routes/migration.router';
-import { negotiationsRouter } from './routes/negotiations.router';
+// REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
 import { createNotificationPreferencesRouter } from './routes/notification-preferences.router';
 import { createNotificationWebhookRouter } from './routes/notification-webhooks.router';
-import occupancyTimelineRouter from './routes/occupancy-timeline.router';
-import renewalsRouter from './routes/renewals.router';
-import riskReportsRouter from './routes/risk-reports.router';
+// REMOVED (borjie hard-fork): import occupancyTimelineRouter from './routes/occupancy-timeline.router';
+// REMOVED (borjie hard-fork): import renewalsRouter from './routes/renewals.router';
+// REMOVED (borjie hard-fork): import riskReportsRouter from './routes/risk-reports.router';
 import scansRouter from './routes/scans.router';
-import stationMasterCoverageRouter from './routes/station-master-coverage.router';
+// REMOVED (borjie hard-fork): import stationMasterCoverageRouter from './routes/station-master-coverage.router';
 import { tendersRouter } from './routes/tenders.router';
-import { waitlistRouter } from './routes/waitlist.router';
+// REMOVED (borjie hard-fork): import { waitlistRouter } from './routes/waitlist.router';
 // Veteran-expert property-domain advisor packages
 // (acquisitionAdvisor, expansionAdvisor, lifecycleAdvisor,
 // sustainabilityAdvisor, greenAngleAdvisor, estateDepartmentAdvisor,
@@ -164,7 +164,7 @@ import { stageRouter } from './routes/stage/index.js';
 // audit chain 8.
 import workflowRouter from './routes/workflow/index.js';
 import agentCertificationsRouter from './routes/agent-certifications.router';
-import classroomRouter from './routes/classroom.router';
+// REMOVED (borjie hard-fork): import classroomRouter from './routes/classroom.router';
 import trainingRouter from './routes/training.router';
 import voiceRouter from './routes/voice.router';
 // Wave 13 — Autonomous Department Mode routers
@@ -172,27 +172,27 @@ import exceptionsRouter from './routes/exceptions.router';
 import autonomousActionsAuditRouter from './routes/autonomous-actions-audit.router';
 import autonomyRouter from './routes/autonomy.router';
 // Wave 28 Phase A Agent PhA2 — monthly-close orchestrator.
-import monthlyCloseRouter from './routes/monthly-close.router';
+// REMOVED (borjie hard-fork): import monthlyCloseRouter from './routes/monthly-close.router';
 // Organizational Awareness — "talk to your organization" endpoints
 import orgAwarenessRouter from './routes/org-awareness.router';
 // Tenant Credit Rating — FICO-scale credit + portable certificate
-import creditRatingRouter from './routes/credit-rating.router';
+// REMOVED (borjie hard-fork): import creditRatingRouter from './routes/credit-rating.router';
 // Property Grading — Mr. Mwikila's A–F report card system (migration 0088)
-import propertyGradingRouter from './routes/property-grading.router';
+// REMOVED (borjie hard-fork): import propertyGradingRouter from './routes/property-grading.router';
 // Wave-K parity-litfin — LITFIN mission-eval dashboard parity surface.
 import parityCapabilityDashboardRouter from './routes/parity-capability-dashboard.router';
 // AI-Native suite — Agent PhG: 8 capabilities that leverage LLMs at scale.
 import aiNativeRouter from './routes/ai-native.router';
 // Wave 26 — Agent Z2: expose four repos that had tests but no HTTP surface.
-import subleaseRouter from './routes/sublease.router';
-import damageDeductionsRouter from './routes/damage-deductions.router';
-import conditionalSurveysRouter from './routes/conditional-surveys.router';
+// REMOVED (borjie hard-fork): import subleaseRouter from './routes/sublease.router';
+// REMOVED (borjie hard-fork): import damageDeductionsRouter from './routes/damage-deductions.router';
+// REMOVED (borjie hard-fork): import conditionalSurveysRouter from './routes/conditional-surveys.router';
 import farRouter from './routes/far.router';
 // Wave 26 Z3 — Move-out checklist + Approval workflow (migration 0097)
-import moveOutRouter from './routes/move-out.router';
+// REMOVED (borjie hard-fork): import moveOutRouter from './routes/move-out.router';
 import approvalsRouter from './routes/approvals.router';
 // Wave 27 PhA1 — Vacancy-to-Lease orchestrator (migration 0098)
-import vacancyPipelineRouter from './routes/vacancy-pipeline.router';
+// REMOVED (borjie hard-fork): import vacancyPipelineRouter from './routes/vacancy-pipeline.router';
 import adminJarvisRouter from './routes/admin-jarvis.router';
 // Central-Command AG-UI wire — POST /admin/jarvis/stream returns SSE-framed
 // AG-UI Protocol events. Replaces the 503 stub at
@@ -216,7 +216,7 @@ import auditTrailRouter from './routes/audit-trail.router';
 // Wraps @borjie/database's sovereign-action-ledger service; SUPER_ADMIN+ADMIN only.
 import sovereignLedgerRouter from './routes/sovereign-ledger.router';
 // Wave 27 Agent F — Risk-recompute dispatcher manual-trigger surface.
-import { createRiskRecomputeRouter } from './routes/risk-recompute.router';
+// REMOVED (borjie hard-fork): import { createRiskRecomputeRouter } from './routes/risk-recompute.router';
 // Wave 28 — Head briefing cohesive morning screen (JSON / markdown / voice).
 import headBriefingRouter from './routes/head-briefing.router';
 // Wave 28 — Junior-AI factory (team-lead self-service provisioning).
@@ -760,14 +760,14 @@ api.route('/manager', estateManagerAppRouter);
 api.route('/admin', adminPortalRouter);
 // Wave 1-2 feature routers
 api.route('/applications', applicationsRouter);
-api.route('/arrears', arrearsRouter);
+// REMOVED (borjie hard-fork): api.route('/arrears', arrearsRouter);
 api.route('/compliance', complianceRouter);
 api.route('/compliance-plugins', compliancePluginsRouter);
 api.route('/doc-chat', docChatRouter);
 api.route('/document-render', documentRenderRouter);
 api.route('/financial-profile', financialProfileRouter);
-api.route('/gamification', gamificationRouter);
-api.route('/gepg', gepgRouter);
+// REMOVED (borjie hard-fork): api.route('/gamification', gamificationRouter);
+// REMOVED (borjie hard-fork): api.route('/gepg', gepgRouter);
 api.route('/interactive-reports', interactiveReportsRouter);
 api.route('/letters', lettersRouter);
 api.route('/marketplace', marketplaceRouter);
@@ -826,16 +826,16 @@ const notificationWebhooksRouter = createNotificationWebhookRouter({
   },
 });
 api.route('/migration', migrationRouter);
-api.route('/negotiations', negotiationsRouter);
+// REMOVED (borjie hard-fork): api.route('/negotiations', negotiationsRouter);
 api.route('/me/notification-preferences', notificationPreferencesRouter);
 api.route('/notification-webhooks', notificationWebhooksRouter);
-api.route('/occupancy-timeline', occupancyTimelineRouter);
-api.route('/renewals', renewalsRouter);
-api.route('/risk-reports', riskReportsRouter);
+// REMOVED (borjie hard-fork): api.route('/occupancy-timeline', occupancyTimelineRouter);
+// REMOVED (borjie hard-fork): api.route('/renewals', renewalsRouter);
+// REMOVED (borjie hard-fork): api.route('/risk-reports', riskReportsRouter);
 api.route('/scans', scansRouter);
-api.route('/station-master-coverage', stationMasterCoverageRouter);
+// REMOVED (borjie hard-fork): api.route('/station-master-coverage', stationMasterCoverageRouter);
 api.route('/tenders', tendersRouter);
-api.route('/waitlist', waitlistRouter);
+// REMOVED (borjie hard-fork): api.route('/waitlist', waitlistRouter);
 // Veteran-expert property-domain advisor routes (acquisition,
 // expansion, lifecycle, sustainability, green-angle, estate-department,
 // estate-auto-management, lpms) were retired in the mining hard-fork.
@@ -901,7 +901,7 @@ api.route('/stage', stageRouter);
 // source of truth.
 api.route('/workflow', workflowRouter);
 api.route('/agent-certifications', agentCertificationsRouter);
-api.route('/classroom', classroomRouter);
+// REMOVED (borjie hard-fork): api.route('/classroom', classroomRouter);
 api.route('/training', trainingRouter);
 api.route('/voice', voiceRouter);
 // Wave 13 — Autonomous Department Mode
@@ -909,13 +909,13 @@ api.route('/exceptions', exceptionsRouter);
 api.route('/audit', autonomousActionsAuditRouter);
 api.route('/autonomy', autonomyRouter);
 // Wave 28 Phase A Agent PhA2 — monthly bookkeeping close.
-api.route('/monthly-close', monthlyCloseRouter);
+// REMOVED (borjie hard-fork): api.route('/monthly-close', monthlyCloseRouter);
 // Organizational Awareness — "talk to your organization" endpoints
 api.route('/org', orgAwarenessRouter);
 // Tenant Credit Rating — FICO-scale credit + portable certificate
-api.route('/credit-rating', creditRatingRouter);
+// REMOVED (borjie hard-fork): api.route('/credit-rating', creditRatingRouter);
 // Property Grading — Mr. Mwikila's A–F report card system
-api.route('/property-grading', propertyGradingRouter);
+// REMOVED (borjie hard-fork): api.route('/property-grading', propertyGradingRouter);
 // Wave-K parity-litfin — LITFIN mission-eval dashboard parity surface
 // (aggregates over kernel_provenance + kernel_cot_reservoir).
 api.route('/parity/capability', parityCapabilityDashboardRouter);
@@ -923,15 +923,15 @@ api.route('/parity/capability', parityCapabilityDashboardRouter);
 // polyglot support, predictive interventions, policy simulator, NL query.
 api.route('/ai-native', aiNativeRouter);
 // Wave 26 — Agent Z2: four repos Agent T flagged with zero router wiring.
-api.route('/subleases', subleaseRouter);
-api.route('/damage-deductions', damageDeductionsRouter);
-api.route('/conditional-surveys', conditionalSurveysRouter);
+// REMOVED (borjie hard-fork): api.route('/subleases', subleaseRouter);
+// REMOVED (borjie hard-fork): api.route('/damage-deductions', damageDeductionsRouter);
+// REMOVED (borjie hard-fork): api.route('/conditional-surveys', conditionalSurveysRouter);
 api.route('/far', farRouter);
 // Wave 26 Z3 — Move-out checklist + Approval workflow.
-api.route('/move-out', moveOutRouter);
+// REMOVED (borjie hard-fork): api.route('/move-out', moveOutRouter);
 api.route('/approvals', approvalsRouter);
 // Wave 27 PhA1 — Vacancy-to-Lease orchestrator (state machine + pipeline runs)
-api.route('/vacancy-pipeline', vacancyPipelineRouter);
+// REMOVED (borjie hard-fork): api.route('/vacancy-pipeline', vacancyPipelineRouter);
 // Personal Jarvis-style AI for every Borjie user — each surface
 // hits the same central-intelligence brain kernel but selects a
 // surface-specific persona and personalises the opening with the
@@ -984,16 +984,16 @@ api.route('/forecast', forecastRouter);
 // body. Returns 503 INTELLIGENCE_SERVICE_UNAVAILABLE when the LLM
 // adapter is not wired (no mock agents).
 api.route('/intelligence', intelligenceRouter);
-// Wave 27 Agent F — Risk-recompute manual trigger. Accessors close over
-// the heartbeat supervisor (constructed earlier) so the router returns
-// 503 cleanly when the dispatcher is not wired.
-api.route(
-  '/risk-recompute',
-  createRiskRecomputeRouter({
-    getDispatcher: () => heartbeatSupervisor.riskDispatcher,
-    getJobs: () => heartbeatSupervisor.riskJobs,
-  }),
-);
+// REMOVED (borjie hard-fork): Wave 27 risk-recompute trigger — BossNyumba-era
+// property-risk router deleted in wave 1. Borjie mining-risk recompute lives
+// in services/api-gateway/src/workers/executive-brief-action-runner.ts now.
+// api.route(
+//   '/risk-recompute',
+//   createRiskRecomputeRouter({
+//     getDispatcher: () => heartbeatSupervisor.riskDispatcher,
+//     getJobs: () => heartbeatSupervisor.riskJobs,
+//   }),
+// );
 // Frontend gap-fix routers — owner-portal hits these top-level paths.
 // `/analytics/summary`, `/portfolio/{summary,performance,growth}`. Until
 // dedicated aggregators land, each returns an "honest empty" shape so
@@ -1098,37 +1098,37 @@ const openApiRouter = createOpenApiRouter({
     { prefix: '/manager', app: estateManagerAppRouter, defaultTag: 'bff-manager' },
     { prefix: '/admin', app: adminPortalRouter, defaultTag: 'bff-admin' },
     { prefix: '/applications', app: applicationsRouter, defaultTag: 'applications' },
-    { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
+// REMOVED (borjie hard-fork):     { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
     { prefix: '/compliance', app: complianceRouter, defaultTag: 'compliance' },
     { prefix: '/compliance-plugins', app: compliancePluginsRouter, defaultTag: 'compliance-plugins' },
     { prefix: '/doc-chat', app: docChatRouter, defaultTag: 'doc-chat' },
     { prefix: '/document-render', app: documentRenderRouter, defaultTag: 'document-render' },
     { prefix: '/financial-profile', app: financialProfileRouter, defaultTag: 'financial-profile' },
-    { prefix: '/gamification', app: gamificationRouter, defaultTag: 'gamification' },
-    { prefix: '/gepg', app: gepgRouter, defaultTag: 'gepg' },
+// REMOVED (borjie hard-fork):     { prefix: '/gamification', app: gamificationRouter, defaultTag: 'gamification' },
+// REMOVED (borjie hard-fork):     { prefix: '/gepg', app: gepgRouter, defaultTag: 'gepg' },
     { prefix: '/interactive-reports', app: interactiveReportsRouter, defaultTag: 'interactive-reports' },
     { prefix: '/letters', app: lettersRouter, defaultTag: 'letters' },
     { prefix: '/marketplace', app: marketplaceRouter, defaultTag: 'marketplace' },
     { prefix: '/marketplace-universal', app: universalMarketplaceRouter, defaultTag: 'marketplace-universal' },
     { prefix: '/migration', app: migrationRouter as unknown as Hono, defaultTag: 'migration' },
-    { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
+// REMOVED (borjie hard-fork):     { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
     { prefix: '/me/notification-preferences', app: notificationPreferencesRouter, defaultTag: 'notifications' },
     { prefix: '/notification-webhooks', app: notificationWebhooksRouter, defaultTag: 'notifications' },
-    { prefix: '/occupancy-timeline', app: occupancyTimelineRouter, defaultTag: 'occupancy-timeline' },
-    { prefix: '/renewals', app: renewalsRouter, defaultTag: 'renewals' },
-    { prefix: '/risk-reports', app: riskReportsRouter, defaultTag: 'risk-reports' },
+// REMOVED (borjie hard-fork):     { prefix: '/occupancy-timeline', app: occupancyTimelineRouter, defaultTag: 'occupancy-timeline' },
+// REMOVED (borjie hard-fork):     { prefix: '/renewals', app: renewalsRouter, defaultTag: 'renewals' },
+// REMOVED (borjie hard-fork):     { prefix: '/risk-reports', app: riskReportsRouter, defaultTag: 'risk-reports' },
     { prefix: '/scans', app: scansRouter, defaultTag: 'scans' },
-    { prefix: '/station-master-coverage', app: stationMasterCoverageRouter, defaultTag: 'station-master-coverage' },
+// REMOVED (borjie hard-fork):     { prefix: '/station-master-coverage', app: stationMasterCoverageRouter, defaultTag: 'station-master-coverage' },
     { prefix: '/tenders', app: tendersRouter, defaultTag: 'tenders' },
-    { prefix: '/waitlist', app: waitlistRouter, defaultTag: 'waitlist' },
+// REMOVED (borjie hard-fork):     { prefix: '/waitlist', app: waitlistRouter, defaultTag: 'waitlist' },
     { prefix: '/feature-flags', app: featureFlagsRouter, defaultTag: 'feature-flags' },
     { prefix: '/gdpr', app: gdprRouter, defaultTag: 'gdpr' },
     { prefix: '/ai-costs', app: aiCostsRouter, defaultTag: 'ai-costs' },
     { prefix: '/exceptions', app: exceptionsRouter, defaultTag: 'autonomy' },
     { prefix: '/audit', app: autonomousActionsAuditRouter, defaultTag: 'autonomy' },
-    { prefix: '/subleases', app: subleaseRouter, defaultTag: 'subleases' },
-    { prefix: '/damage-deductions', app: damageDeductionsRouter, defaultTag: 'damage-deductions' },
-    { prefix: '/conditional-surveys', app: conditionalSurveysRouter, defaultTag: 'conditional-surveys' },
+// REMOVED (borjie hard-fork):     { prefix: '/subleases', app: subleaseRouter, defaultTag: 'subleases' },
+// REMOVED (borjie hard-fork):     { prefix: '/damage-deductions', app: damageDeductionsRouter, defaultTag: 'damage-deductions' },
+// REMOVED (borjie hard-fork):     { prefix: '/conditional-surveys', app: conditionalSurveysRouter, defaultTag: 'conditional-surveys' },
     { prefix: '/far', app: farRouter, defaultTag: 'far' },
     { prefix: '/analytics', app: analyticsRouter, defaultTag: 'analytics' },
     { prefix: '/portfolio', app: portfolioRouter, defaultTag: 'portfolio' },
