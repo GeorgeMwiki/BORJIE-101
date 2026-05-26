@@ -64,7 +64,6 @@ function resolveTrace(): OtelLikeTrace | null {
   if (_resolved) return _cachedTrace;
   _resolved = true;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires -- SCRUB-5f: rule-disabled because @opentelemetry/api is a soft optional peer dep loaded via a sync require seam at module-bootstrap time
     const mod = _syncRequire('@opentelemetry/api') as {
       trace?: OtelLikeTrace;
     };
@@ -92,7 +91,7 @@ let _syncRequire: (spec: string) => unknown = (spec: string) => {
   if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
     throw new Error('OpenTelemetry resolution is server-only');
   }
-  // eslint-disable-next-line no-eval, @typescript-eslint/no-implied-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam for the optional @opentelemetry/api peer dep
+  // eslint-disable-next-line no-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam for the optional @opentelemetry/api peer dep
   const dyn = eval('require') as (m: string) => unknown;
   return dyn(spec);
 };
@@ -251,7 +250,7 @@ export function _restoreSyncRequireForTests(): void {
     if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
       throw new Error('OpenTelemetry resolution is server-only');
     }
-    // eslint-disable-next-line no-eval, @typescript-eslint/no-implied-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam restored after test overrides
+    // eslint-disable-next-line no-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam restored after test overrides
     const dyn = eval('require') as (m: string) => unknown;
     return dyn(spec);
   };

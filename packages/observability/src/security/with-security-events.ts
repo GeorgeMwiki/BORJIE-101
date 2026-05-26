@@ -491,7 +491,6 @@ async function emitMiddlewareEvent(
       metadata: { statusCode: status },
     });
   } catch (err) {
-    // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because audit-emit failures are last-resort surfaced via console.warn; raising here would break the request lifecycle
     console.warn('securityEventsMiddleware: audit emit failed', err);
   }
 }
