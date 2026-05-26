@@ -828,3 +828,24 @@ export * from './language-self-improve.schema.js';
 // Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
 // (Decisions 3 + 4).
 export * from './language-sota.schema.js';
+
+// ---------------------------------------------------------------------------
+// Barrel-stability block (additive, alphabetised) — SCRUB-6
+// ---------------------------------------------------------------------------
+// Every *.schema.ts file under this directory MUST be reachable from this
+// barrel so downstream packages can rely on `@borjie/database/schemas` as a
+// stable single import surface. The block below covers schemas that landed
+// after the original commentary blocks were authored. Entries are sorted
+// alphabetically; do NOT remove an entry once added — rename in place or
+// supersede with a more specific block above. Guards against the
+// barrel-flicker observed during parallel agent races.
+export * from './connector-github.schema.js';
+export * from './connector-gitlab.schema.js';
+export * from './connector-hubspot.schema.js';
+export * from './connector-jira.schema.js';
+export * from './connector-linear.schema.js';
+export * from './connector-salesforce.schema.js';
+export * from './connector-teams.schema.js';
+export * from './connector-voice.schema.js';
+export * from './connector-zoom.schema.js';
+export * from './marketing-promotion.schema.js';
