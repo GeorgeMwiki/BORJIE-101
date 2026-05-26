@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { OwnerShell } from '@/components/OwnerShell';
 import { AppProviders } from './providers';
+import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -30,6 +31,7 @@ export default function RootLayout({
         </a>
         <AppProviders>
           <OwnerShell>{children}</OwnerShell>
+          <BorjieWidgetMount />
         </AppProviders>
       </body>
     </html>

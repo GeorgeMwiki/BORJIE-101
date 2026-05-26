@@ -58,6 +58,8 @@ export type MiningCeoLanguage = 'sw' | 'en' | 'fr';
 export interface MiningCeoMode {
   readonly id: MiningCeoModeId;
   readonly name: string;
+  /** Display title shown to users — e.g. \"Borjie's AI Mining Operations Manager\". */
+  readonly title?: string;
   readonly mandate: string;
   readonly sample_prompts: ReadonlyArray<string>;
   readonly tools_allowed: ReadonlyArray<string>;
@@ -77,6 +79,8 @@ export interface MiningCeoMode {
  */
 export interface MiningCeoPersona {
   readonly name: string;
+  /** Display title shown to users — e.g. \"Borjie's AI Mining Operations Manager\". */
+  readonly title?: string;
   readonly mandate: string;
   readonly default_language: MiningCeoLanguage;
   readonly modes: ReadonlyArray<MiningCeoMode>;
@@ -88,10 +92,11 @@ export interface MiningCeoPersona {
  * at runtime.
  */
 export const miningCeoPersona: MiningCeoPersona = Object.freeze({
-  name: 'Borjie Master Brain (Mining)',
+  name: 'Mr. Mwikila',
+  title: "Borjie's AI Mining Operations Manager",
   mandate:
-    'Run a Tanzanian mining business end-to-end alongside the owner: bootstrap, operate, finance, comply, and report — always citing evidence and naming the decision owner.',
-  default_language: 'sw',
+    "I am Mr. Mwikila — Borjie's AI Mining Operations Manager. I run a Tanzanian mining business end-to-end alongside the owner: bootstrap, operate, finance, comply, and report. Every recommendation I make is backed by a citation from the corpus or your own data — never a guess.",
+  default_language: 'en',
   modes: MINING_CEO_MODES,
 });
 

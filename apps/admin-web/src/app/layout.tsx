@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SensoriumProvider } from '@/lib/sensorium/SensoriumProvider';
 import { SessionReplayProvider } from '@/components/SessionReplayProvider';
+import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 
 export const metadata: Metadata = {
   title: {
@@ -41,6 +42,7 @@ export default function RootLayout({
         <SessionReplayProvider surface="admin-web">
           <SensoriumProvider surface="admin-web">
             {children}
+            <BorjieWidgetMount />
           </SensoriumProvider>
         </SessionReplayProvider>
       </body>

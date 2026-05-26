@@ -59,3 +59,8 @@ export type {
   UserActionTrackerRow,
 } from './lib/learned-shortcuts/index.js';
 export * as Dopamine from './dopamine/index.js';
+// FloatingAskBorjie — bespoke Borjie-branded floating chat widget.
+// Mounted by apps/marketing (public/anonymous variant), apps/owner-web,
+// and apps/admin-web (authenticated variant). See `./borjie/` for the
+// component, panel, mode selector, bubble, and SSE hook.
+export * from './borjie/index.js';

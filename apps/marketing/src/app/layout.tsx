@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getLocale } from '@/lib/locale';
 import { CookieConsent } from '@/components/CookieConsent';
+import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 
 export const metadata: Metadata = {
   title: 'Borjie — AI-native operating system for Tanzanian mining',
@@ -73,6 +74,7 @@ export default async function RootLayout({
         </a>
         {children}
         <CookieConsent locale={locale} />
+        <BorjieWidgetMount locale={locale} />
       </body>
     </html>
   );

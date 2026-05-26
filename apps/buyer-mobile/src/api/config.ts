@@ -1,7 +1,7 @@
 // Centralised API config. EXPO_PUBLIC_* env vars are inlined at build time
 // so they are safe to read from any runtime (web, iOS, Android).
 
-const FALLBACK_GATEWAY = 'http://localhost:3001'
+const FALLBACK_GATEWAY = 'http://localhost:4001'
 
 function readBaseUrl(): string {
   const raw =

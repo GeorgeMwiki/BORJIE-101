@@ -70,14 +70,24 @@
           "microphonePermission": "Borjie records voice notes for shift reports and incidents."
         }
       ],
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
     },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
+    },
     "extra": {
-      "splashTagline": "Borjie · Ofisi ya Mgodi",
-      "apiGatewayUrl": "https://api.borjie.local"
+      "splashTagline": "Borjie - Ofisi ya Mgodi",
+      "apiGatewayUrl": "http://localhost:4001",
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
     }
   }
 }

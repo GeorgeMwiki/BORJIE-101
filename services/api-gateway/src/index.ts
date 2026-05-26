@@ -142,6 +142,11 @@ import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 import publicMarketingRouter from './routes/public-marketing.router';
 import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
+// Borjie marketing-widget public chat — unauthenticated SSE stream of
+// curated Borjie-about-Borjie responses, consumed by FloatingAskBorjie
+// in the marketing site. Mounted at /api/v1/public/chat (more specific
+// path than the legacy /public mount so the Borjie handler wins).
+import publicChatRouter from './routes/public-chat.hono';
 // Public marketing status page — aggregates 90-day uptime from the
 // service_status_history table (migration 0015). Unauthenticated;
 // 30 s in-process cache. Mounted at /api/v1/public/status.
@@ -880,6 +885,9 @@ api.route('/mcp', mcpRouter);
 // is still discoverable by A2A clients that follow our OpenAPI spec).
 api.route('/.well-known/agent.json', agentCardRouter);
 // Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine
+// Borjie public chat mounts FIRST so its /chat handler wins lookup over
+// the legacy BossNyumba marketing-brain /chat under the same prefix.
+api.route('/public', publicChatRouter);
 api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);

@@ -14,14 +14,26 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.borjie.buyer"
+      "bundleIdentifier": "com.borjie.buyer",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Borjie Buyers uses the camera to capture NIDA, TIN and contract images for KYC.",
+        "NSPhotoLibraryUsageDescription": "Borjie Buyers needs gallery access to attach KYC and contract evidence.",
+        "NSFaceIDUsageDescription": "Borjie Buyers uses biometric sign-off to confirm bids and contracts."
+      }
     },
     "android": {
       "package": "com.borjie.buyer",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1B3A2F"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -36,13 +48,24 @@
           "cameraPermission": "Borjie Buyers needs the camera to capture NIDA front/back and selfie checks."
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
     },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
+    },
     "extra": {
-      "splashTagline": "Borjie Buyers · Soko la madini halisi"
+      "splashTagline": "Borjie Buyers - Soko la madini halisi",
+      "apiGatewayUrl": "http://localhost:4001",
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
     }
   }
 }

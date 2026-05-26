@@ -14,6 +14,7 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
     "lucide-react": "^0.460.0",
     "next": "^15.5.15",

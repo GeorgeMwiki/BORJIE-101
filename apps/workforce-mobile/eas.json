@@ -16,7 +16,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_API_GATEWAY_URL": "https://dev.api.borjie.example",
+        "EXPO_PUBLIC_API_GATEWAY_URL": "http://localhost:4001",
         "EXPO_PUBLIC_USE_LIVE_API": "false",
         "EXPO_PUBLIC_ENV": "development"
       },

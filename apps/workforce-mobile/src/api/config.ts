@@ -4,7 +4,7 @@ import Constants from 'expo-constants'
  * Resolve API gateway URL with this precedence:
  *  1. EXPO_PUBLIC_API_GATEWAY_URL env var (highest — set in EAS / .env)
  *  2. expoConfig.extra.apiGatewayUrl from app.json (dev fallback)
- *  3. hard fallback to localhost:3001 (matches the api-gateway dev port)
+ *  3. hard fallback to localhost:4001 (matches the api-gateway dev port)
  *
  * The URL never ends with a trailing slash so callers can safely concatenate.
  */
@@ -13,7 +13,7 @@ function resolveBaseUrl(): string {
   const fromConfig = Constants.expoConfig?.extra?.['apiGatewayUrl'] as
     | string
     | undefined
-  const raw = fromEnv ?? fromConfig ?? 'http://localhost:3001'
+  const raw = fromEnv ?? fromConfig ?? 'http://localhost:4001'
   return raw.replace(/\/+$/u, '')
 }
 
@@ -24,7 +24,9 @@ export const DEFAULT_TIMEOUT_MS = 5_000
 // compile while screens migrate to the canonical mining prefix.
 export const FIELD_PREFIX = '/api/v1/field'
 export const OWNER_PREFIX = '/api/v1/owner'
-export const CHAT_PREFIX = '/api/v1/chat'
+// Master Brain SSE entry — authenticated workforce chat. Public-buyer
+// equivalent lives at '/api/v1/public/chat' (used by buyer-mobile).
+export const CHAT_PREFIX = '/api/v1/mining/chat'
 
 /**
  * Canonical prefix for the api-gateway mining surface. All new wiring
