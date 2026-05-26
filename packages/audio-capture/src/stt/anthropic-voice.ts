@@ -222,8 +222,7 @@ function toBase64(bytes: Uint8Array): string {
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const g = globalThis as any;
+  const g = globalThis as unknown as { btoa?: (data: string) => string };
   return typeof g.btoa === 'function' ? g.btoa(binary) : '';
 }
 

@@ -112,8 +112,7 @@ function decodeBase64(b64: string): Uint8Array {
   if (typeof Buffer !== 'undefined') {
     return new Uint8Array(Buffer.from(b64, 'base64'));
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const g = globalThis as any;
+  const g = globalThis as unknown as { atob?: (data: string) => string };
   const binary = typeof g.atob === 'function' ? g.atob(b64) : '';
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);

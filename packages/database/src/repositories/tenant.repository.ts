@@ -1,4 +1,3 @@
-// @ts-nocheck — drizzle-orm v0.36 pgEnum column narrowing: accepts only literal union in eq(); repo params arrive as `string`. Tracked: drizzle-team/drizzle-orm#2389 (pgEnum string narrowing). Revisit after drizzle 0.37 lands widened overloads.
 /**
  * TenantRepository & UserRepository - PostgreSQL implementations for tenant and user data access.
  *
@@ -29,8 +28,19 @@ import {
   type EncryptionPort,
   type FieldEncryptionAuditSink,
 } from '../security/encryption/index.js';
-import type { RepoEncryptionDeps } from './customer.repository.js';
 import { assertUserStatus } from './enum-guards.js';
+
+/**
+ * Optional encryption deps accepted by repository constructors. The
+ * property-domain `customer.repository.ts` (deleted in the pre-Borjie
+ * hard-fork) used to own this type; the mining-domain repos
+ * declare it locally so the file-scope `@ts-nocheck` (which previously
+ * hid the dangling cross-repo import) can be removed.
+ */
+export interface RepoEncryptionDeps {
+  readonly encPort?: EncryptionPort | null;
+  readonly encAudit?: FieldEncryptionAuditSink | null;
+}
 
 type TenantRow = typeof tenants.$inferSelect;
 
@@ -250,9 +260,12 @@ export class UserRepository {
     if (filters?.status) {
       // Bug fix A-BUG-DEEP #9: validate against the literal union so an
       // invalid status surfaces as ENUM_VALUE_INVALID rather than a
-      // silently empty list.
+      // silently empty list. `assertUserStatus` returns the literal-
+      // typed `UserStatus`, which satisfies drizzle's pgEnum-narrowed
+      // `eq()` overload directly (drizzle-team/drizzle-orm#2389 only
+      // bites when the call site holds a plain `string`).
       const status = assertUserStatus(filters.status);
-      conditions.push(eq(users.status, status as unknown as typeof users.status.$inferType));
+      conditions.push(eq(users.status, status));
     }
 
     if (filters?.search) {
@@ -276,10 +289,11 @@ export class UserRepository {
       .limit(limit)
       .offset(offset);
 
-    const [{ total }] = await this.db
+    const totalRows = await this.db
       .select({ total: count() })
       .from(users)
       .where(whereClause);
+    const total = totalRows[0]?.total ?? 0;
 
     const decrypted = await this.decryptMany(rows, tenantId);
     return { items: decrypted, total, limit, offset, hasMore: offset + rows.length < total };
@@ -335,8 +349,10 @@ export class UserRepository {
       .update(users)
       .set({
         // Bug fix A-BUG-DEEP #9: 'deactivated' validated via the literal
-        // union; the cast remains only to satisfy drizzle's pgEnum narrowing.
-        status: assertUserStatus('deactivated') as unknown as typeof users.status.$inferType,
+        // union; the literal-typed return narrows drizzle's pgEnum
+        // overload without the double-cast `unknown as $inferType` hack
+        // that the old file-scope `@ts-nocheck` was hiding.
+        status: assertUserStatus('deactivated'),
         deletedAt: new Date(),
         deletedBy,
         updatedAt: new Date(),
