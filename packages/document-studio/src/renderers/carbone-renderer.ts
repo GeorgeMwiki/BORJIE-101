@@ -73,13 +73,26 @@ export class CarboneRenderer implements Renderer {
    * Lazily resolve the effective Carbone URL — options win, then
    * `CARBONE_URL`, then the default. Returns `undefined` when the
    * caller explicitly passed an empty string (force-stub).
+   *
+   * In production a silent fall-through to the `localhost:4000`
+   * default would point document generation at a non-existent local
+   * service; we throw a configuration error there instead so it
+   * surfaces at first-render rather than as a confusing timeout.
    */
   private resolveUrl(): string | undefined {
     if (this.options.carboneUrl === '') return undefined;
     if (this.options.carboneUrl) return this.options.carboneUrl;
     const envUrl = process.env.CARBONE_URL;
     if (envUrl === '') return undefined;
-    return envUrl ?? DEFAULT_CARBONE_URL;
+    if (envUrl !== undefined && envUrl.length > 0) return envUrl;
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'document-studio (carbone): CARBONE_URL must be set in ' +
+          'production (no silent "http://localhost:4000" default). ' +
+          'Pass `useStub: true` to opt into the stub renderer instead.',
+      );
+    }
+    return DEFAULT_CARBONE_URL;
   }
 
   private resolveTimeout(): number {
