@@ -90,11 +90,24 @@ export function ParcelMap(props: ParcelMapProps): React.ReactElement {
       if (typeof window === 'undefined') return; // SSR guard
       if (!containerRef.current) return;
 
-      let maplibregl: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      // Structural shape of the subset of maplibre-gl we actually call.
+      type MaplibreModule = {
+        Map: new (opts: unknown) => {
+          on: (event: string, layerOrHandler: unknown, handler?: unknown) => void;
+          addSource: (id: string, source: unknown) => void;
+          addLayer: (layer: unknown) => void;
+          addControl?: (control: unknown) => void;
+          remove: () => void;
+        };
+      };
+      let maplibregl: MaplibreModule | null = null;
       try {
         // Dynamic import so consumers without maplibre installed still
         // get a clean tsc + bundle.
-        maplibregl = await import(/* webpackChunkName: "maplibre" */ 'maplibre-gl').catch(() => null);
+        const loaded: unknown = await import(
+          /* webpackChunkName: "maplibre" */ 'maplibre-gl'
+        ).catch(() => null);
+        maplibregl = (loaded as MaplibreModule | null) ?? null;
       } catch {
         maplibregl = null;
       }
@@ -141,7 +154,14 @@ export function ParcelMap(props: ParcelMapProps): React.ReactElement {
                 'fill-outline-color': '#059669',
               },
             });
-            map.on('click', 'parcels-fill', (e: any) => {
+            map.on('click', 'parcels-fill', (rawEvent: unknown) => {
+              const e = rawEvent as {
+                readonly features?: ReadonlyArray<{
+                  readonly id?: string | number;
+                  readonly properties?: { readonly id?: string | number };
+                }>;
+                readonly lngLat: { readonly lng: number; readonly lat: number };
+              };
               const feature = e.features?.[0];
               if (!feature || !onParcelClick) return;
               const id = String(feature.properties?.id ?? feature.id ?? '');
