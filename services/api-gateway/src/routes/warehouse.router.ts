@@ -13,12 +13,36 @@
  * When unwired (e.g. no DB), returns 503 with NOT_IMPLEMENTED so clients can
  * surface a clear reason without a hard crash.
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/hono-auth';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+/** Router dispatches at runtime — Hono's generic Context is sufficient. */
+type AnyContext = Context;
+
+interface WarehouseServiceError {
+  readonly code: string;
+  readonly message: string;
+}
+
+type WarehouseResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: WarehouseServiceError };
+
+interface WarehouseService {
+  listItems(tenantId: string, filters: unknown): Promise<unknown>;
+  createItem(tenantId: string, input: unknown, actor: string): Promise<WarehouseResult<unknown>>;
+  getItem(tenantId: string, id: string): Promise<WarehouseResult<unknown | null>>;
+  recordMovement(
+    tenantId: string,
+    input: unknown,
+    actor: string
+  ): Promise<WarehouseResult<unknown>>;
+  listMovements(tenantId: string, itemId: string): Promise<WarehouseResult<unknown>>;
+}
 const ConditionSchema = z.enum([
   'new',
   'functioning',
@@ -72,12 +96,13 @@ const MovementSchema = z.object({
 const app = new Hono();
 app.use('*', authMiddleware);
 
-function svc(c: any) {
-  const services = c.get('services') ?? {};
+function svc(c: AnyContext): WarehouseService | undefined {
+  const services =
+    (c.get('services') as { warehouse?: WarehouseService } | undefined) ?? {};
   return services.warehouse;
 }
 
-function notImplemented(c: any) {
+function notImplemented(c: AnyContext) {
   return c.json(
     {
       success: false,
@@ -90,7 +115,11 @@ function notImplemented(c: any) {
   );
 }
 
-function mapErr(c: any, result: any, fallback = 400) {
+function mapErr(
+  c: AnyContext,
+  result: { error: WarehouseServiceError },
+  fallback = 400,
+) {
   const status =
     result.error.code === 'NOT_FOUND'
       ? 404
@@ -109,7 +138,7 @@ function mapErr(c: any, result: any, fallback = 400) {
   );
 }
 
-app.get('/items', async (c: any) => {
+app.get('/items', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -123,7 +152,7 @@ app.get('/items', async (c: any) => {
   return c.json({ success: true, data: items });
 });
 
-app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -133,7 +162,7 @@ app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ ac
   return c.json({ success: true, data: result.value }, 201);
 }));
 
-app.get('/items/:id', async (c: any) => {
+app.get('/items/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -148,7 +177,7 @@ app.get('/items/:id', async (c: any) => {
   return c.json({ success: true, data: result.value });
 });
 
-app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -162,7 +191,7 @@ app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurit
   return c.json({ success: true, data: result.value }, 201);
 }));
 
-app.get('/items/:id/movements', async (c: any) => {
+app.get('/items/:id/movements', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);

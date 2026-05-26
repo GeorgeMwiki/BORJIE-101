@@ -31,6 +31,10 @@ import { LabAssayInputSchema, createDefaultLabAssayAgent } from './lab-assay-age
 import { LicenceAgentInputSchema, createDefaultLicenceAgent } from './licence-agent.js';
 import { MaintenanceInputSchema, createDefaultMaintenanceAgent } from './maintenance-agent.js';
 import {
+  MarketingBrainMiningInputSchema,
+  createDefaultMarketingBrainMiningAgent,
+} from './marketing-brain-mining.js';
+import {
   MarketplaceInputSchema,
   createDefaultMarketplaceStakeholderAgent,
 } from './marketplace-stakeholder-agent.js';
@@ -46,6 +50,10 @@ import { ReportWriterInputSchema, createDefaultReportWriter } from './report-wri
 import { RiskModelerInputSchema, createDefaultRiskModeler } from './risk-modeler.js';
 import { SafetyAgentInputSchema, createDefaultSafetyAgent } from './safety-agent.js';
 import { SalesInputSchema, createDefaultSalesOfftakeAgent } from './sales-offtake-agent.js';
+import {
+  TutoringSkillPackMiningInputSchema,
+  createDefaultTutoringSkillPackMiningAgent,
+} from './tutoring-skill-pack-mining.js';
 import { VillageCsrInputSchema, createDefaultVillageCsrAgent } from './village-csr-agent.js';
 
 export interface JuniorAgent<TInput> {
@@ -82,6 +90,10 @@ export const JUNIOR_REGISTRY: Readonly<Record<string, JuniorEntry<ZodSchema>>> =
   'lab-assay-agent': entry(LabAssayInputSchema, createDefaultLabAssayAgent),
   'licence-agent': entry(LicenceAgentInputSchema, createDefaultLicenceAgent),
   'maintenance-agent': entry(MaintenanceInputSchema, createDefaultMaintenanceAgent),
+  'marketing-brain-mining': entry(
+    MarketingBrainMiningInputSchema,
+    createDefaultMarketingBrainMiningAgent,
+  ),
   'marketplace-stakeholder-agent': entry(
     MarketplaceInputSchema,
     createDefaultMarketplaceStakeholderAgent,
@@ -98,6 +110,10 @@ export const JUNIOR_REGISTRY: Readonly<Record<string, JuniorEntry<ZodSchema>>> =
   'risk-modeler': entry(RiskModelerInputSchema, createDefaultRiskModeler),
   'safety-agent': entry(SafetyAgentInputSchema, createDefaultSafetyAgent),
   'sales-offtake-agent': entry(SalesInputSchema, createDefaultSalesOfftakeAgent),
+  'tutoring-skill-pack-mining': entry(
+    TutoringSkillPackMiningInputSchema,
+    createDefaultTutoringSkillPackMiningAgent,
+  ),
   'village-csr-agent': entry(VillageCsrInputSchema, createDefaultVillageCsrAgent),
 };
 

@@ -13,7 +13,7 @@
  * constants, and any extra types are also re-exported per junior so
  * downstream code can validate at the orchestration boundary.
  *
- * The 28 juniors (27 scaffolded here + document-agent already present):
+ * The 28 mining juniors:
  *   document-agent             — PML PDF parser (already exists).
  *   master-brain               — dispatch router.
  *   auditor-agent              — evidence gate.
@@ -42,6 +42,8 @@
  *   metallurgy-agent           — processing flowsheet + recovery.
  *   forecast-modeler           — production + cash + cost forecasts.
  *   risk-modeler               — composite risk score.
+ *   marketing-brain-mining     — investor / board / regulator narrative composer.
+ *   tutoring-skill-pack-mining — owner-onboarding next-best tutorial cards.
  */
 
 // ─────────────────────────────────────────────────────────────────────
@@ -452,3 +454,30 @@ export {
   type RiskModelerInput,
   type RiskModeler,
 } from './risk-modeler.js';
+
+// ─────────────────────────────────────────────────────────────────────
+// Mining-domain marketing & tutoring juniors
+// ─────────────────────────────────────────────────────────────────────
+
+export {
+  createMarketingBrainMiningAgent,
+  createDefaultMarketingBrainMiningAgent,
+  MarketingBrainMiningInputSchema,
+  MarketingBrainMiningOutput,
+  MarketingBrainMiningAudience,
+  MARKETING_BRAIN_MINING_SYSTEM_PROMPT,
+  type MarketingBrainMiningInput,
+  type MarketingBrainMiningAgent,
+} from './marketing-brain-mining.js';
+
+export {
+  createTutoringSkillPackMiningAgent,
+  createDefaultTutoringSkillPackMiningAgent,
+  TutoringSkillPackMiningInputSchema,
+  TutoringSkillPackMiningOutput,
+  TutorialCard,
+  TutorialPriority,
+  TUTORING_SKILL_PACK_MINING_SYSTEM_PROMPT,
+  type TutoringSkillPackMiningInput,
+  type TutoringSkillPackMiningAgent,
+} from './tutoring-skill-pack-mining.js';

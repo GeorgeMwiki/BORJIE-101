@@ -6,13 +6,24 @@
  *   GET /feature-flags         — resolved flag list for caller's tenant
  *   PUT /feature-flags/:key    — admin-only override (body: { enabled: bool })
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+/**
+ * Router dispatches at runtime — Hono's generic `Context` is sufficient.
+ */
+type AnyContext = Context;
+
+interface FeatureFlagsService {
+  list(tenantId: string): Promise<unknown>;
+  setOverride(tenantId: string, key: string, value: boolean, actor: string): Promise<unknown>;
+}
+
 const SetOverrideSchema = z.object({
   enabled: z.boolean(),
 });
@@ -20,12 +31,13 @@ const SetOverrideSchema = z.object({
 const app = new Hono();
 app.use('*', authMiddleware);
 
-function svc(c: any) {
-  const services = c.get('services') ?? {};
+function svc(c: AnyContext): FeatureFlagsService | undefined {
+  const services =
+    (c.get('services') as { featureFlags?: FeatureFlagsService } | undefined) ?? {};
   return services.featureFlags;
 }
 
-function notImplemented(c: any) {
+function notImplemented(c: AnyContext) {
   return c.json(
     {
       success: false,
@@ -38,7 +50,7 @@ function notImplemented(c: any) {
   );
 }
 
-app.get('/', async (c: any) => {
+app.get('/', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -68,7 +80,7 @@ app.put(
     UserRole.ADMIN,
   ),
   zValidator('json', SetOverrideSchema),
-  withSecurityEvents({ action: 'feature-flag.update', resource: 'feature-flag', severity: 'info' }, async (c: any) => {
+  withSecurityEvents({ action: 'feature-flag.update', resource: 'feature-flag', severity: 'info' }, async (c: AnyContext) => {
     const auth = c.get('auth');
     const flagKey = c.req.param('key');
     const body = c.req.valid('json');

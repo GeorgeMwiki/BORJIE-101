@@ -71,6 +71,8 @@ const JUNIOR_NAMES = [
   'metallurgy-agent',
   'forecast-modeler',
   'risk-modeler',
+  'marketing-brain-mining',
+  'tutoring-skill-pack-mining',
 ] as const;
 
 export const JuniorName = z.enum(JUNIOR_NAMES);

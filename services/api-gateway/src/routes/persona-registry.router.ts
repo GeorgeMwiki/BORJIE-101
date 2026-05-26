@@ -18,13 +18,26 @@
  * Returns 503 NOT_IMPLEMENTED when the slot is null (degraded mode).
  */
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+/** Router dispatches at runtime — Hono's generic Context is sufficient. */
+type AnyContext = Context;
+
+interface PersonaRegistry {
+  list(): unknown;
+  get(id: string): unknown;
+  register(input: unknown): Promise<unknown>;
+  update(id: string, patch: unknown): Promise<unknown>;
+  delete(id: string): Promise<unknown>;
+  refresh(): Promise<unknown>;
+}
+
 const PersonaSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
@@ -40,12 +53,13 @@ const PersonaPatchSchema = PersonaSchema.partial().omit({ id: true });
 const app = new Hono();
 app.use('*', authMiddleware);
 
-function reg(c: any) {
-  const services = c.get('services') ?? {};
+function reg(c: AnyContext): PersonaRegistry | undefined {
+  const services =
+    (c.get('services') as { personaRegistry?: PersonaRegistry } | undefined) ?? {};
   return services.personaRegistry;
 }
 
-function notImplemented(c: any) {
+function notImplemented(c: AnyContext) {
   return c.json(
     {
       success: false,
@@ -61,7 +75,7 @@ function notImplemented(c: any) {
 app.get(
   '/',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  async (c: any) => {
+  async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     return c.json({ success: true, data: r.list() }, 200);
@@ -71,7 +85,7 @@ app.get(
 app.get(
   '/:id',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  async (c: any) => {
+  async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');
@@ -90,7 +104,7 @@ app.post(
   '/',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   zValidator('json', PersonaSchema),
-  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: any) => {
+  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const body = c.req.valid('json');
@@ -111,7 +125,7 @@ app.put(
   '/:id',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   zValidator('json', PersonaPatchSchema),
-  withSecurityEvents({ action: 'persona.update', resource: 'persona', severity: 'info' }, async (c: any) => {
+  withSecurityEvents({ action: 'persona.update', resource: 'persona', severity: 'info' }, async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');
@@ -133,7 +147,7 @@ app.put(
 app.delete(
   '/:id',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  withSecurityEvents({ action: 'persona.delete', resource: 'persona', severity: 'notice' }, async (c: any) => {
+  withSecurityEvents({ action: 'persona.delete', resource: 'persona', severity: 'notice' }, async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');
@@ -151,7 +165,7 @@ app.delete(
 app.post(
   '/refresh',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: any) => {
+  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: AnyContext) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     await r.refresh();
