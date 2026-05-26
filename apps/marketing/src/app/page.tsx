@@ -6,14 +6,15 @@ import { HeadBriefingDemo } from '@/components/HeadBriefingDemo';
 import { AskShowcase } from '@/components/AskShowcase';
 import { AutonomyDialDemo } from '@/components/AutonomyDialDemo';
 import { AuditChainSection } from '@/components/AuditChainSection';
+import { LoopValidatorSection } from '@/components/LoopValidatorSection';
 import { Pricing } from '@/components/Pricing';
 import { Testimonial } from '@/components/Testimonial';
 import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 
 /**
- * Marketing home — twelve sections stitched in the order an interested
- * mining operator would read them:
+ * Marketing home — thirteen sections stitched in the order an
+ * interested mining operator would read them:
  *
  *   00  Nav                    — top nav with bilingual toggle
  *   01  Hero                   — what Borjie IS, one sentence
@@ -23,9 +24,10 @@ import { getLocale } from '@/lib/locale';
  *   05  AskShowcase            — "What's my cash runway?" mock
  *   06  AutonomyDialDemo       — Advise → Autonomous, red-lines locked
  *   07  AuditChainSection      — every action on the chain
- *   08  Pricing                — Mwanzo · Mkulima · Mfanyabiashara · Kampuni · Group
- *   09  Testimonial            — three pilot placeholders
- *   10  Footer                 — links + Tanzanian locale tag
+ *   08  LoopValidatorSection   — OODA Loop validator-gap, closed by design
+ *   09  Pricing                — Mwanzo · Mkulima · Mfanyabiashara · Kampuni · Group
+ *   10  Testimonial            — three pilot placeholders
+ *   11  Footer                 — links + Tanzanian locale tag
  */
 export default async function HomePage() {
   const locale = await getLocale();
@@ -40,6 +42,7 @@ export default async function HomePage() {
         <AskShowcase locale={locale} />
         <AutonomyDialDemo locale={locale} />
         <AuditChainSection locale={locale} />
+        <LoopValidatorSection locale={locale} />
         <Pricing locale={locale} />
         <Testimonial locale={locale} />
       </main>

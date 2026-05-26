@@ -291,8 +291,68 @@
       }
     ]
   },
+  "loopValidator": {
+    "kicker": "07 · Pengo la OODA Loop validator",
+    "heading": "Validator iliyokuwa imekosekana kwenye OODA Loop — imefungwa kwa muundo.",
+    "sub": "Borjie inatoa quality-gate validator ambayo karatasi ya IEEE Spectrum + Snyk inasema agentic AI haina. Kila hatua ambayo Mr. Mwikila anapendekeza inapita ukaguzi wa milango mitano kabla ya kuandikwa, kuarifu, au kuandika nje.",
+    "paper": {
+      "kicker": "Ugunduzi · IEEE Spectrum + Snyk · 2026",
+      "title": "Tatizo la OODA Loop kwenye Agentic AI",
+      "finding": "Agents zinazoendesha Observe → Orient → Decide → Act kwa mwendo wa mashine bila validator wazi kati ya Decide na Act hazikuzi thamani — zinakuza makosa. Suluhisho ni layer ya polepole, wazi, ya validating kati ya uamuzi na kitendo.",
+      "quote": "Mizunguko ya haraka inayopelekea maamuzi mabaya pale validator inapokosekana.",
+      "attribution": "Utafiti wa IEEE Spectrum + Snyk · 2026",
+      "linkLabel": "Soma makala ya IEEE Spectrum"
+    },
+    "response": {
+      "kicker": "Jibu la Borjie · Layer 4",
+      "title": "Milango mitano ya lazima. AND-combined. Hakuna njia ya kuruka.",
+      "body": "Mr. Mwikila anapitisha kila uamuzi kupitia package ya @borjie/loop-quality-gates kabla haujafika kwenye tool inayogusa dunia. Composite gate inaendesha milango yote mitano sambamba na AND-merge majibu — kushindwa moja kunasimamisha loop.",
+      "gates": [
+        {
+          "id": "groundedness",
+          "name": "Mlango wa Groundedness",
+          "blurb": "Kila madai ya kweli yanaonyesha EvidenceItem halisi yenye URL au reference ya system-of-record."
+        },
+        {
+          "id": "calibration",
+          "name": "Mlango wa Calibration",
+          "blurb": "Confidence iliyodaiwa inalingana na usahihi wa kihistoria. Lebo zenye kujiamini kupita kiasi zinashushwa au kukataliwa."
+        },
+        {
+          "id": "brand",
+          "name": "Mlango wa Brand",
+          "blurb": "Mr. Mwikila anabaki kwenye sauti yake. Design tokens pekee. Hakuna kupotea kwa persona, hakuna hex mbichi."
+        },
+        {
+          "id": "authority",
+          "name": "Mlango wa Authority",
+          "blurb": "Tier ya kitendo lazima iwe ndani ya authority iliyopewa loop. T2-Critical mutations zinaelekezwa kwa binadamu."
+        },
+        {
+          "id": "budget",
+          "name": "Mlango wa Budget",
+          "blurb": "ε-budget iliyobaki (tokens, wall-clock, tool calls) inabaki si-hasi baada ya kitendo kilichopendekezwa."
+        }
+      ]
+    },
+    "diagram": {
+      "kicker": "5-layer loop · validator gate inaonekana kati ya Decide na Act",
+      "legend": "OKLCH iliyobaniwa · hakuna hex",
+      "stages": ["Observe", "Orient", "Decide", "Act"],
+      "validatorLabel": "Quality Gates",
+      "gapLabel": "Pale IEEE + Snyk walisema validator inakosekana",
+      "closedByDesignLabel": "Imefungwa kwa muundo",
+      "flowLabel": "Loop inarudi Observe — kila mzunguko unathibitishwa upya",
+      "caption": "Observe, Orient, na Decide vinabaki kwenye mwendo wa mashine. Layer ya Quality Gates inapunguza kasi tu vya kutosha kuthibitisha groundedness, calibration, brand, authority, na budget — kisha Act inafuata. Kushindwa kunarudi kwenye learning, sio kwenye dunia."
+    },
+    "links": {
+      "spec": "Soma spec ya 5-layer loop architecture",
+      "snyk": "Utafiti wa Snyk",
+      "ieee": "Makala ya IEEE Spectrum"
+    }
+  },
   "pricing": {
-    "kicker": "07 · Bei",
+    "kicker": "08 · Bei",
     "heading": "Bei wazi. Hakuna mshangao.",
     "sub": "Tiers tano. Lipa kila mwezi kwa TZS. Anza Mwanzo bure. Kuza unapokuwa tayari.",
     "perMonth": "kwa mwezi",
@@ -305,7 +365,7 @@
     "footnote": "Bei zote katika TZS. Inaweza kulipwa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer."
   },
   "testimonial": {
-    "kicker": "08 · Sauti za Pilot",
+    "kicker": "09 · Sauti za Pilot",
     "heading": "Quotes za pilot zitapatikana Q3 2026.",
     "sub": "Sasa hivi tunafanya kazi na waanzilishi kumi wa mgodi katika Geita, Mererani, na Songwe. Tukiwa na matokeo ya wiki 12, tutaweka maoni yao hapa.",
     "placeholderBadge": "Pilot — quote inakuja",

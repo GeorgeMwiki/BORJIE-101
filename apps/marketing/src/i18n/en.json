@@ -291,8 +291,68 @@
       }
     ]
   },
+  "loopValidator": {
+    "kicker": "07 · OODA Loop validator-gap",
+    "heading": "The validator the OODA Loop was missing — closed by design.",
+    "sub": "Borjie ships the quality-gate validator the IEEE Spectrum + Snyk paper says agentic AI is missing. Every action Mr. Mwikila proposes passes a mandatory five-gate check before any persistence, notification, or external write.",
+    "paper": {
+      "kicker": "The finding · IEEE Spectrum + Snyk · 2026",
+      "title": "Agentic AI's OODA Loop Problem",
+      "finding": "Agents running Observe → Orient → Decide → Act loops at machine speed without an explicit validator between Decide and Act don't compound value — they compound error. The fix is a slow, explicit, validating layer that sits between the decision and the action.",
+      "quote": "Fast cycles to bad decisions when the validator is absent.",
+      "attribution": "IEEE Spectrum + Snyk research · 2026",
+      "linkLabel": "Read the IEEE Spectrum article"
+    },
+    "response": {
+      "kicker": "Borjie's response · Layer 4",
+      "title": "Five mandatory gates. AND-combined. No fast-loop bypass.",
+      "body": "Mr. Mwikila runs every decision through the @borjie/loop-quality-gates package before it ever reaches a tool that touches the world. The composite gate runs all five checks in parallel and AND-merges the verdicts — one failure stops the loop.",
+      "gates": [
+        {
+          "id": "groundedness",
+          "name": "Groundedness gate",
+          "blurb": "Every factual claim cites a real EvidenceItem with a resolvable URL or system-of-record reference."
+        },
+        {
+          "id": "calibration",
+          "name": "Calibration gate",
+          "blurb": "Claimed confidence matches observed historical accuracy. Over-confident labels are downgraded or rejected."
+        },
+        {
+          "id": "brand",
+          "name": "Brand gate",
+          "blurb": "Mr. Mwikila stays in voice. Design tokens only. No forbidden persona drift, no raw hex literals."
+        },
+        {
+          "id": "authority",
+          "name": "Authority gate",
+          "blurb": "The action's tier must be inside the loop's granted authority. T2-Critical mutations route to a human."
+        },
+        {
+          "id": "budget",
+          "name": "Budget gate",
+          "blurb": "Remaining ε-budget (tokens, wall-clock, tool calls) stays non-negative after the proposed action."
+        }
+      ]
+    },
+    "diagram": {
+      "kicker": "The 5-layer loop · validator gate visible between Decide and Act",
+      "legend": "Brand-locked OKLCH · no hex",
+      "stages": ["Observe", "Orient", "Decide", "Act"],
+      "validatorLabel": "Quality Gates",
+      "gapLabel": "Where IEEE + Snyk said the validator is missing",
+      "closedByDesignLabel": "Closed by design",
+      "flowLabel": "Loop closes back to Observe — every cycle re-grounded",
+      "caption": "Observe, Orient, and Decide remain at machine speed. The Quality Gates layer slows just enough to verify groundedness, calibration, brand, authority, and budget — then Act fires. Failures route back to learning, never to the world."
+    },
+    "links": {
+      "spec": "Read the 5-layer loop architecture spec",
+      "snyk": "Snyk research companion",
+      "ieee": "IEEE Spectrum article"
+    }
+  },
   "pricing": {
-    "kicker": "07 · Pricing",
+    "kicker": "08 · Pricing",
     "heading": "Clear pricing. No surprises.",
     "sub": "Five tiers. Monthly in TZS. Start free with Mwanzo. Scale when you're ready.",
     "perMonth": "per month",
@@ -305,7 +365,7 @@
     "footnote": "All prices in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer."
   },
   "testimonial": {
-    "kicker": "08 · Pilot voices",
+    "kicker": "09 · Pilot voices",
     "heading": "Pilot quotes available Q3 2026.",
     "sub": "We're currently working with ten pioneer mining operators across Geita, Mererani, and Songwe. Once we have 12-week outcomes, we'll publish their words here.",
     "placeholderBadge": "Pilot — quote pending",
