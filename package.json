@@ -34,7 +34,8 @@
     "migration-safety": "node scripts/validate-migration-safety.mjs --migrations-dir=packages/database/src/migrations --fail-on=fail --report=.audit/migration-safety.md",
     "refresh-fx-rates": "pnpm -s exec tsx scripts/refresh-fx-rates.ts",
     "setup-env": "node scripts/setup-borjie-env.mjs",
-    "gen-secrets": "node scripts/generate-borjie-secrets.mjs"
+    "gen-secrets": "node scripts/generate-borjie-secrets.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

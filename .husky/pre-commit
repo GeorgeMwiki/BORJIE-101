@@ -1,0 +1,131 @@
+#!/usr/bin/env sh
+# =============================================================================
+# BORJIE — pre-commit security hook
+# =============================================================================
+# Owner: Mr. Mwikila (SEC-2)
+# Companion docs:
+#   - Docs/SECURITY/SOTA_SECURITY_POSTURE_2026.md  §3.1 build-time controls
+#   - Docs/SECURITY/SECURE_CODING_STANDARDS.md     §0 "no secrets in code"
+#
+# Purpose:
+#   Fast local feedback before a developer commits. The CI workflows
+#   `.github/workflows/security-secret-scan.yml` and `security-sast.yml`
+#   are the authoritative gates; this hook just catches obvious mistakes
+#   ~0.5s after `git commit` and ~30 minutes before CI tells you.
+#
+# Strategy (in order):
+#   1. gitleaks protect --staged --redact --config=.gitleaks.toml  (preferred)
+#   2. trufflehog git file://. --since-commit HEAD --only-verified --fail
+#      (fallback if gitleaks is not installed locally)
+#   3. Soft-fail with a guidance message if neither tool is installed,
+#      so the hook is never a hard developer-experience blocker. CI is
+#      still the authoritative gate; we just lose the local fast-path.
+#
+# Bypass:
+#   `git commit --no-verify` works but is strongly discouraged. The
+#   server-side CI gate will still catch any leak; the only thing you
+#   skip is the local 0.5s feedback.
+# =============================================================================
+
+set -eu
+
+# Resolve repo root (the hook runs from .git/hooks/.. by default).
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "[husky/pre-commit] BORJIE security scan over staged changes..."
+
+# -----------------------------------------------------------------------------
+# Step 1 - Block obvious console.log additions in committed code
+# -----------------------------------------------------------------------------
+# This mirrors the rule in Docs/SECURITY/SECURE_CODING_STANDARDS.md §0 and
+# eslint-rules/no-console.js. We only inspect *staged* additions so we don't
+# trip on legacy untouched lines.
+STAGED_CONSOLE=$(
+  git diff --cached --diff-filter=AM --unified=0 -- \
+    'apps/**/*.ts' 'apps/**/*.tsx' 'apps/**/*.js' \
+    'packages/**/*.ts' 'packages/**/*.tsx' 'packages/**/*.js' \
+    'services/**/*.ts' 'services/**/*.tsx' 'services/**/*.js' \
+  2>/dev/null \
+  | grep -E '^\+[^+].*console\.(log|info|debug|warn|trace)\(' \
+  | grep -v -E '^\+.*//.*eslint-disable.*no-console' \
+  || true
+)
+if [ -n "${STAGED_CONSOLE}" ]; then
+  echo "[husky/pre-commit] ERROR: console.* statements added in staged code."
+  echo "${STAGED_CONSOLE}" | head -20
+  echo ""
+  echo "Use packages/observability instead. If you must keep this line,"
+  echo "append: // eslint-disable-next-line no-console -- reason: <...>"
+  exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Step 2 - Secret scan (gitleaks preferred, trufflehog fallback)
+# -----------------------------------------------------------------------------
+HAS_GITLEAKS=0
+HAS_TRUFFLEHOG=0
+command -v gitleaks   >/dev/null 2>&1 && HAS_GITLEAKS=1
+command -v trufflehog >/dev/null 2>&1 && HAS_TRUFFLEHOG=1
+
+if [ "${HAS_GITLEAKS}" = "1" ]; then
+  echo "[husky/pre-commit] gitleaks protect --staged (config .gitleaks.toml)"
+  # `protect --staged` scans the working-tree changes that are staged for
+  # commit. Honours .gitleaks.toml allowlist (test fixtures etc.).
+  gitleaks protect \
+    --staged \
+    --redact \
+    --no-banner \
+    --config=.gitleaks.toml \
+    --verbose \
+  || {
+    echo ""
+    echo "[husky/pre-commit] gitleaks reported a secret in staged content."
+    echo "If this is a documented test fixture, add it to .gitleaks.toml allowlist."
+    echo "Otherwise: rotate the secret, remove it from the staging area, and"
+    echo "scrub the working tree before retrying."
+    exit 1
+  }
+elif [ "${HAS_TRUFFLEHOG}" = "1" ]; then
+  echo "[husky/pre-commit] trufflehog (verified-only) on uncommitted diff"
+  # `--since-commit HEAD` scans the current diff to HEAD; `--only-verified`
+  # blocks only on TruffleHog-verifiable live credentials.
+  trufflehog git "file://${ROOT}" \
+    --since-commit HEAD \
+    --only-verified \
+    --fail \
+    --no-update \
+  || {
+    echo ""
+    echo "[husky/pre-commit] trufflehog detected a verified live credential."
+    echo "Rotate the secret immediately. Do NOT --no-verify around this."
+    exit 1
+  }
+else
+  echo "[husky/pre-commit] WARNING: neither gitleaks nor trufflehog installed."
+  echo "  Install one for local secret detection:"
+  echo "    brew install gitleaks                # macOS"
+  echo "    brew install trufflesecurity/trufflehog/trufflehog"
+  echo "  CI workflows .github/workflows/security-secret-scan.yml will still"
+  echo "  catch any leak server-side. Continuing without local check."
+fi
+
+# -----------------------------------------------------------------------------
+# Step 3 - Block staged .env / private-key files (defence in depth)
+# -----------------------------------------------------------------------------
+STAGED_RISKY=$(
+  git diff --cached --name-only --diff-filter=AM \
+    | grep -E '(^|/)(\.env(\.[a-zA-Z0-9_-]+)?$|.*\.pem$|.*\.p12$|.*\.pfx$|id_rsa($|\.pub$)|.*-private-key.*\.json$)' \
+  || true
+)
+if [ -n "${STAGED_RISKY}" ]; then
+  echo "[husky/pre-commit] ERROR: refusing to commit secret-bearing files:"
+  echo "${STAGED_RISKY}"
+  echo ""
+  echo "Move secrets to the cloud vault. Use .env.example with placeholder"
+  echo "values for documentation. If this file is intentional (.env.example),"
+  echo "rename it explicitly."
+  exit 1
+fi
+
+echo "[husky/pre-commit] OK - staged changes are clean."
