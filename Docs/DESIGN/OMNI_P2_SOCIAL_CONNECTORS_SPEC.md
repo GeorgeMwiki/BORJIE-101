@@ -354,3 +354,39 @@ explicit feature flag.
 - **Why does TikTok ship a webhook receiver even though prod webhooks
   are still rolling out?** Region rollout is unpredictable; we want
   the receiver ready so the tenant in question can flip the flag.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked SOTA findings affecting social-connector dispatch policy. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### § MCP-first capability check
+
+**Source**: SOTA Finding 2 in `FOUNDER_LOCKED_DECISIONS_2026_05_26.md` — ServiceNow announcement May 2026 opening their system of action to *"every AI agent via Model Context Protocol"*. Reference: https://www.servicenow.com/company/media/press-room/mcp-every-ai-agent.html.
+
+**Policy**: For every social connector in this spec, the build-time capability check records whether the provider exposes an official MCP server. The credentials record carries an optional `connector.mcp_server_url` field; when populated, the connector dispatcher MUST prefer MCP RPCs over native REST/Graph API for the same logical action. Native API remains as the fallback path only.
+
+**Per-connector MCP-first capability row (as of build time)**:
+
+| Connector | Provider exposes official MCP server? | Default ingress when `mcp_server_url` populated |
+|---|---|---|
+| LinkedIn | check provider docs at build time | MCP-first |
+| X / Twitter | check provider docs at build time | MCP-first |
+| Facebook / Meta | check provider docs at build time | MCP-first |
+| Instagram | check provider docs at build time | MCP-first |
+| TikTok | check provider docs at build time | MCP-first |
+| YouTube | check provider docs at build time | MCP-first |
+| Reddit | check provider docs at build time | MCP-first |
+| Pinterest | check provider docs at build time | MCP-first |
+| Mastodon / Bluesky | check provider docs at build time | MCP-first |
+
+(The build-time check is recorded in the connector's package readme + the org-legibility map per Wave M5-6, surfacing MCP-vs-native ingress per connector.)
+
+**Rationale**: Founder-locked direction (per Decision SOTA Finding 2): industry convergence on MCP applies equally to social connectors; this row reminds future connector authors to populate `mcp_server_url` and to default the dispatcher to MCP whenever the provider supports it.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
