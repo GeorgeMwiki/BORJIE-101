@@ -9,6 +9,7 @@
  * restricted at the application layer by API key.
  */
 
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   uuid,
@@ -16,7 +17,9 @@ import {
   integer,
   jsonb,
   timestamp,
+  date,
   index,
+  primaryKey,
   unique,
 } from 'drizzle-orm/pg-core';
 
@@ -90,3 +93,39 @@ export type WaveProgressRow = typeof waveProgress.$inferSelect;
 export type NewWaveProgressRow = typeof waveProgress.$inferInsert;
 export type WaveRevivalAttemptRow = typeof waveRevivalAttempts.$inferSelect;
 export type NewWaveRevivalAttemptRow = typeof waveRevivalAttempts.$inferInsert;
+
+/**
+ * Per-day per-tenant revival-attempt counter (Wave 18DD-config, founder
+ * decision #5). Composite PK on (attempted_on, tenant_id_norm) where
+ * `tenant_id_norm` is the COALESCE(tenant_id, '') generated column —
+ * collapsing NULL → '' lets the platform-wide aggregate row share the
+ * same uniqueness guarantee as tenant-scoped rows.
+ *
+ * Migration: drizzle/0032_wave_resilience_daily_counter.sql.
+ */
+export const dailyRevivalCounters = pgTable(
+  'daily_revival_counters',
+  {
+    attemptedOn: date('attempted_on').notNull(),
+    /** NULL = platform-wide aggregate row. */
+    tenantId: text('tenant_id'),
+    tenantIdNorm: text('tenant_id_norm')
+      .notNull()
+      .generatedAlwaysAs(sql`COALESCE(tenant_id, '')`),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({
+      name: 'daily_revival_counters_pk',
+      columns: [t.attemptedOn, t.tenantIdNorm],
+    }),
+    todayIdx: index('idx_drc_today').on(t.attemptedOn),
+  }),
+);
+
+export type DailyRevivalCounterRow = typeof dailyRevivalCounters.$inferSelect;
+export type NewDailyRevivalCounterRow =
+  typeof dailyRevivalCounters.$inferInsert;

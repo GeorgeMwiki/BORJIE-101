@@ -7,6 +7,7 @@
  */
 
 import type { ProgressRepository } from '../storage/progress-repository.js';
+import type { DailyCounterRepository } from '../storage/daily-counter-repository.js';
 import type {
   RevivalDecision,
   WaveProgressEntry,
@@ -17,6 +18,15 @@ import { MAX_ATTEMPTS } from '../types.js';
 export interface RevivalDeciderDeps {
   readonly progress: ProgressRepository;
   readonly maxAttempts?: number;
+  /**
+   * Optional platform-wide daily attempt budget (founder decision #5).
+   * When provided alongside `dailyCounters`, a wave is refused with
+   * reason `daily_budget_exhausted` once today's count >= budget.
+   * When either is absent, the daily cap is not enforced — preserves
+   * pre-existing behaviour and keeps unit tests focused.
+   */
+  readonly dailyBudget?: number;
+  readonly dailyCounters?: DailyCounterRepository;
   readonly logger?: ResilienceLogger;
 }
 
@@ -24,6 +34,8 @@ export interface DecideInput {
   readonly waveId: string;
   /** Original dispatch prompt (verbatim). Required for resume. */
   readonly originalPrompt: string;
+  /** Optional tenant id for per-tenant counter scoping (default platform-wide). */
+  readonly tenantId?: string | null;
 }
 
 /**
@@ -100,6 +112,42 @@ export async function decideRevival(
       attempt_number: lastAttempt,
       reason: 'no_checkpoint',
     };
+  }
+
+  // Daily budget gate (founder decision #5).
+  //
+  // Only enforced when BOTH a budget value and a counter repo are
+  // supplied. The check is intentionally read-only here — the resumer
+  // increments the counter when it actually dispatches a continuation
+  // agent, so the decider can be re-run cheaply without inflating the
+  // counter.
+  if (
+    deps.dailyBudget !== undefined &&
+    deps.dailyCounters !== undefined &&
+    deps.dailyBudget > 0
+  ) {
+    const tenantScope = input.tenantId ?? undefined;
+    const todayCount = await deps.dailyCounters.getTodayAttemptCount(
+      tenantScope,
+    );
+    if (todayCount >= deps.dailyBudget) {
+      deps.logger?.warn(
+        {
+          wave_id: input.waveId,
+          today_count: todayCount,
+          budget: deps.dailyBudget,
+        },
+        'wave-resilience: daily revival budget exhausted',
+      );
+      return {
+        wave_id: input.waveId,
+        should_revive: false,
+        last_completed_checkpoint: checkpoint.checkpoint_label,
+        continuation_prompt: '',
+        attempt_number: lastAttempt,
+        reason: 'daily_budget_exhausted',
+      };
+    }
   }
 
   return {

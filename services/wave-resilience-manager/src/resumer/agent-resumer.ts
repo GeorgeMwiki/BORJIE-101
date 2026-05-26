@@ -9,13 +9,27 @@
  *
  * The dispatcher is an interface — production wires the Anthropic
  * Messages API client; tests inject a recording stub.
+ *
+ * Founder-locked defaults (Wave 18DD-config):
+ *   - Auto-merge resumed commits: default `true` (founder #3). The
+ *     resumer surfaces this flag in `AgentResumerDeps.autoMergeResumedCommits`
+ *     for the dispatcher to read — the dispatcher is the component
+ *     that actually performs the merge after a successful continuation,
+ *     so the contract here is "the resumer never gates the merge."
+ *   - Daily revival budget: 50/day (founder #5), enforced via the
+ *     decider when `dailyBudget` + `dailyCounters` are supplied.
+ *   - Unrecoverable escalation: routed to the optional notifier
+ *     (founder #2: SMS by default via the factory at the composition
+ *     root).
  */
 
 import type { ProgressRepository } from '../storage/progress-repository.js';
 import type { AttemptsRepository } from '../storage/attempts-repository.js';
+import type { DailyCounterRepository } from '../storage/daily-counter-repository.js';
 import { sealEvent, type AuditChainState } from '../audit/audit-emit.js';
 import { buildContinuationPrompt } from '../builder/continuation-prompt-builder.js';
 import { decideRevival } from '../decider/revival-decider.js';
+import type { Notifier } from '../notification/notifier-interface.js';
 import type { ResilienceLogger, RevivalDecision } from '../types.js';
 import { MAX_ATTEMPTS } from '../types.js';
 
@@ -38,6 +52,28 @@ export interface AgentResumerDeps {
   readonly dispatcher: AgentDispatcher;
   readonly chainState: AuditChainState;
   readonly maxAttempts?: number;
+  /**
+   * Optional daily-cap deps (founder decision #5). When both are
+   * present, the resumer enforces a platform-wide budget; exhaustion
+   * marks the wave as unrecoverable and triggers the notifier (same
+   * code path as the 3-attempt cap).
+   */
+  readonly dailyBudget?: number;
+  readonly dailyCounters?: DailyCounterRepository;
+  /**
+   * Optional notifier (founder decision #2: SMS by default). Called
+   * with the unrecoverable notice when a wave hits either the
+   * per-wave cap or the daily budget. Never throws; failures are
+   * already swallowed inside the notifier.
+   */
+  readonly notifier?: Notifier;
+  /**
+   * Founder decision #3: auto-merge resumed commits. Default `true`.
+   * Surfaced here so the dispatcher / downstream merge step can read
+   * the policy. When false, a continuation agent is still dispatched
+   * but the operator must approve the merge.
+   */
+  readonly autoMergeResumedCommits?: boolean;
   readonly now?: () => Date;
   readonly logger?: ResilienceLogger;
 }
@@ -45,6 +81,7 @@ export interface AgentResumerDeps {
 export interface ResumeWaveInput {
   readonly waveId: string;
   readonly originalPrompt: string;
+  readonly tenantId?: string | null;
 }
 
 export interface ResumeWaveResult {
@@ -67,18 +104,30 @@ export async function resumeWave(
     {
       progress: deps.progress,
       ...(deps.maxAttempts !== undefined ? { maxAttempts: deps.maxAttempts } : {}),
+      ...(deps.dailyBudget !== undefined ? { dailyBudget: deps.dailyBudget } : {}),
+      ...(deps.dailyCounters !== undefined
+        ? { dailyCounters: deps.dailyCounters }
+        : {}),
       ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
     },
-    { waveId: input.waveId, originalPrompt: input.originalPrompt },
+    {
+      waveId: input.waveId,
+      originalPrompt: input.originalPrompt,
+      ...(input.tenantId !== undefined ? { tenantId: input.tenantId } : {}),
+    },
   );
 
   if (!base.should_revive) {
-    // Escalate to unrecoverable if we hit the cap.
-    if (base.reason === 'max_attempts_reached') {
+    // Escalate to unrecoverable when we hit either the per-wave cap
+    // (founder #1/spec §3 R4) or the daily platform budget (founder #5).
+    const isEscalation =
+      base.reason === 'max_attempts_reached' ||
+      base.reason === 'daily_budget_exhausted';
+    if (isEscalation) {
       const sealed = sealEvent(chain, {
         kind: 'wave.unrecoverable',
         wave_id: input.waveId,
-        extra: { attempts: base.attempt_number },
+        extra: { attempts: base.attempt_number, reason: base.reason },
       });
       // Mark the wave row as 'unrecoverable'. We need an agent_id for
       // the new row; reuse the latest known agent_id.
@@ -96,9 +145,34 @@ export async function resumeWave(
       }
       chain = { previousHash: sealed.nextHash };
       deps.logger?.error(
-        { wave_id: input.waveId, attempts: base.attempt_number },
+        {
+          wave_id: input.waveId,
+          attempts: base.attempt_number,
+          reason: base.reason,
+        },
         'wave-resilience: unrecoverable — operator attention required',
       );
+
+      // Best-effort escalation notification (founder #2: SMS default).
+      // Notifier contract guarantees no throw; we still wrap defensively
+      // so a malformed adapter cannot break the audit chain.
+      if (deps.notifier !== undefined) {
+        try {
+          await deps.notifier.notifyUnrecoverable({
+            wave_id: input.waveId,
+            attempts: base.attempt_number,
+            reason: base.reason,
+          });
+        } catch (err) {
+          deps.logger?.warn(
+            {
+              wave_id: input.waveId,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            'wave-resilience: notifier threw unexpectedly — swallowing',
+          );
+        }
+      }
     }
     return {
       decision: base,
@@ -149,6 +223,22 @@ export async function resumeWave(
     prompt: continuationPrompt,
     attemptNumber: base.attempt_number,
   });
+
+  // Increment the daily counter once a real attempt has been made.
+  // Done after dispatch so failed dispatches don't burn budget.
+  if (deps.dailyCounters !== undefined) {
+    try {
+      await deps.dailyCounters.incrementToday(input.tenantId ?? undefined);
+    } catch (err) {
+      deps.logger?.warn(
+        {
+          wave_id: input.waveId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'wave-resilience: daily-counter increment failed — continuing',
+      );
+    }
+  }
 
   // Record the attempt row.
   const originalDispatchAt = history[0]?.created_at ?? now.toISOString();

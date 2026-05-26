@@ -22,7 +22,16 @@ import { buildReportHandler } from './routes/report.js';
 import type { ResilienceLogger } from './types.js';
 
 export * from './types.js';
-export { loadConfig, type ResilienceManagerConfig } from './config.js';
+export {
+  loadConfig,
+  NOTIFICATION_CHANNELS,
+  CROSS_REPO_LEDGER_MODES,
+  DEFAULT_DAILY_REVIVAL_BUDGET,
+  type ResilienceManagerConfig,
+  type NotificationChannel,
+  type CrossRepoLedgerMode,
+  type TwilioConfig,
+} from './config.js';
 export {
   createInMemoryProgressRepository,
   type ProgressRepository,
@@ -31,6 +40,24 @@ export {
   createInMemoryAttemptsRepository,
   type AttemptsRepository,
 } from './storage/attempts-repository.js';
+export {
+  createInMemoryDailyCounterRepository,
+  todayUtc,
+  type DailyCounterRepository,
+} from './storage/daily-counter-repository.js';
+export {
+  createNotifier,
+  type ResolvedNotifier,
+} from './notification/notifier-factory.js';
+export {
+  type Notifier,
+  type UnrecoverableNotice,
+  formatUnrecoverableBody,
+} from './notification/notifier-interface.js';
+export { createSmsNotifier, resolveTwilioCreds } from './notification/sms-notifier.js';
+export { createSlackNotifier } from './notification/slack-notifier.js';
+export { createEmailNotifier } from './notification/email-notifier.js';
+export { createLoggerNotifier } from './notification/logger-notifier.js';
 export {
   runCrashDetectorSweep,
   isHeartbeatStale,

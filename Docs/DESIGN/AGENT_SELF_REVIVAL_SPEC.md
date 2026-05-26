@@ -358,3 +358,59 @@ The resilience manager exposes three operator surfaces:
 5. **Retry budget per day** — should we cap the total revival
    attempts per 24h (e.g. 50) to bound infrastructure spend even when
    each individual wave respects the 3-attempt cap?
+
+---
+
+## 14. Founder-locked configuration (Wave 18DD-config)
+
+All five open questions in §13 have been answered. The values below are
+the production defaults wired into `services/wave-resilience-manager/`.
+Override any default by setting the corresponding env var.
+
+| Setting | Value | Env var | Rationale |
+| --- | --- | --- | --- |
+| `DETECTOR_INTERVAL_MS` | `60_000` (60 s) | `WAVE_RESILIENCE_DETECTOR_INTERVAL_MS` | Resume-latency SLO; ~6 min worst case is acceptable. |
+| `STALE_HEARTBEAT_MS` | `300_000` (5 min) | `WAVE_RESILIENCE_STALE_HEARTBEAT_MS` | Same SLO trade-off; matches §3 R2. |
+| `MAX_REVIVAL_ATTEMPTS_PER_WAVE` | `3` | `WAVE_RESILIENCE_MAX_ATTEMPTS` | Per-wave cap; bounded retries. |
+| `DAILY_REVIVAL_BUDGET` | `50` | `WAVE_RESILIENCE_DAILY_BUDGET` | Industry-standard retry budget; bounds infra spend across all tenants. |
+| `NOTIFICATION_CHANNEL` | `sms` (Twilio) | `WAVE_RESILIENCE_NOTIFICATION_CHANNEL` | Internal chat is primary; SMS is the escalation when even chat can't reach the operator. |
+| `AUTO_MERGE_RESUMED_COMMITS` | `true` | `WAVE_RESILIENCE_AUTO_MERGE_RESUMED_COMMITS` | Speed > caution; trust the 3-attempt cap + audit-hash chain. |
+| `CROSS_REPO_LEDGER_MODE` | `per_repo` | `WAVE_RESILIENCE_CROSS_REPO_LEDGER_MODE` | Borjie + BossNyumba each maintain their own `wave_progress` + `wave_revival_attempts` tables — no cross-repo coordination required. |
+
+### SMS escalation (founder #2)
+
+The Twilio adapter (`services/wave-resilience-manager/src/notification/sms-notifier.ts`)
+POSTs to `https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json`
+with Basic auth. Required env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_FROM_NUMBER`, `OPERATOR_PHONE_NUMBER`. When any are missing the
+factory degrades to the `logger-notifier` — the unrecoverable row is
+still written and sealed in the audit chain.
+
+Message body template:
+
+> `[Borjie] Wave {wave_id} unrecoverable after {attempts} attempts. Reason: {reason}. Check admin panel for details.`
+
+### Daily budget (founder #5)
+
+`daily_revival_counters` (migration `0032_wave_resilience_daily_counter.sql`)
+records per-day per-tenant attempt totals. The decider blocks new
+attempts with reason `daily_budget_exhausted` once today's count reaches
+`DAILY_REVIVAL_BUDGET`; the resumer marks the wave `unrecoverable` and
+fires the notifier — the same code path as the per-wave 3-attempt cap.
+
+The counter is incremented **after** a successful dispatch, so failed
+dispatches do not consume budget.
+
+### Per-repo ledger (founder #4)
+
+Both Borjie and BossNyumba run their own `wave-resilience-manager`
+instance, each pointed at its own database. No cross-repo wave_id is
+shared. If a wave's work logically spans both repos, each side tracks
+its own revival ledger.
+
+### Auto-merge (founder #3)
+
+The default is to auto-merge resumed-wave commits. The flag is plumbed
+through `AgentResumerDeps.autoMergeResumedCommits` for the downstream
+dispatcher / merge step; the resilience manager itself never gates the
+merge.
