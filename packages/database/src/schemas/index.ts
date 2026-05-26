@@ -281,3 +281,13 @@ export * from './cognitive-engine.schema.js';
 // agent_turns (tenant-scoped per-turn ledger linked to cognitive_turns).
 // See docs/DESIGN/JUNIOR_ARCHITECTURE_SPEC.md.
 export * from './junior-architecture.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18X — Org Hierarchy + Terminology (multi-level MD foundation)
+// ---------------------------------------------------------------------------
+// Three tables backing migration 0026_org_scope_hierarchy.sql:
+// org_units (recursive tree per tenant),
+// user_scope_bindings (many-to-many user × scope with role + tier),
+// terminology_overrides (per-tenant + per-org-unit catalogue override).
+// See docs/DESIGN/ORG_HIERARCHY_TERMINOLOGY_SPEC.md.
+export * from './org-scope.schema.js';
