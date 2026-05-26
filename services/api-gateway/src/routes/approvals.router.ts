@@ -20,7 +20,6 @@
  * Wired to `ApprovalWorkflowService` via the composition root.
  */
 
-// @ts-nocheck — Hono context typing is open-ended; routers dispatch at runtime.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';

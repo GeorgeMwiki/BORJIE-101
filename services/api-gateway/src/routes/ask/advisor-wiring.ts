@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union; some
 //   dependency-injection helpers below intentionally type-erase to keep
 //   the wiring layer free of subpath import noise.
 

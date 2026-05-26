@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union (hono-dev/hono#3891).
 /**
  * Per-user, per-endpoint rate limiter scoped to the universal-ask
  * routes. The platform-wide limiter in `middleware/rate-limit.middleware.ts`

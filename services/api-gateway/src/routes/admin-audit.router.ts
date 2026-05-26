@@ -39,7 +39,6 @@
  * is preserved even if the underlying data is gone.
  */
 
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';

@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
 
 /**
  * /api/v1/analytics — owner-portal AnalyticsSummary card source.

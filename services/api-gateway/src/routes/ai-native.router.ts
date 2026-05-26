@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union; see other routers.
 /**
  * AI-Native router — Agent PhG.
  *

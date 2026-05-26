@@ -10,7 +10,6 @@
  * 503 if DATABASE_URL is unset (degraded mode).
  */
 
-// @ts-nocheck — Hono context types are open-ended by design in this project.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';

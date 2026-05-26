@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 typed-response union widening (see brain.hono.ts).
 
 /**
  * /api/v1/artifacts — Piece G GenUI artifact endpoints.

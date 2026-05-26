@@ -1,4 +1,3 @@
-// @ts-nocheck
 
 /**
  * /api/v1/admin/jarvis — agency CEO/admin's personal Jarvis.
