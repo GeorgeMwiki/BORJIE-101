@@ -251,3 +251,14 @@ export * from './document-composition.schema.js';
 // second_authoriser_assignments (per-tenant double-verify pairing).
 // See docs/DESIGN/MUTATION_AUTHORITY_SPEC.md.
 export * from './mutation-authority.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18T — Cognitive Engine (reasoning + grounding + adaptive-ingest
+// foundation that sits underneath all 5 atomic capabilities)
+// ---------------------------------------------------------------------------
+// Three tables backing migration 0024_cognitive_engine.sql:
+// cognitive_turns (per-kernel-turn reasoning + outcome),
+// ingested_attachments (adaptive-ingest payloads as DataJoinRef),
+// clarifying_question_history (3-question per-turn cap enforcement).
+// See docs/DESIGN/COGNITIVE_ENGINE_SPEC.md.
+export * from './cognitive-engine.schema.js';
