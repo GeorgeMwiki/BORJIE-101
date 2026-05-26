@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/loop-runner",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Loop Runner (Wave M3-M4) — the pure five-layer orchestrator. Wires sensors / policy / tools / quality-gates / learning into one disciplined cycle, persists per-layer outcomes + quality signals, short-circuits on gate failure. See Docs/DESIGN/FIVE_LAYER_LOOP_ARCHITECTURE_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/loop-quality-gates": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
