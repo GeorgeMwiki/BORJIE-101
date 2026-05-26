@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/tacit-knowledge",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Tacit Knowledge Harvest (Wave HARVEST) — 5-mode interview engine (walk-the-floor / post-incident / ride-along / deal-replay / cross-role) that extracts the unwritten know-how Mr. Mwikila needs from the people who hold it. Consolidates extracted entities into cognitive-memory via injected ports. See Docs/DESIGN/TACIT_KNOWLEDGE_HARVEST_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
