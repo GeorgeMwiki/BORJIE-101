@@ -16,7 +16,8 @@
  * The 3 BossNyumba-era handlers (open_maintenance_case,
  * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
  * to mining-domain equivalents under `templates/mining/handlers/` —
- * see `../mining/accept-proposal-handlers.ts`. Closed TODO(#34).
+ * see `../mining/accept-proposal-handlers.ts`. Closes the historical
+ * gh-issue #34 work-item.
  */
 
 import type {

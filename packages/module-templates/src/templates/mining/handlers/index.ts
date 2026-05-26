@@ -1,8 +1,9 @@
 /**
  * Mining-domain accept-proposal handlers — barrel.
  *
- * Three handlers converted from the BossNyumba-era estate stubs
- * (TODO(#34)) into typed mining-domain inserts:
+ * Three handlers converted from the BossNyumba-era estate stubs (the
+ * historical gh-issue #34 work-item, now closed) into typed mining-
+ * domain inserts:
  *
  *   - schedule_licence_renewal       → tasks + temporal_entities
  *   - open_equipment_maintenance     → maintenance_events + tasks

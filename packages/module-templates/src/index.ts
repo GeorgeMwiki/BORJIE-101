@@ -9,9 +9,9 @@
  *   - MINING → `schedule_licence_renewal`, `open_equipment_maintenance`,
  *              `bulk_mark_licences_for_renewal`
  *
- * The 3 MINING handlers replace the BossNyumba-era estate stubs
- * (TODO(#34) closed). The other nine module templates register handler
- * stubs; their wiring lands in later waves.
+ * The 3 MINING handlers replace the BossNyumba-era estate stubs (the
+ * historical gh-issue #34 work-item, now closed). The other nine module
+ * templates register handler stubs; their wiring lands in later waves.
  */
 
 export type {

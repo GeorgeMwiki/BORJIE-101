@@ -18,8 +18,9 @@
  * cohort dashboard. The handler returns per-licence outcome rows so the
  * manager UI can show progress at a glance.
  *
- * Replaces the BossNyumba `bulk_mark_for_renewal_prep` stub (TODO(#34))
- * which targeted `lease_ids`. The mining equivalent targets
+ * Replaces the BossNyumba `bulk_mark_for_renewal_prep` stub (the
+ * historical gh-issue #34 work-item, now closed) which targeted
+ * `lease_ids`. The mining equivalent targets
  * `licence_ids` and writes typed Drizzle inserts against `tasks`.
  */
 

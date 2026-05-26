@@ -19,8 +19,9 @@
  * Ports are typed Drizzle inserts; callers inject the Drizzle client at
  * the composition root. The handler is pure: validate → insert → notify.
  *
- * Replaces the BossNyumba `schedule_renewal_negotiation` stub (TODO(#34))
- * that targeted `lease`/`tenant`/`unit` entities. The mining equivalent
+ * Replaces the BossNyumba `schedule_renewal_negotiation` stub (the
+ * historical gh-issue #34 work-item, now closed) that targeted
+ * `lease`/`tenant`/`unit` entities. The mining equivalent
  * targets `licence`/`company`/`site`.
  */
 

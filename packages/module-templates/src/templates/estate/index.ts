@@ -3,8 +3,8 @@
  * (`create_lease_application` + `post_receipt_draft`). The 3
  * BossNyumba-era handlers (open_maintenance_case,
  * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
- * to mining-domain equivalents under `templates/mining/`. Closed
- * TODO(#34).
+ * to mining-domain equivalents under `templates/mining/`. Closes the
+ * historical gh-issue #34 work-item.
  */
 
 import type { ModuleSpec } from '@borjie/module-spec-engine';

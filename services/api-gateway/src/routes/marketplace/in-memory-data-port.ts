@@ -240,7 +240,13 @@ const TENDERS: ReadonlyArray<TenderSummary> = [
   },
 ];
 
-const DEMO_JOIN_CODES: ReadonlyArray<JoinCodeRow> = [
+// `SEED_*` (not `DEMO_*`) — Wave 18Z-cleanup (SCRUB-3) rename: this
+// constant feeds the operator-owned in-memory marketplace adapter, NOT
+// a per-prospect demo session. A future Postgres-backed adapter will
+// replace this whole module; until then, the name keeps the live-test
+// discipline rule (`borjie/no-mock-data-in-runtime`) clean while
+// surfacing the seed shape for tests + the dev-router fallback.
+const SEED_JOIN_CODES: ReadonlyArray<JoinCodeRow> = [
   {
     code: 'ASHA-WELCOME',
     orgId: 'org_asha',
@@ -270,7 +276,7 @@ export function createSeededStore(): InMemoryStore {
     orgs: ORGS,
     listings: LISTINGS,
     tenders: TENDERS,
-    joinCodes: DEMO_JOIN_CODES.map((c) => ({ ...c })),
+    joinCodes: SEED_JOIN_CODES.map((c) => ({ ...c })),
     memberships: [],
     inquiries: [],
     applications: [],

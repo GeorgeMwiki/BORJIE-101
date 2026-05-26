@@ -15,7 +15,8 @@
  *
  * Replaces the equivalent BossNyumba-era estate adapters
  * (`createOpenMaintenanceCaseAdapter`, `createScheduleRenewalNegotiationAdapter`,
- * `createBulkMarkForRenewalPrepAdapter`) — closes TODO(#34).
+ * `createBulkMarkForRenewalPrepAdapter`) — closes the historical
+ * gh-issue #34 work-item.
  */
 
 import type {
