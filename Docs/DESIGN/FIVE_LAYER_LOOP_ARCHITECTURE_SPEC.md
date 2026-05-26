@@ -380,3 +380,29 @@ packages that already exist.
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked SOTA findings that frame this architecture. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### SOTA Finding 3 — OODA Loop validator gap, closed by design
+
+**Source**: IEEE Spectrum + Snyk joint paper — *"Agentic AI's OODA Loop Problem: Fast Cycles to Bad Decisions When the Validator Is Absent"* (https://spectrum.ieee.org/agentic-ai-ooda-loop, 2026; Snyk research blog companion piece).
+
+**Core finding (verbatim)**: *When an agent runs Observe→Orient→Decide→Act loops at machine speed without a validator gate between Decide and Act, the speed compounds errors instead of compounding value. The fix is an explicit, slow, validating layer that runs between the decision and the action — exactly the architecture our 5-layer loop (`packages/loop-quality-gates/`) implements: the quality gate runs after the Tools layer and before persistence/notification/action.*
+
+**Mapping of the 5 quality gates onto the OODA validator role**:
+
+| Quality gate | Validator concern | What it stops between Decide and Act |
+|---|---|---|
+| Groundedness | Is every claim sourced to evidence in memory or tools? | Hallucinated facts being persisted or notified |
+| Calibration | Does the confidence match the evidence weight? | Over-confident actions on weak evidence |
+| Brand | Does the action match Mr. Mwikila persona + tenant brand register? | Off-tone responses reaching the user |
+| Authority | Does the actor have the org-scope + role authority? | Privilege escalation via the agent surface |
+| Budget | Does the action stay within ε-budget + cost cap + rate-limit? | Runaway loops + bill shock + DP-budget burn |
+
+**Positioning**: Borjie ships the OODA Loop validator the IEEE + Snyk paper says agentic AI is missing. The persona-runtime system prompt carries a one-line guardrail: *"Every Action passes the 5-layer quality gate. There is no fast-loop bypass."*
+
+**Rationale**: Founder-locked: external SOTA validation that the slow-validator architecture is correct; no fast-path bypass may be added even under pressure to reduce latency, because the speed-vs-safety tradeoff has already been resolved by this design.
