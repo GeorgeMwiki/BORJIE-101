@@ -211,7 +211,7 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- SCRUB-5f: rule-disabled because toggleOpen is a stable callback re-defined below; including it would re-bind the keyboard listener on every render
   }, [open]);
 
   const toggleOpen = useCallback((next: boolean) => {

@@ -21,7 +21,7 @@ interface Logger {
 
 function emit(level: 'debug' | 'info' | 'warn' | 'error', message: string, meta?: LogMeta): void {
   const payload = meta ? { msg: message, ...meta } : { msg: message };
-  // eslint-disable-next-line no-console -- single legitimate sink for browser packages
+  // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because this is the single legitimate console sink for browser packages emitting structured logs
   console[level](JSON.stringify(payload));
 }
 

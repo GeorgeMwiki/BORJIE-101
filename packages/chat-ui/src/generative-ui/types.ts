@@ -211,6 +211,6 @@ export function generateBlockId(): string {
   if (cryptoApi?.randomUUID) {
     return `block-${cryptoApi.randomUUID()}`;
   }
-  // eslint-disable-next-line no-restricted-syntax
+  // eslint-disable-next-line no-restricted-syntax -- SCRUB-5f: rule-disabled because Math.random is an acceptable last-ditch fallback for transient UI block ids when crypto.randomUUID is unavailable
   return `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }

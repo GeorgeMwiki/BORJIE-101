@@ -52,7 +52,7 @@ function randId(prefix: string): string {
     return `${prefix}-${cryptoApi.randomUUID()}`;
   }
   // Fallback for unsupported runtimes; collision-safe enough for transient UI IDs.
-  // eslint-disable-next-line no-restricted-syntax
+  // eslint-disable-next-line no-restricted-syntax -- SCRUB-5f: rule-disabled because Math.random is an acceptable last-ditch fallback for transient UI ids when crypto.randomUUID is unavailable
   const fallback = Math.random().toString(36).slice(2, 10);
   return `${prefix}-${Date.now().toString(36)}-${fallback}`;
 }

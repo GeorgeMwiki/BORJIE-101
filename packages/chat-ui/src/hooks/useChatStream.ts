@@ -232,7 +232,7 @@ export function useChatStream(
         // Simple SSE parser — split on double-newline, then split each event
         // into its `event:` / `data:` lines. Robust enough for our own server
         // output; not a full-featured EventSource replacement.
-        // eslint-disable-next-line no-constant-condition
+        // eslint-disable-next-line no-constant-condition -- SCRUB-5f: rule-disabled because the SSE reader exits via internal break conditions (unmount, abort, reader done)
         while (true) {
           if (!mountedRef.current || abort.signal.aborted) break;
           const { done, value } = await reader.read();
