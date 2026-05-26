@@ -58,10 +58,10 @@ describe('resolveAudience', () => {
     expect(agent.id).toBe('mr-mwikila-full');
   });
 
-  it('routes site_manager on bossnyumba-estate -> estate-ops junior', () => {
+  it('routes site_manager on borjie-estate -> estate-ops junior', () => {
     const agent = resolveAudience({
       user_role: 'site_manager',
-      surface: 'bossnyumba-estate-manager-app',
+      surface: 'borjie-estate-manager-app',
     });
     expect(agent.id).toBe('estate-ops-junior');
   });
@@ -78,9 +78,9 @@ describe('resolveAudience', () => {
   it('preserves surface in the resolved agent', () => {
     const agent = resolveAudience({
       user_role: 'owner',
-      surface: 'bossnyumba-owner-portal',
+      surface: 'borjie-owner-portal',
     });
-    expect(agent.surface).toBe('bossnyumba-owner-portal');
+    expect(agent.surface).toBe('borjie-owner-portal');
   });
 });
 

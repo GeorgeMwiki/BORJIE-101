@@ -1,7 +1,7 @@
 /**
  * Canonical Property Graph (CPG) — Node Labels
  *
- * Every node label maps to a real-world entity in the Boss Nyumba domain.
+ * Every node label maps to a real-world entity in the Borjie domain.
  * Labels are grouped by bounded context and must stay in sync with
  * the PostgreSQL source-of-truth schemas.
  *

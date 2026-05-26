@@ -2,7 +2,10 @@
  * Org Legibility persistence (Wave M6).
  *
  * Companion to Docs/DESIGN/ORG_LEGIBILITY_SPEC.md §14-21. Drizzle types
- * for the two tables created by migration 0037_org_legibility.sql:
+ * for the two tables created by migration 0063_org_legibility.sql
+ * (renumbered from 0037 to resolve collision with
+ * 0037_calibration_interpretability.sql; alphabetic precedence keeps
+ * calibration_interpretability at slot 0037):
  *
  *   - legibilitySnapshots   → reconciled authoritative map per (tenant,
  *                              scope, snapshot_at). Public + internal

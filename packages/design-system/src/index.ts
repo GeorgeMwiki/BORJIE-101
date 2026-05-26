@@ -1,12 +1,12 @@
 /**
  * @borjie/design-system
  *
- * Boss Nyumba — shared UI component library.
+ * Borjie — shared UI component library.
  * React + TypeScript + Tailwind + Radix.
  *
- * Wave 29: rebranded from BORJIE to Boss Nyumba with
- * "Midnight Ledger + Cinematic Display" direction — near-black
- * foundation, warm amber signal, editorial display type.
+ * Wave 29: established the "Midnight Ledger + Cinematic Display"
+ * direction — near-black foundation, warm amber signal, editorial
+ * display type.
  */
 
 // ============================================================================

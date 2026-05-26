@@ -44,11 +44,11 @@ export interface ResolvedAgent {
     | 'marketing'
     | 'workforce-mobile'
     | 'buyer-mobile'
-    | 'bossnyumba-owner-portal'
-    | 'bossnyumba-admin-portal'
-    | 'bossnyumba-customer-app'
-    | 'bossnyumba-estate-manager-app'
-    | 'bossnyumba-tenant-portal';
+    | 'borjie-owner-portal'
+    | 'borjie-admin-portal'
+    | 'borjie-customer-app'
+    | 'borjie-estate-manager-app'
+    | 'borjie-tenant-portal';
 }
 
 /**

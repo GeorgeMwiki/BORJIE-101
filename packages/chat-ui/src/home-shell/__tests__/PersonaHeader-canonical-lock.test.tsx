@@ -31,13 +31,13 @@ const LEAKY_SPECIALISATIONS: ReadonlyArray<ResolvedAgent> = [
     id: 'estate-ops-junior',
     display_name: 'Estate Operations',
     title: 'Site Junior',
-    surface: 'bossnyumba-estate-manager-app',
+    surface: 'borjie-estate-manager-app',
   },
   {
     id: 'tenant-junior',
     display_name: 'Tenancy Concierge',
     title: 'Customer Junior',
-    surface: 'bossnyumba-customer-app',
+    surface: 'borjie-customer-app',
   },
 ];
 

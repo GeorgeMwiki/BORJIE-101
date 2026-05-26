@@ -68,7 +68,15 @@ export { composeMedia, type ComposeMediaArgs } from './composer.js';
 // Brand-lock
 // ---------------------------------------------------------------------------
 
-export { BorjieBrandSpec, getBrandSpec } from './brand-lock/brand-spec.js';
+export {
+  BorjieBrandSpec,
+  createBrandSpecRegistry,
+  getBrandSpec,
+  registerBrandSpec,
+  setActiveBrandSpecRegistry,
+  snapshotBrandSpecRegistry,
+  type BrandSpecRegistry,
+} from './brand-lock/brand-spec.js';
 export {
   buildBrandPrefix,
   buildBrandedPrompt,

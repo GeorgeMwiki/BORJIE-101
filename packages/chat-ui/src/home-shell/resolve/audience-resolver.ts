@@ -97,9 +97,9 @@ export function resolveAudience(input: ResolveAudienceInput): ResolvedAgent {
 
   if (user_role === 'site_manager') {
     if (
-      surface === 'bossnyumba-estate-manager-app' ||
-      surface === 'bossnyumba-customer-app' ||
-      surface === 'bossnyumba-tenant-portal'
+      surface === 'borjie-estate-manager-app' ||
+      surface === 'borjie-customer-app' ||
+      surface === 'borjie-tenant-portal'
     ) {
       return { ...ESTATE_OPS_JUNIOR, surface };
     }
@@ -107,8 +107,8 @@ export function resolveAudience(input: ResolveAudienceInput): ResolvedAgent {
   }
 
   if (
-    surface === 'bossnyumba-customer-app' ||
-    surface === 'bossnyumba-tenant-portal'
+    surface === 'borjie-customer-app' ||
+    surface === 'borjie-tenant-portal'
   ) {
     return { ...TENANT_JUNIOR, surface };
   }

@@ -1,5 +1,5 @@
 /**
- * Boss Nyumba — Brand barrel.
+ * Borjie — Brand barrel.
  *
  * Canonical logo + wordmark components + brand tokens exposed as TS
  * constants so non-CSS consumers (emails, PDFs, slide decks) can use

@@ -40,12 +40,12 @@ export const ONBOARDING_TEMPLATES = {
   welcome: {
     en: `🏠 *Karibu! Welcome to {{propertyName}}!*
 
-I'm Boss Nyumba, your AI property assistant. I'll help you settle in smoothly.
+I'm Mr. Mwikila, your Borjie AI assistant. I'll help you settle in smoothly.
 
 Let's get you set up! First, what language do you prefer?`,
     sw: `🏠 *Karibu! Karibu {{propertyName}}!*
 
-Mimi ni Boss Nyumba, msaidizi wako wa AI wa mali. Nitakusaidia kuishi vizuri.
+Mimi ni Mr. Mwikila, msaidizi wako wa Borjie AI. Nitakusaidia kuishi vizuri.
 
 Tufanye usajili! Kwanza, unapendelea lugha gani?`,
   } satisfies MessageTemplate,
@@ -789,7 +789,7 @@ We'd love to have you stay! Reply to discuss renewal options.
 
 🏠 Renew now and enjoy:
 • Same great location
-• Continued service from Boss Nyumba
+• Continued service from Borjie
 • Potential loyalty benefits`,
     sw: `📋 *Kumbusho la Kuhuisha Mkataba*
 
@@ -801,7 +801,7 @@ Tungependa ukae! Jibu kujadili chaguzi za kuhuisha.
 
 🏠 Huisha sasa na ufurahie:
 • Mahali pazuri sawa
-• Huduma inayoendelea kutoka Boss Nyumba
+• Huduma inayoendelea kutoka Borjie
 • Faida za uaminifu`,
   } satisfies MessageTemplate,
 } as const;
@@ -1023,7 +1023,7 @@ Kwa dharura, andika "dharura" wakati wowote.`,
   greeting: {
     en: `👋 Hi {{tenantName}}!
 
-Welcome back to Boss Nyumba. How can I help you today?
+Welcome back to Borjie. How can I help you today?
 
 Quick options:
 🔧 Maintenance
@@ -1032,7 +1032,7 @@ Quick options:
 ❓ General Help`,
     sw: `👋 Habari {{tenantName}}!
 
-Karibu tena kwa Boss Nyumba. Ninawezaje kukusaidia leo?
+Karibu tena kwa Borjie. Ninawezaje kukusaidia leo?
 
 Chaguzi za haraka:
 🔧 Matengenezo

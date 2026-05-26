@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Boss Nyumba — Tailwind config (Wave 29)
+ * Borjie — Tailwind config (Wave 29)
  *
  * Exposes the full token system as Tailwind classes: the 11-step
  * neutral ramp, the 11-step amber signal ramp, semantic chrome, and

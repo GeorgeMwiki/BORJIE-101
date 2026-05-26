@@ -1,7 +1,7 @@
 /**
  * @borjie/graph-sync
  *
- * Canonical Property Graph (CPG) — Neo4j integration for Boss Nyumba
+ * Canonical Property Graph (CPG) — Neo4j integration for Borjie
  *
  * Provides:
  *  - Neo4j client with connection management

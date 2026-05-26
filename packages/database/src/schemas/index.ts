@@ -435,7 +435,9 @@ export * from './tab-as-loop.schema.js';
 // ---------------------------------------------------------------------------
 // Wave M6 — Org Legibility (live, queryable, brand-locked org map)
 // ---------------------------------------------------------------------------
-// Two tenant-scoped tables backing migration 0037_org_legibility.sql:
+// Two tenant-scoped tables backing migration 0063_org_legibility.sql
+// (renumbered from 0037 to resolve collision with
+// 0037_calibration_interpretability.sql):
 //   legibility_snapshots — reconciled authoritative LegibilityMap per
 //                           (tenant, scope, snapshot_at). Public +
 //                           internal variants; juniors only in

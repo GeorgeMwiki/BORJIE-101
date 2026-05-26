@@ -83,11 +83,107 @@ export const BorjieBrandSpec: BrandSpec = Object.freeze({
 });
 
 /**
- * Read the active brand spec — defaults to Borjie. Future multi-brand
- * support will extend this lookup with a tenant-spec map.
+ * Tenant-scoped BrandSpec registry.
+ *
+ * Caveat 2 (Wave 18X) — the style guard must be tenant-scoped: each
+ * tenant's media generations are locked to their own BrandSpec
+ * (palette, photographic style, wordmark policy, negative-prompt
+ * denylist). Default tenants resolve to the Borjie spec; explicit
+ * overrides ship via `registerBrandSpec(tenantId, spec)`. The registry
+ * is immutable — registration returns a *new* registry rather than
+ * mutating in place — but a module-level singleton provides a
+ * convenient default for `getBrandSpec`.
+ *
+ * Mr. Mwikila's MD persona never mixes BrandSpecs across tenants; a
+ * cross-tenant call falls back to the default Borjie spec rather than
+ * leaking another tenant's brand DNA.
  */
-export function getBrandSpec(_tenantId: string): BrandSpec {
-  // v1: single brand. The signature is intentionally tenant-scoped so
-  // the lookup can grow without callers changing.
-  return BorjieBrandSpec;
+export interface BrandSpecRegistry {
+  readonly get: (tenantId: string) => BrandSpec;
+  readonly register: (tenantId: string, spec: BrandSpec) => BrandSpecRegistry;
+  readonly list: () => ReadonlyArray<{
+    readonly tenant_id: string;
+    readonly spec: BrandSpec;
+  }>;
+}
+
+function buildRegistry(
+  entries: ReadonlyMap<string, BrandSpec>,
+  fallback: BrandSpec,
+): BrandSpecRegistry {
+  return {
+    get(tenantId: string): BrandSpec {
+      return entries.get(tenantId) ?? fallback;
+    },
+    register(tenantId: string, spec: BrandSpec): BrandSpecRegistry {
+      const next = new Map(entries);
+      next.set(tenantId, spec);
+      return buildRegistry(next, fallback);
+    },
+    list() {
+      return Array.from(entries.entries()).map(([tenant_id, spec]) => ({
+        tenant_id,
+        spec,
+      }));
+    },
+  };
+}
+
+/**
+ * Create an empty tenant-scoped BrandSpec registry with a caller-
+ * supplied fallback (defaults to Borjie). Tests and the dynamic
+ * recipe author construct fresh registries this way.
+ */
+export function createBrandSpecRegistry(
+  fallback: BrandSpec = BorjieBrandSpec,
+): BrandSpecRegistry {
+  return buildRegistry(new Map(), fallback);
+}
+
+let activeRegistry: BrandSpecRegistry = createBrandSpecRegistry(BorjieBrandSpec);
+
+/**
+ * Register a tenant-specific BrandSpec override into the active
+ * singleton. Returns the new registry so callers that want the
+ * immutable handle can capture it (e.g. for snapshotting in tests).
+ *
+ * Important: this is the ONLY supported mutation point. Bypassing it
+ * (e.g. mutating the imported BorjieBrandSpec object) does not change
+ * the active registry — Object.freeze on the default spec prevents it.
+ */
+export function registerBrandSpec(
+  tenantId: string,
+  spec: BrandSpec,
+): BrandSpecRegistry {
+  if (tenantId.trim().length === 0) {
+    throw new Error('registerBrandSpec: tenantId must be non-empty');
+  }
+  activeRegistry = activeRegistry.register(tenantId, spec);
+  return activeRegistry;
+}
+
+/**
+ * Snapshot of the active singleton — used by tests that need to
+ * restore state between cases. Returns a *new* registry, never the
+ * mutable handle.
+ */
+export function snapshotBrandSpecRegistry(): BrandSpecRegistry {
+  return activeRegistry;
+}
+
+/**
+ * Replace the active singleton with a caller-supplied registry. Used
+ * by tests to scope a particular registry to a single suite and by
+ * the multi-tenant boot path to load tenant configs from the database.
+ */
+export function setActiveBrandSpecRegistry(registry: BrandSpecRegistry): void {
+  activeRegistry = registry;
+}
+
+/**
+ * Read the active brand spec for a tenant. Falls back to the Borjie
+ * default when the tenant has not registered an override.
+ */
+export function getBrandSpec(tenantId: string): BrandSpec {
+  return activeRegistry.get(tenantId);
 }
