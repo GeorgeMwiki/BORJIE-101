@@ -623,7 +623,7 @@ function defaultSqlBuilder(): SqlTemplateFn {
   return (strings, ...values) => {
     if (!cached) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- SCRUB-5f: rule-disabled because drizzle-orm is loaded via sync require for lazy template-fn resolution; ESM dynamic import would force the call site to be async
         const drizzle = require('drizzle-orm');
         const sqlFn = drizzle?.sql;
         const rawFn = drizzle?.sql?.raw;

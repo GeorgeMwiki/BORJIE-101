@@ -296,7 +296,7 @@ function rowHashRole(
  *
  * @internal — not exported from the package barrel.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- SCRUB-5f: rule-disabled because rowHashMatches is the internal-module-scope test seam documented in the JSDoc above; renaming with _ would break that contract
 function rowHashMatches(
   entry: HashedAuditEntry,
   secrets: ResolvedSecrets,

@@ -250,7 +250,7 @@ export async function executeJuniors(
 
   const results: JuniorExecutionResult[] = [];
   for (const step of args.dispatchPlan) {
-    // eslint-disable-next-line no-await-in-loop
+    // eslint-disable-next-line no-await-in-loop -- SCRUB-5f: rule-disabled because sequential dispatch is intentional; the parallel branch above handles concurrency and steps may depend on prior side-effects
     results.push(await executeOne(step, args));
   }
   return results;
