@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/language-self-improve",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Wave 19K — Language Self-Improvement Loop. Mr. Mwikila's Swahili gets better over time per tenant. Capture (consent-gated by 19J ambient-listener) → score on 4 axes (WER, PER, grammar, terminology) → curate (active-learning bias, PII-redact) → train (LoRA adapter or rag-prefix) → eval against 200-entry extended gauntlet + per-tenant additions → promote/rollback by deltas → hook to Wave 19C RLVR as a verifier emission. See Docs/DESIGN/LANGUAGE_SELF_IMPROVE_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

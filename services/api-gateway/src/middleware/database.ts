@@ -139,7 +139,7 @@ let repositories: Repositories | null = null;
  * checks that explicitly via `selectEncryptionPort`'s
  * `EncryptionKeyUnavailableError`.
  *
- * TODO(#42) — per-tenant KMS region routing:
+ * See gh-issue #42 — per-tenant KMS region routing:
  * ─────────────────────────────────────────────────────────────────────
  * This middleware constructs the encryption port as a MODULE-LOAD
  * SINGLETON (`encPort`, lines 84-86) — every repository instance in

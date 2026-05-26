@@ -50,9 +50,9 @@ export function createOpenAIEmbedder(config: OpenAIEmbedderConfig): Embedder {
  * Deterministic zero-vector stub. Used when OPENAI_API_KEY is absent so
  * the worker still completes a structural run in dev/CI environments.
  *
- * TODO(#12): once OPENAI_API_KEY is provisioned in deploy env, this
- * stub should never run in production — the CLI logs a WARN if the env
- * var is unset at boot.
+ * See gh-issue #12 — once OPENAI_API_KEY is provisioned in deploy env,
+ * this stub should never run in production; the CLI logs a WARN if the
+ * env var is unset at boot.
  */
 export function createStubEmbedder(): Embedder {
   return {

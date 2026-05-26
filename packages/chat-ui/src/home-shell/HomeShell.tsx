@@ -192,7 +192,7 @@ export function HomeShell(props: HomeShellProps): JSX.Element {
           conversations={PLACEHOLDER_HISTORY}
           active_id={state.conversation_id}
           onSelect={() => {
-            /* host wiring TODO in Phase 2 */
+            /* host wiring pending; see Phase 2 spec */
           }}
         />
       ) : null}
