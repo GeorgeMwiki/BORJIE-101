@@ -339,3 +339,18 @@ export * from './wave-resilience.schema.js';
 // Consumed by @borjie/persistent-memory.
 // See Docs/DESIGN/MEMORY_AMNESIA_PREVENTION_SOTA.md.
 export * from './persistent-memory.schema.js';
+
+// ---------------------------------------------------------------------------
+// Ephemeral Software — Function-Attached Dashboard Telemetry
+// ---------------------------------------------------------------------------
+// Single tenant-scoped table backing migration 0031_ephemeral_dashboard.sql:
+//   ephemeral_dashboard_telemetry — one row per compose call by
+//                                   @borjie/ephemeral-ui. Audit + replay
+//                                   key + promotion-decider's source of
+//                                   truth. TabRecipes themselves are
+//                                   NEVER persisted (lifecycle = compose
+//                                   → render → telemetry → discard | promote).
+// Consumed by @borjie/ephemeral-ui.
+// See Docs/DESIGN/FUNCTION_ATTACHED_DASHBOARD_SPEC.md and
+// Docs/STRATEGY/EPHEMERAL_SOFTWARE_SOTA.md.
+export * from './ephemeral-dashboard-telemetry.schema.js';
