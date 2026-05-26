@@ -1,0 +1,37 @@
+{
+  "name": "@borjie/doc-evolution-worker",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Layer 4 of Document Composition (Wave 17D) — nightly aggregator over doc_feedback_events, lock/improve decision engine, LLM-driven proposal generator, and Tier-2 owner approval queue emitter for document artefacts.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/brain-llm-router": "workspace:*",
+    "@borjie/database": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "ioredis": "^5.4.1",
+    "node-cron": "^3.0.3",
+    "postgres": "^3.4.9",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/node-cron": "^3.0.11",
+    "@vitest/coverage-v8": "^4.1.7",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
