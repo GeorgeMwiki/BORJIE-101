@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/research-orchestrator",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Deep Research engine — Planner + Executor + Scorer + Synthesizer pipeline for the 5 research modes (Reactive Query, Anticipatory Sweep, Daily Briefing, Deep Dive, Continuous Watch). Per DEEP_RESEARCH_SPEC.md. Owns: cron-driven daily briefings, owner-initiated deep dives with budget gates, continuous threshold watches, anticipatory pre-research caching, and per-query reactive answers — all audit-chained.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo coverage"
+  },
+  "dependencies": {
+    "@borjie/research-tools": "workspace:*",
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/brain-llm-router": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "@borjie/database": "workspace:*",
+    "@borjie/ai-copilot": "workspace:*",
+    "ioredis": "^5.10.1",
+    "node-cron": "^3.0.3",
+    "postgres": "^3.4.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
