@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies, headers } from 'next/headers';
 
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 /**
  * Platform overview KPI proxy.
@@ -15,10 +16,16 @@ import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
  * we still return 200 with `success: false` + `code = 'GATEWAY_UNREACHABLE'`
  * so the KpiTiles fetcher's em-dash fallback renders cleanly instead of
  * the user seeing a generic "failed to fetch" surface.
+ *
+ * `API_GATEWAY_URL` is required in production — `requirePublicBaseUrl`
+ * throws at module load when NODE_ENV === 'production' and the env var
+ * is unset, refusing to silently point HQ at localhost:4000.
  */
 
-const GATEWAY_URL =
-  process.env.API_GATEWAY_URL?.trim() || 'http://localhost:4000';
+const GATEWAY_URL = requirePublicBaseUrl(
+  'API_GATEWAY_URL',
+  'http://localhost:4000',
+);
 
 export async function GET() {
   const cookieStore = await cookies();
