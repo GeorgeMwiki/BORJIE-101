@@ -25,10 +25,8 @@ import {
   SidecarHttpError,
   SidecarSchemaError,
   SidecarUnavailableError,
+  resolveSidecarBaseUrl,
 } from './refutation-client.js';
-
-const ENV_VAR = 'DISCOVERY_SIDECAR_URL';
-const DEFAULT_BASE_URL = 'http://localhost:8000';
 
 export interface PcmciClientOptions {
   readonly baseUrl?: string;
@@ -60,7 +58,7 @@ export interface PcmciClient {
 }
 
 export function createPcmciClient(opts: PcmciClientOptions = {}): PcmciClient {
-  const baseUrl = opts.baseUrl ?? process.env[ENV_VAR] ?? DEFAULT_BASE_URL;
+  const baseUrl = resolveSidecarBaseUrl(opts.baseUrl);
   const fetchImpl = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? 30_000;
 

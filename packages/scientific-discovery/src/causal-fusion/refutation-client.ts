@@ -53,6 +53,28 @@ export class SidecarSchemaError extends Error {
 const ENV_VAR = 'DISCOVERY_SIDECAR_URL';
 const DEFAULT_BASE_URL = 'http://localhost:8000';
 
+/**
+ * Resolve the sidecar base URL, refusing to fall back to localhost
+ * when NODE_ENV === 'production'. Exported so the PCMCIplus client
+ * (and any future causal-fusion clients) share one policy.
+ */
+export function resolveSidecarBaseUrl(explicit: string | undefined): string {
+  if (explicit && explicit.length > 0) {
+    return explicit;
+  }
+  const fromEnv = process.env[ENV_VAR];
+  if (fromEnv && fromEnv.length > 0) {
+    return fromEnv;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      `scientific-discovery: ${ENV_VAR} must be set in production ` +
+        '(no silent "http://localhost:8000" default).',
+    );
+  }
+  return DEFAULT_BASE_URL;
+}
+
 export interface RefutationClientOptions {
   readonly baseUrl?: string;
   /** Fetch impl override (test injection). */
@@ -78,7 +100,7 @@ export interface RefutationClient {
 }
 
 export function createRefutationClient(opts: RefutationClientOptions = {}): RefutationClient {
-  const baseUrl = opts.baseUrl ?? process.env[ENV_VAR] ?? DEFAULT_BASE_URL;
+  const baseUrl = resolveSidecarBaseUrl(opts.baseUrl);
   const fetchImpl = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? 10_000;
 
