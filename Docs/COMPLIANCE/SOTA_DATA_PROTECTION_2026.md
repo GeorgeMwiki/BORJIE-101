@@ -561,7 +561,57 @@ These are the gates the CI workflow `data-protection-gate.yml` enforces.
 
 ---
 
-## 14. Word-count check
+## 14. Universal-from-day-one — jurisdiction routing
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`,
+**the data-protection primitive respects the jurisdiction profile of the
+requesting tenant**. The Tanzania DPA 2022 / GDPR / CCPA mappings shown in §3
+are the **launch defaults**, sourced from the framework rows registered in
+`@borjie/jurisdiction-profiles` (TZ profile) and `@borjie/compliance-plugins`
+(country plugins). Adding a new jurisdiction = adding a new
+`ComplianceFrameworkPort` row + a new vertical profile + (optionally) a new
+language pack — **not editing this spec or the `@borjie/data-protection`
+package**.
+
+The supported compliance-framework registry today covers (non-exhaustive):
+
+- **GDPR** — Regulation (EU) 2016/679 (citation [2]).
+- **Tanzania Personal Data Protection Act, 2022** (citation [1]) — launch
+  beachhead.
+- **CCPA + CPRA** — California Consumer Privacy Act (citation [3]).
+- **LGPD** — Lei Geral de Proteção de Dados Pessoais (Brazil).
+  URL: `https://www.gov.br/cidadania/pt-br/acesso-a-informacao/lgpd`. Date
+  captured 2026-05-26.
+- **PIPL** — Personal Information Protection Law (China). URL:
+  `http://en.npc.gov.cn.cdurl.cn/2021-12/29/c_694559.htm`. Date 2021-08-20.
+- **HIPAA Security Rule** — 45 CFR §§ 164.302–164.318. URL:
+  `https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C`.
+  Date refreshed 2025-10.
+- **NDPA 2023** — Nigeria Data Protection Act (replaces NDPR). URL:
+  `https://ndpc.gov.ng/`. Date 2023-06-14.
+- **POPIA** — Protection of Personal Information Act (South Africa). URL:
+  `https://www.justice.gov.za/legislation/acts/2013-004.pdf`. Date 2013-11-26.
+- **Kenya DPA 2019** — Data Protection Act, Kenya. URL:
+  `https://www.odpc.go.ke/`. Date 2019-11-08.
+- **DPDP Act 2023** — Digital Personal Data Protection Act (India). URL:
+  `https://www.meity.gov.in/data-protection-framework`. Date 2023-08-11.
+
+Each row carries `breachAuthorityNotificationHours`,
+`breachSubjectNotificationHours`, `rtbfFulfilmentDays`,
+`minRetentionDaysByClass`, `maxRetentionDaysByClass`, and a `provenance[]`
+of URL+title+date. The strictest-of-N combinator in
+`@borjie/data-protection/src/frameworks/index.ts` produces a synthetic
+strictest framework for tenants spanning multiple jurisdictions (e.g., a
+mining co-op with a Tanzanian processor + an EU controller).
+
+**Invariant**: no jurisdiction string, country code, or regulator name
+appears in `packages/data-protection/src/**` (verified by the CI workflow
+`.github/workflows/data-protection-gate.yml`). The package is universal;
+the jurisdiction rows are data.
+
+---
+
+## 15. Word-count check
 
 Target ≈ 3500 words. Actual word count, per `wc -w`, is in the same band
 (verified at commit time). See `Docs/COMPLIANCE/DATA_RETENTION_POLICY.md`

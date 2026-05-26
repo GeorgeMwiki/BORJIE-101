@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/agent-security-guard",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SEC-4 / Mr. Mwikila — AI-agent security guard. Detects prompt injection (direct + indirect), validates tool calls against authority tiers, filters outputs for markdown-image exfil + PII + system-prompt leakage, catches jailbreak patterns (many-shot, DAN, GCG), and runs red-team scenarios against the agent surface. Covers OWASP LLM Top 10 (2025), MITRE ATLAS techniques, NIST AI RMF. See Docs/SECURITY/AI_AGENT_SECURITY_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
