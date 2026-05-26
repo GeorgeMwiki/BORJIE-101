@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891)
-// plus the `@hono/swagger-ui` dep is declared in package.json but its
-// types may not resolve until `pnpm install` runs.
 /**
  * /api/v1/mining/docs + /api/v1/mining/openapi.yaml
  *
