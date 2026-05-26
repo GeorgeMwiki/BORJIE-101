@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   city                 text,
   state                text,
   postal_code          text,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   country              text NOT NULL DEFAULT 'TZ',
   region               text NOT NULL DEFAULT 'af-south-1',
   settings             jsonb DEFAULT '{}'::jsonb,

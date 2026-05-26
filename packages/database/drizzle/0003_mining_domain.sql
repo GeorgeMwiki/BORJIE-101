@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS companies (
   tin                text,
   vrn                text,
   registered_address text,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   country            text NOT NULL DEFAULT 'TZ',
   attributes         jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at         timestamptz NOT NULL DEFAULT now(),
@@ -187,6 +188,7 @@ CREATE TABLE IF NOT EXISTS directors (
   role          text NOT NULL,
   appointed_on  date,
   resigned_on   date,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   nationality   text NOT NULL DEFAULT 'TZ',
   attributes    jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at    timestamptz NOT NULL DEFAULT now()
@@ -203,6 +205,7 @@ CREATE TABLE IF NOT EXISTS shareholders (
   share_pct     numeric(7,4) NOT NULL,
   share_class   text NOT NULL DEFAULT 'ordinary',
   shares_issued numeric(18,0),
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   nationality   text NOT NULL DEFAULT 'TZ',
   attributes    jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at    timestamptz NOT NULL DEFAULT now()
@@ -217,6 +220,7 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   bank_name      text NOT NULL,
   branch         text,
   account_number text NOT NULL,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   currency       text NOT NULL DEFAULT 'TZS',
   swift_bic      text,
   purpose        text,
@@ -442,6 +446,7 @@ CREATE TABLE IF NOT EXISTS employees (
   wage_basis       text NOT NULL DEFAULT 'daily',
   wage_rate_tzs    numeric(12,2),
   employment_type  text NOT NULL DEFAULT 'casual',
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   nationality      text NOT NULL DEFAULT 'TZ',
   status           text NOT NULL DEFAULT 'active',
   start_date       date,
@@ -479,6 +484,7 @@ CREATE TABLE IF NOT EXISTS advances (
   tenant_id           text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id         text NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
   amount_tzs          numeric(18,2) NOT NULL,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   currency            text NOT NULL DEFAULT 'TZS',
   reason_kind         text NOT NULL DEFAULT 'cash',
   reason_note         text,
@@ -637,6 +643,7 @@ CREATE TABLE IF NOT EXISTS buyers (
   name          text NOT NULL,
   company_id    text REFERENCES companies(id) ON DELETE SET NULL,
   kind          text NOT NULL,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   country       text NOT NULL DEFAULT 'TZ',
   licence_number text,
   contact_name  text,
@@ -689,6 +696,7 @@ CREATE TABLE IF NOT EXISTS cash_balances (
   recorded_at      timestamptz NOT NULL,
   balance_tzs      numeric(18,2) NOT NULL,
   balance_native   numeric(18,2),
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   native_currency  text NOT NULL DEFAULT 'TZS',
   source           text NOT NULL DEFAULT 'manual',
   attributes       jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -741,6 +749,7 @@ CREATE TABLE IF NOT EXISTS costs (
   site_id          text REFERENCES sites(id) ON DELETE SET NULL,
   category         text NOT NULL,
   amount_tzs       numeric(18,2) NOT NULL,
+  -- UNIV-4: column default = TZ launch beachhead seed; future jurisdictions write their own value
   amount_currency  text NOT NULL DEFAULT 'TZS',
   amount_native    numeric(18,2),
   state            text NOT NULL DEFAULT 'actual',
