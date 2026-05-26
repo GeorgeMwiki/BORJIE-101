@@ -272,3 +272,12 @@ export * from './mutation-authority.schema.js';
 // clarifying_question_history (3-question per-turn cap enforcement).
 // See docs/DESIGN/COGNITIVE_ENGINE_SPEC.md.
 export * from './cognitive-engine.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18V — Junior Architecture (27 juniors as MD-class within scope)
+// ---------------------------------------------------------------------------
+// Two tables backing migration 0025_junior_architecture.sql:
+// junior_personas (global registry of every JuniorPersona),
+// agent_turns (tenant-scoped per-turn ledger linked to cognitive_turns).
+// See docs/DESIGN/JUNIOR_ARCHITECTURE_SPEC.md.
+export * from './junior-architecture.schema.js';
