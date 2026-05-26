@@ -45,10 +45,10 @@ export type MasteryMap = Readonly<Record<string, number>>;
 
 export interface TrainingStepContent {
   readonly socraticPrompts: readonly string[];
-  readonly scenario?: string;
-  readonly handoutMarkdown?: string;
-  readonly checkpointQuestion?: string;
-  readonly expectedAnswer?: string;
+  readonly scenario?: string | undefined;
+  readonly handoutMarkdown?: string | undefined;
+  readonly checkpointQuestion?: string | undefined;
+  readonly expectedAnswer?: string | undefined;
 }
 
 export interface TrainingPathStep {

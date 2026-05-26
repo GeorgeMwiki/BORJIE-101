@@ -57,9 +57,9 @@ export interface RecordUsageInput {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly costUsdMicro: number;
-  readonly operation?: string;
-  readonly correlationId?: string;
-  readonly metadata?: Record<string, unknown>;
+  readonly operation?: string | undefined;
+  readonly correlationId?: string | undefined;
+  readonly metadata?: Record<string, unknown> | undefined;
 }
 
 export interface MonthSpendSummary {

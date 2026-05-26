@@ -221,8 +221,8 @@ export function makeMigrationCommitTool(deps: MigrationCommitDeps): ToolHandler 
       const ctx = deps.resolveContext
         ? deps.resolveContext({
             runId: parsed.data.runId,
-            tenantId: parsed.data.tenantId,
-            actorId: parsed.data.actorId,
+            ...(parsed.data.tenantId !== undefined ? { tenantId: parsed.data.tenantId } : {}),
+            ...(parsed.data.actorId !== undefined ? { actorId: parsed.data.actorId } : {}),
           })
         : {
             tenantId:

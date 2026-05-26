@@ -62,17 +62,17 @@ export class TenantBoundaryError extends Error {
 
 export interface CrossTenantDenialRecord {
   readonly callerTenantId: string;
-  readonly foreignTenantId?: string;
-  readonly actorId?: string;
-  readonly personaId?: string;
-  readonly sessionId?: string;
+  readonly foreignTenantId?: string | undefined;
+  readonly actorId?: string | undefined;
+  readonly personaId?: string | undefined;
+  readonly sessionId?: string | undefined;
   readonly violationPath: string;
   readonly violationType: IsolationViolation['type'];
   readonly severity: IsolationViolation['severity'];
   readonly detail: string;
   readonly verdict: 'blocked' | 'detected';
-  readonly surface?: string;
-  readonly traceId?: string;
+  readonly surface?: string | undefined;
+  readonly traceId?: string | undefined;
   readonly occurredAt: string;
 }
 

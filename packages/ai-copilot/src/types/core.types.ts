@@ -200,11 +200,11 @@ export interface HumanReview {
   reviewer: AIActor;
   decision: 'approved' | 'rejected' | 'modified';
   /** Reviewer's modifications to the output */
-  modifications?: Record<string, unknown>;
+  modifications?: Record<string, unknown> | undefined;
   /** Feedback for model improvement */
-  feedback?: string;
+  feedback?: string | undefined;
   /** Quality rating (1-5) */
-  qualityRating?: number;
+  qualityRating?: number | undefined;
   /** Time spent reviewing in seconds */
   reviewTimeSeconds: number;
   reviewedAt: string;

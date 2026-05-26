@@ -294,10 +294,14 @@ export function migrationExtract(
     for (const l of lines) {
       const m = l.match(rentRe);
       if (!m) continue;
+      const name = m[1];
+      const unitLabel = m[2];
+      const rent = m[3];
+      if (name === undefined || unitLabel === undefined || rent === undefined) continue;
       bundle.tenants.push({
-        name: m[1].trim(),
-        unitLabel: m[2].trim(),
-        rentKes: Number(m[3].replace(/,/g, '')),
+        name: name.trim(),
+        unitLabel: unitLabel.trim(),
+        rentKes: Number(rent.replace(/,/g, '')),
       });
     }
   }

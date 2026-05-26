@@ -45,6 +45,7 @@ export async function indexDocument(
   const persisted: KnowledgeChunk[] = [];
   for (let i = 0; i < chunks.length; i += 1) {
     const chunk = chunks[i];
+    if (chunk === undefined) continue;
     const record = await store.upsert({
       tenantId: parsed.tenantId,
       knowledgeSource: parsed.knowledgeSource,

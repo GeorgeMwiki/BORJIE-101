@@ -28,21 +28,21 @@ import { paymentPlanProposerAgent } from './agents/payment-plan-proposer.agent.j
 // enumeration but the consumer is `Record`-shaped for O(1) lookup by id.
 export const TASK_AGENT_REGISTRY: Readonly<Record<string, TaskAgent>> =
   Object.freeze({
-    [rentReminderAgent.id]: rentReminderAgent,
-    [lateFeeCalculatorAgent.id]: lateFeeCalculatorAgent,
-    [leaseRenewalSchedulerAgent.id]: leaseRenewalSchedulerAgent,
-    [moveOutNoticeAgent.id]: moveOutNoticeAgent,
-    [inspectionReminderAgent.id]: inspectionReminderAgent,
-    [vendorInvoiceApproverAgent.id]: vendorInvoiceApproverAgent,
-    [tenantSentimentMonitorAgent.id]: tenantSentimentMonitorAgent,
-    [arrearsLadderTickAgent.id]: arrearsLadderTickAgent,
-    [insuranceExpiryMonitorAgent.id]: insuranceExpiryMonitorAgent,
-    [licenseExpiryMonitorAgent.id]: licenseExpiryMonitorAgent,
-    [utilityMeterReadingReminderAgent.id]: utilityMeterReadingReminderAgent,
-    [vacancyMarketerAgent.id]: vacancyMarketerAgent,
-    [proactiveMaintenanceAlertAgent.id]: proactiveMaintenanceAlertAgent,
-    [crossTenantChurnRiskAgent.id]: crossTenantChurnRiskAgent,
-    [paymentPlanProposerAgent.id]: paymentPlanProposerAgent,
+    [rentReminderAgent.id]: rentReminderAgent as unknown as TaskAgent,
+    [lateFeeCalculatorAgent.id]: lateFeeCalculatorAgent as unknown as TaskAgent,
+    [leaseRenewalSchedulerAgent.id]: leaseRenewalSchedulerAgent as unknown as TaskAgent,
+    [moveOutNoticeAgent.id]: moveOutNoticeAgent as unknown as TaskAgent,
+    [inspectionReminderAgent.id]: inspectionReminderAgent as unknown as TaskAgent,
+    [vendorInvoiceApproverAgent.id]: vendorInvoiceApproverAgent as unknown as TaskAgent,
+    [tenantSentimentMonitorAgent.id]: tenantSentimentMonitorAgent as unknown as TaskAgent,
+    [arrearsLadderTickAgent.id]: arrearsLadderTickAgent as unknown as TaskAgent,
+    [insuranceExpiryMonitorAgent.id]: insuranceExpiryMonitorAgent as unknown as TaskAgent,
+    [licenseExpiryMonitorAgent.id]: licenseExpiryMonitorAgent as unknown as TaskAgent,
+    [utilityMeterReadingReminderAgent.id]: utilityMeterReadingReminderAgent as unknown as TaskAgent,
+    [vacancyMarketerAgent.id]: vacancyMarketerAgent as unknown as TaskAgent,
+    [proactiveMaintenanceAlertAgent.id]: proactiveMaintenanceAlertAgent as unknown as TaskAgent,
+    [crossTenantChurnRiskAgent.id]: crossTenantChurnRiskAgent as unknown as TaskAgent,
+    [paymentPlanProposerAgent.id]: paymentPlanProposerAgent as unknown as TaskAgent,
   });
 
 /** Typed union of every agent id currently in the registry. */

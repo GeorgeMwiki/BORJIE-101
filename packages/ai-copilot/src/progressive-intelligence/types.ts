@@ -127,8 +127,8 @@ export interface FieldMetadata {
   readonly confidence: number;
   readonly confidenceTier: ConfidenceTier;
   readonly confirmed: boolean;
-  readonly rawValue?: string;
-  readonly sourceDocumentId?: string;
+  readonly rawValue?: string | undefined;
+  readonly sourceDocumentId?: string | undefined;
 }
 
 // ============================================================================

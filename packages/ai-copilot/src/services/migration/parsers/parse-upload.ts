@@ -58,7 +58,7 @@ export async function parseUpload(
       return { sheets: {}, warnings, detectedMimeType: normalized };
     }
     const { plainText } = await parsePdfText(buffer, options.ocr, {
-      language: options.language,
+      ...(options.language !== undefined ? { language: options.language } : {}),
     });
     return { sheets: {}, plainText, warnings, detectedMimeType: normalized };
   }

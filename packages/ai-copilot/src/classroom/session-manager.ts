@@ -158,6 +158,12 @@ export function recordQuizAnswer(
     );
   }
   const participant = session.participants[idx];
+  if (participant === undefined) {
+    throw new SessionStateError(
+      `Participant ${input.userId} not in session`,
+      'NOT_FOUND'
+    );
+  }
   const prior = participant.concepts[input.conceptId] ?? initBKT();
   const nextState = updateBKT(prior, input.isCorrect);
   const nextConcepts = {

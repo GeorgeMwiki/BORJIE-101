@@ -148,6 +148,9 @@ export class WorkflowEngine {
     }
 
     const lastLog = run.stepLogs[run.stepLogs.length - 1];
+    if (lastLog === undefined) {
+      throw new Error('workflow-engine: cannot approve run with no step logs');
+    }
     const approvedLog: WorkflowStepLog = {
       ...lastLog,
       status: 'completed',
@@ -177,6 +180,7 @@ export class WorkflowEngine {
 
     for (let i = fromIndex; i < workflow.steps.length; i += 1) {
       const step = workflow.steps[i];
+      if (step === undefined) continue;
       const outcome = await this.executor.execute(step, {
         tenantId: run.tenantId,
         initiatedBy: run.initiatedBy,

@@ -243,7 +243,7 @@ export function transition(
     nextState: match.to,
     allowed: true,
     reason: match.reason,
-    branch: match.branch,
+    ...(match.branch !== undefined ? { branch: match.branch } : {}),
   };
 }
 

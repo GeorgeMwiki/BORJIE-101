@@ -41,7 +41,7 @@ interface CapturedFilter {
   prefix?: string;
 }
 
-const captured: { current: CapturedFilter; updateExpr?: { factor: number } } = {
+const captured: { current: CapturedFilter; updateExpr?: { factor: number } | undefined } = {
   current: {},
 };
 

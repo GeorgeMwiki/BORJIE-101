@@ -207,7 +207,8 @@ export async function draftNegotiationCounter(
     schema: NegotiationCounterSchema,
     systemPrompt: `You are a professional leasing broker with a ${input.toneGuide} tone. Propose a counter-offer strictly at or above ${input.lowerBoundMinor}. Never go below that number. Return JSON.`,
   });
-  return guardOutputStrings(result.data);
+  const guarded = guardOutputStrings(result.data);
+  return { ...guarded, concessions: guarded.concessions ?? [] };
 }
 
 // ─────────────────────────────────────────────────────────────

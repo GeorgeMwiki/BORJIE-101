@@ -19,7 +19,7 @@ export interface TranscriptEntry {
   readonly role: 'instructor' | 'learner' | 'ai_professor';
   readonly text: string;
   readonly language: 'en' | 'sw' | 'mixed';
-  readonly audioRef?: string; // storage URL / key
+  readonly audioRef?: string | undefined; // storage URL / key
   readonly occurredAt: string;
 }
 

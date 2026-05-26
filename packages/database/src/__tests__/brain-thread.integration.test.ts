@@ -74,11 +74,11 @@ describe.skipIf(!RUN)('BrainThreadRepository (real Postgres)', () => {
 
     const events = await repo.listEvents(threadId);
     expect(events).toHaveLength(1);
-    expect(events[0].kind).toBe('user_message');
+    expect(events[0]?.kind).toBe('user_message');
 
     const list = await repo.listThreads(tenantId, { userId });
     expect(list.length).toBeGreaterThan(0);
-    expect(list[0].id).toBe(threadId);
+    expect(list[0]?.id).toBe(threadId);
   });
 
   it('archives threads', async () => {

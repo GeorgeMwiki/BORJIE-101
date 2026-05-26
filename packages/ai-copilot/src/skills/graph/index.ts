@@ -66,7 +66,7 @@ export function buildGraphToolHandlers(
         ok: result.success,
         data: result.data,
         evidenceSummary: result.evidenceSummary,
-        error: result.error,
+        ...(result.error !== undefined ? { error: result.error } : {}),
       };
     },
   }));

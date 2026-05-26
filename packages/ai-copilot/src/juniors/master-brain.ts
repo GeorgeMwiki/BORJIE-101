@@ -148,7 +148,7 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
       const validated = MasterBrainInputSchema.parse(input);
       const output = await runClaudeJunior({
         claude: deps.claude,
-        logger: deps.logger,
+        ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
         juniorName: 'master-brain',
         schema: MasterBrainOutputSchema,
         systemPrompt: MASTER_BRAIN_SYSTEM_PROMPT,

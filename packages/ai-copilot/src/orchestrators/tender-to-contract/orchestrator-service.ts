@@ -159,6 +159,7 @@ export class TenderToContractOrchestrator {
 
     for (let i = 0; i < TENDER_STEPS.length; i++) {
       const stepName = TENDER_STEPS[i];
+      if (stepName === undefined) continue;
       const existing = await this.deps.store.findStep(current.id, stepName);
       if (existing && isTerminalDecision(existing.decision)) continue;
 

@@ -131,10 +131,11 @@ export class OrgQueryService {
       req.tenantId,
     );
     const top3 = bottlenecks.slice(0, 3);
+    const first = top3[0];
     const headline =
-      top3.length === 0
+      first === undefined
         ? 'No open bottlenecks detected right now — every tracked process is within normal bands.'
-        : `Top bottleneck: ${top3[0].bottleneckKind.replace('_', ' ')} at '${top3[0].stage}' (${top3[0].severity}).`;
+        : `Top bottleneck: ${first.bottleneckKind.replace('_', ' ')} at '${first.stage}' (${first.severity}).`;
     return {
       intent: 'bottleneck_top',
       blackboardBlock: 'bottleneck_sankey',

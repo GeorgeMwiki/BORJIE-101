@@ -146,15 +146,15 @@ export function percentile(
   p: number,
 ): number {
   if (sortedNumbers.length === 0) return 0;
-  if (sortedNumbers.length === 1) return sortedNumbers[0];
+  if (sortedNumbers.length === 1) return sortedNumbers[0] ?? 0;
   const rank = (p / 100) * (sortedNumbers.length - 1);
   const lo = Math.floor(rank);
   const hi = Math.ceil(rank);
-  if (lo === hi) return sortedNumbers[lo];
+  const loVal = sortedNumbers[lo] ?? 0;
+  const hiVal = sortedNumbers[hi] ?? 0;
+  if (lo === hi) return loVal;
   const weight = rank - lo;
-  return Math.round(
-    sortedNumbers[lo] * (1 - weight) + sortedNumbers[hi] * weight,
-  );
+  return Math.round(loVal * (1 - weight) + hiVal * weight);
 }
 
 export function buildStageStats(

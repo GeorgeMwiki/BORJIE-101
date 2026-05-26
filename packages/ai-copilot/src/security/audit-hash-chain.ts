@@ -380,7 +380,9 @@ async function* streamEntries(
     if (batch.length === 0) return;
     yield batch;
     if (batch.length < batchSize) return;
-    fromSeq = batch[batch.length - 1].sequenceId + 1;
+    const last = batch[batch.length - 1];
+    if (last === undefined) return;
+    fromSeq = last.sequenceId + 1;
   }
 }
 
@@ -540,17 +542,20 @@ export function createAuditHashChain(deps: AuditHashChainDeps): AuditHashChain {
       const startIdx = Math.max(0, all.length - n);
       // Anchor row is the predecessor; if startIdx is 0 the anchor is
       // genesis.
+      const anchorRow = startIdx === 0 ? undefined : all[startIdx - 1];
       const anchorPrev =
-        startIdx === 0 ? GENESIS_PREV_HASH : all[startIdx - 1].thisHash;
+        startIdx === 0 ? GENESIS_PREV_HASH : (anchorRow?.thisHash ?? GENESIS_PREV_HASH);
       const anchorSeq =
-        startIdx === 0 ? 1 : all[startIdx - 1].sequenceId + 1;
+        startIdx === 0 ? 1 : ((anchorRow?.sequenceId ?? 0) + 1);
 
       const state = makeVerifierState({
         expectedSeq: anchorSeq,
         expectedPrev: anchorPrev,
       });
       for (let i = startIdx; i < all.length; i++) {
-        const failure = verifyEntry(state, all[i], secrets, {
+        const entry = all[i];
+        if (entry === undefined) continue;
+        const failure = verifyEntry(state, entry, secrets, {
           recomputeHash: true,
         });
         if (failure) return failure;
@@ -620,6 +625,7 @@ export function createInMemoryAuditChainRepo(): AuditChainRepository & {
       const scoped = rows.filter((r) => r.tenantId === tenantId);
       if (scoped.length === 0) return null;
       const last = scoped[scoped.length - 1];
+      if (last === undefined) return null;
       return { ...last, payload: { ...last.payload } };
     },
     async listByTenant(tenantId, options) {

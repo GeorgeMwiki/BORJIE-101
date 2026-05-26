@@ -126,6 +126,7 @@ export function safeJsonParse<T = unknown>(raw: string): T | null {
   // Strip markdown code fences
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   const body = fenced ? fenced[1] : trimmed;
+  if (body === undefined) return null;
   // Try parse; if the body starts with arbitrary prose, find the first { or [
   try {
     return JSON.parse(body.trim()) as T;

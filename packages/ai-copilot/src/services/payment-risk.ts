@@ -50,10 +50,10 @@ export interface PaymentCustomerData {
     last12Months: Array<{
       month: string;
       dueDate: string;
-      paidDate?: string;
+      paidDate?: string | undefined;
       amount: number;
-      daysLate?: number;
-      partialPayment?: boolean;
+      daysLate?: number | undefined;
+      partialPayment?: boolean | undefined;
     }>;
     totalOnTime: number;
     totalLate: number;
@@ -61,15 +61,15 @@ export interface PaymentCustomerData {
     averageDaysLate: number;
   };
   financialIndicators?: {
-    incomeToRentRatio?: number;
-    employmentStatus?: 'employed' | 'self-employed' | 'unemployed' | 'retired' | 'unknown';
-    recentJobChange?: boolean;
-  };
+    incomeToRentRatio?: number | undefined;
+    employmentStatus?: 'employed' | 'self-employed' | 'unemployed' | 'retired' | 'unknown' | undefined;
+    recentJobChange?: boolean | undefined;
+  } | undefined;
   communicationSignals?: {
     paymentPlanRequests: number;
     hardshipMentions: number;
     unresponsivePeriods: number;
-  };
+  } | undefined;
 }
 
 export interface PaymentRiskFactor {
@@ -149,13 +149,13 @@ const PaymentRiskResultSchema = z.object({
 
 export interface PaymentRiskConfig {
   /** @deprecated Kept for backwards compatibility during migration. */
-  openaiApiKey?: string;
+  openaiApiKey?: string | undefined;
   /** Preferred: Anthropic API key (ANTHROPIC_API_KEY). */
-  anthropicApiKey?: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  anthropicClient?: AnthropicClient;
+  anthropicApiKey?: string | undefined;
+  model?: string | undefined;
+  temperature?: number | undefined;
+  maxTokens?: number | undefined;
+  anthropicClient?: AnthropicClient | undefined;
 }
 
 export class PaymentRiskService {

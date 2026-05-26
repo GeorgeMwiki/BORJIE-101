@@ -186,7 +186,7 @@ function parseCompositeKey(key: string): { domain: string; feature: string; filt
   if (unitType) filters.unitType = unitType;
   if (bedrooms) filters.bedrooms = Number(bedrooms);
   if (bucket) filters.bucket = bucket;
-  return { domain, feature, filters: filters as FilterSpec };
+  return { domain: domain ?? '', feature: feature ?? '', filters: filters as FilterSpec };
 }
 
 /**

@@ -190,7 +190,9 @@ export class StructuredGenerationFailedError extends Error {
     this.name = 'StructuredGenerationFailedError';
     this.attempts = params.attempts;
     this.lastRawContent = params.lastRawContent;
-    this.zodIssues = params.zodIssues;
+    if (params.zodIssues !== undefined) {
+      this.zodIssues = params.zodIssues;
+    }
     if (params.cause !== undefined) {
       (this as { cause?: unknown }).cause = params.cause;
     }
@@ -223,7 +225,7 @@ export async function generateStructured<T>(
   const primary = await runWithSchemaRetry({
     client,
     model,
-    systemPrompt: options.systemPrompt,
+    ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
     prompt: options.prompt,
     schema: options.schema,
     temperature,
@@ -240,7 +242,7 @@ export async function generateStructured<T>(
   const opus = await runWithSchemaRetry({
     client,
     model: ModelTier.OPUS,
-    systemPrompt: options.systemPrompt,
+    ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
     prompt: options.prompt,
     schema: options.schema,
     temperature,
@@ -303,7 +305,7 @@ async function runWithSchemaRetry<T>(
         model: args.model,
         max_tokens: args.maxTokens,
         temperature: args.temperature,
-        system: args.systemPrompt,
+        ...(args.systemPrompt !== undefined ? { system: args.systemPrompt } : {}),
         messages: [{ role: 'user', content: userContent }],
       });
     } catch (error) {
@@ -339,7 +341,7 @@ async function runWithSchemaRetry<T>(
   throw new StructuredGenerationFailedError({
     attempts: totalAttempts,
     lastRawContent: lastRaw,
-    zodIssues: lastIssues,
+    ...(lastIssues !== undefined ? { zodIssues: lastIssues } : {}),
   });
 }
 

@@ -33,14 +33,14 @@ export interface LeaseData {
     renewalHistory: number;
   };
   property: { id: string; name: string; type: string; location: string; amenities: string[] };
-  unit: { id: string; type: string; bedrooms: number; bathrooms: number; sqft?: number };
+  unit: { id: string; type: string; bedrooms: number; bathrooms: number; sqft?: number | undefined };
   marketData?: {
     averageRent: number;
     rentRange: { min: number; max: number };
     vacancyRate: number;
     demandLevel: 'high' | 'moderate' | 'low';
-  };
-  constraints?: { maxIncreasePercent?: number; regulatoryLimit?: number; ownerMinimum?: number };
+  } | undefined;
+  constraints?: { maxIncreasePercent?: number | undefined; regulatoryLimit?: number | undefined; ownerMinimum?: number | undefined } | undefined;
 }
 
 export interface PricingOption {

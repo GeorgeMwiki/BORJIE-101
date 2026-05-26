@@ -116,6 +116,9 @@ export function shouldRun(cron: string, at: Date): boolean {
     throw new Error(`Invalid cron: ${cron}`);
   }
   const [minute, hour, dom, month, dow] = parts;
+  if (minute === undefined || hour === undefined || dom === undefined || month === undefined || dow === undefined) {
+    throw new Error(`Invalid cron: ${cron}`);
+  }
   const utcMinute = at.getUTCMinutes();
   const utcHour = at.getUTCHours();
   const utcDom = at.getUTCDate();

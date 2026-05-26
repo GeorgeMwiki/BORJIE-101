@@ -304,7 +304,7 @@ function mapStopReason(
 
 function safeJsonParse(content: string): unknown {
   const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenceMatch ? fenceMatch[1] : content;
+  const candidate = fenceMatch && fenceMatch[1] !== undefined ? fenceMatch[1] : content;
   try {
     return JSON.parse(candidate.trim());
   } catch {

@@ -64,13 +64,14 @@ export async function runScenarios(
 
     for (let i = 0; i < scenario.turns.length; i++) {
       const t = scenario.turns[i];
+      if (t === undefined) continue;
       if (i === 0) {
         const started = await opts.orchestrator.startThread({
           tenant: opts.tenant,
           actor: opts.actor,
           viewer: opts.viewer,
           initialUserText: t.userText,
-          forcePersonaId: t.forcePersonaId,
+          ...(t.forcePersonaId !== undefined ? { forcePersonaId: t.forcePersonaId } : {}),
           title: scenario.name,
         });
         if (started.success) {
@@ -97,7 +98,7 @@ export async function runScenarios(
           actor: opts.actor,
           userText: t.userText,
           viewer: opts.viewer,
-          forcePersonaId: t.forcePersonaId,
+          ...(t.forcePersonaId !== undefined ? { forcePersonaId: t.forcePersonaId } : {}),
         });
         if (r.success) {
           turnResults.push(r.data);

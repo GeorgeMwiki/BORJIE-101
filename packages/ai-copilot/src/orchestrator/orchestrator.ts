@@ -169,8 +169,8 @@ export class Orchestrator {
     // 1. Resolve the persona that owns this turn
     const personaId = req.forcePersonaId ?? thread.primaryPersonaId;
     const boundPersona = this.resolvePersona(personaId, req.tenant.tenantId, {
-      teamId: thread.teamId,
-      employeeId: thread.employeeId,
+      ...(thread.teamId !== undefined ? { teamId: thread.teamId } : {}),
+      ...(thread.employeeId !== undefined ? { employeeId: thread.employeeId } : {}),
     });
     if (!boundPersona) {
       return aiErr({
@@ -186,7 +186,7 @@ export class Orchestrator {
       scope: boundPersona.defaultVisibility,
       authorActorId: boundPersona.id,
       initiatingUserId: req.actor.id,
-      teamId: thread.teamId,
+      ...(thread.teamId !== undefined ? { teamId: thread.teamId } : {}),
       rationale: 'persona_default',
     };
 
@@ -199,7 +199,7 @@ export class Orchestrator {
       visibility: defaultVisibility,
       actorId: req.actor.id,
       text: req.userText,
-      attachments: req.attachments,
+      ...(req.attachments !== undefined ? { attachments: req.attachments } : {}),
     });
 
     // 3. Execute the persona (may recurse on handoff)
@@ -218,7 +218,6 @@ export class Orchestrator {
       acc,
       depth: 0,
       maxDepth: budget,
-      handoffPacket: undefined,
     });
     if (!execResult.success) {
       const e = (execResult as { success: false; error: { code: string; message: string; retryable: boolean } }).error;
@@ -232,7 +231,7 @@ export class Orchestrator {
       responseText: final.responseText,
       toolCalls: acc.toolCalls,
       handoffs: acc.handoffs,
-      proposedAction: final.proposedAction,
+      ...(final.proposedAction !== undefined ? { proposedAction: final.proposedAction } : {}),
       advisorConsulted: acc.advisorConsulted,
       tokensUsed: acc.tokensUsed,
       timeMs: Date.now() - turnStart,
@@ -267,8 +266,8 @@ export class Orchestrator {
       tenantId: input.tenant.tenantId,
       initiatingUserId: input.actor.id,
       primaryPersonaId: intent.personaId,
-      teamId: input.teamId,
-      employeeId: input.employeeId,
+      ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
+      ...(input.employeeId !== undefined ? { employeeId: input.employeeId } : {}),
       title: input.title ?? input.initialUserText.slice(0, 80),
       status: 'open',
     });
@@ -323,7 +322,7 @@ export class Orchestrator {
       if (template) {
         return bindPersona(template, {
           tenantId,
-          teamId: bindings.teamId,
+          ...(bindings.teamId !== undefined ? { teamId: bindings.teamId } : {}),
           employeeId: personaId.slice('coworker.'.length),
         });
       }
@@ -333,8 +332,8 @@ export class Orchestrator {
     if (!template) return null;
     return bindPersona(template, {
       tenantId,
-      teamId: bindings.teamId,
-      employeeId: bindings.employeeId,
+      ...(bindings.teamId !== undefined ? { teamId: bindings.teamId } : {}),
+      ...(bindings.employeeId !== undefined ? { employeeId: bindings.employeeId } : {}),
     });
   }
 
@@ -396,7 +395,7 @@ export class Orchestrator {
           scope: persona.defaultVisibility,
           authorActorId: persona.id,
           initiatingUserId: req.actor.id,
-          teamId: thread.teamId,
+          ...(thread.teamId !== undefined ? { teamId: thread.teamId } : {}),
           rationale: 'persona_default',
         };
 
@@ -452,11 +451,11 @@ export class Orchestrator {
         {
           prompt: compiled,
           jsonMode: false,
-          tools: toolDefs.length ? toolDefs : undefined,
+          ...(toolDefs.length ? { tools: toolDefs } : {}),
           priorMessages: messages,
         },
         {
-          category: hardCategory ?? undefined,
+          ...(hardCategory !== null && hardCategory !== undefined ? { category: hardCategory } : {}),
           reason: `persona:${persona.id} depth:${depth} iter:${iter}`,
         }
       );
@@ -614,7 +613,10 @@ export class Orchestrator {
         const target = this.resolvePersona(
           handoff.targetPersonaId,
           req.tenant.tenantId,
-          { teamId: thread.teamId, employeeId: thread.employeeId }
+          {
+            ...(thread.teamId !== undefined ? { teamId: thread.teamId } : {}),
+            ...(thread.employeeId !== undefined ? { employeeId: thread.employeeId } : {}),
+          }
         );
         if (target) {
           const packet: HandoffPacket = {

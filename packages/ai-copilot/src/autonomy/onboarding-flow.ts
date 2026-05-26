@@ -141,7 +141,7 @@ export function next(
   if (nextIdx < ONBOARDING_STEP_ORDER.length) {
     return {
       state: nextState,
-      nextStepId: ONBOARDING_STEP_ORDER[nextIdx],
+      nextStepId: ONBOARDING_STEP_ORDER[nextIdx] ?? null,
       complete: false,
       derivedPolicy: null,
       summary: null,

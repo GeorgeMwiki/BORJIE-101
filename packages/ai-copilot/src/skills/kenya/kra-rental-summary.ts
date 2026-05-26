@@ -87,7 +87,7 @@ export interface KraRentalSummaryResult {
  */
 function filingDeadlineIso(month: string): string {
   const [y, m] = month.split('-').map((n) => parseInt(n, 10));
-  const d = new Date(Date.UTC(y, m, 20));
+  const d = new Date(Date.UTC(y ?? 1970, m ?? 0, 20));
   return d.toISOString().slice(0, 10);
 }
 
@@ -114,7 +114,7 @@ export function summarizeKraRental(
     existing.grossIncomeKes += r.amountKes;
     existing.lines.push({
       propertyId: r.propertyId,
-      unitId: r.unitId,
+      ...(r.unitId !== undefined ? { unitId: r.unitId } : {}),
       amountKes: r.amountKes,
       collectedAsAgent: r.collectedAsAgent,
     });

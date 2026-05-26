@@ -94,7 +94,7 @@ export interface SharedDefault {
   readonly key: string;
   readonly value: number;
   readonly unit: string;
-  readonly jurisdiction?: string;
+  readonly jurisdiction?: string | undefined;
   readonly sampleSize: number;
   readonly epsilonUsed: number;
   readonly generatedAt: string;

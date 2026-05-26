@@ -145,7 +145,7 @@ export function createDrillHoleLogger(deps: JuniorDeps) {
 
       const output = await runClaudeJunior({
         claude: deps.claude,
-        logger: deps.logger,
+        ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
         juniorName: 'drill-hole-logger',
         schema: DrillHoleOutput,
         systemPrompt: DRILL_HOLE_LOGGER_SYSTEM_PROMPT,
@@ -179,6 +179,7 @@ export function createDrillHoleLogger(deps: JuniorDeps) {
               .onConflictDoNothing();
             for (let i = 0; i < validated.layers.length; i++) {
               const layer = validated.layers[i];
+              if (layer === undefined) continue;
               await deps.db
                 .insert(juniorDrillHoleLayers)
                 .values({

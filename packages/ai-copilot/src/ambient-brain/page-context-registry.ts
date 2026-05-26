@@ -154,7 +154,8 @@ export function getPageContext(page: string): PageContext {
 
   for (const pattern of Object.keys(REGISTRY)) {
     if (matchesPattern(page, pattern)) {
-      return REGISTRY[pattern];
+      const match = REGISTRY[pattern];
+      if (match) return match;
     }
   }
 
@@ -174,6 +175,7 @@ function matchesPattern(page: string, pattern: string): boolean {
   if (patternParts.length !== pageParts.length) return false;
   for (let i = 0; i < patternParts.length; i++) {
     const pp = patternParts[i];
+    if (pp === undefined) continue;
     if (pp.startsWith(':')) continue;
     if (pp !== pageParts[i]) return false;
   }

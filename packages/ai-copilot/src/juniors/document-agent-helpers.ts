@@ -19,7 +19,7 @@ export function parseClaudeJson(raw: string):
   | { ok: true; value: unknown }
   | { ok: false; error: string } {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = (fenceMatch ? fenceMatch[1] : raw).trim();
+  const candidate = (fenceMatch && fenceMatch[1] !== undefined ? fenceMatch[1] : raw).trim();
   try {
     return { ok: true, value: JSON.parse(candidate) };
   } catch (error) {

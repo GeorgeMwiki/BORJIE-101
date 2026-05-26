@@ -459,17 +459,17 @@ const RenewalStrategyResultSchema = z.object({
 
 export interface RenewalStrategyConfig {
   /** @deprecated Kept for backwards compatibility during migration. */
-  openaiApiKey?: string;
+  openaiApiKey?: string | undefined;
   /** Preferred: Anthropic API key (ANTHROPIC_API_KEY). */
-  anthropicApiKey?: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
+  anthropicApiKey?: string | undefined;
+  model?: string | undefined;
+  temperature?: number | undefined;
+  maxTokens?: number | undefined;
   /**
    * Optional: inject a preconfigured Anthropic client. When omitted, a client
    * is built from `anthropicApiKey` at construction time.
    */
-  anthropicClient?: AnthropicClient;
+  anthropicClient?: AnthropicClient | undefined;
 }
 
 // ============================================================================

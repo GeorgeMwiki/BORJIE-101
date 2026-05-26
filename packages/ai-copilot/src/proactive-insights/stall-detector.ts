@@ -8,8 +8,8 @@
 
 export interface StallDetectorConfig {
   readonly thresholdMs: number;
-  readonly quietHoursStart?: number;
-  readonly quietHoursEnd?: number;
+  readonly quietHoursStart?: number | undefined;
+  readonly quietHoursEnd?: number | undefined;
 }
 
 export interface ActivitySignal {
@@ -24,7 +24,7 @@ export interface StallState {
   readonly userId: string;
   readonly lastActivityAt: string;
   readonly stalled: boolean;
-  readonly stallStartedAt?: string;
+  readonly stallStartedAt?: string | undefined;
 }
 
 const DEFAULT_THRESHOLD_MS = 45_000;
@@ -41,8 +41,8 @@ export class StallDetector {
   constructor(config: Partial<StallDetectorConfig> = {}) {
     this.config = {
       thresholdMs: config.thresholdMs ?? DEFAULT_THRESHOLD_MS,
-      quietHoursStart: config.quietHoursStart,
-      quietHoursEnd: config.quietHoursEnd,
+      ...(config.quietHoursStart !== undefined ? { quietHoursStart: config.quietHoursStart } : {}),
+      ...(config.quietHoursEnd !== undefined ? { quietHoursEnd: config.quietHoursEnd } : {}),
     };
   }
 

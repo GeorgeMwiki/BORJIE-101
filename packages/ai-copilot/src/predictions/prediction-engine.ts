@@ -173,48 +173,52 @@ export class PredictionEngine {
       let riskScore = 0.5; // Base score
 
       // On-time payment rate (negative = lower risk)
-      const onTimeContribution = config.featureWeights.onTimeRate * (1 - input.paymentHistory.onTimeRate);
+      const onTimeWeight = config.featureWeights.onTimeRate ?? 0;
+      const onTimeContribution = onTimeWeight * (1 - input.paymentHistory.onTimeRate);
       riskScore += onTimeContribution;
       features.push({
         feature: 'onTimeRate',
         displayName: 'On-Time Payment Rate',
         value: input.paymentHistory.onTimeRate,
-        importance: Math.abs(config.featureWeights.onTimeRate),
+        importance: Math.abs(onTimeWeight),
         direction: input.paymentHistory.onTimeRate > 0.9 ? 'negative' : 'positive',
       });
 
       // Average days late
+      const avgDaysLateWeight = config.featureWeights.avgDaysLate ?? 0;
       const daysLateNormalized = Math.min(input.paymentHistory.avgDaysLate / 30, 1);
-      const daysLateContribution = config.featureWeights.avgDaysLate * daysLateNormalized;
+      const daysLateContribution = avgDaysLateWeight * daysLateNormalized;
       riskScore += daysLateContribution;
       features.push({
         feature: 'avgDaysLate',
         displayName: 'Average Days Late',
         value: input.paymentHistory.avgDaysLate,
-        importance: Math.abs(config.featureWeights.avgDaysLate),
+        importance: Math.abs(avgDaysLateWeight),
         direction: input.paymentHistory.avgDaysLate > 5 ? 'positive' : 'negative',
       });
 
       // Current arrears
+      const arrearsWeight = config.featureWeights.currentArrearsAmount ?? 0;
       const arrearsNormalized = Math.min(input.paymentHistory.currentArrearsAmount / input.currentContext.rentAmount, 2) / 2;
-      const arrearsContribution = config.featureWeights.currentArrearsAmount * arrearsNormalized;
+      const arrearsContribution = arrearsWeight * arrearsNormalized;
       riskScore += arrearsContribution;
       features.push({
         feature: 'currentArrearsAmount',
         displayName: 'Current Arrears',
         value: input.paymentHistory.currentArrearsAmount,
-        importance: Math.abs(config.featureWeights.currentArrearsAmount),
+        importance: Math.abs(arrearsWeight),
         direction: input.paymentHistory.currentArrearsAmount > 0 ? 'positive' : 'negative',
       });
 
       // Auto-pay
-      const autoPayContribution = input.currentContext.hasAutoPay ? config.featureWeights.hasAutoPay : 0;
+      const hasAutoPayWeight = config.featureWeights.hasAutoPay ?? 0;
+      const autoPayContribution = input.currentContext.hasAutoPay ? hasAutoPayWeight : 0;
       riskScore += autoPayContribution;
       features.push({
         feature: 'hasAutoPay',
         displayName: 'Auto-Pay Enabled',
         value: input.currentContext.hasAutoPay,
-        importance: Math.abs(config.featureWeights.hasAutoPay),
+        importance: Math.abs(hasAutoPayWeight),
         direction: input.currentContext.hasAutoPay ? 'negative' : 'positive',
       });
 
@@ -310,49 +314,53 @@ export class PredictionEngine {
       let riskScore = 0.3; // Base churn probability
 
       // Days until expiry (closer = higher risk)
-      const expiryFactor = input.leaseStatus.daysUntilExpiry <= 90 ? 
+      const daysUntilExpiryWeight = config.featureWeights.daysUntilExpiry ?? 0;
+      const expiryFactor = input.leaseStatus.daysUntilExpiry <= 90 ?
         1 - (input.leaseStatus.daysUntilExpiry / 90) : 0;
-      riskScore += config.featureWeights.daysUntilExpiry * expiryFactor * -1;
+      riskScore += daysUntilExpiryWeight * expiryFactor * -1;
       features.push({
         feature: 'daysUntilExpiry',
         displayName: 'Days Until Lease Expiry',
         value: input.leaseStatus.daysUntilExpiry,
-        importance: Math.abs(config.featureWeights.daysUntilExpiry),
+        importance: Math.abs(daysUntilExpiryWeight),
         direction: input.leaseStatus.daysUntilExpiry < 60 ? 'positive' : 'neutral',
       });
 
       // Complaint count
+      const complaintCountWeight = config.featureWeights.complaintCount12m ?? 0;
       const complaintNormalized = Math.min(input.tenantEngagement.complaintCount12m / 5, 1);
-      riskScore += config.featureWeights.complaintCount12m * complaintNormalized;
+      riskScore += complaintCountWeight * complaintNormalized;
       features.push({
         feature: 'complaintCount12m',
         displayName: 'Complaints (12 months)',
         value: input.tenantEngagement.complaintCount12m,
-        importance: Math.abs(config.featureWeights.complaintCount12m),
+        importance: Math.abs(complaintCountWeight),
         direction: input.tenantEngagement.complaintCount12m > 2 ? 'positive' : 'negative',
       });
 
       // Rent vs market
-      const rentDiff = (input.marketFactors.currentRent - input.marketFactors.marketRateEstimate) / 
+      const rentVsMarketWeight = config.featureWeights.rentVsMarket ?? 0;
+      const rentDiff = (input.marketFactors.currentRent - input.marketFactors.marketRateEstimate) /
         input.marketFactors.marketRateEstimate;
       const rentFactor = rentDiff > 0 ? rentDiff : 0;
-      riskScore += config.featureWeights.rentVsMarket * rentFactor;
+      riskScore += rentVsMarketWeight * rentFactor;
       features.push({
         feature: 'rentVsMarket',
         displayName: 'Rent vs Market Rate',
         value: `${(rentDiff * 100).toFixed(1)}%`,
-        importance: Math.abs(config.featureWeights.rentVsMarket),
+        importance: Math.abs(rentVsMarketWeight),
         direction: rentDiff > 0.1 ? 'positive' : rentDiff < -0.1 ? 'negative' : 'neutral',
       });
 
       // Renewals completed (loyalty indicator)
+      const renewalsWeight = config.featureWeights.renewalsCompleted ?? 0;
       const loyaltyFactor = Math.min(input.leaseStatus.renewalsCompleted / 3, 1);
-      riskScore += config.featureWeights.renewalsCompleted * (1 - loyaltyFactor);
+      riskScore += renewalsWeight * (1 - loyaltyFactor);
       features.push({
         feature: 'renewalsCompleted',
         displayName: 'Previous Renewals',
         value: input.leaseStatus.renewalsCompleted,
-        importance: Math.abs(config.featureWeights.renewalsCompleted),
+        importance: Math.abs(renewalsWeight),
         direction: input.leaseStatus.renewalsCompleted >= 2 ? 'negative' : 'positive',
       });
 
@@ -412,7 +420,7 @@ export class PredictionEngine {
           churnProbability: riskScore,
           primaryChurnFactor: primaryFactor,
           likelyToGiveNotice: riskScore >= 0.6,
-          estimatedNoticeDays: riskScore >= 0.6 ? Math.round(30 * (1 - riskScore)) : undefined,
+          ...(riskScore >= 0.6 ? { estimatedNoticeDays: Math.round(30 * (1 - riskScore)) } : {}),
           riskTier,
         },
         retentionRecommendations: recommendations,
@@ -459,12 +467,12 @@ export class PredictionEngine {
       const efficiencyScore = Math.max(0, 100 - (input.tenantComposition.tenantTurnoverRate12m * 200));
 
       // Calculate overall score (weighted average)
-      const overallScore = 
-        occupancyScore * config.featureWeights.occupancyRate +
-        collectionScore * config.featureWeights.collectionRate +
-        retentionScore * config.featureWeights.renewalRate +
-        marketPositionScore * config.featureWeights.marketPosition +
-        efficiencyScore * Math.abs(config.featureWeights.turnoverRate);
+      const overallScore =
+        occupancyScore * (config.featureWeights.occupancyRate ?? 0) +
+        collectionScore * (config.featureWeights.collectionRate ?? 0) +
+        retentionScore * (config.featureWeights.renewalRate ?? 0) +
+        marketPositionScore * (config.featureWeights.marketPosition ?? 0) +
+        efficiencyScore * Math.abs(config.featureWeights.turnoverRate ?? 0);
 
       // Determine grade
       let grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -709,7 +717,7 @@ export class PredictionEngine {
 
   private generateOccupancyInsights(
     input: OccupancyHealthInput,
-    scores: Record<string, number>
+    scores: { occupancy: number; collection: number; retention: number; marketPosition: number; operationalEfficiency: number }
   ): { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] } {
     const strengths: string[] = [];
     const weaknesses: string[] = [];
@@ -742,7 +750,7 @@ export class PredictionEngine {
 
   private generateOccupancyImprovements(
     input: OccupancyHealthInput,
-    scores: Record<string, number>
+    scores: { occupancy: number; collection: number; retention: number }
   ): RecommendedAction[] {
     const improvements: RecommendedAction[] = [];
 

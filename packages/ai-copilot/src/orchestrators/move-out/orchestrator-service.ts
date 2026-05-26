@@ -235,6 +235,7 @@ export class MoveOutOrchestrator {
 
     for (let i = 0; i < MOVE_OUT_STEPS.length; i++) {
       const stepName = MOVE_OUT_STEPS[i];
+      if (stepName === undefined) continue;
       const existing = await this.deps.store.findStep(current.id, stepName);
       if (existing && isTerminalDecision(existing.decision)) continue;
 

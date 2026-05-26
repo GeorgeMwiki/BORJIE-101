@@ -119,7 +119,7 @@ export function createBrain(cfg: BrainConfig): Brain {
   const reviewService = cfg.reviewService ?? createReviewService();
 
   const tools = new ToolDispatcher(threads);
-  registerDefaultSkills(tools, { graphToolkit: cfg.graphToolkit });
+  registerDefaultSkills(tools, { ...(cfg.graphToolkit !== undefined ? { graphToolkit: cfg.graphToolkit } : {}) });
   if (cfg.extraSkills) {
     for (const skill of cfg.extraSkills) tools.register(skill);
   }
@@ -132,7 +132,7 @@ export function createBrain(cfg: BrainConfig): Brain {
     governance,
     executorProvider: executor,
     advisorProvider: advisor,
-    defaultTokenBudget: cfg.defaultTokenBudget,
+    ...(cfg.defaultTokenBudget !== undefined ? { defaultTokenBudget: cfg.defaultTokenBudget } : {}),
   });
 
   return { orchestrator, personas, threads, tools, governance, reviewService, executor };
@@ -163,7 +163,7 @@ export function createBrainForTesting(cfg: BrainForTestingConfig = {}): Brain {
   const governance = createAIGovernanceService();
   const reviewService = createReviewService();
   const tools = new ToolDispatcher(threads);
-  registerDefaultSkills(tools, { graphToolkit: cfg.graphToolkit });
+  registerDefaultSkills(tools, { ...(cfg.graphToolkit !== undefined ? { graphToolkit: cfg.graphToolkit } : {}) });
   if (cfg.extraSkills) {
     for (const skill of cfg.extraSkills) tools.register(skill);
   }
@@ -175,7 +175,7 @@ export function createBrainForTesting(cfg: BrainForTestingConfig = {}): Brain {
     governance,
     executorProvider: executor,
     advisorProvider: executor,
-    defaultTokenBudget: cfg.defaultTokenBudget,
+    ...(cfg.defaultTokenBudget !== undefined ? { defaultTokenBudget: cfg.defaultTokenBudget } : {}),
   });
   return { orchestrator, personas, threads, tools, governance, reviewService, executor };
 }
@@ -288,6 +288,6 @@ export async function checkBrainHealth(brain: Brain): Promise<BrainHealth> {
     personaCount: brain.personas.list().length,
     toolGaps,
     checkedAt: new Date().toISOString(),
-    failure,
+    ...(failure !== undefined ? { failure } : {}),
   };
 }

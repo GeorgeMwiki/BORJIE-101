@@ -123,6 +123,7 @@ export function hybridSearch(input: HybridSearchInput): ReadonlyArray<RetrievalH
   const vectorRankById = new Map<string, number>();
   for (let i = 0; i < input.vectorCandidates.length; i++) {
     const c = input.vectorCandidates[i];
+    if (c === undefined) continue;
     vectorScoreById.set(c.id, c.score);
     vectorRankById.set(c.id, i + 1); // 1-based rank
   }
@@ -131,6 +132,7 @@ export function hybridSearch(input: HybridSearchInput): ReadonlyArray<RetrievalH
   const bm25RankById = new Map<string, number>();
   for (let i = 0; i < bm25Scored.length; i++) {
     const s = bm25Scored[i];
+    if (s === undefined) continue;
     bm25ScoreById.set(s.id, s.score);
     bm25RankById.set(s.id, i + 1);
   }
@@ -156,9 +158,9 @@ export function hybridSearch(input: HybridSearchInput): ReadonlyArray<RetrievalH
       score = convexFuse(
         vScore,
         bScore,
-        bm25Scored.length > 0 ? bm25Scored[0].score : 0,
+        bm25Scored.length > 0 ? (bm25Scored[0]?.score ?? 0) : 0,
         bm25Scored.length > 0
-          ? bm25Scored[bm25Scored.length - 1].score
+          ? (bm25Scored[bm25Scored.length - 1]?.score ?? 0)
           : 0,
         input.alpha ?? DEFAULT_ALPHA,
       );

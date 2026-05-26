@@ -697,7 +697,7 @@ export function createRealOrchestratorAdapters(
       ? createRealListingAdapter({
           service: deps.listing.service,
           hints: deps.listing.hints,
-          defaults: deps.defaults,
+          ...(deps.defaults !== undefined ? { defaults: deps.defaults } : {}),
         })
       : defaultsBundle.listing,
     enquiry: deps.enquiry
@@ -710,44 +710,44 @@ export function createRealOrchestratorAdapters(
       ? createRealNegotiationAdapter({
           service: deps.negotiation.service,
           hints: deps.negotiation.hints,
-          defaults: deps.defaults,
+          ...(deps.defaults !== undefined ? { defaults: deps.defaults } : {}),
         })
       : defaultsBundle.negotiation,
     inspection: deps.inspection
       ? createRealInspectionAdapter({
           service: deps.inspection.service,
           hints: deps.inspection.hints,
-          defaults: deps.defaults,
+          ...(deps.defaults !== undefined ? { defaults: deps.defaults } : {}),
         })
       : defaultsBundle.inspection,
     renewal: deps.renewal
       ? createRealRenewalAdapter({
           service: deps.renewal.service,
-          defaults: deps.defaults,
+          ...(deps.defaults !== undefined ? { defaults: deps.defaults } : {}),
         })
       : defaultsBundle.renewal,
     waitlist:
       deps.waitlist?.service || deps.waitlist?.markFilled
         ? createRealWaitlistAdapter({
-            service: deps.waitlist.service,
-            markFilled: deps.waitlist.markFilled,
-            defaults: deps.defaults,
+            ...(deps.waitlist?.service !== undefined ? { service: deps.waitlist.service } : {}),
+            ...(deps.waitlist?.markFilled !== undefined ? { markFilled: deps.waitlist.markFilled } : {}),
+            ...(deps.defaults !== undefined ? { defaults: deps.defaults } : {}),
           })
         : defaultsBundle.waitlist,
     policy: deps.policy
       ? createRealPolicyAdapter({
           service: deps.policy.service,
-          domain: deps.policy.domain,
+          ...(deps.policy.domain !== undefined ? { domain: deps.policy.domain } : {}),
         })
       : defaultsBundle.policy,
     events: deps.events
       ? createRealEventAdapter({
           bus: deps.events.bus,
-          correlationId: deps.events.correlationId,
-          eventId: deps.events.eventId,
-          now: deps.events.now,
-          aggregateType: deps.events.aggregateType,
-          onError: deps.events.onError,
+          ...(deps.events.correlationId !== undefined ? { correlationId: deps.events.correlationId } : {}),
+          ...(deps.events.eventId !== undefined ? { eventId: deps.events.eventId } : {}),
+          ...(deps.events.now !== undefined ? { now: deps.events.now } : {}),
+          ...(deps.events.aggregateType !== undefined ? { aggregateType: deps.events.aggregateType } : {}),
+          ...(deps.events.onError !== undefined ? { onError: deps.events.onError } : {}),
         })
       : defaultsBundle.events,
   };

@@ -81,7 +81,7 @@ export function withSlowQueryLogging(
   const wrapped = wrapPostgresClient(client, {
     thresholdMs,
     onSlowQuery,
-    onQuery,
+    ...(onQuery !== undefined ? { onQuery } : {}),
     logAllQueries,
   })
 

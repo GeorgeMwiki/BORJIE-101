@@ -507,9 +507,9 @@ export class AIGovernanceService {
       operationType: AIOperationType.ERROR,
       tenant: context.tenant,
       actor: context.actor,
-      domain: context.domain,
-      modelType: context.modelType,
-      requestId: context.requestId,
+      ...(context.domain !== undefined ? { domain: context.domain } : {}),
+      ...(context.modelType !== undefined ? { modelType: context.modelType } : {}),
+      ...(context.requestId !== undefined ? { requestId: context.requestId } : {}),
       outcome: 'failure',
       details: {
         errorName: error.name,
@@ -556,8 +556,8 @@ export class AIGovernanceService {
       operationType: AIOperationType.COPILOT_INVOCATION,
       tenant: params.tenant,
       actor: params.actor,
-      domain: params.domain,
-      riskLevel: params.riskLevel,
+      ...(params.domain !== undefined ? { domain: params.domain } : {}),
+      ...(params.riskLevel !== undefined ? { riskLevel: params.riskLevel } : {}),
       outcome: params.outcome ?? 'success',
       details: {
         kind: 'brain_turn',
@@ -572,7 +572,7 @@ export class AIGovernanceService {
         totalTokens,
       },
       cost,
-      processingTimeMs: params.processingTimeMs,
+      ...(params.processingTimeMs !== undefined ? { processingTimeMs: params.processingTimeMs } : {}),
     };
     await this.storage.saveAuditEvent(event);
   }
@@ -612,7 +612,7 @@ export class AIGovernanceService {
     modelId: string,
     tokenUsage: { promptTokens: number; completionTokens: number }
   ): { amount: number; currency: string } {
-    const rates = this.costPerToken[modelId] ?? this.costPerToken['default'];
+    const rates = this.costPerToken[modelId] ?? this.costPerToken['default'] ?? { prompt: 0, completion: 0 };
     const promptCost = (tokenUsage.promptTokens / 1000) * rates.prompt;
     const completionCost = (tokenUsage.completionTokens / 1000) * rates.completion;
     

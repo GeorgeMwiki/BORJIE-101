@@ -134,7 +134,7 @@ const PATTERNS = [
     pattern: /\b(?:unit|apartment|apt|flat|room)\s+([A-Z0-9-]{1,6})\b/gi,
     normalize: (raw: string): string => {
       const match = raw.match(/([A-Z0-9-]{1,6})$/i);
-      return match ? match[1].toUpperCase() : raw.toUpperCase();
+      return match && match[1] !== undefined ? match[1].toUpperCase() : raw.toUpperCase();
     },
     minConfidence: 0.75,
   },
@@ -149,7 +149,7 @@ const PATTERNS = [
     pattern: /\b(\d{1,3})\s*(?:month|mo\.?|months)\b/gi,
     normalize: (raw: string): number => {
       const match = raw.match(/(\d+)/);
-      return match ? Number.parseInt(match[1], 10) : 0;
+      return match && match[1] !== undefined ? Number.parseInt(match[1], 10) : 0;
     },
     minConfidence: 0.9,
   },
@@ -208,5 +208,5 @@ export function firstMatch(
 ): PatternMatch | null {
   const filtered = matches.filter((m) => m.kind === kind);
   if (filtered.length === 0) return null;
-  return [...filtered].sort((a, b) => b.confidence - a.confidence)[0];
+  return [...filtered].sort((a, b) => b.confidence - a.confidence)[0] ?? null;
 }

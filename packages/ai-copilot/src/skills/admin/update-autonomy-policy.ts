@@ -46,10 +46,10 @@ export type UpdateAutonomyPolicyParams = z.infer<typeof UpdateAutonomyPolicySche
 export interface UpdateAutonomyPolicyResult {
   readonly domain: AutonomyDomain;
   readonly level: AutonomyLevel;
-  readonly costCeilingKes?: number;
-  readonly appliesToUserIds?: readonly string[];
+  readonly costCeilingKes?: number | undefined;
+  readonly appliesToUserIds?: readonly string[] | undefined;
   readonly effectiveAt: string;
-  readonly priorLevel?: AutonomyLevel;
+  readonly priorLevel?: AutonomyLevel | undefined;
 }
 
 export const updateAutonomyPolicyTool: ToolHandler = {

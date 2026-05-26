@@ -86,7 +86,7 @@ export function createDocumentIntelligence(
       const context = {
         tenantId: input.tenantId,
         operation: 'ai-native.doc-intelligence.extract',
-        correlationId: options?.correlationId,
+        ...(options?.correlationId !== undefined ? { correlationId: options.correlationId } : {}),
       };
 
       try {
@@ -112,8 +112,8 @@ export function createDocumentIntelligence(
       try {
         output = await deps.llm.extract({
           text: input.canonicalText,
-          languageHint: input.languageHint,
-          countryCode: input.countryCode,
+          ...(input.languageHint !== undefined ? { languageHint: input.languageHint } : {}),
+          ...(input.countryCode !== undefined ? { countryCode: input.countryCode } : {}),
           promptHash: hash,
         });
       } catch (err) {
@@ -159,7 +159,7 @@ export function createDocumentIntelligence(
             documentId: input.documentId,
             entityKind: e.entityKind,
             entityValue: e.entityValue,
-            entityRaw: e.entityRaw,
+            ...(e.entityRaw !== undefined ? { entityRaw: e.entityRaw } : {}),
             normalizedForm: { ...e.normalizedForm },
             languageCode: e.languageCode ?? output.detectedLanguage,
             spanStart: e.spanStart,

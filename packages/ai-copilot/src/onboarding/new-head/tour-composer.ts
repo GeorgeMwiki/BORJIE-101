@@ -53,10 +53,10 @@ export function composeTour(inputs: TourComposerInputs): TourPayload {
 export function buildInitialSteps(): readonly TourStep[] {
   return TOUR_STEP_ORDER.map((id) => ({
     id,
-    title: TOUR_STEP_TITLES[id],
-    blurb: TOUR_STEP_BLURBS[id],
+    title: TOUR_STEP_TITLES[id] ?? '',
+    blurb: TOUR_STEP_BLURBS[id] ?? '',
     optional: TOUR_STEP_OPTIONAL.has(id),
-    status: 'pending',
+    status: 'pending' as const,
   }));
 }
 

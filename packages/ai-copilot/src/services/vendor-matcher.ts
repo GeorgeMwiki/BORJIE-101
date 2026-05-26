@@ -271,7 +271,7 @@ function workOrderToSignal(wo: WorkOrderInput): WorkOrderSignal {
     requiredSkills: wo.requiredSkills ?? [wo.category].filter(Boolean),
     emergency: wo.urgency === 'emergency',
     serviceArea: wo.property.address,
-    budgetMidpoint: midpoint,
+    ...(midpoint !== undefined ? { budgetMidpoint: midpoint } : {}),
   };
 }
 
@@ -280,6 +280,17 @@ function scoreToMatch(
   vendor: VendorProfile,
   ranking: number
 ): VendorMatch {
+  const estimatedCost = vendor.pricing.hourlyRate !== undefined
+    ? {
+        min: vendor.pricing.hourlyRate,
+        max: vendor.pricing.hourlyRate * 4,
+        // Currency comes from the vendor's pricing record (sourced
+        // from region-config at vendor registration time); fall back
+        // to empty so consumers surface the missing value rather than
+        // silently render as KES.
+        currency: vendor.pricing.currency ?? '',
+      }
+    : undefined;
   return {
     vendorId: score.vendorId,
     vendorName: vendor.name,
@@ -290,18 +301,7 @@ function scoreToMatch(
     ranking,
     matchReasons: score.reasons,
     concerns: score.concerns,
-    estimatedCost:
-      vendor.pricing.hourlyRate !== undefined
-        ? {
-            min: vendor.pricing.hourlyRate,
-            max: vendor.pricing.hourlyRate * 4,
-            // Currency comes from the vendor's pricing record (sourced
-            // from region-config at vendor registration time); fall back
-            // to empty so consumers surface the missing value rather than
-            // silently render as KES.
-            currency: vendor.pricing.currency ?? '',
-          }
-        : undefined,
+    ...(estimatedCost !== undefined ? { estimatedCost } : {}),
     estimatedSchedule: {
       responseTime: `${vendor.metrics.averageResponseTime}h`,
       completionTime: vendor.availability.nextAvailable,
@@ -455,7 +455,7 @@ export async function matchVendorsDeterministic(
     },
     warnings: Array.from(new Set([...narration.warnings, ...concerns])),
     autoAssignmentRecommended: narration.autoAssignmentRecommended,
-    autoAssignmentReason: narration.autoAssignmentReason,
+    ...(narration.autoAssignmentReason !== undefined ? { autoAssignmentReason: narration.autoAssignmentReason } : {}),
   };
 
   // Re-validate at the boundary so narration regressions don't slip through.

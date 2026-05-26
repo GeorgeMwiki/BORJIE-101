@@ -100,7 +100,7 @@ export class InMemorySnapshotRepository implements SnapshotRepository {
     propertyId: string,
   ): Promise<GradeSnapshotRecord | null> {
     const rows = this.store.get(`${tenantId}:${propertyId}`);
-    return rows && rows.length > 0 ? rows[rows.length - 1] : null;
+    return rows && rows.length > 0 ? (rows[rows.length - 1] ?? null) : null;
   }
 
   async findHistory(
@@ -120,7 +120,9 @@ export class InMemorySnapshotRepository implements SnapshotRepository {
     const out = new Map<string, GradeSnapshotRecord>();
     for (const [key, rows] of this.store.entries()) {
       if (!key.startsWith(`${tenantId}:`) || rows.length === 0) continue;
-      out.set(rows[rows.length - 1].propertyId, rows[rows.length - 1]);
+      const last = rows[rows.length - 1];
+      if (last === undefined) continue;
+      out.set(last.propertyId, last);
     }
     return out;
   }

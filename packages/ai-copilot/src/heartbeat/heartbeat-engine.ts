@@ -88,11 +88,11 @@ export interface HeartbeatDuty {
   readonly id: string;
   readonly cadence: HeartbeatCadence;
   /** Override cadence period in ms. Falls back to `cadence` default. */
-  readonly cadenceMs?: number;
+  readonly cadenceMs?: number | undefined;
   /** Human-readable description — surfaced in telemetry logs. */
-  readonly description?: string;
+  readonly description?: string | undefined;
   /** Default: true. Set to false to park the duty without removing it. */
-  readonly enabled?: boolean;
+  readonly enabled?: boolean | undefined;
   run(ctx: HeartbeatDutyContext): Promise<void>;
 }
 

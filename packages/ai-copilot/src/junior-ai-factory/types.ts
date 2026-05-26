@@ -69,9 +69,9 @@ export interface JuniorAIScopePatch {
 }
 
 export interface ListJuniorAIFilters {
-  readonly teamLeadUserId?: string;
-  readonly domain?: AutonomyDomain;
-  readonly status?: JuniorAIStatus;
+  readonly teamLeadUserId?: string | undefined;
+  readonly domain?: AutonomyDomain | undefined;
+  readonly status?: JuniorAIStatus | undefined;
 }
 
 /** Repository contract (in-memory + Postgres implementations). */

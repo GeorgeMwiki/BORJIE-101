@@ -200,6 +200,7 @@ export class MonthlyCloseOrchestrator {
 
     for (let i = 0; i < MONTHLY_CLOSE_STEPS.length; i++) {
       const stepName = MONTHLY_CLOSE_STEPS[i];
+      if (stepName === undefined) continue;
 
       // Skip already-executed steps (idempotent re-entry).
       const existing = await this.deps.store.findStep(current.id, stepName);
@@ -438,7 +439,7 @@ export class MonthlyCloseOrchestrator {
         new Set(resolved.map((r) => r.result.ratePct).filter((r) => r !== null)),
       );
       regimeMeta = {
-        ratePct: uniqueRates.length === 1 ? uniqueRates[0] : null,
+        ratePct: uniqueRates.length === 1 ? (uniqueRates[0] ?? null) : null,
         regimeLabels: Array.from(
           new Set(resolved.map((r) => r.result.regimeLabel)),
         ),

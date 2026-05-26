@@ -22,7 +22,7 @@ export interface Citation {
 export interface BudgetContext {
   readonly tenantId: string;
   readonly operation: string;
-  readonly correlationId?: string;
+  readonly correlationId?: string | undefined;
 }
 
 export type NotConfigured = {

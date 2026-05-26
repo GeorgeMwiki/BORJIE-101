@@ -115,13 +115,13 @@ export function calculateGroupConceptMastery(
       peerLearningOpportunity: false,
     };
   }
-  const pks = present.map((l) => l.concepts[conceptId].pKnow);
+  const pks = present.map((l) => l.concepts[conceptId]?.pKnow ?? 0);
   const obs = present.map((l) =>
-    Math.max(1, l.concepts[conceptId].observations)
+    Math.max(1, l.concepts[conceptId]?.observations ?? 1)
   );
   const totalWeight = obs.reduce((a, b) => a + b, 0);
   const weightedSum = present.reduce(
-    (sum, l, i) => sum + l.concepts[conceptId].pKnow * obs[i],
+    (sum, l, i) => sum + (l.concepts[conceptId]?.pKnow ?? 0) * (obs[i] ?? 0),
     0
   );
   const groupPKnow = totalWeight > 0 ? weightedSum / totalWeight : 0;

@@ -59,11 +59,11 @@ export function createSecuritySuite(deps: SecuritySuiteDeps): SecuritySuite {
     auditChain: createAuditHashChain({
       repo: deps.auditRepo,
       now: nowFn,
-      idGenerator: idGen,
+      ...(idGen !== undefined ? { idGenerator: idGen } : {}),
     }),
     canary: createCanaryManager({
-      tokenCount: deps.canary?.tokenCount,
-      cacheLimit: deps.canary?.cacheLimit,
+      ...(deps.canary?.tokenCount !== undefined ? { tokenCount: deps.canary.tokenCount } : {}),
+      ...(deps.canary?.cacheLimit !== undefined ? { cacheLimit: deps.canary.cacheLimit } : {}),
       now: () => nowFn().getTime(),
     }),
     costBreaker: createCostCircuitBreaker({
@@ -71,7 +71,7 @@ export function createSecuritySuite(deps: SecuritySuiteDeps): SecuritySuite {
       now: deps.costBreaker?.now ?? (() => nowFn().getTime()),
     }),
     observability: createSecurityObservability({
-      idGenerator: idGen,
+      ...(idGen !== undefined ? { idGenerator: idGen } : {}),
       now: nowFn,
     }),
   };

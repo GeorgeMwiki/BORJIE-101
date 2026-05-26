@@ -35,15 +35,15 @@ export interface ProcessObservationInput {
   readonly processKind: ProcessKind;
   readonly processInstanceId: string;
   readonly stage: string;
-  readonly previousStage?: string;
+  readonly previousStage?: string | undefined;
   readonly actorKind: ActorKind;
-  readonly actorId?: string;
-  readonly variant?: ProcessVariant;
-  readonly isReopen?: boolean;
-  readonly isStuck?: boolean;
-  readonly durationMsFromPrevious?: number;
-  readonly metadata?: Record<string, unknown>;
-  readonly observedAt?: Date;
+  readonly actorId?: string | undefined;
+  readonly variant?: ProcessVariant | undefined;
+  readonly isReopen?: boolean | undefined;
+  readonly isStuck?: boolean | undefined;
+  readonly durationMsFromPrevious?: number | undefined;
+  readonly metadata?: Record<string, unknown> | undefined;
+  readonly observedAt?: Date | undefined;
 }
 
 export interface ProcessObservation extends ProcessObservationInput {
@@ -166,8 +166,8 @@ export interface ImprovementDelta {
   readonly percentChange: number;
   readonly direction: 'up' | 'down' | 'flat';
   readonly isBetter: boolean;
-  readonly confidenceLow?: number;
-  readonly confidenceHigh?: number;
+  readonly confidenceLow?: number | undefined;
+  readonly confidenceHigh?: number | undefined;
   readonly baselinePeriodStart: string;
   readonly currentPeriodStart: string;
 }

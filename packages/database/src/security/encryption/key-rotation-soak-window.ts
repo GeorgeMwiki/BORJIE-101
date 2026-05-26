@@ -72,7 +72,9 @@ export async function recordKeyRotationStart(
   const existingForVersion = existing.filter((e) => e.keyVersion === prevVersion);
   if (existingForVersion.length > 0) {
     const oldest = existingForVersion[existingForVersion.length - 1];
-    return new Date(oldest.encryptedAt);
+    if (oldest !== undefined) {
+      return new Date(oldest.encryptedAt);
+    }
   }
   const now = clock();
   await deps.audit.recordEncryptedField({
@@ -125,6 +127,9 @@ export async function assertSafeToDropPreviousKey(
   // listByScope is ordered DESC; the OLDEST entry — i.e. when rotation
   // truly began — is the last element of the filtered array.
   const oldest = existingForVersion[existingForVersion.length - 1];
+  if (oldest === undefined) {
+    return { ok: false, reason: 'no-rotation-record' };
+  }
   const startedAt = new Date(oldest.encryptedAt);
   const now = clock();
   const elapsedMs = now.getTime() - startedAt.getTime();

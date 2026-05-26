@@ -478,8 +478,8 @@ Create a message that:
 
     const [startHour, startMin] = quietHours.start.split(':').map(Number);
     const [endHour, endMin] = quietHours.end.split(':').map(Number);
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
+    const startMinutes = (startHour ?? 0) * 60 + (startMin ?? 0);
+    const endMinutes = (endHour ?? 0) * 60 + (endMin ?? 0);
 
     // Handle overnight quiet hours (e.g., 22:00 - 07:00)
     if (startMinutes > endMinutes) {
@@ -517,9 +517,9 @@ Create a message that:
       // Find end of quiet hours
       const quietHours = profile.profile.timing.quietHours!;
       const [endHour, endMin] = quietHours.end.split(':').map(Number);
-      
+
       const sendTime = new Date(now);
-      sendTime.setHours(endHour, endMin, 0, 0);
+      sendTime.setHours(endHour ?? 0, endMin ?? 0, 0, 0);
       
       // If end time is in the past, add a day
       if (sendTime <= now) {

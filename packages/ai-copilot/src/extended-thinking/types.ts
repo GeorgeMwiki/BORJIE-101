@@ -140,7 +140,7 @@ export type ThinkingResponseBlock =
 export interface ThinkingMessageRequest {
   readonly model: string;
   readonly max_tokens: number;
-  readonly system?: string;
+  readonly system?: string | undefined;
   readonly messages: ReadonlyArray<{
     readonly role: 'user' | 'assistant';
     readonly content: string;
@@ -149,8 +149,8 @@ export interface ThinkingMessageRequest {
   readonly thinking?: {
     readonly type: 'enabled';
     readonly budget_tokens: number;
-  };
-  readonly temperature?: number;
+  } | undefined;
+  readonly temperature?: number | undefined;
 }
 
 export interface ThinkingMessageResponse {

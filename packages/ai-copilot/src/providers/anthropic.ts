@@ -486,7 +486,7 @@ function mapStopReason(
 
 function safeJsonParse(content: string): unknown {
   const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenceMatch ? fenceMatch[1] : content;
+  const candidate = fenceMatch && fenceMatch[1] !== undefined ? fenceMatch[1] : content;
   try {
     return JSON.parse(candidate.trim());
   } catch {
@@ -504,10 +504,10 @@ export function buildToolResultMessage(
   return {
     role: 'user',
     content: results.map((r) => ({
-      type: 'tool_result',
+      type: 'tool_result' as const,
       tool_use_id: r.toolUseId,
       content: r.content,
-      is_error: r.isError,
+      ...(r.isError !== undefined ? { is_error: r.isError } : {}),
     })),
   };
 }

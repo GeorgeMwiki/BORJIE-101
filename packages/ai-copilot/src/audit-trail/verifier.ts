@@ -65,14 +65,16 @@ export function createAuditTrailVerifier(
 
       for (let i = 0; i < allRows.length; i++) {
         const entry = allRows[i];
+        if (entry === undefined) continue;
         const expectedSeq = i + 1;
         if (entry.sequenceId !== expectedSeq) {
           brokenAt = entry.sequenceId;
           error = `sequence gap or reorder at sequence ${entry.sequenceId} (expected ${expectedSeq})`;
           break;
         }
+        const prevRow = i === 0 ? undefined : allRows[i - 1];
         const expectedPrev =
-          i === 0 ? GENESIS_PREV_HASH_V2 : allRows[i - 1].thisHash;
+          i === 0 ? GENESIS_PREV_HASH_V2 : (prevRow?.thisHash ?? GENESIS_PREV_HASH_V2);
         if (entry.prevHash !== expectedPrev) {
           brokenAt = entry.sequenceId;
           error = `prevHash mismatch at sequence ${entry.sequenceId}`;
@@ -111,16 +113,16 @@ export function createAuditTrailVerifier(
           valid: false,
           entriesChecked: brokenAt,
           brokenAt,
-          firstValidAt,
-          lastValidAt,
-          error,
+          ...(firstValidAt !== undefined ? { firstValidAt } : {}),
+          ...(lastValidAt !== undefined ? { lastValidAt } : {}),
+          ...(error !== undefined ? { error } : {}),
         };
       }
       return {
         valid: true,
         entriesChecked: allRows.length,
-        firstValidAt,
-        lastValidAt,
+        ...(firstValidAt !== undefined ? { firstValidAt } : {}),
+        ...(lastValidAt !== undefined ? { lastValidAt } : {}),
       };
     },
   };

@@ -168,7 +168,7 @@ export class ToolDispatcher {
       personaId: context.persona.id,
       toolName,
       result: result.data ?? null,
-      evidenceSummary: result.evidenceSummary,
+      ...(result.evidenceSummary !== undefined ? { evidenceSummary: result.evidenceSummary } : {}),
       ok: result.ok,
       executionTimeMs: Date.now() - startedAt,
       parentEventId: callId,

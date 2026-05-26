@@ -118,6 +118,9 @@ export function gradePortfolio(params: GradePropertyParams): GradePropertyResult
 
   if (parsed.mode === 'single') {
     const first = reports[0];
+    if (first === undefined) {
+      throw new Error('property-grading: single mode requires at least one property');
+    }
     return {
       mode: 'single',
       reports,
@@ -129,13 +132,17 @@ export function gradePortfolio(params: GradePropertyParams): GradePropertyResult
   const weightsByPropertyId = Object.fromEntries(
     parsed.properties.map((p) => [p.propertyId, p.unitCount]),
   );
+  const firstProperty = parsed.properties[0];
+  if (firstProperty === undefined) {
+    throw new Error('property-grading: portfolio mode requires at least one property');
+  }
   const portfolio = aggregatePortfolioGrade(
-    parsed.properties[0].tenantId,
+    firstProperty.tenantId,
     reports,
     {
       weightBy,
       weightsByPropertyId,
-      previousScore: parsed.previousPortfolioScore,
+      ...(parsed.previousPortfolioScore !== undefined ? { previousScore: parsed.previousPortfolioScore } : {}),
     },
   );
   return {
@@ -224,10 +231,13 @@ export const gradePropertyTool: ToolHandler = {
     if (!parsed.success) return { ok: false, error: parsed.error.message };
     try {
       const result = gradePortfolio(parsed.data);
+      const firstReport = result.reports[0];
       const summary =
         result.mode === 'portfolio' && result.portfolio
           ? `Portfolio grade ${result.portfolio.grade} (${result.portfolio.score}) across ${result.portfolio.totalProperties} properties.`
-          : `${result.reports[0].propertyId} graded ${result.reports[0].grade} (${result.reports[0].score}).`;
+          : firstReport
+            ? `${firstReport.propertyId} graded ${firstReport.grade} (${firstReport.score}).`
+            : 'No reports generated.';
       return {
         ok: true,
         data: result,

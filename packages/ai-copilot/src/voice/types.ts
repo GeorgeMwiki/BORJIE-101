@@ -39,11 +39,11 @@ export interface SynthesizeRequest {
   readonly text: string;
   readonly language: VoiceLanguage;
   /** Voice ID (provider-specific). */
-  readonly voiceId?: string;
+  readonly voiceId?: string | undefined;
   /** Output format, e.g. 'mp3_44100_128'. */
-  readonly format?: string;
-  readonly stability?: number; // 0-1
-  readonly similarityBoost?: number; // 0-1
+  readonly format?: string | undefined;
+  readonly stability?: number | undefined; // 0-1
+  readonly similarityBoost?: number | undefined; // 0-1
 }
 
 export interface SynthesizeResponse {

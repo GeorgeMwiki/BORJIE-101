@@ -54,7 +54,7 @@ export class NewHeadTourService {
       tenantId,
       newHeadUserId,
       steps,
-      currentStepId: TOUR_STEP_ORDER[0],
+      currentStepId: TOUR_STEP_ORDER[0] ?? null,
       payload: composeTour(composerInputs),
       startedAt: now.toISOString(),
       updatedAt: now.toISOString(),
@@ -79,6 +79,9 @@ export class NewHeadTourService {
       throw new Error(`advanceStep(): unknown step ${stepId}`);
     }
     const step = existing.steps[stepIdx];
+    if (step === undefined) {
+      throw new Error(`advanceStep(): step ${stepId} not found`);
+    }
     if (outcome === 'skipped' && !step.optional) {
       throw new Error(`advanceStep(): step ${stepId} is required — cannot skip`);
     }
@@ -92,16 +95,18 @@ export class NewHeadTourService {
     // Determine the next pending step (wrap forward from the one just touched).
     let next: TourStepId | null = null;
     for (let i = stepIdx + 1; i < nextSteps.length; i++) {
-      if (nextSteps[i].status === 'pending') {
-        next = nextSteps[i].id;
+      const candidate = nextSteps[i];
+      if (candidate?.status === 'pending') {
+        next = candidate.id;
         break;
       }
     }
     if (!next) {
       // No pending step after idx — scan from top to catch earlier skipped-but-pending.
       for (let i = 0; i < nextSteps.length; i++) {
-        if (nextSteps[i].status === 'pending') {
-          next = nextSteps[i].id;
+        const candidate = nextSteps[i];
+        if (candidate?.status === 'pending') {
+          next = candidate.id;
           break;
         }
       }

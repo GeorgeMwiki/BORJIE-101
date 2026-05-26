@@ -62,7 +62,7 @@ export const HEAD_PROFILE: VoicePersonaProfile = Object.freeze({
     'maybe idk',
     'honestly bro',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */
@@ -98,7 +98,7 @@ export const OWNER_PROFILE: VoicePersonaProfile = Object.freeze({
     'trust me',
     'nothing to be concerned about',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */
@@ -134,7 +134,7 @@ export const TENANT_PROFILE: VoicePersonaProfile = Object.freeze({
     'don\'t bother me',
     'whatever',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */
@@ -165,7 +165,7 @@ export const VENDOR_PROFILE: VoicePersonaProfile = Object.freeze({
     'don\'t worry about a quote',
     'we\'ll sort it out later',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */
@@ -197,7 +197,7 @@ export const REGULATOR_PROFILE: VoicePersonaProfile = Object.freeze({
     'no biggie',
     'our bad',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */
@@ -233,7 +233,7 @@ export const APPLICANT_PROFILE: VoicePersonaProfile = Object.freeze({
     'limited time',
     'last chance',
   ],
-  voiceBinding: { elevenLabsVoiceId: undefined, openAiVoice: undefined },
+  voiceBinding: {},
 } satisfies VoicePersonaProfile);
 
 /* ------------------------------------------------------------------ */

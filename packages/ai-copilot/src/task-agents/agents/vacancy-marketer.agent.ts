@@ -65,7 +65,9 @@ export const vacancyMarketerAgent: TaskAgent<typeof PayloadSchema> = {
         unitId: ctx.payload.unitId,
         propertyId: ctx.payload.propertyId,
         vacantSince: ctx.payload.vacantSince,
-        suggestedMonthlyRent: ctx.payload.suggestedMonthlyRent,
+        ...(ctx.payload.suggestedMonthlyRent !== undefined
+          ? { suggestedMonthlyRent: ctx.payload.suggestedMonthlyRent }
+          : {}),
         correlationId: ctx.runId,
       });
       if (!res) {

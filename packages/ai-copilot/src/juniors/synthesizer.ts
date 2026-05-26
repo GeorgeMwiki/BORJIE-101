@@ -54,9 +54,9 @@ export interface SynthesizeArgs<TSchema extends ZodSchema> {
   readonly claude: ClaudeClient;
   readonly schema: TSchema;
   readonly context: SynthesisContext;
-  readonly logger?: JuniorLogger;
-  readonly model?: string;
-  readonly maxTokens?: number;
+  readonly logger?: JuniorLogger | undefined;
+  readonly model?: string | undefined;
+  readonly maxTokens?: number | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────

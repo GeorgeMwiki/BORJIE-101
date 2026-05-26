@@ -90,7 +90,7 @@ export function evaluateScenario(
     // Note: if a handoff happened, finalPersonaId != initial persona. Check
     // the first handoff's source as the "initial" persona.
     const initialActual = first.handoffs.length
-      ? first.handoffs[0].from
+      ? (first.handoffs[0]?.from ?? actual)
       : actual;
     if (initialActual !== scenario.expect.expectInitialPersona) {
       failures.push(
@@ -127,8 +127,8 @@ export function evaluateScenario(
     } else {
       if (scenario.expect.expectProposedAction.riskAtLeast) {
         const expected =
-          RISK_ORDER[scenario.expect.expectProposedAction.riskAtLeast];
-        const got = RISK_ORDER[pa.riskLevel];
+          RISK_ORDER[scenario.expect.expectProposedAction.riskAtLeast] ?? 0;
+        const got = RISK_ORDER[pa.riskLevel] ?? 0;
         if (got < expected) {
           failures.push(
             `expected risk >= ${scenario.expect.expectProposedAction.riskAtLeast}, got ${pa.riskLevel}`

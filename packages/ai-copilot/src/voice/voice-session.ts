@@ -27,7 +27,7 @@ export interface VoiceSessionTurnResult {
   readonly audio: Uint8Array;
   readonly mimeType: string;
   readonly voiceProviderId: string;
-  readonly llmProviderId?: string;
+  readonly llmProviderId?: string | undefined;
 }
 
 export interface LLMResponder {

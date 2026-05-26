@@ -370,13 +370,13 @@ export class StatementBuilder {
       date,
       type,
       description,
-      reference: options.reference,
-      debit: options.debit,
-      credit: options.credit,
       balance: this.runningBalance,
-      propertyId: options.propertyId,
-      unitId: options.unitId,
-      metadata: options.metadata
+      ...(options.reference !== undefined ? { reference: options.reference } : {}),
+      ...(options.debit !== undefined ? { debit: options.debit } : {}),
+      ...(options.credit !== undefined ? { credit: options.credit } : {}),
+      ...(options.propertyId !== undefined ? { propertyId: options.propertyId } : {}),
+      ...(options.unitId !== undefined ? { unitId: options.unitId } : {}),
+      ...(options.metadata !== undefined ? { metadata: options.metadata } : {})
     });
 
     return this;
@@ -393,8 +393,8 @@ export class StatementBuilder {
     this.summaries.push({
       label,
       amount,
-      percentage: options?.percentage,
-      breakdown: options?.breakdown
+      ...(options?.percentage !== undefined ? { percentage: options.percentage } : {}),
+      ...(options?.breakdown !== undefined ? { breakdown: options.breakdown } : {})
     });
     return this;
   }

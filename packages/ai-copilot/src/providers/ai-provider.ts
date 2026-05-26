@@ -14,24 +14,24 @@ import { CompiledPrompt } from '../types/prompt.types.js';
 export interface AICompletionRequest {
   prompt: CompiledPrompt;
   /** Additional context to include */
-  additionalContext?: string;
+  additionalContext?: string | undefined;
   /** Override model ID */
-  modelOverride?: string;
+  modelOverride?: string | undefined;
   /** Override temperature */
-  temperatureOverride?: number;
+  temperatureOverride?: number | undefined;
   /** JSON mode for structured output */
-  jsonMode?: boolean;
+  jsonMode?: boolean | undefined;
   /** Request timeout in ms */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /** Tool definitions the model may call (Anthropic tool-use). */
-  tools?: AIToolDefinition[];
+  tools?: AIToolDefinition[] | undefined;
   /**
    * Optional prior turn history. When provided, the provider sends the
    * full conversation including tool_use / tool_result blocks rather than
    * the single-shot user prompt. Required for the orchestrator's
    * tool-call loop to feed results back to the model.
    */
-  priorMessages?: AIMessage[];
+  priorMessages?: AIMessage[] | undefined;
 }
 
 /**
@@ -87,7 +87,7 @@ export interface AICompletionResponse {
       cacheCreationInputTokens: number;
       /** Tokens that hit the cache and were billed at the reduced rate. */
       cacheReadInputTokens: number;
-    };
+    } | undefined;
   };
   /** Processing time in ms */
   processingTimeMs: number;
@@ -98,12 +98,12 @@ export interface AICompletionResponse {
     id: string;
     name: string;
     input: Record<string, unknown>;
-  }>;
+  }> | undefined;
   /**
    * Raw content blocks (text + tool_use). Required when feeding the model's
    * own turn back into a multi-turn conversation alongside tool_result blocks.
    */
-  rawContent?: AIContentBlock[];
+  rawContent?: AIContentBlock[] | undefined;
 }
 
 /**

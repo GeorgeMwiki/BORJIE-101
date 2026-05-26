@@ -124,7 +124,7 @@ export function startJourney(
     tenantId: input.tenantId,
     userId: input.userId,
     journeyId: journey.id,
-    currentStepId: firstUnlocked?.id,
+    ...(firstUnlocked?.id !== undefined ? { currentStepId: firstUnlocked.id } : {}),
     stepProgress,
     startedAt: input.now,
     lastActivityAt: input.now,
@@ -216,8 +216,8 @@ export function completeStep(
     status: 'completed',
     attemptsUsed: current.attemptsUsed + 1,
     completedAt: input.now,
-    score: input.score,
-    notes: input.notes,
+    ...(input.score !== undefined ? { score: input.score } : {}),
+    ...(input.notes !== undefined ? { notes: input.notes } : {}),
   };
   const nextProgress: Record<string, StepProgress> = {
     ...input.snapshot.stepProgress,
@@ -232,13 +232,13 @@ export function completeStep(
   );
   const snapshot: JourneyProgressSnapshot = {
     ...input.snapshot,
-    currentStepId: nextUnlockedStep?.id,
+    ...(nextUnlockedStep?.id !== undefined ? { currentStepId: nextUnlockedStep.id } : {}),
     stepProgress: unlocked,
     lastActivityAt: input.now,
-    completedAt: allRequiredDone ? input.now : undefined,
+    ...(allRequiredDone ? { completedAt: input.now } : {}),
   };
   const events: JourneyRunnerEvent[] = [
-    { kind: 'step-completed', stepId: input.stepId, score: input.score },
+    { kind: 'step-completed', stepId: input.stepId, ...(input.score !== undefined ? { score: input.score } : {}) },
   ];
   if (allRequiredDone) {
     events.push({ kind: 'journey-completed', journeyId: journey.id });
@@ -306,9 +306,10 @@ export function resumeJourney(
   const firstUnlocked = journey.steps.find(
     (s) => resumed[s.id]?.status === 'unlocked',
   );
+  const resolvedCurrentStepId = firstInProgress?.id ?? firstUnlocked?.id ?? snapshot.currentStepId;
   return {
     ...snapshot,
-    currentStepId: firstInProgress?.id ?? firstUnlocked?.id ?? snapshot.currentStepId,
+    ...(resolvedCurrentStepId !== undefined ? { currentStepId: resolvedCurrentStepId } : {}),
     stepProgress: resumed,
   };
 }

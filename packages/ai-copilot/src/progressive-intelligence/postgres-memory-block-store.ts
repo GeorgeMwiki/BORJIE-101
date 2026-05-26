@@ -145,7 +145,7 @@ export class PostgresMemoryBlockStore implements MemoryBlockStore {
         now,
       ],
     });
-    if (inserted.length > 0) {
+    if (inserted.length > 0 && inserted[0] !== undefined) {
       return rowToBlock(inserted[0]);
     }
 
@@ -163,7 +163,7 @@ export class PostgresMemoryBlockStore implements MemoryBlockStore {
       sql: updateSql,
       params: [block.content, metadataJson, now, id],
     });
-    if (updated.length === 0) {
+    if (updated.length === 0 || updated[0] === undefined) {
       throw new Error(
         `PostgresMemoryBlockStore: upsert produced no row for id=${id}`,
       );

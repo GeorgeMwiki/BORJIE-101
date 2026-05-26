@@ -49,26 +49,26 @@ const RULES: readonly Rule[] = [
   {
     regex: /(?:i\s+prefer|napendelea)\s+([^\n.]{5,60})/i,
     type: 'preference',
-    render: (m) => `Tenant prefers ${m[1].trim()}`,
+    render: (m) => `Tenant prefers ${(m[1] ?? '').trim()}`,
     confidence: 0.75,
   },
   {
     regex: /(?:please\s+use|nitumie\s+kwa)\s+(whatsapp|sms|email|simu)/i,
     type: 'preference',
-    render: (m) => `Preferred contact channel: ${m[1].toLowerCase()}`,
+    render: (m) => `Preferred contact channel: ${(m[1] ?? '').toLowerCase()}`,
     confidence: 0.85,
   },
   // Decision — rent increase, renewal, termination.
   {
     regex: /(?:i\s+(?:will|agreed\s+to|decided\s+to))\s+([^\n.]{5,80})/i,
     type: 'decision',
-    render: (m) => `Tenant decision: ${m[1].trim()}`,
+    render: (m) => `Tenant decision: ${(m[1] ?? '').trim()}`,
     confidence: 0.7,
   },
   {
     regex: /(?:nimekubali|nimeamua)\s+([^\n.]{5,80})/i,
     type: 'decision',
-    render: (m) => `Tenant decision (sw): ${m[1].trim()}`,
+    render: (m) => `Tenant decision (sw): ${(m[1] ?? '').trim()}`,
     confidence: 0.7,
   },
   // Relationship — known guarantor, referral, family.
@@ -76,7 +76,7 @@ const RULES: readonly Rule[] = [
     regex:
       /(?:my\s+(?:guarantor|co-?signer|next\s+of\s+kin)\s+is|mdhamini\s+wangu\s+ni)\s+([^\n.]{3,60})/i,
     type: 'relationship',
-    render: (m) => `Key relationship: ${m[1].trim()}`,
+    render: (m) => `Key relationship: ${(m[1] ?? '').trim()}`,
     confidence: 0.8,
   },
   // Learning — tenant learned / understood a concept.
@@ -84,7 +84,7 @@ const RULES: readonly Rule[] = [
     regex:
       /(?:now\s+i\s+(?:understand|see|get)|naelewa\s+sasa|nimeelewa)\s+([^\n.]{3,80})/i,
     type: 'learning',
-    render: (m) => `Tenant now understands: ${m[1].trim()}`,
+    render: (m) => `Tenant now understands: ${(m[1] ?? '').trim()}`,
     confidence: 0.65,
   },
 ];
@@ -152,11 +152,11 @@ export async function analyzeAndRemember(
   for (const insight of insights) {
     const payload: RememberInput = {
       tenantId,
-      personaId: options.personaId,
+      ...(options.personaId !== undefined ? { personaId: options.personaId } : {}),
       memoryType: insight.type,
       content: insight.content,
       confidence: insight.confidence,
-      sessionId: options.sessionId,
+      ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
       metadata: {
         intent: turn.intent,
         turnNumber: turn.turnNumber,

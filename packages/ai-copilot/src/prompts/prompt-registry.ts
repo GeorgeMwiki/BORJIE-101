@@ -165,7 +165,7 @@ export class PromptRegistry {
       status: PromptStatus.DRAFT,
       riskLevel: request.riskLevel,
       template: request.template,
-      systemPrompt: request.systemPrompt,
+      ...(request.systemPrompt !== undefined ? { systemPrompt: request.systemPrompt } : {}),
       variables: request.variables,
       modelConstraints: request.modelConstraints ?? {},
       guardrails: request.guardrails ?? {},
@@ -238,7 +238,7 @@ export class PromptRegistry {
         ...prompt.approval!,
         approvedBy: actor,
         approvedAt: new Date().toISOString(),
-        reviewNotes: notes,
+        ...(notes !== undefined ? { reviewNotes: notes } : {}),
       },
       updatedBy: actor,
       updatedAt: new Date().toISOString(),
@@ -301,7 +301,10 @@ export class PromptRegistry {
     }
 
     // Calculate new version
-    const [major, minor, patch] = existing.version.split('.').map(Number);
+    const [majorRaw, minorRaw, patchRaw] = existing.version.split('.').map(Number);
+    const major = majorRaw ?? 0;
+    const minor = minorRaw ?? 0;
+    const patch = patchRaw ?? 0;
     let newVersion: string;
     switch (request.bumpType) {
       case 'major':
@@ -316,14 +319,14 @@ export class PromptRegistry {
     }
 
     const now = new Date().toISOString();
+    const { approval: _approval, ...existingWithoutApproval } = existing;
     const newPrompt: GovernedPrompt = {
-      ...existing,
+      ...existingWithoutApproval,
       ...request.changes,
       id: asPromptId(uuidv4()),
       version: newVersion,
       previousVersionId: existing.id,
       status: PromptStatus.DRAFT,
-      approval: undefined,
       createdBy: actor,
       createdAt: now,
       updatedBy: actor,
@@ -422,7 +425,7 @@ export class PromptRegistry {
         modelId,
         maxTokens: prompt.modelConstraints.maxResponseTokens ?? 4096,
         temperature: prompt.modelConstraints.temperature ?? 0.7,
-        topP: prompt.modelConstraints.topP,
+        ...(prompt.modelConstraints.topP !== undefined ? { topP: prompt.modelConstraints.topP } : {}),
       },
       guardrails: prompt.guardrails,
     };

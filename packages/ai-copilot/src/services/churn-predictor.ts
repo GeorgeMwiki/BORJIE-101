@@ -136,15 +136,15 @@ const ChurnPredictionResultSchema = z.object({
 
 export interface ChurnPredictorConfig {
   /** @deprecated Kept for backwards compatibility during migration. */
-  openaiApiKey?: string;
+  openaiApiKey?: string | undefined;
   /** Preferred: Anthropic API key (ANTHROPIC_API_KEY). */
-  anthropicApiKey?: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  anthropicClient?: AnthropicClient;
+  anthropicApiKey?: string | undefined;
+  model?: string | undefined;
+  temperature?: number | undefined;
+  maxTokens?: number | undefined;
+  anthropicClient?: AnthropicClient | undefined;
   /** Pluggable deterministic / ML model (defaults to weighted baseline). */
-  churnModel?: IChurnModel;
+  churnModel?: IChurnModel | undefined;
 }
 
 export class ChurnPredictorService {
@@ -228,18 +228,18 @@ ${JSON.stringify(deterministic, null, 2)}`;
         onTimePayments: ctx.paymentHistory.onTimePayments,
         latePayments: ctx.paymentHistory.latePayments,
         missedPayments: ctx.paymentHistory.missedPayments,
-        averageDaysLate: ctx.paymentHistory.averageDaysLate,
+        ...(ctx.paymentHistory.averageDaysLate !== undefined ? { averageDaysLate: ctx.paymentHistory.averageDaysLate } : {}),
       },
       complaints: {
         complaintsCount: ctx.communicationHistory.complaintsCount,
         inquiriesCount: ctx.communicationHistory.inquiriesCount,
-        sentimentTrend: ctx.communicationHistory.sentimentTrend,
+        ...(ctx.communicationHistory.sentimentTrend !== undefined ? { sentimentTrend: ctx.communicationHistory.sentimentTrend } : {}),
       },
       maintenance: {
         totalRequests: ctx.maintenanceRequests.total,
         openRequests: ctx.maintenanceRequests.openCount,
         averageResolutionDays: ctx.maintenanceRequests.averageResolutionDays,
-        satisfactionRating: ctx.maintenanceRequests.satisfactionRating,
+        ...(ctx.maintenanceRequests.satisfactionRating !== undefined ? { satisfactionRating: ctx.maintenanceRequests.satisfactionRating } : {}),
       },
       recency: {
         daysUntilLeaseEnd,
@@ -265,8 +265,8 @@ ${JSON.stringify(deterministic, null, 2)}`;
       paymentHistory: data?.paymentHistory ?? { onTimePayments: 0, latePayments: 0, missedPayments: 0 },
       maintenanceRequests: data?.maintenanceRequests ?? { total: 0, openCount: 0, averageResolutionDays: 0 },
       communicationHistory: data?.communicationHistory ?? { complaintsCount: 0, inquiriesCount: 0 },
-      renewalHistory: data?.renewalHistory,
-      marketContext: data?.marketContext,
+      ...(data?.renewalHistory !== undefined ? { renewalHistory: data.renewalHistory } : {}),
+      ...(data?.marketContext !== undefined ? { marketContext: data.marketContext } : {}),
     };
   }
 }
@@ -286,8 +286,8 @@ export async function predictChurnRisk(
     throw new Error('Anthropic API key or client is required');
   }
   const service = createChurnPredictorService({
-    anthropicApiKey,
     ...config,
+    anthropicApiKey: anthropicApiKey ?? '',
   });
   return service.predictChurnRisk(customerId, data);
 }

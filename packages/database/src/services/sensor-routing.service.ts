@@ -336,6 +336,17 @@ export function createSensorRoutingService(db: DatabaseClient): SensorRoutingSer
       const downgrade = tier ? TIER_DOWNGRADE[tier] : (c: SensorChoice) => c;
       const chain = route.chain.map(downgrade);
       const [primary, ...fallbacks] = chain;
+      if (primary === undefined) {
+        return {
+          task,
+          tenantTier: tier ?? null,
+          primary: SONNET,
+          fallbacks: [HAIKU],
+          cognitionMode: 'default',
+          source: 'builtin',
+          reasoning: 'no builtin route — defaulting to Sonnet → Haiku',
+        };
+      }
       return {
         task,
         tenantTier: tier ?? null,

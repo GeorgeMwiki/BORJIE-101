@@ -59,7 +59,8 @@ export function planBreakout(input: BreakoutInput): BreakoutPlan {
     const n = Math.max(1, Math.ceil(sorted.length / groupSize));
     groupsUserIds = Array.from({ length: n }, () => [] as string[]);
     sorted.forEach((m, i) => {
-      groupsUserIds[i % n].push(m.userId);
+      const slot = groupsUserIds[i % n];
+      if (slot !== undefined) slot.push(m.userId);
     });
   } else {
     const shuffled = shuffle(
@@ -77,7 +78,7 @@ export function planBreakout(input: BreakoutInput): BreakoutPlan {
     return {
       id: `bk_${i + 1}`,
       learners: ids,
-      leader: leader && leader.pKnow >= 0.6 ? leader.userId : undefined,
+      ...(leader && leader.pKnow >= 0.6 ? { leader: leader.userId } : {}),
     };
   });
 
@@ -101,7 +102,10 @@ function shuffle<T>(arr: readonly T[], seed?: number): T[] {
   const rng = seed === undefined ? Math.random : lcg(seed);
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+    const ai = out[i] as T;
+    const aj = out[j] as T;
+    out[i] = aj;
+    out[j] = ai;
   }
   return out;
 }

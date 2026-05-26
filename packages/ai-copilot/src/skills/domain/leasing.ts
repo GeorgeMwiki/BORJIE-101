@@ -23,24 +23,24 @@ export const LeaseAbstractParamsSchema = z.object({
 });
 
 export interface LeaseAbstractResult {
-  leaseId?: string;
+  leaseId?: string | undefined;
   parties: {
-    landlord?: string;
+    landlord?: string | undefined;
     tenants: string[];
   };
-  unit?: string;
-  startDate?: string;
-  endDate?: string;
-  rentKes?: number;
-  rentFrequency?: 'monthly' | 'quarterly' | 'annual';
-  depositKes?: number;
-  serviceChargeKes?: number;
-  escalationPct?: number;
-  noticePeriodDays?: number;
+  unit?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  rentKes?: number | undefined;
+  rentFrequency?: 'monthly' | 'quarterly' | 'annual' | undefined;
+  depositKes?: number | undefined;
+  serviceChargeKes?: number | undefined;
+  escalationPct?: number | undefined;
+  noticePeriodDays?: number | undefined;
   renewalClausePresent: boolean;
   lateFeeClausePresent: boolean;
   petClausePresent: boolean;
-  sublettingAllowed?: boolean;
+  sublettingAllowed?: boolean | undefined;
   /** Flagged items the Compliance Junior should review. */
   flags: string[];
   /** Raw citations — {field: [line-range]} — for the UI to highlight. */
@@ -105,7 +105,7 @@ export function abstractLease(
   );
   const tenantMatches = Array.from(
     t.matchAll(/\b(?:tenant|lessee)[:\s]+([A-Z][A-Za-z0-9'&\-. ]{2,60})/g)
-  ).map((m) => m[1].trim());
+  ).map((m) => (m[1] ?? '').trim()).filter((s) => s.length > 0);
 
   const parseKes = (s: string | undefined): number | undefined =>
     s ? Number(s.replace(/[,\s]/g, '')) : undefined;
@@ -120,13 +120,13 @@ export function abstractLease(
   const petClausePresent = /\bpets?\b/i.test(t);
   const sublettingAllowedMatch = t.match(/\bsublet(?:ting)?\b[^\n]{0,60}\b(allowed|not\s+allowed|prohibited|permitted)\b/i);
   const sublettingAllowed = sublettingAllowedMatch
-    ? /allowed|permitted/i.test(sublettingAllowedMatch[1])
+    ? /allowed|permitted/i.test(sublettingAllowedMatch[1] ?? '')
     : undefined;
 
   return {
     leaseId: params.leaseId,
     parties: {
-      landlord: landlordMatch?.trim(),
+      ...(landlordMatch !== undefined ? { landlord: landlordMatch.trim() } : {}),
       tenants: tenantMatches.length ? tenantMatches : [],
     },
     unit: unitMatch?.toUpperCase(),
@@ -343,7 +343,7 @@ export function buildNegotiationOpen(
     policyId: params.policyId,
     openingOffer: params.openingOffer,
     domain: params.domain,
-    rationale: params.openingRationale,
+    ...(params.openingRationale !== undefined ? { rationale: params.openingRationale } : {}),
   };
 }
 
@@ -429,7 +429,7 @@ export function buildNegotiationCounter(
     offer: refused ? params.lowerBound : params.offer,
     policyGuardApplied: true,
     refusedDueToLowerBound: refused,
-    rationale: params.rationale,
+    ...(params.rationale !== undefined ? { rationale: params.rationale } : {}),
     concessions:
       params.concessions?.map((c) => ({
         kind: c.kind,
@@ -504,8 +504,8 @@ export function buildNegotiationClose(
     action: 'negotiation_close',
     negotiationId: params.negotiationId,
     outcome: params.outcome,
-    agreedPrice: params.agreedPrice,
-    reason: params.reason,
+    ...(params.agreedPrice !== undefined ? { agreedPrice: params.agreedPrice } : {}),
+    ...(params.reason !== undefined ? { reason: params.reason } : {}),
   };
 }
 

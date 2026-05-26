@@ -173,8 +173,10 @@ export async function rerankCandidates<T extends RerankCandidate>(
       if (!Number.isInteger(idx) || idx < 0 || idx >= inFlight.length) {
         continue;
       }
+      const candidate = inFlight[idx];
+      if (candidate === undefined) continue;
       reranked.push({
-        candidate: inFlight[idx],
+        candidate,
         score,
         originalIndex: idx,
       });
@@ -224,8 +226,10 @@ function identityFallback<T extends RerankCandidate>(
   const limit = Math.min(topN, candidates.length);
   const out: Array<RerankedCandidate<T>> = [];
   for (let i = 0; i < limit; i++) {
+    const candidate = candidates[i];
+    if (candidate === undefined) continue;
     out.push({
-      candidate: candidates[i],
+      candidate,
       // Score decays linearly from 1.0 down to 1.0 - (i/limit)*0.5 so
       // the topmost item is always 1.0 and the bottom never undercuts
       // 0.5 — keeps the ordering monotone without misrepresenting

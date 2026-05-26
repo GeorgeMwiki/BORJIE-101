@@ -32,21 +32,27 @@ export function extractEntities(text: string): readonly ExtractedEntity[] {
   const entities: ExtractedEntity[] = [];
 
   for (const match of text.matchAll(PROPERTY_ID_RE)) {
+    const v = match[2];
+    if (v === undefined) continue;
     entities.push({
       type: 'property_id',
-      value: match[2].toUpperCase(),
+      value: v.toUpperCase(),
       confidence: 0.9,
     });
   }
   for (const match of text.matchAll(UNIT_ID_RE)) {
+    const v = match[2];
+    if (v === undefined) continue;
     entities.push({
       type: 'unit_id',
-      value: match[2].toUpperCase(),
+      value: v.toUpperCase(),
       confidence: 0.85,
     });
   }
   for (const match of text.matchAll(AMOUNT_TZS_RE)) {
-    const numeric = match[1].replace(/[,\s]/g, '');
+    const v = match[1];
+    if (v === undefined) continue;
+    const numeric = v.replace(/[,\s]/g, '');
     entities.push({
       type: 'amount_tzs',
       value: numeric,
@@ -54,16 +60,20 @@ export function extractEntities(text: string): readonly ExtractedEntity[] {
     });
   }
   for (const match of text.matchAll(DATE_ISO_RE)) {
+    const v = match[1];
+    if (v === undefined) continue;
     entities.push({
       type: 'date',
-      value: match[1],
+      value: v,
       confidence: 0.95,
     });
   }
   for (const match of text.matchAll(DATE_LONG_RE)) {
+    const v = match[1];
+    if (v === undefined) continue;
     entities.push({
       type: 'date',
-      value: match[1],
+      value: v,
       confidence: 0.75,
     });
   }

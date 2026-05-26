@@ -318,11 +318,11 @@ export function withAutonomyGuard(deps: WithAutonomyGuardDeps): AutonomyGuardFn 
         grantCategory,
         {
           domain: grantDomain,
-          targetEntityType: ctx.grantRequest?.targetEntityType,
-          targetEntityId: ctx.grantRequest?.targetEntityId,
-          amountMinorUnits: ctx.grantRequest?.amountMinorUnits,
-          actor: ctx.grantRequest?.actor,
-          meta: ctx.grantRequest?.meta,
+          ...(ctx.grantRequest?.targetEntityType !== undefined ? { targetEntityType: ctx.grantRequest.targetEntityType } : {}),
+          ...(ctx.grantRequest?.targetEntityId !== undefined ? { targetEntityId: ctx.grantRequest.targetEntityId } : {}),
+          ...(ctx.grantRequest?.amountMinorUnits !== undefined ? { amountMinorUnits: ctx.grantRequest.amountMinorUnits } : {}),
+          ...(ctx.grantRequest?.actor !== undefined ? { actor: ctx.grantRequest.actor } : {}),
+          ...(ctx.grantRequest?.meta !== undefined ? { meta: ctx.grantRequest.meta } : {}),
         },
       );
     }
@@ -364,7 +364,7 @@ export function withAutonomyGuard(deps: WithAutonomyGuardDeps): AutonomyGuardFn 
       },
       actionKind: ctx.auditActionKind,
       actionCategory: auditCategory,
-      subject: ctx.subject,
+      ...(ctx.subject !== undefined ? { subject: ctx.subject } : {}),
       decision: auditDecision,
       occurredAt: now(),
       ai: {
@@ -433,11 +433,12 @@ export function withAutonomyGuard(deps: WithAutonomyGuardDeps): AutonomyGuardFn 
       // Consume the grant if we rode a live grant (single or standing).
       if (grantCheck?.authorized && grantCheck.grantId && deps.grantService) {
         try {
+          const grantActor = ctx.grantActor ?? ctx.actor?.id;
           const consume = await deps.grantService.consume(
             grantCheck.grantId,
             ctx.tenantId,
             buildActionRef(ctx),
-            { actor: ctx.grantActor ?? ctx.actor?.id ?? undefined },
+            grantActor !== undefined && grantActor !== null ? { actor: grantActor } : {},
           );
           consumedGrantId = consume.grantId;
         } catch (err) {
@@ -528,7 +529,6 @@ export function withAutonomyGuard(deps: WithAutonomyGuardDeps): AutonomyGuardFn 
 
     return {
       executed: false,
-      result: undefined,
       queuedApprovalId,
       decision,
       auditEntryId: auditEntry.id,

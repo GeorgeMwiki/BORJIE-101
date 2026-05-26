@@ -20,6 +20,7 @@ import type {
   TrainingAssignment,
   TrainingAssignmentStatus,
   TrainingPath,
+  TrainingStepContent,
 } from './training-types.js';
 import {
   TenantMismatchError,
@@ -157,7 +158,7 @@ export class TrainingAdminEndpoints {
       audience: parsed.audience,
       durationHours: parsed.durationHours,
       language: parsed.language,
-      priorMastery: parsed.priorMastery,
+      ...(parsed.priorMastery !== undefined ? { priorMastery: parsed.priorMastery } : {}),
       tenantId,
       createdBy,
     };
@@ -190,20 +191,23 @@ export class TrainingAdminEndpoints {
         conceptId: s.conceptId,
         kind: s.kind,
         title: s.title,
-        content: {
-          socraticPrompts: Array.isArray(
-            (s.content as { socraticPrompts?: unknown }).socraticPrompts
-          )
-            ? ((s.content as { socraticPrompts: string[] }).socraticPrompts)
-            : [],
-          scenario: (s.content as { scenario?: string }).scenario,
-          handoutMarkdown: (s.content as { handoutMarkdown?: string })
-            .handoutMarkdown,
-          checkpointQuestion: (s.content as { checkpointQuestion?: string })
-            .checkpointQuestion,
-          expectedAnswer: (s.content as { expectedAnswer?: string })
-            .expectedAnswer,
-        },
+        content: ((): TrainingStepContent => {
+          const c = s.content as {
+            socraticPrompts?: unknown;
+            scenario?: string;
+            handoutMarkdown?: string;
+            checkpointQuestion?: string;
+            expectedAnswer?: string;
+          };
+          const prompts = Array.isArray(c.socraticPrompts) ? (c.socraticPrompts as string[]) : [];
+          return {
+            socraticPrompts: prompts,
+            ...(c.scenario !== undefined ? { scenario: c.scenario } : {}),
+            ...(c.handoutMarkdown !== undefined ? { handoutMarkdown: c.handoutMarkdown } : {}),
+            ...(c.checkpointQuestion !== undefined ? { checkpointQuestion: c.checkpointQuestion } : {}),
+            ...(c.expectedAnswer !== undefined ? { expectedAnswer: c.expectedAnswer } : {}),
+          };
+        })(),
         masteryThreshold: s.masteryThreshold ?? 0.8,
         estimatedMinutes: s.estimatedMinutes ?? 5,
       })),
@@ -224,31 +228,35 @@ export class TrainingAdminEndpoints {
     body: unknown
   ): Promise<TrainingPath> {
     const parsed = PatchSchema.parse(body);
-    const edits: PathEditInput = {
-      title: parsed.title,
-      summary: parsed.summary,
-      durationMinutes: parsed.durationMinutes,
-      steps: parsed.steps?.map((s) => ({
+    const mappedSteps = parsed.steps?.map((s) => ({
         conceptId: s.conceptId,
         kind: s.kind,
         title: s.title,
-        content: {
-          socraticPrompts: Array.isArray(
-            (s.content as { socraticPrompts?: unknown }).socraticPrompts
-          )
-            ? ((s.content as { socraticPrompts: string[] }).socraticPrompts)
-            : [],
-          scenario: (s.content as { scenario?: string }).scenario,
-          handoutMarkdown: (s.content as { handoutMarkdown?: string })
-            .handoutMarkdown,
-          checkpointQuestion: (s.content as { checkpointQuestion?: string })
-            .checkpointQuestion,
-          expectedAnswer: (s.content as { expectedAnswer?: string })
-            .expectedAnswer,
-        },
-        masteryThreshold: s.masteryThreshold,
-        estimatedMinutes: s.estimatedMinutes,
-      })),
+        content: ((): TrainingStepContent => {
+          const c = s.content as {
+            socraticPrompts?: unknown;
+            scenario?: string;
+            handoutMarkdown?: string;
+            checkpointQuestion?: string;
+            expectedAnswer?: string;
+          };
+          const prompts = Array.isArray(c.socraticPrompts) ? (c.socraticPrompts as string[]) : [];
+          return {
+            socraticPrompts: prompts,
+            ...(c.scenario !== undefined ? { scenario: c.scenario } : {}),
+            ...(c.handoutMarkdown !== undefined ? { handoutMarkdown: c.handoutMarkdown } : {}),
+            ...(c.checkpointQuestion !== undefined ? { checkpointQuestion: c.checkpointQuestion } : {}),
+            ...(c.expectedAnswer !== undefined ? { expectedAnswer: c.expectedAnswer } : {}),
+          };
+        })(),
+        ...(s.masteryThreshold !== undefined ? { masteryThreshold: s.masteryThreshold } : {}),
+        ...(s.estimatedMinutes !== undefined ? { estimatedMinutes: s.estimatedMinutes } : {}),
+      }));
+    const edits: PathEditInput = {
+      ...(parsed.title !== undefined ? { title: parsed.title } : {}),
+      ...(parsed.summary !== undefined ? { summary: parsed.summary } : {}),
+      ...(parsed.durationMinutes !== undefined ? { durationMinutes: parsed.durationMinutes } : {}),
+      ...(mappedSteps !== undefined ? { steps: mappedSteps } : {}),
     };
     return this.deps.repo.updatePath(tenantId, pathId, edits, this.idFactory);
   }
@@ -275,7 +283,10 @@ export class TrainingAdminEndpoints {
     query: unknown
   ): Promise<readonly TrainingAssignment[]> {
     const parsed = ListAssignmentsSchema.parse(query ?? {});
-    return this.deps.repo.listAssignments(tenantId, parsed);
+    const filter: { status?: TrainingAssignmentStatus; assigneeUserId?: string } = {};
+    if (parsed?.status !== undefined) filter.status = parsed.status;
+    if (parsed?.assigneeUserId !== undefined) filter.assigneeUserId = parsed.assigneeUserId;
+    return this.deps.repo.listAssignments(tenantId, filter);
   }
 
   async getAssignment(

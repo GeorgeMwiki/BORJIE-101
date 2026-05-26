@@ -82,7 +82,7 @@ export function parseLeaseAgreement(text: string): DocumentAnalysisResult {
       landlord: parties,
       tenant,
       rentCurrency: rent?.[1],
-      rentAmount: rent ? Number(rent[2].replace(/[,\s]/g, '')) : undefined,
+      rentAmount: rent ? Number((rent[2] ?? '').replace(/[,\s]/g, '')) : undefined,
       startDate: start,
       endDate: end,
     },
@@ -95,10 +95,14 @@ export function parseRentRoll(text: string): DocumentAnalysisResult {
   const lineRegex = /\b([A-Z0-9][A-Z0-9\-/]{0,8})\s+(?:KES|TZS|UGX|RWF)?\s*([\d,\.]+)\s+(occupied|vacant|notice|arrears)\b/gi;
   let m: RegExpExecArray | null;
   while ((m = lineRegex.exec(text)) !== null) {
+    const unit = m[1];
+    const rent = m[2];
+    const status = m[3];
+    if (unit === undefined || rent === undefined || status === undefined) continue;
     rows.push({
-      unit: m[1],
-      rent: Number(m[2].replace(/[,\s]/g, '')),
-      status: m[3].toLowerCase(),
+      unit,
+      rent: Number(rent.replace(/[,\s]/g, '')),
+      status: status.toLowerCase(),
     });
   }
   const flags: string[] = [];
@@ -125,7 +129,7 @@ export function parseTenantApplication(text: string): DocumentAnalysisResult {
     confidence: 0.7,
     extracted: {
       applicantName: name,
-      monthlyIncome: income ? Number(income[1].replace(/[,\s]/g, '')) : undefined,
+      monthlyIncome: income ? Number((income[1] ?? '').replace(/[,\s]/g, '')) : undefined,
       employer,
       references,
     },
@@ -147,9 +151,9 @@ export function parseMaintenanceInvoice(text: string): DocumentAnalysisResult {
     extracted: {
       invoiceNumber: invoiceNo,
       vendor,
-      total: total ? Number(total[1].replace(/[,\s]/g, '')) : undefined,
+      total: total ? Number((total[1] ?? '').replace(/[,\s]/g, '')) : undefined,
       vatPct: vat ? Number(vat[1]) : undefined,
-      vatAmount: vat ? Number(vat[2].replace(/[,\s]/g, '')) : undefined,
+      vatAmount: vat ? Number((vat[2] ?? '').replace(/[,\s]/g, '')) : undefined,
     },
     flags,
   };

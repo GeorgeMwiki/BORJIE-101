@@ -53,9 +53,9 @@ export interface Filter {
 export interface QueryAST {
   readonly entity: QueryEntity;
   readonly filters: readonly Filter[];
-  readonly groupBy?: string; // allowlisted column
-  readonly orderBy?: { field: string; direction: 'asc' | 'desc' };
-  readonly limit?: number; // default 50, max 500
+  readonly groupBy?: string | undefined; // allowlisted column
+  readonly orderBy?: { field: string; direction: 'asc' | 'desc' } | undefined;
+  readonly limit?: number | undefined; // default 50, max 500
 }
 
 // ---------------------------------------------------------------------------

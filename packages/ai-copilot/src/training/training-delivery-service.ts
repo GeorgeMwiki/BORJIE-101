@@ -184,7 +184,7 @@ export class TrainingDeliveryService {
     const events = await this.repo.listEvents(tenantId, assignmentId);
     const relevant = events.filter((e) => e.stepId === stepId);
     if (relevant.length === 0) return false;
-    const latest = relevant[relevant.length - 1];
+    const latest = relevant[relevant.length - 1]!;
     const elapsed = this.now().getTime() - new Date(latest.occurredAt).getTime();
     return elapsed > this.stallMs;
   }

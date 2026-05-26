@@ -28,10 +28,10 @@ import {
 export interface BuildRouterOptions {
   readonly ledger: CostLedger;
   readonly anthropicApiKey: string;
-  readonly openaiApiKey?: string;
-  readonly deepseekApiKey?: string;
+  readonly openaiApiKey?: string | undefined;
+  readonly deepseekApiKey?: string | undefined;
   /** Override fallback chains (optional). */
-  readonly fallbackChains?: Parameters<typeof createMultiLLMRouter>[0]['fallbackChains'];
+  readonly fallbackChains?: Parameters<typeof createMultiLLMRouter>[0]['fallbackChains'] | undefined;
 }
 
 export function buildMultiLLMRouter(opts: BuildRouterOptions): MultiLLMRouter {

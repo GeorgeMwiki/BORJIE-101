@@ -339,7 +339,9 @@ function rankDimensions(
     ['dispute_history', d.dispute_history.score * d.dispute_history.weight],
   ];
   const sorted = [...entries].sort((a, b) => b[1] - a[1]);
-  return [sorted[0][0], sorted[sorted.length - 1][0]];
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  return [first ? first[0] : 'payment_history', last ? last[0] : 'dispute_history'];
 }
 
 function emptyDimensions(): CreditRatingDimensions {

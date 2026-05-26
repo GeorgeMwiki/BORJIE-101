@@ -36,15 +36,15 @@ export interface NBACustomerContext {
   lifecycle: {
     stage: 'onboarding' | 'active' | 'renewal_approaching' | 'at_risk' | 'churned';
     tenureDays: number;
-    daysToLeaseEnd?: number;
+    daysToLeaseEnd?: number | undefined;
   };
   recentActivity: {
-    lastPaymentDate?: string;
-    lastMaintenanceRequest?: string;
-    lastCommunication?: string;
+    lastPaymentDate?: string | undefined;
+    lastMaintenanceRequest?: string | undefined;
+    lastCommunication?: string | undefined;
     recentComplaints: number;
   };
-  riskIndicators: { churnRisk?: number; paymentRisk?: number; satisfactionScore?: number };
+  riskIndicators: { churnRisk?: number | undefined; paymentRisk?: number | undefined; satisfactionScore?: number | undefined };
   opportunities: {
     renewalEligible: boolean;
     upgradeEligible: boolean;
@@ -53,8 +53,8 @@ export interface NBACustomerContext {
   };
   preferences?: {
     communicationChannel: 'email' | 'sms' | 'phone' | 'app';
-    contactTime?: 'morning' | 'afternoon' | 'evening';
-  };
+    contactTime?: 'morning' | 'afternoon' | 'evening' | undefined;
+  } | undefined;
 }
 
 export interface RecommendedAction {

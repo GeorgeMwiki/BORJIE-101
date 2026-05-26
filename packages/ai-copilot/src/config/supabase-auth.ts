@@ -300,15 +300,16 @@ export async function verifySupabaseJwt(
     opts.defaultEnvironment ??
     'production';
 
+  const email = typeof payload.email === 'string' ? payload.email : undefined;
   return {
     userId,
-    email: typeof payload.email === 'string' ? payload.email : undefined,
+    ...(email !== undefined ? { email } : {}),
     tenantId,
-    tenantName,
+    ...(tenantName !== undefined ? { tenantName } : {}),
     environment,
     roles,
     teamIds,
-    employeeId,
+    ...(employeeId !== undefined ? { employeeId } : {}),
     raw: payload,
   };
 }
@@ -319,7 +320,7 @@ export async function verifySupabaseJwt(
 export function extractBearer(headerValue: string | null | undefined): string | null {
   if (!headerValue) return null;
   const m = headerValue.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1].trim() : null;
+  return m && m[1] !== undefined ? m[1].trim() : null;
 }
 
 /**
@@ -363,16 +364,16 @@ export function principalToBrainContexts(p: BrainAuthPrincipal): {
       environment: p.environment,
     },
     actor: {
-      type: 'user',
+      type: 'user' as const,
       id: p.userId,
-      email: p.email,
+      ...(p.email !== undefined ? { email: p.email } : {}),
       roles: p.roles,
     },
     viewer: {
       userId: p.userId,
       roles: p.roles,
       teamIds: p.teamIds,
-      employeeId: p.employeeId,
+      ...(p.employeeId !== undefined ? { employeeId: p.employeeId } : {}),
       isAdmin,
       isManagement,
     },

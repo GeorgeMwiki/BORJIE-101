@@ -95,10 +95,14 @@ export function scoreTenderBids(params: TenderScoringParams): {
   });
 
   const ranking = [...scored].sort((a, b) => b.score - a.score);
+  const winner = ranking[0];
+  if (winner === undefined) {
+    throw new Error('tender-bid-scoring: no bids to score');
+  }
   return {
     tenderId: parsed.tenderId,
     ranking,
-    winnerBidId: ranking[0].bidId,
+    winnerBidId: winner.bidId,
   };
 }
 

@@ -236,7 +236,7 @@ export function createSystemEvent(
     caseId,
     eventType,
     title,
-    description,
+    ...(description !== undefined ? { description } : {}),
     actorType: 'system',
     actorName: 'System',
     isCustomerVisible: false,

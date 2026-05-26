@@ -39,7 +39,7 @@ export function forecastOccupancy(params: OccupancyForecastParams): OccupancyFor
   const series: OccupancyForecastResult['months'][number][] = [];
 
   for (let i = 0; i < 12; i += 1) {
-    const expiring = Math.min(parsed.leasesExpiringPerMonth[i], occupied);
+    const expiring = Math.min(parsed.leasesExpiringPerMonth[i] ?? 0, occupied);
     const renewals = Math.round(expiring * parsed.historicalRenewalRate);
     const vacated = expiring - renewals;
     occupied = occupied - vacated;
@@ -64,7 +64,7 @@ export function forecastOccupancy(params: OccupancyForecastParams): OccupancyFor
     series.reduce((sum, m) => sum + m.occupancyRate, 0) / series.length;
   const lowestMonthIndex = series.reduce(
     (lowIdx, m, idx) =>
-      m.occupancyRate < series[lowIdx].occupancyRate ? idx : lowIdx,
+      m.occupancyRate < (series[lowIdx]?.occupancyRate ?? Infinity) ? idx : lowIdx,
     0
   );
 

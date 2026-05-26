@@ -301,10 +301,13 @@ function overlapsPlaceholder(
 function dedupe(matches: readonly PiiMatch[]): readonly PiiMatch[] {
   if (matches.length <= 1) return matches;
   const sorted = [...matches].sort((a, b) => a.startIndex - b.startIndex);
-  const result: PiiMatch[] = [sorted[0]];
+  const first = sorted[0];
+  if (first === undefined) return matches;
+  const result: PiiMatch[] = [first];
   for (let i = 1; i < sorted.length; i++) {
     const cur = sorted[i];
     const prev = result[result.length - 1];
+    if (cur === undefined || prev === undefined) continue;
     if (cur.startIndex < prev.endIndex) {
       if (cur.endIndex - cur.startIndex > prev.endIndex - prev.startIndex) {
         result[result.length - 1] = cur;

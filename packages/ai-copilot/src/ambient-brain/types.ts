@@ -67,7 +67,7 @@ export interface PresenceState {
   readonly userId: string;
   readonly portal: Portal;
   readonly currentPage: string;
-  readonly currentSection?: string;
+  readonly currentSection?: string | undefined;
   readonly overlayMode: OverlayMode;
   readonly assistanceMode: AssistanceMode;
   readonly isEngaged: boolean;
@@ -116,9 +116,9 @@ export interface ProactiveIntervention {
   readonly trigger: string;
   readonly priority: 'low' | 'medium' | 'high';
   readonly message: string;
-  readonly messageSwahili?: string;
-  readonly fieldId?: string;
-  readonly sectionId?: string;
+  readonly messageSwahili?: string | undefined;
+  readonly fieldId?: string | undefined;
+  readonly sectionId?: string | undefined;
   readonly createdAt: string;
   readonly cooldownMs: number;
 }

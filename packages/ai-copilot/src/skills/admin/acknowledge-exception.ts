@@ -29,7 +29,7 @@ export interface AcknowledgeExceptionResult {
   readonly exceptionId: string;
   readonly resolution: AcknowledgeExceptionParams['resolution'];
   readonly acknowledgedAt: string;
-  readonly followUpSkill?: string;
+  readonly followUpSkill?: string | undefined;
 }
 
 export const acknowledgeExceptionTool: ToolHandler = {

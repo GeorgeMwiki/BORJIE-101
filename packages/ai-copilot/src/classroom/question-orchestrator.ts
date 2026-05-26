@@ -34,8 +34,8 @@ export interface GeneratedQuestion {
   readonly id: string;
   readonly conceptId: string;
   readonly questionText: string;
-  readonly choices?: readonly string[];
-  readonly correctIndex?: number;
+  readonly choices?: readonly string[] | undefined;
+  readonly correctIndex?: number | undefined;
   readonly rationale: string;
   readonly difficulty: QuizDifficulty;
   readonly bloomLevel: BloomLevel;
@@ -101,7 +101,7 @@ export function pickBloomForPKnow(
   else if (pKnow >= 0.4) target = 'apply';
   else if (pKnow >= 0.2) target = 'understand';
   if (available.includes(target)) return target;
-  return available[available.length - 1];
+  return available[available.length - 1] ?? 'remember';
 }
 
 export function pickDifficultyForPKnow(pKnow: number): QuizDifficulty {

@@ -191,14 +191,15 @@ Concept summary: ${concept.summaryEn}`;
     const prompts = Array.isArray(parsed.prompts)
       ? (parsed.prompts.filter((p) => typeof p === 'string' && p.length > 0) as string[])
       : baseContent.socraticPrompts.slice();
+    const scenario = typeof parsed.scenario === 'string' ? parsed.scenario : baseContent.scenario;
+    const checkpointQuestion = typeof parsed.checkpoint === 'string' ? parsed.checkpoint : baseContent.checkpointQuestion;
+    const expectedAnswer = typeof parsed.expected === 'string' ? parsed.expected : baseContent.expectedAnswer;
     return {
       socraticPrompts: prompts.length > 0 ? prompts : baseContent.socraticPrompts,
-      scenario: typeof parsed.scenario === 'string' ? parsed.scenario : baseContent.scenario,
-      handoutMarkdown: baseContent.handoutMarkdown,
-      checkpointQuestion:
-        typeof parsed.checkpoint === 'string' ? parsed.checkpoint : baseContent.checkpointQuestion,
-      expectedAnswer:
-        typeof parsed.expected === 'string' ? parsed.expected : baseContent.expectedAnswer,
+      ...(scenario !== undefined ? { scenario } : {}),
+      ...(baseContent.handoutMarkdown !== undefined ? { handoutMarkdown: baseContent.handoutMarkdown } : {}),
+      ...(checkpointQuestion !== undefined ? { checkpointQuestion } : {}),
+      ...(expectedAnswer !== undefined ? { expectedAnswer } : {}),
     };
   } catch {
     return baseContent;
@@ -247,6 +248,7 @@ export class TrainingGenerator {
     const steps: TrainingPathStep[] = [];
     for (let i = 0; i < selected.length; i++) {
       const concept = selected[i];
+      if (concept === undefined) continue;
       const base = deterministicStepContent(concept, opts.language);
       const content = this.llm
         ? await llmEnrichContent(

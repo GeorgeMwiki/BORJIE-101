@@ -28,11 +28,11 @@ export type SecurityStage =
 export interface SecurityEvent {
   readonly traceId: string;
   readonly tenantId: string;
-  readonly sessionId?: string;
-  readonly turnId?: string;
+  readonly sessionId?: string | undefined;
+  readonly turnId?: string | undefined;
   readonly stage: SecurityStage;
   readonly decision: SecurityDecision;
-  readonly reason?: string;
+  readonly reason?: string | undefined;
   readonly metadata: Readonly<Record<string, unknown>>;
   readonly emittedAt: string;
 }

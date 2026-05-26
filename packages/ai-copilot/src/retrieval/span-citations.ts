@@ -122,6 +122,7 @@ export function extractCitedSpans(
   let match: RegExpExecArray | null;
   while ((match = CITATION_MARKER_RE.exec(answer)) !== null) {
     const chunkId = match[1];
+    if (chunkId === undefined) continue;
     const chunk = lookup.get(chunkId);
     if (!chunk) continue;
     const markerIndex = match.index;
@@ -229,6 +230,6 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 
 function advancePastWhitespace(text: string, from: number): number {
   let i = from;
-  while (i < text.length && /\s/.test(text[i])) i++;
+  while (i < text.length && /\s/.test(text[i] ?? '')) i++;
   return i;
 }

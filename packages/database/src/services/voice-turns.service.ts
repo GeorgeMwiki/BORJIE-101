@@ -182,14 +182,16 @@ function parseToolCalls(raw: unknown): ReadonlyArray<VoiceToolCallShape> {
       obj.arguments && typeof obj.arguments === 'object'
         ? (obj.arguments as Record<string, unknown>)
         : {};
+    const result =
+      obj.result && typeof obj.result === 'object'
+        ? (obj.result as Record<string, unknown>)
+        : undefined;
+    const error = typeof obj.error === 'string' ? obj.error : undefined;
     out.push({
       name,
       arguments: args,
-      result:
-        obj.result && typeof obj.result === 'object'
-          ? (obj.result as Record<string, unknown>)
-          : undefined,
-      error: typeof obj.error === 'string' ? obj.error : undefined,
+      ...(result !== undefined ? { result } : {}),
+      ...(error !== undefined ? { error } : {}),
     });
   }
   return out;

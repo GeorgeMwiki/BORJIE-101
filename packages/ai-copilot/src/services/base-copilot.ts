@@ -378,7 +378,7 @@ export abstract class BaseCopilot<TInput, TOutput extends CopilotOutputBase> {
       // Try to extract JSON from the response (handles markdown code blocks)
       let jsonStr = content;
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
+      if (jsonMatch && jsonMatch[1] !== undefined) {
         jsonStr = jsonMatch[1];
       }
       

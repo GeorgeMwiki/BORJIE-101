@@ -83,11 +83,13 @@ export function classifyInitialTurn(userText: string): Intent {
   hits.sort((a, b) => b.score - a.score);
 
   // If we have a clear winner, route directly. Otherwise, Estate Manager.
-  if (hits.length === 1 || (hits.length >= 2 && hits[0].score > hits[1].score)) {
+  const top = hits[0];
+  const second = hits[1];
+  if (top !== undefined && (hits.length === 1 || (second !== undefined && top.score > second.score))) {
     return {
-      personaId: hits[0].personaId,
-      confidence: Math.min(0.9, 0.5 + 0.1 * hits[0].score),
-      rationale: `keyword_match:${hits[0].personaId}(score=${hits[0].score})`,
+      personaId: top.personaId,
+      confidence: Math.min(0.9, 0.5 + 0.1 * top.score),
+      rationale: `keyword_match:${top.personaId}(score=${top.score})`,
     };
   }
 
@@ -122,7 +124,8 @@ export function parseHandoffDirective(
   const objectiveMatch = text.match(/OBJECTIVE:\s*([^\n\r]+)/);
   if (!handoffMatch) return null;
   const targetPersonaId = handoffMatch[1];
-  const objective = objectiveMatch
+  if (targetPersonaId === undefined) return null;
+  const objective = objectiveMatch && objectiveMatch[1] !== undefined
     ? objectiveMatch[1].trim()
     : '(no explicit objective)';
   return { targetPersonaId, objective };
@@ -146,9 +149,12 @@ export function parseProposedAction(text: string): ProposedAction | null {
     /PROPOSED_ACTION:\s*(\S+)\s+([^\n\r]{1,500}?)(?:\s*\[risk:(LOW|MEDIUM|HIGH|CRITICAL)\])?\s*(?:\r?\n|$)/i
   );
   if (!m) return null;
+  const verb = m[1];
+  const objectRaw = m[2];
+  if (verb === undefined || objectRaw === undefined) return null;
   return {
-    verb: m[1],
-    object: m[2].trim(),
+    verb,
+    object: objectRaw.trim(),
     riskLevel: (m[3]?.toUpperCase() as ProposedAction['riskLevel']) ?? 'MEDIUM',
   };
 }

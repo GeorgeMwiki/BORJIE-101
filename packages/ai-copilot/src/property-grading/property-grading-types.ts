@@ -200,7 +200,7 @@ export interface PortfolioGrade {
     readonly previousScore: number;
     readonly delta: number;
     readonly direction: 'up' | 'down' | 'flat';
-  };
+  } | undefined;
   readonly weightBy: 'unit_count' | 'asset_value' | 'equal';
   readonly computedAt: string;
 }

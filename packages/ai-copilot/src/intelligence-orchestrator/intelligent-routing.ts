@@ -160,6 +160,14 @@ export function routeAdminQuery(
   }
   scored.sort((a, b) => b.score - a.score);
   const top = scored[0];
+  if (top === undefined) {
+    return {
+      destination: config.defaultDestination,
+      confidence: 0.3,
+      rationale: 'no keyword match — default route',
+      fetchersToPrime: ['payments', 'maintenance', 'compliance'],
+    };
+  }
   // total possible score = top rule's keyword count; cap confidence at 0.95
   const maxScore = top.rule.keywords.length;
   const confidence = Math.min(0.95, 0.5 + (top.score / maxScore) * 0.45);

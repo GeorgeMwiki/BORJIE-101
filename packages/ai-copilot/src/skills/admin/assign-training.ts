@@ -32,7 +32,7 @@ export interface AssignTrainingResult {
   readonly trainingPathId: string;
   readonly assigneeCount: number;
   readonly assignedAt: string;
-  readonly dueDateIso?: string;
+  readonly dueDateIso?: string | undefined;
   readonly mandatory: boolean;
 }
 

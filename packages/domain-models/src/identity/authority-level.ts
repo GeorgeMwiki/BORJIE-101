@@ -139,7 +139,7 @@ export function compareAuthority(a: AuthorityLevelId, b: AuthorityLevelId): numb
  * carries an authority level.
  */
 export interface AuthoritySubject {
-  readonly authorityLevel?: AuthorityLevelId;
+  readonly authorityLevel?: AuthorityLevelId | undefined;
 }
 
 /**

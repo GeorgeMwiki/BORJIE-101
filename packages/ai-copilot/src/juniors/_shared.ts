@@ -140,7 +140,7 @@ export function parseClaudeJson(raw: string):
   | { ok: true; value: unknown }
   | { ok: false; error: string } {
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = (fenceMatch ? fenceMatch[1] : raw).trim();
+  const candidate = (fenceMatch && fenceMatch[1] !== undefined ? fenceMatch[1] : raw).trim();
   try {
     return { ok: true, value: JSON.parse(candidate) };
   } catch (error) {
@@ -166,10 +166,10 @@ export interface RunClaudeArgs<TSchema extends ZodSchema> {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly schema: TSchema;
-  readonly model?: string;
-  readonly maxTokens?: number;
-  readonly temperature?: number;
-  readonly logger?: JuniorLogger;
+  readonly model?: string | undefined;
+  readonly maxTokens?: number | undefined;
+  readonly temperature?: number | undefined;
+  readonly logger?: JuniorLogger | undefined;
   readonly juniorName: string;
 }
 

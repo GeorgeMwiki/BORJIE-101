@@ -124,7 +124,7 @@ export interface MultiLLMRouterDeps {
    * is the primary, remaining are fallbacks (same shape as BORJIE
    * Wave 10 "preferred/fallback" pattern).
    */
-  readonly fallbackChains?: Partial<Record<TaskType, string[]>>;
+  readonly fallbackChains?: Partial<Record<TaskType, string[]>> | undefined;
   /**
    * Optional structured logger. The router emits one warn() per
    * rate-limited fallback so platform observability can correlate cool-off

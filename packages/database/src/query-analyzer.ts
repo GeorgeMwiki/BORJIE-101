@@ -170,7 +170,7 @@ function summarisePlan(input: SummariseInput): PlanSummary {
       if (node['Node Type'] === 'Seq Scan' && typeof node['Relation Name'] === 'string') {
         seqScans.push({
           relationName: node['Relation Name'],
-          filter: typeof node.Filter === 'string' ? node.Filter : undefined,
+          ...(typeof node.Filter === 'string' ? { filter: node.Filter } : {}),
           actualRows: (node['Actual Rows'] as number) ?? 0,
           actualTotalMs: (node['Actual Total Time'] as number) ?? 0,
         })

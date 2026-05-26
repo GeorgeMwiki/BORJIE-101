@@ -41,8 +41,8 @@ export interface BackgroundInsight {
   readonly evidenceRefs: readonly EvidenceRef[];
   readonly actionPlan: ActionPlan;
   readonly createdAt: string;
-  readonly acknowledgedAt?: string;
-  readonly acknowledgedBy?: string;
+  readonly acknowledgedAt?: string | undefined;
+  readonly acknowledgedBy?: string | undefined;
   readonly dedupeKey: string;
 }
 

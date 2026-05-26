@@ -126,6 +126,9 @@ export class PostgresInsightStore implements InsightStore {
       ],
     );
     const row = rows[0];
+    if (row === undefined) {
+      throw new Error('intelligence-store: insert returned no rows');
+    }
     return mapRow(row);
   }
 
@@ -185,8 +188,8 @@ function mapRow(row: Record<string, unknown>): BackgroundInsight {
     }) as BackgroundInsight['actionPlan'],
     dedupeKey: String(row.dedupe_key),
     createdAt: String(row.created_at),
-    acknowledgedAt: row.acknowledged_at ? String(row.acknowledged_at) : undefined,
-    acknowledgedBy: row.acknowledged_by ? String(row.acknowledged_by) : undefined,
+    ...(row.acknowledged_at ? { acknowledgedAt: String(row.acknowledged_at) } : {}),
+    ...(row.acknowledged_by ? { acknowledgedBy: String(row.acknowledged_by) } : {}),
   };
 }
 

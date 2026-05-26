@@ -237,5 +237,5 @@ export function findBestMapping(match: PatternMatch): FieldMapping | null {
     m.sourceKinds.includes(match.kind) && match.confidence >= m.confidenceFloor,
   );
   if (candidates.length === 0) return null;
-  return [...candidates].sort((a, b) => b.priority - a.priority)[0];
+  return [...candidates].sort((a, b) => b.priority - a.priority)[0] ?? null;
 }

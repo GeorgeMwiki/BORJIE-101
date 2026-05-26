@@ -21,11 +21,11 @@ import { scoreToGrade } from './scoring-model.js';
 export type WeightBy = 'equal' | 'unit_count' | 'asset_value';
 
 export interface AggregateOptions {
-  readonly weightBy?: WeightBy;
+  readonly weightBy?: WeightBy | undefined;
   /** Optional per-property weights used when `weightBy` requires a number. */
-  readonly weightsByPropertyId?: Readonly<Record<string, number>>;
+  readonly weightsByPropertyId?: Readonly<Record<string, number>> | undefined;
   /** Previous portfolio score (for trajectory). */
-  readonly previousScore?: number;
+  readonly previousScore?: number | undefined;
 }
 
 /** Build an empty distribution record keyed by every PropertyGrade. */

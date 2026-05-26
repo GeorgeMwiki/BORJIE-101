@@ -88,7 +88,7 @@ export function createVoiceAgent(deps: VoiceAgentDeps): VoiceAgent {
       const budgetContext = {
         tenantId: input.tenantId,
         operation: 'ai-native.voice-agent.turn',
-        correlationId: input.correlationId,
+        ...(input.correlationId !== undefined ? { correlationId: input.correlationId } : {}),
       };
 
       try {
@@ -115,7 +115,7 @@ export function createVoiceAgent(deps: VoiceAgentDeps): VoiceAgent {
         try {
           const res = await deps.resolveCustomer.resolve({
             tenantId: input.tenantId,
-            phone: input.callerPhone,
+            ...(input.callerPhone !== undefined ? { phone: input.callerPhone } : {}),
           });
           customerId = res?.customerId ?? null;
         } catch {
@@ -140,7 +140,7 @@ export function createVoiceAgent(deps: VoiceAgentDeps): VoiceAgent {
         try {
           const sttRes = await deps.stt.transcribe({
             audioUrl: input.audioUrl,
-            languageHint: input.detectedLanguage,
+            ...(input.detectedLanguage !== undefined ? { languageHint: input.detectedLanguage } : {}),
           });
           if (!sttRes) {
             return {

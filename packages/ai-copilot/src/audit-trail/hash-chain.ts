@@ -96,7 +96,7 @@ export function verifySignature(
   // Use a constant-time comparison for defence in depth.
   let diff = 0;
   for (let i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
+    diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
   }
   return diff === 0;
 }

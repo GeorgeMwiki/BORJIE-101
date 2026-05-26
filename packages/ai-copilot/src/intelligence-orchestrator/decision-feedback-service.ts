@@ -30,7 +30,7 @@ export interface DecisionFeedbackRecord {
     readonly riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   };
   readonly operatorVerdict: OperatorVerdict;
-  readonly reason?: string;
+  readonly reason?: string | undefined;
   readonly createdAt: string;
 }
 

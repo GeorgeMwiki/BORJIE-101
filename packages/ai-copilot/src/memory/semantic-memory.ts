@@ -99,9 +99,11 @@ export function cosineSimilarity(
   let magA = 0;
   let magB = 0;
   for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
+    const ai = a[i] ?? 0;
+    const bi = b[i] ?? 0;
+    dot += ai * bi;
+    magA += ai * ai;
+    magB += bi * bi;
   }
   const denom = Math.sqrt(magA) * Math.sqrt(magB);
   return denom === 0 ? 0 : dot / denom;
@@ -118,11 +120,15 @@ export function createHashEmbedder(dims = 64): Embedder {
     const cleaned = text.toLowerCase();
     for (let i = 0; i < cleaned.length; i++) {
       const code = cleaned.charCodeAt(i);
-      vec[code % dims] += 1;
+      const idx = code % dims;
+      vec[idx] = (vec[idx] ?? 0) + 1;
     }
     // L2 normalise so similarity is scale-invariant.
     let mag = 0;
-    for (let i = 0; i < dims; i++) mag += vec[i] * vec[i];
+    for (let i = 0; i < dims; i++) {
+      const vi = vec[i] ?? 0;
+      mag += vi * vi;
+    }
     mag = Math.sqrt(mag);
     if (mag === 0) return vec;
     return vec.map((v) => v / mag);
@@ -184,7 +190,7 @@ export function createSemanticMemory(deps: SemanticMemoryDeps): SemanticMemory {
       const limit = options?.limit ?? 5;
       const minSim = options?.minSimilarity ?? 0.2;
       const candidates = await deps.repo.listForTenant(tenantId, {
-        personaId: options?.personaId,
+        ...(options?.personaId !== undefined ? { personaId: options.personaId } : {}),
         limit: Math.max(limit * 10, 100),
       });
 

@@ -57,9 +57,9 @@ export interface AgentCertificate {
   readonly expiresAt: string;
   readonly signature: string;
   readonly revoked: boolean;
-  readonly revokedAt?: string;
-  readonly revokedReason?: string;
-  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly revokedAt?: string | undefined;
+  readonly revokedReason?: string | undefined;
+  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface IssueCertificateInput {

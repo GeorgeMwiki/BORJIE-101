@@ -46,7 +46,7 @@ export interface TenantNoticeDraft {
   subject: string;
   body: string;
   /** For SMS, body is auto-truncated to 160 chars and flagged. */
-  truncated?: boolean;
+  truncated?: boolean | undefined;
 }
 
 export interface TenantNoticeBatch {
@@ -103,7 +103,7 @@ export function draftTenantNotices(
       channel,
       subject: notice.subject,
       body,
-      truncated: truncated || undefined,
+      ...(truncated ? { truncated: true as const } : {}),
     });
   }
 
@@ -540,7 +540,7 @@ export function planVisualAnnouncement(
         inputs: {
           prompt,
           style: params.coverImagery.style,
-          brandPalette: params.coverImagery.brandPalette,
+          ...(params.coverImagery.brandPalette !== undefined ? { brandPalette: params.coverImagery.brandPalette } : {}),
         },
         note: 'MARKETING IMAGERY ONLY — supplemental to the document',
       },
