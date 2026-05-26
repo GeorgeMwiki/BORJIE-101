@@ -50,9 +50,9 @@ export const RoutingPredicateSchema: z.ZodType<RoutingPredicate> = z.lazy(() =>
 );
 
 export interface RoutingPredicate {
-  readonly all?: ReadonlyArray<RoutingCondition>;
-  readonly any?: ReadonlyArray<RoutingCondition>;
-  readonly not?: RoutingPredicate;
+  readonly all?: RoutingCondition[] | undefined;
+  readonly any?: RoutingCondition[] | undefined;
+  readonly not?: RoutingPredicate | undefined;
 }
 
 export const RoutingTargetSchema = z.object({
