@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/cognitive-memory",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Unified Cognitive Memory (Wave 18W) — single shared semantic memory store with provenance, promotion lifecycle, cross-specialisation reinforcement, and federated cross-tenant patterns. Mr. Mwikila and his 27+ specialisations are ONE mind, not many silos.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
