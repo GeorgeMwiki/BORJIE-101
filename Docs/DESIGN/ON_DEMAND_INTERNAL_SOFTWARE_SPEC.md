@@ -467,3 +467,24 @@ because the software is the work, generated on demand.*
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked decisions that override prior defaults in this spec. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### Override — Decision #5 (Cross-tenant template sharing — federation_consents scope='tools')
+
+**Verbatim**: *FOLD into federation consent. Cross-tenant template sharing IS a federation-consent surface; do NOT build a separate consent UI.*
+
+**Effect on this spec**:
+- The `internal_tools` table from migration 0039 gains a `federation_scope` column (nullable). When a tenant authors a tool tagged `reusable_as_template`, sharing it cross-tenant requires that the tenant has an active row in `federation_consents` with `scope = 'tools'` (per Wave M10 migration 0040).
+- No new table, no new consent UI; reuses the existing `federation_consents` surface.
+- Templates surfaced to other tenants are auto-stripped of tenant-specific data: entity IDs hashed via the existing `packages/session-mirror/` salted-hash pattern; LLM prompts re-templated to use placeholders.
+- The federation-consent dashboard (M10 spec) gains a "Templates" row; toggling it on/off flips `federation_consents.scope = 'tools'` rows on/off in a single click.
+- Cross-references: `Docs/DESIGN/STRATEGIC_DIRECTION_LAYER_SPEC.md` (consent dashboard surface) and `Docs/DESIGN/SELF_IMPROVE_AND_DP_FEDERATION_SPEC.md` (meta-learning consumer reads same table).
+
+**Action**: `packages/internal-software-generator/` adds the `federation_scope` field + enforcement gate. The gate refuses any cross-tenant template publish unless the producer tenant has an active `federation_consents.scope = 'tools'` row.
+
+**Rationale**: Founder-locked unification: every cross-tenant data flow (templates, meta-learning gradients, anonymised insights) routes through one consent surface so the owner sees one toggle, one audit trail, one revocation path.
