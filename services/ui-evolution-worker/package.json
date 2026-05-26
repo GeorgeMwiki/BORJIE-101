@@ -1,0 +1,45 @@
+{
+  "name": "@borjie/ui-evolution-worker",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Layer 4 of the Anticipatory UX architecture — telemetry aggregator + Lock/Improve decision engine + owner-approval proposal emitter. Consumes ui_telemetry_events, computes per-recipe rolling 14/60-day fitness scores, and lands Tier-1 evolution proposals in ui_evolution_proposals for owner sign-off. See Docs/DESIGN/ANTICIPATORY_UX_SPEC.md §4 + §5.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/brain-llm-router": "workspace:*",
+    "@borjie/database": "workspace:*",
+    "@borjie/dynamic-ui": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "ioredis": "^5.10.1",
+    "node-cron": "^3.0.3",
+    "postgres": "^3.4.5",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
