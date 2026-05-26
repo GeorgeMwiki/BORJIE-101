@@ -113,18 +113,29 @@ fi
 # -----------------------------------------------------------------------------
 # Step 3 - Block staged .env / private-key files (defence in depth)
 # -----------------------------------------------------------------------------
+# Two-stage filter to avoid a long-standing scope-leak bug where the
+# previous single-pass regex caught documentation templates:
+#   1. Match any candidate secret-bearing path (.env*, *.pem, *.p12, *.pfx,
+#      id_rsa, *-private-key*.json).
+#   2. Then drop the legitimate documentation templates whose names end in
+#      `.example` or `.template` (with any chain of allowed dot-separated
+#      components before, so `.env.docker.example` and
+#      `.env.production.template` are both allowed through).
+# CI workflows remain the authoritative gate; this is a local fast-path.
 STAGED_RISKY=$(
   git diff --cached --name-only --diff-filter=AM \
-    | grep -E '(^|/)(\.env(\.[a-zA-Z0-9_-]+)?$|.*\.pem$|.*\.p12$|.*\.pfx$|id_rsa($|\.pub$)|.*-private-key.*\.json$)' \
+    | grep -E '(^|/)(\.env(\.[a-zA-Z0-9_.-]+)?|.*\.pem|.*\.p12|.*\.pfx|id_rsa(\.pub)?|.*-private-key.*\.json)$' \
+    | grep -Ev '(^|/)\.env(\.[a-zA-Z0-9_-]+)*\.(example|template)$' \
   || true
 )
 if [ -n "${STAGED_RISKY}" ]; then
   echo "[husky/pre-commit] ERROR: refusing to commit secret-bearing files:"
   echo "${STAGED_RISKY}"
   echo ""
-  echo "Move secrets to the cloud vault. Use .env.example with placeholder"
-  echo "values for documentation. If this file is intentional (.env.example),"
-  echo "rename it explicitly."
+  echo "Move secrets to the cloud vault. Use .env.example or .env.template"
+  echo "with placeholder values for documentation — those are allowed."
+  echo "If a real .env file slipped into the stage, run \`git restore --staged\`"
+  echo "and rotate any secret that was about to be committed."
   exit 1
 fi
 
