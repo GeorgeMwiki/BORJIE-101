@@ -43,7 +43,7 @@ jobs:
       TYPECHECK_ERROR_BUDGET: "50"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
