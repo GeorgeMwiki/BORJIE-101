@@ -889,3 +889,19 @@ export * from './universal-language-packs.schema.js';
 // Consumed by @borjie/employee-perf-followup.
 // See Docs/DESIGN/EMPLOYEE_DAILY_PERFORMANCE_FOLLOWUP_SPEC.md.
 export * from './employee-perf-followup.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18M — Dynamic Authored Recipes (migration 0066)
+// ---------------------------------------------------------------------------
+// One tenant-scoped table backing migration
+// 0066_dynamic_authored_recipes.sql:
+//   dynamic_authored_recipes — LLM-authored, lifecycle-governed
+//                              registry of dynamic recipes (tab | doc |
+//                              media | campaign | tool). One row per
+//                              (tenant_id, kind, name, version) with
+//                              prev_hash + audit_hash for forensic
+//                              replay against the per-tenant authoring
+//                              chain.
+// Consumed by @borjie/dynamic-recipe-authoring.
+// See Docs/DESIGN/DYNAMIC_RECIPE_AUTHORING_SPEC.md.
+export * from './dynamic-authored-recipes.schema.js';
