@@ -26,12 +26,17 @@ import type {
 } from './useBorjieChat';
 import { BorjieModeSelector } from './BorjieModeSelector';
 import { BorjieChatBubble } from './BorjieChatBubble';
+// Display identity is locked — see CAPABILITIES_UNIFICATION.md
+// "User-facing identity is locked". Every header on the chat surface
+// renders the canonical name_full; specialisation/subtitle is
+// internal-only.
+import { MR_MWIKILA_CANONICAL_DISPLAY } from '../canonical-display.js';
 
-export const BORJIE_BRAND_EN = 'Mr. Mwikila — Borjie\'s AI Mining Operations Manager';
+export const BORJIE_BRAND_EN = MR_MWIKILA_CANONICAL_DISPLAY.name_full;
 export const BORJIE_BRAND_SW = 'Borjie — Meneja wa AI wa Shughuli za Mgodi';
 
 export const BORJIE_INTRO_EN =
-  "Hi, I'm Mr. Mwikila — Borjie's AI Mining Operations Manager. I run your mining business end-to-end. Ask me about your sites, licences, ore parcels, FX exposure, or anything in the mining corpus.";
+  `Hi, I'm ${MR_MWIKILA_CANONICAL_DISPLAY.name_full}. I run your mining business end-to-end. Ask me about your sites, licences, ore parcels, FX exposure, or anything in the mining corpus.`;
 export const BORJIE_INTRO_SW =
   'Habari, mimi ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Ninaendesha biashara yako ya mgodi mwanzo hadi mwisho. Niulize kuhusu migodi yako, leseni, vifurushi vya madini, hatari ya kubadilisha sarafu, au lolote katika kanzi ya uchimbaji madini.';
 
@@ -44,9 +49,9 @@ interface BorjieChatPanelProps {
   readonly onClose: () => void;
   readonly variant: 'floating' | 'bottom-sheet';
   readonly authenticated: boolean;
-  readonly signInHref?: string;
+  readonly signInHref?: string | undefined;
   readonly onSend: (text: string) => Promise<void>;
-  readonly onOpenEvidence?: (evidenceId: string) => void;
+  readonly onOpenEvidence?: ((evidenceId: string) => void) | undefined;
 }
 
 export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {

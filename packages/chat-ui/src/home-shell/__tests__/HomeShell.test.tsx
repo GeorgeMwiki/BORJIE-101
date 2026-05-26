@@ -25,12 +25,18 @@ describe('HomeShell', () => {
     cleanup();
   });
 
-  it('renders the full-screen shell with the resolved persona header', () => {
+  it('renders the full-screen shell with the locked canonical persona header', () => {
+    // Display identity is locked — the header always shows
+    // "Mr. Mwikila — Borjie's AI Mining Operations Manager",
+    // regardless of which internal specialisation routed the turn.
+    // See CAPABILITIES_UNIFICATION.md "User-facing identity is locked".
     render(<HomeShell {...baseProps()} />);
     expect(screen.getByTestId('home-shell')).toBeInTheDocument();
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
-    expect(header.textContent ?? '').toContain('Managing Director');
+    expect(header.textContent ?? '').toContain(
+      "Borjie's AI Mining Operations Manager",
+    );
   });
 
   it('shows the Open Dashboard CTA when enabled', () => {
@@ -57,7 +63,11 @@ describe('HomeShell', () => {
     expect(input.placeholder).toBe('Andika hapa…');
   });
 
-  it('routes worker role to safety junior in the header', () => {
+  it('routes worker role through the audience resolver but ALWAYS shows the canonical header', () => {
+    // The audience resolver still routes the worker to the safety
+    // specialisation internally (audit logs, backend routing), but the
+    // user-facing header is locked to Mr. Mwikila. The internal
+    // specialisation never surfaces in the chat UI.
     render(
       <HomeShell
         {...baseProps({
@@ -67,10 +77,14 @@ describe('HomeShell', () => {
       />,
     );
     const header = screen.getByTestId('home-persona-header');
-    expect(header.textContent ?? '').toContain('Safety Officer');
+    expect(header.textContent ?? '').toContain('Mr. Mwikila');
+    expect(header.textContent ?? '').toContain(
+      "Borjie's AI Mining Operations Manager",
+    );
+    expect(header.textContent ?? '').not.toContain('Safety Officer');
   });
 
-  it('routes buyer role to marketplace junior', () => {
+  it('routes buyer role through the audience resolver but ALWAYS shows the canonical header', () => {
     render(
       <HomeShell
         {...baseProps({
@@ -80,7 +94,11 @@ describe('HomeShell', () => {
       />,
     );
     const header = screen.getByTestId('home-persona-header');
-    expect(header.textContent ?? '').toContain('Marketplace Concierge');
+    expect(header.textContent ?? '').toContain('Mr. Mwikila');
+    expect(header.textContent ?? '').toContain(
+      "Borjie's AI Mining Operations Manager",
+    );
+    expect(header.textContent ?? '').not.toContain('Marketplace Concierge');
   });
 
   it('renders the history rail when variant is split_with_history', () => {

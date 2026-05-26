@@ -38,6 +38,11 @@ import {
   type BorjieMode,
 } from './useBorjieChat';
 import { BorjieChatPanel } from './BorjieChatPanel';
+// Display identity is locked — see CAPABILITIES_UNIFICATION.md
+// "User-facing identity is locked". The FAB label sources from the
+// single canonical constant so the bubble never drifts away from the
+// chat-panel header.
+import { MR_MWIKILA_CANONICAL_DISPLAY } from '../canonical-display.js';
 
 const STORAGE_OPEN = 'borjie.chat.open';
 const STORAGE_MODE = 'borjie.chat.mode';
@@ -317,5 +322,7 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
   );
 }
 
-// Brand placeholder kept for downstream consumers (e.g. tests + custom shells).
-export const BORJIE_FAB_LABEL = 'Borjie';
+// Brand label for the floating FAB. Sourced from the canonical
+// constant so the bubble copy never drifts from the chat-panel header.
+// See CAPABILITIES_UNIFICATION.md "User-facing identity is locked".
+export const BORJIE_FAB_LABEL = MR_MWIKILA_CANONICAL_DISPLAY.name;
