@@ -2,14 +2,14 @@
  * Kernel grounding service — Drizzle-backed
  * `GroundingFactsProvider` implementation.
  *
- * TODO(borjie-hard-fork): the original implementation read occupancy,
- * vacant unit count, active leases, open work-orders, and lease-
- * expiring counts from property-domain tables (properties, units,
- * leases, work_orders, customers) that were deleted in migration
- * 0003_mining_domain.sql. This file is a no-op shim that returns an
- * empty fact set so the kernel composition root keeps booting. Restore
- * mining-domain equivalents (production-sales tonnage, fleet
- * utilisation, open licences, etc.) before re-enabling grounding.
+ * TODO(#29): the original implementation read occupancy, vacant unit
+ * count, active leases, open work-orders, and lease-expiring counts
+ * from property-domain tables (properties, units, leases, work_orders,
+ * customers) that were deleted in migration 0003_mining_domain.sql.
+ * This file is a no-op shim that returns an empty fact set so the
+ * kernel composition root keeps booting. Restore mining-domain
+ * equivalents (production-sales tonnage, fleet utilisation, open
+ * licences, etc.) before re-enabling grounding.
  */
 
 import type { DatabaseClient } from '../client.js';

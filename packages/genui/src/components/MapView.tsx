@@ -13,7 +13,7 @@
  * `ClientOnly` mount guard instead of `next/dynamic`. Leaflet
  * hard-depends on `window`; SSR rendering would crash.
  *
- * Follow-up (Docs/TODO_BACKLOG.md): offline tile cache via localStorage / IndexedDB. The TZ field
+ * Follow-up (#33): offline tile cache via localStorage / IndexedDB. The TZ field
  * staff hit dead zones; warm-loading tiles when a property is opened
  * lets inspections continue offline. Not in this slice.
  */

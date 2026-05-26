@@ -11,7 +11,7 @@
  * real usage warehouse export lands, this returns an empty series
  * with `X-Backend-Status: degraded`.
  *
- * Follow-up api-gateway, ANL-USAGE-001 (Docs/TODO_BACKLOG.md): wire the usage aggregator.
+ * Follow-up api-gateway, ANL-USAGE-001 (#33): wire the usage aggregator.
  *   Concrete next-step:
  *     1. Add `analytics_usage_daily` warehouse table populated by the
  *        outbox worker from `audit_events`.

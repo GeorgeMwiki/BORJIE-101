@@ -157,6 +157,13 @@ export const buyers = pgTable(
     bankingJsonb: jsonb('banking_jsonb').notNull().default({}),
     paymentHistoryJsonb: jsonb('payment_history_jsonb').notNull().default([]),
     attributes: jsonb('attributes').notNull().default({}),
+    /**
+     * Portal-user binding (migration 0010). Set on KYC submission so
+     * the bids route can resolve the calling user → buyer in one
+     * query, replacing the contact_name = user_id heuristic. NULL for
+     * legacy / platform-level buyers without a portal account.
+     */
+    linkedUserId: text('linked_user_id'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -168,6 +175,7 @@ export const buyers = pgTable(
     tenantIdx: index('buyers_tenant_idx').on(t.tenantId),
     kindIdx: index('buyers_kind_idx').on(t.tenantId, t.kind),
     kycIdx: index('buyers_kyc_idx').on(t.tenantId, t.kycStatus),
+    linkedUserIdx: index('buyers_linked_user_idx').on(t.linkedUserId),
   }),
 );
 

@@ -419,8 +419,8 @@ export function projectArtifactToUiPart(
     }
 
     case 'gantt': {
-      // Project to workflow steps (sequenced bars). Richer gantt is a
-      // follow-up TODO; the projection preserves order + status.
+      // Project to workflow steps (sequenced bars). Richer gantt is
+      // tracked in TODO(#37); this projection preserves order + status.
       const bars = asArray<Record<string, unknown>>(data.bars);
       const steps: ReadonlyArray<WorkflowStep> = bars.map((bar) => ({
         label: asString(bar.label, 'Task'),

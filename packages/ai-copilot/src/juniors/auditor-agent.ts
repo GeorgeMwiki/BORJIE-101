@@ -12,7 +12,7 @@
  *      and returns approve/reject + missing-evidence list.
  *
  * Schema gap: `audit_log` table not in Drizzle schemas — raw SQL write.
- * TODO(phase-3): add `audit_log` schema (id, tenant_id, recommendation,
+ * TODO(#30): add `audit_log` schema (id, tenant_id, recommendation,
  *   verdict, missing, created_at).
  */
 
@@ -153,7 +153,7 @@ async function persistAudit(
     const { sql } = await import('drizzle-orm');
     const payload = JSON.stringify(input.recommendation);
     const missingArr = `{${missing.map((m) => `"${m.replace(/"/g, '\\"')}"`).join(',')}}`;
-    // TODO(phase-3): typed insert against `audit_log` once Drizzle schema exists.
+    // TODO(#30): typed insert against `audit_log` once Drizzle schema exists.
     await deps.db.execute(
       sql`INSERT INTO audit_log (id, tenant_id, recommendation, verdict, missing, created_at)
           VALUES (${auditLogId}, ${input.tenantId}, ${payload}::jsonb, ${verdict}, ${missingArr}::text[], NOW())

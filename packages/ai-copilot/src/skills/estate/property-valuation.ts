@@ -27,7 +27,7 @@ export const PropertyValuationParamsSchema = z.object({
   ageYears: z.number().int().nonnegative(),
   condition: z.enum(['excellent', 'good', 'fair', 'poor']).default('good'),
   comparables: z.array(ComparableSchema).min(1).max(30),
-  // Follow-up KI-005 (Docs/TODO_BACKLOG.md): caller should pass tenant.defaultCurrency resolved
+  // Follow-up KI-005 (#33): caller should pass tenant.defaultCurrency resolved
   //   from the country plugin. Any ISO-4217 code is accepted today; the
   //   USD fallback is neutral. See Docs/KNOWN_ISSUES.md#ki-005.
   currency: z.string().length(3).default('USD'),

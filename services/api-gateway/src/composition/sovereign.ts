@@ -80,9 +80,9 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
-// TODO(borjie-hard-fork): `@borjie/market-intelligence` was a property-
-// vertical package (Zillow / Airbnb rental comps). Mining equivalents
-// (LME spot prices, Argus DRC tin index, etc.) will live under a new
+// TODO(#29): `@borjie/market-intelligence` was a property-vertical
+// package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
+// prices, Argus DRC tin index, etc.) will live under a new
 // `@borjie/commodity-intelligence` package. Until that lands the
 // MarketDataPort is stubbed and `buildMarketDataPort` always returns
 // null so the kernel tools singleton becomes a no-op.
@@ -587,7 +587,7 @@ function maybeBuildDpAggregator(
 // `getMarketDataKernelTools()` for the future agent-loop wiring to
 // pick up. See the inline follow-up note below.
 //
-// Follow-up agent-loop (Docs/TODO_BACKLOG.md): when the api-gateway grows an agent-loop
+// Follow-up agent-loop (#33): when the api-gateway grows an agent-loop
 // composition root (parallel to this sovereign one), thread the bundle
 // returned by `getMarketDataKernelTools()` into its `createToolRegistry`
 // input. The registry surface is documented in

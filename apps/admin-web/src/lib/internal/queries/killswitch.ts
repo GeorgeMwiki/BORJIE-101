@@ -2,41 +2,94 @@
  * react-query bindings for /api/v1/mining/internal/killswitch.
  *
  * Live endpoints (services/api-gateway/src/routes/mining/internal/killswitch.hono.ts):
- *   POST  /     set kill-switch state for a scope ({platform | tenant:<id>})
+ *   GET   /                    list active kill-switch state per scope
+ *   POST  /                    initiate kill-switch change (two-operator RBAC)
+ *   POST  /:id/confirm         second operator confirms; fires the switch
+ *   GET   /pending             list pending confirmations actionable by caller
  *
- * NOTE: the gateway does not expose a list endpoint yet — the
- * per-junior view stays mock-only (TODO: add `GET /` to the route once
- * the platform_killswitch_state schema supports junior-grained queries).
+ * The legacy single-shot `useSetKillswitch` is replaced by the
+ * initiate -> confirm flow (issue #24). Live-only: failures propagate
+ * to react-query's `error` channel.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { MOCK_KILLSWITCH } from '@/lib/mocks/killswitch';
-import type { KillswitchRow, SwitchState } from '@/lib/mocks/types';
+import type { KillswitchRow, SwitchState } from '@/lib/internal/types';
 
-const KEY = ['internal', 'killswitch'] as const;
+const ROWS_KEY = ['internal', 'killswitch', 'rows'] as const;
+const PENDING_KEY = ['internal', 'killswitch', 'pending'] as const;
 
 interface KillswitchResult {
   readonly rows: ReadonlyArray<KillswitchRow>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
-/** TODO: replace with live GET when gateway exposes one. */
+interface RawKillswitchRow {
+  readonly id?: string;
+  readonly scope?: string;
+  readonly level?: 'live' | 'degraded' | 'halt';
+  readonly setAt?: string;
+  readonly setBy?: string;
+}
+
+function stateFromLevel(level: RawKillswitchRow['level']): SwitchState {
+  if (level === 'live') return 'OK';
+  if (level === 'degraded') return 'DEGRADED';
+  return 'HALT';
+}
+
+function adaptKillswitch(raw: RawKillswitchRow): KillswitchRow {
+  const scope = raw.scope ?? 'platform';
+  const juniorId = scope === 'platform' ? 'global' : scope.replace(/^tenant:/, '');
+  return {
+    juniorId,
+    junior: juniorId,
+    state: stateFromLevel(raw.level),
+    updatedAt: raw.setAt ?? new Date().toISOString(),
+    updatedBy: raw.setBy ?? 'system',
+  };
+}
+
 export function useKillswitchQuery() {
   return useQuery({
-    queryKey: KEY,
+    queryKey: ROWS_KEY,
     queryFn: async (): Promise<KillswitchResult> => {
-      // Always falls back: there is no list endpoint upstream yet.
-      return { rows: MOCK_KILLSWITCH, source: 'mock' };
+      const res = await apiClient.get<ReadonlyArray<RawKillswitchRow>>('/killswitch');
+      if (!res.ok) throw new Error(res.message);
+      return { rows: res.data.map(adaptKillswitch), source: 'live' };
     },
   });
 }
 
-interface SetStateInput {
+// ----------------------------------------------------------------------------
+// Two-operator flow — issue #24 hardening
+// ----------------------------------------------------------------------------
+
+export interface PendingTarget {
+  readonly scope: string;
+  readonly level: 'live' | 'degraded' | 'halt';
+  readonly reasonCode: string;
+  readonly note?: string;
+}
+
+export interface PendingConfirmation {
+  readonly id: string;
+  readonly killswitchTarget: PendingTarget;
+  readonly initiatorUserId: string;
+  readonly initiatedAt: string;
+  readonly expiresAt: string;
+}
+
+export interface InitiateResponse {
+  readonly pendingConfirmationId: string;
+  readonly target: PendingTarget;
+  readonly expiresAt: string;
+  readonly waitingForSecondOperator: boolean;
+}
+
+interface InitiateInput {
   readonly juniorId: string;
   readonly state: SwitchState;
-  readonly firstOperatorId: string;
-  readonly secondOperatorId: string;
   readonly reasonCode?: string;
   readonly note?: string;
 }
@@ -48,63 +101,70 @@ function levelFromState(state: SwitchState): 'live' | 'degraded' | 'halt' {
 }
 
 function scopeForJunior(juniorId: string): string {
-  // Until the live API understands per-junior scopes we map the special
-  // `global` row to the platform-wide kill, and every other row to a
-  // tenant-scoped placeholder. The UI is unchanged.
   return juniorId === 'global' ? 'platform' : `tenant:${juniorId}`;
 }
 
-export function useSetKillswitch() {
+/**
+ * Initiate a two-operator kill switch. Returns the pending-confirmation
+ * id; the UI surfaces it and starts polling /pending so the second
+ * operator can confirm within 30s.
+ */
+export function useInitiateKillswitch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: SetStateInput): Promise<KillswitchRow> => {
-      const res = await apiClient.post<KillswitchRow>(
-        '/killswitch',
-        {
-          scope: scopeForJunior(input.juniorId),
-          level: levelFromState(input.state),
-          reasonCode: input.reasonCode ?? 'operator.manual',
-          note: input.note,
-        },
-        async () => {
-          const hit = MOCK_KILLSWITCH.find((k) => k.juniorId === input.juniorId);
-          return {
-            juniorId: input.juniorId,
-            junior: hit?.junior ?? input.juniorId,
-            state: input.state,
-            updatedAt: new Date().toISOString(),
-            updatedBy: `${input.firstOperatorId}+${input.secondOperatorId}`,
-          };
-        },
-        // X-Confirmation-Operator-Id header satisfies the gateway's
-        // four-eye policy on the live route.
-        { 'X-Confirmation-Operator-Id': input.secondOperatorId },
-      );
+    mutationFn: async (input: InitiateInput): Promise<InitiateResponse> => {
+      const res = await apiClient.post<InitiateResponse>('/killswitch', {
+        scope: scopeForJunior(input.juniorId),
+        level: levelFromState(input.state),
+        reasonCode: input.reasonCode ?? 'operator.manual',
+        note: input.note,
+      });
       if (!res.ok) throw new Error(res.message);
-      // Live responses use the platform_killswitch_state shape; coerce
-      // back into the front-end's KillswitchRow.
-      if (res.source === 'live') {
-        return {
-          juniorId: input.juniorId,
-          junior:
-            MOCK_KILLSWITCH.find((k) => k.juniorId === input.juniorId)?.junior ?? input.juniorId,
-          state: input.state,
-          updatedAt: new Date().toISOString(),
-          updatedBy: `${input.firstOperatorId}+${input.secondOperatorId}`,
-        };
-      }
       return res.data;
     },
-    onSuccess: (next) => {
-      const prev = qc.getQueryData<KillswitchResult>(KEY);
-      if (prev) {
-        qc.setQueryData<KillswitchResult>(KEY, {
-          ...prev,
-          rows: prev.rows.map((r) => (r.juniorId === next.juniorId ? next : r)),
-        });
-      } else {
-        qc.invalidateQueries({ queryKey: KEY });
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PENDING_KEY });
     },
+  });
+}
+
+/**
+ * Confirm a pending kill switch as the second operator. The gateway
+ * verifies caller != initiator AND both users hold matching authorities.
+ */
+export function useConfirmKillswitch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pendingId: string): Promise<{ readonly id: string }> => {
+      const res = await apiClient.post<{ readonly id: string }>(
+        `/killswitch/${encodeURIComponent(pendingId)}/confirm`,
+        {},
+      );
+      if (!res.ok) throw new Error(res.message);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PENDING_KEY });
+      qc.invalidateQueries({ queryKey: ROWS_KEY });
+    },
+  });
+}
+
+/**
+ * Poll for pending confirmations actionable by the current admin. The
+ * gateway hides rows the caller initiated so the same operator cannot
+ * approve themselves.
+ */
+export function usePendingConfirmations(pollMs = 5_000) {
+  return useQuery({
+    queryKey: PENDING_KEY,
+    queryFn: async (): Promise<ReadonlyArray<PendingConfirmation>> => {
+      const res = await apiClient.get<ReadonlyArray<PendingConfirmation>>(
+        '/killswitch/pending',
+      );
+      if (!res.ok) return [];
+      return res.data;
+    },
+    refetchInterval: pollMs,
   });
 }

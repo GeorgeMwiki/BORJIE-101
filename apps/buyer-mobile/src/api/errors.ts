@@ -19,3 +19,14 @@ export function isNetworkError(error: unknown): boolean {
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }
+
+/**
+ * The gateway responds to a bid attempt by a non-KYC'd user with
+ * 403 { error: { code: 'kyc_required' }, kyc_url: '...' }. Buyers must
+ * be redirected to that URL (/kyc) before they can bid.
+ */
+export function isKycRequiredError(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError && error.status === 403 && error.code === 'kyc_required'
+  )
+}

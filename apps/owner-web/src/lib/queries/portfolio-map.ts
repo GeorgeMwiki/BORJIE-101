@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiRequestOrFallback } from '@/lib/api-client';
-import { MAP_FEATURES, type MapFeature } from '@/lib/mocks/portfolio-map';
+import { apiRequest } from '@/lib/api-client';
+import type { MapFeature } from '@/lib/types/portfolio-map';
 
 export const portfolioMapKeys = {
   all: ['portfolio-map'] as const,
@@ -12,10 +12,9 @@ export const portfolioMapKeys = {
  * GeoJSON portfolio roll-up.
  *
  * Live endpoint: GET /api/v1/mining/portfolio-map
- * (services/api-gateway/src/routes/mining/portfolio-map.hono.ts). The
- * gateway returns a FeatureCollection; the front-end works against
- * the bundled `MapFeature[]` shape. We adapt the FeatureCollection if
- * present, otherwise pass through whatever the live route returned.
+ * (services/api-gateway/src/routes/mining/portfolio-map.hono.ts).
+ * The gateway returns a FeatureCollection; we adapt features into
+ * the front-end's `MapFeature` shape.
  */
 interface FeatureCollection {
   readonly type: 'FeatureCollection';
@@ -72,16 +71,8 @@ export function usePortfolioMap() {
   return useQuery({
     queryKey: portfolioMapKeys.all,
     queryFn: async ({ signal }): Promise<PortfolioMapResult> => {
-      const raw = await apiRequestOrFallback<unknown>(
-        '/api/v1/mining/portfolio-map',
-        { type: 'FeatureCollection', features: [] },
-        { signal },
-      );
-      const live = adaptFeatureCollection(raw);
-      // If the gateway returned no features, fall back to the bundled
-      // demo set so the map never looks empty in dev / offline.
-      const features = live.length > 0 ? live : MAP_FEATURES;
-      return { features, raw };
+      const raw = await apiRequest<unknown>('/api/v1/mining/portfolio-map', { signal });
+      return { features: adaptFeatureCollection(raw), raw };
     },
     staleTime: 5 * 60_000,
   });

@@ -20,7 +20,7 @@ export const licenceSchema = z.object({
   holder: z.string(),
   issuedISO: z.string(),
   expiresISO: z.string(),
-  /** Annual fee owed in TZS — TODO populate from gazette schedule. */
+  /** Annual fee owed in TZS — TODO(#31) populate from gazette schedule. */
   annualFeeTzs: z.number().nonnegative().default(0),
   status: z.enum(['active', 'lapsed', 'suspended', 'revoked']).default('active'),
 });

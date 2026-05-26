@@ -6,7 +6,7 @@
  * register + landowner relations + Swahili translation surface; the
  * village-csr-agent owns the CSR-delivery dashboard + commitment %.
  *
- * Schema gap: `grievance_records` raw SQL; TODO(phase-3).
+ * Schema gap: `grievance_records` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -128,7 +128,7 @@ export function createCommunityAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `grievance_records`.
+          // TODO(#30): typed insert against `grievance_records`.
           await deps.db.execute(
             sql`INSERT INTO grievance_records
                   (id, tenant_id, summary, created_at)

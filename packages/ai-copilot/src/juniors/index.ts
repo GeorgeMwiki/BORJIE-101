@@ -51,6 +51,29 @@
 export * from './_shared.js';
 
 // ─────────────────────────────────────────────────────────────────────
+// Per-junior execution (chat orchestrator's dispatch_plan runner)
+// ─────────────────────────────────────────────────────────────────────
+
+export {
+  synthesizeJuniorInput,
+  type SynthesisContext,
+  type SynthesisResult,
+  type SynthesisSuccess,
+  type SynthesisFailure,
+  type SynthesizeArgs,
+} from './synthesizer.js';
+
+export {
+  executeJuniors,
+  BorjieConfigError,
+  type JuniorExecutionResult,
+  type DispatchPlanStep,
+  type ExecutorContext,
+  type ExecutorHooks,
+  type ExecuteJuniorsArgs,
+} from './executor.js';
+
+// ─────────────────────────────────────────────────────────────────────
 // Existing document agent (untouched). `ClaudeClient` is intentionally
 // re-exported only from `_shared.js` to avoid the duplicate-symbol
 // error; consumers should rely on the `_shared` definition.

@@ -10,7 +10,7 @@
  * adapter) is wired, this returns an empty list with
  * `X-Backend-Status: degraded` so the page renders the empty state.
  *
- * Follow-up api-gateway, SUPPORT-001 (Docs/TODO_BACKLOG.md): wire support tickets.
+ * Follow-up api-gateway, SUPPORT-001 (#33): wire support tickets.
  *   Concrete next-step:
  *     1. Decide between (a) self-hosted `support_tickets` table or
  *        (b) external integration. The migration shape would be

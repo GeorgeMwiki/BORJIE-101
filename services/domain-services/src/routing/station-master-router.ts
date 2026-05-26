@@ -80,7 +80,7 @@ function matchesLocation(
         : { matches: false, reason: 'region mismatch' };
     }
     case 'polygon':
-      // Follow-up KI-010 (Docs/TODO_BACKLOG.md): wire real geospatial matching once GeoNode is
+      // Follow-up KI-010 (#33): wire real geospatial matching once GeoNode is
       //   live. See Docs/KNOWN_ISSUES.md#ki-010.
       return { matches: false, reason: 'polygon matching not yet supported' };
     default:

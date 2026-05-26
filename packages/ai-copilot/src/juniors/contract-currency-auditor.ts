@@ -8,7 +8,7 @@
  * Runs on or after 27 March 2026 (GN 198/2025 cliff). Pre-cliff usage
  * routes to FX/Treasury Agent instead.
  *
- * Schema gap: `contract_remediation` raw SQL; TODO(phase-3).
+ * Schema gap: `contract_remediation` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -116,7 +116,7 @@ export function createContractCurrencyAuditor(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `contract_remediation`.
+          // TODO(#30): typed insert against `contract_remediation`.
           await deps.db.execute(
             sql`INSERT INTO contract_remediation
                   (id, tenant_id, status, total_exposure_tzs, summary, computed_at)

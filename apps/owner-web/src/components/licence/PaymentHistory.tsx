@@ -1,6 +1,6 @@
 'use client';
 
-import type { LicenceCockpitData } from '@/lib/mocks/licence';
+import type { LicenceCockpitData } from '@/lib/types/licence';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { fmtTzs, fmtDate } from '@/lib/format';
 

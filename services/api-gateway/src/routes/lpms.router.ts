@@ -1,5 +1,5 @@
 /**
- * LPMS import router — TODO(borjie-hard-fork) disabled.
+ * LPMS import router — TODO(#29) disabled.
  *
  * The legacy Land & Property Management System adapters lived in
  * `@borjie/lpms-connector`, which was removed with the rest of the

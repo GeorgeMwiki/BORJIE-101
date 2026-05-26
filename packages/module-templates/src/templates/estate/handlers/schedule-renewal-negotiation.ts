@@ -13,7 +13,7 @@
  * canonical shape we adopt here.
  *
  * If Piece M is not yet wired, the stub port returns a fake assignment id
- * and `console.warn('TODO: ...')` keeps the call shape testable.
+ * and a TODO(#34) warn keeps the call shape testable.
  */
 
 import { z } from 'zod';
@@ -65,7 +65,7 @@ export interface WorkAssignmentPort {
   /**
    * Create a work assignment via the Piece M agency port. Returns `null`
    * when the underlying table / service is not yet wired; the handler
-   * then degrades gracefully and emits a TODO warning.
+   * then degrades gracefully and emits a TODO(#34) warning.
    */
   assign(args: {
     readonly tenantId: string;
@@ -146,10 +146,10 @@ export async function scheduleRenewalNegotiationHandler(
     if (warn) {
       warn(
         { proposal_id: ctx.proposalId, lease_id: parsed.lease_id },
-        'TODO: route to Piece M work_assignments when port lands',
+        'TODO(#34): route to Piece M work_assignments when port lands',
       );
     } else {
-      logger.warn('TODO: route to Piece M work_assignments when port lands', { proposal_id: ctx.proposalId, lease_id: parsed.lease_id });
+      logger.warn('TODO(#34): route to Piece M work_assignments when port lands', { proposal_id: ctx.proposalId, lease_id: parsed.lease_id });
     }
   } else {
     assignmentId = assignment.id;

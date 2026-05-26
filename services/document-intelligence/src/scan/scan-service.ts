@@ -127,7 +127,7 @@ function decodeDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
   return { mime: mime ?? 'application/octet-stream', buffer };
 }
 
-// Follow-up KI-011 (Docs/TODO_BACKLOG.md): replace with real perspective-correct deskew via
+// Follow-up KI-011 (#33): replace with real perspective-correct deskew via
 //   WASM OpenCV once @techstark/opencv-js is added.
 //   See Docs/KNOWN_ISSUES.md#ki-011.
 function deskewBuffer(
@@ -139,7 +139,7 @@ function deskewBuffer(
   return input;
 }
 
-// Follow-up KI-011 (Docs/TODO_BACKLOG.md): replace with a real PDF assembler (e.g. pdf-lib) once
+// Follow-up KI-011 (#33): replace with a real PDF assembler (e.g. pdf-lib) once
 //   the dep is added. See Docs/KNOWN_ISSUES.md#ki-011.
 function assembleToPdf(_pages: readonly Buffer[]): { buffer: Buffer; mimeType: string } {
   // Stub — just return the first page buffer as-is for now.
@@ -249,7 +249,7 @@ export class ScanService {
     await this.options.repository.updateBundle(processing);
 
     try {
-      // Follow-up KI-011 (Docs/TODO_BACKLOG.md): fetch each page's buffer from storage; stubbed here
+      // Follow-up KI-011 (#33): fetch each page's buffer from storage; stubbed here
       //   pending the scan pipeline upgrade. See Docs/KNOWN_ISSUES.md#ki-011.
       for (const _p of pages) {
         // await this.options.storage.download(...);

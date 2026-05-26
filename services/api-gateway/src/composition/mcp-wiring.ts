@@ -327,14 +327,22 @@ function buildHandlers(registry: ServiceRegistry): HandlerMap {
     },
 
     get_maintenance_taxonomy: async (input, context: McpAuthContext) => {
-      const svc = registry.maintenanceTaxonomy;
-      if (!svc) return notImpl('maintenance taxonomy not configured');
+      // Mining hard-fork wave 6 — property-domain `maintenanceTaxonomy`
+      // service is retired. The mining-domain replacement is
+      // `equipmentMaintenanceTaxonomy` (keyed by `assets.kind`). We
+      // mirror the legacy MCP tool contract by listing every entry for
+      // the tenant and surfacing the merged `problemCategories` jsonb
+      // payload (consumers can filter client-side).
+      const repo = registry.equipmentMaintenanceTaxonomy;
+      if (!repo) return notImpl('equipment maintenance taxonomy not configured');
       try {
         const categoryId = input.categoryId ? String(input.categoryId) : undefined;
-        const problems = await svc.listProblems(context.tenantId);
+        const entries = await repo.listForTenant(
+          context.tenantId as unknown as never,
+        );
         const filtered = categoryId
-          ? problems.filter((p: any) => p.categoryId === categoryId)
-          : problems;
+          ? entries.filter((e) => e.code === categoryId)
+          : entries;
         return okResult({ problems: filtered });
       } catch (err) {
         return errResult(
@@ -445,13 +453,13 @@ function buildResolvers(registry: ServiceRegistry): ResourceResolvers {
       }
     },
     async maintenanceTaxonomy(context) {
-      if (!registry.maintenanceTaxonomy) return empty();
+      // Mining hard-fork wave 6 — route through
+      // `equipmentMaintenanceTaxonomy` (the mining-domain replacement).
+      const repo = registry.equipmentMaintenanceTaxonomy;
+      if (!repo) return empty();
       try {
-        // Service exposes `listProblems(tenantId, filters?)`; the
-        // repo-only `listProblemsForTenant` was the old name and the
-        // composition root should never call the repo directly.
-        const problems = await registry.maintenanceTaxonomy.listProblems(
-          context.tenantId,
+        const problems = await repo.listForTenant(
+          context.tenantId as unknown as never,
         );
         return { problems };
       } catch {

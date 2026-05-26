@@ -154,9 +154,10 @@ export interface CaptureRoutesDeps {
    * tenant-scoped backend for inline-uploaded media.
    *
    * SECURITY: the path scoping uses the tenantId the route resolves
-   * from the request (today, from the request body — see TODO). The
-   * adapter guarantees the file physically lands inside that tenant's
-   * prefix, so a Supabase RLS policy keyed on
+   * via `resolveTenantId` (session value wins; body mismatches emit a
+   * security warn event but do not overwrite it). The adapter
+   * guarantees the file physically lands inside that tenant's prefix,
+   * so a Supabase RLS policy keyed on
    * `(storage.foldername(name))[1] = current_setting('app.current_tenant_id')`
    * will deny cross-tenant reads.
    */

@@ -158,7 +158,7 @@ export type AiCounterGenerator = (
 
 /**
  * Default stub — clamps midway between last offer and lowerBound.
- * Follow-up KI-008 (Docs/TODO_BACKLOG.md): wire to Anthropic client (see
+ * Follow-up KI-008 (#33): wire to Anthropic client (see
  *   packages/ai-copilot/src/providers/). When wiring, do NOT remove
  *   the post-LLM policy re-check in this service — it is the
  *   compliance safety net. See Docs/KNOWN_ISSUES.md#ki-008.

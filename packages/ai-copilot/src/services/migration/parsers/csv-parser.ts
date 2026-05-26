@@ -19,7 +19,7 @@ export async function parseCsv(
 ): Promise<ParsedCsv> {
   const text = buffer.toString('utf8').replace(/^\uFEFF/, '');
 
-  // Follow-up KI-015 (Docs/TODO_BACKLOG.md): if papaparse is added as a hard dep, prefer it for
+  // Follow-up KI-015 (#33): if papaparse is added as a hard dep, prefer it for
   //   robustness (streaming, quoted-newline handling):
   //     const Papa = await import('papaparse');
   //     const { data } = Papa.parse<SheetRow>(text, { header: true, dynamicTyping: true, skipEmptyLines: true });

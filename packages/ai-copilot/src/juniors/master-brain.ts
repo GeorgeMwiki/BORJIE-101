@@ -5,7 +5,7 @@
  * dispatch in which order. Sonnet-class model; Auditor always runs last.
  *
  * Schema gap: there is no `decision_log` Drizzle schema yet — raw SQL
- * write below. TODO(phase-3): add `decision_log` to
+ * write below. TODO(#30): add `decision_log` to
  * `packages/database/src/schemas/`.
  */
 
@@ -173,7 +173,7 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const planJson = JSON.stringify(dispatch);
-          // TODO(phase-3): replace with typed db.insert(decisionLog)…
+          // TODO(#30): replace with typed db.insert(decisionLog)…
           await deps.db.execute(
             sql`INSERT INTO decision_log (id, tenant_id, mode, query, dispatch_plan, confidence, created_at)
                 VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.mode}, ${validated.query},

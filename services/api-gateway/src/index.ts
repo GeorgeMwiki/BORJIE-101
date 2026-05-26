@@ -233,7 +233,7 @@ import intelligenceRouter from './routes/intelligence.router';
 // for the analytics + portfolio dashboards. Until dedicated aggregator
 // services are wired, both routers return "honest empty" shapes so the
 // owner-portal renders an empty state instead of stalling on a never-
-// resolving fetch. Follow-ups tracked in Docs/TODO_BACKLOG.md.
+// resolving fetch. Follow-ups tracked in #33.
 import analyticsRouter from './routes/analytics.router';
 import portfolioRouter from './routes/portfolio.router';
 // Estate-manager-app dependency — list/create unit subdivision children,
@@ -993,7 +993,7 @@ api.route(
 // `/analytics/summary`, `/portfolio/{summary,performance,growth}`. Until
 // dedicated aggregators land, each returns an "honest empty" shape so
 // the dashboard pages render the empty state cleanly. See each router
-// Aggregator follow-ups are tracked in Docs/TODO_BACKLOG.md.
+// Aggregator follow-ups are tracked in #33.
 api.route('/analytics', analyticsRouter);
 api.route('/portfolio', portfolioRouter);
 // Wave-4 D6 — owner-portal placeholder-page skeletons. Each line

@@ -3,7 +3,7 @@
  * discovery (sellers ↔ buyers), listings + ratings, AI-translated
  * communication (AGENT_PROMPT_LIBRARY §22).
  *
- * Schema gap: `marketplace_listings` raw SQL; TODO(phase-3).
+ * Schema gap: `marketplace_listings` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -125,7 +125,7 @@ export function createMarketplaceStakeholderAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const payload = JSON.stringify(validated.listing_payload ?? {});
-          // TODO(phase-3): typed insert against `marketplace_listings`.
+          // TODO(#30): typed insert against `marketplace_listings`.
           await deps.db.execute(
             sql`INSERT INTO marketplace_listings
                   (id, tenant_id, participant_kind, payload, created_at)

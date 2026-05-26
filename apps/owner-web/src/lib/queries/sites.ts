@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiRequestOrFallback } from '@/lib/api-client';
+import { apiRequest } from '@/lib/api-client';
 
 export const sitesKeys = {
   list: () => ['sites', 'list'] as const,
@@ -37,9 +37,8 @@ export function useSitesList(filters: {
       if (filters.phase) params.set('phase', filters.phase);
       if (filters.status) params.set('status', filters.status);
       const qs = params.toString();
-      return apiRequestOrFallback<ReadonlyArray<MiningSite>>(
+      return apiRequest<ReadonlyArray<MiningSite>>(
         `/api/v1/mining/sites${qs ? `?${qs}` : ''}`,
-        [],
         { signal },
       );
     },
@@ -52,9 +51,8 @@ export function useSite(id: string) {
     queryKey: sitesKeys.detail(id),
     enabled: Boolean(id),
     queryFn: ({ signal }) =>
-      apiRequestOrFallback<MiningSite | null>(
+      apiRequest<MiningSite | null>(
         `/api/v1/mining/sites/${encodeURIComponent(id)}`,
-        null,
         { signal },
       ),
   });

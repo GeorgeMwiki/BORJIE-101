@@ -20,7 +20,6 @@ export function ListingActions({ id, title, status }: ListingActionsProps): JSX.
       const res = await apiClient.post<{ readonly id: string }>(
         `/marketplace/${id}/${next}`,
         {},
-        async () => ({ id })
       );
       if (!res.ok) throw new Error(res.message);
       return res.data;

@@ -6,9 +6,8 @@ import { VirtualList } from './VirtualList';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { StubBadge } from '../StubBadge';
 import { useDecisionLogQuery } from '@/lib/internal/queries/decision-log';
-import { MOCK_TENANTS } from '@/lib/mocks/tenants';
-import { MOCK_JUNIORS } from '@/lib/mocks/juniors';
-import type { DecisionLogRow } from '@/lib/mocks/types';
+import { useTenantsQuery } from '@/lib/internal/queries/tenants';
+import type { DecisionLogRow } from '@/lib/internal/types';
 
 const INITIAL: DecisionFiltersState = { tenantId: '', juniorId: '', from: '', to: '' };
 
@@ -20,9 +19,11 @@ function confidenceTone(c: number): 'success' | 'warn' | 'danger' {
 
 export function DecisionLogAuditor(): JSX.Element {
   const query = useDecisionLogQuery();
+  const tenantsQuery = useTenantsQuery();
   const [filters, setFilters] = useState<DecisionFiltersState>(INITIAL);
 
   const rows = query.data?.rows ?? [];
+  const tenants = tenantsQuery.data?.rows ?? [];
 
   const filtered = useMemo(() => {
     const fromMs = filters.from ? Date.parse(filters.from) : Number.NEGATIVE_INFINITY;
@@ -36,6 +37,17 @@ export function DecisionLogAuditor(): JSX.Element {
     });
   }, [rows, filters]);
 
+  // Juniors filter values are derived from the rows themselves until the
+  // gateway exposes a juniors registry — every junior that appears in the
+  // current decision-log payload is a valid filter target.
+  const juniors = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const row of rows) {
+      if (!seen.has(row.juniorId)) seen.set(row.juniorId, row.junior);
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [rows]);
+
   if (query.isPending) return <p className="text-sm text-neutral-500">Loading decisions…</p>;
   if (query.isError) return <p className="text-sm text-danger">{query.error.message}</p>;
 
@@ -44,13 +56,13 @@ export function DecisionLogAuditor(): JSX.Element {
       <DecisionFilters
         value={filters}
         onChange={setFilters}
-        tenants={MOCK_TENANTS.map((t) => ({ id: t.id, name: t.name }))}
-        juniors={MOCK_JUNIORS.map((j) => ({ id: j.id, name: j.name }))}
+        tenants={tenants.map((t) => ({ id: t.id, name: t.name }))}
+        juniors={juniors}
       />
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>{filtered.length.toLocaleString()} decisions in range</span>
-        <DataSourceBadge source={query.data?.source ?? 'mock'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} />
       </div>
 
       <VirtualList<DecisionLogRow>

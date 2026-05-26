@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import * as ImagePicker from 'expo-image-picker'
 
-// TODO: requires EAS dev build — expo-image-picker is a native module that
+// TODO(#14): requires EAS dev build — expo-image-picker is a native module that
 // uses the camera. In Expo Go the library picker works but launchCameraAsync
 // requires a custom dev client.
 

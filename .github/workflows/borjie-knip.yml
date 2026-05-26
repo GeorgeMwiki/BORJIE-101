@@ -1,0 +1,96 @@
+# Borjie dead-code + dependency-graph audit
+# Source of truth for CI orchestration: .github/workflows/borjie-ci.yml
+name: Borjie Knip + dependency-cruiser
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      write_baseline:
+        description: 'Refresh .knip-baseline.json with current findings (use after deliberate cleanup that lowers counts).'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+# LITFIN parity audit gap #7 — dead-code + cyclic-dep + module-boundary CI gate
+# across the 95-package monorepo. Report-only on first roll-out: fails CI only
+# when NEW findings exceed the committed `.knip-baseline.json`. The baseline
+# shrinks as we clean up; the gate tightens automatically.
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  knip-and-depcruise:
+    name: knip + dependency-cruiser
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        continue-on-error: true
+
+      - name: Run knip + dependency-cruiser
+        id: knip
+        run: node scripts/knip.mjs
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: knip-dep-cruiser-report
+          path: .audit/knip-dep-cruiser-report.md
+          if-no-files-found: warn
+
+      - name: Comment PR with findings
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.audit/knip-dep-cruiser-report.md';
+            if (!fs.existsSync(path)) {
+              core.info('No report file produced; skipping PR comment.');
+              return;
+            }
+            const body = '## Knip + dependency-cruiser report\n\n' + fs.readFileSync(path, 'utf8').slice(0, 60000);
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.pull_request?.number;
+            if (!prNumber) return;
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+
+      - name: Refresh baseline (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch' && inputs.write_baseline == 'true'
+        run: |
+          node scripts/knip.mjs --write-baseline
+          echo "::notice::Baseline refreshed — commit .knip-baseline.json in a follow-up PR."
+
+      - name: Fail PR check on regression
+        if: github.event_name == 'pull_request' && steps.knip.outcome == 'failure'
+        run: |
+          echo "::error::Knip / dependency-cruiser found NEW findings vs baseline. See the report artifact + PR comment."
+          exit 1

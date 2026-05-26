@@ -7,8 +7,8 @@ import { fmtUsd } from '@/lib/format';
 /**
  * Outbound listings + inbound services. Outbound rows come from the
  * live `/api/v1/mining/marketplace/listings` endpoint via the
- * `useMarketplaceListings` query; inbound stays mock-only (no
- * gateway endpoint yet — TODO).
+ * `useMarketplaceListings` query; inbound stays mock-only (no gateway
+ * endpoint yet — TODO(#20)).
  */
 export function MarketplaceBoard(): JSX.Element {
   const query = useMarketplaceListings();

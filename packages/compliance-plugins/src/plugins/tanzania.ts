@@ -73,7 +73,7 @@ const tanzaniaTenantScreening: TenantScreeningPort = {
       return buildStubBureauResult('CRB_TZ', ['CONSENT_TOKEN_INVALID']);
     }
     void identityDocument;
-    // Follow-up ph-Z-global (Docs/TODO_BACKLOG.md): wire real CRB TZ adapter when env CRB_TZ_KEY set.
+    // Follow-up ph-Z-global (#33): wire real CRB TZ adapter when env CRB_TZ_KEY set.
     return buildStubBureauResult('CRB_TZ');
   },
 };

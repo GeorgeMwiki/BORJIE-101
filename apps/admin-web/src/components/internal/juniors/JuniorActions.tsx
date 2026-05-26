@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { Toast } from '../Toast';
-import type { Junior, JuniorStatus } from '@/lib/mocks/types';
+import type { Junior, JuniorStatus } from '@/lib/internal/types';
 
 interface JuniorActionsProps {
   readonly junior: Junior;
@@ -16,10 +16,7 @@ export function JuniorActions({ junior }: JuniorActionsProps): JSX.Element {
 
   const mutate = useMutation({
     mutationFn: async (next: JuniorStatus): Promise<Junior> => {
-      const res = await apiClient.patch<Junior>(`/juniors/${junior.id}/status`, { status: next }, async () => ({
-        ...junior,
-        status: next,
-      }));
+      const res = await apiClient.patch<Junior>(`/juniors/${junior.id}/status`, { status: next });
       if (!res.ok) throw new Error(res.message);
       return res.data;
     },

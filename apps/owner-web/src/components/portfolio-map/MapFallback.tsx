@@ -1,6 +1,6 @@
 'use client';
 
-import type { FeatureKind, MapFeature } from '@/lib/mocks/portfolio-map';
+import type { FeatureKind, MapFeature } from '@/lib/types/portfolio-map';
 
 interface MapFallbackProps {
   readonly features: ReadonlyArray<MapFeature>;

@@ -1,7 +1,7 @@
 /**
  * LME REST adapter — stub implementation.
  *
- * TODO: wire up the real LME REST endpoint once credentials + base
+ * TODO(#32): wire up the real LME REST endpoint once credentials + base
  * URL are provisioned. The structural shape matches PriceSourceAdapter
  * so the orchestrator can already consume this in tests.
  */
@@ -26,8 +26,8 @@ export function createLmeAdapter(config: LmeAdapterConfig = {}): PriceSourceAdap
   return {
     name: LME_SOURCE_ID,
     async fetchLatest(commodity: Commodity): Promise<PriceTick> {
-      // TODO: production fetch — for now return a deterministic stub.
-      // Keeping the same shape lets the orchestrator + tests run.
+      // TODO(#32): production fetch path. Stub branch (no apiKey)
+      // keeps the orchestrator + tests deterministic.
       if (apiKey === undefined) {
         return stubTick(commodity, 1);
       }

@@ -181,7 +181,7 @@ function toListRow(raw: RawTenantRow): ListTenantsRow {
     // keep the page query cheap. Composition root may layer a billing
     // join later via a separate B2-owned adapter; until then this is
     // a deterministic zero so the schema validator accepts the row.
-    // Follow-up B2 (Docs/TODO_BACKLOG.md): wire MRR from tenant_finance / subscription tables.
+    // Follow-up B2 (#33): wire MRR from tenant_finance / subscription tables.
     mrrUsdCents: 0,
     lastActiveAt: raw.lastActivityAt ? toIso(raw.lastActivityAt) : null,
     createdAt: toIso(raw.createdAt),

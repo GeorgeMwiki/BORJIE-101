@@ -10,7 +10,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { TenantStatusBadge } from './TenantStatusBadge';
 import { TenantActions } from './TenantActions';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
-import type { Tenant, TenantPlan, TenantStatus } from '@/lib/mocks/types';
+import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
 
 const PLANS: ReadonlyArray<TenantPlan> = ['Starter', 'Growth', 'Enterprise'];
 const STATUSES: ReadonlyArray<TenantStatus> = ['Active', 'Trial', 'Past due', 'Suspended'];

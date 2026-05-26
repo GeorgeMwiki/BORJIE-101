@@ -228,7 +228,7 @@ export class ConditionalSurveyService {
   /**
    * Compile the survey's findings into a report + draft action plans.
    *
-   * Follow-up KI-007 (Docs/TODO_BACKLOG.md): wire to AI persona — once the narrative-generation
+   * Follow-up KI-007 (#33): wire to AI persona — once the narrative-generation
    *   agent (packages/ai-copilot/src/personas/inspection-narrator.ts)
    *   is authored, call the persona here with the finding set to
    *   produce `narrative`. See Docs/KNOWN_ISSUES.md#ki-007.
@@ -311,7 +311,7 @@ export class ConditionalSurveyService {
       lowCount: survey.findings.filter((f) => f.severity === 'low').length,
     };
 
-    // Follow-up KI-007 (Docs/TODO_BACKLOG.md): wire to AI persona for narrative generation.
+    // Follow-up KI-007 (#33): wire to AI persona for narrative generation.
     //   See Docs/KNOWN_ISSUES.md#ki-007.
     const narrative =
       survey.narrative ??

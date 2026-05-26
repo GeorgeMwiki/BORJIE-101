@@ -86,12 +86,21 @@ export * from './migration/index.js';
 export * from './gamification/index.js';
 export * from './documents/index.js';
 
-// Wave 8 gap closures — Warehouse inventory (S7), Maintenance taxonomy (S7),
-// IoT observations (S3). Namespaced to avoid naming collisions with
-// existing sibling modules.
+// Wave 8 gap closures — Warehouse inventory (S7), IoT observations (S3).
+// MaintenanceTaxonomy was retired during the mining hard-fork; its
+// mining-domain replacement is `EquipmentMaintenanceTaxonomy` below.
 export * as Warehouse from './warehouse/index.js';
-export * as MaintenanceTaxonomy from './maintenance-taxonomy/index.js';
 export * as Iot from './iot/index.js';
 
 // Wave 9 enterprise polish — Feature flags per tenant.
 export * as FeatureFlags from './feature-flags/index.js';
+
+// Mining hard-fork wave 6 — mining-domain replacements for the seven
+// remaining property-domain repositories.
+export * as WorkerIncentives from './worker-incentives/index.js';
+export * as SitePreShiftInspection from './site-pre-shift-inspection/index.js';
+export * as OreGradingWeights from './ore-grading-weights/index.js';
+export * as SiteLiveMetrics from './site-live-metrics/index.js';
+export * as SiteSupervisorCoverage from './site-supervisor-coverage/index.js';
+export * as OfftakeQueue from './offtake-queue/index.js';
+export * as EquipmentMaintenanceTaxonomy from './equipment-maintenance-taxonomy/index.js';

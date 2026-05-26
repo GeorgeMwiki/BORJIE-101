@@ -22,7 +22,7 @@
  * swap in real eviction-court-gateway calls without touching the
  * workflow shape.
  *
- * Phase C follow-ups (Docs/TODO_BACKLOG.md):
+ * Phase C follow-ups (#33):
  *   - Replace `delegateTo` with proxyActivities() from
  *     @temporalio/workflow
  *   - Provide real activity implementations via the worker registry

@@ -94,7 +94,7 @@ export const moveOutNoticeAgent: TaskAgent<typeof PayloadSchema> = {
         notes.push(`checklist_error:${(err as Error).message}`);
       }
     } else {
-      // Follow-up (Docs/TODO_BACKLOG.md): Z3 MoveOutChecklistService wiring — fall back to notes-only.
+      // Follow-up (#33): Z3 MoveOutChecklistService wiring — fall back to notes-only.
       notes.push('move_out_checklist_service_pending_z3_wiring');
     }
 

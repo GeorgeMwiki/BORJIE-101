@@ -44,10 +44,17 @@ async function run(): Promise<number> {
     return 2;
   }
 
+  const allowStub = process.argv.includes('--allow-stub-embeddings');
   const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey && !allowStub) {
+    logger.error(
+      'OPENAI_API_KEY missing — pass --allow-stub-embeddings to ingest with zero-vector stubs (dev only)',
+    );
+    return 2;
+  }
   const embedder = apiKey
     ? createOpenAIEmbedder({ apiKey })
-    : (logger.warn('OPENAI_API_KEY missing — using stub embedder (zero vectors)'),
+    : (logger.warn('OPENAI_API_KEY missing — stub embedder enabled via --allow-stub-embeddings (zero vectors)'),
        createStubEmbedder());
 
   const sql = postgres(dbUrl, { max: 4, prepare: false });

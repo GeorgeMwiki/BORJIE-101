@@ -76,6 +76,7 @@
     "submit_bid": "Submit bid",
     "bid_submitted": "Bid placed successfully",
     "bid_failed": "Could not submit bid",
+    "kyc_required": "Complete KYC before placing a bid",
     "accept_counter": "Accept counter offer",
     "withdraw_bid": "Withdraw bid",
     "message_placeholder": "Reply to the seller",

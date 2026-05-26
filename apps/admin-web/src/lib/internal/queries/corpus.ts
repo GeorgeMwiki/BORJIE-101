@@ -5,18 +5,19 @@
  *   GET   /versions   list ingested chunks (Borjie-global, tenantId NULL)
  *   POST  /upload     ingest a chunk
  *   POST  /supersede  point an old chunk at a new one
+ *
+ * Live-only: failures propagate to react-query's `error` channel.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { MOCK_CORPUS } from '@/lib/mocks/corpus';
-import type { CorpusEntry } from '@/lib/mocks/types';
+import type { CorpusEntry } from '@/lib/internal/types';
 
 const KEY = ['internal', 'corpus'] as const;
 
 interface CorpusResult {
   readonly rows: ReadonlyArray<CorpusEntry>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
 interface RawCorpusChunk {
@@ -32,9 +33,7 @@ interface RawCorpusChunk {
 
 /**
  * Coerce the gateway's chunk shape into the front-end's `CorpusEntry`
- * so existing components can stay agnostic. Many fields are not
- * surfaced by the live API yet (bytes / chunks count / version) so we
- * synthesise sensible placeholders that the UI knows how to render.
+ * so existing components can stay agnostic.
  */
 function adaptChunk(raw: RawCorpusChunk, index: number): CorpusEntry {
   return {
@@ -52,16 +51,9 @@ export function useCorpusQuery() {
   return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<CorpusResult> => {
-      const res = await apiClient.get<ReadonlyArray<RawCorpusChunk | CorpusEntry>>(
-        '/corpus/versions',
-        async () => MOCK_CORPUS,
-      );
+      const res = await apiClient.get<ReadonlyArray<RawCorpusChunk>>('/corpus/versions');
       if (!res.ok) throw new Error(res.message);
-      const rows =
-        res.source === 'live'
-          ? (res.data as ReadonlyArray<RawCorpusChunk>).map(adaptChunk)
-          : (res.data as ReadonlyArray<CorpusEntry>);
-      return { rows, source: res.source };
+      return { rows: res.data.map(adaptChunk), source: 'live' };
     },
   });
 }
@@ -83,19 +75,9 @@ export function useSupersedeCorpus() {
   return useMutation({
     mutationFn: async (raw: SupersedeInput): Promise<CorpusEntry> => {
       const body = normaliseSupersede(raw);
-      const res = await apiClient.post<RawCorpusChunk | CorpusEntry>(
-        '/corpus/supersede',
-        body,
-        async () => {
-          const hit = MOCK_CORPUS.find((e) => e.id === body.oldChunkId);
-          if (!hit) throw new Error('Entry not found');
-          return { ...hit, status: 'Superseded' };
-        },
-      );
+      const res = await apiClient.post<RawCorpusChunk>('/corpus/supersede', body);
       if (!res.ok) throw new Error(res.message);
-      const next =
-        res.source === 'live' ? adaptChunk(res.data as RawCorpusChunk, 0) : (res.data as CorpusEntry);
-      return next;
+      return adaptChunk(res.data, 0);
     },
     onMutate: async (raw) => {
       const { oldChunkId } = normaliseSupersede(raw);
@@ -126,27 +108,13 @@ export function useUploadCorpus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UploadInput): Promise<CorpusEntry> => {
-      const res = await apiClient.post<RawCorpusChunk | CorpusEntry>(
-        '/corpus/upload',
-        {
-          sourceFile: input.name,
-          text: input.text ?? `Pending ingest of ${input.name} (${input.bytes} bytes).`,
-          language: 'en',
-        },
-        async () => ({
-          id: `doc_${Math.random().toString(36).slice(2, 9)}`,
-          title: input.name,
-          version: 'v1.0',
-          status: 'Re-ingesting',
-          bytes: input.bytes,
-          indexedAt: new Date().toISOString(),
-          chunks: Math.max(1, Math.round(input.bytes / 12_000)),
-        }),
-      );
+      const res = await apiClient.post<RawCorpusChunk>('/corpus/upload', {
+        sourceFile: input.name,
+        text: input.text ?? `Pending ingest of ${input.name} (${input.bytes} bytes).`,
+        language: 'en',
+      });
       if (!res.ok) throw new Error(res.message);
-      return res.source === 'live'
-        ? adaptChunk(res.data as RawCorpusChunk, 0)
-        : (res.data as CorpusEntry);
+      return adaptChunk(res.data, 0);
     },
     onSuccess: (entry) => {
       const prev = qc.getQueryData<CorpusResult>(KEY);

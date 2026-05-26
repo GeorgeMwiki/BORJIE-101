@@ -3,23 +3,20 @@
  *
  * Wraps `fetch` against `${NEXT_PUBLIC_API_GATEWAY_URL}/api/v1/mining/internal/*`.
  *
- * Behaviour controlled by two NEXT_PUBLIC env vars:
- *   NEXT_PUBLIC_API_GATEWAY_URL  base URL (default http://localhost:3001)
- *   NEXT_PUBLIC_USE_LIVE_API     'false' to force-mock; anything else (or unset)
- *                                attempts the live gateway and falls back to
- *                                the supplied mock on network/5xx errors.
+ * Base URL resolved from `NEXT_PUBLIC_API_GATEWAY_URL` (defaults to
+ * `http://localhost:3001` for the dev server).
  *
- * Auth: forwards the httpOnly platform-session cookie via
- * `credentials: 'include'`, plus the bearer token stashed in
- * `sessionStorage.platform_token` (set by the SSO callback for
- * non-cookie callers).
+ * Auth: forwards the Supabase Auth access token as `Authorization:
+ * Bearer ...`. The browser client owns the session via @supabase/ssr
+ * cookies; we pull the current access token on each request so a
+ * refreshed token is picked up without a page reload.
  *
- * Every helper accepts a `fallback` async function that returns a mock.
- * On `useLiveApi() === false` OR on a network / 5xx failure, the call
- * resolves to the mock with `source === 'mock'` and `__mockSource: true`.
- * That marker lets components flag the data-source badge without
- * re-checking env vars on every render.
+ * LIVE-ONLY: there is no mock fallback. Failures propagate to the
+ * react-query `error` channel; consumers render an empty state when
+ * the gateway is unreachable.
  */
+
+import { createSupabaseBrowserClient } from './supabase/client';
 
 const DEFAULT_BASE = 'http://localhost:3001';
 const MINING_INTERNAL_PATH = '/api/v1/mining/internal';
@@ -28,7 +25,6 @@ const REQUEST_TIMEOUT_MS = 5_000;
 export interface ApiOk<T> {
   readonly ok: true;
   readonly data: T;
-  readonly source: 'live' | 'mock';
 }
 
 export interface ApiErr {
@@ -39,26 +35,6 @@ export interface ApiErr {
 
 export type ApiResult<T> = ApiOk<T> | ApiErr;
 
-/**
- * Tag a mock payload so downstream consumers can distinguish without
- * passing source flags through every prop. Non-enumerable so the marker
- * does not leak into JSON serialisation.
- */
-function tagMock<T>(value: T): T {
-  if (value && typeof value === 'object') {
-    try {
-      Object.defineProperty(value, '__mockSource', {
-        value: true,
-        enumerable: false,
-        configurable: true,
-      });
-    } catch {
-      /* frozen mocks — caller already tagged or doesn't care. */
-    }
-  }
-  return value;
-}
-
 export function resolveBase(): string {
   const configured =
     typeof process !== 'undefined'
@@ -68,57 +44,48 @@ export function resolveBase(): string {
   return `${root}${MINING_INTERNAL_PATH}`;
 }
 
-export function useLiveApi(): boolean {
-  const flag =
-    typeof process !== 'undefined'
-      ? process.env.NEXT_PUBLIC_USE_LIVE_API?.trim().toLowerCase()
-      : undefined;
-  // Default is ON: the only way to force-mock is `NEXT_PUBLIC_USE_LIVE_API=false`.
-  return flag !== 'false' && flag !== '0' && flag !== 'off';
-}
-
-function authHeaders(): HeadersInit {
+async function authHeaders(): Promise<HeadersInit> {
   if (typeof window === 'undefined') return {};
-  const token = window.sessionStorage.getItem('platform_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const supabase = createSupabaseBrowserClient();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    // Misconfigured env or auth client error — fail open and let the
+    // gateway return 401 so the user is redirected to /sign-in.
+    return {};
+  }
 }
 
-interface CallOptions<T> {
+interface CallOptions {
   readonly path: string;
   readonly init?: RequestInit;
-  readonly fallback?: () => Promise<T>;
   readonly attempt?: number;
 }
 
-async function call<T>({ path, init, fallback, attempt = 0 }: CallOptions<T>): Promise<ApiResult<T>> {
-  // Hard short-circuit when the flag forces mock.
-  if (!useLiveApi() && fallback) {
-    return { ok: true, data: tagMock(await fallback()), source: 'mock' };
-  }
-
+async function call<T>({ path, init, attempt = 0 }: CallOptions): Promise<ApiResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
+    const auth = await authHeaders();
     const res = await fetch(`${resolveBase()}${path}`, {
       ...init,
       credentials: 'include',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders(),
+        ...auth,
         ...init?.headers,
       },
     });
 
     if (!res.ok) {
-      // Server-side failure — try one more time before falling back.
+      // Server-side failure — retry once before bailing.
       if (res.status >= 500 && attempt < 1) {
         clearTimeout(timer);
-        return call<T>({ path, init, fallback, attempt: attempt + 1 });
-      }
-      if (fallback && (res.status === 404 || res.status >= 500)) {
-        return { ok: true, data: tagMock(await fallback()), source: 'mock' };
+        return call<T>({ path, init, attempt: attempt + 1 });
       }
       const text = await res.text().catch(() => '');
       return { ok: false, status: res.status, message: text || `HTTP ${res.status}` };
@@ -128,15 +95,12 @@ async function call<T>({ path, init, fallback, attempt = 0 }: CallOptions<T>): P
       | { readonly success?: boolean; readonly data?: T }
       | null;
     const data = (parsed?.data ?? parsed) as T;
-    return { ok: true, data, source: 'live' };
+    return { ok: true, data };
   } catch (error) {
-    // Network / abort / timeout. Retry once before bailing to mock.
+    // Network / abort / timeout. Retry once before bailing.
     if (attempt < 1) {
       clearTimeout(timer);
-      return call<T>({ path, init, fallback, attempt: attempt + 1 });
-    }
-    if (fallback) {
-      return { ok: true, data: tagMock(await fallback()), source: 'mock' };
+      return call<T>({ path, init, attempt: attempt + 1 });
     }
     return {
       ok: false,
@@ -149,30 +113,27 @@ async function call<T>({ path, init, fallback, attempt = 0 }: CallOptions<T>): P
 }
 
 export const apiClient = {
-  get<T>(path: string, fallback?: () => Promise<T>): Promise<ApiResult<T>> {
-    return call<T>({ path, fallback });
+  get<T>(path: string): Promise<ApiResult<T>> {
+    return call<T>({ path });
   },
   post<T>(
     path: string,
     body: unknown,
-    fallback?: () => Promise<T>,
     headers?: Record<string, string>,
   ): Promise<ApiResult<T>> {
     return call<T>({
       path,
       init: { method: 'POST', body: JSON.stringify(body ?? {}), headers },
-      fallback,
     });
   },
-  patch<T>(path: string, body: unknown, fallback?: () => Promise<T>): Promise<ApiResult<T>> {
+  patch<T>(path: string, body: unknown): Promise<ApiResult<T>> {
     return call<T>({
       path,
       init: { method: 'PATCH', body: JSON.stringify(body ?? {}) },
-      fallback,
     });
   },
-  delete<T>(path: string, fallback?: () => Promise<T>): Promise<ApiResult<T>> {
-    return call<T>({ path, init: { method: 'DELETE' }, fallback });
+  delete<T>(path: string): Promise<ApiResult<T>> {
+    return call<T>({ path, init: { method: 'DELETE' } });
   },
 };
 

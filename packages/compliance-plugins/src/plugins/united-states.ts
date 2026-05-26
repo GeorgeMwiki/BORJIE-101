@@ -73,7 +73,7 @@ const unitedStatesPaymentRails: PaymentRailPort = {
 const unitedStatesTenantScreening: TenantScreeningPort = {
   async lookupBureau(_identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('EXPERIAN_US', ['CONSENT_TOKEN_INVALID']);
-    // Follow-up ph-Z-global (Docs/TODO_BACKLOG.md): wire Experian / TransUnion / Equifax adapters; require FCRA consent.
+    // Follow-up ph-Z-global (#33): wire Experian / TransUnion / Equifax adapters; require FCRA consent.
     return buildStubBureauResult('EXPERIAN_US');
   },
 };

@@ -209,7 +209,7 @@ export const KanbanArtifactSchema = z
   })
   .strict();
 
-// 13. gantt — project gantt (TODO: rich impl; current renders fallback bars).
+// 13. gantt — project gantt (TODO(#37): rich impl; current renders fallback bars).
 export const GanttArtifactSchema = z
   .object({
     component_type: z.literal('gantt'),

@@ -1,5 +1,5 @@
 /**
- * Market-rate snapshots — TODO(borjie-hard-fork) stub.
+ * Market-rate snapshots — TODO(#29) stub.
  *
  * The original Drizzle adapter targeted the `market_rate_snapshots`
  * table (migration 0103). The mining-equivalent will track commodity

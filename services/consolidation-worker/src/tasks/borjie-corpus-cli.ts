@@ -57,7 +57,13 @@ export async function main(opts: CliOptions = {}): Promise<IngestReport> {
 function resolveEmbedder(logger: WorkerLogger): Embedder {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (apiKey) return createOpenAIEmbedder({ apiKey });
-  logger.warn('borjie-corpus-ingest: OPENAI_API_KEY missing — using stub embedder (zero vectors)');
+  const allowStub = process.argv.includes('--allow-stub-embeddings');
+  if (!allowStub) {
+    throw new Error(
+      'OPENAI_API_KEY missing — pass --allow-stub-embeddings to ingest with zero-vector stubs (dev only)',
+    );
+  }
+  logger.warn('borjie-corpus-ingest: OPENAI_API_KEY missing — stub embedder enabled via --allow-stub-embeddings (zero vectors)');
   return createStubEmbedder();
 }
 
@@ -84,7 +90,7 @@ async function resolveSink(logger: WorkerLogger): Promise<CorpusSink> {
 }
 
 function noopLogger(): WorkerLogger {
-  // TODO: replace with `import { logger } from '../logger.js'` once the
+  // TODO(#40): replace with `import { logger } from '../logger.js'` once the
   // pino dep is hoisted into this service's runtime image.
   //
   // BORJIE_DEBUG=1 surfaces ingest progress on stdout/stderr so dev runs

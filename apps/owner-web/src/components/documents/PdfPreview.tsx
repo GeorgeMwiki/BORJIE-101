@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { DocumentRecord, DocumentChunk } from '@/lib/mocks/documents';
+import type { DocumentRecord, DocumentChunk } from '@/lib/types/documents';
 
 interface PdfPreviewProps {
   readonly document: DocumentRecord;

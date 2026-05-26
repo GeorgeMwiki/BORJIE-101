@@ -12,7 +12,7 @@
  *      (e.g. `X-MOCK-MARKET-DATA` sent to Airbnb / Zillow sandbox).
  *   2. Empty-array sentinels exported as bootstrap defaults (e.g.
  *      `MOCK_PAYMENTS: Payment[] = []`). Pending rename to drop the
- *      misleading `MOCK_` prefix (Docs/TODO_BACKLOG.md).
+ *      misleading `MOCK_` prefix (#33).
  *
  * Adding a new mock fixture to production code → register here with a
  * justification ≥ 8 characters explaining why production needs it.

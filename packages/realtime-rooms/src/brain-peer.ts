@@ -220,7 +220,7 @@ export function createBrainPeer(opts: CreateBrainPeerOptions): BrainPeer {
   };
 }
 
-// Follow-up B6 follow-up (Docs/TODO_BACKLOG.md): When @liveblocks/client publishes a stable 3.x
+// Follow-up B6 follow-up (#33): When @liveblocks/client publishes a stable 3.x
 // agent-peer surface (currently in preview as `room.agent({...})`),
 // switch `broadcastEvent`/`leave` for the native attach so the brain
 // shows up with its own cursor in the Liveblocks-managed presence

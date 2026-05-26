@@ -303,7 +303,7 @@ export class StubAnthropicDocChatLlm implements IDocChatLlmPort {
     citations: readonly DocChatCitation[];
     tokensUsed?: { input: number; output: number };
   }> {
-    // Follow-up KI-009 (Docs/TODO_BACKLOG.md): call Anthropic Messages API with a system prompt
+    // Follow-up KI-009 (#33): call Anthropic Messages API with a system prompt
     //   that REQUIRES the model to emit <citations> for every claim.
     //   Adapter is at packages/ai-copilot/src/providers/anthropic-client.ts.
     //   See Docs/KNOWN_ISSUES.md#ki-009.

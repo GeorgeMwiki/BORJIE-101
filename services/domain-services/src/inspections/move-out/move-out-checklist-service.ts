@@ -469,7 +469,7 @@ export class MoveOutChecklistService {
 
     // Stub hand-off: if a sink is wired, forward. Otherwise return the
     // manifest for the caller to route into the damage-deduction case flow.
-    // Follow-up KI-007 (Docs/TODO_BACKLOG.md): wire to AI persona — generate a narrative description
+    // Follow-up KI-007 (#33): wire to AI persona — generate a narrative description
     //   of observed damage from the photo manifest before hand-off.
     //   See Docs/KNOWN_ISSUES.md#ki-007.
     if (this.damageSink) {

@@ -3,7 +3,7 @@
  * plan generation (AGENT_PROMPT_LIBRARY §9).
  *
  * Schema gap: `site_layouts` + `weekly_plans` not yet in Drizzle. Raw
- * SQL; TODO(phase-3).
+ * SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -139,7 +139,7 @@ export function createMinePlanner(deps: JuniorDeps) {
           const { sql } = await import('drizzle-orm');
           const sectionsJson = JSON.stringify(output.sections);
           const planJson = JSON.stringify(output.weekly_plan);
-          // TODO(phase-3): typed insert against `site_layouts` + `weekly_plans`.
+          // TODO(#30): typed insert against `site_layouts` + `weekly_plans`.
           await deps.db.execute(
             sql`INSERT INTO site_layouts
                   (id, tenant_id, site_id, sections, weekly_plan, match_factor, computed_at)

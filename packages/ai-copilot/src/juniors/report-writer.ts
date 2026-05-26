@@ -4,7 +4,7 @@
  *
  * Templated. Each cadence drives a different word budget and audience.
  *
- * Schema gap: `generated_reports` raw SQL; TODO(phase-3).
+ * Schema gap: `generated_reports` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -108,7 +108,7 @@ export function createReportWriter(deps: JuniorDeps) {
       if (deps.db) {
         try {
           const { sql } = await import('drizzle-orm');
-          // TODO(phase-3): typed insert against `generated_reports`.
+          // TODO(#30): typed insert against `generated_reports`.
           await deps.db.execute(
             sql`INSERT INTO generated_reports
                   (id, tenant_id, cadence, audience, language, title, word_count, body, created_at)

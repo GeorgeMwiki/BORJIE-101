@@ -13,12 +13,45 @@
  */
 
 import { createMiddleware } from 'hono/factory';
-import { verifySupabaseJwt, extractBearer } from './supabase-jwt-verify.js';
+import {
+  verifySupabaseJwt,
+  extractBearer,
+  type VerifySupabaseJwtOptions,
+} from './supabase-jwt-verify.js';
 import type { AuthContext } from '../../middleware/auth.middleware.js';
 import { UserRole } from '../../types/user-role.js';
 
 function readJwtSecret(): string {
   return process.env.SUPABASE_JWT_SECRET ?? '';
+}
+
+/**
+ * Derive the Supabase Auth JWKS URL from `SUPABASE_URL` (preferred) or
+ * its `NEXT_PUBLIC_` mirror. Modern Supabase projects expose the public
+ * JWKS at `<base>/auth/v1/.well-known/jwks.json`.
+ */
+function readJwksUrl(): string | null {
+  const base =
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    null;
+  if (!base) return null;
+  return `${base.replace(/\/+$/, '')}/auth/v1/.well-known/jwks.json`;
+}
+
+/**
+ * Build the verify options the way the live Supabase project demands.
+ * Prefer JWKS (ES256/RS256, post May-2026 default); fall back to HS256
+ * with the shared secret for legacy / self-hosted installations.
+ */
+function buildVerifyOptions(): VerifySupabaseJwtOptions | null {
+  const jwksUrl = readJwksUrl();
+  const jwtSecret = readJwtSecret();
+  if (jwksUrl) {
+    return { jwksUrl, jwtSecret: jwtSecret || undefined };
+  }
+  if (jwtSecret) return { jwtSecret };
+  return null;
 }
 
 /**
@@ -30,15 +63,24 @@ function readJwtSecret(): string {
  */
 const ROLE_PRIORITY: ReadonlyArray<{ match: string; mapped: UserRole }> = [
   { match: 'super_admin', mapped: UserRole.SUPER_ADMIN },
+  // Borjie internal staff — granted SUPER_ADMIN in the legacy property
+  // enum so they bypass tenant scoping.
+  { match: 'borjie_team', mapped: UserRole.SUPER_ADMIN },
   { match: 'support', mapped: UserRole.SUPPORT },
   { match: 'admin', mapped: UserRole.TENANT_ADMIN },
   { match: 'owner', mapped: UserRole.OWNER },
   { match: 'accountant', mapped: UserRole.ACCOUNTANT },
   { match: 'manager', mapped: UserRole.PROPERTY_MANAGER },
   { match: 'property_manager', mapped: UserRole.PROPERTY_MANAGER },
+  // Borjie mining-site manager → PROPERTY_MANAGER in the property enum.
+  { match: 'site_manager', mapped: UserRole.PROPERTY_MANAGER },
   { match: 'maintenance', mapped: UserRole.MAINTENANCE_STAFF },
   { match: 'maintenance_staff', mapped: UserRole.MAINTENANCE_STAFF },
+  // Borjie field employee (driver / equipment operator) → MAINTENANCE_STAFF.
+  { match: 'driver', mapped: UserRole.MAINTENANCE_STAFF },
   { match: 'resident', mapped: UserRole.RESIDENT },
+  // Borjie marketplace buyer — read-only counterpart; map to RESIDENT.
+  { match: 'buyer', mapped: UserRole.RESIDENT },
 ];
 
 export function mapSupabaseRolesToUserRole(roles: readonly string[]): UserRole {
@@ -61,15 +103,15 @@ export function mapSupabaseRolesToUserRole(roles: readonly string[]): UserRole {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supabaseAuthMiddleware = createMiddleware<any>(async (c, next) => {
-  const jwtSecret = readJwtSecret();
-  if (!jwtSecret) {
+  const verifyOptions = buildVerifyOptions();
+  if (!verifyOptions) {
     return c.json(
       {
         success: false,
         error: {
           code: 'AUTH_PROVIDER_MISCONFIGURED',
           message:
-            'AUTH_PROVIDER=supabase requires SUPABASE_JWT_SECRET to be set.',
+            'AUTH_PROVIDER=supabase requires SUPABASE_URL (for JWKS) or SUPABASE_JWT_SECRET to be set.',
         },
       },
       500,
@@ -91,16 +133,22 @@ export const supabaseAuthMiddleware = createMiddleware<any>(async (c, next) => {
   }
 
   try {
-    const principal = await verifySupabaseJwt(token, {
-      jwtSecret,
-    });
+    const principal = await verifySupabaseJwt(token, verifyOptions);
 
-    const role = mapSupabaseRolesToUserRole(principal.roles);
+    // Prefer the Borjie-domain `mining_role` claim when present (single
+    // canonical role per user). Fall back to the generic `roles[]` array
+    // for legacy tokens that predate the borjie-test-users seed.
+    const role = principal.miningRole
+      ? mapSupabaseRolesToUserRole([principal.miningRole, ...principal.roles])
+      : mapSupabaseRolesToUserRole(principal.roles);
+    const permissions = principal.miningRole
+      ? [principal.miningRole, ...principal.roles]
+      : principal.roles;
     const authContext: AuthContext = {
       userId: principal.userId,
       tenantId: principal.tenantId,
       role,
-      permissions: principal.roles,
+      permissions,
       propertyAccess: [],
       email: principal.email,
       sessionId: undefined,

@@ -5,7 +5,7 @@ import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { useMoveRegulatorChange, useRegulatorPipelineQuery } from '@/lib/internal/queries/regulator-pipeline';
-import type { CitationSource, RegulatorChange, RegulatorStage } from '@/lib/mocks/types';
+import type { CitationSource, RegulatorChange, RegulatorStage } from '@/lib/internal/types';
 
 const STAGES: ReadonlyArray<{ readonly id: RegulatorStage; readonly label: string }> = [
   { id: 'incoming', label: 'Incoming' },

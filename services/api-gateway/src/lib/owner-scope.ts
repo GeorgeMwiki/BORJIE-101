@@ -122,7 +122,7 @@ export async function getOwnerScope(
     // path — the work-orders repo doesn't yet expose a
     // `findByPropertyIds` method; this is the smallest behaviour
     // change that closes the multi-tenant leak on leases / invoices /
-    // payments / customers. TODO: extend work-orders repo next.
+    // payments / customers. TODO(#43): extend work-orders repo next.
     repos.workOrders.findMany(auth.tenantId, pagination.limit, pagination.offset),
   ]);
 

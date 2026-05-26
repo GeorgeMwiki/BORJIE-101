@@ -187,7 +187,7 @@ async function fetchProviderRates(
           'Either set the env var or use --rates for a manual upsert.',
       );
     }
-    // Follow-up (Docs/TODO_BACKLOG.md): fetch https://data.fixer.io/api/latest?access_key=<key>&base=USD
+    // Follow-up (#33): fetch https://data.fixer.io/api/latest?access_key=<key>&base=USD
     // and convert to "1 unit of CODE = rateToUsd USD" form. Out of scope here.
     throw new ConfigError(
       'PROVIDER_NOT_CONFIGURED: fixer-io fetch is not implemented yet. ' +

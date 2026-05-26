@@ -14,7 +14,7 @@
  *   - apps/customer-app/src/lib/realtime-rooms-client.ts
  *   - apps/estate-manager-app/src/lib/realtime-rooms-client.ts
  *
- * Follow-up B6 follow-up (Docs/TODO_BACKLOG.md): extract to `packages/realtime-rooms-client/`
+ * Follow-up B6 follow-up (#33): extract to `packages/realtime-rooms-client/`
  * when a portal needs to override the auth dispatch (e.g. a
  * tenant-portal that proxies through a custom domain).
  */

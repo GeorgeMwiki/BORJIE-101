@@ -3,7 +3,7 @@
  * simulation. Pure quantitative — feeds the Daily Owner Brief, Weekly
  * Strategy Memo, and Investor Pack.
  *
- * Schema gap: `forecasts` raw SQL; TODO(phase-3).
+ * Schema gap: `forecasts` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -106,7 +106,7 @@ export function createForecastModeler(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `forecasts`.
+          // TODO(#30): typed insert against `forecasts`.
           await deps.db.execute(
             sql`INSERT INTO forecasts
                   (id, tenant_id, site_id, kind, horizon_days, summary, computed_at)

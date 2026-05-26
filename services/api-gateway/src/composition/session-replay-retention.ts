@@ -11,7 +11,7 @@
  * keep cohorts for post-mortem replay, narrow enough to bound storage
  * cost.
  *
- * Storage purge limitation (KNOWN GAP — tracked in Docs/TODO_BACKLOG.md and the storage code
+ * Storage purge limitation (KNOWN GAP — tracked in #33 and the storage code
  * path below): the `SessionReplayStoragePort` in
  * `services/api-gateway/src/storage/session-replay-storage.ts` does NOT
  * currently expose a `delete()` method (out-of-scope for this agent).
@@ -209,7 +209,7 @@ export function createSessionReplayRetention(
           }
         }
       } else if (!storageWarnedThisProcess && deps.logger?.warn) {
-        // Follow-up central-command-phase-c (Docs/TODO_BACKLOG.md): the production
+        // Follow-up central-command-phase-c (#33): the production
         // `SessionReplayStoragePort` does not yet expose a `delete()`
         // method. Until that port grows the method, the retention
         // worker purges DB rows only. A follow-up agent must:

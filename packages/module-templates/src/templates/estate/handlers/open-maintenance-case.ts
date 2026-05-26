@@ -7,8 +7,8 @@
  *   - document     : an inspection report or complaint letter (Piece K)
  *
  * Writes to `maintenance_tickets` if the migration has landed; otherwise
- * logs `console.warn('TODO: write to maintenance_tickets when migration lands')`
- * so an integration test can still verify the handler's CALL SHAPE.
+ * logs a TODO(#34) warning so an integration test can still verify the
+ * handler's CALL SHAPE.
  */
 
 import { z } from 'zod';
@@ -61,7 +61,7 @@ export interface MaintenanceTicketStorePort {
   /**
    * Returns `null` when the underlying table does not yet exist.
    * Production implementation queries `pg_tables` once at startup and
-   * caches the result — the handler then logs a TODO warning instead.
+   * caches the result — the handler then logs a TODO(#34) warning instead.
    */
   open(args: {
     readonly tenantId: string;
@@ -138,10 +138,10 @@ export async function openMaintenanceCaseHandler(
     if (deps.logger?.warn) {
       deps.logger.warn(
         { proposal_id: ctx.proposalId, unit_id: parsed.unit_id },
-        'TODO: write to maintenance_tickets table when migration lands',
+        'TODO(#34): write to maintenance_tickets table when migration lands',
       );
     } else {
-      logger.warn('TODO: write to maintenance_tickets table when migration lands', { proposal_id: ctx.proposalId, unit_id: parsed.unit_id });
+      logger.warn('TODO(#34): write to maintenance_tickets table when migration lands', { proposal_id: ctx.proposalId, unit_id: parsed.unit_id });
     }
   } else {
     ticketId = ticket.id;

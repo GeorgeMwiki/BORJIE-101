@@ -20,7 +20,7 @@
  * Each handler returns an empty list + `X-Backend-Status: degraded`.
  * Mounted at `/owner` in index.ts so paths line up with the FE.
  *
- * Follow-up api-gateway, COMMS-001 (Docs/TODO_BACKLOG.md): wire bulk-comms domain.
+ * Follow-up api-gateway, COMMS-001 (#33): wire bulk-comms domain.
  *   Concrete next-step:
  *     1. Add migrations: `comms_broadcasts`, `comms_campaigns`,
  *        `comms_templates` (all tenantId-scoped, with status enum +

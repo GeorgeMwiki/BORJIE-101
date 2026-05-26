@@ -47,7 +47,7 @@ export interface ScannerCameraProps {
 // Stub hooks — replace with real implementations
 // ---------------------------------------------------------------------------
 
-// Follow-up KI-015 (Docs/TODO_BACKLOG.md): implement with navigator.mediaDevices.getUserMedia —
+// Follow-up KI-015 (#33): implement with navigator.mediaDevices.getUserMedia —
 //   see Docs/KNOWN_ISSUES.md#ki-015.
 function useMediaStream(_facingMode: 'environment' | 'user'): {
   stream: MediaStream | null;
@@ -56,7 +56,7 @@ function useMediaStream(_facingMode: 'environment' | 'user'): {
   return { stream: null, error: null };
 }
 
-// Follow-up KI-015 (Docs/TODO_BACKLOG.md): wire to WASM OpenCV / native edge detector —
+// Follow-up KI-015 (#33): wire to WASM OpenCV / native edge detector —
 //   see Docs/KNOWN_ISSUES.md#ki-015.
 function useEdgeDetection(_videoRef: React.RefObject<HTMLVideoElement>): {
   quad: readonly { x: number; y: number }[] | null;
@@ -64,7 +64,7 @@ function useEdgeDetection(_videoRef: React.RefObject<HTMLVideoElement>): {
   return { quad: null };
 }
 
-// Follow-up KI-015 (Docs/TODO_BACKLOG.md): implement perspective-correct crop using the detected
+// Follow-up KI-015 (#33): implement perspective-correct crop using the detected
 //   quad — see Docs/KNOWN_ISSUES.md#ki-015.
 function deskewFrame(
   _video: HTMLVideoElement,
@@ -134,7 +134,7 @@ export function ScannerCamera(props: ScannerCameraProps): JSX.Element {
     <div className="scanner-camera" role="region" aria-label="Document scanner">
       <div className="scanner-camera__viewport">
         <video ref={videoRef} autoPlay playsInline muted />
-        {/* Follow-up KI-015 (Docs/TODO_BACKLOG.md): render the detected quad as an SVG overlay. */}
+        {/* Follow-up KI-015 (#33): render the detected quad as an SVG overlay. */}
         {quad ? (
           <svg className="scanner-camera__quad" aria-hidden="true" />
         ) : null}

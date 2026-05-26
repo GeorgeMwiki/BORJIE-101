@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@borjie/domain-models": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
     "bcrypt": "^5.1.1",
     "drizzle-orm": "^0.45.2",
     "pino": "^10.3.1",

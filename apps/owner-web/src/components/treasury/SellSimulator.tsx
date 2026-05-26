@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { simulateSellVsHold } from '@/lib/mocks/treasury';
+import { simulateSellVsHold } from '@/lib/types/treasury';
 import { fmtTzsM } from '@/lib/format';
 
 interface SellSimulatorProps {

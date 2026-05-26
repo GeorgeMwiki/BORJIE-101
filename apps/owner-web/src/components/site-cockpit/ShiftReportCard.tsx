@@ -1,6 +1,6 @@
 'use client';
 
-import type { Blocker, ShiftReport } from '@/lib/mocks/site-cockpit';
+import type { Blocker, ShiftReport } from '@/lib/types/site-cockpit';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { fmtDate, fmtNum } from '@/lib/format';
 

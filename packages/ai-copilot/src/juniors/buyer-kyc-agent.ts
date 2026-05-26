@@ -2,7 +2,7 @@
  * Buyer KYC Agent — NIDA verification, TIN check, AML declaration
  * validation. Closes the loop on Sales / Off-take buyer onboarding.
  *
- * Schema gap: `buyer_kyc_records` raw SQL; TODO(phase-3).
+ * Schema gap: `buyer_kyc_records` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -111,7 +111,7 @@ export function createBuyerKycAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `buyer_kyc_records`.
+          // TODO(#30): typed insert against `buyer_kyc_records`.
           await deps.db.execute(
             sql`INSERT INTO buyer_kyc_records
                   (id, tenant_id, buyer_id, kyc_status, oecd_band, summary, created_at)

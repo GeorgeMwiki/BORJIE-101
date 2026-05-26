@@ -6,22 +6,18 @@
  *   query: tenantId?, junior?, cursor?, limit?
  *   response.meta: { nextCursor, limit, count }
  *
- * Exposes two hooks:
- *   useAuditLogQuery()        single-page snapshot (back-compat).
- *   useAuditLogPages()        cursor-based useInfiniteQuery; lets the
- *                             virtual list page lazily.
+ * Live-only: failures propagate to react-query's `error` channel.
  */
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { MOCK_AUDIT_LOG } from '@/lib/mocks/audit-log';
-import type { AuditEvent } from '@/lib/mocks/types';
+import type { AuditEvent } from '@/lib/internal/types';
 
 const KEY = ['internal', 'audit-log'] as const;
 
 interface AuditLogResult {
   readonly rows: ReadonlyArray<AuditEvent>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
 interface RawAuditRow {
@@ -53,16 +49,9 @@ export function useAuditLogQuery() {
   return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<AuditLogResult> => {
-      const res = await apiClient.get<ReadonlyArray<RawAuditRow | AuditEvent>>(
-        '/audit-log',
-        async () => MOCK_AUDIT_LOG,
-      );
+      const res = await apiClient.get<ReadonlyArray<RawAuditRow>>('/audit-log');
       if (!res.ok) throw new Error(res.message);
-      const rows =
-        res.source === 'live'
-          ? (res.data as ReadonlyArray<RawAuditRow>).map(adaptAudit)
-          : (res.data as ReadonlyArray<AuditEvent>);
-      return { rows, source: res.source };
+      return { rows: res.data.map(adaptAudit), source: 'live' };
     },
   });
 }
@@ -70,7 +59,7 @@ export function useAuditLogQuery() {
 interface AuditLogPage {
   readonly rows: ReadonlyArray<AuditEvent>;
   readonly nextCursor: number | null;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
 interface AuditLogFilters {
@@ -82,8 +71,7 @@ interface AuditLogFilters {
 const PAGE_SIZE = 50;
 
 /**
- * Cursor-paginated audit log. The mock path slices the in-memory
- * fixture by sequence number so the same UI works offline.
+ * Cursor-paginated audit log. Live-only.
  */
 export function useAuditLogPages(filters: AuditLogFilters = {}) {
   const limit = filters.limit ?? PAGE_SIZE;
@@ -101,26 +89,14 @@ export function useAuditLogPages(filters: AuditLogFilters = {}) {
         readonly data: ReadonlyArray<RawAuditRow>;
         readonly meta?: { readonly nextCursor: number | null };
       };
-      const res = await apiClient.get<Envelope>(`/audit-log?${params.toString()}`, async () => {
-        const start = pageParam === null ? 0 : Math.max(0, MOCK_AUDIT_LOG.length - pageParam);
-        const slice = MOCK_AUDIT_LOG.slice(start, start + limit);
-        return {
-          data: slice as unknown as ReadonlyArray<RawAuditRow>,
-          meta: {
-            nextCursor:
-              start + slice.length < MOCK_AUDIT_LOG.length
-                ? MOCK_AUDIT_LOG.length - (start + slice.length)
-                : null,
-          },
-        };
-      });
+      const res = await apiClient.get<Envelope>(`/audit-log?${params.toString()}`);
       if (!res.ok) throw new Error(res.message);
       const envelope = res.data;
-      const rows =
-        res.source === 'live'
-          ? envelope.data.map(adaptAudit)
-          : (envelope.data as unknown as ReadonlyArray<AuditEvent>);
-      return { rows, nextCursor: envelope.meta?.nextCursor ?? null, source: res.source };
+      return {
+        rows: envelope.data.map(adaptAudit),
+        nextCursor: envelope.meta?.nextCursor ?? null,
+        source: 'live',
+      };
     },
     getNextPageParam: (last) => last.nextCursor,
   });

@@ -17,21 +17,7 @@ function resolveBaseUrl(): string {
   return raw.replace(/\/+$/u, '')
 }
 
-/**
- * Feature flag: when 'false' the app falls back to mock/offline behaviour
- * and never issues network requests against the gateway. Defaults to 'true'
- * so production builds talk to the real backend.
- */
-function resolveUseLiveApi(): boolean {
-  const raw = process.env.EXPO_PUBLIC_USE_LIVE_API
-  if (typeof raw === 'string') {
-    return raw.toLowerCase() !== 'false'
-  }
-  return true
-}
-
 export const API_BASE_URL: string = resolveBaseUrl()
-export const USE_LIVE_API: boolean = resolveUseLiveApi()
 export const DEFAULT_TIMEOUT_MS = 5_000
 
 // Legacy prefixes — kept so existing field/owner/chat call sites continue to

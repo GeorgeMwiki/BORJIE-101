@@ -5,7 +5,7 @@ import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Download, Loader2 } from 'lucide-react';
-import { REPORT_CATALOGUE, type ReportKind } from '@/lib/mocks/reports';
+import { REPORT_CATALOGUE, type ReportKind } from '@/lib/types/reports';
 import { useGenerateReport } from '@/lib/queries/reports';
 import { Toast } from '@/components/shared/Toast';
 

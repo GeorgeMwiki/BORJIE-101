@@ -6,7 +6,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { usePromotionsQuery, useRevertPromotion } from '@/lib/internal/queries/rollback';
-import type { PromotionRow } from '@/lib/mocks/types';
+import type { PromotionRow } from '@/lib/internal/types';
 
 export function RollbackPanel(): JSX.Element {
   const query = usePromotionsQuery();

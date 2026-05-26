@@ -212,7 +212,7 @@ export function createParityCapabilityDashboard(
     // Regen rate proxy = fraction of rows with `judge_score < 0.5` (the
     // Borjie kernel re-runs anything under 0.5 before serving in
     // production). LITFIN uses a `regenerated_flag` column we don't have
-    // yet; this proxy is documented as a tier-3 follow-up (Docs/TODO_BACKLOG.md).
+    // yet; this proxy is documented as a tier-3 follow-up (#33).
     for (const capability of options.capabilities) {
       const prefixes = options.capabilityPrefixes[capability] ?? [];
       if (prefixes.length === 0) {
@@ -388,7 +388,7 @@ export function createParityCapabilityDashboard(
         // Judge reason/suggested-fix aren't persisted yet — the kernel's
         // structured judge output lands in a follow-up. Until then the
         // detail drawer renders "—".
-        // Follow-up tier-3 (Docs/TODO_BACKLOG.md): persist judge reason + suggestedFix in the
+        // Follow-up tier-3 (#33): persist judge reason + suggestedFix in the
         // provenance row once the structured-judge migration ships.
         category: sensorId ? sensorId.split('.')[0] ?? null : null,
         capability: null,
@@ -415,7 +415,7 @@ export function createParityCapabilityDashboard(
     thoughtId: string,
     _options: RejudgeOptions,
   ): Promise<RejudgeVerdict> {
-    // Follow-up tier-3 (Docs/TODO_BACKLOG.md): wire to a real judge-runner worker. Today we accept
+    // Follow-up tier-3 (#33): wire to a real judge-runner worker. Today we accept
     // the rejudge request, record nothing (the kernel-eval worker isn't
     // mounted in api-gateway yet), and surface "queued" so the UI can
     // show optimistic feedback without silently dropping the intent.

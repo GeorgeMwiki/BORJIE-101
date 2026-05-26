@@ -22,7 +22,7 @@
 // Soft-pointer: @borjie/persona-runtime is not yet built. Inline the
 // minimal Persona contract this engine actually relies on; the upstream
 // package will be a structural superset when it lands.
-// TODO(wave3-int1): swap back to `import type { Persona } from '@borjie/persona-runtime'`
+// TODO(#38): swap back to `import type { Persona } from '@borjie/persona-runtime'`
 // once persona-runtime is published.
 export interface Persona {
   readonly id: string;

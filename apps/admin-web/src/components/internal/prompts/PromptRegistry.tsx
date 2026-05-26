@@ -7,7 +7,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { PromptDiff } from './PromptDiff';
 import { usePromptsQuery, useSetPromptStatus } from '@/lib/internal/queries/prompts';
-import type { PromptRow, PromptStatus } from '@/lib/mocks/types';
+import type { PromptRow, PromptStatus } from '@/lib/internal/types';
 
 function tone(status: PromptStatus): 'success' | 'info' | 'neutral' {
   if (status === 'Production') return 'success';

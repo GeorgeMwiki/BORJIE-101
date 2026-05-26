@@ -1,4 +1,4 @@
-import type { BriefItem } from '@/lib/cockpit-mocks';
+import type { BriefItem } from '@/lib/types/cockpit';
 
 interface DailyBriefCardProps {
   readonly items: ReadonlyArray<BriefItem>;

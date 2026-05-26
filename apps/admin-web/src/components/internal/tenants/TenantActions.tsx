@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSetTenantStatus } from '@/lib/internal/queries/tenants';
-import type { Tenant } from '@/lib/mocks/types';
+import type { Tenant } from '@/lib/internal/types';
 import { Toast } from '../Toast';
 
 interface TenantActionsProps {

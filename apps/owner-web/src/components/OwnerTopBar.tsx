@@ -3,6 +3,7 @@ import { getOwnerSession } from '@/lib/session';
 import { SiteSelector } from './SiteSelector';
 import { LanguageToggle } from './LanguageToggle';
 import { OwnerAvatar } from './OwnerAvatar';
+import { SignOutButton } from './SignOutButton';
 
 /**
  * Top bar — anchored across every owner screen.
@@ -39,6 +40,7 @@ export async function OwnerTopBar() {
           fullName={session.fullName}
           tenantName={session.tenant.tradingName}
         />
+        <SignOutButton />
       </div>
     </header>
   );

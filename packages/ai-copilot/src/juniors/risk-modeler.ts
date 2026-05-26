@@ -2,7 +2,7 @@
  * Risk Modeler — safety + regulatory + geological risk scoring.
  * Composite 0-100 score per category + overall.
  *
- * Schema gap: `risk_snapshots` raw SQL; TODO(phase-3).
+ * Schema gap: `risk_snapshots` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -100,7 +100,7 @@ export function createRiskModeler(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `risk_snapshots`.
+          // TODO(#30): typed insert against `risk_snapshots`.
           await deps.db.execute(
             sql`INSERT INTO risk_snapshots
                   (id, tenant_id, site_id, composite_score, band, summary, computed_at)

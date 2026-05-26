@@ -1,28 +1,70 @@
-// TODO(api-gateway): no live `/api/v1/mining/internal/regulator-pipeline`
-// route exists yet. Hooks below will fall back to bundled mock until
-// the gateway exposes the kanban view + stage-transition endpoint.
+/**
+ * react-query bindings for /api/v1/mining/internal/regulator-pipeline.
+ *
+ * Live endpoints (services/api-gateway/src/routes/mining/internal/regulator-pipeline.hono.ts):
+ *   GET    /                 paginated kanban list (filter: source, status)
+ *   PATCH  /:id/stage        move an entry to the next kanban stage
+ *
+ * The live row shape (`source` enum lowercase, `status` instead of
+ * `stage`, `capturedAt` timestamp) is adapted into the legacy
+ * `RegulatorChange` shape. Live-only: failures propagate to react-
+ * query's `error` channel.
+ */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { MOCK_REGULATOR_PIPELINE } from '@/lib/mocks/regulator-pipeline';
-import type { RegulatorChange, RegulatorStage } from '@/lib/mocks/types';
+import type {
+  CitationSource,
+  RegulatorChange,
+  RegulatorStage,
+} from '@/lib/internal/types';
 
 const KEY = ['internal', 'regulator-pipeline'] as const;
 
 interface PipelineResult {
   readonly rows: ReadonlyArray<RegulatorChange>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
+}
+
+interface RawRegulatorRow {
+  readonly id?: string;
+  readonly source?: 'gazette' | 'nemc' | 'bot' | 'tra' | 'tumemadini';
+  readonly title?: string;
+  readonly status?: RegulatorStage;
+  readonly capturedAt?: string;
+}
+
+const SOURCE_LABELS: Record<NonNullable<RawRegulatorRow['source']>, CitationSource> = {
+  gazette: 'Gazette',
+  nemc: 'NEMC',
+  bot: 'BoT',
+  tra: 'TRA',
+  tumemadini: 'Tumemadini',
+};
+
+function ageHoursOf(iso: string | undefined): number {
+  if (!iso) return 0;
+  const dt = new Date(iso).getTime();
+  if (!Number.isFinite(dt)) return 0;
+  return Math.max(0, Math.round((Date.now() - dt) / 3_600_000));
+}
+
+function adaptRegulator(raw: RawRegulatorRow): RegulatorChange {
+  return {
+    id: raw.id ?? `reg_${Math.random().toString(36).slice(2)}`,
+    source: raw.source ? SOURCE_LABELS[raw.source] : 'Gazette',
+    title: raw.title ?? 'Untitled change',
+    stage: raw.status ?? 'incoming',
+    ageHours: ageHoursOf(raw.capturedAt),
+  };
 }
 
 export function useRegulatorPipelineQuery() {
   return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<PipelineResult> => {
-      const res = await apiClient.get<ReadonlyArray<RegulatorChange>>(
-        '/regulator-pipeline',
-        async () => MOCK_REGULATOR_PIPELINE
-      );
+      const res = await apiClient.get<ReadonlyArray<RawRegulatorRow>>('/regulator-pipeline');
       if (!res.ok) throw new Error(res.message);
-      return { rows: res.data, source: res.source };
+      return { rows: res.data.map(adaptRegulator), source: 'live' };
     },
   });
 }
@@ -36,17 +78,12 @@ export function useMoveRegulatorChange() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, stage }: MoveInput): Promise<RegulatorChange> => {
-      const res = await apiClient.patch<RegulatorChange>(
+      const res = await apiClient.patch<RawRegulatorRow>(
         `/regulator-pipeline/${id}/stage`,
         { stage },
-        async () => {
-          const hit = MOCK_REGULATOR_PIPELINE.find((r) => r.id === id);
-          if (!hit) throw new Error('Change not found');
-          return { ...hit, stage };
-        }
       );
       if (!res.ok) throw new Error(res.message);
-      return res.data;
+      return adaptRegulator(res.data);
     },
     onMutate: async ({ id, stage }) => {
       await qc.cancelQueries({ queryKey: KEY });

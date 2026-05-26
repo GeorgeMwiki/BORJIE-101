@@ -2,15 +2,15 @@
  * Kernel cohort service — Drizzle-backed `TenantAggregateSource`
  * implementation for `@borjie/graph-privacy`'s DP aggregator.
  *
- * TODO(borjie-hard-fork): the original implementation pulled per-
- * tenant arrears, collections, renewal, and maintenance-TTC
- * contributions from property-domain tables (leases, invoices,
- * payments, arrears_cases, work_orders). Those tables were removed
- * in migration 0003_mining_domain.sql. This file now returns the
- * empty platform slice so the aggregator emits a structured
- * `slice_empty` refusal instead of throwing — restore mining-domain
- * statistics (tonnage, recovery rates, royalty payments, etc.) before
- * re-enabling the DP cohort path.
+ * TODO(#29): the original implementation pulled per-tenant arrears,
+ * collections, renewal, and maintenance-TTC contributions from
+ * property-domain tables (leases, invoices, payments, arrears_cases,
+ * work_orders). Those tables were removed in migration
+ * 0003_mining_domain.sql. This file now returns the empty platform
+ * slice so the aggregator emits a structured `slice_empty` refusal
+ * instead of throwing — restore mining-domain statistics (tonnage,
+ * recovery rates, royalty payments, etc.) before re-enabling the DP
+ * cohort path.
  */
 
 import { tenants } from '../schemas/tenant.schema.js';

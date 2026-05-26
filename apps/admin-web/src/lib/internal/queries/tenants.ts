@@ -8,23 +8,21 @@
  *   PATCH  /:id           plan / billing patch
  *   POST   /:id/suspend   suspend
  *
- * Status-flip (Trial/Past due/etc.) used to map to a PATCH on
- * `/:id/status` that does not exist on the gateway; the only live
- * transition supported is `Suspended` via `POST /:id/suspend`. The
- * legacy `useSetTenantStatus` hook routes that case to the live
- * endpoint and falls back to mock otherwise.
+ * Live-only: failures propagate to react-query's `error` channel. The
+ * `useImpersonate` hook calls the gateway impersonation endpoint
+ * directly; that endpoint is not yet wired upstream and will return
+ * 404 until it lands.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, unwrap, type ApiResult } from '@/lib/api-client';
-import { MOCK_TENANTS } from '@/lib/mocks/tenants';
-import type { Tenant, TenantPlan, TenantStatus } from '@/lib/mocks/types';
+import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
 
 const TENANTS_KEY = ['internal', 'tenants'] as const;
 
 interface TenantsResult {
   readonly rows: ReadonlyArray<Tenant>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
 interface RawTenant {
@@ -75,16 +73,9 @@ export function useTenantsQuery() {
   return useQuery({
     queryKey: TENANTS_KEY,
     queryFn: async (): Promise<TenantsResult> => {
-      const res = await apiClient.get<ReadonlyArray<RawTenant | Tenant>>(
-        '/tenants',
-        async () => MOCK_TENANTS,
-      );
+      const res = await apiClient.get<ReadonlyArray<RawTenant>>('/tenants');
       if (!res.ok) throw new Error(res.message);
-      const rows =
-        res.source === 'live'
-          ? (res.data as ReadonlyArray<RawTenant>).map(adaptTenant)
-          : (res.data as ReadonlyArray<Tenant>);
-      return { rows, source: res.source };
+      return { rows: res.data.map(adaptTenant), source: 'live' };
     },
   });
 }
@@ -94,16 +85,9 @@ export function useTenantQuery(id: string | undefined) {
     queryKey: [...TENANTS_KEY, id ?? 'none'],
     enabled: Boolean(id),
     queryFn: async () => {
-      const res = await apiClient.get<RawTenant | Tenant>(`/tenants/${id ?? ''}`, async () => {
-        const hit = MOCK_TENANTS.find((t) => t.id === id);
-        if (!hit) throw new Error('Tenant not found');
-        return hit;
-      });
+      const res = await apiClient.get<RawTenant>(`/tenants/${id ?? ''}`);
       const data = unwrap(res);
-      // Heuristic: live rows lack the front-end `arrUsd` field.
-      return 'arrUsd' in (data as object)
-        ? (data as Tenant)
-        : adaptTenant(data as RawTenant);
+      return adaptTenant(data);
     },
   });
 }
@@ -118,25 +102,15 @@ export function useSetTenantStatus() {
   return useMutation({
     mutationFn: async ({ id, status }: SetStatusInput): Promise<Tenant> => {
       if (status === 'Suspended') {
-        const res = await apiClient.post<RawTenant | Tenant>(
-          `/tenants/${id}/suspend`,
-          {},
-          async () => {
-            const hit = MOCK_TENANTS.find((t) => t.id === id);
-            if (!hit) throw new Error('Tenant not found');
-            return { ...hit, status };
-          },
-        );
-        const next = unwrap(res);
-        return 'arrUsd' in (next as object)
-          ? (next as Tenant)
-          : adaptTenant(next as RawTenant);
+        const res = await apiClient.post<RawTenant>(`/tenants/${id}/suspend`, {});
+        return adaptTenant(unwrap(res));
       }
-      // TODO: gateway does not expose non-suspension transitions yet.
-      // Mock-only optimistic flip.
-      const hit = MOCK_TENANTS.find((t) => t.id === id);
-      if (!hit) throw new Error('Tenant not found');
-      return { ...hit, status };
+      // TODO(#25): non-suspension status transitions are not yet
+      // exposed by the gateway. Until they are, this surface throws so
+      // the UI can render a real error instead of a silent mock flip.
+      throw new Error(
+        `Tenant status transition '${status}' is not supported by the live gateway`,
+      );
     },
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: TENANTS_KEY });
@@ -162,17 +136,11 @@ interface ImpersonateResponse {
 }
 
 export function useImpersonate() {
-  // TODO: gateway does not expose impersonation yet; this stays
-  // mock-only and is documented for future wiring.
+  // TODO(#25): gateway does not yet expose impersonation; the call
+  // will 404 until that route lands. Surfaced as an ApiErr so the UI
+  // can render an explicit "not yet wired" toast.
   return useMutation({
     mutationFn: async (tenantId: string): Promise<ApiResult<ImpersonateResponse>> =>
-      apiClient.post<ImpersonateResponse>(
-        `/tenants/${tenantId}/impersonate`,
-        {},
-        async () => ({
-          bearer: `mock_${tenantId}_${Date.now()}`,
-          portalUrl: `/portal?impersonate=${tenantId}`,
-        }),
-      ),
+      apiClient.post<ImpersonateResponse>(`/tenants/${tenantId}/impersonate`, {}),
   });
 }

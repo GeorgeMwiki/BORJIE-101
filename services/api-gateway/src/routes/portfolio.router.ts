@@ -15,7 +15,7 @@
  * owner-portal.ts). `/performance` and `/growth` still return an
  * "honest empty" shape until per-property revenue/NOI rollups land.
  *
- * Follow-up api-gateway, PORT-005 (Docs/TODO_BACKLOG.md): swap `/performance` + `/growth` for
+ * Follow-up api-gateway, PORT-005 (#33): swap `/performance` + `/growth` for
  *   Drizzle queries that join properties → units → leases → invoices
  *   → payments scoped to `auth.propertyAccess`. The summary endpoint
  *   here is the reference shape — extend it with per-property buckets

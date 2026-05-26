@@ -19,8 +19,9 @@
  * (mode prompts, eval rigs, audit log) can tell a stubbed call apart
  * from a real one without inspecting code paths.
  *
- * TODO: wire real API in MVP3+ — replace the three executors with HTTP
- * adapters guarded by per-tenant rate limits and signed-payload caching.
+ * TODO(#35): wire real API in MVP3+ — replace the three executors with
+ * HTTP adapters guarded by per-tenant rate limits and signed-payload
+ * caching.
  */
 
 import { z } from 'zod';
@@ -50,7 +51,7 @@ export type BotGoldRate = z.infer<typeof botGoldRateOutputSchema>;
  * `botGoldWindow.fetchRate()` — fetch the daily BoT gold-window
  * reference rate. Stubbed deterministic mock.
  *
- * TODO: wire real API in MVP3+.
+ * TODO(#35): wire real API in MVP3+.
  */
 export async function botGoldWindowFetchRate(): Promise<BotGoldRate> {
   return Object.freeze({
@@ -86,7 +87,7 @@ export type NemcPermit = z.infer<typeof nemcPermitOutputSchema>;
  * for an EPP / EIA / mining-environmental permit by reference number.
  * Stubbed deterministic mock.
  *
- * TODO: wire real API in MVP3+.
+ * TODO(#35): wire real API in MVP3+.
  */
 export async function nemcPortalFetchPermit(
   input: z.infer<typeof nemcPermitInputSchema>,
@@ -126,7 +127,7 @@ export type GepgBill = z.infer<typeof gepgQueryOutputSchema>;
  * status (royalty, inspection fee, village tax, etc.). Stubbed
  * deterministic mock.
  *
- * TODO: wire real API in MVP3+.
+ * TODO(#35): wire real API in MVP3+.
  */
 export async function gepgGatewayQueryBill(
   input: z.infer<typeof gepgQueryInputSchema>,

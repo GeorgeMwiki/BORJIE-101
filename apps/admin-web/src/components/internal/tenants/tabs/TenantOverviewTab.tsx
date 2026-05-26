@@ -1,4 +1,4 @@
-import type { Tenant } from '@/lib/mocks/types';
+import type { Tenant } from '@/lib/internal/types';
 
 interface TenantOverviewTabProps {
   readonly tenant: Tenant;

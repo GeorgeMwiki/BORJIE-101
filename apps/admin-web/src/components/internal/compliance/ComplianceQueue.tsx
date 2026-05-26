@@ -5,7 +5,7 @@ import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { useComplianceQueueQuery, useResolveCompliance } from '@/lib/internal/queries/compliance';
-import type { ComplianceItem, ComplianceSeverity } from '@/lib/mocks/types';
+import type { ComplianceItem, ComplianceSeverity } from '@/lib/internal/types';
 
 function severityTone(sev: ComplianceSeverity): 'danger' | 'warn' | 'neutral' {
   if (sev === 'High') return 'danger';

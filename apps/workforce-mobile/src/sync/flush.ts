@@ -1,5 +1,4 @@
 import { miningApi, type MiningApi } from '../api/client'
-import { USE_LIVE_API } from '../api/config'
 import { ApiError } from '../api/errors'
 import { endpointFor } from './endpoints'
 import {
@@ -44,16 +43,11 @@ function shouldDrop(error: unknown): boolean {
  * error so we never loop forever on a poisoned payload.
  *
  * Accepts an optional `apiClient` so tests can inject a stub. Defaults to
- * the real `miningApi` wrapper. When EXPO_PUBLIC_USE_LIVE_API is 'false'
- * the flush is a no-op — the queue stays intact for the next online cycle.
+ * the real `miningApi` wrapper.
  */
 export async function flushQueue(
   apiClient: Pick<MiningApi, 'post'> = miningApi
 ): Promise<FlushResult> {
-  if (!USE_LIVE_API) {
-    const remaining = (await listQueued()).length
-    return { attempted: 0, succeeded: 0, failed: 0, remaining, skipped: true }
-  }
   const queued = await listQueued()
   let succeeded = 0
   let failed = 0

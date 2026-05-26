@@ -21,7 +21,7 @@
  * through to this router for `/admin/users` because the existing
  * adminPortalRouter does not claim that path.
  *
- * Follow-up api-gateway, ADMIN-USERS-001 (Docs/TODO_BACKLOG.md): wire the admin-user list endpoint.
+ * Follow-up api-gateway, ADMIN-USERS-001 (#33): wire the admin-user list endpoint.
  *   Concrete next-step:
  *     1. Add `repos.users.findManyForAdmin(tenantId, { page, limit,
  *        roleFilter, statusFilter })` returning

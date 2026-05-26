@@ -76,6 +76,7 @@
     "submit_bid": "Tuma zabuni",
     "bid_submitted": "Zabuni imewasilishwa",
     "bid_failed": "Imeshindwa kutuma zabuni",
+    "kyc_required": "Kamilisha KYC kabla ya kuweka zabuni",
     "accept_counter": "Kubali toleo la kupinga",
     "withdraw_bid": "Ondoa zabuni",
     "message_placeholder": "Jibu muuzaji",

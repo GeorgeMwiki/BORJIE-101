@@ -14,7 +14,7 @@
  * RecommendedAction shape, so downstream callers don't care which
  * was used.
  *
- * TODO(piece-b): once `routing_rules` is in the worktree, wire
+ * TODO(#39): once `routing_rules` is in the worktree, wire
  *   `RoutingRulesPort.lookup({entityType, intent})` to the real table.
  */
 
@@ -23,7 +23,7 @@ import type { VerifiedHypothesis } from './hypothesis-verifier.js';
 import type { DebatedHypothesis } from './debate.js';
 
 // ─────────────────────────────────────────────────────────────────────
-// Routing port — TODO(piece-b) wire to the real routing_rules table.
+// Routing port — TODO(#39) wire to the real routing_rules table.
 // ─────────────────────────────────────────────────────────────────────
 
 export interface RoutingRulesPort {

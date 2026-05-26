@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChatBreadcrumb } from '@/lib/mocks/chat';
+import type { ChatBreadcrumb } from '@/lib/types/chat';
 
 interface BreadcrumbStripProps {
   readonly breadcrumbs: ReadonlyArray<ChatBreadcrumb>;

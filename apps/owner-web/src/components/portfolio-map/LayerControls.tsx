@@ -1,6 +1,6 @@
 'use client';
 
-import type { FeatureKind } from '@/lib/mocks/portfolio-map';
+import type { FeatureKind } from '@/lib/types/portfolio-map';
 
 interface LayerControlsProps {
   readonly enabled: ReadonlyArray<FeatureKind>;

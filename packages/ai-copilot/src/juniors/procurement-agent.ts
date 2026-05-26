@@ -2,7 +2,7 @@
  * Procurement / Inventory Agent — reorder timeline, supplier ITC
  * compliance, days-remaining per item (AGENT_PROMPT_LIBRARY §12).
  *
- * Schema gap: `procurement_recommendations` raw SQL; TODO(phase-3).
+ * Schema gap: `procurement_recommendations` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -119,7 +119,7 @@ export function createProcurementAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `procurement_recommendations`.
+          // TODO(#30): typed insert against `procurement_recommendations`.
           await deps.db.execute(
             sql`INSERT INTO procurement_recommendations
                   (id, tenant_id, site_id, summary, created_at)

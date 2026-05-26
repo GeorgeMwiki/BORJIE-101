@@ -1,9 +1,9 @@
 /**
  * Kitco gold spot adapter — stub implementation.
  *
- * TODO: replace with the real Kitco JSON endpoint once vendor SLA is
- * agreed. The stub preserves the PriceSourceAdapter shape so it can be
- * wired alongside the LME adapter today.
+ * TODO(#32): replace with the real Kitco JSON endpoint once vendor SLA
+ * is agreed. The stub preserves the PriceSourceAdapter shape so it can
+ * be wired alongside the LME adapter today.
  */
 
 import type { PriceSourceAdapter } from '../ports.js';
@@ -25,8 +25,8 @@ export function createKitcoAdapter(config: KitcoAdapterConfig = {}): PriceSource
     name: KITCO_SOURCE_ID,
     async fetchLatest(commodity: Commodity): Promise<PriceTick> {
       assertGoldFamily(commodity);
-      // TODO: live request. Stubbed so downstream pipelines can be
-      // wired without network access.
+      // TODO(#32): live request — current implementation falls back to
+      // stub on network/HTTP failure so downstream pipelines stay green.
       try {
         const res = await f(`${baseUrl}/spot/${commodity}`);
         if (!res.ok) return stubGoldTick(commodity, 0);

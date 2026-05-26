@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { type FeatureKind, type MapFeature } from '@/lib/mocks/portfolio-map';
+import { type FeatureKind, type MapFeature } from '@/lib/types/portfolio-map';
 import { usePortfolioMap } from '@/lib/queries/portfolio-map';
 import { LayerControls } from './LayerControls';
 import { MapCanvas } from './MapCanvas';

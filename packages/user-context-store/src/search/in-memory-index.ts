@@ -6,8 +6,8 @@
  * tenant/user/role visibility before any similarity scoring runs — we
  * never leak across tenant boundaries.
  *
- * TODO: in production, swap for pgvector or a hosted vector DB. The
- * port shape is intentionally identical (`searchScoped`) so the
+ * TODO(#18): in production, swap for pgvector or a hosted vector DB.
+ * The port shape is intentionally identical (`searchScoped`) so the
  * upgrade is drop-in.
  */
 import type {

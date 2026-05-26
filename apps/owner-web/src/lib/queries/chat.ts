@@ -3,14 +3,11 @@
 import { useCallback, useRef, useState } from 'react';
 import type { CeoModeId } from '@/lib/ceo-modes';
 import { streamSse } from '@/lib/sse-stream';
-import {
-  MOCK_EVIDENCE_LIBRARY,
-  SAMPLE_TRANSCRIPT,
-  mockChatStream,
-  type ChatBreadcrumb,
-  type ChatEvidence,
-  type ChatMessage,
-} from '@/lib/mocks/chat';
+import type {
+  ChatBreadcrumb,
+  ChatEvidence,
+  ChatMessage,
+} from '@/lib/types/chat';
 
 export interface ChatState {
   readonly messages: ReadonlyArray<ChatMessage>;
@@ -27,10 +24,12 @@ export interface SendOptions {
 }
 
 /**
- * Hook that owns the Master Brain chat transcript and the SSE stream.
+ * Hook that owns the Master Brain chat transcript and the SSE stream
+ * against `POST /api/v1/mining/chat`.
  *
- * Always returns immutable arrays — never mutates state in place. Falls
- * back to a simulated SSE stream when the gateway is unreachable.
+ * Live-only: when the gateway stream fails or returns no events, the
+ * hook surfaces an error in `state.error`. The UI is expected to
+ * render an empty-state when no messages have been received yet.
  */
 export function useChatSession(): {
   readonly state: ChatState;
@@ -39,8 +38,8 @@ export function useChatSession(): {
   readonly resetTranscript: () => void;
 } {
   const [state, setState] = useState<ChatState>({
-    messages: SAMPLE_TRANSCRIPT,
-    evidence: MOCK_EVIDENCE_LIBRARY,
+    messages: [],
+    evidence: [],
     streaming: false,
     streamingText: '',
     streamingBreadcrumbs: [],
@@ -58,7 +57,7 @@ export function useChatSession(): {
     abort();
     setState({
       messages: [],
-      evidence: MOCK_EVIDENCE_LIBRARY,
+      evidence: [],
       streaming: false,
       streamingText: '',
       streamingBreadcrumbs: [],
@@ -95,56 +94,39 @@ export function useChatSession(): {
       let acc = '';
       const breadcrumbs: ChatBreadcrumb[] = [];
       let evidenceIds: ReadonlyArray<string> = [];
+      let sawAny = false;
 
       try {
-        const liveOk = await tryLiveStream(
-          { content: trimmed, mode },
-          controller.signal,
-          (event, payload) => {
-            const handled = applyEvent(
-              event,
-              payload,
-              (text) => {
-                acc += text;
-                setState((prev) => ({ ...prev, streamingText: acc }));
-              },
-              (bc) => {
-                breadcrumbs.push(bc);
-                setState((prev) => ({
-                  ...prev,
-                  streamingBreadcrumbs: [...prev.streamingBreadcrumbs, bc],
-                }));
-              },
-              (ids) => {
-                evidenceIds = ids;
-              },
-            );
-            return handled;
-          },
-        );
+        for await (const ev of streamSse({
+          path: '/api/v1/mining/chat',
+          body: { message: trimmed, mode, language: 'sw' },
+          signal: controller.signal,
+        })) {
+          sawAny = true;
+          const event = normaliseLiveEvent(ev.event);
+          const data = remapLiveData(ev.event, ev.data);
+          applyEvent(
+            event,
+            data,
+            (text) => {
+              acc += text;
+              setState((prev) => ({ ...prev, streamingText: acc }));
+            },
+            (bc) => {
+              breadcrumbs.push(bc);
+              setState((prev) => ({
+                ...prev,
+                streamingBreadcrumbs: [...prev.streamingBreadcrumbs, bc],
+              }));
+            },
+            (ids) => {
+              evidenceIds = ids;
+            },
+          );
+        }
 
-        if (!liveOk) {
-          for await (const ev of mockChatStream(trimmed, mode)) {
-            if (controller.signal.aborted) return;
-            applyEvent(
-              ev.event,
-              ev.data,
-              (text) => {
-                acc += text;
-                setState((prev) => ({ ...prev, streamingText: acc }));
-              },
-              (bc) => {
-                breadcrumbs.push(bc);
-                setState((prev) => ({
-                  ...prev,
-                  streamingBreadcrumbs: [...prev.streamingBreadcrumbs, bc],
-                }));
-              },
-              (ids) => {
-                evidenceIds = ids;
-              },
-            );
-          }
+        if (!sawAny) {
+          throw new Error('chat stream returned no events');
         }
 
         const brainMessage: ChatMessage = {
@@ -202,33 +184,6 @@ function applyEvent(
     return true;
   }
   return event === 'done';
-}
-
-async function tryLiveStream(
-  body: { readonly content: string; readonly mode: CeoModeId },
-  signal: AbortSignal,
-  onEvent: (event: string, data: unknown) => boolean,
-): Promise<boolean> {
-  try {
-    let sawAny = false;
-    for await (const ev of streamSse({
-      path: '/api/v1/mining/chat',
-      // Gateway expects `message` not `content`; mode is forwarded verbatim
-      // and language defaults to `sw` for owner-web (Tanzanian users).
-      body: { message: body.content, mode: body.mode, language: 'sw' },
-      signal,
-    })) {
-      sawAny = true;
-      // Gateway event names diverge from the legacy mock stream — adapt
-      // them here so the applyEvent switch can stay simple.
-      const event = normaliseLiveEvent(ev.event);
-      const data = remapLiveData(ev.event, ev.data);
-      onEvent(event, data);
-    }
-    return sawAny;
-  } catch {
-    return false;
-  }
 }
 
 function normaliseLiveEvent(name: string): string {

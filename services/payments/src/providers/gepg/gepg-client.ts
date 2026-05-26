@@ -62,7 +62,7 @@ export async function requestControlNumberHttp(
     );
   }
 
-  // Follow-up KI-006 (Docs/TODO_BACKLOG.md): real GePG SOAP/REST envelope. For sandbox we
+  // Follow-up KI-006 (#33): real GePG SOAP/REST envelope. For sandbox we
   //   synthesize a deterministic 12-digit control number so the rest of
   //   the pipeline (matcher, ledger, notifications) can be exercised
   //   end-to-end without live credentials. Blocked on live-sandbox
@@ -145,7 +145,7 @@ export async function queryControlNumberHttp(
   assertConfig(config);
 
   if (config.environment === 'sandbox') {
-    // Follow-up KI-006 (Docs/TODO_BACKLOG.md): sandbox harness — returns "pending" so the
+    // Follow-up KI-006 (#33): sandbox harness — returns "pending" so the
     //   reconciliation flow has something deterministic to query.
     //   Blocked on live-sandbox creds. See Docs/KNOWN_ISSUES.md#ki-006.
     return {

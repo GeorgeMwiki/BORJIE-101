@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { X } from 'lucide-react';
-import type { MapFeature } from '@/lib/mocks/portfolio-map';
+import type { MapFeature } from '@/lib/types/portfolio-map';
 
 interface FeatureDetailProps {
   readonly feature: MapFeature | null;

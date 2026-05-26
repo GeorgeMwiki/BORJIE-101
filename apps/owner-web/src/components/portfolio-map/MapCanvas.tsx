@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { FeatureKind, MapFeature } from '@/lib/mocks/portfolio-map';
-import { MAP_INITIAL_VIEW } from '@/lib/mocks/portfolio-map';
+import type { FeatureKind, MapFeature } from '@/lib/types/portfolio-map';
+import { MAP_INITIAL_VIEW } from '@/lib/types/portfolio-map';
 
 interface MapCanvasProps {
   readonly mapboxToken: string;

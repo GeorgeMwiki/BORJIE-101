@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import type { LmbmNode } from '@/lib/mocks/lmbm';
+import type { LmbmNode } from '@/lib/types/lmbm';
 import { fmtDate } from '@/lib/format';
 
 interface NodeDetailProps {

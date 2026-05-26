@@ -229,9 +229,10 @@ export function createDispatchRouterWiring(
  * accept_proposal path is exercisable end-to-end.
  */
 export function createStubEstateHandlerDeps(): EstateHandlerDeps {
-  // Ports default to TODO console.warn implementations so the integration
+  // Ports default to stable-fake implementations so the integration
   // test verifies the call shape rather than the DB state. This is the
-  // explicit "stub the write" path the task description allows.
+  // explicit "stub the write" path the task description allows; tracked
+  // for replacement by TODO(#34) when the real ports land.
   const auditChain = {
     async append() {
       return { id: `stub_audit_${Math.random().toString(36).slice(2, 8)}` };

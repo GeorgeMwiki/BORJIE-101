@@ -112,7 +112,7 @@ export interface BlockGeneratorInput {
 }
 
 export function generateBlocks(input: BlockGeneratorInput): readonly UIBlock[] {
-  // Follow-up KI-005 (Docs/TODO_BACKLOG.md): resolve defaultCurrency from tenant.defaultCurrency /
+  // Follow-up KI-005 (#33): resolve defaultCurrency from tenant.defaultCurrency /
   //   getDefaultCurrency(tenant.countryCode) via @borjie/compliance-plugins
   //   once tenants-table migration lands. USD is the neutral fallback.
   //   See Docs/KNOWN_ISSUES.md#ki-005.

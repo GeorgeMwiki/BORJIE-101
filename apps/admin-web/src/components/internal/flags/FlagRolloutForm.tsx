@@ -31,7 +31,6 @@ export function FlagRolloutForm({ flagKey, current }: FlagRolloutFormProps): JSX
       const res = await apiClient.patch<{ readonly key: string; readonly rolloutPct: number }>(
         `/flags/${flagKey}`,
         input,
-        async () => ({ key: flagKey, rolloutPct: input.rolloutPct })
       );
       if (!res.ok) throw new Error(res.message);
       return res.data;

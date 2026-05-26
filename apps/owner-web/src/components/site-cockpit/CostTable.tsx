@@ -1,6 +1,6 @@
 'use client';
 
-import type { CostLine } from '@/lib/mocks/site-cockpit';
+import type { CostLine } from '@/lib/types/site-cockpit';
 import { ArrowDown, ArrowRight, ArrowUp } from 'lucide-react';
 import { fmtTzs } from '@/lib/format';
 

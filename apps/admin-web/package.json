@@ -23,6 +23,8 @@
     "@borjie/observability": "workspace:^",
     "@borjie/performance-toolkit": "workspace:*",
     "@borjie/realtime-rooms": "workspace:*",
+    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.0",
     "@fullcalendar/daygrid": "^6.1.15",
     "@fullcalendar/react": "^6.1.15",
     "@fullcalendar/timegrid": "^6.1.15",

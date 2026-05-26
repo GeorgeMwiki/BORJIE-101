@@ -10,7 +10,7 @@
  * `X-Backend-Status: degraded` so the UI stops 404'ing while the export
  * service is being designed.
  *
- * Follow-up api-gateway, ANL-EXPORTS-001 (Docs/TODO_BACKLOG.md): land the analytics export domain
+ * Follow-up api-gateway, ANL-EXPORTS-001 (#33): land the analytics export domain
  *   service. Concrete next-step:
  *     1. Add `analytics_export_templates` migration ({ id, tenantId,
  *        name, kind, schema, createdAt, createdBy }).

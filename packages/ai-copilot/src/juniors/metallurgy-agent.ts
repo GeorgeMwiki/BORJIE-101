@@ -3,7 +3,7 @@
  * analysis. Sits between Lab/Assay (head grade) and Sales (concentrate
  * pricing).
  *
- * Schema gap: `metallurgy_recommendations` raw SQL; TODO(phase-3).
+ * Schema gap: `metallurgy_recommendations` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -132,7 +132,7 @@ export function createMetallurgyAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `metallurgy_recommendations`.
+          // TODO(#30): typed insert against `metallurgy_recommendations`.
           await deps.db.execute(
             sql`INSERT INTO metallurgy_recommendations
                   (id, tenant_id, site_id, mineral_family, expected_recovery_pct, summary, computed_at)

@@ -123,10 +123,10 @@ describe('supabaseAuthMiddleware', () => {
     expect(body.auth.role).toBe(UserRole.TENANT_ADMIN);
   });
 
-  it('honors app_metadata over user_metadata for tenant assignment', async () => {
+  it('honors app_metadata for tenant assignment and ignores user_metadata tenant when it agrees', async () => {
     const app = buildApp();
     const token = await makeToken({
-      user_metadata: { tenant_id: 'evil-tenant', roles: ['super_admin'] },
+      user_metadata: { tenant_id: 'real-tenant' },
       app_metadata: { tenant_id: 'real-tenant', roles: ['resident'] },
     });
     const res = await app.request('http://x/me', {
@@ -136,6 +136,20 @@ describe('supabaseAuthMiddleware', () => {
     const body = (await res.json()) as { auth: { tenantId: string; role: string } };
     expect(body.auth.tenantId).toBe('real-tenant');
     expect(body.auth.role).toBe(UserRole.RESIDENT);
+  });
+
+  it('rejects a user_metadata.tenant_id self-promotion attempt (F6) with 403', async () => {
+    const app = buildApp();
+    const token = await makeToken({
+      user_metadata: { tenant_id: 'evil-tenant', roles: ['super_admin'] },
+      app_metadata: { tenant_id: 'real-tenant', roles: ['resident'] },
+    });
+    const res = await app.request('http://x/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('FORBIDDEN');
   });
 });
 

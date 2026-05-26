@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { VirtualList } from '../decision-log/VirtualList';
 import { useAuditLogQuery } from '@/lib/internal/queries/audit-log';
-import { MOCK_TENANTS } from '@/lib/mocks/tenants';
-import type { AuditEvent } from '@/lib/mocks/types';
+import { useTenantsQuery } from '@/lib/internal/queries/tenants';
+import type { AuditEvent } from '@/lib/internal/types';
 
 export function AuditLogViewer(): JSX.Element {
   const query = useAuditLogQuery();
+  const tenantsQuery = useTenantsQuery();
+  const tenants = tenantsQuery.data?.rows ?? [];
   const [tenantId, setTenantId] = useState('');
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
@@ -42,7 +44,7 @@ export function AuditLogViewer(): JSX.Element {
           className="rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
         >
           <option value="">All tenants</option>
-          {MOCK_TENANTS.map((t) => (
+          {tenants.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
@@ -74,7 +76,7 @@ export function AuditLogViewer(): JSX.Element {
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>{filtered.length.toLocaleString()} events</span>
-        <DataSourceBadge source={query.data?.source ?? 'mock'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} />
       </div>
 
       <VirtualList<AuditEvent>

@@ -73,9 +73,9 @@ function ChatView(): JSX.Element {
             accessibilityLabel={t.askBorjie.voiceButton}
             style={styles.voiceBtn}
             onPress={() => {
-              // TODO: requires EAS dev build — hook up Swahili STT in the
-              // voice phase. For now we simply prefill a placeholder so the
-              // owner can edit before sending.
+              // TODO(#14,#22): requires EAS dev build — hook up Swahili
+              // STT in the voice phase. For now we simply prefill a
+              // placeholder so the owner can edit before sending.
               setDraft((current) => (current.length === 0 ? t.app.listening : current))
             }}
           >

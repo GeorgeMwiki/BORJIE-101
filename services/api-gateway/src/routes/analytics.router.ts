@@ -15,7 +15,7 @@
  * `live` or `empty` so the UI can opt to render an em-dash if it
  * prefers.
  *
- * Follow-up api-gateway, ANL-002 (Docs/TODO_BACKLOG.md): replace this aggregation pass with a
+ * Follow-up api-gateway, ANL-002 (#33): replace this aggregation pass with a
  *   dedicated read-model (`analytics_summary` materialised view) once the
  *   numbers below get expensive to recompute on every dashboard load.
  *   Concrete next-step:

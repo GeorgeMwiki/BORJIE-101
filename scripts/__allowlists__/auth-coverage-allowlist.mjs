@@ -22,7 +22,7 @@
  *
  * Adding an entry is a security decision. Reviewers MUST verify the
  * reason describes a real architectural exemption — never a deferred
- * task. Deferred tasks belong in Docs/TODO_BACKLOG.md.
+ * task. Deferred tasks belong in #33.
  *
  * Keys are paths RELATIVE to the repo root.
  */

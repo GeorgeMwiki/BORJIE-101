@@ -1,5 +1,5 @@
 /**
- * Tenant predictions + intervention opportunities — TODO(borjie-hard-fork) stub.
+ * Tenant predictions + intervention opportunities — TODO(#29) stub.
  *
  * The Drizzle adapter targeted the `tenant_predictions` and
  * `predictive_intervention_opportunities` tables (migration 0106),

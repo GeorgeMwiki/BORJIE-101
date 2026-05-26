@@ -8,7 +8,7 @@
  *     responsible Ministers.
  *   - Original 40 % village / 60 % district split now negotiable.
  *
- * Schema gap: `csr_plans`, `csr_meetings` raw SQL; TODO(phase-3).
+ * Schema gap: `csr_plans`, `csr_meetings` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -121,7 +121,7 @@ export function createVillageCsrAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `csr_plans`.
+          // TODO(#30): typed insert against `csr_plans`.
           await deps.db.execute(
             sql`INSERT INTO csr_plans
                   (id, tenant_id, licence_id, status, delivered_pct, summary, computed_at)

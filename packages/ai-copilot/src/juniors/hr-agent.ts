@@ -7,7 +7,7 @@
  *   - 100 % non-managerial Tanzanian.
  *   - 80 % senior-management Tanzanian.
  *
- * Schema gap: `hr_summaries` raw SQL; TODO(phase-3).
+ * Schema gap: `hr_summaries` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -127,7 +127,7 @@ export function createHrAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const json = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `hr_summaries`.
+          // TODO(#30): typed insert against `hr_summaries`.
           await deps.db.execute(
             sql`INSERT INTO hr_summaries
                   (id, tenant_id, reporting_month, summary, created_at)

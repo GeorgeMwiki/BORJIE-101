@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send } from 'lucide-react';
-import type { DocumentRecord } from '@/lib/mocks/documents';
+import type { DocumentRecord } from '@/lib/types/documents';
 
 const schema = z.object({
   question: z.string().min(2, 'Type at least 2 chars.'),

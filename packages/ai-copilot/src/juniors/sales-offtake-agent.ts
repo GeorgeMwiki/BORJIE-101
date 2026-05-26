@@ -2,7 +2,7 @@
  * Sales / Off-take Agent — net price per parcel, buyer comparison,
  * payment trace (AGENT_PROMPT_LIBRARY §17).
  *
- * Schema gap: `sales_advice` raw SQL; TODO(phase-3).
+ * Schema gap: `sales_advice` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -110,7 +110,7 @@ export function createSalesOfftakeAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const json = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `sales_advice`.
+          // TODO(#30): typed insert against `sales_advice`.
           await deps.db.execute(
             sql`INSERT INTO sales_advice
                   (id, tenant_id, parcel_id, recommended_buyer_id, summary, created_at)

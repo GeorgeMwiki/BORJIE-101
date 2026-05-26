@@ -3,7 +3,7 @@
  * per site (0-1 ladder per AGENT_PROMPT_LIBRARY §6).
  *
  * Schema gap: no `geology_scores` or `vein_models` Drizzle schemas yet.
- * Raw SQL; TODO(phase-3).
+ * Raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -137,7 +137,7 @@ export function createGeologyAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const veinJson = JSON.stringify(output.vein_model_stub);
-          // TODO(phase-3): typed insert against `geology_scores` + `vein_models`.
+          // TODO(#30): typed insert against `geology_scores` + `vein_models`.
           await deps.db.execute(
             sql`INSERT INTO geology_scores
                   (id, tenant_id, site_id, mineral, score, score_band, vein_model, computed_at)

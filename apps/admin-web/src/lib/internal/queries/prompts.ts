@@ -5,22 +5,18 @@
  *   GET   /              list prompt registry rows
  *   POST  /promote       promote (capability, version) → canary
  *
- * The legacy `useSetPromptStatus` mutation predates the live API and
- * mapped to a PATCH on `/prompts/:id/status` that does not exist; it is
- * retained for back-compat but now translates `status === 'Canary'`
- * into a `/promote` call, otherwise stays mock-only.
+ * Live-only: failures propagate to react-query's `error` channel.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { MOCK_PROMPTS } from '@/lib/mocks/prompts';
-import type { PromptRow, PromptStatus } from '@/lib/mocks/types';
+import type { PromptRow, PromptStatus } from '@/lib/internal/types';
 
 const KEY = ['internal', 'prompts'] as const;
 
 interface PromptsResult {
   readonly rows: ReadonlyArray<PromptRow>;
-  readonly source: 'live' | 'mock';
+  readonly source: 'live';
 }
 
 interface RawPromptRow {
@@ -52,22 +48,13 @@ function adaptPrompt(raw: RawPromptRow): PromptRow {
   };
 }
 
-interface RawPromoteResult extends RawPromptRow {}
-
 export function usePromptsQuery() {
   return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<PromptsResult> => {
-      const res = await apiClient.get<ReadonlyArray<RawPromptRow | PromptRow>>(
-        '/prompts',
-        async () => MOCK_PROMPTS,
-      );
+      const res = await apiClient.get<ReadonlyArray<RawPromptRow>>('/prompts');
       if (!res.ok) throw new Error(res.message);
-      const rows =
-        res.source === 'live'
-          ? (res.data as ReadonlyArray<RawPromptRow>).map(adaptPrompt)
-          : (res.data as ReadonlyArray<PromptRow>);
-      return { rows, source: res.source };
+      return { rows: res.data.map(adaptPrompt), source: 'live' };
     },
   });
 }
@@ -79,32 +66,15 @@ interface PromoteInput {
 
 /**
  * Promote a (capability, version) pair into canary. Wraps the live
- * `POST /promote` endpoint. Falls back to mock-list mutation when the
- * gateway is unreachable.
+ * `POST /promote` endpoint.
  */
 export function usePromotePrompt() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: PromoteInput): Promise<PromptRow> => {
-      const res = await apiClient.post<RawPromptRow | PromptRow>(
-        '/prompts/promote',
-        input,
-        async () => {
-          // PromptRow uses `juniorId/junior` (no `capability`). The legacy
-          // mock stores capability as `jr_<capability>`; mirror that here
-          // so the lookup behaves the same online and offline.
-          const wantJunior = `jr_${input.capability}`;
-          const hit = MOCK_PROMPTS.find(
-            (p) => p.juniorId === wantJunior && p.version === input.version,
-          );
-          if (!hit) throw new Error('Prompt not found');
-          return { ...hit, status: 'Canary', promotedAt: new Date().toISOString() };
-        },
-      );
+      const res = await apiClient.post<RawPromptRow>('/prompts/promote', input);
       if (!res.ok) throw new Error(res.message);
-      return res.source === 'live'
-        ? adaptPrompt(res.data as RawPromptRow)
-        : (res.data as PromptRow);
+      return adaptPrompt(res.data);
     },
     onSuccess: (row) => {
       const prev = qc.getQueryData<PromptsResult>(KEY);
@@ -126,10 +96,9 @@ interface SetStatusInput {
 }
 
 /**
- * Legacy back-compat: existing UI passes `{id, status}` straight from a
- * dropdown. When the target is `Canary` and we can resolve the row's
- * (capability, version) from cache, we forward to the live promote
- * endpoint; everything else stays mock-only (TODO: extend gateway).
+ * Legacy back-compat: forwards Canary transitions to `usePromotePrompt`
+ * by resolving the (capability, version) pair from cache. Non-canary
+ * transitions are not yet exposed by the gateway and will throw.
  */
 export function useSetPromptStatus() {
   const qc = useQueryClient();
@@ -145,26 +114,11 @@ export function useSetPromptStatus() {
             : row.juniorId;
           return promote.mutateAsync({ capability, version: row.version });
         }
+        throw new Error('Prompt row not found in cache; cannot promote');
       }
-      // TODO: gateway does not expose status-set for non-canary transitions yet.
-      const hit = MOCK_PROMPTS.find((p) => p.id === id);
-      if (!hit) throw new Error('Prompt not found');
-      return { ...hit, status, promotedAt: new Date().toISOString() };
+      throw new Error(
+        `Prompt status transition '${status}' is not supported by the live gateway`,
+      );
     },
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: KEY });
-      const prev = qc.getQueryData<PromptsResult>(KEY);
-      if (prev) {
-        qc.setQueryData<PromptsResult>(KEY, {
-          ...prev,
-          rows: prev.rows.map((p) => (p.id === id ? { ...p, status } : p)),
-        });
-      }
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(KEY, ctx.prev);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

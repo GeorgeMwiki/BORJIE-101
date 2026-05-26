@@ -5,7 +5,7 @@
  * depends on `EmailProvider`. Swap the stub for a real adapter
  * (Resend / SES / SendGrid / Postmark / Mailgun) at composition time.
  *
- * Real providers (Docs/TODO_BACKLOG.md):
+ * Real providers (#33):
  *   - Resend `resend.emails.send({ from, to, subject, html })`
  *   - AWS SES `SendEmailCommand`
  *   - SendGrid `sgMail.send`

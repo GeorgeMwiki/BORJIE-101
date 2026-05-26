@@ -50,6 +50,9 @@ export * from './bid-negotiations.schema.js';
 export * from './ore-grade-snapshots.schema.js';
 export * from './ore-stockpiles.schema.js';
 
+// Mining-domain workforce + marketplace extensions (migration 0007)
+export * from './mining-workforce-extensions.schema.js';
+
 // ---------------------------------------------------------------------------
 // AI-OS infra (generic)
 // ---------------------------------------------------------------------------
@@ -107,6 +110,7 @@ export * from './sovereign-action-ledger.schema.js';
 export * from './platform-privacy-budget.schema.js';
 export * from './platform-feature-flags.schema.js';
 export * from './platform-killswitch-state.schema.js';
+export * from './killswitch-authorities.schema.js';
 export * from './platform-announcements.schema.js';
 
 // Currency + persona
@@ -197,6 +201,11 @@ export * from './report-templates.schema.js';
 
 // Sub MD SLO
 export * from './sub-md-slo.schema.js';
+
+// Admin internals (migration 0008): regulator pipeline / prompt promotions
+// / compliance escalations. Platform-scope tables backing the Borjie HQ
+// admin console (`apps/admin-web`).
+export * from './admin-internals.schema.js';
 
 // Polymorphic core-entity + dynamic modules (sub-package barrels).
 export * from './core-entity/index.js';

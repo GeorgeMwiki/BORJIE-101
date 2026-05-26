@@ -44,8 +44,8 @@ function LicenceCalendarView(): JSX.Element {
   }, [query])
 
   const onRenew = useCallback((licence: Licence): void => {
-    // TODO: route to renewal action flow once the licence-renewal screen
-    // ships. For now we log so the wiring is exercised.
+    // TODO(#44): route to renewal action flow once the licence-renewal
+    // screen ships. For now we log so the wiring is exercised.
     console.error('Renewal requested for', licence.pmlNumber)
   }, [])
 

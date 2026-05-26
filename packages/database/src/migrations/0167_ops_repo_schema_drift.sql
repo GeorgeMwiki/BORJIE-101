@@ -1,4 +1,4 @@
--- Closes operations.repository schema/repo drift documented in PR #132 FIXME(ts-purge)
+-- Closes operations.repository schema/repo drift documented in PR #132 (tracks #11)
 --
 -- 0167: ops-repo schema/repo drift — adds the columns that
 -- `DispatchEventRepository.updateStatus`, `CompletionProofRepository.verify`,
@@ -9,7 +9,7 @@
 -- "column ... does not exist" — but the repo file carried `// @ts-nocheck` so
 -- the compiler never told us. PR #132 stripped the nocheck across the repo
 -- layer, surfaced these as TS2344/TS2353, and re-applied a scoped nocheck
--- with FIXME(ts-purge) headers pending this follow-up.
+-- with TODO(#11) headers pending this follow-up.
 --
 -- All columns are nullable to preserve backwards compatibility with rows
 -- inserted before this migration.

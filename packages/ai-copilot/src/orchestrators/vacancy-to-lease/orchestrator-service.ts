@@ -288,7 +288,7 @@ export class VacancyToLeaseOrchestrator {
         merge: effect,
       });
     } catch (err) {
-      // Follow-up WAVE-28+ (Docs/TODO_BACKLOG.md): richer error classification — retry vs fail.
+      // Follow-up WAVE-28+ (#33): richer error classification — retry vs fail.
       throw new VacancyPipelineError(
         err instanceof Error ? err.message : String(err),
         'SIDE_EFFECT_FAILED',

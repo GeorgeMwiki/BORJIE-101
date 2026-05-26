@@ -59,6 +59,12 @@ import { miningInternalCorpusRouter } from './internal/corpus.hono';
 import { miningInternalPromptsRouter } from './internal/prompts.hono';
 import { miningInternalAuditLogRouter } from './internal/audit-log.hono';
 import { miningInternalKillswitchRouter } from './internal/killswitch.hono';
+import { miningInternalDecisionLogRouter } from './internal/decision-log.hono';
+import { miningInternalSloRouter } from './internal/slo.hono';
+import { miningInternalPromotionsRouter } from './internal/promotions.hono';
+import { miningInternalRegulatorPipelineRouter } from './internal/regulator-pipeline.hono';
+import { miningInternalCitationsRouter } from './internal/citations.hono';
+import { miningInternalComplianceQueueRouter } from './internal/compliance-queue.hono';
 
 const mining = new Hono();
 
@@ -94,5 +100,11 @@ mining.route('/internal/corpus', miningInternalCorpusRouter);
 mining.route('/internal/prompts', miningInternalPromptsRouter);
 mining.route('/internal/audit-log', miningInternalAuditLogRouter);
 mining.route('/internal/killswitch', miningInternalKillswitchRouter);
+mining.route('/internal/decision-log', miningInternalDecisionLogRouter);
+mining.route('/internal/slo', miningInternalSloRouter);
+mining.route('/internal/promotions', miningInternalPromotionsRouter);
+mining.route('/internal/regulator-pipeline', miningInternalRegulatorPipelineRouter);
+mining.route('/internal/citations', miningInternalCitationsRouter);
+mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
 
 export const miningRouter = mining;

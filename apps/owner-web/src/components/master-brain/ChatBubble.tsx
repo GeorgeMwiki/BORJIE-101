@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChatMessage } from '@/lib/mocks/chat';
+import type { ChatMessage } from '@/lib/types/chat';
 import { fmtTime } from '@/lib/format';
 import { EvidenceChip } from './EvidenceChip';
 

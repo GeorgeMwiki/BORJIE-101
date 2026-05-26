@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
-import type { SwitchState } from '@/lib/mocks/types';
+import type { SwitchState } from '@/lib/internal/types';
 
 interface TwoOperatorConfirmProps {
   readonly open: boolean;

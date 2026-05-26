@@ -2,7 +2,7 @@
  * Asset / Fleet Agent — utilisation, service-due flags, predictive
  * maintenance (AGENT_PROMPT_LIBRARY §13).
  *
- * Schema gap: `asset_status_snapshots` raw SQL; TODO(phase-3).
+ * Schema gap: `asset_status_snapshots` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -111,7 +111,7 @@ export function createAssetFleetAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `asset_status_snapshots`.
+          // TODO(#30): typed insert against `asset_status_snapshots`.
           await deps.db.execute(
             sql`INSERT INTO asset_status_snapshots
                   (id, tenant_id, fleet_health, utilisation_pct, summary, computed_at)

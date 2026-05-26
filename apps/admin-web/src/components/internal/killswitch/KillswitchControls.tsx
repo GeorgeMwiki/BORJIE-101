@@ -4,9 +4,12 @@ import { useState } from 'react';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
-import { TwoOperatorConfirm } from './TwoOperatorConfirm';
-import { useKillswitchQuery, useSetKillswitch } from '@/lib/internal/queries/killswitch';
-import type { SwitchState } from '@/lib/mocks/types';
+import { PendingConfirmationsQueue } from './PendingConfirmationsQueue';
+import {
+  useInitiateKillswitch,
+  useKillswitchQuery,
+} from '@/lib/internal/queries/killswitch';
+import type { SwitchState } from '@/lib/internal/types';
 
 const STATES: ReadonlyArray<SwitchState> = ['OK', 'DEGRADED', 'HALT'];
 
@@ -16,25 +19,9 @@ function tone(state: SwitchState): 'success' | 'warn' | 'danger' {
   return 'danger';
 }
 
-/**
- * The current operator's identity normally comes from the SSO claim
- * read by middleware.ts; the killswitch UI only needs an ID it can
- * compare against the second-operator entry. Until that wiring lands
- * we stub it as `op_self` — the two-operator-confirm flow still
- * exercises the same code path.
- */
-const CURRENT_OPERATOR = 'op_self';
-
-interface Pending {
-  readonly juniorId: string;
-  readonly junior: string;
-  readonly target: SwitchState;
-}
-
 export function KillswitchControls(): JSX.Element {
   const query = useKillswitchQuery();
-  const mutate = useSetKillswitch();
-  const [pending, setPending] = useState<Pending | null>(null);
+  const initiate = useInitiateKillswitch();
   const [toast, setToast] = useState<string | null>(null);
 
   if (query.isPending) return <p className="text-sm text-neutral-500">Loading killswitch…</p>;
@@ -42,27 +29,48 @@ export function KillswitchControls(): JSX.Element {
 
   const rows = query.data?.rows ?? [];
 
+  function onInitiate(juniorId: string, junior: string, target: SwitchState) {
+    initiate.mutate(
+      { juniorId, state: target },
+      {
+        onSuccess: (res) => {
+          setToast(
+            `${junior} → ${target} initiated (id ${res.pendingConfirmationId.slice(0, 8)}…) — second operator must confirm within 30s.`,
+          );
+        },
+        onError: (err) => {
+          setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`);
+        },
+      },
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <PendingConfirmationsQueue onResult={setToast} />
+
       <section className="rounded-lg border border-danger/40 bg-danger/5 p-6">
         <h3 className="text-sm font-medium text-foreground mb-2">Global platform state</h3>
         <p className="text-xs text-neutral-400 mb-4">
-          Hits every junior on every tenant. Use only in true emergencies; two-operator confirm required.
+          Hits every junior on every tenant. Use only in true emergencies; a second operator must
+          confirm within 30s.
         </p>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setPending({ juniorId: 'global', junior: 'Global', target: 'DEGRADED' })}
-            className="rounded-md bg-warning/20 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/30"
+            disabled={initiate.isPending}
+            onClick={() => onInitiate('global', 'Global', 'DEGRADED')}
+            className="rounded-md bg-warning/20 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/30 disabled:opacity-50"
           >
-            Set DEGRADED
+            Initiate DEGRADED
           </button>
           <button
             type="button"
-            onClick={() => setPending({ juniorId: 'global', junior: 'Global', target: 'HALT' })}
-            className="rounded-md bg-danger/20 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/30"
+            disabled={initiate.isPending}
+            onClick={() => onInitiate('global', 'Global', 'HALT')}
+            className="rounded-md bg-danger/20 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
           >
-            Set HALT
+            Initiate HALT
           </button>
         </div>
       </section>
@@ -88,12 +96,12 @@ export function KillswitchControls(): JSX.Element {
                     <button
                       key={s}
                       type="button"
-                      disabled={row.state === s}
-                      onClick={() => setPending({ juniorId: row.juniorId, junior: row.junior, target: s })}
+                      disabled={row.state === s || initiate.isPending}
+                      onClick={() => onInitiate(row.juniorId, row.junior, s)}
                       className={`rounded-md border px-2 py-1 text-xs ${
                         row.state === s
                           ? 'border-signal-500 bg-signal-500/10 text-signal-500 cursor-default'
-                          : 'border-border text-neutral-300 hover:bg-surface'
+                          : 'border-border text-neutral-300 hover:bg-surface disabled:opacity-50'
                       }`}
                     >
                       {s}
@@ -106,35 +114,13 @@ export function KillswitchControls(): JSX.Element {
         </ul>
       </section>
 
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} />
 
-      <TwoOperatorConfirm
-        open={Boolean(pending)}
-        junior={pending?.junior ?? ''}
-        currentOperatorId={CURRENT_OPERATOR}
-        target={pending?.target ?? 'OK'}
-        busy={mutate.isPending}
-        onCancel={() => setPending(null)}
-        onConfirm={(secondOperatorId) => {
-          if (!pending) return;
-          mutate.mutate(
-            {
-              juniorId: pending.juniorId,
-              state: pending.target,
-              firstOperatorId: CURRENT_OPERATOR,
-              secondOperatorId,
-            },
-            {
-              onSuccess: () => {
-                setToast(`${pending.junior} → ${pending.target}`);
-                setPending(null);
-              },
-              onError: (err) => setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
-            }
-          );
-        }}
+      <Toast
+        message={toast}
+        tone={initiate.isError ? 'danger' : 'success'}
+        onDismiss={() => setToast(null)}
       />
-      <Toast message={toast} tone={mutate.isError ? 'danger' : 'success'} onDismiss={() => setToast(null)} />
     </div>
   );
 }

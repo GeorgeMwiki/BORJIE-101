@@ -118,3 +118,27 @@ upserts every chunk into `intelligence_corpus_chunks` with
 - Drizzle ORM only.
 - New routes: `*.hono.ts`; older `*.router.ts` deprecated.
 - For full conventions see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+## CI workflow inventory
+
+All GitHub Actions workflows live in `.github/workflows/` and are
+prefixed `borjie-*`. The legacy BossNyumba workflows (45 files) were
+pruned in issue #25; only universally useful infra was retained and
+rebranded. Source of truth for CI orchestration is `borjie-ci.yml`.
+
+| Workflow                          | Purpose                                              |
+| --------------------------------- | ---------------------------------------------------- |
+| `borjie-ci.yml`                   | Lint, typecheck, unit tests, build (PR + push main)  |
+| `borjie-db-migrations-check.yml`  | Forward-only migration lint + dry-run on empty PG    |
+| `borjie-publish-docs.yml`         | Publish API reference / docs                          |
+| `borjie-codeql.yml`               | CodeQL static analysis + dependency review           |
+| `borjie-semgrep.yml`              | Semgrep curated + Borjie custom rules                |
+| `borjie-trivy.yml`                | Filesystem + container-image CVE scan                |
+| `borjie-security.yml`             | Dependency audit + gitleaks secret scan              |
+| `borjie-sbom.yml`                 | CycloneDX SBOM (regulator + procurement)             |
+| `borjie-audit-coverage.yml`       | Universal route / RLS / zod / zero-hardcoded gates   |
+| `borjie-knip.yml`                 | Dead-code + dependency-graph audit                   |
+
+Adding a workflow: prefix the filename and `name:` field with `borjie-`
+/ `Borjie `, and document the new entry in this table. Property-domain
+or BossNyumba-specific workflows must not be reintroduced.

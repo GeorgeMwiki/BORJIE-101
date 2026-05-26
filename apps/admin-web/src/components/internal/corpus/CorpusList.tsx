@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StubBadge } from '../StubBadge';
 import { useSupersedeCorpus } from '@/lib/internal/queries/corpus';
 import { Toast } from '../Toast';
-import type { CorpusEntry } from '@/lib/mocks/types';
+import type { CorpusEntry } from '@/lib/internal/types';
 
 function tone(status: CorpusEntry['status']): 'success' | 'info' | 'neutral' {
   if (status === 'Indexed') return 'success';

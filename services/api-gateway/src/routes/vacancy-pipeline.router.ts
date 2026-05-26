@@ -60,7 +60,7 @@ app.use('*', authMiddleware);
 // Postgres-backed adapter lands in a follow-up once composition-root
 // wiring is agreed (table already exists via migration 0098).
 //
-// Follow-up api-gateway, WAVE-28-VPR-001 (Docs/TODO_BACKLOG.md): swap for a Postgres-backed repository
+// Follow-up api-gateway, WAVE-28-VPR-001 (#33): swap for a Postgres-backed repository
 //   that reads/writes the `vacancy_pipeline_runs` table via the shared
 //   drizzle client. Concrete next-step:
 //     1. Add `PostgresVacancyPipelineRunRepository` in @borjie/ai-copilot
@@ -151,7 +151,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
 
   const enquiryPort: OrchestratorEnquiryPort = {
     async latestApplicant() {
-      // Follow-up api-gateway, WAVE-28-VPR-002 (Docs/TODO_BACKLOG.md): when EnquiryService exposes
+      // Follow-up api-gateway, WAVE-28-VPR-002 (#33): when EnquiryService exposes
       //   `findHighestRankedApplicant(tenantId, listingId)`, wire it in
       //   here. Today we return null so the orchestrator stays in
       //   `receiving_inquiries` without populating applicantCustomerId —
@@ -164,7 +164,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
     async score(tenantId, customerId) {
       const rating = services.creditRating;
       if (!rating) {
-        // Follow-up api-gateway, WAVE-28-VPR-003 (Docs/TODO_BACKLOG.md): fall back to a
+        // Follow-up api-gateway, WAVE-28-VPR-003 (#33): fall back to a
         //   `pending_review` snapshot ({ score: null, reasons: [...] })
         //   instead of throwing once the orchestrator's policy port
         //   accepts pending-review decisions.
@@ -177,7 +177,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
 
   const negotiationPort: OrchestratorNegotiationPort = {
     async proposeOffer() {
-      // Follow-up api-gateway, WAVE-28-VPR-004 (Docs/TODO_BACKLOG.md): wire to
+      // Follow-up api-gateway, WAVE-28-VPR-004 (#33): wire to
       //   NegotiationService.startNegotiation with real offer inputs
       //   (policyId, opening offer, floor, ceiling). Today the
       //   customer-app initiates the actual negotiation; the
@@ -188,7 +188,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
 
   const inspectionPort: OrchestratorInspectionPort = {
     async scheduleMoveInInspection() {
-      // Follow-up api-gateway, WAVE-28-VPR-005 (Docs/TODO_BACKLOG.md): wire to the inspections
+      // Follow-up api-gateway, WAVE-28-VPR-005 (#33): wire to the inspections
       //   router / service. Today the move-in inspection is created
       //   manually from the estate-manager app; the orchestrator just
       //   records the transition.
@@ -198,7 +198,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
 
   const renewalPort: OrchestratorRenewalPort = {
     async seedFirstTerm() {
-      // Follow-up api-gateway, WAVE-28-VPR-006 (Docs/TODO_BACKLOG.md): call
+      // Follow-up api-gateway, WAVE-28-VPR-006 (#33): call
       //   RenewalService.createInitialTerm when available. Today
       //   leases are created through `/leases` directly.
       return { leaseId: null };
@@ -212,7 +212,7 @@ function buildOrchestrator(c: any): VacancyToLeaseOrchestrator | null {
       // WaitlistVacancyHandler exposes a register/handle flow keyed on
       // the event bus; without a direct `markFilled` API we instead
       // rely on the orchestrator's eventPort to emit `UnitFilled`.
-      // Follow-up api-gateway, WAVE-28-VPR-007 (Docs/TODO_BACKLOG.md): expose a first-class
+      // Follow-up api-gateway, WAVE-28-VPR-007 (#33): expose a first-class
       //   `markUnitFilled(tenantId, unitId)` on WaitlistService and
       //   call it here so the bus path becomes a fallback rather than
       //   the only path. For now this is a no-op so the orchestrator

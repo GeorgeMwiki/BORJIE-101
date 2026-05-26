@@ -14,7 +14,7 @@
  * TRACKED GAPS: 14 mutating routes flagged by the 2026-05-18 scanner
  * pass. Each PENDING entry should be removed when the route adds a Zod
  * schema + .safeParse() guard. This list is the concrete worklist for
- * incremental Zod-coverage remediation (see Docs/TODO_BACKLOG.md).
+ * incremental Zod-coverage remediation (see #33).
  *
  * Keys are paths RELATIVE to the repo root.
  */

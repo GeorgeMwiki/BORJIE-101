@@ -5,7 +5,7 @@
  * separate file so the parent can lazy-import it through
  * `ClientOnly` + `React.lazy` and keep the leaflet bundle out of SSR.
  *
- * NOTE on offline-tile cache (tracked in Docs/TODO_BACKLOG.md): we declare a `useTileCache=true`
+ * NOTE on offline-tile cache (tracked in #33): we declare a `useTileCache=true`
  * default, which currently has no effect — once integration installs
  * `leaflet.offline` we wire a localForage-backed cache here.
  */

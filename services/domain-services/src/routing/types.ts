@@ -11,7 +11,7 @@ export interface TagCoverage {
 
 export interface PolygonCoverage {
   readonly kind: 'polygon';
-  // Follow-up KI-010 (Docs/TODO_BACKLOG.md): enable polygon matching via @googlemaps/js-api-loader
+  // Follow-up KI-010 (#33): enable polygon matching via @googlemaps/js-api-loader
   //   + @turf/boolean-point-in-polygon once GeoNode is live. Today a
   //   polygon-kind row is skipped during matching and logged.
   //   See Docs/KNOWN_ISSUES.md#ki-010.

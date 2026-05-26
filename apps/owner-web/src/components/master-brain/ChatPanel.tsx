@@ -60,10 +60,16 @@ export function ChatPanel({ mode }: ChatPanelProps) {
               </div>
             </div>
           ) : null}
+          {state.messages.length === 0 && !state.streaming && !state.error ? (
+            <div className="rounded-md border border-border bg-surface/40 px-3 py-2 text-sm text-neutral-400">
+              Ask the Master Brain anything about your portfolio. Replies
+              stream live from the gateway with cited evidence.
+            </div>
+          ) : null}
           {state.error ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Chat stream failed: {state.error}. Falling back to the bundled
-              mock on next send.
+              Chat stream failed: {state.error}. Check your connection and
+              try again.
             </div>
           ) : null}
         </div>
@@ -75,6 +81,11 @@ export function ChatPanel({ mode }: ChatPanelProps) {
       </div>
       <EvidencePanel
         evidenceId={selectedEvidence}
+        evidence={
+          selectedEvidence
+            ? state.evidence.find((e) => e.id === selectedEvidence) ?? null
+            : null
+        }
         onClose={() => setSelectedEvidence(null)}
       />
     </section>

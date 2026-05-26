@@ -45,7 +45,7 @@ export function promptHash(input: string): string {
  * The callback is invoked BEFORE any LLM call. A throwing callback blocks
  * the round-trip. Wire it to `CostLedger.assertWithinBudget(tenantId)`.
  *
- * Follow-up Agent Z4 (Docs/TODO_BACKLOG.md): Once the multi-LLM router lands, replace direct callers
+ * Follow-up Agent Z4 (#33): Once the multi-LLM router lands, replace direct callers
  * of this with `withBudgetGuard(router, { ledger, context: () => ({ tenantId }) })`.
  */
 export interface BudgetGuard {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { LmbmGraph, LmbmNode } from '@/lib/mocks/lmbm';
+import type { LmbmGraph, LmbmNode } from '@/lib/types/lmbm';
 
 interface GraphCanvasProps {
   readonly graph: LmbmGraph;

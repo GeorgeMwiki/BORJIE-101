@@ -480,7 +480,7 @@ export class MonthlyCloseOrchestrator {
         regulatorRefs: regimeMeta.regulatorRefs,
         requiresManualConfig: regimeMeta.requiresManualConfig,
         dispatchedVia: port ? 'global_tax_regime_port' : 'legacy_flat_rate',
-        // Follow-up WAVE-34 (Docs/TODO_BACKLOG.md): submit CSV via per-jurisdiction filing adapter
+        // Follow-up WAVE-34 (#33): submit CSV via per-jurisdiction filing adapter
         // (KRA eTIMS for KE, Finanzamt ELSTER for DE, HMRC for GB, etc.)
         submissionStatus: 'pending_filing_adapter',
       },

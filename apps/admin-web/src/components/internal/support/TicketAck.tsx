@@ -10,9 +10,7 @@ export function TicketAck({ id }: { readonly id: string }): JSX.Element {
 
   const ack = useMutation({
     mutationFn: async () => {
-      const res = await apiClient.post<{ readonly id: string }>(`/support/${id}/acknowledge`, {}, async () => ({
-        id,
-      }));
+      const res = await apiClient.post<{ readonly id: string }>(`/support/${id}/acknowledge`, {});
       if (!res.ok) throw new Error(res.message);
       return res.data;
     },

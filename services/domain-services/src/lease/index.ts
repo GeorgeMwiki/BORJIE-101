@@ -1378,7 +1378,15 @@ export class LeaseService {
 }
 
 
-// Renewal (explicit workflow on top of LeaseService)
+// Renewal (explicit workflow on top of LeaseService).
+//
+// The legacy `PostgresRenewalRepository` was retired during the mining
+// hard-fork — licence renewal is the mining-domain analogue and is
+// already handled by `services/api-gateway/src/routes/mining/licences.hono.ts`
+// (see issue #11). The pure `RenewalService` + its repository
+// interface stay exported so any remaining consumers can plug a
+// stub repository in (the composition root binds a thin throwing
+// adapter — see service-registry.ts).
 export {
   RenewalService,
   RenewalServiceError,
@@ -1388,7 +1396,6 @@ export {
   type RenewalServiceErrorResult,
   type LeaseRenewalStatus,
 } from './renewal-service.js';
-export { PostgresRenewalRepository } from './postgres-renewal-repository.js';
 
 // Move-Out checklist (step-based end-of-tenancy workflow).
 // Complements the richer inspection-backed MoveOut in ../inspections/move-out;

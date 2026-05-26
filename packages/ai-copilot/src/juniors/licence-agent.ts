@@ -9,7 +9,7 @@
  *
  * Schema gap: `licences`, `licence_payments`, `licence_obligations` are
  * defined in DATA_MODEL.md §3.1 but the Drizzle schemas do not exist
- * yet. Raw SQL writes; TODO(phase-3) swap to typed drizzle inserts.
+ * yet. Raw SQL writes; TODO(#30) swap to typed drizzle inserts.
  */
 
 import { z } from 'zod';
@@ -140,7 +140,7 @@ export function createLicenceAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const factorsJson = JSON.stringify(output.dormancy_factors);
-          // TODO(phase-3): typed insert against `licence_dormancy_scores`.
+          // TODO(#30): typed insert against `licence_dormancy_scores`.
           await deps.db.execute(
             sql`INSERT INTO licence_dormancy_scores
                   (id, tenant_id, licence_id, score, alert_level, factors, computed_at)

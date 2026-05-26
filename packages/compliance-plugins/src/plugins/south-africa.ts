@@ -68,7 +68,7 @@ const southAfricaPaymentRails: PaymentRailPort = {
 const southAfricaTenantScreening: TenantScreeningPort = {
   async lookupBureau(_identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('TPN_ZA', ['CONSENT_TOKEN_INVALID']);
-    // Follow-up ph-Z-global (Docs/TODO_BACKLOG.md): wire TPN / Experian ZA.
+    // Follow-up ph-Z-global (#33): wire TPN / Experian ZA.
     return buildStubBureauResult('TPN_ZA');
   },
 };

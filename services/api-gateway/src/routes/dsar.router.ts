@@ -21,7 +21,7 @@
  * NOT rate-limited (preview is the read-mostly admin path; RTBF is a
  * legal channel that shouldn't be rate-limited at all). Distributed
  * deployments should swap the in-memory bucket for the Redis limiter
- * in a follow-up (tracked in Docs/TODO_BACKLOG.md).
+ * in a follow-up (tracked in #33).
  *
  * Audit
  * ─────

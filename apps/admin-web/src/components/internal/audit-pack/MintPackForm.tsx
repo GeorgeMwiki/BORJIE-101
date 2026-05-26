@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { Toast } from '../Toast';
-import { MOCK_TENANTS } from '@/lib/mocks/tenants';
+import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 
 const mintSchema = z.object({
   tenantId: z.string().min(1, 'Pick a tenant'),
@@ -25,21 +25,16 @@ interface MintResult {
 
 export function MintPackForm(): JSX.Element {
   const [toast, setToast] = useState<string | null>(null);
+  const tenantsQuery = useTenantsQuery();
+  const tenants = tenantsQuery.data?.rows ?? [];
   const { register, handleSubmit, formState } = useForm<MintInput>({
     resolver: zodResolver(mintSchema),
-    defaultValues: { tenantId: MOCK_TENANTS[0]?.id ?? '', regulator: 'TMAA', expiresIn: '7d' },
+    defaultValues: { tenantId: '', regulator: 'TMAA', expiresIn: '7d' },
   });
 
   const mint = useMutation({
     mutationFn: async (input: MintInput): Promise<MintResult> => {
-      const res = await apiClient.post<MintResult>('/audit-pack/mint', input, async () => {
-        const days = input.expiresIn === '24h' ? 1 : input.expiresIn === '7d' ? 7 : 30;
-        return {
-          id: `pk_${Math.random().toString(36).slice(2, 8)}`,
-          url: 'https://signed.example/borjie-pack',
-          expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
-        };
-      });
+      const res = await apiClient.post<MintResult>('/audit-pack/mint', input);
       if (!res.ok) throw new Error(res.message);
       return res.data;
     },
@@ -62,7 +57,8 @@ export function MintPackForm(): JSX.Element {
           {...register('tenantId')}
           className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
         >
-          {MOCK_TENANTS.map((t) => (
+          <option value="">Select a tenant…</option>
+          {tenants.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>

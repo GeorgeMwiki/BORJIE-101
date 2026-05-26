@@ -316,9 +316,9 @@ function buildHaikuLlm(): HaikuLlmPort {
     };
   }
   // Real provider wiring is out of scope here — we re-use the in-tree
-  // anthropic-sensor in a thin adapter. TODO: replace with the actual
-  // import once we have a `runHaikuCall(prompt)` helper exposed by
-  // central-intelligence/src/kernel/sensors/anthropic-sensor.
+  // anthropic-sensor in a thin adapter. TODO(#16): replace with the
+  // actual import once we have a `runHaikuCall(prompt)` helper exposed
+  // by central-intelligence/src/kernel/sensors/anthropic-sensor.
   return {
     async call({ system, user, maxOutputTokens }) {
       // Minimal direct call — production wires the existing
@@ -384,13 +384,13 @@ function buildRetrievalDeps(db: DbLike): HybridRetrieverDeps {
     },
     vector: {
       async search() {
-        // TODO: wire to pgvector ANN once embedder is integrated.
+        // TODO(#18): wire to pgvector ANN once embedder is integrated.
         return [] as ReadonlyArray<RetrievalHit>;
       },
     },
     embedder: {
       async embed() {
-        // TODO: wire to embedder service.
+        // TODO(#12): wire to embedder service.
         return [];
       },
     },
@@ -575,15 +575,15 @@ function buildDebate(): DebatePort {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// RoutingRules — Piece B lookup; TODO wire to routing_rules table once
-// Piece B lands.
+// RoutingRules — Piece B lookup; TODO(#39) wire to routing_rules table
+// once Piece B lands.
 // ─────────────────────────────────────────────────────────────────────
 
 function buildRoutingRulesPort(db: DbLike): RoutingRulesPort {
   return {
     async lookup({ tenantId, entityType, intent }) {
       try {
-        // TODO(piece-b): once routing_rules exists, do a real lookup with
+        // TODO(#39): once routing_rules exists, do a real lookup with
         // tenant override fallback. For now we attempt the query; if the
         // table doesn't exist the catch returns null and the engine
         // falls back to its built-in matrix.
@@ -618,8 +618,8 @@ function buildRoutingRulesPort(db: DbLike): RoutingRulesPort {
 // ─────────────────────────────────────────────────────────────────────
 
 function buildCostBudget(): CostBudgetPort {
-  // TODO: wire to packages/ai-copilot/src/cost-ledger.ts via the real port.
-  // The in-memory fallback is permissive (never over budget).
+  // TODO(#16): wire to packages/ai-copilot/src/cost-ledger.ts via the
+  // real port. The in-memory fallback is permissive (never over budget).
   return {
     async isOverBudget() {
       return false;
@@ -637,7 +637,7 @@ function buildCostBudget(): CostBudgetPort {
 function buildKillswitch(): KillswitchHaltPort {
   return {
     async isHaltedForTenant() {
-      // TODO: wire to packages/central-intelligence/src/kernel/killswitch.ts
+      // TODO(#24): wire to packages/central-intelligence/src/kernel/killswitch.ts
       // For now, defaults to live. The orchestrator catches throws.
       return false;
     },

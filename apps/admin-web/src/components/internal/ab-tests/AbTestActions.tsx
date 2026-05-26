@@ -18,7 +18,6 @@ export function AbTestActions({ id, variant }: AbTestActionsProps): JSX.Element 
       const res = await apiClient.post<{ readonly id: string }>(
         `/ab-tests/${id}/promote-winner`,
         {},
-        async () => ({ id })
       );
       if (!res.ok) throw new Error(res.message);
       return res.data;

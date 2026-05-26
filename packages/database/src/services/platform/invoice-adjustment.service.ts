@@ -1,5 +1,5 @@
 /**
- * Invoice adjustment Drizzle adapter — TODO(borjie-hard-fork) stub.
+ * Invoice adjustment Drizzle adapter — TODO(#29) stub.
  *
  * The HQ-tier `platform.adjust_invoice` tool used to read/write the
  * `invoices` table that lived in the deleted property-domain schema.

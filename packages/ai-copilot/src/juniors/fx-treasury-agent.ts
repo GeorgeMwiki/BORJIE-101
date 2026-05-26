@@ -112,7 +112,7 @@ export function createFxTreasuryAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `fx_snapshots`.
+          // TODO(#30): typed insert against `fx_snapshots`.
           await deps.db.execute(
             sql`INSERT INTO fx_snapshots
                   (id, tenant_id, mode, bot_rate_tzs_per_usd, summary, computed_at)

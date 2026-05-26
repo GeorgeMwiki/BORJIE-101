@@ -57,22 +57,29 @@ import { PostgresBidNegotiationRepository } from '@borjie/domain-services/market
 import {
   WaitlistService,
   WaitlistVacancyHandler,
-  PostgresWaitlistRepository,
-  PostgresWaitlistOutreachRepository,
 } from '@borjie/domain-services/waitlist';
 import {
   OccupancyTimelineService,
   PostgresOccupancyTimelineRepository,
 } from '@borjie/domain-services/occupancy';
-import {
-  StationMasterRouter,
-  PostgresStationMasterCoverageRepository,
-} from '@borjie/domain-services/routing';
+import { StationMasterRouter } from '@borjie/domain-services/routing';
 import {
   RenewalService,
-  PostgresRenewalRepository,
   MoveOutChecklistService,
+  type RenewalRepository,
+  type RenewalLeaseSnapshot,
 } from '@borjie/domain-services/lease';
+// Mining hard-fork wave 6 — mining-domain replacements for the seven
+// remaining property-domain repositories. Each of these targets a fresh
+// mining-schema table (or composes against existing ones) and is wired
+// alongside the legacy slot until downstream consumers migrate.
+import { PostgresOfftakeQueueRepository } from '@borjie/domain-services/offtake-queue';
+import { PostgresWorkerIncentivesRepository } from '@borjie/domain-services/worker-incentives';
+import { PostgresSitePreShiftInspectionRepository } from '@borjie/domain-services/site-pre-shift-inspection';
+import { DrizzleOreGradingWeightsRepository } from '@borjie/domain-services/ore-grading-weights';
+import { DrizzleSiteLiveMetricsSource } from '@borjie/domain-services/site-live-metrics';
+import { PostgresSiteSupervisorCoverageRepository } from '@borjie/domain-services/site-supervisor-coverage';
+import { DrizzleEquipmentMaintenanceTaxonomyRepository } from '@borjie/domain-services/equipment-maintenance-taxonomy';
 // Wave 26 Z3 — rich ApprovalWorkflowService + Postgres adapters for
 // move-out checklists and approval requests. Pairs with migration 0097.
 import { ApprovalWorkflowService } from '@borjie/domain-services/approvals';
@@ -96,10 +103,14 @@ import type {
   FinancialProfileService,
   RiskReportService,
 } from '@borjie/domain-services/customer';
-import {
-  createGamificationService,
-  PostgresGamificationRepository,
-} from '@borjie/domain-services/gamification';
+// Mining hard-fork wave 6 — property-domain PostgresGamificationRepository
+// has been retired (`reward_policies` / `tenant_gamification_profile` /
+// `reward_events` tables dropped by migration 0003). The mining-domain
+// replacement (PostgresWorkerIncentivesRepository) is imported above and
+// surfaced via the new `workerIncentives` slot; the legacy `gamification`
+// slot stays null in the live registry until downstream consumers
+// migrate.
+import { createGamificationService } from '@borjie/domain-services/gamification';
 import {
   MigrationService,
   PostgresMigrationRepository,
@@ -124,11 +135,11 @@ import {
   DrizzleOreWarehouseRepository,
   DrizzleOreGradingRepository,
 } from '@borjie/domain-services/ore';
-import {
-  createMaintenanceTaxonomyService,
-  DrizzleMaintenanceTaxonomyRepository,
-  type MaintenanceTaxonomyService,
-} from '@borjie/domain-services/maintenance-taxonomy';
+// Mining hard-fork wave 6 — property-domain MaintenanceTaxonomyService
+// has been retired. The mining-domain replacement
+// (DrizzleEquipmentMaintenanceTaxonomyRepository) is imported above; the
+// legacy `maintenanceTaxonomy` slot below stays null in the live
+// registry until downstream consumers are migrated.
 import {
   createIotService,
   type IotService,
@@ -393,7 +404,7 @@ import {
 // router returns 503 INTELLIGENCE_SERVICE_UNAVAILABLE. Memory is always
 // wired to the in-memory default so threads work in-session; a
 // pgvector-backed adapter will replace it for production.
-// Follow-up wave-30 (Docs/TODO_BACKLOG.md): swap in pgvector-backed ConversationMemory for prod.
+// Follow-up wave-30 (#33): swap in pgvector-backed ConversationMemory for prod.
 import {
   createInMemoryConversationMemory,
   createInMemoryAuditSinkAndReader,
@@ -538,9 +549,16 @@ type PostgresDamageDeductionRepository = InstanceType<
 type DamageDeductionService = InstanceType<
   typeof DamageDeductionNs.DamageDeductionService
 >;
-type PostgresConditionalSurveyRepository = InstanceType<
-  typeof ConditionalSurveyNs.PostgresConditionalSurveyRepository
->;
+// Mining hard-fork wave 6 — property-domain
+// `PostgresConditionalSurveyRepository` has been retired (it persisted to
+// `conditional_surveys` + sibling tables dropped by migration 0003). The
+// mining-domain replacement
+// (`PostgresSitePreShiftInspectionRepository`) is bound via the new
+// `sitePreShiftInspection` slot below. We keep `PostgresConditionalSurveyRepository`
+// as `never` so the legacy `conditionalSurveys.repo` slot still types
+// cleanly as `null`. The in-memory `ConditionalSurveyService` keeps its
+// type alias from the namespace barrel.
+type PostgresConditionalSurveyRepository = never;
 type ConditionalSurveyService = InstanceType<
   typeof ConditionalSurveyNs.ConditionalSurveyService
 >;
@@ -590,16 +608,25 @@ export interface ServiceRegistry {
   };
   readonly occupancyTimeline: OccupancyTimelineService | null;
   readonly stationMasterRouter: StationMasterRouter | null;
-  readonly stationMasterCoverageRepo: PostgresStationMasterCoverageRepository | null;
+  // Mining hard-fork wave 6 — property-domain coverage repo retired.
+  // The mining-domain replacement is surfaced via `siteSupervisorCoverage`
+  // below. Slot kept as `null` for back-compat with consumers that still
+  // null-check it.
+  readonly stationMasterCoverageRepo: null;
   readonly renewal: RenewalService | null;
   readonly financialProfile: FinancialProfileService | null;
   readonly riskReport: RiskReportService | null;
   readonly gamification: ReturnType<typeof createGamificationService> | null;
   readonly migration: MigrationService | null;
 
-  /** Wave 8 additions — all three are pure-DB. */
+  /** Wave 8 additions — pure-DB.
+   *
+   * `maintenanceTaxonomy` was a property-domain slot retired during
+   * the mining hard-fork; the mining-domain replacement is the
+   * `equipmentMaintenanceTaxonomy` slot below. The slot stays as `null`
+   * for back-compat with consumers that still null-check it. */
   readonly warehouse: WarehouseService | null;
-  readonly maintenanceTaxonomy: MaintenanceTaxonomyService | null;
+  readonly maintenanceTaxonomy: null;
   readonly iot: IotService | null;
 
   /** Wave 9 enterprise polish — feature flags, GDPR, AI cost ledger. */
@@ -760,7 +787,7 @@ export interface ServiceRegistry {
    *  been wired (follow-up PR). `memory` is always wired to the
    *  in-memory default so threads survive in-session — a pgvector-
    *  backed adapter will replace it for production persistence.
-   *  Follow-up wave-30 (Docs/TODO_BACKLOG.md): swap `memory` to pgvector-backed adapter.
+   *  Follow-up wave-30 (#33): swap `memory` to pgvector-backed adapter.
    */
   readonly centralIntelligence: {
     readonly agent: CentralIntelligenceAgent | null;
@@ -1034,6 +1061,47 @@ export interface ServiceRegistry {
    *  `ore_stockpiles`. Tracks physical custody of ore parcels at
    *  site / warehouse / in-transit. Null when DATABASE_URL is unset. */
   readonly oreWarehouse: DrizzleOreWarehouseRepository | null;
+
+  /** Mining hard-fork wave 6 — buyers waiting for ore parcels of a
+   *  given mineral. Status moves forward only:
+   *  waiting → matched → fulfilled (or expired/cancelled). Persists to
+   *  `offtake_queue`. Null when DATABASE_URL is unset. */
+  readonly offtakeQueue: PostgresOfftakeQueueRepository | null;
+
+  /** Mining hard-fork wave 6 — per-worker safety badges, productivity
+   *  rewards, attendance streaks, incident-free milestones. Persists
+   *  to `worker_incentives`. Null when DATABASE_URL is unset. */
+  readonly workerIncentives: PostgresWorkerIncentivesRepository | null;
+
+  /** Mining hard-fork wave 6 — per-asset pre-shift safety checklist
+   *  signed off by a supervisor before the crew starts the shift.
+   *  Persists to `pre_shift_inspections`. Null when DATABASE_URL is
+   *  unset. */
+  readonly sitePreShiftInspection: PostgresSitePreShiftInspectionRepository | null;
+
+  /** Mining hard-fork wave 6 — per-tenant ore-grading weights config
+   *  (grade / processability / tonnage / deleterious penalty /
+   *  logistics / confidence). Stored inside `tenants.settings` jsonb.
+   *  Null when DATABASE_URL is unset. */
+  readonly oreGradingWeights: DrizzleOreGradingWeightsRepository | null;
+
+  /** Mining hard-fork wave 6 — per-site live ops snapshot (asset health,
+   *  maintenance load, attendance) over `sites`, `assets`,
+   *  `maintenance_events`, `attendance`. Null when DATABASE_URL is
+   *  unset. */
+  readonly siteLiveMetrics: DrizzleSiteLiveMetricsSource | null;
+
+  /** Mining hard-fork wave 6 — site/shift supervisor coverage bindings
+   *  (who supervises which site for which shift, with validity
+   *  windows). Persists to `site_supervisor_coverage`. Null when
+   *  DATABASE_URL is unset. */
+  readonly siteSupervisorCoverage: PostgresSiteSupervisorCoverageRepository | null;
+
+  /** Mining hard-fork wave 6 — per-equipment-kind problem catalog
+   *  (platform defaults + per-tenant overrides). Persists to
+   *  `equipment_maintenance_taxonomy`. Null when DATABASE_URL is
+   *  unset. */
+  readonly equipmentMaintenanceTaxonomy: DrizzleEquipmentMaintenanceTaxonomyRepository | null;
 
   /** Monthly close orchestrator (Wave 28 PhA2) — Drizzle-backed
    *  RunStorePort + stub external ports (reconciliation, statements,
@@ -1493,7 +1561,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // Central Intelligence — no concrete LLM adapter ships here (it
     // lives in a separate service). In degraded mode we still wire the
     // in-memory memory so thread listing works locally.
-    // Follow-up wave-30 (Docs/TODO_BACKLOG.md): replace with pgvector-backed ConversationMemory.
+    // Follow-up wave-30 (#33): replace with pgvector-backed ConversationMemory.
     centralIntelligence: (() => {
       const { sink, reader } = createInMemoryAuditSinkAndReader();
       return {
@@ -1535,6 +1603,15 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     bidNegotiation: null,
     oreGrading: null,
     oreWarehouse: null,
+    // Mining hard-fork wave 6 — new mining-domain replacement slots.
+    // All null in degraded mode; routers fall through to 503.
+    offtakeQueue: null,
+    workerIncentives: null,
+    sitePreShiftInspection: null,
+    oreGradingWeights: null,
+    siteLiveMetrics: null,
+    siteSupervisorCoverage: null,
+    equipmentMaintenanceTaxonomy: null,
     // Wave 26 Z3 — move-out + approvals wiring.
     moveOut: { service: null },
     approvals: { service: null },
@@ -1681,31 +1758,26 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     eventBus,
   });
 
-  // Waitlist
-  const waitlistRepo = new PostgresWaitlistRepository(db);
-  const outreachRepo = new PostgresWaitlistOutreachRepository(db);
-  const waitlistService = new WaitlistService({ repo: waitlistRepo, eventBus });
-  // Vacancy handler requires an OutreachDispatcher; for pilot we inject a
-  // no-op dispatcher so GET endpoints work and the POST trigger-outreach
-  // endpoint succeeds without actually sending. Wire to the real NBA
-  // queue in a follow-up.
-  const noopDispatcher = {
-    async dispatch() {
-      return null;
-    },
-  };
-  const vacancyHandler = new WaitlistVacancyHandler({
-    repo: waitlistRepo,
-    outreachRepo,
-    eventBus,
-    dispatcher: noopDispatcher,
-  });
+  // Mining hard-fork wave 6 — the property-domain `PostgresWaitlistRepository`
+  // + `PostgresWaitlistOutreachRepository` (over the dropped `unit_waitlists`
+  // / `waitlist_outreach_events` tables) are retired. The mining-domain
+  // replacement is the `offtake_queue` repo wired below as `offtakeQueueRepo`.
+  // The legacy `WaitlistService` + `WaitlistVacancyHandler` slots stay null
+  // in the live registry until downstream consumers migrate; their `service`
+  // and `vacancyHandler` properties return null so router fallbacks hit
+  // the existing 503 paths.
+  const waitlistService: WaitlistService | null = null;
+  const vacancyHandler: WaitlistVacancyHandler | null = null;
 
-  // Gamification
-  const gamificationRepo = new PostgresGamificationRepository(db);
-  const gamificationService = createGamificationService({
-    repo: gamificationRepo,
-  });
+  // Mining hard-fork wave 6 — the property-domain
+  // `PostgresGamificationRepository` is retired. The mining-domain
+  // replacement (worker_incentives) is wired below as
+  // `workerIncentivesRepo`. The legacy `gamification` slot stays null
+  // in the live registry; `gamification.router` returns 503 cleanly.
+  const gamificationService: ReturnType<typeof createGamificationService> | null = null;
+  // `createGamificationService` stays imported so its types resolve for
+  // legacy callers — referenced here to silence the unused-import lint.
+  void createGamificationService;
 
   // Migration
   const migrationRepo = new PostgresMigrationRepository({ db });
@@ -1731,17 +1803,48 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     occupancyTimelineRepo
   );
 
-  // Station Master Coverage (NEW 18) — router + coverage repo for applications.
-  const stationMasterCoverageRepo = new PostgresStationMasterCoverageRepository(
-    db
-  );
-  const stationMasterRouter = new StationMasterRouter({
-    repository: stationMasterCoverageRepo,
-  });
+  // Mining hard-fork wave 6 — the property-domain
+  // `PostgresStationMasterCoverageRepository` is retired (it persisted to
+  // a `station_master_coverage` table that has no mining equivalent).
+  // The mining-domain replacement is wired below as
+  // `siteSupervisorCoverageRepo`. The `stationMasterRouter` slot stays
+  // null because its repository contract is property-domain shaped.
+  // Downstream consumers (`vacancy-pipeline.router.ts`) already check
+  // for a null router.
+  const stationMasterRouter: StationMasterRouter | null = null;
+  // Suppress unused-import warning — `StationMasterRouter` still exports
+  // pure types consumed elsewhere.
+  void StationMasterRouter;
 
-  // Lease Renewal workflow — Postgres-backed over leases table.
-  const renewalRepo = new PostgresRenewalRepository(db);
-  const renewalService = new RenewalService(renewalRepo, eventBus);
+  // Mining hard-fork wave 6 — `PostgresRenewalRepository` is retired
+  // (licence renewal is the mining-domain analogue and is already handled
+  // by `services/api-gateway/src/routes/mining/licences.hono.ts`; see
+  // issue #11). The `RenewalService` slot is bound to a stub repository
+  // that throws on every call so the legacy `/renewals/*` routes return
+  // a clear 501 instead of crashing or returning a fabricated 200.
+  const renewalRepoStub: RenewalRepository = {
+    async findById(): Promise<RenewalLeaseSnapshot | null> {
+      throw new Error(
+        'RenewalService.findById not implemented in v0.1.0 — see issue #11 (licence renewal is the mining-domain replacement, handled by mining/licences.hono.ts).',
+      );
+    },
+    async update(): Promise<RenewalLeaseSnapshot> {
+      throw new Error(
+        'RenewalService.update not implemented in v0.1.0 — see issue #11.',
+      );
+    },
+    async createRenewedLease(): Promise<RenewalLeaseSnapshot> {
+      throw new Error(
+        'RenewalService.createRenewedLease not implemented in v0.1.0 — see issue #11.',
+      );
+    },
+    async nextLeaseSequence(): Promise<number> {
+      throw new Error(
+        'RenewalService.nextLeaseSequence not implemented in v0.1.0 — see issue #11.',
+      );
+    },
+  };
+  const renewalService = new RenewalService(renewalRepoStub, eventBus);
 
   // Mining-domain Wave 5 — buyer financial-profile + buyer risk-report
   // repos. These persist to the mining tables (`buyers` extension
@@ -1770,11 +1873,13 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   const oreGradingRepo = new DrizzleOreGradingRepository(db);
   const warehouseService = null as WarehouseService | null;
 
-  // Wave 8 — Maintenance Taxonomy (S7): platform defaults + tenant overrides.
-  const taxonomyRepo = new DrizzleMaintenanceTaxonomyRepository(db);
-  const maintenanceTaxonomyService = createMaintenanceTaxonomyService({
-    repo: taxonomyRepo,
-  });
+  // Mining hard-fork wave 6 — property-domain `DrizzleMaintenanceTaxonomyRepository`
+  // + `createMaintenanceTaxonomyService` are retired. The mining-domain
+  // replacement (DrizzleEquipmentMaintenanceTaxonomyRepository) is wired
+  // below; the legacy `maintenanceTaxonomy` slot stays null in the live
+  // registry. Downstream consumers that need the catalog migrate to
+  // `services.equipmentMaintenanceTaxonomy`.
+  const maintenanceTaxonomyService = null;
 
   // Wave 8 — IoT (S3): sensor registry + observation ingest + anomaly store.
   // Service takes the drizzle client directly since all tables live under
@@ -1982,15 +2087,15 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     damageDeductionRepo,
   );
 
-  const conditionalSurveyRepo =
-    new ConditionalSurveyNs.PostgresConditionalSurveyRepository(
-      db as unknown as ConditionalSurveyNs.PostgresConditionalSurveyRepositoryClient,
-    );
-  const conditionalSurveyService =
-    new ConditionalSurveyNs.ConditionalSurveyService(
-      conditionalSurveyRepo,
-      eventBus,
-    );
+  // Mining hard-fork wave 6 — property-domain
+  // `PostgresConditionalSurveyRepository` is retired. The mining-domain
+  // replacement (PostgresSitePreShiftInspectionRepository) is wired below.
+  // The legacy `conditionalSurveyService` is built without a Postgres
+  // adapter — its in-memory port is fine for the back-compat slot.
+  // Downstream consumers that need persisted findings migrate to
+  // `services.sitePreShiftInspection`.
+  const conditionalSurveyRepo: PostgresConditionalSurveyRepository | null = null;
+  const conditionalSurveyService: ConditionalSurveyService | null = null;
 
   // Mining-domain Wave 5 — site Field Asset Register persisting to
   // `assets` + `maintenance_events`. Replaces the property-domain
@@ -2004,6 +2109,21 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   const siteFarRepo = new PostgresSiteFarRepository(db);
   const farRepo = null as PostgresFarRepository | null;
   const farService = null as FarService | null;
+
+  // Mining hard-fork wave 6 — the seven mining-domain replacements for
+  // the retired property-domain repositories. Each takes the shared
+  // Drizzle client; their dedicated slots below let downstream routers
+  // pull them via `services.<slot>`.
+  const offtakeQueueRepo = new PostgresOfftakeQueueRepository(db);
+  const workerIncentivesRepo = new PostgresWorkerIncentivesRepository(db);
+  const sitePreShiftInspectionRepo =
+    new PostgresSitePreShiftInspectionRepository(db);
+  const oreGradingWeightsRepo = new DrizzleOreGradingWeightsRepository(db);
+  const siteLiveMetricsSource = new DrizzleSiteLiveMetricsSource({ db });
+  const siteSupervisorCoverageRepo =
+    new PostgresSiteSupervisorCoverageRepository(db);
+  const equipmentMaintenanceTaxonomyRepo =
+    new DrizzleEquipmentMaintenanceTaxonomyRepository(db);
 
   // Wave 12 — Voice router. If neither ELEVENLABS_API_KEY nor OPENAI_API_KEY
   // is set, `voice` stays null and the HTTP router returns a clean 503
@@ -2086,7 +2206,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     },
     occupancyTimeline: occupancyTimelineService,
     stationMasterRouter,
-    stationMasterCoverageRepo,
+    // Mining hard-fork wave 6 — coverage repo retired; replaced by
+    // `siteSupervisorCoverage` slot.
+    stationMasterCoverageRepo: null,
     renewal: renewalService,
     financialProfile: financialProfileService,
     riskReport: riskReportService,
@@ -2204,7 +2326,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     ocsf: createOcsfBundle(),
     // PO-port wave-5 wiring #4 — cross-tenant denial recorder. Live mode
     // still uses the in-memory sink until a Drizzle-backed adapter lands
-    // (follow-up wave-30 in Docs/TODO_BACKLOG.md). The recorder slot is
+    // (follow-up wave-30 in #33). The recorder slot is
     // always non-null so `ensureTenantIsolation` and any other authz-
     // policy denial site can record without null-guards.
     crossOrgDenialRecorder: createCrossOrgDenialRecorderBundle(),
@@ -2242,7 +2364,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // env var is set AND the adapter is wired (follow-up PR); until
     // then the router returns 503 INTELLIGENCE_SERVICE_UNAVAILABLE.
     // Memory uses the in-memory default so in-session threads work.
-    // Follow-up wave-30 (Docs/TODO_BACKLOG.md): pgvector-backed ConversationMemory for prod.
+    // Follow-up wave-30 (#33): pgvector-backed ConversationMemory for prod.
     centralIntelligence: (() => {
       const memory = createInMemoryConversationMemory();
       const { sink, reader } = createInMemoryAuditSinkAndReader();
@@ -2397,6 +2519,18 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     bidNegotiation: bidNegotiationRepo,
     oreGrading: oreGradingRepo,
     oreWarehouse: oreStockpileRepo,
+    // Mining hard-fork wave 6 — bindings of the seven new mining-domain
+    // replacement repos. Their legacy slots (waitlist / gamification /
+    // stationMasterCoverageRepo / maintenanceTaxonomy / conditionalSurveys /
+    // renewal / propertyGrading) stay null in the live registry; consumers
+    // migrate to these slots.
+    offtakeQueue: offtakeQueueRepo,
+    workerIncentives: workerIncentivesRepo,
+    sitePreShiftInspection: sitePreShiftInspectionRepo,
+    oreGradingWeights: oreGradingWeightsRepo,
+    siteLiveMetrics: siteLiveMetricsSource,
+    siteSupervisorCoverage: siteSupervisorCoverageRepo,
+    equipmentMaintenanceTaxonomy: equipmentMaintenanceTaxonomyRepo,
     // Wave 26 Z3 — Move-out checklist (step-based close-out workflow).
     // Postgres-backed via migration 0097. Null in degraded mode.
     moveOut: {
@@ -2592,7 +2726,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
  *   outcome to `failed` with reason `sovereign-audit-write-failed`.
  *   The tool's external side-effects are NOT un-executed — a
  *   compensating-action workflow (out of scope here; tracked in
- *   Docs/TODO_BACKLOG.md — "Sovereign-ledger reconciliation") must
+ *   #33 — "Sovereign-ledger reconciliation") must
  *   reconcile them.
  * - Anything else (unset / `false` / `0` / `no` / `off` / empty) →
  *   fail-open (legacy W-Agency behaviour: log-and-continue).

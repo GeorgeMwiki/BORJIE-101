@@ -16,7 +16,7 @@
  * the brain never sees these bytes. (See `.planning/research/central-
  * command/2025-brain-as-os.md`.)
  *
- * Phase C follow-ups (Docs/TODO_BACKLOG.md):
+ * Phase C follow-ups (#33):
  *   - Sensorium event overlay (join `sensorium_event_log` by timestamp)
  *   - Filter / search across sessions (free text + event-type facet)
  *   - Bookmarkable timestamps + share links

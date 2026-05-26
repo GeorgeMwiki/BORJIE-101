@@ -92,3 +92,8 @@ coverage/
 expo-env.d.ts
 .expo/
 *.tsbuildinfo
+
+# Borjie temp files (Supabase provisioning)
+.borjie-db-pass.tmp
+.borjie-project-ref.tmp
+.gitignore.tmp

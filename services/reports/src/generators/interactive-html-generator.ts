@@ -58,7 +58,7 @@ function renderMedia(media: MediaReference): string {
         .filter(Boolean)
         .join('\n');
     case 'video': {
-      // Follow-up KI-015 (Docs/TODO_BACKLOG.md): swap bare <video> for a skinned player (videojs /
+      // Follow-up KI-015 (#33): swap bare <video> for a skinned player (videojs /
       //   Plyr) with analytics hooks once the shared media player package
       //   lands. See Docs/KNOWN_ISSUES.md#ki-015.
       const poster = media.posterKey

@@ -200,7 +200,7 @@ export function createTenantPreferenceProfile(
     preferredContactTime: null,
     quietHoursStart: null,
     quietHoursEnd: null,
-    // Follow-up KI-005 (Docs/TODO_BACKLOG.md): populate from tenant.defaultTimezone — see
+    // Follow-up KI-005 (#33): populate from tenant.defaultTimezone — see
     //   packages/domain-models/src/common/region-config.ts. UTC is the
     //   neutral fallback; callers should override via `data.timezone`.
     //   See Docs/KNOWN_ISSUES.md#ki-005.

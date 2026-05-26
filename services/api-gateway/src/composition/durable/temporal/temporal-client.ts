@@ -37,7 +37,7 @@
  *     pattern as Inngest) so the api-gateway boots in CI without
  *     the dep installed.
  *
- * Phase C follow-ups (Docs/TODO_BACKLOG.md):
+ * Phase C follow-ups (#33):
  *   - Wire `createRealTemporalClient` against `@temporalio/client`
  *   - Provision the Temporal worker via `@temporalio/worker`
  *   - Move activity implementations from placeholder to real

@@ -7,7 +7,7 @@
  * performed by adapter tools (sms_send, whatsapp_send, push_send) wired
  * by the orchestrator.
  *
- * Schema gap: `notifications_outbox` raw SQL; TODO(phase-3).
+ * Schema gap: `notifications_outbox` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -125,7 +125,7 @@ export function createNotificationsRouter(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `notifications_outbox`.
+          // TODO(#30): typed insert against `notifications_outbox`.
           await deps.db.execute(
             sql`INSERT INTO notifications_outbox
                   (id, tenant_id, recipient_user_id, category, severity, summary, created_at)

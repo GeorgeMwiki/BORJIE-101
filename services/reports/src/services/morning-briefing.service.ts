@@ -216,7 +216,7 @@ export class MorningBriefingService {
       this.dataProvider.getVendorUpdates(tenantId),
       this.dataProvider.getPortfolioStats(tenantId, propertyIds),
       this.getKPIAlerts(tenantId, propertyIds),
-      // Follow-up KI-005 (Docs/TODO_BACKLOG.md): weather location should come from tenant.primaryCity
+      // Follow-up KI-005 (#33): weather location should come from tenant.primaryCity
       //   once the tenants-table migration lands. Passing undefined lets
       //   the provider fall back to its own default or skip the lookup.
       //   See Docs/KNOWN_ISSUES.md#ki-005.
@@ -228,7 +228,7 @@ export class MorningBriefingService {
 
     // Generate personalized greeting
     const greeting = this.generateGreeting(recipient.name, now);
-    // Follow-up KI-005 (Docs/TODO_BACKLOG.md): locale should come from recipient.locale /
+    // Follow-up KI-005 (#33): locale should come from recipient.locale /
     //   tenant.defaultLocale. Using bare 'en' fallback until plumbed.
     //   See Docs/KNOWN_ISSUES.md#ki-005.
     const dayOfWeek = now.toLocaleDateString('en', { weekday: 'long' });

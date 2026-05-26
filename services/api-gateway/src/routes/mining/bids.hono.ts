@@ -47,41 +47,30 @@ const RejectSchema = z.object({
   reason: z.string().min(1).max(2000),
 });
 
+const KYC_URL = '/api/v1/mining/buyers/kyc';
+
 /**
- * Resolve (or lazily create) the `buyers` row representing the calling
- * user. Mirrors the previous `ensureEntity('buyer', ...)` workaround so
- * the API surface still accepts a bare `userId` from the auth context.
+ * Resolve the `buyers` row bound to the calling user via
+ * `buyers.linked_user_id`. Replaces the legacy
+ * contact_name == userId lazy-create heuristic (issue #20). If no
+ * row exists the caller must complete KYC at POST {KYC_URL} first.
  */
-async function resolveBuyer(
+async function findLinkedBuyer(
   db: DrizzleDb,
   tenantId: string,
   userId: string,
-): Promise<{ id: string }> {
+): Promise<{ id: string; kycStatus: string } | null> {
   const [existing] = await db
-    .select({ id: buyers.id })
+    .select({ id: buyers.id, kycStatus: buyers.kycStatus })
     .from(buyers)
     .where(
       and(
         eq(buyers.tenantId, tenantId),
-        eq(buyers.contactName, userId),
+        eq(buyers.linkedUserId, userId),
       ),
     )
     .limit(1);
-  if (existing) return existing;
-  const [created] = await db
-    .insert(buyers)
-    .values({
-      id: randomUUID(),
-      tenantId,
-      name: userId,
-      kind: 'trader',
-      country: 'TZ',
-      contactName: userId,
-      kycStatus: 'pending',
-      attributes: { user_id: userId },
-    })
-    .returning({ id: buyers.id });
-  return created;
+  return existing ?? null;
 }
 
 app.post(
@@ -109,7 +98,33 @@ app.post(
           404,
         );
       }
-      const buyer = await resolveBuyer(db, tenantId, userId);
+      const buyer = await findLinkedBuyer(db, tenantId, userId);
+      if (!buyer) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'kyc_required',
+              message: 'Complete KYC before placing a bid',
+            },
+            kyc_url: KYC_URL,
+          },
+          403,
+        );
+      }
+      if (buyer.kycStatus === 'rejected') {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'kyc_rejected',
+              message: 'Your KYC submission was rejected; bidding is disabled',
+            },
+            kyc_url: KYC_URL,
+          },
+          403,
+        );
+      }
       const [bid] = await db
         .insert(marketplaceBids)
         .values({

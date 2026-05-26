@@ -1,16 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiRequestOrFallback } from '@/lib/api-client';
-import { MARKETPLACE_MOCK } from '@/lib/mocks/commercial';
+import { apiRequest } from '@/lib/api-client';
 
 export const marketplaceKeys = {
   listings: () => ['marketplace', 'listings'] as const,
 };
 
 /**
- * Front-end shape for a marketplace listing — keeps the existing
- * `outbound`/`inbound` split the legacy mock + UI components use.
+ * Front-end shape for a marketplace listing.
  */
 export interface OutboundListing {
   readonly listing: string;
@@ -39,7 +37,7 @@ interface RawListing {
 
 function adaptListings(raw: unknown): MarketplaceResult {
   if (!Array.isArray(raw)) {
-    return MARKETPLACE_MOCK as unknown as MarketplaceResult;
+    return { outbound: [], inbound: [] };
   }
   const outbound: OutboundListing[] = [];
   for (const item of raw as ReadonlyArray<RawListing>) {
@@ -53,25 +51,22 @@ function adaptListings(raw: unknown): MarketplaceResult {
       status: item.status ?? 'open',
     });
   }
-  return { outbound, inbound: MARKETPLACE_MOCK.inbound };
+  // Inbound (services we buy) is not yet exposed by the gateway.
+  return { outbound, inbound: [] };
 }
 
 /**
  * Marketplace listings.
  *
  * Live endpoint: GET /api/v1/mining/marketplace/listings
- * (services/api-gateway/src/routes/mining/marketplace.hono.ts). The
- * gateway returns active rows; we adapt them into the simplified
- * `outbound` slice the UI cards consume. Inbound (services we buy)
- * stays mock-only — gateway has no equivalent endpoint yet (TODO).
+ * (services/api-gateway/src/routes/mining/marketplace.hono.ts).
  */
 export function useMarketplaceListings() {
   return useQuery({
     queryKey: marketplaceKeys.listings(),
     queryFn: async ({ signal }): Promise<MarketplaceResult> => {
-      const raw = await apiRequestOrFallback<unknown>(
+      const raw = await apiRequest<unknown>(
         '/api/v1/mining/marketplace/listings',
-        MARKETPLACE_MOCK,
         { signal },
       );
       return adaptListings(raw);

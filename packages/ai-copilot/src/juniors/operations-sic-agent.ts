@@ -145,7 +145,7 @@ export function createOperationsSicAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const payloadJson = JSON.stringify(validated.payload);
-          // TODO(phase-3): typed insert against `sic_events` + `shift_reconciliations`.
+          // TODO(#30): typed insert against `sic_events` + `shift_reconciliations`.
           await deps.db.execute(
             sql`INSERT INTO sic_events
                   (id, tenant_id, site_id, shift_id, mode, supervisor_id, deviation_code,

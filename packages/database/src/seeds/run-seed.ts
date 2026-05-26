@@ -63,10 +63,9 @@ const ORG_SEEDS: Record<string, OrgSeedRunner> = {
 // SEED_ORG_SEEDS gate).
 const PLATFORM_SEEDS: Record<string, OrgSeedRunner> = {
   'platform-defaults': async (_db) => {
-    // TODO(borjie-hard-fork): maintenance-taxonomy was property-domain
-    // and shipped with BossNyumba. Rebuild a mining-equivalent
-    // (drilling-incident-taxonomy, equipment-failure-taxonomy, etc.)
-    // and re-wire here.
+    // TODO(#29): maintenance-taxonomy was property-domain and shipped
+    // with BossNyumba. Rebuild a mining-equivalent (drilling-incident-
+    // taxonomy, equipment-failure-taxonomy, etc.) and re-wire here.
     console.log('[run-seed]   platform-defaults: no-op (mining taxonomies pending)');
   },
   // Knowledge-base RAG corpus. The runner logs guidance for wiring the

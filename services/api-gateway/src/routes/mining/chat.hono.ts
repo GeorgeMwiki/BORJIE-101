@@ -95,6 +95,10 @@ app.post('/', zValidator('json', ChatTurnSchema), async (c) => {
               data: JSON.stringify({
                 junior: evt.junior,
                 intent: evt.intent,
+                status: evt.status,
+                evidence_ids: evt.evidence_ids ?? [],
+                confidence: evt.confidence ?? null,
+                error: evt.error ?? null,
               }),
             });
             break;
@@ -116,10 +120,17 @@ app.post('/', zValidator('json', ChatTurnSchema), async (c) => {
             });
             break;
           case 'error':
-            logger.warn({ tenantId, mode: input.mode, err: evt.message }, 'chat orchestrator soft-error');
+            logger.warn(
+              { tenantId, mode: input.mode, err: evt.message, source: evt.source },
+              'chat orchestrator soft-error',
+            );
             await stream.writeSSE({
               event: 'error',
-              data: JSON.stringify({ kind: 'orchestrator', message: evt.message, retryable: true }),
+              data: JSON.stringify({
+                kind: evt.source ?? 'orchestrator',
+                message: evt.message,
+                retryable: evt.source !== 'config',
+              }),
             });
             break;
         }

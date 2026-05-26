@@ -9,7 +9,7 @@
  *   - Ingest results, compute QA/QC chart, FLAG failures.
  *
  * Schema gap: `sample_batches`, `qaqc_results`, `assay_results` are not
- * yet in Drizzle. Raw SQL writes; TODO(phase-3).
+ * yet in Drizzle. Raw SQL writes; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -140,7 +140,7 @@ export function createLabAssayAgent(deps: JuniorDeps) {
           const { sql } = await import('drizzle-orm');
           const manifestJson = JSON.stringify(output.manifest_with_qaqc);
           const failuresJson = JSON.stringify(output.qaqc_failures);
-          // TODO(phase-3): typed inserts against `sample_batches` + `qaqc_results`.
+          // TODO(#30): typed inserts against `sample_batches` + `qaqc_results`.
           await deps.db.execute(
             sql`INSERT INTO sample_batches
                   (id, tenant_id, site_id, batch_id, mineral, recommended_lab, technique,

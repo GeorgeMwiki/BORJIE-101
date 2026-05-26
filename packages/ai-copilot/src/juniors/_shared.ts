@@ -249,11 +249,11 @@ export async function lazyDb(): Promise<DrizzleLikeClient | null> {
     return null;
   }
   try {
-    // TODO(borjie-hard-fork): declare @borjie/database in this package's
-    // dependencies so this can be a static import. String-spelled
-    // specifier defers module resolution to runtime (pnpm symlink graph
-    // hoists it in practice) so the typechecker stays green without the
-    // local manifest dep.
+    // TODO(#29): declare @borjie/database in this package's dependencies
+    // so this can be a static import. String-spelled specifier defers
+    // module resolution to runtime (pnpm symlink graph hoists it in
+    // practice) so the typechecker stays green without the local
+    // manifest dep.
     const databaseSpecifier: string = '@borjie/database';
     const mod = (await import(databaseSpecifier)) as {
       createDatabaseClient?: (u: string) => DrizzleLikeClient;

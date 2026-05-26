@@ -2,7 +2,7 @@
  * Cost Engineer Agent — P&L, unit economics, break-even sensitivity
  * (AGENT_PROMPT_LIBRARY §15).
  *
- * Schema gap: `unit_economics_snapshots` raw SQL; TODO(phase-3).
+ * Schema gap: `unit_economics_snapshots` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -113,7 +113,7 @@ export function createCostEngineerAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const json = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `unit_economics_snapshots`.
+          // TODO(#30): typed insert against `unit_economics_snapshots`.
           await deps.db.execute(
             sql`INSERT INTO unit_economics_snapshots
                   (id, tenant_id, site_id, period, summary, computed_at)

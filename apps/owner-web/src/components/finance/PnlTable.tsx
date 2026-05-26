@@ -1,6 +1,6 @@
 'use client';
 
-import type { PnLRow } from '@/lib/mocks/finance';
+import type { PnLRow } from '@/lib/types/finance';
 import { fmtTzsM } from '@/lib/format';
 
 interface PnlTableProps {

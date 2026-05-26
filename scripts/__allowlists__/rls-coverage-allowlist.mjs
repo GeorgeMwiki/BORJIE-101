@@ -8,7 +8,7 @@
  * Most entries below are TRACKED GAPS: pre-existing tenant tables that
  * landed before the Phase-D11 RLS sweep (migrations 0155 +
  * 0156_supabase_rls_phase2.sql, which together cover 40 tables). Each
- * tracked gap is a pending RLS-migration task (Docs/TODO_BACKLOG.md);
+ * tracked gap is a pending RLS-migration task (#33);
  * remove the entry once the migration lands so the scanner ratchets
  * forward.
  *

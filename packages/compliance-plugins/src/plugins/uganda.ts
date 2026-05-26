@@ -61,7 +61,7 @@ const ugandaPaymentRails: PaymentRailPort = {
 const ugandaTenantScreening: TenantScreeningPort = {
   async lookupBureau(_identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('CRB_UG', ['CONSENT_TOKEN_INVALID']);
-    // Follow-up ph-Z-global (Docs/TODO_BACKLOG.md): wire CRB UG adapter when available.
+    // Follow-up ph-Z-global (#33): wire CRB UG adapter when available.
     return buildStubBureauResult('CRB_UG');
   },
 };

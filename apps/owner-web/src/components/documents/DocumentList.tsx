@@ -1,6 +1,6 @@
 'use client';
 
-import type { DocumentRecord } from '@/lib/mocks/documents';
+import type { DocumentRecord } from '@/lib/types/documents';
 import { fmtDate } from '@/lib/format';
 
 interface DocumentListProps {

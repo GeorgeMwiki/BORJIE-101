@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Audio } from 'expo-av'
 
-// TODO: requires EAS dev build — expo-av records via native audio modules
-// and won't function in the basic Expo Go preview without permissions
-// configured by the dev-client build.
+// TODO(#14,#22): requires EAS dev build — expo-av records via native
+// audio modules and won't function in the basic Expo Go preview
+// without permissions configured by the dev-client build.
 
 export type RecorderStatus = 'idle' | 'requesting' | 'recording' | 'stopped' | 'error'
 

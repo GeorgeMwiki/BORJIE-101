@@ -37,6 +37,28 @@ Open `borjie-mining.yaml` in:
 - VS Code with the *OpenAPI (Swagger) Editor* extension
 - Stoplight Studio, Postman, Bruno, any OpenAPI 3.1 viewer
 
+### Published on GitHub Pages
+
+A static mirror of the spec ships to GitHub Pages on every push to `main`
+that touches the spec or the mining route handlers. No checkout, no
+api-gateway, no toolchain required — share these URLs with partners and
+auditors:
+
+| URL | Purpose |
+| --- | --- |
+| <https://georgemwiki.github.io/BORJIE-101/> | Landing page (links to all three views) |
+| <https://georgemwiki.github.io/BORJIE-101/swagger-ui/> | Swagger UI (interactive try-it-out) |
+| <https://georgemwiki.github.io/BORJIE-101/redoc/> | ReDoc (three-pane reference) |
+| <https://georgemwiki.github.io/BORJIE-101/borjie-mining.yaml> | Raw YAML download |
+
+The publish pipeline lives in
+[`.github/workflows/borjie-publish-docs.yml`](../../.github/workflows/borjie-publish-docs.yml).
+It regenerates the spec, builds the static site via
+[`scripts/build-pages-site.mjs`](../../scripts/build-pages-site.mjs), and
+deploys via `actions/deploy-pages@v4`. Triggers: push to `main` touching
+`docs/openapi/**` or `services/api-gateway/src/routes/mining/**`, plus
+manual `workflow_dispatch`.
+
 ---
 
 ## Regenerating

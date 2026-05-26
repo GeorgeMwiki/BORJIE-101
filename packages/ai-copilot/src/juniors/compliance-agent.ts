@@ -2,7 +2,7 @@
  * Compliance Agent — regulator citation library lookup, action
  * checklist generation (AGENT_PROMPT_LIBRARY §21).
  *
- * Schema gap: `compliance_verdicts` raw SQL; TODO(phase-3).
+ * Schema gap: `compliance_verdicts` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -123,7 +123,7 @@ export function createComplianceAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `compliance_verdicts`.
+          // TODO(#30): typed insert against `compliance_verdicts`.
           await deps.db.execute(
             sql`INSERT INTO compliance_verdicts
                   (id, tenant_id, action_kind, compliant, summary, created_at)

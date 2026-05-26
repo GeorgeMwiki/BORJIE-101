@@ -2,7 +2,7 @@
  * Safety / EHS Agent — critical controls, incident heatmap, PPE
  * issuance tracking (AGENT_PROMPT_LIBRARY §18).
  *
- * Schema gap: `safety_snapshots` raw SQL; TODO(phase-3).
+ * Schema gap: `safety_snapshots` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -122,7 +122,7 @@ export function createSafetyAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `safety_snapshots`.
+          // TODO(#30): typed insert against `safety_snapshots`.
           await deps.db.execute(
             sql`INSERT INTO safety_snapshots
                   (id, tenant_id, site_id, ppe_compliance_pct, summary, computed_at)

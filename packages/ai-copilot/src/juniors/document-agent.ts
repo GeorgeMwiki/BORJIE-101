@@ -20,11 +20,11 @@
  * mark the licence row's status as `pending` so a downstream junior
  * must verify.
  *
- * Schema gap (see TODOs in adapters): the `licences` table is defined
- * in DATA_MODEL.md §3.1 but the Drizzle schema does NOT yet exist; the
- * existing `temporalEntities` schema is missing `confidence`,
- * `evidence_ids`, `source` columns. The adapters issue raw SQL so this
- * junior compiles today; swap for typed Drizzle once the schemas land.
+ * Schema gap (#30): the `licences` table is defined in DATA_MODEL.md
+ * §3.1 but the Drizzle schema does NOT yet exist; the existing
+ * `temporalEntities` schema is missing `confidence`, `evidence_ids`,
+ * `source` columns. The adapters issue raw SQL so this junior compiles
+ * today; swap for typed Drizzle once the schemas land.
  */
 
 import { z } from 'zod';

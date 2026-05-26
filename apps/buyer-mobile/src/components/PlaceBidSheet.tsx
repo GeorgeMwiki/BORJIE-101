@@ -11,6 +11,7 @@ import { PrimaryButton } from './PrimaryButton'
 import { useToast } from './Toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { placeBid, type PaymentTerms } from '@/api/marketplace'
+import { isKycRequiredError } from '@/api/errors'
 import { queryKeys } from '@/api/queryKeys'
 import { parseBidPrice, placeBidSchema, type PlaceBidFormInput } from '@/schemas/bid'
 import { colors } from '@/theme/colors'
@@ -59,7 +60,15 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
       onClose()
       router.push(`/bids/${bid.id}`)
     },
-    onError: () => {
+    onError: (error) => {
+      // Issue #20 — non-KYC'd users get a typed 403; route them through
+      // the onboarding flow instead of surfacing a generic failure toast.
+      if (isKycRequiredError(error)) {
+        toast.show(t('bids.kyc_required'), 'info')
+        onClose()
+        router.push('/kyc')
+        return
+      }
       toast.show(t('bids.bid_failed'), 'error')
     }
   })

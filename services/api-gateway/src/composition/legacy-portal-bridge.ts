@@ -20,7 +20,7 @@
  * vault is a port: production wires to AWS Secrets Manager / Doppler /
  * Vault; tests pass an in-memory stub.
  *
- * Production caveat (before flipping to real KRA — Docs/TODO_BACKLOG.md): this code does
+ * Production caveat (before flipping to real KRA — #33): this code does
  * NOT call the real iTax portal — the real driver should be invoked
  * from a Playwright runtime in a hardened sandbox (separate VPC, IP
  * whitelist on KRA side, retry budget, idempotency hash). The mock

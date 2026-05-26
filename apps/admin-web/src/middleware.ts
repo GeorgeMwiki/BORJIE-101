@@ -1,44 +1,47 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { PLATFORM_SESSION_COOKIE } from './lib/session';
+import { refreshSupabaseSession } from './lib/supabase/middleware';
 
 /**
- * Gate every route on a valid platform-staff session cookie.
+ * Gate every route on a valid Supabase session.
  *
- * Exemptions:
- *   - `/login` — where staff obtain a session
- *   - `/api/platform/health` — liveness probe for the ops mesh
- *   - `/api/platform/login` — the login route itself (must be reachable
- *     pre-auth so the login form can POST)
- *   - static Next assets (excluded via matcher below)
+ * On every navigation:
+ *   1. Touch the Supabase session via `@supabase/ssr` so the refresh
+ *      token rotates and the new access token gets written back into
+ *      response cookies.
+ *   2. If no session is present and the path is protected, redirect
+ *      to `/sign-in?next=<original>` so the user can authenticate and
+ *      bounce back.
  *
- * When the cookie is missing on a protected path, users are redirected
- * to `/login` with a `next=` param so we can bounce them back after auth.
- *
- * Cookie presence alone is not authentication — the identity service
- * still validates the token on every request (see `src/lib/session.ts`).
+ * Public paths (no session required):
+ *   - `/sign-in` — the sign-in form itself
+ *   - `/login` — legacy login form kept available during the migration
+ *   - `/api/platform/health` — ops liveness probe
+ *   - static Next assets — excluded via `config.matcher` below
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   const isPublicPath =
+    pathname === '/sign-in' ||
     pathname === '/login' ||
     pathname === '/api/platform/health' ||
-    pathname === '/api/platform/login';
+    pathname.startsWith('/api/platform/login');
+
+  const { response, hasSession } = await refreshSupabaseSession(request);
 
   if (isPublicPath) {
-    return NextResponse.next();
+    return response;
   }
 
-  const session = request.cookies.get(PLATFORM_SESSION_COOKIE)?.value;
-  if (session && session.length > 0) {
-    return NextResponse.next();
+  if (hasSession) {
+    return response;
   }
 
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = '/login';
-  loginUrl.search = `?next=${encodeURIComponent(pathname + search)}`;
-  return NextResponse.redirect(loginUrl);
+  const signInUrl = request.nextUrl.clone();
+  signInUrl.pathname = '/sign-in';
+  signInUrl.search = `?next=${encodeURIComponent(pathname + search)}`;
+  return NextResponse.redirect(signInUrl);
 }
 
 export const config = {

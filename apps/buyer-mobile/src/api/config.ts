@@ -14,29 +14,9 @@ function readBaseUrl(): string {
   return FALLBACK_GATEWAY
 }
 
-/**
- * Feature flag: when 'false' all network calls short-circuit to their mock
- * fallbacks and no fetch is issued. Defaults to true so production builds
- * talk to the live api-gateway.
- */
-function readUseLiveApi(): boolean {
-  const raw =
-    typeof process !== 'undefined' &&
-    typeof process.env !== 'undefined' &&
-    process.env.EXPO_PUBLIC_USE_LIVE_API
-  if (typeof raw === 'string') {
-    return raw.toLowerCase() !== 'false'
-  }
-  return true
-}
-
 export const apiConfig = {
   baseUrl: readBaseUrl(),
-  timeoutMs: 5_000,
-  useLiveApi: readUseLiveApi(),
-  // When true, transport errors fall back to mock data so the UI keeps
-  // rendering during offline development. Disable in production builds.
-  allowMockFallback: true
+  timeoutMs: 5_000
 } as const
 
 export type ApiConfig = typeof apiConfig

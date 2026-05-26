@@ -14,7 +14,7 @@
  * pass. Each pending entry should be removed when the route adds
  * `perTenantRateBudget`, `withSecurityEvents`, or
  * `createRateLimitMiddleware`. This list is the concrete worklist for
- * incremental rate-limit-coverage remediation (Docs/TODO_BACKLOG.md).
+ * incremental rate-limit-coverage remediation (#33).
  *
  * Keys are paths RELATIVE to the repo root.
  */

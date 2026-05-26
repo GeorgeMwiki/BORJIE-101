@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { computeBreakEven } from '@/lib/mocks/finance';
+import { computeBreakEven } from '@/lib/types/finance';
 import { fmtTzs } from '@/lib/format';
 
 interface BreakEvenSliderProps {

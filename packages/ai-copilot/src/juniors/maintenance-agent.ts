@@ -2,7 +2,7 @@
  * Maintenance Agent — fuel logs, machine hours, maintenance events
  * (AGENT_PROMPT_LIBRARY §14).
  *
- * Schema gap: `maintenance_events`, `fuel_logs` raw SQL; TODO(phase-3).
+ * Schema gap: `maintenance_events`, `fuel_logs` raw SQL; TODO(#30).
  */
 
 import { z } from 'zod';
@@ -108,7 +108,7 @@ export function createMaintenanceAgent(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const summary = JSON.stringify(output);
-          // TODO(phase-3): typed insert against `maintenance_events`.
+          // TODO(#30): typed insert against `maintenance_events`.
           await deps.db.execute(
             sql`INSERT INTO maintenance_events
                   (id, tenant_id, asset_id, summary, computed_at)

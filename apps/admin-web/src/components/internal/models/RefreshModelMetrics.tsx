@@ -13,7 +13,6 @@ export function RefreshModelMetrics(): JSX.Element {
       const res = await apiClient.post<{ readonly refreshedAt: string }>(
         '/models/refresh',
         {},
-        async () => ({ refreshedAt: new Date().toISOString() })
       );
       if (!res.ok) throw new Error(res.message);
       return res.data;

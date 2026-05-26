@@ -157,7 +157,7 @@ export function createDrillHoleLogger(deps: JuniorDeps) {
         try {
           const { sql } = await import('drizzle-orm');
           const gpsJson = JSON.stringify(validated.gps);
-          // TODO(phase-3): typed inserts against `drill_holes` + `drill_hole_layers`.
+          // TODO(#30): typed inserts against `drill_holes` + `drill_hole_layers`.
           await deps.db.execute(
             sql`INSERT INTO drill_holes
                   (id, tenant_id, site_id, hole_id, kind, gps, azimuth_deg, dip_deg,

@@ -16,8 +16,8 @@ interface RawLicence {
 
 /**
  * Light-touch licences index. Live endpoint:
- * `/api/v1/mining/licences`. Falls back to an empty list (TODO: bundle
- * a richer offline mock once the gateway projection stabilises).
+ * `/api/v1/mining/licences`. Falls back to an empty list with a
+ * "No licences returned." message when the live response is empty.
  */
 export function LicencesList(): JSX.Element {
   const query = useLicencesList();

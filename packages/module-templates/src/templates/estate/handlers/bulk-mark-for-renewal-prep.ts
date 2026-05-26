@@ -65,7 +65,7 @@ export interface LeaseStorePort {
    * leases not found and reports them in the return value.
    *
    * Returns `null` when the table column does not exist; the handler then
-   * degrades gracefully and emits a TODO warning.
+   * degrades gracefully and emits a TODO(#34) warning.
    */
   bulkMarkForRenewalPrep(args: {
     readonly tenantId: string;
@@ -136,10 +136,10 @@ export async function bulkMarkForRenewalPrepHandler(
           proposal_id: ctx.proposalId,
           lease_count: parsed.lease_ids.length,
         },
-        'TODO: write to lease.flagged_for_renewal_prep when migration lands',
+        'TODO(#34): write to lease.flagged_for_renewal_prep when migration lands',
       );
     } else {
-      logger.warn('TODO: write to lease.flagged_for_renewal_prep when migration lands', {
+      logger.warn('TODO(#34): write to lease.flagged_for_renewal_prep when migration lands', {
           proposal_id: ctx.proposalId,
           lease_count: parsed.lease_ids.length,
         });

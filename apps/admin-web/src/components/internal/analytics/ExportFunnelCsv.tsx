@@ -14,9 +14,7 @@ export function ExportFunnelCsv(): JSX.Element {
 
   const exportCsv = useMutation({
     mutationFn: async (): Promise<ExportResult> => {
-      const res = await apiClient.post<ExportResult>('/analytics/funnel/export', {}, async () => ({
-        url: 'data:text/csv;charset=utf-8,step,count%0ASign-up,412%0ATenant,286%0AFirst%20operator,218%0AFirst%20decision,174%0APaid,96',
-      }));
+      const res = await apiClient.post<ExportResult>('/analytics/funnel/export', {});
       if (!res.ok) throw new Error(res.message);
       return res.data;
     },

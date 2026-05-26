@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiRequestOrFallback } from '@/lib/api-client';
-import { DOCUMENTS_MOCK, type DocumentRecord } from '@/lib/mocks/documents';
+import { apiRequest } from '@/lib/api-client';
+import type { DocumentRecord } from '@/lib/types/documents';
 
 export const documentKeys = {
   all: ['documents'] as const,
@@ -16,9 +16,8 @@ export function useDocumentList() {
     queryFn: ({ signal }) =>
       // Live endpoint: GET /api/v1/mining/documents
       // (services/api-gateway/src/routes/mining/documents.hono.ts).
-      apiRequestOrFallback<ReadonlyArray<DocumentRecord>>(
+      apiRequest<ReadonlyArray<DocumentRecord>>(
         '/api/v1/mining/documents',
-        DOCUMENTS_MOCK,
         { signal },
       ),
   });

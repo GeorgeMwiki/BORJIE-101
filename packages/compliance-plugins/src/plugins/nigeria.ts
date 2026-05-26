@@ -65,7 +65,7 @@ const nigeriaTenantScreening: TenantScreeningPort = {
   async lookupBureau(identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('CRC_CREDIT_BUREAU_NG', ['CONSENT_TOKEN_INVALID']);
     void identityDocument;
-    // Follow-up ph-Z-global (Docs/TODO_BACKLOG.md): wire CRC Credit Bureau NG when env CRC_NG_KEY set.
+    // Follow-up ph-Z-global (#33): wire CRC Credit Bureau NG when env CRC_NG_KEY set.
     return buildStubBureauResult('CRC_CREDIT_BUREAU_NG');
   },
 };

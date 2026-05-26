@@ -5,6 +5,7 @@ import {
   screensByGroup,
   internalHref,
 } from '@/lib/internal/screens';
+import { SignOutButton } from '@/components/SignOutButton';
 
 /**
  * Top nav for the Borjie Console (internal admin). Lists the four
@@ -62,8 +63,9 @@ export function ConsoleTopNav(): JSX.Element {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 text-xs text-neutral-500">
+        <div className="ml-auto flex items-center gap-3 text-xs text-neutral-500">
           <span className="hidden sm:inline">Port 3020 · SSO + IP allow-list</span>
+          <SignOutButton />
         </div>
       </div>
     </header>

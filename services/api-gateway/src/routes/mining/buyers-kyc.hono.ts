@@ -47,7 +47,7 @@ app.post(
   withSecurityEvents(
     { action: 'mining.buyer.kyc.submit', resource: 'mining.buyer', severity: 'info' },
     async (c) => {
-      const { tenantId } = c.get('auth');
+      const { tenantId, userId } = c.get('auth');
       const db = c.get('db');
       const input = c.req.valid('json');
       const kycStatus = input.amlScreenResult === 'flagged'
@@ -55,6 +55,29 @@ app.post(
         : (input.nidaId && input.tin && input.amlScreenResult === 'clear')
           ? 'verified'
           : 'in_review';
+
+      // Idempotency: one buyer per (tenant, user). If the caller already
+      // has a row, refuse to create a duplicate. They should hit the
+      // status endpoint or contact support to amend.
+      const [existing] = await db
+        .select({ id: buyers.id })
+        .from(buyers)
+        .where(and(eq(buyers.tenantId, tenantId), eq(buyers.linkedUserId, userId)))
+        .limit(1);
+      if (existing) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'KYC_ALREADY_SUBMITTED',
+              message: 'A buyer record already exists for this user',
+            },
+            buyerId: existing.id,
+          },
+          409,
+        );
+      }
+
       const [row] = await db
         .insert(buyers)
         .values({
@@ -69,6 +92,7 @@ app.post(
           contactEmail: input.contactEmail ?? null,
           contactPhone: input.contactPhone ?? null,
           kycStatus,
+          linkedUserId: userId,
           attributes: {
             nidaId: input.nidaId ?? null,
             tin: input.tin ?? null,

@@ -702,3 +702,16 @@ export {
   createDocumentAgent,
   documentAgent,
 } from './juniors/document-agent.js';
+export {
+  executeJuniors,
+  BorjieConfigError,
+  synthesizeJuniorInput,
+  type JuniorExecutionResult,
+  type DispatchPlanStep,
+  type ExecutorContext,
+  type ExecutorHooks,
+  type ExecuteJuniorsArgs,
+  type SynthesisContext,
+  type SynthesisResult,
+} from './juniors/index.js';
+export { lazyClaudeClient, type ClaudeClient } from './juniors/_shared.js';
