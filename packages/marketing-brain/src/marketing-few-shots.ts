@@ -237,7 +237,10 @@ export function selectFewShots(
     pool.map((_, i) => i),
     rand
   );
-  return indices.slice(0, count).map((i) => pool[i]);
+  return indices
+    .slice(0, count)
+    .map((i) => pool[i])
+    .filter((shot): shot is MarketingFewShot => shot !== undefined);
 }
 
 /**
