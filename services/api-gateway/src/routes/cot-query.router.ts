@@ -48,7 +48,6 @@
  *   `dsar.router.ts` handles the missing-RTBF case).
  */
 
-// @ts-nocheck — Hono v4 ContextVariableMap drift (same pattern as
 // dsar.router / head-briefing). The handlers below are typed via the
 // service-context envelope.
 

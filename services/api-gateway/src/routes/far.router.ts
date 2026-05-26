@@ -12,7 +12,6 @@
  * DATABASE_URL is unset.
  */
 
-// @ts-nocheck — Hono context types are open-ended by design in this project.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
