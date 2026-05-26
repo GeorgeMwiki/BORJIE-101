@@ -2,7 +2,7 @@
  * Schema exports for Borjie database.
  *
  * Re-exports every Drizzle table for the Borjie mining-domain platform.
- * Property-domain BossNyumba tables (buildings, units, leases, vendors,
+ * Property-domain pre-Borjie tables (buildings, units, leases, vendors,
  * tenant rentals, etc.) were removed in migration 0003_mining_domain.sql
  * — the surviving schemas cover the generic AI-OS infrastructure plus
  * the new mining-domain mining-specific tables.

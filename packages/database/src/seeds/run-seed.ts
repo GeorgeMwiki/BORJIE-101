@@ -64,7 +64,7 @@ const ORG_SEEDS: Record<string, OrgSeedRunner> = {
 const PLATFORM_SEEDS: Record<string, OrgSeedRunner> = {
   'platform-defaults': async (_db) => {
     // See gh-issue #29: maintenance-taxonomy was property-domain and
-    // shipped with BossNyumba. Rebuild a mining-equivalent (drilling-
+    // shipped pre-Borjie. Rebuild a mining-equivalent (drilling-
     // incident-taxonomy, equipment-failure-taxonomy, etc.) and re-wire
     // here.
     console.log('[run-seed]   platform-defaults: no-op (mining taxonomies pending)');

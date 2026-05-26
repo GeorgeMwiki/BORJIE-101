@@ -3,8 +3,8 @@
  *
  * Property-domain repositories (customer, lease, payment, maintenance,
  * inspection, scheduling, utilities, compliance, messaging, property,
- * hr, operations, vacancy-pipeline) were deleted in the BossNyumba →
- * Borjie hard-fork. Re-introduce mining-domain equivalents (buyers,
+ * hr, operations, vacancy-pipeline) were deleted in the pre-Borjie
+ * hard-fork. Re-introduce mining-domain equivalents (buyers,
  * shipments, assays, etc.) under the mining schemas as those domains
  * land.
  */

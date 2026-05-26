@@ -7,7 +7,7 @@
  * threat-and-mitigation list.
  *
  * `tasks` and `risks` did NOT previously exist in this repo (the legacy
- * BossNyumba `cases.schema` was deleted). These are net-new tables.
+ * pre-Borjie `cases.schema` was deleted). These are net-new tables.
  */
 
 import {

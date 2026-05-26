@@ -26,6 +26,7 @@ import { dispatchToProvider, reorderForCapability } from '../providers/dispatche
 import { scanBrandViolation } from '../safety/brand-violation-scanner.js';
 import { scanForNsfw } from '../safety/nsfw-scanner.js';
 import { detectDeepfake } from '../safety/deepfake-detector.js';
+import { applyContentRatingGate } from '../safety/content-rating-gate.js';
 import {
   buildC2paManifest,
   embedC2paManifest,
@@ -97,6 +98,22 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
     expect_wordmark: args.expect_wordmark,
     recipe_id: args.recipe.id,
   });
+
+  // Caveat 3 — apply the tenant content-rating gate. Generated
+  // artefacts whose safety scan exceeds the tenant ceiling are refused
+  // regardless of recipe authority tier. The default policy is strict
+  // SFW (matches the Borjie MD persona).
+  const gate = applyContentRatingGate({
+    tenant_id: args.ctx.tenant_id,
+    safety_scan: safety,
+  });
+  if (!gate.ok) {
+    throw new MediaCompositionError(
+      'SAFETY_REFUSED',
+      `content-rating gate refused: ${gate.violations.length} violation(s)`,
+      gate.violations,
+    );
+  }
 
   // Re-build provenance with the actual safety_scan result.
   const sealedProvenance = {
@@ -252,10 +269,22 @@ async function runSafetyPipeline(args: SafetyArgs): Promise<SafetyScanResult> {
     recipe_id: args.recipe_id,
     expect_wordmark: args.expect_wordmark,
   });
+  // Worst-case merge: if the provider adapter already reported a
+  // higher NSFW / deepfake probability than the dedicated scanners
+  // (e.g. Firefly's commercial-safe content filter), trust the
+  // adapter's value. The content-rating gate sees the worst of all
+  // sources. Brand violation flags are unioned across sources.
+  const adapter = args.artifact.provenance.safety_scan;
+  const flag_union = Array.from(
+    new Set([...brand.flags, ...adapter.brand_violation_flags]),
+  );
   return Object.freeze({
-    nsfw_probability: nsfw.probability,
-    deepfake_probability: deepfake.probability,
-    brand_violation_flags: brand.flags,
+    nsfw_probability: Math.max(nsfw.probability, adapter.nsfw_probability),
+    deepfake_probability: Math.max(
+      deepfake.probability,
+      adapter.deepfake_probability,
+    ),
+    brand_violation_flags: Object.freeze(flag_union),
   });
 }
 

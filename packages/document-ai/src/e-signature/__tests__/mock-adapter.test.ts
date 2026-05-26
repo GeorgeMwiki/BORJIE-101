@@ -9,7 +9,7 @@ function sampleConfig(): SignaturePortConfig {
     doc: { id: 'lease-001', bytes: SAMPLE_PDF, mime: 'application/pdf' },
     signers: [
       { email: 'tenant@example.com', name: 'Asha Mwangi', order: 0, role: 'tenant' },
-      { email: 'landlord@example.com', name: 'Boss Nyumba', order: 1, role: 'landlord' },
+      { email: 'landlord@example.com', name: 'Borjie Mwema', order: 1, role: 'landlord' },
     ],
     expiresAt: new Date('2026-12-31T00:00:00Z'),
     jurisdiction: 'TZ_ETA2015',

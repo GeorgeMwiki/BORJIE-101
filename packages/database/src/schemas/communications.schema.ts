@@ -16,7 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { tenants } from './tenant.schema.js';
-// NOTE: legacy BossNyumba `customers` table removed. customerId remains as
+// NOTE: legacy pre-Borjie `customers` table removed. customerId remains as
 // a plain text column (no FK) for Borjie mining-domain compatibility.
 
 // ============================================================================

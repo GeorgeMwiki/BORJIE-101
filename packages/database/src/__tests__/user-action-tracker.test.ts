@@ -27,7 +27,7 @@ import {
 } from '../schemas/user-action-tracker.schema.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// The mining hard-fork relocated the BossNyumba migration tree from
+// The mining hard-fork relocated the pre-Borjie migration tree from
 // `src/migrations/` to `.archive/migrations/`; the user-action-tracker
 // schema is still active (it's domain-agnostic UI telemetry), but the
 // migration file moved with the rest of the property-domain SQL. Keep

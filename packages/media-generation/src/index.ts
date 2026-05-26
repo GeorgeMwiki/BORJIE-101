@@ -263,6 +263,22 @@ export {
   type BrandScanInput,
   type BrandScanResult,
 } from './safety/brand-violation-scanner.js';
+export {
+  DEFAULT_TENANT_RATING_POLICY,
+  RATING_NSFW_CEILING,
+  applyContentRatingGate,
+  createTenantRatingPolicyRegistry,
+  getTenantRatingPolicy,
+  mergeRatingPolicy,
+  registerTenantRatingPolicy,
+  setActiveTenantRatingPolicyRegistry,
+  snapshotTenantRatingPolicyRegistry,
+  type ContentRating,
+  type RatingGateInput,
+  type RatingGateResult,
+  type TenantRatingPolicy,
+  type TenantRatingPolicyRegistry,
+} from './safety/content-rating-gate.js';
 
 // ---------------------------------------------------------------------------
 // Watermark

@@ -52,7 +52,7 @@ export interface BuildManifestArgs {
    *  brand-DNA layer is tenant-scoped from day one. */
   readonly tenant_id?: string;
   /** Brand attribution — defaults to 'borjie' but multi-brand tenants
-   *  override it (BossNyumba sibling fork). */
+   *  (mining-company groups with white-label sub-brands) override it. */
   readonly brand?: string;
 }
 
