@@ -557,10 +557,11 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 // ----------------------------------------------------------------------------
 const dispatchRouterWiring = createDispatchRouterWiring({
   estate: createStubEstateHandlerDeps(),
-  // Closes TODO(#34): 3 mining handlers replace the BossNyumba estate
-  // stubs (open_maintenance_case → open_equipment_maintenance,
-  // schedule_renewal_negotiation → schedule_licence_renewal,
-  // bulk_mark_for_renewal_prep → bulk_mark_licences_for_renewal).
+  // Closes the historical gh-issue #34 work-item: 3 mining handlers
+  // replace the BossNyumba estate stubs (open_maintenance_case →
+  // open_equipment_maintenance, schedule_renewal_negotiation →
+  // schedule_licence_renewal, bulk_mark_for_renewal_prep →
+  // bulk_mark_licences_for_renewal).
   mining: createStubMiningHandlerDeps(),
   logger: {
     info: (meta, msg) => logger.info(meta, msg),

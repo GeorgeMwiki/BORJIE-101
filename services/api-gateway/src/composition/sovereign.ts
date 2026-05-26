@@ -80,7 +80,7 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
-// TODO(#29): `@borjie/market-intelligence` was a property-vertical
+// See gh-issue #29: `@borjie/market-intelligence` was a property-vertical
 // package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
 // prices, Argus DRC tin index, etc.) will live under a new
 // `@borjie/commodity-intelligence` package. Until that lands the

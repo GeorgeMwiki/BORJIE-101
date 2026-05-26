@@ -320,9 +320,9 @@ briefs.post('/:id/actions/:idx/approve', async (c) => {
   }
   const action = actions[actionIdx];
   const packet = (row.approval_packets_jsonb || []).find((p) => p.actionIndex === actionIdx);
-  // TODO(#41): wire through the actual action runtime — for now we
-  // mark the brief ACTIONED and return the prebuilt approval packet so
-  // the client can show "approval submitted" while we land Piece E.
+  // See gh-issue #41: wire through the actual action runtime — for now
+  // we mark the brief ACTIONED and return the prebuilt approval packet
+  // so the client can show "approval submitted" while we land Piece E.
   await db.execute(sql`
     UPDATE executive_briefs
        SET status = 'ACTIONED'

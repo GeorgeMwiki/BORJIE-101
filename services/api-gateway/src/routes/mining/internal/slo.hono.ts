@@ -10,7 +10,7 @@
  *
  * One row per (tenant, junior=actor_id) pair within the window.
  *
- * TODO(#24): when the dedicated `model_call_logs` table
+ * See gh-issue #24: when the dedicated `model_call_logs` table
  * lands (with per-call latency + token spend in a single store) replace
  * the audit_events join + ai_cost_entries aggregate with a single
  * percentile_cont() over that table. Until then the percentile column

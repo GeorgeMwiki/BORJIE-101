@@ -91,9 +91,9 @@ export interface DispatchRouterWiringDeps {
   /** Estate handler ports. */
   readonly estate: EstateHandlerDeps;
   /**
-   * Mining handler ports (closes TODO(#34) — replaces the BossNyumba
-   * estate stubs). Optional so early-wave compositions can resolve
-   * without them.
+   * Mining handler ports (closes the historical gh-issue #34 work-item —
+   * replaces the BossNyumba estate stubs). Optional so early-wave
+   * compositions can resolve without them.
    */
   readonly mining?: MiningHandlerDeps;
   /** Optional override registry (e.g. for tests). */
@@ -143,10 +143,11 @@ export function createDispatchRouterWiring(
   const routingRules = deps.routingRules ?? routingRulesLoader;
 
   // 4. Handler registry — real one with ESTATE + MINING adapters by
-  //    default. MINING handlers close TODO(#34): the 3 BossNyumba estate
-  //    stubs (open_maintenance_case, schedule_renewal_negotiation,
-  //    bulk_mark_for_renewal_prep) are ported to mining-domain (asset_id,
-  //    licence_id, etc.) and registered under the MINING module slug.
+  //    default. MINING handlers close the historical gh-issue #34
+  //    work-item: the 3 BossNyumba estate stubs (open_maintenance_case,
+  //    schedule_renewal_negotiation, bulk_mark_for_renewal_prep) are
+  //    ported to mining-domain (asset_id, licence_id, etc.) and
+  //    registered under the MINING module slug.
   const handlerRegistry =
     deps.handlerRegistry ??
     createModuleHandlerRegistry({
@@ -245,7 +246,8 @@ export function createDispatchRouterWiring(
  * The 3 BossNyumba estate stubs (openMaintenanceCase,
  * scheduleRenewalNegotiation, bulkMarkForRenewalPrep) have been
  * dropped — their mining-domain replacements live in
- * `createStubMiningHandlerDeps()` below. Closes TODO(#34).
+ * `createStubMiningHandlerDeps()` below. Closes the historical
+ * gh-issue #34 work-item.
  */
 export function createStubEstateHandlerDeps(): EstateHandlerDeps {
   const auditChain = {

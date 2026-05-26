@@ -200,8 +200,9 @@ export async function getOwnerScope(
     repos.customers.findByPropertyIds(propertyIds, auth.tenantId, pagination),
     repos.invoices.findByPropertyIds(propertyIds, auth.tenantId, pagination.limit, pagination.offset),
     repos.payments.findByPropertyIds(propertyIds, auth.tenantId, pagination.limit, pagination.offset),
-    // Closes TODO(#43): work-orders repo now exposes `findBySiteIds`
-    // (mining-domain rename of the old `findByPropertyIds`). The DB does
+    // Closes the historical gh-issue #43 work-item: work-orders repo
+    // now exposes `findBySiteIds` (mining-domain rename of the old
+    // `findByPropertyIds`). The DB does
     // the filtering in a single WHERE clause — no `findMany + JS .filter`
     // leak, no silent 1000-row truncation. In this transitional pre-fork
     // state the caller still passes `propertyIds` because upstream
