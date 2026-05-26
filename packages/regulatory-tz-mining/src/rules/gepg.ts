@@ -2,8 +2,8 @@
  * GePG (Government electronic Payment Gateway) rules — every regulator
  * fee or royalty payment must go through a GePG-issued control number.
  *
- * TODO(#31): encode the regulator-specific GePG billing-codes when the
- * GePG integration contract is signed.
+ * See gh-issue #31: encode the regulator-specific GePG billing-codes
+ * when the GePG integration contract is signed.
  */
 
 import type { GepgControlNumber, RegulatoryRule, RuleResult } from '../types.js';
@@ -12,7 +12,7 @@ export const gepgControlNumberFreshRule: RegulatoryRule = {
   id: 'gepg.cn.freshness',
   regulator: 'gepg',
   title: 'GePG control numbers must be settled before they expire',
-  citation: 'GePG Circular No. 1 of 2017 (TODO(#31): cite latest revision)',
+  citation: 'GePG Circular No. 1 of 2017 (latest revision pending — see gh-issue #31)',
   evaluate(facts): RuleResult {
     const lapsed = facts.gepgControlNumbers.filter(
       (cn) => !cn.paid && cn.expiresISO < facts.asOfISO,
@@ -45,7 +45,7 @@ export const gepgPaymentAmountRule: RegulatoryRule = {
   id: 'gepg.cn.amount',
   regulator: 'gepg',
   title: 'GePG payments must match the control-number amount',
-  citation: 'GePG Operational Manual (TODO(#31): cite section)',
+  citation: 'GePG Operational Manual (section pending — see gh-issue #31)',
   evaluate(facts): RuleResult {
     // We don't ingest the paid-amount per CN in the current schema —
     // mark as unknown until the LMBM extends gepgControlNumberSchema
@@ -55,7 +55,7 @@ export const gepgPaymentAmountRule: RegulatoryRule = {
     }
     return result(
       'unknown',
-      'Paid-amount field not yet ingested; TODO(#31) extend GePG schema.',
+      'Paid-amount field not yet ingested; extend GePG schema — see gh-issue #31.',
       facts.gepgControlNumbers,
     );
   },

@@ -3,7 +3,7 @@
  * Prospecting Licence (PL), Special Mining Licence (SML), and Mining
  * Licence (ML) currency + annual-fee compliance.
  *
- * TODO(#31): expand with local-content compliance and processing-
+ * See gh-issue #31: expand with local-content compliance and processing-
  * licence rules once the Mining (Local Content) Regulations are encoded.
  */
 
@@ -40,7 +40,7 @@ export const tumemadiniLicenceMixRule: RegulatoryRule = {
   title: 'Operation must hold the right licence class for its production volume',
   citation: 'Mining Act (Cap. 123) — PML capped, SML / ML required above threshold',
   evaluate(facts): RuleResult {
-    // TODO(#31): real PML production cap (currently rule-of-thumb 5000 t/yr).
+    // See gh-issue #31: real PML production cap (currently rule-of-thumb 5000 t/yr).
     const pmlOnly = facts.licences.every((l) => l.kind === 'PML');
     if (pmlOnly && facts.annualProductionTonnes > 5000) {
       return verdict(

@@ -3,7 +3,7 @@
  *
  * The BoT gold window is the central-bank facility through which a
  * minimum share of producer gold must be sold (vs exported as bullion).
- * TODO(#31): confirm latest minimum-share % from BoT directives;
+ * See gh-issue #31: confirm latest minimum-share % from BoT directives;
  * current rule uses 20% placeholder.
  */
 
@@ -15,7 +15,7 @@ export const botGoldWindowShareRule: RegulatoryRule = {
   id: 'bot.gold-window.share',
   regulator: 'bot',
   title: 'Producer must route the BoT-mandated minimum share of gold via the gold window',
-  citation: 'BoT Gold Purchase Directive (TODO(#31): cite latest circular)',
+  citation: 'BoT Gold Purchase Directive (latest circular pending — see gh-issue #31)',
   evaluate(facts): RuleResult {
     const tonnesInWindow = facts.goldWindowReceipts.reduce(
       (s, r) => s + r.tonnes,
@@ -45,7 +45,7 @@ export const botFxRepatriationRule: RegulatoryRule = {
   id: 'bot.fx.repatriation',
   regulator: 'bot',
   title: 'Export proceeds must be repatriated within the regulated FX window',
-  citation: 'Foreign Exchange Act (Cap. 271) (TODO(#31): cite specific section)',
+  citation: 'Foreign Exchange Act (Cap. 271) (specific section pending — see gh-issue #31)',
   evaluate(facts): RuleResult {
     // Heuristic stand-in until the exact repatriation rule is encoded:
     // require at least one gold-window receipt in the last 30 days when

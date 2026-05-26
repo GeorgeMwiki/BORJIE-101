@@ -126,8 +126,13 @@ export const skills = pgTable(
   }),
 );
 
-export type SkillRow = typeof skills.$inferSelect;
-export type SkillInsert = typeof skills.$inferInsert;
+// Renamed from `SkillRow` / `SkillInsert` to disambiguate from the
+// `SkillRow` interface in `services/skill-registry.service.ts` which is
+// re-exported from the same package barrel (`@borjie/database`). The
+// persistent-memory variant is the newer, more specific row shape
+// (Voyager-style procedural-memory tier — versioned by (id, version)).
+export type PersistentSkillRow = typeof skills.$inferSelect;
+export type PersistentSkillInsert = typeof skills.$inferInsert;
 
 // ============================================================================
 // pending_threads — anti-amnesia checkpoint table

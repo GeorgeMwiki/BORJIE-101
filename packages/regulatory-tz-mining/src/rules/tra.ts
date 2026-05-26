@@ -3,8 +3,9 @@
  * filings + payments. Each rule checks that the filing exists, was
  * lodged by the due date, and was paid in full.
  *
- * TODO(#31): codify exact royalty rate per mineral once the schedule
- * is encoded — current rules check filing punctuality only, not amount.
+ * See gh-issue #31: codify exact royalty rate per mineral once the
+ * schedule is encoded — current rules check filing punctuality only,
+ * not amount.
  */
 
 import type { RegulatoryRule, RuleResult, TaxFiling } from '../types.js';
@@ -49,13 +50,13 @@ export const traRoyaltyMineralRule: RegulatoryRule = {
   id: 'tra.royalty.rate',
   regulator: 'tra',
   title: 'Royalty must be filed at the mineral-specific statutory rate',
-  citation: 'Mining (Mineral Royalty) Regulations (TODO(#31): cite latest schedule)',
+  citation: 'Mining (Mineral Royalty) Regulations (latest schedule pending — see gh-issue #31)',
   evaluate(facts): RuleResult {
     const royaltyFilings = facts.taxFilings.filter((f) => f.kind === 'royalty');
     if (royaltyFilings.length === 0) {
       return result('unknown', 'No royalty filings to evaluate', []);
     }
-    // TODO(#31): real rate check — currently we only assert the filing exists.
+    // See gh-issue #31: real rate check — currently we only assert the filing exists.
     return result('compliant', 'Royalty filings present (rate check pending #31)', royaltyFilings);
   },
 };

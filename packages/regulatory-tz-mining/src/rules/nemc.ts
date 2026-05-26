@@ -2,8 +2,8 @@
  * NEMC rules — EPP (Environmental Project Plan) and EIA (Environmental
  * Impact Assessment) coverage + expiry.
  *
- * TODO(#31): extend rule set with NEMC monitoring-report cadence, audit
- * report cadence, and pollutant-discharge thresholds once the source
+ * See gh-issue #31: extend rule set with NEMC monitoring-report cadence,
+ * audit-report cadence, and pollutant-discharge thresholds once the source
  * statutes are encoded.
  */
 
