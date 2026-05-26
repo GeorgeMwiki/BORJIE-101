@@ -3,7 +3,9 @@
  * for the wave-resilience-manager service.
  *
  * Spec: Docs/DESIGN/AGENT_SELF_REVIVAL_SPEC.md (Wave 18DD).
- * Migration: drizzle/0029_wave_resilience.sql.
+ * Migration: drizzle/0059_wave_resilience.sql (renumbered from 0029 to
+ * resolve collision with 0029_cognitive_memory.sql; alphabetic precedence
+ * keeps cognitive_memory at slot 0029).
  *
  * Platform-level tables — no RLS, no tenant scoping. Access is
  * restricted at the application layer by API key.

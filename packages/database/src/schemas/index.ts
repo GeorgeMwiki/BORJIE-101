@@ -331,7 +331,8 @@ export * from './geo-routing.schema.js';
 // Wave 18DD — Agent Self-Revival (wave_progress + wave_revival_attempts)
 // ---------------------------------------------------------------------------
 // Two platform-level orchestration tables backing migration
-// 0029_wave_resilience.sql. Consumed by services/wave-resilience-manager.
+// 0059_wave_resilience.sql (renumbered from 0029 to resolve collision
+// with 0029_cognitive_memory.sql). Consumed by services/wave-resilience-manager.
 // See Docs/DESIGN/AGENT_SELF_REVIVAL_SPEC.md.
 export * from './wave-resilience.schema.js';
 
