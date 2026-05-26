@@ -97,26 +97,41 @@ describe('createNotifier (factory)', () => {
     expect(resolved.degraded).toBe(false);
   });
 
-  it('defaults to sms when env is unset (founder-locked default)', () => {
+  it('defaults to email when env is unset (founder-locked default after SMS → email correction)', () => {
     const config = configWith({});
-    expect(config.notificationChannel).toBe('sms');
-    // No Twilio creds in default env → degrades to logger.
+    expect(config.notificationChannel).toBe('email');
+    // No Resend creds in default env → degrades to logger.
     const resolved = createNotifier({ config, logger: silentLogger() });
     expect(resolved.channel).toBe('logger');
     expect(resolved.degraded).toBe(true);
   });
+
+  it('uses email when env is unset and Resend creds are present', () => {
+    const config = configWith({
+      RESEND_API_KEY: 're_test',
+      OPERATOR_EMAIL: 'ops@borjie.co.tz',
+    });
+    const resolved = createNotifier({ config, logger: silentLogger() });
+    expect(resolved.channel).toBe('email');
+    expect(resolved.degraded).toBe(false);
+  });
 });
 
 describe('config — founder-locked defaults', () => {
-  it('locks the five founder defaults', () => {
+  it('locks the founder defaults (post SMS → email correction)', () => {
     const cfg = loadConfig({});
     expect(cfg.detectorIntervalMs).toBe(60_000);
     expect(cfg.staleHeartbeatMs).toBe(5 * 60_000);
     expect(cfg.maxAttempts).toBe(3);
     expect(cfg.dailyRevivalBudget).toBe(50);
     expect(cfg.autoMergeResumedCommits).toBe(true);
-    expect(cfg.notificationChannel).toBe('sms');
+    expect(cfg.notificationChannel).toBe('email');
     expect(cfg.crossRepoLedgerMode).toBe('per_repo');
+  });
+
+  it('still accepts WAVE_RESILIENCE_NOTIFICATION_CHANNEL=sms override', () => {
+    const cfg = loadConfig({ WAVE_RESILIENCE_NOTIFICATION_CHANNEL: 'sms' });
+    expect(cfg.notificationChannel).toBe('sms');
   });
 
   it('respects WAVE_RESILIENCE_AUTO_MERGE_RESUMED_COMMITS=false', () => {

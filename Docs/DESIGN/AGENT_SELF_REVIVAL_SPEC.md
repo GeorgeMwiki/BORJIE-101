@@ -373,22 +373,36 @@ Override any default by setting the corresponding env var.
 | `STALE_HEARTBEAT_MS` | `300_000` (5 min) | `WAVE_RESILIENCE_STALE_HEARTBEAT_MS` | Same SLO trade-off; matches §3 R2. |
 | `MAX_REVIVAL_ATTEMPTS_PER_WAVE` | `3` | `WAVE_RESILIENCE_MAX_ATTEMPTS` | Per-wave cap; bounded retries. |
 | `DAILY_REVIVAL_BUDGET` | `50` | `WAVE_RESILIENCE_DAILY_BUDGET` | Industry-standard retry budget; bounds infra spend across all tenants. |
-| `NOTIFICATION_CHANNEL` | `sms` (Twilio) | `WAVE_RESILIENCE_NOTIFICATION_CHANNEL` | Internal chat is primary; SMS is the escalation when even chat can't reach the operator. |
+| `NOTIFICATION_CHANNEL` | `email` (Resend) | `WAVE_RESILIENCE_NOTIFICATION_CHANNEL` | Internal chat is primary; email = escalation when chat can't reach. Async + reliable. (Founder course-correction — earlier SMS via Twilio.) SMS / Slack / logger remain selectable via env. |
 | `AUTO_MERGE_RESUMED_COMMITS` | `true` | `WAVE_RESILIENCE_AUTO_MERGE_RESUMED_COMMITS` | Speed > caution; trust the 3-attempt cap + audit-hash chain. |
 | `CROSS_REPO_LEDGER_MODE` | `per_repo` | `WAVE_RESILIENCE_CROSS_REPO_LEDGER_MODE` | Borjie + BossNyumba each maintain their own `wave_progress` + `wave_revival_attempts` tables — no cross-repo coordination required. |
 
-### SMS escalation (founder #2)
+### Email escalation (founder #2)
 
-The Twilio adapter (`services/wave-resilience-manager/src/notification/sms-notifier.ts`)
-POSTs to `https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json`
-with Basic auth. Required env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-`TWILIO_FROM_NUMBER`, `OPERATOR_PHONE_NUMBER`. When any are missing the
+The Resend adapter (`services/wave-resilience-manager/src/notification/email-notifier.ts`)
+POSTs to `https://api.resend.com/emails` with Bearer auth. Required env:
+`RESEND_API_KEY`, `OPERATOR_EMAIL`. Sender defaults to
+`notifications@borjie.co.tz` (the Resend-verified `.co.tz` domain — see
+`Docs/SUPABASE_SETUP_STATUS.md`). When any required value is missing the
 factory degrades to the `logger-notifier` — the unrecoverable row is
 still written and sealed in the audit chain.
 
-Message body template:
+Subject template:
+
+> `[Borjie] Wave {wave_id} unrecoverable after {attempts} attempts`
+
+Body template (shared with SMS / Slack via `formatUnrecoverableBody`):
 
 > `[Borjie] Wave {wave_id} unrecoverable after {attempts} attempts. Reason: {reason}. Check admin panel for details.`
+
+### SMS fallback (Twilio)
+
+The Twilio adapter (`services/wave-resilience-manager/src/notification/sms-notifier.ts`)
+remains available under `WAVE_RESILIENCE_NOTIFICATION_CHANNEL=sms`. It
+POSTs to `https://api.twilio.com/2010-04-01/Accounts/{SID}/Messages.json`
+with Basic auth. Required env: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_FROM_NUMBER`, `OPERATOR_PHONE_NUMBER`. When any are missing the
+factory degrades to the `logger-notifier`.
 
 ### Daily budget (founder #5)
 

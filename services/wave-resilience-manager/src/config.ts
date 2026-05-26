@@ -155,7 +155,7 @@ export function loadConfig(
     env,
     'WAVE_RESILIENCE_NOTIFICATION_CHANNEL',
     NOTIFICATION_CHANNELS,
-    'sms',
+    'email',
   );
   const crossRepoLedgerMode = readEnumEnv<CrossRepoLedgerMode>(
     env,
