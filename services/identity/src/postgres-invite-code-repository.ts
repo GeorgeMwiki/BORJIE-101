@@ -33,15 +33,19 @@ import {
   DefaultUserShadowWriter,
   PostgresOrgMembershipRepository,
   type CreateMembershipInput,
+  type OrgMembershipRepositoryClient,
   type ShadowUserInput,
   type UserShadowWriter,
 } from './postgres-org-membership-repository.js';
 
 export interface InviteCodeRepositoryClient {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  execute?: (sql: unknown) => Promise<any>;
+  // The drizzle query-builder chain methods return deeply-generic types
+  // we do not consume structurally here; `unknown` keeps the surface
+  // explicit without escaping the type system via `any`.
+  select: (...args: unknown[]) => unknown;
+  insert: (...args: unknown[]) => unknown;
+  update: (...args: unknown[]) => unknown;
+  execute?: (sql: unknown) => Promise<unknown>;
   transaction: <T>(fn: (tx: InviteCodeRepositoryClient) => Promise<T>) => Promise<T>;
 }
 
@@ -292,8 +296,11 @@ export class PostgresInviteCodeRepository {
       const shadowWriter: UserShadowWriter =
         ((this.membershipRepo as unknown as { shadowWriter?: UserShadowWriter })
           .shadowWriter) ?? new DefaultUserShadowWriter();
+      // `tx` is the same Drizzle transaction client both clients accept;
+      // their interfaces are structurally identical so we narrow via
+      // `unknown` rather than escaping through `any`.
       const membershipOnTx = new PostgresOrgMembershipRepository(
-        tx as unknown as any,
+        tx as unknown as OrgMembershipRepositoryClient,
         shadowWriter
       );
       const membership = await membershipOnTx.create(createInput);
