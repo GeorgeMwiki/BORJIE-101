@@ -274,6 +274,16 @@ export * from './mutation-authority.schema.js';
 export * from './cognitive-engine.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave 18AA — Unified Cognitive Memory (Mr. Mwikila is ONE mind)
+// ---------------------------------------------------------------------------
+// Three tables backing migration 0029_cognitive_memory.sql:
+// cognitive_memory_cells (unified shared semantic memory store with pgvector),
+// cognitive_memory_reinforcements (cross-specialisation audit trail),
+// platform_memory_cells (federated cross-tenant cells, PII-stripped, no RLS).
+// See docs/DESIGN/UNIFIED_COGNITIVE_MEMORY_SPEC.md.
+export * from './cognitive-memory.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 18V — Junior Architecture (27 juniors as MD-class within scope)
 // ---------------------------------------------------------------------------
 // Two tables backing migration 0025_junior_architecture.sql:
@@ -298,3 +308,14 @@ export * from './junior-lifecycle.schema.js';
 // terminology_overrides (per-tenant + per-org-unit catalogue override).
 // See docs/DESIGN/ORG_HIERARCHY_TERMINOLOGY_SPEC.md.
 export * from './org-scope.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18Z — Customer Geo Routing + Session Scopes
+// ---------------------------------------------------------------------------
+// Four tables backing migration 0027_geo_routing_session_scopes.sql:
+// customer_locations (versioned snapshot per customer),
+// org_unit_service_areas (geographic territory per org_unit),
+// customer_district_assignments (current routing per customer),
+// session_scopes (JWT/cookie companion for every authenticated session).
+// See Docs/DESIGN/CUSTOMER_GEO_ROUTING_AND_SCOPE_LOGIN.md.
+export * from './geo-routing.schema.js';
