@@ -55,8 +55,15 @@ import { DecisionTrace } from './components/DecisionTrace';
 import { CodeBlock } from './components/CodeBlock';
 import { DataflowDiagram } from './components/DataflowDiagram';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const GENUI_REGISTRY: Record<AgUiUiPart['kind'], ComponentType<any>> = {
+// Registry stores components whose prop shape varies per gen-ui kind.
+// Component props are contravariant, so `never` (the bottom type) is the
+// only constraint that accepts every concrete component without `any`.
+// The adaptive renderer narrows back to the proper discriminated kind at
+// lookup time before passing typed props through.
+export const GENUI_REGISTRY: Record<
+  AgUiUiPart['kind'],
+  ComponentType<never>
+> = {
   'chart-vega': VegaChart,
   'data-table': DataTable,
   timeline: Timeline,

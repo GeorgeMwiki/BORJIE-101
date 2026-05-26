@@ -28,16 +28,24 @@ import { ClientOnly } from './ClientOnly';
 import { ChartVegaPartSchema } from '../schemas';
 import { validateVegaSpec, quickVegaShapeCheck } from '../validate';
 
+// Structural prop shape we actually pass into react-vega's <VegaLite />.
+// react-vega is only a peer dep at consume time so we describe the subset
+// we use; the lazy boundary erases the bridge through `unknown`.
+type VegaLiteProps = {
+  readonly spec: Readonly<Record<string, unknown>>;
+  readonly actions?: boolean;
+  readonly renderer?: 'canvas' | 'svg';
+};
+
 // Lazy import — the module is resolved at runtime once the chart actually
-// renders. We explicitly type the lazy component as `ComponentType<any>`
+// renders. We explicitly type the lazy component as `ComponentType<VegaLiteProps>`
 // so DTS emission works even when react-vega is only present as a peer
 // dependency at consume time (and therefore has no shipped types here).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VegaLite: ComponentType<any> = lazy(async () => {
+const VegaLite: ComponentType<VegaLiteProps> = lazy(async () => {
   // @ts-ignore — module is a peer dep of the consuming app
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const m: any = await import('react-vega');
-  return { default: m.VegaLite };
+  const m: unknown = await import('react-vega');
+  const mod = m as { VegaLite: ComponentType<VegaLiteProps> };
+  return { default: mod.VegaLite };
 });
 
 export type VegaChartProps = AgUiUiPartByKind<'chart-vega'>;
@@ -119,8 +127,11 @@ export function VegaChart(props: VegaChartProps): JSX.Element {
                 <span className="text-xs text-muted-foreground">loading chart…</span>
               }
             >
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              <VegaLite spec={fullSpec as any} actions={false} renderer="canvas" />
+              <VegaLite
+                spec={fullSpec as Readonly<Record<string, unknown>>}
+                actions={false}
+                renderer="canvas"
+              />
             </Suspense>
           </ClientOnly>
         ) : (

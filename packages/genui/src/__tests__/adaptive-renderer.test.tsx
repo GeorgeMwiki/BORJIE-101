@@ -18,9 +18,9 @@ describe('AdaptiveRenderer — H10 schema re-validation at dispatch', () => {
     // dispatcher pre-check.
     const onUnknownKind = vi.fn();
     const { container } = render(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       <AdaptiveRenderer
-        uiPart={{ kind: 'markdown-card' } as any}
+        // @ts-expect-error -- intentionally malformed: omitting required `markdown` to exercise the schema guard
+        uiPart={{ kind: 'markdown-card' }}
         onUnknownKind={onUnknownKind}
       />,
     );
@@ -58,9 +58,9 @@ describe('AdaptiveRenderer — H11 unknown-kind telemetry', () => {
     window.addEventListener('genui:unknown-kind', evtSpy);
     try {
       render(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <AdaptiveRenderer
-          uiPart={{ kind: 'totally-new-primitive-the-client-does-not-know' } as any}
+          // @ts-expect-error -- intentionally unknown kind to exercise telemetry path
+          uiPart={{ kind: 'totally-new-primitive-the-client-does-not-know' }}
           onUnknownKind={onUnknownKind}
         />,
       );
@@ -85,9 +85,9 @@ describe('AdaptiveRenderer — H11 unknown-kind telemetry', () => {
     // Render must not throw.
     expect(() =>
       render(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <AdaptiveRenderer
-          uiPart={{ kind: 'made-up' } as any}
+          // @ts-expect-error -- intentionally unknown kind to assert host-callback errors do not break render
+          uiPart={{ kind: 'made-up' }}
           onUnknownKind={onUnknownKind}
         />,
       ),
