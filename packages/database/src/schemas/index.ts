@@ -528,7 +528,9 @@ export * from './tacit-knowledge.schema.js';
 // ---------------------------------------------------------------------------
 // Wave M1 — Continuous 24/7 Work Cycle
 // ---------------------------------------------------------------------------
-// Two tenant-scoped tables backing migration 0033_work_cycle.sql:
+// Two tenant-scoped tables backing migration 0061_work_cycle.sql
+// (renumbered from 0033 to resolve collision with
+// 0033_mcp_external_connections.sql):
 //   work_cycle_journal — append-only journal of every tick. Hash-chained
 //                        via (prev_hash, audit_hash). Unique on
 //                        (tenant_id, tick_no). The episodic-memory + audit

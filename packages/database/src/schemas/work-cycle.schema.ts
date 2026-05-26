@@ -2,7 +2,10 @@
  * Continuous 24/7 Work Cycle persistence (Wave M1).
  *
  * Companion to docs/DESIGN/CONTINUOUS_24_7_WORK_CYCLE_SPEC.md. Drizzle
- * types for the 2 tables created by migration 0033_work_cycle.sql:
+ * types for the 2 tables created by migration 0061_work_cycle.sql
+ * (renumbered from 0033 to resolve collision with
+ * 0033_mcp_external_connections.sql; alphabetic precedence keeps
+ * mcp_external_connections at slot 0033):
  *
  *   - workCycleJournal — append-only journal of every tick. One row per
  *                        tick. Hash-chained via (prev_hash, audit_hash).
