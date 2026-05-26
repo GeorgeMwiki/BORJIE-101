@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/user-followup",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Owner-facing daily follow-up engine (Wave M2). Mr. Mwikila proactively follows up on flagged items, regulator deadlines, relationship dormancy, and anticipatory sweeps. Personalised cadence, channel choice (in-app / email / WhatsApp), quiet-hours + opt-out suppression, daily cap.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
