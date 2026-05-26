@@ -315,6 +315,21 @@ export function createSessionReplayRetention(
 // the chunks service with a `deleteOlderThan` method (see retention notes at top
 // of file), so we issue raw parameterised SQL here. Returns `[]` /
 // `0` on any DB error so the supervisor degrades cleanly.
+//
+// TENANT-ISOLATION NOTE (Mr. Mwikila, SEC-1):
+// This purge worker is a *system-level* retention sweep. It runs
+// outside any tenant request context and intentionally operates over
+// rows from every tenant simultaneously, filtering only by age. It is
+// allowlisted in `@borjie/tenant-isolation-guard` scanner because:
+//   1. There is no caller-supplied input that selects rows by id —
+//      `listExpired` returns ids strictly by `received_at < cutoff`.
+//   2. `deleteByIds` only deletes ids that `listExpired` returned in
+//      the same tick, so there is no cross-request id-replay risk.
+//   3. The supervisor that wires this is a singleton background tick,
+//      not a per-request handler. Operator confusion is mitigated by
+//      the supervisor's enable/disable feature flag.
+// If you change this worker to accept caller-supplied ids, you MUST
+// re-introduce a `tenant_id = ${ctx.tenantId}` predicate.
 // ─────────────────────────────────────────────────────────────────────
 
 export function createDrizzlePurgeDb(
