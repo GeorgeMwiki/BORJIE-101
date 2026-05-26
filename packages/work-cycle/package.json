@@ -1,0 +1,49 @@
+{
+  "name": "@borjie/work-cycle",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Continuous 24/7 Work Cycle (Wave M1). Mr. Mwikila's tick-by-tick continuous loop: cadence selection, policy-gated tool calls, hash-chained journal, deterministic resumption brief, per-tenant night $-cap. Companion to Docs/DESIGN/CONTINUOUS_24_7_WORK_CYCLE_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*"
+  },
+  "peerDependencies": {
+    "@borjie/cognitive-memory": "workspace:*",
+    "@borjie/observability": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/cognitive-memory": {
+      "optional": true
+    },
+    "@borjie/observability": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@borjie/cognitive-memory": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
