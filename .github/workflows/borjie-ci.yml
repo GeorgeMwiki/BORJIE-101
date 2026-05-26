@@ -82,6 +82,13 @@ jobs:
       - name: Build @borjie/database
         run: pnpm -F @borjie/database build
 
+      # Pre-build observability so dependents (e.g. @borjie/ai-copilot's
+      # security/audit-hash-chain) can resolve `@borjie/observability` at test
+      # time. Without this, vitest tries to import the package's `main`
+      # (dist/index.js) which does not exist in a clean CI workspace. See #28.
+      - name: Build @borjie/observability
+        run: pnpm -F @borjie/observability build
+
       - name: Test @borjie/ai-copilot
         run: pnpm -F @borjie/ai-copilot test
 

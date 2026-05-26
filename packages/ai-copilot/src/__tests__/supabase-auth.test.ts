@@ -22,6 +22,7 @@ import {
   _seedJwksForTests,
   _createLocalJwksForTests,
 } from '../config/supabase-auth.js';
+import { logger } from '../logger.js';
 
 const SECRET = 'test-secret-for-jwt-verification-1234567890';
 const enc = new TextEncoder().encode(SECRET);
@@ -108,8 +109,11 @@ describe('F9: jose error detail leak', () => {
 
   it('production: bad signature → generic invalid_token (no jose detail)', async () => {
     process.env.NODE_ENV = 'production';
-    const consoleErrSpy = vi
-      .spyOn(console, 'error')
+    // supabase-auth routes server-side detail through the pino-backed `logger`
+    // (see packages/ai-copilot/src/logger.ts). The previous version of this
+    // test spied on `console.error` and broke once the package adopted pino.
+    const loggerErrSpy = vi
+      .spyOn(logger, 'error')
       .mockImplementation(() => undefined);
     const token = await mintToken({
       sub: 'user-9',
@@ -132,14 +136,14 @@ describe('F9: jose error detail leak', () => {
     expect(caught?.message).not.toMatch(/jose/i);
     expect(caught?.message).not.toMatch(/exp/i);
     // Server-side logging must still emit the detail for triage.
-    expect(consoleErrSpy).toHaveBeenCalled();
-    const logArg = consoleErrSpy.mock.calls[0]?.[0];
+    expect(loggerErrSpy).toHaveBeenCalled();
+    const logArg = loggerErrSpy.mock.calls[0]?.[0];
     expect(String(logArg)).toMatch(/token rejected/i);
   });
 
   it('production: expired token → generic invalid_token (no exp detail)', async () => {
     process.env.NODE_ENV = 'production';
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
     // Mint a token that's already expired
     const expired = await new SignJWT({
       sub: 'user-x',
@@ -207,10 +211,13 @@ describe('F9: jose error detail leak', () => {
 // tenant.
 // ---------------------------------------------------------------------------
 describe('F6: tenant_id self-promotion via user_metadata', () => {
+  // supabase-auth uses the pino-backed `logger` (see ../logger.ts), not
+  // `console.error`. The previous spy on `console.error` silently missed
+  // every SECURITY event the verifier emitted. See issue #28.
   let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

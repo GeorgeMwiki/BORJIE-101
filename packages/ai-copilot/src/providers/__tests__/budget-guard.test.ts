@@ -15,6 +15,9 @@ import type {
   AnthropicSdkLike,
 } from '../anthropic-client.js';
 import type { CostLedger } from '../../cost-ledger.js';
+// Source routes record-failure detail through the pino-backed `logger`
+// (see ../logger.js). Spying on `console.error` no longer captures it.
+import { logger } from '../../logger.js';
 
 function makeResponse(): AnthropicMessageResponse {
   return {
@@ -190,7 +193,7 @@ describe('withBudgetGuard', () => {
         throw new Error('write failed');
       }),
     });
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     const guarded = withBudgetGuard(makeInner(), {
       ledger,
       context: () => ({ tenantId: 't1' }),
