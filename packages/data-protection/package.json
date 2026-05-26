@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/data-protection",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SEC-3 (Mr. Mwikila) — universal data-protection package. AES-256-GCM AEAD via @noble/ciphers, envelope encryption, BYOK/HYOK key-manager port, key rotation, 8-class classification lattice (public|internal|confidential|restricted|critical|pii|phi|financial), retention policies + auto-purge respecting legal holds, RTBF orchestrator + cascade planner, breach detector + N-hour authority+subject notifier, OpenLineage provenance tracker. Pure ports; no DB or KMS dependency at type level. Jurisdiction-agnostic — every regulator-bound parameter (notification-window-hours, retention-days, lawful-basis IDs) is sourced from a ComplianceFrameworkPort the caller supplies (see @borjie/jurisdiction-profiles / @borjie/compliance-plugins).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^1.3.0",
+    "@noble/hashes": "^1.8.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

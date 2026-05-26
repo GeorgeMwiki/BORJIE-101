@@ -14,6 +14,7 @@ const noJurisdictionalLiteral = require('./no-jurisdictional-literal.js');
 const requireCsrfHeaders = require('./require-csrf-headers.cjs');
 const noNonTokenStyle = require('./no-non-token-style.js');
 const noNonTokenInDocTemplate = require('./no-non-token-in-doc-template.js');
+const noMockDataInRuntime = require('./no-mock-data-in-runtime.js');
 
 module.exports = {
   rules: {
@@ -30,5 +31,14 @@ module.exports = {
     //   `docs/DESIGN/DOCUMENT_COMPOSITION_SPEC.md` §3 Layer 3.
     'no-non-token-style': noNonTokenStyle,
     'no-non-token-in-doc-template': noNonTokenInDocTemplate,
+    // Wave 18Z-cleanup (SCRUB-3): live-test discipline. No
+    // MOCK_/FAKE_/STUB_/FIXTURE_/DEMO_ prefixed structured data, no
+    // *-mock/*-stub/*-recorded/*-fixture imports, and no
+    // mockFetch / recordedResponse calls / mockData object keys in
+    // runtime source. Test fixtures live under __tests__/,
+    // __fixtures__/, fixtures/, *.test.*, *.spec.*, *.stories.*,
+    // stories/, or e2e/. See
+    // `Docs/DESIGN/CUSTOMER_GEO_ROUTING_AND_SCOPE_LOGIN.md` §A.
+    'no-mock-data-in-runtime': noMockDataInRuntime,
   },
 };

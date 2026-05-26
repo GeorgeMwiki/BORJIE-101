@@ -9,8 +9,8 @@
  * the full HuggingFace release via the `dataset` parameter.
  */
 
-export { BBQ_CATEGORIES, BBQ_FIXTURE } from './bbq-fixtures.js';
-export type { BBQItem } from './bbq-fixtures.js';
+export { BBQ_CATEGORIES, BBQ_FIXTURE } from './bbq-default-corpus.js';
+export type { BBQItem } from './bbq-default-corpus.js';
 export { runBBQ } from './bbq.js';
 export type { BBQRunArgs } from './bbq.js';
 

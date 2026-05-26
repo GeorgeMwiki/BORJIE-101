@@ -8,7 +8,7 @@ export {
   signCapture,
   verifyCapture,
   type C2paSignaturePayload,
-} from './c2pa-stub.js';
+} from './c2pa-on-device.js';
 export {
   createInMemoryCaptureStore,
   createCapturePipeline,

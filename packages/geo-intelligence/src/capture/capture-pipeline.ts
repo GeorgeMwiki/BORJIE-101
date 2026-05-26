@@ -25,7 +25,7 @@ import {
   hashCapturePayload,
   signCapture,
   type C2paSignaturePayload,
-} from './c2pa-stub.js';
+} from './c2pa-on-device.js';
 import { parseExifGps } from './exif.js';
 
 export interface FieldCaptureInput {

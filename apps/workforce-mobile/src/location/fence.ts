@@ -1,3 +1,16 @@
+/**
+ * Site-fence runtime — loads polygons from configuration, never from
+ * fabricated module-level constants.
+ *
+ * Wave 18Z-cleanup (SCRUB-3): the previous `MOCK_SITES` array was moved
+ * to `__fixtures__/site-fences-fixture.ts` (test-only). Production
+ * loads from the `EXPO_PUBLIC_BORJIE_SITE_FENCES_JSON` Expo env var (a
+ * JSON-stringified `ReadonlyArray<SiteFence>`); if the env is absent or
+ * malformed, `loadSiteFences()` returns an empty array and
+ * `nearestFence()` returns `null` — callers are expected to surface a
+ * "fences not configured" empty state to the worker rather than
+ * silently leaking development coordinates.
+ */
 import type { Coordinates } from './useLocation'
 
 export interface SiteFence {
@@ -9,26 +22,49 @@ export interface SiteFence {
 }
 
 /**
- * Hard-coded site fences used until the sites endpoint is wired. Mock check
- * for "is GPS within site polygon" uses a simple circular fence — good enough
- * to gate the W-M-07 drill-hole and W-M-19 attendance flows in dev.
+ * Parse the `EXPO_PUBLIC_BORJIE_SITE_FENCES_JSON` env var, validating
+ * shape per-element. Drops any element that fails validation so a
+ * single malformed entry cannot poison the fence list.
+ *
+ * Never throws — every parse error surfaces as an empty array so the
+ * mobile UI can render a "fences not configured" state instead of a
+ * crash.
  */
-export const MOCK_SITES: ReadonlyArray<SiteFence> = [
-  {
-    siteId: 'site-geita-1',
-    siteName: 'Geita Pit 2',
-    centerLat: -3.4287,
-    centerLng: 32.9183,
-    radiusMeters: 2500
-  },
-  {
-    siteId: 'site-mwanza-1',
-    siteName: 'Mwanza Block A',
-    centerLat: -2.5164,
-    centerLng: 32.9175,
-    radiusMeters: 2000
+export function loadSiteFences(): ReadonlyArray<SiteFence> {
+  const raw =
+    typeof process !== 'undefined' && process.env
+      ? process.env['EXPO_PUBLIC_BORJIE_SITE_FENCES_JSON']
+      : undefined
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const out: SiteFence[] = []
+    for (const candidate of parsed) {
+      if (!candidate || typeof candidate !== 'object') continue
+      const c = candidate as Record<string, unknown>
+      if (
+        typeof c['siteId'] !== 'string' ||
+        typeof c['siteName'] !== 'string' ||
+        typeof c['centerLat'] !== 'number' ||
+        typeof c['centerLng'] !== 'number' ||
+        typeof c['radiusMeters'] !== 'number'
+      ) {
+        continue
+      }
+      out.push({
+        siteId: c['siteId'],
+        siteName: c['siteName'],
+        centerLat: c['centerLat'],
+        centerLng: c['centerLng'],
+        radiusMeters: c['radiusMeters'],
+      })
+    }
+    return Object.freeze(out)
+  } catch {
+    return []
   }
-]
+}
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180
@@ -63,13 +99,25 @@ export interface NearestFenceResult {
   insideFence: boolean
 }
 
-export function nearestFence(coords: Coordinates): NearestFenceResult | null {
-  if (MOCK_SITES.length === 0) {
+/**
+ * Compute the nearest configured fence for the supplied coordinates.
+ * Returns `null` when no fences are configured (env unset / malformed)
+ * — the caller is expected to render a "fences not configured" state.
+ *
+ * `fencesOverride` is exposed so tests can pass a deterministic fence
+ * set (see `__fixtures__/site-fences-fixture.ts`).
+ */
+export function nearestFence(
+  coords: Coordinates,
+  fencesOverride?: ReadonlyArray<SiteFence>
+): NearestFenceResult | null {
+  const fences = fencesOverride ?? loadSiteFences()
+  if (fences.length === 0) {
     return null
   }
-  let bestFence: SiteFence = MOCK_SITES[0]!
+  let bestFence: SiteFence = fences[0]!
   let bestDistance = Number.POSITIVE_INFINITY
-  for (const fence of MOCK_SITES) {
+  for (const fence of fences) {
     const d = distanceMeters(
       coords.latitude,
       coords.longitude,
@@ -84,6 +132,6 @@ export function nearestFence(coords: Coordinates): NearestFenceResult | null {
   return {
     fence: bestFence,
     distance: bestDistance,
-    insideFence: bestDistance <= bestFence.radiusMeters
+    insideFence: bestDistance <= bestFence.radiusMeters,
   }
 }

@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/jurisdiction-profile-tz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Tanzania jurisdiction profile (UNIV-1, launch beachhead, Mr. Mwikila). Carries the TZ data-protection law mapping (TZ DPA 2022), currency TZS, phone +255, timezone Africa/Dar_es_Salaam, quiet hours 18:00–06:00, language packs [sw, en], vertical [mining-tz], and the four TZ regulators (TRA, Tumemadini, NEMC, BoT) with filing-kind cadences. Implements §7 of Docs/DESIGN/UNIVERSAL_JURISDICTION_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/jurisdiction-profiles": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

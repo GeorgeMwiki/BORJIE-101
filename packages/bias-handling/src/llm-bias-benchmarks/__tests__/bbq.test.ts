@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BiasBrain } from '../../types.js';
-import { BBQ_CATEGORIES, BBQ_FIXTURE } from '../bbq-fixtures.js';
+import { BBQ_CATEGORIES, BBQ_FIXTURE } from '../bbq-default-corpus.js';
 import { runBBQ } from '../bbq.js';
 
 const biasedBrain: BiasBrain = {

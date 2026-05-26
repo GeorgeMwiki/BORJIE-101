@@ -107,7 +107,7 @@ import {
 import {
   MINING_TOOL_NAMES,
   registerMiningGovernmentTools,
-} from './mining-tool-stubs.js';
+} from './mining-government-tools-pending.js';
 
 /**
  * Default on-disk path for the mining intelligence corpus (Docs/, GIS

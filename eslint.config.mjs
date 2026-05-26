@@ -187,6 +187,18 @@ export default [
       // to `error` after the F1 migration pass closed all 32 call-sites.
       'borjie/require-csrf-headers': 'error',
 
+      // ---- Live-test discipline (Wave 18Z / SCRUB-3) ----
+      // Refuses MOCK_/FAKE_/STUB_/FIXTURE_/DEMO_ structured data,
+      // *-mock/*-stub/*-recorded/*-fixture imports, and mockFetch /
+      // recordedResponse / mockData object-keys in runtime source.
+      // Fixtures must live under __tests__/, __fixtures__/, fixtures/,
+      // stories/, seeds/, *.test.*, *.spec.*, *.stories.*, or e2e/.
+      // Severity is `error`: the SCRUB-3 cleanup pass closed every
+      // existing violation, so any regression breaks CI. NEVER silence
+      // with `// eslint-disable-next-line` — fix the source. See
+      // `Docs/DESIGN/CUSTOMER_GEO_ROUTING_AND_SCOPE_LOGIN.md` §A.
+      'borjie/no-mock-data-in-runtime': 'error',
+
       // ---- Security plugin tuning ----
       // Object-injection is noisy on TS with typed keys; keep as warn so CI
       // surfaces it but doesn't block legitimate typed array access.

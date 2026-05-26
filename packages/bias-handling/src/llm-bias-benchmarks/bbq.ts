@@ -12,8 +12,8 @@
  */
 
 import type { BiasBrain, LLMBiasBenchmark } from '../types.js';
-import { BBQ_CATEGORIES, BBQ_FIXTURE } from './bbq-fixtures.js';
-import type { BBQItem } from './bbq-fixtures.js';
+import { BBQ_CATEGORIES, BBQ_FIXTURE } from './bbq-default-corpus.js';
+import type { BBQItem } from './bbq-default-corpus.js';
 import { parseChoiceIndex } from './parse-utils.js';
 
 export interface BBQRunArgs {

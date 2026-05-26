@@ -1,6 +1,9 @@
 /**
- * Mining-domain tool stubs — Tanzanian government API surfaces the Master
- * Brain may call before the real MVP3+ integrations land.
+ * Mining-domain government tool placeholders — Tanzanian government API
+ * surfaces the Master Brain may call before the real MVP3+ integrations
+ * land. Renamed from `mining-tool-stubs.ts` in SCRUB-3; every payload
+ * carries `_stub: true` so downstream consumers can refuse to act on
+ * pending data.
  *
  * Three external services are required by the mining Master Brain:
  *   - Bank of Tanzania (BoT) gold-window reference rate — used by the
