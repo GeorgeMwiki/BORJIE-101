@@ -282,6 +282,13 @@ export * from './cognitive-engine.schema.js';
 // See docs/DESIGN/JUNIOR_ARCHITECTURE_SPEC.md.
 export * from './junior-architecture.schema.js';
 
+// Wave 18V-DYNAMIC — junior_turn_feedback (per-turn satisfaction signal)
+// backing migration 0028_junior_dynamic_lifecycle.sql. New columns on
+// junior_personas live in 0028 too but are accessed via raw SQL or the
+// in-memory repository in @borjie/agent-platform/junior-spawner.
+// See Docs/DESIGN/JUNIOR_DYNAMIC_SPAWNING_SPEC.md.
+export * from './junior-lifecycle.schema.js';
+
 // ---------------------------------------------------------------------------
 // Wave 18X — Org Hierarchy + Terminology (multi-level MD foundation)
 // ---------------------------------------------------------------------------
