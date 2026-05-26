@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-code union; read handlers use structural casts over services.db.
 /**
  * Estate Manager App BFF — Wave 18 real-data wiring.
  *

@@ -1,4 +1,3 @@
-// @ts-nocheck — hono v4 ContextVariableMap drift; tracked in Docs/TYPE_DEBT.md
 /**
  * Junior-AI factory router — Wave 28.
  *
