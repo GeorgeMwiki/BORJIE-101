@@ -16,8 +16,9 @@ import { getSupabaseEnv } from './env';
 let singleton: SupabaseClient | null = null;
 
 export function createSupabaseBrowserClient(): SupabaseClient {
-  if (singleton) return singleton;
+  if (singleton !== null) return singleton;
   const env = getSupabaseEnv();
-  singleton = createBrowserClient(env.url, env.anonKey);
-  return singleton;
+  const created: SupabaseClient = createBrowserClient(env.url, env.anonKey);
+  singleton = created;
+  return created;
 }
