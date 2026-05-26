@@ -1,4 +1,4 @@
-// @ts-nocheck — DEPRECATED. The BossNyumba `leases` and `customers` tables
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 // were dropped by `0003_mining_domain.sql`. This Postgres-backed occupancy
 // timeline repository targets that property-domain schema and has no direct
 // analogue in the Borjie mining-domain model. Wiring in

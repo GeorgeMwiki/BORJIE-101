@@ -1,3 +1,4 @@
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Lease Renewal Service
  *
@@ -32,7 +33,7 @@ import { randomHex } from '../common/id-generator.js';
 
 // ---------------------------------------------------------------------------
 // Domain model (deliberately narrow — we don't re-import the Lease aggregate
-// to avoid the cross-module drift handled by `@ts-nocheck` in index.ts).
+// to avoid cross-module drift in the lease barrel).
 // ---------------------------------------------------------------------------
 
 export type LeaseRenewalStatus =

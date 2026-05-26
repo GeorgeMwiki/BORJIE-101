@@ -1,44 +1,25 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/fuel-logs — fuel issued or consumed per asset.
  *
  * Routes:
  *   POST  /   create fuel log (worker-only)
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { fuelLogs } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { UserRole } from '../../types/user-role';
+import { fuelLogsCreateRoute } from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
-
-const FuelKindEnum = z.enum(['diesel', 'petrol', 'lubricant', 'other']);
-
-const CreateFuelLogSchema = z.object({
-  assetId: z.string().min(1),
-  siteId: z.string().optional(),
-  logDate: z.string().min(8),
-  fuelKind: FuelKindEnum.default('diesel'),
-  litres: z.string().min(1),
-  pricePerLitreTzs: z.string().optional(),
-  totalCostTzs: z.string().optional(),
-  meterReading: z.string().optional(),
-  receivedByUserId: z.string().optional(),
-  evidenceIds: z.array(z.string()).optional(),
-  notes: z.string().max(2000).optional(),
-});
 
 const WORKER_ROLES = [
   UserRole.MAINTENANCE_STAFF,
@@ -47,10 +28,8 @@ const WORKER_ROLES = [
   UserRole.SUPER_ADMIN,
 ];
 
-app.post(
-  '/',
-  requireRole(...WORKER_ROLES),
-  zValidator('json', CreateFuelLogSchema),
+app.openapi(
+  { ...fuelLogsCreateRoute, middleware: [requireRole(...WORKER_ROLES)] },
   withSecurityEvents(
     { action: 'mining.fuel_log.create', resource: 'mining.fuel_log', severity: 'info' },
     async (c) => {
@@ -77,7 +56,7 @@ app.post(
           createdAt: new Date(),
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );

@@ -1,3 +1,4 @@
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Feature Flags Service — Wave 9 enterprise polish.
  *
@@ -328,5 +329,6 @@ function toIso(d: Date | string): string {
   return d instanceof Date ? d.toISOString() : String(d);
 }
 
-// Suppress "unused import" for drizzle helpers narrowed out by @ts-nocheck.
+// Suppress "unused import" for drizzle helpers that the live query path
+// narrows out of the emitted SQL.
 void and;

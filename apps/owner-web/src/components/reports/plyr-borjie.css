@@ -1,0 +1,72 @@
+/**
+ * plyr-borjie.css — Plyr skin override for the O-W-18 ReportPlayer.
+ *
+ * Layers Borjie design-system tokens on top of Plyr's default CSS:
+ *  - Brand accent uses `--warning` (gold/amber) from the design-system
+ *    so the play button, progress fill, and seek markers match the
+ *    rest of owner-web.
+ *  - Dark mode is the default since owner-web is dark-first; light-mode
+ *    tokens still apply via the same `--surface` / `--foreground` vars.
+ *  - Compact mode caps the player height at 56px (h-14) for use above
+ *    a report list without dominating the viewport.
+ *
+ * Plyr ships its base CSS under `plyr/dist/plyr.css`; this file MUST be
+ * imported AFTER it so the cascade favours these tokens.
+ */
+
+.plyr--borjie {
+  /* Brand color — design-system gold / warning. */
+  --plyr-color-main: hsl(var(--warning));
+  --plyr-audio-controls-background: hsl(var(--surface));
+  --plyr-audio-control-color: hsl(var(--foreground));
+  --plyr-audio-control-color-hover: hsl(var(--warning-foreground));
+  --plyr-audio-control-background-hover: hsl(var(--warning));
+  --plyr-audio-progress-buffered-background: hsl(var(--border));
+  --plyr-range-fill-background: hsl(var(--warning));
+  --plyr-range-thumb-background: hsl(var(--warning));
+  --plyr-range-thumb-shadow-color: hsl(var(--warning) / 0.35);
+  --plyr-tooltip-background: hsl(var(--surface));
+  --plyr-tooltip-color: hsl(var(--foreground));
+  --plyr-menu-background: hsl(var(--surface));
+  --plyr-menu-color: hsl(var(--foreground));
+  --plyr-menu-radius: 6px;
+  --plyr-font-family: inherit;
+  --plyr-font-size-base: 13px;
+  --plyr-control-radius: 6px;
+  --plyr-control-spacing: 8px;
+  /* Compact mode: bound the player to a single row. */
+  max-height: 56px;
+}
+
+/* Dark-mode default: ensure the controls strip uses --surface */
+.plyr--borjie.plyr--audio .plyr__controls {
+  background: hsl(var(--surface));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.plyr--borjie .plyr__control:hover {
+  background: hsl(var(--warning));
+  color: hsl(var(--warning-foreground));
+}
+
+.plyr--borjie .plyr__control[aria-expanded='true'],
+.plyr--borjie .plyr__control[aria-pressed='true'] {
+  background: hsl(var(--warning-subtle) / 0.25);
+  color: hsl(var(--warning));
+}
+
+/* Chapter markers — visual dots laid over the progress bar by ReportPlayer */
+.plyr-borjie-chapter-marker {
+  position: absolute;
+  width: 4px;
+  height: 12px;
+  background: hsl(var(--warning));
+  border-radius: 2px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.85;
+}

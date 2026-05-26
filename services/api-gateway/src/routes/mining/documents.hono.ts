@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/documents — mining-domain document store.
  *
@@ -15,52 +11,29 @@
  * Storage policy: real binary write happens in storage-adapter; this
  * route records the metadata + presigned-PUT URL so the client can
  * complete the upload directly.
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { documentUploads } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  documentsUploadRoute,
+  documentsChatRoute,
+  documentsSignRoute,
+} from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const UploadMetadataSchema = z.object({
-  fileName: z.string().min(1).max(500),
-  fileSize: z.number().int().nonnegative(),
-  mimeType: z.string().min(1).max(200),
-  documentType: z.enum([
-    'national_id', 'passport', 'driving_license', 'work_permit', 'residence_permit',
-    'utility_bill', 'bank_statement', 'employment_letter', 'lease_agreement',
-    'move_in_report', 'move_out_report', 'maintenance_photo', 'receipt',
-    'notice', 'other',
-  ]).default('other'),
-  entityType: z.string().optional(),
-  entityId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
-});
-
-const DocChatSchema = z.object({
-  question: z.string().min(1).max(4000),
-  language: z.enum(['sw', 'en']).default('sw'),
-});
-
-const SignSchema = z.object({
-  fingerprintEventId: z.string().min(1),
-  signerRole: z.string().max(120).optional(),
-  note: z.string().max(2000).optional(),
-});
-
-app.post(
-  '/upload',
-  zValidator('json', UploadMetadataSchema),
+app.openapi(
+  documentsUploadRoute,
   withSecurityEvents(
     { action: 'mining.document.upload', resource: 'mining.document', severity: 'info' },
     async (c) => {
@@ -96,53 +69,68 @@ app.post(
           updatedBy: userId,
         })
         .returning();
-      return c.json({ success: true, data: { document: row, presignedPut: fileUrl } }, 201);
+      return c.json(
+        {
+          success: true as const,
+          data: { document: row, presignedPut: fileUrl },
+        },
+        201,
+      );
     },
   ),
 );
 
-app.post(
-  '/:id/chat',
-  zValidator('json', DocChatSchema),
+app.openapi(
+  documentsChatRoute,
   withSecurityEvents(
     { action: 'mining.document.chat', resource: 'mining.document', severity: 'info' },
     async (c) => {
       const { tenantId } = c.get('auth');
       const db = c.get('db');
-      const docId = c.req.param('id');
+      const { id: docId } = c.req.valid('param');
       const input = c.req.valid('json');
       const [doc] = await db
         .select()
         .from(documentUploads)
         .where(and(eq(documentUploads.id, docId), eq(documentUploads.tenantId, tenantId)))
         .limit(1);
-      if (!doc) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Document not found' } }, 404);
+      if (!doc) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Document not found' },
+          },
+          404,
+        );
+      }
       // Doc-chat dispatch lands here; orchestrator pulls embeddings,
       // routes to the doc-chat agent, returns an evidenced answer.
-      return c.json({
-        success: true,
-        data: {
-          documentId: docId,
-          question: input.question,
-          language: input.language,
-          answer: null,
-          evidenceIds: [],
-          note: 'doc-chat orchestrator dispatch pending',
+      return c.json(
+        {
+          success: true as const,
+          data: {
+            documentId: docId,
+            question: input.question,
+            language: input.language,
+            answer: null,
+            evidenceIds: [],
+            note: 'doc-chat orchestrator dispatch pending',
+          },
         },
-      });
+        200,
+      );
     },
   ),
 );
 
-app.post(
-  '/:id/sign',
-  zValidator('json', SignSchema),
+app.openapi(
+  documentsSignRoute,
   withSecurityEvents(
     { action: 'mining.document.sign', resource: 'mining.document', severity: 'info' },
     async (c) => {
       const { tenantId, userId } = c.get('auth');
       const db = c.get('db');
-      const docId = c.req.param('id');
+      const { id: docId } = c.req.valid('param');
       const input = c.req.valid('json');
       const now = new Date();
       const [row] = await db
@@ -162,8 +150,16 @@ app.post(
         })
         .where(and(eq(documentUploads.id, docId), eq(documentUploads.tenantId, tenantId)))
         .returning();
-      if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Document not found' } }, 404);
-      return c.json({ success: true, data: row });
+      if (!row) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Document not found' },
+          },
+          404,
+        );
+      }
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );

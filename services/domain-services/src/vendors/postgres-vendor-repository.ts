@@ -14,7 +14,7 @@
  *      proper WHERE clauses and tenant isolation.
  */
 
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, lte, notInArray } from 'drizzle-orm';
 import type {
   FindCandidatesParams,
   VendorMatchCategory,
@@ -205,11 +205,13 @@ export class PostgresVendorRepository implements VendorRepositoryPort {
   }
 
   async findAllActive(tenantId: string): Promise<VendorProfileDto[]> {
+    // Status filter is applied at the DB layer via the `where` clause;
+    // no need for a JS-side `.filter((v) => v.status === 'active')` afterwards.
     // nosemgrep: missing-tenant-id-arg reason: Drizzle relational query — tenantId is inside the `where` clause, not at the top level the rule expects.
     const rows = await this.db.query.vendors.findMany({
       where: { tenantId, status: 'active' },
     });
-    return rows.map(mapVendorRow).filter((v) => v.status === 'active');
+    return rows.map(mapVendorRow);
   }
 
   async listRecentOutcomes(params: {
@@ -219,20 +221,24 @@ export class PostgresVendorRepository implements VendorRepositoryPort {
     windowEnd: Date;
   }): Promise<VendorWorkOrderOutcomeDto[]> {
     if (!this.db.query.workOrders) return [];
+    // Date-range filter pushed into the Drizzle relational query as
+    // `completedAt: { gte: windowStart, lte: windowEnd }` so the DB
+    // honours the window via an index range scan rather than fetching
+    // every outcome row for the (tenantId, vendorId) pair.
     // nosemgrep: missing-tenant-id-arg reason: Drizzle relational query — tenantId is inside the `where` clause, not at the top level the rule expects.
     const rows = await this.db.query.workOrders.findMany({
       where: {
         tenantId: params.tenantId,
         vendorId: params.vendorId,
+        completedAt: {
+          gte: params.windowStart,
+          lte: params.windowEnd,
+        },
       },
     });
     return rows
       .map(mapWorkOrderOutcome)
-      .filter((o): o is VendorWorkOrderOutcomeDto => o !== null)
-      .filter(
-        (o) =>
-          o.completedAt >= params.windowStart && o.completedAt <= params.windowEnd
-      );
+      .filter((o): o is VendorWorkOrderOutcomeDto => o !== null);
   }
 
   async updateRatingAggregate(update: VendorRatingUpdate): Promise<void> {
@@ -291,23 +297,33 @@ export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
 
   async findCandidates(params: FindCandidatesParams): Promise<VendorProfileDto[]> {
     const { vendors } = this.schemas;
-    const excluded = new Set(params.excludeStatuses ?? ['suspended', 'blacklisted']);
+    const excluded = params.excludeStatuses ?? ['suspended', 'blacklisted'];
     const limit = params.limit ?? 50;
 
+    // Status exclusion + emergency-availability filter are pushed into
+    // the Drizzle WHERE clause (NOT IN + eq) so the DB skips ineligible
+    // rows entirely. Jsonb-array predicates for categories / serviceAreas
+    // stay in JS — Drizzle's portable jsonb-contains operator is not
+    // available against the test fake used by upstream callers.
+    const conditions = [eq(vendors.tenantId, params.tenantId)];
+    if (excluded.length > 0) {
+      conditions.push(notInArray(vendors.status, excluded));
+    }
+    if (params.emergency) {
+      conditions.push(eq(vendors.emergencyAvailable, true));
+    }
     const rows = await this.db
       .select()
       .from(vendors)
-      .where(eq(vendors.tenantId, params.tenantId))
+      .where(and(...conditions))
       .limit(limit * 2);
 
     const profiles = (rows as VendorRowLike[]).map(mapVendorRow);
     return profiles
-      .filter((v) => !excluded.has(v.status))
       .filter((v) => v.categories.includes(params.category))
       .filter((v) =>
         params.serviceArea ? v.serviceAreas.includes(params.serviceArea) : true
       )
-      .filter((v) => (params.emergency ? v.emergencyAvailable : true))
       .slice(0, limit);
   }
 

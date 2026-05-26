@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/sales — ore-parcel sale transactions.
  *
@@ -10,66 +6,43 @@
  *   GET   /     list (filter by parcelId, buyerId, paymentStatus)
  *   POST  /     create sale (auto-flip parcel to `sold`; sourced from
  *               an accepted bid when `bidId` provided)
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { sales, oreParcels } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { salesListRoute, salesCreateRoute } from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const RouteEnum = z.enum(['BoT', 'MTC', 'export_direct', 'trader', 'domestic', 'other']);
-
-const CreateSaleSchema = z.object({
-  parcelId: z.string().min(1),
-  buyerId: z.string().optional(),
-  bidId: z.string().optional(),
-  route: RouteEnum.default('trader'),
-  weighbridgeDocId: z.string().optional(),
-  vehiclePlate: z.string().optional(),
-  driverUserId: z.string().optional(),
-  grossPriceUsd: z.string().optional(),
-  grossPriceTzs: z.string().optional(),
-  fxAtSaleTzsPerUsd: z.string().optional(),
-  royaltyPct: z.string().optional(),
-  inspectionPct: z.string().optional(),
-  vatPct: z.string().optional(),
-  otherLevies: z.record(z.unknown()).optional(),
-  netTzs: z.string().optional(),
-  paymentStatus: z.enum(['pending', 'partial', 'paid', 'cancelled']).default('pending'),
-});
-
-app.get('/', async (c) => {
+app.openapi(salesListRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const parcelId = c.req.query('parcelId');
-  const buyerId = c.req.query('buyerId');
-  const paymentStatus = c.req.query('paymentStatus');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100), 500);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 100), 500);
   const conds = [eq(sales.tenantId, tenantId)];
-  if (parcelId) conds.push(eq(sales.parcelId, parcelId));
-  if (buyerId) conds.push(eq(sales.buyerId, buyerId));
-  if (paymentStatus) conds.push(eq(sales.paymentStatus, paymentStatus));
+  if (q.parcelId) conds.push(eq(sales.parcelId, q.parcelId));
+  if (q.buyerId) conds.push(eq(sales.buyerId, q.buyerId));
+  if (q.paymentStatus) conds.push(eq(sales.paymentStatus, q.paymentStatus));
   const rows = await db
     .select()
     .from(sales)
     .where(and(...conds))
     .orderBy(desc(sales.ts))
     .limit(limit);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/',
-  zValidator('json', CreateSaleSchema),
+app.openapi(
+  salesCreateRoute,
   withSecurityEvents(
     { action: 'mining.sale.create', resource: 'mining.sale', severity: 'info' },
     async (c) => {
@@ -79,10 +52,18 @@ app.post(
       const [parcel] = await db
         .select()
         .from(oreParcels)
-        .where(and(eq(oreParcels.id, input.parcelId), eq(oreParcels.tenantId, tenantId)))
+        .where(
+          and(eq(oreParcels.id, input.parcelId), eq(oreParcels.tenantId, tenantId)),
+        )
         .limit(1);
       if (!parcel) {
-        return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Parcel not found' } }, 404);
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Parcel not found' },
+          },
+          404,
+        );
       }
       const [row] = await db
         .insert(sales)
@@ -110,8 +91,10 @@ app.post(
       await db
         .update(oreParcels)
         .set({ status: 'sold' })
-        .where(and(eq(oreParcels.id, input.parcelId), eq(oreParcels.tenantId, tenantId)));
-      return c.json({ success: true, data: row }, 201);
+        .where(
+          and(eq(oreParcels.id, input.parcelId), eq(oreParcels.tenantId, tenantId)),
+        );
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );

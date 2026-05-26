@@ -1,81 +1,56 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/shift-reports — daily shift roll-ups per site.
  *
  * Routes:
  *   GET    /              list (filter by siteId, fromDate, toDate)
  *   POST   /              create — photos, fuel, blockers, voice-notes ref
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { shiftReports } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  shiftReportsListRoute,
+  shiftReportsCreateRoute,
+} from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const ShiftKindEnum = z.enum(['day', 'night']);
-
-const DelaySchema = z.object({
-  code: z.string(),
-  minutes: z.number().int().nonnegative(),
-  description: z.string().optional(),
-});
-
-const CreateShiftReportSchema = z.object({
-  siteId: z.string().min(1),
-  shiftDate: z.string().min(8),
-  shiftKind: ShiftKindEnum.default('day'),
-  workersPresent: z.number().int().nonnegative().optional(),
-  machineHours: z.record(z.number()).optional(),
-  fuelLitres: z.string().optional(),
-  metresAdvanced: z.string().optional(),
-  bcmOverburden: z.string().optional(),
-  romTonnes: z.string().optional(),
-  blastsFired: z.number().int().nonnegative().default(0),
-  delays: z.array(DelaySchema).optional(),
-  incidents: z.array(z.record(z.unknown())).optional(),
-  photos: z.array(z.string()).optional(),
-  voiceNoteRef: z.string().optional(),
-  nextShiftPlan: z.string().max(4000).optional(),
-});
-
-app.get('/', async (c) => {
+app.openapi(shiftReportsListRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const siteId = c.req.query('siteId');
-  const fromDate = c.req.query('fromDate');
-  const toDate = c.req.query('toDate');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100), 500);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 100), 500);
   const conds = [eq(shiftReports.tenantId, tenantId)];
-  if (siteId) conds.push(eq(shiftReports.siteId, siteId));
-  if (fromDate) conds.push(gte(shiftReports.shiftDate, fromDate));
-  if (toDate) conds.push(lte(shiftReports.shiftDate, toDate));
+  if (q.siteId) conds.push(eq(shiftReports.siteId, q.siteId));
+  if (q.fromDate) conds.push(gte(shiftReports.shiftDate, q.fromDate));
+  if (q.toDate) conds.push(lte(shiftReports.shiftDate, q.toDate));
   const rows = await db
     .select()
     .from(shiftReports)
     .where(and(...conds))
     .orderBy(desc(shiftReports.shiftDate))
     .limit(limit);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/',
-  zValidator('json', CreateShiftReportSchema),
+app.openapi(
+  shiftReportsCreateRoute,
   withSecurityEvents(
-    { action: 'mining.shift_report.create', resource: 'mining.shift_report', severity: 'info' },
+    {
+      action: 'mining.shift_report.create',
+      resource: 'mining.shift_report',
+      severity: 'info',
+    },
     async (c) => {
       const { tenantId, userId } = c.get('auth');
       const db = c.get('db');
@@ -100,15 +75,17 @@ app.post(
           incidents: input.incidents ?? [],
           photos: input.photos ?? [],
           nextShiftPlan: input.nextShiftPlan
-            ? (input.voiceNoteRef
-                ? `${input.nextShiftPlan} [voice:${input.voiceNoteRef}]`
-                : input.nextShiftPlan)
-            : (input.voiceNoteRef ? `[voice:${input.voiceNoteRef}]` : null),
+            ? input.voiceNoteRef
+              ? `${input.nextShiftPlan} [voice:${input.voiceNoteRef}]`
+              : input.nextShiftPlan
+            : input.voiceNoteRef
+              ? `[voice:${input.voiceNoteRef}]`
+              : null,
           signedOffAt: null,
           createdAt: new Date(),
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );

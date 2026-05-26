@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/corpus — global intelligence corpus admin.
  *
@@ -12,11 +8,11 @@
  *   POST  /upload            ingest one chunk
  *   POST  /supersede         mark a chunk superseded by a new one
  *   GET   /versions          list chunks grouped by source_file
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { intelligenceCorpusChunks } from '@borjie/database';
@@ -24,33 +20,19 @@ import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  internalCorpusUploadRoute,
+  internalCorpusSupersedeRoute,
+  internalCorpusVersionsRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const UploadSchema = z.object({
-  sourceFile: z.string().min(1).max(500),
-  section: z.string().max(200).optional(),
-  page: z.number().int().nonnegative().optional(),
-  text: z.string().min(1),
-  url: z.string().url().optional(),
-  language: z.enum(['en', 'sw', 'fr', 'zh', 'pt']).default('en'),
-  metadata: z.record(z.unknown()).optional(),
-  // Embedding generation runs in the consolidation worker; clients can
-  // optionally pre-supply a vector.
-  embedding: z.array(z.number()).length(1024).optional(),
-});
-
-const SupersedeSchema = z.object({
-  oldChunkId: z.string().min(1),
-  newChunkId: z.string().min(1),
-});
-
-app.post(
-  '/upload',
-  zValidator('json', UploadSchema),
+app.openapi(
+  internalCorpusUploadRoute,
   withSecurityEvents(
     { action: 'platform.corpus.upload', resource: 'platform.corpus', severity: 'info' },
     async (c) => {
@@ -72,14 +54,13 @@ app.post(
           ingestedAt: new Date(),
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );
 
-app.post(
-  '/supersede',
-  zValidator('json', SupersedeSchema),
+app.openapi(
+  internalCorpusSupersedeRoute,
   withSecurityEvents(
     { action: 'platform.corpus.supersede', resource: 'platform.corpus', severity: 'warn' },
     async (c) => {
@@ -90,18 +71,26 @@ app.post(
         .set({ supersededById: input.newChunkId })
         .where(eq(intelligenceCorpusChunks.id, input.oldChunkId))
         .returning();
-      if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Chunk not found' } }, 404);
-      return c.json({ success: true, data: row });
+      if (!row) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Chunk not found' },
+          },
+          404,
+        );
+      }
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );
 
-app.get('/versions', async (c) => {
+app.openapi(internalCorpusVersionsRoute, async (c) => {
   const db = c.get('db');
-  const sourceFile = c.req.query('source_file');
-  const limit = Math.min(Number(c.req.query('limit') ?? 200), 1000);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 200), 1000);
   const conds = [isNull(intelligenceCorpusChunks.tenantId)];
-  if (sourceFile) conds.push(eq(intelligenceCorpusChunks.sourceFile, sourceFile));
+  if (q.source_file) conds.push(eq(intelligenceCorpusChunks.sourceFile, q.source_file));
   const rows = await db
     .select({
       id: intelligenceCorpusChunks.id,
@@ -117,7 +106,7 @@ app.get('/versions', async (c) => {
     .where(and(...conds))
     .orderBy(desc(intelligenceCorpusChunks.ingestedAt))
     .limit(limit);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 export const miningInternalCorpusRouter = app;

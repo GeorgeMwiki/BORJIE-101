@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/citations — searchable regulation index.
  *
@@ -16,32 +12,24 @@
  *
  * Routes:
  *   GET  /     paginated list (filter: source, q, language, limit)
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { intelligenceCorpusChunks } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import { internalCitationsListRoute } from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const SourceEnum = z.enum(['gazette', 'nemc', 'bot', 'tra', 'tumemadini', 'tmaa']);
-
-const QuerySchema = z.object({
-  source: SourceEnum.optional(),
-  q: z.string().min(1).max(200).optional(),
-  language: z.enum(['en', 'sw', 'fr', 'zh', 'pt']).optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-});
-
-app.get('/', zValidator('query', QuerySchema), async (c) => {
+app.openapi(internalCitationsListRoute, async (c) => {
   const db = c.get('db');
   const { source, q, language, limit } = c.req.valid('query');
   const conds: unknown[] = [isNull(intelligenceCorpusChunks.tenantId)];
@@ -79,7 +67,7 @@ app.get('/', zValidator('query', QuerySchema), async (c) => {
     .where(and(...conds))
     .orderBy(desc(intelligenceCorpusChunks.ingestedAt))
     .limit(limit);
-  return c.json({ success: true, data: rows, meta: { count: rows.length, limit } });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 export const miningInternalCitationsRouter = app;

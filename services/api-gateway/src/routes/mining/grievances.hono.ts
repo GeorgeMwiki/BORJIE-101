@@ -1,72 +1,50 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/grievances — community / worker complaint log.
  *
  * Routes:
  *   GET   /     list (filter by siteId, status, category)
  *   POST  /     raise grievance
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { grievances } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  grievancesListRoute,
+  grievancesCreateRoute,
+} from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const RaisedByKindEnum = z.enum([
-  'worker', 'villager', 'landowner', 'community_leader', 'local_govt', 'ngo',
-]);
-
-const CategoryEnum = z.enum([
-  'noise', 'dust', 'water', 'land', 'wages', 'housing', 'access', 'other',
-]);
-
-const CreateGrievanceSchema = z.object({
-  siteId: z.string().optional(),
-  raisedByKind: RaisedByKindEnum,
-  raisedByName: z.string().max(200).optional(),
-  raisedByContact: z.string().max(200).optional(),
-  category: CategoryEnum,
-  summary: z.string().min(1).max(4000),
-  evidenceIds: z.array(z.string()).optional(),
-  attributes: z.record(z.unknown()).optional(),
-});
-
-app.get('/', async (c) => {
+app.openapi(grievancesListRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const siteId = c.req.query('siteId');
-  const status = c.req.query('status');
-  const category = c.req.query('category');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100), 500);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 100), 500);
   const conds = [eq(grievances.tenantId, tenantId)];
-  if (siteId) conds.push(eq(grievances.siteId, siteId));
-  if (status) conds.push(eq(grievances.status, status));
-  if (category) conds.push(eq(grievances.category, category));
+  if (q.siteId) conds.push(eq(grievances.siteId, q.siteId));
+  if (q.status) conds.push(eq(grievances.status, q.status));
+  if (q.category) conds.push(eq(grievances.category, q.category));
   const rows = await db
     .select()
     .from(grievances)
     .where(and(...conds))
     .orderBy(desc(grievances.raisedAt))
     .limit(limit);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/',
-  zValidator('json', CreateGrievanceSchema),
+app.openapi(
+  grievancesCreateRoute,
   withSecurityEvents(
     { action: 'mining.grievance.create', resource: 'mining.grievance', severity: 'info' },
     async (c) => {
@@ -90,7 +68,7 @@ app.post(
           attributes: input.attributes ?? {},
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );

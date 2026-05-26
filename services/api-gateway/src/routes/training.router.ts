@@ -16,18 +16,26 @@
  *   GET    /next-step                      — learner: widget mount pulls next step
  */
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { authMiddleware } from '../middleware/hono-auth';
 import type { TrainingAdminEndpoints } from '@borjie/ai-copilot/training';
 import { safeJsonBody, JsonBodyError } from '../utils/safe-json-body';
 
 import { withSecurityEvents } from '@borjie/observability';
-function getEndpoints(c: any): TrainingAdminEndpoints | null {
-  const services = c.get('services') ?? {};
+
+/**
+ * The router dispatches at runtime — we depend only on Hono's generic
+ * `Context.get/json` surface, never on a stronger Variables map. Pin to
+ * the broad Hono context type instead of `any`.
+ */
+type AnyContext = Context;
+
+function getEndpoints(c: AnyContext): TrainingAdminEndpoints | null {
+  const services = (c.get('services') as { training?: TrainingAdminEndpoints } | undefined) ?? {};
   return services.training ?? null;
 }
 
-function notImplemented(c: any) {
+function notImplemented(c: AnyContext) {
   return c.json(
     {
       success: false,
@@ -40,7 +48,7 @@ function notImplemented(c: any) {
   );
 }
 
-function mapErr(c: any, err: unknown, fallback = 400) {
+function mapErr(c: AnyContext, err: unknown, fallback = 400) {
   // Bug fix A-BUG-DEEP #15: surface malformed-JSON as a 400 INVALID_JSON
   // instead of the prior `{}`-fallback silent swallow.
   if (err instanceof JsonBodyError) {
@@ -72,7 +80,7 @@ function mapErr(c: any, err: unknown, fallback = 400) {
 const app = new Hono();
 app.use('*', authMiddleware);
 
-app.post('/generate', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: any) => {
+app.post('/generate', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
@@ -85,7 +93,7 @@ app.post('/generate', withSecurityEvents({ action: 'training.create', resource: 
   }
 }));
 
-app.post('/paths', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: any) => {
+app.post('/paths', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
@@ -98,7 +106,7 @@ app.post('/paths', withSecurityEvents({ action: 'training.create', resource: 'tr
   }
 }));
 
-app.get('/paths', async (c: any) => {
+app.get('/paths', async (c: AnyContext) => {
   const auth = c.get('auth');
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
@@ -110,7 +118,7 @@ app.get('/paths', async (c: any) => {
   }
 });
 
-app.patch('/paths/:id', withSecurityEvents({ action: 'training.update', resource: 'training', severity: 'info' }, async (c: any) => {
+app.patch('/paths/:id', withSecurityEvents({ action: 'training.update', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
   const ep = getEndpoints(c);
@@ -124,7 +132,7 @@ app.patch('/paths/:id', withSecurityEvents({ action: 'training.update', resource
   }
 }));
 
-app.post('/paths/:id/assign', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: any) => {
+app.post('/paths/:id/assign', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
   const ep = getEndpoints(c);
@@ -138,7 +146,7 @@ app.post('/paths/:id/assign', withSecurityEvents({ action: 'training.create', re
   }
 }));
 
-app.get('/assignments', async (c: any) => {
+app.get('/assignments', async (c: AnyContext) => {
   const auth = c.get('auth');
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
@@ -155,7 +163,7 @@ app.get('/assignments', async (c: any) => {
   }
 });
 
-app.get('/assignments/:id', async (c: any) => {
+app.get('/assignments/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
   const ep = getEndpoints(c);
@@ -168,7 +176,7 @@ app.get('/assignments/:id', async (c: any) => {
   }
 });
 
-app.get('/mastery/:userId', async (c: any) => {
+app.get('/mastery/:userId', async (c: AnyContext) => {
   const auth = c.get('auth');
   const userId = c.req.param('userId');
   const ep = getEndpoints(c);
@@ -185,7 +193,7 @@ app.get('/mastery/:userId', async (c: any) => {
   }
 });
 
-app.post('/assignments/:id/mark-complete', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: any) => {
+app.post('/assignments/:id/mark-complete', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
   const ep = getEndpoints(c);
@@ -202,7 +210,7 @@ app.post('/assignments/:id/mark-complete', withSecurityEvents({ action: 'trainin
   }
 }));
 
-app.get('/next-step', async (c: any) => {
+app.get('/next-step', async (c: AnyContext) => {
   const auth = c.get('auth');
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);

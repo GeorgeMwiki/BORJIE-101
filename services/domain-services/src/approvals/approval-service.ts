@@ -1,4 +1,4 @@
-// @ts-nocheck — PaginatedResult<T> data vs rows rename in domain-models; approval wire format still uses {data}. Tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Approval Workflow Service

@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/killswitch — platform / per-tenant kill switch
  * with proper two-operator RBAC.
@@ -21,11 +17,11 @@
  * Mutation eligibility is enforced TWICE: Supabase JWT role must be
  * SUPER_ADMIN AND the user must hold an active authority covering the
  * target scope. Fail-closed everywhere.
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gte, isNull, like } from 'drizzle-orm';
 import {
@@ -42,31 +38,28 @@ import {
   userHoldsAuthority,
   type KillswitchScope,
 } from './killswitch-rbac';
+import {
+  internalKillswitchInitiateRoute,
+  internalKillswitchConfirmRoute,
+  internalKillswitchListRoute,
+  internalKillswitchPendingRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN));
 app.use('*', databaseMiddleware);
 
 const PENDING_WINDOW_MS = 30_000;
 
-const ScopeSchema = z
-  .string()
-  .min(1)
-  .max(120)
-  .refine((s) => s === 'platform' || s.startsWith('tenant:'), {
-    message: 'Scope must be "platform" or "tenant:<tenantId>"',
-  });
-
-const InitiateSchema = z.object({
-  scope: ScopeSchema,
-  level: z.enum(['live', 'degraded', 'halt']),
-  reasonCode: z.string().min(1).max(200),
-  note: z.string().max(500).optional(),
-});
-
 const TargetSchema = z.object({
-  scope: ScopeSchema,
+  scope: z
+    .string()
+    .min(1)
+    .max(120)
+    .refine((s) => s === 'platform' || s.startsWith('tenant:'), {
+      message: 'Scope must be "platform" or "tenant:<tenantId>"',
+    }),
   level: z.enum(['live', 'degraded', 'halt']),
   reasonCode: z.string().min(1).max(200),
   note: z.string().max(500).optional(),
@@ -90,9 +83,8 @@ function forbiddenAuthority(c: unknown, scope: string) {
 // ----------------------------------------------------------------------------
 // POST /  — initiate
 // ----------------------------------------------------------------------------
-app.post(
-  '/',
-  zValidator('json', InitiateSchema),
+app.openapi(
+  internalKillswitchInitiateRoute,
   withSecurityEvents(
     {
       action: 'platform.killswitch.initiate',
@@ -110,7 +102,7 @@ app.post(
       } catch (err) {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'INVALID_SCOPE',
               message: err instanceof Error ? err.message : 'Invalid scope',
@@ -145,12 +137,12 @@ app.post(
         .returning();
       return c.json(
         {
-          success: true,
+          success: true as const,
           data: {
             pendingConfirmationId: row.id,
             target,
             expiresAt: row.expiresAt,
-            waitingForSecondOperator: true,
+            waitingForSecondOperator: true as const,
           },
         },
         201,
@@ -162,8 +154,8 @@ app.post(
 // ----------------------------------------------------------------------------
 // POST /:id/confirm  — second operator confirms
 // ----------------------------------------------------------------------------
-app.post(
-  '/:id/confirm',
+app.openapi(
+  internalKillswitchConfirmRoute,
   withSecurityEvents(
     {
       action: 'platform.killswitch.confirm',
@@ -173,7 +165,7 @@ app.post(
     async (c) => {
       const db = c.get('db');
       const { userId } = c.get('auth');
-      const pendingId = c.req.param('id');
+      const { id: pendingId } = c.req.valid('param');
 
       const [pending] = await db
         .select()
@@ -189,7 +181,7 @@ app.post(
       if (!pending) {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'PENDING_NOT_FOUND_OR_EXPIRED',
               message: 'No live pending confirmation matches that id',
@@ -202,7 +194,7 @@ app.post(
       if (pending.initiatorUserId === userId) {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'FOUR_EYE_REQUIRED',
               message: 'Confirmer must be a different user than the initiator',
@@ -216,7 +208,7 @@ app.post(
       if (!parsed.success) {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'CORRUPT_TARGET',
               message: 'Persisted target failed validation',
@@ -244,7 +236,7 @@ app.post(
 
       const setBy = `${pending.initiatorUserId}+${userId}`;
       const { row, created } = await applyKillswitch(db, target, setBy, now);
-      return c.json({ success: true, data: row }, created ? 201 : 200);
+      return c.json({ success: true as const, data: row }, created ? 201 : 200);
     },
   ),
 );
@@ -252,16 +244,7 @@ app.post(
 // ----------------------------------------------------------------------------
 // GET /  — list active kill-switch state per scope (read-only)
 // ----------------------------------------------------------------------------
-const ListQuerySchema = z.object({
-  /** Filter to a single exact scope, e.g. 'platform' or 'tenant:<id>'. */
-  scope: z.string().min(1).max(120).optional(),
-  /** Filter to a tenant id; expands to scope LIKE 'tenant:<tenantId>%'. */
-  tenantId: z.string().min(1).max(120).optional(),
-  level: z.enum(['live', 'degraded', 'halt']).optional(),
-  limit: z.coerce.number().int().min(1).max(500).default(200),
-});
-
-app.get('/', zValidator('query', ListQuerySchema), async (c) => {
+app.openapi(internalKillswitchListRoute, async (c) => {
   const db = c.get('db');
   const { scope, tenantId, level, limit } = c.req.valid('query');
   const conds: unknown[] = [];
@@ -274,13 +257,13 @@ app.get('/', zValidator('query', ListQuerySchema), async (c) => {
     .orderBy(desc(platformKillswitchState.setAt))
     .limit(limit);
   const rows = conds.length > 0 ? await query.where(and(...conds)) : await query;
-  return c.json({ success: true, data: rows, meta: { count: rows.length, limit } });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 // ----------------------------------------------------------------------------
 // GET /pending  — list pending confirmations the caller can act on
 // ----------------------------------------------------------------------------
-app.get('/pending', async (c) => {
+app.openapi(internalKillswitchPendingRoute, async (c) => {
   const db = c.get('db');
   const { userId } = c.get('auth');
   const rows = await db
@@ -297,7 +280,7 @@ app.get('/pending', async (c) => {
   const actionable = rows.filter(
     (r: { initiatorUserId: string }) => r.initiatorUserId !== userId,
   );
-  return c.json({ success: true, data: actionable });
+  return c.json({ success: true as const, data: actionable }, 200);
 });
 
 export const miningInternalKillswitchRouter = app;

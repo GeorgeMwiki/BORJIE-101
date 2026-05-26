@@ -207,7 +207,9 @@ function entityToRow(entity: DamageDeductionCase): Record<string, unknown> {
   };
 }
 
-function rowToEntity(row: any): DamageDeductionCase {
+type DamageDeductionRow = typeof damageDeductionCases.$inferSelect;
+
+function rowToEntity(row: DamageDeductionRow): DamageDeductionCase {
   const createdAt =
     row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt;
   const updatedAt =
@@ -215,9 +217,9 @@ function rowToEntity(row: any): DamageDeductionCase {
   return {
     id: asDamageDeductionCaseId(row.id),
     tenantId: row.tenantId as unknown as TenantId,
-    leaseId: row.leaseId ?? undefined,
-    caseId: row.caseId ?? undefined,
-    moveOutInspectionId: row.moveOutInspectionId ?? undefined,
+    leaseId: (row.leaseId ?? undefined) as DamageDeductionCase['leaseId'],
+    caseId: (row.caseId ?? undefined) as DamageDeductionCase['caseId'],
+    moveOutInspectionId: (row.moveOutInspectionId ?? undefined) as DamageDeductionCase['moveOutInspectionId'],
     claimedDeductionMinor: Number(row.claimedDeductionMinor ?? 0),
     proposedDeductionMinor:
       row.proposedDeductionMinor != null ? Number(row.proposedDeductionMinor) : undefined,
@@ -229,7 +231,7 @@ function rowToEntity(row: any): DamageDeductionCase {
     // from region-config); we don't substitute a TZS default.
     currency: row.currency ?? '',
     status: (row.status ?? 'claim_filed') as DamageDeductionStatus,
-    evidenceBundleId: row.evidenceBundleId ?? undefined,
+    evidenceBundleId: (row.evidenceBundleId ?? undefined) as DamageDeductionCase['evidenceBundleId'],
     aiMediatorTurns: Array.isArray(row.aiMediatorTurns) ? row.aiMediatorTurns : [],
     createdAt: createdAt as ISOTimestamp,
     updatedAt: updatedAt as ISOTimestamp,

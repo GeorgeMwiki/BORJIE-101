@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/slo — per-junior, per-tenant SLO snapshot.
  *
@@ -20,29 +16,21 @@
  * percentile_cont() over that table. Until then the percentile column
  * is computed in JS over the matched audit rows.
  *
- * Routes:
- *   GET  /     latency + error + spend snapshot (filter: tenantId, junior, windowHours)
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { auditEvents, aiCostEntries } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import { internalSloListRoute } from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
-
-const QuerySchema = z.object({
-  tenantId: z.string().min(1).max(120).optional(),
-  junior: z.string().min(1).max(200).optional(),
-  windowHours: z.coerce.number().int().min(1).max(168).default(24),
-});
 
 interface JuniorBucket {
   readonly tenantId: string | null;
@@ -54,11 +42,14 @@ interface JuniorBucket {
 
 function percentile(sorted: number[], pct: number): number {
   if (sorted.length === 0) return 0;
-  const idx = Math.min(sorted.length - 1, Math.floor((pct / 100) * sorted.length));
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.floor((pct / 100) * sorted.length),
+  );
   return sorted[idx] ?? 0;
 }
 
-app.get('/', zValidator('query', QuerySchema), async (c) => {
+app.openapi(internalSloListRoute, async (c) => {
   const db = c.get('db');
   const { tenantId, junior, windowHours } = c.req.valid('query');
   const since = new Date(Date.now() - windowHours * 3_600_000);
@@ -106,12 +97,17 @@ app.get('/', zValidator('query', QuerySchema), async (c) => {
     .groupBy(aiCostEntries.tenantId, aiCostEntries.operation);
   const spendMap = new Map<string, number>();
   for (const r of spendRows) {
-    spendMap.set(`${r.tenantId}::${r.operation ?? 'unknown'}`, Number(r.costUsdMicro ?? 0));
+    spendMap.set(
+      `${r.tenantId}::${r.operation ?? 'unknown'}`,
+      Number(r.costUsdMicro ?? 0),
+    );
   }
   const data = Array.from(buckets.values()).map((b) => {
     const sorted = [...b.latencies].sort((a, c) => a - c);
     const spendMicro =
-      spendMap.get(`${b.tenantId}::${b.junior}`) ?? spendMap.get(`${b.tenantId}::unknown`) ?? 0;
+      spendMap.get(`${b.tenantId}::${b.junior}`) ??
+      spendMap.get(`${b.tenantId}::unknown`) ??
+      0;
     return {
       tenantId: b.tenantId,
       junior: b.junior,
@@ -124,7 +120,7 @@ app.get('/', zValidator('query', QuerySchema), async (c) => {
       requestVolume24h: b.total,
     };
   });
-  return c.json({ success: true, data, meta: { windowHours, count: data.length } });
+  return c.json({ success: true as const, data }, 200);
 });
 
 export const miningInternalSloRouter = app;

@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/compliance-queue — escalations raised by the
  * per-tenant Compliance Agent that require platform-staff triage.
@@ -16,32 +12,29 @@
  *   GET   /                      paginated open-by-default queue
  *   POST  /:id/approve           resolve an escalation as approved
  *   POST  /:id/reject            resolve an escalation as rejected
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { complianceEscalations } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  internalComplianceListRoute,
+  internalComplianceApproveRoute,
+  internalComplianceRejectRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const QuerySchema = z.object({
-  tenantId: z.string().min(1).max(120).optional(),
-  severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-  /** Default surfaces only open escalations; `all` includes resolved. */
-  state: z.enum(['open', 'resolved', 'all']).default('open'),
-  limit: z.coerce.number().int().min(1).max(500).default(100),
-});
-
-app.get('/', zValidator('query', QuerySchema), async (c) => {
+app.openapi(internalComplianceListRoute, async (c) => {
   const db = c.get('db');
   const { tenantId, severity, state, limit } = c.req.valid('query');
   const conds: unknown[] = [];
@@ -57,7 +50,7 @@ app.get('/', zValidator('query', QuerySchema), async (c) => {
     .orderBy(desc(complianceEscalations.escalatedAt))
     .limit(limit);
   const rows = conds.length > 0 ? await query.where(and(...conds)) : await query;
-  return c.json({ success: true, data: rows, meta: { count: rows.length, limit } });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 function resolveHandler(decision: 'approve' | 'reject') {
@@ -70,7 +63,7 @@ function resolveHandler(decision: 'approve' | 'reject') {
     async (c) => {
       const db = c.get('db');
       const { userId } = c.get('auth');
-      const id = c.req.param('id');
+      const { id } = c.req.valid('param');
       const [row] = await db
         .update(complianceEscalations)
         .set({
@@ -82,16 +75,19 @@ function resolveHandler(decision: 'approve' | 'reject') {
         .returning();
       if (!row) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Escalation not found' } },
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Escalation not found' },
+          },
           404,
         );
       }
-      return c.json({ success: true, data: row });
+      return c.json({ success: true as const, data: row }, 200);
     },
   );
 }
 
-app.post('/:id/approve', resolveHandler('approve'));
-app.post('/:id/reject', resolveHandler('reject'));
+app.openapi(internalComplianceApproveRoute, resolveHandler('approve'));
+app.openapi(internalComplianceRejectRoute, resolveHandler('reject'));
 
 export const miningInternalComplianceQueueRouter = app;

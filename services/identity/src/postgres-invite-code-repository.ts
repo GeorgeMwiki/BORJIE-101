@@ -226,12 +226,30 @@ export class PostgresInviteCodeRepository {
   ): Promise<RedeemResult> {
     return this.db.transaction(async (tx) => {
       // Lock the invite row for the duration of the transaction.
+      // Raw SQL escape hatch: the locked row shape mirrors the
+      // `invite_codes` table columns in snake_case (different from the
+      // Drizzle camelCase $inferSelect surface). Typed as unknown then
+      // narrowed via property accessors below.
       const lockedRows = await tx.execute(
         sql`SELECT * FROM invite_codes WHERE code = ${code as unknown as string} FOR UPDATE`
       );
-      const rawRows: any[] = Array.isArray(lockedRows)
-        ? lockedRows
-        : lockedRows?.rows ?? [];
+      type RawInviteRow = {
+        code: string;
+        organization_id: string;
+        platform_tenant_id: string;
+        issued_by: string;
+        issued_at: Date | string;
+        expires_at: Date | string | null;
+        max_redemptions: number | null;
+        redemptions_used: number;
+        default_role_id: string;
+        attachment_hints: unknown;
+        revoked_at: Date | string | null;
+        revoked_by: string | null;
+      };
+      const rawRows: RawInviteRow[] = Array.isArray(lockedRows)
+        ? (lockedRows as RawInviteRow[])
+        : ((lockedRows as { rows?: RawInviteRow[] } | undefined)?.rows ?? []);
       const raw = rawRows[0];
       if (!raw) {
         throw new Error(

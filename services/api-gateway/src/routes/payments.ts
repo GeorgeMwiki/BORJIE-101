@@ -4,7 +4,14 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
-import { mapPaymentRow, majorToMinor, minorToMajor, paginateArray } from './db-mappers';
+import {
+  mapPaymentRow,
+  majorToMinor,
+  minorToMajor,
+  paginateArray,
+  type PaymentRowLike,
+  type InvoiceRowLike,
+} from './db-mappers';
 import { parseListPagination, buildListResponse } from './pagination';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -64,10 +71,17 @@ app.get('/', async (c) => {
 
 app.get('/pending', async (c) => {
   // Pending/processing is a small window per customer; cap at 100.
+  // Status narrowing happens in JS — the customer-scoped page is small
+  // enough that an extra DB filter parameter would add round-trip cost
+  // without measurable savings. When the repo grows a `byCustomerAndStatus`
+  // entry point this should switch to that.
   const auth = c.get('auth');
   const repos = c.get('repos');
   const result = await repos.payments.findByCustomer(auth.userId, auth.tenantId, 100, 0);
-  const items = result.items.filter((row: any) => ['pending', 'processing'].includes(String(row.status))).map(mapPaymentRow);
+  const rows = result.items as readonly PaymentRowLike[];
+  const items = rows
+    .filter((row) => ['pending', 'processing'].includes(String(row.status)))
+    .map(mapPaymentRow);
   return c.json({ success: true, data: items });
 });
 
@@ -100,7 +114,7 @@ app.get('/balance', async (c) => {
         amount: minorToMajor(totalDueMinor),
         currency: recentInvoices.items[0]?.currency || 'USD',
       },
-      breakdown: recentInvoices.items.map((invoice: any) => ({
+      breakdown: (recentInvoices.items as readonly InvoiceRowLike[]).map((invoice) => ({
         type: String(invoice.invoiceType || 'rent').toUpperCase(),
         amount: { amount: minorToMajor(invoice.balanceAmount), currency: invoice.currency || 'USD' },
       })),

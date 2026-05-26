@@ -1,4 +1,28 @@
 
+import type {
+  PropertyRowLike,
+  UnitRowLike,
+  CustomerRowLike,
+  LeaseRowLike,
+  InvoiceRowLike,
+  PaymentRowLike,
+  VendorRowLike,
+  WorkOrderRowLike,
+} from './db-row-types';
+
+export type {
+  PropertyRowLike,
+  UnitRowLike,
+  CustomerRowLike,
+  LeaseRowLike,
+  InvoiceRowLike,
+  PaymentRowLike,
+  VendorRowLike,
+  VendorContactLike,
+  WorkOrderRowLike,
+  WorkOrderTimelineEntry,
+} from './db-row-types';
+
 /**
  * Money conversion helpers.
  *
@@ -46,7 +70,7 @@ export function minorToMajor(amount: number | undefined | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function paginateArray(items: any[], page = 1, pageSize = 20) {
+export function paginateArray<T>(items: readonly T[], page = 1, pageSize = 20) {
   const offset = (page - 1) * pageSize;
   const totalItems = items.length;
   const totalPages = Math.ceil(totalItems / pageSize);
@@ -152,7 +176,7 @@ export function mapUnitStatusFromDb(status?: string) {
   }
 }
 
-export function mapPropertyRow(row: any) {
+export function mapPropertyRow(row: PropertyRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -177,9 +201,9 @@ export function mapPropertyRow(row: any) {
           : undefined,
     },
     description: row.description ?? undefined,
-    amenities: Array.isArray(row.amenities) ? row.amenities : [],
+    amenities: Array.isArray(row.amenities) ? [...row.amenities] : [],
     features: row.features ?? {},
-    images: Array.isArray(row.images) ? row.images : [],
+    images: Array.isArray(row.images) ? [...row.images] : [],
     managerId: row.managerId ?? undefined,
     totalUnits: row.totalUnits ?? 0,
     occupiedUnits: row.occupiedUnits ?? 0,
@@ -198,7 +222,7 @@ export function mapPropertyRow(row: any) {
   };
 }
 
-export function mapUnitRow(row: any) {
+export function mapUnitRow(row: UnitRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -213,8 +237,8 @@ export function mapUnitRow(row: any) {
     squareMeters: asNumber(row.squareMeters),
     rentAmount: minorToMajor(row.baseRentAmount),
     depositAmount: minorToMajor(row.depositAmount),
-    amenities: Array.isArray(row.amenities) ? row.amenities : [],
-    images: Array.isArray(row.images) ? row.images : [],
+    amenities: Array.isArray(row.amenities) ? [...row.amenities] : [],
+    images: Array.isArray(row.images) ? [...row.images] : [],
     createdAt: row.createdAt,
     createdBy: row.createdBy,
     updatedAt: row.updatedAt,
@@ -224,7 +248,7 @@ export function mapUnitRow(row: any) {
   };
 }
 
-export function mapCustomerRow(row: any) {
+export function mapCustomerRow(row: CustomerRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -245,7 +269,7 @@ export function mapCustomerRow(row: any) {
   };
 }
 
-export function mapLeaseRow(row: any) {
+export function mapLeaseRow(row: LeaseRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -298,7 +322,7 @@ export function mapPaymentStatusFromDb(status?: string) {
   return String(status || 'pending').toUpperCase();
 }
 
-export function mapInvoiceRow(row: any) {
+export function mapInvoiceRow(row: InvoiceRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -316,13 +340,13 @@ export function mapInvoiceRow(row: any) {
     amountPaid: minorToMajor(row.paidAmount),
     amountDue: minorToMajor(row.balanceAmount),
     currency: row.currency,
-    lineItems: Array.isArray(row.lineItems) ? row.lineItems : [],
+    lineItems: Array.isArray(row.lineItems) ? [...row.lineItems] : [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-export function mapPaymentRow(row: any) {
+export function mapPaymentRow(row: PaymentRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -344,7 +368,7 @@ export function mapPaymentRow(row: any) {
   };
 }
 
-export function mapVendorRow(row: any) {
+export function mapVendorRow(row: VendorRowLike) {
   const primaryContact = Array.isArray(row.contacts) ? row.contacts[0] : undefined;
   return {
     id: row.id,
@@ -354,9 +378,9 @@ export function mapVendorRow(row: any) {
     name: row.companyName,
     status: String(row.status || 'active').toUpperCase(),
     categories: Array.isArray(row.specializations) ? row.specializations.map((v: string) => String(v).toUpperCase()) : [],
-    specializations: Array.isArray(row.specializations) ? row.specializations : [],
-    serviceAreas: Array.isArray(row.serviceAreas) ? row.serviceAreas : [],
-    contacts: Array.isArray(row.contacts) ? row.contacts : [],
+    specializations: Array.isArray(row.specializations) ? [...row.specializations] : [],
+    serviceAreas: Array.isArray(row.serviceAreas) ? [...row.serviceAreas] : [],
+    contacts: Array.isArray(row.contacts) ? [...row.contacts] : [],
     contactPerson: primaryContact?.name,
     email: primaryContact?.email,
     phone: primaryContact?.phone,
@@ -369,7 +393,7 @@ export function mapVendorRow(row: any) {
   };
 }
 
-export function mapWorkOrderRow(row: any) {
+export function mapWorkOrderRow(row: WorkOrderRowLike) {
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -386,7 +410,7 @@ export function mapWorkOrderRow(row: any) {
     title: row.title,
     description: row.description ?? undefined,
     location: row.location ?? undefined,
-    attachments: Array.isArray(row.attachments) ? row.attachments : [],
+    attachments: Array.isArray(row.attachments) ? [...row.attachments] : [],
     estimatedCost: minorToMajor(row.estimatedCost),
     actualCost: minorToMajor(row.actualCost),
     currency: row.currency || 'USD',
@@ -394,7 +418,7 @@ export function mapWorkOrderRow(row: any) {
     scheduledDate: row.scheduledAt ?? row.scheduledStartAt ?? undefined,
     completedAt: row.completedAt ?? undefined,
     completionNotes: row.completionNotes ?? undefined,
-    timeline: Array.isArray(row.timeline) ? row.timeline : [],
+    timeline: Array.isArray(row.timeline) ? [...row.timeline] : [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

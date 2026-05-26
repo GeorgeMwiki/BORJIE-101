@@ -111,6 +111,19 @@ export interface ComplianceFilters {
   readonly status?: ComplianceStatus;
   readonly propertyId?: string;
   readonly entityId?: string;
+  /**
+   * Inclusive lower bound on `dueDate` — pushed into the store's WHERE
+   * clause so the caller doesn't have to fetch every item and filter in
+   * JS. Strings are ISO timestamps; the store converts to `Date` on read.
+   */
+  readonly dueAfter?: string;
+  /** Inclusive upper bound on `dueDate`. */
+  readonly dueBefore?: string;
+  /**
+   * Optional exclusion list of statuses — handy for "upcoming" queries
+   * that need to drop `expired` rows at the store layer.
+   */
+  readonly excludeStatuses?: readonly ComplianceStatus[];
 }
 
 export interface LegalCaseFilters {
@@ -1359,6 +1372,18 @@ export class MemoryComplianceItemStore implements ComplianceItemStore {
     if (filters.status) items = items.filter((i) => i.status === filters.status);
     if (filters.propertyId) items = items.filter((i) => i.entityId === filters.propertyId);
     if (filters.entityId) items = items.filter((i) => i.entityId === filters.entityId);
+    if (filters.excludeStatuses && filters.excludeStatuses.length > 0) {
+      const excluded = new Set<ComplianceStatus>(filters.excludeStatuses);
+      items = items.filter((i) => !excluded.has(i.status));
+    }
+    if (filters.dueAfter) {
+      const lower = new Date(filters.dueAfter);
+      items = items.filter((i) => new Date(i.dueDate) >= lower);
+    }
+    if (filters.dueBefore) {
+      const upper = new Date(filters.dueBefore);
+      items = items.filter((i) => new Date(i.dueDate) <= upper);
+    }
     return items;
   }
 

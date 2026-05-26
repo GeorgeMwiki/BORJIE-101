@@ -1,4 +1,4 @@
-// @ts-nocheck — drizzle-orm v0.36 pgEnum narrowing on migration_status column; tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed migration repository (Drizzle).
  *

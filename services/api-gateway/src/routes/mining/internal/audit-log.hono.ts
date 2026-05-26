@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/audit-log — paginated WORM audit log.
  *
@@ -11,31 +7,32 @@
  *
  * Routes:
  *   GET  /     paginated list (filter: tenantId, junior)
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, desc, eq, lt } from 'drizzle-orm';
 import { wormAuditLog } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import { internalAuditLogListRoute } from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-app.get('/', async (c) => {
+app.openapi(internalAuditLogListRoute, async (c) => {
   const db = c.get('db');
-  const tenantId = c.req.query('tenantId');
-  const junior = c.req.query('junior');
-  const cursor = c.req.query('cursor');
-  const limit = Math.min(Number(c.req.query('limit') ?? 50), 200);
-  const conds = [] as unknown[];
-  if (tenantId) conds.push(eq(wormAuditLog.tenantId, tenantId));
-  if (junior) conds.push(eq(wormAuditLog.actorId, junior));
-  if (cursor) {
-    const cursorSeq = Number(cursor);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 50), 200);
+  const conds: unknown[] = [];
+  if (q.tenantId) conds.push(eq(wormAuditLog.tenantId, q.tenantId));
+  if (q.junior) conds.push(eq(wormAuditLog.actorId, q.junior));
+  if (q.cursor) {
+    const cursorSeq = Number(q.cursor);
     if (Number.isFinite(cursorSeq)) conds.push(lt(wormAuditLog.sequenceNumber, cursorSeq));
   }
   const query = db
@@ -44,8 +41,7 @@ app.get('/', async (c) => {
     .orderBy(desc(wormAuditLog.sequenceNumber))
     .limit(limit);
   const rows = conds.length > 0 ? await query.where(and(...conds)) : await query;
-  const nextCursor = rows.length === limit ? rows[rows.length - 1]?.sequenceNumber : null;
-  return c.json({ success: true, data: rows, meta: { nextCursor, limit, count: rows.length } });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 export const miningInternalAuditLogRouter = app;

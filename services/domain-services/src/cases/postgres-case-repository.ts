@@ -1,4 +1,4 @@
-// @ts-nocheck — pg row callbacks typed as any + PaginationParams drift from domain-models (page/pageSize removed). Tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed Case Repository (Wave 3).
  *

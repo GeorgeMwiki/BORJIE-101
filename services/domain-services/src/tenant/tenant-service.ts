@@ -1,7 +1,6 @@
-// @ts-nocheck — domain-models drift (WorkOrder/Block namespace shape, Money class, TenantStatus enum); tracked
 /**
  * Tenant Service
- * 
+ *
  * Business logic for tenant and organization management.
  */
 
@@ -9,7 +8,6 @@ import type {
   TenantId,
   OrganizationId,
   UserId,
-  ISOTimestamp,
   PaginationParams,
   PaginatedResult,
 } from '@borjie/domain-models';
@@ -18,24 +16,24 @@ import {
   type CreateTenantInput,
   type UpdateTenantInput,
   type TenantWithUsage,
+  type TenantStatus,
+  type SubscriptionTier,
   type Organization,
   type CreateOrganizationInput,
   type UpdateOrganizationInput,
   type TenantConfig,
-  TenantStatus,
-  SubscriptionTier,
   OrganizationType,
-  OrganizationStatus,
   DEFAULT_TENANT_CONFIG,
   isValidTenantSlug,
   isValidOrganizationCode,
-  asTenantId,
-  asOrganizationId,
-  asUserId,
   ok,
   err,
   type Result,
 } from '@borjie/domain-models';
+
+// Persisted-tenant view used by repositories that store an opaque
+// configuration bag alongside the typed `Tenant` projection.
+type TenantWithConfig = Tenant & { readonly config?: TenantConfig };
 import type { TenantRepository, OrganizationRepository, UnitOfWork } from '../common/repository.js';
 import {
   type EventBus,
@@ -277,12 +275,12 @@ export class TenantService {
   ): Promise<Result<Tenant, TenantServiceErrorResult>> {
     return this.updateTenant(
       tenantId,
-      { status: TenantStatus.SUSPENDED },
+      { status: 'suspended' satisfies TenantStatus },
       suspendedBy,
       correlationId
     );
   }
-  
+
   /**
    * Activate a tenant.
    */
@@ -293,7 +291,7 @@ export class TenantService {
   ): Promise<Result<Tenant, TenantServiceErrorResult>> {
     return this.updateTenant(
       tenantId,
-      { status: TenantStatus.ACTIVE },
+      { status: 'active' satisfies TenantStatus },
       activatedBy,
       correlationId
     );
@@ -319,7 +317,7 @@ export class TenantService {
 
     const result = await this.updateTenant(
       tenantId,
-      { status: 'churned' as TenantStatus },
+      { status: 'churned' satisfies TenantStatus },
       deactivatedBy,
       correlationId
     );
@@ -351,7 +349,7 @@ export class TenantService {
     }
     
     // Check if tenant is active/pending before allowing plan changes
-    if (existing.status !== TenantStatus.ACTIVE && existing.status !== 'pending_setup') {
+    if (existing.status !== 'active' && existing.status !== 'pending_setup') {
       return err({
         code: TenantServiceError.TENANT_NOT_FOUND,
         message: `Cannot change subscription while tenant is ${existing.status}`,
@@ -413,9 +411,11 @@ export class TenantService {
       });
     }
 
-    const existingPolicies = (existing.config as Record<string, unknown>)?.policyConstitution ?? {};
-    const mergedPolicies = { ...existingPolicies as Record<string, unknown>, ...policies };
-    
+    const existingConfig = (existing as TenantWithConfig).config ?? {};
+    const existingPolicies =
+      (existingConfig as Record<string, unknown>).policyConstitution ?? {};
+    const mergedPolicies = { ...(existingPolicies as Record<string, unknown>), ...policies };
+
     return this.configureTenant(
       tenantId,
       { policyConstitution: mergedPolicies } as Partial<TenantConfig>,
@@ -439,7 +439,9 @@ export class TenantService {
       });
     }
     
-    const policies = (existing.config as Record<string, unknown>)?.policyConstitution ?? {};
+    const existingConfig = (existing as TenantWithConfig).config ?? {};
+    const policies =
+      (existingConfig as Record<string, unknown>).policyConstitution ?? {};
     return ok(policies as Record<string, unknown>);
   }
   
@@ -488,18 +490,21 @@ export class TenantService {
     }
 
     // Merge existing config with new config
+    const existingConfig = (existing as TenantWithConfig).config ?? {};
     const mergedConfig: TenantConfig = {
       ...DEFAULT_TENANT_CONFIG,
-      ...existing.config,
+      ...existingConfig,
       ...config,
     };
-    
+
+    // The persisted tenant carries an opaque `config` bag the repository
+    // round-trips outside the typed `UpdateTenantInput` surface.
     const tenant = await this.uow.tenants.update(
       tenantId,
-      { config: mergedConfig },
+      { config: mergedConfig } as unknown as UpdateTenantInput,
       updatedBy
     );
-    
+
     // Publish config updated event
     const event: TenantUpdatedEvent = {
       eventId: generateEventId(),
@@ -511,7 +516,7 @@ export class TenantService {
       metadata: {},
       payload: {
         changes: {
-          config: { old: existing.config, new: mergedConfig },
+          config: { old: existingConfig, new: mergedConfig },
         },
       },
     };

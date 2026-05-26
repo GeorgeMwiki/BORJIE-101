@@ -13,10 +13,17 @@
  *   POST /anomalies/:id/acknowledge
  *   POST /anomalies/:id/resolve
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import type { IotService } from '@borjie/domain-services/iot';
 import { authMiddleware } from '../middleware/hono-auth';
+
+/**
+ * The router dispatches at runtime — we depend only on Hono's generic
+ * `Context.get/json` surface, so the broad context type is sufficient.
+ */
+type AnyContext = Context;
 
 import { withSecurityEvents } from '@borjie/observability';
 const SensorKindSchema = z.enum([
@@ -72,12 +79,12 @@ const ResolveSchema = z.object({
 const app = new Hono();
 app.use('*', authMiddleware);
 
-function svc(c: any) {
-  const services = c.get('services') ?? {};
+function svc(c: AnyContext): IotService | undefined {
+  const services = (c.get('services') as { iot?: IotService } | undefined) ?? {};
   return services.iot;
 }
 
-function notImplemented(c: any) {
+function notImplemented(c: AnyContext) {
   return c.json(
     {
       success: false,
@@ -87,7 +94,7 @@ function notImplemented(c: any) {
   );
 }
 
-app.post('/sensors', zValidator('json', RegisterSensorSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
+app.post('/sensors', zValidator('json', RegisterSensorSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -105,7 +112,7 @@ app.post('/sensors', zValidator('json', RegisterSensorSchema), withSecurityEvent
   }
 }));
 
-app.get('/sensors', async (c: any) => {
+app.get('/sensors', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -126,7 +133,7 @@ app.get('/sensors', async (c: any) => {
   return c.json({ success: true, data: sensors });
 });
 
-app.get('/sensors/:id', async (c: any) => {
+app.get('/sensors/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -140,7 +147,7 @@ app.get('/sensors/:id', async (c: any) => {
   return c.json({ success: true, data: sensor });
 });
 
-app.post('/sensors/:id/observations', zValidator('json', ObservationSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
+app.post('/sensors/:id/observations', zValidator('json', ObservationSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -171,7 +178,7 @@ app.post('/sensors/:id/observations', zValidator('json', ObservationSchema), wit
   }
 }));
 
-app.get('/sensors/:id/observations', async (c: any) => {
+app.get('/sensors/:id/observations', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -181,7 +188,7 @@ app.get('/sensors/:id/observations', async (c: any) => {
   return c.json({ success: true, data: items });
 });
 
-app.get('/anomalies', async (c: any) => {
+app.get('/anomalies', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -199,7 +206,7 @@ app.get('/anomalies', async (c: any) => {
   return c.json({ success: true, data: items });
 });
 
-app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
+app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -216,7 +223,7 @@ app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecuri
   }
 }));
 
-app.post('/anomalies/:id/resolve', zValidator('json', ResolveSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
+app.post('/anomalies/:id/resolve', zValidator('json', ResolveSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);

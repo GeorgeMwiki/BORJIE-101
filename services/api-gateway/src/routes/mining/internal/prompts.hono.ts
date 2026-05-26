@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/prompts — kernel prompt registry admin.
  *
@@ -15,48 +11,45 @@
  * `canary`. The promote endpoint is intentionally narrow — see
  * `packages/database/src/services/kernel-prompt-registry.service.ts`
  * for the full state machine.
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, desc, eq } from 'drizzle-orm';
 import { kernelPromptRegistry } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  internalPromptsListRoute,
+  internalPromptsPromoteRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const PromoteSchema = z.object({
-  capability: z.string().min(1).max(200),
-  version: z.string().min(1).max(80),
-});
-
-app.get('/', async (c) => {
+app.openapi(internalPromptsListRoute, async (c) => {
   const db = c.get('db');
-  const capability = c.req.query('capability');
-  const status = c.req.query('status');
-  const limit = Math.min(Number(c.req.query('limit') ?? 200), 1000);
-  const conds = [] as unknown[];
-  if (capability) conds.push(eq(kernelPromptRegistry.capability, capability));
-  if (status) conds.push(eq(kernelPromptRegistry.status, status));
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 200), 1000);
+  const conds: unknown[] = [];
+  if (q.capability) conds.push(eq(kernelPromptRegistry.capability, q.capability));
+  if (q.status) conds.push(eq(kernelPromptRegistry.status, q.status));
   const query = db
     .select()
     .from(kernelPromptRegistry)
     .orderBy(desc(kernelPromptRegistry.promotedAt))
     .limit(limit);
   const rows = conds.length > 0 ? await query.where(and(...conds)) : await query;
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/promote',
-  zValidator('json', PromoteSchema),
+app.openapi(
+  internalPromptsPromoteRoute,
   withSecurityEvents(
     { action: 'platform.prompt.promote', resource: 'platform.prompt', severity: 'warn' },
     async (c) => {
@@ -75,11 +68,17 @@ app.post(
         .returning();
       if (!row) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Prompt (capability, version) not found' } },
+          {
+            success: false as const,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Prompt (capability, version) not found',
+            },
+          },
           404,
         );
       }
-      return c.json({ success: true, data: row });
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );

@@ -164,7 +164,9 @@ function entityToRow(entity: TenantGroup): Record<string, unknown> {
   };
 }
 
-function rowToEntity(row: any): TenantGroup {
+type TenantGroupRow = typeof tenantGroups.$inferSelect;
+
+function rowToEntity(row: TenantGroupRow): TenantGroup {
   const createdAt =
     row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt;
   const updatedAt =

@@ -152,7 +152,9 @@ function entityToRow(entity: SubleaseRequest): Record<string, unknown> {
   };
 }
 
-function rowToEntity(row: any): SubleaseRequest {
+type SubleaseRequestRow = typeof subleaseRequests.$inferSelect;
+
+function rowToEntity(row: SubleaseRequestRow): SubleaseRequest {
   const createdAt =
     row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt;
   const updatedAt =
@@ -173,7 +175,7 @@ function rowToEntity(row: any): SubleaseRequest {
     startDate: startDate ? (startDate as ISOTimestamp) : undefined,
     endDate: endDate ? (endDate as ISOTimestamp) : undefined,
     rentResponsibility: (row.rentResponsibility ?? 'primary_tenant') as RentResponsibility,
-    splitPercent: row.splitPercent ?? undefined,
+    splitPercent: (row.splitPercent ?? undefined) as SubleaseRequest['splitPercent'],
     status: (row.status ?? 'pending') as SubleaseRequestStatus,
     approvalRequestId: row.approvalRequestId ?? undefined,
     createdAt: createdAt as ISOTimestamp,

@@ -1,4 +1,4 @@
-// @ts-nocheck — drizzle-orm v0.36 pgEnum narrowing on listing_kind/status columns; tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed marketplace repositories (Drizzle).
  *

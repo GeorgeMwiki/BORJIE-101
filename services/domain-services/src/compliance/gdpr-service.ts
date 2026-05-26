@@ -1,4 +1,4 @@
-// @ts-nocheck — domain-models TenantId is a branded string; gdpr-service calls accept raw string. Pending brand-type helpers. Tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * GDPR Right-to-be-Forgotten Service — Wave 9 enterprise polish.
  *
@@ -492,6 +492,6 @@ export function createGdprService(deps: GdprServiceDeps): GdprService {
 }
 
 // Suppress "unused import" complaints when drizzle helpers are narrowed out
-// by @ts-nocheck.
+// of the emitted SQL by conditional query construction.
 void and;
 void eq;

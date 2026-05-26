@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/portfolio-map — GeoJSON FeatureCollection roll-up.
  *
@@ -12,28 +8,31 @@
  * Settlements + protected areas read from the geo schema once those
  * layers are populated. Until then they appear as empty feature
  * collections so the client can render the legend without crashing.
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { eq } from 'drizzle-orm';
 import { sites, licences } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { portfolioMapRoute } from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-function safeParseGeoJson(raw: string | null): unknown | null {
+function safeParseGeoJson(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return null;
   }
 }
 
-app.get('/', async (c) => {
+app.openapi(portfolioMapRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
   const [siteRows, licenceRows] = await Promise.all([
@@ -58,7 +57,7 @@ app.get('/', async (c) => {
         },
       };
     })
-    .filter(Boolean);
+    .filter((feature) => feature !== null);
   const licenceFeatures = licenceRows
     .map((row) => {
       const geometry = safeParseGeoJson(row.polygon ?? null);
@@ -78,20 +77,23 @@ app.get('/', async (c) => {
         },
       };
     })
-    .filter(Boolean);
-  return c.json({
-    success: true,
-    data: {
-      type: 'FeatureCollection',
-      features: [...siteFeatures, ...licenceFeatures],
-      layers: {
-        sites: siteFeatures.length,
-        licences: licenceFeatures.length,
-        settlements: 0,
-        protectedAreas: 0,
+    .filter((feature) => feature !== null);
+  return c.json(
+    {
+      success: true as const,
+      data: {
+        type: 'FeatureCollection' as const,
+        features: [...siteFeatures, ...licenceFeatures],
+        layers: {
+          sites: siteFeatures.length,
+          licences: licenceFeatures.length,
+          settlements: 0,
+          protectedAreas: 0,
+        },
       },
     },
-  });
+    200,
+  );
 });
 
 export const miningPortfolioMapRouter = app;

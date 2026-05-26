@@ -35,6 +35,88 @@ export interface OwnerAuthContext {
 }
 
 /**
+ * Minimum row shape every owner-portal entity satisfies — every record
+ * carries a stable id used for cross-collection joins. Concrete row
+ * types live in `routes/db-row-types.ts`; this helper is intentionally
+ * structural so a heterogeneous list of repos can share the same
+ * pagination-aware contract without re-stating each table's columns.
+ */
+export interface OwnerEntityRow {
+  readonly id: string;
+  readonly propertyId?: string | null;
+  readonly vendorId?: string | null;
+}
+
+interface PaginatedRows<T> {
+  readonly items: readonly T[];
+  readonly total?: number;
+}
+
+/**
+ * Repo surface this helper depends on. Each method is intentionally
+ * structural — the production `repos` container exposes richer types,
+ * but pinning the helper to just the entry points it consumes keeps the
+ * coupling explicit and removes the `any` escape hatch.
+ */
+export interface OwnerScopeRepos {
+  readonly properties: {
+    findMany(
+      tenantId: string,
+      pagination?: PaginationParams,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly units: {
+    findByPropertyIds(
+      propertyIds: readonly string[],
+      tenantId: string,
+      pagination?: PaginationParams,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly leases: {
+    findByPropertyIds(
+      propertyIds: readonly string[],
+      tenantId: string,
+      pagination?: PaginationParams,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly customers: {
+    findByPropertyIds(
+      propertyIds: readonly string[],
+      tenantId: string,
+      pagination?: PaginationParams,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly invoices: {
+    findByPropertyIds(
+      propertyIds: readonly string[],
+      tenantId: string,
+      limit: number,
+      offset: number,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly payments: {
+    findByPropertyIds(
+      propertyIds: readonly string[],
+      tenantId: string,
+      limit: number,
+      offset: number,
+    ): Promise<PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly workOrders: {
+    findBySiteIds(
+      siteIds: readonly string[],
+      tenantId: string,
+    ): Promise<readonly OwnerEntityRow[] | PaginatedRows<OwnerEntityRow>>;
+  };
+  readonly vendors: {
+    findByIds(
+      ids: readonly string[],
+      tenantId: string,
+    ): Promise<readonly OwnerEntityRow[]>;
+  };
+}
+
+/**
  * Resolve the property ids the caller can see. When `auth.propertyAccess`
  * includes the wildcard `*`, returns every property in the tenant.
  * Otherwise intersects the tenant's property list with the caller's
@@ -45,30 +127,30 @@ export interface OwnerAuthContext {
  */
 export async function resolveOwnerPropertyIds(
   auth: OwnerAuthContext,
-  repos: any,
+  repos: OwnerScopeRepos,
   pagination: PaginationParams = DEFAULT_PAGE,
-): Promise<{ properties: any[]; propertyIds: string[] }> {
+): Promise<{ properties: readonly OwnerEntityRow[]; propertyIds: string[] }> {
   const allProperties = await repos.properties.findMany(auth.tenantId, pagination);
   const hasWildcard = auth.propertyAccess?.includes('*');
   const accessList = auth.propertyAccess ?? [];
   const properties = hasWildcard
     ? allProperties.items
-    : allProperties.items.filter((property: any) =>
+    : allProperties.items.filter((property) =>
         accessList.includes(property.id),
       );
-  const propertyIds = properties.map((property: any) => property.id);
+  const propertyIds = properties.map((property) => property.id);
   return { properties, propertyIds };
 }
 
 export interface OwnerScope {
-  readonly properties: any[];
-  readonly units: any[];
-  readonly leases: any[];
-  readonly customers: any[];
-  readonly invoices: any[];
-  readonly payments: any[];
-  readonly workOrders: any[];
-  readonly vendors: any[];
+  readonly properties: readonly OwnerEntityRow[];
+  readonly units: readonly OwnerEntityRow[];
+  readonly leases: readonly OwnerEntityRow[];
+  readonly customers: readonly OwnerEntityRow[];
+  readonly invoices: readonly OwnerEntityRow[];
+  readonly payments: readonly OwnerEntityRow[];
+  readonly workOrders: readonly OwnerEntityRow[];
+  readonly vendors: readonly OwnerEntityRow[];
 }
 
 /**
@@ -83,7 +165,7 @@ export interface OwnerScope {
  */
 export async function getOwnerScope(
   auth: OwnerAuthContext,
-  repos: any,
+  repos: OwnerScopeRepos,
   pagination: PaginationParams = DEFAULT_PAGE,
 ): Promise<OwnerScope> {
   const { properties, propertyIds } = await resolveOwnerPropertyIds(
@@ -138,12 +220,16 @@ export async function getOwnerScope(
   // result shape is `WorkOrder[]` directly (not a paginated wrapper) so
   // we use it as-is. Falls back to an empty array when the repo returns
   // undefined (e.g. mock stubs that haven't implemented the method yet).
-  const workOrders: any[] = Array.isArray(workOrdersResult)
+  const workOrders: readonly OwnerEntityRow[] = Array.isArray(workOrdersResult)
     ? workOrdersResult
     : (workOrdersResult?.items ?? []);
 
   const vendorIds = Array.from(
-    new Set(workOrders.map((workOrder: any) => workOrder.vendorId).filter(Boolean)),
+    new Set(
+      workOrders
+        .map((workOrder) => workOrder.vendorId)
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
   const vendors =
     vendorIds.length === 0

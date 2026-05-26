@@ -85,8 +85,9 @@ app.get('/', async (c) => {
   const search = c.req.query('search');
   const status = c.req.query('status')?.toLowerCase();
   const result = await repos.users.findMany(auth.tenantId, 1000, 0, { search, status });
-  const roleMap = await getRoleMap(db, auth.tenantId, result.items.map((item: any) => item.id));
-  const items = result.items.map((row: any) => mapUser(row, roleMap.get(row.id)));
+  const rows = result.items as readonly UserRow[];
+  const roleMap = await getRoleMap(db, auth.tenantId, rows.map((item) => item.id));
+  const items = rows.map((row) => mapUser(row, roleMap.get(row.id)));
   const offset = (page - 1) * pageSize;
   return c.json({
     success: true,

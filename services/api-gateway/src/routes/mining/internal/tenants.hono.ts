@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/tenants — Borjie HQ tenant administration.
  *
@@ -15,11 +11,11 @@
  *   POST   /             provision tenant
  *   PATCH  /:id          update plan / billing
  *   POST   /:id/suspend  suspend
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { desc, eq } from 'drizzle-orm';
 import { tenants } from '@borjie/database';
@@ -27,44 +23,30 @@ import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  internalTenantsListRoute,
+  internalTenantsProvisionRoute,
+  internalTenantsUpdateRoute,
+  internalTenantsSuspendRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const PlanEnum = z.enum(['mwanzo', 'mkulima', 'mfanyabiashara', 'kampuni', 'group']);
-
-const ProvisionSchema = z.object({
-  name: z.string().min(1).max(200),
-  slug: z.string().min(2).max(120).regex(/^[a-z0-9-]+$/),
-  primaryEmail: z.string().email(),
-  primaryPhone: z.string().max(40).optional(),
-  country: z.string().length(2).default('TZ'),
-  plan: PlanEnum.default('mkulima'),
-  subscriptionTier: z.enum(['starter', 'professional', 'enterprise', 'custom']).default('starter'),
-  region: z.string().optional(),
-});
-
-const PatchSchema = z.object({
-  plan: PlanEnum.optional(),
-  subscriptionTier: z.enum(['starter', 'professional', 'enterprise', 'custom']).optional(),
-  billingSettings: z.record(z.unknown()).optional(),
-  maxUsers: z.number().int().nonnegative().optional(),
-  maxProperties: z.number().int().nonnegative().optional(),
-  maxUnits: z.number().int().nonnegative().optional(),
-});
-
-app.get('/', async (c) => {
+app.openapi(internalTenantsListRoute, async (c) => {
   const db = c.get('db');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100), 500);
-  const rows = await db.select().from(tenants).orderBy(desc(tenants.createdAt)).limit(limit);
-  return c.json({ success: true, data: rows });
+  const rows = await db
+    .select()
+    .from(tenants)
+    .orderBy(desc(tenants.createdAt))
+    .limit(100);
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/',
-  zValidator('json', ProvisionSchema),
+app.openapi(
+  internalTenantsProvisionRoute,
   withSecurityEvents(
     { action: 'platform.tenant.provision', resource: 'platform.tenant', severity: 'warn' },
     async (c) => {
@@ -90,47 +72,62 @@ app.post(
           createdBy: userId,
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );
 
-app.patch(
-  '/:id',
-  zValidator('json', PatchSchema),
+app.openapi(
+  internalTenantsUpdateRoute,
   withSecurityEvents(
     { action: 'platform.tenant.update', resource: 'platform.tenant', severity: 'info' },
     async (c) => {
       const db = c.get('db');
       const { userId } = c.get('auth');
-      const id = c.req.param('id');
+      const { id } = c.req.valid('param');
       const input = c.req.valid('json');
       const [row] = await db
         .update(tenants)
         .set({ ...input, updatedAt: new Date(), updatedBy: userId })
         .where(eq(tenants.id, id))
         .returning();
-      if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } }, 404);
-      return c.json({ success: true, data: row });
+      if (!row) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Tenant not found' },
+          },
+          404,
+        );
+      }
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );
 
-app.post(
-  '/:id/suspend',
+app.openapi(
+  internalTenantsSuspendRoute,
   withSecurityEvents(
     { action: 'platform.tenant.suspend', resource: 'platform.tenant', severity: 'warn' },
     async (c) => {
       const db = c.get('db');
       const { userId } = c.get('auth');
-      const id = c.req.param('id');
+      const { id } = c.req.valid('param');
       const [row] = await db
         .update(tenants)
         .set({ status: 'suspended', updatedAt: new Date(), updatedBy: userId })
         .where(eq(tenants.id, id))
         .returning();
-      if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } }, 404);
-      return c.json({ success: true, data: row });
+      if (!row) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Tenant not found' },
+          },
+          404,
+        );
+      }
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );

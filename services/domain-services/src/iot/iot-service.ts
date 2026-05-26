@@ -1,4 +1,4 @@
-// @ts-nocheck — drizzle 0.36 pgEnum narrowing on sensor_type/reading_kind columns rejects string args from service layer; tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * IoT Service (Wave 8 — S3 gap closure)
  *
@@ -334,7 +334,11 @@ export function createIotService(deps: IotServiceDeps): IotService {
   // Mappers
   // -------------------------------------------------------------------------
 
-  function rowToSensor(row: any): IotSensor {
+  type SensorRow = typeof iotSensors.$inferSelect;
+  type ObservationRow = typeof iotObservations.$inferSelect;
+  type AnomalyRow = typeof iotAnomalies.$inferSelect;
+
+  function rowToSensor(row: SensorRow): IotSensor {
     return {
       id: row.id,
       tenantId: row.tenantId,
@@ -363,7 +367,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
     };
   }
 
-  function rowToObservation(row: any): IotObservation {
+  function rowToObservation(row: ObservationRow): IotObservation {
     return {
       id: row.id,
       tenantId: row.tenantId,
@@ -385,7 +389,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
     };
   }
 
-  function rowToAnomaly(row: any): IotAnomaly {
+  function rowToAnomaly(row: AnomalyRow): IotAnomaly {
     return {
       id: row.id,
       tenantId: row.tenantId,

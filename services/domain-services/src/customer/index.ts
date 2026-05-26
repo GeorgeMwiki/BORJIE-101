@@ -1,4 +1,4 @@
-// @ts-nocheck — Customer domain model has no metadata field; service uses it as a catch-all bag until domain-models adds CustomerAttributes. Tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Customer domain service.

@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/lmbm — Live Mining Brain Memory (temporal-entity graph).
  *
@@ -10,27 +6,34 @@
  *   GET  /graph                 entities + edges (filter by entity_type)
  *   GET  /traverse?from=X       recursive CTE — outbound relations
  *                               from entity X (depth-bounded)
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, eq, sql } from 'drizzle-orm';
 import { temporalEntities, temporalRelationships } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { lmbmGraphRoute, lmbmTraverseRoute } from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-app.get('/graph', async (c) => {
+app.openapi(lmbmGraphRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const entityType = c.req.query('entity_type');
-  const limit = Math.min(Number(c.req.query('limit') ?? 200), 1000);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 200), 1000);
   const entityConds = [eq(temporalEntities.tenantId, tenantId)];
-  if (entityType) entityConds.push(eq(temporalEntities.entityType, entityType));
+  if (q.entity_type) entityConds.push(eq(temporalEntities.entityType, q.entity_type));
   const [entities, edges] = await Promise.all([
-    db.select().from(temporalEntities).where(and(...entityConds)).limit(limit),
+    db
+      .select()
+      .from(temporalEntities)
+      .where(and(...entityConds))
+      .limit(limit),
     db
       .select()
       .from(temporalRelationships)
@@ -38,23 +41,23 @@ app.get('/graph', async (c) => {
       .limit(limit),
   ]);
   const entityIds = new Set(entities.map((e) => e.id));
-  const filteredEdges = entityType
+  const filteredEdges = q.entity_type
     ? edges.filter((e) => entityIds.has(e.fromEntityId) || entityIds.has(e.toEntityId))
     : edges;
-  return c.json({ success: true, data: { entities, edges: filteredEdges } });
+  return c.json(
+    {
+      success: true as const,
+      data: { entities, edges: filteredEdges },
+    },
+    200,
+  );
 });
 
-app.get('/traverse', async (c) => {
+app.openapi(lmbmTraverseRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const from = c.req.query('from');
-  const maxDepth = Math.min(Number(c.req.query('depth') ?? 4), 8);
-  if (!from) {
-    return c.json(
-      { success: false, error: { code: 'BAD_REQUEST', message: 'from query param required' } },
-      400,
-    );
-  }
+  const { from, depth } = c.req.valid('query');
+  const maxDepth = Math.min(Number(depth ?? 4), 8);
   // Recursive CTE traversal — depth-bounded and tenant-scoped via the
   // GUC; the explicit tenant_id predicate is defence-in-depth.
   const rows = await db.execute(sql`
@@ -75,7 +78,10 @@ app.get('/traverse', async (c) => {
     SELECT id, from_entity_id, to_entity_id, relationship, depth FROM walk
   `);
   const edges = Array.isArray(rows) ? rows : (rows?.rows ?? []);
-  return c.json({ success: true, data: { from, maxDepth, edges } });
+  return c.json(
+    { success: true as const, data: { from, maxDepth, edges } },
+    200,
+  );
 });
 
 export const miningLmbmRouter = app;

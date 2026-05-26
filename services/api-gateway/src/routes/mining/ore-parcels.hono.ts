@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/ore-parcels — physical saleable stockpiles.
  *
@@ -10,64 +6,46 @@
  *   GET   /                       list (filter by siteId, status)
  *   POST  /                       create parcel
  *   POST  /:id/list-for-sale      flip status + create marketplace listing
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { oreParcels, marketplaceListings } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  oreParcelsListRoute,
+  oreParcelsCreateRoute,
+  oreParcelsListForSaleRoute,
+} from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const StatusEnum = z.enum(['in_stockpile', 'in_transit', 'at_buyer', 'sold', 'spoiled']);
-
-const CreateParcelSchema = z.object({
-  siteId: z.string().min(1),
-  massKg: z.string().optional(),
-  grade: z.record(z.union([z.number(), z.string()])).optional(),
-  storageLocation: z.string().optional(),
-  photos: z.array(z.string()).optional(),
-  attributes: z.record(z.unknown()).optional(),
-});
-
-const ListForSaleSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(4000).optional(),
-  priceTzs: z.string().min(1),
-  priceUnit: z.string().default('per_kg'),
-  visibility: z.enum(['private', 'tanzania', 'regional', 'global']).default('tanzania'),
-  expiresAt: z.string().datetime().optional(),
-  location: z.string().optional(),
-});
-
-app.get('/', async (c) => {
+app.openapi(oreParcelsListRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const siteId = c.req.query('siteId');
-  const status = c.req.query('status');
-  const limit = Math.min(Number(c.req.query('limit') ?? 100), 500);
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 100), 500);
   const conds = [eq(oreParcels.tenantId, tenantId)];
-  if (siteId) conds.push(eq(oreParcels.siteId, siteId));
-  if (status) conds.push(eq(oreParcels.status, status));
+  if (q.siteId) conds.push(eq(oreParcels.siteId, q.siteId));
+  if (q.status) conds.push(eq(oreParcels.status, q.status));
   const rows = await db
     .select()
     .from(oreParcels)
     .where(and(...conds))
     .orderBy(desc(oreParcels.createdAt))
     .limit(limit);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.post(
-  '/',
-  zValidator('json', CreateParcelSchema),
+app.openapi(
+  oreParcelsCreateRoute,
   withSecurityEvents(
     { action: 'mining.ore_parcel.create', resource: 'mining.ore_parcel', severity: 'info' },
     async (c) => {
@@ -89,20 +67,19 @@ app.post(
           createdAt: new Date(),
         })
         .returning();
-      return c.json({ success: true, data: row }, 201);
+      return c.json({ success: true as const, data: row }, 201);
     },
   ),
 );
 
-app.post(
-  '/:id/list-for-sale',
-  zValidator('json', ListForSaleSchema),
+app.openapi(
+  oreParcelsListForSaleRoute,
   withSecurityEvents(
     { action: 'mining.ore_parcel.list', resource: 'mining.ore_parcel', severity: 'info' },
     async (c) => {
       const { tenantId, userId } = c.get('auth');
       const db = c.get('db');
-      const parcelId = c.req.param('id');
+      const { id: parcelId } = c.req.valid('param');
       const input = c.req.valid('json');
       const [parcel] = await db
         .select()
@@ -110,7 +87,13 @@ app.post(
         .where(and(eq(oreParcels.id, parcelId), eq(oreParcels.tenantId, tenantId)))
         .limit(1);
       if (!parcel) {
-        return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Parcel not found' } }, 404);
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Parcel not found' },
+          },
+          404,
+        );
       }
       const now = new Date();
       const [listing] = await db
@@ -129,12 +112,16 @@ app.post(
           status: 'active',
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
           photos: parcel.photos ?? [],
-          attributes: { parcelId, mineralGrade: parcel.grade ?? {}, massKg: parcel.massKg },
+          attributes: {
+            parcelId,
+            mineralGrade: parcel.grade ?? {},
+            massKg: parcel.massKg,
+          },
           createdAt: now,
           updatedAt: now,
         })
         .returning();
-      return c.json({ success: true, data: { parcel, listing } }, 201);
+      return c.json({ success: true as const, data: { parcel, listing } }, 201);
     },
   ),
 );

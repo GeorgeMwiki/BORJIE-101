@@ -1,8 +1,4 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
-// TODO(openapi-migration): convert this router from plain Hono to
-// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
-// are still picked up by the regex generator pass in
-// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/regulator-pipeline — kanban-shaped tracker
  * for incoming regulator changes (Gazette / NEMC / Tumemadini / BoT /
@@ -15,35 +11,28 @@
  * Routes:
  *   GET    /                paginated list (filter: source, status, limit)
  *   PATCH  /:id/stage       move an entry to the next kanban stage
+ *
+ * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { and, desc, eq } from 'drizzle-orm';
 import { regulatorPipelineEntries } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  internalRegulatorListRoute,
+  internalRegulatorMoveRoute,
+} from '../_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
 app.use('*', databaseMiddleware);
 
-const SourceEnum = z.enum(['gazette', 'nemc', 'bot', 'tra', 'tumemadini']);
-const StageEnum = z.enum(['incoming', 'reviewing', 'approved', 'pushed']);
-
-const ListQuerySchema = z.object({
-  source: SourceEnum.optional(),
-  status: StageEnum.optional(),
-  limit: z.coerce.number().int().min(1).max(500).default(200),
-});
-
-const MoveSchema = z.object({ stage: StageEnum });
-
-app.get('/', zValidator('query', ListQuerySchema), async (c) => {
+app.openapi(internalRegulatorListRoute, async (c) => {
   const db = c.get('db');
   const { source, status, limit } = c.req.valid('query');
   const conds: unknown[] = [];
@@ -55,12 +44,11 @@ app.get('/', zValidator('query', ListQuerySchema), async (c) => {
     .orderBy(desc(regulatorPipelineEntries.capturedAt))
     .limit(limit);
   const rows = conds.length > 0 ? await query.where(and(...conds)) : await query;
-  return c.json({ success: true, data: rows, meta: { count: rows.length, limit } });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
-app.patch(
-  '/:id/stage',
-  zValidator('json', MoveSchema),
+app.openapi(
+  internalRegulatorMoveRoute,
   withSecurityEvents(
     {
       action: 'platform.regulator_pipeline.move',
@@ -70,7 +58,7 @@ app.patch(
     async (c) => {
       const db = c.get('db');
       const { userId } = c.get('auth');
-      const id = c.req.param('id');
+      const { id } = c.req.valid('param');
       const { stage } = c.req.valid('json');
       const now = new Date();
       const patch: Record<string, unknown> = {
@@ -87,11 +75,14 @@ app.patch(
         .returning();
       if (!row) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Pipeline entry not found' } },
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Pipeline entry not found' },
+          },
           404,
         );
       }
-      return c.json({ success: true, data: row });
+      return c.json({ success: true as const, data: row }, 200);
     },
   ),
 );

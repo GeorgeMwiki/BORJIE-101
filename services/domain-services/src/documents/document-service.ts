@@ -1,4 +1,4 @@
-// @ts-nocheck — StorageProvider interface missing download() method; implementations stub it. Pending storage-port rewrite. Tracked.
+// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Document Management Service
