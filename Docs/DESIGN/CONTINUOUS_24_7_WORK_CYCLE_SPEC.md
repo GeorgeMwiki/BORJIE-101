@@ -1,409 +1,434 @@
 # Continuous 24/7 Work Cycle — Design Specification
 
-> Wave 19A. Pillar A of [`AI_NATIVE_OS_MASTER.md`](../STRATEGY/AI_NATIVE_OS_MASTER.md).
-> The mandate: when the human sleeps, Mr. Mwikila works.
+> Wave M1 (Pillar A of [`AI_NATIVE_OS_MASTER.md`](../STRATEGY/AI_NATIVE_OS_MASTER.md)).
+> Mandate: while the owner sleeps, Mr. Mwikila keeps running — anticipatory
+> sweeps, telemetry review, tomorrow's briefing draft, price/regulator
+> watchers, slow-burn investigations. Each tick is journaled.
+> The next user touch resumes from the last journal entry.
 >
 > **Cross-links:** [`AUTONOMOUS_LOOPS_SPEC.md`](./AUTONOMOUS_LOOPS_SPEC.md),
 > [`DAILY_USER_FOLLOWUP_SPEC.md`](./DAILY_USER_FOLLOWUP_SPEC.md),
 > [`MUTATION_AUTHORITY_SPEC.md`](./MUTATION_AUTHORITY_SPEC.md),
 > [`FIVE_LAYER_LOOP_ARCHITECTURE.md`](./FIVE_LAYER_LOOP_ARCHITECTURE.md),
-> [`COGNITIVE_ENGINE_SPEC.md`](./COGNITIVE_ENGINE_SPEC.md).
+> [`COGNITIVE_ENGINE_SPEC.md`](./COGNITIVE_ENGINE_SPEC.md),
+> [`MEMORY_AMNESIA_PREVENTION_SOTA.md`](./MEMORY_AMNESIA_PREVENTION_SOTA.md).
 
-Brand: Borjie. Persona: Mr. Mwikila. Status: design-spec.
+Brand: Borjie. Persona: Mr. Mwikila (AI Mining Operations Manager). Status: design-spec.
 
 ---
 
 ## 1. Vision — founder verbatim
 
-> "Company self revive and complete all crashed agents to 100% —
-> improves even when owners and people sleep. Like if human is sleeping,
-> work comes in, it starts to analyse and break down tasks, covering
-> areas it can while waiting for user approvals and feedback."
+> "Company self-revive and complete all crashed agents to 100% — improves
+> even when owners and people sleep. If a human is sleeping and work
+> comes in, it starts to analyse and break down tasks, covering what it
+> can while waiting for user approvals and feedback."
+
+The work cycle is the *temporal* layer of Mr. Mwikila. Capabilities live
+elsewhere; this spec defines the heartbeat that fires them at the right
+cadence, journals every tick, and survives session boundaries.
 
 ---
 
-## 2. The Thesis
+## 2. Thesis — three concrete behaviours
 
-The owner of a Tanzanian mining cooperative sleeps from 22:00 to 06:00
-Africa/Dar_es_Salaam. During those 8 hours, M-Pesa SMS confirmations
-arrive, regulator portals post deltas, WhatsApp Business inboxes accumulate
-gold-buyer DMs, BoT publishes the next-day FX window, the Tumemadini
-cadastre updates licence statuses, equipment-telemetry MQTT topics
-push readings, the operations supervisor's overnight shift-end report
-lands, and the cyanide-leach pad sensor logs another moisture spike.
+A Tanzanian mining cooperative's owner sleeps roughly 22:00–06:00
+Africa/Dar_es_Salaam. During those eight hours, M-Pesa SMS confirmations
+arrive, regulator portals post deltas, WhatsApp Business inboxes
+accumulate gold-buyer DMs, the BoT publishes the next-day FX window,
+the Tumemadini cadastre updates licence statuses, equipment-telemetry
+MQTT topics push readings, and the cyanide-leach pad sensor logs
+moisture spikes. Mr. Mwikila must do three things in that window:
 
-Every existing enterprise SaaS lets that queue pile up. Borjie does
-the opposite: every inbound event is **classified, triaged, and
-processed** within minutes of arrival. By 06:00 local, the owner sees a
-single unified handoff — the morning briefing — that names what was
-handled (Tier 0/1, autonomous), what is waiting for approval (Tier 2,
-above-the-line decisions), and what was escalated (Tier 2-Critical,
-killswitch-grade items).
+1. **Run anticipatory sweeps** at a useful cadence — telemetry review,
+   price/regulator watching, slow-burn investigations.
+2. **Journal every tick** so nothing is lost across crashes, restarts,
+   or session boundaries.
+3. **Resume seamlessly** the moment the owner returns: the next session
+   reads the journal and produces a `ResumptionBrief`.
 
-The 2026 enterprise-AI literature confirms this is now table stakes
-not aspiration. Anthropic's [Managed Agents](https://www.infoq.com/news/2026/04/anthropic-managed-agents/)
-explicitly cite "a whole book of deals or overnight processing" as the
-primary use case. Anthropic's [Three-Agent Harness](https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/)
-runs autonomous coding sessions for ≥4 hours unattended. Notion shipped
-[Custom Agents running on schedules and triggers](https://chloeforbesk.com/blog/notion-q1-2026-updates)
-("handle recurring work in the background") in Q1 2026. Replit's
-[Agent 4 runs 200-minute autonomous sessions](https://replit.com/agent4)
-without human intervention. The directional trend is clear: **2026 is
-the year overnight autonomy becomes a feature checkbox** — Borjie's
-opportunity is to ship the *vertical-specialised, audit-anchored,
-owner-visible* version for Tanzanian mining.
+Every existing enterprise SaaS lets the night pile up. Borjie pre-classifies,
+pre-summarises, pre-drafts. The 2026 enterprise-AI literature confirms
+this is now table stakes:
+
+- Anthropic Managed Agents — "a whole book of deals or overnight
+  processing" — InfoQ, April 2026
+  (https://www.infoq.com/news/2026/04/anthropic-managed-agents/).
+- Anthropic 3-agent harness (planner/generator/evaluator) — InfoQ,
+  April 2026
+  (https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/).
+- Anthropic *Building Effective Agents* — Dec 2024
+  (https://www.anthropic.com/research/building-effective-agents).
+- Replit Agent 4 (200-minute unattended sessions) — replit.com/agent4,
+  April 2026.
+- Notion Custom Agents on schedules & triggers — Q1 2026 recap
+  (https://chloeforbesk.com/blog/notion-q1-2026-updates).
+- Google Spark / Gemini Daily Brief — I/O 2026
+  (https://www.explosion.com/186813/google-turns-gemini-into-a-proactive-ai-agent-with-spark/).
+- OpenAI ChatGPT Tasks (scheduled prompts) — OpenAI Help Center, Jan
+  2025 (https://help.openai.com/en/articles/10303002-chatgpt-tasks).
+- Letta / MemGPT, *MemGPT: Towards LLMs as Operating Systems*, Packer
+  et al., arXiv:2310.08560, Oct 2023
+  (https://arxiv.org/abs/2310.08560) — main-context vs external-memory
+  paging model.
+- LangGraph durable execution / checkpointing — LangChain docs, 2025
+  (https://langchain-ai.github.io/langgraph/concepts/durable_execution/).
+- Reflexion: language agents with verbal RL — Shinn et al.,
+  arXiv:2303.11366, March 2023
+  (https://arxiv.org/abs/2303.11366) — long-horizon self-reflection.
+- Voyager: open-ended embodied agent — Wang et al., arXiv:2305.16291,
+  May 2023 (https://arxiv.org/abs/2305.16291) — skill-library
+  accumulation while running.
+
+The state-of-the-art is converging: a substrate that watches the world,
+classifies inbound work, journals what it did, and resumes from that
+journal on next contact. This spec is Borjie's vertically-specialised,
+audit-anchored, owner-visible version for Tanzanian mining.
 
 ---
 
-## 3. Architecture — the inbound work classifier
+## 3. Tick anatomy
 
-Every inbound event flows through a single classifier called
-`InboundWorkClassifier`. It assigns a tier and routes the event to one
-of three lanes: autonomous-process, queue-for-morning, or
-escalate-immediately.
+A *tick* is one indivisible work pulse. Every tick is the same five-step
+pipeline:
 
 ```
-                 Inbound event (omnidata connector / regulator
-                 webhook / WhatsApp / M-Pesa / sensor / cron)
-                                 │
-                                 ▼
-                      ┌────────────────────────┐
-                      │ InboundWorkClassifier  │
-                      │ (Tier 0 / 1 / 2 / 2-C) │
-                      └─────────┬──────────────┘
-                                │
-              ┌─────────────────┼─────────────────┐
-              ▼                 ▼                 ▼
-      ┌────────────┐    ┌────────────┐    ┌─────────────────┐
-      │ Tier 0/1   │    │ Tier 2     │    │ Tier 2-Critical │
-      │ AUTONOMOUS │    │ QUEUE FOR  │    │ ESCALATE NOW    │
-      │ PROCESS    │    │ MORNING    │    │ (owner page)    │
-      └─────┬──────┘    └─────┬──────┘    └─────┬───────────┘
-            │                 │                 │
-            ▼                 ▼                 ▼
-       compose-anything    overnight-       page owner via
-       fires + audit       approval-queue   FCM + SMS + email
-       chain seal          row written      with one-tap deep
-                                            link to context
+  input  →  policy gate  →  tool call  →  quality gate  →  journal write
+   │            │              │              │                  │
+   │            │              │              │                  └─→ hash-chain
+   │            │              │              │                      audit row
+   │            │              │              └─→ Cognitive Engine §6
+   │            │              │                  disciplines + the
+   │            │              │                  5-layer loop quality
+   │            │              │                  gates from FLLA
+   │            │              └─→ tool from the toolbag (read/draft/sweep)
+   │            └─→ MUTATION_AUTHORITY_SPEC.md gate
+   └─→ TickInput: state snapshot + last journal hash + tenant policy
 ```
 
-The classifier reuses the existing 4-tier authority ladder from
-[`MUTATION_AUTHORITY_SPEC.md`](./MUTATION_AUTHORITY_SPEC.md). Routing
-rules are tenant-configurable; defaults match the manifesto's
-"Owner-Aligned Authority" principle.
+Step-by-step:
+
+1. **Input** — the scheduler hands the tick runner a `TickInput`:
+   tenant id, current mode, tick number, last journal hash, and the
+   recall set from cognitive-memory (the top-k cells relevant to the
+   *pending threads* in `work_cycle_state`).
+2. **Policy gate** — confirms the proposed tool call's tier against
+   `MUTATION_AUTHORITY_SPEC.md`. At night (mode `night`), the default
+   is **T0 read-only** unless the owner pre-authorised a specific
+   capability (e.g. "you may draft Tumemadini returns after 22:00 if a
+   deadline is <12 h away").
+3. **Tool call** — the runner invokes one capability from the toolbag
+   (anticipatory sweep, telemetry review, briefing draft, price watch,
+   investigation step). Tools are pure async functions injected at
+   construction.
+4. **Quality gate** — the output passes the five-layer-loop gates
+   (citation, brand voice, factual, regulatory, friction). Failures
+   produce a `failed` journal entry rather than silent drop.
+5. **Journal write** — a `JournalEntry` is appended to
+   `work_cycle_journal` with `audit_hash = sha256(prev_hash || canonical_json(payload))`.
+   The hash chain is verified on every read.
+
+The tick runner is **pure**: deps `{policyGate, toolBag, qualityGate, journalRepo, stateRepo, memoryPort, budgetGate, logger, clock}` are injected. No globals, no top-level side effects.
 
 ---
 
-## 4. Tier classification table
+## 4. Cadence — when does the next tick fire?
 
-| Tier | Examples | Lane | Owner-touch |
-|---|---|---|---|
-| **Tier 0** | Reads: regulator-feed fetch, sensor-log ingest, omnidata sync, audit query, capability measurement. | Autonomous (parallel) | None overnight; surfaced in morning briefing summary. |
-| **Tier 1** | Drafts: morning briefing draft, board-pack draft, Tumemadini return draft, buyer reply draft, recipe variant draft, junior lifecycle proposal. | Autonomous (sequential per tenant) | Morning briefing references the drafts; owner approves with one tap. |
-| **Tier 2** | Decisions with external impact: send a non-tenant email, file a Tumemadini return, place an FX hedge, sign a contract, post a marketing asset, kill a recipe. | Queue for morning (above-the-line) | Morning briefing surfaces the queue at 06:00. |
-| **Tier 2-Critical** | Irreversible-money OR regulatory-breach OR killswitch-grade: funds transfer > $10k, kill MD, deploy a Tier 2 mutation without quorum, regulatory deadline missed. | Escalate immediately (page owner) | FCM push + SMS + email at any hour. Owner can defer to morning if not urgent. |
+| Mode | Default interval | Trigger to switch |
+|---|---|---|
+| `active` | 30 s | Owner actively in app (websocket open) OR a high-confidence anticipated need fires. |
+| `idle` | 5 min | App closed but it's day-time and the owner is reachable. |
+| `night` | 15 min | Owner-local 22:00–06:00 OR explicit DND. T0 read-only by default. |
+| `observe` | 60 min | Cost cap hit OR week-day-off (Sunday in TZ by default) — observe only, no drafts, no spend. |
 
-The Tier 2-Critical escalation policy is per-tenant configurable. The
-default for new tenants: page during 06:00–22:00 local; queue (no page)
-during 22:00–06:00 *unless* the deadline is within 12h, in which case
-page anyway. The owner adjusts via the admin portal.
+Cadence is computed by `tick-scheduler.ts`. It reads
+`work_cycle_state.current_mode` and emits the next due `started_at`.
+The scheduler is **event-driven**, not a `setInterval` — it asks "when
+should the next tick fire for tenant T?" and the host (a worker
+process) schedules a single `setTimeout` against that timestamp.
 
----
+This is the same pattern as
+`services/research-orchestrator/src/cron/continuous-watch-cron.ts` —
+that cron sweeps for *due watches*; this scheduler sweeps for *due
+tenants* and selects the appropriate next tick mode per tenant.
 
-## 5. The overnight processing flow
-
-For every Tier 0/1 inbound event during the 22:00–06:00 quiet window:
-
-1. **Acquire per-tenant lock** (Redis SETNX, 30-minute TTL). Multiple
-   workers per tenant would corrupt the audit chain ordering.
-2. **Classify** via `InboundWorkClassifier` (≤2-second budget). The
-   classifier uses `@borjie/brain-llm-router` with the cheapest model
-   that scores ≥0.7 on tier-classification eval (Haiku 4.5 default).
-3. **Route to the appropriate `compose_anything_v1` invocation** — the
-   universal-creator dispatcher from
-   [`CAPABILITIES_UNIFICATION.md`](./CAPABILITIES_UNIFICATION.md).
-4. **Run the 6 cognitive disciplines** from
-   [`COGNITIVE_ENGINE_SPEC.md`](./COGNITIVE_ENGINE_SPEC.md) — reasoning,
-   citation, calibration, scoping, relevance, adaptive ingest.
-5. **Run the 5-layer loop quality gates** from
-   [`FIVE_LAYER_LOOP_ARCHITECTURE.md`](./FIVE_LAYER_LOOP_ARCHITECTURE.md):
-   citation, brand, factual, regulatory, friction, success, anomaly.
-6. **Emit typed artifact** to the audit-hash chain (every overnight
-   action gets a `night_shift` provenance tag).
-7. **Update the `night_shift_summary` table** with a one-line
-   description for the morning briefing.
-8. **Release lock**, await next event.
-
-The flow is **idempotent**: if a worker dies mid-flow and the lock
-expires, the next worker re-runs and the audit chain detects the
-duplicate via the existing `audit_hash` deduplication primitive.
+A mode transition does **not** require a tick — it can happen on any
+external event (user logs in → switch to `active`; cost cap reached →
+switch to `observe`). Mode transitions are themselves journaled with
+`mode_transition` inputs so the audit chain shows *why* cadence
+changed.
 
 ---
 
-## 6. The morning briefing — unified handoff
+## 5. Journal format
 
-The morning briefing at 06:00 owner-local is the single point of
-handoff. It is the consumer of:
-
-- `night_shift_summary` rows (one per Tier 0/1 autonomous action).
-- `overnight_approval_queue` rows (one per Tier 2 queued decision).
-- `escalation_audit` rows (any Tier 2-Critical events that paged
-  overnight, with the owner's mid-night decisions if any).
-- The existing `master_brain_briefings` content from
-  [`AUTONOMOUS_LOOPS_SPEC.md`](./AUTONOMOUS_LOOPS_SPEC.md) §1 (today's
-  capability state, capability deltas, the top-3 opportunities and
-  risks).
-- Tab-as-loop friction signals overnight
-  ([`TAB_AS_LOOP_SPEC.md`](./TAB_AS_LOOP_SPEC.md)).
-
-The briefing format extends the existing morning brief with three new
-sections:
-
-- **Overnight work completed** — list of Tier 0/1 outputs with one-tap
-  drill-down to the audit-chain entry.
-- **Awaiting your approval** — list of Tier 2 queued decisions, sorted
-  by deadline urgency, with the recommended option and one-tap
-  approve/decline/defer affordance.
-- **Overnight escalations** — any Tier 2-Critical pages, with the
-  owner's mid-night response (if any) and the open follow-ups.
-
----
-
-## 7. Operating contract — TypeScript
+The append-only `work_cycle_journal` table is the spinal column. Each
+row is a `JournalEntry`:
 
 ```typescript
-export interface InboundEvent {
-  readonly id: string;                              // uuid
+interface JournalEntry {
+  readonly id: string;                // uuid
   readonly tenant_id: string;
-  readonly source: InboundSource;                   // 'whatsapp' | 'mpesa' | 'bot_gold_window' | etc.
-  readonly received_at: string;                     // ISO 8601
-  readonly payload: unknown;                        // typed per source
-  readonly inferred_user_id: string | null;         // the addressee, if known
-  readonly correlation_id: string | null;           // if tied to an outbound thread
-}
-
-export interface ClassifiedWork {
-  readonly event_id: string;
-  readonly tier: 0 | 1 | 2 | '2-critical';
-  readonly lane: 'autonomous' | 'queue_for_morning' | 'escalate_now';
-  readonly recommended_capability: CapabilityId;    // compose_anything_v1, etc.
-  readonly recommended_action: string;              // human-readable
-  readonly deadline_local: string | null;
-  readonly recommended_owner_response_at: string | null;
-  readonly evidence_citations: ReadonlyArray<SpanCitation>;
-  readonly classification_confidence: number;       // 0..1
-}
-
-export interface NightShiftSummaryRow {
-  readonly id: string;
-  readonly tenant_id: string;
-  readonly event_id: string;
-  readonly summary: string;                         // "Drafted Tumemadini Q2 return"
-  readonly artifact_ref: { kind: string; id: string };
-  readonly tier_handled: 0 | 1;
+  readonly tick_no: bigint;           // monotone per tenant
+  readonly started_at: string;        // ISO
+  readonly ended_at: string;          // ISO
+  readonly mode: 'active' | 'idle' | 'night' | 'observe';
+  readonly inputs: TickInput;
+  readonly outputs: TickOutput;
   readonly cost_usd_cents: number;
-  readonly duration_ms: number;
   readonly audit_hash: string;
-  readonly completed_at: string;
+  readonly prev_hash: string | null;
 }
+```
 
-export interface OvernightApprovalQueueRow {
-  readonly id: string;
+Properties:
+
+- **Monotone tick_no**: per tenant, the n-th tick is `tick_no = n`.
+  The `work_cycle_state.last_tick_no` advances by exactly +1 per
+  successful append. The state row + journal append are a single
+  transaction.
+- **Hash chain**: `audit_hash = sha256(canonical_json({prev: prev_hash, payload: {tick_no, tenant_id, started_at, ended_at, mode, inputs, outputs, cost_usd_cents}}))`.
+  Verification walks the chain end-to-end (see
+  `@borjie/audit-hash-chain`).
+- **Idempotent**: the journal table has a unique constraint on
+  `(tenant_id, tick_no)`. If a worker crashes mid-tick and a second
+  worker re-runs, the second write is rejected and the audit chain
+  detects the duplicate.
+- **Failure rows**: a failed tick (policy-blocked, budget-exhausted,
+  tool-thrown) writes `outputs: { status: 'failed', reason: '...' }`
+  with `cost_usd_cents = 0`. Silent failure is forbidden ("cite or
+  stay silent" principle from `COGNITIVE_ENGINE_SPEC.md`).
+
+---
+
+## 6. Resumption protocol
+
+On the next user touch, the API gateway calls
+`buildResumptionBrief({ tenantId, tokenBudget })`. The brief is a
+token-bounded MemGPT-style summary of the last N journal entries:
+
+1. Read `work_cycle_state.pending_threads` (the slow-burn
+   investigations in flight).
+2. Read the last K journal entries until either K=20 or token-budget
+   exhausted (default budget: 1 200 tokens, configurable per persona).
+3. Bucket entries by `mode` and `outputs.kind`. Collapse repeated
+   sweeps into one summary line ("ran 12 telemetry sweeps; 1 anomaly
+   on the cyanide-leach pad moisture sensor at 03:14").
+4. Surface anything tagged `requires_owner_attention=true` first.
+5. Return a `ResumptionBrief`: `{ headline, pending_threads, completed_overnight, awaiting_approval, escalations, last_tick_at }`.
+
+This mirrors MemGPT's main-context/external-memory paging idea
+(arXiv:2310.08560): the journal is the external memory, the brief is
+the main-context working snapshot loaded at session start. Letta /
+MemGPT's design rationale —
+https://docs.letta.com/concepts/memgpt — informs the size-budgeted
+collapsing.
+
+The brief is **deterministic given the same journal + tokenBudget** —
+no LLM call required on the critical resumption path. Optional LLM
+post-processing can polish the prose later, but the deterministic
+core ensures resumption never blocks on a model outage.
+
+---
+
+## 7. Energy + cost guardrails
+
+A tenant can burn money overnight if a tick storms. The
+`night-budget.ts` gate enforces a per-tenant daily cap with three
+knobs:
+
+- `nightDailyCapUsdCents` (default 500 ¢ = $5/tenant/day in
+  `night` mode).
+- `idleDailyCapUsdCents` (default 2 000 ¢).
+- `activeDailyCapUsdCents` (default 10 000 ¢).
+
+`BudgetGate.canAffordTick(tenantId, mode, estimatedCostCents)`
+returns `{ allowed: boolean; reason?: 'cap_reached' | 'mode_locked' }`.
+On `cap_reached`, the scheduler transitions the tenant to `observe`
+mode until UTC midnight. The cap reset is itself a journaled
+mode-transition row.
+
+Cost accounting is the sum of `cost_usd_cents` across journal entries
+inside the rolling 24h window. The budget gate keeps an in-memory
+LRU of the running sum so the hot path doesn't issue a `SUM(...)`
+query per tick.
+
+---
+
+## 8. Authority constraint — T0 read-only at night
+
+Per `MUTATION_AUTHORITY_SPEC.md`, the four tiers are:
+
+- **T0** — read-only (regulator-feed fetch, sensor-log ingest,
+  recall, cite, omnidata sync).
+- **T1** — drafts (briefing draft, buyer reply draft, return draft).
+- **T2** — decisions with external impact (send mail, file return,
+  hedge FX, sign contract, kill recipe).
+- **T2-Critical** — irreversible-money / regulatory-breach / killswitch.
+
+In `night` mode, the policy gate **defaults to T0 only**. T1 drafts
+are permitted only when the owner pre-authorised the capability for
+night use (per-capability allowlist on the tenant row). T2 is
+*never* fired at night — those events queue for the morning hand-off
+even if pre-authorised. T2-Critical pages immediately per
+`MUTATION_AUTHORITY_SPEC.md` §4.
+
+This is the same envelope as the existing
+`night_shift_summary` lane from earlier work-cycle prose; this spec
+formalises the per-tick policy-gate machinery.
+
+---
+
+## 9. Data shape — TypeScript surface
+
+```typescript
+export type WorkCycleMode = 'active' | 'idle' | 'night' | 'observe';
+
+export interface TickInput {
   readonly tenant_id: string;
-  readonly event_id: string;
-  readonly description: string;
-  readonly recommended_action: string;
-  readonly alternatives: ReadonlyArray<string>;
-  readonly tradeoffs: string;
-  readonly deadline_local: string | null;
-  readonly evidence_artifact_refs: ReadonlyArray<{ kind: string; id: string }>;
-  readonly status: 'pending' | 'approved' | 'declined' | 'deferred';
-  readonly audit_hash: string;
-  readonly queued_at: string;
+  readonly tick_no: bigint;
+  readonly mode: WorkCycleMode;
+  readonly last_hash: string | null;
+  readonly recall: ReadonlyArray<{ readonly id: string; readonly text: string }>;
+  readonly pending_threads: ReadonlyArray<{ readonly id: string; readonly title: string }>;
+  readonly clock_iso: string;
+}
+
+export interface TickOutput {
+  readonly status: 'completed' | 'failed' | 'skipped';
+  readonly kind: 'sweep' | 'review' | 'draft' | 'watch' | 'investigate' | 'mode_transition';
+  readonly summary: string;
+  readonly reason?: string;
+  readonly artifact_refs: ReadonlyArray<{ readonly kind: string; readonly id: string }>;
+  readonly requires_owner_attention: boolean;
+}
+
+export interface WorkCycleTick {
+  readonly input: TickInput;
+  readonly output: TickOutput;
+  readonly cost_usd_cents: number;
+  readonly started_at: string;
+  readonly ended_at: string;
+}
+
+export interface ResumptionBrief {
+  readonly headline: string;
+  readonly pending_threads: ReadonlyArray<{ id: string; title: string }>;
+  readonly completed_overnight: ReadonlyArray<string>;
+  readonly awaiting_approval: ReadonlyArray<string>;
+  readonly escalations: ReadonlyArray<string>;
+  readonly last_tick_at: string | null;
+  readonly token_estimate: number;
 }
 ```
 
-Three new tables:
+Two persistence tables (migration `0033_work_cycle.sql`):
 
-```sql
-CREATE TABLE inbound_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL,
-  source TEXT NOT NULL,
-  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  payload JSONB NOT NULL,
-  inferred_user_id UUID,
-  correlation_id UUID,
-  audit_hash TEXT NOT NULL,
-  classified_at TIMESTAMPTZ,
-  tier TEXT,
-  lane TEXT
-);
-CREATE INDEX idx_inbound_tenant_received ON inbound_events(tenant_id, received_at DESC);
+- `work_cycle_journal` (one row per tick, hash-chained, RLS-bound).
+- `work_cycle_state` (one row per tenant, holds `last_tick_no`,
+  `last_tick_at`, `current_mode`, `pending_threads`).
 
-CREATE TABLE night_shift_summary (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL,
-  event_id UUID NOT NULL REFERENCES inbound_events(id),
-  summary TEXT NOT NULL,
-  artifact_ref JSONB NOT NULL,
-  tier_handled INTEGER NOT NULL CHECK (tier_handled IN (0, 1)),
-  cost_usd_cents INTEGER,
-  duration_ms INTEGER,
-  audit_hash TEXT NOT NULL,
-  completed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE overnight_approval_queue (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL,
-  event_id UUID NOT NULL REFERENCES inbound_events(id),
-  description TEXT NOT NULL,
-  recommended_action TEXT NOT NULL,
-  alternatives JSONB NOT NULL DEFAULT '[]',
-  tradeoffs TEXT,
-  deadline_local TIMESTAMPTZ,
-  evidence_artifact_refs JSONB NOT NULL DEFAULT '[]',
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','declined','deferred')),
-  audit_hash TEXT NOT NULL,
-  queued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  resolved_at TIMESTAMPTZ
-);
-```
-
-All three carry RLS keyed on `tenant_id`. Migration `0033_overnight_processing.sql`.
-
----
-
-## 8. SOTA landscape — 2026 references
-
-- **Anthropic Managed Agents** ([InfoQ, April 2026](https://www.infoq.com/news/2026/04/anthropic-managed-agents/))
-  — explicit "overnight processing" use case naming.
-- **Anthropic Three-Agent Harness** ([InfoQ, April 2026](https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/))
-  — separated planner / generator / evaluator for ≥4-hour autonomy.
-- **Notion Custom Agents Q1 2026** ([recap](https://chloeforbesk.com/blog/notion-q1-2026-updates))
-  — autonomous AI teammates that run on schedules and triggers.
-- **Replit Agent 4** ([product page](https://replit.com/agent4)) —
-  200-minute autonomous sessions with self-reflection loops.
-- **Google Spark / Gemini Daily Brief** ([Explosion explainer](https://www.explosion.com/186813/google-turns-gemini-into-a-proactive-ai-agent-with-spark/))
-  — proactive AI agent shipping daily briefs at I/O 2026.
-
-The state-of-the-art is converging on what the founder named: a
-substrate that watches the world, classifies inbound work, processes
-what it has the authority to process, and queues the rest for owner
-review. Borjie's specific contribution is **the audit-anchored,
-tier-classified, vertically-specialised version** that ships on top of
-the Tanzanian mining substrate (WhatsApp Business + M-Pesa + Tumemadini
-+ NEMC + TRA + BoT gold window + GePG).
-
----
-
-## 9. How this connects to existing Borjie architecture
-
-This spec **extends** rather than replaces. Specifically:
-
-- The existing `services/sleep-pass-orchestrator/` (Wave 6) already
-  runs the 60-second heartbeat and 8 base passes. This spec adds the
-  inbound classifier as the 9th pass + the morning-handoff aggregator
-  as the 10th pass.
-- The existing
-  [`AUTONOMOUS_LOOPS_SPEC.md`](./AUTONOMOUS_LOOPS_SPEC.md) §4 Sleep-Pass
-  Loop is the parent of this spec. The 24/7 work cycle adds the
-  inbound-event lane on top of the existing FX-reconciliation,
-  Tumemadini-due-check, and next-day-plan passes.
-- The existing
-  [`MUTATION_AUTHORITY_SPEC.md`](./MUTATION_AUTHORITY_SPEC.md) 4-tier
-  ladder is the classification target.
-- The existing
-  [`COGNITIVE_ENGINE_SPEC.md`](./COGNITIVE_ENGINE_SPEC.md) 6 disciplines
-  run on every autonomous action overnight.
-
-The 24/7 work cycle adds **zero new mutation power** to Mr. Mwikila —
-it adds *throughput*. Tier 2 still requires owner approval; Tier
-2-Critical still pages; Tier 0/1 still autonomous. What changes is the
-*time domain* of the work, not its authorisation envelope.
+Both use the canonical `app.tenant_id` GUC for RLS, matching the
+pattern in migration `0029_cognitive_memory.sql`.
 
 ---
 
 ## 10. Anti-patterns — things that would break this
 
-1. **Tier 2 silent execution.** A Tier 2 mutation that fires overnight
-   without queuing for morning approval violates the manifesto. The
-   classifier MUST route Tier 2 to the morning queue.
-2. **Silent failure.** A crashed autonomous worker that does not write
-   a `night_shift_summary` row with status `failed` violates the
-   "Cite or Stay Silent" principle. Every worker must write success
-   OR failure rows.
-3. **Page-storming at 03:00.** Tier 2-Critical pages should be rare
-   (target <1 per tenant per week). If the page rate spikes, the
-   classifier's tier-distribution drift is anomalous and the
-   meta-learning conductor must propose a recalibration.
-4. **Spurious overnight drafts.** Drafting 200 buyer emails the owner
-   would not approve wastes cost. The classifier must include a
-   *value-estimate* in the recommendation; below a tenant-configured
-   floor ($0.50 expected value default), the draft is not generated.
-5. **Owner-language drift.** Overnight outputs default to the owner's
-   preferred language (Swahili or English). A draft email in the
-   wrong language is a friction signal flagged by the next morning's
-   briefing.
-6. **No idempotency.** The same inbound event must not be processed
-   twice. The classifier writes a `correlation_id` and downstream
-   workers de-dupe via `IdempotencyCache`.
+1. **Mutating tick_no out-of-band.** The state row and journal append
+   MUST be one transaction. Any worker that writes a journal entry
+   without advancing the state row corrupts resumption.
+2. **Silent failure.** A crashed worker that does not write a
+   `failed` row violates "cite or stay silent". Every worker writes
+   success OR failure.
+3. **Page-storming at 03:00.** T2-Critical pages should be rare
+   (<1 per tenant per week). If the rate spikes, the meta-learning
+   conductor (see `STRATEGIC_DIRECTION_LAYER_SPEC.md`) proposes a
+   recalibration.
+4. **Cadence drift.** A tenant whose `last_tick_at` is older than
+   2 × the mode's interval is in crash-revival territory — surfaces
+   to `wave-resilience-manager` for completion.
+5. **Owner-language drift.** Overnight outputs default to the
+   owner's preferred language (Swahili or English). A draft in the
+   wrong language is a friction signal flagged in the next morning's
+   brief.
+6. **Cost-cap bypass.** A tick that runs without consulting the
+   budget gate violates the night-mode contract. Every tick MUST
+   call `BudgetGate.canAffordTick` first.
+7. **Persona leakage.** Mr. Mwikila is the only user-facing identity.
+   Internal routing metadata may reference junior specialisations
+   (`junior-fx-treasury`, `junior-tumemadini-clerk`) but those names
+   never surface to the user. Tests assert no junior name appears in
+   `ResumptionBrief.headline` or the briefing string.
 
 ---
 
-## 11. Phase 2 implementation map
+## 11. How this connects to existing Borjie architecture
 
-- **New package** `packages/work-cycle/` (≈800 LOC):
-  - `inbound-classifier.ts` (Tier 0/1/2/2-Critical assignment).
-  - `night-shift-orchestrator.ts` (lock acquisition, route, audit).
-  - `morning-handoff-aggregator.ts` (compose the unified briefing
-    extensions).
-  - `escalation-pager.ts` (Tier 2-Critical FCM + SMS + email fanout).
-- **New service** `services/work-cycle-orchestrator/` — runs as a
-  separate worker process for the cycle (kept distinct from
-  `sleep-pass-orchestrator` so cycle latency doesn't pollute pass
-  scheduling).
-- **Migration** `0033_overnight_processing.sql` — 3 tables above.
-- **New api-gateway routes:**
-  - `POST /api/v1/work-cycle/event` — webhook + connector entry point.
-  - `GET  /api/v1/work-cycle/queue` — morning briefing queue read.
-  - `POST /api/v1/work-cycle/approval` — owner one-tap action.
-- **New persona-kernel tools:**
-  - `classify_inbound_v1` — used internally + exposed to recipes.
-  - `queue_for_approval_v1` — used by Tier 2 routing.
-  - `escalate_critical_v1` — used by Tier 2-Critical routing.
-- **Estimated effort:** 3 weeks for one engineer (most reuse from
-  sleep-pass-orchestrator + mutation-authority + autonomous-loops).
+- The existing
+  [`AUTONOMOUS_LOOPS_SPEC.md`](./AUTONOMOUS_LOOPS_SPEC.md) §4 Sleep-
+  Pass Loop is the *parent* of this spec. The work cycle replaces
+  the ad-hoc 60-second cron with the tick model.
+- The existing
+  [`MUTATION_AUTHORITY_SPEC.md`](./MUTATION_AUTHORITY_SPEC.md) 4-tier
+  ladder is the *policy gate* input.
+- The existing
+  [`COGNITIVE_ENGINE_SPEC.md`](./COGNITIVE_ENGINE_SPEC.md) 6
+  disciplines run inside every tick's tool call.
+- The existing
+  [`FIVE_LAYER_LOOP_ARCHITECTURE.md`](./FIVE_LAYER_LOOP_ARCHITECTURE.md)
+  5 quality gates run on every tick output.
+- The
+  [`MEMORY_AMNESIA_PREVENTION_SOTA.md`](./MEMORY_AMNESIA_PREVENTION_SOTA.md)
+  spec describes the four-tier memory stack; `work_cycle_journal` is
+  *episodic* memory and `work_cycle_state.pending_threads` is the
+  anti-amnesia checkpoint surface.
+- The
+  [`UNIFIED_COGNITIVE_MEMORY_SPEC.md`](./UNIFIED_COGNITIVE_MEMORY_SPEC.md)
+  store is the *recall* input — `TickInput.recall` is the result of
+  a cognitive-memory recall keyed on the pending threads.
+- `services/wave-resilience-manager/` watches `work_cycle_state.last_tick_at`
+  and revives stalled tenants via `agent-resumer.ts`.
+
+The 24/7 cycle adds **zero new mutation power** — it adds *throughput*
+and *temporal continuity*. T2 still requires owner approval; T2-Critical
+still pages; T0/T1 still autonomous. What changes is the *time domain*
+of work, not its authorisation envelope.
 
 ---
 
-## 12. Cross-reference to siblings
+## 12. Phase 2 implementation map
+
+- **New package** `packages/work-cycle/` (≈900 LOC):
+  - `src/scheduler/tick-scheduler.ts` — cadence selection.
+  - `src/tick/tick-runner.ts` — pure orchestrator.
+  - `src/journal/journal-repository.ts` — in-memory + SQL impls.
+  - `src/state/state-repository.ts` — in-memory + SQL impls.
+  - `src/budget/night-budget.ts` — per-tenant daily $-cap gate.
+  - `src/resumption/resumption-brief.ts` — token-budgeted brief.
+- **New migration** `packages/database/drizzle/0033_work_cycle.sql` —
+  2 tables above with idempotent `DO $$ ... $$;` blocks.
+- **Drizzle schema** `packages/database/src/schemas/work-cycle.schema.ts`.
+- **Estimated effort**: 1 engineer-week for the package + tests,
+  another week for the SQL impl and the worker process at the host
+  app boundary.
+
+---
+
+## 13. Cross-reference to siblings
 
 - Loop architecture: [`FIVE_LAYER_LOOP_ARCHITECTURE.md`](./FIVE_LAYER_LOOP_ARCHITECTURE.md)
-  — every overnight autonomous action runs all 5 layers.
+  — every tick runs all 5 layers.
 - Daily user follow-up: [`DAILY_USER_FOLLOWUP_SPEC.md`](./DAILY_USER_FOLLOWUP_SPEC.md)
-  — overnight context informs the 09:00 per-user check-in.
+  — overnight ticks inform the 09:00 per-user check-in.
 - Guide-vs-Learn mode: [`GUIDE_VS_LEARN_MODE_SPEC.md`](./GUIDE_VS_LEARN_MODE_SPEC.md)
   — morning briefing voice obeys the owner's mode toggle.
-- Org legibility: [`ORG_LEGIBILITY_SPEC.md`](./ORG_LEGIBILITY_SPEC.md)
-  — every overnight event creates a typed artifact in the legibility
-  stream.
-- Strategic direction: [`STRATEGIC_DIRECTION_LAYER_SPEC.md`](./STRATEGIC_DIRECTION_LAYER_SPEC.md)
-  — board-grade memos compose overnight if scheduled.
-- Tab-as-loop: [`TAB_AS_LOOP_SPEC.md`](./TAB_AS_LOOP_SPEC.md) —
-  friction signals collected during the day inform overnight recipe
-  improvement.
-- Information synthesis: [`INFORMATION_SYNTHESIS_SOTA_SPEC.md`](./INFORMATION_SYNTHESIS_SOTA_SPEC.md)
-  — overnight is the primary window for hierarchical synthesis of
-  accumulated artifact streams.
-- On-demand internal software: [`ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md`](./ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md)
-  — generated tools schedule themselves into the 24/7 cycle.
-- Master vision: [`AI_NATIVE_OS_MASTER.md`](../STRATEGY/AI_NATIVE_OS_MASTER.md)
-  §3.3 — the ambient layer this spec implements.
+- Memory amnesia prevention: [`MEMORY_AMNESIA_PREVENTION_SOTA.md`](./MEMORY_AMNESIA_PREVENTION_SOTA.md)
+  — journal + pending threads form the anti-amnesia substrate.
+- Master vision: [`AI_NATIVE_OS_MASTER.md`](../STRATEGY/AI_NATIVE_OS_MASTER.md) §3.3 — the ambient layer this spec implements.
 
 ---
 
-*The principle the founder named — "company self revive while everyone
+*The principle the founder named — "company self-revive while everyone
 sleeps" — is the engineering invariant this document compiles to. The
 business does not pause because the human does.*
