@@ -460,3 +460,39 @@ export * from './internal-software.schema.js';
 // Consumed by @borjie/process-reward-model.
 // See Docs/DESIGN/PRM_MCTS_REASONING_SPEC.md.
 export * from './reasoning-traces.schema.js';
+
+// ---------------------------------------------------------------------------
+// OMNI-P0-BATCH-2 — WhatsApp / Notion / Google Drive ingest connectors
+// ---------------------------------------------------------------------------
+// Four tenant-scoped tables backing migration 0043_omni_p0_batch2.sql:
+//   whatsapp_messages — inbound + outbound message ledger (WhatsApp
+//                        Business Cloud API). Webhook + 6h reconciliation
+//                        poll. UNIQUE on (tenant_id, waba_id, wa_message_id).
+//   notion_pages      — Notion page metadata + property bag.
+//   notion_blocks     — Notion block tree (incl. comments).
+//   drive_files       — Google Drive file metadata + extracted plain text
+//                        for native gdoc / gsheet / gslide.
+// Connector credentials + cursors live in connector_credentials /
+// connector_cursors (owned by sibling OMNI-P0-BATCH-1 migration 0042).
+// See Docs/DESIGN/OMNI_P0_BATCH2_CONNECTORS_SPEC.md.
+export * from './connector-whatsapp.schema.js';
+export * from './connector-notion.schema.js';
+export * from './connector-google-drive.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave HARVEST — Tacit Knowledge Harvest (5-mode interview engine)
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0044_tacit_knowledge.sql:
+//   tacit_interviews  — one row per harvest session (walk-the-floor,
+//                       post-incident, ride-along, deal-replay,
+//                       cross-role). transcript jsonb + geography(POINT).
+//   tacit_extractions — one row per extracted know-how artifact;
+//                       links to tacit_interviews.id; carries
+//                       entity_kind, confidence, novel, redundant_with,
+//                       persisted_cell_id.
+//   tacit_consents    — (subject_user_id, tenant_id) PK. Default
+//                       'granted'. Subject owns their knowledge and
+//                       can revoke at any time.
+// Consumed by @borjie/tacit-knowledge.
+// See Docs/DESIGN/TACIT_KNOWLEDGE_HARVEST_SPEC.md.
+export * from './tacit-knowledge.schema.js';
