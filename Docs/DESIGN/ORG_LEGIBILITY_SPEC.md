@@ -426,3 +426,231 @@ legibility — passing the 80% threshold the master vision sets.
 *The org becomes a living spec of itself. No knowledge missed. No
 action unanalysed. The audit chain is the documentation. The
 documentation is the audit chain.*
+
+---
+
+## 14. Wave M6 — The Live Legibility Map
+
+> Status: Wave M6. Companion to migration
+> `packages/database/drizzle/0037_org_legibility.sql` and package
+> `@borjie/legibility`. The first eleven sections describe the
+> *stream* — every action emitting a typed artifact. Wave M6 adds the
+> **live, queryable, brand-locked map** that the owner, Mr. Mwikila,
+> and the dispatch router all read from.
+
+The stream answers *"what just happened?"*. The **map** answers four
+operational questions that arise dozens of times per hour:
+
+1. *Who* in the org currently owns mine KAH-088, and what is their
+   current state?
+2. *Which* of the spawned juniors are routed to that mine right now,
+   and what capability does each carry?
+3. *What* mutation proposals are in flight for this scope, and what
+   blocks resolution?
+4. *Where* (in the org-unit tree) is capacity overloaded right now?
+
+The map is **derived state** — assembled from the legibility stream
+plus the org-scope hierarchy, the (private) junior registry, and the
+capability catalogue. It is rebuilt on event arrival (the fast path)
+and reconciled every 5 minutes (the safety net). End-users see a
+brand-locked rendering; internal callers (Mr. Mwikila, dispatch
+router) get the full typed object.
+
+The pattern is now industry standard. Anthropic's
+["Org tools" on Claude.ai](https://www.anthropic.com/news/claude-for-enterprise-org-tools)
+(2025-09) lets admins query *who owns what knowledge*. Linear's
+["Active issues across the org"](https://linear.app/blog/active-issues)
+(2025-07-22) is a per-team live view of in-flight work. Notion's
+[graph view](https://www.notion.com/releases/2025-11-06) (2025-11-06)
+exposes the live relationships between databases. Glean's
+[Knowledge Graph](https://www.glean.com/blog/glean-knowledge-graph)
+(2025-04) keeps a live people × content × activity index. Borjie's
+contribution is to **add the agent layer** — the spawned juniors and
+their in-flight reasoning — to the same map, behind the persona of
+Mr. Mwikila so the worker / customer never sees junior names.
+
+---
+
+## 15. Legibility map schema
+
+The map is a typed tuple of five orthogonal axes:
+
+```ts
+interface LegibilityMap {
+  readonly tenantId: string;
+  readonly scopeId: string;            // org-scope tree node
+  readonly assembledAt: string;        // ISO timestamp
+  readonly people:        ReadonlyArray<PersonNode>;
+  readonly roles:         ReadonlyArray<RoleEdge>;
+  readonly scopes:        ReadonlyArray<ScopeNode>;
+  readonly capabilities:  ReadonlyArray<CapabilityRef>;
+  readonly currentWork:   ReadonlyArray<WorkItem>;
+  readonly auditHash:     string;
+}
+```
+
+**Axes**:
+
+- `people` — owners + workers + customers in this scope. *Juniors are
+  never in this array*; they are a separate internal axis (see §17).
+- `roles` — `{ personId, role, scopeId, since }` edges. A person can
+  hold multiple roles in multiple scopes.
+- `scopes` — the org-unit subtree rooted at `scopeId` (from
+  `@borjie/org-scope`).
+- `capabilities` — `{ capabilityId, version, owner, status }` —
+  what's currently live in this scope (e.g. `kyb_run.v7`,
+  `tumemadini_filing.v3`).
+- `currentWork` — in-flight items: `{ subject, kind, owner,
+  startedAt, blocker? }`. Joined from `mutation_proposals`,
+  `coordination_conflicts`, `active_agents` (all from earlier waves).
+
+A snapshot of the map is persisted in `legibility_snapshots`
+(jsonb). Each event-arrival that mutates the map writes a
+`legibility_deltas` row; the snapshot is rebuilt by applying deltas
+forward from the last snapshot.
+
+---
+
+## 16. Refresh cadence — event-driven + reconciliation
+
+Two refresh paths run side by side:
+
+**Fast path — event-driven (sub-second).** Every artifact emitter from
+§4 publishes a typed event onto the legibility event bus. The map
+builder subscribes and applies the delta in-process. Latency budget:
+`p95 < 250ms` from artifact insert to map updated.
+
+**Safe path — 5-min reconciliation.** A cron job rebuilds the
+snapshot from authoritative source-of-truth (the canonical tables in
+each domain package: `org_units`, `user_scope_bindings`,
+`active_agents`, `mutation_proposals`, `legibility_artifacts`). The
+reconciled snapshot is compared with the last fast-path snapshot; on
+divergence, the slow path wins and a `reconciliation.divergence`
+event is emitted for the owner inbox. This is the same dual-clock
+pattern as
+[Linear's reconciliation loop](https://linear.app/blog/scaling-the-linear-sync-engine)
+(2025-04) and
+[Datadog's event reconciliation](https://www.datadoghq.com/blog/event-reconciliation/)
+(2024-08).
+
+---
+
+## 17. The internal-vs-external axis (persona separation)
+
+Mr. Mwikila — the persona presented to humans — must **never** expose
+junior names through the public map. The schema enforces this by
+having two views:
+
+```ts
+// Public — what owner / worker / customer sees
+interface PublicLegibilityMap extends LegibilityMap { /* as §15 */ }
+
+// Internal — what dispatch router + the brain see
+interface InternalLegibilityMap extends LegibilityMap {
+  readonly juniors:       ReadonlyArray<JuniorAssignment>;
+  readonly juniorRoutes:  ReadonlyArray<JuniorRouteEdge>;
+}
+```
+
+The repository layer returns `PublicLegibilityMap` by default.
+Internal callers ask explicitly via `getInternalMap()` and the call
+is itself a logged artifact. The Mr. Mwikila persona contract from
+[`AI_NATIVE_OS_MASTER.md`](../STRATEGY/AI_NATIVE_OS_MASTER.md) §4.3
+requires that no junior-shaped string ever crosses to a non-internal
+surface; the legibility package enforces this in code, not policy.
+
+---
+
+## 18. Query API
+
+The query layer accepts a filterable, projection-shaped query and
+returns the projected slice. The public surface lives in
+`packages/legibility/src/queries/query-runner.ts`.
+
+```ts
+interface LegibilityQuery {
+  readonly tenantId: string;
+  readonly scopeId?: string;             // default: tenant root
+  readonly axes?: ReadonlyArray<       // default: all
+    'people'|'roles'|'capabilities'|'currentWork'
+  >;
+  readonly filter?: {
+    role?: OrgRole;
+    capabilityId?: string;
+    workSubject?: { kind: string; id: string };
+    activeOnly?: boolean;
+  };
+  readonly internal?: boolean;          // requires elevated caller
+}
+```
+
+The runner walks the latest snapshot, applies in-memory filters,
+projects to the requested axes, and returns an immutable result. For
+queries that touch the **internal** axis, the runner requires the
+caller to present an `InternalCallerCtx` token; without it the
+juniors axis is stripped before return.
+
+Typical queries:
+
+- *"Who owns mine KAH-088 today?"* → `{ scopeId: 'kahama/mine-088',
+  axes: ['people','roles'], filter: { role: 'owner' } }`.
+- *"What capabilities are live in the Tabora district?"* →
+  `{ scopeId: 'tabora', axes: ['capabilities'] }`.
+- *"What work is in flight that's blocked?"* → `{ axes:
+  ['currentWork'], filter: { activeOnly: true } }` and then filter on
+  `blocker != null` client-side.
+
+---
+
+## 19. Brand-locked rendering
+
+Every render of the map for a human surface runs through the
+brand-lock pass from `@borjie/ephemeral-ui`
+(`brandLockPass` — Wave 18FF). The pass:
+
+- Replaces internal IDs with human-legible terminology from
+  `@borjie/org-scope` (e.g. `tabora` → "Tabora District").
+- Strips technical noise (audit hashes, internal proposal ids).
+- Enforces the Borjie typeface + colour tokens.
+- Localises strings via `resolveTerminologyForScope` so a Mwanza
+  operator sees "Mwanyamala" while a Dar operator sees the
+  district-specific terms.
+- Hides any axis the caller is not authorised to see (and logs the
+  hiding decision as an artifact).
+
+The brand-lock pass is **mandatory** on all human surfaces; it is
+*skipped* only for `internal=true` query callers, in which case the
+raw structured data is returned for machine consumption.
+
+---
+
+## 20. M6 implementation map
+
+- **Package** `@borjie/legibility` — types + builder + queries + repos.
+- **Migration** `0037_org_legibility.sql` — `legibility_snapshots`
+  + `legibility_deltas`.
+- **Drizzle schema** `packages/database/src/schemas/org-legibility.schema.ts`.
+- **Builder deps** — the snapshot builder accepts an opaque
+  `BuilderDeps` shape: `{ orgScopeRepo, juniorRepo?, capabilityRepo?,
+  legibilityArtifactReader }`. The package does **not** hard-import
+  the junior or capability packages (they may not exist at build
+  time); structural compatibility only.
+- **Render adapter** (planned M6.1) — wires `brand-lock-pass` from
+  `@borjie/ephemeral-ui` into the chat-ui + dynamic-ui renderers.
+
+The package ships pure logic + in-memory repository + a fully typed
+SQL repository contract. The database package wires the live Drizzle
+adapter so the cycle is avoided.
+
+---
+
+## 21. References (M6)
+
+- [Anthropic — Claude for Enterprise org tools](https://www.anthropic.com/news/claude-for-enterprise-org-tools) (2025-09).
+- [Linear — Active issues across the org](https://linear.app/blog/active-issues) (2025-07-22).
+- [Linear — Scaling the Linear Sync Engine](https://linear.app/blog/scaling-the-linear-sync-engine) (2025-04).
+- [Notion — Graph view](https://www.notion.com/releases/2025-11-06) (2025-11-06).
+- [Glean — Knowledge Graph](https://www.glean.com/blog/glean-knowledge-graph) (2025-04).
+- [Datadog — Event reconciliation](https://www.datadoghq.com/blog/event-reconciliation/) (2024-08).
+- [James C. Scott — Seeing Like a State (Yale, 1998)](https://en.wikipedia.org/wiki/Seeing_Like_a_State).
+- [Ribbonfarm — A big little idea called legibility](https://ribbonfarm.com/2010/07/26/a-big-little-idea-called-legibility/) (2010-07-26).
