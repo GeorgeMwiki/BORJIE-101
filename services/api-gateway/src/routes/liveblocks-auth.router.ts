@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widens c.json() return; same
-// convention as sensorium.router.ts and admin-jarvis.router.ts.
-
 /**
  * Liveblocks auth router — Central Command Phase B (B6).
  *

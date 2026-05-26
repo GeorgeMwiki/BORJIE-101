@@ -15,9 +15,6 @@
  * shape — operator can recover from a bad ship in a single API call.
  */
 
-// @ts-nocheck — Hono context typing is open-ended; the validator
-// already narrows the body at runtime and we project that back via
-// `as` inside each handler.
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';

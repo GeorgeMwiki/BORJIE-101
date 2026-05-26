@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union widens
-//   across multiple c.json branches.
-
 /**
  * /api/v1/analytics/usage — owner-portal AnalyticsUsagePage skeleton.
  *

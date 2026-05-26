@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widens c.json() return; matches
-// the convention used by audit-trail.router.ts and admin-jarvis.router.ts.
-
 /**
  * Sovereign action-ledger admin HTTP surface — Wave-K Tier-3 W-Ops.
  *
