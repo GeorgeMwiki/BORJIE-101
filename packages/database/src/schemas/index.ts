@@ -301,7 +301,8 @@ export * from './junior-lifecycle.schema.js';
 
 // ---------------------------------------------------------------------------
 // Wave 18HH — Swarm Coordination (active registry + A2A + blackboard +
-// conflicts). Four tables backing migration 0030_swarm_coordination.sql:
+// conflicts). Four tables backing migration 0060_swarm_coordination.sql
+// (renumbered from 0030 to resolve collision with 0030_persistent_memory.sql):
 // active_agents, agent_messages, blackboard_postings, coordination_conflicts.
 // See Docs/DESIGN/AGENT_SWARM_COORDINATION_SOTA.md.
 export * from './swarm-coordination.schema.js';

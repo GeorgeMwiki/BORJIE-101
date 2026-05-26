@@ -156,7 +156,7 @@ export function resetSecurityEventSink(): void {
 }
 
 function defaultStdoutSink(event: SecurityEvent): void {
-  // eslint-disable-next-line no-console
+  // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because this is the default stdout sink for SecurityEvents picked up by the log aggregator
   console.log(JSON.stringify({ ...event, source: 'security-events' }));
 }
 
@@ -491,7 +491,7 @@ async function emitMiddlewareEvent(
       metadata: { statusCode: status },
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because audit-emit failures are last-resort surfaced via console.warn; raising here would break the request lifecycle
     console.warn('securityEventsMiddleware: audit emit failed', err);
   }
 }

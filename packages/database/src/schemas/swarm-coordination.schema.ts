@@ -2,7 +2,9 @@
  * Swarm Coordination persistence (Wave 18HH).
  *
  * Companion to Docs/DESIGN/AGENT_SWARM_COORDINATION_SOTA.md. Drizzle
- * types for the 4 tables created by migration 0030_swarm_coordination.sql:
+ * types for the 4 tables created by migration 0060_swarm_coordination.sql
+ * (renumbered from 0030 to resolve collision with 0030_persistent_memory.sql;
+ * alphabetic precedence keeps persistent_memory at slot 0030):
  *
  *   - activeAgents             → real-time registry of running agents.
  *                                Heartbeat + status; stale rows cleared

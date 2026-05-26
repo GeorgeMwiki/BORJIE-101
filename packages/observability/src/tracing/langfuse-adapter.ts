@@ -144,7 +144,7 @@ export async function loadLangfuseClient(): Promise<LangfuseSdkLoadResult> {
     // This is the intentional "dynamic-import dodge" pattern; it is
     // NOT eval of user input — the literal `return import(specifier)`
     // body is fixed at module-load time.
-    // eslint-disable-next-line no-new-func -- intentional dynamic-import dodge for optional peer-dep
+    // eslint-disable-next-line no-new-func -- SCRUB-5f: rule-disabled because this is the intentional dynamic-import dodge that keeps langfuse off the static dep graph; the Function body is a fixed module-load-time literal, not user input
     const dynamicImport = new Function(
       'specifier',
       'return import(specifier)',
