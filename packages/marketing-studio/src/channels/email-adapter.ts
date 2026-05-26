@@ -15,7 +15,7 @@ import {
   type PublishResult,
 } from './_adapter.js';
 
-const REQUIRED_ENV = ['RESEND_API_KEY', 'EMAIL_FROM'] as const;
+const REQUIRED_ENV = ['RESEND_API_KEY', 'EMAIL_FROM', 'EMAIL_DEFAULT_TO'] as const;
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
@@ -81,7 +81,11 @@ export const emailAdapter: ChannelAdapter = Object.freeze({
         },
         body: JSON.stringify({
           from: env['EMAIL_FROM'],
-          to: ['placeholder@example.com'],
+          // Default broadcast recipient — must be a list (Resend contract).
+          // Per-asset overrides come through future `asset.recipients` field;
+          // for now this is env-driven so we never silently mail a
+          // placeholder address.
+          to: [env['EMAIL_DEFAULT_TO']],
           subject: payload.subject,
           html: payload.html,
           text: payload.plaintext,
