@@ -213,3 +213,39 @@ External HTTP is behind injected `fetcher` ports. All tests run against in-memor
 - Drizzle schemas compile and round-trip with their SQL columns.
 - The barrel append in `packages/omnidata/src/index.ts` re-exports each connector factory.
 - No `@ts-nocheck`, no `any` outside the explicit `eslint-disable` blocks.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked SOTA findings affecting connector dispatch policy. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### § MCP-first capability check
+
+**Source**: SOTA Finding 2 in `FOUNDER_LOCKED_DECISIONS_2026_05_26.md` — ServiceNow announcement May 2026 opening their system of action to *"every AI agent via Model Context Protocol"*. Reference: https://www.servicenow.com/company/media/press-room/mcp-every-ai-agent.html.
+
+**Policy**: For every connector in this spec, the build-time capability check records whether the provider exposes an official MCP server. The credentials record carries an optional `connector.mcp_server_url` field; when populated, the connector dispatcher MUST prefer MCP RPCs over native REST for the same logical action. Native REST remains as the fallback path only.
+
+**Per-connector MCP-first capability row (as of build time)**:
+
+| Connector | Provider exposes official MCP server? | Default ingress when `mcp_server_url` populated |
+|---|---|---|
+| Notion | check provider docs at build time | MCP-first |
+| Linear | check provider docs at build time | MCP-first |
+| Jira | check provider docs at build time | MCP-first |
+| Asana | check provider docs at build time | MCP-first |
+| ClickUp | check provider docs at build time | MCP-first |
+| Monday.com | check provider docs at build time | MCP-first |
+| Zoom | check provider docs at build time | MCP-first |
+| Google Meet | check provider docs at build time | MCP-first |
+| Microsoft Teams | check provider docs at build time | MCP-first |
+
+(The build-time check is recorded in the connector's package readme + the org-legibility map per Wave M5-6, surfacing MCP-vs-native ingress per connector.)
+
+**Rationale**: Founder-locked direction (per Decision SOTA Finding 2): industry convergence on MCP makes "MCP-first, native-API as fallback only" the canonical dispatch policy; this row reminds future connector authors to populate `mcp_server_url` and to default the dispatcher to MCP whenever the provider supports it.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
