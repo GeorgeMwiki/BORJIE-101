@@ -387,3 +387,23 @@ estimator lands in a follow-up).
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked decisions that override prior defaults in this spec. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### Override — Decision #5 (Meta-learning consent path — unified via federation_consents)
+
+**Verbatim**: *FOLD into federation consent. Cross-tenant template sharing IS a federation-consent surface; do NOT build a separate consent UI. … Meta-learning weekly reports (Wave SELFIMPROVE) MUST consume the same `federation_consents` table; do NOT create a parallel consent path.*
+
+**Effect on this spec**:
+- `packages/meta-learning-conductor/` reads consent state from the existing `federation_consents` table (per Wave M10 migration 0040), NOT from any new table or any sibling consent surface.
+- The `scope` filter for meta-learning aggregation is the union of `federation_consents` rows whose `scope` covers the gradient class being aggregated (e.g. `scope = 'meta_learning'` for cross-tenant gradient sharing; `scope = 'tools'` for template-derived patterns).
+- No parallel consent UI; tenants manage every cross-tenant data flow through the single federation-consent dashboard surfaced by `packages/strategic-layer/` (see `Docs/DESIGN/STRATEGIC_DIRECTION_LAYER_SPEC.md`).
+- Cross-reference: `Docs/DESIGN/ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md` shares this consent path on the producer side (template authoring).
+
+**Action**: Confirm `packages/meta-learning-conductor/` has no separate consent state, no separate opt-in toggle, no separate audit trail — every revocation path flows back to `federation_consents` mutations.
+
+**Rationale**: Founder-locked unification: one consent table, one revocation path, one audit trail. Splitting consent across meta-learning and template-sharing surfaces would create the exact "consent maze" the federation_consents design was built to prevent.
