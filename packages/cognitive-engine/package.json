@@ -1,0 +1,37 @@
+{
+  "name": "@borjie/cognitive-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Cognitive Engine — the foundation layer under all 5 atomic capabilities. Deliberate reasoning + cite-or-stay-silent grounding + calibrated uncertainty + interactive scoping + relevance pruning + adaptive ingestion. Companion to Docs/DESIGN/COGNITIVE_ENGINE_SPEC.md (Wave 18T).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "undici": "^6.26.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
