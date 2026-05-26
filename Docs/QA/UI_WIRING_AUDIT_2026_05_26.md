@@ -51,3 +51,14 @@ In-scope exclusions verified: zero uncommitted modifications in `apps/**` (in-fl
 ## TS strict
 
 Verified `--noEmit` for `apps/admin-web` and `apps/owner-web` — zero new errors introduced by the edits. Pre-existing errors live exclusively in `packages/chat-ui/**` and are out of SCRUB-4's scope.
+
+## Respawn re-verification (2026-05-27)
+
+- Previous session terminated mid-flow; respawned with idempotency-first protocol.
+- All 6 inline fixes (#1, #2, #3, #5, #6, #7) confirmed intact at the same line ranges.
+- Re-ran Pass A (130 plain `<button>` + 59 `<Button|Pressable|TouchableOpacity>` tags), Pass B (15 forms — all wired with `onSubmit`), Pass C (zero `() => {}` empty handlers in `apps/**`), Pass D (no missing nav targets).
+- New components since audit verified wired: `BorjieWidgetMount.tsx` (admin/owner/marketing — script-tag mounts, no buttons of their own), `CookieConsent.tsx` (4 buttons, all `onClick`-wired), `StatusBoard.tsx` (1 refresh button + fetch poll, wired).
+- The advisor pages that briefly appeared in `git log --diff-filter=A` were removed before HEAD; no longer in scope.
+- `tsc --noEmit` on `apps/admin-web` returns zero errors in `apps/admin-web/src` (errors confined to shared packages `packages/genui`, `packages/chat-ui` per the audit's existing scope statement).
+- Remaining `// TODO` in `apps/**/*.tsx`: 1 occurrence at `apps/workforce-mobile/app/owner/O-M-02.tsx:76` — already accounted for as row #11 (requires EAS dev build for STT; ships prefill placeholder).
+- Persona check holds: `Mr. Mwikila` exclusive identity; no junior-name strings in `apps/**/src` or `apps/**/app`.
