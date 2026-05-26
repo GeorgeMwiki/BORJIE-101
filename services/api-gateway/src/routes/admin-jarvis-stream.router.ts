@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
-
 /**
  * Admin Jarvis stream router — `POST /api/v1/admin/jarvis/stream`.
  *

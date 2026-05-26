@@ -1,7 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union
-// (hono-dev/hono#3891). Mixing `c.json(..., 401)` / `c.json(..., 404)`
-// across branches widens the return type beyond the TypedResponse
-// overload. The router is exhaustively covered by routes-level tests.
 /**
  * /v1/marketplace — tenant-facing universal marketplace.
  *

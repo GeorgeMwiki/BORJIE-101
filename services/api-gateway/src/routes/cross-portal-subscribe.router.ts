@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 streamSSE return type and status-literal-union
-// widen c.json branches. Same convention as jarvis-router-factory.ts.
-
 /**
  * Cross-portal subscribe router — Central Command Phase A (C6 gap #8).
  *

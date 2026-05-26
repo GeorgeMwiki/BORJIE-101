@@ -14,9 +14,6 @@
  * and is wired by the composition root with real source adapters.
  */
 
-// @ts-nocheck — Hono v4 ContextVariableMap drift; consistent with the
-// other Wave-27+ routers (autonomy, tenant-branding).
-
 import { Hono } from 'hono';
 import {
   renderMarkdown,

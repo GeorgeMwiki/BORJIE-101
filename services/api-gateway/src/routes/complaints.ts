@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-code union; handlers use structural casts over services.db.
 /**
  * Complaints router — Wave 18 real-data wiring.
  *

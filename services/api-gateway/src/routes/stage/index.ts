@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union (hono-dev/hono#3891).
 /**
  * Stage advisor router — mounted at `/api/v1/stage`.
  *
