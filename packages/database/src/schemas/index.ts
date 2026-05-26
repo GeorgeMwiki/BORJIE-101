@@ -327,3 +327,15 @@ export * from './geo-routing.schema.js';
 // 0029_wave_resilience.sql. Consumed by services/wave-resilience-manager.
 // See Docs/DESIGN/AGENT_SELF_REVIVAL_SPEC.md.
 export * from './wave-resilience.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18GG — Persistent Memory + Skill Library (temporal continuity)
+// ---------------------------------------------------------------------------
+// Four tenant-scoped tables backing migration 0030_persistent_memory.sql:
+//   session_memory   — short-term tier, sliding-TTL working snapshot
+//   skills           — procedural memory tier (Voyager-style library)
+//   pending_threads  — anti-amnesia checkpoint table
+//   thread_summaries — MemGPT-style summarised turn-block records
+// Consumed by @borjie/persistent-memory.
+// See Docs/DESIGN/MEMORY_AMNESIA_PREVENTION_SOTA.md.
+export * from './persistent-memory.schema.js';
