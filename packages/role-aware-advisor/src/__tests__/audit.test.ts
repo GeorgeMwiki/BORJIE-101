@@ -44,7 +44,7 @@ describe('recordAudit + in-memory port', () => {
       outcome: 'ok',
     });
     expect(port.entries.length).toBe(2);
-    expect((port.entries[0] as any).action).toBe('advisor.ask');
-    expect((port.entries[1] as any).action).toBe('advisor.feedback');
+    expect(port.entries[0]?.action).toBe('advisor.ask');
+    expect(port.entries[1]?.action).toBe('advisor.feedback');
   });
 });

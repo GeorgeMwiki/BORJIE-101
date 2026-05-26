@@ -33,8 +33,8 @@ describe('redactFields', () => {
       },
       DEFAULT_PII_KEYS,
     );
-    expect((out as any).lease.tenant.name).toBe('[redacted: pii]');
-    expect((out as any).lease.tenant.email).toBe('[redacted: pii]');
+    expect(out.lease.tenant.name).toBe('[redacted: pii]');
+    expect(out.lease.tenant.email).toBe('[redacted: pii]');
   });
 
   it('walks arrays', () => {
@@ -51,8 +51,8 @@ describe('redactFields', () => {
       { Email: 'a@b.com', PHONE: '123' },
       DEFAULT_PII_KEYS,
     );
-    expect((out as any).Email).toBe('[redacted: pii]');
-    expect((out as any).PHONE).toBe('[redacted: pii]');
+    expect(out.Email).toBe('[redacted: pii]');
+    expect(out.PHONE).toBe('[redacted: pii]');
   });
 
   it('null sentinel option replaces with null', () => {
@@ -91,9 +91,13 @@ describe('redactFields', () => {
   });
 
   it('handles cyclic objects without stack overflow', () => {
-    const a: any = { name: 'X' };
+    interface Cyclic {
+      name: string;
+      self?: Cyclic;
+    }
+    const a: Cyclic = { name: 'X' };
     a.self = a;
-    const out = redactFields(a, DEFAULT_PII_KEYS) as any;
+    const out = redactFields(a, DEFAULT_PII_KEYS);
     expect(out.name).toBe('[redacted: pii]');
   });
 });
