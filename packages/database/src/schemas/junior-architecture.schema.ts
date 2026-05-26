@@ -11,6 +11,16 @@
  * juniorPersonas is global product config — no tenant_id, RLS off in
  * the migration. agentTurns is tenant-scoped; RLS uses the canonical
  * `app.tenant_id` GUC pattern.
+ *
+ * Identity discipline — singular `Mr. Mwikila` display name:
+ *
+ *   Every junior renders as "Mr. Mwikila" to the user (see
+ *   `MR_MWIKILA_DISPLAY_NAME` in `@borjie/agent-platform`). The
+ *   `display_name` column is therefore effectively a constant — kept
+ *   for backward-compat with rows already written to existing
+ *   environments. New / live rendering MUST use the singular constant
+ *   from the agent-platform package and read `specialisation` for the
+ *   chip + `title` for the subtitle.
  */
 
 import {
@@ -31,11 +41,26 @@ import {
 export const juniorPersonas = pgTable(
   'junior_personas',
   {
-    /** Stable junior id — e.g. 'mining-shift-planner'. */
+    /** Stable junior id — e.g. 'mining-shift-planner'. English-named. */
     id: text('id').primaryKey(),
-    /** Display name — e.g. 'Ms. Sifa'. */
+    /**
+     * Deprecated — historically held a per-junior character name. After
+     * the founder directive, every junior renders as the singular
+     * `MR_MWIKILA_DISPLAY_NAME` constant from `@borjie/agent-platform`.
+     * Kept here for backward compatibility with rows already written
+     * to existing environments; new code MUST NOT read this column for
+     * the user-facing display name.
+     */
+    // always 'Mr. Mwikila' — see CAPABILITIES_UNIFICATION
     displayName: text('display_name').notNull(),
-    /** Title — e.g. "Borjie's AI Shift-Planning Specialist". */
+    /**
+     * Short specialisation label — e.g. `'Mining Safety'`,
+     * `'Geology'`, `'FX Treasury'`. Rendered as the chip next to the
+     * singular `Mr. Mwikila` display name. Defaults to empty string
+     * for legacy rows; new persona registrations populate this.
+     */
+    specialisation: text('specialisation').notNull().default(''),
+    /** Title — e.g. "Borjie's AI Mining Shift Specialist". */
     title: text('title').notNull(),
     /** First-person mandate string. */
     mandate: text('mandate').notNull(),

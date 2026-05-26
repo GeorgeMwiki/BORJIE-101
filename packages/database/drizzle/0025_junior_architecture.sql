@@ -27,7 +27,12 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS junior_personas (
   id                  text        PRIMARY KEY,
+  -- display_name is deprecated — every junior renders as the singular
+  -- `Mr. Mwikila` display name (founder directive). Column kept for
+  -- backward compat with rows already written; new code reads the
+  -- `MR_MWIKILA_DISPLAY_NAME` constant from `@borjie/agent-platform`.
   display_name        text        NOT NULL,
+  specialisation      text        NOT NULL DEFAULT '',
   title               text        NOT NULL,
   mandate             text        NOT NULL,
   default_language    text        NOT NULL DEFAULT 'en',
@@ -42,6 +47,12 @@ CREATE TABLE IF NOT EXISTS junior_personas (
   CONSTRAINT junior_personas_version_chk
     CHECK (version >= 1)
 );
+
+-- Forward-compatible: if the table was created by an earlier run of
+-- this migration before `specialisation` existed, add it now. Safe to
+-- run repeatedly thanks to IF NOT EXISTS.
+ALTER TABLE junior_personas
+  ADD COLUMN IF NOT EXISTS specialisation text NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS junior_personas_brand_idx
   ON junior_personas(brand);
@@ -101,6 +112,12 @@ CREATE POLICY agent_turns_tenant_write ON agent_turns
 
 COMMENT ON TABLE junior_personas IS
   'Junior Architecture (Wave 18V) — registry of JuniorPersona values. Global; every tenant gets the same junior catalogue.';
+COMMENT ON COLUMN junior_personas.display_name IS
+  'DEPRECATED — every junior renders as "Mr. Mwikila" (singular brand). Kept for backward-compat with legacy rows. Read MR_MWIKILA_DISPLAY_NAME from @borjie/agent-platform instead.';
+COMMENT ON COLUMN junior_personas.specialisation IS
+  'Short specialisation label (e.g. "Mining Safety", "Geology", "FX Treasury") rendered as a chip next to the singular Mr. Mwikila display name.';
+COMMENT ON COLUMN junior_personas.title IS
+  'Full user-facing subtitle — e.g. "Borjie''s AI Mining Safety Specialist". Rendered under Mr. Mwikila in the chat surface.';
 COMMENT ON COLUMN junior_personas.scope IS
   'JuniorScope shape — { data_tables, tab_recipes_owned, doc_recipes_owned, media_recipes_owned, research_topics, authority_tier_max, requires_md_for_tier_2 }.';
 COMMENT ON COLUMN junior_personas.escalation_policy IS
