@@ -462,3 +462,49 @@ A working M2 deployment must demonstrate:
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked decisions that override prior defaults in this spec. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### Override — Decision #1 (Tier 2-Critical escalation quiet hours)
+
+**Verbatim**: *Default: 18:00–06:00 quiet window in every timezone. Mr. Mwikila does NOT escalate Tier 2-Critical actions to a live user during quiet hours unless the action's deadline is < 12 hours away. Items raised during quiet hours queue up and surface at 06:00 local. Mr. Mwikila may proactively ask the user once during onboarding if they want a different window, but the platform default is 18:00–06:00 universal.*
+
+Config constants — `QUIET_HOURS_START = '18:00'`, `QUIET_HOURS_END = '06:00'`, `TIER_2_CRITICAL_DEADLINE_FLOOR_HOURS = 12`. The 12-hour deadline floor is the only override and only applies when the deadline itself is closer than the quiet window. Jurisdiction-profile finer-grained defaults (e.g. Ramadan windows) layer on top per the universal addendum.
+
+**Rationale**: Founder-locked default that protects user wellbeing from machine-speed escalation; quiet-hours suppression is enforced in `packages/user-followup/` and respected by every downstream notification path including wave-resilience-manager auto-resumes.
+
+### Override — Decision #3 (Daily check-in content privacy — three-tier rendering)
+
+**Verbatim**: *SOTA — three-tier rendering by recipient.*
+
+| Recipient | Counts | Streaks | Content body |
+|---|---|---|---|
+| Subject (the employee being checked-in on) | ✓ | ✓ | ✓ full text |
+| Direct supervisor (1-up scope) | ✓ | ✓ | redacted summary only (entity-stripped + 2-sentence cap) |
+| Owner (root MD scope) | ✓ | ✓ | aggregate stats only — no per-row content |
+| Cross-tenant / federation | ✗ | ✗ | ✗ — never shared, even with consent |
+
+Implementation: `packages/session-mirror/` PII boundary redaction (sha256 salted hash for identifiers) layered on top of `packages/org-scope/` scope-aware row filtering. Subject can opt-in to share verbatim with a specific person via an explicit one-shot, audited "share this check-in with X" UI gesture.
+
+Citations: **GDPR Art. 5(1)(c) data minimisation** (https://gdpr.eu/article-5-how-to-process-personal-data/), **NIST 800-122 PII guidelines** (https://csrc.nist.gov/publications/detail/sp/800-122/final), **Apple Differential Privacy guide** (https://www.apple.com/privacy/docs/Differential_Privacy_Overview.pdf), **MIT Tacit-Knowledge access-control framework** (Nonaka 1995 SECI model).
+
+**Rationale**: Founder-locked SOTA tier matrix; protects the subject employee from supervisor surveillance creep while preserving operational visibility through aggregate stats — minimum-necessary data exposure at every read.
+
+### Override — Decision #4 (Mode-toggle org policy override — SOTA with stronger consent)
+
+**Verbatim**: *SOTA — industry standard with stronger consent.* Admin can set a default mode org-wide, BUT:
+
+1. **Employee notification on mode change** — every employee scoped under the admin gets an in-app notification within 30 min of the change ("Your organisation has switched Mr. Mwikila to LEARN mode. This means…").
+2. **24-hour opt-out window** — each employee can opt themselves back to BALANCED for their own session for the next 24 h after notification (a longer override requires the admin to also opt them out).
+3. **LEARN-mode audit trail** — anything Mr. Mwikila silently observes during LEARN mode is captured in `cognitive_memory_cells` with `provenance.consent_state = 'org-default-learn'`. Tenant admins can export this audit trail on demand (right-of-access).
+4. **Quarterly re-consent** — every 90 days the admin must re-confirm the org-wide default (a single click in the admin panel); the platform shows a banner reminding them.
+
+Pattern borrowed from Google Workspace data-region opt-out flow + Slack Enterprise Grid retention policy override flow + GDPR Art. 7(3) (consent withdrawable).
+
+Citations: **GDPR Art. 7(3)** (https://gdpr.eu/article-7-conditions-for-consent/), **Google Workspace data-region docs** (https://support.google.com/a/answer/7630496), **Slack retention policy override** (https://slack.com/help/articles/360002746788), **NIST 800-53 AC-21 (consent management)**.
+
+**Rationale**: Founder-locked consent-management policy ensures employees never lose informed agency when an admin flips the mode toggle; the 90-day re-consent reminder closes the slow drift toward background observation that pure org-default toggles would otherwise enable.
