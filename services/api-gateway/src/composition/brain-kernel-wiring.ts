@@ -1,4 +1,32 @@
 /**
+ * AUTONOMOUS-MD CHARTER (read first):
+ *   This kernel is the engine of Mr. Mwikila — Borjie's AI Mining Operations
+ *   Manager. The 5 operating principles in
+ *   `docs/MASTER_BRAIN_AUTONOMY_MANIFESTO.md` are the DNA every wiring
+ *   below must honour. Map of principle → kernel section:
+ *
+ *     - "Always Hungry"            -> decision-trace recorder (every turn
+ *                                     ends with a 1%-better candidate;
+ *                                     trace recorder is the breadcrumb).
+ *     - "Never Sleeps"             -> separate processes: see
+ *                                     services/sleep-pass-orchestrator and
+ *                                     services/proactive-triggers-worker;
+ *                                     this kernel is the read-path they
+ *                                     converge into when the owner returns.
+ *     - "Anticipatory, not        -> brain-tool registry (tab_spawn +
+ *        Reactive"                   pre-fill tools) + persona mode router
+ *                                     (Build/Strategy modes pre-stage the
+ *                                     next-three-moves).
+ *     - "Cite or Stay Silent"      -> uncertainty-policy gate + corpus
+ *                                     lookup tool; the persona's
+ *                                     EVIDENCE_RULES block enforces it at
+ *                                     the prompt boundary.
+ *     - "Owner-Aligned Authority"  -> approval-gate port + killswitch port;
+ *                                     Tier 2 actions short-circuit through
+ *                                     these before reaching any executor.
+ *
+ *   Any new kernel feature MUST declare which principle it serves.
+ *
  * Brain-kernel wiring — composes the central-intelligence `BrainKernel`
  * at the api-gateway composition root so consuming wirings (today: the
  * voice agent; later: every AI-native surface) can route turns through
