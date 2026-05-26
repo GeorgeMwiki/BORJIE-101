@@ -358,6 +358,24 @@ middle of a shift-planning chat), the chip + subtitle change but the
 name stays `Mr. Mwikila`. The brand stays singular; the intelligence
 specialises.
 
+> **Founder correction (post 18V-FIX) — the subtitle / chip pattern
+> above is OBSOLETE for the user-facing chat surface.** See §9.1
+> below; the chip + specialisation subtitle now live ONLY in the
+> owner admin panel.
+
+---
+
+## 9.1. User-facing identity is locked
+
+The user always sees ONE string in every chat / floating-widget / home-shell surface: **"Mr. Mwikila — Borjie's AI Mining Operations Manager"** (or the Boss Nyumba equivalent). No specialisation subtitle. No agent_id. Mr. Mwikila is presented as ONE intelligence — the user never knows whether a turn was handled by the root MD or a scoped specialisation.
+
+The specialisation / agent_id / subtitle remain in the data model for:
+- Backend routing (which specialisation logic the LLM draws from)
+- Audit logs (`agent_turns` / `cognitive_turns` capture the agent_id)
+- Owner admin panel (ONLY surface where internal names appear)
+
+Reference: `packages/agent-platform/src/canonical-display.ts` defines the single source of truth (`MR_MWIKILA_CANONICAL_DISPLAY`).
+
 ---
 
 ## 10. Anti-patterns
