@@ -3,11 +3,11 @@
  * emits gen-ui parts via the kernel handle.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { createBrainPeer, type BrainKernelHandle } from '../brain-peer.js';
 import type { LiveblocksRoom } from '../client.js';
 
-function mockRoom(): LiveblocksRoom & { broadcastEvent: any; leave: any } {
+function mockRoom(): LiveblocksRoom & { broadcastEvent: Mock; leave: Mock } {
   const broadcastEvent = vi.fn();
   const leave = vi.fn();
   const client = { broadcastEvent, leave };
@@ -21,7 +21,7 @@ function mockRoom(): LiveblocksRoom & { broadcastEvent: any; leave: any } {
 }
 
 function mockKernel(tenantId = 'tnt-1'): BrainKernelHandle & {
-  emitGenUIPart: any;
+  emitGenUIPart: Mock;
 } {
   const emitGenUIPart = vi.fn(async () => undefined);
   return {
