@@ -1,9 +1,3 @@
-// @ts-nocheck — drizzle-orm v0.45 polymorphic JSONB + custom-type narrowing:
-// the customType vector/tsvector/geography helpers used by core_entity.schema.ts
-// don't yet satisfy Drizzle's strict insert/update inference. Same family of
-// issues as drizzle-team/drizzle-orm#2876 / #2389 that the existing repository
-// files use to justify their @ts-nocheck. Functional behaviour is correct;
-// type-check is suppressed at file level pending an upstream fix.
 /**
  * CoreEntityRepository — Piece A universal asset & entity model.
  *
