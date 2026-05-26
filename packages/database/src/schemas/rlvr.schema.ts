@@ -2,7 +2,9 @@
  * RLVR Post-Training Pipeline persistence (Wave 19C).
  *
  * Companion to Docs/DESIGN/RLVR_POST_TRAINING_SPEC.md. Drizzle types
- * for the 4 tables created by migration 0041_rlvr.sql:
+ * for the 4 tables created by migration 0065_rlvr.sql (renumbered from
+ * 0041 to resolve collision with 0041_graph_rag.sql; alphabetic
+ * precedence keeps graph_rag at slot 0041):
  *
  *   - rlvrRuns               → one row per end-to-end RLVR pipeline
  *                              run. Lifecycle status + verifier_set +

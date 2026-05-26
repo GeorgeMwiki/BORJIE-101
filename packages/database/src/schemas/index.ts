@@ -548,7 +548,8 @@ export * from './work-cycle.schema.js';
 // ---------------------------------------------------------------------------
 // Wave 19C — RLVR Post-Training Pipeline (verifiable-reward orchestration)
 // ---------------------------------------------------------------------------
-// Four tenant-scoped tables backing migration 0041_rlvr.sql:
+// Four tenant-scoped tables backing migration 0065_rlvr.sql (renumbered
+// from 0041 to resolve collision with 0041_graph_rag.sql):
 //   rlvr_runs              — one row per end-to-end RLVR pipeline run.
 //                             Lifecycle status + verifier_set + PO-14
 //                             hash chain.
