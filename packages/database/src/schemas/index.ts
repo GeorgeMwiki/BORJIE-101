@@ -543,3 +543,20 @@ export * from './work-cycle.schema.js';
 // Consumed by @borjie/post-training-rlvr.
 // See Docs/DESIGN/RLVR_POST_TRAINING_SPEC.md.
 export * from './rlvr.schema.js';
+
+// ---------------------------------------------------------------------------
+// P0 #2 Closure (18BB gap analysis) — GraphRAG Router
+// ---------------------------------------------------------------------------
+// Four tenant-scoped tables backing migration 0041_graph_rag.sql:
+//   knowledge_graph_entities    — de-duped entity nodes with pgvector(1536)
+//                                  embedding for graph-local fan-out.
+//   knowledge_graph_relations   — typed edges between entities (weight
+//                                  accumulates on mention).
+//   kg_communities              — Leiden/Louvain hierarchical clusters.
+//                                  `signature_hash` drives drift detection.
+//   kg_community_summaries      — LLM-generated summaries (append-only,
+//                                  regen only on signature drift).
+// Consumed by @borjie/graph-rag-router + the nightly
+// `graph-rag-community-summaries` sleep pass.
+// See Docs/DESIGN/GRAPH_RAG_ROUTER_SPEC.md.
+export * from './graph-rag.schema.js';
