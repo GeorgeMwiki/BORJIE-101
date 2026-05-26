@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
-import { getLocaleFromCookie } from '@/lib/locale';
+import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 
 export const metadata: Metadata = {
@@ -12,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BuyersPage() {
-  const locale = await getLocaleFromCookie();
-  const t = getMessages(locale);
+  const locale = await getLocale();
 
   const sw = locale === 'sw';
 
