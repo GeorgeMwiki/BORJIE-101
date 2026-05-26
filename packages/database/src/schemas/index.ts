@@ -733,3 +733,19 @@ export * from './connector-tiktok.schema.js';
 export * from './connector-x.schema.js';
 export * from './connector-linkedin.schema.js';
 export * from './connector-youtube.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 19J — Ambient voice listening
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0051_ambient_listening.sql:
+//   ambient_consents              — composite (tenant, user, channel) PK.
+//                                   Drives the silent-disable gate.
+//   ambient_captures              — one row per pipeline capture; redacted
+//                                   text + intent + entities + sentiment.
+//                                   Hash-chained.
+//   ambient_kill_switch_events    — append-only kill-switch audit.
+// Consumed by @borjie/ambient-listener + services/voice-agent/src/ambient.
+// See Docs/DESIGN/AMBIENT_VOICE_LISTENING_SPEC.md.
+// Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+// (Decisions 3 + 4).
+export * from './ambient-listening.schema.js';
