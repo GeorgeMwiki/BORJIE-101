@@ -237,6 +237,8 @@ export {
 export {
   dispatchToProvider,
   reorderForCapability,
+  reorderForCapabilityAndCost,
+  reorderForCost,
   FALLBACK_BY_CAPABILITY,
   type DispatchArgs,
   type DispatchResult,

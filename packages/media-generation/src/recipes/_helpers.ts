@@ -22,7 +22,10 @@ import type {
   SafetyScanResult,
 } from '../types.js';
 import { MediaCompositionError } from '../types.js';
-import { dispatchToProvider, reorderForCapability } from '../providers/dispatcher.js';
+import {
+  dispatchToProvider,
+  reorderForCapabilityAndCost,
+} from '../providers/dispatcher.js';
 import { scanBrandViolation } from '../safety/brand-violation-scanner.js';
 import { scanForNsfw } from '../safety/nsfw-scanner.js';
 import { detectDeepfake } from '../safety/deepfake-detector.js';
@@ -84,7 +87,20 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
     format: args.recipe.output_format,
   };
 
-  const ordered = reorderForCapability(args.capability, args.adapters);
+  // Caveat 4 — cost-aware fallback ladder. Capability-eligible
+  // adapters get reordered so the cheapest provider that fits the
+  // remaining class budget is tried first; over-budget providers are
+  // dropped (they would fail the cost-tracker reservation anyway).
+  // Canonical capability order acts as the tiebreaker for equal-cost
+  // picks so quality preferences are preserved.
+  const remaining_budget_cents =
+    providerCtx.cost_tracker.budget() -
+    (await providerCtx.cost_tracker.spent());
+  const ordered = reorderForCapabilityAndCost(
+    args.capability,
+    args.adapters,
+    remaining_budget_cents,
+  );
   const { artifact } = await dispatchToProvider({
     capability: args.capability,
     input,

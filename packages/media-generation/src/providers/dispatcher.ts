@@ -155,3 +155,77 @@ export function reorderForCapability<
   }
   return Object.freeze(ordered);
 }
+
+/**
+ * Caveat 4 (Wave 18X) — cost-aware fallback ladder.
+ *
+ * Given a list of capability-eligible adapters and the remaining
+ * budget for this dispatch, reorder them so the cheapest provider
+ * that fits the remaining budget is tried first. Adapters whose
+ * per-unit cost exceeds the remaining budget are dropped from the
+ * ladder entirely (they cannot succeed without breaking the budget
+ * reservation in the cost-tracker). Ties broken by canonical
+ * capability order.
+ *
+ * This is layered ON TOP of `reorderForCapability` — the canonical
+ * order acts as a quality preference among equally-priced providers;
+ * the cost-aware sort wins when budgets are tight.
+ *
+ * Pure: takes the canonical-ordered ladder + remaining budget, returns
+ * a new immutable ladder.
+ */
+export function reorderForCost<
+  A extends MediaProviderAdapter<MediaProviderInput, MediaArtifact>,
+>(
+  capabilityOrderedAdapters: ReadonlyArray<A>,
+  remaining_budget_cents: number,
+): ReadonlyArray<A> {
+  // Canonical position acts as the tiebreaker — preserve the index
+  // we received the adapter at so equal-cost picks keep canonical
+  // order.
+  type Indexed = { readonly index: number; readonly adapter: A };
+  const indexed: Indexed[] = capabilityOrderedAdapters.map((adapter, index) => ({
+    index,
+    adapter,
+  }));
+
+  // Drop adapters whose per-unit cost cannot fit the remaining
+  // budget. The cost-tracker would refuse the reservation anyway, so
+  // we save the round trip and avoid emitting a false fallback in
+  // MediaProvenance.model_provider.
+  const affordable = indexed.filter(
+    (i) => i.adapter.cost_per_unit_usd_cents <= remaining_budget_cents,
+  );
+
+  // Sort by cost asc, then canonical index asc.
+  const sorted = affordable.slice().sort((a, b) => {
+    const costDelta =
+      a.adapter.cost_per_unit_usd_cents - b.adapter.cost_per_unit_usd_cents;
+    if (costDelta !== 0) return costDelta;
+    return a.index - b.index;
+  });
+
+  return Object.freeze(sorted.map((i) => i.adapter));
+}
+
+/**
+ * Convenience: apply both passes — canonical capability ordering
+ * then cost-aware re-rank — in one call. Used by the recipe helper.
+ *
+ * Capability-incompatible adapters are dropped (unlike
+ * `reorderForCapability` which preserves caller-supplied adapters
+ * with unrelated capabilities at the tail). The cost-aware ladder is
+ * strict: every returned adapter both fits the budget AND advertises
+ * the requested capability.
+ */
+export function reorderForCapabilityAndCost<
+  A extends MediaProviderAdapter<MediaProviderInput, MediaArtifact>,
+>(
+  capability: MediaCapability,
+  adapters: ReadonlyArray<A>,
+  remaining_budget_cents: number,
+): ReadonlyArray<A> {
+  const capable = adapters.filter((a) => a.capabilities.includes(capability));
+  const capabilityOrdered = reorderForCapability(capability, capable);
+  return reorderForCost(capabilityOrdered, remaining_budget_cents);
+}
