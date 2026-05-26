@@ -194,7 +194,7 @@ function createDegradedVoiceBrainStub(
   return {
     async turn(input) {
       const lang = input.languageCode || detectLanguageFromTranscript(input.userTranscript);
-      const reply = DEGRADED_REPLIES[lang] ?? DEGRADED_REPLIES.en;
+      const reply = DEGRADED_REPLIES[lang] ?? DEGRADED_REPLIES.en ?? '';
       if (logger) {
         logger.warn(
           {
@@ -309,7 +309,7 @@ function createRealVoiceBrain(
         }
         const lang =
           input.languageCode || detectLanguageFromTranscript(input.userTranscript);
-        const reply = DEGRADED_REPLIES[lang] ?? DEGRADED_REPLIES.en;
+        const reply = DEGRADED_REPLIES[lang] ?? DEGRADED_REPLIES.en ?? '';
         const response: VoiceBrainResponse = {
           text: reply,
           toolCalls: [],
@@ -340,9 +340,9 @@ function pickVoiceTextFromDecision(
   fallbackLanguage: string,
 ): string {
   if (decision.kind === 'answer' || decision.kind === 'softened') {
-    return decision.text ?? DEGRADED_REPLIES[fallbackLanguage] ?? DEGRADED_REPLIES.en;
+    return decision.text ?? DEGRADED_REPLIES[fallbackLanguage] ?? DEGRADED_REPLIES.en ?? '';
   }
-  return DEGRADED_REPLIES[fallbackLanguage] ?? DEGRADED_REPLIES.en;
+  return DEGRADED_REPLIES[fallbackLanguage] ?? DEGRADED_REPLIES.en ?? '';
 }
 
 /**

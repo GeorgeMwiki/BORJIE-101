@@ -40,7 +40,7 @@ export async function* streamSse(opts: StreamOptions): AsyncGenerator<SseEvent> 
       Accept: 'text/event-stream',
     },
     body: JSON.stringify(opts.body),
-    signal: opts.signal,
+    ...(opts.signal ? { signal: opts.signal } : {}),
   });
   if (!response.ok || !response.body) {
     throw new Error(`sse stream failed with HTTP ${response.status}`);

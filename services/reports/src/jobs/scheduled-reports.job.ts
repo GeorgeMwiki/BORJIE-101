@@ -25,10 +25,11 @@ function getRedisConnection(): { host: string; port: number; password?: string }
   if (url) {
     try {
       const u = new URL(url);
+      const password = u.password || undefined;
       return {
         host: u.hostname,
         port: parseInt(u.port ?? '6379', 10),
-        password: u.password || undefined,
+        ...(password !== undefined ? { password } : {}),
       };
     } catch {
       // invalid URL
@@ -37,10 +38,11 @@ function getRedisConnection(): { host: string; port: number; password?: string }
   if (process.env.NODE_ENV === 'production') {
     throw new Error('REDIS_URL is required in production for scheduled reports');
   }
+  const password = process.env.REDIS_PASSWORD;
   return {
     host: process.env.REDIS_HOST ?? 'localhost',
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD,
+    ...(password !== undefined ? { password } : {}),
   };
 }
 

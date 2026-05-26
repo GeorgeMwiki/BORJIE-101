@@ -241,7 +241,7 @@ export class MorningBriefingService {
       date: now.toISOString().split('T')[0] ?? '',
       greeting,
       dayOfWeek,
-      weather: weather ?? undefined,
+      ...(weather ? { weather } : {}),
       quickMetrics,
       urgentItems: urgentItems.slice(0, 10), // Top 10 urgent items
       scheduledToday: scheduledToday.sort((a, b) => a.time.localeCompare(b.time)),
@@ -250,7 +250,7 @@ export class MorningBriefingService {
       aiInsights: aiInsights.slice(0, 5),
       portfolioSnapshot,
       vendorUpdates,
-      yesterdaySummary,
+      ...(yesterdaySummary !== undefined ? { yesterdaySummary } : {}),
       tip: this.getRandomTip(),
       quote: this.getRandomQuote(),
     };

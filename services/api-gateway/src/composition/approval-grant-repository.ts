@@ -220,7 +220,7 @@ export class PostgresApprovalGrantRepository
     }
 
     return {
-      usedCount: updated[0].used_count,
+      usedCount: updated[0]!.used_count,
       idempotent: false,
       usageId: usage.id,
     };

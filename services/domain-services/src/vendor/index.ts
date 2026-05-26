@@ -266,13 +266,19 @@ export class VendorService {
     const now = new Date().toISOString() as ISOTimestamp;
 
     const vendor: Vendor = {
-      id: vendorId, tenantId, vendorCode, companyName: input.companyName, tradeName: input.tradeName, status: 'active',
+      id: vendorId, tenantId, vendorCode, companyName: input.companyName,
+      ...(input.tradeName !== undefined ? { tradeName: input.tradeName } : {}),
+      status: 'active',
       categories: input.categories, serviceAreas: input.serviceAreas, contacts: input.contacts, rateCards: input.rateCards || [],
       performanceMetrics: DEFAULT_METRICS, scorecard: { ...DEFAULT_SCORECARD, lastUpdated: now }, certifications: [],
       isPreferred: false, emergencyAvailable: input.emergencyAvailable || false, afterHoursAvailable: input.afterHoursAvailable || false,
-      licenseNumber: input.licenseNumber, taxId: input.taxId, insuranceProvider: input.insuranceProvider,
-      insurancePolicyNumber: input.insurancePolicyNumber, insuranceExpiryDate: input.insuranceExpiryDate,
-      bankAccountDetails: input.bankAccountDetails, notes: input.notes,
+      ...(input.licenseNumber !== undefined ? { licenseNumber: input.licenseNumber } : {}),
+      ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
+      ...(input.insuranceProvider !== undefined ? { insuranceProvider: input.insuranceProvider } : {}),
+      ...(input.insurancePolicyNumber !== undefined ? { insurancePolicyNumber: input.insurancePolicyNumber } : {}),
+      ...(input.insuranceExpiryDate !== undefined ? { insuranceExpiryDate: input.insuranceExpiryDate } : {}),
+      ...(input.bankAccountDetails !== undefined ? { bankAccountDetails: input.bankAccountDetails } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
       createdAt: now, updatedAt: now, createdBy, updatedBy: createdBy,
     };
 
@@ -330,10 +336,18 @@ export class VendorService {
     const now = new Date().toISOString() as ISOTimestamp;
     const previousStatus = vendor.status;
 
+    const resolvedTradeName = input.tradeName ?? vendor.tradeName;
+    const resolvedLicenseNumber = input.licenseNumber ?? vendor.licenseNumber;
+    const resolvedTaxId = input.taxId ?? vendor.taxId;
+    const resolvedInsuranceProvider = input.insuranceProvider ?? vendor.insuranceProvider;
+    const resolvedInsurancePolicyNumber = input.insurancePolicyNumber ?? vendor.insurancePolicyNumber;
+    const resolvedInsuranceExpiryDate = input.insuranceExpiryDate ?? vendor.insuranceExpiryDate;
+    const resolvedBankAccountDetails = input.bankAccountDetails ?? vendor.bankAccountDetails;
+    const resolvedNotes = input.notes ?? vendor.notes;
     const updatedVendor: Vendor = {
       ...vendor,
       companyName: input.companyName ?? vendor.companyName,
-      tradeName: input.tradeName ?? vendor.tradeName,
+      ...(resolvedTradeName !== undefined ? { tradeName: resolvedTradeName } : {}),
       status: input.status ?? vendor.status,
       categories: input.categories ?? vendor.categories,
       serviceAreas: input.serviceAreas ?? vendor.serviceAreas,
@@ -342,13 +356,13 @@ export class VendorService {
       emergencyAvailable: input.emergencyAvailable ?? vendor.emergencyAvailable,
       afterHoursAvailable: input.afterHoursAvailable ?? vendor.afterHoursAvailable,
       isPreferred: input.isPreferred ?? vendor.isPreferred,
-      licenseNumber: input.licenseNumber ?? vendor.licenseNumber,
-      taxId: input.taxId ?? vendor.taxId,
-      insuranceProvider: input.insuranceProvider ?? vendor.insuranceProvider,
-      insurancePolicyNumber: input.insurancePolicyNumber ?? vendor.insurancePolicyNumber,
-      insuranceExpiryDate: input.insuranceExpiryDate ?? vendor.insuranceExpiryDate,
-      bankAccountDetails: input.bankAccountDetails ?? vendor.bankAccountDetails,
-      notes: input.notes ?? vendor.notes,
+      ...(resolvedLicenseNumber !== undefined ? { licenseNumber: resolvedLicenseNumber } : {}),
+      ...(resolvedTaxId !== undefined ? { taxId: resolvedTaxId } : {}),
+      ...(resolvedInsuranceProvider !== undefined ? { insuranceProvider: resolvedInsuranceProvider } : {}),
+      ...(resolvedInsurancePolicyNumber !== undefined ? { insurancePolicyNumber: resolvedInsurancePolicyNumber } : {}),
+      ...(resolvedInsuranceExpiryDate !== undefined ? { insuranceExpiryDate: resolvedInsuranceExpiryDate } : {}),
+      ...(resolvedBankAccountDetails !== undefined ? { bankAccountDetails: resolvedBankAccountDetails } : {}),
+      ...(resolvedNotes !== undefined ? { notes: resolvedNotes } : {}),
       updatedAt: now, updatedBy,
     };
 
@@ -370,7 +384,13 @@ export class VendorService {
     if (!vendor) return err({ code: VendorServiceError.VENDOR_NOT_FOUND, message: 'Vendor not found' });
 
     const now = new Date().toISOString() as ISOTimestamp;
-    const certification: VendorCertification = { name: input.name, issuedBy: input.issuedBy, issuedDate: input.issuedDate, expiryDate: input.expiryDate, documentUrl: input.documentUrl };
+    const certification: VendorCertification = {
+      name: input.name,
+      issuedBy: input.issuedBy,
+      issuedDate: input.issuedDate,
+      ...(input.expiryDate !== undefined ? { expiryDate: input.expiryDate } : {}),
+      ...(input.documentUrl !== undefined ? { documentUrl: input.documentUrl } : {}),
+    };
     const updatedVendor: Vendor = { ...vendor, certifications: [...vendor.certifications, certification], updatedAt: now, updatedBy: addedBy };
     const savedVendor = await this.vendorRepo.update(updatedVendor);
     return ok(savedVendor);

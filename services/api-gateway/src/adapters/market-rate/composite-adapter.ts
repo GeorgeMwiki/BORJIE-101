@@ -100,8 +100,8 @@ export function createCompositeAdapterFromEnv(
   if (live.length === 0) return null;
   return createCompositeAdapter({
     adapters: live,
-    mode: options.mode,
-    logger: options.logger,
+    ...(options.mode !== undefined ? { mode: options.mode } : {}),
+    ...(options.logger !== undefined ? { logger: options.logger } : {}),
   });
 }
 

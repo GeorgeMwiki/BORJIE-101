@@ -84,7 +84,13 @@ function harvestRouter(router: MountedRouter): HarvestedRoute[] {
     const relPath = r.path || '/';
     const fullPath = normalizePathForOpenApi(joinPath(router.prefix, relPath));
     const meta = getRouteMeta(router.prefix, method, relPath);
-    out.push({ method, fullPath, relPath, meta, defaultTag: router.defaultTag });
+    out.push({
+      method,
+      fullPath,
+      relPath,
+      ...(meta !== undefined ? { meta } : {}),
+      ...(router.defaultTag !== undefined ? { defaultTag: router.defaultTag } : {}),
+    });
   }
   return out;
 }
@@ -179,15 +185,18 @@ export function buildOpenApiSpec(
         const tags = hr.meta?.tags ?? (hr.defaultTag ? [hr.defaultTag] : []);
         const auth = hr.meta?.auth ?? 'bearer';
 
+        const description = buildDescription(hr.meta);
+        const deprecated = hr.meta?.deprecated || undefined;
+        const requestParam = Object.keys(request).length ? (request as never) : undefined;
         registry.registerPath({
           method: hr.method as never,
           path: hr.fullPath,
           summary: hr.meta?.summary ?? `${hr.method.toUpperCase()} ${hr.fullPath}`,
-          description: buildDescription(hr.meta),
-          tags: tags.length ? tags : undefined,
-          deprecated: hr.meta?.deprecated || undefined,
+          ...(description !== undefined ? { description } : {}),
+          ...(tags.length ? { tags } : {}),
+          ...(deprecated !== undefined ? { deprecated } : {}),
           security: auth === 'bearer' ? [{ bearerAuth: [] }] : [],
-          request: Object.keys(request).length ? (request as never) : undefined,
+          ...(requestParam !== undefined ? { request: requestParam } : {}),
           responses: buildResponsesFromMeta(hr.meta, errorRef) as never,
         });
       } catch (err) {

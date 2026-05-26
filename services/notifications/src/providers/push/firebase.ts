@@ -69,7 +69,9 @@ export class FirebasePushProvider implements INotificationProvider {
         apns: {
           payload: {
             aps: {
-              alert: { title: params.title, body: params.body },
+              alert: params.title !== undefined
+                ? { title: params.title, body: params.body }
+                : { body: params.body },
               sound: 'default',
             },
           },

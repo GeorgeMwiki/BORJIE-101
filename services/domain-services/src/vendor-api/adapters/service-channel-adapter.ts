@@ -232,7 +232,7 @@ export class ServiceChannelAdapter implements VendorApiAdapter {
         Authorization: `Bearer ${this.apiKey}`,
         Accept: 'application/json',
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (!response.ok) {
       throw new VendorAdapterError(

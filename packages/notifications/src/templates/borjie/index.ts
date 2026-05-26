@@ -107,7 +107,7 @@ export const borjieTemplates: {
     subject: welcomeSubject,
   },
   'licence-expiry-warning': {
-    schema: LicenceExpiryWarningSchema,
+    schema: LicenceExpiryWarningSchema as unknown as z.ZodType<LicenceExpiryWarningData>,
     render: LicenceExpiryWarningEmail,
     text: licenceExpiryWarningText,
     subject: licenceExpiryWarningSubject,
@@ -137,13 +137,13 @@ export const borjieTemplates: {
     subject: shiftReportDelaySubject,
   },
   'pilot-application-received': {
-    schema: PilotApplicationReceivedSchema,
+    schema: PilotApplicationReceivedSchema as unknown as z.ZodType<PilotApplicationReceivedData>,
     render: PilotApplicationReceivedEmail,
     text: pilotApplicationReceivedText,
     subject: pilotApplicationReceivedSubject,
   },
   'pilot-application-approved': {
-    schema: PilotApplicationApprovedSchema,
+    schema: PilotApplicationApprovedSchema as unknown as z.ZodType<PilotApplicationApprovedData>,
     render: PilotApplicationApprovedEmail,
     text: pilotApplicationApprovedText,
     subject: pilotApplicationApprovedSubject,

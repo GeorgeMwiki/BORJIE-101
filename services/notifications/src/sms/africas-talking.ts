@@ -86,11 +86,12 @@ export class AfricasTalkingSms {
 
   constructor(config?: Partial<AfricasTalkingConfig>) {
     const env = resolveAtEnvironment(config?.environment);
+    const senderId = config?.senderId || process.env.AFRICAS_TALKING_SENDER_ID || process.env.AT_SENDER_ID;
     this.config = {
       apiKey: config?.apiKey || process.env.AFRICAS_TALKING_API_KEY || process.env.AT_API_KEY || '',
       username: resolveAtUsername(config?.username),
       environment: env,
-      senderId: config?.senderId || process.env.AFRICAS_TALKING_SENDER_ID || process.env.AT_SENDER_ID,
+      ...(senderId !== undefined ? { senderId } : {}),
     };
 
     const baseURL = this.config.environment === 'production' ? PRODUCTION_URL : SANDBOX_URL;
@@ -220,7 +221,7 @@ export class AfricasTalkingSms {
       const response = await this.sendSms({
         to: recipient.phoneNumber,
         message: recipient.message,
-        from: request.from,
+        ...(request.from !== undefined ? { from: request.from } : {}),
         enqueue: true, // Use enqueue for bulk
       });
       results.push(response);
@@ -361,13 +362,14 @@ export class AfricasTalkingSms {
    * Parse delivery report callback
    */
   parseDeliveryReport(body: Record<string, string>): DeliveryReport {
+    const retryCount = body.retryCount ? parseInt(body.retryCount, 10) : undefined;
     return {
       id: body.id ?? '',
       status: (body.status ?? 'Unknown') as DeliveryReport['status'],
       phoneNumber: body.phoneNumber ?? '',
       networkCode: body.networkCode ?? '',
-      failureReason: body.failureReason,
-      retryCount: body.retryCount ? parseInt(body.retryCount, 10) : undefined,
+      ...(body.failureReason !== undefined ? { failureReason: body.failureReason } : {}),
+      ...(retryCount !== undefined ? { retryCount } : {}),
     };
   }
 

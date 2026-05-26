@@ -768,8 +768,8 @@ export class KPIEngine {
       change,
       changePercent,
       trend,
-      target,
-      targetVariance,
+      ...(target !== undefined ? { target } : {}),
+      ...(targetVariance !== undefined ? { targetVariance } : {}),
     };
   }
 

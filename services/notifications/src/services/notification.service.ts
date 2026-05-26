@@ -84,15 +84,15 @@ export const notificationService = {
       tenantId: recipient.tenantId,
       to: dest,
       body: channel === 'sms' || channel === 'whatsapp' ? smsBody : body,
-      subject: channel === 'email' ? subject : undefined,
-      title: channel === 'push' ? subject : undefined,
+      ...(channel === 'email' && subject !== undefined ? { subject } : {}),
+      ...(channel === 'push' && subject !== undefined ? { title: subject } : {}),
       data,
     };
 
     const recordId = addHistoryRecord({
       tenantId: recipient.tenantId as string,
-      customerId: recipient.customerId,
-      userId: recipient.userId,
+      ...(recipient.customerId !== undefined ? { customerId: recipient.customerId } : {}),
+      ...(recipient.userId !== undefined ? { userId: recipient.userId } : {}),
       channel,
       templateId,
       status: 'pending',
@@ -104,7 +104,7 @@ export const notificationService = {
       if (result.success) {
         updateHistoryRecord(recordId, {
           status: 'sent',
-          externalId: result.externalId,
+          ...(result.externalId !== undefined ? { externalId: result.externalId } : {}),
           sentAt: new Date(),
         });
         logger.info('Notification sent', { recordId, channel, templateId });
@@ -113,10 +113,14 @@ export const notificationService = {
 
       updateHistoryRecord(recordId, {
         status: 'failed',
-        error: result.error,
+        ...(result.error !== undefined ? { error: result.error } : {}),
       });
       logger.warn('Notification failed', { recordId, error: result.error });
-      return { success: false, id: recordId, error: result.error };
+      return {
+        success: false,
+        id: recordId,
+        ...(result.error !== undefined ? { error: result.error } : {}),
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       updateHistoryRecord(recordId, {
@@ -141,7 +145,7 @@ export const notificationService = {
       const recipient = recipients[i];
       if (!recipient) continue;
       const r = await this.sendNotification(recipient, channel, templateId, data);
-      results.push({ index: i, success: r.success, error: r.error });
+      results.push({ index: i, success: r.success, ...(r.error !== undefined ? { error: r.error } : {}) });
       if (r.success) successCount++;
     }
 
@@ -214,7 +218,7 @@ export const notificationService = {
   getNotificationHistory(tenantId: TenantId, customerId?: string, limit = 50, offset = 0) {
     return getHistory({
       tenantId: tenantId as string,
-      customerId,
+      ...(customerId !== undefined ? { customerId } : {}),
       limit,
       offset,
     });

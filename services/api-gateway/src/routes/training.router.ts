@@ -121,6 +121,7 @@ app.get('/paths', async (c: AnyContext) => {
 app.patch('/paths/:id', withSecurityEvents({ action: 'training.update', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
+  if (!id) return c.json({ success: false, error: { code: 'INVALID_PARAM', message: 'id required' } }, 400);
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
   try {
@@ -135,6 +136,7 @@ app.patch('/paths/:id', withSecurityEvents({ action: 'training.update', resource
 app.post('/paths/:id/assign', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
+  if (!id) return c.json({ success: false, error: { code: 'INVALID_PARAM', message: 'id required' } }, 400);
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
   try {
@@ -166,6 +168,7 @@ app.get('/assignments', async (c: AnyContext) => {
 app.get('/assignments/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
+  if (!id) return c.json({ success: false, error: { code: 'INVALID_PARAM', message: 'id required' } }, 400);
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
   try {
@@ -179,6 +182,7 @@ app.get('/assignments/:id', async (c: AnyContext) => {
 app.get('/mastery/:userId', async (c: AnyContext) => {
   const auth = c.get('auth');
   const userId = c.req.param('userId');
+  if (!userId) return c.json({ success: false, error: { code: 'INVALID_PARAM', message: 'userId required' } }, 400);
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
   try {
@@ -196,6 +200,7 @@ app.get('/mastery/:userId', async (c: AnyContext) => {
 app.post('/assignments/:id/mark-complete', withSecurityEvents({ action: 'training.create', resource: 'training', severity: 'info' }, async (c: AnyContext) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
+  if (!id) return c.json({ success: false, error: { code: 'INVALID_PARAM', message: 'id required' } }, 400);
   const ep = getEndpoints(c);
   if (!ep) return notImplemented(c);
   try {

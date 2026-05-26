@@ -520,7 +520,7 @@ export function forecastConditionDegradation(
     tenantId: component.tenantId,
     forwardDays: days,
     startCondition: component.currentCondition,
-    endCondition: CONDITION_BY_POINTS[endIdx],
+    endCondition: CONDITION_BY_POINTS[endIdx]!,
     pointsLost: Math.round(pointsLost * 10000) / 10000,
   };
 }

@@ -233,7 +233,7 @@ export class WaitlistVacancyHandler {
 
   private pickChannel(entry: UnitWaitlistEntry): WaitlistChannel {
     if (entry.preferredChannels.length > 0) {
-      return entry.preferredChannels[0];
+      return entry.preferredChannels[0]!;
     }
     return this.defaultChannel;
   }

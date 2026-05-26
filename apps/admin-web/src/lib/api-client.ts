@@ -85,7 +85,7 @@ async function call<T>({ path, init, attempt = 0 }: CallOptions): Promise<ApiRes
       // Server-side failure — retry once before bailing.
       if (res.status >= 500 && attempt < 1) {
         clearTimeout(timer);
-        return call<T>({ path, init, attempt: attempt + 1 });
+        return call<T>({ path, ...(init !== undefined ? { init } : {}), attempt: attempt + 1 });
       }
       const text = await res.text().catch(() => '');
       return { ok: false, status: res.status, message: text || `HTTP ${res.status}` };
@@ -100,7 +100,7 @@ async function call<T>({ path, init, attempt = 0 }: CallOptions): Promise<ApiRes
     // Network / abort / timeout. Retry once before bailing.
     if (attempt < 1) {
       clearTimeout(timer);
-      return call<T>({ path, init, attempt: attempt + 1 });
+      return call<T>({ path, ...(init !== undefined ? { init } : {}), attempt: attempt + 1 });
     }
     return {
       ok: false,
@@ -123,7 +123,11 @@ export const apiClient = {
   ): Promise<ApiResult<T>> {
     return call<T>({
       path,
-      init: { method: 'POST', body: JSON.stringify(body ?? {}), headers },
+      init: {
+        method: 'POST',
+        body: JSON.stringify(body ?? {}),
+        ...(headers !== undefined ? { headers } : {}),
+      },
     });
   },
   patch<T>(path: string, body: unknown): Promise<ApiResult<T>> {

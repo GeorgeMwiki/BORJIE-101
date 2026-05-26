@@ -430,8 +430,10 @@ export function createLeaseExpiryAlertCron(
           await updateDispatchOutcome(options.db, {
             id: dispatchId,
             delivered: outcome.delivered,
-            providerMessageId: outcome.providerMessageId,
-            error: outcome.error,
+            ...(outcome.providerMessageId !== undefined
+              ? { providerMessageId: outcome.providerMessageId }
+              : {}),
+            ...(outcome.error !== undefined ? { error: outcome.error } : {}),
           });
           if (outcome.delivered) {
             (result as { dispatched: number }).dispatched += 1;

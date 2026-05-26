@@ -100,7 +100,7 @@ export class FraudDetectionService {
   private readonly documentRepository: IDocumentRepository;
   private readonly storageProvider: IStorageProvider;
   private readonly fraudScoreRepository: IFraudRiskScoreRepository;
-  private readonly imageAnalyzer?: IImageAnalyzer;
+  private readonly imageAnalyzer: IImageAnalyzer | undefined;
   private readonly config: FraudDetectionConfig;
 
   constructor(options: FraudDetectionServiceOptions) {

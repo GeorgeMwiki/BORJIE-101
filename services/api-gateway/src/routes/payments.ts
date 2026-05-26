@@ -57,7 +57,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const customerId = c.req.query('customerId');
   const status = c.req.query('status')?.toLowerCase();
@@ -76,7 +76,7 @@ app.get('/pending', async (c) => {
   // without measurable savings. When the repo grows a `byCustomerAndStatus`
   // entry point this should switch to that.
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.payments.findByCustomer(auth.userId, auth.tenantId, 100, 0);
   const rows = result.items as readonly PaymentRowLike[];
   const items = rows
@@ -87,7 +87,7 @@ app.get('/pending', async (c) => {
 
 app.get('/history', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const result = await repos.payments.findByCustomer(auth.userId, auth.tenantId, p.limit, p.offset);
   const items = result.items.map(mapPaymentRow);
@@ -96,7 +96,7 @@ app.get('/history', async (c) => {
 
 app.get('/balance', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
 
   // Total due now comes from a single SUM query in the repository
   // (`sumBalanceByCustomer`) — previously this endpoint fetched up to
@@ -124,7 +124,7 @@ app.get('/balance', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.payments.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Payment not found' } }, 404);
   return c.json({ success: true, data: mapPaymentRow(row) });
@@ -132,7 +132,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', zValidator('json', PaymentCreateSchema), withSecurityEvents({ action: 'payment.create', resource: 'payment', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const currency = body.amount?.currency || 'USD';
   const amountMinor = majorToMinor(body.amount?.amount);
@@ -297,7 +297,7 @@ app.get('/plans/:id', async (c) => {
 
 app.post('/:id/process', zValidator('json', PaymentProcessSchema), withSecurityEvents({ action: 'payment.create', resource: 'payment', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const raw = c.req.valid('json');
   const body = { ...raw, channel: normalizeChannel(String(raw.channel ?? '')) };
   const row = await repos.payments.update(c.req.param('id'), auth.tenantId, {

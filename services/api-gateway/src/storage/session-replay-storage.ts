@@ -180,7 +180,11 @@ export function createS3Storage(
   }
   const keyPrefix = normalisePrefix(config.keyPrefix ?? DEFAULT_KEY_PREFIX);
   const client: Pick<S3Client, 'send'> =
-    config.client ?? buildS3Client({ region: config.region, endpoint: config.endpoint });
+    config.client ??
+    buildS3Client({
+      region: config.region,
+      ...(config.endpoint !== undefined ? { endpoint: config.endpoint } : {}),
+    });
 
   return {
     kind: 's3',
@@ -354,8 +358,8 @@ export function selectSessionReplayStorage(
       const store = createS3Storage({
         bucket: bucket as string,
         region: env.AWS_REGION as string,
-        keyPrefix: env.AWS_S3_PREFIX,
-        endpoint: env.AWS_S3_ENDPOINT,
+        ...(env.AWS_S3_PREFIX !== undefined ? { keyPrefix: env.AWS_S3_PREFIX } : {}),
+        ...(env.AWS_S3_ENDPOINT !== undefined ? { endpoint: env.AWS_S3_ENDPOINT } : {}),
       });
       logger.info('storage backend selected', {
         backend: 's3',
@@ -375,5 +379,9 @@ export function selectSessionReplayStorage(
     backend: 'local',
     rootDir: env.SESSION_REPLAY_LOCAL_DIR ?? '<tmpdir>/session-replay',
   });
-  return createLocalFileStorage({ rootDir: env.SESSION_REPLAY_LOCAL_DIR });
+  return createLocalFileStorage(
+    env.SESSION_REPLAY_LOCAL_DIR !== undefined
+      ? { rootDir: env.SESSION_REPLAY_LOCAL_DIR }
+      : {},
+  );
 }

@@ -75,7 +75,7 @@ async function resolveSink(logger: WorkerLogger): Promise<CorpusSink> {
     return createLogSink(logger);
   }
   try {
-    const dbMod = (await import('@borjie/database')) as {
+    const dbMod = (await import('@borjie/database')) as unknown as {
       createDatabaseClient?: (url: string) => DrizzleLikeClient;
     };
     if (typeof dbMod.createDatabaseClient !== 'function') {

@@ -131,6 +131,8 @@ export function createPreferencesService(
   ): Promise<NotificationPreferences> {
     return store.update(userId, tenantId, (existing) => {
       const base = existing ?? defaultsFor(userId, tenantId);
+      const quietHoursStart = prefs.quietHoursStart ?? base.quietHoursStart;
+      const quietHoursEnd = prefs.quietHoursEnd ?? base.quietHoursEnd;
       return {
         ...base,
         channels: prefs.channels
@@ -139,8 +141,8 @@ export function createPreferencesService(
         templates: prefs.templates
           ? { ...base.templates, ...prefs.templates }
           : base.templates,
-        quietHoursStart: prefs.quietHoursStart ?? base.quietHoursStart,
-        quietHoursEnd: prefs.quietHoursEnd ?? base.quietHoursEnd,
+        ...(quietHoursStart !== undefined ? { quietHoursStart } : {}),
+        ...(quietHoursEnd !== undefined ? { quietHoursEnd } : {}),
         updatedAt: new Date(),
       };
     });

@@ -337,7 +337,8 @@ export class DocumentService {
         storageKey: uploadResult.key, url: uploadResult.url,
         metadata: { ...(input.metadata ?? {}), currentVersion: 1 },
         uploadedBy, createdAt: now,
-        entityType: input.entityType, entityId: input.entityId,
+        ...(input.entityType !== undefined ? { entityType: input.entityType } : {}),
+        ...(input.entityId !== undefined ? { entityId: input.entityId } : {}),
       };
 
       const saved = await this.documentRepo.create(document);

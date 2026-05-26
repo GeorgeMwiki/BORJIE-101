@@ -108,9 +108,9 @@ export async function proxyJson(
     upstream = await fetch(url, {
       method,
       headers: forwardHeaders,
-      body: options.body ?? undefined,
+      ...(options.body !== undefined && options.body !== null ? { body: options.body } : {}),
       cache: 'no-store',
-      signal: options.signal,
+      ...(options.signal !== undefined ? { signal: options.signal } : {}),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'upstream unreachable';

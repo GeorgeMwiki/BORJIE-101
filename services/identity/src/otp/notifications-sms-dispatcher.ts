@@ -102,8 +102,8 @@ export interface NotificationsSmsDispatcherDeps {
 export class NotificationsSmsDispatcher implements SmsDispatcher {
   private readonly enqueue: EnqueueNotificationFn;
   private readonly tenantId: string;
-  private readonly userId?: string;
-  private readonly correlationId?: string;
+  private readonly userId: string | undefined;
+  private readonly correlationId: string | undefined;
   private readonly logger: DispatcherLogger;
 
   constructor(deps: NotificationsSmsDispatcherDeps) {
@@ -135,17 +135,15 @@ export class NotificationsSmsDispatcher implements SmsDispatcher {
 
     const payload: EnqueueNotificationPayload = {
       tenantId: this.tenantId,
-      userId: this.userId,
+      ...(this.userId !== undefined ? { userId: this.userId } : {}),
       channel: 'sms',
       templateId: OTP_TEMPLATE_ID,
       recipient: phone,
       body,
-      data: code ? { code } : undefined,
+      ...(code ? { data: { code } } : {}),
       priority: 'emergency',
-      correlationId: this.correlationId,
-      idempotencyKey: code
-        ? `otp:${this.tenantId}:${phone}:${code}`
-        : undefined,
+      ...(this.correlationId !== undefined ? { correlationId: this.correlationId } : {}),
+      ...(code ? { idempotencyKey: `otp:${this.tenantId}:${phone}:${code}` } : {}),
     };
 
     let result: EnqueueNotificationResult;

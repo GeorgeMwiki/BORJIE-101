@@ -325,14 +325,18 @@ export class CaseService {
     const newCase: Case = {
       id: caseId, tenantId, caseNumber, type: input.type, severity: input.severity || 'MEDIUM', status: 'OPEN',
       title: input.title, description: input.description, customerId: input.customerId,
-      leaseId: input.leaseId, propertyId: input.propertyId, unitId: input.unitId,
-      relatedInvoiceIds: input.relatedInvoiceIds, amountInDispute: input.amountInDispute,
+      ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+      ...(input.propertyId !== undefined ? { propertyId: input.propertyId } : {}),
+      ...(input.unitId !== undefined ? { unitId: input.unitId } : {}),
+      ...(input.relatedInvoiceIds !== undefined ? { relatedInvoiceIds: input.relatedInvoiceIds } : {}),
+      ...(input.amountInDispute !== undefined ? { amountInDispute: input.amountInDispute } : {}),
       // Currency is resolved by the caller from tenant region-config; we
       // do not inject a TZS fallback which would hide cross-region bugs.
       currency: input.currency ?? '',
-      assignedTo: input.assignedTo,
+      ...(input.assignedTo !== undefined ? { assignedTo: input.assignedTo } : {}),
       timeline: [{ id: `event_${Date.now()}`, type: 'CASE_CREATED', description: `Case created: ${input.title}`, createdAt: now, createdBy }],
-      notices: [], evidence: [], escalationLevel: 0, dueDate: input.dueDate,
+      notices: [], evidence: [], escalationLevel: 0,
+      ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
       createdAt: now, createdBy, updatedAt: now, updatedBy: createdBy,
     };
 
@@ -340,7 +344,14 @@ export class CaseService {
 
     const event: CaseCreatedEvent = {
       eventId: generateEventId(), eventType: 'CaseCreated', timestamp: now, tenantId, correlationId, causationId: null, metadata: {},
-      payload: { caseId: savedCase.id, caseNumber: savedCase.caseNumber, type: savedCase.type, severity: savedCase.severity, customerId: savedCase.customerId, amountInDispute: savedCase.amountInDispute },
+      payload: {
+        caseId: savedCase.id,
+        caseNumber: savedCase.caseNumber,
+        type: savedCase.type,
+        severity: savedCase.severity,
+        customerId: savedCase.customerId,
+        ...(savedCase.amountInDispute !== undefined ? { amountInDispute: savedCase.amountInDispute } : {}),
+      },
     };
     await this.eventBus.publish(createEventEnvelope(event, savedCase.id, 'Case'));
 
@@ -387,7 +398,14 @@ export class CaseService {
     if (!caseEntity) return err({ code: CaseServiceError.CASE_NOT_FOUND, message: 'Case not found' });
 
     const now = new Date().toISOString() as ISOTimestamp;
-    const event: CaseTimelineEvent = { id: `event_${Date.now()}`, type: input.type, description: input.description, metadata: input.metadata, createdAt: now, createdBy };
+    const event: CaseTimelineEvent = {
+      id: `event_${Date.now()}`,
+      type: input.type,
+      description: input.description,
+      ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+      createdAt: now,
+      createdBy,
+    };
     const updatedCase: Case = { ...caseEntity, timeline: [...caseEntity.timeline, event], updatedAt: now, updatedBy: createdBy };
     await this.caseRepo.update(updatedCase);
     return ok(event);
@@ -413,7 +431,8 @@ export class CaseService {
     if (noticeIdx < 0) return err({ code: CaseServiceError.NOTICE_NOT_FOUND, message: 'Notice not found' });
 
     const now = new Date().toISOString() as ISOTimestamp;
-    const sentNotice: CaseNotice = { ...caseEntity.notices[noticeIdx], sentAt: now, sentVia: input.channels };
+    const existingNotice = caseEntity.notices[noticeIdx]!;
+    const sentNotice: CaseNotice = { ...existingNotice, sentAt: now, sentVia: input.channels };
     const notices = [...caseEntity.notices];
     notices[noticeIdx] = sentNotice;
 
@@ -435,7 +454,16 @@ export class CaseService {
     if (!caseEntity) return err({ code: CaseServiceError.CASE_NOT_FOUND, message: 'Case not found' });
 
     const now = new Date().toISOString() as ISOTimestamp;
-    const evidence: CaseEvidence = { id: asEvidenceId(`evidence_${Date.now()}`), type: input.type, name: input.name, description: input.description, url: input.url, mimeType: input.mimeType, uploadedAt: now, uploadedBy };
+    const evidence: CaseEvidence = {
+      id: asEvidenceId(`evidence_${Date.now()}`),
+      type: input.type,
+      name: input.name,
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      url: input.url,
+      ...(input.mimeType !== undefined ? { mimeType: input.mimeType } : {}),
+      uploadedAt: now,
+      uploadedBy,
+    };
     const timelineEvent: CaseTimelineEvent = { id: `event_${Date.now()}`, type: 'EVIDENCE_ADDED', description: `Evidence added: ${input.name}`, createdAt: now, createdBy: uploadedBy };
     const updatedCase: Case = { ...caseEntity, evidence: [...caseEntity.evidence, evidence], timeline: [...caseEntity.timeline, timelineEvent], updatedAt: now, updatedBy: uploadedBy };
     await this.caseRepo.update(updatedCase);
@@ -470,11 +498,17 @@ export class CaseService {
 
     const now = new Date().toISOString() as ISOTimestamp;
     const resolution: CaseResolution = {
-      outcome: input.outcome, summary: input.summary, agreedAmount: input.agreedAmount,
+      outcome: input.outcome,
+      summary: input.summary,
+      ...(input.agreedAmount !== undefined ? { agreedAmount: input.agreedAmount } : {}),
       // Inherit the case's currency so the payment plan cannot silently
       // ship TZS against a non-Tanzania tenant.
-      paymentPlan: input.paymentPlan ? { ...input.paymentPlan, currency: caseEntity.currency ?? '' } : undefined,
-      terms: input.terms, resolvedAt: now, resolvedBy,
+      ...(input.paymentPlan
+        ? { paymentPlan: { ...input.paymentPlan, currency: caseEntity.currency ?? '' } }
+        : {}),
+      ...(input.terms !== undefined ? { terms: input.terms } : {}),
+      resolvedAt: now,
+      resolvedBy,
     };
     const timelineEvent: CaseTimelineEvent = { id: `event_${Date.now()}`, type: 'CASE_RESOLVED', description: `Case resolved: ${input.outcome}`, metadata: { outcome: input.outcome, agreedAmount: input.agreedAmount }, createdAt: now, createdBy: resolvedBy };
     const updatedCase: Case = { ...caseEntity, status: 'RESOLVED', resolution, timeline: [...caseEntity.timeline, timelineEvent], updatedAt: now, updatedBy: resolvedBy };
@@ -482,7 +516,12 @@ export class CaseService {
 
     const event: CaseResolvedEvent = {
       eventId: generateEventId(), eventType: 'CaseResolved', timestamp: now, tenantId, correlationId, causationId: null, metadata: {},
-      payload: { caseId, caseNumber: savedCase.caseNumber, outcome: input.outcome, agreedAmount: input.agreedAmount },
+      payload: {
+        caseId,
+        caseNumber: savedCase.caseNumber,
+        outcome: input.outcome,
+        ...(input.agreedAmount !== undefined ? { agreedAmount: input.agreedAmount } : {}),
+      },
     };
     await this.eventBus.publish(createEventEnvelope(event, caseId, 'Case'));
 

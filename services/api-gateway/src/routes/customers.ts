@@ -29,7 +29,7 @@ async function mapWithConcurrency<T, R>(
   async function pump(): Promise<void> {
     while (nextIndex < items.length) {
       const current = nextIndex++;
-      results[current] = await worker(items[current], current);
+      results[current] = await worker(items[current]!, current);
     }
   }
   const lanes = Array.from({ length: Math.min(concurrency, items.length) }, () => pump());
@@ -72,7 +72,7 @@ const CustomerUpdateSchema = z.object({
 });
 
 function customerCode(email: string) {
-  return `CUST-${email.split('@')[0].replace(/[^A-Z0-9]+/gi, '').slice(0, 6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+  return `CUST-${(email.split('@')[0] ?? email).replace(/[^A-Z0-9]+/gi, '').slice(0, 6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 }
 
 type CustomerRowLike = { id: string };
@@ -126,7 +126,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/me', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.customers.findById(auth.userId, auth.tenantId);
   if (!row) {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Customer profile not found' } }, 404);
@@ -136,7 +136,7 @@ app.get('/me', async (c) => {
 
 app.put('/me', zValidator('json', CustomerUpdateSchema), async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const existing = await repos.customers.findById(auth.userId, auth.tenantId);
   if (!existing) {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Customer profile not found' } }, 404);
@@ -162,7 +162,7 @@ app.put('/me', zValidator('json', CustomerUpdateSchema), async (c) => {
 
 app.get('/', staffOnly, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const search = c.req.query('search');
   const status = c.req.query('status');
@@ -182,7 +182,7 @@ app.get('/', staffOnly, async (c) => {
 
 app.get('/:id', staffOnly, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.customers.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Customer not found' } }, 404);
   return c.json({ success: true, data: await enrichCustomer(repos, auth.tenantId, row) });
@@ -190,7 +190,7 @@ app.get('/:id', staffOnly, async (c) => {
 
 app.post('/', staffOnly, zValidator('json', CustomerCreateSchema), async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const row = await repos.customers.create(
     {
@@ -213,7 +213,7 @@ app.post('/', staffOnly, zValidator('json', CustomerCreateSchema), async (c) => 
 
 app.put('/:id', staffOnly, zValidator('json', CustomerUpdateSchema), async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.customers.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Customer not found' } }, 404);
@@ -238,7 +238,7 @@ app.put('/:id', staffOnly, zValidator('json', CustomerUpdateSchema), async (c) =
 
 app.delete('/:id', staffOnly, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   await repos.customers.delete(id, auth.tenantId, auth.userId);
   return c.json({ success: true, data: { message: 'Customer deleted' } });

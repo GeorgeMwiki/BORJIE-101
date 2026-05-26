@@ -55,10 +55,10 @@ export function generateOpenApiDocument(
   options: CreateOpenApiRouterOptions
 ): Record<string, unknown> {
   return buildOpenApiSpec(options.mountedRouters, {
-    title: options.title,
-    version: options.version,
-    description: options.description,
-    servers: options.servers,
+    ...(options.title !== undefined ? { title: options.title } : {}),
+    ...(options.version !== undefined ? { version: options.version } : {}),
+    ...(options.description !== undefined ? { description: options.description } : {}),
+    ...(options.servers !== undefined ? { servers: options.servers } : {}),
   });
 }
 

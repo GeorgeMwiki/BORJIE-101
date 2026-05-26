@@ -170,7 +170,7 @@ export class MemoryDocumentRepository implements DocumentRepository {
     const key = `${tenantId}:${documentId}`;
     const list = this.versions.get(key) ?? [];
     if (list.length === 0) return null;
-    return [...list].sort((a, b) => b.version - a.version)[0];
+    return [...list].sort((a, b) => b.version - a.version)[0] ?? null;
   }
 
   async addAccess(access: DocumentAccess): Promise<DocumentAccess> {

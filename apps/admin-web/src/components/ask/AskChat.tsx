@@ -72,7 +72,10 @@ async function extractFailure(res: Response): Promise<Failure> {
         readonly resetLabel?: string;
       };
       if (body.code === 'PLATFORM_BUDGET_EXHAUSTED') {
-        return { kind: 'budget-exhausted', resetLabel: body.resetLabel };
+        return {
+          kind: 'budget-exhausted',
+          ...(body.resetLabel !== undefined ? { resetLabel: body.resetLabel } : {}),
+        };
       }
     } catch {
       /* fall through */

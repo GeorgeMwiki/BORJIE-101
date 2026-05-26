@@ -373,12 +373,13 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // approval flow. The check only fires on sovereign-tier tools
     // (see `isSovereignTier` in the kernel), so its latency cost is
     // bounded to that narrow surface.
+    const counterModel = createProductionCounterModel(anthropic);
     const agencyExecutor = agencyKernel.createExecutor({
       goals: goalsService,
       tools: toolRegistry,
       auditSink,
       autonomyPolicy: agencyKernel.createDefaultAllowLowStakesPolicy(),
-      counterModel: createProductionCounterModel(anthropic),
+      ...(counterModel !== null ? { counterModel } : {}),
       sovereignLedgerFailClosed: readSovereignLedgerFailClosedFromEnv(),
     });
     agencyPort = {
@@ -451,12 +452,13 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // early-stub executor above. The wrapped `anthropic` client was
     // hoisted to the top of `build()` so it is in scope for BOTH
     // executor branches; the factory itself is null-safe.
+    const realCounterModel = createProductionCounterModel(anthropic);
     const realAgencyExecutor = agencyKernel.createExecutor({
       goals: goalsService,
       tools: toolRegistry,
       auditSink,
       autonomyPolicy: realAutonomyPolicy,
-      counterModel: createProductionCounterModel(anthropic),
+      ...(realCounterModel !== null ? { counterModel: realCounterModel } : {}),
       sovereignLedgerFailClosed: readSovereignLedgerFailClosedFromEnv(),
     });
     agencyPort = {

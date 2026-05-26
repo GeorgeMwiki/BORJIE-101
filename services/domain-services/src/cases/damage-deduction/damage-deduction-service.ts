@@ -143,9 +143,11 @@ export class DamageDeductionService {
     const entity: DamageDeductionCase = {
       id: asDamageDeductionCaseId(`ddc_${Date.now()}_${randomHex(4)}`),
       tenantId,
-      leaseId: input.leaseId,
-      caseId: input.caseId,
-      moveOutInspectionId: input.moveOutInspectionId,
+      ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+      ...(input.caseId !== undefined ? { caseId: input.caseId } : {}),
+      ...(input.moveOutInspectionId !== undefined
+        ? { moveOutInspectionId: input.moveOutInspectionId }
+        : {}),
       claimedDeductionMinor: input.claimedDeductionMinor,
       // Callers resolve currency from tenant region-config before
       // invoking. Empty string surfaces misconfigured input rather than
@@ -192,13 +194,19 @@ export class DamageDeductionService {
       id: `turn_${Date.now()}_${randomHex(2)}`,
       actor: 'tenant',
       actorId: actor,
-      proposedAmountMinor: input.counterProposalMinor,
+      ...(input.counterProposalMinor !== undefined
+        ? { proposedAmountMinor: input.counterProposalMinor }
+        : {}),
       rationale: input.rationale,
       createdAt: now,
     };
+    const resolvedCounterProposalMinor =
+      input.counterProposalMinor ?? entity.tenantCounterProposalMinor;
     const updated: DamageDeductionCase = {
       ...entity,
-      tenantCounterProposalMinor: input.counterProposalMinor ?? entity.tenantCounterProposalMinor,
+      ...(resolvedCounterProposalMinor !== undefined
+        ? { tenantCounterProposalMinor: resolvedCounterProposalMinor }
+        : {}),
       status: 'tenant_responded',
       aiMediatorTurns: [...entity.aiMediatorTurns, turn],
       updatedAt: now,

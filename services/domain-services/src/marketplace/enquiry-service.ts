@@ -147,7 +147,7 @@ export class EnquiryService {
         listingId: listing.id,
         domain: 'lease_price',
         openingOffer: input.openingOffer,
-        openingRationale: input.message,
+        ...(input.message !== undefined ? { openingRationale: input.message } : {}),
       },
       correlationId,
       userId

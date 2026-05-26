@@ -54,8 +54,8 @@ export function readSendGridConfigFromEnv(
   return {
     apiKey,
     fromEmail,
-    fromName: env.SENDGRID_FROM_NAME,
-    apiBaseUrl: env.SENDGRID_API_BASE_URL,
+    ...(env.SENDGRID_FROM_NAME !== undefined ? { fromName: env.SENDGRID_FROM_NAME } : {}),
+    ...(env.SENDGRID_API_BASE_URL !== undefined ? { apiBaseUrl: env.SENDGRID_API_BASE_URL } : {}),
   };
 }
 

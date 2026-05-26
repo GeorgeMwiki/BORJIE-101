@@ -99,7 +99,7 @@ export const api = {
   delete: <T>(endpoint: string, data?: unknown) =>
     request<T>(endpoint, {
       method: 'DELETE',
-      body: data === undefined ? undefined : JSON.stringify(data),
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     }),
 };
 

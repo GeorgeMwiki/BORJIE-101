@@ -50,6 +50,15 @@ export const honoAuthMiddleware = createMiddleware<{
   }
 
   const token = authHeader.split(' ')[1];
+  if (!token) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Missing token after Bearer' },
+      },
+      401
+    );
+  }
 
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);

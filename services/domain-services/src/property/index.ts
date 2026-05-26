@@ -383,12 +383,12 @@ export class PropertyService {
       code,
       type: input.type,
       address: input.address,
-      totalUnits: input.totalUnits,
-      yearBuilt: input.yearBuilt,
-      totalArea: input.totalArea,
-      amenities: input.amenities,
-      description: input.description,
-      managerId: input.managerId,
+      ...(input.totalUnits !== undefined ? { totalUnits: input.totalUnits } : {}),
+      ...(input.yearBuilt !== undefined ? { yearBuilt: input.yearBuilt } : {}),
+      ...(input.totalArea !== undefined ? { totalArea: input.totalArea } : {}),
+      ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
     }, createdBy);
 
     const savedProperty = await this.propertyRepo.create(property);
@@ -645,9 +645,9 @@ export class PropertyService {
       bathrooms: input.bathrooms,
       monthlyRent: input.monthlyRent,
       depositAmount: input.depositAmount,
-      area: input.area,
-      amenities: input.amenities,
-      description: input.description,
+      ...(input.area !== undefined ? { area: input.area } : {}),
+      ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
     }, createdBy);
 
     const savedUnit = await this.unitRepo.create(unit);
@@ -1103,8 +1103,8 @@ export class PropertyService {
         bathrooms: input.bathrooms,
         monthlyRent: input.monthlyRent,
         depositAmount: input.depositAmount,
-        area: input.area,
-        amenities: input.amenities,
+        ...(input.area !== undefined ? { area: input.area } : {}),
+        ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
       }, createdBy);
       units.push(unit);
     }

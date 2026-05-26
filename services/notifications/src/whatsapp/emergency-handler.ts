@@ -557,7 +557,7 @@ export class EmergencyProtocolHandler {
 
     // Reset session state
     session.state = 'idle';
-    session.context.emergency = undefined;
+    delete session.context.emergency;
 
     logger.info('Emergency resolved', {
       phoneNumber: session.phoneNumber,

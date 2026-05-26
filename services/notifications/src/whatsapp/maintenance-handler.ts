@@ -72,7 +72,7 @@ export interface TranscriptionService {
 export class MaintenanceRequestHandler {
   private whatsappClient: MetaWhatsAppClient;
   private workOrderService: WorkOrderService;
-  private transcriptionService?: TranscriptionService;
+  private transcriptionService: TranscriptionService | undefined;
 
   constructor(options: {
     whatsappClient: MetaWhatsAppClient;
@@ -154,13 +154,14 @@ export class MaintenanceRequestHandler {
 
     // Send issue type list
     const listTemplate = getTemplate(MAINTENANCE_TEMPLATES.issueTypeList, session.language);
+    const headerText = (listTemplate as { header?: string }).header;
     await this.whatsappClient.sendList(
       session.phoneNumber,
       (listTemplate as { body: string }).body,
       (listTemplate as { sections: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }> }).sections,
-      {
-        header: { type: 'text', text: (listTemplate as { header?: string }).header },
-      }
+      headerText !== undefined
+        ? { header: { type: 'text', text: headerText } }
+        : {}
     );
 
     session.state = 'maintenance_intake';
@@ -437,7 +438,7 @@ export class MaintenanceRequestHandler {
   ): Promise<void> {
     // Reset to idle state
     session.state = 'idle';
-    session.context.maintenance = undefined;
+    delete session.context.maintenance;
 
     const thankYouMsg = session.language === 'sw'
       ? 'Asante! Kama unahitaji msaada mwingine, niambie tu.'
@@ -538,8 +539,8 @@ export class MaintenanceRequestHandler {
       location: ctx.location || 'Not specified',
       severity: ctx.severity || 'medium',
       photoUrls: ctx.photoUrls || [],
-      voiceNoteUrl: ctx.voiceNoteUrl,
-      transcription: ctx.transcribedText,
+      ...(ctx.voiceNoteUrl !== undefined ? { voiceNoteUrl: ctx.voiceNoteUrl } : {}),
+      ...(ctx.transcribedText !== undefined ? { transcription: ctx.transcribedText } : {}),
       conversationId: session.id,
       status: 'pending_approval',
       createdAt: new Date(),

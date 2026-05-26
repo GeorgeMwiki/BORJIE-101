@@ -130,11 +130,26 @@ function requireIdempotencyKey(headers: Record<string, unknown> | undefined): st
 
 function toCaptureInput(payload: z.infer<typeof CapturePayloadSchema>): FieldCaptureInput {
   const bytes = decodeBase64ToBytes(payload.bytesBase64);
+  const capturedLocation = payload.capturedLocation;
   return {
     kind: payload.kind,
     ...(payload.parcelId !== undefined ? { parcelId: payload.parcelId } : {}),
     ...(payload.capturedAt !== undefined ? { capturedAt: payload.capturedAt } : {}),
-    ...(payload.capturedLocation !== undefined ? { capturedLocation: payload.capturedLocation } : {}),
+    ...(capturedLocation !== undefined
+      ? {
+          capturedLocation: {
+            lat: capturedLocation.lat,
+            lng: capturedLocation.lng,
+            ...(capturedLocation.ts !== undefined ? { ts: capturedLocation.ts } : {}),
+            ...(capturedLocation.deviceModel !== undefined
+              ? { deviceModel: capturedLocation.deviceModel }
+              : {}),
+            ...(capturedLocation.altitudeM !== undefined
+              ? { altitudeM: capturedLocation.altitudeM }
+              : {}),
+          },
+        }
+      : {}),
     ...(payload.storageUri !== undefined ? { storageUri: payload.storageUri } : {}),
     ...(bytes !== undefined ? { bytes } : {}),
     ...(payload.metadata !== undefined ? { metadata: payload.metadata } : {}),
@@ -286,8 +301,8 @@ export async function registerCaptureRoutes(
         persistedPayload = await persistBytesIfNeeded({
           payload: forcedPayload,
           tenantId,
-          storageAdapter: deps.storageAdapter,
-          kindToBucket: deps.kindToBucket,
+          ...(deps.storageAdapter !== undefined ? { storageAdapter: deps.storageAdapter } : {}),
+          ...(deps.kindToBucket !== undefined ? { kindToBucket: deps.kindToBucket } : {}),
         });
       } catch (err) {
         reply.code(502);
@@ -358,8 +373,8 @@ export async function registerCaptureRoutes(
             persistBytesIfNeeded({
               payload: c,
               tenantId,
-              storageAdapter: deps.storageAdapter,
-              kindToBucket: deps.kindToBucket,
+              ...(deps.storageAdapter !== undefined ? { storageAdapter: deps.storageAdapter } : {}),
+              ...(deps.kindToBucket !== undefined ? { kindToBucket: deps.kindToBucket } : {}),
             }),
           ),
         );

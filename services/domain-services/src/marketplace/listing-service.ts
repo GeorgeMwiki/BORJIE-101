@@ -66,7 +66,7 @@ export class ListingService {
   private readonly repo: MarketplaceListingRepository;
   private readonly eventBus: EventBus;
   private readonly now: () => ISOTimestamp;
-  private readonly unitExists?: UnitExistsChecker;
+  private readonly unitExists: UnitExistsChecker | undefined;
 
   constructor(deps: ListingServiceDeps) {
     this.repo = deps.repo;

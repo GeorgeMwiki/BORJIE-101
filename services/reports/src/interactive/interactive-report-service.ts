@@ -73,8 +73,8 @@ export class InteractiveReportService {
 
   constructor(private readonly deps: InteractiveReportServiceDeps) {
     this.handler = new ActionPlanHandler({
-      workOrderCreator: deps.workOrderCreator,
-      approvalRequestCreator: deps.approvalRequestCreator,
+      ...(deps.workOrderCreator !== undefined ? { workOrderCreator: deps.workOrderCreator } : {}),
+      ...(deps.approvalRequestCreator !== undefined ? { approvalRequestCreator: deps.approvalRequestCreator } : {}),
     });
     this.now = deps.now ?? (() => new Date());
     this.generateId = deps.generateId ?? defaultId;
@@ -100,12 +100,12 @@ export class InteractiveReportService {
     const html = (await this.generator.generate(
       {
         title: input.title,
-        subtitle: input.subtitle,
+        ...(input.subtitle !== undefined ? { subtitle: input.subtitle } : {}),
         generatedAt: this.now(),
         media: input.media,
         actionPlans: input.actionPlans,
         interactiveReportVersionId: versionId,
-        actionPlanPostPath: this.deps.actionPlanPostPath,
+        ...(this.deps.actionPlanPostPath !== undefined ? { actionPlanPostPath: this.deps.actionPlanPostPath } : {}),
       },
       data
     )) as string;

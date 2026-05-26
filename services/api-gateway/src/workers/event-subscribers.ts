@@ -160,6 +160,15 @@ function safeHandler(
 export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void {
   const { bus, notifications, logger, audit, observability, arrearsService } = deps;
 
+  // Helper: under exactOptionalPropertyTypes, optional fields cannot be
+  // assigned `undefined` explicitly. This lets handlers spread the
+  // correlationId only when present.
+  const withCorrelation = <T extends object>(
+    obj: T,
+    correlationId: string | undefined
+  ): T & { correlationId?: string } =>
+    correlationId !== undefined ? { ...obj, correlationId } : obj;
+
   // Thin no-op defaults so handler code can call these unconditionally.
   const auditLog = async (entry: Parameters<AuditSink['log']>[0]): Promise<void> => {
     if (!audit) return;
@@ -216,7 +225,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           paidAt: (p as { paidAt?: unknown }).paidAt,
           receiptUrl: (p as { receiptUrl?: string }).receiptUrl,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.payment-succeeded' }
@@ -238,7 +249,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           failureReason: (p as { failureReason?: string }).failureReason,
           failureCode: (p as { failureCode?: string }).failureCode,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.payment-failed' }
@@ -260,7 +273,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           refundAmount: (p as { refundAmount?: unknown }).refundAmount,
           isFullRefund: (p as { isFullRefund?: boolean }).isFullRefund,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.payment-refunded' }
@@ -282,14 +297,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         channel: 'email',
         recipient: recipientCustomerId
           ? { customerId: recipientCustomerId }
-          : { userId: recipientUserId },
+          : recipientUserId !== undefined
+            ? { userId: recipientUserId }
+            : {},
         templateKey: 'statement.ready',
         data: {
           statementId: (p as { statementId?: string }).statementId,
           periodStart: (p as { periodStart?: unknown }).periodStart,
           periodEnd: (p as { periodEnd?: unknown }).periodEnd,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.statement-generated' }
@@ -312,7 +331,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           amount: (p as { amount?: unknown }).amount,
           completedAt: (p as { completedAt?: unknown }).completedAt,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.disbursement-completed' }
@@ -333,7 +354,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { to: email },
         templateKey: 'user.invited',
         data: { inviteToken, invitedBy: (p as { invitedBy?: string }).invitedBy },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.user-invited' }
@@ -357,7 +380,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           subject: (p as { subject?: string }).subject,
           urgency: (p as { urgency?: string }).urgency ?? 'normal',
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.approval-requested' }
@@ -384,7 +409,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           toStatus,
           fromStatus: (p as { fromStatus?: string }).fromStatus,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.legal-case-status-changed' }
@@ -420,7 +447,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           title: (genericPayload(event) as { title?: string }).title,
           priority: (genericPayload(event) as { priority?: string }).priority ?? 'normal',
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.case-created' }
@@ -442,7 +471,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           escalationLevel: (genericPayload(event) as { escalationLevel?: number }).escalationLevel,
           assignedTo: (genericPayload(event) as { assignedTo?: string }).assignedTo,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.case-escalated' }
@@ -464,7 +495,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           resolvedAt: (genericPayload(event) as { resolvedAt?: unknown }).resolvedAt,
           resolution: (genericPayload(event) as { resolution?: string }).resolution,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.case-resolved' }
@@ -486,7 +519,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           slaTargetAt: (genericPayload(event) as { slaTargetAt?: unknown }).slaTargetAt,
           breachedAt: (genericPayload(event) as { breachedAt?: unknown }).breachedAt,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       // SLA breach is an operational signal — page the on-call dashboard
       // in addition to notifying the assignee.
@@ -500,7 +535,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         title: 'Case SLA breached',
         tenantId,
         tags: { caseId: String((genericPayload(event) as { caseId?: string }).caseId ?? '') },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.case-sla-breached' }
@@ -523,7 +560,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           noticeId: (genericPayload(event) as { noticeId?: string }).noticeId,
           deadline: (genericPayload(event) as { deadline?: unknown }).deadline,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.notice-sent' }
@@ -548,7 +587,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           currentExpiryDate: (genericPayload(event) as { currentExpiryDate?: unknown })
             .currentExpiryDate,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.renewal-window-opened' }
@@ -572,7 +613,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
             .proposedTermMonths,
           respondByDate: (genericPayload(event) as { respondByDate?: unknown }).respondByDate,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.renewal-proposed' }
@@ -596,7 +639,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           daysOverdue: (genericPayload(event) as { daysOverdue?: number }).daysOverdue,
           dueDate: (genericPayload(event) as { dueDate?: unknown }).dueDate,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.payment-overdue' }
@@ -621,7 +666,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
             .propertyAddress,
           priority: (genericPayload(event) as { priority?: string }).priority ?? 'normal',
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.work-order-assigned' }
@@ -645,7 +692,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           inspector: (genericPayload(event) as { inspector?: string }).inspector,
           unitRef: (genericPayload(event) as { unitRef?: string }).unitRef,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.inspection-scheduled' }
@@ -677,7 +726,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           amount: (genericPayload(event) as { amount?: unknown }).amount,
           method: (genericPayload(event) as { method?: string }).method,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'payment.received', value: 1, tags: { tenantId } });
     }),
@@ -701,7 +752,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           amountDue: (genericPayload(event) as { amountDue?: unknown }).amountDue,
           dueDate: (genericPayload(event) as { dueDate?: unknown }).dueDate,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.invoice-created' }
@@ -722,7 +775,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           invoiceId: (genericPayload(event) as { invoiceId?: string }).invoiceId,
           amount: (genericPayload(event) as { amount?: unknown }).amount,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.invoice-generated' }
@@ -744,7 +799,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           channel: (genericPayload(event) as { channel?: string }).channel,
           sentAt: (genericPayload(event) as { sentAt?: unknown }).sentAt,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.invoice-sent' }
@@ -766,7 +823,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           paidAt: (genericPayload(event) as { paidAt?: unknown }).paidAt,
           receiptNumber: (genericPayload(event) as { receiptNumber?: string }).receiptNumber,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'invoice.paid', value: 1, tags: { tenantId } });
     }),
@@ -809,7 +868,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String(payload.invoiceId ?? event.aggregateId ?? ''),
         },
         metadata: payload,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
 
       // Concrete call: open the arrears case in the ledger. The service
@@ -835,9 +896,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           daysOverdue: payload.daysOverdue ?? 0,
           overdueInvoiceCount: 1,
           oldestInvoiceDate,
-          leaseId: payload.leaseId,
-          propertyId: payload.propertyId,
-          unitId: payload.unitId,
+          ...(payload.leaseId !== undefined ? { leaseId: payload.leaseId } : {}),
+          ...(payload.propertyId !== undefined ? { propertyId: payload.propertyId } : {}),
+          ...(payload.unitId !== undefined ? { unitId: payload.unitId } : {}),
           createdBy: 'system:arrears-auto-open',
           notes: `Auto-opened on InvoiceOverdue for invoice ${payload.invoiceId ?? 'unknown'}.`,
         });
@@ -855,7 +916,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
             invoiceId: payload.invoiceId,
             customerId,
           },
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       } catch (err) {
         logger.error(
@@ -894,7 +957,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           startDate: (genericPayload(event) as { startDate?: unknown }).startDate,
           endDate: (genericPayload(event) as { endDate?: unknown }).endDate,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       await auditLog({
         tenantId,
@@ -904,7 +969,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { leaseId?: string }).leaseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.lease-created' }
@@ -925,7 +992,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           leaseId: (genericPayload(event) as { leaseId?: string }).leaseId,
           activatedAt: (genericPayload(event) as { activatedAt?: unknown }).activatedAt,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.lease-activated' }
@@ -947,7 +1016,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           terminatedAt: (genericPayload(event) as { terminatedAt?: unknown }).terminatedAt,
           reason: (genericPayload(event) as { reason?: string }).reason,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       await auditLog({
         tenantId,
@@ -959,7 +1030,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         metadata: {
           reason: (genericPayload(event) as { reason?: string }).reason,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.lease-terminated' }
@@ -981,7 +1054,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           amount: (genericPayload(event) as { amount?: unknown }).amount,
           deductions: (genericPayload(event) as { deductions?: unknown }).deductions,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.deposit-returned' }
@@ -999,7 +1074,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'lease.renewal_window',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.lease-renewal-window' }
@@ -1018,7 +1095,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'renewal.accepted',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.renewal-accepted' }
@@ -1036,7 +1115,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'renewal.declined',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.renewal-declined' }
@@ -1054,7 +1135,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'renewal.reminder',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.renewal-reminder' }
@@ -1073,7 +1156,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { leaseId?: string }).leaseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.lease-terminated-by-renewal' }
@@ -1096,7 +1181,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           title: (genericPayload(event) as { title?: string }).title,
           priority: (genericPayload(event) as { priority?: string }).priority ?? 'normal',
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.work-order-created' }
@@ -1117,7 +1204,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           workOrderId: (genericPayload(event) as { workOrderId?: string }).workOrderId,
           completedAt: (genericPayload(event) as { completedAt?: unknown }).completedAt,
         },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.work-order-completed' }
@@ -1139,14 +1228,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         title: 'Maintenance SLA breached',
         tenantId,
         tags: { workOrderId },
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       await auditLog({
         tenantId,
         action: 'maintenance.sla_breached',
         target: { type: 'WorkOrder', id: workOrderId },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'observability.sla-breached' }
@@ -1166,7 +1259,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: ownerId },
         templateKey: 'compliance.due',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.compliance-due' }
@@ -1185,7 +1280,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { userId: ownerId },
           templateKey: 'compliance.overdue',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitMetric({ name: 'compliance.overdue', value: 1, tags: { tenantId } });
@@ -1193,7 +1290,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         severity: 'warning',
         title: 'Compliance item overdue',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.compliance-overdue' }
@@ -1212,7 +1311,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { noticeId?: string }).noticeId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.notice-served' }
@@ -1231,7 +1332,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { caseId?: string }).caseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'legal.case_created', value: 1, tags: { tenantId } });
     }),
@@ -1251,7 +1354,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { caseId?: string }).caseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.legal-case-closed' }
@@ -1270,7 +1375,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { caseId?: string }).caseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.case-evidence-added' }
@@ -1289,7 +1396,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { caseId?: string }).caseId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.case-status-changed' }
@@ -1309,7 +1418,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { customerId?: string }).customerId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'customer.created', value: 1, tags: { tenantId } });
     }),
@@ -1329,7 +1440,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'customer.kyc_verified',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       await auditLog({
@@ -1337,7 +1450,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'customer.kyc_verified',
         target: { type: 'Customer', id: String(customerId ?? event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.customer-kyc-verified' }
@@ -1353,7 +1468,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'customer.financial_statement_submitted',
         target: { type: 'Customer', id: String(extractCustomer(event) ?? event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.financial-statement-submitted' }
@@ -1369,7 +1486,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'customer.bank_reference_verified',
         target: { type: 'Customer', id: String(extractCustomer(event) ?? event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.bank-reference-verified' }
@@ -1385,13 +1504,17 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'customer.litigation_recorded',
         target: { type: 'Customer', id: String(extractCustomer(event) ?? event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitAlert({
         severity: 'warning',
         title: 'Litigation recorded for customer',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.litigation-recorded' }
@@ -1411,7 +1534,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.user-created' }
@@ -1430,7 +1555,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.user-activated' }
@@ -1449,13 +1576,17 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitAlert({
         severity: 'info',
         title: 'User suspended',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.user-suspended' }
@@ -1474,7 +1605,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'identity.user_locked', value: 1, tags: { tenantId } });
     }),
@@ -1494,7 +1627,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.user-role-assigned' }
@@ -1513,7 +1648,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { userId?: string }).userId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.user-role-removed' }
@@ -1549,7 +1686,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { sessionId?: string }).sessionId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.session-revoked' }
@@ -1568,7 +1707,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { roleId?: string }).roleId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.role-created' }
@@ -1585,7 +1726,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'tenant.created',
         target: { type: 'Tenant', id: tenantId },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'tenant.created', value: 1 });
     }),
@@ -1602,13 +1745,17 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'tenant.suspended',
         target: { type: 'Tenant', id: tenantId },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitAlert({
         severity: 'warning',
         title: 'Tenant suspended',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.tenant-suspended' }
@@ -1624,7 +1771,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'tenant.activated',
         target: { type: 'Tenant', id: tenantId },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.tenant-activated' }
@@ -1640,7 +1789,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'tenant.updated',
         target: { type: 'Tenant', id: tenantId },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.tenant-updated' }
@@ -1659,7 +1810,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { organizationId?: string }).organizationId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.organization-created' }
@@ -1677,7 +1830,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'property.created',
         target: { type: 'Property', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.property-created' }
@@ -1725,7 +1880,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'vendor.created',
         target: { type: 'Vendor', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.vendor-created' }
@@ -1741,7 +1898,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'vendor.status_changed',
         target: { type: 'Vendor', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.vendor-status-changed' }
@@ -1792,14 +1951,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { userId: assigneeId },
           templateKey: 'complaint.escalated',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitAlert({
         severity: 'warning',
         title: 'Complaint escalated',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.complaint-escalated' }
@@ -1817,7 +1980,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'service_recovery.created',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.service-recovery-created' }
@@ -1835,7 +2000,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'service_recovery.resolved',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.service-recovery-resolved' }
@@ -1854,7 +2021,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'inspection.completed',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.inspection-completed' }
@@ -1873,7 +2042,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { inspectionId?: string }).inspectionId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.inspection-signed' }
@@ -1892,7 +2063,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'inspection.damage_identified',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitMetric({ name: 'inspection.damage_identified', value: 1, tags: { tenantId } });
@@ -1912,7 +2085,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'conditional_survey.scheduled',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.conditional-survey-scheduled' }
@@ -1928,7 +2103,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'inspection.conditional_survey_compiled',
         target: { type: 'Inspection', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.conditional-survey-compiled' }
@@ -1957,7 +2134,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'move_out.self_checkout_completed',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       await auditLog({
@@ -1965,7 +2144,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'inspection.move_out_self_checkout',
         target: { type: 'Inspection', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.move-out-self-checkout' }
@@ -1984,7 +2165,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: counterpartyId },
         templateKey: 'negotiation.opened',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.negotiation-opened' }
@@ -2002,7 +2185,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: counterpartyId },
         templateKey: 'negotiation.counter',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.negotiation-counter' }
@@ -2017,7 +2202,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         severity: 'warning',
         title: 'Negotiation escalated',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitMetric({ name: 'negotiation.escalated', value: 1, tags: { tenantId } });
     }),
@@ -2036,7 +2223,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: counterpartyId },
         templateKey: 'negotiation.accepted',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.negotiation-accepted' }
@@ -2054,7 +2243,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: counterpartyId },
         templateKey: 'negotiation.rejected',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.negotiation-rejected' }
@@ -2084,7 +2275,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { userId: tenderOwnerId },
           templateKey: 'tender.bid_submitted',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitMetric({ name: 'marketplace.bid_submitted', value: 1, tags: { tenantId } });
@@ -2105,7 +2298,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { userId: winnerUserId },
           templateKey: 'tender.awarded',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       await auditLog({
@@ -2113,7 +2308,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'marketplace.tender_awarded',
         target: { type: 'Tender', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.tender-awarded' }
@@ -2129,7 +2326,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'marketplace.tender_cancelled',
         target: { type: 'Tender', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.tender-cancelled' }
@@ -2175,7 +2374,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'utility.bill_created',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.utility-bill-created' }
@@ -2194,14 +2395,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'utility.high_consumption',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitAlert({
         severity: 'info',
         title: 'High utility consumption',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.high-consumption-alert' }
@@ -2220,7 +2425,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: requesterId },
         templateKey: 'approval.granted',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.approval-granted' }
@@ -2238,7 +2445,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: requesterId },
         templateKey: 'approval.rejected',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.approval-rejected' }
@@ -2256,13 +2465,17 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: escalatedToUserId },
         templateKey: 'approval.escalated',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitAlert({
         severity: 'info',
         title: 'Approval escalated',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.approval-escalated' }
@@ -2282,7 +2495,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { documentId?: string }).documentId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.document-uploaded' }
@@ -2301,7 +2516,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { documentId?: string }).documentId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.document-deleted' }
@@ -2320,7 +2537,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { documentId?: string }).documentId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.document-access-granted' }
@@ -2349,13 +2568,17 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { documentId?: string }).documentId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       emitAlert({
         severity: 'critical',
         title: 'Document fraud flagged',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.document-fraud-flagged' }
@@ -2374,7 +2597,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { packId?: string }).packId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.evidence-pack-compiled' }
@@ -2415,7 +2640,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'onboarding.started',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitMetric({ name: 'onboarding.started', value: 1, tags: { tenantId } });
@@ -2453,7 +2680,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { customerId },
           templateKey: 'onboarding.completed',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitMetric({ name: 'onboarding.completed', value: 1, tags: { tenantId } });
@@ -2474,7 +2703,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String(event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.move-in-inspection-submitted' }
@@ -2503,7 +2734,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: attendeeId },
         templateKey: 'scheduling.event_scheduled',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.event-scheduled' }
@@ -2521,7 +2754,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { userId: attendeeId },
         templateKey: 'scheduling.event_cancelled',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.event-cancelled' }
@@ -2550,7 +2785,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         recipient: { customerId },
         templateKey: 'waitlist.joined',
         data: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.waitlist-joined' }
@@ -2643,7 +2880,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           id: String((genericPayload(event) as { statementId?: string }).statementId ?? event.aggregateId ?? ''),
         },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.statement-sent' }
@@ -2659,7 +2898,9 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         action: 'disbursement.initiated',
         target: { type: 'Disbursement', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.disbursement-initiated' }
@@ -2678,14 +2919,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
           recipient: { userId: ownerId },
           templateKey: 'disbursement.failed',
           data: genericPayload(event),
-          correlationId: event.metadata?.correlationId,
+          ...(event.metadata?.correlationId !== undefined
+            ? { correlationId: event.metadata.correlationId }
+            : {}),
         });
       }
       emitAlert({
         severity: 'critical',
         title: 'Disbursement failed',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'notifications.disbursement-failed' }
@@ -2710,14 +2955,18 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         severity: 'critical',
         title: 'Reconciliation exception',
         tenantId,
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
       await auditLog({
         tenantId,
         action: 'reconciliation.exception',
         target: { type: 'Reconciliation', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
-        correlationId: event.metadata?.correlationId,
+        ...(event.metadata?.correlationId !== undefined
+          ? { correlationId: event.metadata.correlationId }
+          : {}),
       });
     }),
     { id: 'audit.reconciliation-exception' }

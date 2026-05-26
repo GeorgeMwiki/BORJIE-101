@@ -1072,7 +1072,7 @@ export class PaymentService {
 
   private getCategoryFromInvoice(invoice: Invoice | null): TransactionCategory {
     if (!invoice || invoice.lineItems.length === 0) return 'other';
-    const primaryType = invoice.lineItems[0].type;
+    const primaryType = invoice.lineItems[0]!.type;
     
     switch (primaryType) {
       case 'rent': return 'rent_income';

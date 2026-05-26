@@ -180,7 +180,14 @@ app.get('/items/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
-  const result = await s.getItem(auth.tenantId, c.req.param('id'));
+  const id = c.req.param('id');
+  if (!id) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+      400
+    );
+  }
+  const result = await s.getItem(auth.tenantId, id);
   if (!result.ok) return mapErr(c, result);
   if (!result.value) {
     return c.json(
@@ -210,7 +217,14 @@ app.get('/items/:id/movements', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
-  const result = await s.listMovements(auth.tenantId, c.req.param('id'));
+  const id = c.req.param('id');
+  if (!id) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+      400
+    );
+  }
+  const result = await s.listMovements(auth.tenantId, id);
   if (!result.ok) return mapErr(c, result);
   return c.json({ success: true, data: result.value });
 });

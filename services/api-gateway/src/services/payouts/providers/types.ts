@@ -49,7 +49,7 @@ export function normaliseMsisdn(raw: string): string | null {
   // Accept `+E164` and bare digits 10-15 long.
   const m = trimmed.match(/^\+?([0-9]{10,15})$/);
   if (!m) return null;
-  return m[1];
+  return m[1] ?? null;
 }
 
 /**

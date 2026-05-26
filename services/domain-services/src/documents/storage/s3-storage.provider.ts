@@ -54,11 +54,15 @@ export class S3StorageProvider implements StorageProvider {
       Key: s3Key,
       Body: content,
       ContentType: input.contentType,
-      Metadata: input.metadata ? { ...input.metadata } : undefined,
+      ...(input.metadata ? { Metadata: { ...input.metadata } } : {}),
     });
 
     const url = `https://${this.bucket}.s3.amazonaws.com/${s3Key}`;
-    return { key: input.key, url, etag: result.ETag };
+    return {
+      key: input.key,
+      url,
+      ...(result.ETag !== undefined ? { etag: result.ETag } : {}),
+    };
   }
 
   async getSignedUrl(tenantId: TenantId, key: string, options: SignedUrlOptions): Promise<string> {

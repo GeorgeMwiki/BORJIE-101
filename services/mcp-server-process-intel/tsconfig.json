@@ -16,9 +16,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
-    "types": ["node"],
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "__tests__/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]

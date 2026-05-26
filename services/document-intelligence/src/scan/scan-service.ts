@@ -162,8 +162,8 @@ export class ScanService {
     const bundle: ScanBundleRecord = {
       id: randomId('scb'),
       tenantId: input.tenantId,
-      title: input.title,
-      purpose: input.purpose,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.purpose !== undefined ? { purpose: input.purpose } : {}),
       status: 'draft',
       pageCount: 0,
       processingLog: [{ step: 'created', at: now }],
@@ -207,9 +207,9 @@ export class ScanService {
       storageKey: uploaded.key,
       mimeType: input.page.mimeType || mime,
       sizeBytes: uploaded.sizeBytes,
-      widthPx: input.page.widthPx,
-      heightPx: input.page.heightPx,
-      quad: input.page.quad,
+      ...(input.page.widthPx !== undefined ? { widthPx: input.page.widthPx } : {}),
+      ...(input.page.heightPx !== undefined ? { heightPx: input.page.heightPx } : {}),
+      ...(input.page.quad !== undefined ? { quad: input.page.quad } : {}),
       capturedAt: new Date().toISOString(),
     };
     const savedPage = await this.options.repository.addPage(pageRec);
@@ -321,7 +321,7 @@ export class ScanService {
     const submitted: ScanBundleRecord = {
       ...bundle,
       status: 'submitted',
-      assembledDocumentId: documentId,
+      ...(documentId !== undefined ? { assembledDocumentId: documentId } : {}),
       submittedAt: now,
       updatedAt: now,
       processingLog: [

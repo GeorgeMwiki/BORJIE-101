@@ -161,7 +161,7 @@ export function CockpitSeedStep({ headline, onChange }: CockpitSeedStepProps) {
 interface TextFieldProps {
   readonly label: string;
   readonly register: ReturnType<UseFormReturn<KybFormValues>['register']>;
-  readonly error?: string;
+  readonly error?: string | undefined;
 }
 
 function TextField({ label, register, error }: TextFieldProps) {

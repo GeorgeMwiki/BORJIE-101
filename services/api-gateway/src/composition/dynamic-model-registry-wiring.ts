@@ -51,7 +51,7 @@ const safeFetchAdapter: DynamicRegistryFetchPort = async (
   try {
     const res = await safeHttpFetch(url, {
       method: options?.method ?? 'GET',
-      headers: options?.headers,
+      ...(options?.headers !== undefined ? { headers: options.headers } : {}),
       timeoutMs: options?.timeoutMs ?? 5_000,
     });
     return {

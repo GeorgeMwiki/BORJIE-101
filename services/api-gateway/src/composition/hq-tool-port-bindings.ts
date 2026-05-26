@@ -331,12 +331,22 @@ function buildEardhiPort(
     async verifyTitle(args) {
       const outcome = await adapter.verifyTitle({ titleNumber: args.titleNumber });
       if (outcome.kind === 'ok') {
+        // The connector's Zod-inferred shape is structurally identical
+        // to the port's readonly shape — only the variance of
+        // `Array` vs `ReadonlyArray` differs. The values are not
+        // mutated downstream, so a single readonly-widening cast at the
+        // port boundary is safe.
         return {
           kind: 'ok',
           valid: outcome.data.valid,
           owner_name: outcome.data.owner_name,
           registered_at: outcome.data.registered_at,
-          encumbrances: outcome.data.encumbrances,
+          encumbrances: outcome.data.encumbrances as ReadonlyArray<{
+            readonly kind: 'mortgage' | 'caveat' | 'lease' | 'court-order' | 'other';
+            readonly noteRef: string;
+            readonly registeredAt: string;
+            readonly notes?: string;
+          }>,
         };
       }
       if (outcome.kind === 'upstream-error' && outcome.status === 404) {

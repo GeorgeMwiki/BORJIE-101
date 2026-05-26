@@ -308,7 +308,12 @@ export class ApprovalService {
       correlationId: saved.id,
       causationId: null,
       metadata: {},
-      payload: { requestId: saved.id, type: saved.type, approverId, comment },
+      payload: {
+        requestId: saved.id,
+        type: saved.type,
+        approverId,
+        ...(comment !== undefined ? { comment } : {}),
+      },
     };
     await this.eventBus.publish(createEventEnvelope(event, saved.id, 'ApprovalRequest'));
 

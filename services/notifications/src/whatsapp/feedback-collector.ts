@@ -111,13 +111,14 @@ export class FeedbackCollector {
 
     // Send issue check list
     const listTemplate = getTemplate(FEEDBACK_TEMPLATES.issueCheckList, language);
+    const headerText = (listTemplate as { header?: string }).header;
     await this.whatsappClient.sendList(
       phoneNumber,
       (listTemplate as { body: string }).body,
       (listTemplate as { sections: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }> }).sections,
-      {
-        header: { type: 'text', text: (listTemplate as { header?: string }).header },
-      }
+      headerText !== undefined
+        ? { header: { type: 'text', text: headerText } }
+        : {}
     );
   }
 
@@ -272,13 +273,14 @@ export class FeedbackCollector {
     // For low ratings, show issue checklist
     if (rating <= 3 && (!ctx.issues || ctx.issues.length === 0)) {
       const listTemplate = getTemplate(FEEDBACK_TEMPLATES.issueCheckList, session.language);
+      const headerText = (listTemplate as { header?: string }).header;
       await this.whatsappClient.sendList(
         session.phoneNumber,
         (listTemplate as { body: string }).body,
         (listTemplate as { sections: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }> }).sections,
-        {
-          header: { type: 'text', text: (listTemplate as { header?: string }).header },
-        }
+        headerText !== undefined
+          ? { header: { type: 'text', text: headerText } }
+          : {}
       );
       return;
     }
@@ -351,7 +353,7 @@ export class FeedbackCollector {
       tenantId: session.tenantId,
       type: ctx.feedbackType,
       rating: ctx.rating || 3,
-      comment: ctx.comment,
+      ...(ctx.comment !== undefined ? { comment: ctx.comment } : {}),
       sentiment: ctx.sentiment || 'neutral',
       issues: ctx.issues || [],
       requiresFollowUp: (ctx.rating || 3) <= 2 || ctx.sentiment === 'negative',
@@ -409,7 +411,7 @@ export class FeedbackCollector {
 
     // Reset session state
     session.state = 'feedback_complete';
-    session.context.feedback = undefined;
+    delete session.context.feedback;
   }
 
   // ============================================================================

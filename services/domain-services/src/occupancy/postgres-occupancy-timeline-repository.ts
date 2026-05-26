@@ -79,7 +79,7 @@ export class PostgresOccupancyTimelineRepository
   }> {
     const offset = (input.page - 1) * input.limit;
 
-    const [{ count: total }] = (await this.db
+    const countRows = (await this.db
       .select({ count: sql`count(*)::int` })
       .from(leases)
       .where(
@@ -88,6 +88,7 @@ export class PostgresOccupancyTimelineRepository
           eq(leases.unitId, input.unitId)
         )
       )) as Array<{ count: number }>;
+    const total = countRows[0]?.count ?? 0;
 
     const rows = await this.db
       .select({
@@ -175,7 +176,7 @@ export class PostgresOccupancyTimelineRepository
       .limit(input.limit)
       .offset(offset)) as Array<{ unitId: string }>;
 
-    const [{ count: totalUnits }] = (await this.db
+    const totalUnitsRows = (await this.db
       .select({
         count: sql`count(distinct ${leases.unitId})::int`,
       })
@@ -186,6 +187,7 @@ export class PostgresOccupancyTimelineRepository
           eq(leases.propertyId, input.propertyId)
         )
       )) as Array<{ count: number }>;
+    const totalUnits = totalUnitsRows[0]?.count ?? 0;
 
     const units: Array<{
       unitId: string;

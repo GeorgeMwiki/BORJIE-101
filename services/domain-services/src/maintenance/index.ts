@@ -641,7 +641,7 @@ export class MaintenanceService {
     }));
 
     scoredVendors.sort((a, b) => b.score - a.score);
-    const bestVendor = scoredVendors[0].vendor;
+    const bestVendor = scoredVendors[0]!.vendor;
 
     return this.assign(workOrderId, tenantId, {
       vendorId: bestVendor.id,

@@ -43,7 +43,7 @@ export type CommitResult = CommitOk | { readonly ok: false; readonly error: Comm
 
 export class MigrationService {
   private readonly repo: IMigrationRepository;
-  private readonly bus?: EventBus;
+  private readonly bus: EventBus | undefined;
   private readonly now: () => Date;
 
   constructor(deps: MigrationServiceDeps) {

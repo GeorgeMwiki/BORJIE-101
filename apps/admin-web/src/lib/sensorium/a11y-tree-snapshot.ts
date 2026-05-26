@@ -76,7 +76,7 @@ export function snapshotA11yTree(
     digest: cheapDigest(finalRoot),
     capturedAt: Date.now(),
     visibleRoles: [...visibleRoles],
-    focusedRole,
+    ...(focusedRole !== undefined ? { focusedRole } : {}),
   };
 }
 

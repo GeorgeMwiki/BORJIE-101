@@ -198,10 +198,13 @@ function rowToPdfData(
     kraMriDeductionMinor,
     platformFeeMinor,
     netDisbursementMinor,
-    extraLineItems:
-      totalExpensesMinor > 0
-        ? [{ label: 'Total expenses', amountMinor: totalExpensesMinor }]
-        : undefined,
+    ...(totalExpensesMinor > 0
+      ? {
+          extraLineItems: [
+            { label: 'Total expenses', amountMinor: totalExpensesMinor },
+          ],
+        }
+      : {}),
   };
 }
 

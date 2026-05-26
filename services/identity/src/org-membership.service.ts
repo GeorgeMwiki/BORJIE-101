@@ -33,8 +33,8 @@ export interface OrgMembershipServiceDeps {
 }
 
 export class OrgMembershipService {
-  private readonly membershipRepo?: PostgresOrgMembershipRepository;
-  private readonly identityRepo?: PostgresTenantIdentityRepository;
+  private readonly membershipRepo: PostgresOrgMembershipRepository | undefined;
+  private readonly identityRepo: PostgresTenantIdentityRepository | undefined;
 
   constructor(deps: OrgMembershipServiceDeps = {}) {
     this.membershipRepo = deps.membershipRepo;
@@ -69,7 +69,7 @@ export class OrgMembershipService {
       tenantIdentityId: identityId,
       organizationId: orgId,
       roleId,
-      viaCode,
+      ...(viaCode !== undefined ? { viaCode } : {}),
       shadowProfile: {
         firstName: identity.profile.firstName,
         lastName: identity.profile.lastName,

@@ -80,8 +80,8 @@ export async function runNightlySweep(
 
   return iterateTenants({
     tenantIds,
-    concurrency: deps.concurrency,
-    logger: deps.logger,
+    ...(deps.concurrency !== undefined ? { concurrency: deps.concurrency } : {}),
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
     runForTenant: (tenantId) => runForTenant(deps, tenantId),
   });
 }
@@ -105,7 +105,7 @@ async function runForTenant(
     tenantId,
     windowStart,
     windowEnd,
-    logger: deps.logger,
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   if (traceResult.traces.length === 0) {
@@ -130,12 +130,12 @@ async function runForTenant(
     windowStart: traceResult.windowStart,
     windowEnd: traceResult.windowEnd,
     traces: traceResult.traces,
-    logger: deps.logger,
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   const reflectionDeltas = extractDeltas({
     reflection,
-    extractor: deps.extractor,
+    ...(deps.extractor !== undefined ? { extractor: deps.extractor } : {}),
   });
 
   // Stage 06 — autobiography deltas. Mixed into the same review-gate +
@@ -158,7 +158,7 @@ async function runForTenant(
       {
         verifier: deps.verifier,
         jurisdictionFor: (id) => deps.directory.jurisdictionFor(id),
-        logger: deps.logger,
+        ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
       },
       delta,
     ),
@@ -167,7 +167,7 @@ async function runForTenant(
   const writeResults = await writeApprovedDeltas(deps.memoryWriter, {
     deltas,
     approvals,
-    logger: deps.logger,
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   const report = await emitEvolutionReport(deps.reportSink, {
@@ -178,7 +178,7 @@ async function runForTenant(
     results: writeResults,
     tracesRead: traceResult.traces.length,
     emittedAt: windowEnd,
-    logger: deps.logger,
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   const applied = writeResults.filter((r) => r.applied).length;

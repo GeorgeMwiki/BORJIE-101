@@ -102,6 +102,8 @@ function rank(level: ClassificationLevelLiteral): number {
       return 1;
     case 'PUBLIC':
       return 0;
+    default:
+      return 0;
   }
 }
 

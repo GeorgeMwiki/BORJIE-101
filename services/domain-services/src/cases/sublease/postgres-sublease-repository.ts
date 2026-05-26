@@ -163,21 +163,22 @@ function rowToEntity(row: SubleaseRequestRow): SubleaseRequest {
     row.startDate instanceof Date ? row.startDate.toISOString() : row.startDate;
   const endDate =
     row.endDate instanceof Date ? row.endDate.toISOString() : row.endDate;
+  const splitPercent = row.splitPercent as SubleaseRequest['splitPercent'] | null | undefined;
   return {
     id: asSubleaseRequestId(row.id),
     tenantId: row.tenantId as unknown as TenantId,
     parentLeaseId: row.parentLeaseId as unknown as LeaseId,
     requestedBy: row.requestedBy as unknown as CustomerId,
-    subtenantCandidateId: row.subtenantCandidateId
-      ? (row.subtenantCandidateId as unknown as CustomerId)
-      : undefined,
-    reason: row.reason ?? undefined,
-    startDate: startDate ? (startDate as ISOTimestamp) : undefined,
-    endDate: endDate ? (endDate as ISOTimestamp) : undefined,
+    ...(row.subtenantCandidateId
+      ? { subtenantCandidateId: row.subtenantCandidateId as unknown as CustomerId }
+      : {}),
+    ...(row.reason != null ? { reason: row.reason } : {}),
+    ...(startDate ? { startDate: startDate as ISOTimestamp } : {}),
+    ...(endDate ? { endDate: endDate as ISOTimestamp } : {}),
     rentResponsibility: (row.rentResponsibility ?? 'primary_tenant') as RentResponsibility,
-    splitPercent: (row.splitPercent ?? undefined) as SubleaseRequest['splitPercent'],
+    ...(splitPercent != null ? { splitPercent } : {}),
     status: (row.status ?? 'pending') as SubleaseRequestStatus,
-    approvalRequestId: row.approvalRequestId ?? undefined,
+    ...(row.approvalRequestId != null ? { approvalRequestId: row.approvalRequestId } : {}),
     createdAt: createdAt as ISOTimestamp,
     updatedAt: updatedAt as ISOTimestamp,
     createdBy: row.createdBy as unknown as UserId,

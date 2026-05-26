@@ -119,8 +119,8 @@ export async function startSessionReplayRecorder(
           emit: handleEvent,
           maskAllInputs: mask.maskAllInputs,
           maskTextSelector: mask.maskTextSelector,
-          maskInputFn: mask.maskInputFn,
-          maskTextFn: mask.maskTextFn,
+          ...(mask.maskInputFn !== undefined ? { maskInputFn: mask.maskInputFn } : {}),
+          ...(mask.maskTextFn !== undefined ? { maskTextFn: mask.maskTextFn } : {}),
           sampling: {
             // rrweb defaults; expressed explicitly so future contributors
             // do not need to read the rrweb docs to understand the rates.

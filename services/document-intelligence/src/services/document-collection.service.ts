@@ -126,7 +126,7 @@ export class DocumentCollectionService {
   private readonly repository: IDocumentRepository;
   private readonly storage: IStorageProvider;
   private readonly imageAnalyzer: IImageQualityAnalyzer;
-  private readonly notificationService?: INotificationService;
+  private readonly notificationService: INotificationService | undefined;
   private readonly config: DocumentCollectionServiceConfig;
 
   constructor(options: DocumentCollectionServiceOptions) {

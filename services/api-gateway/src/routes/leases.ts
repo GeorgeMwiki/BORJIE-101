@@ -152,7 +152,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/current', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.leases.findByCustomer(auth.userId, auth.tenantId, { limit: 20, offset: 0 });
   const lease = result.items.find((item: { status: unknown }) => String(item.status) === 'active') || result.items[0];
   if (!lease) {
@@ -167,7 +167,7 @@ app.get('/current', async (c) => {
 // lookup round-trip.
 app.get('/current/renewal-offer', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.leases.findByCustomer(auth.userId, auth.tenantId, { limit: 20, offset: 0 });
   const lease =
     result.items.find((item: { status: unknown }) => String(item.status) === 'active') || result.items[0];
@@ -205,7 +205,7 @@ app.get('/current/renewal-offer', async (c) => {
 
 app.post('/current/renew', withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.leases.findByCustomer(auth.userId, auth.tenantId, { limit: 20, offset: 0 });
   const lease = result.items.find((item: { status: unknown }) => String(item.status) === 'active');
   if (!lease) {
@@ -240,7 +240,7 @@ app.post('/current/renew', withSecurityEvents({ action: 'lease.create', resource
 
 app.get('/current/move-out', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.leases.findByCustomer(auth.userId, auth.tenantId, { limit: 20, offset: 0 });
   const lease =
     result.items.find((item: { status: unknown }) => String(item.status) === 'active') || result.items[0];
@@ -266,7 +266,7 @@ app.get('/current/move-out', async (c) => {
 
 app.post('/current/move-out', withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.leases.findByCustomer(auth.userId, auth.tenantId, { limit: 20, offset: 0 });
   const lease = result.items.find((item: { status: unknown }) => String(item.status) === 'active');
   if (!lease) {
@@ -323,7 +323,7 @@ app.get('/expiring', async (c) => {
   // (endDate <= cutoff). We cap at 500 rows so a pathological tenant
   // with tens of thousands of active leases can't blow memory.
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const days = Number(c.req.query('days') || '60');
   const cutoff = new Date();
@@ -342,7 +342,7 @@ app.get('/expiring', async (c) => {
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const filters = {
     status: c.req.query('status')?.toLowerCase(),
@@ -356,7 +356,7 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.leases.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Lease not found' } }, 404);
   return c.json({ success: true, data: await enrichLease(repos, auth.tenantId, row) });
@@ -364,7 +364,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', staffOnly, requireCapability('create', 'lease'), zValidator('json', CreateLeaseSchema), withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const unit = await repos.units.findById(body.unitId, auth.tenantId);
   if (!unit) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
@@ -400,7 +400,7 @@ app.post('/', staffOnly, requireCapability('create', 'lease'), zValidator('json'
 
 app.put('/:id', staffOnly, zValidator('json', UpdateLeaseSchema), withSecurityEvents({ action: 'lease.update', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.leases.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Lease not found' } }, 404);
@@ -426,14 +426,14 @@ app.put('/:id', staffOnly, zValidator('json', UpdateLeaseSchema), withSecurityEv
 
 app.post('/:id/activate', staffOnly, withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.leases.update(c.req.param('id'), auth.tenantId, { status: 'active', activatedAt: new Date(), activatedBy: auth.userId }, auth.userId);
   return c.json({ success: true, data: await enrichLease(repos, auth.tenantId, row) });
 }));
 
 app.post('/:id/terminate', staffOnly, zValidator('json', TerminateLeaseSchema), withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const row = await repos.leases.update(
     c.req.param('id'),
@@ -452,7 +452,7 @@ app.post('/:id/terminate', staffOnly, zValidator('json', TerminateLeaseSchema), 
 
 app.post('/:id/renew', staffOnly, zValidator('json', RenewLeaseSchema), withSecurityEvents({ action: 'lease.create', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.leases.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Lease not found' } }, 404);
@@ -485,7 +485,7 @@ app.post('/:id/renew', staffOnly, zValidator('json', RenewLeaseSchema), withSecu
 
 app.delete('/:id', staffOnly, requireCapability('delete', 'lease'), withSecurityEvents({ action: 'lease.delete', resource: 'lease', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   await repos.leases.delete(c.req.param('id'), auth.tenantId, auth.userId);
   return c.json({ success: true, data: { message: 'Lease deleted' } });
 }));

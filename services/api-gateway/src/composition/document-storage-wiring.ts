@@ -173,7 +173,7 @@ export function createDocumentStorageWiring(
   // Legacy fallback — local-disk provider. Matches what the codebase
   // shipped before the bridge landed.
   const provider = new LocalStorageProvider({
-    basePath: env.localStorageBasePath,
+    ...(env.localStorageBasePath !== undefined ? { basePath: env.localStorageBasePath } : {}),
   });
   deps.logger?.info?.(
     { wiring: 'document-storage', mode: 'legacy-local' },

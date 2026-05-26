@@ -417,9 +417,9 @@ export class LeaseService {
       tenantId,
       customerNumber,
       profile: input.profile,
-      emergencyContacts: input.emergencyContacts,
-      preferredLanguage: input.preferredLanguage,
-      notes: input.notes,
+      ...(input.emergencyContacts !== undefined ? { emergencyContacts: input.emergencyContacts } : {}),
+      ...(input.preferredLanguage !== undefined ? { preferredLanguage: input.preferredLanguage } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
     }, createdBy);
 
     const savedCustomer = await this.customerRepo.create(customer);

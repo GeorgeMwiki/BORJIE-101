@@ -48,7 +48,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const status = c.req.query('status')?.toLowerCase();
   const specialization = c.req.query('specialization');
@@ -70,7 +70,7 @@ app.get('/', async (c) => {
 
 app.get('/available', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const category = c.req.query('category');
   const rows = category
     ? await repos.vendors.findAvailable(String(category).toLowerCase(), false, auth.tenantId)
@@ -80,7 +80,7 @@ app.get('/available', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.vendors.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Vendor not found' } }, 404);
   return c.json({ success: true, data: mapVendorRow(row) });
@@ -88,7 +88,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', zValidator('json', VendorCreateSchema), withSecurityEvents({ action: 'vendor.create', resource: 'vendor', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const row = await repos.vendors.create({
     id: crypto.randomUUID(),
@@ -115,7 +115,7 @@ app.post('/', zValidator('json', VendorCreateSchema), withSecurityEvents({ actio
 
 app.put('/:id', zValidator('json', VendorUpdateSchema), withSecurityEvents({ action: 'vendor.update', resource: 'vendor', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const row = await repos.vendors.update(c.req.param('id'), auth.tenantId, {
     companyName: body.companyName || body.name,
@@ -134,7 +134,7 @@ app.put('/:id', zValidator('json', VendorUpdateSchema), withSecurityEvents({ act
 
 app.delete('/:id', withSecurityEvents({ action: 'vendor.delete', resource: 'vendor', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   await repos.vendors.delete(c.req.param('id'), auth.tenantId, auth.userId);
   return c.json({ success: true, data: { message: 'Vendor deleted' } });
 }));

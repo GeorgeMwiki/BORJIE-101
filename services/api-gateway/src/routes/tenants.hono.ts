@@ -50,7 +50,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/current', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   // nosemgrep: missing-tenant-id-arg reason: the `tenants` repository is keyed by tenantId — `auth.tenantId` IS the tenant identifier.
   const tenant = await repos.tenants.findById(auth.tenantId);
   if (!tenant) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } }, 404);
@@ -59,7 +59,7 @@ app.get('/current', async (c) => {
 
 app.patch('/current', withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = await c.req.json();
   const tenant = await repos.tenants.update(
     auth.tenantId,
@@ -76,7 +76,7 @@ app.patch('/current', withSecurityEvents({ action: 'tenant.update', resource: 't
 
 app.get('/current/settings', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   // nosemgrep: missing-tenant-id-arg reason: the `tenants` repository is keyed by tenantId — `auth.tenantId` IS the tenant identifier.
   const tenant = await repos.tenants.findById(auth.tenantId);
   if (!tenant) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } }, 404);
@@ -85,7 +85,7 @@ app.get('/current/settings', async (c) => {
 
 app.patch('/current/settings', withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = await c.req.json();
   // nosemgrep: missing-tenant-id-arg reason: the `tenants` repository is keyed by tenantId — `auth.tenantId` IS the tenant identifier.
   const existing = await repos.tenants.findById(auth.tenantId);
@@ -105,7 +105,7 @@ app.patch('/current/settings', withSecurityEvents({ action: 'tenant.update', res
 
 app.get('/current/subscription', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   // nosemgrep: missing-tenant-id-arg reason: the `tenants` repository is keyed by tenantId — `auth.tenantId` IS the tenant identifier.
   const tenant = await repos.tenants.findById(auth.tenantId);
   if (!tenant) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Tenant not found' } }, 404);
@@ -130,7 +130,7 @@ app.get(
   '/',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPPORT),
   async (c) => {
-    const repos = c.get('repos');
+    const repos = c.get('repos')!;
     const page = Number(c.req.query('page') || '1');
     const pageSize = Number(c.req.query('pageSize') || '20');
     // nosemgrep: missing-tenant-id-arg reason: platform-admin endpoint guarded by requireRole(SUPER_ADMIN|ADMIN|SUPPORT) — cross-tenant listing is the intent.

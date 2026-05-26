@@ -68,7 +68,7 @@ export class GCSStorageProvider implements StorageProvider {
     await file.save(content, {
       metadata: {
         contentType: input.contentType,
-        metadata: input.metadata ? { ...input.metadata } : undefined,
+        ...(input.metadata ? { metadata: { ...input.metadata } } : {}),
       },
     });
 

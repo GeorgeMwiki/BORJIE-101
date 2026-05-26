@@ -272,7 +272,7 @@ export class OtpService {
     const fresh = entry.timestamps.filter((t) => t >= windowStart);
     if (fresh.length >= this.resendMaxPerWindow) {
       // Earliest send that would expire next determines retryAfter.
-      const oldest = fresh[0];
+      const oldest = fresh[0]!;
       throw new OtpResendThrottledError(
         Math.max(0, oldest + this.resendWindowMs - now),
         'hourly_cap',

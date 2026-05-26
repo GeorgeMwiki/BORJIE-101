@@ -206,7 +206,15 @@ app.get('/demo-estate/:id', (c) => {
 app.post('/waitlist', zValidator('json', WaitlistSchema), async (c) => {
   const body = c.req.valid('json');
   try {
-    const payload = buildWaitlistSignup(body);
+    // Apply the upstream schema defaults locally so the
+    // `buildWaitlistSignup` `WaitlistSignupInput` (post-default shape) is
+    // satisfied even when the inbound body omits the optional fields.
+    const signupInput = {
+      ...body,
+      country: body.country ?? ('other' as const),
+      role: body.role ?? ('unknown' as const),
+    };
+    const payload = buildWaitlistSignup(signupInput);
     // The actual persistence lives in the authenticated waitlist router.
     // Here we just echo the built payload so the chat UI can show a
     // confirmation and a follow-up POST can commit it once the prospect

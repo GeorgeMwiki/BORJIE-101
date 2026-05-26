@@ -984,6 +984,6 @@ export function createConversationOrchestrator(options: {
     whatsappClient: options.whatsappClient,
     sessionStore: options.sessionStore || new InMemorySessionStore(),
     tenantLookup: options.tenantLookup,
-    sessionTimeoutMinutes: options.sessionTimeoutMinutes,
+    ...(options.sessionTimeoutMinutes !== undefined ? { sessionTimeoutMinutes: options.sessionTimeoutMinutes } : {}),
   });
 }

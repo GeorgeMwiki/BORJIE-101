@@ -494,6 +494,10 @@ function rowToEntity(row: any): Case {
   }>;
   const dbStatus = (row.status ?? 'open') as string;
   const dbType = (row.caseType ?? 'other') as string;
+  const escalatedAt = fromDate(row.escalatedAt) ?? undefined;
+  const dueDate = fromDate(row.resolutionDueAt) ?? undefined;
+  const closedAt = fromDate(row.closedAt) ?? undefined;
+  const resolution = payload.resolution as Case['resolution'] | undefined;
   return {
     id: asCaseId(row.id),
     tenantId: row.tenantId as unknown as TenantId,
@@ -504,24 +508,23 @@ function rowToEntity(row: any): Case {
     title: row.title,
     description: row.description ?? '',
     customerId: (row.customerId ?? '') as CustomerId,
-    leaseId: row.leaseId ?? undefined,
-    propertyId: row.propertyId ?? undefined,
-    unitId: row.unitId ?? undefined,
-    relatedInvoiceIds: (payload.relatedInvoiceIds ?? []) as Case['relatedInvoiceIds'],
-    amountInDispute:
-      row.amountInDispute != null ? Number(row.amountInDispute) : undefined,
-    currency: row.currency ?? undefined,
-    assignedTo: row.assignedTo ? (row.assignedTo as unknown as UserId) : undefined,
+    ...(row.leaseId != null ? { leaseId: row.leaseId } : {}),
+    ...(row.propertyId != null ? { propertyId: row.propertyId } : {}),
+    ...(row.unitId != null ? { unitId: row.unitId } : {}),
+    relatedInvoiceIds: (payload.relatedInvoiceIds ?? []) as NonNullable<Case['relatedInvoiceIds']>,
+    ...(row.amountInDispute != null ? { amountInDispute: Number(row.amountInDispute) } : {}),
+    ...(row.currency != null ? { currency: row.currency } : {}),
+    ...(row.assignedTo ? { assignedTo: row.assignedTo as unknown as UserId } : {}),
     timeline: (payload.timeline ?? []) as readonly CaseTimelineEvent[],
     notices: (payload.notices ?? []) as Case['notices'],
     evidence: (payload.evidence ?? []) as Case['evidence'],
-    resolution: (payload.resolution ?? undefined) as Case['resolution'],
-    escalatedAt: fromDate(row.escalatedAt) ?? undefined,
+    ...(resolution !== undefined ? { resolution } : {}),
+    ...(escalatedAt !== undefined ? { escalatedAt } : {}),
     escalationLevel: row.escalationLevel ?? 0,
-    dueDate: fromDate(row.resolutionDueAt) ?? undefined,
-    closedAt: fromDate(row.closedAt) ?? undefined,
-    closedBy: row.closedBy ? (row.closedBy as unknown as UserId) : undefined,
-    closureReason: row.closureReason ?? undefined,
+    ...(dueDate !== undefined ? { dueDate } : {}),
+    ...(closedAt !== undefined ? { closedAt } : {}),
+    ...(row.closedBy ? { closedBy: row.closedBy as unknown as UserId } : {}),
+    ...(row.closureReason != null ? { closureReason: row.closureReason } : {}),
     createdAt: fromDate(row.createdAt)! as ISOTimestamp,
     createdBy: row.createdBy as unknown as UserId,
     updatedAt: fromDate(row.updatedAt)! as ISOTimestamp,

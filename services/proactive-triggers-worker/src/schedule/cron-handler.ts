@@ -58,7 +58,7 @@ export async function runHourlySweep(deps: RunSweepDeps): Promise<SweepSummary> 
 
   const results = await iterateTenants({
     tenantIds,
-    concurrency: deps.concurrency,
+    ...(deps.concurrency !== undefined ? { concurrency: deps.concurrency } : {}),
     ...(deps.logger ? { logger: deps.logger } : {}),
     runForTenant: (tenantId) => runForTenant(deps, tenantId),
   });

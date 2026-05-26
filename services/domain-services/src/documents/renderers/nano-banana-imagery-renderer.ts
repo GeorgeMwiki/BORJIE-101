@@ -155,14 +155,18 @@ export class NanoBananaImageryRenderer implements IDocumentRenderer {
     if (typeof prompt !== 'string' || prompt.trim().length === 0) {
       throw new RendererError('INVALID_INPUT', 'NanoBanana requires a non-empty `prompt`.');
     }
+    const style = obj.style as NanoBananaImageryTemplateInput['style'] | undefined;
+    const width = typeof obj.width === 'number' ? obj.width : undefined;
+    const height = typeof obj.height === 'number' ? obj.height : undefined;
+    const brandPalette = Array.isArray(obj.brandPalette)
+      ? (obj.brandPalette as readonly string[])
+      : undefined;
     return {
       prompt,
-      style: (obj.style as NanoBananaImageryTemplateInput['style']) ?? undefined,
-      width: typeof obj.width === 'number' ? obj.width : undefined,
-      height: typeof obj.height === 'number' ? obj.height : undefined,
-      brandPalette: Array.isArray(obj.brandPalette)
-        ? (obj.brandPalette as readonly string[])
-        : undefined,
+      ...(style !== undefined ? { style } : {}),
+      ...(width !== undefined ? { width } : {}),
+      ...(height !== undefined ? { height } : {}),
+      ...(brandPalette !== undefined ? { brandPalette } : {}),
     };
   }
 }

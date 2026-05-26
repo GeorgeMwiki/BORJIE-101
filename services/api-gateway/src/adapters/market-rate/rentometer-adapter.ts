@@ -56,7 +56,7 @@ export function createRentometerAdapterFromEnv(
   if (!apiKey || apiKey.trim().length === 0) return null;
   return createRentometerAdapter({
     apiKey,
-    baseUrl: env.RENTOMETER_BASE_URL,
+    ...(env.RENTOMETER_BASE_URL !== undefined ? { baseUrl: env.RENTOMETER_BASE_URL } : {}),
   });
 }
 

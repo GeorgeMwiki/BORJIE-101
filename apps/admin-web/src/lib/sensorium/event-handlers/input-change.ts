@@ -31,10 +31,11 @@ export const installInputChangeHandler: HandlerInstall = (emit, ctx) => {
     if (prev) clearTimeout(prev);
     const handle = setTimeout(() => {
       timers.delete(key);
+      const inputType = target.getAttribute('type') ?? undefined;
       const shape = redactToShape({
         fieldName,
         value: typeof target.value === 'string' ? target.value : '',
-        type: target.getAttribute('type') ?? undefined,
+        ...(inputType !== undefined ? { type: inputType } : {}),
       });
       emit({
         eventType: 'input.change',

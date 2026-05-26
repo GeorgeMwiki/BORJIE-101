@@ -120,7 +120,7 @@ export function createDrizzleAiAuditChainRepo(
         `,
       );
       const rows = rowsOf(result);
-      return rows.length > 0 ? toEntry(rows[0]) : null;
+      return rows.length > 0 ? toEntry(rows[0]!) : null;
     },
 
     async listByTenant(tenantId, options) {
@@ -159,7 +159,7 @@ export function createDrizzleAiAuditChainRepo(
         if (batch.length === 0) return;
         yield batch;
         if (batch.length < batchSize) return;
-        fromSeq = batch[batch.length - 1].sequenceId + 1;
+        fromSeq = batch[batch.length - 1]!.sequenceId + 1;
       }
     },
 
@@ -169,7 +169,7 @@ export function createDrizzleAiAuditChainRepo(
       );
       const rows = rowsOf(result) as ReadonlyArray<{ n?: unknown }>;
       if (rows.length === 0) return 0;
-      const n = rows[0].n;
+      const n = rows[0]!.n;
       if (typeof n === 'number') return n;
       if (typeof n === 'string') return Number.parseInt(n, 10) || 0;
       return 0;

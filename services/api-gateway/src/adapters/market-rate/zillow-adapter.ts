@@ -48,8 +48,8 @@ export function createZillowAdapterFromEnv(
   if (!apiKey || apiKey.trim().length === 0) return null;
   return createZillowAdapter({
     apiKey,
-    apiHeader: env.ZILLOW_API_HEADER,
-    baseUrl: env.ZILLOW_BASE_URL,
+    ...(env.ZILLOW_API_HEADER !== undefined ? { apiHeader: env.ZILLOW_API_HEADER } : {}),
+    ...(env.ZILLOW_BASE_URL !== undefined ? { baseUrl: env.ZILLOW_BASE_URL } : {}),
   });
 }
 

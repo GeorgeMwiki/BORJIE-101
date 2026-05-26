@@ -107,7 +107,7 @@ export class Pm4pyClient extends EventEmitter {
     const child = this.spawnFn(
       this.pythonBin,
       [this.serverScript],
-      { cwd: this.cwd, env },
+      { ...(this.cwd !== undefined ? { cwd: this.cwd } : {}), env },
     );
     this.child = child;
     this.stdoutBuffer = '';

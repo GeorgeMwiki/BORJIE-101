@@ -507,7 +507,7 @@ export class AuditPackBuilderService {
       tenantId: config.tenantId,
       type: config.type,
       period: config.period,
-      propertyIds: config.propertyIds,
+      ...(config.propertyIds !== undefined ? { propertyIds: config.propertyIds } : {}),
       status: 'draft',
       sections,
       totalDocuments,
@@ -515,7 +515,7 @@ export class AuditPackBuilderService {
       createdAt: new Date(),
       requestedBy: config.requestedBy,
       recipient: config.recipient,
-      notes: config.notes,
+      ...(config.notes !== undefined ? { notes: config.notes } : {}),
     };
 
     this.auditPacks.set(id, auditPack);

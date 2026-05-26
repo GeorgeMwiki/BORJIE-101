@@ -125,13 +125,13 @@ function totpCode(secretB32: string, timeSec: number, step = 30): string {
   counterBuf.writeUInt32BE(0, 0);
   counterBuf.writeUInt32BE(counter, 4);
   const hmac = createHmac('sha1', secret).update(counterBuf).digest();
-  const offset = hmac[hmac.length - 1] & 0x0f;
+  const offset = hmac[hmac.length - 1]! & 0x0f;
   const slice = hmac.subarray(offset, offset + 4);
   const code =
-    ((slice[0] & 0x7f) << 24) |
-    (slice[1] << 16) |
-    (slice[2] << 8) |
-    slice[3];
+    ((slice[0]! & 0x7f) << 24) |
+    (slice[1]! << 16) |
+    (slice[2]! << 8) |
+    slice[3]!;
   return (code % 1_000_000).toString().padStart(6, '0');
 }
 

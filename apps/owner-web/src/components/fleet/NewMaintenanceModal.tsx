@@ -80,8 +80,8 @@ export function NewMaintenanceModal({
       {
         assetId: values.assetId,
         kind: values.kind,
-        summary: values.description,
-        etaHours: values.etaHours,
+        ...(values.description !== undefined ? { summary: values.description } : {}),
+        ...(values.etaHours !== undefined ? { etaHours: values.etaHours } : {}),
       },
       {
         onSuccess: () => {

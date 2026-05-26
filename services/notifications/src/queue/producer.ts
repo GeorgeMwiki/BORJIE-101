@@ -26,10 +26,11 @@ function getDefaultConnection(): { host: string; port: number; password?: string
   if (url) {
     try {
       const u = new URL(url);
+      const password = u.password || undefined;
       return {
         host: u.hostname,
         port: parseInt(u.port ?? '6379', 10),
-        password: u.password || undefined,
+        ...(password !== undefined ? { password } : {}),
       };
     } catch {
       // invalid URL
@@ -79,8 +80,8 @@ export async function addToQueue(
 ): Promise<string> {
   const queue = getNotificationQueue();
   const job = await queue.add('send-notification', data, {
-    delay: options?.delay,
-    priority: options?.priority,
+    ...(options?.delay !== undefined ? { delay: options.delay } : {}),
+    ...(options?.priority !== undefined ? { priority: options.priority } : {}),
   });
   return job.id ?? '';
 }
@@ -98,7 +99,7 @@ export async function addBulkToQueue(
       name: 'send-notification',
       data,
       opts: {
-        delay: options?.delay,
+        ...(options?.delay !== undefined ? { delay: options.delay } : {}),
         priority: index,
       },
     }))

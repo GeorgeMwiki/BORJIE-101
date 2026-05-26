@@ -200,7 +200,7 @@ export function createGamificationService(
       id: genId(),
       tenantId,
       customerId,
-      currency,
+      ...(currency !== undefined ? { currency } : {}),
       now: now(),
     });
   }
@@ -384,7 +384,7 @@ export function createGamificationService(
         eventType: 'payment_posted',
         policyId: policy.id,
         paymentId: event.paymentId,
-        invoiceId: event.invoiceId,
+        ...(event.invoiceId !== undefined ? { invoiceId: event.invoiceId } : {}),
         currency: event.currency,
         dedupKey,
         occurredAt: event.paidAt,
@@ -407,7 +407,7 @@ export function createGamificationService(
               scoreDelta:
                 policy.onTimePoints + policy.earlyPaymentBonusPoints,
               paymentId: event.paymentId,
-              invoiceId: event.invoiceId,
+              ...(event.invoiceId !== undefined ? { invoiceId: event.invoiceId } : {}),
               currency: event.currency,
               occurredAt: event.paidAt,
               payload: { daysEarly: diffDays },
@@ -455,7 +455,7 @@ export function createGamificationService(
               policyId: policy.id,
               scoreDelta: policy.onTimePoints,
               paymentId: event.paymentId,
-              invoiceId: event.invoiceId,
+              ...(event.invoiceId !== undefined ? { invoiceId: event.invoiceId } : {}),
               currency: event.currency,
               occurredAt: event.paidAt,
             })
@@ -473,7 +473,7 @@ export function createGamificationService(
               policyId: policy.id,
               scoreDelta: policy.latePenaltyPoints,
               paymentId: event.paymentId,
-              invoiceId: event.invoiceId,
+              ...(event.invoiceId !== undefined ? { invoiceId: event.invoiceId } : {}),
               currency: event.currency,
               occurredAt: event.paidAt,
               payload: { daysLate: -diffDays },

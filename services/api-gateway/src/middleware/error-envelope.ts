@@ -56,8 +56,8 @@ function buildEnvelope(
         error: {
           code: err.code,
           message: err.message,
-          requestId,
-          details: err.details,
+          ...(requestId !== undefined ? { requestId } : {}),
+          ...(err.details !== undefined ? { details: err.details } : {}),
         },
       },
     };
@@ -75,7 +75,7 @@ function buildEnvelope(
       error: {
         code: 'INTERNAL_ERROR',
         message,
-        requestId,
+        ...(requestId !== undefined ? { requestId } : {}),
       },
     },
   };

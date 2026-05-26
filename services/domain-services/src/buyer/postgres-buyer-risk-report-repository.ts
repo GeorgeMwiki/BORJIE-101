@@ -139,7 +139,13 @@ function rowToReport(row: Record<string, unknown>): BuyerRiskReport {
   const rawDims = (row.dimensions ?? {}) as Record<string, unknown>;
   const dimsParsed = dimensionsSchema.safeParse(rawDims);
   const dimensions: BuyerRiskDimensions = dimsParsed.success
-    ? dimsParsed.data
+    ? {
+        kyc: dimsParsed.data.kyc,
+        sanctions: dimsParsed.data.sanctions,
+        refineryConcentration: dimsParsed.data.refineryConcentration,
+        countryRisk: dimsParsed.data.countryRisk,
+        ...(dimsParsed.data.extras !== undefined ? { extras: dimsParsed.data.extras } : {}),
+      }
     : { kyc: 0, sanctions: 0, refineryConcentration: 0, countryRisk: 0 };
 
   const rawRecs = Array.isArray(row.recommendations)
@@ -212,7 +218,13 @@ export class PostgresBuyerRiskReportRepository
       buyerId: validated.buyerId,
       score0100: validated.score0100,
       riskLevel: validated.riskLevel,
-      dimensions: validated.dimensions,
+      dimensions: {
+        kyc: validated.dimensions.kyc,
+        sanctions: validated.dimensions.sanctions,
+        refineryConcentration: validated.dimensions.refineryConcentration,
+        countryRisk: validated.dimensions.countryRisk,
+        ...(validated.dimensions.extras !== undefined ? { extras: validated.dimensions.extras } : {}),
+      },
       narrative: validated.narrative,
       recommendations: validated.recommendations,
       generatedAt: generatedAt.toISOString(),

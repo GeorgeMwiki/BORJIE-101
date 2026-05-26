@@ -164,7 +164,7 @@ export function createWebhookRouter(options: WebhookRouterOptions): Router {
   const maintenanceHandler = new MaintenanceRequestHandler({
     whatsappClient,
     workOrderService,
-    transcriptionService,
+    ...(transcriptionService !== undefined ? { transcriptionService } : {}),
   });
 
   const feedbackCollector = new FeedbackCollector({
@@ -518,15 +518,17 @@ export function createWebhookRouter(options: WebhookRouterOptions): Router {
       phoneNumber,
       state: 'idle',
       language: (tenant?.preferredLanguage || 'en') as SupportedLanguage,
-      context: {
-        onboarding: tenant ? {
-          tenantName: tenant.name,
-          propertyId: tenant.propertyId,
-          unitId: tenant.unitId,
-          step: 0,
-          completedSteps: [],
-        } : undefined,
-      },
+      context: tenant
+        ? {
+            onboarding: {
+              tenantName: tenant.name,
+              propertyId: tenant.propertyId,
+              unitId: tenant.unitId,
+              step: 0,
+              completedSteps: [],
+            },
+          }
+        : {},
       createdAt: new Date(),
       updatedAt: new Date(),
       expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes

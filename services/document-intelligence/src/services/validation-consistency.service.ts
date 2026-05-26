@@ -105,7 +105,7 @@ export class ValidationConsistencyService {
   private readonly ocrRepository: IOCRExtractionRepository;
   private readonly profileRepository: IIdentityProfileRepository;
   private readonly validationRepository: IValidationResultRepository;
-  private readonly externalProvider?: IExternalVerificationProvider;
+  private readonly externalProvider: IExternalVerificationProvider | undefined;
   private readonly config: ValidationConsistencyConfig;
 
   constructor(options: ValidationConsistencyServiceOptions) {
@@ -261,9 +261,11 @@ export class ValidationConsistencyService {
     if (names.length >= 2) {
       for (let i = 0; i < names.length - 1; i++) {
         for (let j = i + 1; j < names.length; j++) {
+          const ni = names[i]!;
+          const nj = names[j]!;
           const matchResult = matchNames(
-            names[i].name,
-            names[j].name,
+            ni.name,
+            nj.name,
             this.config.nameMatchThreshold
           );
 
@@ -274,10 +276,10 @@ export class ValidationConsistencyService {
             status,
             score: matchResult.similarity,
             details: matchResult.details,
-            sourceDocuments: [names[i].source, names[j].source],
+            sourceDocuments: [ni.source, nj.source],
             sourceFields: ['full_name'],
-            expectedValue: names[i].name,
-            actualValue: names[j].name,
+            expectedValue: ni.name,
+            actualValue: nj.name,
             discrepancy: matchResult.isMatch ? null : `Similarity: ${(matchResult.similarity * 100).toFixed(1)}%`,
           });
         }
@@ -405,11 +407,15 @@ export class ValidationConsistencyService {
       }));
 
       // Simple comparison - in production, use proper address matching
-      const firstAddress = normalizedAddresses[0].normalized;
-      const allMatch = normalizedAddresses.every(a =>
-        a.normalized.includes(firstAddress.split(' ')[0]) ||
-        firstAddress.includes(a.normalized.split(' ')[0])
-      );
+      const firstAddress = normalizedAddresses[0]!.normalized;
+      const firstAddressFirstWord = firstAddress.split(' ')[0] ?? '';
+      const allMatch = normalizedAddresses.every(a => {
+        const aFirstWord = a.normalized.split(' ')[0] ?? '';
+        return (
+          a.normalized.includes(firstAddressFirstWord) ||
+          firstAddress.includes(aFirstWord)
+        );
+      });
 
       checks.push({
         checkType: 'address_consistency',
@@ -421,7 +427,7 @@ export class ValidationConsistencyService {
         sourceDocuments: addresses.map(a => a.source),
         sourceFields: ['address'],
         expectedValue: addresses[0]?.address ?? null,
-        actualValue: addresses.length > 1 ? addresses[1].address : null,
+        actualValue: addresses.length > 1 ? addresses[1]!.address : null,
         discrepancy: allMatch ? null : 'Address variations detected',
       });
     }
@@ -642,7 +648,7 @@ export class ValidationConsistencyService {
           idType: idNumber.type,
           idNumber: idNumber.number,
           fullName: profile.fullName,
-          dateOfBirth: profile.dateOfBirth ?? undefined,
+          ...(profile.dateOfBirth ? { dateOfBirth: profile.dateOfBirth } : {}),
           // Country comes from the ID record itself; falling back to a
           // hardcoded 'TZ' would cause verification to query the wrong
           // national registry. Empty string lets the provider reject.

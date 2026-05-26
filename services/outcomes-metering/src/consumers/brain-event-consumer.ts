@@ -106,7 +106,7 @@ export function createBrainEventConsumer(
         deps,
         clock,
         newRecordId,
-        logger,
+        ...(logger !== undefined ? { logger } : {}),
       });
     }),
     deps.bus.subscribe(
@@ -123,7 +123,7 @@ export function createBrainEventConsumer(
           deps,
           clock,
           newRecordId,
-          logger,
+          ...(logger !== undefined ? { logger } : {}),
         });
       },
     ),
@@ -155,7 +155,7 @@ export function createBrainEventConsumer(
           deps,
           clock,
           newRecordId,
-          logger,
+          ...(logger !== undefined ? { logger } : {}),
         });
       },
     ),

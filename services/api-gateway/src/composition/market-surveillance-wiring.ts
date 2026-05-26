@@ -454,8 +454,8 @@ export function createMarketSurveillanceWiring(
     : createCachedMarketRatePort({
         inner: baseAdapter,
         cache: createMarketDataCacheService(deps.db),
-        ttlMs: deps.comparablesCacheTtlMs,
-        logger: deps.logger,
+        ...(deps.comparablesCacheTtlMs !== undefined ? { ttlMs: deps.comparablesCacheTtlMs } : {}),
+        ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
       });
 
   // `llm`, `publisher`, `budgetGuard` are intentionally undefined — each

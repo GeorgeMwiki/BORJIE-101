@@ -151,7 +151,7 @@ export class LetterService {
     const rec: LetterRequestRecord = {
       id: `lr_${Date.now()}_${randomHex(4)}`,
       tenantId: input.tenantId,
-      customerId: input.customerId,
+      ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
       letterType: input.letterType,
       status: 'requested',
       requestPayload: input.payload,

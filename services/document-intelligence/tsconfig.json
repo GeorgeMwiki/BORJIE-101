@@ -16,11 +16,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
-    "types": ["node"],
-    // Relaxed until undefined-propagation refactor lands across the
-    // services/utils tree (see validation-consistency + name-matcher).
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "__fixtures__/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]

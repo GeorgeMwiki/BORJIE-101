@@ -126,9 +126,9 @@ export function getOcrProviderFromEnv(
       const textractConfig: AwsTextractConfig = {
         provider: 'aws_textract',
         region,
-        accessKeyId: env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-        defaultLanguage: env.OCR_DEFAULT_LANGUAGE,
+        ...(env.AWS_ACCESS_KEY_ID !== undefined ? { accessKeyId: env.AWS_ACCESS_KEY_ID } : {}),
+        ...(env.AWS_SECRET_ACCESS_KEY !== undefined ? { secretAccessKey: env.AWS_SECRET_ACCESS_KEY } : {}),
+        ...(env.OCR_DEFAULT_LANGUAGE !== undefined ? { defaultLanguage: env.OCR_DEFAULT_LANGUAGE } : {}),
       };
       primaryConfig = textractConfig;
       break;
@@ -145,8 +145,8 @@ export function getOcrProviderFromEnv(
       const googleConfig: GoogleVisionConfig = {
         provider: 'google_vision',
         projectId,
-        keyFilename: env.GOOGLE_APPLICATION_CREDENTIALS,
-        defaultLanguage: env.OCR_DEFAULT_LANGUAGE,
+        ...(env.GOOGLE_APPLICATION_CREDENTIALS !== undefined ? { keyFilename: env.GOOGLE_APPLICATION_CREDENTIALS } : {}),
+        ...(env.OCR_DEFAULT_LANGUAGE !== undefined ? { defaultLanguage: env.OCR_DEFAULT_LANGUAGE } : {}),
       };
       primaryConfig = googleConfig;
       break;
@@ -162,7 +162,7 @@ export function getOcrProviderFromEnv(
       }
       const mockConfig: MockProviderConfig = {
         provider: 'mock',
-        defaultLanguage: env.OCR_DEFAULT_LANGUAGE,
+        ...(env.OCR_DEFAULT_LANGUAGE !== undefined ? { defaultLanguage: env.OCR_DEFAULT_LANGUAGE } : {}),
       };
       primaryConfig = mockConfig;
       break;

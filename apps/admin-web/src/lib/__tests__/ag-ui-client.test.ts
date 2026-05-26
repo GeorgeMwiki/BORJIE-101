@@ -98,8 +98,8 @@ describe('ag-ui-client — SSE buffer parser (re-exported)', () => {
     const buf = `event: RUN_STARTED\ndata: {"type":"RUN_STARTED","threadId":"t","runId":"r","timestamp":1}\n\n`;
     const step = parseSseBuffer(buf);
     expect(step.events).toHaveLength(1);
-    expect(step.events[0].event).toBe('RUN_STARTED');
-    expect(JSON.parse(step.events[0].data).runId).toBe('r');
+    expect(step.events[0]!.event).toBe('RUN_STARTED');
+    expect(JSON.parse(step.events[0]!.data).runId).toBe('r');
   });
 
   it('preserves a partial trailing frame as remainder', () => {

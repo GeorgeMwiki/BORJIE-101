@@ -43,33 +43,38 @@ export function registerProviderConfig(config: ProviderConfig): void {
     if (provider === 'sendgrid' && email['sendgridApiKey']) {
       SendGridProvider.registerConfig(config.tenantId, {
         apiKey: email['sendgridApiKey'] as string,
-        fromEmail,
-        fromName,
+        ...(fromEmail !== undefined ? { fromEmail } : {}),
+        ...(fromName !== undefined ? { fromName } : {}),
       });
     } else if (provider === 'ses' && email['sesRegion']) {
+      const accessKeyId = email['sesAccessKeyId'] as string | undefined;
+      const secretAccessKey = email['sesSecretAccessKey'] as string | undefined;
       SesProvider.registerConfig(config.tenantId, {
         region: email['sesRegion'] as string,
-        accessKeyId: email['sesAccessKeyId'] as string | undefined,
-        secretAccessKey: email['sesSecretAccessKey'] as string | undefined,
-        fromEmail,
-        fromName,
+        ...(accessKeyId !== undefined ? { accessKeyId } : {}),
+        ...(secretAccessKey !== undefined ? { secretAccessKey } : {}),
+        ...(fromEmail !== undefined ? { fromEmail } : {}),
+        ...(fromName !== undefined ? { fromName } : {}),
       });
     } else if (provider === 'smtp' && email['smtpHost']) {
+      const port = email['smtpPort'] as number | undefined;
+      const user = email['smtpUser'] as string | undefined;
+      const pass = email['smtpPass'] as string | undefined;
       SmtpProvider.registerConfig(config.tenantId, {
         host: email['smtpHost'] as string,
-        port: email['smtpPort'] as number | undefined,
-        user: email['smtpUser'] as string | undefined,
-        pass: email['smtpPass'] as string | undefined,
-        fromEmail,
-        fromName,
+        ...(port !== undefined ? { port } : {}),
+        ...(user !== undefined ? { user } : {}),
+        ...(pass !== undefined ? { pass } : {}),
+        ...(fromEmail !== undefined ? { fromEmail } : {}),
+        ...(fromName !== undefined ? { fromName } : {}),
       });
     }
   }
   if (config.push) {
     FirebasePushProvider.registerConfig(config.tenantId, {
       projectId: config.push.projectId,
-      clientEmail: config.push.clientEmail,
-      privateKey: config.push.privateKey,
+      ...(config.push.clientEmail !== undefined ? { clientEmail: config.push.clientEmail } : {}),
+      ...(config.push.privateKey !== undefined ? { privateKey: config.push.privateKey } : {}),
     });
   }
   if (config.whatsapp) {

@@ -22,10 +22,11 @@ function getDefaultConnection(): { host: string; port: number; password?: string
   if (url) {
     try {
       const u = new URL(url);
+      const password = u.password || undefined;
       return {
         host: u.hostname,
         port: parseInt(u.port ?? '6379', 10),
-        password: u.password || undefined,
+        ...(password !== undefined ? { password } : {}),
       };
     } catch {
       // invalid URL

@@ -106,9 +106,9 @@ async function enrichInvoices(repos: EnrichInvoiceRepos, tenantId: string, rows:
     unitIds.length ? repos.units.findByIds(unitIds, tenantId) : [],
   ]);
 
-  const customerMap = new Map<string, CustomerLookup>(customers.map((c) => [c.id, c]));
-  const leaseMap = new Map<string, LeaseLookup>((leases ?? []).map((l) => [l.id, l]));
-  const unitMap = new Map<string, UnitLookup>((units ?? []).map((u) => [u.id, u]));
+  const customerMap = new Map<string, CustomerLookup>(customers.map((c): readonly [string, CustomerLookup] => [c.id, c]));
+  const leaseMap = new Map<string, LeaseLookup>((leases ?? []).map((l): readonly [string, LeaseLookup] => [l.id, l]));
+  const unitMap = new Map<string, UnitLookup>((units ?? []).map((u): readonly [string, UnitLookup] => [u.id, u]));
 
   return rows.map((row) => {
     const invoice = mapInvoiceRow(row);
@@ -130,7 +130,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const status = c.req.query('status')?.toLowerCase();
   const customerId = c.req.query('customerId');
@@ -148,7 +148,7 @@ app.get('/', async (c) => {
 
 app.get('/overdue', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   // findOverdue returns the full set; slice to the requested page.
   const rows = await repos.invoices.findOverdue(auth.tenantId);
@@ -159,7 +159,7 @@ app.get('/overdue', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.invoices.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, 404);
   return c.json({ success: true, data: await enrichInvoice(repos, auth.tenantId, row) });
@@ -167,7 +167,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', staffOnly, requireCapability('create', 'invoice'), zValidator('json', InvoiceCreateSchema), withSecurityEvents({ action: 'invoice.create', resource: 'invoice', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const lease = body.leaseId ? await repos.leases.findById(body.leaseId, auth.tenantId) : null;
   const unit = lease?.unitId ? await repos.units.findById(lease.unitId, auth.tenantId) : null;
@@ -203,7 +203,7 @@ app.post('/', staffOnly, requireCapability('create', 'invoice'), zValidator('jso
 
 app.put('/:id', staffOnly, zValidator('json', InvoiceUpdateSchema), withSecurityEvents({ action: 'invoice.update', resource: 'invoice', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const existing = await repos.invoices.findById(c.req.param('id'), auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, 404);
@@ -231,14 +231,14 @@ app.put('/:id', staffOnly, zValidator('json', InvoiceUpdateSchema), withSecurity
 
 app.post('/:id/send', staffOnly, withSecurityEvents({ action: 'invoice.create', resource: 'invoice', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.invoices.update(c.req.param('id'), auth.tenantId, { status: 'sent', sentAt: new Date(), updatedBy: auth.userId });
   return c.json({ success: true, data: await enrichInvoice(repos, auth.tenantId, row) });
 }));
 
 app.get('/:id/pdf', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.invoices.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, 404);
   return c.json({
@@ -254,7 +254,7 @@ app.get('/:id/pdf', async (c) => {
 
 app.delete('/:id', staffOnly, withSecurityEvents({ action: 'invoice.delete', resource: 'invoice', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.invoices.update(c.req.param('id'), auth.tenantId, {
     status: 'cancelled',
     cancelledAt: new Date(),

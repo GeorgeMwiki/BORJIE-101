@@ -50,8 +50,8 @@ export function createAirbnbAdapterFromEnv(
   if (!apiKey || apiKey.trim().length === 0) return null;
   return createAirbnbAdapter({
     apiKey,
-    apiHeader: env.AIRBNB_API_HEADER,
-    baseUrl: env.AIRBNB_BASE_URL,
+    ...(env.AIRBNB_API_HEADER !== undefined ? { apiHeader: env.AIRBNB_API_HEADER } : {}),
+    ...(env.AIRBNB_BASE_URL !== undefined ? { baseUrl: env.AIRBNB_BASE_URL } : {}),
   });
 }
 

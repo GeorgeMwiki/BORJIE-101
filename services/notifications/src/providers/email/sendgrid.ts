@@ -55,9 +55,10 @@ export class SendGridProvider implements INotificationProvider {
         html: params.body.replace(/\n/g, '<br>'),
       });
 
+      const externalId = response.headers['x-message-id'] as string | undefined;
       return {
         success: true,
-        externalId: response.headers['x-message-id'] as string | undefined,
+        ...(externalId !== undefined ? { externalId } : {}),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

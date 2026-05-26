@@ -358,7 +358,7 @@ function DetailRow({
 
 function DecisionPill({ decision }: { readonly decision: string }) {
   const normalized = decision.toLowerCase();
-  let Icon: React.ComponentType<{ className?: string }>;
+  let Icon: typeof Check;
   let classes: string;
   if (normalized.includes('execut') || normalized.includes('approv') || normalized === 'allow') {
     Icon = Check;

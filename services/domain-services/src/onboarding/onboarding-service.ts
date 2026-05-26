@@ -13,6 +13,7 @@ import type {
   PropertyId,
   UnitId,
   Result,
+  ISOTimestamp,
 } from '@borjie/domain-models';
 import { ok, err } from '@borjie/domain-models';
 import type { EventBus } from '../common/events.js';
@@ -148,12 +149,12 @@ export class OnboardingService {
       tenantId,
       customerId,
       leaseId,
-      propertyId: options.propertyId,
-      unitId: options.unitId,
+      ...(options.propertyId !== undefined ? { propertyId: options.propertyId } : {}),
+      ...(options.unitId !== undefined ? { unitId: options.unitId } : {}),
       state: 'PRE_MOVE_IN',
       language: lang,
       preferredChannel: channel,
-      moveInDate: options.moveInDate,
+      moveInDate: options.moveInDate as ISOTimestamp,
       checklist: createInitialChecklist(),
       procedureCompletionLog: [],
       moveInConditionReport: null,

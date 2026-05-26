@@ -48,7 +48,7 @@ function buildVerifyOptions(): VerifySupabaseJwtOptions | null {
   const jwksUrl = readJwksUrl();
   const jwtSecret = readJwtSecret();
   if (jwksUrl) {
-    return { jwksUrl, jwtSecret: jwtSecret || undefined };
+    return jwtSecret ? { jwksUrl, jwtSecret } : { jwksUrl };
   }
   if (jwtSecret) return { jwtSecret };
   return null;
@@ -144,16 +144,17 @@ export const supabaseAuthMiddleware = createMiddleware<any>(async (c, next) => {
     const permissions = principal.miningRole
       ? [principal.miningRole, ...principal.roles]
       : principal.roles;
+    const tokenExp = typeof principal.raw.exp === 'number' ? principal.raw.exp : undefined;
+    const tokenIat = typeof principal.raw.iat === 'number' ? principal.raw.iat : undefined;
     const authContext: AuthContext = {
       userId: principal.userId,
       tenantId: principal.tenantId,
       role,
       permissions,
       propertyAccess: [],
-      email: principal.email,
-      sessionId: undefined,
-      tokenExp: typeof principal.raw.exp === 'number' ? principal.raw.exp : undefined,
-      tokenIat: typeof principal.raw.iat === 'number' ? principal.raw.iat : undefined,
+      ...(principal.email !== undefined ? { email: principal.email } : {}),
+      ...(tokenExp !== undefined ? { tokenExp } : {}),
+      ...(tokenIat !== undefined ? { tokenIat } : {}),
     };
     c.set('auth', authContext);
     await next();

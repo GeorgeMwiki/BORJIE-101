@@ -113,7 +113,7 @@ export function SessionReplayProvider({
     const ep = resolveEndpoint(endpoint);
     const uploader = createChunkUploader({
       endpoint: ep,
-      authToken,
+      ...(authToken !== undefined ? { authToken } : {}),
     });
     uploaderRef.current = uploader;
     setActiveSessionId(sid);

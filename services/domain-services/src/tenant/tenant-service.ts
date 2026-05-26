@@ -453,12 +453,13 @@ export class TenantService {
   }
   
   private getTierLimits(tier: SubscriptionTier): { maxProperties: number; maxUnits: number; maxUsers: number } {
+    const starterLimits = { maxProperties: 10, maxUnits: 50, maxUsers: 5 };
     const limits: Record<string, { maxProperties: number; maxUnits: number; maxUsers: number }> = {
-      starter: { maxProperties: 10, maxUnits: 50, maxUsers: 5 },
+      starter: starterLimits,
       professional: { maxProperties: 50, maxUnits: 500, maxUsers: 25 },
       enterprise: { maxProperties: -1, maxUnits: -1, maxUsers: -1 }, // unlimited
     };
-    return limits[tier] ?? limits.starter;
+    return limits[tier] ?? starterLimits;
   }
   
   /**

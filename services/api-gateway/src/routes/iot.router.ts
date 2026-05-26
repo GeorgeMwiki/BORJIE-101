@@ -124,16 +124,19 @@ app.get('/sensors', async (c: AnyContext) => {
   if (!s) return notImplemented(c);
   // kind is a free-form query string; service validates the value
   // against its own enum before querying.
+  const kindRaw = c.req.query('kind');
+  const unitIdRaw = c.req.query('unitId');
+  const propertyIdRaw = c.req.query('propertyId');
+  const activeRaw = c.req.query('active');
   const filters = {
-    kind: (c.req.query('kind') ?? undefined) as z.infer<typeof SensorKindSchema> | undefined,
-    unitId: c.req.query('unitId') || undefined,
-    propertyId: c.req.query('propertyId') || undefined,
-    active:
-      c.req.query('active') === 'false'
-        ? false
-        : c.req.query('active') === 'true'
-          ? true
-          : undefined,
+    ...(kindRaw ? { kind: kindRaw as z.infer<typeof SensorKindSchema> } : {}),
+    ...(unitIdRaw ? { unitId: unitIdRaw } : {}),
+    ...(propertyIdRaw ? { propertyId: propertyIdRaw } : {}),
+    ...(activeRaw === 'false'
+      ? { active: false }
+      : activeRaw === 'true'
+        ? { active: true }
+        : {}),
   };
   const sensors = await s.listSensors(auth.tenantId, filters);
   return c.json({ success: true, data: sensors });
@@ -143,7 +146,14 @@ app.get('/sensors/:id', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
-  const sensor = await s.getSensor(auth.tenantId, c.req.param('id'));
+  const id = c.req.param('id');
+  if (!id) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+      400
+    );
+  }
+  const sensor = await s.getSensor(auth.tenantId, id);
   if (!sensor) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'sensor not found' } },
@@ -189,10 +199,20 @@ app.get('/sensors/:id/observations', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
+  const id = c.req.param('id');
+  if (!id) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+      400
+    );
+  }
   const fromRaw = c.req.query('from');
   const since = fromRaw ? new Date(fromRaw) : undefined;
   const limit = c.req.query('limit') ? Number(c.req.query('limit')) : 100;
-  const items = await s.listObservations(auth.tenantId, c.req.param('id'), { since, limit });
+  const items = await s.listObservations(auth.tenantId, id, {
+    ...(since !== undefined ? { since } : {}),
+    limit,
+  });
   return c.json({ success: true, data: items });
 });
 
@@ -208,10 +228,12 @@ app.get('/anomalies', async (c: AnyContext) => {
   const severity = sevRaw && (sevAllowed as readonly string[]).includes(sevRaw)
     ? (sevRaw as typeof sevAllowed[number])
     : undefined;
+  const sensorIdRaw = c.req.query('sensorId');
+  const unresolvedRaw = c.req.query('unresolved');
   const filters = {
-    sensorId: c.req.query('sensorId') || undefined,
-    severity,
-    unresolved: c.req.query('unresolved') === 'true' ? true : undefined,
+    ...(sensorIdRaw ? { sensorId: sensorIdRaw } : {}),
+    ...(severity !== undefined ? { severity } : {}),
+    ...(unresolvedRaw === 'true' ? { unresolved: true } : {}),
   };
   const items = await s.listAnomalies(auth.tenantId, filters);
   return c.json({ success: true, data: items });

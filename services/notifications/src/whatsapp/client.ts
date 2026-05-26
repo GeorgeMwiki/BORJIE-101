@@ -87,12 +87,14 @@ export class WhatsAppClient {
         'WHATSAPP_API_URL must be set (e.g. "https://graph.facebook.com/v19.0") — no silent default',
       );
     }
+    const businessAccountId = config?.businessAccountId || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+    const webhookVerifyToken = config?.webhookVerifyToken || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
     this.config = {
       apiUrl,
       accessToken: config?.accessToken || process.env.WHATSAPP_ACCESS_TOKEN || '',
       phoneNumberId: config?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '',
-      businessAccountId: config?.businessAccountId || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
-      webhookVerifyToken: config?.webhookVerifyToken || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+      ...(businessAccountId !== undefined ? { businessAccountId } : {}),
+      ...(webhookVerifyToken !== undefined ? { webhookVerifyToken } : {}),
     };
 
     this.client = axios.create({

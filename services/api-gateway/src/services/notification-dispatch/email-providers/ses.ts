@@ -68,8 +68,8 @@ export function readSesConfigFromEnv(
     secretAccessKey,
     region,
     fromEmail,
-    sessionToken: env.AWS_SESSION_TOKEN,
-    apiBaseUrl: env.SES_API_BASE_URL,
+    ...(env.AWS_SESSION_TOKEN !== undefined ? { sessionToken: env.AWS_SESSION_TOKEN } : {}),
+    ...(env.SES_API_BASE_URL !== undefined ? { apiBaseUrl: env.SES_API_BASE_URL } : {}),
   };
 }
 
@@ -229,7 +229,7 @@ async function safeReadBody(response: Response): Promise<string> {
 
 function extractMessageId(xml: string): string | null {
   const match = xml.match(/<MessageId>([^<]+)<\/MessageId>/);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 function sanitiseSecrets(value: string, config: SesConfig): string {

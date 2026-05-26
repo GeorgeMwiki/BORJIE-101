@@ -212,7 +212,7 @@ export async function* runChatOrchestrator(
           status: result.error ? 'error' : 'done',
           evidence_ids: result.evidence_ids,
           confidence: result.confidence,
-          error: result.error,
+          ...(result.error !== undefined ? { error: result.error } : {}),
         });
       },
     },

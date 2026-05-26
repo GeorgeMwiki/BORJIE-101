@@ -144,8 +144,8 @@ export class EvidencePackBuilderService {
   private readonly documentRepository: IDocumentRepository;
   private readonly storageProvider: IStorageProvider;
   private readonly evidencePackRepository: IEvidencePackRepository;
-  private readonly pdfGenerator?: IPDFGenerator;
-  private readonly communicationLogProvider?: ICommunicationLogProvider;
+  private readonly pdfGenerator: IPDFGenerator | undefined;
+  private readonly communicationLogProvider: ICommunicationLogProvider | undefined;
   private readonly config: EvidencePackBuilderConfig;
 
   constructor(options: EvidencePackBuilderServiceOptions) {
@@ -461,8 +461,8 @@ export class EvidencePackBuilderService {
       type,
       title: packTitle,
       description: `Auto-generated evidence pack for ${type.replace('_', ' ')}`,
-      caseId,
-      leaseId,
+      ...(caseId !== undefined ? { caseId } : {}),
+      ...(leaseId !== undefined ? { leaseId } : {}),
       documentIds: relevantDocuments.map(d => d.id),
       includeTimeline: true,
     });

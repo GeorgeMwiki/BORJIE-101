@@ -858,6 +858,8 @@ export function createPostgresWebhookDeliveryRepository(
   }
 
   function mapDeadLetter(row: Record<string, unknown>): WebhookDeadLetterRecord {
+    const lastStatusCode = row.last_status_code ? Number(row.last_status_code) : undefined;
+    const lastError = row.last_error ? String(row.last_error) : undefined;
     return {
       id: String(row.id),
       deliveryId: String(row.delivery_id),
@@ -869,10 +871,8 @@ export function createPostgresWebhookDeliveryRepository(
           ? JSON.parse(row.payload)
           : (row.payload as Record<string, unknown>),
       totalAttempts: Number(row.total_attempts ?? 0),
-      lastStatusCode: row.last_status_code
-        ? Number(row.last_status_code)
-        : undefined,
-      lastError: row.last_error ? String(row.last_error) : undefined,
+      ...(lastStatusCode !== undefined ? { lastStatusCode } : {}),
+      ...(lastError !== undefined ? { lastError } : {}),
       firstAttemptAt: new Date(String(row.first_attempt_at)),
       lastAttemptAt: new Date(String(row.last_attempt_at)),
     };

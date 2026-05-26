@@ -51,6 +51,15 @@ export const authMiddleware = (
     }
 
     const token = authHeader.split(' ')[1];
+    if (token === undefined) {
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'Authentication token is missing',
+        },
+      });
+    }
 
     try {
       // Pin the algorithm explicitly. Without this, jsonwebtoken accepts
@@ -59,7 +68,7 @@ export const authMiddleware = (
       // the only algorithm we sign with (generateToken below).
       const decoded = jwt.verify(token, JWT_SECRET, {
         algorithms: ['HS256'],
-      }) as JWTPayload;
+      }) as unknown as JWTPayload;
 
       // Check revocation blocklist (logout + refresh-rotation flow).
       if (decoded.jti && tokenBlocklist.isRevoked(decoded.jti)) {

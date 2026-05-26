@@ -108,6 +108,11 @@ export class DocumentService {
       });
 
       const inputMeta = metadata ?? {};
+      const metaPropertyId = inputMeta.propertyId as string | undefined;
+      const metaCustomerId = inputMeta.customerId as string | undefined;
+      const metaLeaseId = inputMeta.leaseId as string | undefined;
+      const metaEntityType = inputMeta.entityType as DocumentEntityType | undefined;
+      const metaEntityId = inputMeta.entityId as string | undefined;
       const document: Document = {
         id: docId,
         tenantId,
@@ -120,11 +125,11 @@ export class DocumentService {
         metadata: inputMeta,
         uploadedBy,
         createdAt: now,
-        propertyId: inputMeta.propertyId as string | undefined,
-        customerId: inputMeta.customerId as string | undefined,
-        leaseId: inputMeta.leaseId as string | undefined,
-        entityType: inputMeta.entityType as DocumentEntityType | undefined,
-        entityId: inputMeta.entityId as string | undefined,
+        ...(metaPropertyId !== undefined ? { propertyId: metaPropertyId } : {}),
+        ...(metaCustomerId !== undefined ? { customerId: metaCustomerId } : {}),
+        ...(metaLeaseId !== undefined ? { leaseId: metaLeaseId } : {}),
+        ...(metaEntityType !== undefined ? { entityType: metaEntityType } : {}),
+        ...(metaEntityId !== undefined ? { entityId: metaEntityId } : {}),
       };
 
       const saved = await this.options.repository.create(document);

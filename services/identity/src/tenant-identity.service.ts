@@ -60,9 +60,9 @@ const EMPTY_PROFILE: UserProfile = {
 };
 
 export class TenantIdentityService {
-  private readonly identityRepo?: PostgresTenantIdentityRepository;
-  private readonly membershipRepo?: PostgresOrgMembershipRepository;
-  private readonly otpService?: OtpService;
+  private readonly identityRepo: PostgresTenantIdentityRepository | undefined;
+  private readonly membershipRepo: PostgresOrgMembershipRepository | undefined;
+  private readonly otpService: OtpService | undefined;
   private readonly defaultProfile: UserProfile;
 
   constructor(deps: TenantIdentityServiceDeps = {}) {

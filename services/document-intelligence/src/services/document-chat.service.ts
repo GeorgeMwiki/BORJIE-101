@@ -128,7 +128,7 @@ export class DocumentChatService {
       id: randomId('dcs'),
       tenantId: input.tenantId,
       scope: input.scope,
-      title: input.title,
+      ...(input.title !== undefined ? { title: input.title } : {}),
       documentIds: input.documentIds,
       participants: input.participants ?? [input.createdBy],
       createdBy: input.createdBy,
@@ -223,7 +223,7 @@ export class DocumentChatService {
         chunkIndex: c.chunkIndex,
         quote: c.text.slice(0, 240),
         score: c.score,
-        page: c.page,
+        ...(c.page !== undefined ? { page: c.page } : {}),
       }));
     }
 
@@ -237,7 +237,7 @@ export class DocumentChatService {
       citations,
       retrievedChunkIds: retrieved.map((r) => r.id),
       model: this.options.llm.model,
-      tokensUsed: llmResult.tokensUsed,
+      ...(llmResult.tokensUsed !== undefined ? { tokensUsed: llmResult.tokensUsed } : {}),
       createdAt: assistantAt,
     };
 
@@ -318,7 +318,7 @@ export class StubAnthropicDocChatLlm implements IDocChatLlmPort {
             chunkIndex: top.chunkIndex,
             quote: top.text.slice(0, 200),
             score: top.score,
-            page: top.page,
+            ...(top.page !== undefined ? { page: top.page } : {}),
           },
         ]
       : [];

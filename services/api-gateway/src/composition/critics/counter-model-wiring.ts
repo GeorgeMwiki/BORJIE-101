@@ -46,8 +46,8 @@ export function createProductionCounterModel(
   if (!anthropicClient) return null;
   return kernelCounterModel.createCounterModelReview({
     anthropicClient,
-    modelId: config.modelId,
-    maxTokens: config.maxTokens,
+    ...(config.modelId !== undefined ? { modelId: config.modelId } : {}),
+    ...(config.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {}),
   });
 }
 

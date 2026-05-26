@@ -119,7 +119,7 @@ export interface ExpiryTrackingServiceOptions {
 export class ExpiryTrackingService {
   private readonly documentRepository: IDocumentRepository;
   private readonly expiryRepository: IExpiryTrackerRepository;
-  private readonly notificationService?: IExpiryNotificationService;
+  private readonly notificationService: IExpiryNotificationService | undefined;
   private readonly config: ExpiryTrackingConfig;
 
   constructor(options: ExpiryTrackingServiceOptions) {

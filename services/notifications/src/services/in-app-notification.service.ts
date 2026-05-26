@@ -210,6 +210,7 @@ export function createInAppNotificationService(
     const id = uuidv4();
     const now = new Date().toISOString();
 
+    const expiresAt = input.expiresAt?.toISOString();
     const notification: InAppNotification = {
       id,
       tenantId: input.tenantId,
@@ -218,13 +219,13 @@ export function createInAppNotificationService(
       message: input.message,
       category: input.category,
       priority: input.priority ?? 'normal',
-      actionUrl: input.actionUrl,
-      actionLabel: input.actionLabel,
-      metadata: input.metadata,
-      templateId: input.templateId,
+      ...(input.actionUrl !== undefined ? { actionUrl: input.actionUrl } : {}),
+      ...(input.actionLabel !== undefined ? { actionLabel: input.actionLabel } : {}),
+      ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
+      ...(input.templateId !== undefined ? { templateId: input.templateId } : {}),
       isRead: false,
       isArchived: false,
-      expiresAt: input.expiresAt?.toISOString(),
+      ...(expiresAt !== undefined ? { expiresAt } : {}),
       createdAt: now,
     };
 
@@ -254,12 +255,12 @@ export function createInAppNotificationService(
       title: subject,
       message: body,
       category: input.category,
-      priority: input.priority,
-      actionUrl: input.actionUrl,
-      actionLabel: input.actionLabel,
-      metadata: input.metadata,
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.actionUrl !== undefined ? { actionUrl: input.actionUrl } : {}),
+      ...(input.actionLabel !== undefined ? { actionLabel: input.actionLabel } : {}),
+      ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
       templateId: input.templateId,
-      expiresAt: input.expiresAt,
+      ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
     });
   }
 
@@ -622,10 +623,10 @@ export function createInAppNotificationService(
       title,
       message,
       category: 'announcement',
-      priority: options.priority,
-      actionUrl: options.actionUrl,
-      actionLabel: options.actionLabel,
-      expiresAt: options.expiresAt,
+      ...(options.priority !== undefined ? { priority: options.priority } : {}),
+      ...(options.actionUrl !== undefined ? { actionUrl: options.actionUrl } : {}),
+      ...(options.actionLabel !== undefined ? { actionLabel: options.actionLabel } : {}),
+      ...(options.expiresAt !== undefined ? { expiresAt: options.expiresAt } : {}),
     });
   }
 

@@ -19,9 +19,6 @@
       "react-dom"
     ],
     "strict": true,
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
     "noImplicitReturns": false,
     "noImplicitAny": false,
     "paths": {

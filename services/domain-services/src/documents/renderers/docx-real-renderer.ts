@@ -37,7 +37,7 @@ export class DocxRealRenderer implements IDocumentRenderer {
   ];
 
   readonly engine: DocxEngine;
-  private readonly templateLoader?: (templateKey: string) => Promise<Buffer | null>;
+  private readonly templateLoader: ((templateKey: string) => Promise<Buffer | null>) | undefined;
 
   constructor(options: DocxRealRendererOptions = {}) {
     this.engine = options.engine ?? 'synthesizer';

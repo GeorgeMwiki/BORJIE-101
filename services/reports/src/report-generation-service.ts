@@ -270,9 +270,9 @@ export class ReportGenerationService {
   ): Promise<unknown> {
     const reportParams = {
       tenantId: params.tenantId,
-      dateRange: params.dateRange,
-      propertyIds: params.propertyIds,
-      period: params.period,
+      ...(params.dateRange !== undefined ? { dateRange: params.dateRange } : {}),
+      ...(params.propertyIds !== undefined ? { propertyIds: params.propertyIds } : {}),
+      ...(params.period !== undefined ? { period: params.period } : {}),
     };
 
     switch (reportType) {

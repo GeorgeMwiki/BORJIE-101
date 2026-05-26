@@ -41,7 +41,7 @@ function adaptAudit(raw: RawAuditRow): AuditEvent {
     tenantId: raw.tenantId ?? 'unknown',
     actor: raw.actorName ?? raw.actorId ?? 'system',
     action: raw.action ?? 'audit.event',
-    target: raw.resource,
+    ...(raw.resource !== undefined ? { target: raw.resource } : {}),
   };
 }
 

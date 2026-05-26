@@ -432,8 +432,15 @@ export class ReportService {
         return { ...t, balance: { amount: runningBalance, currency } };
       });
 
-      const openingBalance = transactions.length > 0
-        ? { amount: transactions[0].balance.amount - (transactions[0].debit?.amount ?? 0) + (transactions[0].credit?.amount ?? 0), currency }
+      const firstMappedTxn = transactions[0];
+      const openingBalance = firstMappedTxn
+        ? {
+            amount:
+              firstMappedTxn.balance.amount -
+              (firstMappedTxn.debit?.amount ?? 0) +
+              (firstMappedTxn.credit?.amount ?? 0),
+            currency,
+          }
         : { amount: 0, currency };
 
       const statement: CustomerStatement = {

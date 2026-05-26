@@ -86,7 +86,7 @@ function histogramByName(
   const max = Math.max(...all.map((h) => h.max));
   return {
     name,
-    description: all[0].description,
+    description: all[0]!.description,
     count,
     sum,
     p50,

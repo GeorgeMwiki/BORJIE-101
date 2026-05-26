@@ -710,8 +710,8 @@ export class ComplianceService {
       caseType,
       customerId,
       propertyId,
-      unitId: options?.unitId,
-      leaseId: options?.leaseId,
+      ...(options?.unitId !== undefined ? { unitId: options.unitId } : {}),
+      ...(options?.leaseId !== undefined ? { leaseId: options.leaseId } : {}),
       status: 'open',
       severity: options?.severity ?? 'medium',
       filingDate: now,
@@ -977,7 +977,7 @@ export class ComplianceService {
       timestamp: now,
       details,
       userId: addedBy,
-      metadata,
+      ...(metadata !== undefined ? { metadata } : {}),
     };
 
     const updated: LegalCase = {
@@ -1086,7 +1086,7 @@ export class ComplianceService {
       });
     }
 
-    const removedDoc = legalCase.documents[docIndex];
+    const removedDoc = legalCase.documents[docIndex]!;
     const now = new Date().toISOString();
     const timelineEntry: CaseTimelineEntry = {
       id: `evt_${Date.now()}_rmv`,

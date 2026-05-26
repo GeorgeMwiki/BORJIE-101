@@ -155,10 +155,12 @@ export class CustomerService {
     const customerId = asCustomerId(`cust_${Date.now()}_${randomHex(4)}`);
 
     const customer = createCustomer(customerId, {
-      tenantId, customerNumber, profile: input.profile,
-      emergencyContacts: input.emergencyContacts,
-      preferredLanguage: input.preferredLanguage,
-      notes: input.notes,
+      tenantId,
+      customerNumber,
+      profile: input.profile,
+      ...(input.emergencyContacts !== undefined ? { emergencyContacts: input.emergencyContacts } : {}),
+      ...(input.preferredLanguage !== undefined ? { preferredLanguage: input.preferredLanguage } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
     }, createdBy);
 
     const savedCustomer = await this.customerRepo.create(customer);

@@ -53,8 +53,8 @@ export interface InviteCodeServiceDeps {
 }
 
 export class InviteCodeService {
-  private readonly inviteRepo?: PostgresInviteCodeRepository;
-  private readonly identityRepo?: PostgresTenantIdentityRepository;
+  private readonly inviteRepo: PostgresInviteCodeRepository | undefined;
+  private readonly identityRepo: PostgresTenantIdentityRepository | undefined;
 
   constructor(deps: InviteCodeServiceDeps = {}) {
     this.inviteRepo = deps.inviteRepo;

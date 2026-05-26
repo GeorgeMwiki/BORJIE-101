@@ -289,13 +289,13 @@ export async function enqueueNotification(
       tenantId: input.tenantId,
       channel: input.channel,
       templateId: input.templateId,
-      priority: input.priority,
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
     });
     if (!gate.allowed) {
       const result: DispatchResult = {
         accepted: false,
         attempts: 0,
-        suppressedReason: gate.reason,
+        ...(gate.reason !== undefined ? { suppressedReason: gate.reason } : {}),
       };
       if (idempotencyScopedKey && idempotencyStore) {
         await Promise.resolve(
@@ -332,10 +332,10 @@ export async function enqueueNotification(
   const sendParams: SendParams = {
     tenantId: input.tenantId,
     to: input.recipient,
-    subject: input.subject,
+    ...(input.subject !== undefined ? { subject: input.subject } : {}),
     body: input.body,
-    title: input.title,
-    data: input.data,
+    ...(input.title !== undefined ? { title: input.title } : {}),
+    ...(input.data !== undefined ? { data: input.data } : {}),
   };
 
   let lastError = 'unknown error';
@@ -349,7 +349,7 @@ export async function enqueueNotification(
       if (result.success) {
         const success: DispatchResult = {
           accepted: true,
-          externalId: result.externalId,
+          ...(result.externalId !== undefined ? { externalId: result.externalId } : {}),
           attempts,
         };
         if (idempotencyScopedKey && idempotencyStore) {

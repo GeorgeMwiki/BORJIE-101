@@ -1965,7 +1965,8 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         });
         return withBudgetGuard(inner, {
           ledger: aiCostLedger,
-          context: () => ({ tenantId, operation }),
+          context: () =>
+            operation !== undefined ? { tenantId, operation } : { tenantId },
           provider: 'anthropic',
         });
       }
@@ -2419,7 +2420,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // per-action policies and sensor adapters can later record per-
       // call telemetry to `sensor_call_log`.
       const brainKernel = createBrainKernelWiring({
-        buildBudgetGuardedAnthropicClient,
+        buildBudgetGuardedAnthropicClient: buildBudgetGuardedAnthropicClient as unknown as Parameters<
+          typeof createBrainKernelWiring
+        >[0]['buildBudgetGuardedAnthropicClient'],
         approvalPolicyResolver: createApprovalPolicyService(db),
         sensorRoutingService: createSensorRoutingService(db),
         hqToolRegistry: hqPortBindings.hqToolRegistry,
@@ -2571,7 +2574,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // judge → drift → policy → confidence → provenance).
     voiceAgent: (() => {
       const brainKernel = createBrainKernelWiring({
-        buildBudgetGuardedAnthropicClient,
+        buildBudgetGuardedAnthropicClient: buildBudgetGuardedAnthropicClient as unknown as Parameters<
+          typeof createBrainKernelWiring
+        >[0]['buildBudgetGuardedAnthropicClient'],
       });
       return createVoiceAgentWiring({
         db,
@@ -2604,7 +2609,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // as the rest of the platform's observability events.
     sovereignLedgerVerifyCron: createSovereignLedgerVerifyCronSupervisor({
       db,
-      eventBus,
+      eventBus: eventBus as unknown as NonNullable<
+        Parameters<typeof createSovereignLedgerVerifyCronSupervisor>[0]['eventBus']
+      >,
       logger: {
         info: (obj, msg) =>
           logger.info('sovereign-ledger-verify-cron', { arg0: msg ?? '', obj })
@@ -2657,7 +2664,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
             suite.auditChain.verifyChain(tenantId),
         },
         db,
-        eventBus,
+        eventBus: eventBus as unknown as NonNullable<
+          Parameters<typeof createAuditVerifyCronSupervisor>[0]['eventBus']
+        >,
         logger: {
           info: (obj, msg) => console.info('audit-verify-cron:', msg ?? '', obj),
           warn: (obj, msg) => console.warn('audit-verify-cron:', msg ?? '', obj),

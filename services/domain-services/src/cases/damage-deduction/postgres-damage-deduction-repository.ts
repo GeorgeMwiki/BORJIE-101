@@ -217,21 +217,33 @@ function rowToEntity(row: DamageDeductionRow): DamageDeductionCase {
   return {
     id: asDamageDeductionCaseId(row.id),
     tenantId: row.tenantId as unknown as TenantId,
-    leaseId: (row.leaseId ?? undefined) as DamageDeductionCase['leaseId'],
-    caseId: (row.caseId ?? undefined) as DamageDeductionCase['caseId'],
-    moveOutInspectionId: (row.moveOutInspectionId ?? undefined) as DamageDeductionCase['moveOutInspectionId'],
+    ...(row.leaseId != null
+      ? { leaseId: row.leaseId as unknown as NonNullable<DamageDeductionCase['leaseId']> }
+      : {}),
+    ...(row.caseId != null
+      ? { caseId: row.caseId as unknown as NonNullable<DamageDeductionCase['caseId']> }
+      : {}),
+    ...(row.moveOutInspectionId != null
+      ? {
+          moveOutInspectionId: row.moveOutInspectionId as unknown as NonNullable<DamageDeductionCase['moveOutInspectionId']>,
+        }
+      : {}),
     claimedDeductionMinor: Number(row.claimedDeductionMinor ?? 0),
-    proposedDeductionMinor:
-      row.proposedDeductionMinor != null ? Number(row.proposedDeductionMinor) : undefined,
-    tenantCounterProposalMinor:
-      row.tenantCounterProposalMinor != null
-        ? Number(row.tenantCounterProposalMinor)
-        : undefined,
+    ...(row.proposedDeductionMinor != null
+      ? { proposedDeductionMinor: Number(row.proposedDeductionMinor) }
+      : {}),
+    ...(row.tenantCounterProposalMinor != null
+      ? { tenantCounterProposalMinor: Number(row.tenantCounterProposalMinor) }
+      : {}),
     // Currency is persisted in the row by `create` (caller-provided
     // from region-config); we don't substitute a TZS default.
     currency: row.currency ?? '',
     status: (row.status ?? 'claim_filed') as DamageDeductionStatus,
-    evidenceBundleId: (row.evidenceBundleId ?? undefined) as DamageDeductionCase['evidenceBundleId'],
+    ...(row.evidenceBundleId != null
+      ? {
+          evidenceBundleId: row.evidenceBundleId as unknown as NonNullable<DamageDeductionCase['evidenceBundleId']>,
+        }
+      : {}),
     aiMediatorTurns: Array.isArray(row.aiMediatorTurns) ? row.aiMediatorTurns : [],
     createdAt: createdAt as ISOTimestamp,
     updatedAt: updatedAt as ISOTimestamp,

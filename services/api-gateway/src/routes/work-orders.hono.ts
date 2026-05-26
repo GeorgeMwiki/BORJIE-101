@@ -70,7 +70,7 @@ app.use('*', databaseMiddleware);
 
 async function updateWorkOrder(c: any) {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   // Caller pre-validated via zValidator middleware; we re-use valid('json').
   const body = c.req.valid('json');
   const estimatedCost =
@@ -122,7 +122,7 @@ async function updateWorkOrder(c: any) {
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const propertyId = c.req.query('propertyId');
   const customerId = c.req.query('customerId');
@@ -142,7 +142,7 @@ app.get('/', async (c) => {
 
 app.get('/my-tasks', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const result = await repos.workOrders.findMany(auth.tenantId, p.limit, p.offset);
   return c.json({
@@ -153,14 +153,14 @@ app.get('/my-tasks', async (c) => {
 
 app.get('/my-requests', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const result = await repos.workOrders.findByCustomer(auth.userId, auth.tenantId, 1000, 0);
   return c.json({ success: true, data: result.items.map(mapWorkOrderRow) });
 });
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.workOrders.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Work order not found' } }, 404);
   return c.json({ success: true, data: mapWorkOrderRow(row) });
@@ -168,7 +168,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', zValidator('json', WorkOrderCreateSchema), withSecurityEvents({ action: 'work-order.create', resource: 'work-order', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   const row = await repos.workOrders.create({
     id: crypto.randomUUID(),
@@ -205,7 +205,7 @@ app.patch('/:id', zValidator('json', WorkOrderUpdateSchema), withSecurityEvents(
 
 app.delete('/:id', withSecurityEvents({ action: 'work-order.delete', resource: 'work-order', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   await repos.workOrders.delete(c.req.param('id'), auth.tenantId, auth.userId);
   return c.json({ success: true, data: { message: 'Work order deleted' } });
 }));

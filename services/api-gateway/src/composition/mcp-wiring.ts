@@ -502,7 +502,7 @@ export function buildMcpServer(
   certService?: AgentCertificationService | null,
 ): BossnyumbaMcpServer {
   const jwt = buildJwtVerifier();
-  const auth = createMcpAuth({ jwt });
+  const auth = createMcpAuth(jwt !== undefined ? { jwt } : {});
 
   // Note: cert service is observed but MCP's AuthPort does not currently
   // consume it. The gateway's other routes enforce cert-based auth

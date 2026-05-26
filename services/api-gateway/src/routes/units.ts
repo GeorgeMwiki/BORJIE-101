@@ -12,6 +12,7 @@ import {
   paginateArray,
   majorToMinor,
 } from './db-mappers';
+import type { UnitRowLike } from './db-mappers';
 import { parseListPagination, buildListResponse } from './pagination';
 import type { AuthContext } from './hono-auth';
 
@@ -50,9 +51,11 @@ function hasPropertyAccess(auth: Pick<AuthContext, 'propertyAccess'>, propertyId
 /**
  * Minimal DB-row shape we touch before `mapUnitRow` normalizes it. The
  * repos port exposes rows as `unknown`, so we narrow structurally to the
- * fields we actually read here (propertyId for ACL filtering).
+ * fields we actually read here (propertyId for ACL filtering). The mapper
+ * itself expects the full `UnitRowLike` from `db-mappers`, so we cast to
+ * that richer type at the `.map(mapUnitRow)` boundary.
  */
-type UnitRowLike = { propertyId: string };
+type UnitAclRowLike = { propertyId: string };
 
 const app = new Hono();
 app.use('*', authMiddleware);
@@ -60,7 +63,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const propertyId = c.req.query('propertyId');
   const status = c.req.query('status');
@@ -88,7 +91,7 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const row = await repos.units.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
   if (!hasPropertyAccess(auth, row.propertyId)) {
@@ -99,7 +102,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', staffOnly, zValidator('json', UnitCreateSchema), withSecurityEvents({ action: 'unit.create', resource: 'unit', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
   if (!hasPropertyAccess(auth, body.propertyId)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient property access' } }, 403);
@@ -133,7 +136,7 @@ app.post('/', staffOnly, zValidator('json', UnitCreateSchema), withSecurityEvent
 
 app.put('/:id', staffOnly, zValidator('json', UnitUpdateSchema), withSecurityEvents({ action: 'unit.update', resource: 'unit', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.units.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
@@ -166,7 +169,7 @@ app.put('/:id', staffOnly, zValidator('json', UnitUpdateSchema), withSecurityEve
 
 app.put('/:id/status', staffOnly, zValidator('json', UnitStatusSchema), withSecurityEvents({ action: 'unit.update', resource: 'unit', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.units.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);
@@ -177,7 +180,7 @@ app.put('/:id/status', staffOnly, zValidator('json', UnitStatusSchema), withSecu
 
 app.delete('/:id', staffOnly, withSecurityEvents({ action: 'unit.delete', resource: 'unit', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   const existing = await repos.units.findById(id, auth.tenantId);
   if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Unit not found' } }, 404);

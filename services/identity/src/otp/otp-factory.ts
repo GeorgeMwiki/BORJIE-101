@@ -153,9 +153,9 @@ export async function createOtpService(
   const sms = new NotificationsSmsDispatcher({
     enqueue: deps.enqueue,
     tenantId: deps.tenantId,
-    userId: deps.userId,
-    correlationId: deps.correlationId,
-    logger: deps.logger,
+    ...(deps.userId !== undefined ? { userId: deps.userId } : {}),
+    ...(deps.correlationId !== undefined ? { correlationId: deps.correlationId } : {}),
+    ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
   });
 
   return new OtpService(store, sms, deps.options ?? {});

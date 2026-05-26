@@ -346,7 +346,11 @@ function normalizeMetaStatus(raw: Record<string, unknown>): {
     status === 'delivered' || status === 'read' || status === 'sent' || status === 'failed'
       ? status
       : 'unknown';
-  return { status: normalized, providerMessageId: first.id as string | undefined };
+  const providerMessageId = first.id as string | undefined;
+  return {
+    status: normalized,
+    ...(providerMessageId !== undefined ? { providerMessageId } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +445,7 @@ export function createNotificationWebhookRouter(deps: WebhookHandlerDeps): Hono 
       scope,
       extractKey: extractKeyFromHeaders(...headers),
       extractTenantId: tenantExtractor(scope, selectorFn),
-      logger: deps.logger,
+      ...(deps.logger !== undefined ? { logger: deps.logger } : {}),
     });
 
   app.use(
@@ -480,9 +484,10 @@ export function createNotificationWebhookRouter(deps: WebhookHandlerDeps): Hono 
     if (!tenantId) {
       return e401(c, 'TENANT_UNRESOLVED', 'Unknown account');
     }
+    const atProviderMessageId = (payload as { id?: string }).id;
     await deps.onDeliveryStatus({
       provider: 'africastalking',
-      providerMessageId: (payload as { id?: string }).id,
+      ...(atProviderMessageId !== undefined ? { providerMessageId: atProviderMessageId } : {}),
       status: normalizeAfricasTalkingStatus(payload),
       occurredAt: new Date(),
       tenantId,
@@ -519,9 +524,10 @@ export function createNotificationWebhookRouter(deps: WebhookHandlerDeps): Hono 
     if (!tenantId) {
       return e401(c, 'TENANT_UNRESOLVED', 'Unknown phone number');
     }
+    const twilioProviderMessageId = (payload as { MessageSid?: string }).MessageSid;
     await deps.onDeliveryStatus({
       provider: 'twilio',
-      providerMessageId: (payload as { MessageSid?: string }).MessageSid,
+      ...(twilioProviderMessageId !== undefined ? { providerMessageId: twilioProviderMessageId } : {}),
       status: normalizeTwilioStatus(payload),
       occurredAt: new Date(),
       tenantId,
@@ -554,7 +560,7 @@ export function createNotificationWebhookRouter(deps: WebhookHandlerDeps): Hono 
     const { status, providerMessageId } = normalizeMetaStatus(payload);
     await deps.onDeliveryStatus({
       provider: 'meta',
-      providerMessageId,
+      ...(providerMessageId !== undefined ? { providerMessageId } : {}),
       status,
       occurredAt: new Date(),
       tenantId,

@@ -6,10 +6,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node"],
-    "strict": false,
-    "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
-    "noImplicitOverride": false,
     "noImplicitReturns": false,
     "noImplicitAny": false,
     "baseUrl": ".",
@@ -18,5 +14,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/**"]
 }

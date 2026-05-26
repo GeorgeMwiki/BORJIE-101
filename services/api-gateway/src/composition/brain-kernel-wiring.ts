@@ -573,9 +573,9 @@ export function createBrainKernelWiring(
   let kernel: BrainKernel;
   try {
     const composeArgs: Parameters<typeof composeSovereign>[0] = {
-      anthropicClient: anthropicMessagesClient as Parameters<
+      anthropicClient: anthropicMessagesClient as NonNullable<Parameters<
         typeof composeSovereign
-      >[0]['anthropicClient'],
+      >[0]['anthropicClient']>,
       killswitch,
       traceRecorder: decisionTraceRecorder,
       uncertaintyPolicy,

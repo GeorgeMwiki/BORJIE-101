@@ -35,7 +35,7 @@ export async function streamChat({
       method: 'POST',
       headers,
       body: JSON.stringify({ messages: history }),
-      signal
+      ...(signal ? { signal } : {})
     })
   } catch (error) {
     onEvent({

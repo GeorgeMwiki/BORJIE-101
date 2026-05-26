@@ -593,14 +593,14 @@ export class MetaWhatsAppClient {
   async sendInteractive(message: OutgoingInteractiveMessage): Promise<SendMessageResponse> {
     if (message.type === 'button' && message.buttons) {
       return this.sendButtons(message.to, message.body, message.buttons, {
-        header: message.header,
-        footer: message.footer,
+        ...(message.header !== undefined ? { header: message.header } : {}),
+        ...(message.footer !== undefined ? { footer: message.footer } : {}),
       });
     } else if (message.type === 'list' && message.sections) {
       return this.sendList(message.to, message.body, message.sections, {
-        header: message.header,
-        footer: message.footer,
-        buttonText: message.buttonText,
+        ...(message.header !== undefined ? { header: message.header } : {}),
+        ...(message.footer !== undefined ? { footer: message.footer } : {}),
+        ...(message.buttonText !== undefined ? { buttonText: message.buttonText } : {}),
       });
     }
 

@@ -113,7 +113,7 @@ export function normalizePropertyStatusToDb(status?: string) {
   }
 }
 
-export function mapPropertyTypeFromDb(type?: string) {
+export function mapPropertyTypeFromDb(type?: string | null) {
   switch (type) {
     case 'commercial':
       return 'COMMERCIAL';
@@ -124,7 +124,7 @@ export function mapPropertyTypeFromDb(type?: string) {
   }
 }
 
-export function mapPropertyStatusFromDb(status?: string) {
+export function mapPropertyStatusFromDb(status?: string | null) {
   switch (status) {
     case 'inactive':
       return 'INACTIVE';
@@ -156,12 +156,12 @@ export function normalizeUnitStatusToDb(status?: string) {
   }
 }
 
-export function mapUnitTypeFromDb(type?: string) {
+export function mapUnitTypeFromDb(type?: string | null) {
   if (type === 'four_plus_bedroom') return 'four_bedroom_plus';
   return type || 'one_bedroom';
 }
 
-export function mapUnitStatusFromDb(status?: string) {
+export function mapUnitStatusFromDb(status?: string | null) {
   switch (status) {
     case 'vacant':
       return 'AVAILABLE';
@@ -217,7 +217,7 @@ export function mapPropertyRow(row: PropertyRowLike) {
       occupiedUnits: row.occupiedUnits ?? 0,
       availableUnits: row.vacantUnits ?? Math.max((row.totalUnits ?? 0) - (row.occupiedUnits ?? 0), 0),
       occupancyRate:
-        (row.totalUnits ?? 0) > 0 ? Math.round(((row.occupiedUnits ?? 0) / row.totalUnits) * 100) : 0,
+        (row.totalUnits ?? 0) > 0 ? Math.round(((row.occupiedUnits ?? 0) / row.totalUnits!) * 100) : 0,
     },
   };
 }
@@ -296,7 +296,7 @@ export function mapLeaseRow(row: LeaseRowLike) {
   };
 }
 
-export function mapInvoiceStatusFromDb(status?: string) {
+export function mapInvoiceStatusFromDb(status?: string | null) {
   switch (status) {
     case 'draft':
       return 'DRAFT';
@@ -318,7 +318,7 @@ export function mapInvoiceStatusFromDb(status?: string) {
   }
 }
 
-export function mapPaymentStatusFromDb(status?: string) {
+export function mapPaymentStatusFromDb(status?: string | null) {
   return String(status || 'pending').toUpperCase();
 }
 

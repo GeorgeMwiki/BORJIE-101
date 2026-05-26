@@ -69,7 +69,7 @@ export class AuditService {
       description: buildAuditDescription(eventType, actor, null, outcome),
       correlationId,
       metadata: metadata ?? {},
-      error,
+      ...(error !== undefined ? { error } : {}),
     };
     
     return this.recordEvent(input);

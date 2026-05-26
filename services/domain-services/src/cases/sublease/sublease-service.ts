@@ -117,12 +117,14 @@ export class SubleaseService {
       tenantId,
       parentLeaseId: input.parentLeaseId,
       requestedBy: input.requestedBy,
-      subtenantCandidateId: input.subtenantCandidateId,
-      reason: input.reason,
-      startDate: input.startDate,
-      endDate: input.endDate,
+      ...(input.subtenantCandidateId !== undefined
+        ? { subtenantCandidateId: input.subtenantCandidateId }
+        : {}),
+      ...(input.reason !== undefined ? { reason: input.reason } : {}),
+      ...(input.startDate !== undefined ? { startDate: input.startDate } : {}),
+      ...(input.endDate !== undefined ? { endDate: input.endDate } : {}),
       rentResponsibility: input.rentResponsibility ?? 'primary_tenant',
-      splitPercent: input.splitPercent,
+      ...(input.splitPercent !== undefined ? { splitPercent: input.splitPercent } : {}),
       status: 'pending',
       createdAt: now,
       updatedAt: now,
@@ -205,7 +207,7 @@ export class SubleaseService {
         primaryLeaseId: entity.parentLeaseId,
         members,
         effectiveFrom: input.effectiveFrom ?? now,
-        effectiveTo: input.effectiveTo,
+        ...(input.effectiveTo !== undefined ? { effectiveTo: input.effectiveTo } : {}),
         createdAt: now,
         updatedAt: now,
         createdBy: actor,
@@ -214,11 +216,12 @@ export class SubleaseService {
       group = await this.groupRepo.create(newGroup);
     } else {
       const members = subtenantMember ? [...existing.members, subtenantMember] : existing.members;
+      const resolvedEffectiveTo = input.effectiveTo ?? existing.effectiveTo;
       const updatedGroup: TenantGroup = {
         ...existing,
         members,
         effectiveFrom: existing.effectiveFrom ?? input.effectiveFrom ?? now,
-        effectiveTo: input.effectiveTo ?? existing.effectiveTo,
+        ...(resolvedEffectiveTo !== undefined ? { effectiveTo: resolvedEffectiveTo } : {}),
         updatedAt: now,
         updatedBy: actor,
       };

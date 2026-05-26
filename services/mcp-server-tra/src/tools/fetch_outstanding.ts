@@ -127,15 +127,15 @@ export const fetchOutstandingTool: TraTool<
       (sum, it) => sum + it.principalTzs + it.penaltyTzs + it.interestTzs,
       0,
     );
-    return Object.freeze({
+    return {
       _stub: true as const,
       source: 'tra.efiling.arrears' as const,
       tin: input.tin,
       totalOutstandingTzs: total,
       currency: 'TZS' as const,
-      items,
+      items: items.map((it) => ({ ...it })),
       fetchedAt: new Date(0).toISOString(),
       note: 'stub: TRA arrears adapter not yet wired — MVP3+',
-    });
+    };
   },
 });

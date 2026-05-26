@@ -104,7 +104,7 @@ export class SesProvider implements INotificationProvider {
       const response = await client.send(command);
       return {
         success: true,
-        externalId: response.MessageId,
+        ...(response.MessageId !== undefined ? { externalId: response.MessageId } : {}),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

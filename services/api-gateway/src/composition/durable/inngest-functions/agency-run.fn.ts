@@ -128,7 +128,11 @@ export function createAgencyRunFunction(
     //   - PG checkpoints (per-step resume-from-success inside one
     //     function invocation)
     return ctx.step.run(`run-${goalId}-${runId ?? 'auto'}`, async () =>
-      runner.executeGoal({ tenantId, goalId, runId }),
+      runner.executeGoal({
+        tenantId,
+        goalId,
+        ...(runId !== undefined ? { runId } : {}),
+      }),
     );
   };
 

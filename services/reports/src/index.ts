@@ -51,7 +51,7 @@ export function createReportService(options: {
   return new RGS({
     dataProvider: options.dataProvider,
     storage: options.storage ?? new InMemoryReportStorage(),
-    scheduler: options.scheduler,
+    ...(options.scheduler !== undefined ? { scheduler: options.scheduler } : {}),
     persistReports: options.persistReports ?? true,
   });
 }

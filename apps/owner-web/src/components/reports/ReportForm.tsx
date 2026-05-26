@@ -139,7 +139,7 @@ function DateField({
 }: {
   readonly label: string;
   readonly register: UseFormRegisterReturn;
-  readonly error?: string;
+  readonly error?: string | undefined;
 }) {
   return (
     <label className="block text-sm">

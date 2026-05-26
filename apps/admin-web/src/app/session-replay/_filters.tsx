@@ -182,7 +182,7 @@ export function SessionReplayList({
       <SessionReplayFilters
         value={facets}
         onChange={setFacets}
-        onReset={isFiltered ? resetAll : undefined}
+        {...(isFiltered ? { onReset: resetAll } : {})}
       />
       {sessions.length === 0 ? (
         <div className="text-sm text-neutral-400">

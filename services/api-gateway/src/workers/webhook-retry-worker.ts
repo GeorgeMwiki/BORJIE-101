@@ -181,7 +181,7 @@ export function classifyHttpResult(args: {
 /** Seconds from BACKOFF_SECONDS for a 1-indexed attempt number. */
 export function backoffSecondsForAttempt(attemptNumber: number): number {
   const idx = Math.max(0, Math.min(BACKOFF_SECONDS.length - 1, attemptNumber - 1));
-  return BACKOFF_SECONDS[idx];
+  return BACKOFF_SECONDS[idx] ?? 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,8 +250,8 @@ export function createWebhookRetryWorker(
     }
 
     const outcome = classifyHttpResult({
-      statusCode: response?.status,
-      error: thrown,
+      ...(response?.status !== undefined ? { statusCode: response.status } : {}),
+      ...(thrown !== undefined ? { error: thrown } : {}),
     });
 
     // Persist attempt record — don't let a recording failure crash the loop;
@@ -271,8 +271,8 @@ export function createWebhookRetryWorker(
             : outcome.kind === 'permanent'
               ? 'failed'
               : 'failed',
-        statusCode: outcome.statusCode,
-        errorMessage: outcome.errorMessage,
+        ...(outcome.statusCode !== undefined ? { statusCode: outcome.statusCode } : {}),
+        ...(outcome.errorMessage !== undefined ? { errorMessage: outcome.errorMessage } : {}),
         scheduledFor: new Date(now()),
         attemptedAt: new Date(now()),
       });
@@ -308,7 +308,9 @@ export function createWebhookRetryWorker(
         return {
           status: 'delivered',
           attempts: n,
-          lastStatusCode: lastOutcome.statusCode,
+          ...(lastOutcome.statusCode !== undefined
+            ? { lastStatusCode: lastOutcome.statusCode }
+            : {}),
         };
       }
       if (lastOutcome.kind === 'permanent') {
@@ -339,8 +341,12 @@ export function createWebhookRetryWorker(
       eventType: event.eventType,
       payload: event.payload,
       totalAttempts: MAX_ATTEMPTS,
-      lastStatusCode: lastOutcome?.statusCode,
-      lastError: lastOutcome?.errorMessage,
+      ...(lastOutcome?.statusCode !== undefined
+        ? { lastStatusCode: lastOutcome.statusCode }
+        : {}),
+      ...(lastOutcome?.errorMessage !== undefined
+        ? { lastError: lastOutcome.errorMessage }
+        : {}),
       firstAttemptAt,
       lastAttemptAt: new Date(now()),
     });
@@ -355,7 +361,9 @@ export function createWebhookRetryWorker(
     return {
       status: 'dead_lettered',
       attempts: MAX_ATTEMPTS,
-      lastStatusCode: lastOutcome?.statusCode,
+      ...(lastOutcome?.statusCode !== undefined
+        ? { lastStatusCode: lastOutcome.statusCode }
+        : {}),
     };
   }
 

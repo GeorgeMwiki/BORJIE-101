@@ -204,10 +204,11 @@ function applyEvent(
       const normalised: SseJuniorCall[] = [];
       for (const call of calls) {
         if (!isRecord(call)) continue;
+        const latencyMs = typeof call.latencyMs === 'number' ? call.latencyMs : undefined;
         const entry: SseJuniorCall = {
           agent: String(call.agent ?? 'agent'),
           action: String(call.action ?? 'run'),
-          latencyMs: typeof call.latencyMs === 'number' ? call.latencyMs : undefined,
+          ...(latencyMs !== undefined ? { latencyMs } : {}),
         };
         normalised.push(entry);
         opts.onJuniorCall?.(entry);
@@ -219,11 +220,12 @@ function applyEvent(
     }
     case 'junior_call': {
       if (!isRecord(event.data)) return;
+      const latencyMs =
+        typeof event.data.latencyMs === 'number' ? event.data.latencyMs : undefined;
       const entry: SseJuniorCall = {
         agent: String(event.data.agent ?? 'agent'),
         action: String(event.data.action ?? 'run'),
-        latencyMs:
-          typeof event.data.latencyMs === 'number' ? event.data.latencyMs : undefined,
+        ...(latencyMs !== undefined ? { latencyMs } : {}),
       };
       opts.onJuniorCall?.(entry);
       set((prev) => ({ ...prev, juniorCalls: [...prev.juniorCalls, entry] }));

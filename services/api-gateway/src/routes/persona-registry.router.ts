@@ -89,6 +89,12 @@ app.get(
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');
+    if (!id) {
+      return c.json(
+        { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+        400,
+      );
+    }
     const found = r.get(id);
     if (!found) {
       return c.json(
@@ -153,6 +159,12 @@ app.delete(
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');
+    if (!id) {
+      return c.json(
+        { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
+        400,
+      );
+    }
     const removed = await r.delete(id);
     if (!removed) {
       return c.json(

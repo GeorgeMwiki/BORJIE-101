@@ -282,7 +282,11 @@ export function extractKeyValuePairs(rawText: string): ExtractedField[] {
   for (const { name, re } of patterns) {
     const m = rawText.match(re);
     if (!m) continue;
-    const val = m[1].split('\n')[0].trim();
+    const captured = m[1];
+    if (captured === undefined) continue;
+    const firstLine = captured.split('\n')[0];
+    if (firstLine === undefined) continue;
+    const val = firstLine.trim();
     if (!val || seen.has(name)) continue;
     seen.add(name);
     out.push({

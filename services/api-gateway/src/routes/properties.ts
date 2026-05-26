@@ -76,7 +76,7 @@ app.get('/', async (c) => {
   // inside the repo; propertyAccess ACL is applied post-fetch because
   // it comes from the JWT, not the DB row.
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const p = parseListPagination(c);
   const search = c.req.query('search') || undefined;
   const status = c.req.query('status') || undefined;
@@ -104,7 +104,7 @@ app.get('/', async (c) => {
 
 app.get('/:id/units', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   if (!hasPropertyAccess(auth, id)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient property access' } }, 403);
@@ -123,7 +123,7 @@ app.get('/:id/units', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   if (!hasPropertyAccess(auth, id)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient property access' } }, 403);
@@ -139,7 +139,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', staffOnly, requireCapability('create', 'property'), zValidator('json', PropertyCreateSchema), withSecurityEvents({ action: 'property.create', resource: 'property', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const body = c.req.valid('json');
 
   const row = await repos.properties.create(
@@ -178,7 +178,7 @@ app.post('/', staffOnly, requireCapability('create', 'property'), zValidator('js
 
 app.put('/:id', staffOnly, zValidator('json', PropertyUpdateSchema), withSecurityEvents({ action: 'property.update', resource: 'property', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   if (!hasPropertyAccess(auth, id)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient property access' } }, 403);
@@ -221,7 +221,7 @@ app.put('/:id', staffOnly, zValidator('json', PropertyUpdateSchema), withSecurit
 
 app.delete('/:id', staffOnly, requireCapability('delete', 'property'), withSecurityEvents({ action: 'property.delete', resource: 'property', severity: 'notice' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos = c.get('repos')!;
   const id = c.req.param('id');
   if (!hasPropertyAccess(auth, id)) {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient property access' } }, 403);

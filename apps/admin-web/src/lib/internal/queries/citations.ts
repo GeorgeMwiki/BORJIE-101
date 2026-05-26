@@ -43,10 +43,10 @@ const SOURCE_LABELS: Record<string, CitationSource> = {
 function resolveSource(raw: RawCorpusChunk): CitationSource {
   const meta = raw.metadata as { source?: string } | null | undefined;
   const tag = (meta?.source ?? '').toLowerCase();
-  if (tag && SOURCE_LABELS[tag]) return SOURCE_LABELS[tag];
+  if (tag && SOURCE_LABELS[tag]) return SOURCE_LABELS[tag]!;
   const path = (raw.sourceFile ?? '').toLowerCase();
   for (const key of Object.keys(SOURCE_LABELS)) {
-    if (path.includes(key)) return SOURCE_LABELS[key];
+    if (path.includes(key)) return SOURCE_LABELS[key]!;
   }
   return 'Gazette';
 }
