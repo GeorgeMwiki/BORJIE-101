@@ -46,6 +46,25 @@ const BASE_PREFIX = '/api/v1/mining';
 const MIGRATION_ISSUE_URL =
   'https://github.com/GeorgeMwiki/BORJIE-101/issues/60';
 
+/**
+ * Build the OpenAPI `servers` block. Dev gateway URL comes from
+ * `OPENAPI_DEV_SERVER_URL` (default `http://localhost:3001`); the
+ * production URL comes from `OPENAPI_PROD_SERVER_URL` and is only
+ * surfaced when set so the public spec doesn't advertise a fake
+ * `api.borjie.example.com` placeholder.
+ */
+function buildServers(): Array<{ url: string; description: string }> {
+  const dev = {
+    url: process.env.OPENAPI_DEV_SERVER_URL ?? 'http://localhost:3001',
+    description: 'Local development gateway',
+  };
+  const prodUrl = process.env.OPENAPI_PROD_SERVER_URL;
+  if (prodUrl && prodUrl.length > 0) {
+    return [dev, { url: prodUrl, description: 'Production' }];
+  }
+  return [dev];
+}
+
 function buildPath(mount: string, routePath: string): string {
   const joined = `${BASE_PREFIX}${mount}${routePath}`.replace(/\/+/g, '/');
   return joined.length > 1 ? joined.replace(/\/$/, '') : joined;
@@ -153,10 +172,7 @@ async function buildSpec(): Promise<{
         'via regex-parse with a generic envelope until they are converted ' +
         '(tracked in issue #60).',
     },
-    servers: [
-      { url: 'http://localhost:3001', description: 'Local development gateway' },
-      { url: 'https://api.borjie.example.com', description: 'Production (placeholder)' },
-    ],
+    servers: buildServers(),
   }) as Record<string, unknown>;
 
   const paths = (document.paths ??= {}) as Record<
