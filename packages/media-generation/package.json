@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/media-generation",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Media Generation Layer 1-2-3-4 — MediaRecipe registry, dynamic prompt composer, brand-DNA-locked provider dispatcher (Runway / Sora / Seedance / Flux / Ideogram / Recraft / Imagen / Hedra / HeyGen / Firefly / SD3.5), 5-stage safety pipeline (NSFW / deepfake / brand-violation / C2PA / visible watermark), cost-tracker, audit-chain link. Implements docs/DESIGN/MEDIA_GENERATION_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "ioredis": "^5.10.1",
+    "undici": "^6.26.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
