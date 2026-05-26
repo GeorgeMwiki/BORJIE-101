@@ -245,3 +245,9 @@ The `regulator_definitions` table is keyed by `id` (e.g. `'tz-tra'`, `'tz-tumema
 3. **Migration creates tables; the seed package fills them.** TZ regulators are not baked into migration 0055 — they live in `@borjie/jurisdiction-profile-tz` and are installed at composition-root bootstrap.
 4. **Citations mandatory.** Every row in `jurisdiction_profiles` and `compliance_frameworks` carries `*_source_url`, `*_source_title`, `*_source_date`. When the law changes we re-audit by re-running the seed with updated citations.
 5. **Adding a new jurisdiction is a new package, never a core edit.** The 6-step recipe in §6 is the only way to expand the platform geographically.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.

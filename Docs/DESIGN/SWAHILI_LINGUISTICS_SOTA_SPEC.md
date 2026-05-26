@@ -280,3 +280,9 @@ inline; the spec footnotes below mirror the same set.
 [^afrolm]: Dossou et al. ["AfroLM: A Self-Active Learning-based Multilingual Pretrained Language Model for 23 African Languages"](https://arxiv.org/abs/2211.03263) — *SustaiNLP@EMNLP* 2022. Accessed 2026-05-26.
 [^syllable-2024]: Mwita et al. ["Introducing Syllable Tokenization for Low-resource Languages: A Case Study with Swahili"](https://arxiv.org/pdf/2406.15358) — arXiv 2024-06. Accessed 2026-05-26.
 [^african-2025]: ["Charting the Landscape of African NLP"](https://arxiv.org/html/2505.21315v3) — arXiv 2025-05. Accessed 2026-05-26.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
