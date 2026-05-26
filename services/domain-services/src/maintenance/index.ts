@@ -156,7 +156,7 @@ export interface WorkOrderRepository {
   /**
    * Bulk-fetch work orders scoped to a set of site ids. The mining-domain
    * replacement for the old `findByPropertyIds` (`propertyIds` was
-   * BossNyumba-era property-domain). Tenant + soft-delete filters are
+   * pre-Borjie property-domain). Tenant + soft-delete filters are
    * enforced inside the repo so callers cannot bypass them. Closes
    * TODO(#43): owner-scope leak when work-orders fell back to
    * `findMany + JS .filter`.

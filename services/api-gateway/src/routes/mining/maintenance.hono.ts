@@ -1,7 +1,7 @@
 /**
  * /api/v1/mining/maintenance — asset maintenance events.
  *
- * NOTE: distinct from the BossNyumba-era `/maintenance` router which
+ * NOTE: distinct from the pre-Borjie `/maintenance` router which
  * deals with property-maintenance requests. This one manages
  * `maintenance_events` rows on `assets` (excavators, compressors, ...).
  *

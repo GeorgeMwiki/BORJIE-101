@@ -1,7 +1,7 @@
 /**
  * Row-shape interfaces consumed by `db-mappers.ts`.
  *
- * These mirror the columns of the legacy BossNyumba property-domain
+ * These mirror the columns of the legacy pre-Borjie property-domain
  * tables (properties, units, leases, vendors, invoices, payments,
  * customers, work_orders). The Borjie mining-domain Drizzle schema does
  * not (yet) ship strongly-typed equivalents — the repositories that

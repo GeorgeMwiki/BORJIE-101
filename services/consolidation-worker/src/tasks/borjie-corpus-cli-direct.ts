@@ -3,7 +3,7 @@
  *
  * Bypasses the shipped CLI's @borjie/database dependency (that package
  * currently fails to build because of legacy schema imports left over
- * from BossNyumba) by wiring a raw postgres-js sink directly against
+ * from the pre-Borjie tree) by wiring a raw postgres-js sink directly against
  * `intelligence_corpus_chunks`. Same pure ingestCorpus engine, same
  * OpenAI/stub embedder resolution.
  *

@@ -6,7 +6,7 @@
  * root; tests inject a fake via `setEngineForTests` and reset via
  * `_resetEngineForTests` between cases.
  *
- * Restored after the BossNyumba → Borjie hard-fork dropped the original
+ * Restored after the pre-Borjie hard-fork dropped the original
  * file. Behaviour mirrors the upstream contract documented in
  * `reports.router.ts` and exercised by `__tests__/reports.router.test.ts`.
  */

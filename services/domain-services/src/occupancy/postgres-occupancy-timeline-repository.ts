@@ -22,7 +22,7 @@
  */
 
 import { and, desc, eq, sql } from 'drizzle-orm';
-// Legacy BossNyumba symbols — no longer exported from `@borjie/database`.
+// Legacy pre-Borjie symbols — no longer exported from `@borjie/database`.
 // See header notice. Local placeholders keep typecheck green.
 const leases: any = undefined;
 const customers: any = undefined;

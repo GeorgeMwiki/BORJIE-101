@@ -37,7 +37,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import * as Database from '@borjie/database';
-// ArrearsLedger + transactions were property-domain BossNyumba symbols
+// ArrearsLedger + transactions were property-domain pre-Borjie symbols
 // that were not re-exported by @borjie/database in the mining hard-fork.
 // The runtime composition path that consumed them is unreachable in the
 // mining-domain build, but the typed surface still needs to compile —

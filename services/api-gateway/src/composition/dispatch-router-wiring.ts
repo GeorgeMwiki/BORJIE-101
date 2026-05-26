@@ -92,7 +92,7 @@ export interface DispatchRouterWiringDeps {
   readonly estate: EstateHandlerDeps;
   /**
    * Mining handler ports (closes the historical gh-issue #34 work-item —
-   * replaces the BossNyumba estate stubs). Optional so early-wave
+   * replaces the pre-Borjie estate stubs). Optional so early-wave
    * compositions can resolve without them.
    */
   readonly mining?: MiningHandlerDeps;
@@ -144,7 +144,7 @@ export function createDispatchRouterWiring(
 
   // 4. Handler registry — real one with ESTATE + MINING adapters by
   //    default. MINING handlers close the historical gh-issue #34
-  //    work-item: the 3 BossNyumba estate stubs (open_maintenance_case,
+  //    work-item: the 3 pre-Borjie estate stubs (open_maintenance_case,
   //    schedule_renewal_negotiation, bulk_mark_for_renewal_prep) are
   //    ported to mining-domain (asset_id, licence_id, etc.) and
   //    registered under the MINING module slug.
@@ -243,7 +243,7 @@ export function createDispatchRouterWiring(
  * not yet wired. Every port returns a stable fake id so the dispatcher's
  * accept_proposal path is exercisable end-to-end.
  *
- * The 3 BossNyumba estate stubs (openMaintenanceCase,
+ * The 3 pre-Borjie estate stubs (openMaintenanceCase,
  * scheduleRenewalNegotiation, bulkMarkForRenewalPrep) have been
  * dropped — their mining-domain replacements live in
  * `createStubMiningHandlerDeps()` below. Closes the historical

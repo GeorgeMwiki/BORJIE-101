@@ -558,7 +558,7 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 const dispatchRouterWiring = createDispatchRouterWiring({
   estate: createStubEstateHandlerDeps(),
   // Closes the historical gh-issue #34 work-item: 3 mining handlers
-  // replace the BossNyumba estate stubs (open_maintenance_case →
+  // replace the pre-Borjie estate stubs (open_maintenance_case →
   // open_equipment_maintenance, schedule_renewal_negotiation →
   // schedule_licence_renewal, bulk_mark_for_renewal_prep →
   // bulk_mark_licences_for_renewal).
@@ -892,7 +892,7 @@ api.route('/mcp', mcpRouter);
 api.route('/.well-known/agent.json', agentCardRouter);
 // Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine
 // Borjie public chat mounts FIRST so its /chat handler wins lookup over
-// the legacy BossNyumba marketing-brain /chat under the same prefix.
+// the legacy pre-Borjie marketing-brain /chat under the same prefix.
 api.route('/public', publicChatRouter);
 api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
@@ -998,7 +998,7 @@ api.route('/forecast', forecastRouter);
 // body. Returns 503 INTELLIGENCE_SERVICE_UNAVAILABLE when the LLM
 // adapter is not wired (no mock agents).
 api.route('/intelligence', intelligenceRouter);
-// REMOVED (borjie hard-fork): Wave 27 risk-recompute trigger — BossNyumba-era
+// REMOVED (borjie hard-fork): Wave 27 risk-recompute trigger — pre-Borjie
 // property-risk router deleted in wave 1. Borjie mining-risk recompute lives
 // in services/api-gateway/src/workers/executive-brief-action-runner.ts now.
 // api.route(
