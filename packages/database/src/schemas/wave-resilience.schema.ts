@@ -1,0 +1,92 @@
+/**
+ * wave_progress + wave_revival_attempts — durable orchestration tables
+ * for the wave-resilience-manager service.
+ *
+ * Spec: Docs/DESIGN/AGENT_SELF_REVIVAL_SPEC.md (Wave 18DD).
+ * Migration: drizzle/0029_wave_resilience.sql.
+ *
+ * Platform-level tables — no RLS, no tenant scoping. Access is
+ * restricted at the application layer by API key.
+ */
+
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  jsonb,
+  timestamp,
+  index,
+  unique,
+} from 'drizzle-orm/pg-core';
+
+/**
+ * Append-only per-checkpoint ledger for agent waves.
+ *
+ * One row per status transition / checkpoint. Each row is sealed via
+ * `@borjie/audit-hash-chain` (`audit_hash` chains back to the previous
+ * row's hash).
+ */
+export const waveProgress = pgTable(
+  'wave_progress',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    waveId: text('wave_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    /** Null for platform-level waves (most resilience-tracked waves). */
+    tenantId: text('tenant_id'),
+    status: text('status').notNull().default('dispatched'),
+    checkpointSeq: integer('checkpoint_seq').notNull().default(0),
+    checkpointLabel: text('checkpoint_label'),
+    checkpointPayload: jsonb('checkpoint_payload'),
+    heartbeatAt: timestamp('heartbeat_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    attemptNumber: integer('attempt_number').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    auditHash: text('audit_hash').notNull(),
+  },
+  (t) => ({
+    waveRecentIdx: index('idx_wp_wave_recent').on(t.waveId, t.createdAt),
+    statusIdx: index('idx_wp_status').on(t.status, t.heartbeatAt),
+  }),
+);
+
+/**
+ * One row per (wave_id, attempt_number). Tracks the lifecycle of each
+ * automated revival attempt.
+ *
+ * `outcome` values: 'completed' | 'crashed_again' | 'gave_up'. NULL
+ * means the attempt is still in flight (resumed_at is set, completed_at
+ * is not).
+ */
+export const waveRevivalAttempts = pgTable(
+  'wave_revival_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    waveId: text('wave_id').notNull(),
+    attemptNumber: integer('attempt_number').notNull(),
+    originalDispatchAt: timestamp('original_dispatch_at', {
+      withTimezone: true,
+    }).notNull(),
+    crashedAt: timestamp('crashed_at', { withTimezone: true }).notNull(),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    outcome: text('outcome'),
+    auditHash: text('audit_hash').notNull(),
+  },
+  (t) => ({
+    waveIdx: index('idx_wra_wave').on(t.waveId, t.attemptNumber),
+    waveAttemptUq: unique('wave_revival_attempts_unique').on(
+      t.waveId,
+      t.attemptNumber,
+    ),
+  }),
+);
+
+export type WaveProgressRow = typeof waveProgress.$inferSelect;
+export type NewWaveProgressRow = typeof waveProgress.$inferInsert;
+export type WaveRevivalAttemptRow = typeof waveRevivalAttempts.$inferSelect;
+export type NewWaveRevivalAttemptRow = typeof waveRevivalAttempts.$inferInsert;

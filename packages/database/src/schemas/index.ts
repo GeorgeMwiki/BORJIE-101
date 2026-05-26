@@ -319,3 +319,11 @@ export * from './org-scope.schema.js';
 // session_scopes (JWT/cookie companion for every authenticated session).
 // See Docs/DESIGN/CUSTOMER_GEO_ROUTING_AND_SCOPE_LOGIN.md.
 export * from './geo-routing.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18DD — Agent Self-Revival (wave_progress + wave_revival_attempts)
+// ---------------------------------------------------------------------------
+// Two platform-level orchestration tables backing migration
+// 0029_wave_resilience.sql. Consumed by services/wave-resilience-manager.
+// See Docs/DESIGN/AGENT_SELF_REVIVAL_SPEC.md.
+export * from './wave-resilience.schema.js';
