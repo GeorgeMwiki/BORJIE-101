@@ -50,10 +50,10 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// TODO(supabase-migration): this whole seed runs against the local
-// Postgres test DB. When the rewrite to the Supabase Auth Admin API
-// lands the optionalEnv() helper goes away — every SEED_TEST_* will be
-// required and dev-only defaults disappear with it.
+// See gh-issue #63: this whole seed runs against the local Postgres
+// test DB. When the rewrite to the Supabase Auth Admin API lands the
+// optionalEnv() helper goes away — every SEED_TEST_* will be required
+// and dev-only defaults disappear with it.
 function optionalEnv(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }

@@ -1,5 +1,5 @@
 /**
- * MigrationWriterService — TODO(#29) stub.
+ * MigrationWriterService — see gh-issue #29 (stub).
  *
  * The original implementation transactionally committed property-
  * domain bundles (properties, units, customers, employees, teams,

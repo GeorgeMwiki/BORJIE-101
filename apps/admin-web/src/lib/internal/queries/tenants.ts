@@ -105,9 +105,10 @@ export function useSetTenantStatus() {
         const res = await apiClient.post<RawTenant>(`/tenants/${id}/suspend`, {});
         return adaptTenant(unwrap(res));
       }
-      // TODO(#25): non-suspension status transitions are not yet
-      // exposed by the gateway. Until they are, this surface throws so
-      // the UI can render a real error instead of a silent mock flip.
+      // See gh-issue #25: non-suspension status transitions are not
+      // yet exposed by the gateway. Until they are, this surface
+      // throws so the UI can render a real error instead of a silent
+      // mock flip.
       throw new Error(
         `Tenant status transition '${status}' is not supported by the live gateway`,
       );
@@ -136,9 +137,9 @@ interface ImpersonateResponse {
 }
 
 export function useImpersonate() {
-  // TODO(#25): gateway does not yet expose impersonation; the call
-  // will 404 until that route lands. Surfaced as an ApiErr so the UI
-  // can render an explicit "not yet wired" toast.
+  // See gh-issue #25: gateway does not yet expose impersonation; the
+  // call will 404 until that route lands. Surfaced as an ApiErr so the
+  // UI can render an explicit "not yet wired" toast.
   return useMutation({
     mutationFn: async (tenantId: string): Promise<ApiResult<ImpersonateResponse>> =>
       apiClient.post<ImpersonateResponse>(`/tenants/${tenantId}/impersonate`, {}),

@@ -1,5 +1,5 @@
 /**
- * Tenant predictions + intervention opportunities — TODO(#29) stub.
+ * Tenant predictions + intervention opportunities — see gh-issue #29 (stub).
  *
  * The Drizzle adapter targeted the `tenant_predictions` and
  * `predictive_intervention_opportunities` tables (migration 0106),

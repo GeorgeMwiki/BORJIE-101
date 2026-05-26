@@ -2,7 +2,7 @@
  * Kernel grounding service — Drizzle-backed
  * `GroundingFactsProvider` implementation.
  *
- * TODO(#29): the original implementation read occupancy, vacant unit
+ * See gh-issue #29: the original implementation read occupancy, vacant unit
  * count, active leases, open work-orders, and lease-expiring counts
  * from property-domain tables (properties, units, leases, work_orders,
  * customers) that were deleted in migration 0003_mining_domain.sql.

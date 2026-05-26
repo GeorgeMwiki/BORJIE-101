@@ -57,9 +57,9 @@ interface DrizzleLikeClient {
  * directly so the test suite stays decoupled from pdf-parse's lib-root
  * file-handle quirks.
  *
- * TODO(#23): swap to the @borjie/document-analysis OCR pipeline so
- * scanned PMLs are handled (Mistral OCR primary, Document AI fallback
- * per AGENT_PROMPT_LIBRARY §1 step 1).
+ * See gh-issue #23: swap to the @borjie/document-analysis OCR pipeline
+ * so scanned PMLs are handled (Mistral OCR primary, Document AI
+ * fallback per AGENT_PROMPT_LIBRARY §1 step 1).
  */
 export function createDefaultPdfReader(): PdfReader {
   return {
@@ -79,7 +79,7 @@ export function createDefaultPdfReader(): PdfReader {
  * Anthropic REST API. Throws when ANTHROPIC_API_KEY is missing so the
  * caller learns about the missing wiring up front.
  *
- * TODO(#16): replace this thin wrapper with a direct import of
+ * See gh-issue #16: replace this thin wrapper with a direct import of
  * `AnthropicProvider` once the `juniors/` module is added to the
  * package's circular-dependency-safe import graph.
  */

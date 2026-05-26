@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/translation-sota",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Translation SOTA (Wave 19I) — bidirectional EN<->SW translation runner that preserves mining / regulatory / financial terminology (deterministic glossary lock), code-switched segments (language-ID segmenter), register / formality, and Tanzanian honorifics. 3-tier provider strategy (Claude Opus 4.7 / Gemini 2.5 Pro / NLLB-200 self-host). BLEU + chrF + COMET + terminology-adherence evaluation. See Docs/DESIGN/TRANSLATION_SOTA_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

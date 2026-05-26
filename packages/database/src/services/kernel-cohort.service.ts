@@ -2,7 +2,7 @@
  * Kernel cohort service — Drizzle-backed `TenantAggregateSource`
  * implementation for `@borjie/graph-privacy`'s DP aggregator.
  *
- * TODO(#29): the original implementation pulled per-tenant arrears,
+ * See gh-issue #29: the original implementation pulled per-tenant arrears,
  * collections, renewal, and maintenance-TTC contributions from
  * property-domain tables (leases, invoices, payments, arrears_cases,
  * work_orders). Those tables were removed in migration
