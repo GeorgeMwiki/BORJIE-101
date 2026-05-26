@@ -64,6 +64,15 @@ export function NewMaintenanceModal({
     if (!open) reset();
   }, [open, reset]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const onSubmit = (values: FormValues): void => {
@@ -110,6 +119,7 @@ export function NewMaintenanceModal({
         <form
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
           className="space-y-3 px-5 py-4"
+          noValidate
         >
           <label className="block text-sm">
             <span className="block text-xs uppercase tracking-wide text-neutral-500">

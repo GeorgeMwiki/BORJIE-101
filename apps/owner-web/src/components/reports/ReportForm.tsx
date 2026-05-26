@@ -60,7 +60,7 @@ export function ReportForm() {
 
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
-      <form onSubmit={(e) => void handleSubmit(submit)(e)} className="space-y-4">
+      <form onSubmit={(e) => void handleSubmit(submit)(e)} className="space-y-4" noValidate>
         <fieldset>
           <legend className="text-xs uppercase tracking-wide text-neutral-500">
             Report type
@@ -101,10 +101,16 @@ export function ReportForm() {
             error={errors.rangeEnd?.message}
           />
         </div>
+        {mutation.isError ? (
+          <p role="alert" aria-live="assertive" className="text-xs text-destructive">
+            Failed to generate report: {(mutation.error as Error)?.message ?? 'unknown'}
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
+          aria-busy={mutation.isPending}
+          className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {mutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

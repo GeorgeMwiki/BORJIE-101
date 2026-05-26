@@ -1,7 +1,20 @@
 import Link from 'next/link';
-import { Wordmark } from '@borjie/design-system';
 import { LanguageToggle } from './LanguageToggle';
 import { getMessages, type Locale } from '@/lib/i18n';
+
+function Wordmark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
+  return <span className={`font-display font-bold tracking-tight ${cls}`}>Borjie</span>;
+}
+function Logomark({ size = 24 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block rounded-md"
+      style={{ width: size, height: size, background: 'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))' }}
+    />
+  );
+}
 
 /**
  * Marketing-site top navigation. Sticky, subtle bottom border, restrained
@@ -12,6 +25,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).nav;
   const items = [
     { href: '/#product', label: t.product },
+    { href: '/buyers', label: locale === 'sw' ? 'Wanunuzi' : 'Buyers' },
     { href: '/pricing', label: t.pricing },
     { href: '/pilot', label: t.pilot },
     { href: '/docs', label: t.docs },

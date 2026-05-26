@@ -19,7 +19,12 @@ import { generateOpenApiDocument } from '../openapi';
 import type { MountedRouter } from './route-harvester';
 
 // Relax preconditions for CLI use — we do NOT want to require
-// DATABASE_URL or INTERNAL_API_KEY just to emit a spec.
+// DATABASE_URL or INTERNAL_API_KEY just to emit a spec. CLI is
+// strictly a build-time code-generation tool and refuses to run in
+// production.
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('export-cli.ts is a build-time tool and must not run with NODE_ENV=production');
+}
 process.env.OUTBOX_WORKER_DISABLED = 'true';
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
 process.env.ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000';

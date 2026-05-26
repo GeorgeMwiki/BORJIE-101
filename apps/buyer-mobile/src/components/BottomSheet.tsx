@@ -12,15 +12,36 @@ export interface BottomSheetProps {
 
 export function BottomSheet({ visible, onClose, title, children }: BottomSheetProps) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Dismiss" />
-      <View style={styles.sheet}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      accessibilityViewIsModal
+    >
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      />
+      <View
+        style={styles.sheet}
+        accessibilityViewIsModal
+        accessibilityRole="none"
+        accessibilityLabel={title}
+      >
         <View style={styles.handleArea}>
           <View style={styles.handle} />
         </View>
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Text style={styles.close}>×</Text>
           </Pressable>
         </View>

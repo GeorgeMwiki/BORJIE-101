@@ -1,6 +1,19 @@
 import Link from 'next/link';
-import { Wordmark } from '@borjie/design-system';
 import { getMessages, type Locale } from '@/lib/i18n';
+
+function Wordmark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
+  return <span className={`font-display font-bold tracking-tight ${cls}`}>Borjie</span>;
+}
+function Logomark({ size = 24 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block rounded-md"
+      style={{ width: size, height: size, background: 'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))' }}
+    />
+  );
+}
 
 /**
  * Footer — link columns + copyright + Tanzanian-locale tag (no flag

@@ -54,6 +54,7 @@ export function Composer({ onSubmit, onAbort, busy }: ComposerProps) {
     <form
       onSubmit={(e: FormEvent<HTMLFormElement>) => void handleSubmit(submit)(e)}
       className="flex items-end gap-2 border-t border-border bg-surface/40 px-3 py-3"
+      noValidate
     >
       <div className="flex-1">
         <textarea
@@ -73,16 +74,18 @@ export function Composer({ onSubmit, onAbort, busy }: ComposerProps) {
         <button
           type="button"
           onClick={onAbort}
+          aria-label="Stop generating"
           className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20"
         >
-          <Square className="h-4 w-4" /> Stop
+          <Square className="h-4 w-4" aria-hidden="true" /> Stop
         </button>
       ) : (
         <button
           type="submit"
+          aria-label="Send message"
           className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50"
         >
-          <Send className="h-4 w-4" /> Send
+          <Send className="h-4 w-4" aria-hidden="true" /> Send
         </button>
       )}
     </form>

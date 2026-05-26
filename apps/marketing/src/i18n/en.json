@@ -1,10 +1,28 @@
 {
   "nav": {
+    "owners": "Owners",
+    "buyers": "Buyers",
+    "investors": "Investors",
     "product": "Product",
     "pricing": "Pricing",
     "pilot": "Pilot",
     "docs": "Docs",
     "signIn": "Sign in"
+  },
+  "audienceSwitcher": {
+    "kicker": "Choose your view",
+    "owners": {
+      "title": "Mining owners",
+      "blurb": "Run your mine. Daily brief, licence calendar, drill-hole logger."
+    },
+    "buyers": {
+      "title": "Mineral buyers",
+      "blurb": "Source verified Tanzanian minerals end-to-end."
+    },
+    "investors": {
+      "title": "Investors / Lenders",
+      "blurb": "Mining capital with daily evidence-cited telemetry."
+    }
   },
   "hero": {
     "kicker": "AI-native OS for Tanzanian mining",
@@ -160,5 +178,244 @@
     "kicker": "Terms",
     "heading": "Borjie Terms of Service",
     "lastUpdated": "Last updated: 26 May 2026"
+  },
+  "ownersPage": {
+    "kicker": "For mining owners",
+    "heading": "Run your mine like the world's best.",
+    "sub": "Master Brain, licence calendar, drill-hole logger, FX/treasury, marketplace and compliance — all in one calm operator.",
+    "ctaPilot": "Apply for pilot",
+    "ctaPricing": "See pricing"
+  },
+  "buyersPage": {
+    "kicker": "For mineral buyers and off-takers",
+    "heading": "Source verified Tanzanian minerals. End-to-end.",
+    "sub": "KYC'd sellers, chain-of-custody assays, biometric contract signing. Buy with confidence.",
+    "ctaSignup": "Sign up to bid",
+    "ctaTalk": "Talk to sourcing team",
+    "valueProps": {
+      "kicker": "01 · Why buyers trust Borjie",
+      "heading": "Four pillars of verified supply.",
+      "sub": "Every gram on Borjie has a verifiable path from drill-hole to weighbridge.",
+      "cards": {
+        "provenance": {
+          "title": "Verified provenance",
+          "blurb": "Chain-of-custody from drill-hole to weighbridge. Each transfer signed, timestamped, and written to the audit chain."
+        },
+        "kyb": {
+          "title": "KYB'd sellers",
+          "blurb": "Borjie audits every seller before listing. BRELA, TRA, and Tumemadini cross-checks. No anonymous traders."
+        },
+        "assays": {
+          "title": "Assay certificates",
+          "blurb": "LBMA-grade labs in Dar es Salaam and Mwanza. Fire assay for gold, ICP-MS for coltan, gemmological certs for tanzanite."
+        },
+        "biometric": {
+          "title": "Biometric off-take",
+          "blurb": "Contracts signed with fingerprint plus liveness. Non-repudiable. Each signature anchored on the audit chain."
+        }
+      }
+    },
+    "useCases": {
+      "kicker": "02 · Use-case stories",
+      "heading": "Buyers already on the platform.",
+      "sub": "Mock pilot relationships shown — real deals are still on-boarding. Replaced with audited case studies once live.",
+      "cards": {
+        "gold": {
+          "tag": "Gold doré",
+          "buyer": "Pamoja Refinery",
+          "location": "Dar es Salaam",
+          "blurb": "Sources 40-60 kg/month of artisanal doré from Geita and Kahama PML clusters. Borjie chain-of-custody lets the refinery skip its own field due diligence."
+        },
+        "tanzanite": {
+          "tag": "Tanzanite rough",
+          "buyer": "Heritage TZ Gemstones",
+          "location": "Arusha",
+          "blurb": "Bids on Mererani Block-D rough every Tuesday. Borjie's gemmological cert plus biometric off-take gets the lot loaded inside 48 hours."
+        },
+        "coltan": {
+          "tag": "Coltan concentrate",
+          "buyer": "Dar Gold Traders",
+          "location": "Dar es Salaam",
+          "blurb": "ICP-MS-graded coltan from Kigoma artisanal sites. Audit chain provides the OECD due-diligence trail downstream EU buyers require."
+        }
+      }
+    },
+    "pricing": {
+      "kicker": "03 · Pricing",
+      "heading": "Free to browse. Commission on settled deals.",
+      "sub": "Buyers pay nothing to register, search, and bid. Borjie takes a 2.5% commission on the final settled price of a deal you close on the platform.",
+      "bullets": [
+        "Free registration and KYB",
+        "Free browsing and bidding",
+        "2.5% commission on settled deals only",
+        "No success fee on bids that don't close",
+        "Assay certificates included in commission"
+      ],
+      "footnote": "Buyer-side commission is calculated on the gross settled value, charged at off-take signing, paid in TZS or USD per contract."
+    },
+    "downloadCta": {
+      "heading": "Sign up to bid.",
+      "sub": "The buyer mobile app is in private testing with sixteen Tanzanian and East African buyers. Join the waitlist for the September 2026 public release.",
+      "primary": "Join buyer waitlist",
+      "secondary": "Talk to sourcing team"
+    }
+  },
+  "investorsPage": {
+    "kicker": "For investors and lenders",
+    "heading": "Mining capital with telemetry.",
+    "sub": "Borjie gives lenders and LPs daily evidence-cited briefs on every deployment — production, cash runway, FX exposure, regulator status.",
+    "ctaSchedule": "Schedule a call",
+    "ctaAuditPack": "View audit pack",
+    "valueProps": {
+      "kicker": "01 · Why capital allocators choose Borjie",
+      "heading": "Four pillars of investor evidence.",
+      "sub": "Built for the lender's question: what is actually happening on the ground today.",
+      "cards": {
+        "dailyBrief": {
+          "title": "Daily evidence-cited reports",
+          "blurb": "Every morning at 06:00 each portfolio mine produces a brief covering production, cash, licence status, and incidents. Cited line-by-line to source data."
+        },
+        "usdCliff": {
+          "title": "27-Mar-2026 USD cliff remediation",
+          "blurb": "Tracks USD exposure against the regulatory cliff date. Suggests hedges, alternative invoice currencies, and gold-window settlements."
+        },
+        "auditPack": {
+          "title": "Audit-pack export",
+          "blurb": "One-click export of the cryptographic audit chain, licences, royalty returns, OSHA logs, and bank reconciliations for due diligence."
+        },
+        "treasury": {
+          "title": "Treasury simulation",
+          "blurb": "Stress-test off-take timing, gold price moves, and TZS/USD swings. See the impact on covenant ratios before they happen."
+        }
+      }
+    },
+    "caseStudy": {
+      "kicker": "02 · Case study",
+      "heading": "Indicative deployment.",
+      "sub": "No closed deals yet. The figures below illustrate how the Borjie audit pack would surface a typical mid-sized Geita PML cluster to a senior secured lender.",
+      "disclaimer": "Indicative only. Numbers are illustrative, not from an actual closed deal.",
+      "metrics": {
+        "deployment": {
+          "label": "Deployment",
+          "value": "USD 4.2M senior secured"
+        },
+        "cluster": {
+          "label": "Cluster",
+          "value": "Geita PML · 9 sites"
+        },
+        "production": {
+          "label": "Run-rate",
+          "value": "184 oz Au / mo"
+        },
+        "runway": {
+          "label": "Cash runway",
+          "value": "18.3 weeks"
+        },
+        "ltv": {
+          "label": "LTV (proven ounces)",
+          "value": "32%"
+        },
+        "covenant": {
+          "label": "DSCR covenant",
+          "value": "1.85x · ahead"
+        }
+      },
+      "bullets": [
+        "Daily 06:00 brief delivered to lender dashboard",
+        "Cryptographic audit chain over every PML transfer",
+        "Indicative DSCR re-projected each morning",
+        "USD cliff exposure tracked weekly"
+      ]
+    },
+    "contact": {
+      "kicker": "03 · Schedule a call",
+      "heading": "Institutional inquiries.",
+      "sub": "For lenders, LPs, family offices, and DFIs interested in structured exposure to Tanzanian mining with cryptographic audit chains.",
+      "fields": {
+        "name": "Your name",
+        "organisation": "Organisation",
+        "email": "Work email",
+        "role": "Your role",
+        "ticketSize": "Indicative ticket size (USD)",
+        "message": "What would you like to discuss?"
+      },
+      "submit": "Schedule a call",
+      "success": "Thank you. Our team will respond within 2 business days.",
+      "error": "Could not submit the form. Please email investors@borjie.co.tz."
+    }
+  },
+  "blog": {
+    "kicker": "Blog",
+    "heading": "Field notes from Tanzanian mining.",
+    "sub": "Writing on licences, treasury, geology, and the slow build of an AI-native operating system for the sector.",
+    "readMore": "Read article",
+    "minRead": "min read",
+    "backToBlog": "Back to all articles"
+  },
+  "caseStudies": {
+    "kicker": "Case studies",
+    "heading": "Pilot case studies arriving Q3 2026.",
+    "sub": "Ten pioneer operators across Geita, Mererani, and Songwe are running 12-week pilots. Once the first cohort completes we'll publish full case studies — production lift, cash-cycle compression, audit findings.",
+    "placeholderBadge": "In flight",
+    "back": "Back to home"
+  },
+  "careers": {
+    "kicker": "Careers",
+    "heading": "Build the operating system Tanzanian mining deserves.",
+    "sub": "Small team, deep mining context, Swahili-first. Hybrid Dar es Salaam / remote. We hire for taste, judgement, and care.",
+    "openRoles": "Open roles",
+    "applyCta": "Apply via careers@borjie.co.tz",
+    "roles": {
+      "domain": {
+        "title": "Tanzania mining domain expert",
+        "location": "Dar es Salaam · hybrid",
+        "blurb": "Senior mining engineer or geologist with deep PML/ML/SML and Tumemadini experience. You become the truth-teller for what our product must do."
+      },
+      "engineer": {
+        "title": "Senior TypeScript engineer",
+        "location": "Remote · UTC+0 to UTC+3",
+        "blurb": "Multi-tenant, Postgres, Hono, Next 15, AI-native. You ship end-to-end and treat every line as if it'll sit in a regulator's audit."
+      },
+      "pilot": {
+        "title": "Pilot success manager",
+        "location": "Geita or Mwanza · field",
+        "blurb": "You live at our pilot sites. You know every operator by name. You translate field reality into product backlog every week."
+      }
+    },
+    "values": {
+      "heading": "How we work",
+      "items": [
+        "Swahili-first. English is the second language, not the default.",
+        "Field reality beats slide decks. Every PM visits a pilot site quarterly.",
+        "Cryptographic audit chain is non-negotiable. Every action signed.",
+        "Plain talk. We don't say synergy. We say what happened today."
+      ]
+    }
+  },
+  "about": {
+    "kicker": "About Borjie",
+    "heading": "An operating system built for and by Tanzanian mining.",
+    "sub": "Borjie was started by a small Tanzanian and diaspora team after watching another generation of operators run world-class deposits on spreadsheets.",
+    "originHeading": "Origin story",
+    "originBody": "We met across Geita and Dar es Salaam in 2024, swapping notes on why every mining ERP felt designed for someone else's country. By early 2026 we had a working Master Brain and ten pilots. The mission stayed the same: an operating system that respects how Tanzanian mining actually works — KYC for artisanal miners, royalty maths the TRA recognises, briefings in Swahili at 06:00.",
+    "teamHeading": "Team",
+    "teamSub": "Tanzanian and diaspora. Mining, fintech, AI infrastructure. Hybrid Dar es Salaam.",
+    "valuesHeading": "Values",
+    "values": [
+      {
+        "title": "Tanzanian-first",
+        "body": "We optimise for the mine, the language, the regulator, and the currency our operators actually use."
+      },
+      {
+        "title": "Cryptographically honest",
+        "body": "Every action sits on an append-only chain. Regulators, lenders, and operators can verify without trusting us."
+      },
+      {
+        "title": "Calm by default",
+        "body": "Mining doesn't need another dashboard with red. The Master Brain handles overnight. Operators get a clear, restrained brief at 06:00."
+      }
+    ],
+    "contactHeading": "Get in touch",
+    "contactBody": "hello@borjie.co.tz · +255 22 211 4000 · Dar es Salaam · UTC+3"
   }
 }

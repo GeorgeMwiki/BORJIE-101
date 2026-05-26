@@ -57,13 +57,13 @@ function loadEnv(): EnvSchema {
         'Production requires API_URL and FRONTEND_URL to be set in the environment. No hardcoded defaults.'
       );
     }
+    return data as EnvSchema;
   }
 
-  return {
-    ...data,
-    API_URL: data.API_URL ?? 'http://localhost:4000',
-    FRONTEND_URL: data.FRONTEND_URL ?? 'http://localhost:3000',
-  } as EnvSchema;
+  // Dev-only: the inner ?? in the `raw` object already filled these
+  // when not in production, so by this point both are guaranteed to be
+  // strings here. Cast directly without introducing new hardcoded URLs.
+  return data as EnvSchema;
 }
 
 /** Validated config singleton */
