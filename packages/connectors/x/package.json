@@ -1,0 +1,31 @@
+{
+  "name": "@borjie/connector-x",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "OMNI-P2 — X API v2 (formerly Twitter) ingest connector. OAuth2 + PKCE (tweet.read, users.read, offline.access). 15min polling default; v2 Filtered-Stream + Activity-Streams webhooks deferred. Salted-hash PII redaction for @-mentions. Persona: Mr. Mwikila.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
