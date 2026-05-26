@@ -1,0 +1,44 @@
+{
+  "name": "@borjie/research-tools",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Typed agentic-search adapters (Tavily / Exa / Brave / Firecrawl / GDELT / LME / Kitco / regulator-feed / pdf-extract / image-vision), source-quality scorer (9-class rubric), bias detection, TTL cache + cost-budget enforcement. Tool layer for the Deep Research engine (Phase 2 of DEEP_RESEARCH_SPEC).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "ioredis": "^5.10.1",
+    "undici": "^6.26.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "@borjie/ai-copilot": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/ai-copilot": { "optional": true }
+  }
+}
