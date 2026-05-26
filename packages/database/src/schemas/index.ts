@@ -403,6 +403,21 @@ export * from './mcp-external-connections.schema.js';
 export * from './voice-swahili.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave M3-M4 — Five-Layer Loop Architecture
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0035_loop_architecture.sql:
+//   loop_runs              — one row per end-to-end 5-layer loop execution
+//                            (sensors → policy → tools → quality → learning).
+//                            Hash-chained by `prev_hash`.
+//   loop_layer_outcomes    — one row per executed layer; captures outcome
+//                            jsonb + latency + cost + audit hash.
+//   loop_quality_signals   — one row per Layer 4 gate signal (groundedness,
+//                            calibration, brand, authority, budget, …).
+// Consumed by @borjie/loop-runner + @borjie/loop-quality-gates.
+// See Docs/DESIGN/FIVE_LAYER_LOOP_ARCHITECTURE_SPEC.md.
+export * from './loop-architecture.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave M7 — Information Synthesis SOTA (diorize pipeline persistence)
 // ---------------------------------------------------------------------------
 // Two tenant-scoped tables backing migration 0038_info_synthesis.sql:
