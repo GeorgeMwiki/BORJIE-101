@@ -107,7 +107,15 @@ export function adviseTier(input: z.infer<typeof PricingAdviceInputSchema>): Pri
 
   const estimatedUnits = parsed.unitCount ?? estimateUnitsFromSize(parsed.portfolioSize);
 
-  const tier = TIERS.find((t) => estimatedUnits <= t.unitCeiling) ?? TIERS[TIERS.length - 1];
+  // Enterprise is the canonical last tier (unitCeiling = +Infinity), so we can
+  // safely default to it when `find` returns undefined. Narrow before use so
+  // strict mode + `noUncheckedIndexedAccess` are both happy without `!`.
+  const ENTERPRISE_FALLBACK = TIERS[TIERS.length - 1] ?? TIERS[0];
+  if (!ENTERPRISE_FALLBACK) {
+    throw new Error('Pricing advisor: TIERS table is empty.');
+  }
+  const tier: TierDefinition =
+    TIERS.find((t) => estimatedUnits <= t.unitCeiling) ?? ENTERPRISE_FALLBACK;
 
   const alternativeTier =
     tier.id === 'enterprise' || tier.id === 'starter'
