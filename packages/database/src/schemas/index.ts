@@ -240,3 +240,14 @@ export * from './master-brain-briefings.schema.js';
 export * from './anticipatory-ux.schema.js';
 export * from './deep-research.schema.js';
 export * from './document-composition.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18S — Mutation Authority (the WRITE side of universal MD power)
+// ---------------------------------------------------------------------------
+// Five tables backing migration 0023_mutation_authority.sql:
+// mutation_recipes (global), mutation_proposals (tenant-scoped state
+// machine), mutation_approvals (owner + second-authoriser),
+// mutation_history (append-only result ledger),
+// second_authoriser_assignments (per-tenant double-verify pairing).
+// See docs/DESIGN/MUTATION_AUTHORITY_SPEC.md.
+export * from './mutation-authority.schema.js';
