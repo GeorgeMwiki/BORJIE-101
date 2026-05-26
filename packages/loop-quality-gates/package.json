@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/loop-quality-gates",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Loop Quality Gates (Wave M3-M4) — the Layer 4 gate primitives plus a composite combinator. Five gates (groundedness, calibration, brand, authority, budget) plus an AND-composite that emits the full set of failed QualitySignals. See Docs/DESIGN/FIVE_LAYER_LOOP_ARCHITECTURE_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

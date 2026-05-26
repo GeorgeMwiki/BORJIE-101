@@ -685,3 +685,51 @@ export * from './calibration-interpretability.schema.js';
 // services/capability-measurement-worker.
 // See Docs/DESIGN/CAPABILITY_CATALOGUE_SPEC.md.
 export * from './capability-catalogue.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave SELFIMPROVE — meta-learning conductor + DP federation
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0047_selfimprove_omni_p2.sql:
+//   meta_learning_runs       — one row per meta-learning-conductor run.
+//                              status lifecycle scheduled → running →
+//                              succeeded | failed. Decision in
+//                              promote | demote | no-op | rollback.
+//                              audit-chained per (tenant, capability).
+//   meta_learning_examples   — one row per curated example (prompt,
+//                              completion, reward, included). FK on
+//                              meta_run_id.
+//   dp_charges               — one row per DP operation; per-operation
+//                              accounting ground truth. The
+//                              strategic-layer's `epsilon_budgets`
+//                              sums these rows for the owner-facing
+//                              privacy ledger.
+// Consumed by @borjie/meta-learning-conductor + @borjie/dp-federation.
+// See Docs/DESIGN/SELF_IMPROVE_AND_DP_FEDERATION_SPEC.md.
+export * from './meta-learning.schema.js';
+export * from './dp-federation.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave OMNI-P2 — Social-platform connectors (6 providers)
+// ---------------------------------------------------------------------------
+// Six tenant-scoped tables backing migration 0047_selfimprove_omni_p2.sql:
+//   instagram_posts          — Instagram Graph API ingest. UNIQUE on
+//                              (tenant_id, account, post_id).
+//   facebook_posts           — Facebook Page Graph ingest. Same shape.
+//   tiktok_posts             — TikTok Business API ingest. Same shape.
+//   x_posts                  — X (formerly Twitter) v2 API ingest. Has
+//                              `text` column for tweet body instead of
+//                              `caption`.
+//   linkedin_posts           — LinkedIn Marketing API ingest. Same shape
+//                              as Facebook.
+//   youtube_videos           — YouTube Data API v3 ingest. Distinct
+//                              shape: (tenant, channel, video) keys;
+//                              dedicated view/like/comment count
+//                              columns and duration_s.
+// Consumed by @borjie/connector-{instagram,facebook,tiktok,x,linkedin,youtube}.
+// See Docs/DESIGN/OMNI_P2_SOCIAL_CONNECTORS_SPEC.md.
+export * from './connector-instagram.schema.js';
+export * from './connector-facebook.schema.js';
+export * from './connector-tiktok.schema.js';
+export * from './connector-x.schema.js';
+export * from './connector-linkedin.schema.js';
+export * from './connector-youtube.schema.js';
