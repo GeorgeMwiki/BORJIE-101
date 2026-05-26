@@ -1,11 +1,13 @@
 /**
- * Tests for junior-contract.ts — covers the audience-router stub plus
- * the per-recipe and per-audience scope helpers used by the persona-
- * runtime scope filter.
+ * Tests for junior-contract.ts — covers the singular-display-name
+ * identity contract, the audience-router stub, and the per-recipe /
+ * per-audience scope helpers used by the persona-runtime scope filter.
  */
 import { describe, expect, it } from 'vitest';
 import {
+  MR_MWIKILA_DISPLAY_NAME,
   resolveAgentForUser,
+  getJuniorDisplayName,
   getJuniorMode,
   juniorOwnsTabRecipe,
   juniorOwnsDocRecipe,
@@ -17,11 +19,15 @@ import {
 /**
  * Minimal `JuniorPersona` fixture — covers every field so the helper
  * tests do not bleed assumptions into each other.
+ *
+ * Note: the user-facing display name is intentionally NOT a field on
+ * the persona — every junior renders `MR_MWIKILA_DISPLAY_NAME`. The
+ * fixture below sets `specialisation` (chip) + `title` (subtitle).
  */
 function makeFixture(): JuniorPersona {
   return Object.freeze({
     id: 'fixture-junior',
-    name: 'Ms. Mfano',
+    specialisation: 'Fixture',
     title: "Borjie's AI Fixture Specialist",
     mandate: 'Stand-in junior used only for unit tests.',
     default_language: 'en',
@@ -62,6 +68,18 @@ function makeFixture(): JuniorPersona {
     },
   });
 }
+
+describe('MR_MWIKILA_DISPLAY_NAME — singular brand identity', () => {
+  it("is exactly 'Mr. Mwikila'", () => {
+    expect(MR_MWIKILA_DISPLAY_NAME).toBe('Mr. Mwikila');
+  });
+
+  it('is the display name returned for any junior persona', () => {
+    const persona = makeFixture();
+    expect(getJuniorDisplayName(persona)).toBe('Mr. Mwikila');
+    expect(getJuniorDisplayName(persona)).toBe(MR_MWIKILA_DISPLAY_NAME);
+  });
+});
 
 describe('resolveAgentForUser', () => {
   it('routes owner to Mr. Mwikila with apex_audience reason', () => {

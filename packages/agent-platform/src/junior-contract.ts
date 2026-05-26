@@ -16,7 +16,29 @@
  * `JuniorPersona` into the kernel; the audience-resolver here is a stub
  * that the floating-chat surfaces (Wave 18W) will call to decide which
  * persona owns the turn.
+ *
+ * Identity discipline (founder correction, post-Wave 18V):
+ *
+ *   Every junior renders as **"Mr. Mwikila"** to the user — the same
+ *   persona name across the entire product. A junior is a *specialisation*
+ *   of Mr. Mwikila, not a separate character. The user-facing subtitle
+ *   (`title`) reflects the specialisation, e.g. "Borjie's AI Mining
+ *   Safety Specialist". Internal agent IDs stay English-named
+ *   (`mining-safety-officer`, `geology-advisor`, ...). One name, one
+ *   brand, many specialisations.
  */
+
+// ─────────────────────────────────────────────────────────────────────
+// Display identity — singular across the product
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * The one and only user-facing persona name. Every junior renders this
+ * as its display name; the per-junior `specialisation` + `title` carry
+ * the differentiation. Do NOT introduce per-junior character names —
+ * that fragments the brand and was reverted by founder directive.
+ */
+export const MR_MWIKILA_DISPLAY_NAME = 'Mr. Mwikila' as const;
 
 // ─────────────────────────────────────────────────────────────────────
 // Audience taxonomy
@@ -149,13 +171,36 @@ export interface EscalationPolicy {
  * `JuniorPersona` value; the persona-runtime composition root registers
  * it on boot. Failure to declare a scope, escalation policy, or target
  * audience list prevents registration.
+ *
+ * Identity convention:
+ *
+ *   - The user always sees `MR_MWIKILA_DISPLAY_NAME` ("Mr. Mwikila") as
+ *     the persona name. There is no per-junior character name field — a
+ *     junior is a *specialisation* of Mr. Mwikila, not a separate
+ *     persona.
+ *   - `specialisation` is the short specialisation label rendered in
+ *     chips, headers, and audit trails (e.g. "Mining Safety", "FX
+ *     Treasury", "Geology").
+ *   - `title` is the full user-facing subtitle (e.g. "Borjie's AI
+ *     Mining Safety Specialist"); the chat surface typically stacks
+ *     `Mr. Mwikila` over `title`.
+ *   - `id` stays English-named and stable for audit / routing
+ *     (`mining-safety-officer`, `geology-advisor`, ...).
  */
 export interface JuniorPersona {
-  /** Stable persona id — e.g. `'mining-shift-planner'`. */
+  /** Stable persona id — e.g. `'mining-shift-planner'`. English, internal. */
   readonly id: string;
-  /** Display name shown to users — e.g. `'Ms. Sifa'`. */
-  readonly name: string;
-  /** Title appended to the display name — e.g. `"Borjie's AI Shift-Planning Specialist"`. */
+  /**
+   * Short specialisation label — e.g. `'Mining Safety'`, `'Geology'`,
+   * `'FX Treasury'`. Used as a chip / breadcrumb next to the singular
+   * `Mr. Mwikila` display name.
+   */
+  readonly specialisation: string;
+  /**
+   * Full user-facing subtitle — e.g. `"Borjie's AI Mining Safety
+   * Specialist"`. The chat surface renders this under
+   * `MR_MWIKILA_DISPLAY_NAME`.
+   */
   readonly title: string;
   /** First-person mandate, <= 150 words. The "who I am" preamble. */
   readonly mandate: string;
@@ -175,6 +220,16 @@ export interface JuniorPersona {
 // ─────────────────────────────────────────────────────────────────────
 // Convenience lookups
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * The singular display name every junior renders. Helper kept thin so
+ * surface code never has to reach for the constant directly — but it
+ * intentionally returns the same string for every persona so the
+ * compiler enforces the rule.
+ */
+export function getJuniorDisplayName(_persona: JuniorPersona): typeof MR_MWIKILA_DISPLAY_NAME {
+  return MR_MWIKILA_DISPLAY_NAME;
+}
 
 /**
  * Find a mode on a junior by id. Returns `null` when the id is unknown

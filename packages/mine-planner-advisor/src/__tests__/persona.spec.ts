@@ -1,16 +1,23 @@
 /**
- * Tests for Ms. Sifa's `JuniorPersona` value + her seed recipes.
+ * Tests for the Mining Shift Specialist `JuniorPersona` value + seed
+ * recipes.
  *
  * These tests are the proof-of-concept for the Wave 18V Junior
  * Architecture contract. Every other junior upgrade should ship the
  * same shape of test suite.
+ *
+ * Identity discipline: the user-facing name is `Mr. Mwikila` for every
+ * junior — there is no per-junior character name. Assertions below
+ * exercise `specialisation` + `title` instead.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
+  MR_MWIKILA_DISPLAY_NAME,
   juniorOwnsTabRecipe,
   juniorOwnsDocRecipe,
   juniorServesAudience,
+  getJuniorDisplayName,
   getJuniorMode,
 } from '@borjie/agent-platform';
 import {
@@ -20,11 +27,26 @@ import {
   weeklyProductionBriefRecipe,
 } from '../index.js';
 
-describe('Ms. Sifa — JuniorPersona contract', () => {
-  it('declares the canonical id and display name', () => {
+describe('Mining Shift Specialist — JuniorPersona contract', () => {
+  it('declares the canonical English agent id', () => {
     expect(miningShiftPlannerPersona.id).toBe('mining-shift-planner');
-    expect(miningShiftPlannerPersona.name).toBe('Ms. Sifa');
-    expect(miningShiftPlannerPersona.title).toContain('Shift-Planning Specialist');
+  });
+
+  it("renders as 'Mr. Mwikila' (singular display identity)", () => {
+    expect(getJuniorDisplayName(miningShiftPlannerPersona)).toBe(
+      MR_MWIKILA_DISPLAY_NAME,
+    );
+    expect(getJuniorDisplayName(miningShiftPlannerPersona)).toBe('Mr. Mwikila');
+  });
+
+  it("carries the 'Shift Planning' specialisation chip", () => {
+    expect(miningShiftPlannerPersona.specialisation).toBe('Shift Planning');
+  });
+
+  it("subtitle is \"Borjie's AI Mining Shift Specialist\"", () => {
+    expect(miningShiftPlannerPersona.title).toBe(
+      "Borjie's AI Mining Shift Specialist",
+    );
   });
 
   it('mandate fits inside the 150-word cap', () => {
@@ -57,7 +79,7 @@ describe('Ms. Sifa — JuniorPersona contract', () => {
   });
 });
 
-describe('Ms. Sifa — JuniorScope', () => {
+describe('Mining Shift Specialist — JuniorScope', () => {
   it('caps authority at tier 1 and escalates Tier 2 to the MD', () => {
     expect(miningShiftPlannerPersona.scope.authority_tier_max).toBe(1);
     expect(miningShiftPlannerPersona.scope.requires_md_for_tier_2).toBe(true);
@@ -87,7 +109,7 @@ describe('Ms. Sifa — JuniorScope', () => {
   });
 });
 
-describe('Ms. Sifa — target audiences + escalation', () => {
+describe('Mining Shift Specialist — target audiences + escalation', () => {
   it('serves manager and employee audiences only', () => {
     expect(juniorServesAudience(miningShiftPlannerPersona, 'manager')).toBe(true);
     expect(juniorServesAudience(miningShiftPlannerPersona, 'employee')).toBe(true);
@@ -107,7 +129,7 @@ describe('Ms. Sifa — target audiences + escalation', () => {
   });
 });
 
-describe('getJuniorMode — Ms. Sifa', () => {
+describe('getJuniorMode — Mining Shift Specialist', () => {
   it('returns the named mode', () => {
     const mode = getJuniorMode(miningShiftPlannerPersona, 'plan');
     expect(mode?.id).toBe('plan');
@@ -119,7 +141,7 @@ describe('getJuniorMode — Ms. Sifa', () => {
   });
 });
 
-describe('Ms. Sifa — recipe descriptors', () => {
+describe('Mining Shift Specialist — recipe descriptors', () => {
   it('shift_plan_review is a live brand-locked tier-1 tab recipe', () => {
     expect(shiftPlanReviewRecipe.id).toBe('shift_plan_review');
     expect(shiftPlanReviewRecipe.brand).toBe('borjie');

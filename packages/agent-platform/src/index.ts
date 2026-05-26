@@ -86,8 +86,14 @@ export * as a2a from './a2a/index.js';
 // Junior Architecture (Wave 18V) — the contract every domain junior
 // implements: persona + scope + escalation policy + audience-routing
 // stub. Spec: docs/DESIGN/JUNIOR_ARCHITECTURE_SPEC.md.
+//
+// Identity discipline: every junior renders as `MR_MWIKILA_DISPLAY_NAME`
+// (singular brand across the product). A junior is a *specialisation*
+// of Mr. Mwikila, not a separate character — see `JuniorPersona`.
 export {
+  MR_MWIKILA_DISPLAY_NAME,
   resolveAgentForUser,
+  getJuniorDisplayName,
   getJuniorMode,
   juniorOwnsTabRecipe,
   juniorOwnsDocRecipe,
@@ -102,3 +108,13 @@ export {
   type UserRole,
   type AgentResolution,
 } from './junior-contract.js';
+
+// Canonical user-facing display identity (founder correction — post 18V-FIX).
+// The user always sees one string in the chat UI: "Mr. Mwikila — Borjie's
+// AI Mining Operations Manager". No specialisation subtitle, no agent_id.
+// Spec: Docs/DESIGN/CAPABILITIES_UNIFICATION.md "User-facing identity is
+// locked".
+export {
+  MR_MWIKILA_CANONICAL_DISPLAY,
+  type MrMwikilaCanonicalDisplay,
+} from './canonical-display.js';

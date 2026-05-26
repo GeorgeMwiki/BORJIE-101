@@ -1,5 +1,6 @@
 /**
- * Local recipe contracts for Ms. Sifa's tab and doc recipes.
+ * Local recipe contracts for the Mining Shift Specialist's tab and doc
+ * recipes.
  *
  * These shapes mirror the structure used by `@borjie/dynamic-ui` (tab
  * recipes) and the document-composition layer (doc recipes), but live
@@ -23,8 +24,8 @@ export type RecipeAuthorityTier = 0 | 1 | 2;
 
 /**
  * Tab recipe descriptor — composed by `compose_tab_v1` and rendered by
- * the dynamic-ui composer. Ms. Sifa owns `shift_plan_review` and
- * `crew_assignment`.
+ * the dynamic-ui composer. The Mining Shift Specialist owns
+ * `shift_plan_review` and `crew_assignment`.
  */
 export interface MiningTabRecipeDescriptor {
   readonly id: string;
@@ -46,7 +47,7 @@ export interface MiningTabRecipeDescriptor {
 
 /**
  * Doc recipe descriptor — composed by `compose_doc_v1` and rendered by
- * the document-composition layer. Ms. Sifa owns
+ * the document-composition layer. The Mining Shift Specialist owns
  * `weekly_production_brief`.
  */
 export interface MiningDocRecipeDescriptor {

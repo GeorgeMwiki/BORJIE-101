@@ -1,10 +1,11 @@
 /**
  * Tab recipe — `shift_plan_review`.
  *
- * Composes a review tab for the 24-hour shift plan Ms. Sifa just
- * produced. The site manager opens this tab as their daily morning
- * surface — every assignment is shown with an evidence chip pointing
- * at the polygon, equipment, and crew records it draws from.
+ * Composes a review tab for the 24-hour shift plan the Mining Shift
+ * Specialist just produced. The site manager opens this tab as their
+ * daily morning surface — every assignment is shown with an evidence
+ * chip pointing at the polygon, equipment, and crew records it draws
+ * from.
  *
  * Authority tier 1 — committing the plan stages a Tier-1 proposal
  * (write to `shift_plans`) that the site manager approves with a

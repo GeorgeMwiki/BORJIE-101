@@ -1,5 +1,5 @@
 /**
- * Recipe barrel — Ms. Sifa's tab and doc recipes.
+ * Recipe barrel — Mining Shift Specialist tab and doc recipes.
  *
  * The persona-runtime composition root reads these descriptors at boot
  * and registers them against the global tab-recipe and doc-recipe
