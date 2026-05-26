@@ -11,9 +11,9 @@
  * fan-out helper directly. The full HTTP path is covered by the
  * existing admin-jarvis-stream router smoke tests.
  *
- * Because the production router file is `@ts-nocheck` (Hono v4 status
- * widening), this test uses lightweight fakes for the three services
- * and asserts the call shape contract.
+ * This test uses lightweight fakes for the three services and asserts
+ * the call-shape contract — the full HTTP path is exercised by the
+ * admin-jarvis-stream router smoke tests.
  */
 
 import { describe, it, expect } from 'vitest';
