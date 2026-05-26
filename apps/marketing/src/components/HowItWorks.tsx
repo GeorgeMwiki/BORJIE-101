@@ -11,54 +11,9 @@ import { getMessages, type Locale } from '@/lib/i18n';
 export function HowItWorks({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).how;
   const steps = [
-    {
-      n: '01',
-      ...t.steps.one,
-      bullets:
-        locale === 'sw'
-          ? [
-              'BRELA · TRA · Tumemadini APIs',
-              'KYB kamili ndani ya saa 48',
-              'Sw au En kuanzia siku ya kwanza',
-            ]
-          : [
-              'BRELA · TRA · Tumemadini APIs',
-              'Full KYB inside 48 hours',
-              'Swahili or English from day one',
-            ],
-    },
-    {
-      n: '02',
-      ...t.steps.two,
-      bullets:
-        locale === 'sw'
-          ? [
-              'PML, ML, SML upload na OCR',
-              'Ramani za pit kama GeoJSON au PDF',
-              'Drill-hole logs kama CSV au laboratory PDF',
-            ]
-          : [
-              'PML, ML, SML upload with OCR',
-              'Pit maps as GeoJSON or PDF',
-              'Drill-hole logs as CSV or laboratory PDF',
-            ],
-    },
-    {
-      n: '03',
-      ...t.steps.three,
-      bullets:
-        locale === 'sw'
-          ? [
-              'Shadow mode kwa siku 14',
-              'Autonomy dial — wewe unaongeza kasi',
-              'Audit chain kwenye kila kitendo',
-            ]
-          : [
-              '14-day shadow mode',
-              'Autonomy dial — you set the pace',
-              'Audit chain on every action',
-            ],
-    },
+    { n: '01', ...t.steps.one },
+    { n: '02', ...t.steps.two },
+    { n: '03', ...t.steps.three },
   ];
 
   return (

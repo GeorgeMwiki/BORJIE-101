@@ -1,16 +1,35 @@
 import Link from 'next/link';
 import { getMessages, type Locale } from '@/lib/i18n';
 
-function Wordmark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
-  return <span className={`font-display font-bold tracking-tight ${cls}`}>Borjie</span>;
+interface WordmarkProps {
+  readonly size?: 'sm' | 'md' | 'lg';
+  /** When true, paints the wordmark with the brand gradient. */
+  readonly premium?: boolean;
 }
-function Logomark({ size = 24 }: { size?: number }) {
+function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
+  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
+  const tone = premium
+    ? 'bg-gradient-to-r from-[oklch(0.78_0.16_75)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
+    : '';
+  return (
+    <span className={`font-display font-bold tracking-tight ${cls} ${tone}`}>Borjie</span>
+  );
+}
+interface LogomarkProps {
+  readonly size?: number;
+  readonly className?: string;
+}
+function Logomark({ size = 24, className = '' }: LogomarkProps) {
   return (
     <span
       aria-hidden="true"
-      className="inline-block rounded-md"
-      style={{ width: size, height: size, background: 'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))' }}
+      className={`inline-block rounded-md ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background:
+          'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))',
+      }}
     />
   );
 }
@@ -29,25 +48,25 @@ export function Footer({ locale }: { readonly locale: Locale }) {
     {
       title: t.product,
       links: [
-        { label: locale === 'sw' ? 'Uwezo' : 'Capabilities', href: '/#product' },
-        { label: locale === 'sw' ? 'Master Brain' : 'Master Brain', href: '/#brief' },
-        { label: locale === 'sw' ? 'Autonomy' : 'Autonomy', href: '/#product' },
-        { label: locale === 'sw' ? 'Audit chain' : 'Audit chain', href: '/#product' },
+        { label: t.links.capabilities, href: '/#product' },
+        { label: t.links.masterBrain, href: '/#brief' },
+        { label: t.links.autonomy, href: '/#product' },
+        { label: t.links.auditChain, href: '/#product' },
       ],
     },
     {
       title: t.company,
       links: [
-        { label: locale === 'sw' ? 'Bei' : 'Pricing', href: '/pricing' },
-        { label: locale === 'sw' ? 'Pilot' : 'Pilot', href: '/pilot' },
-        { label: locale === 'sw' ? 'Karibu' : 'About', href: '/about' },
-        { label: locale === 'sw' ? 'Ajira' : 'Careers', href: '/careers' },
+        { label: t.links.pricing, href: '/pricing' },
+        { label: t.links.pilot, href: '/pilot' },
+        { label: t.links.about, href: '/about' },
+        { label: t.links.careers, href: '/careers' },
       ],
     },
     {
       title: t.resources,
       links: [
-        { label: locale === 'sw' ? 'Nyaraka' : 'Docs', href: '/docs' },
+        { label: t.links.docs, href: '/docs' },
         { label: 'GitHub', href: 'https://github.com/borjie', external: true },
         { label: 'X / Twitter', href: 'https://x.com/borjie_tz', external: true },
         { label: 'LinkedIn', href: 'https://www.linkedin.com/company/borjie', external: true },
@@ -56,10 +75,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
     {
       title: t.legal,
       links: [
-        { label: locale === 'sw' ? 'Faragha' : 'Privacy', href: '/privacy' },
-        { label: locale === 'sw' ? 'Masharti' : 'Terms', href: '/terms' },
+        { label: t.links.privacy, href: '/privacy' },
+        { label: t.links.terms, href: '/terms' },
         { label: 'DPA', href: '/dpa' },
-        { label: locale === 'sw' ? 'Status' : 'Status', href: 'https://status.borjie.co.tz', external: true },
+        { label: t.links.status, href: 'https://status.borjie.co.tz', external: true },
       ],
     },
   ];
@@ -117,7 +136,7 @@ export function Footer({ locale }: { readonly locale: Locale }) {
           <div className="flex items-center gap-4 font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400">
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />
-              {locale === 'sw' ? 'Mfumo unaendelea' : 'All systems operational'}
+              {t.systemsOperational}
             </span>
             <span className="h-3 w-px bg-border" />
             <span>Tanzania · TZS</span>

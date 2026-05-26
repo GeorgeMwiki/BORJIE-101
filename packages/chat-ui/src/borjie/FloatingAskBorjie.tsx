@@ -143,8 +143,9 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
 
   const endpoint =
     variant === 'public' ? `${baseUrl}/api/v1/public/chat` : `${baseUrl}/api/v1/mining/chat`;
+  const translateEndpoint = `${baseUrl}/api/v1/translate`;
 
-  const chat = useBorjieChat({ endpoint });
+  const chat = useBorjieChat({ endpoint, translateEndpoint, locale: language });
 
   // ---- mount + storage rehydrate ----
   useEffect(() => {
@@ -218,10 +219,14 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
     writeStorage(STORAGE_MODE, next, 'local');
   }, []);
 
-  const handleLanguageChange = useCallback((next: BorjieLanguage) => {
-    setLanguage(next);
-    writeStorage(STORAGE_LANG, next, 'local');
-  }, []);
+  const handleLanguageChange = useCallback(
+    (next: BorjieLanguage) => {
+      setLanguage(next);
+      writeStorage(STORAGE_LANG, next, 'local');
+      void chat.retranslate(next);
+    },
+    [chat],
+  );
 
   const handleSend = useCallback(
     async (text: string) => {

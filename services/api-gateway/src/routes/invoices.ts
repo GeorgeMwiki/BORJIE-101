@@ -70,7 +70,7 @@ type EnrichInvoiceRepos = {
   };
 };
 
-type InvoiceRowLike = { customerId: string; leaseId?: string | null; unitId?: string | null };
+type InvoiceRowLike = { customerId: string; leaseId?: string | null; unitId?: string | null } & Parameters<typeof mapInvoiceRow>[0];
 
 async function enrichInvoice(repos: EnrichInvoiceRepos, tenantId: string, row: InvoiceRowLike) {
   const invoice = mapInvoiceRow(row);

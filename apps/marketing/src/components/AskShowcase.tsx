@@ -12,6 +12,7 @@ import { getMessages, type Locale } from '@/lib/i18n';
  */
 export function AskShowcase({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).ask;
+  const sc = t.showcase;
 
   return (
     <section
@@ -38,16 +39,12 @@ export function AskShowcase({ locale }: { readonly locale: Locale }) {
           <div>
             <p className="inline-flex items-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
               <MessageSquare className="h-3 w-3" />
-              {locale === 'sw' ? 'Ongea na mgodi wako' : 'Ask your mine'}
+              {sc.kicker}
             </p>
             <h3 className="mt-2 font-display text-2xl font-medium tracking-tight">
-              {locale === 'sw' ? 'Mimi ni mgodi.' : 'I am the mine.'}
+              {sc.title}
             </h3>
-            <p className="mt-1 text-sm text-neutral-400">
-              {locale === 'sw'
-                ? 'Nafsi ya kwanza · imetakwa kwa grafu ya maarifa'
-                : 'First-person · grounded in the knowledge graph'}
-            </p>
+            <p className="mt-1 text-sm text-neutral-400">{sc.subtitle}</p>
           </div>
           <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[0.62rem] text-neutral-400">
             on-chain
@@ -56,14 +53,14 @@ export function AskShowcase({ locale }: { readonly locale: Locale }) {
 
         <div className="rounded-xl border border-border bg-background p-4">
           <p className="font-mono text-[0.62rem] uppercase tracking-widest text-neutral-400">
-            {locale === 'sw' ? 'Uliuliza' : 'You asked'}
+            {sc.youAsked}
           </p>
           <p className="mt-1 text-[0.95rem] font-medium text-foreground">{t.question}</p>
         </div>
 
         <div className="rounded-xl border border-signal-500/20 bg-signal-500/[0.04] p-4">
           <p className="font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
-            {locale === 'sw' ? 'Mpango · streaming' : 'Plan · streaming'}
+            {sc.plan}
           </p>
           <ol className="mt-2 space-y-1">
             {t.answerPlan.map((step, i) => (
@@ -79,7 +76,7 @@ export function AskShowcase({ locale }: { readonly locale: Locale }) {
 
         <div>
           <p className="font-mono text-[0.62rem] uppercase tracking-widest text-neutral-400">
-            {locale === 'sw' ? 'Jibu' : 'Answer'}
+            {sc.answerLabel}
           </p>
           <p className="mt-2 text-[0.95rem] leading-relaxed text-foreground">
             {t.answer}

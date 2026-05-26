@@ -11,7 +11,7 @@ import { getMessages, type Locale } from '@/lib/i18n';
  */
 export function Testimonial({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).testimonial;
-  const cards = pilotCards(locale);
+  const cards = t.cards;
 
   return (
     <section
@@ -67,54 +67,4 @@ export function Testimonial({ locale }: { readonly locale: Locale }) {
       </ul>
     </section>
   );
-}
-
-function pilotCards(locale: Locale) {
-  const sw = [
-    {
-      name: 'Joyce Mhagama',
-      initials: 'JM',
-      role: 'Mmiliki · Geita PML pilot · sites 4',
-      placeholder:
-        'Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain.',
-    },
-    {
-      name: 'Hamisi Ngao',
-      initials: 'HN',
-      role: 'Mwenyekiti · Mererani tanzanite co-op · members 18',
-      placeholder:
-        'Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain.',
-    },
-    {
-      name: 'Asha Mwakajila',
-      initials: 'AM',
-      role: 'CFO · Songwe trading group · sites 9',
-      placeholder:
-        'Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain.',
-    },
-  ];
-  const en = [
-    {
-      name: 'Joyce Mhagama',
-      initials: 'JM',
-      role: 'Owner · Geita PML pilot · 4 sites',
-      placeholder:
-        'Pilot quote available after 12 weeks of live Master Brain operation.',
-    },
-    {
-      name: 'Hamisi Ngao',
-      initials: 'HN',
-      role: 'Chair · Mererani tanzanite co-op · 18 members',
-      placeholder:
-        'Pilot quote available after 12 weeks of live Master Brain operation.',
-    },
-    {
-      name: 'Asha Mwakajila',
-      initials: 'AM',
-      role: 'CFO · Songwe trading group · 9 sites',
-      placeholder:
-        'Pilot quote available after 12 weeks of live Master Brain operation.',
-    },
-  ];
-  return locale === 'sw' ? sw : en;
 }

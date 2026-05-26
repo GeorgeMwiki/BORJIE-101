@@ -59,7 +59,7 @@ function mapErr(c: AnyContext, err: unknown, fallback = 400) {
   }
   const e = err as { code?: string; message?: string } | undefined;
   const code = e?.code ?? 'INTERNAL_ERROR';
-  const status =
+  const status: import('hono/utils/http-status').ContentfulStatusCode =
     code === 'NOT_FOUND'
       ? 404
       : code === 'TENANT_MISMATCH'
@@ -70,7 +70,7 @@ function mapErr(c: AnyContext, err: unknown, fallback = 400) {
             ? 409
             : code === 'INTERNAL_ERROR'
               ? 500
-              : fallback;
+              : (fallback as import('hono/utils/http-status').ContentfulStatusCode);
   return c.json(
     { success: false, error: { code, message: e?.message ?? 'unknown' } },
     status

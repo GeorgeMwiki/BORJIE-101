@@ -182,7 +182,13 @@ function walk(
   const out: Record<string, unknown> = {};
   for (const [key, v] of Object.entries(obj)) {
     const probe = caseInsensitive ? key.toLowerCase() : key;
-    if (fields.has(probe)) {
+    const keyMatches = fields.has(probe);
+    // If the key matches AND the value is a primitive, replace the
+    // value. If the key matches but the value is itself an
+    // object/array, recurse — so nested PII like `address.street`
+    // still gets redacted under its own field name rather than
+    // collapsed to `[REDACTED]:address` and losing the child labels.
+    if (keyMatches && (v === null || v === undefined || typeof v !== 'object')) {
       out[key] = format(key);
       continue;
     }

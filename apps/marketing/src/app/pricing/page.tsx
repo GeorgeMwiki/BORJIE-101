@@ -56,7 +56,7 @@ export default async function PricingPage() {
               <thead>
                 <tr className="border-b border-border bg-surface-raised">
                   <th className="px-4 py-3 text-left font-mono text-[0.65rem] uppercase tracking-widest text-neutral-400">
-                    {locale === 'sw' ? 'Kipengele' : 'Feature'}
+                    {t.featureColumn}
                   </th>
                   {TIERS.map((tier) => (
                     <th

@@ -1,18 +1,46 @@
 {
+  "common": {
+    "skipToContent": "Ruka kwenye maudhui"
+  },
   "nav": {
+    "owners": "Wamiliki",
+    "buyers": "Wanunuzi",
+    "investors": "Wawekezaji",
     "product": "Bidhaa",
     "pricing": "Bei",
     "pilot": "Pilot",
     "docs": "Nyaraka",
     "signIn": "Ingia"
   },
+  "audienceSwitcher": {
+    "kicker": "Chagua mtazamo wako",
+    "owners": {
+      "title": "Wamiliki wa migodi",
+      "blurb": "Endesha mgodi wako. Briefing ya kila siku, kalenda ya leseni, drill-hole logger."
+    },
+    "buyers": {
+      "title": "Wanunuzi wa madini",
+      "blurb": "Pata madini ya Tanzania yaliyothibitishwa mwanzo hadi mwisho."
+    },
+    "investors": {
+      "title": "Wawekezaji / Wakopeshaji",
+      "blurb": "Mtaji wa madini ukiwa na taarifa za kila siku zenye ushahidi."
+    }
+  },
   "hero": {
     "kicker": "Mfumo wa AI kwa madini ya Tanzania",
+    "swahiliFirstBadge": "Swahili-kwanza",
     "headline": "Endesha mgodi wako kama wabora duniani.",
     "sub": "Mfumo wa uendeshaji unaotumia AI. Tanzanian-kwanza. Mteja-wengi. Lugha-nyingi.",
     "ctaPilot": "Omba pilot",
     "ctaDemo": "Ona demo ya moja kwa moja",
-    "trustline": "Geita · Mererani · Kahama · Songwe"
+    "trustline": "Geita · Mererani · Kahama · Songwe",
+    "stats": {
+      "pilotRegions": "Mikoa ya pilot",
+      "bilingual": "Lugha mbili",
+      "baseCurrency": "Sarafu ya msingi",
+      "masterBrain": "Master Brain"
+    }
   },
   "capabilities": {
     "kicker": "01 · Uwezo wa msingi",
@@ -52,24 +80,94 @@
       "one": {
         "label": "Sign-up + KYB",
         "title": "Jisajili na uthibitishe biashara yako.",
-        "body": "Tunaunganisha na BRELA, TRA, na Tumemadini. KYB kamili ndani ya saa 48. Hakuna fomu za karatasi."
+        "body": "Tunaunganisha na BRELA, TRA, na Tumemadini. KYB kamili ndani ya saa 48. Hakuna fomu za karatasi.",
+        "bullets": [
+          "BRELA · TRA · Tumemadini APIs",
+          "KYB kamili ndani ya saa 48",
+          "Sw au En kuanzia siku ya kwanza"
+        ]
       },
       "two": {
         "label": "Import",
         "title": "Leta leseni na sites zako.",
-        "body": "Upload leseni za PML/ML/SML, ramani za pit, drill-hole logs. Grafu ya mgodi wako inajengwa otomatiki."
+        "body": "Upload leseni za PML/ML/SML, ramani za pit, drill-hole logs. Grafu ya mgodi wako inajengwa otomatiki.",
+        "bullets": [
+          "PML, ML, SML upload na OCR",
+          "Ramani za pit kama GeoJSON au PDF",
+          "Drill-hole logs kama CSV au laboratory PDF"
+        ]
       },
       "three": {
         "label": "Master Brain",
         "title": "Master Brain anachukua kazi.",
-        "body": "Anaanza kwa shadow mode kwa siku 14. Unaona kile angefanya. Halafu unaruhusu, hatua kwa hatua."
+        "body": "Anaanza kwa shadow mode kwa siku 14. Unaona kile angefanya. Halafu unaruhusu, hatua kwa hatua.",
+        "bullets": [
+          "Shadow mode kwa siku 14",
+          "Autonomy dial — wewe unaongeza kasi",
+          "Audit chain kwenye kila kitendo"
+        ]
       }
     }
   },
   "brief": {
     "kicker": "03 · Briefing ya Asubuhi",
     "heading": "Dakika yako ya kwanza saa 06:00.",
-    "sub": "Master Brain ameshughulikia shughuli za usiku. Hii ndio aliyofanya, alichoflagsha, na nambari zinasema nini."
+    "sub": "Master Brain ameshughulikia shughuli za usiku. Hii ndio aliyofanya, alichoflagsha, na nambari zinasema nini.",
+    "demo": {
+      "greeting": "Habari za asubuhi, Mwl. Salim.",
+      "intro": "Mgodi ni shwari. Maamuzi matatu yanahitajika kabla ya 09:00.",
+      "stats": {
+        "overnightActions": "Vitendo vya usiku",
+        "decisions": "Maamuzi",
+        "goldOz": "Dhahabu (oz)",
+        "cashTzs": "Hazina (TZS)"
+      },
+      "streamingLabel": "Streaming · usiku wa 25 Mei",
+      "lines": [
+        {
+          "time": "22:14",
+          "domain": "Geita pit · shift B",
+          "body": "Shift B walitoa tani 184. Grade ya 3.2 g/t. Imehifadhiwa kwenye drill-hole log MR-241.",
+          "tone": "good",
+          "tag": "OK"
+        },
+        {
+          "time": "23:47",
+          "domain": "Mererani vendor",
+          "body": "Vendor \"Kahama Logistics\" amechelewa malipo ya tani 12. Imepelekwa kwa wewe kwa idhini ya extension.",
+          "tone": "warn",
+          "tag": "!"
+        },
+        {
+          "time": "01:33",
+          "domain": "PML 0241/2023 · Kahama",
+          "body": "Leseni inaisha kwa siku 47. Tumemadini renewal form imeandaliwa kwa review yako.",
+          "tone": "warn",
+          "tag": "!"
+        },
+        {
+          "time": "03:05",
+          "domain": "Treasury · gold-window",
+          "body": "Spot ya LBMA imepanda 1.4% ndani ya saa 6. Hedge proposal ya uncia 60 imeandaliwa.",
+          "tone": "good",
+          "tag": "TX"
+        },
+        {
+          "time": "04:18",
+          "domain": "NEMC EIA · Songwe",
+          "body": "Quarterly emissions report imewasilishwa kwa NEMC. Acknowledgement #2604-A.",
+          "tone": "good",
+          "tag": "OK"
+        },
+        {
+          "time": "05:42",
+          "domain": "Royalty return · TRA",
+          "body": "Royalty ya Aprili imeandaliwa: TZS 18.4M. Inahitaji saini yako kabla ya kupelekwa.",
+          "tone": "flag",
+          "tag": "YOU"
+        }
+      ]
+    }
   },
   "ask": {
     "kicker": "04 · Ongea na Mgodi Wako",
@@ -82,7 +180,15 @@
       "Pata burn rate ya wiki 4 zilizopita"
     ],
     "answer": "Una TZS 412M mkononi na uncia 184 za dhahabu zenye thamani ya TZS 1.18B kwa spot ya leo. Burn ya wiki 4 zilizopita ni TZS 87M/wiki. Hiyo inakupa runway ya wiki 18.3 — au wiki 22 kama off-take ya Geita ya Februari ikitimia kwa wakati.",
-    "evidence": "Ushahidi: TRA bank-feed · LBMA spot · off-take MR-241"
+    "evidence": "Ushahidi: TRA bank-feed · LBMA spot · off-take MR-241",
+    "showcase": {
+      "kicker": "Ongea na mgodi wako",
+      "title": "Mimi ni mgodi.",
+      "subtitle": "Nafsi ya kwanza · imetakwa kwa grafu ya maarifa",
+      "youAsked": "Uliuliza",
+      "plan": "Mpango · streaming",
+      "answerLabel": "Jibu"
+    }
   },
   "autonomy": {
     "kicker": "05 · Autonomy Dial",
@@ -93,12 +199,97 @@
       "propose": "Inaandaa drafts. Wewe unatuma.",
       "executeWithApproval": "Inafanya kazi kwa kibali chako kwa kila hatua.",
       "autonomous": "Inafanya kazi peke yake ndani ya sera yako. Red-lines bado vinahitaji kibali."
-    }
+    },
+    "labels": {
+      "dialLabel": "Ngazi ya uhuru",
+      "steps": ["Shauri", "Andaa", "Tekeleza kwa idhini", "Otomatiki"],
+      "redLineKicker": "Mstari mwekundu",
+      "redLineBody": "Master Brain haweti kamwe royalty TRA peke yake, hatumi NEMC EIA peke yake, na hauziwi dhahabu zaidi ya uncia 200 bila idhini ya mtumiaji. Si kwa ngazi yoyote.",
+      "redLineTag": "Mstari mwekundu · siyo otomatiki",
+      "autonomousTag": "Otomatiki kwenye ngazi hii",
+      "unlocksAtL": "Inafunguliwa L"
+    },
+    "capabilities": [
+      { "id": "price", "label": "Andika daily price brief", "minLevel": 0 },
+      { "id": "shift", "label": "Toa shift handover report", "minLevel": 1 },
+      { "id": "vendor", "label": "Lipa vendor PO ndogo (< TZS 5M)", "minLevel": 2 },
+      { "id": "hedge", "label": "Funga FX hedge ya wiki", "minLevel": 2 },
+      { "id": "pml", "label": "Wasilisha PML renewal Tumemadini", "minLevel": 99 },
+      { "id": "royalty", "label": "Wasilisha royalty TRA", "minLevel": 99 },
+      { "id": "nemc", "label": "Wasilisha NEMC EIA", "minLevel": 99 },
+      { "id": "sale", "label": "Uza dhahabu > 200 oz", "minLevel": 99 }
+    ]
   },
   "chain": {
     "kicker": "06 · Audit Chain",
     "heading": "Kila kitendo kimerekodiwa kwa cryptography.",
-    "sub": "Append-only log ikiwa na SHA-256 prev-hash na HMAC kwa kila entry. Tumemadini, NEMC, na auditors wanaweza kuthibitisha bila kutuamini sisi."
+    "sub": "Append-only log ikiwa na SHA-256 prev-hash na HMAC kwa kila entry. Tumemadini, NEMC, na auditors wanaweza kuthibitisha bila kutuamini sisi.",
+    "fragmentHeader": "Chain fragment · thread th_18a · entries 4 za mwisho",
+    "verifiedLabel": "Imehakikishwa",
+    "depthFooter": "Chain depth: entries 18,429 · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle",
+    "fragment": [
+      {
+        "seq": 18426,
+        "at": "06:02:11",
+        "actor": "user · owner",
+        "decision": "imependekezwa",
+        "decisionTone": "signal",
+        "action": "mine.user_message · hash sha256:7b3a…e91",
+        "prev": "9f…c2",
+        "hash": "3a…e91",
+        "sig": "hmac:4f…22"
+      },
+      {
+        "seq": 18427,
+        "at": "06:02:12",
+        "actor": "master_brain",
+        "decision": "imependekezwa",
+        "decisionTone": "signal",
+        "action": "mine.plan · hatua 3",
+        "prev": "3a…e91",
+        "hash": "8c…d04",
+        "sig": "hmac:1a…9b"
+      },
+      {
+        "seq": 18428,
+        "at": "06:02:14",
+        "actor": "master_brain",
+        "decision": "imetekelezwa",
+        "decisionTone": "success",
+        "action": "mine.tool.graph_lookup · gold_inventory=184oz",
+        "prev": "8c…d04",
+        "hash": "b1…7ae",
+        "sig": "hmac:5d…c1"
+      },
+      {
+        "seq": 18429,
+        "at": "06:02:15",
+        "actor": "master_brain",
+        "decision": "imetekelezwa",
+        "decisionTone": "success",
+        "action": "mine.turn_done · 3.8s · nukuu 3 · artifact 0",
+        "prev": "b1…7ae",
+        "hash": "2e…440",
+        "sig": "hmac:9e…88"
+      }
+    ],
+    "guarantees": [
+      {
+        "kicker": "Inathibitishika",
+        "title": "SHA-256 chain · HMAC kwa kila entry",
+        "body": "Kila row ina prev-hash pointer pamoja na HMAC signature. Kuchezea entry yoyote kunavunja kila signature baada yake. Export, hakikisha offline."
+      },
+      {
+        "kicker": "Ufichuzi mdogo",
+        "title": "Maudhui ya mtumiaji yamehashika, hayajahifadhiwa",
+        "body": "Tumemadini wanaweza kuthibitisha kuwa uliuliza X kwa wakati T bila kufichua X tena. Ujumbe wenyewe upo kwenye memory ya conversation; chain ina provenance peke yake."
+      },
+      {
+        "kicker": "Imegawanyika",
+        "title": "Tenant chain · Platform chain — havichanganyiki",
+        "body": "Per-tenant audit chains ni huru kabisa. Platform-scope queries hutua kwenye platform chain iliyotengwa. Cross-scope probes hurudi empty, hazifichui existence."
+      }
+    ]
   },
   "pricing": {
     "kicker": "07 · Bei",
@@ -110,13 +301,34 @@
     "ctaStart": "Anza Mwanzo",
     "ctaPilot": "Omba pilot",
     "ctaTalk": "Ongea na timu",
+    "mostChosenBadge": "Wengi",
     "footnote": "Bei zote katika TZS. Inaweza kulipwa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer."
   },
   "testimonial": {
     "kicker": "08 · Sauti za Pilot",
     "heading": "Quotes za pilot zitapatikana Q3 2026.",
     "sub": "Sasa hivi tunafanya kazi na waanzilishi kumi wa mgodi katika Geita, Mererani, na Songwe. Tukiwa na matokeo ya wiki 12, tutaweka maoni yao hapa.",
-    "placeholderBadge": "Pilot — quote inakuja"
+    "placeholderBadge": "Pilot — quote inakuja",
+    "cards": [
+      {
+        "name": "Joyce Mhagama",
+        "initials": "JM",
+        "role": "Mmiliki · Geita PML pilot · sites 4",
+        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+      },
+      {
+        "name": "Hamisi Ngao",
+        "initials": "HN",
+        "role": "Mwenyekiti · Mererani tanzanite co-op · members 18",
+        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+      },
+      {
+        "name": "Asha Mwakajila",
+        "initials": "AM",
+        "role": "CFO · Songwe trading group · sites 9",
+        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+      }
+    ]
   },
   "footer": {
     "tagline": "Mfumo wa uendeshaji wa AI kwa madini ya Tanzania. Master Brain, audit chain, lugha mbili.",
@@ -125,12 +337,28 @@
     "resources": "Rasilimali",
     "legal": "Kisheria",
     "rights": "Haki zote zimehifadhiwa.",
-    "locale": "Dar es Salaam · UTC+3"
+    "locale": "Dar es Salaam · UTC+3",
+    "systemsOperational": "Mfumo unaendelea",
+    "links": {
+      "capabilities": "Uwezo",
+      "masterBrain": "Master Brain",
+      "autonomy": "Autonomy",
+      "auditChain": "Audit chain",
+      "pricing": "Bei",
+      "pilot": "Pilot",
+      "about": "Karibu",
+      "careers": "Ajira",
+      "docs": "Nyaraka",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "status": "Status"
+    }
   },
   "pilotPage": {
     "kicker": "Programu ya Pilot",
     "heading": "Omba kushiriki katika pilot.",
     "sub": "Tunachagua waanzilishi 20 wa mgodi kushiriki katika pilot yetu ya wiki 12. Hakuna gharama. Unyumbufu kamili. Tutafanya kazi pamoja kujenga mfumo unaofaa kwa muktadha wa Tanzania.",
+    "contact": "Maswali? Tuma email kwa pilot@borjie.co.tz au piga +255 22 211 4000.",
     "fields": {
       "name": "Jina kamili",
       "company": "Jina la kampuni",
@@ -149,16 +377,379 @@
     "heading": "Jenga kwa hatua yako.",
     "sub": "Tiers tano. TZS. Mwanzo ni bure milele. Tunalipa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer.",
     "compareHeading": "Linganisha vipengele",
-    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na support."
+    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na support.",
+    "featureColumn": "Kipengele"
   },
   "privacyPage": {
     "kicker": "Faragha",
     "heading": "Sera ya Faragha ya Borjie",
-    "lastUpdated": "Imesasishwa: 26 Mei 2026"
+    "lastUpdated": "Imesasishwa: 26 Mei 2026",
+    "sections": [
+      {
+        "title": "1. Tunakusanya nini",
+        "body": "Borjie inakusanya data ya biashara yako ya mgodi — leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, royalty returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
+      },
+      {
+        "title": "2. Kwa nini",
+        "body": "Tunatumia data hii kuendesha Master Brain yako, kutoa briefing za asubuhi, kuandaa reports kwa Tumemadini na TRA, na kufanya hedge proposals kwenye gold-window. Hatuiuzi kwa watu wengine. Hatuitumii kwa matangazo."
+      },
+      {
+        "title": "3. Wapi inaishi",
+        "body": "Data yako iko kwenye database iliyo Tanzania (Dar es Salaam region kwenye Fly.io fra1 kama backup). Audit chain ipo per-tenant — tenant yako haiwezi kusoma chain ya tenant mwingine, hata kama wewe ni admin."
+      },
+      {
+        "title": "4. Haki zako",
+        "body": "Kwa mujibu wa Tanzania Personal Data Protection Act 2022, una haki ya kuangalia data yako, kurekebisha, kufuta, na kuhamisha kwa muuzaji mwingine. Tuma email kwa privacy@borjie.co.tz."
+      },
+      {
+        "title": "5. Tumemadini na NEMC",
+        "body": "Endapo mamlaka ya Tanzania (Tumemadini, NEMC, TRA, FIU) inahitaji data yako kwa mujibu wa sheria, tutawapa lakini tutakuarifu ndani ya siku 5 isipokuwa amri inayotaka tunyamaze imewekwa na korti."
+      },
+      {
+        "title": "6. Mawasiliano",
+        "body": "Sera hii inakuwa updated mara kwa mara. Mabadiliko makubwa tutakutumia notification ndani ya cockpit yako siku 30 kabla ya kuanza kutumika. Kwa swali lolote: privacy@borjie.co.tz."
+      }
+    ]
   },
   "termsPage": {
     "kicker": "Masharti",
     "heading": "Masharti ya Huduma ya Borjie",
-    "lastUpdated": "Imesasishwa: 26 Mei 2026"
+    "lastUpdated": "Imesasishwa: 26 Mei 2026",
+    "sections": [
+      {
+        "title": "1. Mkataba",
+        "body": "Kwa kutumia Borjie unakubali masharti haya. Borjie ni Borjie Tanzania Limited, kampuni iliyosajiliwa Tanzania (BRELA registration: pending). Mkataba unaongozwa na sheria za Tanzania. Sehemu yenye mamlaka ni Mahakama Kuu ya Tanzania Dar es Salaam."
+      },
+      {
+        "title": "2. Tiers na malipo",
+        "body": "Tiers tano: Mwanzo (bure), Mkulima (TZS 150,000/mwezi), Mfanyabiashara (TZS 500,000/mwezi), Kampuni (TZS 1,500,000/mwezi), Group (bespoke). Malipo kwa mwezi, mbele. Kushindwa kulipa kwa siku 14 kunazima kazi za autonomous (lakini huzima audit chain — historia yako inabaki yako milele)."
+      },
+      {
+        "title": "3. Data yako ni yako",
+        "body": "Wewe unamiliki data ya mgodi wako. Tunaweka tu kwa niaba yako. Ukifuta account, tutahamisha data yako (au kufuta) ndani ya siku 30. Audit chain inabaki immutable kwa mujibu wa sheria ya Tumemadini ya kuhifadhi rekodi."
+      },
+      {
+        "title": "4. Master Brain na uwajibikaji",
+        "body": "Master Brain anatekeleza kazi kwa kibali chako. Hatuhakikishi maamuzi yake bila kosa, lakini tunahakikisha kuwa kila kitendo kimerekodiwa kwenye audit chain. Endapo Borjie itasababisha hasara ya moja kwa moja kwa kasoro ya programu, dhima yetu imepunguzwa kwa malipo ya miezi 12 ya mwisho."
+      },
+      {
+        "title": "5. Vitendo vilivyokatazwa",
+        "body": "Hauwezi kutumia Borjie kuficha shughuli zilizo kinyume na sheria, kuepuka royalties za TRA, au kufanya money laundering. Ukianzisha shughuli yenye shaka, tutaiwajibisha mamlaka husika kwa mujibu wa sheria."
+      },
+      {
+        "title": "6. Kuvunja na kufungua tena",
+        "body": "Wewe au sisi tunaweza kuvunja mkataba kwa notice ya siku 30. Tukivunja, tutakuhamisha data ndani ya siku 60. Tunaweza kufunga account haraka kwa ukiukaji mkubwa wa masharti haya."
+      },
+      {
+        "title": "7. Mawasiliano",
+        "body": "Mabadiliko ya masharti: notice ya siku 30 kupitia cockpit yako. Kwa swali: legal@borjie.co.tz."
+      }
+    ]
+  },
+  "ownersPage": {
+    "kicker": "Kwa wamiliki wa migodi",
+    "heading": "Endesha mgodi wako kama wabora duniani.",
+    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/treasury, soko na compliance — yote kwenye operator mmoja mtulivu.",
+    "ctaPilot": "Omba pilot",
+    "ctaPricing": "Ona bei"
+  },
+  "buyersPage": {
+    "kicker": "Kwa wanunuzi wa madini na off-takers",
+    "heading": "Pata madini ya Tanzania yaliyothibitishwa. Mwanzo hadi mwisho.",
+    "sub": "Wauzaji wa KYC, vipimo vya mnyororo wa ushahidi, saini za alama ya kidole. Nunua kwa uhakika.",
+    "ctaSignup": "Jisajili kushiriki",
+    "ctaTalk": "Ongea na timu ya sourcing",
+    "ctaSignUpBuy": "Jisajili kununua",
+    "ctaPricingFees": "Bei na ada",
+    "regionsHeading": "Mikoa ya uchimbaji",
+    "regions": [
+      "Geita (dhahabu)",
+      "Mererani (tanzanite)",
+      "Kahama (coltan)",
+      "Mbeya (shaba)",
+      "Tunduru (vito)",
+      "Chunya (doré)"
+    ],
+    "navLabel": "Wanunuzi",
+    "marketplaceFeeKicker": "Ada ya soko",
+    "marketplaceFeeBody": "Bila ada ya uanachama. Bure kuvinjari na kutoa bei. Ada inalipwa tu wakati mauzo yanapokamilika.",
+    "valueProps": {
+      "kicker": "01 · Kwa nini wanunuzi wanaamini Borjie",
+      "heading": "Nguzo nne za usambazaji uliothibitishwa.",
+      "sub": "Kila gramu kwenye Borjie ina njia inayothibitishika kutoka shimo la kuchimba hadi kipimo cha mizani.",
+      "shortCards": [
+        {
+          "title": "Asili iliyothibitishwa",
+          "body": "Kila kifurushi cha madini kinapata mnyororo wa ushahidi tangu shimo la kuchimbia hadi pima ya mizani."
+        },
+        {
+          "title": "Wauzaji wameaminika",
+          "body": "Borjie inakagua kila leseni ya PML/PL/ML, NIDA ya mmiliki, na hali ya TRA kabla mauzaji hayajaweza kuorodhesha."
+        },
+        {
+          "title": "Vyeti vya assay vya LBMA",
+          "body": "Vipimo vya dhahabu, tanzanite, coltan na shaba kutoka maabara zilizoidhinishwa kimataifa."
+        },
+        {
+          "title": "Mikataba ya kidijitali",
+          "body": "Sahihi za alama ya kidole zisizoweza kupingwa — mikataba inashikamana mahakamani."
+        }
+      ],
+      "cards": {
+        "provenance": {
+          "title": "Asili iliyothibitishwa",
+          "blurb": "Mnyororo wa ushahidi kutoka drill-hole hadi weighbridge. Kila uhamisho umesainiwa, umetiwa muda, na kuandikwa kwenye audit chain."
+        },
+        "kyb": {
+          "title": "Wauzaji wa KYB",
+          "blurb": "Borjie inakagua kila muuzaji kabla ya kuorodhesha. BRELA, TRA, na Tumemadini cross-checks. Hakuna traders wasiojulikana."
+        },
+        "assays": {
+          "title": "Vyeti vya assay",
+          "blurb": "Maabara za kiwango cha LBMA Dar es Salaam na Mwanza. Fire assay kwa dhahabu, ICP-MS kwa coltan, vyeti vya gemmological kwa tanzanite."
+        },
+        "biometric": {
+          "title": "Off-take ya alama ya kidole",
+          "blurb": "Mikataba imesainiwa kwa alama ya kidole pamoja na liveness. Haipingiki. Kila saini imewekwa kwenye audit chain."
+        }
+      }
+    },
+    "useCases": {
+      "kicker": "02 · Hadithi za matumizi",
+      "heading": "Wanunuzi tayari kwenye platform.",
+      "sub": "Mahusiano ya pilot yameonyeshwa — biashara halisi bado zinaingia. Itabadilishwa na case studies zilizothibitishwa baadaye.",
+      "cards": {
+        "gold": {
+          "tag": "Gold doré",
+          "buyer": "Pamoja Refinery",
+          "location": "Dar es Salaam",
+          "blurb": "Inapata kg 40-60/mwezi za doré kutoka clusters za PML za Geita na Kahama. Mnyororo wa Borjie unairuhusu refinery kuruka due diligence yake ya field."
+        },
+        "tanzanite": {
+          "tag": "Tanzanite rough",
+          "buyer": "Heritage TZ Gemstones",
+          "location": "Arusha",
+          "blurb": "Inashiriki kwenye bidding ya Mererani Block-D rough kila Jumanne. Cheti cha gemmological cha Borjie pamoja na biometric off-take huleta lot ndani ya saa 48."
+        },
+        "coltan": {
+          "tag": "Coltan concentrate",
+          "buyer": "Dar Gold Traders",
+          "location": "Dar es Salaam",
+          "blurb": "Coltan iliyopimwa kwa ICP-MS kutoka maeneo madogo ya Kigoma. Audit chain inatoa njia ya OECD due diligence ambayo wanunuzi wa EU wanahitaji."
+        }
+      }
+    },
+    "pricing": {
+      "kicker": "03 · Bei",
+      "heading": "Bure kuvinjari. Commission kwenye biashara zilizokamilika.",
+      "sub": "Wanunuzi hawalipi kitu kujisajili, kutafuta, na kuweka bid. Borjie inachukua 2.5% commission kwenye bei ya mwisho ya biashara unayoifunga kwenye platform.",
+      "bullets": [
+        "Bure kujisajili na KYB",
+        "Bure kuvinjari na kuweka bid",
+        "2.5% commission kwenye biashara zilizokamilika pekee",
+        "Hakuna ada ya mafanikio kwenye bids zisizokamilika",
+        "Vyeti vya assay vinaingia ndani ya commission"
+      ],
+      "footnote": "Commission ya upande wa mnunuzi inahesabiwa kwa thamani ya jumla iliyolipwa, inaonyeshwa kwenye kusaini off-take, kulipwa kwa TZS au USD kwa mkataba."
+    },
+    "downloadCta": {
+      "heading": "Jisajili kushiriki.",
+      "sub": "Buyer mobile app iko katika upimaji wa kibinafsi pamoja na wanunuzi kumi na sita wa Tanzania na Afrika Mashariki. Jiunge na waitlist kwa toleo la umma la Septemba 2026.",
+      "primary": "Jiunge na buyer waitlist",
+      "secondary": "Ongea na timu ya sourcing"
+    }
+  },
+  "investorsPage": {
+    "kicker": "Kwa wawekezaji na wakopeshaji",
+    "heading": "Mtaji wa madini ukiwa na telemetry.",
+    "sub": "Borjie inawapa wakopeshaji na LPs briefs za kila siku zenye ushahidi kwenye kila deployment — uzalishaji, cash runway, FX exposure, hali ya mamlaka.",
+    "ctaSchedule": "Panga simu",
+    "ctaAuditPack": "Ona audit pack",
+    "valueProps": {
+      "kicker": "01 · Kwa nini wagawa mitaji wanachagua Borjie",
+      "heading": "Nguzo nne za ushahidi kwa wawekezaji.",
+      "sub": "Imejengwa kwa swali la mkopeshaji: kinachoendelea uwanjani leo ni nini.",
+      "cards": {
+        "dailyBrief": {
+          "title": "Reports za kila siku zenye ushahidi",
+          "blurb": "Kila asubuhi saa 06:00 kila mgodi wa portfolio unaandaa brief inayofunika uzalishaji, hazina, hali ya leseni, na matukio. Imenukuliwa line-by-line kwenye data ya chanzo."
+        },
+        "usdCliff": {
+          "title": "Remediation ya USD cliff ya 27-Mar-2026",
+          "blurb": "Inafuatilia USD exposure dhidi ya tarehe ya cliff ya kanuni. Inapendekeza hedges, sarafu mbadala za invoice, na settlement za gold-window."
+        },
+        "auditPack": {
+          "title": "Export ya audit-pack",
+          "blurb": "One-click export ya cryptographic audit chain, leseni, royalty returns, OSHA logs, na bank reconciliations kwa due diligence."
+        },
+        "treasury": {
+          "title": "Treasury simulation",
+          "blurb": "Stress-test ya muda wa off-take, mabadiliko ya bei ya dhahabu, na TZS/USD swings. Ona athari kwenye covenant ratios kabla ya kutokea."
+        }
+      }
+    },
+    "caseStudy": {
+      "kicker": "02 · Case study",
+      "heading": "Deployment ya mfano.",
+      "sub": "Hakuna deals zilizofungwa bado. Nambari hapa chini zinaonyesha jinsi audit pack ya Borjie ingewaonyesha senior secured lender cluster ya kawaida ya PML ya kati Geita.",
+      "disclaimer": "Ya mfano tu. Nambari ni za mfano, hazitoki kwenye deal halisi iliyofungwa.",
+      "metrics": {
+        "deployment": {
+          "label": "Deployment",
+          "value": "USD 4.2M senior secured"
+        },
+        "cluster": {
+          "label": "Cluster",
+          "value": "Geita PML · sites 9"
+        },
+        "production": {
+          "label": "Run-rate",
+          "value": "184 oz Au / mwezi"
+        },
+        "runway": {
+          "label": "Cash runway",
+          "value": "Wiki 18.3"
+        },
+        "ltv": {
+          "label": "LTV (proven ounces)",
+          "value": "32%"
+        },
+        "covenant": {
+          "label": "DSCR covenant",
+          "value": "1.85x · mbele"
+        }
+      },
+      "bullets": [
+        "Brief ya kila siku saa 06:00 inapelekwa kwenye lender dashboard",
+        "Cryptographic audit chain kwenye kila uhamisho wa PML",
+        "DSCR ya mfano inaprojectwa upya kila asubuhi",
+        "USD cliff exposure inafuatiliwa kila wiki"
+      ]
+    },
+    "contact": {
+      "kicker": "03 · Panga simu",
+      "heading": "Maswali ya kitaasisi.",
+      "sub": "Kwa wakopeshaji, LPs, family offices, na DFIs wanaopenda exposure iliyoundwa kwa madini ya Tanzania pamoja na cryptographic audit chains.",
+      "fields": {
+        "name": "Jina lako",
+        "organisation": "Shirika",
+        "email": "Email ya kazi",
+        "role": "Nafasi yako",
+        "ticketSize": "Ukubwa wa ticket wa mfano (USD)",
+        "message": "Ungependa kuongea kuhusu nini?"
+      },
+      "submit": "Panga simu",
+      "success": "Asante. Timu yetu itajibu ndani ya siku 2 za kazi.",
+      "error": "Hatukuweza kutuma fomu. Tafadhali tuma email kwa investors@borjie.co.tz."
+    }
+  },
+  "blog": {
+    "kicker": "Blog",
+    "heading": "Maelezo ya uwanjani kutoka madini ya Tanzania.",
+    "sub": "Maandishi kuhusu leseni, treasury, geology, na ujenzi wa polepole wa mfumo wa uendeshaji wa AI kwa sekta.",
+    "readMore": "Soma article",
+    "minRead": "dakika za kusoma",
+    "backToBlog": "Rudi kwenye articles zote"
+  },
+  "caseStudies": {
+    "kicker": "Case studies",
+    "heading": "Case studies za pilot zinakuja Q3 2026.",
+    "sub": "Waanzilishi kumi katika Geita, Mererani, na Songwe wanaendesha pilot za wiki 12. Cohort ya kwanza ikikamilika tutaweka case studies kamili — kupanda kwa uzalishaji, kupungua kwa cash-cycle, matokeo ya audit.",
+    "placeholderBadge": "Bado inaendelea",
+    "back": "Rudi nyumbani"
+  },
+  "careers": {
+    "kicker": "Ajira",
+    "heading": "Jenga mfumo wa uendeshaji ambao madini ya Tanzania yanastahili.",
+    "sub": "Timu ndogo, muktadha wa kina wa madini, Swahili-kwanza. Hybrid Dar es Salaam / remote. Tunaajiri kwa ladha, hukumu, na uangalifu.",
+    "openRoles": "Nafasi zilizo wazi",
+    "applyCta": "Omba kupitia careers@borjie.co.tz",
+    "roles": {
+      "domain": {
+        "title": "Mtaalamu wa madini wa Tanzania",
+        "location": "Dar es Salaam · hybrid",
+        "blurb": "Mining engineer mwandamizi au geologist mwenye uzoefu wa kina wa PML/ML/SML na Tumemadini. Unakuwa mtoa-ukweli wa kile bidhaa yetu inapaswa kufanya."
+      },
+      "engineer": {
+        "title": "TypeScript engineer mwandamizi",
+        "location": "Remote · UTC+0 hadi UTC+3",
+        "blurb": "Multi-tenant, Postgres, Hono, Next 15, AI-native. Unasafirisha mwanzo hadi mwisho na unachukulia kila line kana kwamba itakuwa kwenye audit ya mamlaka."
+      },
+      "pilot": {
+        "title": "Meneja wa mafanikio wa pilot",
+        "location": "Geita au Mwanza · uwanjani",
+        "blurb": "Unaishi kwenye pilot sites zetu. Unajua kila operator kwa jina. Unatafsiri uhalisia wa uwanjani kuwa product backlog kila wiki."
+      }
+    },
+    "values": {
+      "heading": "Jinsi tunavyofanya kazi",
+      "items": [
+        "Swahili-kwanza. Kiingereza ni lugha ya pili, sio default.",
+        "Uhalisia wa uwanjani unashinda slide decks. Kila PM anatembelea pilot site kila robo mwaka.",
+        "Cryptographic audit chain haijadiliwi. Kila kitendo kimesainiwa.",
+        "Maongezi rahisi. Hatusemi synergy. Tunasema kilichotokea leo."
+      ]
+    }
+  },
+  "about": {
+    "kicker": "Kuhusu Borjie",
+    "heading": "Mfumo wa uendeshaji uliojengwa kwa na na madini ya Tanzania.",
+    "sub": "Borjie ilianzishwa na timu ndogo ya Tanzania na diaspora baada ya kuona kizazi kingine cha operators kikiendesha amana za kiwango cha kimataifa kwenye spreadsheets.",
+    "originHeading": "Hadithi ya asili",
+    "originBody": "Tulikutana Geita na Dar es Salaam mwaka 2024, tukibadilishana maelezo kuhusu kwa nini kila ERP ya madini ilihisi imeundwa kwa nchi ya mtu mwingine. Kufikia mwanzo wa 2026 tulikuwa na Master Brain inayofanya kazi na pilot kumi. Lengo lilibaki lilelile: mfumo wa uendeshaji unaoheshimu jinsi madini ya Tanzania yanavyofanya kazi kweli — KYC kwa wachimbaji wadogo, hesabu za royalty ambazo TRA inazitambua, briefings kwa Kiswahili saa 06:00.",
+    "teamHeading": "Timu",
+    "teamSub": "Tanzania na diaspora. Madini, fintech, AI infrastructure. Hybrid Dar es Salaam.",
+    "valuesHeading": "Maadili",
+    "values": [
+      {
+        "title": "Tanzania-kwanza",
+        "body": "Tunaboresha kwa mgodi, lugha, mamlaka, na sarafu ambazo operators wetu wanazitumia kweli."
+      },
+      {
+        "title": "Cryptographically honest",
+        "body": "Kila kitendo kinasimama kwenye append-only chain. Mamlaka, wakopeshaji, na operators wanaweza kuthibitisha bila kutuamini."
+      },
+      {
+        "title": "Mtulivu kwa default",
+        "body": "Madini hayahitaji dashibodi nyingine yenye rangi nyekundu. Master Brain anashughulika usiku. Operators wanapata brief wazi, mtulivu saa 06:00."
+      }
+    ],
+    "contactHeading": "Wasiliana",
+    "contactBody": "hello@borjie.co.tz · +255 22 211 4000 · Dar es Salaam · UTC+3"
+  },
+  "statusPage": {
+    "kicker": "Hali ya mfumo",
+    "heading": "Hali ya Borjie",
+    "sub": "Hali ya sasa ya huduma zetu na historia ya siku 90 zilizopita.",
+    "subscribeNote": "Hali hii inasasishwa kila baada ya sekunde 30. Iwapo kuna tatizo kubwa, tutawasilisha taarifa kwa wateja wote walioathirika kupitia barua pepe."
+  },
+  "status": {
+    "overall": {
+      "ok": "Mifumo yote inafanya kazi vizuri",
+      "degraded": "Baadhi ya huduma zina utendaji uliopungua",
+      "outage": "Tunashughulikia tatizo",
+      "unknown": "Hali haifahamiki"
+    },
+    "componentLabel": {
+      "api-gateway": "API Gateway",
+      "database": "Database",
+      "auth": "Auth",
+      "storage": "Storage",
+      "workers": "Workers",
+      "realtime": "Realtime"
+    },
+    "statusLabel": {
+      "ok": "Inafanya kazi",
+      "degraded": "Utendaji umepungua",
+      "outage": "Haifanyi kazi",
+      "unknown": "Haifahamiki"
+    },
+    "uptimeLabel": "Uptime",
+    "lastChangeLabel": "Mabadiliko ya mwisho",
+    "windowLabelPrefix": "Historia ya siku ",
+    "windowLabelSuffix": "",
+    "loading": "Inapakia hali...",
+    "error": "Imeshindwa kupakia hali ya mfumo.",
+    "retry": "Jaribu tena"
   }
 }

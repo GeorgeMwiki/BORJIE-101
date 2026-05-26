@@ -15,9 +15,8 @@ import { getMessages, type Locale } from '@/lib/i18n';
 export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
   const [level, setLevel] = useState(1);
   const t = getMessages(locale).autonomy;
-  const labels = labelCopy(locale);
-
-  const capabilities = capabilityCopy(locale);
+  const labels = t.labels;
+  const capabilities = t.capabilities;
   const blurb = [t.levels.advise, t.levels.propose, t.levels.executeWithApproval, t.levels.autonomous][level];
 
   return (
@@ -136,53 +135,4 @@ export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
       </div>
     </section>
   );
-}
-
-function labelCopy(locale: Locale) {
-  if (locale === 'sw') {
-    return {
-      dialLabel: 'Ngazi ya uhuru',
-      steps: ['Shauri', 'Andaa', 'Tekeleza kwa idhini', 'Otomatiki'],
-      redLineKicker: 'Mstari mwekundu',
-      redLineBody:
-        'Master Brain haweti kamwe royalty TRA peke yake, hatumi NEMC EIA peke yake, na hauziwi dhahabu zaidi ya uncia 200 bila idhini ya mtumiaji. Si kwa ngazi yoyote.',
-      redLineTag: 'Mstari mwekundu · siyo otomatiki',
-      autonomousTag: 'Otomatiki kwenye ngazi hii',
-      unlocksAtL: 'Inafunguliwa L',
-    };
-  }
-  return {
-    dialLabel: 'Autonomy level',
-    steps: ['Advise', 'Propose', 'Execute-with-approval', 'Autonomous'],
-    redLineKicker: 'Red-line guarantee',
-    redLineBody:
-      'The Master Brain never auto-files royalty to TRA, never auto-submits NEMC EIA, and never auto-sells gold above 200 oz. At any autonomy level. Ever.',
-    redLineTag: 'Red-line · never autonomous',
-    autonomousTag: 'Autonomous at this level',
-    unlocksAtL: 'Unlocks at L',
-  };
-}
-
-function capabilityCopy(locale: Locale) {
-  const sw = [
-    { id: 'price', label: 'Andika daily price brief', minLevel: 0 },
-    { id: 'shift', label: 'Toa shift handover report', minLevel: 1 },
-    { id: 'vendor', label: 'Lipa vendor PO ndogo (< TZS 5M)', minLevel: 2 },
-    { id: 'hedge', label: 'Funga FX hedge ya wiki', minLevel: 2 },
-    { id: 'pml', label: 'Wasilisha PML renewal Tumemadini', minLevel: 99 },
-    { id: 'royalty', label: 'Wasilisha royalty TRA', minLevel: 99 },
-    { id: 'nemc', label: 'Wasilisha NEMC EIA', minLevel: 99 },
-    { id: 'sale', label: 'Uza dhahabu > 200 oz', minLevel: 99 },
-  ];
-  const en = [
-    { id: 'price', label: 'Draft daily price brief', minLevel: 0 },
-    { id: 'shift', label: 'Issue shift handover report', minLevel: 1 },
-    { id: 'vendor', label: 'Settle small vendor POs (< TZS 5M)', minLevel: 2 },
-    { id: 'hedge', label: 'Place weekly FX hedge', minLevel: 2 },
-    { id: 'pml', label: 'File PML renewal to Tumemadini', minLevel: 99 },
-    { id: 'royalty', label: 'File royalty return to TRA', minLevel: 99 },
-    { id: 'nemc', label: 'Submit NEMC EIA', minLevel: 99 },
-    { id: 'sale', label: 'Sell gold > 200 oz', minLevel: 99 },
-  ];
-  return locale === 'sw' ? sw : en;
 }

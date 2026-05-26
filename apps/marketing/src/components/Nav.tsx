@@ -2,16 +2,35 @@ import Link from 'next/link';
 import { LanguageToggle } from './LanguageToggle';
 import { getMessages, type Locale } from '@/lib/i18n';
 
-function Wordmark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
-  return <span className={`font-display font-bold tracking-tight ${cls}`}>Borjie</span>;
+interface WordmarkProps {
+  readonly size?: 'sm' | 'md' | 'lg';
+  /** When true, paints the wordmark with the brand gradient. */
+  readonly premium?: boolean;
 }
-function Logomark({ size = 24 }: { size?: number }) {
+function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
+  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
+  const tone = premium
+    ? 'bg-gradient-to-r from-[oklch(0.78_0.16_75)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
+    : '';
+  return (
+    <span className={`font-display font-bold tracking-tight ${cls} ${tone}`}>Borjie</span>
+  );
+}
+interface LogomarkProps {
+  readonly size?: number;
+  readonly className?: string;
+}
+function Logomark({ size = 24, className = '' }: LogomarkProps) {
   return (
     <span
       aria-hidden="true"
-      className="inline-block rounded-md"
-      style={{ width: size, height: size, background: 'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))' }}
+      className={`inline-block rounded-md ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background:
+          'linear-gradient(135deg, oklch(0.58 0.12 65), oklch(0.78 0.16 75))',
+      }}
     />
   );
 }
@@ -25,7 +44,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).nav;
   const items = [
     { href: '/#product', label: t.product },
-    { href: '/buyers', label: locale === 'sw' ? 'Wanunuzi' : 'Buyers' },
+    { href: '/buyers', label: t.buyers },
     { href: '/pricing', label: t.pricing },
     { href: '/pilot', label: t.pilot },
     { href: '/docs', label: t.docs },

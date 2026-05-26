@@ -22,6 +22,11 @@ import { authMiddleware } from '../middleware/hono-auth';
 /**
  * The router dispatches at runtime — we depend only on Hono's generic
  * `Context.get/json` surface, so the broad context type is sufficient.
+ *
+ * Note: handlers wrapped by `zValidator` use `any` for the context type
+ * because Hono v4's MiddlewareHandler inference does not propagate the
+ * validator's output shape through a downstream `withSecurityEvents`
+ * wrapper. Pinning to `Context` would erase `c.req.valid('json')`.
  */
 type AnyContext = Context;
 
@@ -94,7 +99,8 @@ function notImplemented(c: AnyContext) {
   );
 }
 
-app.post('/sensors', zValidator('json', RegisterSensorSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/sensors', zValidator('json', RegisterSensorSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -147,7 +153,8 @@ app.get('/sensors/:id', async (c: AnyContext) => {
   return c.json({ success: true, data: sensor });
 });
 
-app.post('/sensors/:id/observations', zValidator('json', ObservationSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/sensors/:id/observations', zValidator('json', ObservationSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -182,9 +189,10 @@ app.get('/sensors/:id/observations', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
-  const from = c.req.query('from') ? new Date(c.req.query('from')) : undefined;
+  const fromRaw = c.req.query('from');
+  const since = fromRaw ? new Date(fromRaw) : undefined;
   const limit = c.req.query('limit') ? Number(c.req.query('limit')) : 100;
-  const items = await s.listObservations(auth.tenantId, c.req.param('id'), { from, limit });
+  const items = await s.listObservations(auth.tenantId, c.req.param('id'), { since, limit });
   return c.json({ success: true, data: items });
 });
 
@@ -192,27 +200,33 @@ app.get('/anomalies', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
+  // severity is a free-form query string. Only forward values that match
+  // the domain `IotAnomalySeverity` union — anything else is dropped so
+  // the service receives a clean `undefined` instead of a bogus literal.
+  const sevRaw = c.req.query('severity');
+  const sevAllowed = ['low', 'medium', 'high', 'critical'] as const;
+  const severity = sevRaw && (sevAllowed as readonly string[]).includes(sevRaw)
+    ? (sevRaw as typeof sevAllowed[number])
+    : undefined;
   const filters = {
     sensorId: c.req.query('sensorId') || undefined,
-    // severity is a free-form query string; service validates the value.
-    severity: (c.req.query('severity') ?? undefined) as
-      | 'info'
-      | 'warning'
-      | 'critical'
-      | undefined,
-    unresolvedOnly: c.req.query('unresolved') === 'true' ? true : undefined,
+    severity,
+    unresolved: c.req.query('unresolved') === 'true' ? true : undefined,
   };
   const items = await s.listAnomalies(auth.tenantId, filters);
   return c.json({ success: true, data: items });
 });
 
-app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
-  const body = c.req.valid('json');
+  // AckSchema's `notes` is informational — the service signature only
+  // takes (tenantId, anomalyId, userId), so we discard the body field.
+  c.req.valid('json');
   const s = svc(c);
   if (!s) return notImplemented(c);
   try {
-    const out = await s.acknowledgeAnomaly(auth.tenantId, c.req.param('id'), auth.userId, body.notes);
+    const out = await s.acknowledgeAnomaly(auth.tenantId, c.req.param('id'), auth.userId);
     return c.json({ success: true, data: out });
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string } | undefined;
@@ -223,13 +237,16 @@ app.post('/anomalies/:id/acknowledge', zValidator('json', AckSchema), withSecuri
   }
 }));
 
-app.post('/anomalies/:id/resolve', zValidator('json', ResolveSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/anomalies/:id/resolve', zValidator('json', ResolveSchema), withSecurityEvents({ action: 'iot.create', resource: 'iot', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
   if (!s) return notImplemented(c);
   try {
-    const out = await s.resolveAnomaly(auth.tenantId, c.req.param('id'), auth.userId, body.notes);
+    // Service requires non-empty resolution notes — fall back to a placeholder
+    // when the optional schema field is absent so the call still validates.
+    const out = await s.resolveAnomaly(auth.tenantId, c.req.param('id'), body.notes ?? 'resolved', auth.userId);
     return c.json({ success: true, data: out });
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string } | undefined;

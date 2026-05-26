@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 
@@ -66,11 +67,12 @@ export default async function RootLayout({
   readonly children: React.ReactNode;
 }) {
   const locale = await getLocale();
+  const t = getMessages(locale).common;
   return (
     <html lang={locale} className="dark">
       <body className="bg-background text-foreground antialiased min-h-screen">
         <a href="#main-content" className="skip-link">
-          {locale === 'sw' ? 'Ruka kwenye maudhui' : 'Skip to main content'}
+          {t.skipToContent}
         </a>
         {children}
         <CookieConsent locale={locale} />

@@ -13,6 +13,7 @@ import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
 import { StatusBoard } from '@/components/StatusBoard';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'System Status — Borjie',
@@ -20,33 +21,9 @@ export const metadata: Metadata = {
     'Live status and 90-day uptime for the Borjie platform — API gateway, database, auth, storage, workers, realtime.',
 };
 
-interface StatusCopy {
-  readonly kicker: string;
-  readonly heading: string;
-  readonly sub: string;
-  readonly subscribeNote: string;
-}
-
-const COPY: Record<'sw' | 'en', StatusCopy> = {
-  sw: {
-    kicker: 'Hali ya mfumo',
-    heading: 'Hali ya Borjie',
-    sub: 'Hali ya sasa ya huduma zetu na historia ya siku 90 zilizopita.',
-    subscribeNote:
-      'Hali hii inasasishwa kila baada ya sekunde 30. Iwapo kuna tatizo kubwa, tutawasilisha taarifa kwa wateja wote walioathirika kupitia barua pepe.',
-  },
-  en: {
-    kicker: 'System status',
-    heading: 'Borjie status',
-    sub: 'Live status of our services and a 90-day uptime history.',
-    subscribeNote:
-      'This page refreshes every 30 seconds. For major incidents, we email all affected customers directly.',
-  },
-};
-
 export default async function StatusPage() {
   const locale = await getLocale();
-  const c = COPY[locale];
+  const c = getMessages(locale).statusPage;
 
   return (
     <>

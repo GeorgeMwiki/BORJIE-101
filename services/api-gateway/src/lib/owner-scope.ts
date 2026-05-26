@@ -222,7 +222,7 @@ export async function getOwnerScope(
   // undefined (e.g. mock stubs that haven't implemented the method yet).
   const workOrders: readonly OwnerEntityRow[] = Array.isArray(workOrdersResult)
     ? workOrdersResult
-    : (workOrdersResult?.items ?? []);
+    : ((workOrdersResult as PaginatedRows<OwnerEntityRow> | undefined)?.items ?? []);
 
   const vendorIds = Array.from(
     new Set(

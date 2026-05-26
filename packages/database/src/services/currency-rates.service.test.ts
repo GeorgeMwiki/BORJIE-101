@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createCurrencyRatesService } from './currency-rates.service.js';
+import { logger } from '../logger.js';
 import type { DatabaseClient } from '../client.js';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -61,13 +62,15 @@ function makeStubDb(rows: ReadonlyArray<StubRow> | Error): DatabaseClient {
 describe('createCurrencyRatesService', () => {
   // Inferred-type holders (vi.spyOn's generic return widens awkwardly
   // when annotated explicitly across vitest minor versions; let
-  // inference do the work).
-  let warnSpy = vi.spyOn(console, 'warn');
-  let errorSpy = vi.spyOn(console, 'error');
+  // inference do the work). The service emits warn/error through the
+  // pino-backed `logger` module (per CLAUDE.md "no console.* in services"),
+  // so we spy on the logger object directly rather than the console.
+  let warnSpy = vi.spyOn(logger, 'warn');
+  let errorSpy = vi.spyOn(logger, 'error');
 
   beforeEach(() => {
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

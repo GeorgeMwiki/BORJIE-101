@@ -34,9 +34,7 @@ export default async function PilotPage() {
         </div>
 
         <p className="mt-8 text-sm text-neutral-400">
-          {locale === 'sw'
-            ? 'Maswali? Tuma email kwa pilot@borjie.co.tz au piga +255 22 211 4000.'
-            : 'Questions? Email pilot@borjie.co.tz or call +255 22 211 4000.'}
+          {t.contact}
         </p>
       </main>
       <Footer locale={locale} />

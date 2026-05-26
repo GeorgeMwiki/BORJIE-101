@@ -27,9 +27,17 @@ import {
 } from '../schemas/user-action-tracker.schema.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// The mining hard-fork relocated the BossNyumba migration tree from
+// `src/migrations/` to `.archive/migrations/`; the user-action-tracker
+// schema is still active (it's domain-agnostic UI telemetry), but the
+// migration file moved with the rest of the property-domain SQL. Keep
+// the contract test pointing at the archived file so the SQL invariants
+// (PK shape, RLS policies, idempotency loop) are still asserted.
 const MIGRATION_PATH = join(
   HERE,
   '..',
+  '..',
+  '.archive',
   'migrations',
   '0183_user_action_tracker.sql',
 );

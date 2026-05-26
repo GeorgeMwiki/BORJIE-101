@@ -104,7 +104,8 @@ app.post(
   '/',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   zValidator('json', PersonaSchema),
-  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: AnyContext) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+  withSecurityEvents({ action: 'persona.create', resource: 'persona', severity: 'info' }, async (c: any) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const body = c.req.valid('json');
@@ -125,7 +126,8 @@ app.put(
   '/:id',
   requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   zValidator('json', PersonaPatchSchema),
-  withSecurityEvents({ action: 'persona.update', resource: 'persona', severity: 'info' }, async (c: AnyContext) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+  withSecurityEvents({ action: 'persona.update', resource: 'persona', severity: 'info' }, async (c: any) => {
     const r = reg(c);
     if (!r) return notImplemented(c);
     const id = c.req.param('id');

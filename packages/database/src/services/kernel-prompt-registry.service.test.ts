@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createKernelPromptRegistryService } from './kernel-prompt-registry.service.js';
+import { logger } from '../logger.js';
 import type { DatabaseClient } from '../client.js';
 
 interface InMemRow {
@@ -232,12 +233,14 @@ vi.mock('drizzle-orm', async () => {
 describe('createKernelPromptRegistryService', () => {
   let stub: StubDb;
   let svc: ReturnType<typeof createKernelPromptRegistryService>;
-  let errorSpy = vi.spyOn(console, 'error');
+  // The service emits failure paths through the pino-backed `logger.error`
+  // helper (not console.error), so we spy on the logger module directly.
+  let errorSpy = vi.spyOn(logger, 'error');
 
   beforeEach(() => {
     stub = makeStub();
     svc = createKernelPromptRegistryService(stub.client);
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

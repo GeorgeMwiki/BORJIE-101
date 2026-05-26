@@ -86,6 +86,7 @@ import { universalMarketplaceRouter } from './routes/marketplace/index.js';
 // Public marketing surface — pilot applications + future PR contact
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
+import { translateRouter } from './routes/translate.hono';
 import { createMigrationRouter } from './routes/migration.router';
 // REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
 import { createNotificationPreferencesRouter } from './routes/notification-preferences.router';
@@ -778,6 +779,10 @@ api.route('/letters', lettersRouter);
 api.route('/marketplace', marketplaceRouter);
 api.route('/marketplace-universal', universalMarketplaceRouter);
 api.route('/marketing', marketingRouter);
+// Borjie locale-toggle re-translation — see routes/translate.hono.ts.
+// Mounted publicly (no auth) because the widget translates already-visible
+// chat content; cached in Redis with sha256(text+from+to+context) keys.
+api.route('/translate', translateRouter);
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot

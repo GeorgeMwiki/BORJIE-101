@@ -1,4 +1,7 @@
 {
+  "common": {
+    "skipToContent": "Skip to main content"
+  },
   "nav": {
     "owners": "Owners",
     "buyers": "Buyers",
@@ -26,11 +29,18 @@
   },
   "hero": {
     "kicker": "AI-native OS for Tanzanian mining",
+    "swahiliFirstBadge": "Swahili-first",
     "headline": "Run your mine like the world's best.",
     "sub": "AI-native operating system. Tanzanian-first. Multi-tenant. Multi-lingual.",
     "ctaPilot": "Apply for pilot",
     "ctaDemo": "View live demo",
-    "trustline": "Geita · Mererani · Kahama · Songwe"
+    "trustline": "Geita · Mererani · Kahama · Songwe",
+    "stats": {
+      "pilotRegions": "Pilot regions",
+      "bilingual": "Bilingual",
+      "baseCurrency": "Base currency",
+      "masterBrain": "Master Brain"
+    }
   },
   "capabilities": {
     "kicker": "01 · Core capabilities",
@@ -70,24 +80,94 @@
       "one": {
         "label": "Sign-up + KYB",
         "title": "Register and verify your business.",
-        "body": "We integrate with BRELA, TRA, and Tumemadini. Full KYB inside 48 hours. No paper forms."
+        "body": "We integrate with BRELA, TRA, and Tumemadini. Full KYB inside 48 hours. No paper forms.",
+        "bullets": [
+          "BRELA · TRA · Tumemadini APIs",
+          "Full KYB inside 48 hours",
+          "Swahili or English from day one"
+        ]
       },
       "two": {
         "label": "Import",
         "title": "Bring your licences and sites.",
-        "body": "Upload PML/ML/SML licences, pit maps, drill-hole logs. Your mine's knowledge graph builds itself."
+        "body": "Upload PML/ML/SML licences, pit maps, drill-hole logs. Your mine's knowledge graph builds itself.",
+        "bullets": [
+          "PML, ML, SML upload with OCR",
+          "Pit maps as GeoJSON or PDF",
+          "Drill-hole logs as CSV or laboratory PDF"
+        ]
       },
       "three": {
         "label": "Master Brain",
         "title": "Master Brain takes over.",
-        "body": "Starts in shadow mode for 14 days. You see what it would have done. Then you grant authority, step by step."
+        "body": "Starts in shadow mode for 14 days. You see what it would have done. Then you grant authority, step by step.",
+        "bullets": [
+          "14-day shadow mode",
+          "Autonomy dial — you set the pace",
+          "Audit chain on every action"
+        ]
       }
     }
   },
   "brief": {
     "kicker": "03 · Daily Brief",
     "heading": "Your first minute at 06:00.",
-    "sub": "The Master Brain handled overnight operations. Here's what it did, what it flagged, and what the numbers say."
+    "sub": "The Master Brain handled overnight operations. Here's what it did, what it flagged, and what the numbers say.",
+    "demo": {
+      "greeting": "Good morning, Mr. Salim.",
+      "intro": "Mine is calm. Three decisions need you before 09:00.",
+      "stats": {
+        "overnightActions": "Overnight actions",
+        "decisions": "Decisions",
+        "goldOz": "Gold (oz)",
+        "cashTzs": "Cash (TZS)"
+      },
+      "streamingLabel": "Streaming · night of 25 May",
+      "lines": [
+        {
+          "time": "22:14",
+          "domain": "Geita pit · shift B",
+          "body": "Shift B delivered 184 t at 3.2 g/t. Logged to drill-hole log MR-241.",
+          "tone": "good",
+          "tag": "OK"
+        },
+        {
+          "time": "23:47",
+          "domain": "Mererani vendor",
+          "body": "Vendor \"Kahama Logistics\" delayed payment on 12 t. Routed to you for extension approval.",
+          "tone": "warn",
+          "tag": "!"
+        },
+        {
+          "time": "01:33",
+          "domain": "PML 0241/2023 · Kahama",
+          "body": "Licence expires in 47 days. Tumemadini renewal form drafted for your review.",
+          "tone": "warn",
+          "tag": "!"
+        },
+        {
+          "time": "03:05",
+          "domain": "Treasury · gold-window",
+          "body": "LBMA spot up 1.4% inside 6 hours. Hedge proposal for 60 oz drafted.",
+          "tone": "good",
+          "tag": "TX"
+        },
+        {
+          "time": "04:18",
+          "domain": "NEMC EIA · Songwe",
+          "body": "Quarterly emissions report submitted to NEMC. Acknowledgement #2604-A.",
+          "tone": "good",
+          "tag": "OK"
+        },
+        {
+          "time": "05:42",
+          "domain": "Royalty return · TRA",
+          "body": "April royalty drafted: TZS 18.4M. Needs your signature before filing.",
+          "tone": "flag",
+          "tag": "YOU"
+        }
+      ]
+    }
   },
   "ask": {
     "kicker": "04 · Talk to your mine",
@@ -100,7 +180,15 @@
       "Compute trailing 4-week burn rate"
     ],
     "answer": "You hold TZS 412M in cash and 184 oz of gold worth TZS 1.18B at today's spot. Trailing 4-week burn is TZS 87M/wk. That gives you 18.3 weeks of runway — or 22 weeks if the February Geita off-take settles on time.",
-    "evidence": "Evidence: TRA bank-feed · LBMA spot · off-take MR-241"
+    "evidence": "Evidence: TRA bank-feed · LBMA spot · off-take MR-241",
+    "showcase": {
+      "kicker": "Ask your mine",
+      "title": "I am the mine.",
+      "subtitle": "First-person · grounded in the knowledge graph",
+      "youAsked": "You asked",
+      "plan": "Plan · streaming",
+      "answerLabel": "Answer"
+    }
   },
   "autonomy": {
     "kicker": "05 · Autonomy Dial",
@@ -111,12 +199,97 @@
       "propose": "Drafts proposals. You send.",
       "executeWithApproval": "Acts with your approval at each step.",
       "autonomous": "Acts on its own inside your policy. Red-lines still need approval."
-    }
+    },
+    "labels": {
+      "dialLabel": "Autonomy level",
+      "steps": ["Advise", "Propose", "Execute-with-approval", "Autonomous"],
+      "redLineKicker": "Red-line guarantee",
+      "redLineBody": "The Master Brain never auto-files royalty to TRA, never auto-submits NEMC EIA, and never auto-sells gold above 200 oz. At any autonomy level. Ever.",
+      "redLineTag": "Red-line · never autonomous",
+      "autonomousTag": "Autonomous at this level",
+      "unlocksAtL": "Unlocks at L"
+    },
+    "capabilities": [
+      { "id": "price", "label": "Draft daily price brief", "minLevel": 0 },
+      { "id": "shift", "label": "Issue shift handover report", "minLevel": 1 },
+      { "id": "vendor", "label": "Settle small vendor POs (< TZS 5M)", "minLevel": 2 },
+      { "id": "hedge", "label": "Place weekly FX hedge", "minLevel": 2 },
+      { "id": "pml", "label": "File PML renewal to Tumemadini", "minLevel": 99 },
+      { "id": "royalty", "label": "File royalty return to TRA", "minLevel": 99 },
+      { "id": "nemc", "label": "Submit NEMC EIA", "minLevel": 99 },
+      { "id": "sale", "label": "Sell gold > 200 oz", "minLevel": 99 }
+    ]
   },
   "chain": {
     "kicker": "06 · Audit chain",
     "heading": "Every action is cryptographically on the record.",
-    "sub": "Append-only log with SHA-256 prev-hash and per-entry HMAC. Tumemadini, NEMC, and auditors can verify the chain without trusting us."
+    "sub": "Append-only log with SHA-256 prev-hash and per-entry HMAC. Tumemadini, NEMC, and auditors can verify the chain without trusting us.",
+    "fragmentHeader": "Chain fragment · thread th_18a · last 4 entries",
+    "verifiedLabel": "Chain verified",
+    "depthFooter": "Chain depth: 18,429 entries · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle",
+    "fragment": [
+      {
+        "seq": 18426,
+        "at": "06:02:11",
+        "actor": "user · owner",
+        "decision": "proposed",
+        "decisionTone": "signal",
+        "action": "mine.user_message · hash sha256:7b3a…e91",
+        "prev": "9f…c2",
+        "hash": "3a…e91",
+        "sig": "hmac:4f…22"
+      },
+      {
+        "seq": 18427,
+        "at": "06:02:12",
+        "actor": "master_brain",
+        "decision": "proposed",
+        "decisionTone": "signal",
+        "action": "mine.plan · 3 steps",
+        "prev": "3a…e91",
+        "hash": "8c…d04",
+        "sig": "hmac:1a…9b"
+      },
+      {
+        "seq": 18428,
+        "at": "06:02:14",
+        "actor": "master_brain",
+        "decision": "executed",
+        "decisionTone": "success",
+        "action": "mine.tool.graph_lookup · gold_inventory=184oz",
+        "prev": "8c…d04",
+        "hash": "b1…7ae",
+        "sig": "hmac:5d…c1"
+      },
+      {
+        "seq": 18429,
+        "at": "06:02:15",
+        "actor": "master_brain",
+        "decision": "executed",
+        "decisionTone": "success",
+        "action": "mine.turn_done · 3.8s · 3 citations · 0 artifacts",
+        "prev": "b1…7ae",
+        "hash": "2e…440",
+        "sig": "hmac:9e…88"
+      }
+    ],
+    "guarantees": [
+      {
+        "kicker": "Provable, not promised",
+        "title": "SHA-256 hash chain · HMAC per entry",
+        "body": "Every row carries a prev-hash pointer plus an HMAC signature. Tampering any entry invalidates every signature after it. Export the chain, verify offline."
+      },
+      {
+        "kicker": "Minimal disclosure",
+        "title": "User content is hashed, not stored",
+        "body": "A Tumemadini auditor can prove you asked X at time T without re-disclosing X. Raw text lives in the conversation memory (scoped + revocable); the chain carries provenance only."
+      },
+      {
+        "kicker": "Scope-separated",
+        "title": "Tenant chain · Platform chain — never mixed",
+        "body": "Per-tenant audit chains are strictly isolated. Platform-scope queries land on a reserved platform chain. Cross-scope probes return empty, never leak existence."
+      }
+    ]
   },
   "pricing": {
     "kicker": "07 · Pricing",
@@ -128,13 +301,34 @@
     "ctaStart": "Start Mwanzo",
     "ctaPilot": "Apply for pilot",
     "ctaTalk": "Talk to the team",
+    "mostChosenBadge": "Most chosen",
     "footnote": "All prices in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer."
   },
   "testimonial": {
     "kicker": "08 · Pilot voices",
     "heading": "Pilot quotes available Q3 2026.",
     "sub": "We're currently working with ten pioneer mining operators across Geita, Mererani, and Songwe. Once we have 12-week outcomes, we'll publish their words here.",
-    "placeholderBadge": "Pilot — quote pending"
+    "placeholderBadge": "Pilot — quote pending",
+    "cards": [
+      {
+        "name": "Joyce Mhagama",
+        "initials": "JM",
+        "role": "Owner · Geita PML pilot · 4 sites",
+        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+      },
+      {
+        "name": "Hamisi Ngao",
+        "initials": "HN",
+        "role": "Chair · Mererani tanzanite co-op · 18 members",
+        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+      },
+      {
+        "name": "Asha Mwakajila",
+        "initials": "AM",
+        "role": "CFO · Songwe trading group · 9 sites",
+        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+      }
+    ]
   },
   "footer": {
     "tagline": "AI-native operating system for Tanzanian mining. Master Brain, audit chain, bilingual.",
@@ -143,12 +337,28 @@
     "resources": "Resources",
     "legal": "Legal",
     "rights": "All rights reserved.",
-    "locale": "Dar es Salaam · UTC+3"
+    "locale": "Dar es Salaam · UTC+3",
+    "systemsOperational": "All systems operational",
+    "links": {
+      "capabilities": "Capabilities",
+      "masterBrain": "Master Brain",
+      "autonomy": "Autonomy",
+      "auditChain": "Audit chain",
+      "pricing": "Pricing",
+      "pilot": "Pilot",
+      "about": "About",
+      "careers": "Careers",
+      "docs": "Docs",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "status": "Status"
+    }
   },
   "pilotPage": {
     "kicker": "Pilot programme",
     "heading": "Apply to join the pilot.",
     "sub": "We're selecting 20 mining operators for our 12-week pilot. No cost. Full flexibility. We'll work together to build a system that fits the Tanzanian context.",
+    "contact": "Questions? Email pilot@borjie.co.tz or call +255 22 211 4000.",
     "fields": {
       "name": "Full name",
       "company": "Company name",
@@ -167,17 +377,74 @@
     "heading": "Build at your own pace.",
     "sub": "Five tiers. TZS. Mwanzo is free forever. We accept M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.",
     "compareHeading": "Feature comparison",
-    "compareSub": "Every tier ships every feature. The difference is quotas and support."
+    "compareSub": "Every tier ships every feature. The difference is quotas and support.",
+    "featureColumn": "Feature"
   },
   "privacyPage": {
     "kicker": "Privacy",
     "heading": "Borjie Privacy Policy",
-    "lastUpdated": "Last updated: 26 May 2026"
+    "lastUpdated": "Last updated: 26 May 2026",
+    "sections": [
+      {
+        "title": "1. What we collect",
+        "body": "Borjie collects your mining business data — PML/ML/SML licences, pit maps, drill-hole logs, off-take transactions, royalty returns, and your users' messages. We do not collect personal data on individual artisanal miners unless they upload it themselves or an owner directs us to."
+      },
+      {
+        "title": "2. Why",
+        "body": "We use this data to run your Master Brain, deliver morning briefings, prepare reports for Tumemadini and TRA, and propose gold-window hedges. We do not sell it. We do not use it for advertising."
+      },
+      {
+        "title": "3. Where it lives",
+        "body": "Your data is stored in a Tanzania-resident database (Dar es Salaam region, with Fly.io fra1 as DR backup). Audit chains are per-tenant — your tenant cannot read another tenant's chain even if you are an admin."
+      },
+      {
+        "title": "4. Your rights",
+        "body": "Under the Tanzania Personal Data Protection Act 2022 you have the right to view, correct, delete, and port your data to another vendor. Email privacy@borjie.co.tz."
+      },
+      {
+        "title": "5. Tumemadini and NEMC",
+        "body": "If a Tanzanian authority (Tumemadini, NEMC, TRA, FIU) lawfully demands your data we will provide it, but we will notify you within 5 days unless a gag order is in place."
+      },
+      {
+        "title": "6. Contact",
+        "body": "This policy is updated periodically. Material changes get a 30-day in-cockpit notice before they take effect. Questions: privacy@borjie.co.tz."
+      }
+    ]
   },
   "termsPage": {
     "kicker": "Terms",
     "heading": "Borjie Terms of Service",
-    "lastUpdated": "Last updated: 26 May 2026"
+    "lastUpdated": "Last updated: 26 May 2026",
+    "sections": [
+      {
+        "title": "1. Agreement",
+        "body": "By using Borjie you accept these terms. Borjie is Borjie Tanzania Limited, a Tanzania-registered company (BRELA registration: pending). The agreement is governed by Tanzanian law. Jurisdiction is the High Court of Tanzania, Dar es Salaam."
+      },
+      {
+        "title": "2. Tiers and billing",
+        "body": "Five tiers: Mwanzo (free), Mkulima (TZS 150,000/mo), Mfanyabiashara (TZS 500,000/mo), Kampuni (TZS 1,500,000/mo), Group (bespoke). Billed monthly in advance. Non-payment for 14 days pauses autonomous actions (but never the audit chain — your history remains yours forever)."
+      },
+      {
+        "title": "3. Your data is yours",
+        "body": "You own your mining data. We hold it on your behalf. If you close the account we will export (or delete) your data within 30 days. The audit chain remains immutable per Tumemadini record-retention rules."
+      },
+      {
+        "title": "4. Master Brain and liability",
+        "body": "The Master Brain executes actions on your authority. We do not warrant flawless decisions, but we warrant that every action is recorded on the audit chain. If Borjie directly causes losses through a software defect, our liability is capped at the trailing 12 months of fees."
+      },
+      {
+        "title": "5. Prohibited use",
+        "body": "You may not use Borjie to conceal illegal activity, evade TRA royalties, or launder funds. If we detect suspicious activity we will report it to the relevant authority as required by law."
+      },
+      {
+        "title": "6. Termination",
+        "body": "You or we may terminate with 30 days' notice. On termination we export your data within 60 days. We may suspend immediately for material breach."
+      },
+      {
+        "title": "7. Contact",
+        "body": "Terms updates: 30-day in-cockpit notice. Questions: legal@borjie.co.tz."
+      }
+    ]
   },
   "ownersPage": {
     "kicker": "For mining owners",
@@ -192,10 +459,42 @@
     "sub": "KYC'd sellers, chain-of-custody assays, biometric contract signing. Buy with confidence.",
     "ctaSignup": "Sign up to bid",
     "ctaTalk": "Talk to sourcing team",
+    "ctaSignUpBuy": "Sign up to buy",
+    "ctaPricingFees": "Pricing & fees",
+    "regionsHeading": "Currently sourced from",
+    "regions": [
+      "Geita (gold)",
+      "Mererani (tanzanite)",
+      "Kahama (coltan)",
+      "Mbeya (copper)",
+      "Tunduru (gemstones)",
+      "Chunya (doré)"
+    ],
+    "navLabel": "Buyers",
+    "marketplaceFeeKicker": "Marketplace fee",
+    "marketplaceFeeBody": "No subscription. Free to browse and bid. Fee paid only on settled deals.",
     "valueProps": {
       "kicker": "01 · Why buyers trust Borjie",
       "heading": "Four pillars of verified supply.",
       "sub": "Every gram on Borjie has a verifiable path from drill-hole to weighbridge.",
+      "shortCards": [
+        {
+          "title": "Verified provenance",
+          "body": "Every ore parcel carries a chain-of-custody trail from drill-hole to weighbridge."
+        },
+        {
+          "title": "KYB-verified sellers",
+          "body": "Borjie audits every PML/PL/ML licence, owner NIDA, and TRA standing before a seller can list."
+        },
+        {
+          "title": "LBMA-grade assay certificates",
+          "body": "Gold, tanzanite, coltan, copper grades from internationally accredited labs."
+        },
+        {
+          "title": "Biometric off-take contracts",
+          "body": "Non-repudiable fingerprint signatures — contracts enforceable in court."
+        }
+      ],
       "cards": {
         "provenance": {
           "title": "Verified provenance",
@@ -417,5 +716,40 @@
     ],
     "contactHeading": "Get in touch",
     "contactBody": "hello@borjie.co.tz · +255 22 211 4000 · Dar es Salaam · UTC+3"
+  },
+  "statusPage": {
+    "kicker": "System status",
+    "heading": "Borjie status",
+    "sub": "Live status of our services and a 90-day uptime history.",
+    "subscribeNote": "This page refreshes every 30 seconds. For major incidents, we email all affected customers directly."
+  },
+  "status": {
+    "overall": {
+      "ok": "All systems operational",
+      "degraded": "Some services degraded",
+      "outage": "We are investigating an issue",
+      "unknown": "Status unknown"
+    },
+    "componentLabel": {
+      "api-gateway": "API Gateway",
+      "database": "Database",
+      "auth": "Auth",
+      "storage": "Storage",
+      "workers": "Workers",
+      "realtime": "Realtime"
+    },
+    "statusLabel": {
+      "ok": "Operational",
+      "degraded": "Degraded",
+      "outage": "Outage",
+      "unknown": "Unknown"
+    },
+    "uptimeLabel": "Uptime",
+    "lastChangeLabel": "Last change",
+    "windowLabelPrefix": "",
+    "windowLabelSuffix": "-day history",
+    "loading": "Loading status...",
+    "error": "Failed to load system status.",
+    "retry": "Retry"
   }
 }

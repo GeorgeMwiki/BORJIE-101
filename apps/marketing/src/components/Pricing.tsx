@@ -56,7 +56,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                   {tier.highlighted && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-widest text-signal-500">
                       <Star className="h-2.5 w-2.5" />
-                      {locale === 'sw' ? 'Wengi' : 'Most chosen'}
+                      {t.mostChosenBadge}
                     </span>
                   )}
                 </div>

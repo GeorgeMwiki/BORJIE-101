@@ -80,7 +80,8 @@ app.put(
     UserRole.ADMIN,
   ),
   zValidator('json', SetOverrideSchema),
-  withSecurityEvents({ action: 'feature-flag.update', resource: 'feature-flag', severity: 'info' }, async (c: AnyContext) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+  withSecurityEvents({ action: 'feature-flag.update', resource: 'feature-flag', severity: 'info' }, async (c: any) => {
     const auth = c.get('auth');
     const flagKey = c.req.param('key');
     const body = c.req.valid('json');
@@ -91,6 +92,7 @@ app.put(
         auth.tenantId,
         flagKey,
         body.enabled,
+        auth.userId,
       );
       return c.json({ success: true, data: override }, 200);
     } catch (e: unknown) {

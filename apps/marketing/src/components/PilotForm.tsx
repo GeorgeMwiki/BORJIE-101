@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 type Status = { kind: 'idle' } | { kind: 'submitting' } | { kind: 'success' } | { kind: 'error'; message: string };
 
@@ -35,7 +36,8 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
     try {
       const res = await fetch('/api/pilot-apply', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {

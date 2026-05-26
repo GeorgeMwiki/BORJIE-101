@@ -329,7 +329,10 @@ app.get('/expiring', async (c) => {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() + days);
   const result = await repos.leases.findMany(auth.tenantId, { limit: 500, offset: 0 }, { status: 'active' });
-  const expiring = (result.items as Array<{ endDate: string | Date }>).filter(
+  // Cast to the enrichLeases row type — the repo returns rows shaped for
+  // `mapLeaseRow`; we only narrow further by the `endDate` cutoff here.
+  type ExpiringRow = Parameters<typeof enrichLeases>[2][number];
+  const expiring = (result.items as ExpiringRow[]).filter(
     (row) => new Date(row.endDate) <= cutoff
   );
   const enriched = await enrichLeases(repos, auth.tenantId, expiring);

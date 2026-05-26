@@ -55,10 +55,16 @@ interface FaqEntry {
 
 export const BORJIE_FAQ: readonly FaqEntry[] = [
   {
+    id: 'who-am-i',
+    keywords: ['hi', 'hello', 'hey', 'habari', 'who', 'you', 'name', 'mwikila', 'manager'],
+    en: "I am Mr. Mwikila — Borjie's AI Mining Operations Manager. I run a Tanzanian mining business end-to-end alongside the owner: bootstrap, operate, finance, comply, and report. Every recommendation I make is backed by a citation from the corpus or your own data — never a guess. Ask me about pricing, the pilot, licences, FX, the marketplace, or how Borjie handles Tumemadini/NEMC compliance.",
+    sw: 'Mimi ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Ninaendesha biashara ya madini Tanzania pamoja na mmiliki: kuanzisha, kuendesha, fedha, kanuni, na ripoti. Kila pendekezo lina chanzo — hakuna kubahatisha. Niulize bei, jaribio, leseni, fedha za kigeni, soko, au kanuni za Tumemadini/NEMC.',
+  },
+  {
     id: 'what-is-borjie',
-    keywords: ['what', 'who', 'borjie', 'about', 'platform', 'product'],
-    en: "Borjie is an AI-native operating system for Tanzanian mining. Think Master Brain, licence calendar, drill-hole logger, ore-parcel accounting, FX and treasury, marketplace, plus a compliance pack — all Swahili-first and built for owners, operators, and regulators.",
-    sw: 'Borjie ni mfumo wa uendeshaji wa AI kwa shughuli za madini Tanzania. Una Master Brain, kalenda ya leseni, kuandikisha mashimo ya kuchimba, hesabu za vifurushi vya madini, fedha za kigeni, soko, na seti ya kanuni — yote yapo Kiswahili kwanza.',
+    keywords: ['what', 'borjie', 'about', 'platform', 'product'],
+    en: "Borjie is an AI-native operating system for Tanzanian mining. Mr. Mwikila — the AI Mining Operations Manager — orchestrates a Master Brain plus 27 specialist juniors covering licence calendar, drill-hole logger, ore-parcel accounting, FX and treasury, marketplace, plus a compliance pack — built for owners, operators, and regulators.",
+    sw: 'Borjie ni mfumo wa uendeshaji wa AI kwa shughuli za madini Tanzania. Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi — anaongoza Master Brain pamoja na wataalamu 27 wa: kalenda ya leseni, kuandikisha mashimo, hesabu za vifurushi, fedha za kigeni, soko, na seti ya kanuni.',
   },
   {
     id: 'pricing',
@@ -99,9 +105,9 @@ export const BORJIE_FAQ: readonly FaqEntry[] = [
 ];
 
 const DEFAULT_EN =
-  "I'm Borjie, an AI-native operating system for Tanzanian mining. Ask me about pricing, the pilot program, supported licences, the Master Brain, or how Borjie handles Tumemadini and NEMC compliance.";
+  "I'm Mr. Mwikila — Borjie's AI Mining Operations Manager. Ask me about pricing, the pilot program, supported licences, the Master Brain, the marketplace, or how Borjie handles Tumemadini and NEMC compliance.";
 const DEFAULT_SW =
-  'Mimi ni Borjie, mfumo wa uendeshaji wa AI kwa shughuli za madini Tanzania. Niulize kuhusu bei, jaribio, leseni, Master Brain, au jinsi Borjie inavyoshughulikia kanuni za Tumemadini na NEMC.';
+  'Mimi ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Niulize kuhusu bei, jaribio, leseni, Master Brain, soko, au jinsi Borjie inavyoshughulikia kanuni za Tumemadini na NEMC.';
 
 export function pickFaq(query: string): FaqEntry | null {
   const tokens = query.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);

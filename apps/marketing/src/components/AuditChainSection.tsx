@@ -12,8 +12,8 @@ import { getMessages, type Locale } from '@/lib/i18n';
  */
 export function AuditChainSection({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).chain;
-  const fragment = chainFragment(locale);
-  const guarantees = guaranteeCopy(locale);
+  const fragment = t.fragment;
+  const guarantees = t.guarantees;
 
   return (
     <section
@@ -39,13 +39,11 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
             <p className="font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
-              {locale === 'sw'
-                ? 'Chain fragment · thread th_18a · entries 4 za mwisho'
-                : 'Chain fragment · thread th_18a · last 4 entries'}
+              {t.fragmentHeader}
             </p>
             <span className="inline-flex items-center gap-1.5 font-mono text-[0.6rem] uppercase tracking-widest text-neutral-400">
               <ShieldCheck className="h-3 w-3 text-signal-500" />
-              {locale === 'sw' ? 'Imehakikishwa' : 'Chain verified'}
+              {t.verifiedLabel}
             </span>
           </header>
           <ol className="divide-y divide-border">
@@ -65,7 +63,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
                     <span>·</span>
                     <span className="text-foreground">{entry.actor}</span>
                     <span>·</span>
-                    <span className={entry.decisionClass}>{entry.decision}</span>
+                    <span className={decisionToneClass(entry.decisionTone)}>{entry.decision}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-foreground">{entry.action}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.62rem] text-neutral-400">
@@ -86,9 +84,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
           </ol>
           <footer className="border-t border-border px-5 py-3">
             <p className="font-mono text-[0.58rem] uppercase tracking-widest text-neutral-400">
-              {locale === 'sw'
-                ? 'Chain depth: entries 18,429 · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle'
-                : 'Chain depth: 18,429 entries · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle'}
+              {t.depthFooter}
             </p>
           </footer>
         </div>
@@ -114,97 +110,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
   );
 }
 
-function chainFragment(locale: Locale) {
-  const sw = [
-    {
-      seq: 18426, at: '06:02:11', actor: 'user · owner', decision: 'imependekezwa',
-      decisionClass: 'text-signal-500',
-      action: 'mine.user_message · hash sha256:7b3a…e91',
-      prev: '9f…c2', hash: '3a…e91', sig: 'hmac:4f…22',
-    },
-    {
-      seq: 18427, at: '06:02:12', actor: 'master_brain', decision: 'imependekezwa',
-      decisionClass: 'text-signal-500',
-      action: 'mine.plan · hatua 3',
-      prev: '3a…e91', hash: '8c…d04', sig: 'hmac:1a…9b',
-    },
-    {
-      seq: 18428, at: '06:02:14', actor: 'master_brain', decision: 'imetekelezwa',
-      decisionClass: 'text-success',
-      action: 'mine.tool.graph_lookup · gold_inventory=184oz',
-      prev: '8c…d04', hash: 'b1…7ae', sig: 'hmac:5d…c1',
-    },
-    {
-      seq: 18429, at: '06:02:15', actor: 'master_brain', decision: 'imetekelezwa',
-      decisionClass: 'text-success',
-      action: 'mine.turn_done · 3.8s · nukuu 3 · artifact 0',
-      prev: 'b1…7ae', hash: '2e…440', sig: 'hmac:9e…88',
-    },
-  ];
-  const en = [
-    {
-      seq: 18426, at: '06:02:11', actor: 'user · owner', decision: 'proposed',
-      decisionClass: 'text-signal-500',
-      action: 'mine.user_message · hash sha256:7b3a…e91',
-      prev: '9f…c2', hash: '3a…e91', sig: 'hmac:4f…22',
-    },
-    {
-      seq: 18427, at: '06:02:12', actor: 'master_brain', decision: 'proposed',
-      decisionClass: 'text-signal-500',
-      action: 'mine.plan · 3 steps',
-      prev: '3a…e91', hash: '8c…d04', sig: 'hmac:1a…9b',
-    },
-    {
-      seq: 18428, at: '06:02:14', actor: 'master_brain', decision: 'executed',
-      decisionClass: 'text-success',
-      action: 'mine.tool.graph_lookup · gold_inventory=184oz',
-      prev: '8c…d04', hash: 'b1…7ae', sig: 'hmac:5d…c1',
-    },
-    {
-      seq: 18429, at: '06:02:15', actor: 'master_brain', decision: 'executed',
-      decisionClass: 'text-success',
-      action: 'mine.turn_done · 3.8s · 3 citations · 0 artifacts',
-      prev: 'b1…7ae', hash: '2e…440', sig: 'hmac:9e…88',
-    },
-  ];
-  return locale === 'sw' ? sw : en;
-}
-
-function guaranteeCopy(locale: Locale) {
-  if (locale === 'sw') {
-    return [
-      {
-        kicker: 'Inathibitishika',
-        title: 'SHA-256 chain · HMAC kwa kila entry',
-        body: 'Kila row ina prev-hash pointer pamoja na HMAC signature. Kuchezea entry yoyote kunavunja kila signature baada yake. Export, hakikisha offline.',
-      },
-      {
-        kicker: 'Ufichuzi mdogo',
-        title: 'Maudhui ya mtumiaji yamehashika, hayajahifadhiwa',
-        body: 'Tumemadini wanaweza kuthibitisha kuwa uliuliza X kwa wakati T bila kufichua X tena. Ujumbe wenyewe upo kwenye memory ya conversation; chain ina provenance peke yake.',
-      },
-      {
-        kicker: 'Imegawanyika',
-        title: 'Tenant chain · Platform chain — havichanganyiki',
-        body: 'Per-tenant audit chains ni huru kabisa. Platform-scope queries hutua kwenye platform chain iliyotengwa. Cross-scope probes hurudi empty, hazifichui existence.',
-      },
-    ];
-  }
-  return [
-    {
-      kicker: 'Provable, not promised',
-      title: 'SHA-256 hash chain · HMAC per entry',
-      body: 'Every row carries a prev-hash pointer plus an HMAC signature. Tampering any entry invalidates every signature after it. Export the chain, verify offline.',
-    },
-    {
-      kicker: 'Minimal disclosure',
-      title: 'User content is hashed, not stored',
-      body: 'A Tumemadini auditor can prove you asked X at time T without re-disclosing X. Raw text lives in the conversation memory (scoped + revocable); the chain carries provenance only.',
-    },
-    {
-      kicker: 'Scope-separated',
-      title: 'Tenant chain · Platform chain — never mixed',
-      body: 'Per-tenant audit chains are strictly isolated. Platform-scope queries land on a reserved platform chain. Cross-scope probes return empty, never leak existence.',
-    },
-  ];
+function decisionToneClass(tone: string): string {
+  if (tone === 'success') return 'text-success';
+  return 'text-signal-500';
 }

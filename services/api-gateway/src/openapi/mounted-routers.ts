@@ -38,25 +38,25 @@ import { brainRouter } from '../routes/brain.hono';
 import { maintenanceRouter } from '../routes/maintenance.hono';
 import { hrRouter } from '../routes/hr.hono';
 import applicationsRouter from '../routes/applications.router';
-import arrearsRouter from '../routes/arrears.router';
+// REMOVED (borjie hard-fork): import arrearsRouter from '../routes/arrears.router';
 import complianceRouter from '../routes/compliance.router';
 import docChatRouter from '../routes/doc-chat.router';
 import documentRenderRouter from '../routes/document-render.router';
 import financialProfileRouter from '../routes/financial-profile.router';
-import gamificationRouter from '../routes/gamification.router';
-import gepgRouter from '../routes/gepg.router';
+// REMOVED (borjie hard-fork): import gamificationRouter from '../routes/gamification.router';
+// REMOVED (borjie hard-fork): import gepgRouter from '../routes/gepg.router';
 import interactiveReportsRouter from '../routes/interactive-reports.router';
 import lettersRouter from '../routes/letters.router';
 import { marketplaceRouter } from '../routes/marketplace.router';
 import { universalMarketplaceRouter } from '../routes/marketplace/index.js';
-import { negotiationsRouter } from '../routes/negotiations.router';
-import occupancyTimelineRouter from '../routes/occupancy-timeline.router';
-import renewalsRouter from '../routes/renewals.router';
-import riskReportsRouter from '../routes/risk-reports.router';
+// REMOVED (borjie hard-fork): import { negotiationsRouter } from '../routes/negotiations.router';
+// REMOVED (borjie hard-fork): import occupancyTimelineRouter from '../routes/occupancy-timeline.router';
+// REMOVED (borjie hard-fork): import renewalsRouter from '../routes/renewals.router';
+// REMOVED (borjie hard-fork): import riskReportsRouter from '../routes/risk-reports.router';
 import scansRouter from '../routes/scans.router';
-import stationMasterCoverageRouter from '../routes/station-master-coverage.router';
+// REMOVED (borjie hard-fork): import stationMasterCoverageRouter from '../routes/station-master-coverage.router';
 import { tendersRouter } from '../routes/tenders.router';
-import { waitlistRouter } from '../routes/waitlist.router';
+// REMOVED (borjie hard-fork): import { waitlistRouter } from '../routes/waitlist.router';
 
 import type { MountedRouter } from './route-harvester';
 
@@ -95,24 +95,24 @@ export function buildStaticRouterCatalog(): MountedRouter[] {
     { prefix: '/maintenance', app: maintenanceRouter, defaultTag: 'maintenance' },
     { prefix: '/hr', app: hrRouter, defaultTag: 'hr' },
     { prefix: '/applications', app: applicationsRouter, defaultTag: 'applications' },
-    { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
+    // REMOVED (borjie hard-fork): { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
     { prefix: '/compliance', app: complianceRouter, defaultTag: 'compliance' },
     { prefix: '/doc-chat', app: docChatRouter, defaultTag: 'doc-chat' },
     { prefix: '/document-render', app: documentRenderRouter, defaultTag: 'document-render' },
     { prefix: '/financial-profile', app: financialProfileRouter, defaultTag: 'financial-profile' },
-    { prefix: '/gamification', app: gamificationRouter, defaultTag: 'gamification' },
-    { prefix: '/gepg', app: gepgRouter, defaultTag: 'gepg' },
+    // REMOVED (borjie hard-fork): { prefix: '/gamification', app: gamificationRouter, defaultTag: 'gamification' },
+    // REMOVED (borjie hard-fork): { prefix: '/gepg', app: gepgRouter, defaultTag: 'gepg' },
     { prefix: '/interactive-reports', app: interactiveReportsRouter, defaultTag: 'interactive-reports' },
     { prefix: '/letters', app: lettersRouter, defaultTag: 'letters' },
     { prefix: '/marketplace', app: marketplaceRouter, defaultTag: 'marketplace' },
     { prefix: '/marketplace-universal', app: universalMarketplaceRouter, defaultTag: 'marketplace-universal' },
-    { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
-    { prefix: '/occupancy-timeline', app: occupancyTimelineRouter, defaultTag: 'occupancy-timeline' },
-    { prefix: '/renewals', app: renewalsRouter, defaultTag: 'renewals' },
-    { prefix: '/risk-reports', app: riskReportsRouter, defaultTag: 'risk-reports' },
+    // REMOVED (borjie hard-fork): { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
+    // REMOVED (borjie hard-fork): { prefix: '/occupancy-timeline', app: occupancyTimelineRouter, defaultTag: 'occupancy-timeline' },
+    // REMOVED (borjie hard-fork): { prefix: '/renewals', app: renewalsRouter, defaultTag: 'renewals' },
+    // REMOVED (borjie hard-fork): { prefix: '/risk-reports', app: riskReportsRouter, defaultTag: 'risk-reports' },
     { prefix: '/scans', app: scansRouter, defaultTag: 'scans' },
-    { prefix: '/station-master-coverage', app: stationMasterCoverageRouter, defaultTag: 'station-master-coverage' },
+    // REMOVED (borjie hard-fork): { prefix: '/station-master-coverage', app: stationMasterCoverageRouter, defaultTag: 'station-master-coverage' },
     { prefix: '/tenders', app: tendersRouter, defaultTag: 'tenders' },
-    { prefix: '/waitlist', app: waitlistRouter, defaultTag: 'waitlist' },
+    // REMOVED (borjie hard-fork): { prefix: '/waitlist', app: waitlistRouter, defaultTag: 'waitlist' },
   ];
 }

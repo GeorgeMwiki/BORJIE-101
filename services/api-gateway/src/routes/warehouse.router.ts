@@ -117,23 +117,36 @@ function notImplemented(c: AnyContext) {
 
 function mapErr(
   c: AnyContext,
-  result: { error: WarehouseServiceError },
+  result: WarehouseResult<unknown>,
   fallback = 400,
 ) {
-  const status =
-    result.error.code === 'NOT_FOUND'
+  if (result.ok === true) {
+    // Defensive: caller is supposed to gate on `!result.ok` before
+    // invoking mapErr. If they don't, fall through with a generic 500
+    // rather than leaking an "ok: true" payload as an error response.
+    return c.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'unexpected ok result' } },
+      500 as import('hono/utils/http-status').ContentfulStatusCode,
+    );
+  }
+  // Manual narrow — TS does not always propagate the union discriminator
+  // through `if (result.ok === true)` early-return when `WarehouseResult`
+  // is parameterised. The branch above guarantees ok is false here.
+  const err = (result as { ok: false; error: WarehouseServiceError }).error;
+  const status: import('hono/utils/http-status').ContentfulStatusCode =
+    err.code === 'NOT_FOUND'
       ? 404
-      : result.error.code === 'TENANT_MISMATCH'
+      : err.code === 'TENANT_MISMATCH'
         ? 403
-        : result.error.code === 'DUPLICATE_SKU'
+        : err.code === 'DUPLICATE_SKU'
           ? 409
-          : result.error.code === 'INSUFFICIENT_STOCK'
+          : err.code === 'INSUFFICIENT_STOCK'
             ? 409
-            : result.error.code === 'INTERNAL_ERROR'
+            : err.code === 'INTERNAL_ERROR'
               ? 500
-              : fallback;
+              : (fallback as import('hono/utils/http-status').ContentfulStatusCode);
   return c.json(
-    { success: false, error: { code: result.error.code, message: result.error.message } },
+    { success: false, error: { code: err.code, message: err.message } },
     status
   );
 }
@@ -152,7 +165,8 @@ app.get('/items', async (c: AnyContext) => {
   return c.json({ success: true, data: items });
 });
 
-app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);
@@ -177,7 +191,8 @@ app.get('/items/:id', async (c: AnyContext) => {
   return c.json({ success: true, data: result.value });
 });
 
-app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: AnyContext) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const s = svc(c);

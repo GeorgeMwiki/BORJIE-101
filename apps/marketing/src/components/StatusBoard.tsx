@@ -9,6 +9,7 @@
  * over and fills it in).
  */
 import { useEffect, useState } from 'react';
+import { getMessages, type Locale } from '@/lib/i18n';
 
 type SimpleStatus = 'ok' | 'degraded' | 'outage' | 'unknown';
 
@@ -39,76 +40,6 @@ interface StatusResponse {
   readonly generatedAt: string;
   readonly windowDays: number;
 }
-
-interface Copy {
-  readonly overall: Record<SimpleStatus, string>;
-  readonly componentLabel: Record<ComponentName, string>;
-  readonly statusLabel: Record<SimpleStatus, string>;
-  readonly uptimeLabel: string;
-  readonly lastChangeLabel: string;
-  readonly windowLabel: (n: number) => string;
-  readonly loading: string;
-  readonly error: string;
-  readonly retry: string;
-}
-
-const COPY_SW: Copy = {
-  overall: {
-    ok: 'Mifumo yote inafanya kazi vizuri',
-    degraded: 'Baadhi ya huduma zina utendaji uliopungua',
-    outage: 'Tunashughulikia tatizo',
-    unknown: 'Hali haifahamiki',
-  },
-  componentLabel: {
-    'api-gateway': 'API Gateway',
-    database: 'Database',
-    auth: 'Auth',
-    storage: 'Storage',
-    workers: 'Workers',
-    realtime: 'Realtime',
-  },
-  statusLabel: {
-    ok: 'Inafanya kazi',
-    degraded: 'Utendaji umepungua',
-    outage: 'Haifanyi kazi',
-    unknown: 'Haifahamiki',
-  },
-  uptimeLabel: 'Uptime',
-  lastChangeLabel: 'Mabadiliko ya mwisho',
-  windowLabel: (n) => `Historia ya siku ${n}`,
-  loading: 'Inapakia hali...',
-  error: 'Imeshindwa kupakia hali ya mfumo.',
-  retry: 'Jaribu tena',
-};
-
-const COPY_EN: Copy = {
-  overall: {
-    ok: 'All systems operational',
-    degraded: 'Some services degraded',
-    outage: 'We are investigating an issue',
-    unknown: 'Status unknown',
-  },
-  componentLabel: {
-    'api-gateway': 'API Gateway',
-    database: 'Database',
-    auth: 'Auth',
-    storage: 'Storage',
-    workers: 'Workers',
-    realtime: 'Realtime',
-  },
-  statusLabel: {
-    ok: 'Operational',
-    degraded: 'Degraded',
-    outage: 'Outage',
-    unknown: 'Unknown',
-  },
-  uptimeLabel: 'Uptime',
-  lastChangeLabel: 'Last change',
-  windowLabel: (n) => `${n}-day history`,
-  loading: 'Loading status...',
-  error: 'Failed to load system status.',
-  retry: 'Retry',
-};
 
 const STATUS_COLOR: Record<SimpleStatus, string> = {
   ok: 'bg-emerald-500',
@@ -151,9 +82,9 @@ const POLL_INTERVAL_MS = 30_000;
 export function StatusBoard({
   locale,
 }: {
-  readonly locale: 'sw' | 'en';
+  readonly locale: Locale;
 }) {
-  const copy = locale === 'sw' ? COPY_SW : COPY_EN;
+  const copy = getMessages(locale).status;
   const [data, setData] = useState<StatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -216,14 +147,16 @@ export function StatusBoard({
         ))}
       </ul>
       <p className="text-right text-[0.7rem] uppercase tracking-widest text-neutral-500">
-        {copy.windowLabel(data.windowDays)}
+        {copy.windowLabelPrefix}{data.windowDays}{copy.windowLabelSuffix}
       </p>
     </div>
   );
 }
 
+type StatusCopy = ReturnType<typeof getMessages>['status'];
+
 function OverallBanner(props: {
-  readonly copy: Copy;
+  readonly copy: StatusCopy;
   readonly status: SimpleStatus;
 }) {
   const dot = STATUS_COLOR[props.status];
@@ -244,7 +177,7 @@ function OverallBanner(props: {
 
 function ComponentRow(props: {
   readonly comp: ComponentSummary;
-  readonly copy: Copy;
+  readonly copy: StatusCopy;
 }) {
   const c = props.comp;
   return (

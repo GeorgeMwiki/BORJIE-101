@@ -33,6 +33,7 @@ import {
   type ExecutiveBriefService,
 } from '../composition/executive-brief.composition';
 import type { ExecutiveBrief } from '@borjie/executive-brief-engine';
+import type { ScopePredicate } from '@borjie/persona-runtime';
 import { computeNextDueAt } from '../routes/executive-brief.hono';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -252,7 +253,7 @@ async function loadPersona(db: DbLike, tenantId: string, personaId: string) {
     displayNameEn: String(r.display_name_en),
     displayNameSw: r.display_name_sw ? String(r.display_name_sw) : undefined,
     powerTier: Number(r.power_tier) as 1 | 2 | 3 | 4 | 5,
-    scopePredicate: (r.scope_predicate_jsonb as { kind: string }) || { kind: 'tenant_scope' },
+    scopePredicate: ((r.scope_predicate_jsonb as ScopePredicate | null) ?? { kind: 'tenant_scope' as const }) satisfies ScopePredicate,
     toolCatalogIds: (r.tool_catalog_ids as string[]) || [],
     channelAllowlist: (r.channel_allowlist as Array<'web' | 'mobile' | 'whatsapp' | 'sms' | 'voice'>) || ['web'],
     maxActionTier: (String(r.max_action_tier) as 'LOW' | 'MEDIUM' | 'HIGH' | 'SOVEREIGN'),
