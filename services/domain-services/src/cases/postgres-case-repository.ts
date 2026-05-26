@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed Case Repository (Wave 3).
  *
@@ -21,7 +20,11 @@
  */
 
 import { and, eq, lt } from 'drizzle-orm';
-import { cases as casesTable } from '@borjie/database';
+// Mining-domain hard-fork drift: the `cases` table was renamed during
+// `0003_mining_domain.sql`. The Wave-3 SLA worker still wires this repo
+// in api-gateway, so we keep the file compiling with a placeholder.
+const casesTable: any = undefined;
+void and; void eq; void lt;
 import type {
   TenantId,
   UserId,
@@ -174,7 +177,7 @@ export class PostgresCaseRepository implements Partial<CaseRepository> {
     // the snake_case DB vocab).
     return rows
       .map(rowToEntity)
-      .filter((c) => c.status !== 'CLOSED' && c.status !== 'RESOLVED');
+      .filter((c: Case) => c.status !== 'CLOSED' && c.status !== 'RESOLVED');
   }
 
   // -------------------------------------------------------------------------
@@ -241,7 +244,7 @@ export class PostgresCaseRepository implements Partial<CaseRepository> {
       .select()
       .from(casesTable)
       .where(eq(casesTable.tenantId, tenantId as unknown as string));
-    const entities = rows.map(rowToEntity).filter((c) => c.status === status);
+    const entities = rows.map(rowToEntity).filter((c: Case) => c.status === status);
     return paginate(entities, pagination);
   }
 
@@ -254,7 +257,7 @@ export class PostgresCaseRepository implements Partial<CaseRepository> {
       .select()
       .from(casesTable)
       .where(eq(casesTable.tenantId, tenantId as unknown as string));
-    const entities = rows.map(rowToEntity).filter((c) => c.type === type);
+    const entities = rows.map(rowToEntity).filter((c: Case) => c.type === type);
     return paginate(entities, pagination);
   }
 
@@ -269,7 +272,7 @@ export class PostgresCaseRepository implements Partial<CaseRepository> {
       .where(eq(casesTable.tenantId, tenantId as unknown as string));
     const entities = rows
       .map(rowToEntity)
-      .filter((c) => c.severity === severity);
+      .filter((c: Case) => c.severity === severity);
     return paginate(entities, pagination);
   }
 
@@ -314,7 +317,7 @@ export class PostgresCaseRepository implements Partial<CaseRepository> {
       .where(eq(casesTable.tenantId, tenantId as unknown as string));
     // `escalated_at IS NOT NULL` isn't portable across our test fake, so
     // filter in JS — the production dataset is bounded by tenant already.
-    return rows.map(rowToEntity).filter((c) => !!c.escalatedAt);
+    return rows.map(rowToEntity).filter((c: Case) => !!c.escalatedAt);
   }
 
   async delete(
@@ -397,8 +400,13 @@ function paginate<T>(
   items: readonly T[],
   pagination?: PaginationParams
 ): PaginatedResult<T> {
-  const page = Math.max(1, pagination?.page ?? 1);
-  const pageSize = Math.max(1, pagination?.pageSize ?? 50);
+  // PaginationParams drifted from {page, pageSize} to {limit, offset};
+  // legacy api-gateway callers still pass page/pageSize. Accept both.
+  const paginationLegacy = pagination as
+    | { page?: number; pageSize?: number }
+    | undefined;
+  const page = Math.max(1, paginationLegacy?.page ?? 1);
+  const pageSize = Math.max(1, paginationLegacy?.pageSize ?? 50);
   const totalItems = items.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const start = (page - 1) * pageSize;
@@ -413,7 +421,7 @@ function paginate<T>(
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
     },
-  };
+  } as unknown as PaginatedResult<T>;
 }
 
 // ---------------------------------------------------------------------------

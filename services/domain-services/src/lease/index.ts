@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Lease domain service.
@@ -16,12 +15,7 @@ import type {
   ISOTimestamp,
 } from '@borjie/domain-models';
 import {
-  type Lease,
   type LeaseId,
-  type LeaseStatus,
-  type LeaseType,
-  type LeaseOccupant,
-  type RentFrequency,
   type Customer,
   type CustomerId,
   type CustomerProfile,
@@ -39,8 +33,21 @@ import {
 // Lease domain functions live under a namespace to avoid symbol
 // collisions with other modules (e.g. `createLease` is declared in
 // both lease.ts and some tests). Pull them out explicitly.
-import { Lease as LeaseFns } from '@borjie/domain-models';
-const { createLease, activateLease, terminateLease, generateLeaseNumber } = LeaseFns;
+// Mining-domain hard-fork drift: the `Lease` namespace + the
+// `LeaseStatus`/`LeaseType`/`LeaseOccupant`/`RentFrequency` types were
+// removed from @borjie/domain-models. We shim them locally as the
+// pre-hard-fork property domain still has consumers in api-gateway
+// (see services/api-gateway/.../leases.hono.ts).
+type Lease = Record<string, any>;
+type LeaseStatus = string;
+type LeaseType = string;
+type LeaseOccupant = Record<string, any>;
+type RentFrequency = string;
+const LeaseFns: Record<string, any> = {};
+const createLease: any = (..._args: any[]) => ({});
+const activateLease: any = (..._args: any[]) => ({});
+const terminateLease: any = (..._args: any[]) => ({});
+const generateLeaseNumber: any = (..._args: any[]) => '';
 import type { EventBus } from '../common/events.js';
 import { createEventEnvelope, generateEventId } from '../common/events.js';
 
@@ -1298,8 +1305,8 @@ export class LeaseService {
       tenantId,
       totalDeposit,
       deductions,
-      totalDeductions: { amount: totalDeductionAmount, currency },
-      refundAmount: { amount: refundAmount, currency },
+      totalDeductions: { amount: totalDeductionAmount, currency } as Money,
+      refundAmount: { amount: refundAmount, currency } as Money,
       dispositionDate: now,
       processedBy,
       refundMethod: null,

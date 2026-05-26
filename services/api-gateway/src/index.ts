@@ -83,6 +83,9 @@ import { marketplaceRouter } from './routes/marketplace.router';
 // `marketplaceRouter` above which manages listing publishing for
 // portfolio owners.
 import { universalMarketplaceRouter } from './routes/marketplace/index.js';
+// Public marketing surface — pilot applications + future PR contact
+// forms. No tenant context; runs outside the auth chain on purpose.
+import { marketingRouter } from './routes/marketing.hono';
 import { createMigrationRouter } from './routes/migration.router';
 import { negotiationsRouter } from './routes/negotiations.router';
 import { createNotificationPreferencesRouter } from './routes/notification-preferences.router';
@@ -765,6 +768,7 @@ api.route('/interactive-reports', interactiveReportsRouter);
 api.route('/letters', lettersRouter);
 api.route('/marketplace', marketplaceRouter);
 api.route('/marketplace-universal', universalMarketplaceRouter);
+api.route('/marketing', marketingRouter);
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot

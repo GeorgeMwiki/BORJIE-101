@@ -1,0 +1,164 @@
+{
+  "nav": {
+    "product": "Bidhaa",
+    "pricing": "Bei",
+    "pilot": "Pilot",
+    "docs": "Nyaraka",
+    "signIn": "Ingia"
+  },
+  "hero": {
+    "kicker": "Mfumo wa AI kwa madini ya Tanzania",
+    "headline": "Endesha mgodi wako kama wabora duniani.",
+    "sub": "Mfumo wa uendeshaji unaotumia AI. Tanzanian-kwanza. Mteja-wengi. Lugha-nyingi.",
+    "ctaPilot": "Omba pilot",
+    "ctaDemo": "Ona demo ya moja kwa moja",
+    "trustline": "Geita · Mererani · Kahama · Songwe"
+  },
+  "capabilities": {
+    "kicker": "01 · Uwezo wa msingi",
+    "heading": "Sita kwa moja, kwa uwazi.",
+    "sub": "Kila uwezo umeunganishwa na grafu ya maarifa ya mgodi wako na chain ya audit isiyobadilika.",
+    "cards": {
+      "licence": {
+        "title": "Kalenda ya Leseni",
+        "blurb": "PML, ML, na SML zote kwenye kalenda moja. Onyo la siku 90, 60, 30 kabla ya kuisha. Inafahamiana na utaratibu wa Tumemadini."
+      },
+      "brief": {
+        "title": "Briefing ya Asubuhi",
+        "blurb": "Saa 06:00 kila siku Master Brain anaonyesha shughuli za usiku, maamuzi yanayohitajika, na hali ya hazina ya gold-window."
+      },
+      "drillhole": {
+        "title": "Daftari la Drill-Hole",
+        "blurb": "Logger ya mashimo ya kuchimba na grade-control. Cores zimepigwa picha, kupimwa, kuhusishwa na pit segment, kwenye chain."
+      },
+      "treasury": {
+        "title": "FX na Hazina",
+        "blurb": "TZS · USD · gold ounces. Hedge proposals na live spot kutoka BoT na LBMA. Off-take projections kwa wiki."
+      },
+      "marketplace": {
+        "title": "Soko",
+        "blurb": "Wachimbaji wadogo, traders waliosajiliwa, smelters wenye leseni. KYC kwa kila mshiriki. Mkataba unaweza kuchapishwa."
+      },
+      "compliance": {
+        "title": "Mfuko wa Compliance",
+        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Tayari kuwasilisha kwa Tumemadini na Mamlaka ya Mapato."
+      }
+    }
+  },
+  "how": {
+    "kicker": "02 · Inavyofanya kazi",
+    "heading": "Wiki yako ya kwanza. Hatua tatu.",
+    "steps": {
+      "one": {
+        "label": "Sign-up + KYB",
+        "title": "Jisajili na uthibitishe biashara yako.",
+        "body": "Tunaunganisha na BRELA, TRA, na Tumemadini. KYB kamili ndani ya saa 48. Hakuna fomu za karatasi."
+      },
+      "two": {
+        "label": "Import",
+        "title": "Leta leseni na sites zako.",
+        "body": "Upload leseni za PML/ML/SML, ramani za pit, drill-hole logs. Grafu ya mgodi wako inajengwa otomatiki."
+      },
+      "three": {
+        "label": "Master Brain",
+        "title": "Master Brain anachukua kazi.",
+        "body": "Anaanza kwa shadow mode kwa siku 14. Unaona kile angefanya. Halafu unaruhusu, hatua kwa hatua."
+      }
+    }
+  },
+  "brief": {
+    "kicker": "03 · Briefing ya Asubuhi",
+    "heading": "Dakika yako ya kwanza saa 06:00.",
+    "sub": "Master Brain ameshughulikia shughuli za usiku. Hii ndio aliyofanya, alichoflagsha, na nambari zinasema nini."
+  },
+  "ask": {
+    "kicker": "04 · Ongea na Mgodi Wako",
+    "heading": "Uliza. Inajibu.",
+    "sub": "Sio chatbot. Ni mgodi wenyewe ukiongea katika nafsi ya kwanza, kutoka kwa grafu yake ya maarifa, na nukuu zinazoweza kubofya.",
+    "question": "Cash runway yangu ni nini?",
+    "answerPlan": [
+      "Pata mizania ya TZS kwenye bank accounts zote",
+      "Pata gold inventory na live LBMA spot",
+      "Pata burn rate ya wiki 4 zilizopita"
+    ],
+    "answer": "Una TZS 412M mkononi na uncia 184 za dhahabu zenye thamani ya TZS 1.18B kwa spot ya leo. Burn ya wiki 4 zilizopita ni TZS 87M/wiki. Hiyo inakupa runway ya wiki 18.3 — au wiki 22 kama off-take ya Geita ya Februari ikitimia kwa wakati.",
+    "evidence": "Ushahidi: TRA bank-feed · LBMA spot · off-take MR-241"
+  },
+  "autonomy": {
+    "kicker": "05 · Autonomy Dial",
+    "heading": "Kasi yako, sio yetu.",
+    "sub": "Ngazi nne za uhuru. Kila ngazi inaeleweka. Hakuna chochote kinachofanyika bila idhini yako mpaka ukubali.",
+    "levels": {
+      "advise": "Inashauri tu. Wewe unafanya kazi.",
+      "propose": "Inaandaa drafts. Wewe unatuma.",
+      "executeWithApproval": "Inafanya kazi kwa kibali chako kwa kila hatua.",
+      "autonomous": "Inafanya kazi peke yake ndani ya sera yako. Red-lines bado vinahitaji kibali."
+    }
+  },
+  "chain": {
+    "kicker": "06 · Audit Chain",
+    "heading": "Kila kitendo kimerekodiwa kwa cryptography.",
+    "sub": "Append-only log ikiwa na SHA-256 prev-hash na HMAC kwa kila entry. Tumemadini, NEMC, na auditors wanaweza kuthibitisha bila kutuamini sisi."
+  },
+  "pricing": {
+    "kicker": "07 · Bei",
+    "heading": "Bei wazi. Hakuna mshangao.",
+    "sub": "Tiers tano. Lipa kila mwezi kwa TZS. Anza Mwanzo bure. Kuza unapokuwa tayari.",
+    "perMonth": "kwa mwezi",
+    "freeForever": "bure milele",
+    "bespoke": "Tuwasiliane",
+    "ctaStart": "Anza Mwanzo",
+    "ctaPilot": "Omba pilot",
+    "ctaTalk": "Ongea na timu",
+    "footnote": "Bei zote katika TZS. Inaweza kulipwa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer."
+  },
+  "testimonial": {
+    "kicker": "08 · Sauti za Pilot",
+    "heading": "Quotes za pilot zitapatikana Q3 2026.",
+    "sub": "Sasa hivi tunafanya kazi na waanzilishi kumi wa mgodi katika Geita, Mererani, na Songwe. Tukiwa na matokeo ya wiki 12, tutaweka maoni yao hapa.",
+    "placeholderBadge": "Pilot — quote inakuja"
+  },
+  "footer": {
+    "tagline": "Mfumo wa uendeshaji wa AI kwa madini ya Tanzania. Master Brain, audit chain, lugha mbili.",
+    "product": "Bidhaa",
+    "company": "Kampuni",
+    "resources": "Rasilimali",
+    "legal": "Kisheria",
+    "rights": "Haki zote zimehifadhiwa.",
+    "locale": "Dar es Salaam · UTC+3"
+  },
+  "pilotPage": {
+    "kicker": "Programu ya Pilot",
+    "heading": "Omba kushiriki katika pilot.",
+    "sub": "Tunachagua waanzilishi 20 wa mgodi kushiriki katika pilot yetu ya wiki 12. Hakuna gharama. Unyumbufu kamili. Tutafanya kazi pamoja kujenga mfumo unaofaa kwa muktadha wa Tanzania.",
+    "fields": {
+      "name": "Jina kamili",
+      "company": "Jina la kampuni",
+      "email": "Anwani ya barua pepe",
+      "phone": "Namba ya simu",
+      "portfolioSize": "Idadi ya sites unazomiliki",
+      "mineralFocus": "Madini yako kuu"
+    },
+    "minerals": ["Dhahabu", "Tanzanite", "Almasi", "Bati", "Coltan", "Ujao", "Mengineyo"],
+    "submit": "Tuma maombi",
+    "success": "Asante. Tutawasiliana ndani ya siku 5 za kazi.",
+    "error": "Hitilafu imetokea. Tafadhali jaribu tena au tuma email kwa pilot@borjie.co.tz"
+  },
+  "pricingPage": {
+    "kicker": "Bei",
+    "heading": "Jenga kwa hatua yako.",
+    "sub": "Tiers tano. TZS. Mwanzo ni bure milele. Tunalipa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer.",
+    "compareHeading": "Linganisha vipengele",
+    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na support."
+  },
+  "privacyPage": {
+    "kicker": "Faragha",
+    "heading": "Sera ya Faragha ya Borjie",
+    "lastUpdated": "Imesasishwa: 26 Mei 2026"
+  },
+  "termsPage": {
+    "kicker": "Masharti",
+    "heading": "Masharti ya Huduma ya Borjie",
+    "lastUpdated": "Imesasishwa: 26 Mei 2026"
+  }
+}

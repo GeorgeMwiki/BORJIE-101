@@ -1,0 +1,57 @@
+# Borjie zero-hardcoded-secrets audit
+# Source of truth for CI orchestration: .github/workflows/borjie-ci.yml
+#
+# Greps src/, services/ and apps/ for literal secret prefixes (sk-ant-,
+# sk-proj-, sbp_, eyJhbGci) excluding .env.example files. Fails CI if any
+# literal secret is committed. Closes PARITY_AUDIT_2026_05_26 section 14a.
+name: Borjie zero hardcoded secrets
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borjie-zero-hardcoded-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zero-hardcoded:
+    name: zero-hardcoded-secrets audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Run zero-hardcoded-secrets audit
+        id: audit
+        run: node scripts/audit-zero-hardcoded.mjs | tee zero-hardcoded.log
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: borjie-zero-hardcoded-log
+          path: zero-hardcoded.log
+          if-no-files-found: warn

@@ -1,0 +1,57 @@
+# Borjie security route coverage audit
+# Source of truth for CI orchestration: .github/workflows/borjie-ci.yml
+#
+# Counts HTTP-method declarations across services/api-gateway/src/routes/ and
+# compares them against the Semgrep rule coverage in .semgrep/*.yml. Fails
+# below the 90% coverage threshold. Closes PARITY_AUDIT_2026_05_26 14a.
+name: Borjie security route coverage
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borjie-security-route-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-route-coverage:
+    name: security route coverage audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Run security route coverage audit
+        id: audit
+        run: node scripts/audit-security-route-coverage.mjs | tee security-route-coverage.log
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: borjie-security-route-coverage-log
+          path: security-route-coverage.log
+          if-no-files-found: warn

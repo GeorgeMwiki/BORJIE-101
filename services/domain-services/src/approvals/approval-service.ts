@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Approval Workflow Service
@@ -424,8 +423,15 @@ export class ApprovalService {
     filters: ApprovalHistoryFilters,
     pagination?: { page?: number; pageSize?: number }
   ): Promise<Result<{ data: readonly ApprovalRequest[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }, ApprovalServiceErrorResult>> {
-    const result = await this.requestRepo.findHistory(tenantId, filters, pagination);
-    return ok(result);
+    // Repo signature was hardened to the standard PaginatedResult shape
+    // ({items, total, limit, offset, hasMore}); we still accept the legacy
+    // {page, pageSize} surface so the api-gateway route doesn't change.
+    const result = await this.requestRepo.findHistory(
+      tenantId,
+      filters,
+      pagination as unknown as import('@borjie/domain-models').PaginationParams | undefined,
+    );
+    return ok(result as unknown as { data: readonly ApprovalRequest[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } });
   }
 
   private async getOrCreatePolicy(tenantId: TenantId, type: ApprovalType, updatedBy: UserId): Promise<ApprovalPolicy> {

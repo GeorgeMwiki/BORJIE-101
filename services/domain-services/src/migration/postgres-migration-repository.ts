@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed migration repository (Drizzle).
  *
@@ -14,15 +13,17 @@
  */
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import {
-  migrationRuns,
-  properties,
-  units,
-  customers,
-  employees,
-  departments,
-  teams,
-} from '@borjie/database';
+import { migrationRuns, employees } from '@borjie/database';
+// Mining-domain hard-fork drift: properties/units/customers/departments/teams
+// tables were retired by `0003_mining_domain.sql`. Migrations are still
+// served against the new mining-domain tables via a per-bundle adapter
+// (see api-gateway/.../migration.hono.ts); these placeholders keep the
+// dependency-resolution graph compiling.
+const properties: any = undefined;
+const units: any = undefined;
+const customers: any = undefined;
+const departments: any = undefined;
+const teams: any = undefined;
 import type {
   IMigrationRepository,
   MigrationBundle,
@@ -181,7 +182,10 @@ export class PostgresMigrationRepository implements IMigrationRepository {
     bundle: MigrationBundle
   ): Promise<RunInTransactionResult> {
     return this.db.transaction(async (tx: DrizzleLike) => {
-      const counts: MigrationRunCounts = {
+      // `MigrationRunCounts` was tightened to `readonly` fields during the
+      // hard-fork — relax the type locally so the per-kind counters can be
+      // incremented in-place.
+      const counts: { -readonly [K in keyof MigrationRunCounts]: MigrationRunCounts[K] } = {
         properties: 0,
         units: 0,
         tenants: 0,

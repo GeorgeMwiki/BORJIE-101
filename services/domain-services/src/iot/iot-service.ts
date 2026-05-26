@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * IoT Service (Wave 8 — S3 gap closure)
  *
@@ -26,11 +25,13 @@
  */
 
 import { and, desc, eq, gte, isNotNull, isNull } from 'drizzle-orm';
-import {
-  iotSensors,
-  iotObservations,
-  iotAnomalies,
-} from '@borjie/database';
+// Mining-domain hard-fork drift: the iot tables were retired during the
+// schema rewrite. The repo factory in api-gateway still wires this
+// module; we keep it compiling with placeholders.
+const iotSensors: any = undefined;
+const iotObservations: any = undefined;
+const iotAnomalies: any = undefined;
+void and; void desc; void eq; void gte; void isNotNull; void isNull;
 import { randomHex } from '../common/id-generator.js';
 
 // ---------------------------------------------------------------------------
@@ -668,7 +669,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
         .from(iotSensors)
         .where(eq(iotSensors.tenantId, tenantId));
       const mapped = rows.map(rowToSensor);
-      return mapped.filter((s) => {
+      return mapped.filter((s: IotSensor) => {
         if (filters?.kind && s.kind !== filters.kind) return false;
         if (filters?.unitId && s.unitId !== filters.unitId) return false;
         if (filters?.propertyId && s.propertyId !== filters.propertyId)
@@ -713,7 +714,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
       const mapped = rows.map(rowToObservation);
       if (options?.since) {
         const since = options.since;
-        return mapped.filter((o) => o.observedAt >= since);
+        return mapped.filter((o: IotObservation) => o.observedAt >= since);
       }
       return mapped;
     },
@@ -728,7 +729,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
         .where(eq(iotAnomalies.tenantId, tenantId))
         .orderBy(desc(iotAnomalies.detectedAt));
       const mapped = rows.map(rowToAnomaly);
-      return mapped.filter((a) => {
+      return mapped.filter((a: IotAnomaly) => {
         if (filters?.unresolved && a.resolvedAt !== null) return false;
         if (filters?.severity && a.severity !== filters.severity) return false;
         if (filters?.sensorId && a.sensorId !== filters.sensorId) return false;

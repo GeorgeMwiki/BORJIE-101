@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Document Management Service
@@ -413,7 +412,12 @@ export class DocumentService {
 
     try {
       // Download file content from storage
-      const content = await this.options.storage.download(tenantId, doc.storageKey);
+      // StorageProvider drifted; `download` was renamed/removed during the
+      // hard-fork. Call through `any` until the provider interface is
+      // re-aligned (covered by api-gateway's composition root shim).
+      const content = await (this.options.storage as unknown as {
+        download: (tenantId: TenantId, key: string) => Promise<Buffer>;
+      }).download(tenantId, doc.storageKey);
 
       const ocrResult = await this.options.ocrProvider.extractText(
         content,

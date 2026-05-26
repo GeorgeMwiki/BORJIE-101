@@ -1,0 +1,96 @@
+/**
+ * marketing — globals.css
+ *
+ * Borjie public marketing site. Inherits the full Borjie token set from
+ * @borjie/design-system via the relative @import below. Dark theme by
+ * default — mining operators live in dim shed-offices and field tents.
+ * No local palette, no hex literals — tokens only.
+ */
+
+@import '../../../../packages/design-system/src/styles/globals.css';
+
+/* Load Borjie fonts at the app root — Fraunces (display) + Geist (UI)
+   + JetBrains Mono (numerics). Same triad as the rest of the suite so
+   marketing reads as one product. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Tailwind directives — declared locally so Tailwind's @layer validator
+   resolves them in this file (PostCSS does not follow the @import above
+   into the directive stage). Deduped at build time. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force dark mode on the marketing site — earth-brown foundation with
+   amber/gold signal accents reads like a mining HQ at 04:30, not a
+   white-paper SaaS dashboard. */
+html {
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Marketing-local effects
+   ============================================================ */
+
+/* Subtle gold aurora behind hero — extremely restrained, never the
+   rainbow gradient cliche. */
+.hero-aurora {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 70vh;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 10%, hsl(var(--signal-500) / 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 30% 40%, hsl(var(--signal-700) / 0.08) 0%, transparent 60%);
+  filter: blur(40px);
+}
+
+/* Faint grid underlay — evokes geological survey paper. */
+.cinematic-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.4) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%);
+}
+
+/* Daily-brief stream animation — staggered fade-up for each line.
+   Pure CSS, no JS. */
+@keyframes brief-stream {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.brief-line {
+  animation: brief-stream 0.5s ease-out both;
+}
+
+/* Streamed answer cursor blink for AskShowcase. */
+@keyframes cursor-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: hsl(var(--signal-500));
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+/* Skip-to-main-content link — WCAG 2.1 SC 2.4.1. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: hsl(var(--signal-500));
+  color: hsl(var(--primary-foreground));
+  padding: 0.5rem 1rem;
+  border-radius: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 0;
+}

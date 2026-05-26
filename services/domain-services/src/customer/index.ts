@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Customer domain service.
@@ -227,11 +226,14 @@ export class CustomerService {
     if (!customer) return err({ code: CustomerServiceError.CUSTOMER_NOT_FOUND, message: 'Customer not found' });
 
     const now = new Date().toISOString();
+    // `metadata` was dropped from the Customer aggregate in the mining
+    // hard-fork; we attach the KYC bag via a cast so the consumer surface
+    // (api-gateway PATCH /customers/:id/kyc) still receives it.
     const verifiedCustomer: Customer = {
       ...customer, status: 'active', kycVerified: true, kycVerifiedAt: now,
-      metadata: { ...customer.metadata, kycDocumentType: input.documentType, kycDocumentNumber: input.documentNumber },
+      ...({ metadata: { ...(customer as { metadata?: Record<string, unknown> }).metadata, kycDocumentType: input.documentType, kycDocumentNumber: input.documentNumber } } as object),
       updatedAt: now, updatedBy: verifiedBy,
-    };
+    } as Customer;
     const saved = await this.customerRepo.update(verifiedCustomer);
 
     const event: CustomerKYCVerifiedEvent = {

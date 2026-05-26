@@ -1,0 +1,29 @@
+{
+  "name": "@borjie/notifications",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Transactional email templates and sender service for Borjie. React Email + Resend. Bilingual sw/en, mining-domain content.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@react-email/components": "^0.0.31",
+    "react": "^18.3.0",
+    "resend": "^4.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/react": "^18.2.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

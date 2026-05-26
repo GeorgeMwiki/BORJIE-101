@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * GDPR Right-to-be-Forgotten Service — Wave 9 enterprise polish.
  *
@@ -346,7 +345,7 @@ export function createGdprService(deps: GdprServiceDeps): GdprService {
         eventId: generateEventId(),
         eventType: 'GdprDeletionRequested',
         timestamp: nowIso,
-        tenantId,
+        tenantId: tenantId as unknown as import('@borjie/domain-models').TenantId,
         correlationId: saved.id,
         causationId: null,
         metadata: {},
@@ -438,7 +437,7 @@ export function createGdprService(deps: GdprServiceDeps): GdprService {
         eventId: generateEventId(),
         eventType: 'GdprDeletionExecuted',
         timestamp: nowIso,
-        tenantId,
+        tenantId: tenantId as unknown as import('@borjie/domain-models').TenantId,
         correlationId: saved.id,
         causationId: null,
         metadata: {},

@@ -1,0 +1,61 @@
+# Borjie decision-trace coverage audit
+# Source of truth for CI orchestration: .github/workflows/borjie-ci.yml
+#
+# Queries Supabase for the last 24 hours of decision_log rows grouped by
+# junior, and fails if any junior listed in
+# packages/ai-copilot/src/juniors/executor-registry.ts has not produced at
+# least one decision-log entry. Closes PARITY_AUDIT_2026_05_26 14a.
+name: Borjie decision-trace coverage
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borjie-decision-trace-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  decision-trace-coverage:
+    name: decision-trace coverage audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Run decision-trace coverage audit
+        id: audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-decision-trace-coverage.mjs | tee decision-trace-coverage.log
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: borjie-decision-trace-coverage-log
+          path: decision-trace-coverage.log
+          if-no-files-found: warn

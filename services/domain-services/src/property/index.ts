@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 import { randomHex } from '../common/id-generator.js';
 /**
  * Property domain service.
@@ -583,11 +582,11 @@ export class PropertyService {
       potentialMonthlyRevenue: {
         amount: potentialMonthlyRevenue,
         currency: units.items[0]?.monthlyRent.currency ?? 'USD',
-      },
+      } as Money,
       actualMonthlyRevenue: {
         amount: actualMonthlyRevenue,
         currency: units.items[0]?.monthlyRent.currency ?? 'USD',
-      },
+      } as Money,
       revenueEfficiency: potentialMonthlyRevenue > 0 
         ? Math.round((actualMonthlyRevenue / potentialMonthlyRevenue) * 100)
         : 0,

@@ -1,0 +1,164 @@
+{
+  "nav": {
+    "product": "Product",
+    "pricing": "Pricing",
+    "pilot": "Pilot",
+    "docs": "Docs",
+    "signIn": "Sign in"
+  },
+  "hero": {
+    "kicker": "AI-native OS for Tanzanian mining",
+    "headline": "Run your mine like the world's best.",
+    "sub": "AI-native operating system. Tanzanian-first. Multi-tenant. Multi-lingual.",
+    "ctaPilot": "Apply for pilot",
+    "ctaDemo": "View live demo",
+    "trustline": "Geita · Mererani · Kahama · Songwe"
+  },
+  "capabilities": {
+    "kicker": "01 · Core capabilities",
+    "heading": "Six capabilities, one calm operator.",
+    "sub": "Each capability ties into your mine's knowledge graph and writes to an immutable audit chain.",
+    "cards": {
+      "licence": {
+        "title": "Licence calendar",
+        "blurb": "PML, ML, and SML on one calendar. 90-, 60-, 30-day expiry warnings. Aware of Tumemadini renewal workflow."
+      },
+      "brief": {
+        "title": "Daily brief",
+        "blurb": "Every morning at 06:00 the Master Brain shows overnight actions, decisions that need you, and gold-window treasury position."
+      },
+      "drillhole": {
+        "title": "Drill-hole logger",
+        "blurb": "Field logger for drill holes and grade-control. Cores photographed, assayed, linked to a pit segment, written to the chain."
+      },
+      "treasury": {
+        "title": "FX & treasury",
+        "blurb": "TZS · USD · gold ounces. Hedge proposals against live BoT and LBMA spot. Off-take projections by week."
+      },
+      "marketplace": {
+        "title": "Marketplace",
+        "blurb": "Artisanal miners, registered traders, licensed smelters. KYC for every participant. One-click off-take agreements."
+      },
+      "compliance": {
+        "title": "Compliance pack",
+        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Ready for submission to Tumemadini and TRA."
+      }
+    }
+  },
+  "how": {
+    "kicker": "02 · How it works",
+    "heading": "Your first week. Three steps.",
+    "steps": {
+      "one": {
+        "label": "Sign-up + KYB",
+        "title": "Register and verify your business.",
+        "body": "We integrate with BRELA, TRA, and Tumemadini. Full KYB inside 48 hours. No paper forms."
+      },
+      "two": {
+        "label": "Import",
+        "title": "Bring your licences and sites.",
+        "body": "Upload PML/ML/SML licences, pit maps, drill-hole logs. Your mine's knowledge graph builds itself."
+      },
+      "three": {
+        "label": "Master Brain",
+        "title": "Master Brain takes over.",
+        "body": "Starts in shadow mode for 14 days. You see what it would have done. Then you grant authority, step by step."
+      }
+    }
+  },
+  "brief": {
+    "kicker": "03 · Daily Brief",
+    "heading": "Your first minute at 06:00.",
+    "sub": "The Master Brain handled overnight operations. Here's what it did, what it flagged, and what the numbers say."
+  },
+  "ask": {
+    "kicker": "04 · Talk to your mine",
+    "heading": "Ask. It answers.",
+    "sub": "Not a chatbot. The mine itself speaking in the first person, grounded in its knowledge graph, with clickable citations.",
+    "question": "What's my cash runway?",
+    "answerPlan": [
+      "Query TZS balances across all bank accounts",
+      "Fetch gold inventory and live LBMA spot",
+      "Compute trailing 4-week burn rate"
+    ],
+    "answer": "You hold TZS 412M in cash and 184 oz of gold worth TZS 1.18B at today's spot. Trailing 4-week burn is TZS 87M/wk. That gives you 18.3 weeks of runway — or 22 weeks if the February Geita off-take settles on time.",
+    "evidence": "Evidence: TRA bank-feed · LBMA spot · off-take MR-241"
+  },
+  "autonomy": {
+    "kicker": "05 · Autonomy Dial",
+    "heading": "Your pace, not ours.",
+    "sub": "Four autonomy levels. Each is clearly defined. Nothing happens without your sign-off until you say so.",
+    "levels": {
+      "advise": "Advises only. You execute.",
+      "propose": "Drafts proposals. You send.",
+      "executeWithApproval": "Acts with your approval at each step.",
+      "autonomous": "Acts on its own inside your policy. Red-lines still need approval."
+    }
+  },
+  "chain": {
+    "kicker": "06 · Audit chain",
+    "heading": "Every action is cryptographically on the record.",
+    "sub": "Append-only log with SHA-256 prev-hash and per-entry HMAC. Tumemadini, NEMC, and auditors can verify the chain without trusting us."
+  },
+  "pricing": {
+    "kicker": "07 · Pricing",
+    "heading": "Clear pricing. No surprises.",
+    "sub": "Five tiers. Monthly in TZS. Start free with Mwanzo. Scale when you're ready.",
+    "perMonth": "per month",
+    "freeForever": "free forever",
+    "bespoke": "Talk to us",
+    "ctaStart": "Start Mwanzo",
+    "ctaPilot": "Apply for pilot",
+    "ctaTalk": "Talk to the team",
+    "footnote": "All prices in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer."
+  },
+  "testimonial": {
+    "kicker": "08 · Pilot voices",
+    "heading": "Pilot quotes available Q3 2026.",
+    "sub": "We're currently working with ten pioneer mining operators across Geita, Mererani, and Songwe. Once we have 12-week outcomes, we'll publish their words here.",
+    "placeholderBadge": "Pilot — quote pending"
+  },
+  "footer": {
+    "tagline": "AI-native operating system for Tanzanian mining. Master Brain, audit chain, bilingual.",
+    "product": "Product",
+    "company": "Company",
+    "resources": "Resources",
+    "legal": "Legal",
+    "rights": "All rights reserved.",
+    "locale": "Dar es Salaam · UTC+3"
+  },
+  "pilotPage": {
+    "kicker": "Pilot programme",
+    "heading": "Apply to join the pilot.",
+    "sub": "We're selecting 20 mining operators for our 12-week pilot. No cost. Full flexibility. We'll work together to build a system that fits the Tanzanian context.",
+    "fields": {
+      "name": "Full name",
+      "company": "Company name",
+      "email": "Email address",
+      "phone": "Phone number",
+      "portfolioSize": "Number of sites you operate",
+      "mineralFocus": "Primary mineral focus"
+    },
+    "minerals": ["Gold", "Tanzanite", "Diamond", "Tin", "Coltan", "Coal", "Other"],
+    "submit": "Submit application",
+    "success": "Thank you. We'll be in touch within 5 business days.",
+    "error": "Something went wrong. Please try again or email pilot@borjie.co.tz"
+  },
+  "pricingPage": {
+    "kicker": "Pricing",
+    "heading": "Build at your own pace.",
+    "sub": "Five tiers. TZS. Mwanzo is free forever. We accept M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.",
+    "compareHeading": "Feature comparison",
+    "compareSub": "Every tier ships every feature. The difference is quotas and support."
+  },
+  "privacyPage": {
+    "kicker": "Privacy",
+    "heading": "Borjie Privacy Policy",
+    "lastUpdated": "Last updated: 26 May 2026"
+  },
+  "termsPage": {
+    "kicker": "Terms",
+    "heading": "Borjie Terms of Service",
+    "lastUpdated": "Last updated: 26 May 2026"
+  }
+}

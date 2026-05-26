@@ -1,0 +1,57 @@
+# Borjie regulator-pack drift audit
+# Source of truth for CI orchestration: .github/workflows/borjie-ci.yml
+#
+# Greps Docs/regulator-pack/tz/*.md for cited URLs/dates and ensures the
+# citations have not gone stale (>180 days). Closes PARITY_AUDIT_2026_05_26
+# section 14a (parity with BossNyumba's regulator-pack-drift job).
+name: Borjie regulator-pack drift
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borjie-regulator-pack-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regulator-pack-drift:
+    name: regulator-pack drift audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Run regulator-pack drift audit
+        id: audit
+        run: node scripts/audit-regulator-pack-drift.mjs | tee regulator-pack-drift.log
+
+      - name: Upload audit log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: borjie-regulator-pack-drift-log
+          path: regulator-pack-drift.log
+          if-no-files-found: warn

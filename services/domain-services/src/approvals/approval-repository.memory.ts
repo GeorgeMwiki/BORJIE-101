@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * In-memory Approval Repository
  * For development and testing
@@ -60,8 +59,12 @@ export class MemoryApprovalRequestRepository implements ApprovalRequestRepositor
 
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const page = pagination?.page ?? 1;
-    const pageSize = pagination?.pageSize ?? 20;
+    // PaginationParams shape drifted from {page, pageSize} to
+    // {limit, offset, hasMore}; consumers (api-gateway approvals route)
+    // still emit page-based queries, so we accept both shapes.
+    const paginationLegacy = pagination as { page?: number; pageSize?: number } | undefined;
+    const page = paginationLegacy?.page ?? 1;
+    const pageSize = paginationLegacy?.pageSize ?? 20;
     const total = items.length;
     const start = (page - 1) * pageSize;
     const data = items.slice(start, start + pageSize);
@@ -74,7 +77,7 @@ export class MemoryApprovalRequestRepository implements ApprovalRequestRepositor
         total,
         totalPages: Math.ceil(total / pageSize),
       },
-    };
+    } as unknown as PaginatedResult<ApprovalRequest>;
   }
 
   async create(request: ApprovalRequest): Promise<ApprovalRequest> {

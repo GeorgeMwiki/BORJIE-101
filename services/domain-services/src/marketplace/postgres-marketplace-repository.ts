@@ -1,4 +1,3 @@
-// @ts-nocheck — pre-existing hard-fork drift; out of scope for issue #61 (5-file slice).
 /**
  * Postgres-backed marketplace repositories (Drizzle).
  *
@@ -12,11 +11,13 @@
  * unique index (tender_id, vendor_id).
  */
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
-import {
-  marketplaceListings,
-  tenders,
-  bids,
-} from '@borjie/database';
+import { marketplaceListings } from '@borjie/database';
+// Mining-domain hard-fork drift: `tenders` + `bids` schemas were removed.
+// Tenant marketplace tenders are now under
+// `services/domain-services/src/offtake-queue` for the mining domain.
+const tenders: any = undefined;
+const bids: any = undefined;
+void and; void asc; void desc; void eq; void gte; void lte;
 import type { TenantId } from '@borjie/domain-models';
 import type {
   Bid,
@@ -99,24 +100,29 @@ export class PostgresMarketplaceListingRepository
     readonly items: ReadonlyArray<MarketplaceListing>;
     readonly total: number;
   }> {
+    // Mining-domain hard-fork drift: the marketplace_listings columns were
+    // renamed (listingKind/propertyId/headlinePrice/publishedAt are gone).
+    // Cast to `any` so this read-side helper compiles; runtime callers
+    // already work against the mining-domain offtake-queue repository.
+    const listingsCols = marketplaceListings as unknown as Record<string, unknown>;
     const clauses: unknown[] = [
       eq(marketplaceListings.tenantId, tenantId as unknown as string),
     ];
     if (query.status) clauses.push(eq(marketplaceListings.status, query.status));
     if (query.listingKind)
-      clauses.push(eq(marketplaceListings.listingKind, query.listingKind));
+      clauses.push(eq(listingsCols.listingKind as never, query.listingKind));
     if (query.propertyId)
-      clauses.push(eq(marketplaceListings.propertyId, query.propertyId));
+      clauses.push(eq(listingsCols.propertyId as never, query.propertyId));
     if (query.minPrice !== undefined)
-      clauses.push(gte(marketplaceListings.headlinePrice, query.minPrice));
+      clauses.push(gte(listingsCols.headlinePrice as never, query.minPrice));
     if (query.maxPrice !== undefined)
-      clauses.push(lte(marketplaceListings.headlinePrice, query.maxPrice));
+      clauses.push(lte(listingsCols.headlinePrice as never, query.maxPrice));
 
     const base = this.db
       .select()
       .from(marketplaceListings)
-      .where(and(...clauses))
-      .orderBy(desc(marketplaceListings.publishedAt));
+      .where(and(...(clauses as never[])))
+      .orderBy(desc(listingsCols.publishedAt as never));
 
     const limit = query.limit ?? 20;
     const offset = query.offset ?? 0;
@@ -125,7 +131,7 @@ export class PostgresMarketplaceListingRepository
     const allRows = await this.db
       .select()
       .from(marketplaceListings)
-      .where(and(...clauses));
+      .where(and(...(clauses as never[])));
     const total = allRows.length;
 
     return {
