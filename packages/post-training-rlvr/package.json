@@ -1,0 +1,40 @@
+{
+  "name": "@borjie/post-training-rlvr",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Wave 19C — Post-training RLVR (Reinforcement Learning from Verifiable Rewards) orchestration. Verifier registry + reward shaping + trace capture + PII redaction + curation + run lifecycle. Bridges Mr. Mwikila session traces to provider fine-tuning endpoints with tenant-safe audit-chained artefacts. See Docs/DESIGN/RLVR_POST_TRAINING_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
