@@ -78,6 +78,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      swagger-ui-dist:
+        specifier: ^5.17.0
+        version: 5.32.6
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -141,6 +144,12 @@ importers:
       '@liveblocks/yjs':
         specifier: ^2.0.0
         version: 2.24.4(yjs@13.6.30)
+      '@supabase/ssr':
+        specifier: ^0.5.0
+        version: 0.5.2(@supabase/supabase-js@2.106.2)
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       '@tanstack/react-form':
         specifier: ^1.0.0
         version: 1.32.0(react-dom@18.3.1)(react@18.3.1)
@@ -341,6 +350,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.75.0)
+      '@supabase/ssr':
+        specifier: ^0.5.0
+        version: 0.5.2(@supabase/supabase-js@2.106.2)
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.100.9(react@18.3.1)
@@ -1206,6 +1221,9 @@ importers:
       '@borjie/domain-models':
         specifier: workspace:*
         version: link:../domain-models
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       bcrypt:
         specifier: ^5.1.1
         version: 5.1.1
@@ -13746,6 +13764,11 @@ packages:
     dev: true
     optional: true
 
+  /@scarf/scarf@1.4.0:
+    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
+    requiresBuild: true
+    dev: true
+
   /@schummar/icu-type-parser@1.21.5:
     resolution: {integrity: sha512-bXHSaW5jRTmke9Vd0h5P7BtWZG9Znqb8gSDxZnxaGSJnGwPLDPfS+3g0BKzeWqzgZPsIVZkM7m2tbo18cm5HBw==}
     dev: false
@@ -14207,6 +14230,16 @@ packages:
     dependencies:
       '@supabase/phoenix': 0.4.2
       tslib: 2.8.1
+    dev: false
+
+  /@supabase/ssr@0.5.2(@supabase/supabase-js@2.106.2):
+    resolution: {integrity: sha512-n3plRhr2Bs8Xun1o4S3k1CDv17iH5QY9YcoEvXX3bxV1/5XSasA0mNXYycFmADIdtdE6BG9MRjP5CGIs8qxC8A==}
+    peerDependencies:
+      '@supabase/supabase-js': ^2.43.4
+    dependencies:
+      '@supabase/supabase-js': 2.106.2
+      '@types/cookie': 0.6.0
+      cookie: 0.7.2
     dev: false
 
   /@supabase/storage-js@2.106.2:
@@ -28117,6 +28150,12 @@ packages:
   /svg-arc-to-cubic-bezier@3.2.0:
     resolution: {integrity: sha512-djbJ/vZKZO+gPoSDThGNpKDO+o+bAeA4XQKovvkNCqnIS2t+S4qnLAGQhyyrulhCFRl1WWzAp0wUDV8PpTVU3g==}
     dev: false
+
+  /swagger-ui-dist@5.32.6:
+    resolution: {integrity: sha512-75ttZNaYCLoFPnozPZcTUU6mS3wKT8l7WLjU5zJSHFeJa23i5vtnze6IiCl4jDMPeQTXVXIgovq4M11NNfQvSA==}
+    dependencies:
+      '@scarf/scarf': 1.4.0
+    dev: true
 
   /sweepline-intersections@1.5.0:
     resolution: {integrity: sha512-AoVmx72QHpKtItPu72TzFL+kcYjd67BPLDoR0LarIk+xyaRg+pDTMFXndIEvZf9xEKnJv6JdhgRMnocoG0D3AQ==}
