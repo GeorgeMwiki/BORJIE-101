@@ -430,6 +430,20 @@ export * from './loop-architecture.schema.js';
 export * from './tab-as-loop.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave M6 — Org Legibility (live, queryable, brand-locked org map)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0037_org_legibility.sql:
+//   legibility_snapshots — reconciled authoritative LegibilityMap per
+//                           (tenant, scope, snapshot_at). Public +
+//                           internal variants; juniors only in
+//                           internal_snapshot.
+//   legibility_deltas    — event-driven deltas applied forward from
+//                           the previous snapshot.
+// Consumed by @borjie/legibility.
+// See Docs/DESIGN/ORG_LEGIBILITY_SPEC.md §14-21.
+export * from './org-legibility.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave M7 — Information Synthesis SOTA (diorize pipeline persistence)
 // ---------------------------------------------------------------------------
 // Two tenant-scoped tables backing migration 0038_info_synthesis.sql:
@@ -545,6 +559,46 @@ export * from './work-cycle.schema.js';
 export * from './rlvr.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave OMNI-P0-BATCH-1 — Slack + Email + Calendar connectors
+// ---------------------------------------------------------------------------
+// Five tenant-scoped tables backing migration 0042_omni_p0_batch1.sql:
+//   connector_credentials — per-tenant per-account OAuth state. Tokens are
+//                            AES-GCM ciphertext sealed with a tenant-bound
+//                            DEK; the database NEVER sees plaintext.
+//   connector_cursors     — per (tenant, kind, account) ingest cursor.
+//                            Opaque text — provider-defined.
+//   slack_messages        — canonical Slack message row (post-PII-
+//                            redaction). UNIQUE on (tenant_id, workspace_id,
+//                            channel_id, ts).
+//   email_messages        — canonical Gmail + Outlook mail row. Address
+//                            fields are salted-sha256 hashes.
+//   calendar_events       — canonical Google + Outlook calendar event row.
+// Consumed by @borjie/connector-slack, @borjie/connector-email,
+// @borjie/connector-calendar.
+// See Docs/DESIGN/OMNI_P0_BATCH1_CONNECTORS_SPEC.md.
+export {
+  connectorCredentials,
+  connectorCursors,
+  slackMessages,
+  type ConnectorCredentialsRow,
+  type ConnectorCredentialsInsert,
+  type ConnectorCursorRow,
+  type ConnectorCursorInsert,
+  type SlackMessageRow,
+  type SlackMessageInsert,
+} from './connector-slack.schema.js';
+export {
+  emailMessages,
+  type EmailMessageRow,
+  type EmailMessageInsert,
+} from './connector-email.schema.js';
+export {
+  calendarEvents,
+  type CalendarEventRow,
+  type CalendarEventInsert,
+} from './connector-calendar.schema.js';
+
+// ---------------------------------------------------------------------------
 // P0 #2 Closure (18BB gap analysis) — GraphRAG Router
 // ---------------------------------------------------------------------------
 // Four tenant-scoped tables backing migration 0041_graph_rag.sql:
@@ -560,3 +614,30 @@ export * from './rlvr.schema.js';
 // `graph-rag-community-summaries` sleep pass.
 // See Docs/DESIGN/GRAPH_RAG_ROUTER_SPEC.md.
 export * from './graph-rag.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave M10–M12 — Strategic Direction Layer
+// ---------------------------------------------------------------------------
+// Six tenant-scoped tables backing migration 0040_strategic_layer.sql:
+//   north_star_objectives  — durable goal record (OKR-shaped) with
+//                            proposed/active/met/missed/retired state
+//                            machine. T2 events flow through
+//                            @borjie/mutation-authority.
+//   objective_progress     — append-only observation log per objective.
+//                            Velocity + drift signal computed off the
+//                            latest rows.
+//   pivot_proposals        — LLM-drafted retarget / reframe / retire
+//                            recommendations when drift goes off_track
+//                            for ≥7 days. T2 owner-in-the-loop.
+//   federation_consents    — per-tenant opt-in gate for cognitive-memory
+//                            cross-tenant federation. Default deny;
+//                            scoped (patterns / rules / terminology /
+//                            failures / all); expiring; prospective
+//                            revocation.
+//   epsilon_budgets        — per-tenant per-period (monthly) Rényi-DP
+//                            budget cap. PK is (tenant_id, period_start).
+//   epsilon_ledger         — append-only ε-charge audit log; idempotent
+//                            on (tenant_id, op_kind, op_id).
+// Consumed by @borjie/strategic-layer.
+// See Docs/DESIGN/STRATEGIC_DIRECTION_LAYER_SPEC.md §15.
+export * from './strategic-layer.schema.js';
