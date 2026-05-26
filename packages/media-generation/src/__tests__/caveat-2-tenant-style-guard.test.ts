@@ -33,10 +33,10 @@ import type {
 } from '../types.js';
 import { extractC2paManifest } from '../watermark/c2pa-embedder.js';
 
-const BOSSNYUMBA_SPEC: BrandSpec = Object.freeze({
-  brand: 'borjie', // BrandSpec.brand literal is 'borjie' in this package; the brand fork string is the wordmark
+const ALT_BRAND_SPEC: BrandSpec = Object.freeze({
+  brand: 'borjie', // BrandSpec.brand literal is 'borjie' in this package; multi-brand tenants override the wordmark
   photographic_style:
-    'editorial, daylight, neutral but warm — BossNyumba sibling fork',
+    'editorial, daylight, neutral but warm — alt-tenant brand override',
   palette: Object.freeze([
     Object.freeze({
       name: 'signal_primary',
@@ -62,7 +62,7 @@ const BOSSNYUMBA_SPEC: BrandSpec = Object.freeze({
     'NSFW',
     'low-resolution',
   ]),
-  wordmark_svg_path: 'packages/design-system/src/brand/bossnyumba-wordmark.svg',
+  wordmark_svg_path: 'packages/design-system/src/brand/alt-tenant-wordmark.svg',
   signature_gradient_direction: '45deg',
   real_person_consent_required: true,
 });
@@ -159,39 +159,39 @@ describe('Caveat 2 — BrandSpec registry is tenant-scoped', () => {
 
   it('register attaches a tenant override and returns a new registry', () => {
     const r0 = createBrandSpecRegistry();
-    const r1 = r0.register('tenant-bn', BOSSNYUMBA_SPEC);
+    const r1 = r0.register('tenant-bn', ALT_BRAND_SPEC);
     expect(r0.get('tenant-bn')).toBe(BorjieBrandSpec);
-    expect(r1.get('tenant-bn')).toBe(BOSSNYUMBA_SPEC);
+    expect(r1.get('tenant-bn')).toBe(ALT_BRAND_SPEC);
     expect(r1.list()).toHaveLength(1);
   });
 
   it('cross-tenant lookups fall back to the default; no leakage', () => {
-    const r = createBrandSpecRegistry().register('tenant-a', BOSSNYUMBA_SPEC);
-    expect(r.get('tenant-a')).toBe(BOSSNYUMBA_SPEC);
+    const r = createBrandSpecRegistry().register('tenant-a', ALT_BRAND_SPEC);
+    expect(r.get('tenant-a')).toBe(ALT_BRAND_SPEC);
     expect(r.get('tenant-b')).toBe(BorjieBrandSpec);
   });
 
   it('registerBrandSpec mutates the active singleton in a controlled way', () => {
     expect(getBrandSpec('tenant-x')).toBe(BorjieBrandSpec);
-    registerBrandSpec('tenant-x', BOSSNYUMBA_SPEC);
-    expect(getBrandSpec('tenant-x')).toBe(BOSSNYUMBA_SPEC);
+    registerBrandSpec('tenant-x', ALT_BRAND_SPEC);
+    expect(getBrandSpec('tenant-x')).toBe(ALT_BRAND_SPEC);
     // Other tenants are unaffected.
     expect(getBrandSpec('tenant-y')).toBe(BorjieBrandSpec);
   });
 
   it('registerBrandSpec refuses empty tenant ids', () => {
-    expect(() => registerBrandSpec('', BOSSNYUMBA_SPEC)).toThrow(
+    expect(() => registerBrandSpec('', ALT_BRAND_SPEC)).toThrow(
       /tenantId must be non-empty/,
     );
-    expect(() => registerBrandSpec('   ', BOSSNYUMBA_SPEC)).toThrow(
+    expect(() => registerBrandSpec('   ', ALT_BRAND_SPEC)).toThrow(
       /tenantId must be non-empty/,
     );
   });
 
   it('snapshot + setActiveBrandSpecRegistry restore the registry between scopes', () => {
     const before = snapshotBrandSpecRegistry();
-    registerBrandSpec('tenant-temp', BOSSNYUMBA_SPEC);
-    expect(getBrandSpec('tenant-temp')).toBe(BOSSNYUMBA_SPEC);
+    registerBrandSpec('tenant-temp', ALT_BRAND_SPEC);
+    expect(getBrandSpec('tenant-temp')).toBe(ALT_BRAND_SPEC);
     setActiveBrandSpecRegistry(before);
     expect(getBrandSpec('tenant-temp')).toBe(BorjieBrandSpec);
   });
@@ -199,7 +199,7 @@ describe('Caveat 2 — BrandSpec registry is tenant-scoped', () => {
 
 describe('Caveat 2 — tenant override flows through the composer', () => {
   it('the tenant-scoped BrandSpec is the one baked into the artifact prompt', async () => {
-    registerBrandSpec('tenant-bn', BOSSNYUMBA_SPEC);
+    registerBrandSpec('tenant-bn', ALT_BRAND_SPEC);
     const recipe = buildBriefingThumbnailRecipe({
       adapters: [fakeAdapter()],
     });
@@ -216,7 +216,7 @@ describe('Caveat 2 — tenant override flows through the composer', () => {
       ctx: ctxBn,
       registry,
     });
-    // Bonyumba's font rule is serif; Borjie's is sans-serif. The two
+    // Alt-tenant's font rule is serif; Borjie's is sans-serif. The two
     // prompts must diverge on this exact token.
     expect(artifactBorjie.provenance.prompt_text).toContain('sans-serif');
     expect(artifactBn.provenance.prompt_text).toContain('serif');
@@ -224,7 +224,7 @@ describe('Caveat 2 — tenant override flows through the composer', () => {
   });
 
   it('the BrandSpec passed via ctx.brand_spec overrides the registry', async () => {
-    registerBrandSpec('tenant-bn', BOSSNYUMBA_SPEC);
+    registerBrandSpec('tenant-bn', ALT_BRAND_SPEC);
     const recipe = buildBriefingThumbnailRecipe({
       adapters: [fakeAdapter()],
     });
@@ -239,12 +239,12 @@ describe('Caveat 2 — tenant override flows through the composer', () => {
       registry,
     });
     // Even though the tenant is bn, ctx override won. Sans-serif rule
-    // appears (Borjie), serif rule (Bonyumba) does not.
+    // appears (Borjie), serif rule (Alt-tenant) does not.
     expect(artifact.provenance.prompt_text).toContain('sans-serif');
   });
 
   it('the brand spec carries through to the C2PA manifest brand field', async () => {
-    registerBrandSpec('tenant-bn', BOSSNYUMBA_SPEC);
+    registerBrandSpec('tenant-bn', ALT_BRAND_SPEC);
     const recipe = buildBriefingThumbnailRecipe({
       adapters: [fakeAdapter()],
     });
@@ -259,14 +259,14 @@ describe('Caveat 2 — tenant override flows through the composer', () => {
     // Both tenants in the v1 BrandSpec carry brand='borjie' literal —
     // multi-brand forks ship their own BrandSpec with a different
     // brand literal. This test confirms the value flows through.
-    expect(credentials['brand']).toBe(BOSSNYUMBA_SPEC.brand);
+    expect(credentials['brand']).toBe(ALT_BRAND_SPEC.brand);
   });
 });
 
 describe('Caveat 2 — denylist enforcement is tenant-scoped', () => {
   it('the BrandSpec denylist becomes the negative_prompt token list', () => {
     const promptBorjie = buildBrandedPrompt(BorjieBrandSpec, 'subject');
-    const promptBn = buildBrandedPrompt(BOSSNYUMBA_SPEC, 'subject');
+    const promptBn = buildBrandedPrompt(ALT_BRAND_SPEC, 'subject');
     expect(promptBorjie).toContain('gore');
     expect(promptBn).not.toContain('gore');
   });

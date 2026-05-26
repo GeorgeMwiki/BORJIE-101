@@ -127,12 +127,12 @@ describe('Caveat 1 — C2PA manifest is tenant-scoped', () => {
   it('embeds tenant_id + brand into the brand_credentials assertion', () => {
     const m = buildC2paManifest({
       ...MANIFEST_BASE,
-      tenant_id: 'tenant-bossnyumba-ke',
-      brand: 'bossnyumba',
+      tenant_id: 'tenant-alt-brand-ke',
+      brand: 'alt-brand',
     });
     const credentials = m.assertions[1]?.data as Record<string, unknown>;
-    expect(credentials['tenant_id']).toBe('tenant-bossnyumba-ke');
-    expect(credentials['brand']).toBe('bossnyumba');
+    expect(credentials['tenant_id']).toBe('tenant-alt-brand-ke');
+    expect(credentials['brand']).toBe('alt-brand');
   });
 
   it('produces a distinct signature per tenant', () => {
@@ -143,7 +143,7 @@ describe('Caveat 1 — C2PA manifest is tenant-scoped', () => {
 
   it('produces a distinct signature per brand fork', () => {
     const a = buildC2paManifest({ ...MANIFEST_BASE, brand: 'borjie' });
-    const b = buildC2paManifest({ ...MANIFEST_BASE, brand: 'bossnyumba' });
+    const b = buildC2paManifest({ ...MANIFEST_BASE, brand: 'alt-brand' });
     expect(a.signature.value).not.toBe(b.signature.value);
   });
 
