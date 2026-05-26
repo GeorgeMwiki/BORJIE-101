@@ -12,10 +12,23 @@
 
 const noJurisdictionalLiteral = require('./no-jurisdictional-literal.js');
 const requireCsrfHeaders = require('./require-csrf-headers.cjs');
+const noNonTokenStyle = require('./no-non-token-style.js');
+const noNonTokenInDocTemplate = require('./no-non-token-in-doc-template.js');
 
 module.exports = {
   rules: {
     'no-jurisdictional-literal': noJurisdictionalLiteral,
     'require-csrf-headers': requireCsrfHeaders,
+    // Phase 2 brand-DNA enforcement.
+    // - no-non-token-style: rejects raw color / spacing / font literals
+    //   on every brand-locked UI surface (genui, chat-ui, design-system,
+    //   marketing/owner-web/admin-web apps). See
+    //   `docs/DESIGN/ANTICIPATORY_UX_SPEC.md` §6.
+    // - no-non-token-in-doc-template: same rejection set scoped to the
+    //   document-template package + any `*-brander.ts` / `*-recipe.ts`
+    //   file. Also scans embedded HTML/CSS string literals. See
+    //   `docs/DESIGN/DOCUMENT_COMPOSITION_SPEC.md` §3 Layer 3.
+    'no-non-token-style': noNonTokenStyle,
+    'no-non-token-in-doc-template': noNonTokenInDocTemplate,
   },
 };

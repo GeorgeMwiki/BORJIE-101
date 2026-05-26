@@ -276,4 +276,65 @@ export default [
       'no-secrets/no-secrets': 'off',
     },
   },
+
+  // ------ Brand-DNA enforcement (Phase 2 Layer 3) ------
+  //
+  // `borjie/no-non-token-style` runs on every brand-locked UI surface.
+  // It rejects raw color/spacing/font literals that did not come from
+  // the @borjie/design-system token set (see
+  // docs/DESIGN/ANTICIPATORY_UX_SPEC.md §6).
+  //
+  // Severity is `error`: existing violations are documented as a
+  // follow-up worklist (the rule's file-path allowlist already excludes
+  // the design-system token registry, story files, and tests, so the
+  // surface that turns `error` is intentionally narrow). The companion
+  // genui runtime validator routes any payload that slips past lint to
+  // UnknownKindCard(malformed: true).
+  {
+    files: [
+      'packages/genui/**/*.{ts,tsx,js,jsx}',
+      'packages/chat-ui/**/*.{ts,tsx,js,jsx}',
+      'packages/design-system/**/*.{ts,tsx,js,jsx}',
+      'apps/marketing/**/*.{ts,tsx,js,jsx}',
+      'apps/owner-web/**/*.{ts,tsx,js,jsx}',
+      'apps/admin-web/**/*.{ts,tsx,js,jsx}',
+    ],
+    rules: {
+      'borjie/no-non-token-style': 'error',
+    },
+  },
+
+  // `borjie/no-non-token-in-doc-template` runs on the document-templates
+  // package and any `*-brander.ts` / `*-recipe.ts` file. It uses the
+  // wider string-scan mode because DOCX / PDF templates frequently
+  // embed inline HTML / CSS as plain string literals.
+  // See docs/DESIGN/DOCUMENT_COMPOSITION_SPEC.md §3 Layer 3.
+  {
+    files: [
+      'packages/document-templates/**/*.{ts,tsx,js,jsx,cts,mts,cjs,mjs}',
+      '**/*-brander.{ts,tsx,js,jsx,cts,mts,cjs,mjs}',
+      '**/*-recipe.{ts,tsx,js,jsx,cts,mts,cjs,mjs}',
+    ],
+    rules: {
+      'borjie/no-non-token-in-doc-template': 'error',
+    },
+  },
+
+  // The design-system token registry IS the canonical raw-OKLCH / hex
+  // source. The rule already short-circuits on these files via its
+  // file-path allowlist; we still belt-and-brace by explicitly turning
+  // it off here in case the file ever moves.
+  {
+    files: [
+      'packages/design-system/src/styles/globals.css',
+      'packages/design-system/src/brand/index.ts',
+      'packages/design-system/tailwind.config.ts',
+      'apps/*/src/app/globals.css',
+      'apps/*/tailwind.config.ts',
+    ],
+    rules: {
+      'borjie/no-non-token-style': 'off',
+      'borjie/no-non-token-in-doc-template': 'off',
+    },
+  },
 ];
