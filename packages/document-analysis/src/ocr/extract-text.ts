@@ -60,12 +60,12 @@ async function tryPdfParse(buffer: Buffer): Promise<{
   try {
     // Lazy import — optional dep. Cast via unknown because pdf-parse
     // does not ship its own types; we narrow the surface below.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod = (await (import(
+    const mod: unknown = await import(
       /* @vite-ignore */ 'pdf-parse' as string
-    ).catch(() => null))) as any;
+    ).catch(() => null);
     if (!mod) return null;
-    const fn = (mod.default ?? mod) as (buf: Buffer) => Promise<{
+    const modShape = mod as { default?: unknown };
+    const fn = (modShape.default ?? mod) as (buf: Buffer) => Promise<{
       text: string;
       numpages: number;
     }>;

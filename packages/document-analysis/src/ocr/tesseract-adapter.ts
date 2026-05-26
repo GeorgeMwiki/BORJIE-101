@@ -48,8 +48,7 @@ export async function runTesseract(
     ? options.languages.join('+')
     : 'eng+swa';
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mod: any;
+  let mod: unknown;
   try {
     // Dynamic import so the dep is genuinely optional.
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- SCRUB-5f: rule-disabled because some bundler transforms convert dynamic import() to require() and tesseract.js is a soft optional dep
@@ -64,8 +63,11 @@ export async function runTesseract(
   // tesseract.js v5 exports `recognize` and a `createWorker` factory. We
   // use the high-level `recognize` for simplicity; high-volume callers
   // should switch to the worker pool.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognize = (mod.recognize ?? mod.default?.recognize) as (
+  const modShape = mod as {
+    recognize?: unknown;
+    default?: { recognize?: unknown };
+  };
+  const recognize = (modShape.recognize ?? modShape.default?.recognize) as (
     image: Buffer,
     langs: string,
     opts?: { logger?: (m: { status: string; progress: number }) => void },
