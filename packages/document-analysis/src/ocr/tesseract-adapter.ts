@@ -52,7 +52,7 @@ export async function runTesseract(
   let mod: any;
   try {
     // Dynamic import so the dep is genuinely optional.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- SCRUB-5f: rule-disabled because some bundler transforms convert dynamic import() to require() and tesseract.js is a soft optional dep
     mod = await import(/* @vite-ignore */ 'tesseract.js');
   } catch (err) {
     throw new TesseractUnavailableError(
