@@ -1,0 +1,41 @@
+{
+  "name": "@borjie/tenant-isolation-guard",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Structural guard against cross-tenant data and action leaks. Defense-in-depth across DB / Drizzle / app middleware / audit / log / cache / object-storage layers. Ships an offline leak scanner and a pair of ESLint rules. (Persona: Mr. Mwikila, SEC-1.)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./scan": {
+      "types": "./dist/scan/leak-scanner.d.ts",
+      "import": "./dist/scan/leak-scanner.js"
+    },
+    "./eslint-rules": {
+      "import": "./dist/eslint-rules/index.js",
+      "default": "./dist/eslint-rules/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "scan": "node --import tsx ./src/scan/run-scan.ts"
+  },
+  "dependencies": {
+    "@borjie/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}
