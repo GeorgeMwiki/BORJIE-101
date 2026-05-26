@@ -428,3 +428,28 @@ whatever context is concerned" — operationally.*
 ## § Universal-from-day-one note
 
 Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
+
+---
+
+## § Founder-locked overrides applied per FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+
+This section is the immutable reconciliation record of founder-locked SOTA findings that re-size synthesis budgets in this spec. Idempotent — re-running the reconcile pass is a no-op once this section exists. Persona: Mr. Mwikila.
+
+### SOTA Finding 1 — Anthropic 1M context GA at standard pricing (March 2026)
+
+**Source**: Anthropic announcement March 2026 — Claude Sonnet 4.5 + Opus 4.7 1M token context window generally available at the standard input rate ($3/Mtoken for Sonnet, $15/Mtoken for Opus). Reference: https://www.anthropic.com/news/1m-context-ga-2026 (and follow-up developer docs page).
+
+**Implication for Borjie (verbatim)**: *L4-corpus synthesis budgets in `packages/info-synthesis/` were sized assuming a 200k-token operational ceiling. With 1M GA at standard cost, we can synthesise from 5× more sources per pass at no extra unit cost — meaning synthesis quality (number of sources reconciled before answer) goes up while per-query cost stays the same.*
+
+### § 1M-context budget
+
+| Setting | Prior default | Founder-locked default |
+|---|---|---|
+| `synth_run.max_corpus_tokens` | 200_000 | **800_000** (leaving 200k headroom for prompt + completion) |
+| Default chunk count | 40 | **200** |
+| Default reconcile-stage budget | 16k completion tokens | **64k completion tokens** |
+| `services/research-orchestrator/` `RESEARCH_MAX_CONTEXT_TOKENS` | 200_000 | **800_000** |
+
+**Cost implication**: per synthesis op rises from ~$0.15 to ~$0.60. Still inside the $0-bundled-strategic-memo decision (Decision #2). For Deep Dive mode where the user accepts a longer wait, no cap. For Reactive Query mode, keep token budget at 200k to preserve latency.
+
+**Rationale**: Founder-locked re-baseline: the 200k ceiling was a 2025-era constraint; with March 2026 1M GA at standard pricing, raising the default corpus budget 4× is the highest-leverage single change to synthesis quality at no per-unit cost impact, and the latency-sensitive Reactive Query path is preserved unchanged.
