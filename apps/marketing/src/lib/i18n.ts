@@ -13,7 +13,7 @@ import en from '@/i18n/en.json';
 
 export type Locale = 'sw' | 'en';
 
-export const DEFAULT_LOCALE: Locale = 'sw';
+export const DEFAULT_LOCALE: Locale = 'en';
 
 export const LOCALE_COOKIE = 'borjie_locale';
 
