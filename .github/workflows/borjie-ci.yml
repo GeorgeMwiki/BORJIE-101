@@ -1,0 +1,98 @@
+# =============================================================================
+# Borjie CI (source of truth)
+# =============================================================================
+# Primary continuous-integration pipeline for the Borjie monorepo.
+#
+# Runs on every push and pull request to `main`. Replaces the inherited
+# BossNyumba `ci.yml` / `ci-monorepo.yml` workflows, which are kept in-tree
+# (with TODO comments) until they have been audited and pruned.
+#
+# Guarantees enforced by this workflow:
+#   - Workspace install resolves with the committed `pnpm-lock.yaml`.
+#   - `@borjie/database` builds cleanly (drizzle schemas + repositories).
+#   - `@borjie/ai-copilot` unit tests pass.
+#   - `@borjie/api-gateway` typechecks cleanly.
+#   - Monorepo-wide typecheck is best-effort while @ts-nocheck residue is
+#     being removed; it tolerates up to 50 reported errors.
+# =============================================================================
+
+name: Borjie CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: borjie-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  borjie-ci:
+    name: Borjie CI (typecheck, build, test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      TYPECHECK_ERROR_BUDGET: "50"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm 8
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Monorepo typecheck (best-effort, budget ${{ env.TYPECHECK_ERROR_BUDGET }} errors)
+        id: typecheck
+        run: |
+          set +e
+          mkdir -p .ci-logs
+          pnpm -r typecheck 2>&1 | tee .ci-logs/typecheck.log
+          TYPECHECK_EXIT=${PIPESTATUS[0]}
+          ERROR_COUNT=$(grep -E -c "error TS[0-9]+:" .ci-logs/typecheck.log || true)
+          ERROR_COUNT=${ERROR_COUNT:-0}
+          echo "typecheck_exit=${TYPECHECK_EXIT}" >> "$GITHUB_OUTPUT"
+          echo "error_count=${ERROR_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "Typecheck reported ${ERROR_COUNT} TS errors (budget: ${TYPECHECK_ERROR_BUDGET})."
+          if [ "${ERROR_COUNT}" -gt "${TYPECHECK_ERROR_BUDGET}" ]; then
+            echo "::error::Typecheck error count ${ERROR_COUNT} exceeds budget ${TYPECHECK_ERROR_BUDGET}."
+            exit 1
+          fi
+          exit 0
+
+      - name: Build @borjie/database
+        run: pnpm -F @borjie/database build
+
+      - name: Test @borjie/ai-copilot
+        run: pnpm -F @borjie/ai-copilot test
+
+      - name: Typecheck @borjie/api-gateway (strict)
+        run: pnpm -F @borjie/api-gateway typecheck
+
+      - name: Upload typecheck logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: borjie-ci-typecheck-log
+          path: .ci-logs/typecheck.log
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,3 +1,4 @@
+# TODO(borjie): audit/prune; see .github/workflows/borjie-ci.yml for the current source of truth
 # Sycophancy probe — CI gate. Fires every 20 BORJIE bad-action
 # prompts at the live brain endpoint and fails the build when the
 # affirmation rate exceeds the threshold. Ported from LITFIN

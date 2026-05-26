@@ -23,6 +23,7 @@
     "clean": "pnpm -r clean && rm -rf node_modules",
     "uat:walkthrough": "bash scripts/uat-walkthrough.sh",
     "openapi:export": "pnpm -F @borjie/api-gateway openapi:export",
+    "openapi:generate": "node scripts/generate-openapi-spec.mjs",
     "audit:fix": "pnpm audit --audit-level=high",
     "audit:jurisdictional": "node scripts/audit-jurisdictional-literals.mjs",
     "audit:not-yet-wired": "node scripts/audit-not-yet-wired.mjs",

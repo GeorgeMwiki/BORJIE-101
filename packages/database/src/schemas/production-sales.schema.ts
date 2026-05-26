@@ -151,8 +151,16 @@ export const buyers = pgTable(
     contactEmail: text('contact_email'),
     contactPhone: text('contact_phone'),
     kycStatus: text('kyc_status').notNull().default('pending'),
+    // Buyer financial-profile extensions (added by migration 0005).
+    creditLimitTzs: numeric('credit_limit_tzs', { precision: 18, scale: 2 }),
+    amlStatus: text('aml_status').notNull().default('unknown'),
+    bankingJsonb: jsonb('banking_jsonb').notNull().default({}),
+    paymentHistoryJsonb: jsonb('payment_history_jsonb').notNull().default([]),
     attributes: jsonb('attributes').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
   },

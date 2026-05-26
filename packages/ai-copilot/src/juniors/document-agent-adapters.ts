@@ -7,6 +7,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import pdfParse from 'pdf-parse';
 // Type-only import — adapters depend on the ports defined in
 // document-agent.ts but must not pull the agent itself in at runtime,
 // otherwise we have a cyclic import. `isolatedModules: true` requires
@@ -51,9 +52,10 @@ interface DrizzleLikeClient {
 }
 
 /**
- * Default PDF reader. Tries `pdf-parse` (used by @borjie/document-
- * analysis) via dynamic import; on failure or for `.txt` fixtures used
- * in tests, falls back to `readFileSync`.
+ * Default PDF reader. Uses `pdf-parse` (statically imported above) for
+ * real PDFs; `.txt` fixtures used in tests bypass the parser and read
+ * directly so the test suite stays decoupled from pdf-parse's lib-root
+ * file-handle quirks.
  *
  * TODO(phase-3): swap to the @borjie/document-analysis OCR pipeline so
  * scanned PMLs are handled (Mistral OCR primary, Document AI fallback
@@ -66,15 +68,8 @@ export function createDefaultPdfReader(): PdfReader {
         return readFileSync(pdfPath, 'utf8');
       }
       try {
-        const mod = (await import('pdf-parse')) as {
-          default?: (buf: Buffer) => Promise<{ text: string }>;
-        };
-        const fn = mod.default;
-        if (typeof fn !== 'function') {
-          throw new Error('pdf-parse default export is not a function');
-        }
         const buf = readFileSync(pdfPath);
-        const out = await fn(buf);
+        const out = await pdfParse(buf);
         return out.text ?? '';
       } catch {
         // Fallback: best-effort text read so the agent always returns

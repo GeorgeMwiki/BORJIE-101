@@ -52,6 +52,7 @@ import { miningPortfolioMapRouter } from './portfolio-map.hono';
 import { miningMarketplaceRouter } from './marketplace.hono';
 import { miningBidsRouter } from './bids.hono';
 import { miningBuyersKycRouter } from './buyers-kyc.hono';
+import { miningDocsRouter } from './docs.hono';
 
 import { miningInternalTenantsRouter } from './internal/tenants.hono';
 import { miningInternalCorpusRouter } from './internal/corpus.hono';
@@ -82,6 +83,11 @@ mining.route('/portfolio-map', miningPortfolioMapRouter);
 mining.route('/marketplace', miningMarketplaceRouter);
 mining.route('/bids', miningBidsRouter);
 mining.route('/buyers', miningBuyersKycRouter);
+
+// OpenAPI 3.1 static spec + Swagger UI for the mining sub-API.
+// Mount BEFORE `/internal/*` so the docs surface is open even when
+// internal tenant routes are gated to SUPER_ADMIN.
+mining.route('/', miningDocsRouter);
 
 mining.route('/internal/tenants', miningInternalTenantsRouter);
 mining.route('/internal/corpus', miningInternalCorpusRouter);

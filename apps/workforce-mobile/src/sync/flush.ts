@@ -1,6 +1,7 @@
-import { fieldApi } from '../api/client'
+import { miningApi, type MiningApi } from '../api/client'
+import { USE_LIVE_API } from '../api/config'
 import { ApiError } from '../api/errors'
-import { ENTITY_ENDPOINTS } from './endpoints'
+import { endpointFor } from './endpoints'
 import {
   listQueued,
   recordAttempt,
@@ -13,6 +14,7 @@ export interface FlushResult {
   succeeded: number
   failed: number
   remaining: number
+  skipped: boolean
 }
 
 const MAX_ATTEMPTS = 5
@@ -33,18 +35,32 @@ function shouldDrop(error: unknown): boolean {
 }
 
 /**
- * Drain the queue once. Pull entries one at a time and POST to the field API.
- * On success: remove. On retryable failure: record attempt. On terminal
- * failure (4xx) or exhausted attempts: drop with logged error.
+ * Drain the queue once. For each entry: POST to
+ * `${API_BASE_URL}/api/v1/mining/<endpoint>`, where `<endpoint>` is derived
+ * from the entity type via `endpointFor`. On 2xx the entry is treated as
+ * synced and removed from local storage. On retryable failure the attempt
+ * counter increments and the entry stays. On terminal failure (4xx other
+ * than 408/429, or exhausted attempts) the entry is dropped with a logged
+ * error so we never loop forever on a poisoned payload.
+ *
+ * Accepts an optional `apiClient` so tests can inject a stub. Defaults to
+ * the real `miningApi` wrapper. When EXPO_PUBLIC_USE_LIVE_API is 'false'
+ * the flush is a no-op — the queue stays intact for the next online cycle.
  */
-export async function flushQueue(): Promise<FlushResult> {
+export async function flushQueue(
+  apiClient: Pick<MiningApi, 'post'> = miningApi
+): Promise<FlushResult> {
+  if (!USE_LIVE_API) {
+    const remaining = (await listQueued()).length
+    return { attempted: 0, succeeded: 0, failed: 0, remaining, skipped: true }
+  }
   const queued = await listQueued()
   let succeeded = 0
   let failed = 0
   for (const entry of queued) {
-    const path = ENTITY_ENDPOINTS[entry.entityType]
+    const path = endpointFor(entry.entityType)
     try {
-      await fieldApi.post(path, entry.payload)
+      await apiClient.post(path, entry.payload)
       await removeFromQueue(entry.id)
       succeeded += 1
     } catch (error) {
@@ -65,7 +81,8 @@ export async function flushQueue(): Promise<FlushResult> {
     attempted: queued.length,
     succeeded,
     failed,
-    remaining
+    remaining,
+    skipped: false
   }
 }
 

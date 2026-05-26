@@ -48,12 +48,12 @@ import {
   PostgresTenderRepository,
   PostgresBidRepository,
 } from '@borjie/domain-services/marketplace';
-import {
-  NegotiationService,
-  PostgresNegotiationPolicyRepository,
-  PostgresNegotiationRepository,
-  PostgresNegotiationTurnRepository,
-} from '@borjie/domain-services/negotiation';
+import { NegotiationService } from '@borjie/domain-services/negotiation';
+// Mining-domain Wave 5 — replaces the property-domain negotiation repos
+// (PostgresNegotiationPolicyRepository / PostgresNegotiationRepository /
+// PostgresNegotiationTurnRepository) with a buyer<->seller bid-thread
+// repository keyed by `marketplace_bids.id`.
+import { PostgresBidNegotiationRepository } from '@borjie/domain-services/marketplace';
 import {
   WaitlistService,
   WaitlistVacancyHandler,
@@ -81,14 +81,20 @@ import {
   PostgresApprovalRequestRepository,
   PostgresApprovalPolicyRepositoryAdapter,
 } from './approval-request-repository.js';
+// Mining-domain Wave 5 — replaces the property-tenant FinancialProfile +
+// RiskReport repos with buyer-centric equivalents persisting to `buyers`
+// (extension columns) + `buyer_risk_reports`.
 import {
+  PostgresBuyerFinancialProfileRepository,
+  PostgresBuyerRiskReportRepository,
+} from '@borjie/domain-services/buyer';
+// FinancialProfileService / RiskReportService are property-domain
+// services pending mining-equivalent rewrite — slots stay `null` in the
+// live registry until that follow-up batch lands. Type-only imports so
+// the `ServiceRegistry` interface still resolves them.
+import type {
   FinancialProfileService,
-  PostgresFinancialStatementRepository,
-  PostgresLitigationRepository,
   RiskReportService,
-  PostgresRiskReportRepository,
-  PostgresRiskReportInputsProvider,
-  DeterministicRiskNarrator,
 } from '@borjie/domain-services/customer';
 import {
   createGamificationService,
@@ -105,11 +111,19 @@ import {
 import { InMemoryEventBus, type EventBus } from '@borjie/domain-services';
 
 // Wave 8 — Warehouse inventory (S7), Maintenance taxonomy (S7), IoT (S3).
+// Mining-domain Wave 5 — DrizzleWarehouseRepository is replaced by
+// DrizzleOreWarehouseRepository (ore stockpiles, not property
+// inventory). The createWarehouseService factory + WarehouseService
+// type stay imported for slot-shape compatibility while the surrounding
+// service is migrated in a follow-up batch.
 import {
   createWarehouseService,
-  DrizzleWarehouseRepository,
   type WarehouseService,
 } from '@borjie/domain-services/warehouse';
+import {
+  DrizzleOreWarehouseRepository,
+  DrizzleOreGradingRepository,
+} from '@borjie/domain-services/ore';
 import {
   createMaintenanceTaxonomyService,
   DrizzleMaintenanceTaxonomyRepository,
@@ -119,7 +133,9 @@ import {
   createIotService,
   type IotService,
 } from '@borjie/domain-services/iot';
-import { createPropertyGradingAdapters } from '@borjie/domain-services/property-grading';
+// Mining-domain Wave 5 — `createPropertyGradingAdapters` previously
+// bound to property-domain tables removed by migration 0003. The mining
+// ore-grading repo lives under `@borjie/domain-services/ore`.
 // Wave 29 — forecasting package (TGN + conformal). The concrete
 // inference / repository adapters live in external services; the slot
 // below stays null until their env vars are set, and the router
@@ -505,6 +521,10 @@ import {
   ConditionalSurvey as ConditionalSurveyNs,
   Far as FarNs,
 } from '@borjie/domain-services/inspections';
+// Mining-domain Wave 5 — property-domain PostgresFarRepository
+// (asset_components / far_assignments) is replaced by the site-level
+// Field Asset Register persisting to `assets` + `maintenance_events`.
+import { PostgresSiteFarRepository } from '@borjie/domain-services/site';
 type PostgresSubleaseRepository = InstanceType<
   typeof SubleaseNs.PostgresSubleaseRepository
 >;
@@ -524,7 +544,12 @@ type PostgresConditionalSurveyRepository = InstanceType<
 type ConditionalSurveyService = InstanceType<
   typeof ConditionalSurveyNs.ConditionalSurveyService
 >;
-type PostgresFarRepository = InstanceType<typeof FarNs.PostgresFarRepository>;
+// Mining-domain Wave 5 — `FarNs.PostgresFarRepository` (property-tenant
+// asset components) has been retired. We retain the type alias as
+// `never` so the `far` registry slot keeps its `null` shape until
+// follow-up batches reshape its consumers around the mining
+// `PostgresSiteFarRepository`.
+type PostgresFarRepository = never;
 type FarService = InstanceType<typeof FarNs.FarService>;
 
 type OrgAwarenessRegistry = {
@@ -973,11 +998,42 @@ export interface ServiceRegistry {
   };
 
   /** Wave 26 — Fitness-for-Assessment Review (FAR): asset components,
-   *  monitoring assignments, and condition-check events. */
+   *  monitoring assignments, and condition-check events. Null in the
+   *  live registry today — the mining Field Asset Register replaces
+   *  this slot via `siteFar` below. */
   readonly far: {
     readonly service: FarService | null;
     readonly repo: PostgresFarRepository | null;
   };
+
+  /** Mining-domain Wave 5 — buyer financial-profile repo (credit limit,
+   *  AML status, banking, payment history) over the `buyers` extension
+   *  columns added by migration 0005. Null when DATABASE_URL is unset. */
+  readonly buyerFinancialProfile: PostgresBuyerFinancialProfileRepository | null;
+
+  /** Mining-domain Wave 5 — buyer risk-report repo over
+   *  `buyer_risk_reports`. Append-only composite scores keyed by
+   *  buyer + tenant. Null when DATABASE_URL is unset. */
+  readonly buyerRiskReport: PostgresBuyerRiskReportRepository | null;
+
+  /** Mining-domain Wave 5 — site Field Asset Register over `assets` +
+   *  `maintenance_events`. Null when DATABASE_URL is unset. */
+  readonly siteFar: PostgresSiteFarRepository | null;
+
+  /** Mining-domain Wave 5 — bid-negotiation thread repo over
+   *  `bid_negotiations`. Buyer<->seller offers + counters on a
+   *  marketplace bid. Null when DATABASE_URL is unset. */
+  readonly bidNegotiation: PostgresBidNegotiationRepository | null;
+
+  /** Mining-domain Wave 5 — ore-parcel grading snapshot repo over
+   *  `ore_grade_snapshots`. Append-only assay/processability/fit
+   *  records per parcel. Null when DATABASE_URL is unset. */
+  readonly oreGrading: DrizzleOreGradingRepository | null;
+
+  /** Mining-domain Wave 5 — ore stockpile (warehouse) repo over
+   *  `ore_stockpiles`. Tracks physical custody of ore parcels at
+   *  site / warehouse / in-transit. Null when DATABASE_URL is unset. */
+  readonly oreWarehouse: DrizzleOreWarehouseRepository | null;
 
   /** Monthly close orchestrator (Wave 28 PhA2) — Drizzle-backed
    *  RunStorePort + stub external ports (reconciliation, statements,
@@ -1471,6 +1527,14 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     damageDeductions: { service: null, repo: null },
     conditionalSurveys: { service: null, repo: null },
     far: { service: null, repo: null },
+    // Mining-domain Wave 5 — buyer / site / marketplace / ore repos.
+    // All null in degraded mode (no DB to bind against).
+    buyerFinancialProfile: null,
+    buyerRiskReport: null,
+    siteFar: null,
+    bidNegotiation: null,
+    oreGrading: null,
+    oreWarehouse: null,
     // Wave 26 Z3 — move-out + approvals wiring.
     moveOut: { service: null },
     approvals: { service: null },
@@ -1560,18 +1624,28 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   const tenderRepo = new PostgresTenderRepository(db);
   const bidRepo = new PostgresBidRepository(db);
 
-  // Negotiation repos
-  const policyRepo = new PostgresNegotiationPolicyRepository(db);
-  const negotiationRepo = new PostgresNegotiationRepository(db);
-  const turnRepo = new PostgresNegotiationTurnRepository(db);
-
-  // Negotiation service (shared by marketplace enquiry + tenders/bids)
-  const negotiationService = new NegotiationService({
-    policyRepo,
-    negotiationRepo,
-    turnRepo,
-    eventBus,
-  });
+  // Mining-domain Wave 5 — bid-negotiation repo over `bid_negotiations`.
+  // Replaces the property-domain negotiation triad (policies/negotiations/
+  // turns). The legacy NegotiationService still expects the old triad so
+  // its live binding is deferred to a follow-up batch; the registry
+  // exposes the mining `bidNegotiationRepo` for the new bid-thread
+  // routes today.
+  const bidNegotiationRepo = new PostgresBidNegotiationRepository(db);
+  // Legacy NegotiationService is pending mining-equivalent rewrite — we
+  // surface a null instance through the registry slot. EnquiryService
+  // still requires a non-null collaborator for its `startNegotiation`
+  // delegate; we hand it a thin throwing stub that mirrors the runtime
+  // path the prior @ts-nocheck repos exhibited (any call surfaces a
+  // clear "negotiation service pending" error rather than crashing on
+  // an undefined method).
+  const negotiationServicePending = {
+    async startNegotiation(): Promise<never> {
+      throw new Error(
+        'NegotiationService pending mining-equivalent rewrite (bid-negotiation thread API replaces it).',
+      );
+    },
+  } as unknown as NegotiationService;
+  const negotiationService = negotiationServicePending;
 
   // Pre-insert unit-existence check for listing publish. Without this, a
   // bogus `unitId` lands in Postgres as a raw FK violation and the gateway
@@ -1669,27 +1743,32 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   const renewalRepo = new PostgresRenewalRepository(db);
   const renewalService = new RenewalService(renewalRepo, eventBus);
 
-  // Financial Profile + Risk Reports (SCAFFOLDED-5, NEW-13).
-  const financialStatementRepo = new PostgresFinancialStatementRepository(db);
-  const litigationRepo = new PostgresLitigationRepository(db);
-  const financialProfileService = new FinancialProfileService(
-    financialStatementRepo,
-    litigationRepo,
-    eventBus,
-    null // no bank-reference provider wired yet — service returns a structured
-         // PROVIDER_ERROR instead of crashing on verify-bank-reference
+  // Mining-domain Wave 5 — buyer financial-profile + buyer risk-report
+  // repos. These persist to the mining tables (`buyers` extension
+  // columns + `buyer_risk_reports`) and replace the property-tenant
+  // financial-statement / litigation / risk-report stack.
+  //
+  // The legacy FinancialProfileService / RiskReportService classes
+  // still bind against the old interfaces — their slots stay null in
+  // the live registry until the per-service rewrite lands. The new
+  // repos are surfaced via dedicated `buyerFinancialProfile` /
+  // `buyerRiskReport` slots so the new routes can reach them today.
+  const buyerFinancialProfileRepo = new PostgresBuyerFinancialProfileRepository(
+    db,
   );
-  const riskReportRepo = new PostgresRiskReportRepository(db);
-  const riskReportInputsProvider = new PostgresRiskReportInputsProvider(db);
-  const riskReportService = new RiskReportService(
-    riskReportRepo,
-    riskReportInputsProvider,
-    new DeterministicRiskNarrator()
-  );
+  const buyerRiskReportRepo = new PostgresBuyerRiskReportRepository(db);
+  const financialProfileService = null;
+  const riskReportService = null;
 
-  // Wave 8 — Warehouse (S7): stock + movements.
-  const warehouseRepo = new DrizzleWarehouseRepository(db);
-  const warehouseService = createWarehouseService({ repo: warehouseRepo });
+  // Mining-domain Wave 5 — ore-stockpile warehouse + ore-grading repos.
+  // Replace the property-inventory `DrizzleWarehouseRepository` (which
+  // persisted to warehouse_items / warehouse_movements, both removed by
+  // migration 0003). The legacy `WarehouseService` factory still expects
+  // a port that doesn't match the mining schema, so its slot stays null
+  // in the live registry until follow-up batches reshape the service.
+  const oreStockpileRepo = new DrizzleOreWarehouseRepository(db);
+  const oreGradingRepo = new DrizzleOreGradingRepository(db);
+  const warehouseService = null as WarehouseService | null;
 
   // Wave 8 — Maintenance Taxonomy (S7): platform defaults + tenant overrides.
   const taxonomyRepo = new DrizzleMaintenanceTaxonomyRepository(db);
@@ -1913,10 +1992,18 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       eventBus,
     );
 
-  const farRepo = new FarNs.PostgresFarRepository(
-    db as unknown as FarNs.PostgresFarRepositoryClient,
-  );
-  const farService = new FarNs.FarService(farRepo, eventBus);
+  // Mining-domain Wave 5 — site Field Asset Register persisting to
+  // `assets` + `maintenance_events`. Replaces the property-domain
+  // PostgresFarRepository (asset_components / far_assignments /
+  // condition_check_events, all removed by migration 0003).
+  //
+  // The property-domain FarService class is structurally incompatible
+  // with the mining repo's interface so we leave it null in the live
+  // registry until follow-up batches rebuild the service surface on
+  // top of the mining repo.
+  const siteFarRepo = new PostgresSiteFarRepository(db);
+  const farRepo = null as PostgresFarRepository | null;
+  const farService = null as FarService | null;
 
   // Wave 12 — Voice router. If neither ELEVENLABS_API_KEY nor OPENAI_API_KEY
   // is set, `voice` stays null and the HTTP router returns a clean 503
@@ -1988,7 +2075,11 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       enquiry: enquiryService,
       tender: tenderService,
     },
-    negotiation: negotiationService,
+    // Mining-domain Wave 5 — legacy NegotiationService slot stays null
+    // in the live registry (the mining bid-thread API is surfaced via
+    // the dedicated `bidNegotiation` slot above). EnquiryService keeps
+    // a transient throwing stub for back-compat.
+    negotiation: null,
     waitlist: {
       service: waitlistService,
       vacancyHandler,
@@ -2241,17 +2332,13 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         brainKernel,
       };
     })(),
-    // Property grading — Mr. Mwikila's A–F report card system.
-    // Adapters live in domain-services (Postgres wiring); the service
-    // class lives in ai-copilot (pure business logic). We compose here.
-    propertyGrading: (() => {
-      const adapters = createPropertyGradingAdapters(db);
-      return new PropertyGrading.PropertyGradingService({
-        metricsSource: adapters.metricsSource,
-        weightsRepo: adapters.weightsRepo,
-        snapshotRepo: adapters.snapshotRepo,
-      });
-    })(),
+    // Mining-domain Wave 5 — property-grading adapters previously
+    // bound to `tenant_grading_weights` + `property_grade_snapshots`
+    // (both removed by migration 0003). The mining ore-grading repo
+    // (DrizzleOreGradingRepository) ships through the dedicated
+    // `oreGrading` slot below; the legacy `propertyGrading` slot stays
+    // null in the live registry until follow-up batches retire it.
+    propertyGrading: null,
     // Tenant credit rating — FICO-scale 300-850 + CRB bands + portable
     // certificate. Postgres-backed repository pulls real invoice /
     // payment / tenancy data — zero mocks.
@@ -2299,6 +2386,17 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       service: farService,
       repo: farRepo,
     },
+    // Mining-domain Wave 5 — live bindings of the new mining repos
+    // surfaced through dedicated slots. The corresponding legacy slots
+    // (financialProfile / riskReport / negotiation / warehouse /
+    // propertyGrading / far) stay null until follow-up batches retire
+    // their consumer surfaces.
+    buyerFinancialProfile: buyerFinancialProfileRepo,
+    buyerRiskReport: buyerRiskReportRepo,
+    siteFar: siteFarRepo,
+    bidNegotiation: bidNegotiationRepo,
+    oreGrading: oreGradingRepo,
+    oreWarehouse: oreStockpileRepo,
     // Wave 26 Z3 — Move-out checklist (step-based close-out workflow).
     // Postgres-backed via migration 0097. Null in degraded mode.
     moveOut: {

@@ -14,8 +14,10 @@ export function useGenerateReport() {
   return useMutation({
     mutationFn: async (input: GenerateReportInput): Promise<GeneratedReport> => {
       try {
+        // Live endpoint: POST /api/v1/mining/reports
+        // (services/api-gateway/src/routes/mining/reports.hono.ts).
         return await apiRequest<GeneratedReport>(
-          '/api/v1/owner/reports/generate',
+          '/api/v1/mining/reports',
           { method: 'POST', body: input },
         );
       } catch {

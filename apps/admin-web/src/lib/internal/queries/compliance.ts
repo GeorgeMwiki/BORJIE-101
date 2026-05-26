@@ -1,3 +1,6 @@
+// TODO(api-gateway): no live `/api/v1/mining/internal/compliance-queue`
+// route exists yet. The closest live primitive is the compliance-flag
+// table inside per-tenant routes. Falls back to mock until exposed.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { MOCK_COMPLIANCE_QUEUE } from '@/lib/mocks/compliance';

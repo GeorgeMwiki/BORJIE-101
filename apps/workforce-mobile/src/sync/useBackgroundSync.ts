@@ -2,14 +2,16 @@ import { useEffect, useRef } from 'react'
 import { useOnlineStatus } from '../offline/useOnlineStatus'
 import { useQueueSize } from './useQueueSize'
 import { flushQueue } from './flush'
+import { USE_LIVE_API } from '../api/config'
 
-const FLUSH_INTERVAL_MS = 30_000
+const FLUSH_INTERVAL_MS = 60_000
 
 /**
  * Drain the offline queue whenever the device is online and has pending
- * writes. Fires immediately on the online↔offline transition, then on a
- * lightweight interval as a safety net. Uses a ref so we never trigger
- * concurrent flushes from the same screen.
+ * writes. Fires immediately on the online↔offline transition, then every
+ * 60s as a safety net while online. Uses a ref so we never trigger
+ * concurrent flushes from the same screen. No-ops when the live API flag
+ * is disabled — the queue persists for when the flag flips back on.
  */
 export function useBackgroundSync(): void {
   const { online, ready } = useOnlineStatus()
@@ -17,6 +19,9 @@ export function useBackgroundSync(): void {
   const flushingRef = useRef<boolean>(false)
 
   useEffect(() => {
+    if (!USE_LIVE_API) {
+      return
+    }
     if (!ready || !online || queueSize === 0) {
       return
     }

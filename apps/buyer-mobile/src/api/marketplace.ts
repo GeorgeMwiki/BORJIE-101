@@ -1,4 +1,5 @@
 import { apiFetch } from './client'
+import { MINING_PREFIX } from './config'
 import { withMockFallback } from './withFallback'
 import { mockListings, findListing } from '@/mocks/listings'
 import { mockBids, findBid } from '@/mocks/bids'
@@ -78,7 +79,7 @@ function applySort(listings: readonly Listing[], sort: SortKey | undefined): rea
 export async function fetchListings(filters: ListingFilters = {}): Promise<readonly Listing[]> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<ListingsResponse>('/api/v1/marketplace/listings', {
+      const response = await apiFetch<ListingsResponse>(`${MINING_PREFIX}/marketplace/listings`, {
         query: {
           mineral: filters.mineral,
           region: filters.region,
@@ -97,7 +98,9 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<reado
 export async function fetchListing(id: string): Promise<Listing | undefined> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<ListingResponse>(`/api/v1/marketplace/listings/${encodeURIComponent(id)}`)
+      const response = await apiFetch<ListingResponse>(
+        `${MINING_PREFIX}/marketplace/listings/${encodeURIComponent(id)}`
+      )
       return response.data
     },
     () => findListing(id)
@@ -119,12 +122,34 @@ interface BidResponse {
   readonly data: Bid
 }
 
+/**
+ * Payload shape the api-gateway expects for POST /api/v1/mining/bids.
+ * Mirrors `PlaceBidSchema` in services/api-gateway/src/routes/mining/bids.hono.ts.
+ * The buyer enters a per-kg price; we surface a total `bidPriceTzs` so the
+ * gateway has a single canonical number to validate and persist.
+ */
+interface GatewayBidPayload {
+  readonly listingId: string
+  readonly bidPriceTzs: number
+  readonly paymentTerms: PaymentTerms
+  readonly notes?: string
+}
+
+function toGatewayBidPayload(input: PlaceBidInput): GatewayBidPayload {
+  return {
+    listingId: input.listingId,
+    bidPriceTzs: input.offerTzsPerKg * input.quantityKg,
+    paymentTerms: input.paymentTerms,
+    notes: input.notes && input.notes.length > 0 ? input.notes : undefined
+  }
+}
+
 export async function placeBid(input: PlaceBidInput): Promise<Bid> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<BidResponse>('/api/v1/marketplace/bids', {
+      const response = await apiFetch<BidResponse>(`${MINING_PREFIX}/bids`, {
         method: 'POST',
-        body: input
+        body: toGatewayBidPayload(input)
       })
       return response.data
     },
@@ -156,7 +181,7 @@ export async function placeBid(input: PlaceBidInput): Promise<Bid> {
 export async function fetchBids(): Promise<readonly Bid[]> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<{ readonly data: readonly Bid[] }>('/api/v1/marketplace/bids')
+      const response = await apiFetch<{ readonly data: readonly Bid[] }>(`${MINING_PREFIX}/bids`)
       return response.data
     },
     () => mockBids
@@ -166,7 +191,7 @@ export async function fetchBids(): Promise<readonly Bid[]> {
 export async function fetchBid(id: string): Promise<Bid | undefined> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<BidResponse>(`/api/v1/marketplace/bids/${encodeURIComponent(id)}`)
+      const response = await apiFetch<BidResponse>(`${MINING_PREFIX}/bids/${encodeURIComponent(id)}`)
       return response.data
     },
     () => findBid(id)
@@ -182,7 +207,7 @@ export async function sendBidMessage(input: SendBidMessageInput): Promise<BidMes
   return withMockFallback(
     async () => {
       const response = await apiFetch<{ readonly data: BidMessage }>(
-        `/api/v1/marketplace/bids/${encodeURIComponent(input.bidId)}/messages`,
+        `${MINING_PREFIX}/bids/${encodeURIComponent(input.bidId)}/messages`,
         {
           method: 'POST',
           body: { body: input.body }
@@ -205,7 +230,7 @@ export async function updateBidStatus(input: { readonly bidId: string; readonly 
   return withMockFallback(
     async () => {
       const response = await apiFetch<BidResponse>(
-        `/api/v1/marketplace/bids/${encodeURIComponent(input.bidId)}/${input.action}`,
+        `${MINING_PREFIX}/bids/${encodeURIComponent(input.bidId)}/${input.action}`,
         { method: 'POST' }
       )
       return response.data

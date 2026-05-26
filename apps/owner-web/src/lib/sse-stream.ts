@@ -1,14 +1,15 @@
 /**
- * Server-Sent Events helper for the owner chat surface.
+ * Server-Sent Events helper (async-generator flavour).
  *
- * The gateway exposes `/api/v1/owner/chat/stream` as an SSE channel.
- * Browsers can't `POST` from `EventSource`, so we use fetch + a
- * ReadableStream reader and a tiny line-based parser. Each yielded
- * event is `{ event, data }` with `data` already JSON-parsed.
+ * The Master Brain gateway is at `/api/v1/mining/chat`. Browsers can't
+ * `POST` from `EventSource`, so we use fetch + a ReadableStream reader
+ * and a tiny line-based parser. Each yielded event is `{ event, data }`
+ * with `data` already JSON-parsed.
  *
- * Falls back to a simulated stream when `useFallback === true` — used
- * by the chat screen when the gateway is unreachable so the demo flow
- * still works end-to-end.
+ * NOTE: new screens should prefer the `useSSE` hook in
+ * `src/lib/use-sse.ts` — it handles cancellation, junior-call
+ * breadcrumbs, evidence chips and message chunks uniformly. This
+ * module is kept around for the existing `useChatSession` glue.
  */
 
 import { API_BASE } from './api-client';

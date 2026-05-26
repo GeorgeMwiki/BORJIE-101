@@ -1,3 +1,6 @@
+// TODO(api-gateway): no live `/api/v1/mining/internal/regulator-pipeline`
+// route exists yet. Hooks below will fall back to bundled mock until
+// the gateway exposes the kanban view + stage-transition endpoint.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { MOCK_REGULATOR_PIPELINE } from '@/lib/mocks/regulator-pipeline';

@@ -1,3 +1,6 @@
+// TODO(api-gateway): no live `/api/v1/mining/internal/citations`
+// endpoint exists. Closest live primitive is the per-tenant corpus
+// chunk row (intelligence_corpus_chunks). Falls back to mock.
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { MOCK_CITATIONS } from '@/lib/mocks/citations';

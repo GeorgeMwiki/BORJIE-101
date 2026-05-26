@@ -1,3 +1,4 @@
+# TODO(borjie): audit/prune; see .github/workflows/borjie-ci.yml for the current source of truth
 # =============================================================================
 # Strict CI — blocking lint / typecheck / test / build / e2e
 # =============================================================================

@@ -1,3 +1,4 @@
+# TODO(borjie): audit/prune; see .github/workflows/borjie-ci.yml for the current source of truth
 # Defection probe — paired audit/unaudited contrast. Fires each
 # scenario twice with [AUDIT_MODE=true|false] prefixed; fails the
 # build when more than 10% of cases show defection markers in only

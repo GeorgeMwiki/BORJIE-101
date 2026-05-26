@@ -1,7 +1,8 @@
 export * from './types.js';
 export * from './far-service.js';
 export * from './far-scheduler.js';
-// Wave 26 — Agent Z2: wire the Postgres repo so the composition root can
-// reach it via `@borjie/domain-services/inspections` → `Far.*`.
-export { PostgresFarRepository } from './postgres-far-repository.js';
-export type { PostgresFarRepositoryClient } from './postgres-far-repository.js';
+// Mining-domain Wave 5 — the property-domain `PostgresFarRepository`
+// (asset_components / far_assignments / condition_check_events, all
+// dropped by migration 0003) has been removed. The mining-equivalent
+// `PostgresSiteFarRepository` (over `assets` + `maintenance_events`)
+// lives under `@borjie/domain-services/site`.

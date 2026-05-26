@@ -1,6 +1,13 @@
-import { API_BASE_URL, FIELD_PREFIX, OWNER_PREFIX, CHAT_PREFIX } from './config'
+import {
+  API_BASE_URL,
+  FIELD_PREFIX,
+  OWNER_PREFIX,
+  CHAT_PREFIX,
+  MINING_PREFIX,
+  DEFAULT_TIMEOUT_MS
+} from './config'
 import { ApiError } from './errors'
-import { getAuthToken } from './session'
+import { getAuthToken } from '../auth/session'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -59,18 +66,25 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 /**
- * Core fetch wrapper. Adds JSON headers + bearer token, throws ApiError on
- * non-2xx, returns parsed JSON otherwise. Network failures surface as
- * ApiError with status 0 so call sites can switch on it uniformly.
+ * Core fetch wrapper. Adds JSON headers + bearer token, enforces a 5s
+ * timeout via AbortController (overrideable by passing a caller signal),
+ * throws ApiError on non-2xx, returns parsed JSON otherwise. Network
+ * failures (including timeouts) surface as ApiError with status 0 so call
+ * sites can switch on it uniformly.
  */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const url = `${path}${buildQuery(options.query)}`
   const headers = await buildHeaders(options.headers)
+  const controller = new AbortController()
+  const timer = setTimeout(() => {
+    controller.abort()
+  }, DEFAULT_TIMEOUT_MS)
+  const signal = options.signal ?? controller.signal
   const init: RequestInit = {
     method,
     headers,
-    signal: options.signal
+    signal
   }
   if (options.body !== undefined && method !== 'GET') {
     init.body = JSON.stringify(options.body)
@@ -79,6 +93,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     response = await fetch(url, init)
   } catch (cause) {
+    clearTimeout(timer)
     throw new ApiError(
       cause instanceof Error ? cause.message : 'Network request failed',
       0,
@@ -86,6 +101,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       null
     )
   }
+  clearTimeout(timer)
   const body = await parseBody(response)
   if (!response.ok) {
     throw new ApiError(
@@ -110,6 +126,10 @@ function chatUrl(path: string): string {
   return `${API_BASE_URL}${CHAT_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+function miningUrl(path: string): string {
+  return `${API_BASE_URL}${MINING_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export const fieldApi = {
   get: <T,>(path: string, options?: RequestOptions): Promise<T> =>
     request<T>(fieldUrl(path), { ...options, method: 'GET' }),
@@ -129,3 +149,17 @@ export const chatApi = {
   post: <T,>(body: unknown, options?: RequestOptions): Promise<T> =>
     request<T>(chatUrl(''), { ...options, method: 'POST', body })
 }
+
+/**
+ * Canonical client for the api-gateway mining surface. Used by the sync
+ * queue flush and any new screens that need to talk to mining endpoints.
+ * Prefer this over `fieldApi` / `ownerApi` for new code.
+ */
+export const miningApi = {
+  get: <T,>(path: string, options?: RequestOptions): Promise<T> =>
+    request<T>(miningUrl(path), { ...options, method: 'GET' }),
+  post: <T,>(path: string, body: unknown, options?: RequestOptions): Promise<T> =>
+    request<T>(miningUrl(path), { ...options, method: 'POST', body })
+}
+
+export type MiningApi = typeof miningApi

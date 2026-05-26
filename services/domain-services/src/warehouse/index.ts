@@ -1,6 +1,12 @@
 /**
  * Warehouse module — Wave 8 (S7 gap closure).
- * Re-exports the service + Drizzle repo for the composition root.
+ *
+ * Mining-domain Wave 5 — the property-inventory
+ * `DrizzleWarehouseRepository` has been removed. The mining-domain
+ * ore-stockpile repo (`DrizzleOreWarehouseRepository`) lives under
+ * `@borjie/domain-services/ore`. The service class + types remain
+ * exported for slot-shape compatibility while the wider migration
+ * continues.
  */
 export {
   createWarehouseService,
@@ -18,5 +24,3 @@ export {
   type RecordMovementInput,
   type ListItemsFilters,
 } from './warehouse-service.js';
-
-export { DrizzleWarehouseRepository } from './drizzle-warehouse-repository.js';

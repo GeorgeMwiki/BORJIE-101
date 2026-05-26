@@ -296,10 +296,10 @@ export {
   type SubmitStatementInput,
   type RecordLitigationInput,
 } from './financial-profile-service.js';
-export {
-  PostgresFinancialStatementRepository,
-  PostgresLitigationRepository,
-} from './postgres-financial-profile-repositories.js';
+// Mining-domain Wave 5 — the legacy property-tenant repos
+// (PostgresFinancialStatementRepository / PostgresLitigationRepository)
+// have been removed. The mining equivalents live under
+// `@borjie/domain-services/buyer`.
 
 export {
   RiskReportService,
@@ -311,8 +311,7 @@ export {
   type RiskReportSnapshot,
   type RiskReportRecommendation,
 } from './risk-report-service.js';
-export {
-  PostgresRiskReportRepository,
-  PostgresRiskReportInputsProvider,
-  DeterministicRiskNarrator,
-} from './postgres-risk-report-repository.js';
+// Mining-domain Wave 5 — the legacy property-tenant risk-report repo +
+// inputs provider have been removed. The mining-domain
+// PostgresBuyerRiskReportRepository lives under
+// `@borjie/domain-services/buyer`.

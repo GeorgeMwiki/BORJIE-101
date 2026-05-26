@@ -679,3 +679,26 @@ export {
 // ============================================
 export * as BrainEventBus from './brain-event-bus/index.js';
 
+
+// ============================================
+// Wave 28b — Mining juniors. Namespaced to avoid collisions with the
+// existing knowledge/orchestrator/skills modules that share names like
+// `Citation`, `ProposedAction`, `Channel`. Direct callers (chat orchestrator,
+// junior-ai-factory) import the most-used Master Brain + Document Agent
+// symbols from the un-namespaced re-exports below.
+// ============================================
+export * as MiningJuniors from './juniors/index.js';
+export {
+  createMasterBrainAgent,
+  createDefaultMasterBrainAgent,
+  type MasterBrainAgent,
+  type MasterBrainInput,
+  type MasterBrainOutput,
+  MasterBrainInputSchema,
+  MasterBrainOutputSchema,
+  MasterBrainMode,
+} from './juniors/master-brain.js';
+export {
+  createDocumentAgent,
+  documentAgent,
+} from './juniors/document-agent.js';

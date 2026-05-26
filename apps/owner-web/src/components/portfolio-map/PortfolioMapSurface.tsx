@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { MAP_FEATURES, type FeatureKind, type MapFeature } from '@/lib/mocks/portfolio-map';
+import { type FeatureKind, type MapFeature } from '@/lib/mocks/portfolio-map';
+import { usePortfolioMap } from '@/lib/queries/portfolio-map';
 import { LayerControls } from './LayerControls';
 import { MapCanvas } from './MapCanvas';
 import { MapFallback } from './MapFallback';
@@ -19,15 +20,20 @@ const DEFAULT_LAYERS: ReadonlyArray<FeatureKind> = [
 /**
  * Portfolio map surface (O-W-05).
  *
- * Renders Mapbox via react-map-gl when NEXT_PUBLIC_MAPBOX_TOKEN is
- * present; otherwise renders the GeoJSON-listing fallback. Layer
- * toggles work in both modes.
+ * Pulls features from the live gateway via `usePortfolioMap` (which
+ * adapts the gateway's FeatureCollection into the front-end's MapFeature
+ * shape, and falls back to the bundled mock when the gateway is
+ * unreachable). Renders Mapbox via react-map-gl when
+ * NEXT_PUBLIC_MAPBOX_TOKEN is present; otherwise renders the listing
+ * fallback. Layer toggles work in both modes.
  */
 export function PortfolioMapSurface() {
   const mapboxToken =
     (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MAPBOX_TOKEN) || '';
   const [enabled, setEnabled] = useState<ReadonlyArray<FeatureKind>>(DEFAULT_LAYERS);
   const [selected, setSelected] = useState<MapFeature | null>(null);
+  const query = usePortfolioMap();
+  const features = query.data?.features ?? [];
 
   const toggle = (kind: FeatureKind): void => {
     setEnabled((prev) =>
@@ -41,13 +47,13 @@ export function PortfolioMapSurface() {
         {mapboxToken ? (
           <MapCanvas
             mapboxToken={mapboxToken}
-            features={MAP_FEATURES}
+            features={features}
             enabled={enabled}
             onSelect={setSelected}
           />
         ) : (
           <MapFallback
-            features={MAP_FEATURES}
+            features={features}
             enabled={enabled}
             onSelect={setSelected}
           />

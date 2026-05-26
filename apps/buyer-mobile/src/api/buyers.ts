@@ -1,4 +1,5 @@
 import { apiFetch } from './client'
+import { MINING_PREFIX } from './config'
 import { withMockFallback } from './withFallback'
 import type { BuyerUser } from '@/types/auth'
 import type { KycRecord, KycStage, KycSubmission } from '@/types/kyc'
@@ -10,7 +11,7 @@ interface KycResponse {
 export async function submitKyc(submission: KycSubmission): Promise<KycRecord> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<KycResponse>('/api/v1/buyers/kyc', {
+      const response = await apiFetch<KycResponse>(`${MINING_PREFIX}/buyers/kyc`, {
         method: 'POST',
         body: submission
       })
@@ -28,7 +29,9 @@ export async function submitKyc(submission: KycSubmission): Promise<KycRecord> {
 export async function fetchKycStatus(id: string): Promise<KycRecord> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<KycResponse>(`/api/v1/buyers/kyc/${encodeURIComponent(id)}/status`)
+      const response = await apiFetch<KycResponse>(
+        `${MINING_PREFIX}/buyers/kyc/${encodeURIComponent(id)}/status`
+      )
       return response.data
     },
     () => mockKycProgressing(id)
@@ -60,7 +63,7 @@ export interface ProfileUpdate {
 export async function updateProfile(input: ProfileUpdate): Promise<BuyerUser> {
   return withMockFallback(
     async () => {
-      const response = await apiFetch<{ readonly data: BuyerUser }>('/api/v1/buyers/profile', {
+      const response = await apiFetch<{ readonly data: BuyerUser }>(`${MINING_PREFIX}/buyers/profile`, {
         method: 'POST',
         body: input
       })
@@ -89,7 +92,7 @@ export async function updateNotificationPrefs(prefs: NotificationPrefs): Promise
   return withMockFallback(
     async () => {
       const response = await apiFetch<{ readonly data: NotificationPrefs }>(
-        '/api/v1/buyers/profile/notifications',
+        `${MINING_PREFIX}/buyers/profile/notifications`,
         {
           method: 'POST',
           body: prefs

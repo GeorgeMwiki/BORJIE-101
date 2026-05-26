@@ -39,9 +39,16 @@ export * from './production-sales.schema.js';
 export * from './treasury.schema.js';
 export * from './safety-csr.schema.js';
 export * from './marketplace.schema.js';
+export * from './marketplace-bids.schema.js';
 export * from './risks-tasks.schema.js';
 export * from './fingerprint-events.schema.js';
 export * from './intelligence-corpus.schema.js';
+
+// Mining-domain extensions (migration 0005)
+export * from './buyer-extensions.schema.js';
+export * from './bid-negotiations.schema.js';
+export * from './ore-grade-snapshots.schema.js';
+export * from './ore-stockpiles.schema.js';
 
 // ---------------------------------------------------------------------------
 // AI-OS infra (generic)

@@ -12,8 +12,13 @@ export function useSiteCockpit(siteId: string) {
   return useQuery({
     queryKey: siteCockpitKeys.bySite(siteId),
     queryFn: ({ signal }) =>
+      // Live endpoint: GET /api/v1/mining/sites/:id
+      // (services/api-gateway/src/routes/mining/sites.hono.ts). The
+      // gateway returns a flat site row; the UI's SiteCockpitData
+      // overlays derived KPIs from the bundled mock until the live
+      // projection lands (TODO).
       apiRequestOrFallback<SiteCockpitData>(
-        `/api/v1/owner/sites/${encodeURIComponent(siteId)}/cockpit`,
+        `/api/v1/mining/sites/${encodeURIComponent(siteId)}`,
         SITE_COCKPIT_MOCK,
         { signal },
       ),

@@ -31,7 +31,7 @@ import type {
   TenderRepository,
 } from './types.js';
 
-export interface DrizzleLike {
+interface DrizzleLike {
   transaction<T>(fn: (tx: DrizzleLike) => Promise<T>): Promise<T>;
   select: (...args: unknown[]) => any;
   insert: (...args: unknown[]) => any;

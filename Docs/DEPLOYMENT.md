@@ -1,449 +1,385 @@
-# BORJIE — Deployment Guide
+# Borjie — Deployment Guide
 
-Operational handbook for running BORJIE101 locally, in staging, and in production.
+Operational handbook for shipping every Borjie surface to its production
+provider. Each section lists prerequisites, a one-command deploy recipe, the
+required environment variables, a rollback recipe, and a smoke-test recipe.
+
+Provider matrix:
+
+| Surface           | Provider | Config file(s)                                    |
+| ----------------- | -------- | ------------------------------------------------- |
+| admin-web         | Vercel   | `apps/admin-web/vercel.json`                      |
+| owner-web         | Vercel   | `apps/owner-web/vercel.json`                      |
+| api-gateway       | Fly.io   | `services/api-gateway/fly.toml`, `Dockerfile`     |
+| workforce-mobile  | EAS      | `apps/workforce-mobile/eas.json`                  |
+| buyer-mobile      | EAS      | `apps/buyer-mobile/eas.json`                      |
+
+CI source of truth:
+
+- `.github/workflows/borjie-ci.yml` — typecheck, build, test on every push/PR
+  to `main`.
+- `.github/workflows/borjie-db-migrations-check.yml` — applies the Borjie
+  mining migrations against a fresh Postgres container built from
+  `docker/postgres/Dockerfile`.
+
+All other workflows under `.github/workflows/` are inherited from BossNyumba
+and tagged `TODO(borjie): audit/prune` until reviewed.
 
 ---
 
-## 1. Local Development (docker-compose)
+## 1. admin-web (Vercel)
+
+Next.js 15 console at `apps/admin-web`. Deployed by Vercel via the
+monorepo-aware build defined in `apps/admin-web/vercel.json`.
 
 ### Prerequisites
 
-- Docker Desktop 4.26+ (or Colima on macOS) with Compose v2
-- `pnpm` 8.15+ and Node.js 22
-- `openssl` for generating secrets
+- Vercel project linked to this repo with **Root Directory** =
+  `apps/admin-web` (matches `rootDirectory` in `vercel.json`).
+- Production branch set to `main`.
+- pnpm version override set to `8.15.0` in Vercel project settings
+  (Settings -> General -> Node.js / pnpm).
 
-### First-time setup
-
-```bash
-cp .env.example .env
-cp docker-compose.override.yml.example docker-compose.override.yml
-```
-
-Populate at minimum:
-
-- `JWT_SECRET` (32+ chars): `openssl rand -base64 48`
-- `ANTHROPIC_API_KEY` (if you need AI surfaces)
-- `OCR_PROVIDER=mock` (default is fine for local)
-- `API_KEY_REGISTRY=` (empty is fine in dev; required in production)
-- `TANZANIA_PAYMENT_BACKEND=clickpesa` (default PSP shortcut; `azampay`, `selcom`, and `gepg-direct` also supported)
-- `NEXT_PUBLIC_TENANT_CURRENCY=TZS` / `NEXT_PUBLIC_TENANT_LOCALE=sw-TZ` / `NEXT_PUBLIC_TENANT_COUNTRY=TZ` for a Tanzania-first tenant (defaults are `USD` / `en`)
-
-### Environment variable reference (wave-5 additions)
-
-Beyond what `.env.example` already covers, wave-5 added the following
-new variables. See `Docs/ENV.md` for the complete reference.
-
-| Variable | Purpose | Default / required |
-|----------|---------|--------------------|
-| `API_KEY_REGISTRY` | Comma-separated `hash:tenantId:role:scopes:serviceName` entries. Replaces legacy `API_KEYS` (C-1 fix). | Required in production; empty in dev |
-| `TANZANIA_PAYMENT_BACKEND` | Which GePG pathway to use: `clickpesa`, `azampay`, `selcom`, or `gepg-direct`. | `clickpesa` (recommended PSP shortcut) |
-| `OCR_PROVIDER` | OCR backend: `textract`, `google`, or `mock`. | `mock` in dev |
-| `NEXT_PUBLIC_TENANT_CURRENCY` | ISO 4217 code used for `Intl.NumberFormat` across customer/estate-manager apps. Replaces hardcoded `KES`. | `USD` |
-| `NEXT_PUBLIC_TENANT_LOCALE` | BCP-47 locale used for `Intl.*` formatters. Replaces hardcoded `en-KE`. | `en` |
-| `NEXT_PUBLIC_TENANT_COUNTRY` | ISO 3166-1 alpha-2 country code — drives telephony prefix and compliance export selection. | unset (must be provided per-tenant) |
-| `NANO_BANANA_API_KEY` | Nano Banana image-generation provider (marketing imagery only, per RESEARCH_ANSWERS Q8). When unset the renderer returns a placeholder with `reason: 'NANO_BANANA_API_KEY unset'`. | Optional |
-| `NANO_BANANA_API_URL` | Endpoint override. | Optional |
-| `TYPST_BIN` | Absolute path to the `typst` CLI used by the PDF renderer. When unset the renderer tries `typst` on PATH; when absent entirely it falls back to a zero-dep PDF encoder so the code remains callable in CI. | Optional |
-| `GEPG_PSP_MODE` | When `true`, GePG signature check is skipped (delegated to PSP). When `false`, both `GEPG_SIGNING_KEY_PEM` and `GEPG_SIGNING_CERT_PEM` must be set or the service refuses to boot (C-2 fix). | `true` in PSP mode |
-| `GEPG_SIGNING_KEY_PEM` / `GEPG_SIGNING_CERT_PEM` | RSA key + cert for direct GePG signature verification. | Required when `GEPG_PSP_MODE=false` |
-| `OUTBOX_INTERVAL_MS` / `OUTBOX_BATCH_SIZE` / `OUTBOX_WORKER_DISABLED` | Outbox drainer tuning. Ticks every `OUTBOX_INTERVAL_MS` ms (default 5000), drains up to `OUTBOX_BATCH_SIZE` events (default 50). | Defaults safe |
-| `NOTIFICATIONS_SERVICE_URL` | Base URL for the notifications service; when unset, event subscribers log dispatches they would have sent instead of erroring. | Required in production |
-| `INTERNAL_API_KEY` | `X-Internal-Key` header value for internal service-to-service calls. | Required in production |
-
-### Bring the stack up
+### One-command deploy
 
 ```bash
-pnpm install
-docker compose up --build
+# From repo root, deploy current local working tree to production.
+vercel deploy --cwd apps/admin-web --prod --yes
 ```
 
-Services expose ports on localhost:
+A `git push` to `main` triggers an equivalent deploy automatically via the
+Vercel GitHub integration.
 
-| Service               | Port  | Healthcheck              |
-| --------------------- | ----- | ------------------------ |
-| api-gateway           | 4000  | GET /health              |
-| identity              | 4001  | GET /healthz             |
-| reports               | 4002  | GET /healthz             |
-| notifications         | 4003  | GET /healthz             |
-| document-intelligence | 4004  | GET /healthz             |
-| payments              | 4005  | GET /healthz             |
-| payments-ledger       | 4006  | GET /healthz             |
-| webhooks              | 4007  | GET /healthz             |
-| domain-services       | 4008  | GET /healthz             |
-| scheduler             | 4009  | GET /healthz             |
-| Postgres (pgvector)   | 5432  | pg_isready               |
-| Redis                 | 6379  | PING                     |
-| Neo4j                 | 7687  | HTTP on :7474            |
+### Required env vars
 
-### Database migrations
+| Variable                          | Scope                | Notes                                                          |
+| --------------------------------- | -------------------- | -------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_GATEWAY_URL`     | Production / Preview | Public base URL of api-gateway (e.g. `https://api.borjie.example`). |
+| `NEXT_PUBLIC_USE_LIVE_API`        | Production / Preview | `true` to disable stubs.                                       |
+| `NEXT_PUBLIC_TENANT_CURRENCY`     | All                  | Defaults to `TZS`.                                             |
+| `NEXT_PUBLIC_TENANT_LOCALE`       | All                  | Defaults to `sw-TZ`.                                           |
+| `NEXT_PUBLIC_TENANT_COUNTRY`      | All                  | Defaults to `TZ`.                                              |
+| `NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY` | All                | Required by realtime-rooms in the admin console.               |
+| `SENTRY_DSN`                      | Production           | Optional but recommended.                                      |
+| `VERCEL_GIT_COMMIT_SHA`           | Provided by Vercel   | Read by build telemetry.                                       |
+
+Set these via the Vercel dashboard (Project -> Settings -> Environment
+Variables) or `vercel env add <NAME> production`. Never commit values; see
+the [Secrets management](#7-secrets-management) section below.
+
+### Rollback recipe
 
 ```bash
-pnpm db:migrate
+# List the last 10 deployments and pick the SHA / deployment URL to restore.
+vercel deployments ls borjie-admin-web --scope <team>
+
+# Promote the previous deployment to production:
+vercel rollback <deployment-url> --scope <team> --yes
 ```
 
-This runs all migrations in `packages/database/src/migrations/` in lexical order.
-pgvector activation is a migration (`0001_enable_pgvector.sql`) — Postgres
-must be on the `pgvector/pgvector:pg15` image or an RDS instance whose
-parameter group has `vector` in `shared_preload_libraries`.
-
-### Seeding a tenant org
+### Smoke test recipe
 
 ```bash
-pnpm db:seed --org=trc
+BASE=https://admin.borjie.example
+curl -fsS "$BASE/api/health" | jq .            # next-route health probe
+curl -fsS -I "$BASE/" | grep -i strict-transport-security
+curl -fsS "$BASE/login" | grep -q "Sign in"    # SSR HTML reaches client
 ```
-
-The `--org` flag controls which tenant fixture loads. Supported fixtures
-live in `packages/database/src/seeds/`.
 
 ---
 
-## 2. Staging Deployment (GitHub Actions)
+## 2. owner-web (Vercel)
 
-The `cd-staging.yml` workflow is the authoritative deploy path. Triggered on:
+Next.js 15 owner portal at `apps/owner-web`. Same shape as admin-web; only the
+filter / branding / route trees differ.
 
-- `push` to `main` (auto-deploy)
-- Manual `workflow_dispatch`
+### Prerequisites
 
-Flow:
+Same as admin-web, with **Root Directory** = `apps/owner-web` in the Vercel
+project.
 
-1. `pr-check.yml` runs on every PR (lint, typecheck, unit tests).
-2. On merge to `main`, `cd-staging.yml` builds each service image, pushes
-   to ECR under the `staging` tag, and updates each ECS service via
-   `aws ecs update-service --force-new-deployment`.
-3. Terraform drift is caught by a weekly `infra/terraform plan` job (not
-   yet wired — see tracking issue).
-
-Rollback is done by re-deploying a prior image tag:
+### One-command deploy
 
 ```bash
-aws ecs update-service \
-  --cluster borjie-staging \
-  --service borjie-staging-api-gateway \
-  --task-definition borjie-staging-api-gateway:<previous-revision>
+vercel deploy --cwd apps/owner-web --prod --yes
 ```
+
+### Required env vars
+
+Identical to admin-web (table above), plus:
+
+| Variable                       | Scope               | Notes                                  |
+| ------------------------------ | ------------------- | -------------------------------------- |
+| `NEXT_PUBLIC_OWNER_FEATURE_FLAGS` | Production / Preview | Comma-separated list of flag keys.  |
+
+### Rollback / smoke test
+
+Same commands as admin-web, substituting the project name
+(`borjie-owner-web`) and base URL (`https://owner.borjie.example`).
 
 ---
 
-## 3. Rotating Secrets
+## 3. api-gateway (Fly.io)
 
-All runtime secrets live in AWS Secrets Manager under the prefix
-`borjie/<env>/` (see `infra/terraform/secrets.tf`). To rotate a key:
+Fastify gateway at `services/api-gateway`. Built with `services/api-gateway/Dockerfile`
+(multi-stage, Node 20, pnpm 8) and shipped by `fly.toml`.
+
+### Prerequisites
+
+- `flyctl` 0.3.0+ authenticated against the Borjie organisation
+  (`fly auth login`).
+- Fly app exists (one-time): `fly apps create borjie-api-gateway --org borjie`.
+- Fly Postgres cluster exists and is attached:
+
+  ```bash
+  fly pg create  --name borjie-pg --region jnb --vm-size shared-cpu-1x --volume-size 10
+  fly pg attach  --app borjie-api-gateway borjie-pg
+  ```
+
+  This sets `DATABASE_URL` automatically on the api-gateway app.
+
+- Volume for ephemeral data (one-time):
+
+  ```bash
+  fly volumes create borjie_api_gateway_data --region jnb --size 1 --app borjie-api-gateway
+  ```
+
+### One-command deploy
 
 ```bash
-aws secretsmanager put-secret-value \
-  --secret-id borjie/staging/anthropic-api-key \
-  --secret-string "sk-ant-..."
-
-aws ecs update-service \
-  --cluster borjie-staging \
-  --service borjie-staging-api-gateway \
-  --force-new-deployment
+# Always run from the monorepo root so the build context contains pnpm-lock.yaml.
+fly deploy \
+  --config services/api-gateway/fly.toml \
+  --dockerfile services/api-gateway/Dockerfile \
+  --remote-only
 ```
 
-The task must restart to pick up the new secret — ECS reads Secrets Manager
-values at task-launch time, not at runtime.
+### Required env vars / secrets
 
-Rotation cadence:
+| Variable                  | Provider | Notes                                                |
+| ------------------------- | -------- | ---------------------------------------------------- |
+| `DATABASE_URL`            | Fly secret | Set by `fly pg attach`. Do not override manually.  |
+| `JWT_SECRET`              | Fly secret | 32+ chars, generated via `openssl rand -base64 48`. |
+| `ANTHROPIC_API_KEY`       | Fly secret | Required by AI surfaces.                            |
+| `OPENAI_API_KEY`          | Fly secret | Optional fallback model.                            |
+| `LIVEBLOCKS_SECRET_KEY`   | Fly secret | Server-side realtime rooms.                         |
+| `API_KEY_REGISTRY`        | Fly secret | Comma-separated allowlist of inbound API keys.      |
+| `TANZANIA_PAYMENT_BACKEND`| Fly env    | `clickpesa` / `azampay` / `selcom` / `gepg-direct`. |
+| `OCR_PROVIDER`            | Fly env    | `mock` for staging, real provider in production.    |
+| `LOG_LEVEL`               | Fly env    | `info` default; `debug` for triage.                 |
+| `NODE_ENV`                | Fly env    | Hard-coded to `production` in `fly.toml`.           |
 
-- `gepg-signing-key` — quarterly (GePG policy)
-- `jwt-secret` — annually or on incident
-- `anthropic-api-key` — on key compromise only
-- RDS master password — managed by RDS (`manage_master_user_password = true`)
-
----
-
-## 4. Running Migrations in Staging / Production
-
-Migrations run as a one-off ECS task before a deploy, not from developer
-laptops. The `db-migrations-check.yml` workflow gates merges that touch
-`packages/database/src/migrations/`.
+Set secrets with:
 
 ```bash
-aws ecs run-task \
-  --cluster borjie-staging \
-  --task-definition borjie-staging-db-migrate \
-  --launch-type FARGATE \
-  --network-configuration "<same as api-gateway>"
+fly secrets set --app borjie-api-gateway \
+  JWT_SECRET="$(openssl rand -base64 48)" \
+  ANTHROPIC_API_KEY=PLACEHOLDER \
+  LIVEBLOCKS_SECRET_KEY=PLACEHOLDER \
+  API_KEY_REGISTRY=PLACEHOLDER
 ```
 
-The task definition runs `pnpm db:migrate` against `$DATABASE_URL` from
-Secrets Manager and exits 0 on success.
+### Rollback recipe
+
+```bash
+fly releases --app borjie-api-gateway                              # find the prior release version
+fly deploy --image registry.fly.io/borjie-api-gateway:deployment-<sha> \
+           --config services/api-gateway/fly.toml \
+           --strategy immediate
+# OR, faster, via the built-in rollback shortcut:
+fly releases rollback <version-number> --app borjie-api-gateway
+```
+
+### Smoke test recipe
+
+```bash
+fly status --app borjie-api-gateway              # all machines must be "passing"
+curl -fsS https://borjie-api-gateway.fly.dev/health
+curl -fsS https://borjie-api-gateway.fly.dev/api/v1/meta/version
+fly logs   --app borjie-api-gateway              # tail until "ready on :3001"
+```
 
 ---
 
-## 5. Adding a New Tenant Org
+## 4. workforce-mobile (EAS)
 
-1. **Reserve the slug** — add a row to `tenants` via
-   `POST /api/v1/tenants` (platform admin auth required).
-2. **Seed baseline data** — run `pnpm db:seed --org=<slug>` against the
-   target environment. The seeder is idempotent on primary keys.
-3. **Provision DNS** — add a `CNAME` under the `*.borjie.io` zone
-   pointing `<slug>.borjie.io` at the api-gateway ALB.
-4. **Register notification senders** — every tenant needs its own
-   `notifications_from_email` verified with Resend / Twilio. See
-   `services/notifications/README.md` for the per-tenant override flow.
-5. **Smoke test** — run the `e2e/tenant-onboarding.spec.ts` suite
-   with `TENANT_SLUG=<slug>`.
+Expo Router app at `apps/workforce-mobile`. Build/submit driven by
+`apps/workforce-mobile/eas.json`.
+
+### Prerequisites
+
+- `eas-cli` 12.0.0+ logged in (`eas login`).
+- Expo project linked: `eas init` (one-time) inside
+  `apps/workforce-mobile/`.
+- Apple Developer + Google Play accounts with credentials uploaded
+  (`eas credentials`).
+- Required Expo config plugins are already declared in `app.json`:
+  - `expo-camera`
+  - `expo-location`
+  - `expo-image-picker`
+  - `expo-local-authentication`
+  - `expo-secure-store` (referenced indirectly via Async Storage; document
+    add if/when secure-store is added)
+  - `expo-av`
+
+### One-command deploy
+
+```bash
+# Development (internal distribution, dev-client)
+eas build --profile development --platform all --non-interactive
+
+# Internal preview (signed APK + Ad-Hoc IPA, distributable via link)
+eas build --profile preview     --platform all --non-interactive
+
+# Production (App Store / Play Store builds, version auto-incremented)
+eas build --profile production  --platform all --non-interactive
+
+# Submit the latest production builds to the stores
+eas submit --profile production --platform all --non-interactive
+```
+
+### Required env vars / EAS secrets
+
+Variables prefixed `EXPO_PUBLIC_` are baked into the JS bundle; everything
+else is per-profile in `eas.json` or stored in EAS secrets.
+
+| Variable                          | Source        | Notes                                              |
+| --------------------------------- | ------------- | -------------------------------------------------- |
+| `EXPO_PUBLIC_API_GATEWAY_URL`     | `eas.json`    | Differs per profile (dev / preview / production).  |
+| `EXPO_PUBLIC_USE_LIVE_API`        | `eas.json`    | `false` in development, `true` elsewhere.          |
+| `EXPO_PUBLIC_ENV`                 | `eas.json`    | `development` / `staging` / `production`.          |
+| `EXPO_PUBLIC_APP_VARIANT`         | `eas.json`    | Hard-coded to `workforce`.                         |
+| `EXPO_PUBLIC_SENTRY_DSN`          | EAS secret    | Optional but recommended.                          |
+| `SENTRY_AUTH_TOKEN`               | EAS secret    | Required for sourcemap upload during build.        |
+| `GOOGLE_SERVICES_JSON_BASE64`     | EAS secret    | Used by EAS for Android FCM/analytics if enabled.  |
+| `APPLE_TEAM_ID`                   | EAS credential| Stored in EAS credentials, not raw env.            |
+
+Manage secrets via:
+
+```bash
+eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value PLACEHOLDER
+eas secret:list   --scope project
+```
+
+### Rollback recipe
+
+For OTA-eligible JS changes, publish a previous bundle via EAS Update:
+
+```bash
+eas update:list --branch production
+eas update:republish --group <previous-update-group-id> --branch production
+```
+
+For binary rollbacks (native code), promote the previous version in App
+Store Connect / Play Console — these stores keep the previous build
+available and a rollback is a re-submit of the prior `.ipa` / `.aab`.
+
+### Smoke test recipe
+
+```bash
+# 1. Install the build on a clean test device via the Expo dashboard share URL.
+# 2. Verify the splash screen loads, the login screen renders.
+# 3. Sign in with a known seeded workforce user.
+# 4. Confirm a camera capture round-trips: photo -> upload -> visible on
+#    admin-web inspection screen.
+# 5. Tail api-gateway logs: requests should arrive with the expected
+#    `x-borjie-app: workforce` header.
+```
 
 ---
 
-## 6. Service Topology
+## 5. buyer-mobile (EAS)
 
-```
-                        ┌─────────────────┐
-                        │   api-gateway   │
-                        │   :4000 (BFF)   │
-                        └────────┬────────┘
-                                 │
-          ┌──────────┬───────────┼───────────┬────────────┐
-          ▼          ▼           ▼           ▼            ▼
-     identity   notifications  reports   payments   domain-services
-       :4001      :4003        :4002     :4005         :4008
-                    │            │          │
-                    │            │          ▼
-                    │            │    payments-ledger
-                    │            │         :4006
-                    │            │
-                    └────┬───────┘
-                         ▼
-                      scheduler
-                       :4009
-                  (node-cron workers)
+Same shape as workforce-mobile. Build/submit driven by
+`apps/buyer-mobile/eas.json`.
+
+### One-command deploy
+
+```bash
+eas build --profile development --platform all --non-interactive --working-directory apps/buyer-mobile
+eas build --profile preview     --platform all --non-interactive --working-directory apps/buyer-mobile
+eas build --profile production  --platform all --non-interactive --working-directory apps/buyer-mobile
+eas submit --profile production --platform all --non-interactive --working-directory apps/buyer-mobile
 ```
 
-Data stores:
+### Required env vars
 
-- **Postgres (pgvector)** — operational DB, vector search for doc-chat
-- **Redis** — BullMQ queues, idempotency keys, OTP store, rate limits
-- **Neo4j** — knowledge graph (optional; falls back to demo mode)
+Identical schema to workforce-mobile (table above), with
+`EXPO_PUBLIC_APP_VARIANT=buyer` instead of `workforce`.
+
+### Rollback / smoke test
+
+Same recipes as workforce-mobile, substituting buyer-flavoured smoke checks
+(catalog browse, quote request, payment intent creation).
 
 ---
 
-## 7. Observability
+## 6. Continuous integration
 
-- Structured JSON logs from every service → CloudWatch Logs per service
-- `/healthz` returns `{status, version, upstreams, workers}` per service
-- Scheduler `/healthz` includes per-worker `lastSuccessAt` and error counts
-- CloudWatch alarms defined in `infra/terraform/alarms.tf` (follow-up wave)
+### borjie-ci
 
----
+`.github/workflows/borjie-ci.yml` runs on every push and PR to `main`:
 
-## 8. Composition root degraded mode
+1. Setup pnpm 8.15.0 + Node.js 20.
+2. `pnpm install --frozen-lockfile`.
+3. `pnpm -r typecheck` (best-effort; fails only if the TS error count is
+   greater than `TYPECHECK_ERROR_BUDGET` = 50).
+4. `pnpm -F @borjie/database build` (must pass).
+5. `pnpm -F @borjie/ai-copilot test` (must pass).
+6. `pnpm -F @borjie/api-gateway typecheck` (must pass; strict).
+7. Uploads `.ci-logs/typecheck.log` as a workflow artifact for triage.
+8. Cancels after 15 minutes.
 
-The api-gateway constructs a single typed `ServiceRegistry` at boot
-(`services/api-gateway/src/composition/service-registry.ts`). This
-registry lazily instantiates the 10 Postgres-backed domain services
-(marketplace, tenders, negotiations, waitlist, gamification, migration,
-etc.). When required inputs are missing it **falls back to degraded
-mode** instead of crashing.
+### borjie-db-migrations-check
 
-### Boot-time signal
-
-```
-service-registry: live      → DATABASE_URL resolved, all LIVE services wired
-service-registry: degraded  → DATABASE_URL unset, pure-DB endpoints will 503
-```
-
-### What degrades vs. what fails closed
-
-| Missing env var | Behaviour | Why |
-|-----------------|-----------|-----|
-| `DATABASE_URL` | Registry returns skeleton of `null`s; pure-DB routers respond `503 Service Unavailable` with a clear reason. Auth, legacy routes, and external-creds routes still work. | Graceful — developers can run the gateway without booting Postgres. |
-| `API_KEY_REGISTRY` **and** `API_KEYS` | In production (`NODE_ENV=production`) the gateway **refuses to boot** (`assertApiKeyConfig()`). | Prevents misconfigured deploys from silently accepting every request. |
-| `ALLOWED_ORIGINS` | In production the gateway **refuses to boot**. | Wildcard CORS + cookie auth = CSRF risk. |
-| `GEPG_PSP_MODE=false` without `GEPG_SIGNING_KEY_PEM`+`GEPG_SIGNING_CERT_PEM` | Payments service **refuses to boot**. | C-2 fix — no more stub signature verification. |
-| `NOTIFICATIONS_SERVICE_URL` | Event subscribers log "`notification dispatch skipped`" and move on. | Graceful — keeps the outbox drainer healthy during partial outages. |
-| `NANO_BANANA_API_KEY` | Imagery renderer emits a placeholder PNG with `reason: 'NANO_BANANA_API_KEY unset'` in metadata. | Graceful — caller's document pipeline never breaks. |
-| `TYPST_BIN` | PDF renderer falls back to the zero-dep encoder (`react-pdf`). | Graceful — CI still renders valid PDFs. |
-| `OCR_PROVIDER=mock` | `document-intelligence` processes with fixtures. | Graceful — safe for dev, NEVER in production. |
-
-### Pilot-acceptable 503s
-
-Some routers return 503 even when `DATABASE_URL` is set, because their
-Postgres repos haven't landed yet. As of wave-5 these are:
-
-- `/api/v1/occupancy-timeline/*` — awaiting `PostgresOccupancyTimelineRepository`
-- `/api/v1/station-master-coverage/*` — awaiting `PostgresStationMasterCoverageRepository`
-
-Everything else that is pure-DB (marketplace, waitlist, gamification,
-migration, negotiations, tenders, risk reports, compliance exports,
-arrears, applications, renewals, letters, doc-chat, document render,
-scans) returns real data when `DATABASE_URL` is set.
-
-See `Docs/analysis/DELTA_AND_ROADMAP.md` § "Production Readiness Matrix"
-for the full per-feature matrix.
+`.github/workflows/borjie-db-migrations-check.yml` builds the project's
+custom Postgres image (`docker/postgres/Dockerfile`, pgvector + PostGIS),
+boots it as a side container, and runs
+`scripts/apply-borjie-mining-migration.mjs`. Triggered on any change under
+`packages/database/drizzle/`, the applier script, or the postgres
+Dockerfile.
 
 ---
 
-## 8. Production Deployment (canonical runbook)
+## 7. Secrets management
 
-After this section, launching borjie.com with real traffic is:
-`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
-plus a DNS flip. Every operational concern below is covered.
+| Provider | Tool / dashboard                                | Recipe                                                                 |
+| -------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| Vercel   | Project -> Settings -> Environment Variables    | `vercel env add NEXT_PUBLIC_API_GATEWAY_URL production`                |
+| Fly.io   | `fly secrets` per app                           | `fly secrets set JWT_SECRET=$(openssl rand -base64 48) --app borjie-api-gateway` |
+| EAS      | `eas secret` per project / `eas credentials`    | `eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value PLACEHOLDER` |
+| GitHub   | Repo -> Settings -> Secrets and variables       | Used only by the inherited workflows; new Borjie CI does not require any. |
 
-### 8.1 Bootstrap sequence
+Rules of the road:
 
-1. **Provision infrastructure**
-   - Managed Postgres 15 (RDS/Cloud SQL) + pgvector extension
-   - Managed Redis 7 (ElastiCache/MemoryStore)
-   - Object storage bucket for docs (S3/GCS) — lifecycle: 365d retention
-   - Kubernetes cluster (EKS/GKE) OR a VM running docker-compose
-   - DNS zone: `borjie.com` (+ subdomains `api`, `admin`, `owners`, `manage`)
+- Never commit raw secret values to the repo; use the placeholders
+  documented above.
+- Rotate `JWT_SECRET` and any leaked API keys via the relevant `secrets
+  set` recipe — no code change is needed.
+- For local dev, copy `.env.example` to `.env` and populate per the
+  inherited local-dev runbook (`CONTRIBUTING.md`).
 
-2. **Issue TLS certs**
-   - `certbot certonly --dns-route53 -d borjie.com -d '*.borjie.com'`
-   - Mount fullchain.pem + privkey.pem under `${TLS_CERT_DIR}/borjie.com/`
+---
 
-3. **Populate `.env.production`** from `Docs/ENV.md` + section 8.2 below
+## 8. Post-deploy smoke test (cross-surface)
 
-4. **Apply migrations + seed platform defaults**
-   ```bash
-   pnpm --filter @borjie/database migrate:deploy
-   pnpm --filter @borjie/database seed:platform
-   ```
+Run after every production deploy of api-gateway, since the web/mobile
+surfaces talk to it:
 
-5. **(Optional) Seed demo org**
-   ```bash
-   pnpm --filter @borjie/database seed:demo
-   ```
+```bash
+API=https://api.borjie.example
 
-6. **Boot gateway + apps**
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-   ```
+# Liveness / readiness
+curl -fsS "$API/health"
+curl -fsS "$API/api/v1/meta/version"
 
-7. **Flip DNS** A records for the 4 subdomains to the load-balancer IP
+# Authenticated request with a smoke-test API key (from API_KEY_REGISTRY)
+curl -fsS -H "x-api-key: $BORJIE_SMOKE_KEY" "$API/api/v1/meta/whoami"
 
-8. **Smoke-test** with `pnpm e2e:prod` (runs critical-flow specs against https://...)
+# Vercel surfaces
+curl -fsS https://admin.borjie.example/api/health
+curl -fsS https://owner.borjie.example/api/health
+```
 
-### 8.2 Environment variables — REQUIRED vs OPTIONAL
-
-| Var | Required | Service(s) | How to obtain | Cost indicator |
-|---|---|---|---|---|
-| `POSTGRES_PASSWORD` | REQUIRED | all | `openssl rand -base64 32` | - |
-| `REDIS_PASSWORD` | REQUIRED | all | `openssl rand -base64 32` | - |
-| `NEO4J_PASSWORD` | REQUIRED | gateway | `openssl rand -base64 32` | - |
-| `JWT_SECRET` | REQUIRED | gateway | `openssl rand -base64 48` | - |
-| `ANTHROPIC_API_KEY` | REQUIRED | gateway (chat, workflows) | console.anthropic.com | ~$15 / 1M input tokens (Sonnet 4.5); 1 turn ≈ 1.5K in + 500 out → ~$0.028/turn. Budget for 10K turns/day = ~$280/day |
-| `OPENAI_API_KEY` | OPTIONAL | voice-in (Whisper transcription) | platform.openai.com | $0.006/min (Whisper); budget $18 per 50 hours of voice input/day |
-| `ELEVENLABS_API_KEY` | OPTIONAL | voice-out (TTS) | elevenlabs.io | $0.18/1K chars (Turbo v2.5); 1 response ≈ 300 chars → $0.054/response. Budget for 3K voice responses/day = ~$162/day |
-| `SENTRY_DSN` | OPTIONAL but strongly recommended | all | sentry.io | Free tier: 5K events/mo; Team $26/mo |
-| `POSTHOG_API_KEY` | OPTIONAL | all | posthog.com (self-host free) | Free up to 1M events/mo; self-host: infra only |
-| `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` | OPTIONAL | notifications | twilio.com | SMS TZ ~$0.06, KE ~$0.048, UG ~$0.070, NG ~$0.033, SA ~$0.058 per SMS |
-| `GEPG_CLIENT_ID` + `GEPG_CLIENT_SECRET` | OPTIONAL (TZ only) | payments | Ministry of Finance TZ | ~0.5% of transaction value |
-| `CLICKPESA_API_KEY` | OPTIONAL (TZ) | payments | clickpesa.com | ~1.5% + TZS 200/txn |
-| `MPESA_CONSUMER_KEY` + `MPESA_CONSUMER_SECRET` | OPTIONAL (KE) | payments | daraja.safaricom.co.ke | 1.5% per M-Pesa txn |
-| `FLUTTERWAVE_SECRET_KEY` | OPTIONAL (multi-country) | payments | flutterwave.com | 1.4% + NGN 50/txn |
-| `SMTP_HOST` + `SMTP_USER` + `SMTP_PASS` | REQUIRED for email | notifications | SendGrid/Mailgun | SendGrid: 100 emails/day free, $19.95/mo for 50K |
-| `WHATSAPP_BUSINESS_TOKEN` | OPTIONAL | notifications | business.facebook.com | $0.005–$0.08 per session depending on country |
-
-Realistic **10-tenant / 5K units / ~1M events-per-day** monthly cost (USD):
-- Anthropic: ~$8,400 (30K chat turns + 5K workflow turns daily)
-- Voice (Whisper + ElevenLabs): ~$5,400
-- Infra (k8s 3×m5.large + RDS + ElastiCache): ~$1,100
-- SMS (country-dependent, assume TZ 50K/mo): ~$3,000
-- Sentry + PostHog + monitoring: ~$200
-- **Total: ~$18,100/mo** at this scale
-
-### 8.3 Observability (wired in Wave 13)
-
-- **Sentry** — set `SENTRY_DSN`. Client auto-initialised in api-gateway + all 4 apps. PII scrubbed via `packages/ai-copilot/src/security/pii-scrubber.ts` before events leave the process.
-- **PostHog** — set `POSTHOG_API_KEY`. Canonical events: `chat.turn`, `chat.proposed_action_approved`, `workflow.completed`, `training.assigned`, `training.completed`, `mwikila.intervention_accepted`, `demo.played`.
-- **Grafana dashboards** — JSON under `monitoring/grafana-dashboards/`, import via `grafana-cli admin import`.
-- **Prometheus scrape target** — `/api/v1/metrics` (admin-auth). Enable ServiceMonitor via `helm upgrade --set monitoring.serviceMonitor.enabled=true`.
-- **Log aggregation** — fluent-bit stub in `monitoring/fluent-bit/`. Set `FLUENT_BIT_OUTPUT=loki|cloudwatch|elastic` in `.env.production`.
-
-### 8.4 Pilot client go-live checklist (template — no specific tenant)
-
-- [ ] Tenant slug provisioned in admin portal (`POST /api/v1/tenants`)
-- [ ] Tenant's country + currency + timezone set on tenant record
-- [ ] Tenant admin user created + MFA enrolled
-- [ ] Properties + units imported (CSV via `/api/v1/migration/import-csv`)
-- [ ] Existing leases migrated (+ historical payments for arrears accuracy)
-- [ ] Payment provider creds configured (GePG/M-Pesa/Flutterwave)
-- [ ] SMS sender ID registered with MNO (TZ: TCRA, KE: CA)
-- [ ] Training path auto-generated for tenant's team (`POST /api/v1/training/generate`)
-- [ ] Mr. Mwikila persona smoke-tested (5 chat turns + 1 workflow)
-- [ ] Backup schedule: Postgres pg_basebackup daily → S3 (7d RPO) + WAL archiving
-- [ ] Rollback runbook reviewed (`Docs/RUNBOOK.md`)
-- [ ] Production operations runbook reviewed (`Docs/OPERATIONS.md`) — incident response, known issues, capacity planning, data-deletion SLAs
-- [ ] On-call rotation published
-- [ ] Go-live announcement queued
-
-### 8.5 Real-LLM E2E smoke tests
-
-Opt-in by setting `E2E_REAL_LLM=true` before `pnpm e2e`. Required env for each spec:
-- brain-turn-real, marketing-consultant, training-generate, sandbox-flow, arrears-explain, workflow-real, mwikila-intervention-real, prospect-onboard-real: `ANTHROPIC_API_KEY`
-- voice-loop: also `ELEVENLABS_API_KEY` + `OPENAI_API_KEY`
-
-CI defaults to skipping these (no keys); local + staging pipelines opt in.
-
-## 9. Environment validation (boot-time)
-
-The gateway now validates `process.env` on startup via
-`services/api-gateway/src/config/validate-env.ts`. If any required variable is
-missing or malformed, the gateway logs a structured `fatal` entry and exits
-with code 1 **before** accepting any requests.
-
-### Required (boot fails without these)
-
-| Variable | Validation | Example |
-|---|---|---|
-| `DATABASE_URL` | must start with `postgres://` or `postgresql://`, min 10 chars | `postgres://app:pw@db:5432/bn` |
-| `JWT_SECRET` | min 32 chars (64+ recommended in production) | output of `openssl rand -base64 48` |
-
-### Defaults (no warning)
-
-| Variable | Default |
-|---|---|
-| `NODE_ENV` | `development` |
-| `PORT` | `4000` |
-| `LOG_LEVEL` | `info` |
-| `JWT_ISSUER` | `borjie` |
-| `JWT_AUDIENCE` | `borjie-client` |
-| `APP_VERSION` | `dev` |
-
-### Optional — validated if set
-
-Auth: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (min 32 chars each).
-CORS: `ALLOWED_ORIGINS` (comma-separated list).
-Transport: `REDIS_URL` (URL), `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`.
-Workers: `OUTBOX_WORKER_DISABLED` (`true`/`false`), `OUTBOX_INTERVAL_MS`,
-`OUTBOX_BATCH_SIZE`, `BORJIE_BG_TASKS_ENABLED`.
-Observability: `SENTRY_DSN` (URL), `SENTRY_ENVIRONMENT`,
-`SENTRY_TRACES_SAMPLE_RATE` (0..1), `POSTHOG_API_KEY`, `POSTHOG_HOST` (URL),
-`GIT_SHA`.
-AI: `ANTHROPIC_API_KEY` (must start with `sk-ant-`),
-`OPENAI_API_KEY` (must start with `sk-`), `ELEVENLABS_API_KEY`,
-`ELEVENLABS_DEFAULT_VOICE_ID`.
-OCR: `OCR_PROVIDER` in {aws_textract, google_vision, tesseract, none},
-`GOOGLE_APPLICATION_CREDENTIALS`, `AWS_TEXTRACT_REGION`.
-Payments (TZ): `GEPG_ENV` in {sandbox, production}, `GEPG_BASE_URL`,
-`GEPG_CALLBACK_BASE_URL`, `GEPG_HMAC_SECRET`, `GEPG_HEALTH_URL`, `GEPG_PKCS`,
-`GEPG_PSP_MODE` in {client_cert, hmac}, `GEPG_PUBLIC_CERT_PEM`, `GEPG_SP`,
-`GEPG_SP_SYS_ID`.
-SMS: `AFRICASTALKING_WEBHOOK_SECRET`, `META_APP_SECRET`, `TWILIO_AUTH_TOKEN`.
-Internal: `API_KEYS`, `API_KEY_REGISTRY`, `INTERNAL_API_KEY`,
-`AGENT_CERT_SIGNING_SECRET`, `WEBHOOK_DEFAULT_HMAC_SECRET`.
-Inter-service: `API_URL`, `NOTIFICATIONS_SERVICE_URL`, `TENANT_SERVICE_URL`.
-Tenant defaults: `DEFAULT_TENANT_CITY`, `DEFAULT_TENANT_COUNTRY`,
-`DEFAULT_TENANT_CURRENCY` (3-letter), `DEV_DEFAULT_COUNTRY_CODE` (2-letter).
-Health: `DEEP_HEALTH_CACHE_MS`. Testing: `USE_MOCK_DATA` (`true`/`false`).
-
-### Production-only warnings (logged, not fatal)
-
-When `NODE_ENV=production`, the validator emits a warning for each of these
-when not set: `SENTRY_DSN`, `REDIS_URL`, `ALLOWED_ORIGINS`, `APP_VERSION`,
-`GIT_SHA`. It also warns if `JWT_SECRET` is under 64 characters in production.
-
-### Development-mode nudge
-
-If `NODE_ENV=development` and `DATABASE_URL` does not reference `localhost`,
-the validator warns — a guard against accidentally pointing dev at a shared
-Postgres.
-
-### How to bypass at test time
-
-Set `NODE_ENV=test` (the gateway skips env validation so vitest fixtures
-don't need to fulfil every production var).
-
+If any of the above returns non-2xx, follow the rollback recipe for the
+relevant surface immediately.

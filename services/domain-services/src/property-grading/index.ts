@@ -1,14 +1,16 @@
 /**
- * Property-grading domain module — Postgres-backed adapters for
- * `@borjie/ai-copilot/property-grading`.
+ * Property-grading domain module.
  *
- * Three adapter classes bind the structural ports (ports.ts) to real
- * Postgres tables. The api-gateway composition root instantiates the
- * ai-copilot `PropertyGradingService` using these adapters.
+ * Mining-domain Wave 5 — the property-domain `DrizzleSnapshotRepository`
+ * has been removed (property_grade_snapshots was dropped by migration
+ * 0003). The mining-domain ore-grading repo
+ * (`DrizzleOreGradingRepository`) lives under
+ * `@borjie/domain-services/ore`. Ports + weights / metrics adapters
+ * remain exported for slot-shape compatibility while the surrounding
+ * service migration continues.
  */
 
 export * from './ports.js';
 export * from './drizzle-weights-repository.js';
-export * from './drizzle-snapshot-repository.js';
 export * from './live-metrics-source.js';
 export * from './create-property-grading-service.js';

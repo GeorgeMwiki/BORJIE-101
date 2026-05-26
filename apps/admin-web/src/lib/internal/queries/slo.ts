@@ -1,3 +1,7 @@
+// TODO(api-gateway): no live `/api/v1/mining/internal/slo` endpoint
+// exists yet. Until it does, this fetcher falls back to the bundled
+// SLO mock on 404. The code path will start serving live data once
+// the gateway exposes the route.
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { MOCK_SLO } from '@/lib/mocks/slo';

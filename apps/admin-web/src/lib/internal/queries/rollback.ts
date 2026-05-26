@@ -1,3 +1,6 @@
+// TODO(api-gateway): no live `/api/v1/mining/internal/promotions` route
+// exists. The closest live primitive is `POST /prompts/promote` —
+// rollback is not yet exposed. Both hooks will fall back to mocks.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { MOCK_PROMOTIONS } from '@/lib/mocks/rollback';

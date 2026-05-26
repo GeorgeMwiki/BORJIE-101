@@ -1,3 +1,4 @@
+# TODO(borjie): audit/prune; see .github/workflows/borjie-ci.yml for the current source of truth
 # AI Bill of Materials — generate + Sigstore-sign on every release + nightly.
 #
 # Output artifacts (attached to the GitHub Release + uploaded to workflow):

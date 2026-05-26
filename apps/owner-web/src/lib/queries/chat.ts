@@ -210,17 +210,47 @@ async function tryLiveStream(
   onEvent: (event: string, data: unknown) => boolean,
 ): Promise<boolean> {
   try {
+    let sawAny = false;
     for await (const ev of streamSse({
-      path: '/api/v1/owner/chat/stream',
-      body,
+      path: '/api/v1/mining/chat',
+      // Gateway expects `message` not `content`; mode is forwarded verbatim
+      // and language defaults to `sw` for owner-web (Tanzanian users).
+      body: { message: body.content, mode: body.mode, language: 'sw' },
       signal,
     })) {
-      onEvent(ev.event, ev.data);
+      sawAny = true;
+      // Gateway event names diverge from the legacy mock stream — adapt
+      // them here so the applyEvent switch can stay simple.
+      const event = normaliseLiveEvent(ev.event);
+      const data = remapLiveData(ev.event, ev.data);
+      onEvent(event, data);
     }
-    return true;
+    return sawAny;
   } catch {
     return false;
   }
+}
+
+function normaliseLiveEvent(name: string): string {
+  if (name === 'message_chunks') return 'delta';
+  if (name === 'junior_calls' || name === 'junior_call') return 'breadcrumb';
+  if (name === 'evidence_ids' || name === 'evidence_id') return 'evidence';
+  return name;
+}
+
+function remapLiveData(name: string, data: unknown): unknown {
+  if (!isRecord(data)) return data;
+  if (name === 'message_chunks') {
+    return { text: typeof data.chunk === 'string' ? data.chunk : '' };
+  }
+  if (name === 'junior_calls' && Array.isArray(data.calls) && data.calls.length > 0) {
+    const first = data.calls[0];
+    return isRecord(first) ? first : data;
+  }
+  if (name === 'evidence_ids') {
+    return { ids: Array.isArray(data.ids) ? data.ids : [] };
+  }
+  return data;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

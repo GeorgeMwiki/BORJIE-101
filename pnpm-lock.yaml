@@ -605,6 +605,9 @@ importers:
       openai:
         specifier: ^6.38.0
         version: 6.39.0(zod@3.25.76)
+      pdf-parse:
+        specifier: ^1.1.1
+        version: 1.1.4
       uuid:
         specifier: '>=14.0.0'
         version: 14.0.0
@@ -3304,6 +3307,9 @@ importers:
       '@hono/node-server':
         specifier: 1.19.13
         version: 1.19.13(hono@4.12.18)
+      '@hono/swagger-ui':
+        specifier: ^0.5.1
+        version: 0.5.3(hono@4.12.18)
       '@hono/zod-openapi':
         specifier: ^0.16.4
         version: 0.16.4(hono@4.12.18)(zod@3.25.76)
@@ -8043,6 +8049,14 @@ packages:
   /@hono/node-server@1.19.13(hono@4.12.18):
     resolution: {integrity: sha512-TsQLe4i2gvoTtrHje625ngThGBySOgSK3Xo2XRYOdqGN1teR8+I7vchQC46uLJi8OF62YTYA3AhSpumtkhsaKQ==}
     engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: '>=4.12.18'
+    dependencies:
+      hono: 4.12.18
+    dev: false
+
+  /@hono/swagger-ui@0.5.3(hono@4.12.18):
+    resolution: {integrity: sha512-Hn90DOOJ62ICJQplQvCDVpi9Jcn6EhtRaiffyJIS53wA5RmRLtMCDQGVc0bor8vQD7JIwpkweWjs+3cycp+IvA==}
     peerDependencies:
       hono: '>=4.12.18'
     dependencies:
@@ -24496,7 +24510,6 @@ packages:
     resolution: {integrity: sha512-DRI60hzo2oKN1ma0ckc6nQWlHU69RH6xN0sjQTjMpChPfTYvKZdcQFfdYK2RWbJcKyUizSIy/l8OTGxMAM1QDw==}
     requiresBuild: true
     dev: false
-    optional: true
 
   /node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
@@ -25197,7 +25210,6 @@ packages:
     dependencies:
       node-ensure: 0.0.0
     dev: false
-    optional: true
 
   /pdfjs-dist@4.10.38:
     resolution: {integrity: sha512-/Y3fcFrXEAsMjJXeL9J8+ZG9U01LbuWaYypvDW2ycW1jL269L3js3DVBjDJ0Up9Np1uqDXsDrRihHANhZOlwdQ==}

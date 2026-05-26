@@ -1137,6 +1137,10 @@ app.use('/api/v1', handle(api));
 app.get('/api/v1', (_req, res) => {
   res.json({
     version: '1.0.0',
+    docs: {
+      gateway: '/api/v1/docs',
+      mining: '/api/v1/mining/docs',
+    },
     endpoints: [
       '/api/v1/auth',
       '/api/v1/auth/mfa',
@@ -1164,6 +1168,7 @@ app.get('/api/v1', (_req, res) => {
       '/api/v1/brain',
       '/api/v1/maintenance',
       '/api/v1/hr',
+      '/api/v1/mining',
       '/api/v1/customer',
       '/api/v1/owner',
       '/api/v1/manager',

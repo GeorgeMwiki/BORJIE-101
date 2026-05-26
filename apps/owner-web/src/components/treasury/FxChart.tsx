@@ -10,6 +10,9 @@ import {
   YAxis,
   Legend,
 } from 'recharts';
+// TODO(api-gateway): no live FX/gold series endpoint yet. Once the
+// gateway exposes `/api/v1/mining/cockpit/fx-history` (or similar),
+// swap this import for a TanStack Query fetcher with mock fallback.
 import { FX_HISTORY } from '@/lib/mocks/treasury';
 
 const TZS_COLOR = 'hsl(var(--warning))';

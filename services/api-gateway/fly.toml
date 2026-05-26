@@ -1,0 +1,108 @@
+# =============================================================================
+# Fly.io configuration for @borjie/api-gateway
+# =============================================================================
+# Region: jnb (Johannesburg) — closest Fly region to Tanzania.
+# Database: managed Fly Postgres cluster; attach via `fly pg attach`.
+# Build context: this file lives in services/api-gateway/, but we build from
+# the monorepo root via `fly deploy --config services/api-gateway/fly.toml
+# --dockerfile services/api-gateway/Dockerfile .` (see docs/DEPLOYMENT.md).
+# =============================================================================
+
+app = "borjie-api-gateway"
+primary_region = "jnb"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "services/api-gateway/Dockerfile"
+
+[deploy]
+  strategy = "rolling"
+  wait_timeout = "5m"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+  HOST = "0.0.0.0"
+  LOG_LEVEL = "info"
+  OTEL_SERVICE_NAME = "borjie-api-gateway"
+
+[experimental]
+  auto_rollback = true
+
+# -- Public HTTP service --------------------------------------------------------
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+# -- Internal service (sidecar wiring) -----------------------------------------
+[[services]]
+  protocol = "tcp"
+  internal_port = 3001
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "30s"
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "get"
+    path = "/health"
+    protocol = "http"
+    restart_limit = 5
+
+# -- VM sizing -----------------------------------------------------------------
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# -- Persistent storage --------------------------------------------------------
+# Postgres data is managed by Fly Postgres (separate app). This mount stores
+# local cache + ephemeral upload spool only.
+[mounts]
+  source = "borjie_api_gateway_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[processes]
+  app = "node dist/index.js"
+
+[metrics]
+  port = 9091
+  path = "/metrics"

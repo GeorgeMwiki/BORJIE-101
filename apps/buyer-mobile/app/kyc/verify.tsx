@@ -37,12 +37,12 @@ export default function KycVerify() {
     refetchInterval: (q) => {
       const record = q.state.data
       if (!record) {
-        return 3_000
+        return 5_000
       }
       if (record.stage === 'approved' || record.stage === 'rejected') {
         return false
       }
-      return 3_000
+      return 5_000
     }
   })
 

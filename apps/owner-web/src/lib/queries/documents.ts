@@ -14,8 +14,10 @@ export function useDocumentList() {
   return useQuery({
     queryKey: documentKeys.list(),
     queryFn: ({ signal }) =>
+      // Live endpoint: GET /api/v1/mining/documents
+      // (services/api-gateway/src/routes/mining/documents.hono.ts).
       apiRequestOrFallback<ReadonlyArray<DocumentRecord>>(
-        '/api/v1/owner/documents',
+        '/api/v1/mining/documents',
         DOCUMENTS_MOCK,
         { signal },
       ),

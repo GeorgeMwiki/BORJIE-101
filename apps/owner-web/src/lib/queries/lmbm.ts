@@ -12,8 +12,10 @@ export function useLmbmGraph(asOf: string) {
   return useQuery({
     queryKey: lmbmKeys.graph(asOf),
     queryFn: ({ signal }) =>
+      // Live endpoint: GET /api/v1/mining/lmbm/graph
+      // (services/api-gateway/src/routes/mining/lmbm.hono.ts).
       apiRequestOrFallback<LmbmGraph>(
-        `/api/v1/owner/lmbm/graph?asOf=${encodeURIComponent(asOf)}`,
+        `/api/v1/mining/lmbm/graph?asOf=${encodeURIComponent(asOf)}`,
         LMBM_MOCK,
         { signal },
       ),
