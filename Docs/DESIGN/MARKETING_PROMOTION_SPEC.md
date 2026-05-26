@@ -415,3 +415,9 @@ Mirrors document + UX layers. Engagement events feed `marketing_telemetry_events
 The 12-class marketing studio is the public face of the manifesto. Every campaign cites its claims. Every variant is brand-locked. Every publish is audit-chained. Every Tier 2 asset waits for the owner's signoff. The MD does not push send on a press release they have not read; the MD does not auto-promote a winning variant of a paid ad without the owner's nod. The lock/improve loop earns trust the same way a senior managing director earns it — by being right repeatedly, and by being visibly correctable when wrong.
 
 This is the public-facing surface above the internal layers. It must be SOTA in 2026 — and structurally ready to remain SOTA when the channel APIs change in 2027 and the SOTA models change in 2028.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.

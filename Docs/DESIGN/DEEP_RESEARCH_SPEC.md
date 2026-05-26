@@ -432,3 +432,9 @@ RLS (Phase 2): every table is tenant-scoped with the existing `tenant_id`-on-jwt
 - Audit chain: `packages/audit-hash-chain/` — every research output appended.
 - Cost cascade: `packages/brain-llm-router/src/cost-cascade/` — Planner + Synthesizer model-tier selection.
 - Persona: `packages/ai-copilot/src/personas/manager-chat.ts` — Mr. Mwikila is the research entry point.
+
+---
+
+## § Universal-from-day-one note
+
+Per `Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26_addendum_universal.md`: Borjie is built for the entire world. Tanzania is the launch beachhead, not the architectural boundary. Any reference in this spec to Tanzania, TZ, Swahili, TRA, Tumemadini, NEMC, BoT, TZS, +255, or Africa/Dar_es_Salaam is the launch-tenant default, sourced from `@borjie/jurisdiction-profile-tz` + `@borjie/language-pack-sw` + `@borjie/vertical-profile-mining-tz`. Adding a new jurisdiction = adding a new profile package, not editing this spec. Mr. Mwikila's reasoning, memory, calibration, quality gates, security, observability, audit chain, encryption, federation consent, and capability catalogue are language-agnostic and jurisdiction-agnostic.
