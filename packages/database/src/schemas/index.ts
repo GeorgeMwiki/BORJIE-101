@@ -643,6 +643,29 @@ export * from './graph-rag.schema.js';
 export * from './strategic-layer.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave 19I — Translation SOTA (bidirectional EN<->SW with terminology lock)
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0050_translation_sota.sql:
+//   translation_runs                  — one row per translation call
+//                                       (provider invocation). Stores
+//                                       source/target text, provider used,
+//                                       glossary terms substituted, code-
+//                                       switch segments, BLEU / chrF /
+//                                       terminology-adherence, latency,
+//                                       cost. Hash-chained.
+//   translation_glossary_overrides    — per-tenant term overrides on top of
+//                                       the bundled mining + Wave-19H domain
+//                                       glossaries. UNIQUE on (tenant_id,
+//                                       src_term, src_lang, target_lang,
+//                                       register).
+//   translation_evals                 — per-(run, judge) eval score. judge
+//                                       in {bleu, chrf, comet,
+//                                       terminology-adherence, human}.
+// Consumed by @borjie/translation-sota.
+// See Docs/DESIGN/TRANSLATION_SOTA_SPEC.md.
+export * from './translation-sota.schema.js';
+
+// ---------------------------------------------------------------------------
 // P0 #5 Closure (18BB gap analysis) — Calibration + Interpretability
 // ---------------------------------------------------------------------------
 // Three tenant-scoped tables backing migration
@@ -749,3 +772,25 @@ export * from './connector-youtube.schema.js';
 // Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
 // (Decisions 3 + 4).
 export * from './ambient-listening.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 19K — Language Self-Improvement Loop
+// ---------------------------------------------------------------------------
+// Four tenant-scoped tables backing migration 0052_language_self_improve.sql:
+//   language_training_pairs   — captured (source, target) utterance pair
+//                                + 4-axis scores (WER, PER, grammar,
+//                                terminology). PII redacted before
+//                                persistence.
+//   language_adapters         — per-(tenant, lang) adapter. Kind in
+//                                (lora, rag-prefix, full-ft). Lifecycle:
+//                                training → staged → live → rolled-back |
+//                                deprecated. UNIQUE(tenant, lang, version).
+//   language_eval_runs        — gauntlet eval run. 4 mechanical axes +
+//                                nullable MOS + PromotionDecider decision.
+//   language_gauntlet_entries — per-tenant additions to the base 200-
+//                                utterance set. UNIQUE(tenant, lang, prompt).
+// Consumed by @borjie/language-self-improve.
+// See Docs/DESIGN/LANGUAGE_SELF_IMPROVE_SPEC.md.
+// Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+// (Decisions 3 + 4).
+export * from './language-self-improve.schema.js';
