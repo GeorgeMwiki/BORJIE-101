@@ -649,8 +649,25 @@ export class MaintenanceRequestHandler {
     // This will be handled by the EmergencyProtocolHandler
     // Mark the session state accordingly
     session.state = 'emergency_active';
+    // The maintenance-flow keyword extractor returns a free-form string;
+    // the EmergencyContext discriminator is a closed union. Narrow it
+    // through a guard rather than punching out the type system.
+    const VALID_EMERGENCIES = [
+      'fire',
+      'flooding',
+      'break_in',
+      'gas_leak',
+      'electrical',
+      'medical',
+      'other',
+    ] as const;
+    type ValidEmergencyType = (typeof VALID_EMERGENCIES)[number];
+    const narrowedEmergencyType: ValidEmergencyType =
+      (VALID_EMERGENCIES as ReadonlyArray<string>).includes(emergencyType)
+        ? (emergencyType as ValidEmergencyType)
+        : 'other';
     session.context.emergency = {
-      emergencyType: emergencyType as any,
+      emergencyType: narrowedEmergencyType,
       description: `Emergency ${emergencyType} issue reported via maintenance flow`,
       reportedAt: new Date(),
       timelineEvents: [],
