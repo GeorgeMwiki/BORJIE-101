@@ -82,3 +82,23 @@ export { generateAgentCard, type AgentCardDeps } from './agent-card.js';
 
 // A2A (Agent-to-Agent) protocol v1.0 — Google / Linux Foundation
 export * as a2a from './a2a/index.js';
+
+// Junior Architecture (Wave 18V) — the contract every domain junior
+// implements: persona + scope + escalation policy + audience-routing
+// stub. Spec: docs/DESIGN/JUNIOR_ARCHITECTURE_SPEC.md.
+export {
+  resolveAgentForUser,
+  getJuniorMode,
+  juniorOwnsTabRecipe,
+  juniorOwnsDocRecipe,
+  juniorOwnsMediaRecipe,
+  juniorServesAudience,
+  type JuniorPersona,
+  type JuniorMode,
+  type JuniorScope,
+  type JuniorLanguage,
+  type Audience,
+  type EscalationPolicy,
+  type UserRole,
+  type AgentResolution,
+} from './junior-contract.js';

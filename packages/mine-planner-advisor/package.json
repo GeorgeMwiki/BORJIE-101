@@ -33,11 +33,13 @@
   "peerDependencies": {
     "@borjie/database": "workspace:*",
     "@borjie/ai-copilot": "workspace:*",
-    "@borjie/observability": "workspace:*"
+    "@borjie/observability": "workspace:*",
+    "@borjie/agent-platform": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@borjie/database": { "optional": true },
     "@borjie/ai-copilot": { "optional": true },
-    "@borjie/observability": { "optional": true }
+    "@borjie/observability": { "optional": true },
+    "@borjie/agent-platform": { "optional": false }
   }
 }

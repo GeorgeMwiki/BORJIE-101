@@ -1299,6 +1299,28 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/data-onboarding:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.14)(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/database:
     dependencies:
       '@borjie/domain-models':
@@ -2431,6 +2453,9 @@ importers:
 
   packages/mine-planner-advisor:
     dependencies:
+      '@borjie/agent-platform':
+        specifier: workspace:*
+        version: link:../agent-platform
       '@borjie/ai-copilot':
         specifier: workspace:*
         version: link:../ai-copilot

@@ -38,3 +38,13 @@ export {
   type Logger,
   type LmbmPlannerPort,
 } from './ports.js';
+
+// Wave 18V — junior persona ("Ms. Sifa") + scope-bound tab/doc recipes.
+// See packages/mine-planner-advisor/src/persona.ts +
+// packages/mine-planner-advisor/src/recipes/.
+export { miningShiftPlannerPersona } from './persona.js';
+export {
+  shiftPlanReviewRecipe,
+  crewAssignmentRecipe,
+  weeklyProductionBriefRecipe,
+} from './recipes/index.js';
