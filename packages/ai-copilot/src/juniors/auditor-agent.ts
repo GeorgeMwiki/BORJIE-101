@@ -11,9 +11,7 @@
  *      the recommendation against the originating junior's hard rules
  *      and returns approve/reject + missing-evidence list.
  *
- * Schema gap: `audit_log` table not in Drizzle schemas — raw SQL write.
- * TODO(#30): add `audit_log` schema (id, tenant_id, recommendation,
- *   verdict, missing, created_at).
+ * Writes via typed `db.insert(auditLog)` (migration 0011).
  */
 
 import { z } from 'zod';

@@ -2,15 +2,18 @@
  * Mine Planner — site polygon planning, equipment match-factor, shift
  * plan generation (AGENT_PROMPT_LIBRARY §9).
  *
- * Schema gap: `site_layouts` + `weekly_plans` not yet in Drizzle. Raw
- * SQL; TODO(#30).
+ * Writes via typed `db.insert(siteLayouts)` (migration 0011).
+ * `weeklyPlans` is also typed and available for callers that want to
+ * normalise the embedded weekly_plan JSONB into its own row.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -136,17 +139,21 @@ export function createMinePlanner(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const sectionsJson = JSON.stringify(output.sections);
-          const planJson = JSON.stringify(output.weekly_plan);
-          // TODO(#30): typed insert against `site_layouts` + `weekly_plans`.
-          await deps.db.execute(
-            sql`INSERT INTO site_layouts
-                  (id, tenant_id, site_id, sections, weekly_plan, match_factor, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId},
-                        ${sectionsJson}::jsonb, ${planJson}::jsonb, ${output.match_factor}, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const siteLayouts = schemas?.siteLayouts as unknown;
+          if (siteLayouts) {
+            await deps.db
+              .insert(siteLayouts)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                sections: output.sections,
+                weeklyPlan: output.weekly_plan,
+                matchFactor: String(output.match_factor),
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('mine-planner: db write skipped', {
             error: err instanceof Error ? err.message : String(err),

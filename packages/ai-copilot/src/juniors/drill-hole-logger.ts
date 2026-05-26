@@ -11,12 +11,14 @@
  * DATA_MODEL.md but the Drizzle schemas do not exist yet. Raw SQL.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
   deterministicId,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -155,30 +157,41 @@ export function createDrillHoleLogger(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const gpsJson = JSON.stringify(validated.gps);
-          // TODO(#30): typed inserts against `drill_holes` + `drill_hole_layers`.
-          await deps.db.execute(
-            sql`INSERT INTO drill_holes
-                  (id, tenant_id, site_id, hole_id, kind, gps, azimuth_deg, dip_deg,
-                   total_depth_m, vein_intersects, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId}, ${validated.holeId},
-                        ${validated.kind}, ${gpsJson}::jsonb,
-                        ${validated.azimuth_deg ?? null}, ${validated.dip_deg ?? null},
-                        ${output.total_depth_m}, ${output.vein_intersects}, NOW())
-                ON CONFLICT (hole_id) DO NOTHING`,
-          );
-          for (let i = 0; i < validated.layers.length; i++) {
-            const layer = validated.layers[i];
-            const fields = JSON.stringify(layer);
-            await deps.db.execute(
-              sql`INSERT INTO drill_hole_layers
-                    (id, hole_id, idx, depth_from_m, depth_to_m, vein_intersect, fields)
-                  VALUES (${layerIds[i]}, ${validated.holeId}, ${i},
-                          ${layer.depth_from_m}, ${layer.depth_to_m},
-                          ${layer.vein_intersect ?? false}, ${fields}::jsonb)
-                  ON CONFLICT (id) DO NOTHING`,
-            );
+          const schemas = await loadJuniorSchemas();
+          const juniorDrillHoles = schemas?.juniorDrillHoles as unknown;
+          const juniorDrillHoleLayers = schemas?.juniorDrillHoleLayers as unknown;
+          if (juniorDrillHoles && juniorDrillHoleLayers) {
+            await deps.db
+              .insert(juniorDrillHoles)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                holeId: validated.holeId,
+                kind: validated.kind,
+                gps: validated.gps,
+                azimuthDeg:
+                  validated.azimuth_deg !== undefined ? String(validated.azimuth_deg) : null,
+                dipDeg: validated.dip_deg !== undefined ? String(validated.dip_deg) : null,
+                totalDepthM: String(output.total_depth_m),
+                veinIntersects: output.vein_intersects,
+              })
+              .onConflictDoNothing();
+            for (let i = 0; i < validated.layers.length; i++) {
+              const layer = validated.layers[i];
+              await deps.db
+                .insert(juniorDrillHoleLayers)
+                .values({
+                  id: layerIds[i],
+                  holeId: validated.holeId,
+                  idx: i,
+                  depthFromM: String(layer.depth_from_m),
+                  depthToM: String(layer.depth_to_m),
+                  veinIntersect: layer.vein_intersect ?? false,
+                  fields: layer,
+                })
+                .onConflictDoNothing();
+            }
           }
         } catch (err) {
           deps.logger?.warn('drill-hole-logger: db write skipped', {

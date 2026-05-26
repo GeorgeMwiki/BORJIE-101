@@ -28,9 +28,15 @@ on:
   push:
     branches: [main]
     paths:
+      # The file is tracked at `Docs/openapi/...` on the case-sensitive
+      # Linux runner — list both spellings to cover any future case
+      # flip after this clone is regenerated on a case-sensitive fs.
       - "docs/openapi/**"
+      - "Docs/openapi/**"
       - "services/api-gateway/src/routes/mining/**"
       - "scripts/generate-openapi-spec.mjs"
+      - "scripts/build-mining-openapi-spec.ts"
+      - "scripts/openapi/**"
       - "scripts/openapi-component-schemas.mjs"
       - "scripts/build-pages-site.mjs"
       - ".github/workflows/borjie-publish-docs.yml"

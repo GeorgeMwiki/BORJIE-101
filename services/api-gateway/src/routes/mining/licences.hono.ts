@@ -8,7 +8,13 @@
  *   POST /              create (admin-only)
  *   POST /:id/renew     register renewal event + extend expiry
  *
- * Migrated to `@hono/zod-openapi` (issue #19).
+ * Migrated to `@hono/zod-openapi` (issue #19). Route defs live in
+ * `./_openapi/route-defs.ts`; this file only carries handlers.
+ *
+ * Auth: licence creation is admin-only. The role guard is wired as a
+ * route-level middleware (registered against the same `POST /` path
+ * the create handler binds to) so it short-circuits before the create
+ * handler ever runs.
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
@@ -30,19 +36,18 @@ const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-// The licence-create route is admin-only. requireRole is wired via the
-// router-level middleware so the OpenAPI spec stays declarative — the
-// 403 response in the route def covers the failure surface.
+// Method-aware role guard for POST `/` only. Hono's `app.use('/', ...)`
+// matches the exact path the create route binds to (`createRoute({
+// method: 'post', path: '/' })`), and the inner method check lets the
+// list-licences GET pass through to its handler unguarded.
 app.use('/', async (c, next) => {
-  if (c.req.method === 'POST') {
-    const guard = requireRole(
-      UserRole.SUPER_ADMIN,
-      UserRole.ADMIN,
-      UserRole.TENANT_ADMIN,
-    );
-    return guard(c, next);
-  }
-  return next();
+  if (c.req.method !== 'POST') return next();
+  const guard = requireRole(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.TENANT_ADMIN,
+  );
+  return guard(c, next);
 });
 
 app.openapi(licencesListRoute, async (c) => {

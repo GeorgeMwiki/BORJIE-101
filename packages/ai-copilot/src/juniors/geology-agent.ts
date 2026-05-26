@@ -2,8 +2,10 @@
  * Geology Agent — vein triangulation stub, 3D site model, geology score
  * per site (0-1 ladder per AGENT_PROMPT_LIBRARY §6).
  *
- * Schema gap: no `geology_scores` or `vein_models` Drizzle schemas yet.
- * Raw SQL; TODO(#30).
+ * Writes via typed `db.insert(geologyScores)` (migration 0011). The
+ * formal `veinModels` table in geology.schema is reserved for surveyor
+ * data with full PostGIS geometry; the junior emits a lighter JSONB
+ * model into `geology_scores.vein_model`.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -137,16 +139,22 @@ export function createGeologyAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const veinJson = JSON.stringify(output.vein_model_stub);
-          // TODO(#30): typed insert against `geology_scores` + `vein_models`.
-          await deps.db.execute(
-            sql`INSERT INTO geology_scores
-                  (id, tenant_id, site_id, mineral, score, score_band, vein_model, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId}, ${validated.mineral},
-                        ${output.geology_score}, ${output.score_band}, ${veinJson}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const geologyScores = schemas?.geologyScores as unknown;
+          if (geologyScores) {
+            await deps.db
+              .insert(geologyScores)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                mineral: validated.mineral,
+                score: String(output.geology_score),
+                scoreBand: output.score_band,
+                veinModel: output.vein_model_stub,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('geology-agent: db write skipped', {
             error: err instanceof Error ? err.message : String(err),

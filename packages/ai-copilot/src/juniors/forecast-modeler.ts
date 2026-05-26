@@ -3,7 +3,9 @@
  * simulation. Pure quantitative — feeds the Daily Owner Brief, Weekly
  * Strategy Memo, and Investor Pack.
  *
- * Schema gap: `forecasts` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(forecastSnapshots)` (migration 0011).
+ * The formal `forecasts` table in treasury.schema uses a different
+ * (scope_kind / metric / low/mid/high) shape for structured KPIs.
  */
 
 import { z } from 'zod';

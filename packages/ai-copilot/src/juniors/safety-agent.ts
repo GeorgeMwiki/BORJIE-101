@@ -2,7 +2,7 @@
  * Safety / EHS Agent — critical controls, incident heatmap, PPE
  * issuance tracking (AGENT_PROMPT_LIBRARY §18).
  *
- * Schema gap: `safety_snapshots` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(safetySnapshots)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

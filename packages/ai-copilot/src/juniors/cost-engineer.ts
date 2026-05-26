@@ -2,7 +2,7 @@
  * Cost Engineer Agent — P&L, unit economics, break-even sensitivity
  * (AGENT_PROMPT_LIBRARY §15).
  *
- * Schema gap: `unit_economics_snapshots` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(unitEconomicsSnapshots)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

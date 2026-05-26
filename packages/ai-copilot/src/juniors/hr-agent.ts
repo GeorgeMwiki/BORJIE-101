@@ -7,7 +7,7 @@
  *   - 100 % non-managerial Tanzanian.
  *   - 80 % senior-management Tanzanian.
  *
- * Schema gap: `hr_summaries` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(hrSummaries)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

@@ -3,7 +3,7 @@
  * analysis. Sits between Lab/Assay (head grade) and Sales (concentrate
  * pricing).
  *
- * Schema gap: `metallurgy_recommendations` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(metallurgyRecommendations)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

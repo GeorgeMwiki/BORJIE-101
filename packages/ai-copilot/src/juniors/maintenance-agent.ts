@@ -2,7 +2,9 @@
  * Maintenance Agent — fuel logs, machine hours, maintenance events
  * (AGENT_PROMPT_LIBRARY §14).
  *
- * Schema gap: `maintenance_events`, `fuel_logs` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(juniorMaintenanceEvents)` (migration
+ * 0011). The formal `maintenanceEvents` + `fuelLogs` tables in
+ * assets-fleet are populated by the worker app, not this junior.
  */
 
 import { randomUUID } from 'node:crypto';

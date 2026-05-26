@@ -6,12 +6,14 @@
  * Schema gap: `fx_snapshots`, `sell_vs_stockpile_advice` raw SQL.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
   isoToday,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -110,16 +112,24 @@ export function createFxTreasuryAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `fx_snapshots`.
-          await deps.db.execute(
-            sql`INSERT INTO fx_snapshots
-                  (id, tenant_id, mode, bot_rate_tzs_per_usd, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.mode},
-                        ${validated.current_bot_rate_tzs_per_usd}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const fxSnapshots = schemas?.fxSnapshots as unknown;
+          if (fxSnapshots) {
+            await deps.db
+              .insert(fxSnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                mode: validated.mode,
+                botRateTzsPerUsd:
+                  validated.current_bot_rate_tzs_per_usd !== undefined &&
+                  validated.current_bot_rate_tzs_per_usd !== null
+                    ? String(validated.current_bot_rate_tzs_per_usd)
+                    : null,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('fx-treasury-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

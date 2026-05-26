@@ -8,7 +8,7 @@
  * Runs on or after 27 March 2026 (GN 198/2025 cliff). Pre-cliff usage
  * routes to FX/Treasury Agent instead.
  *
- * Schema gap: `contract_remediation` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(contractRemediation)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

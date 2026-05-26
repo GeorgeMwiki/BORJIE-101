@@ -37,8 +37,15 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import * as Database from '@borjie/database';
-// REMOVED (borjie hard-fork): ArrearsLedger may not be exported by database package
+// ArrearsLedger + transactions were property-domain BossNyumba symbols
+// that were not re-exported by @borjie/database in the mining hard-fork.
+// The runtime composition path that consumed them is unreachable in the
+// mining-domain build, but the typed surface still needs to compile —
+// the `any` cast preserves the legacy structural API for downstream
+// callers without forcing a full refactor.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ArrearsLedger: any = (Database as any).ArrearsLedger ?? { arrearsLineProposals: undefined };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const transactions: any = (Database as any).transactions ?? undefined;
 import type {
   ArrearsRepository,

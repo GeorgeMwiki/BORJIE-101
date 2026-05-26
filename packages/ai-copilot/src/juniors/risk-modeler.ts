@@ -2,7 +2,7 @@
  * Risk Modeler — safety + regulatory + geological risk scoring.
  * Composite 0-100 score per category + overall.
  *
- * Schema gap: `risk_snapshots` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(riskSnapshots)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

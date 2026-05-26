@@ -8,15 +8,18 @@
  *   - Choose lab + technique per mineral (SGS / BV / ALS / Intertek / GST / AMGC).
  *   - Ingest results, compute QA/QC chart, FLAG failures.
  *
- * Schema gap: `sample_batches`, `qaqc_results`, `assay_results` are not
- * yet in Drizzle. Raw SQL writes; TODO(#30).
+ * Writes via typed `db.insert(sampleBatches)` (migration 0011). The
+ * separate `qaqc_results` table is reserved for per-sample QA failure
+ * detail; the batch-level pass/fail is co-located on `sample_batches`.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -137,20 +140,30 @@ export function createLabAssayAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const manifestJson = JSON.stringify(output.manifest_with_qaqc);
-          const failuresJson = JSON.stringify(output.qaqc_failures);
-          // TODO(#30): typed inserts against `sample_batches` + `qaqc_results`.
-          await deps.db.execute(
-            sql`INSERT INTO sample_batches
-                  (id, tenant_id, site_id, batch_id, mineral, recommended_lab, technique,
-                   cost_tzs, turnaround_days, manifest, qaqc_passed, qaqc_failures, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId}, ${validated.batchId},
-                        ${validated.mineral}, ${output.recommended_lab}, ${output.recommended_technique},
-                        ${output.estimated_cost_tzs}, ${output.estimated_turnaround_days},
-                        ${manifestJson}::jsonb, ${output.qaqc_passed}, ${failuresJson}::jsonb, NOW())
-                ON CONFLICT (batch_id) DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const sampleBatches = schemas?.sampleBatches as unknown;
+          if (sampleBatches) {
+            await deps.db
+              .insert(sampleBatches)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                batchId: validated.batchId,
+                mineral: validated.mineral,
+                recommendedLab: output.recommended_lab,
+                technique: output.recommended_technique,
+                costTzs:
+                  output.estimated_cost_tzs !== undefined && output.estimated_cost_tzs !== null
+                    ? String(output.estimated_cost_tzs)
+                    : null,
+                turnaroundDays: output.estimated_turnaround_days,
+                manifest: output.manifest_with_qaqc,
+                qaqcPassed: output.qaqc_passed,
+                qaqcFailures: output.qaqc_failures,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('lab-assay-agent: db write skipped', {
             error: err instanceof Error ? err.message : String(err),

@@ -6,14 +6,16 @@
  * register + landowner relations + Swahili translation surface; the
  * village-csr-agent owns the CSR-delivery dashboard + commitment %.
  *
- * Schema gap: `grievance_records` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(grievanceRecords)` (migration 0011).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -126,15 +128,18 @@ export function createCommunityAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `grievance_records`.
-          await deps.db.execute(
-            sql`INSERT INTO grievance_records
-                  (id, tenant_id, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const grievanceRecords = schemas?.grievanceRecords as unknown;
+          if (grievanceRecords) {
+            await deps.db
+              .insert(grievanceRecords)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('community-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

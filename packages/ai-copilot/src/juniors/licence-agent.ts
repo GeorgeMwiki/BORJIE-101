@@ -7,9 +7,10 @@
  *     work-programme variance × area utilisation × EPP filed.
  *   - Payment-history pack: GePG control numbers + Tumemadini receipts.
  *
- * Schema gap: `licences`, `licence_payments`, `licence_obligations` are
- * defined in DATA_MODEL.md §3.1 but the Drizzle schemas do not exist
- * yet. Raw SQL writes; TODO(#30) swap to typed drizzle inserts.
+ * Writes via typed `db.insert(licenceDormancyScores)` (migration 0011).
+ * The formal `licences`, `licencePayments` and `licenceObligations`
+ * tables in DATA_MODEL.md §3.1 are populated by the licence portal,
+ * not this junior.
  */
 
 import { randomUUID } from 'node:crypto';

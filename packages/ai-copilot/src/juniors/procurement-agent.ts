@@ -2,14 +2,16 @@
  * Procurement / Inventory Agent — reorder timeline, supplier ITC
  * compliance, days-remaining per item (AGENT_PROMPT_LIBRARY §12).
  *
- * Schema gap: `procurement_recommendations` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(procurementRecommendations)` (migration 0011).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -117,16 +119,19 @@ export function createProcurementAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `procurement_recommendations`.
-          await deps.db.execute(
-            sql`INSERT INTO procurement_recommendations
-                  (id, tenant_id, site_id, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const procurementRecommendations = schemas?.procurementRecommendations as unknown;
+          if (procurementRecommendations) {
+            await deps.db
+              .insert(procurementRecommendations)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('procurement-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

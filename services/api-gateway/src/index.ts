@@ -94,23 +94,18 @@ import scansRouter from './routes/scans.router';
 import stationMasterCoverageRouter from './routes/station-master-coverage.router';
 import { tendersRouter } from './routes/tenders.router';
 import { waitlistRouter } from './routes/waitlist.router';
-// Veteran-expert advisor packages — pure-function strategic
-// recommenders exposed as HTTP entry points. Each router takes the
-// advisor's typed input JSON, calls the pure composer, returns the
-// structured recommendation envelope. Tenant-scoped + audit-logged.
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import acquisitionAdvisorRouter from './routes/acquisition-advisor.router';
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import expansionAdvisorRouter from './routes/expansion-advisor.router';
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import lifecycleAdvisorRouter from './routes/lifecycle-advisor.router';
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import sustainabilityAdvisorRouter from './routes/sustainability-advisor.router';
-// REMOVED (borjie hard-fork): import greenAngleAdvisorRouter from './routes/green-angle-advisor.router';
-// REMOVED (borjie hard-fork): import estateDepartmentAdvisorRouter from './routes/estate-department-advisor.router';
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import estateAutoManagementRouter from './routes/estate-auto-management.router';
+// Veteran-expert property-domain advisor packages
+// (acquisitionAdvisor, expansionAdvisor, lifecycleAdvisor,
+// sustainabilityAdvisor, greenAngleAdvisor, estateDepartmentAdvisor,
+// estateAutoManagement, lpms) were deleted during the mining hard-fork
+// — their route imports + .route() bindings were dropped here. The
+// mining-domain analogues are wired further down (geology-agent,
+// licence-agent, mine-planner, sales-offtake-agent, etc).
 import geoPlatformRouter from './routes/geo-platform.router';
 // Wave 8 gap-closure routers
 import warehouseRouter from './routes/warehouse.router';
 import maintenanceTaxonomyRouter from './routes/maintenance-taxonomy.router';
 import iotRouter from './routes/iot.router';
-// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import lpmsRouter from './routes/lpms.router';
 // Wave 9 enterprise polish routers
 import featureFlagsRouter from './routes/feature-flags.router';
 import gdprRouter from './routes/gdpr.router';
@@ -833,20 +828,14 @@ api.route('/scans', scansRouter);
 api.route('/station-master-coverage', stationMasterCoverageRouter);
 api.route('/tenders', tendersRouter);
 api.route('/waitlist', waitlistRouter);
-// Veteran-expert advisor packages — strategic recommenders.
-// REMOVED (borjie hard-fork): api.route('/acquisition-advisor', acquisitionAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/expansion-advisor', expansionAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/lifecycle-advisor', lifecycleAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/sustainability-advisor', sustainabilityAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/green-angle-advisor', greenAngleAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/estate-department-advisor', estateDepartmentAdvisorRouter);
-// REMOVED (borjie hard-fork): api.route('/estate-auto-management', estateAutoManagementRouter);
+// Veteran-expert property-domain advisor routes (acquisition,
+// expansion, lifecycle, sustainability, green-angle, estate-department,
+// estate-auto-management, lpms) were retired in the mining hard-fork.
 api.route('/geo-platform', geoPlatformRouter);
 // Wave 8 — warehouse stock (S7), maintenance taxonomy (S7), IoT observations (S3)
 api.route('/warehouse', warehouseRouter);
 api.route('/maintenance-taxonomy', maintenanceTaxonomyRouter);
 api.route('/iot', iotRouter);
-// REMOVED (borjie hard-fork): api.route('/lpms', lpmsRouter);
 // Wave 9 — feature flags, GDPR right-to-be-forgotten, AI cost ledger.
 api.route('/feature-flags', featureFlagsRouter);
 api.route('/gdpr', gdprRouter);

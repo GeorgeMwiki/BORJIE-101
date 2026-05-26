@@ -2,14 +2,16 @@
  * Compliance Agent — regulator citation library lookup, action
  * checklist generation (AGENT_PROMPT_LIBRARY §21).
  *
- * Schema gap: `compliance_verdicts` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(complianceVerdicts)` (migration 0011).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -121,16 +123,20 @@ export function createComplianceAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `compliance_verdicts`.
-          await deps.db.execute(
-            sql`INSERT INTO compliance_verdicts
-                  (id, tenant_id, action_kind, compliant, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.action.action_kind},
-                        ${output.compliant}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const complianceVerdicts = schemas?.complianceVerdicts as unknown;
+          if (complianceVerdicts) {
+            await deps.db
+              .insert(complianceVerdicts)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                actionKind: validated.action.action_kind,
+                compliant: output.compliant,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('compliance-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

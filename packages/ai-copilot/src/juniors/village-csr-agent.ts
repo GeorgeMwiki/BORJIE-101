@@ -8,7 +8,9 @@
  *     responsible Ministers.
  *   - Original 40 % village / 60 % district split now negotiable.
  *
- * Schema gap: `csr_plans`, `csr_meetings` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(juniorCsrPlans)` (migration 0011). The
+ * richer formal `csrPlans` / `villageMeetings` tables in safety-csr are
+ * managed by the curator UI, not this junior.
  */
 
 import { randomUUID } from 'node:crypto';

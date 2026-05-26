@@ -3,7 +3,8 @@
  * discovery (sellers ↔ buyers), listings + ratings, AI-translated
  * communication (AGENT_PROMPT_LIBRARY §22).
  *
- * Schema gap: `marketplace_listings` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(juniorMarketplaceListings)` (migration
+ * 0011). The formal `marketplaceListings` table is curator-managed.
  */
 
 import { randomUUID } from 'node:crypto';

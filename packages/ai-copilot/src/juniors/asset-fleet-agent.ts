@@ -2,7 +2,7 @@
  * Asset / Fleet Agent — utilisation, service-due flags, predictive
  * maintenance (AGENT_PROMPT_LIBRARY §13).
  *
- * Schema gap: `asset_status_snapshots` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(assetStatusSnapshots)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';

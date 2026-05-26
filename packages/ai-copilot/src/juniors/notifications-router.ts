@@ -7,7 +7,7 @@
  * performed by adapter tools (sms_send, whatsapp_send, push_send) wired
  * by the orchestrator.
  *
- * Schema gap: `notifications_outbox` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(notificationsOutbox)` (migration 0011).
  */
 
 import { z } from 'zod';

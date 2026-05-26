@@ -2,14 +2,16 @@
  * Sales / Off-take Agent — net price per parcel, buyer comparison,
  * payment trace (AGENT_PROMPT_LIBRARY §17).
  *
- * Schema gap: `sales_advice` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(salesAdvice)` (migration 0011).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -108,16 +110,20 @@ export function createSalesOfftakeAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const json = JSON.stringify(output);
-          // TODO(#30): typed insert against `sales_advice`.
-          await deps.db.execute(
-            sql`INSERT INTO sales_advice
-                  (id, tenant_id, parcel_id, recommended_buyer_id, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.parcel.parcel_id},
-                        ${output.recommended_buyer_id}, ${json}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const salesAdvice = schemas?.salesAdvice as unknown;
+          if (salesAdvice) {
+            await deps.db
+              .insert(salesAdvice)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                parcelId: validated.parcel.parcel_id,
+                recommendedBuyerId: output.recommended_buyer_id,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('sales-offtake-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

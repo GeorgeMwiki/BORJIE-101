@@ -4,7 +4,7 @@
  *
  * Templated. Each cadence drives a different word budget and audience.
  *
- * Schema gap: `generated_reports` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(generatedReports)` (migration 0011).
  */
 
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import {
   defaultJuniorDeps,
   deterministicId,
   isoToday,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -107,16 +108,23 @@ export function createReportWriter(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          // TODO(#30): typed insert against `generated_reports`.
-          await deps.db.execute(
-            sql`INSERT INTO generated_reports
-                  (id, tenant_id, cadence, audience, language, title, word_count, body, created_at)
-                VALUES (${output.document_id}, ${validated.tenantId}, ${validated.cadence},
-                        ${validated.audience}, ${output.language}, ${output.title},
-                        ${output.word_count}, ${output.body_markdown}, NOW())
-                ON CONFLICT (id) DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const generatedReports = schemas?.generatedReports as unknown;
+          if (generatedReports) {
+            await deps.db
+              .insert(generatedReports)
+              .values({
+                id: output.document_id,
+                tenantId: validated.tenantId,
+                cadence: validated.cadence,
+                audience: validated.audience,
+                language: output.language,
+                title: output.title,
+                wordCount: output.word_count,
+                body: output.body_markdown,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('report-writer: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

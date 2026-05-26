@@ -2,14 +2,16 @@
  * Buyer KYC Agent — NIDA verification, TIN check, AML declaration
  * validation. Closes the loop on Sales / Off-take buyer onboarding.
  *
- * Schema gap: `buyer_kyc_records` raw SQL; TODO(#30).
+ * Writes via typed `db.insert(buyerKycRecords)` (migration 0011).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -109,17 +111,21 @@ export function createBuyerKycAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `buyer_kyc_records`.
-          await deps.db.execute(
-            sql`INSERT INTO buyer_kyc_records
-                  (id, tenant_id, buyer_id, kyc_status, oecd_band, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.buyer_id},
-                        ${output.kyc_status}, ${output.oecd_due_diligence_band},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const buyerKycRecords = schemas?.buyerKycRecords as unknown;
+          if (buyerKycRecords) {
+            await deps.db
+              .insert(buyerKycRecords)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                buyerId: validated.buyer_id,
+                kycStatus: output.kyc_status,
+                oecdBand: output.oecd_due_diligence_band,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('buyer-kyc-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

@@ -4,9 +4,7 @@
  * Given (mode, owner query, optional context), selects which juniors to
  * dispatch in which order. Sonnet-class model; Auditor always runs last.
  *
- * Schema gap: there is no `decision_log` Drizzle schema yet — raw SQL
- * write below. TODO(#30): add `decision_log` to
- * `packages/database/src/schemas/`.
+ * Writes via typed `db.insert(decisionLog)` (migration 0011).
  */
 
 import { randomUUID } from 'node:crypto';
