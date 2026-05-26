@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/graph-rag-router",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "GraphRAG router (Wave 18BB) — hierarchical retrieval substrate that classifies queries (vector / graph_local / graph_global / hybrid) and runs the right backend. Implements Microsoft GraphRAG-style entity + relation extraction, Louvain/Leiden community detection, LLM-driven community summarisation, and reciprocal-rank-fusion hybrid retrieval. Closes the founder-flagged P0 gap where pgvector carried queries it could not structurally answer. See Docs/DESIGN/GRAPH_RAG_ROUTER_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
