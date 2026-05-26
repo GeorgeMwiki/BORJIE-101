@@ -5,7 +5,7 @@
   "private": true,
   "description": "Borjie public marketing site — AI-native operating system for Tanzanian mining. Swahili-first, bilingual sw/en, pilot acquisition.",
   "scripts": {
-    "dev": "next dev --port 3030",
+    "dev": "next dev --turbo --port 3030",
     "build": "next build",
     "start": "next start --port 3030",
     "lint": "next lint",

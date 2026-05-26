@@ -5,11 +5,22 @@
  *
  * Reads the Supabase access token from the browser client and forwards
  * it to the widget's `getAccessToken` callback. The widget renders a
- * "Sign in to talk to Borjie" prompt if the token is null (unauthenticated
- * session), otherwise streams responses via /api/v1/mining/chat.
+ * "Sign in to talk to Borjie" prompt if the token is null
+ * (unauthenticated session), otherwise streams responses via
+ * /api/v1/mining/chat.
+ *
+ * SOTA lazy-load (Wave 15H) — the chat-ui bundle is loaded via
+ * `next/dynamic({ ssr: false })` so it never enters the SSR module
+ * graph. Cuts SSR JS payload + parse time, and guarantees no future
+ * window-touching transitive dep can ever crash boot.
  */
-import { FloatingAskBorjie } from '@borjie/chat-ui';
+import dynamic from 'next/dynamic';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+
+const FloatingAskBorjie = dynamic(
+  () => import('@borjie/chat-ui').then((m) => m.FloatingAskBorjie),
+  { ssr: false },
+);
 
 async function getAccessToken(): Promise<string | null> {
   try {

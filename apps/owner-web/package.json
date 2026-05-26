@@ -5,7 +5,7 @@
   "private": true,
   "description": "Borjie Owner Cockpit — strategic web surface for mining owners (Master Brain, LMBM, cockpit dashboards, treasury, compliance).",
   "scripts": {
-    "dev": "next dev --port 3010",
+    "dev": "next dev --turbo --port 3010",
     "build": "next build",
     "start": "next start --port 3010",
     "lint": "next lint",
