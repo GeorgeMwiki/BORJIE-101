@@ -441,3 +441,22 @@ export * from './info-synthesis.schema.js';
 // Consumed by @borjie/internal-software-generator.
 // See Docs/DESIGN/ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md.
 export * from './internal-software.schema.js';
+
+// ---------------------------------------------------------------------------
+// P0 #1 Closure (18BB gap analysis) — PRM + MCTS Reasoning Traces
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0040_reasoning_traces.sql:
+//   reasoning_traces        — full (state, step, observation) trajectory
+//                              captures. `outcome_label` NULL until
+//                              verified (regulator portal / payment /
+//                              human).
+//   prm_training_examples   — labeled (state, step, label) pairs derived
+//                              by the Math-Shepherd completer technique.
+//                              Training substrate for the learned PRM
+//                              (Phase 2 / 19C).
+//   mcts_search_tree_dumps  — per-invocation MCTS audit + replay store.
+//                              Tree, budget, selected path, termination
+//                              reason, wall-clock.
+// Consumed by @borjie/process-reward-model.
+// See Docs/DESIGN/PRM_MCTS_REASONING_SPEC.md.
+export * from './reasoning-traces.schema.js';
