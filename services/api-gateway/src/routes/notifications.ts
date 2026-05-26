@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union widens
-//   across multiple c.json branches; tracked with other routers already on nocheck.
-
 /**
  * Notifications router — pulls dispatch log rows directly from the composition
  * root's Drizzle client. Previously a stub that always returned 503

@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal-union widening.
 /**
  * Unit Subdivision Router — estate-manager-app dependency.
  *

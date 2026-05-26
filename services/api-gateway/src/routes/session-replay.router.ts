@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widens c.json() return; matches
-// the convention used by sensorium.router.ts and sovereign-ledger.router.ts.
-
 /**
  * Session replay router — Central Command Phase B (B5 — Session Replay
  * + Counter-Model Safety).

@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
-
 /**
  * /api/v1/platform/overview — HQ-tier KPI aggregator.
  *

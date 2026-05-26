@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widens c.json() return; matches
-// the convention used by sovereign-ledger.router.ts and admin-jarvis.router.ts.
-
 /**
  * Sensorium router — Central Command Phase A (C4 Sensorium / Brain Skin).
  *

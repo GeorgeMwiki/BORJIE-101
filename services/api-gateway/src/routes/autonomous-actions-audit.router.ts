@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal widening.
 /**
  * Autonomous-actions audit trail router — Wave-13.
  *
