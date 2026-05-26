@@ -101,7 +101,11 @@ export interface FollowupPreferences {
   /** Local-time clock string `'HH:MM:SS'`. */
   readonly quiet_hours_end: string;
   readonly max_per_day: number;
-  /** IANA timezone — e.g. 'Africa/Dar_es_Salaam'. */
+  /** IANA timezone (any tzdata zone — e.g. 'Africa/Dar_es_Salaam',
+   *  'Africa/Nairobi', 'Europe/London'). Resolved per-tenant from the
+   *  jurisdiction profile's `timezone_default`; this comment names a TZ
+   *  example only because TZ is the launch beachhead. UNIV-4: example
+   *  only — runtime accepts any IANA zone. */
   readonly timezone: string;
 }
 

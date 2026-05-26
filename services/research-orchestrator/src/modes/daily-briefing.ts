@@ -52,6 +52,12 @@ export interface DailyBriefingOutput {
   readonly summary_md: string;
 }
 
+// UNIV-4: launch-beachhead defaults — TZ mining vertical. Callers pass
+// jurisdiction-specific regulator/mineral/FX lists; these consts fire
+// only when the input omits them. Future jurisdictions should resolve
+// defaults from the vertical-profile registry (e.g. mining-tz vs
+// mining-ke) rather than module-level constants. Tracked: UNIV-4
+// follow-up — drive defaults from jurisdiction + vertical-profile pair.
 const DEFAULT_MINERALS = ['gold'] as const;
 const DEFAULT_REGULATORS = ['tumemadini', 'nemc', 'tra'] as const;
 const DEFAULT_FX = ['USD/TZS'] as const;

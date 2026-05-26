@@ -419,8 +419,12 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           displayName: `${sa.firstName} ${sa.lastName}`,
           status: 'active',
           isOwner: false,
-          timezone: 'Africa/Dar_es_Salaam',
-          locale: 'sw-TZ',
+          // UNIV-4: drive from the seed's resolved DEMO_REGION so
+          // --country=KE/UG/RW/NG/ZA produces non-TZ user rows. The
+          // launch-beachhead TZ default still flows through unchanged
+          // when --country is omitted (resolveDemoCountry() ⇒ 'TZ').
+          timezone: DEMO_TIMEZONE,
+          locale: DEMO_LOCALE,
           preferences: { authorityLevel: sa.authorityLevel },
         })
         .onConflictDoNothing();
@@ -450,8 +454,10 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           displayName: `${sm.firstName} ${sm.lastName}`,
           status: 'active',
           isOwner: false,
-          timezone: 'Africa/Dar_es_Salaam',
-          locale: 'sw-TZ',
+          // UNIV-4: drive from the seed's resolved DEMO_REGION (see
+          // Super-Admin block above for rationale).
+          timezone: DEMO_TIMEZONE,
+          locale: DEMO_LOCALE,
           preferences: { authorityLevel: 'STATION_MASTER' },
         })
         .onConflictDoNothing();
