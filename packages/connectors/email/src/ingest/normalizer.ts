@@ -207,8 +207,13 @@ function decodeBody(
 
 function base64UrlDecode(input: string): string {
   const normalised = input.replace(/-/g, '+').replace(/_/g, '/');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buf = (globalThis as any).Buffer;
+  const buf = (
+    globalThis as unknown as {
+      Buffer?: {
+        from(input: string, encoding: string): { toString(enc: string): string };
+      };
+    }
+  ).Buffer;
   if (buf !== undefined) {
     return buf.from(normalised, 'base64').toString('utf-8');
   }
