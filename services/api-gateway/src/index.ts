@@ -142,6 +142,10 @@ import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 import publicMarketingRouter from './routes/public-marketing.router';
 import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
+// Public marketing status page — aggregates 90-day uptime from the
+// service_status_history table (migration 0015). Unauthenticated;
+// 30 s in-process cache. Mounted at /api/v1/public/status.
+import publicStatusRouter from './routes/public-status.router';
 // Wave 12 — streaming AI chat (SSE) for all 4 chat surfaces
 import aiChatRouter from './routes/ai-chat.router';
 // Universal role-aware advisor — `POST /api/v1/ask`, GET starting-points,
@@ -879,6 +883,7 @@ api.route('/.well-known/agent.json', agentCardRouter);
 api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
+api.route('/public/status', publicStatusRouter);
 // Streaming AI chat — POST /api/v1/ai/chat with SSE response
 api.route('/ai', aiChatRouter);
 // Universal role-aware advisor — POST /api/v1/ask, GET /api/v1/ask/starting-points,

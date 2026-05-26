@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getLocale } from '@/lib/locale';
+import { CookieConsent } from '@/components/CookieConsent';
 
 export const metadata: Metadata = {
   title: 'Borjie — AI-native operating system for Tanzanian mining',
@@ -71,6 +72,7 @@ export default async function RootLayout({
           {locale === 'sw' ? 'Ruka kwenye maudhui' : 'Skip to main content'}
         </a>
         {children}
+        <CookieConsent locale={locale} />
       </body>
     </html>
   );
