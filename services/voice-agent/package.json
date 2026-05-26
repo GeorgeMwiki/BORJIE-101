@@ -23,6 +23,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@borjie/ambient-listener": "workspace:*",
     "@borjie/brain-llm-router": "workspace:*",
     "@borjie/enterprise-hardening": "workspace:*",
     "@borjie/observability": "workspace:*",

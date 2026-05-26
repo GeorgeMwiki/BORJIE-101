@@ -3902,6 +3902,22 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/tenant-isolation-guard:
+    dependencies:
+      '@borjie/observability':
+        specifier: workspace:*
+        version: link:../observability
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/timezone-detection:
     devDependencies:
       '@types/node':
@@ -5159,6 +5175,9 @@ importers:
 
   services/voice-agent:
     dependencies:
+      '@borjie/ambient-listener':
+        specifier: workspace:*
+        version: link:../../packages/ambient-listener
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../../packages/brain-llm-router

@@ -30,8 +30,10 @@ export async function OwnerTopBar() {
         <LanguageToggle initial={session.languagePreference} />
         <button
           type="button"
+          disabled
           aria-label="Notifications"
-          className="relative rounded-md p-1.5 text-neutral-300 hover:bg-surface hover:text-foreground"
+          title="Notifications inbox lands with owner-portal alerts (SCRUB-4: needs owner-web /notifications route + drawer)"
+          className="relative rounded-md p-1.5 text-neutral-500 opacity-60 cursor-not-allowed"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-warning" />

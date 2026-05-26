@@ -70,7 +70,9 @@ export function ComplianceQueue(): JSX.Element {
                 </button>
                 <button
                   type="button"
-                  className="rounded-md border border-border px-3 py-1 text-xs text-neutral-300 hover:bg-surface-sunken"
+                  disabled
+                  title="Evidence-request workflow lands with the regulator-pipeline expansion (SCRUB-4: needs POST /compliance-queue/:id/request-evidence)"
+                  className="rounded-md border border-border px-3 py-1 text-xs text-neutral-500 opacity-60 cursor-not-allowed"
                 >
                   Request more evidence
                 </button>

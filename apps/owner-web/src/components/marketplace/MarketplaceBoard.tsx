@@ -55,7 +55,9 @@ export function MarketplaceBoard(): JSX.Element {
                   {o.status === 'counter' ? (
                     <button
                       type="button"
-                      className="rounded-md border border-warning bg-warning-subtle/30 px-2 py-0.5 text-xs text-warning hover:bg-warning-subtle/50"
+                      disabled
+                      title="Counter-offer UI lands with marketplace negotiations (SCRUB-4: needs owner-portal counter sheet)"
+                      className="rounded-md border border-warning/50 bg-warning-subtle/20 px-2 py-0.5 text-xs text-warning opacity-60 cursor-not-allowed"
                     >
                       Counter
                     </button>

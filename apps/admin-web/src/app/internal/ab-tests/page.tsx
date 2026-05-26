@@ -34,7 +34,9 @@ export default function AbTestsPage(): JSX.Element {
       actions={
         <button
           type="button"
-          className="rounded-md bg-signal-500 px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-signal-500/90"
+          disabled
+          title="Experiment creation lands once the A/B framework router is mounted (SCRUB-4: needs POST /internal/ab-tests)"
+          className="rounded-md bg-signal-500/40 px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-50 cursor-not-allowed"
         >
           New experiment
         </button>

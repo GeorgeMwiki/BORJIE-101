@@ -12,7 +12,12 @@ export default function AuditLogPage(): JSX.Element {
       actions={
         <>
           <StubBadge tone="info">Append-only</StubBadge>
-          <button type="button" className="text-xs text-signal-500 hover:underline">
+          <button
+            type="button"
+            disabled
+            title="NDJSON export lands once the audit-log /export endpoint ships (SCRUB-4: needs GET /internal/audit-log/export)"
+            className="text-xs text-signal-500/50 opacity-60 cursor-not-allowed"
+          >
             Export NDJSON
           </button>
         </>

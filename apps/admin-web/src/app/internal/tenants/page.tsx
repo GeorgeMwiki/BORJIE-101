@@ -11,7 +11,9 @@ export default function TenantDirectoryPage(): JSX.Element {
       actions={
         <button
           type="button"
-          className="rounded-md bg-signal-500 px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-signal-500/90"
+          disabled
+          title="Provisioning form lands with self-serve tenant onboarding (SCRUB-4: POST /internal/tenants exists; needs admin-web NewTenantForm)"
+          className="rounded-md bg-signal-500/40 px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-50 cursor-not-allowed"
         >
           New tenant
         </button>
