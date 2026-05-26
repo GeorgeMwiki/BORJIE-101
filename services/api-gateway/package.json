@@ -80,6 +80,7 @@
     "@borjie/payments-ledger-service": "workspace:*",
     "@borjie/payments-service": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",
+    "@borjie/process-reward-model": "workspace:*",
     "@borjie/progressive-intelligence": "workspace:*",
     "@borjie/role-aware-advisor": "workspace:*",
     "@borjie/security-hardening": "workspace:*",

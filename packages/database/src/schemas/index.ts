@@ -363,6 +363,20 @@ export * from './persistent-memory.schema.js';
 export * from './ephemeral-dashboard-telemetry.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave M2 — Daily Follow-up + Persona Voice
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0034_followup_voice.sql:
+//   followup_candidates   — owner-facing proactive nudge queue (one row
+//                           per scheduled / sent / dismissed follow-up).
+//   followup_preferences  — per-user allowed channels + quiet-hours +
+//                           daily cap. PK is (tenant_id, user_id).
+//   persona_voice_mode    — per-user guide / learn / balanced voice mode
+//                           + verbosity dial. PK is (tenant_id, user_id).
+// Consumed by @borjie/user-followup and @borjie/persona-voice.
+// See Docs/DESIGN/DAILY_FOLLOWUP_AND_GUIDE_LEARN_SPEC.md.
+export * from './followup-voice.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 18BB-MCP-EXT — MCP External Client (consume the public MCP ecosystem)
 // ---------------------------------------------------------------------------
 // Two tenant-scoped tables backing migration 0033_mcp_external_connections.sql:
@@ -374,3 +388,16 @@ export * from './ephemeral-dashboard-telemetry.schema.js';
 // Consumed by @borjie/agent-platform/src/mcp-external-client.
 // See Docs/DESIGN/MCP_EXTERNAL_CLIENT_SPEC.md.
 export * from './mcp-external-connections.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 19F — Voice channel + Swahili gauntlet (village MDs via voice)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0034_voice_swahili.sql:
+//   voice_sessions             — one row per live caller session
+//                                (whatsapp / sms / app / pstn). Provider,
+//                                latency, demotion history.
+//   swahili_gauntlet_results   — one row per gauntlet utterance run; WER +
+//                                MOS drift dashboard substrate.
+// Consumed by @borjie/voice-agent/src/gemini-live + swahili-gauntlet.
+// See Docs/DESIGN/VOICE_GEMINI_LIVE_SWAHILI_SPEC.md.
+export * from './voice-swahili.schema.js';
