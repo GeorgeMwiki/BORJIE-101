@@ -2,7 +2,9 @@
  * Voice channel + Swahili gauntlet persistence (Wave 19F).
  *
  * Companion to Docs/DESIGN/VOICE_GEMINI_LIVE_SWAHILI_SPEC.md. Drizzle types
- * for the two tables created by migration 0034_voice_swahili.sql:
+ * for the two tables created by migration 0062_voice_swahili.sql
+ * (renumbered from 0034 to resolve collision with 0034_followup_voice.sql;
+ * alphabetic precedence keeps followup_voice at slot 0034):
  *
  *   - voiceSessions            → one row per caller session across
  *                                whatsapp / sms / app / pstn channels. Tracks

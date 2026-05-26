@@ -394,7 +394,8 @@ export * from './mcp-external-connections.schema.js';
 // ---------------------------------------------------------------------------
 // Wave 19F — Voice channel + Swahili gauntlet (village MDs via voice)
 // ---------------------------------------------------------------------------
-// Two tenant-scoped tables backing migration 0034_voice_swahili.sql:
+// Two tenant-scoped tables backing migration 0062_voice_swahili.sql
+// (renumbered from 0034 to resolve collision with 0034_followup_voice.sql):
 //   voice_sessions             — one row per live caller session
 //                                (whatsapp / sms / app / pstn). Provider,
 //                                latency, demotion history.
