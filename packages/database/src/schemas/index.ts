@@ -418,6 +418,18 @@ export * from './voice-swahili.schema.js';
 export * from './loop-architecture.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave M5 — Tab as Loop (server-anchored persistent tabs)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0036_tab_as_loop.sql:
+//   tab_sessions  — one row per (user, tab_kind, scope). Canonical
+//                    state jsonb; lifecycle timestamps; hash-chained.
+//   tab_events    — one row per applied client→server delta. Replayed
+//                    in iteration order on hydrate.
+// Consumed by @borjie/tab-as-loop.
+// See Docs/DESIGN/TAB_AS_LOOP_SPEC.md §12-19.
+export * from './tab-as-loop.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave M7 — Information Synthesis SOTA (diorize pipeline persistence)
 // ---------------------------------------------------------------------------
 // Two tenant-scoped tables backing migration 0038_info_synthesis.sql:
@@ -496,3 +508,38 @@ export * from './connector-google-drive.schema.js';
 // Consumed by @borjie/tacit-knowledge.
 // See Docs/DESIGN/TACIT_KNOWLEDGE_HARVEST_SPEC.md.
 export * from './tacit-knowledge.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave M1 — Continuous 24/7 Work Cycle
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0033_work_cycle.sql:
+//   work_cycle_journal — append-only journal of every tick. Hash-chained
+//                        via (prev_hash, audit_hash). Unique on
+//                        (tenant_id, tick_no). The episodic-memory + audit
+//                        substrate for Mr. Mwikila's continuous loop.
+//   work_cycle_state   — one row per tenant. Holds last_tick_no,
+//                        last_tick_at, current_mode, pending_threads.
+//                        Updated atomically with each journal append.
+// Consumed by @borjie/work-cycle.
+// See Docs/DESIGN/CONTINUOUS_24_7_WORK_CYCLE_SPEC.md.
+export * from './work-cycle.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 19C — RLVR Post-Training Pipeline (verifiable-reward orchestration)
+// ---------------------------------------------------------------------------
+// Four tenant-scoped tables backing migration 0041_rlvr.sql:
+//   rlvr_runs              — one row per end-to-end RLVR pipeline run.
+//                             Lifecycle status + verifier_set + PO-14
+//                             hash chain.
+//   rlvr_traces            — captured Mr. Mwikila traces. Raw + salted-
+//                             hash redacted; only the redacted form may
+//                             leave the tenant boundary.
+//   rlvr_verifications     — per-(trace, verifier) verdict
+//                             (pass|fail|partial|skip) + reward in [0,1]
+//                             + evidence jsonb.
+//   rlvr_curated_examples  — (prompt, completion, reward) tuples with
+//                             included/exclusion_reason mutually exclusive
+//                             for audit forensics.
+// Consumed by @borjie/post-training-rlvr.
+// See Docs/DESIGN/RLVR_POST_TRAINING_SPEC.md.
+export * from './rlvr.schema.js';
