@@ -57,11 +57,34 @@ function readRepoFiles(): Array<{ name: string; path: string; body: string }> {
     }));
 }
 
+/**
+ * Ratchet ceiling. Drops every time another repo's `@ts-nocheck` is
+ * removed; the test fails if a NEW exemption is introduced or an
+ * existing one is brought back. Update DOWN-ONLY when a repo is
+ * cleaned (see SCRUB-5b history). Currently:
+ *   - brain-thread.repository.ts (#2876 exactOptionalPropertyTypes,
+ *     unrelated to the #2389 pgEnum-narrowing wave SCRUB-5b targeted)
+ */
+const MAX_NOCHECK_REPOS = 1;
+
 describe('repositories — @ts-nocheck audit ratchet (HIGH 4.1)', () => {
   const files = readRepoFiles();
 
   it('discovers all repository files', () => {
     expect(files.length).toBeGreaterThan(0);
+  });
+
+  const noCheckFiles = files.filter((f) =>
+    /^\/\/\s*@ts-nocheck/m.test(f.body.slice(0, 400)),
+  );
+
+  it(`exemption count does not exceed the ratchet ceiling (${MAX_NOCHECK_REPOS})`, () => {
+    expect(
+      noCheckFiles.length,
+      `Found ${noCheckFiles.length} repo files carrying @ts-nocheck (${noCheckFiles
+        .map((f) => f.name)
+        .join(', ')}). Ceiling is ${MAX_NOCHECK_REPOS}. Either remove the new exemption or update MAX_NOCHECK_REPOS *down* (never up).`,
+    ).toBeLessThanOrEqual(MAX_NOCHECK_REPOS);
   });
 
   for (const f of files) {
