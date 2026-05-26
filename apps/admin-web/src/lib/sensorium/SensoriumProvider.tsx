@@ -123,7 +123,8 @@ export function SensoriumProvider(props: SensoriumProviderProps): React.ReactEle
       setBus(null);
     };
     // surface + sessionId + endpoint + enabled are stable per provider
-    // mount; restart on any change. eslint-disable-next-line react-hooks/exhaustive-deps
+    // mount; restart on any change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- SCRUB-5f: rule-disabled because the bus lifecycle is intentionally tied to enabled/surface/endpoint; sessionId is a stable ref captured once per provider mount
   }, [enabled, surface, endpoint]);
 
   const value = useMemo<SensoriumContextValue>(
