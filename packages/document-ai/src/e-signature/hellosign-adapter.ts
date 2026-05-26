@@ -134,7 +134,7 @@ export function createHelloSignAdapter(config: HelloSignAdapterConfig): ESignatu
 function basicAuth(apiKey: string): string {
   const encoded = typeof Buffer !== 'undefined'
     ? Buffer.from(`${apiKey}:`).toString('base64')
-    : // eslint-disable-next-line no-undef
+    : // eslint-disable-next-line no-undef -- SCRUB-5f: rule-disabled because btoa is a browser global used only on the no-Buffer fallback path
       btoa(`${apiKey}:`);
   return encoded;
 }

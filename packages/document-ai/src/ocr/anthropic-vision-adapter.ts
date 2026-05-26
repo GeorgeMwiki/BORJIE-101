@@ -155,6 +155,6 @@ function uint8ToBase64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 1) {
     binary += String.fromCharCode(bytes[i]!);
   }
-  // eslint-disable-next-line no-undef
+  // eslint-disable-next-line no-undef -- SCRUB-5f: rule-disabled because btoa is a browser global used only on the no-Buffer fallback path
   return btoa(binary);
 }
