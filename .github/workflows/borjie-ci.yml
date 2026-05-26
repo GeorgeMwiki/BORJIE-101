@@ -36,7 +36,11 @@ jobs:
   borjie-ci:
     name: Borjie CI (typecheck, build, test)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15m was historically enough because ai-copilot tests failed early.
+    # With #28 those now pass, so the full pipeline (148-package monorepo
+    # typecheck + workspace deps build + ai-copilot tests + api-gateway
+    # typecheck) needs more headroom. Lower as the typecheck speeds up.
+    timeout-minutes: 30
     env:
       CI: "true"
       NODE_OPTIONS: "--max-old-space-size=4096"
