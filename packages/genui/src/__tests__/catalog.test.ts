@@ -220,7 +220,7 @@ describe('catalog schemas — accept good payloads', () => {
       });
       if (!r.success) {
         // Aid debugging by surfacing the validation issue list.
-        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because surfacing zod issue list on test failure is the intended diagnostic and runs only inside an unreachable-on-pass branch
         console.error(entry.key, r.error.issues);
       }
       expect(r.success).toBe(true);
