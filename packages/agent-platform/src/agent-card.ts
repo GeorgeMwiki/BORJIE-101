@@ -29,14 +29,12 @@ export function generateAgentCard(deps: AgentCardDeps): AgentCard {
     provider: Object.freeze({
       organization: 'BORJIE',
       url: deps.baseUrl,
-      // Platform-level contact. Prefer env override so the domain is not
-      // baked into the agent-platform package.
-      contact:
-        deps.contact ??
-        (typeof process !== 'undefined'
-          ? process.env?.AGENT_PLATFORM_CONTACT
-          : undefined) ??
-        'agents@example.com',
+      // Platform-level contact. Resolved in priority order:
+      //   1) explicit `deps.contact` (callers wire from app config)
+      //   2) `AGENT_PLATFORM_CONTACT` env var
+      //   3) RFC-2606 sentinel — only safe in tests; production must
+      //      supply a real value or callers throw upstream.
+      contact: resolveContact(deps.contact),
     }),
     capabilities: Object.freeze([
       Object.freeze({
@@ -102,4 +100,27 @@ export function generateAgentCard(deps: AgentCardDeps): AgentCard {
       burstLimit: 20,
     }),
   });
+}
+
+/**
+ * Default contact email used only when no caller supplies one and
+ * `AGENT_PLATFORM_CONTACT` is unset. Kept under the RFC 2606 reserved
+ * `example.com` domain so a misconfigured production deploy fails the
+ * "no public personally-routable address" review rather than leaking
+ * a real BORJIE mailbox.
+ */
+const FALLBACK_CONTACT_EMAIL = 'agents@example.com' as const;
+
+function resolveContact(explicit: string | undefined): string {
+  if (explicit && explicit.length > 0) {
+    return explicit;
+  }
+  const fromEnv =
+    typeof process !== 'undefined'
+      ? process.env?.AGENT_PLATFORM_CONTACT
+      : undefined;
+  if (fromEnv && fromEnv.length > 0) {
+    return fromEnv;
+  }
+  return FALLBACK_CONTACT_EMAIL;
 }
