@@ -98,19 +98,19 @@ import { waitlistRouter } from './routes/waitlist.router';
 // recommenders exposed as HTTP entry points. Each router takes the
 // advisor's typed input JSON, calls the pure composer, returns the
 // structured recommendation envelope. Tenant-scoped + audit-logged.
-import acquisitionAdvisorRouter from './routes/acquisition-advisor.router';
-import expansionAdvisorRouter from './routes/expansion-advisor.router';
-import lifecycleAdvisorRouter from './routes/lifecycle-advisor.router';
-import sustainabilityAdvisorRouter from './routes/sustainability-advisor.router';
-import greenAngleAdvisorRouter from './routes/green-angle-advisor.router';
-import estateDepartmentAdvisorRouter from './routes/estate-department-advisor.router';
-import estateAutoManagementRouter from './routes/estate-auto-management.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import acquisitionAdvisorRouter from './routes/acquisition-advisor.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import expansionAdvisorRouter from './routes/expansion-advisor.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import lifecycleAdvisorRouter from './routes/lifecycle-advisor.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import sustainabilityAdvisorRouter from './routes/sustainability-advisor.router';
+// REMOVED (borjie hard-fork): import greenAngleAdvisorRouter from './routes/green-angle-advisor.router';
+// REMOVED (borjie hard-fork): import estateDepartmentAdvisorRouter from './routes/estate-department-advisor.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import estateAutoManagementRouter from './routes/estate-auto-management.router';
 import geoPlatformRouter from './routes/geo-platform.router';
 // Wave 8 gap-closure routers
 import warehouseRouter from './routes/warehouse.router';
 import maintenanceTaxonomyRouter from './routes/maintenance-taxonomy.router';
 import iotRouter from './routes/iot.router';
-import lpmsRouter from './routes/lpms.router';
+// REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): // REMOVED (borjie hard-fork): import lpmsRouter from './routes/lpms.router';
 // Wave 9 enterprise polish routers
 import featureFlagsRouter from './routes/feature-flags.router';
 import gdprRouter from './routes/gdpr.router';
@@ -827,13 +827,13 @@ api.route('/station-master-coverage', stationMasterCoverageRouter);
 api.route('/tenders', tendersRouter);
 api.route('/waitlist', waitlistRouter);
 // Veteran-expert advisor packages — strategic recommenders.
-api.route('/acquisition-advisor', acquisitionAdvisorRouter);
-api.route('/expansion-advisor', expansionAdvisorRouter);
-api.route('/lifecycle-advisor', lifecycleAdvisorRouter);
-api.route('/sustainability-advisor', sustainabilityAdvisorRouter);
-api.route('/green-angle-advisor', greenAngleAdvisorRouter);
-api.route('/estate-department-advisor', estateDepartmentAdvisorRouter);
-api.route('/estate-auto-management', estateAutoManagementRouter);
+// REMOVED (borjie hard-fork): api.route('/acquisition-advisor', acquisitionAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/expansion-advisor', expansionAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/lifecycle-advisor', lifecycleAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/sustainability-advisor', sustainabilityAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/green-angle-advisor', greenAngleAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/estate-department-advisor', estateDepartmentAdvisorRouter);
+// REMOVED (borjie hard-fork): api.route('/estate-auto-management', estateAutoManagementRouter);
 api.route('/geo-platform', geoPlatformRouter);
 // Wave 8 — warehouse stock (S7), maintenance taxonomy (S7), IoT observations (S3)
 api.route('/warehouse', warehouseRouter);
