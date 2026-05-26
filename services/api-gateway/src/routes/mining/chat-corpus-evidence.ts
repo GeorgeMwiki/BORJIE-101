@@ -54,7 +54,22 @@ export function pickKeywords(message: string): ReadonlyArray<string> {
 // OpenAI embedding (1024-d to match chunk column)
 // ─────────────────────────────────────────────────────────────────────
 
-const OPENAI_EMBED_URL = 'https://api.openai.com/v1/embeddings';
+/**
+ * Embedding endpoint — defaults to the public OpenAI inference URL but
+ * accepts `OPENAI_BASE_URL` so deployers can route through Azure
+ * OpenAI / a regional proxy / a self-hosted compatible gateway without
+ * a code change. We append `/embeddings` if the override does not
+ * already terminate at a route.
+ */
+function resolveOpenAiEmbedUrl(): string {
+  const override = process.env.OPENAI_BASE_URL?.trim();
+  if (override && override.length > 0) {
+    const stripped = override.replace(/\/$/, '');
+    return stripped.endsWith('/embeddings') ? stripped : `${stripped}/embeddings`;
+  }
+  return 'https://api.openai.com/v1/embeddings';
+}
+
 const OPENAI_EMBED_MODEL = 'text-embedding-3-large';
 const TARGET_DIMENSIONS = 1024;
 
@@ -82,7 +97,7 @@ export async function embedQueryViaOpenAI(
     return null;
   }
   try {
-    const response = await fetch(OPENAI_EMBED_URL, {
+    const response = await fetch(resolveOpenAiEmbedUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
