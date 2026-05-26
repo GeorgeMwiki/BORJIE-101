@@ -295,9 +295,13 @@ export function withSecurityEvents<C extends HonoContextLike, R>(
  * Reads `request.tenantId` / `request.actorId` when the auth plugin has
  * decorated the request; falls back to header-derived values.
  */
+// Using `never` for params + `unknown` for return: function parameters are
+// contravariant, so `never` is the bottom type that any function shape can
+// extend (a handler that accepts a `FastifyRequest` is a supertype of one
+// that accepts `never`). This replaces the previous `any` constraint while
+// preserving the pass-through generic.
 export function withSecurityEventsFastify<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  H extends (request: any, reply: any) => any,
+  H extends (request: never, reply: never) => unknown,
 >(binding: SecurityEventBinding, handler: H): H {
   const wrapped = async (
     request: Parameters<H>[0],
