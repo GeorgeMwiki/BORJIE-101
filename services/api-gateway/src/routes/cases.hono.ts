@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widening; same pattern as
-// other .hono routers in this directory.
 /**
  * Cases router — live-data implementation for the tenant/maintenance case
  * lifecycle. Previously a `LIVE_DATA_NOT_IMPLEMENTED` stub (503) even though

@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widening; same pattern as
-// other .hono routers in this directory.
 /**
  * Proposals router (Piece L brain↔tab loop) — CRUD over
  * `module_update_proposals` rows.

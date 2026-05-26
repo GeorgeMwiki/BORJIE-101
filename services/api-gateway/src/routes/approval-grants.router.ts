@@ -16,8 +16,6 @@
  *   GET  /check?actionCategory=&...        → used by task-agent executor
  */
 
-// @ts-nocheck — Hono v4 context typing is open-ended; routers dispatch at runtime.
-
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';

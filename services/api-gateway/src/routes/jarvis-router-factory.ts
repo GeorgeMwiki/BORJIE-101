@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
-
 /**
  * Jarvis router factory — every Borjie user (tenant resident,
  * property owner, estate manager, agency admin, internal HQ employee)

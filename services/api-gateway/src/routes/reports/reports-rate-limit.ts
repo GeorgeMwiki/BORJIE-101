@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union (hono-dev/hono#3891).
 /**
  * Per-(user, endpoint) rate limiter for the `/v1/strategic-reports`
  * routes. The platform-wide limiter is tenant-tiered (the right shape

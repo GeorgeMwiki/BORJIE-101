@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union (hono-dev/hono#3891).
 /**
  * `/api/v1/strategic-reports` — PhD-grade strategic report API.
  *
