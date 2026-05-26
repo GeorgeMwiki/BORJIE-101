@@ -227,3 +227,16 @@ export * from './modules/index.js';
 // generated_reports, notifications_outbox, metallurgy_recommendations,
 // risk_snapshots, plus junior_* mirrors of formal-schema tables.
 export * from './junior-outputs/index.js';
+
+// ---------------------------------------------------------------------------
+// Wave 17 — Master Brain autonomous loops + Anticipatory UX +
+//           Deep Research + Document Composition
+// ---------------------------------------------------------------------------
+// Phase-2 substrate for Mr. Mwikila's 24/7 MD operating model. Backing
+// migrations 0016 (autonomy loops), 0017 (anticipatory UX), 0018 (deep
+// research), 0019 (document composition). See docs/DESIGN/*.md for the
+// contracts these tables implement.
+export * from './master-brain-briefings.schema.js';
+export * from './anticipatory-ux.schema.js';
+export * from './deep-research.schema.js';
+export * from './document-composition.schema.js';
