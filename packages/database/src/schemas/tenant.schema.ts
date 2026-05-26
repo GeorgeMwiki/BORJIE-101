@@ -244,6 +244,7 @@ export const users = pgTable(
     // Irreversible biometric template hash (fingerprint) for non-repudiable sign-off.
     biometricTemplateHash: text('biometric_template_hash'),
     // Preferred UI language. Default 'sw' (Kiswahili) — Borjie is sw-first.
+    // UNIV-4: column default = TZ launch beachhead (sw); future jurisdictions write their own value from jurisdiction-profile installed language packs (en-GB, en-US, de, pt-BR, etc.). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     preferredLang: text('preferred_lang').notNull().default('sw'),
     
     // Security

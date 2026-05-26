@@ -47,6 +47,7 @@ export const cashBalances = pgTable(
     balanceTzs: numeric('balance_tzs', { precision: 18, scale: 2 }).notNull(),
     /** ISO-4217 native currency snapshot; balance_tzs is the converted TZS view. */
     balanceNative: numeric('balance_native', { precision: 18, scale: 2 }),
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     nativeCurrency: text('native_currency').notNull().default('TZS'),
     /** mpesa|bank_statement|cash_count|manual|reconciliation_run. */
     source: text('source').notNull().default('manual'),
@@ -75,6 +76,7 @@ export const fxRates = pgTable(
     pair: text('pair').notNull(),
     rate: numeric('rate', { precision: 12, scale: 6 }).notNull(),
     /** BoT|LBMA|LME|Fastmarkets|... */
+    // UNIV-4: column default = TZ launch beachhead (BoT = Bank of Tanzania); future jurisdictions write their own central-bank/source id from the jurisdiction profile's `regulators[]` list. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     source: text('source').notNull().default('BoT'),
   },
   (t) => ({
@@ -121,6 +123,7 @@ export const costs = pgTable(
     category: text('category').notNull(),
     amountTzs: numeric('amount_tzs', { precision: 18, scale: 2 }).notNull(),
     /** ISO-4217. */
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     amountCurrency: text('amount_currency').notNull().default('TZS'),
     amountNative: numeric('amount_native', { precision: 18, scale: 2 }),
     /** actual|forecast|committed|unpaid|disputed|hidden|document_blocked|idle_time. */

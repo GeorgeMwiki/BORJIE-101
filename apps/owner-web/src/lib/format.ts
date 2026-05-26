@@ -6,6 +6,7 @@
  * `toLocaleString('en-TZ')` with different options.
  */
 
+// UNIV-4: hardcoded launch-beachhead locale + currency — when expanding beyond TZ, defer to tenant jurisdiction profile + language pack (Intl.NumberFormat builder seeded from profile.currencyCode + profile.locale); tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 const TZS = new Intl.NumberFormat('en-TZ', {
   style: 'currency',
   currency: 'TZS',

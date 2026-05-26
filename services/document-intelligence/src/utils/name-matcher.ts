@@ -239,6 +239,10 @@ export interface IdFormatValidation {
   details: string;
 }
 
+// UNIV-4: function carries hardcoded TZ + KE ID regexes (launch beachhead + first
+// regional expansion). When adding NG/ZA/UG/etc, route format rules through the
+// jurisdiction profile's `idFormats[]` registry instead of branching here.
+// Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export function validateIdFormat(
   idNumber: string,
   expectedType: string

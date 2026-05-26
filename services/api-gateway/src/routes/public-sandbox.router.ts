@@ -38,6 +38,7 @@ const ScenarioRunSchema = z.object({
 
 const GenerateSchema = z.object({
   sessionId: z.string().min(1).max(120),
+  // UNIV-4: hardcoded launch-beachhead default + EA country whitelist — defer to jurisdiction-profile registry; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
   country: z.enum(['KE', 'TZ', 'UG']).default('TZ'),
 });
 

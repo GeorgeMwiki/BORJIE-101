@@ -29,6 +29,7 @@ export const metadata: Metadata = {
     'Borjie is the AI-native operating system for Tanzanian mining. Master Brain, licence calendar, drill-hole logger, FX & treasury, marketplace, compliance pack. Swahili-first. Multi-tenant. Multi-lingual.',
   applicationName: 'Borjie',
   metadataBase: new URL(SITE_URL),
+  // UNIV-4: TZ-launch-beachhead marketing keywords — defer to vertical-profile/jurisdiction-profile marketing manifest when expanding to KE/NG/ZA/etc; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
   keywords: [
     'Tanzania mining software',
     'AI-native mining OS',

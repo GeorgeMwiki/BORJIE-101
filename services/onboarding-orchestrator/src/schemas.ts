@@ -39,6 +39,7 @@ export const KybInputSchema = z
     registrationNo: z.string().min(1).max(64),
     tin: z.string().min(1).max(32),
     registeredAddress: z.string().min(1).max(512),
+    // UNIV-4: hardcoded launch-beachhead default — defer to tenant's jurisdiction profile; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     country: z.string().length(2).default('TZ'),
     directors: z
       .array(
@@ -47,6 +48,7 @@ export const KybInputSchema = z
             fullName: z.string().min(1).max(256),
             nidaId: z.string().min(8).max(32),
             role: z.string().min(1).max(64),
+            // UNIV-4: hardcoded launch-beachhead default — defer to tenant's jurisdiction profile; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
             nationality: z.string().length(2).default('TZ'),
           })
           .strict(),

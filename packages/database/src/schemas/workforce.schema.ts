@@ -45,6 +45,7 @@ export const employees = pgTable(
     /** PML_employee|contractor|pit_holder_worker|casual. */
     employmentType: text('employment_type').notNull().default('casual'),
     /** ISO-3166-1 alpha-2. Drives Local Content tracking. */
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     nationality: text('nationality').notNull().default('TZ'),
     status: text('status').notNull().default('active'),
     startDate: date('start_date'),
@@ -120,6 +121,7 @@ export const advances = pgTable(
       .notNull()
       .references(() => employees.id, { onDelete: 'cascade' }),
     amountTzs: numeric('amount_tzs', { precision: 18, scale: 2 }).notNull(),
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     currency: text('currency').notNull().default('TZS'),
     /** food|fuel|medical|transport|cash|other. */
     reasonKind: text('reason_kind').notNull().default('cash'),

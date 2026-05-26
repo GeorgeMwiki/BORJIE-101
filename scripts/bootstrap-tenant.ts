@@ -262,6 +262,11 @@ async function seedDemoData(tx: Tx, tenantId: string, ownerId: string): Promise<
   // city. We scope ownership to the admin user so downstream RBAC lookups
   // succeed. Wrapped in a savepoint — demo-data failure should not fail the
   // whole bootstrap (tenant + admin user are the real contract).
+  //
+  // UNIV-4: hardcoded launch-beachhead demo seed (TZ/TZS/Dar es Salaam). When
+  // expanding beyond TZ, drive these from the requested tenant's jurisdiction
+  // profile (script accepts --country and resolveCountryCurrency above). Tracked
+  // gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
   const propertyId = `prop_${randomUUID()}`;
   try {
     await tx.savepoint('demo_data', async (sp) => {

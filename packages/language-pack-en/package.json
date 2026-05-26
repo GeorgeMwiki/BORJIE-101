@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/language-pack-en",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "English language pack (UNIV-2). 5 regional variants (en-GB, en-US, en-TZ, en-KE, en-AU) with CLDR-derived locale resources, voice profile defaults (ElevenLabs v3 primary, Google Cloud Chirp 3 fallback, AWS Polly Neural tertiary), and a mining-domain bilingual glossary. See Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/language-packs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

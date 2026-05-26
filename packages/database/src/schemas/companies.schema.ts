@@ -42,6 +42,7 @@ export const companies = pgTable(
     vrn: text('vrn'),
     registeredAddress: text('registered_address'),
     /** ISO-3166-1 alpha-2; defaults to TZ. */
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     country: text('country').notNull().default('TZ'),
     /** Free-form attributes (logo, contacts, ICO categories, etc.). */
     attributes: jsonb('attributes').notNull().default({}),
@@ -78,6 +79,7 @@ export const directors = pgTable(
     role: text('role').notNull(),
     appointedOn: date('appointed_on'),
     resignedOn: date('resigned_on'),
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     nationality: text('nationality').notNull().default('TZ'),
     /** Contact + KYC blob. */
     attributes: jsonb('attributes').notNull().default({}),
@@ -113,6 +115,7 @@ export const shareholders = pgTable(
     shareClass: text('share_class').notNull().default('ordinary'),
     sharesIssued: numeric('shares_issued', { precision: 18, scale: 0 }),
     /** Nationality drives Local-Content reporting. */
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     nationality: text('nationality').notNull().default('TZ'),
     attributes: jsonb('attributes').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -144,6 +147,7 @@ export const bankAccounts = pgTable(
     /** Encrypted at application layer; raw account number never logged. */
     accountNumber: text('account_number').notNull(),
     /** ISO-4217. */
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     currency: text('currency').notNull().default('TZS'),
     swiftBic: text('swift_bic'),
     purpose: text('purpose'),

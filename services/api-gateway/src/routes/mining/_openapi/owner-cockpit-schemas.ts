@@ -257,6 +257,7 @@ export const SubmitKycSchema = z
   .object({
     name: z.string().min(1).max(200),
     kind: BuyerKindEnum,
+    // UNIV-4: hardcoded launch-beachhead default — defer to tenant's jurisdiction profile; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     country: z.string().length(2).default('TZ'),
     companyId: z.string().optional(),
     licenceNumber: z.string().max(200).optional(),

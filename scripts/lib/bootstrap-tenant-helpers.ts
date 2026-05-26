@@ -78,6 +78,7 @@ export function parseBootstrapArgs(argv: readonly string[]): BootstrapArgs {
  * overrides this during the first authenticated request.
  */
 export function resolveCountryCurrency(countryCode: string): string {
+  // UNIV-4: hardcoded country→currency map for bootstrap (pre-gateway). Authoritative source is @borjie/jurisdiction-profiles; this fallback rotates when jurisdiction-profile-tz registry exposes a static seed export consumable from scripts. Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
   const map: Readonly<Record<string, string>> = {
     TZ: 'TZS', KE: 'KES', UG: 'UGX', NG: 'NGN', ZA: 'ZAR',
     US: 'USD', GB: 'GBP', EU: 'EUR', IN: 'INR', RW: 'RWF',

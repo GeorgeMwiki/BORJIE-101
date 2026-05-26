@@ -141,6 +141,7 @@ export const languageUserProfile = pgTable(
     tenantId: text('tenant_id').notNull(),
     userId: text('user_id').notNull(),
     preferredLang: text('preferred_lang').notNull().default('en'),
+    // UNIV-4: column default = TZ launch beachhead (sw); future jurisdictions write their own secondary language code from their jurisdiction profile's installed language packs. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     secondaryLang: text('secondary_lang').notNull().default('sw'),
     /** Per-phoneme baseline — { [ipa]: { gop_mean, gop_std, samples } }. */
     pronunciationProfile: jsonb('pronunciation_profile').notNull().default({}),

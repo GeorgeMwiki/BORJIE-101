@@ -238,6 +238,7 @@ export async function fetchExpiringLeases(
       customerId: String(r.customer_id),
       endDate,
       rentAmount: Number(r.rent_amount ?? 0),
+      // UNIV-4: hardcoded launch-beachhead default — defer to tenant's jurisdiction profile currency; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
       rentCurrency: String(r.rent_currency ?? 'TZS'),
       customerEmail: r.customer_email ? String(r.customer_email) : null,
       customerPhone: r.customer_phone ? String(r.customer_phone) : null,

@@ -18,6 +18,7 @@ const PortSchema = z
   .transform((v) => Number(v))
   .pipe(z.number().int().min(1).max(65535));
 
+// UNIV-4: hardcoded launch-beachhead fallback timezone — env DEFAULT_TENANT_TZ overrides; future jurisdictions resolve via tenant.settings.timezone + jurisdiction profile. Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 const TimezoneFallback = 'Africa/Dar_es_Salaam';
 
 const EnvSchema = z.object({

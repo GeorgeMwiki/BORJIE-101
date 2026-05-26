@@ -9,6 +9,7 @@ import type { BuyerUser } from '@/types/auth'
 // verifyOtp() resolves, setCurrentUser() flips the state and subscribers
 // (useSession) re-render with real data.
 
+// UNIV-4: hardcoded launch-beachhead stub user (TZ/+255) — pre-login render placeholder; production callers replace via setCurrentUser(). Future stub generation should seed from jurisdiction-profile registry; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 const stubUser: BuyerUser = {
   id: 'buyer-001',
   role: 'buyer',

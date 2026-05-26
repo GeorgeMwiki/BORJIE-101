@@ -43,6 +43,7 @@ export const voiceSessions = pgTable(
     /** gemini-live | gpt-realtime-2 | whisper-local | anthropic-eleven */
     provider: text('provider').notNull(),
     /** Language tag (sw | sw-TZ | en-KE | sheng | …). */
+    // UNIV-4: column default = TZ launch beachhead (Swahili); future jurisdictions write their own value (e.g. 'en-GB', 'pt-BR'). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     language: text('language').notNull().default('sw'),
     startedAt: timestamp('started_at', { withTimezone: true })
       .notNull()

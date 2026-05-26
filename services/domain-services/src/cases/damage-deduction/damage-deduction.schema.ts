@@ -23,6 +23,9 @@ export const damageDeductionCases = pgTable(
     // `getDefaultCurrency(tenant.countryCode)`). The stored default below
     // matches migration 0017_cases_sla_and_subleases.sql and exists only
     // for rows created before tenant context is available.
+    //
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write
+    // their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     currency: text('currency').notNull().default('TZS'),
 
     status: text('status').notNull().default('claim_filed'),

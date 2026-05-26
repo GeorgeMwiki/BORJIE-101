@@ -80,6 +80,7 @@ export interface PersonaPromptOptions {
  * timestamps or randomness.
  */
 export function buildMrMwikilaSystemPrompt(options: PersonaPromptOptions): string {
+  // UNIV-4: hardcoded launch-beachhead default — defer to jurisdiction profile of caller's tenant; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
   const jurisdiction = options.jurisdictionCountry?.toUpperCase() ?? 'TZ';
   const language = options.language;
 

@@ -145,6 +145,7 @@ export const buyers = pgTable(
     }),
     /** trader|smelter|refinery|export_buyer|bot|broker. */
     kind: text('kind').notNull(),
+    // UNIV-4: column default = TZ launch beachhead; future jurisdictions write their own value. See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     country: text('country').notNull().default('TZ'),
     licenceNumber: text('licence_number'),
     contactName: text('contact_name'),

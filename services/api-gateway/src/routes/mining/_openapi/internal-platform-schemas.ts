@@ -77,6 +77,7 @@ export const ProvisionTenantSchema = z
       .regex(/^[a-z0-9-]+$/),
     primaryEmail: z.string().email(),
     primaryPhone: z.string().max(40).optional(),
+    // UNIV-4: hardcoded launch-beachhead default — defer to jurisdiction profile of the requesting platform operator; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     country: z.string().length(2).default('TZ'),
     plan: TenantPlanEnum.default('mkulima'),
     subscriptionTier: TenantTierEnum.default('starter'),
