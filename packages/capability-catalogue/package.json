@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/capability-catalogue",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Wave CAPABILITY — Capability Catalogue + Measurement substrate. Canonical registry of every capability Mr. Mwikila can perform (atomic seeds + meta-dispatcher + tenant-authored). Pure measurement primitives for competence / calibration / utility over 7d / 28d / 91d windows. Companion: Docs/DESIGN/CAPABILITY_CATALOGUE_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

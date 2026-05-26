@@ -809,3 +809,22 @@ export * from './ambient-listening.schema.js';
 // Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
 // (Decisions 3 + 4).
 export * from './language-self-improve.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 19G — Language-SOTA core (Mr. Mwikila bilingual mind)
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0048_language_sota.sql:
+//   language_utterances        — captured utterances across voice / chat /
+//                                 sms / whatsapp with phonemes, prosody, and
+//                                 code-switch segments. Consent-gated per
+//                                 FOUNDER_LOCKED §3 + §4; hash-chained.
+//   language_provider_quality  — periodic (provider, language) WER + PER +
+//                                 MOS samples driving the routing decision.
+//   language_user_profile      — per-user preferred / secondary language,
+//                                 dialect tags, pronunciation profile.
+//                                 PK is (tenant_id, user_id).
+// Consumed by @borjie/language-sota and downstream waves 19H–19K.
+// See Docs/DESIGN/LANGUAGE_VOICE_SOTA_SPEC.md.
+// Locked default per Docs/DESIGN/FOUNDER_LOCKED_DECISIONS_2026_05_26.md
+// (Decisions 3 + 4).
+export * from './language-sota.schema.js';
