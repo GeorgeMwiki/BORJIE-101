@@ -2,7 +2,9 @@
  * Strategic Direction Layer persistence (Wave M10–M12).
  *
  * Companion to Docs/DESIGN/STRATEGIC_DIRECTION_LAYER_SPEC.md §15 and
- * migration 0040_strategic_layer.sql. Drizzle types for the six
+ * migration 0064_strategic_layer.sql (renumbered from 0040 to resolve
+ * collision with 0040_reasoning_traces.sql; alphabetic precedence keeps
+ * reasoning_traces at slot 0040). Drizzle types for the six
  * tables backing the strategic-direction loop:
  *
  *   - northStarObjectives   — durable goal records (OKR-shaped) with a

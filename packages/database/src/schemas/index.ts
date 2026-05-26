@@ -625,7 +625,8 @@ export * from './graph-rag.schema.js';
 // ---------------------------------------------------------------------------
 // Wave M10–M12 — Strategic Direction Layer
 // ---------------------------------------------------------------------------
-// Six tenant-scoped tables backing migration 0040_strategic_layer.sql:
+// Six tenant-scoped tables backing migration 0064_strategic_layer.sql
+// (renumbered from 0040 to resolve collision with 0040_reasoning_traces.sql):
 //   north_star_objectives  — durable goal record (OKR-shaped) with
 //                            proposed/active/met/missed/retired state
 //                            machine. T2 events flow through
