@@ -242,6 +242,16 @@ export * from './deep-research.schema.js';
 export * from './document-composition.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave 18U — Data Onboarding (places owner-uploaded data where it belongs)
+// ---------------------------------------------------------------------------
+// Backing migration 0022 — two tenant-scoped tables tracking owner-
+// initiated onboarding sessions (7-stage pipeline: discover → match →
+// propose → persist → chain → enrich) and per-row provenance linking
+// persisted rows back to source files.
+// See Docs/DESIGN/DATA_ONBOARDING_SPEC.md.
+export * from './data-onboarding.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 18S — Mutation Authority (the WRITE side of universal MD power)
 // ---------------------------------------------------------------------------
 // Five tables backing migration 0023_mutation_authority.sql:
