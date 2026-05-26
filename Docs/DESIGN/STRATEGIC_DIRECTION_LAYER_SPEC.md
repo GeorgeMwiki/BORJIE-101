@@ -522,3 +522,397 @@ cite-or-stay-silent discipline. Different time horizon, different
 substrate balance, different cost profile. The owner walks into the
 quarter with a board pack written by a counsel who knows the business
 from every Slack DM to every Tumemadini royalty calc.*
+
+---
+
+## 15. Wave M10–M12 Addendum — North-Star Layer, Federation Consent, ε-Budgets
+
+Wave 23 above gave Mr. Mwikila the SWOT, scenario, capital-allocation, and
+M&A surfaces — the *outputs* a strategic counsel produces. Waves M10–M12
+add the **durable substrate** those outputs operate against:
+
+- **North-star objectives** — the quarterly/annual goals the strategic
+  loop tracks. Without them the strategic memos float; with them every
+  memo can ask "does this option advance objective NS-04?".
+- **Progress tracking & drift detection** — the daily/weekly heartbeat
+  that says "we're on track" or "we're slipping".
+- **Pivot proposals** — when drift exceeds a threshold the strategic
+  layer proposes a pivot; T2 owner-in-the-loop on every pivot.
+- **Federation consent** — explicit per-tenant opt-in for any cross-tenant
+  learning. Scoped, expiring, revocable.
+- **ε-budget accounting** — Rényi-DP composition of every cross-tenant
+  query against a per-tenant per-period ε-cap.
+
+Together these turn the strategic layer from a *memo-writer* into a
+*goal-tracker that also writes memos*. They also harden the cross-tenant
+learning posture (cognitive-memory's federation already collapses tenants
+into `source_tenant_count` — the M10–M12 layer adds the consent gate and
+the privacy-budget meter on top).
+
+### 15.1 North-star objective shape
+
+A `NorthStarObjective` is the durable goal record:
+
+```typescript
+interface NorthStarObjective {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly scopeId: string;            // 'tenant_root' or org_unit_id
+  readonly title: string;              // <100 chars
+  readonly description: string;        // 1-2 paragraphs
+  readonly metricName: string;         // 'royalty_revenue_tzs',
+                                       // 'fx_position_usd', 'parcels_active'
+  readonly targetValue: number;
+  readonly targetAt: string;           // ISO timestamp
+  readonly status:
+    | 'proposed'    // strategic-junior drafted, awaiting owner approval
+    | 'active'      // owner approved; loop is tracking
+    | 'met'         // observed value crossed target before targetAt
+    | 'missed'      // targetAt elapsed without meeting target
+    | 'retired';    // owner explicitly retired (no longer relevant)
+  readonly ownerUserId: string;
+  readonly auditHash: string;
+  readonly prevHash: string | null;
+}
+```
+
+The shape echoes the [Andy Grove / John Doerr OKR
+formulation](https://en.wikipedia.org/wiki/OKR) — title + measurable
+KR + owner + horizon — but with the audit-chain bolt-on and the
+status state-machine.
+
+The state machine is strict:
+
+```
+proposed ──owner approve──▶ active
+proposed ──owner reject──▶ retired
+active ──observation ≥ target──▶ met
+active ──now > targetAt && observation < target──▶ missed
+active ──owner retire──▶ retired
+```
+
+T2 events: `proposed → active`, `active → retired`. Both go through
+[`mutation-authority`](../../packages/mutation-authority/src/index.ts).
+
+The `scopeId` field gives the standard
+[org-scope](../../packages/org-scope/src/index.ts) join key — a `tenant_root`
+objective is the whole-company target; a `org-unit:district-N` objective is
+the district-level target.
+
+### 15.2 Progress tracking
+
+`objective_progress` is an append-only log. Every entry is one
+*observation* of the objective's metric at a point in time:
+
+```typescript
+interface ObjectiveProgress {
+  readonly id: string;
+  readonly objectiveId: string;
+  readonly recordedAt: string;
+  readonly observedValue: number;
+  readonly evidence: Readonly<Record<string, unknown>>;  // citation IDs, source rows, etc.
+  readonly auditHash: string;
+}
+```
+
+The `ProgressTracker` exposes:
+
+- `observe(objective, observedValue, evidence)` — append one row.
+- `percentComplete(objective)` — computed from latest observation.
+- `velocity(objective, windowDays)` — average daily delta over the
+  trailing window. Used to project completion date.
+- `driftSignal(objective)` — a structured tri-state: `'on_track' |
+  'at_risk' | 'off_track'`. Defined as:
+  - `on_track`: projected completion ≤ targetAt.
+  - `at_risk`: projected completion ≤ targetAt × 1.15 (15% slip).
+  - `off_track`: projected completion > targetAt × 1.15 OR velocity is
+    negative when target requires positive growth.
+
+The drift formula is a deliberate echo of
+[Google SRE's burn-rate alerting](https://sre.google/workbook/alerting-on-slos/)
+(2018-04-17, "Alerting on SLOs"): same idea, applied to a quarterly
+goal instead of a 99.9% SLO. The signal flows into the pivot proposer.
+
+### 15.3 Drift detection
+
+Drift is computed at three cadences:
+
+- **Daily** — the morning-brief loop calls `driftSignal()` for every
+  active objective. `off_track` objectives surface in the brief.
+- **Weekly** — the weekly strategic-pulse (Section 5.1 above) lists
+  every objective + its signal. Trend across the week is reported.
+- **On observation** — every call to `observe()` recomputes the signal;
+  a transition from `on_track` → `at_risk` or `at_risk` → `off_track`
+  fires an event that the pivot proposer can subscribe to.
+
+The transition is hash-chained: the signal at `T` is recorded in the
+`objective_progress` row's `evidence.signal_at_record` so retrospective
+audit can replay the loop's decisions.
+
+### 15.4 Pivot proposals
+
+When drift hits `off_track` and the velocity remains negative for ≥7
+days, the strategic loop composes a *pivot proposal*:
+
+```typescript
+interface PivotProposal {
+  readonly id: string;
+  readonly objectiveId: string;
+  readonly proposedAt: string;
+  readonly rationale: string;          // 1-2 paragraphs explaining the drift
+  readonly evidence: Readonly<Record<string, unknown>>;
+                                       // observation IDs, citation IDs
+  readonly status:
+    | 'open'
+    | 'accepted'
+    | 'rejected'
+    | 'expired';
+  readonly decidedBy: string | null;
+  readonly decidedAt: string | null;
+  readonly auditHash: string;
+}
+```
+
+A pivot is always one of three shapes:
+
+1. **Retarget** — same metric, new `targetValue` / `targetAt`. Honest
+   acknowledgment that the original goal was wrong-sized.
+2. **Reframe** — same objective, different metric. The metric was the
+   wrong proxy; here's a better one.
+3. **Retire + replace** — the goal itself is obsolete; here's a new
+   objective to chase instead.
+
+The proposer is LLM-backed (port injected). It reads:
+
+- The objective record.
+- The last 30 days of `objective_progress` rows.
+- Cross-objective context (sibling objectives that may explain the drift).
+- External signals from
+  [`DEEP_RESEARCH_SPEC.md`](./DEEP_RESEARCH_SPEC.md) (gold-price moves,
+  regulator updates) that bear on the drift.
+
+It outputs a `PivotProposal` plus a *recommended option* (1, 2, or 3
+above). The proposal is T2 — owner approves or rejects. Rejection
+freezes the proposer for that objective for 14 days (cool-down — no
+nag loops).
+
+This pattern is named after
+[Eric Ries' "pivot or persevere" decision](https://www.amazon.com/Lean-Startup-Entrepreneurs-Continuous-Innovation/dp/0307887898)
+("The Lean Startup", 2011-09-13) — the strategic layer makes that
+decision queryable in real time, not retrospectively in a deck.
+
+### 15.5 Owner-in-the-loop protocol
+
+Every T2 transition routes through
+[`@borjie/mutation-authority`](../../packages/mutation-authority/src/index.ts).
+The strategic layer never auto-promotes a `proposed` objective, never
+auto-retires an `active` one, never auto-accepts a pivot. The audit
+chain is the same chain mutation-authority writes; the same double-verify
+discipline applies.
+
+Specifically:
+
+- **Tier 0 (drafts only):** observations, drift signal recomputation,
+  pivot *proposal composition*. No owner needed.
+- **Tier 1 (owner notification):** drift signal transitions. Surfaced in
+  the morning brief; not gated.
+- **Tier 2 (owner approval required):** any status flip on a
+  `north_star_objective` row; any status flip on a `pivot_proposal`
+  row. Both require a two-operator gate for tenant-critical objectives
+  (the owner + one designated deputy — `mutation-authority`'s standard
+  double-verify path).
+
+A pivot proposal that is not decided within 30 days transitions to
+`expired` (a Tier 0 sweep). The next drift event can re-open a fresh
+proposal — but with a new audit-chained row.
+
+This mirrors the Anthropic
+[constitutional AI](https://arxiv.org/abs/2212.08073) (Bai et al,
+2022-12-15) "always check with the operator on strategically
+significant moves" pattern, transposed from training-time to
+runtime-strategic decisions.
+
+### 15.6 Federation consent (per-tenant opt-in)
+
+Federation consent is the gate between
+[`cognitive-memory`](../../packages/cognitive-memory/src/index.ts)
+*per-tenant* memory and `platform_memory_cells` *cross-tenant* memory.
+Before Wave M10 a tenant's reinforced patterns could flow into the
+platform store as soon as they reinforced. After Wave M10 the gate is
+explicit and revocable:
+
+```typescript
+interface FederationConsent {
+  readonly tenantId: string;
+  readonly scope:
+    | 'patterns'         // memory cells of kind=pattern
+    | 'rules'            // memory cells of kind=rule
+    | 'terminology'      // memory cells of kind=terminology
+    | 'failures'         // memory cells of kind=failure
+    | 'all';             // every kind
+  readonly grantedAt: string;
+  readonly expiresAt: string;
+  readonly grantedBy: string;
+  readonly status: 'active' | 'revoked' | 'expired';
+  readonly auditHash: string;
+}
+```
+
+Two principles:
+
+1. **Default deny.** A tenant has *no* federation consent until the
+   owner grants one. The cognitive-memory federation promoter must
+   check `ConsentManager.isAllowed(tenantId, scope)` before promoting
+   any cell.
+2. **Expiry-by-default.** Every grant has an `expiresAt` ≤ 365 days
+   from `grantedAt`. The consent is not a forever toggle.
+
+The contract:
+
+```typescript
+interface ConsentManager {
+  grant(input: {
+    tenantId: string;
+    scope: FederationConsent['scope'];
+    durationDays: number;
+    grantedBy: string;
+  }): Promise<FederationConsent>;
+  revoke(tenantId: string, scope: FederationConsent['scope'],
+         revokedBy: string): Promise<void>;
+  isAllowed(tenantId: string, scope: FederationConsent['scope']): Promise<boolean>;
+  list(tenantId: string): Promise<ReadonlyArray<FederationConsent>>;
+}
+```
+
+Revocation is **prospective**, not retroactive — cells already
+federated are NOT yanked from `platform_memory_cells` (the global store
+has already de-tenantised them). Revocation prevents *future* promotion.
+This matches the [GDPR Art. 17 "right to erasure"](https://gdpr-info.eu/art-17-gdpr/)
+carve-out for de-identified data (statistical purposes), and the
+[OpenDP framework's stance on
+post-release retraction](https://docs.opendp.org/en/stable/) (2024).
+
+The `scope` is finer than "yes/no"; an owner can opt in to
+`terminology` (low-sensitivity vocabulary patterns) without opting in
+to `failures` (more sensitive). The cognitive-memory promoter joins on
+`(tenantId, scope)` and skips the cell when consent is absent.
+
+### 15.7 ε-budget accounting (Rényi DP composition)
+
+Even with consent the platform must bound the *amount* of cross-tenant
+information that flows out per tenant per period. We adopt
+[Rényi Differential Privacy (RDP)](https://arxiv.org/abs/1702.07476)
+(Mironov, 2017-02-24) as the accountant — it composes additively across
+queries which makes per-tenant budgeting tractable.
+
+Two tables drive this:
+
+- `epsilon_budgets` — per (`tenantId`, `period_start`) total budget +
+  spent.
+- `epsilon_ledger` — append-only record of every ε-charge against a
+  budget.
+
+The contract:
+
+```typescript
+interface EpsilonBudgetManager {
+  initialise(input: {
+    tenantId: string;
+    periodStart: string;        // YYYY-MM-01 (monthly periods)
+    totalEpsilon: number;       // typical: 4.0 for 'patterns'
+  }): Promise<EpsilonBudget>;
+
+  charge(input: {
+    tenantId: string;
+    periodStart: string;
+    chargeEpsilon: number;
+    opKind: string;             // 'federation_promote', 'aggregate_count'
+    opId: string;               // operation idempotency key
+  }): Promise<{ remaining: number }>;
+
+  remaining(tenantId: string, periodStart: string): Promise<number>;
+}
+```
+
+**Rényi composition.** For α-Rényi divergence the composition of
+k mechanisms each at ε_i (at the same α) is:
+
+```
+ε_total(α) = Σ ε_i(α)
+```
+
+This is the [Mironov 2017](https://arxiv.org/abs/1702.07476) Theorem 1
+linear composition. We default to α=4 (a balance between tightness for
+sub-Gaussian noise and stability for sub-exponential perturbations,
+[per Google's DP team](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/rdp/rdp_privacy_accountant.py),
+2025).
+
+Conversion to standard (ε, δ)-DP at a chosen δ = 10⁻⁶:
+
+```
+ε_eff(δ) = ε_total(α) + log(1/δ) / (α - 1)
+```
+
+Per [Mironov 2017](https://arxiv.org/abs/1702.07476) Proposition 3.
+
+The budget enforcement is strict: a charge that would push
+`spent_epsilon > total_epsilon` is rejected (`EpsilonBudgetExhausted`).
+The ledger logs every accepted charge with `opKind`/`opId` so the same
+operation cannot be charged twice (idempotency).
+
+We default to **monthly** periods (`period_start` is `YYYY-MM-01`); this
+matches the typical [OpenDP /
+Opacus](https://opacus.ai/docs/faq#what-is-the-recommended-privacy-budget)
+recommendation (2024) of "budget your ε against a wall-clock period
+and refresh on a calendar boundary".
+
+A typical `patterns`-scope budget at 4.0 ε/month with 0.1 ε/promotion
+allows 40 promotions per tenant per month — enough for the
+cognitive-memory federation rate (≤2/day) with a 33% safety margin.
+[Google's DP library](https://github.com/google/differential-privacy/)
+ships defaults in the same range (2024-2025).
+
+### 15.8 Citations
+
+The Rényi/DP foundations:
+
+- [Differential Privacy: A Survey of Results](https://link.springer.com/chapter/10.1007/978-3-540-79228-4_1) — Dwork, 2008-04-25 — the canonical DP foundations.
+- [Rényi Differential Privacy](https://arxiv.org/abs/1702.07476) — Mironov, 2017-02-24 — the RDP composition framework used here.
+- [The Algorithmic Foundations of Differential Privacy](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf) — Dwork & Roth, 2014 — the canonical textbook.
+- [OpenDP](https://opendp.org/) — Harvard's reference DP library (2024).
+- [Google Differential Privacy library](https://github.com/google/differential-privacy/) — 2024-2025.
+- [Opacus — DP-SGD for PyTorch](https://opacus.ai/) — Meta, 2024.
+
+The objectives + OKR theory:
+
+- [High Output Management](https://www.amazon.com/High-Output-Management-Andrew-Grove/dp/0679762884) — Andy Grove, 1983 — the OKR foundation at Intel.
+- [Measure What Matters](https://www.amazon.com/Measure-What-Matters-Google-Foundation/dp/0525536221) — John Doerr, 2018-04-24 — OKRs at scale.
+- [The Lean Startup](https://www.amazon.com/Lean-Startup-Entrepreneurs-Continuous-Innovation/dp/0307887898) — Eric Ries, 2011-09-13 — pivot-or-persevere framing.
+
+The owner-in-the-loop pattern:
+
+- [Constitutional AI: Harmlessness from AI Feedback](https://arxiv.org/abs/2212.08073) — Bai et al., 2022-12-15 — Anthropic's operator-check pattern.
+- [Site Reliability Workbook — Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/) — Google SRE, 2018-04-17 — burn-rate signal design.
+- [GDPR Art. 17](https://gdpr-info.eu/art-17-gdpr/) — right-to-erasure scope used for the prospective-revocation argument.
+
+### 15.9 Cross-package boundaries
+
+The `@borjie/strategic-layer` package is a *pure* domain package: types,
+managers, and repository ports — no I/O. The cross-package wiring is:
+
+| From | Calls into | At |
+|------|-----------|-----|
+| `cognitive-memory` federation promoter | `ConsentManager.isAllowed()` | every promote |
+| `cognitive-memory` federation promoter | `EpsilonBudgetManager.charge()` | every promote |
+| `mutation-authority` | T2 gate on `objectives.activate / pivot.accept` | every T2 |
+| `org-scope` | `scopeId` resolution | `ObjectiveManager.create()` |
+| morning-brief loop | `ProgressTracker.driftSignal()` | every brief |
+| weekly strategic-pulse | `ProgressTracker.driftSignal()` | once/week |
+| pivot-proposer | LLM port (injected) | drift-off detection |
+
+No package imports `@borjie/strategic-layer` transitively in a way that
+creates a cycle; the federation primitives in `cognitive-memory/src/federation/`
+will import this package (one-way dependency, planned for Wave M11
+integration).
+
+---

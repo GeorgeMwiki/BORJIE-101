@@ -401,3 +401,28 @@ export * from './mcp-external-connections.schema.js';
 // Consumed by @borjie/voice-agent/src/gemini-live + swahili-gauntlet.
 // See Docs/DESIGN/VOICE_GEMINI_LIVE_SWAHILI_SPEC.md.
 export * from './voice-swahili.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave M7 — Information Synthesis SOTA (diorize pipeline persistence)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0038_info_synthesis.sql:
+//   synth_runs    — pipeline invocation ledger (query + corpus + status
+//                    + audit chain pointers).
+//   synth_outputs — emitted synthesis (text + citations + calibrated
+//                    confidence + disagreements + audit hash).
+// Consumed by @borjie/info-synthesis.
+// See Docs/DESIGN/INFORMATION_SYNTHESIS_SOTA_SPEC.md.
+export * from './info-synthesis.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave M8-M9 — On-Demand Internal Software (sealed-bundle persistence)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0039_internal_software.sql:
+//   internal_tools     — registry of MD-generated tools (sealed bundle:
+//                         form + handler + archetype + audit hook),
+//                         lifecycle state, authority tier.
+//   internal_tool_runs — per-execution ledger (inputs, outputs, actor,
+//                         audit hash for forensic replay).
+// Consumed by @borjie/internal-software-generator.
+// See Docs/DESIGN/ON_DEMAND_INTERNAL_SOFTWARE_SPEC.md.
+export * from './internal-software.schema.js';
