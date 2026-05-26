@@ -8,6 +8,7 @@ import { FINANCE_ENTRIES } from './finance.js';
 import { COMPLIANCE_ENTRIES } from './compliance.js';
 import { MAINTENANCE_ENTRIES } from './maintenance.js';
 import { LEGAL_PROCEEDINGS_ENTRIES } from './legal-proceedings.js';
+import { MINING_ENTRIES } from './mining.js';
 import {
   HR_ENTRIES,
   INSURANCE_ENTRIES,
@@ -21,6 +22,7 @@ export const ALL_GLOSSARY_ENTRIES: readonly GlossaryEntry[] = Object.freeze([
   ...COMPLIANCE_ENTRIES,
   ...MAINTENANCE_ENTRIES,
   ...LEGAL_PROCEEDINGS_ENTRIES,
+  ...MINING_ENTRIES,
   ...HR_ENTRIES,
   ...INSURANCE_ENTRIES,
   ...MARKETING_ENTRIES,
@@ -33,6 +35,7 @@ export {
   COMPLIANCE_ENTRIES,
   MAINTENANCE_ENTRIES,
   LEGAL_PROCEEDINGS_ENTRIES,
+  MINING_ENTRIES,
   HR_ENTRIES,
   INSURANCE_ENTRIES,
   MARKETING_ENTRIES,

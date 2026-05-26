@@ -6,11 +6,13 @@
  * Schema gap: `marketplace_listings` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -123,16 +125,19 @@ export function createMarketplaceStakeholderAgent(deps: JuniorDeps) {
 
       if (deps.db && validated.mode === 'list') {
         try {
-          const { sql } = await import('drizzle-orm');
-          const payload = JSON.stringify(validated.listing_payload ?? {});
-          // TODO(#30): typed insert against `marketplace_listings`.
-          await deps.db.execute(
-            sql`INSERT INTO marketplace_listings
-                  (id, tenant_id, participant_kind, payload, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.participant_kind},
-                        ${payload}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const juniorMarketplaceListings = schemas?.juniorMarketplaceListings as unknown;
+          if (juniorMarketplaceListings) {
+            await deps.db
+              .insert(juniorMarketplaceListings)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                participantKind: validated.participant_kind,
+                payload: validated.listing_payload ?? {},
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('marketplace-stakeholder-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

@@ -6,11 +6,13 @@
  * Raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,

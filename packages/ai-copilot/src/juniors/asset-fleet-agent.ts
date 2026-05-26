@@ -5,11 +5,13 @@
  * Schema gap: `asset_status_snapshots` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -109,16 +111,20 @@ export function createAssetFleetAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `asset_status_snapshots`.
-          await deps.db.execute(
-            sql`INSERT INTO asset_status_snapshots
-                  (id, tenant_id, fleet_health, utilisation_pct, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${output.fleet_health},
-                        ${output.utilisation_pct}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const assetStatusSnapshots = schemas?.assetStatusSnapshots as unknown;
+          if (assetStatusSnapshots) {
+            await deps.db
+              .insert(assetStatusSnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                fleetHealth: output.fleet_health,
+                utilisationPct: String(output.utilisation_pct),
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('asset-fleet-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

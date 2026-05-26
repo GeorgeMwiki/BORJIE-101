@@ -12,12 +12,14 @@
  * yet. Raw SQL writes; TODO(#30) swap to typed drizzle inserts.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
   isoToday,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -138,17 +140,21 @@ export function createLicenceAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const factorsJson = JSON.stringify(output.dormancy_factors);
-          // TODO(#30): typed insert against `licence_dormancy_scores`.
-          await deps.db.execute(
-            sql`INSERT INTO licence_dormancy_scores
-                  (id, tenant_id, licence_id, score, alert_level, factors, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.licenceId},
-                        ${output.dormancy_score}, ${output.dormancy_alert_level},
-                        ${factorsJson}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const licenceDormancyScores = schemas?.licenceDormancyScores as unknown;
+          if (licenceDormancyScores) {
+            await deps.db
+              .insert(licenceDormancyScores)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                licenceId: validated.licenceId,
+                score: String(output.dormancy_score),
+                alertLevel: output.dormancy_alert_level,
+                factors: output.dormancy_factors,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('licence-agent: dormancy write skipped', {
             error: err instanceof Error ? err.message : String(err),

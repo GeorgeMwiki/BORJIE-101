@@ -26,6 +26,7 @@ import {
   type IngestReport,
   type WorkerLogger,
 } from './borjie-corpus-ingest.js';
+import { logger as pinoLogger } from '../logger.js';
 
 const DEFAULT_DOCS_ROOT =
   process.env.BORJIE_DOCS_ROOT ??
@@ -45,7 +46,7 @@ export interface CliOptions {
 }
 
 export async function main(opts: CliOptions = {}): Promise<IngestReport> {
-  const logger: WorkerLogger = opts.logger ?? noopLogger();
+  const logger: WorkerLogger = opts.logger ?? pinoLogger;
   const corpusRoots = opts.corpusRoots ?? DEFAULT_CORPUS_ROOTS;
   const embedder = opts.embedder ?? resolveEmbedder(logger);
   const sink = opts.db
@@ -87,35 +88,6 @@ async function resolveSink(logger: WorkerLogger): Promise<CorpusSink> {
     });
     return createLogSink(logger);
   }
-}
-
-function noopLogger(): WorkerLogger {
-  // TODO(#40): replace with `import { logger } from '../logger.js'` once the
-  // pino dep is hoisted into this service's runtime image.
-  //
-  // BORJIE_DEBUG=1 surfaces ingest progress on stdout/stderr so dev runs
-  // are observable without re-wiring pino.
-  if (process.env.BORJIE_DEBUG === '1') {
-    return {
-      info: (msg, ctx) =>
-        process.stdout.write(
-          `[INFO] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
-        ),
-      warn: (msg, ctx) =>
-        process.stdout.write(
-          `[WARN] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
-        ),
-      error: (msg, ctx) =>
-        process.stderr.write(
-          `[ERROR] ${msg}${ctx ? ' ' + JSON.stringify(ctx) : ''}\n`,
-        ),
-    };
-  }
-  return {
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  };
 }
 
 // CLI guard — only run main() when THIS file is the program entry. The

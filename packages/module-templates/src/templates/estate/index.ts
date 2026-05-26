@@ -1,6 +1,10 @@
 /**
- * ESTATE template bundle — the only template that ships a fully wired
- * `create_lease_application` handler in Piece B.
+ * ESTATE template bundle — ships the 2 surviving Piece-B handlers
+ * (`create_lease_application` + `post_receipt_draft`). The 3
+ * BossNyumba-era handlers (open_maintenance_case,
+ * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
+ * to mining-domain equivalents under `templates/mining/`. Closed
+ * TODO(#34).
  */
 
 import type { ModuleSpec } from '@borjie/module-spec-engine';
@@ -13,7 +17,8 @@ export const estateBundle: ModuleTemplateBundle = Object.freeze({
   slug: 'ESTATE',
   titleEn: 'Estate Management',
   titleSw: 'Usimamizi wa Mali',
-  description: 'Land, buildings, units, leases, maintenance — the property core.',
+  description:
+    'Land, buildings, units, leases, maintenance — the property core.',
   icon: 'building',
   spec,
   acceptHandlers: Object.freeze([
@@ -31,42 +36,13 @@ export const estateBundle: ModuleTemplateBundle = Object.freeze({
           unit_id: { kind: 'text', required: true },
           desired_start_date: { kind: 'date', required: true },
           monthly_rent: { kind: 'object', required: true },
-          proposed_term_months: { kind: 'int', required: true, min: 1, max: 120 },
-          source: { kind: 'object', required: true },
-        }),
-      }),
-    }),
-    Object.freeze({
-      action: 'open_maintenance_case',
-      handlerModule:
-        '@borjie/module-templates/estate/handlers/open_maintenance_case',
-      allowedPersonaTiers: Object.freeze([1, 2, 3, 4]),
-      riskTier: 'MEDIUM' as const,
-      emitsMoneyMutation: false,
-      payloadZod: Object.freeze({
-        kind: 'object',
-        fields: Object.freeze({
-          unit_id: { kind: 'text', required: true },
-          summary: { kind: 'text', required: true },
-          category: {
-            kind: 'enum',
+          proposed_term_months: {
+            kind: 'int',
             required: true,
-            values: ['plumbing', 'electrical', 'structural', 'appliance', 'other'],
+            min: 1,
+            max: 120,
           },
-        }),
-      }),
-    }),
-    Object.freeze({
-      action: 'schedule_renewal_negotiation',
-      handlerModule:
-        '@borjie/module-templates/estate/handlers/schedule_renewal_negotiation',
-      allowedPersonaTiers: Object.freeze([1, 2, 3]),
-      riskTier: 'MEDIUM' as const,
-      emitsMoneyMutation: false,
-      payloadZod: Object.freeze({
-        kind: 'object',
-        fields: Object.freeze({
-          lease_id: { kind: 'text', required: true },
+          source: { kind: 'object', required: true },
         }),
       }),
     }),
@@ -83,22 +59,6 @@ export const estateBundle: ModuleTemplateBundle = Object.freeze({
         fields: Object.freeze({
           amount: { kind: 'object', required: true },
           customer_entity_id: { kind: 'text', required: true },
-        }),
-      }),
-    }),
-    Object.freeze({
-      action: 'bulk_mark_for_renewal_prep',
-      handlerModule:
-        '@borjie/module-templates/estate/handlers/bulk_mark_for_renewal_prep',
-      // Bulk ops ALWAYS HITL — see bulk-mark-for-renewal-prep.ts.
-      allowedPersonaTiers: Object.freeze([1, 2]),
-      riskTier: 'HIGH' as const,
-      emitsMoneyMutation: false,
-      payloadZod: Object.freeze({
-        kind: 'object',
-        fields: Object.freeze({
-          lease_ids: { kind: 'array', required: true, item_kind: 'text' },
-          reason: { kind: 'text', required: true },
         }),
       }),
     }),

@@ -167,8 +167,14 @@
     "t30": "T-30 · Anza upya",
     "t7": "T-7 · DHARURA",
     "empty": "Hakuna leseni inayokwisha karibu.",
-    "renewAction": "Anza kurekebisha",
-    "daysLeft": "Siku zilizobaki"
+    "renewAction": "Anza upya",
+    "renewActionEn": "Begin renewal",
+    "daysLeft": "Siku zilizobaki",
+    "mineralLabel": "Madini",
+    "renewPending": "Inatuma ombi la upya…",
+    "renewSuccessSw": "Ombi la upya limewasilishwa",
+    "renewSuccessEn": "Renewal request submitted",
+    "renewFailed": "Ombi la upya halikufanikiwa. Jaribu tena."
   },
   "fingerprintSign": {
     "title": "Thibitisha kwa alama ya kidole",

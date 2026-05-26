@@ -11,12 +11,14 @@
  * Schema gap: `contract_remediation` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
   isoToday,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -114,16 +116,20 @@ export function createContractCurrencyAuditor(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `contract_remediation`.
-          await deps.db.execute(
-            sql`INSERT INTO contract_remediation
-                  (id, tenant_id, status, total_exposure_tzs, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${output.remediation_status},
-                        ${output.total_tra_exposure_tzs}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const contractRemediation = schemas?.contractRemediation as unknown;
+          if (contractRemediation) {
+            await deps.db
+              .insert(contractRemediation)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                status: output.remediation_status,
+                totalExposureTzs: String(output.total_tra_exposure_tzs),
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('contract-currency-auditor: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

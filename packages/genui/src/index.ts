@@ -63,6 +63,16 @@ export { DecisionTrace, type DecisionTraceProps } from './components/DecisionTra
 export { CodeBlock, type CodeBlockProps } from './components/CodeBlock';
 export { DataflowDiagram, type DataflowDiagramProps } from './components/DataflowDiagram';
 
+// Issue #37 — richer gantt renderer (standalone, not part of AgUiUiPart).
+export {
+  GanttChart,
+  GanttBarSchema,
+  GanttChartSchema,
+  type GanttChartProps,
+  type GanttBar,
+  type GanttBarStatus,
+} from './components/GanttChart';
+
 export { Frame, GenUiError } from './components/Frame';
 export { ClientOnly } from './components/ClientOnly';
 

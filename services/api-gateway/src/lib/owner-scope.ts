@@ -118,12 +118,14 @@ export async function getOwnerScope(
     repos.customers.findByPropertyIds(propertyIds, auth.tenantId, pagination),
     repos.invoices.findByPropertyIds(propertyIds, auth.tenantId, pagination.limit, pagination.offset),
     repos.payments.findByPropertyIds(propertyIds, auth.tenantId, pagination.limit, pagination.offset),
-    // Work orders still go through the legacy `findMany + JS filter`
-    // path — the work-orders repo doesn't yet expose a
-    // `findByPropertyIds` method; this is the smallest behaviour
-    // change that closes the multi-tenant leak on leases / invoices /
-    // payments / customers. TODO(#43): extend work-orders repo next.
-    repos.workOrders.findMany(auth.tenantId, pagination.limit, pagination.offset),
+    // Closes TODO(#43): work-orders repo now exposes `findBySiteIds`
+    // (mining-domain rename of the old `findByPropertyIds`). The DB does
+    // the filtering in a single WHERE clause — no `findMany + JS .filter`
+    // leak, no silent 1000-row truncation. In this transitional pre-fork
+    // state the caller still passes `propertyIds` because upstream
+    // owner-resolution still emits property identifiers; the work-orders
+    // method accepts them as opaque site/property ids.
+    repos.workOrders.findBySiteIds(propertyIds, auth.tenantId),
   ]);
 
   const units = unitsResult.items ?? [];
@@ -132,12 +134,13 @@ export async function getOwnerScope(
   const invoices = invoicesResult.items ?? [];
   const payments = paymentsResult.items ?? [];
 
-  // Work orders: still in-memory filter until the repo gains a
-  // findByPropertyIds method. Note this is the LAST of the heavy joins.
-  const propertyIdSet = new Set(propertyIds);
-  const workOrders = (workOrdersResult.items ?? []).filter(
-    (workOrder: any) => propertyIdSet.has(workOrder.propertyId),
-  );
+  // Work orders now filtered at the DB layer via `findBySiteIds` — the
+  // result shape is `WorkOrder[]` directly (not a paginated wrapper) so
+  // we use it as-is. Falls back to an empty array when the repo returns
+  // undefined (e.g. mock stubs that haven't implemented the method yet).
+  const workOrders: any[] = Array.isArray(workOrdersResult)
+    ? workOrdersResult
+    : (workOrdersResult?.items ?? []);
 
   const vendorIds = Array.from(
     new Set(workOrders.map((workOrder: any) => workOrder.vendorId).filter(Boolean)),

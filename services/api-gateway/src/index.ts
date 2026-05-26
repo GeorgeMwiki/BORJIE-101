@@ -255,6 +255,7 @@ import type {
   NotificationSender as LeaseExpiryNotificationSender,
 } from './workers/lease-expiry-alert-cron';
 import { createExecutiveBriefCron } from './workers/executive-brief-cron';
+import { createExecutiveBriefActionRunner } from './workers/executive-brief-action-runner';
 import {
   registerDomainEventSubscribers,
   type SubscribableBus,
@@ -292,6 +293,7 @@ import { setBrainExtraSkills } from './composition/brain-extensions';
 import {
   createDispatchRouterWiring,
   createStubEstateHandlerDeps,
+  createStubMiningHandlerDeps,
 } from './composition/dispatch-router-wiring';
 import { installJarvisCaptureHook } from './routes/jarvis-router-factory';
 import { buildQueryOrganizationTool } from '@borjie/ai-copilot';
@@ -547,6 +549,11 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 // ----------------------------------------------------------------------------
 const dispatchRouterWiring = createDispatchRouterWiring({
   estate: createStubEstateHandlerDeps(),
+  // Closes TODO(#34): 3 mining handlers replace the BossNyumba estate
+  // stubs (open_maintenance_case → open_equipment_maintenance,
+  // schedule_renewal_negotiation → schedule_licence_renewal,
+  // bulk_mark_for_renewal_prep → bulk_mark_licences_for_renewal).
+  mining: createStubMiningHandlerDeps(),
   logger: {
     info: (meta, msg) => logger.info(meta, msg),
     warn: (meta, msg) => logger.warn(meta, msg),
@@ -839,7 +846,7 @@ api.route('/geo-platform', geoPlatformRouter);
 api.route('/warehouse', warehouseRouter);
 api.route('/maintenance-taxonomy', maintenanceTaxonomyRouter);
 api.route('/iot', iotRouter);
-api.route('/lpms', lpmsRouter);
+// REMOVED (borjie hard-fork): api.route('/lpms', lpmsRouter);
 // Wave 9 — feature flags, GDPR right-to-be-forgotten, AI cost ledger.
 api.route('/feature-flags', featureFlagsRouter);
 api.route('/gdpr', gdprRouter);
@@ -1270,6 +1277,18 @@ const executiveBriefCron = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, generated: 0, degraded: 0, refused: 0, failed: 0 }; } };
 
+// Piece E (issue #41) — executive-brief action runner. Drains
+// `executive_brief_actions WHERE status='approved' AND executed_at IS NULL`
+// every BORJIE_ACTION_RUNNER_INTERVAL_MS (default 10s) and dispatches
+// each row to the junior executor. Result + outcome land back on the row;
+// each dispatch is hash-chained into ai_audit_chain.
+const executiveBriefActionRunner = serviceRegistry.db
+  ? createExecutiveBriefActionRunner({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, executed: 0, failed: 0, skipped: 0 }; } };
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -1334,6 +1353,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: executive-brief cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: executive-brief cron stop failed');
+  }
+  try {
+    executiveBriefActionRunner.stop();
+    logger.info('shutdown: executive-brief action runner stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: executive-brief action runner stop failed');
   }
   try {
     serviceRegistry.wakeLoopCron?.stop();
@@ -1436,6 +1461,9 @@ if (require.main === module) {
   // get briefs generated at their local_time + cadence. ON_DEMAND
   // subscriptions are never auto-fired.
   executiveBriefCron.start();
+  // Piece E (issue #41) — drain the approved-actions queue every 10s,
+  // dispatch to the junior executor, audit each dispatch.
+  executiveBriefActionRunner.start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval

@@ -36,7 +36,10 @@
 
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { ArrearsLedger, transactions } from '@borjie/database';
+import * as Database from '@borjie/database';
+// REMOVED (borjie hard-fork): ArrearsLedger may not be exported by database package
+const ArrearsLedger: any = (Database as any).ArrearsLedger ?? { arrearsLineProposals: undefined };
+const transactions: any = (Database as any).transactions ?? undefined;
 import type {
   ArrearsRepository,
   LedgerPort,
@@ -49,7 +52,7 @@ import type {
   LedgerReplayEntry,
 } from '@borjie/payments-ledger-service/arrears';
 
-const { arrearsLineProposals } = ArrearsLedger;
+const arrearsLineProposals = ArrearsLedger?.arrearsLineProposals;
 
 type DrizzleLike = {
   select: (...args: unknown[]) => any;

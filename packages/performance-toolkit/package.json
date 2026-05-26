@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "SOTA 2026 performance toolkit: lazy-load primitives (lazyWithRetry handles ChunkLoadError after deploys), streaming SSE helpers, cache strategies (ETag/304, stale-while-revalidate, Brotli, Cache-Control presets), bundle-budget enforcement, Anthropic prompt-cache helpers (90% savings on stable system prefixes), web-vitals v5 + RED metrics sink. Zero hard runtime deps — peerDeps for React/Hono.",
+  "description": "SOTA 2026 performance toolkit",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,35 +14,50 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
+      "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./lazy-load": {
       "types": "./dist/lazy-load/index.d.ts",
-      "import": "./dist/lazy-load/index.js"
+      "import": "./dist/lazy-load/index.js",
+      "require": "./dist/lazy-load/index.js",
+      "default": "./dist/lazy-load/index.js"
     },
     "./streaming": {
       "types": "./dist/streaming/index.d.ts",
-      "import": "./dist/streaming/index.js"
+      "import": "./dist/streaming/index.js",
+      "require": "./dist/streaming/index.js",
+      "default": "./dist/streaming/index.js"
     },
     "./cache": {
       "types": "./dist/cache/index.d.ts",
-      "import": "./dist/cache/index.js"
+      "import": "./dist/cache/index.js",
+      "require": "./dist/cache/index.js",
+      "default": "./dist/cache/index.js"
     },
     "./bundle-budget": {
       "types": "./dist/bundle-budget/index.d.ts",
-      "import": "./dist/bundle-budget/index.js"
+      "import": "./dist/bundle-budget/index.js",
+      "require": "./dist/bundle-budget/index.js",
+      "default": "./dist/bundle-budget/index.js"
     },
     "./prompt-cache": {
       "types": "./dist/prompt-cache/index.d.ts",
-      "import": "./dist/prompt-cache/index.js"
+      "import": "./dist/prompt-cache/index.js",
+      "require": "./dist/prompt-cache/index.js",
+      "default": "./dist/prompt-cache/index.js"
     },
     "./perf-metrics": {
       "types": "./dist/perf-metrics/index.d.ts",
-      "import": "./dist/perf-metrics/index.js"
+      "import": "./dist/perf-metrics/index.js",
+      "require": "./dist/perf-metrics/index.js",
+      "default": "./dist/perf-metrics/index.js"
     },
     "./yield-and-chunk": {
       "types": "./dist/yield-and-chunk/index.d.ts",
-      "import": "./dist/yield-and-chunk/index.js"
+      "import": "./dist/yield-and-chunk/index.js",
+      "require": "./dist/yield-and-chunk/index.js",
+      "default": "./dist/yield-and-chunk/index.js"
     }
   },
   "scripts": {

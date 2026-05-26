@@ -10,11 +10,13 @@
  * Schema gap: `hr_summaries` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -125,16 +127,19 @@ export function createHrAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const json = JSON.stringify(output);
-          // TODO(#30): typed insert against `hr_summaries`.
-          await deps.db.execute(
-            sql`INSERT INTO hr_summaries
-                  (id, tenant_id, reporting_month, summary, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.reporting_month_iso},
-                        ${json}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const hrSummaries = schemas?.hrSummaries as unknown;
+          if (hrSummaries) {
+            await deps.db
+              .insert(hrSummaries)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                reportingMonth: validated.reporting_month_iso,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('hr-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

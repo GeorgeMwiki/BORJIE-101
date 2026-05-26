@@ -11,11 +11,13 @@
  * Schema gap: `sic_events`, `shift_reconciliations` raw SQL.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -143,19 +145,31 @@ export function createOperationsSicAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const payloadJson = JSON.stringify(validated.payload);
-          // TODO(#30): typed insert against `sic_events` + `shift_reconciliations`.
-          await deps.db.execute(
-            sql`INSERT INTO sic_events
-                  (id, tenant_id, site_id, shift_id, mode, supervisor_id, deviation_code,
-                   variance_tonnes, variance_pct, payload, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId}, ${validated.shiftId},
-                        ${validated.mode}, ${validated.supervisor_id}, ${output.deviation_code},
-                        ${output.variance_tonnes}, ${output.variance_pct},
-                        ${payloadJson}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const sicEvents = schemas?.sicEvents as unknown;
+          if (sicEvents) {
+            await deps.db
+              .insert(sicEvents)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                shiftId: validated.shiftId,
+                mode: validated.mode,
+                supervisorId: validated.supervisor_id,
+                deviationCode: output.deviation_code,
+                varianceTonnes:
+                  output.variance_tonnes !== undefined && output.variance_tonnes !== null
+                    ? String(output.variance_tonnes)
+                    : null,
+                variancePct:
+                  output.variance_pct !== undefined && output.variance_pct !== null
+                    ? String(output.variance_pct)
+                    : null,
+                payload: validated.payload,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('operations-sic-agent: db write skipped', {
             error: err instanceof Error ? err.message : String(err),

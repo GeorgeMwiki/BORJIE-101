@@ -7,10 +7,16 @@
  * api-gateway composition root builds this registry once at startup with
  * real ports injected; tests build it with port fakes.
  *
- * Currently registers the 5 ESTATE actions. Other modules (HR, FINANCE,
- * etc.) attach handlers as their wave-3 follow-ups land — each new
- * module exports its own `build<Module>HandlerSet` similar to the estate
- * adapter file, and `createModuleHandlerRegistry` merges them.
+ * Currently registers:
+ *   - ESTATE   — 2 actions (`create_lease_application`, `post_receipt_draft`)
+ *   - MINING   — 3 actions (`schedule_licence_renewal`,
+ *                `open_equipment_maintenance`,
+ *                `bulk_mark_licences_for_renewal`)
+ *
+ * Other modules (HR, FINANCE, etc.) attach handlers as their wave-3
+ * follow-ups land — each new module exports its own
+ * `build<Module>HandlerSet` similar to the estate/mining adapter files,
+ * and `createModuleHandlerRegistry` merges them.
  *
  * The registry implementation is dispatch-router-compatible: it returns
  * an `AcceptHandlerRegistry` whose `.get(module, action)` is O(1).
@@ -26,6 +32,12 @@ import {
   type BuildEstateHandlerSet,
   type EstateHandlerDeps,
 } from './estate/accept-proposal-handlers.js';
+import {
+  buildMiningHandlerSet,
+  MINING_ACTIONS,
+  type BuildMiningHandlerSet,
+  type MiningHandlerDeps,
+} from './mining/accept-proposal-handlers.js';
 
 // ─── Module → action → handler shape ──────────────────────────────────────
 
@@ -40,13 +52,19 @@ export interface ModuleHandlerRegistry extends AcceptHandlerRegistry {
 }
 
 export interface CreateModuleHandlerRegistryDeps {
-  /** Estate template injections. Required since ESTATE is the only live set. */
+  /** Estate template injections. */
   readonly estate: EstateHandlerDeps;
+  /**
+   * Mining template injections. Optional so callers that have not yet
+   * wired mining ports (e.g. early-wave tests) still resolve.
+   */
+  readonly mining?: MiningHandlerDeps;
   /** Optional caller-provided overrides — useful for tests. */
   readonly overrides?: Readonly<Record<string, AcceptHandler>>;
 }
 
 const ESTATE_MODULE_ID = 'ESTATE';
+const MINING_MODULE_ID = 'MINING';
 
 /**
  * Build a fully-wired dispatch-router handler registry across all
@@ -57,11 +75,20 @@ export function createModuleHandlerRegistry(
 ): ModuleHandlerRegistry {
   const handlers = new Map<string, AcceptHandler>();
 
-  // ESTATE — 5 actions.
+  // ESTATE — 2 surviving actions.
   const estateSet: BuildEstateHandlerSet = buildEstateHandlerSet(deps.estate);
   for (const action of ESTATE_ACTIONS) {
     const handler = estateSet[action];
     handlers.set(key(ESTATE_MODULE_ID, action), handler);
+  }
+
+  // MINING — 3 actions (when wired).
+  if (deps.mining) {
+    const miningSet: BuildMiningHandlerSet = buildMiningHandlerSet(deps.mining);
+    for (const action of MINING_ACTIONS) {
+      const handler = miningSet[action];
+      handlers.set(key(MINING_MODULE_ID, action), handler);
+    }
   }
 
   // Future modules: HR, FLEET, FINANCE etc. land here as their adapters

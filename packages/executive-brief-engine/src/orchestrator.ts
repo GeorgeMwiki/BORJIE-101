@@ -19,16 +19,8 @@
  * / degraded outcomes without exception handling.
  */
 
-// Soft-pointer: @borjie/persona-runtime is not yet built. Inline the
-// minimal Persona contract this engine actually relies on; the upstream
-// package will be a structural superset when it lands.
-// TODO(#38): swap back to `import type { Persona } from '@borjie/persona-runtime'`
-// once persona-runtime is published.
-export interface Persona {
-  readonly id: string;
-  readonly powerTier: number;
-  readonly displayName?: string;
-}
+import type { Persona } from '@borjie/persona-runtime';
+
 import { runStakesAwareDebateOnBrief, type DebatePort } from './debate.js';
 import { emitRecommendedActions, type RoutingRulesPort } from './action-emitter.js';
 import { assembleBrief } from './brief-assembler.js';

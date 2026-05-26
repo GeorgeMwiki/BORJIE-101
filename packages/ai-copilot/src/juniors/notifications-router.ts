@@ -16,6 +16,7 @@ import {
   buildUniversalPrompt,
   defaultJuniorDeps,
   deterministicId,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -123,16 +124,21 @@ export function createNotificationsRouter(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `notifications_outbox`.
-          await deps.db.execute(
-            sql`INSERT INTO notifications_outbox
-                  (id, tenant_id, recipient_user_id, category, severity, summary, created_at)
-                VALUES (${output.notification_id}, ${validated.tenantId}, ${validated.recipient_user_id},
-                        ${validated.category}, ${validated.severity}, ${summary}::jsonb, NOW())
-                ON CONFLICT (id) DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const notificationsOutbox = schemas?.notificationsOutbox as unknown;
+          if (notificationsOutbox) {
+            await deps.db
+              .insert(notificationsOutbox)
+              .values({
+                id: output.notification_id,
+                tenantId: validated.tenantId,
+                recipientUserId: validated.recipient_user_id,
+                category: validated.category,
+                severity: validated.severity,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('notifications-router: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

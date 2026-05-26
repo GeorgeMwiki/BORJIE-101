@@ -6,11 +6,13 @@
  * Schema gap: `metallurgy_recommendations` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -130,17 +132,21 @@ export function createMetallurgyAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `metallurgy_recommendations`.
-          await deps.db.execute(
-            sql`INSERT INTO metallurgy_recommendations
-                  (id, tenant_id, site_id, mineral_family, expected_recovery_pct, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId},
-                        ${validated.mineral_family}, ${output.expected_recovery_pct},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const metallurgyRecommendations = schemas?.metallurgyRecommendations as unknown;
+          if (metallurgyRecommendations) {
+            await deps.db
+              .insert(metallurgyRecommendations)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                mineralFamily: validated.mineral_family,
+                expectedRecoveryPct: String(output.expected_recovery_pct),
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('metallurgy-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

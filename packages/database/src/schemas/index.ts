@@ -143,6 +143,14 @@ export * from './implicit-feedback-signals.schema.js';
 export * from './agency-run-checkpoints.schema.js';
 export * from './action-runtime.schema.js';
 
+// Piece E executive-brief action queue (migration 0013).
+// Note: the Piece B `routing_rules` table is defined in
+// `./modules/routing-rules.schema.js` (re-exported through
+// `./modules/index.js` below). Its columns were updated to the
+// `source_kind / target_kind / condition_jsonb / active` shape that
+// matches migration 0013.
+export * from './executive-brief-actions.schema.js';
+
 // Temporal entity graph
 export * from './temporal-entity-graph.schema.js';
 
@@ -210,3 +218,12 @@ export * from './admin-internals.schema.js';
 // Polymorphic core-entity + dynamic modules (sub-package barrels).
 export * from './core-entity/index.js';
 export * from './modules/index.js';
+
+// Junior agent outputs (migration 0011): decision_log, audit_log,
+// licence_dormancy_scores, sample_batches, geology_scores, site_layouts,
+// sic_events, hr_summaries, asset_status_snapshots, forecast_snapshots,
+// fx_snapshots, sales_advice, buyer_kyc_records, compliance_verdicts,
+// safety_snapshots, grievance_records, contract_remediation,
+// generated_reports, notifications_outbox, metallurgy_recommendations,
+// risk_snapshots, plus junior_* mirrors of formal-schema tables.
+export * from './junior-outputs/index.js';

@@ -46,6 +46,7 @@ import {
   buildEstateHandlerSet,
   createModuleHandlerRegistry,
   type EstateHandlerDeps,
+  type MiningHandlerDeps,
 } from '@borjie/module-templates';
 
 // ─── Public type ──────────────────────────────────────────────────────────
@@ -87,8 +88,14 @@ export interface DispatchRouterWiring {
 // ─── Deps ────────────────────────────────────────────────────────────────
 
 export interface DispatchRouterWiringDeps {
-  /** Estate handler ports. Required since ESTATE is the only live set. */
+  /** Estate handler ports. */
   readonly estate: EstateHandlerDeps;
+  /**
+   * Mining handler ports (closes TODO(#34) — replaces the BossNyumba
+   * estate stubs). Optional so early-wave compositions can resolve
+   * without them.
+   */
+  readonly mining?: MiningHandlerDeps;
   /** Optional override registry (e.g. for tests). */
   readonly handlerRegistry?: AcceptHandlerRegistry;
   /** Optional override routing-rules loader (Drizzle-backed in prod). */
@@ -135,10 +142,17 @@ export function createDispatchRouterWiring(
     createInMemoryRoutingRulesLoader();
   const routingRules = deps.routingRules ?? routingRulesLoader;
 
-  // 4. Handler registry — real one with ESTATE adapters by default.
+  // 4. Handler registry — real one with ESTATE + MINING adapters by
+  //    default. MINING handlers close TODO(#34): the 3 BossNyumba estate
+  //    stubs (open_maintenance_case, schedule_renewal_negotiation,
+  //    bulk_mark_for_renewal_prep) are ported to mining-domain (asset_id,
+  //    licence_id, etc.) and registered under the MINING module slug.
   const handlerRegistry =
     deps.handlerRegistry ??
-    createModuleHandlerRegistry({ estate: deps.estate });
+    createModuleHandlerRegistry({
+      estate: deps.estate,
+      ...(deps.mining ? { mining: deps.mining } : {}),
+    });
 
   // 5. Boot diagnostics — log which actions are registered.
   if (deps.logger?.info) {
@@ -227,12 +241,13 @@ export function createDispatchRouterWiring(
  * dev composition where the real ports (LedgerService.post, etc.) are
  * not yet wired. Every port returns a stable fake id so the dispatcher's
  * accept_proposal path is exercisable end-to-end.
+ *
+ * The 3 BossNyumba estate stubs (openMaintenanceCase,
+ * scheduleRenewalNegotiation, bulkMarkForRenewalPrep) have been
+ * dropped — their mining-domain replacements live in
+ * `createStubMiningHandlerDeps()` below. Closes TODO(#34).
  */
 export function createStubEstateHandlerDeps(): EstateHandlerDeps {
-  // Ports default to stable-fake implementations so the integration
-  // test verifies the call shape rather than the DB state. This is the
-  // explicit "stub the write" path the task description allows; tracked
-  // for replacement by TODO(#34) when the real ports land.
   const auditChain = {
     async append() {
       return { id: `stub_audit_${Math.random().toString(36).slice(2, 8)}` };
@@ -280,31 +295,85 @@ export function createStubEstateHandlerDeps(): EstateHandlerDeps {
       },
       auditChain,
     },
-    openMaintenanceCase: {
-      tickets: {
-        async open() {
-          // Returns null so the handler stubs via console.warn — matches
-          // "module table missing" path documented in the brief.
-          return null;
+  };
+}
+
+/**
+ * Convenience: build a stub mining-handler-deps surface for tests +
+ * dev composition. Stable-fake ports so the dispatcher's accept_proposal
+ * path is exercisable end-to-end for the 3 mining actions:
+ *   - schedule_licence_renewal
+ *   - open_equipment_maintenance
+ *   - bulk_mark_licences_for_renewal
+ *
+ * Real Drizzle-backed ports against `tasks` / `temporal_entities` /
+ * `maintenance_events` swap in once the per-tenant DB connection is
+ * wired through the composition root.
+ */
+export function createStubMiningHandlerDeps(): MiningHandlerDeps {
+  const auditChain = {
+    async append() {
+      return { id: `stub_mining_audit_${Math.random().toString(36).slice(2, 8)}` };
+    },
+  };
+  const notifications = {
+    async publish() {
+      /* no-op in dev */
+    },
+  };
+  let counter = 0;
+  const ids = {
+    newId(prefix: string): string {
+      counter += 1;
+      return `stub_${prefix}_${counter}_${Math.random().toString(36).slice(2, 6)}`;
+    },
+  };
+  return {
+    moduleId: 'MINING',
+    clock: {
+      nowIso: () => new Date().toISOString(),
+      todayIso: () => new Date().toISOString().slice(0, 10),
+    },
+    scheduleLicenceRenewal: {
+      tasks: {
+        async insert() {
+          return { id: ids.newId('task') };
+        },
+      },
+      temporalEntities: {
+        async insert() {
+          return { id: ids.newId('te') };
         },
       },
       auditChain,
       notifications,
+      ids,
     },
-    scheduleRenewalNegotiation: {
-      workAssignments: {
-        async assign() {
-          // Piece M port not yet wired in dev → stub.
-          return null;
+    openEquipmentMaintenance: {
+      maintenanceEvents: {
+        async insert() {
+          return { id: ids.newId('me') };
+        },
+      },
+      tasks: {
+        async insert() {
+          return { id: ids.newId('task') };
         },
       },
       auditChain,
       notifications,
+      ids,
     },
-    bulkMarkForRenewalPrep: {
-      leases: {
-        async bulkMarkForRenewalPrep() {
-          return null;
+    bulkMarkLicencesForRenewal: {
+      licenceTasks: {
+        async bulkCreateRenewalTasks(args) {
+          return {
+            created: args.licenceIds.map((licenceId) => ({
+              licenceId,
+              taskId: ids.newId('task'),
+            })),
+            skipped: [],
+          };
         },
       },
       auditChain,

@@ -15,37 +15,32 @@
  *   GET   /?listing_id=X          seller view of bids on a listing
  *   POST  /:id/accept             seller accepts
  *   POST  /:id/reject             seller rejects
+ *
+ * Migrated to `@hono/zod-openapi` (issue #19). Route defs live in
+ * `./_openapi/route-defs.ts` so the static spec generator can register
+ * them without importing this file's middleware + DB code.
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { buyers, marketplaceBids, marketplaceListings } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  bidsPlaceRoute,
+  bidsListRoute,
+  bidsAcceptRoute,
+  bidsRejectRoute,
+} from './_openapi/route-defs';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
-
-const PaymentTermsSchema = z.enum(['instant', 'net_30', 'net_60']);
-
-const PlaceBidSchema = z.object({
-  listingId: z.string().min(1),
-  bidPriceTzs: z.number().nonnegative(),
-  paymentTerms: PaymentTermsSchema.default('instant'),
-  notes: z.string().max(2000).optional(),
-});
-
-const RejectSchema = z.object({
-  reason: z.string().min(1).max(2000),
-});
 
 const KYC_URL = '/api/v1/mining/buyers/kyc';
 
@@ -64,18 +59,14 @@ async function findLinkedBuyer(
     .select({ id: buyers.id, kycStatus: buyers.kycStatus })
     .from(buyers)
     .where(
-      and(
-        eq(buyers.tenantId, tenantId),
-        eq(buyers.linkedUserId, userId),
-      ),
+      and(eq(buyers.tenantId, tenantId), eq(buyers.linkedUserId, userId)),
     )
     .limit(1);
   return existing ?? null;
 }
 
-app.post(
-  '/',
-  zValidator('json', PlaceBidSchema),
+app.openapi(
+  bidsPlaceRoute,
   withSecurityEvents(
     { action: 'mining.bid.place', resource: 'mining.bid', severity: 'info' },
     async (c) => {
@@ -94,7 +85,10 @@ app.post(
         .limit(1);
       if (!listing) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Listing not found' } },
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Listing not found' },
+          },
           404,
         );
       }
@@ -102,7 +96,7 @@ app.post(
       if (!buyer) {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'kyc_required',
               message: 'Complete KYC before placing a bid',
@@ -115,7 +109,7 @@ app.post(
       if (buyer.kycStatus === 'rejected') {
         return c.json(
           {
-            success: false,
+            success: false as const,
             error: {
               code: 'kyc_rejected',
               message: 'Your KYC submission was rejected; bidding is disabled',
@@ -138,21 +132,15 @@ app.post(
           status: 'pending',
         })
         .returning();
-      return c.json({ success: true, data: bid }, 201);
+      return c.json({ success: true as const, data: bid }, 201);
     },
   ),
 );
 
-app.get('/', async (c) => {
+app.openapi(bidsListRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db') as DrizzleDb;
-  const listingId = c.req.query('listing_id');
-  if (!listingId) {
-    return c.json(
-      { success: false, error: { code: 'BAD_REQUEST', message: 'listing_id required' } },
-      400,
-    );
-  }
+  const { listing_id: listingId } = c.req.valid('query');
   const rows = await db
     .select({
       bid: marketplaceBids,
@@ -181,7 +169,7 @@ app.get('/', async (c) => {
     )
     .orderBy(desc(marketplaceBids.createdAt))
     .limit(200);
-  return c.json({ success: true, data: rows });
+  return c.json({ success: true as const, data: rows }, 200);
 });
 
 async function setBidStatus(
@@ -218,57 +206,54 @@ async function setBidStatus(
   return updated;
 }
 
-app.post(
-  '/:id/accept',
+app.openapi(
+  bidsAcceptRoute,
   withSecurityEvents(
     { action: 'mining.bid.accept', resource: 'mining.bid', severity: 'info' },
     async (c) => {
       const { tenantId } = c.get('auth');
       const db = c.get('db') as DrizzleDb;
-      const updated = await setBidStatus(
-        db,
-        tenantId,
-        c.req.param('id'),
-        'accepted',
-        { acceptedAt: new Date().toISOString() },
-      );
+      const { id } = c.req.valid('param');
+      const updated = await setBidStatus(db, tenantId, id, 'accepted', {
+        acceptedAt: new Date().toISOString(),
+      });
       if (!updated) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Bid not found' } },
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Bid not found' },
+          },
           404,
         );
       }
-      return c.json({ success: true, data: updated });
+      return c.json({ success: true as const, data: updated }, 200);
     },
   ),
 );
 
-app.post(
-  '/:id/reject',
-  zValidator('json', RejectSchema),
+app.openapi(
+  bidsRejectRoute,
   withSecurityEvents(
     { action: 'mining.bid.reject', resource: 'mining.bid', severity: 'info' },
     async (c) => {
       const { tenantId } = c.get('auth');
       const db = c.get('db') as DrizzleDb;
+      const { id } = c.req.valid('param');
       const body = c.req.valid('json');
-      const updated = await setBidStatus(
-        db,
-        tenantId,
-        c.req.param('id'),
-        'rejected',
-        {
-          rejectionReason: body.reason,
-          rejectedAt: new Date().toISOString(),
-        },
-      );
+      const updated = await setBidStatus(db, tenantId, id, 'rejected', {
+        rejectionReason: body.reason,
+        rejectedAt: new Date().toISOString(),
+      });
       if (!updated) {
         return c.json(
-          { success: false, error: { code: 'NOT_FOUND', message: 'Bid not found' } },
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Bid not found' },
+          },
           404,
         );
       }
-      return c.json({ success: true, data: updated });
+      return c.json({ success: true as const, data: updated }, 200);
     },
   ),
 );

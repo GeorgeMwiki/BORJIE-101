@@ -1,7 +1,9 @@
 /**
  * Legal-proceedings glossary. Tribunal / court / enforcement vocabulary.
  * Citations intentionally scoped to KE + GB where statute refs are
- * stable; remaining jurisdictions flagged TODO-L18N.
+ * stable. Mining-licence enforcement terms (TZ Mining Act, gold-window,
+ * royalty) live in `./mining.ts` and are the Borjie-era replacement for
+ * the heritage BossNyumba tenancy enforcement chain.
  */
 
 import { buildEntries, enOnlyBatch, type EntrySpec } from './helpers.js';

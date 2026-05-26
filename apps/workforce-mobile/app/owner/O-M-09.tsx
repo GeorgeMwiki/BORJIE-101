@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -12,12 +12,13 @@ import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { useI18n } from '../../src/i18n/useI18n'
-import { groupByBucket, useLicences } from '../../src/owner/useLicences'
+import { groupByBucket, useLicences, useRenewLicence } from '../../src/owner/useLicences'
 import type { Licence, LicenceBucket } from '../../src/owner/types'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-09'
+const TOAST_AUTO_DISMISS_MS = 4_000
 
 export default function Screen(): JSX.Element {
   return (
@@ -29,10 +30,27 @@ export default function Screen(): JSX.Element {
   )
 }
 
+type RenewStatus =
+  | { kind: 'idle' }
+  | { kind: 'pending'; licenceId: string }
+  | { kind: 'success'; licenceId: string }
+  | { kind: 'error'; licenceId: string; message: string }
+
 function LicenceCalendarView(): JSX.Element {
   const { t } = useI18n()
   const query = useLicences()
+  const renewal = useRenewLicence()
   const [refreshing, setRefreshing] = useState<boolean>(false)
+  const [status, setStatus] = useState<RenewStatus>({ kind: 'idle' })
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current)
+      }
+    }
+  }, [])
 
   const onRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true)
@@ -43,11 +61,30 @@ function LicenceCalendarView(): JSX.Element {
     }
   }, [query])
 
-  const onRenew = useCallback((licence: Licence): void => {
-    // TODO(#44): route to renewal action flow once the licence-renewal
-    // screen ships. For now we log so the wiring is exercised.
-    console.error('Renewal requested for', licence.pmlNumber)
-  }, [])
+  const onRenew = useCallback(
+    (licence: Licence): void => {
+      setStatus({ kind: 'pending', licenceId: licence.id })
+      renewal.mutate(licence.id, {
+        onSuccess: () => {
+          setStatus({ kind: 'success', licenceId: licence.id })
+          if (toastTimer.current) {
+            clearTimeout(toastTimer.current)
+          }
+          toastTimer.current = setTimeout(() => {
+            setStatus({ kind: 'idle' })
+          }, TOAST_AUTO_DISMISS_MS)
+        },
+        onError: (error: Error) => {
+          setStatus({
+            kind: 'error',
+            licenceId: licence.id,
+            message: error.message
+          })
+        }
+      })
+    },
+    [renewal]
+  )
 
   if (query.isPending) {
     return (
@@ -67,55 +104,74 @@ function LicenceCalendarView(): JSX.Element {
   }
 
   const buckets = groupByBucket(query.data.licences)
+
   return (
-    <ScrollView
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void onRefresh()}
-          tintColor={colors.gold}
+    <View style={styles.container}>
+      {status.kind === 'success' ? (
+        <View
+          accessibilityRole="alert"
+          accessibilityLabel={`${t.licenceCalendar.renewSuccessSw}. ${t.licenceCalendar.renewSuccessEn}.`}
+          style={styles.toastSuccess}
+        >
+          <Text style={styles.toastTitle}>{t.licenceCalendar.renewSuccessSw}</Text>
+          <Text style={styles.toastSubtitle}>{t.licenceCalendar.renewSuccessEn}</Text>
+        </View>
+      ) : null}
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor={colors.gold}
+          />
+        }
+        contentContainerStyle={styles.scroll}
+      >
+        <BucketSection
+          title={t.licenceCalendar.t7}
+          bucket="t7"
+          licences={buckets.t7}
+          status={status}
+          strings={t.licenceCalendar}
+          onRenew={onRenew}
         />
-      }
-      contentContainerStyle={styles.scroll}
-    >
-      <BucketSection
-        title={t.licenceCalendar.t7}
-        bucket="t7"
-        licences={buckets.t7}
-        renewLabel={t.licenceCalendar.renewAction}
-        daysLeftLabel={t.licenceCalendar.daysLeft}
-        emptyLabel={t.licenceCalendar.empty}
-        onRenew={onRenew}
-      />
-      <BucketSection
-        title={t.licenceCalendar.t30}
-        bucket="t30"
-        licences={buckets.t30}
-        renewLabel={t.licenceCalendar.renewAction}
-        daysLeftLabel={t.licenceCalendar.daysLeft}
-        emptyLabel={t.licenceCalendar.empty}
-        onRenew={onRenew}
-      />
-      <BucketSection
-        title={t.licenceCalendar.t90}
-        bucket="t90"
-        licences={buckets.t90}
-        renewLabel={t.licenceCalendar.renewAction}
-        daysLeftLabel={t.licenceCalendar.daysLeft}
-        emptyLabel={t.licenceCalendar.empty}
-        onRenew={onRenew}
-      />
-    </ScrollView>
+        <BucketSection
+          title={t.licenceCalendar.t30}
+          bucket="t30"
+          licences={buckets.t30}
+          status={status}
+          strings={t.licenceCalendar}
+          onRenew={onRenew}
+        />
+        <BucketSection
+          title={t.licenceCalendar.t90}
+          bucket="t90"
+          licences={buckets.t90}
+          status={status}
+          strings={t.licenceCalendar}
+          onRenew={onRenew}
+        />
+      </ScrollView>
+    </View>
   )
+}
+
+interface LicenceCalendarStrings {
+  empty: string
+  renewAction: string
+  renewActionEn: string
+  daysLeft: string
+  mineralLabel: string
+  renewPending: string
+  renewFailed: string
 }
 
 interface BucketSectionProps {
   title: string
   bucket: LicenceBucket
   licences: ReadonlyArray<Licence>
-  renewLabel: string
-  daysLeftLabel: string
-  emptyLabel: string
+  status: RenewStatus
+  strings: LicenceCalendarStrings
   onRenew: (licence: Licence) => void
 }
 
@@ -123,47 +179,111 @@ function BucketSection({
   title,
   bucket,
   licences,
-  renewLabel,
-  daysLeftLabel,
-  emptyLabel,
+  status,
+  strings,
   onRenew
 }: BucketSectionProps): JSX.Element {
   return (
     <Section title={title}>
       {licences.length === 0 ? (
-        <Text style={styles.empty}>{emptyLabel}</Text>
+        <Text style={styles.empty}>{strings.empty}</Text>
       ) : (
         licences.map((licence) => (
-          <Pressable
+          <LicenceRow
             key={licence.id}
-            accessibilityRole="button"
-            accessibilityLabel={renewLabel}
-            onPress={() => onRenew(licence)}
-            style={[styles.card, BUCKET_STYLES[bucket]]}
-          >
-            <View>
-              <Text style={styles.cardTitle}>{licence.pmlNumber}</Text>
-              <Text style={styles.cardSite}>{licence.siteName}</Text>
-            </View>
-            <View style={styles.cardRight}>
-              <Text style={styles.cardDays}>{licence.daysLeft}</Text>
-              <Text style={styles.cardDaysLabel}>{daysLeftLabel}</Text>
-            </View>
-          </Pressable>
+            licence={licence}
+            bucket={bucket}
+            status={status}
+            strings={strings}
+            onRenew={onRenew}
+          />
         ))
       )}
     </Section>
   )
 }
 
-const BUCKET_STYLES: Readonly<Record<LicenceBucket, { borderLeftColor: string; backgroundColor: string }>> = {
+interface LicenceRowProps {
+  licence: Licence
+  bucket: LicenceBucket
+  status: RenewStatus
+  strings: LicenceCalendarStrings
+  onRenew: (licence: Licence) => void
+}
+
+function LicenceRow({
+  licence,
+  bucket,
+  status,
+  strings,
+  onRenew
+}: LicenceRowProps): JSX.Element {
+  const isPending = status.kind === 'pending' && status.licenceId === licence.id
+  const isError = status.kind === 'error' && status.licenceId === licence.id
+  const renewLabel = `${strings.renewAction} / ${strings.renewActionEn}`
+  return (
+    <View style={[styles.card, BUCKET_STYLES[bucket]]}>
+      <View style={styles.cardTop}>
+        <View style={styles.cardLeft}>
+          <Text style={styles.cardTitle}>{licence.pmlNumber}</Text>
+          <Text style={styles.cardSite}>{licence.siteName}</Text>
+          {licence.mineral ? (
+            <Text style={styles.cardMineral}>
+              {strings.mineralLabel}: {licence.mineral}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.cardRight}>
+          <Text style={styles.cardDays}>{licence.daysLeft}</Text>
+          <Text style={styles.cardDaysLabel}>{strings.daysLeft}</Text>
+        </View>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={renewLabel}
+        accessibilityState={{ disabled: isPending, busy: isPending }}
+        disabled={isPending}
+        onPress={() => onRenew(licence)}
+        style={({ pressed }) => [
+          styles.renewButton,
+          isPending ? styles.renewButtonPending : null,
+          pressed && !isPending ? styles.renewButtonPressed : null
+        ]}
+      >
+        {isPending ? (
+          <View style={styles.renewButtonInner}>
+            <ActivityIndicator color={colors.textInverse} size="small" />
+            <Text style={styles.renewButtonText}>{strings.renewPending}</Text>
+          </View>
+        ) : (
+          <View style={styles.renewButtonInner}>
+            <Text style={styles.renewButtonText}>{strings.renewAction}</Text>
+            <Text style={styles.renewButtonSubtext}>{strings.renewActionEn}</Text>
+          </View>
+        )}
+      </Pressable>
+      {isError ? (
+        <Text accessibilityRole="alert" style={styles.rowError}>
+          {strings.renewFailed}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+const BUCKET_STYLES: Readonly<
+  Record<LicenceBucket, { borderLeftColor: string; backgroundColor: string }>
+> = {
   t7: { borderLeftColor: colors.danger, backgroundColor: colors.surfaceAlt },
   t30: { borderLeftColor: colors.warn, backgroundColor: colors.surfaceAlt },
-  t90: { borderLeftColor: colors.success, backgroundColor: colors.surfaceAlt },
+  t90: { borderLeftColor: colors.goldLight, backgroundColor: colors.surfaceAlt },
   expired: { borderLeftColor: colors.earth900, backgroundColor: colors.surfaceAlt }
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1
+  },
   scroll: {
     flexGrow: 1,
     paddingBottom: spacing.xl
@@ -180,14 +300,37 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.danger
   },
+  toastSuccess: {
+    backgroundColor: colors.success,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: radius.md
+  },
+  toastTitle: {
+    color: colors.textInverse,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  toastSubtitle: {
+    color: colors.textInverse,
+    fontSize: fontSize.body,
+    marginTop: spacing.xs
+  },
   card: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderLeftWidth: 6,
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.sm
+  },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start'
+  },
+  cardLeft: {
+    flexShrink: 1,
+    paddingRight: spacing.sm
   },
   cardTitle: {
     color: colors.earth900,
@@ -198,6 +341,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.body,
     marginTop: spacing.xs
+  },
+  cardMineral: {
+    color: colors.earth700,
+    fontSize: fontSize.caption,
+    marginTop: spacing.xs,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+    letterSpacing: 0.5
   },
   cardRight: {
     alignItems: 'flex-end'
@@ -212,6 +363,41 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     textTransform: 'uppercase',
     fontWeight: '700'
+  },
+  renewButton: {
+    marginTop: spacing.md,
+    backgroundColor: colors.earth900,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center'
+  },
+  renewButtonPending: {
+    backgroundColor: colors.earth700
+  },
+  renewButtonPressed: {
+    opacity: 0.85
+  },
+  renewButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  renewButtonText: {
+    color: colors.textInverse,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  renewButtonSubtext: {
+    color: colors.textInverse,
+    fontSize: fontSize.caption,
+    opacity: 0.85
+  },
+  rowError: {
+    marginTop: spacing.sm,
+    color: colors.danger,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
   },
   empty: {
     color: colors.textMuted,

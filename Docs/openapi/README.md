@@ -80,87 +80,69 @@ pnpm -F @borjie/api-gateway build   # runs `prebuild` first, refreshing the spec
 Stats printed by the generator:
 
 ```
-files scanned:    26
-paths:            49
-endpoints:        63
-tags:             26
-schemas resolved: 34
+paths:                  60
+routes migrated:        20
+routes pending (regex): 55
+schemas:                34
+response shapes:        298
 ```
 
 ---
 
-## How it works (Option B — pragmatic)
+## How it works (issue #19 — migrated to `@hono/zod-openapi`)
 
-We considered two approaches:
+The generator was rewritten in issue #19. The previous Option B
+regex-only path is preserved as a fallback for un-migrated routes; see
+issue #60 for the remaining work.
 
-1. **Option A (purist):** Convert every `.hono.ts` route to `OpenAPIHono`
-   + `createRoute` registrations. Schemas, request bodies, and responses
-   would all derive from Zod via `@hono/zod-openapi`. The result would
-   be 100 % accurate but the refactor touches all 26 mining files and
-   carries behavioural risk (Hono's `OpenAPIHono` has subtle handler-
-   signature differences vs the plain `Hono` class today).
-2. **Option B (pragmatic — what we ship):** A small Node script regex-
-   parses each `.hono.ts` file, extracts:
-   - `app.<method>('<path>', ...)` registrations,
-   - any adjacent `zValidator('json', <SchemaName>)` call,
-   - the nearest preceding `//` or `/* */` comment as a `summary`,
+1. **First-class path:** `scripts/build-mining-openapi-spec.ts`
+   imports `migratedRoutes` from
+   `services/api-gateway/src/routes/mining/_openapi/route-defs.ts`.
+   That module declares each route via `createRoute({ method, path,
+   request, responses })`, where `request.body`, `request.params`,
+   `request.query`, and every `responses[<status>]` slot carries a
+   Zod schema annotated with `.openapi('Name')`. The TS builder
+   registers each route on an `OpenAPIRegistry`, then calls
+   `OpenApiGeneratorV31.generateDocument(...)` to emit the 3.1
+   document with typed request + response shapes.
+2. **Regex fallback:** files still marked with
+   `// TODO(openapi-migration)` are not in `migratedRoutes` yet. The
+   builder walks `services/api-gateway/src/routes/mining/**/*.hono.ts`,
+   regex-parses `app.<method>('<path>', ...)` registrations, and emits
+   a minimal path item with a generic `ApiSuccessEnvelope` 200 +
+   standard 4xx envelopes. These operations carry an
+   `x-openapi-migration` extension pointing at the tracking issue.
+3. **Wrapper:** `scripts/generate-openapi-spec.mjs` is a thin Node
+   wrapper that shells out to `tsx` so the TS builder Just Works in
+   the `prebuild` and CI environments.
 
-   and emits an OpenAPI 3.1 YAML document. Schemas referenced by name
-   (`<SchemaName>`) are resolved against a hand-written JSON-Schema
-   catalog in `scripts/openapi-component-schemas.mjs`.
-
-The generator is purely a build-time tool — it never executes any
-gateway code and has no runtime dependencies beyond Node's built-ins
-(no `js-yaml`, no `@asteasolutions/zod-to-openapi`).
+When every mining route is migrated (issue #60), the regex fallback
+and the hand-rolled `scripts/openapi-component-schemas.mjs` will be
+removed.
 
 ---
 
 ## Known gaps (do not trust the spec blindly)
 
-The spec is **best-effort** and reflects the static surface of the
-mining routes. The following gaps are explicitly known:
+Migrated routes (sites, licences, cockpit, chat, marketplace, bids)
+have full typed shapes for request bodies, path params, query strings,
+and per-status responses. The remaining 26 route files (tracked in
+issue #60) still rely on regex parsing and therefore inherit the gaps
+listed below.
 
-1. **Response shapes are generic.** Every operation declares the same
-   four-or-five response codes (`200`, `201` on POST, `400`, `401`,
-   `404`) all returning either `ApiSuccessEnvelope` or
-   `ApiErrorEnvelope`. The actual `data` payload shape (`{ success:
-   true, data: <Row> }`) is **not** reflected — we would need either
-   Drizzle row-type introspection or a manual mapping for that.
-2. **Query parameters are not enumerated.** Handlers that read
-   `c.req.query('foo')` are not surfaced as `parameters: in: query`
-   entries. Only path params (`:id` → `{id}`) are emitted. Hits on a
-   `zValidator('query', ...)` are flagged via the
-   `x-query-zod-schema` extension instead.
-3. **Schema drift.** `scripts/openapi-component-schemas.mjs` is hand-
-   maintained. When a `.hono.ts` file changes its Zod schema, you
-   must update the matching entry in the catalog. The generator
-   warns about any `zValidator('json', <Name>)` whose `<Name>` is
-   not in the catalog (logged as `unmapped zValidator schemas` in
-   the build output; flagged in the spec via
-   `x-zod-schema-unmapped: <Name>`).
-4. **SSE endpoints look like normal JSON.** `/mining/chat` is a
-   Server-Sent Events stream; the spec lists it as a regular POST
-   returning `application/json`. Treat the OpenAPI entry as a
-   discovery hint; refer to `chat.hono.ts` for the actual frame
-   format.
-5. **Auth, RLS, and tenant scoping are not in scope.** Every operation
+1. **Generic response shapes (regex routes only).** Operations from
+   un-migrated files declare `200` → `ApiSuccessEnvelope` + standard
+   4xx envelopes. Resolve by completing the migration in issue #60.
+2. **Query parameters absent (regex routes only).** Handlers that read
+   `c.req.query('foo')` without a Zod validator surface no query
+   parameters in the spec.
+3. **Schema drift.** `scripts/openapi-component-schemas.mjs` is no
+   longer consulted by the new generator — it remains in tree for
+   reference until the regex fallback is retired.
+4. **Auth, RLS, and tenant scoping are not in scope.** Every operation
    carries `security: BearerAuth`. Per-role gating
    (`requireRole(SUPER_ADMIN)` on `/internal/*`) and per-tenant RLS
    are documented in the source but not encoded in the spec.
-6. **The generator is regex-based.** It will silently miss exotic
-   call patterns — for example, dynamically-built paths
-   (`app.get(buildPath('/x'), ...)`), routes registered inside
-   helper functions, or schemas constructed inline
-   (`zValidator('json', z.object({ ... }))`). The mining sub-API
-   does not use any of these today, but a future refactor could
-   introduce them.
-
-If you need a fully-accurate spec for a partner integration, the
-right move is Option A: migrate the specific router to `OpenAPIHono`
-and let `@asteasolutions/zod-to-openapi` derive the schemas. The
-existing global gateway spec (mounted at `/api/v1/openapi.json` +
-`/api/v1/docs`) already follows that pattern and is the longer-term
-target for the mining routes too.
 
 ---
 

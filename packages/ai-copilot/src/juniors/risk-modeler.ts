@@ -5,11 +5,13 @@
  * Schema gap: `risk_snapshots` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -98,17 +100,21 @@ export function createRiskModeler(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `risk_snapshots`.
-          await deps.db.execute(
-            sql`INSERT INTO risk_snapshots
-                  (id, tenant_id, site_id, composite_score, band, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId ?? null},
-                        ${output.composite_score_0_100}, ${output.band},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const riskSnapshots = schemas?.riskSnapshots as unknown;
+          if (riskSnapshots) {
+            await deps.db
+              .insert(riskSnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId ?? null,
+                compositeScore: String(output.composite_score_0_100),
+                band: output.band,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('risk-modeler: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

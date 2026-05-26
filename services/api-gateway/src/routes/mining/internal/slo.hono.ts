@@ -1,4 +1,8 @@
 // @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
+// TODO(openapi-migration): convert this router from plain Hono to
+// OpenAPIHono + createRoute (issue #60, follow-up to #19). Routes here
+// are still picked up by the regex generator pass in
+// scripts/generate-openapi-spec.mjs but lack typed response shapes.
 /**
  * /api/v1/mining/internal/slo — per-junior, per-tenant SLO snapshot.
  *

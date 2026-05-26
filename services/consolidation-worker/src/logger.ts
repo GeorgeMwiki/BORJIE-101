@@ -7,6 +7,11 @@
  * Replaces direct `console.*` calls per `.semgrep/borjie-rules.yml`
  * rule `console-statement-in-production-path` and CLAUDE.md "No `console.log`
  * in services — Pino logger only — it handles redaction."
+ *
+ * Singleton: imported by any consolidation-worker task (corpus ingest CLIs,
+ * orchestrator, stages). `BORJIE_DEBUG=1` forces level to `debug` so dev
+ * runs of `borjie-corpus-cli.ts` surface ingest progress without rebuilding.
+ * Otherwise `LOG_LEVEL` wins (default `info`).
  */
 import { pino } from 'pino';
 
@@ -19,9 +24,17 @@ interface Logger {
   error(message: string, meta?: LogMeta): void;
 }
 
+function resolveLevel(): string {
+  if (process.env.BORJIE_DEBUG === '1') return 'debug';
+  return process.env.LOG_LEVEL ?? 'info';
+}
+
 const pinoLogger = pino({
-  level: process.env.LOG_LEVEL ?? 'info',
+  level: resolveLevel(),
   base: { service: 'consolidation-worker' },
+  formatters: {
+    level: (label: string) => ({ level: label }),
+  },
   redact: {
     paths: ['password', 'token', 'secret', 'apiKey', 'authorization', '*.password', '*.token', '*.secret'],
     censor: '[REDACTED]',

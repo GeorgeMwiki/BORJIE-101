@@ -167,8 +167,14 @@
     "t30": "T-30 · Start renewal",
     "t7": "T-7 · URGENT",
     "empty": "No licences expiring soon.",
-    "renewAction": "Start renewal",
-    "daysLeft": "Days left"
+    "renewAction": "Begin renewal",
+    "renewActionEn": "Begin renewal",
+    "daysLeft": "Days left",
+    "mineralLabel": "Mineral",
+    "renewPending": "Submitting renewal request…",
+    "renewSuccessSw": "Ombi la upya limewasilishwa",
+    "renewSuccessEn": "Renewal request submitted",
+    "renewFailed": "Renewal request failed. Try again."
   },
   "fingerprintSign": {
     "title": "Confirm with fingerprint",

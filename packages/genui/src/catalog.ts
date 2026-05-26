@@ -209,7 +209,9 @@ export const KanbanArtifactSchema = z
   })
   .strict();
 
-// 13. gantt — project gantt (TODO(#37): rich impl; current renders fallback bars).
+// 13. gantt — project gantt. Kernel/LLM-emitted artifact still projects to
+// `workflow` for the dispatch path; richer multi-row + tooltip + status
+// renderer ships as the standalone `GanttChart` primitive (issue #37).
 export const GanttArtifactSchema = z
   .object({
     component_type: z.literal('gantt'),

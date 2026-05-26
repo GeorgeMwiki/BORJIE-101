@@ -156,6 +156,15 @@ export interface WorkOrderRepository {
   findSLABreached(tenantId: TenantId): Promise<WorkOrder[]>;
   findScheduledForDate(date: ISOTimestamp, tenantId: TenantId): Promise<WorkOrder[]>;
   findPendingApproval(tenantId: TenantId): Promise<WorkOrder[]>;
+  /**
+   * Bulk-fetch work orders scoped to a set of site ids. The mining-domain
+   * replacement for the old `findByPropertyIds` (`propertyIds` was
+   * BossNyumba-era property-domain). Tenant + soft-delete filters are
+   * enforced inside the repo so callers cannot bypass them. Closes
+   * TODO(#43): owner-scope leak when work-orders fell back to
+   * `findMany + JS .filter`.
+   */
+  findBySiteIds(siteIds: readonly string[], tenantId: TenantId): Promise<WorkOrder[]>;
   create(workOrder: WorkOrder): Promise<WorkOrder>;
   update(workOrder: WorkOrder): Promise<WorkOrder>;
   delete(id: WorkOrderId, tenantId: TenantId, deletedBy: UserId): Promise<void>;

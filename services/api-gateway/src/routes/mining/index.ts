@@ -29,7 +29,7 @@
  *   /internal/*        — admin-console SUPER_ADMIN surfaces
  */
 
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
 import { miningSitesRouter } from './sites.hono';
 import { miningLicencesRouter } from './licences.hono';
@@ -66,7 +66,12 @@ import { miningInternalRegulatorPipelineRouter } from './internal/regulator-pipe
 import { miningInternalCitationsRouter } from './internal/citations.hono';
 import { miningInternalComplianceQueueRouter } from './internal/compliance-queue.hono';
 
-const mining = new Hono();
+// Use OpenAPIHono so the `app.openapi(routeDef, handler)` registrations
+// inside the migrated route files (sites, licences, cockpit, chat,
+// marketplace, bids) propagate into a shared `openAPIRegistry`. The
+// generator at `scripts/generate-openapi-spec.mjs` reads from this
+// registry via `mining.getOpenAPI31Document(...)`.
+const mining = new OpenAPIHono();
 
 mining.route('/sites', miningSitesRouter);
 mining.route('/licences', miningLicencesRouter);

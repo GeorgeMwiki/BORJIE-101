@@ -23,3 +23,4 @@ export * from './intent-classifier.js';
 export * from './capture.js';
 export * from './dispatch.js';
 export * from './dispatcher.js';
+export * from './routing-rules-port.js';

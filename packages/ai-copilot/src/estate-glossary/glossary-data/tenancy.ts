@@ -2,8 +2,10 @@
  * Tenancy-related glossary (300+ termIds).
  *
  * Priority category — 50 most-used terms carry curated translations
- * across all 11 locales. The remainder use English-only stubs with a
- * `// TODO-L18N` marker so the gap is visible in code review.
+ * across all 11 locales. The remainder use English-only stubs from the
+ * legacy BossNyumba estate corpus; Borjie surfaces use the
+ * mining-vocabulary file (`./mining.ts`) for Swahili/English so the
+ * tenancy entries are kept as-is for jurisdictional reference only.
  *
  * Citations refer to real statutes:
  *   - KE: Landlord & Tenant (Shops, Hotels and Catering Establishments)
@@ -989,9 +991,9 @@ const CORE_SPECS: readonly EntrySpec[] = [
 /**
  * English-only extension entries — the balance of the 300-term target.
  *
- * Kept purposely terse to allow reviewers to scan long lists. Locale
- * translations marked `// TODO-L18N` are filled in by the curation team
- * in later waves.
+ * Kept purposely terse to allow reviewers to scan long lists. These are
+ * heritage BossNyumba estate entries; Borjie domain content lives in
+ * `./mining.ts` with curated Swahili+English translations.
  */
 const EXTRA_ROWS: ReadonlyArray<
   readonly [string, string, string, ReadonlyArray<string>?]

@@ -5,11 +5,13 @@
  * Schema gap: `unit_economics_snapshots` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -111,16 +113,20 @@ export function createCostEngineerAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const json = JSON.stringify(output);
-          // TODO(#30): typed insert against `unit_economics_snapshots`.
-          await deps.db.execute(
-            sql`INSERT INTO unit_economics_snapshots
-                  (id, tenant_id, site_id, period, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId},
-                        ${validated.period_iso}, ${json}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const unitEconomicsSnapshots = schemas?.unitEconomicsSnapshots as unknown;
+          if (unitEconomicsSnapshots) {
+            await deps.db
+              .insert(unitEconomicsSnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                period: validated.period_iso,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('cost-engineer: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

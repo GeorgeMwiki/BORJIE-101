@@ -9,11 +9,13 @@
  * `packages/database/src/schemas/`.
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -171,15 +173,21 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const planJson = JSON.stringify(dispatch);
-          // TODO(#30): replace with typed db.insert(decisionLog)…
-          await deps.db.execute(
-            sql`INSERT INTO decision_log (id, tenant_id, mode, query, dispatch_plan, confidence, created_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.mode}, ${validated.query},
-                        ${planJson}::jsonb, ${output.confidence}, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const decisionLog = schemas?.decisionLog as unknown;
+          if (decisionLog) {
+            await deps.db
+              .insert(decisionLog)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                mode: validated.mode,
+                query: validated.query,
+                dispatchPlan: dispatch,
+                confidence: String(output.confidence),
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('master-brain: decision_log write skipped', {
             error: err instanceof Error ? err.message : String(err),

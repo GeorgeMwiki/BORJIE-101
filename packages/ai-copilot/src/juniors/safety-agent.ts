@@ -5,11 +5,13 @@
  * Schema gap: `safety_snapshots` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -120,16 +122,20 @@ export function createSafetyAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `safety_snapshots`.
-          await deps.db.execute(
-            sql`INSERT INTO safety_snapshots
-                  (id, tenant_id, site_id, ppe_compliance_pct, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId},
-                        ${output.ppe_compliance_pct}, ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const safetySnapshots = schemas?.safetySnapshots as unknown;
+          if (safetySnapshots) {
+            await deps.db
+              .insert(safetySnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId,
+                ppeCompliancePct: String(output.ppe_compliance_pct),
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('safety-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

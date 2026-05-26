@@ -5,11 +5,13 @@
  * Schema gap: `maintenance_events`, `fuel_logs` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -106,16 +108,19 @@ export function createMaintenanceAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `maintenance_events`.
-          await deps.db.execute(
-            sql`INSERT INTO maintenance_events
-                  (id, tenant_id, asset_id, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.asset_id},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const juniorMaintenanceEvents = schemas?.juniorMaintenanceEvents as unknown;
+          if (juniorMaintenanceEvents) {
+            await deps.db
+              .insert(juniorMaintenanceEvents)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                assetId: validated.asset_id,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('maintenance-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

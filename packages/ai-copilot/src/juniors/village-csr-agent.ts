@@ -11,11 +11,13 @@
  * Schema gap: `csr_plans`, `csr_meetings` raw SQL; TODO(#30).
  */
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -119,17 +121,21 @@ export function createVillageCsrAgent(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `csr_plans`.
-          await deps.db.execute(
-            sql`INSERT INTO csr_plans
-                  (id, tenant_id, licence_id, status, delivered_pct, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.licenceId},
-                        ${output.csr_clock_status}, ${output.overall_delivery_pct},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const juniorCsrPlans = schemas?.juniorCsrPlans as unknown;
+          if (juniorCsrPlans) {
+            await deps.db
+              .insert(juniorCsrPlans)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                licenceId: validated.licenceId,
+                status: output.csr_clock_status,
+                deliveredPct: String(output.overall_delivery_pct),
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('village-csr-agent: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

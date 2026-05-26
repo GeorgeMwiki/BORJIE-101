@@ -4,9 +4,14 @@
  * boot routine reads `ALL_TEMPLATE_BUNDLES` and UPSERTs each into the
  * `module_templates` + `module_accept_handlers` tables.
  *
- * One template (ESTATE) ships a fully-wired `create_lease_application`
- * handler. The other nine register handler stubs; their wiring lands
- * in later waves (24+).
+ * Two handler sets ship live today:
+ *   - ESTATE → `create_lease_application`, `post_receipt_draft`
+ *   - MINING → `schedule_licence_renewal`, `open_equipment_maintenance`,
+ *              `bulk_mark_licences_for_renewal`
+ *
+ * The 3 MINING handlers replace the BossNyumba-era estate stubs
+ * (TODO(#34) closed). The other nine module templates register handler
+ * stubs; their wiring lands in later waves.
  */
 
 export type {
@@ -73,24 +78,15 @@ export {
   type CreateLeaseApplicationResult,
 } from './templates/estate/index.js';
 
-// ─── Wave-3-int2 — ESTATE 5-handler set + cross-module registry ──────────
+// ─── ESTATE — 2 surviving actions + cross-module registry ─────────────────
 
 export {
   buildEstateHandlerSet,
   ESTATE_ACTIONS,
   createCreateLeaseApplicationAdapter,
   createPostReceiptDraftAdapter,
-  createOpenMaintenanceCaseAdapter,
-  createScheduleRenewalNegotiationAdapter,
-  createBulkMarkForRenewalPrepAdapter,
   postReceiptDraftHandler,
   PostReceiptDraftPayloadSchema,
-  openMaintenanceCaseHandler,
-  OpenMaintenanceCasePayloadSchema,
-  scheduleRenewalNegotiationHandler,
-  ScheduleRenewalNegotiationPayloadSchema,
-  bulkMarkForRenewalPrepHandler,
-  BulkMarkForRenewalPrepPayloadSchema,
   type EstateHandlerDeps,
   type BuildEstateHandlerSet,
 } from './estate/accept-proposal-handlers.js';
@@ -104,29 +100,47 @@ export type {
   ReceiptStorePort,
 } from './templates/estate/handlers/post-receipt-draft.js';
 
-export type {
-  OpenMaintenanceCaseDeps,
-  OpenMaintenanceCasePayload,
-  OpenMaintenanceCaseContext,
-  OpenMaintenanceCaseResult,
-  MaintenanceTicketStorePort,
-} from './templates/estate/handlers/open-maintenance-case.js';
+// ─── MINING — 3 actions (replaces the BossNyumba estate stubs) ────────────
+
+export {
+  buildMiningHandlerSet,
+  MINING_ACTIONS,
+  createScheduleLicenceRenewalAdapter,
+  createOpenEquipmentMaintenanceAdapter,
+  createBulkMarkLicencesForRenewalAdapter,
+  scheduleLicenceRenewalHandler,
+  ScheduleLicenceRenewalPayloadSchema,
+  openEquipmentMaintenanceHandler,
+  OpenEquipmentMaintenancePayloadSchema,
+  bulkMarkLicencesForRenewalHandler,
+  BulkMarkLicencesForRenewalPayloadSchema,
+  type MiningHandlerDeps,
+  type BuildMiningHandlerSet,
+} from './mining/accept-proposal-handlers.js';
 
 export type {
-  ScheduleRenewalNegotiationDeps,
-  ScheduleRenewalNegotiationPayload,
-  ScheduleRenewalNegotiationContext,
-  ScheduleRenewalNegotiationResult,
-  WorkAssignmentPort,
-} from './templates/estate/handlers/schedule-renewal-negotiation.js';
+  ScheduleLicenceRenewalDeps,
+  ScheduleLicenceRenewalPayload,
+  ScheduleLicenceRenewalContext,
+  ScheduleLicenceRenewalResult,
+  TemporalEntityStorePort,
+} from './templates/mining/handlers/schedule-licence-renewal.js';
 
 export type {
-  BulkMarkForRenewalPrepDeps,
-  BulkMarkForRenewalPrepPayload,
-  BulkMarkForRenewalPrepContext,
-  BulkMarkForRenewalPrepResult,
-  LeaseStorePort,
-} from './templates/estate/handlers/bulk-mark-for-renewal-prep.js';
+  OpenEquipmentMaintenanceDeps,
+  OpenEquipmentMaintenancePayload,
+  OpenEquipmentMaintenanceContext,
+  OpenEquipmentMaintenanceResult,
+  MaintenanceEventStorePort,
+} from './templates/mining/handlers/open-equipment-maintenance.js';
+
+export type {
+  BulkMarkLicencesForRenewalDeps,
+  BulkMarkLicencesForRenewalPayload,
+  BulkMarkLicencesForRenewalContext,
+  BulkMarkLicencesForRenewalResult,
+  BulkLicenceTaskStorePort,
+} from './templates/mining/handlers/bulk-mark-licences-for-renewal.js';
 
 export {
   createModuleHandlerRegistry,

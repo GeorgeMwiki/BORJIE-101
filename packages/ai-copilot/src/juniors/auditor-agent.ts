@@ -21,6 +21,7 @@ import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -150,15 +151,20 @@ async function persistAudit(
 ): Promise<void> {
   if (!deps.db) return;
   try {
-    const { sql } = await import('drizzle-orm');
-    const payload = JSON.stringify(input.recommendation);
-    const missingArr = `{${missing.map((m) => `"${m.replace(/"/g, '\\"')}"`).join(',')}}`;
-    // TODO(#30): typed insert against `audit_log` once Drizzle schema exists.
-    await deps.db.execute(
-      sql`INSERT INTO audit_log (id, tenant_id, recommendation, verdict, missing, created_at)
-          VALUES (${auditLogId}, ${input.tenantId}, ${payload}::jsonb, ${verdict}, ${missingArr}::text[], NOW())
-          ON CONFLICT (id) DO NOTHING`,
-    );
+    const schemas = await loadJuniorSchemas();
+    const auditLog = schemas?.auditLog as unknown;
+    if (auditLog) {
+      await deps.db
+        .insert(auditLog)
+        .values({
+          id: auditLogId,
+          tenantId: input.tenantId,
+          recommendation: input.recommendation,
+          verdict,
+          missing: [...missing],
+        })
+        .onConflictDoNothing();
+    }
   } catch (err) {
     deps.logger?.warn('auditor-agent: audit_log write skipped', {
       error: err instanceof Error ? err.message : String(err),

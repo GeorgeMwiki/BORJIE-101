@@ -7,10 +7,12 @@
  */
 
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import {
   AuditedOutputBase,
   buildUniversalPrompt,
   defaultJuniorDeps,
+  loadJuniorSchemas,
   runClaudeJunior,
   withResolvedDb,
   type JuniorDeps,
@@ -104,17 +106,21 @@ export function createForecastModeler(deps: JuniorDeps) {
 
       if (deps.db) {
         try {
-          const { sql } = await import('drizzle-orm');
-          const summary = JSON.stringify(output);
-          // TODO(#30): typed insert against `forecasts`.
-          await deps.db.execute(
-            sql`INSERT INTO forecasts
-                  (id, tenant_id, site_id, kind, horizon_days, summary, computed_at)
-                VALUES (gen_random_uuid(), ${validated.tenantId}, ${validated.siteId ?? null},
-                        ${validated.kind}, ${validated.horizon_days},
-                        ${summary}::jsonb, NOW())
-                ON CONFLICT DO NOTHING`,
-          );
+          const schemas = await loadJuniorSchemas();
+          const forecastSnapshots = schemas?.forecastSnapshots as unknown;
+          if (forecastSnapshots) {
+            await deps.db
+              .insert(forecastSnapshots)
+              .values({
+                id: randomUUID(),
+                tenantId: validated.tenantId,
+                siteId: validated.siteId ?? null,
+                kind: validated.kind,
+                horizonDays: validated.horizon_days,
+                summary: output,
+              })
+              .onConflictDoNothing();
+          }
         } catch (err) {
           deps.logger?.warn('forecast-modeler: db write skipped', { error: err instanceof Error ? err.message : String(err) });
         }

@@ -33,8 +33,24 @@ export interface ClaudeClient {
   }): Promise<{ readonly content: string }>;
 }
 
+/**
+ * Minimal Drizzle surface the juniors need.
+ *
+ * - `execute(q)` for legacy raw-SQL paths (kept so we can fall back
+ *   when a typed schema is genuinely unavailable).
+ * - `insert(table)` returning a builder with `values()` /
+ *   `onConflictDoNothing()`. The real Drizzle client matches this
+ *   shape — the narrow interface lets us keep this package free of
+ *   a hard dep on `@borjie/database` (see `lazyDb()` below).
+ */
+export interface DrizzleInsertBuilder {
+  values(row: Record<string, unknown> | ReadonlyArray<Record<string, unknown>>): DrizzleInsertBuilder & Promise<unknown>;
+  onConflictDoNothing(args?: { target?: unknown }): Promise<unknown>;
+}
+
 export interface DrizzleLikeClient {
   execute(q: unknown): Promise<unknown>;
+  insert(table: unknown): DrizzleInsertBuilder;
 }
 
 export interface JuniorLogger {
@@ -282,4 +298,27 @@ export async function withResolvedDb(deps: JuniorDeps): Promise<JuniorDeps> {
   if (deps.db) return deps;
   const db = await lazyDb();
   return { ...deps, db };
+}
+
+/**
+ * Lazy import the @borjie/database schemas barrel. Returns the table
+ * object map (e.g. `{ forecastSnapshots, decisionLog, ... }`).
+ *
+ * Like `lazyDb`, this uses a string-spelled specifier so this package's
+ * typecheck doesn't require `@borjie/database` in its dependencies
+ * (see _shared.ts comment on lazyDb). Returns `null` if the import
+ * fails — the caller should silently skip the write in that case.
+ */
+let cachedSchemas: Record<string, unknown> | null | undefined;
+export async function loadJuniorSchemas(): Promise<Record<string, unknown> | null> {
+  if (cachedSchemas !== undefined) return cachedSchemas;
+  try {
+    const databaseSpecifier: string = '@borjie/database';
+    const mod = (await import(databaseSpecifier)) as Record<string, unknown>;
+    cachedSchemas = mod;
+    return cachedSchemas;
+  } catch {
+    cachedSchemas = null;
+    return null;
+  }
 }

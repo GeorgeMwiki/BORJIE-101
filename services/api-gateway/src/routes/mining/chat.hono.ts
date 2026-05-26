@@ -14,50 +14,25 @@
  *                 - `done`              terminator
  *                 - `error`             surfaced when orchestrator throws
  *
- *               Supports the owner-web mode switcher via `mode`
- *               (build | strategy | operations | document | finance |
- *               risk | board-investor | compliance).
- *
- *               When ANTHROPIC_API_KEY is set, the real Master Brain
- *               junior dispatches. Otherwise the orchestrator falls
- *               back to a static mode→junior table + a corpus-grounded
- *               mock answer so the demo works without LLM costs.
+ * Migrated to `@hono/zod-openapi` (issue #19). Route def + SSE frame
+ * schema live in `./_openapi/route-defs.ts` and `./_openapi/chat-schemas.ts`.
  */
 
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { zValidator } from '@hono/zod-validator';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { streamSSE } from 'hono/streaming';
 import pino from 'pino';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
-import { runChatOrchestrator, type ChatMode } from './chat-orchestrator';
+import { runChatOrchestrator } from './chat-orchestrator';
+import { chatTurnRoute } from './_openapi/route-defs';
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? 'info', name: 'mining-chat' });
 
-const app = new Hono();
+const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-const CHAT_MODES = [
-  'build',
-  'strategy',
-  'operations',
-  'document',
-  'finance',
-  'risk',
-  'board-investor',
-  'compliance',
-] as const satisfies ReadonlyArray<ChatMode>;
-
-const ChatTurnSchema = z.object({
-  message: z.string().min(1).max(8000),
-  sessionId: z.string().optional(),
-  mode: z.enum(CHAT_MODES).default('build'),
-  language: z.enum(['sw', 'en']).default('sw'),
-});
-
-app.post('/', zValidator('json', ChatTurnSchema), async (c) => {
+app.openapi(chatTurnRoute, async (c) => {
   const { tenantId, userId } = c.get('auth');
   const db = c.get('db');
   const input = c.req.valid('json');

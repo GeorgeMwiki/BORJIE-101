@@ -1,10 +1,17 @@
 /**
- * Wave-3-int2 — ESTATE 5-handler adapter smoke tests.
+ * ESTATE 2-handler adapter + MINING 3-handler adapter smoke tests.
  *
  * Verifies each adapter:
  *   - validates its payload via Zod
  *   - invokes the underlying pure handler with the right ctx
  *   - returns the dispatcher-compatible `AcceptHandlerResult` shape
+ *
+ * Closes TODO(#34): the 3 BossNyumba estate handlers
+ * (open_maintenance_case, schedule_renewal_negotiation,
+ * bulk_mark_for_renewal_prep) were ported to mining-domain equivalents
+ * (open_equipment_maintenance, schedule_licence_renewal,
+ * bulk_mark_licences_for_renewal). The previous test suite that
+ * exercised those 3 stub adapters is replaced by the MINING block below.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -12,14 +19,19 @@ import {
   buildEstateHandlerSet,
   ESTATE_ACTIONS,
 } from '../estate/accept-proposal-handlers.js';
+import {
+  buildMiningHandlerSet,
+  MINING_ACTIONS,
+} from '../mining/accept-proposal-handlers.js';
 import { createModuleHandlerRegistry } from '../registry.js';
 import type {
   AcceptHandlerArgs,
   ModuleUpdateProposal,
 } from '@borjie/dispatch-router';
 import type { EstateHandlerDeps } from '../estate/accept-proposal-handlers.js';
+import type { MiningHandlerDeps } from '../mining/accept-proposal-handlers.js';
 
-function mkStubDeps(): EstateHandlerDeps {
+function mkEstateDeps(): EstateHandlerDeps {
   const auditChain = {
     async append() {
       return { id: 'audit_stub_1' };
@@ -67,29 +79,71 @@ function mkStubDeps(): EstateHandlerDeps {
       },
       auditChain,
     },
-    openMaintenanceCase: {
-      tickets: {
-        async open() {
-          return { id: 'ticket_stub_1' };
+  };
+}
+
+function mkMiningDeps(): MiningHandlerDeps {
+  const auditChain = {
+    async append() {
+      return { id: 'audit_mining_stub_1' };
+    },
+  };
+  const notifications = {
+    async publish() {
+      /* noop */
+    },
+  };
+  let idCounter = 0;
+  const ids = {
+    newId(prefix: string): string {
+      idCounter += 1;
+      return `${prefix}_stub_${idCounter}`;
+    },
+  };
+  return {
+    moduleId: 'MINING',
+    clock: {
+      nowIso: () => '2026-05-26T00:00:00.000Z',
+      todayIso: () => '2026-05-26T00:00:00.000Z',
+    },
+    scheduleLicenceRenewal: {
+      tasks: {
+        async insert() {
+          return { id: 'task_lr_1' };
+        },
+      },
+      temporalEntities: {
+        async insert() {
+          return { id: 'te_lr_1' };
         },
       },
       auditChain,
       notifications,
+      ids,
     },
-    scheduleRenewalNegotiation: {
-      workAssignments: {
-        async assign() {
-          return { id: 'assignment_stub_1' };
+    openEquipmentMaintenance: {
+      maintenanceEvents: {
+        async insert() {
+          return { id: 'me_em_1' };
+        },
+      },
+      tasks: {
+        async insert() {
+          return { id: 'task_em_1' };
         },
       },
       auditChain,
       notifications,
+      ids,
     },
-    bulkMarkForRenewalPrep: {
-      leases: {
-        async bulkMarkForRenewalPrep() {
+    bulkMarkLicencesForRenewal: {
+      licenceTasks: {
+        async bulkCreateRenewalTasks(args) {
           return {
-            updated: ['lease_1', 'lease_2'],
+            created: args.licenceIds.map((licenceId) => ({
+              licenceId,
+              taskId: `task_for_${licenceId}`,
+            })),
             skipped: [],
           };
         },
@@ -107,7 +161,11 @@ function mkProposal(
     id: `prop_${action}`,
     tenant_id: 'trc',
     capture_id: 'cap_1',
-    module_template_id: 'ESTATE',
+    module_template_id: action.startsWith('open_equipment_')
+      || action.startsWith('schedule_licence_')
+      || action.startsWith('bulk_mark_licences_')
+      ? 'MINING'
+      : 'ESTATE',
     action,
     persona_id: 'p_1',
     status: 'pending_hitl',
@@ -129,8 +187,12 @@ function mkProposal(
   };
 }
 
-describe('ESTATE 5-handler adapters', () => {
-  const deps = mkStubDeps();
+// ───────────────────────────────────────────────────────────────────────────
+// ESTATE — 2 surviving adapters
+// ───────────────────────────────────────────────────────────────────────────
+
+describe('ESTATE 2-handler adapters', () => {
+  const deps = mkEstateDeps();
   const set = buildEstateHandlerSet(deps);
 
   it('create_lease_application adapter validates + writes', async () => {
@@ -153,7 +215,9 @@ describe('ESTATE 5-handler adapters', () => {
     const result = await set.create_lease_application(args);
     expect(result.ok).toBe(true);
     expect(result.artifacts?.length).toBeGreaterThan(0);
-    expect(result.artifacts?.some((a) => a.type === 'lease_application')).toBe(true);
+    expect(
+      result.artifacts?.some((a) => a.type === 'lease_application'),
+    ).toBe(true);
   });
 
   it('post_receipt_draft adapter validates + posts ledger draft', async () => {
@@ -175,67 +239,6 @@ describe('ESTATE 5-handler adapters', () => {
     expect(result.artifacts?.some((a) => a.type === 'ledger_draft')).toBe(true);
   });
 
-  it('open_maintenance_case adapter validates + opens ticket', async () => {
-    const payload = {
-      unit_id: 'u_godown_3',
-      summary: 'Bathroom tap is leaking',
-      category: 'plumbing' as const,
-      severity: 'medium' as const,
-      description: 'Water dripping continuously since this morning',
-      reporter_entity_id: 'cust_juma_x',
-      source: { capture_id: 'cap_1', document_id: null },
-    };
-    const args: AcceptHandlerArgs = {
-      tenant_id: 'trc',
-      proposal: mkProposal('open_maintenance_case', payload),
-    };
-    const result = await set.open_maintenance_case(args);
-    expect(result.ok).toBe(true);
-    expect(result.artifacts?.some((a) => a.type === 'maintenance_ticket')).toBe(
-      true,
-    );
-  });
-
-  it('schedule_renewal_negotiation adapter validates + creates assignment', async () => {
-    const payload = {
-      lease_id: 'le_juma_godown3',
-      tenant_entity_id: 'cust_juma_x',
-      unit_id: 'u_godown_3',
-      target_start_date: '2026-07-01',
-      rationale: 'Lease expires in 60 days — start renewal conversation',
-      assigned_officer_id: null,
-      priority: 'medium' as const,
-      source: { capture_id: 'cap_1', document_id: null },
-    };
-    const args: AcceptHandlerArgs = {
-      tenant_id: 'trc',
-      proposal: mkProposal('schedule_renewal_negotiation', payload),
-    };
-    const result = await set.schedule_renewal_negotiation(args);
-    expect(result.ok).toBe(true);
-    expect(result.artifacts?.some((a) => a.type === 'work_assignment')).toBe(
-      true,
-    );
-  });
-
-  it('bulk_mark_for_renewal_prep adapter validates + flags many', async () => {
-    const payload = {
-      lease_ids: ['le_1', 'le_2'],
-      reason: 'Q3 renewal cohort',
-      prep_window_days: 60,
-      source: { capture_id: 'cap_1', document_id: null },
-    };
-    const args: AcceptHandlerArgs = {
-      tenant_id: 'trc',
-      proposal: mkProposal('bulk_mark_for_renewal_prep', payload),
-    };
-    const result = await set.bulk_mark_for_renewal_prep(args);
-    expect(result.ok).toBe(true);
-    expect(
-      result.artifacts?.filter((a) => a.type === 'lease_flagged').length,
-    ).toBe(2);
-  });
-
   it('rejects payload with Zod validation error → ok=false', async () => {
     const args: AcceptHandlerArgs = {
       tenant_id: 'trc',
@@ -245,12 +248,118 @@ describe('ESTATE 5-handler adapters', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain('payload_zod_invalid');
   });
+});
 
-  it('registry exposes all 5 actions', () => {
-    const registry = createModuleHandlerRegistry({ estate: deps });
+// ───────────────────────────────────────────────────────────────────────────
+// MINING — 3 adapters (replaces the 3 BossNyumba estate stubs)
+// ───────────────────────────────────────────────────────────────────────────
+
+describe('MINING 3-handler adapters', () => {
+  const deps = mkMiningDeps();
+  const set = buildMiningHandlerSet(deps);
+
+  it('schedule_licence_renewal adapter validates + writes', async () => {
+    const payload = {
+      licence_id: 'lic_pml_001',
+      company_id: 'co_borjie_demo',
+      site_id: 'site_dar_1',
+      target_start_date: '2026-07-01',
+      rationale: 'Licence expires in 60 days — schedule renewal action',
+      assigned_user_id: null,
+      priority: 3,
+      followup_cadence: 'weekly' as const,
+      evidence_ids: ['doc_assay_001'],
+      source: { capture_id: 'cap_1', document_id: null },
+    };
+    const args: AcceptHandlerArgs = {
+      tenant_id: 'trc',
+      proposal: mkProposal('schedule_licence_renewal', payload),
+    };
+    const result = await set.schedule_licence_renewal(args);
+    expect(result.ok).toBe(true);
+    expect(result.artifacts?.some((a) => a.type === 'task')).toBe(true);
+    expect(result.artifacts?.some((a) => a.type === 'temporal_entity')).toBe(
+      true,
+    );
+  });
+
+  it('open_equipment_maintenance adapter validates + opens event', async () => {
+    const payload = {
+      asset_id: 'asset_excavator_1',
+      site_id: 'site_dar_1',
+      summary: 'Hydraulic line leaking on bucket',
+      kind: 'breakdown' as const,
+      severity: 'high' as const,
+      description: 'Operator noticed leak at 0900',
+      scheduled_for: '2026-05-27T08:00:00.000Z',
+      estimated_downtime_hours: 6,
+      reporter_user_id: 'usr_operator_1',
+      evidence_ids: ['photo_leak_001'],
+      source: { capture_id: 'cap_1', document_id: null },
+    };
+    const args: AcceptHandlerArgs = {
+      tenant_id: 'trc',
+      proposal: mkProposal('open_equipment_maintenance', payload),
+    };
+    const result = await set.open_equipment_maintenance(args);
+    expect(result.ok).toBe(true);
+    expect(result.artifacts?.some((a) => a.type === 'maintenance_event')).toBe(
+      true,
+    );
+    expect(result.artifacts?.some((a) => a.type === 'task')).toBe(true);
+  });
+
+  it('bulk_mark_licences_for_renewal adapter flags many', async () => {
+    const payload = {
+      licence_ids: ['lic_1', 'lic_2', 'lic_3'],
+      reason: 'Q3 PML renewal cohort',
+      prep_window_days: 60,
+      followup_cadence: 'weekly' as const,
+      source: { capture_id: 'cap_1', document_id: null },
+    };
+    const args: AcceptHandlerArgs = {
+      tenant_id: 'trc',
+      proposal: mkProposal('bulk_mark_licences_for_renewal', payload),
+    };
+    const result = await set.bulk_mark_licences_for_renewal(args);
+    expect(result.ok).toBe(true);
+    expect(result.artifacts?.filter((a) => a.type === 'task').length).toBe(3);
+  });
+
+  it('rejects mining payload with Zod validation error → ok=false', async () => {
+    const args: AcceptHandlerArgs = {
+      tenant_id: 'trc',
+      proposal: mkProposal('schedule_licence_renewal', { invalid: true }),
+    };
+    const result = await set.schedule_licence_renewal(args);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('payload_zod_invalid');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// Cross-module registry — both ESTATE and MINING
+// ───────────────────────────────────────────────────────────────────────────
+
+describe('createModuleHandlerRegistry', () => {
+  it('registers all 2 ESTATE actions when only estate deps provided', () => {
+    const registry = createModuleHandlerRegistry({ estate: mkEstateDeps() });
     for (const action of ESTATE_ACTIONS) {
-      const h = registry.get('ESTATE', action);
-      expect(h).toBeDefined();
+      expect(registry.get('ESTATE', action)).toBeDefined();
+    }
+    expect(registry.listRegistered().length).toBe(2);
+  });
+
+  it('registers all 2 ESTATE + 3 MINING actions when both deps provided', () => {
+    const registry = createModuleHandlerRegistry({
+      estate: mkEstateDeps(),
+      mining: mkMiningDeps(),
+    });
+    for (const action of ESTATE_ACTIONS) {
+      expect(registry.get('ESTATE', action)).toBeDefined();
+    }
+    for (const action of MINING_ACTIONS) {
+      expect(registry.get('MINING', action)).toBeDefined();
     }
     expect(registry.listRegistered().length).toBe(5);
   });

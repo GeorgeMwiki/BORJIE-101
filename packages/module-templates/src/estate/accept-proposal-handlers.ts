@@ -1,8 +1,8 @@
 /**
  * @borjie/module-templates/estate/accept-proposal-handlers
  *
- * The 5 ESTATE actions adapted as `AcceptHandler` functions that conform
- * to the dispatch-router registry shape. Each adapter:
+ * The 2 surviving ESTATE actions adapted as `AcceptHandler` functions
+ * that conform to the dispatch-router registry shape. Each adapter:
  *
  *   1. Zod-validates the dispatcher's loose `payload: Record<string,unknown>`
  *      against the handler's `*PayloadSchema`.
@@ -13,14 +13,10 @@
  * On Zod failure, returns `{ ok: false, error }` so the dispatcher flips
  * the proposal to `failed` (the human can edit-then-approve).
  *
- * Why an adapter layer instead of the dispatch registry calling pure
- * handlers directly?
- *
- *   - Pure handlers take typed `payload` + `ctx` + `deps`. The dispatcher
- *     ships them only `{ tenant_id, proposal }`. The adapters bridge.
- *   - Pure handlers are testable without the dispatcher; the dispatcher
- *     is testable without real handlers. Separation of concerns.
- *   - Future modules (HR, FINANCE, ...) follow the same adapter pattern.
+ * The 3 BossNyumba-era handlers (open_maintenance_case,
+ * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
+ * to mining-domain equivalents under `templates/mining/handlers/` —
+ * see `../mining/accept-proposal-handlers.ts`. Closed TODO(#34).
  */
 
 import type {
@@ -42,40 +38,22 @@ import {
   type PostReceiptDraftDeps,
   type PostReceiptDraftContext,
 } from '../templates/estate/handlers/post-receipt-draft.js';
-import {
-  OpenMaintenanceCasePayloadSchema,
-  openMaintenanceCaseHandler,
-  type OpenMaintenanceCaseDeps,
-  type OpenMaintenanceCaseContext,
-} from '../templates/estate/handlers/open-maintenance-case.js';
-import {
-  ScheduleRenewalNegotiationPayloadSchema,
-  scheduleRenewalNegotiationHandler,
-  type ScheduleRenewalNegotiationDeps,
-  type ScheduleRenewalNegotiationContext,
-} from '../templates/estate/handlers/schedule-renewal-negotiation.js';
-import {
-  BulkMarkForRenewalPrepPayloadSchema,
-  bulkMarkForRenewalPrepHandler,
-  type BulkMarkForRenewalPrepDeps,
-  type BulkMarkForRenewalPrepContext,
-} from '../templates/estate/handlers/bulk-mark-for-renewal-prep.js';
 
 // ─── Aggregated deps ──────────────────────────────────────────────────────
 
 export interface EstateHandlerDeps {
   readonly createLeaseApplication: CreateLeaseApplicationDeps;
   readonly postReceiptDraft: PostReceiptDraftDeps;
-  readonly openMaintenanceCase: OpenMaintenanceCaseDeps;
-  readonly scheduleRenewalNegotiation: ScheduleRenewalNegotiationDeps;
-  readonly bulkMarkForRenewalPrep: BulkMarkForRenewalPrepDeps;
   /** moduleId is constant per template — ESTATE rows are written here. */
   readonly moduleId: string;
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
 
-function buildContext(args: AcceptHandlerArgs, moduleId: string): {
+function buildContext(
+  args: AcceptHandlerArgs,
+  moduleId: string,
+): {
   tenantId: string;
   moduleId: string;
   proposalId: string;
@@ -90,7 +68,9 @@ function buildContext(args: AcceptHandlerArgs, moduleId: string): {
   };
 }
 
-function ok(artifacts: ReadonlyArray<{ type: string; id: string }>): AcceptHandlerResult {
+function ok(
+  artifacts: ReadonlyArray<{ type: string; id: string }>,
+): AcceptHandlerResult {
   return { ok: true, artifacts };
 }
 
@@ -115,7 +95,9 @@ export function createCreateLeaseApplicationAdapter(
 ): AcceptHandler {
   return async (args) => {
     try {
-      const payload = CreateLeaseApplicationPayloadSchema.parse(args.proposal.payload);
+      const payload = CreateLeaseApplicationPayloadSchema.parse(
+        args.proposal.payload,
+      );
       const ctx: CreateLeaseApplicationContext = buildContext(args, moduleId);
       const result = await createLeaseApplicationHandler(payload, ctx, deps);
       return ok([
@@ -153,113 +135,28 @@ export function createPostReceiptDraftAdapter(
   };
 }
 
-export function createOpenMaintenanceCaseAdapter(
-  deps: OpenMaintenanceCaseDeps,
-): AcceptHandler {
-  return async (args) => {
-    try {
-      const payload = OpenMaintenanceCasePayloadSchema.parse(args.proposal.payload);
-      const ctx: OpenMaintenanceCaseContext = {
-        tenantId: args.tenant_id,
-        proposalId: args.proposal.id,
-        sourceAuditChainId: args.proposal.capture_id,
-      };
-      const result = await openMaintenanceCaseHandler(payload, ctx, deps);
-      return ok([
-        { type: 'maintenance_ticket', id: result.ticket_id },
-        { type: 'audit_chain_row', id: result.audit_chain_id },
-      ]);
-    } catch (e) {
-      return fail(asValidationError(e));
-    }
-  };
-}
-
-export function createScheduleRenewalNegotiationAdapter(
-  deps: ScheduleRenewalNegotiationDeps,
-): AcceptHandler {
-  return async (args) => {
-    try {
-      const payload = ScheduleRenewalNegotiationPayloadSchema.parse(
-        args.proposal.payload,
-      );
-      const ctx: ScheduleRenewalNegotiationContext = {
-        tenantId: args.tenant_id,
-        proposalId: args.proposal.id,
-        sourceAuditChainId: args.proposal.capture_id,
-      };
-      const result = await scheduleRenewalNegotiationHandler(payload, ctx, deps);
-      return ok([
-        { type: 'work_assignment', id: result.assignment_id },
-        { type: 'audit_chain_row', id: result.audit_chain_id },
-      ]);
-    } catch (e) {
-      return fail(asValidationError(e));
-    }
-  };
-}
-
-export function createBulkMarkForRenewalPrepAdapter(
-  deps: BulkMarkForRenewalPrepDeps,
-): AcceptHandler {
-  return async (args) => {
-    try {
-      const payload = BulkMarkForRenewalPrepPayloadSchema.parse(
-        args.proposal.payload,
-      );
-      const ctx: BulkMarkForRenewalPrepContext = {
-        tenantId: args.tenant_id,
-        proposalId: args.proposal.id,
-        sourceAuditChainId: args.proposal.capture_id,
-      };
-      const result = await bulkMarkForRenewalPrepHandler(payload, ctx, deps);
-      return ok([
-        { type: 'audit_chain_row', id: result.audit_chain_id },
-        ...result.per_lease
-          .filter((p) => p.status === 'flagged')
-          .map((p) => ({ type: 'lease_flagged', id: p.lease_id })),
-      ]);
-    } catch (e) {
-      return fail(asValidationError(e));
-    }
-  };
-}
-
 // ─── Action → factory map ─────────────────────────────────────────────────
 
 export interface BuildEstateHandlerSet {
   readonly create_lease_application: AcceptHandler;
   readonly post_receipt_draft: AcceptHandler;
-  readonly open_maintenance_case: AcceptHandler;
-  readonly schedule_renewal_negotiation: AcceptHandler;
-  readonly bulk_mark_for_renewal_prep: AcceptHandler;
 }
 
-export function buildEstateHandlerSet(deps: EstateHandlerDeps): BuildEstateHandlerSet {
+export function buildEstateHandlerSet(
+  deps: EstateHandlerDeps,
+): BuildEstateHandlerSet {
   return Object.freeze({
     create_lease_application: createCreateLeaseApplicationAdapter(
       deps.createLeaseApplication,
       deps.moduleId,
     ),
     post_receipt_draft: createPostReceiptDraftAdapter(deps.postReceiptDraft),
-    open_maintenance_case: createOpenMaintenanceCaseAdapter(deps.openMaintenanceCase),
-    schedule_renewal_negotiation: createScheduleRenewalNegotiationAdapter(
-      deps.scheduleRenewalNegotiation,
-    ),
-    bulk_mark_for_renewal_prep: createBulkMarkForRenewalPrepAdapter(
-      deps.bulkMarkForRenewalPrep,
-    ),
   });
 }
 
-/** Canonical list of the 5 estate actions — kept for tests + diagnostics. */
-export const ESTATE_ACTIONS: ReadonlyArray<keyof BuildEstateHandlerSet> = Object.freeze([
-  'create_lease_application',
-  'post_receipt_draft',
-  'open_maintenance_case',
-  'schedule_renewal_negotiation',
-  'bulk_mark_for_renewal_prep',
-]);
+/** Canonical list of the 2 surviving estate actions. */
+export const ESTATE_ACTIONS: ReadonlyArray<keyof BuildEstateHandlerSet> =
+  Object.freeze(['create_lease_application', 'post_receipt_draft']);
 
 // Re-export handlers + payload schemas for direct testing.
 export {
@@ -267,10 +164,4 @@ export {
   CreateLeaseApplicationPayloadSchema,
   postReceiptDraftHandler,
   PostReceiptDraftPayloadSchema,
-  openMaintenanceCaseHandler,
-  OpenMaintenanceCasePayloadSchema,
-  scheduleRenewalNegotiationHandler,
-  ScheduleRenewalNegotiationPayloadSchema,
-  bulkMarkForRenewalPrepHandler,
-  BulkMarkForRenewalPrepPayloadSchema,
 };

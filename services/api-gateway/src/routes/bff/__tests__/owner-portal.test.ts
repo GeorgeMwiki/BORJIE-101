@@ -93,7 +93,11 @@ function emptyRepos() {
       findMany: async () => empty,
       findByPropertyIds: async () => ({ ...empty, limit: 1000, offset: 0, hasMore: false }),
     },
-    workOrders: { findMany: async () => empty },
+    workOrders: {
+      findMany: async () => empty,
+      // TODO(#43) closed: owner-scope now uses findBySiteIds.
+      findBySiteIds: async () => [],
+    },
     vendors: { findByIds: async () => [] },
     documents: { findMany: async () => empty },
     users: { findById: async () => null },
