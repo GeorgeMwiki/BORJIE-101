@@ -6,7 +6,7 @@
  *   - invokes the underlying pure handler with the right ctx
  *   - returns the dispatcher-compatible `AcceptHandlerResult` shape
  *
- * Closes TODO(#34): the 3 BossNyumba estate handlers
+ * Closes TODO(#34): the 3 pre-Borjie estate handlers
  * (open_maintenance_case, schedule_renewal_negotiation,
  * bulk_mark_for_renewal_prep) were ported to mining-domain equivalents
  * (open_equipment_maintenance, schedule_licence_renewal,
@@ -251,7 +251,7 @@ describe('ESTATE 2-handler adapters', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
-// MINING — 3 adapters (replaces the 3 BossNyumba estate stubs)
+// MINING — 3 adapters (replaces the 3 pre-Borjie estate stubs)
 // ───────────────────────────────────────────────────────────────────────────
 
 describe('MINING 3-handler adapters', () => {

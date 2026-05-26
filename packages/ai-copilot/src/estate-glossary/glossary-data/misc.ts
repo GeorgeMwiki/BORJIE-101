@@ -1,6 +1,6 @@
 /**
  * Remaining categories — hr, insurance, marketing, procurement. These
- * are heritage BossNyumba estate categories shipped English-only;
+ * are heritage pre-Borjie estate categories shipped English-only;
  * Borjie-era Swahili+English content for the mining domain lives in
  * `./mining.ts` (shaft, drill, ore, assay, fingerprint, licence,
  * gold-window, royalty, and the Tanzanian-actor vocabulary).

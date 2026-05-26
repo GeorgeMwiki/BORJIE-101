@@ -105,7 +105,7 @@ export interface GlossarySearchFilters {
  * Build a translations map with English populated and every other locale
  * initialised to the empty string. Individual data files override
  * specific locales. Mining-domain terms with curated Swahili+English
- * live in `glossary-data/mining.ts`; the legacy BossNyumba estate
+ * live in `glossary-data/mining.ts`; the legacy pre-Borjie estate
  * categories ship English-only stubs without explicit gap markers.
  */
 export function withEnglishOnly(

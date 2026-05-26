@@ -3,7 +3,7 @@
  * Citations intentionally scoped to KE + GB where statute refs are
  * stable. Mining-licence enforcement terms (TZ Mining Act, gold-window,
  * royalty) live in `./mining.ts` and are the Borjie-era replacement for
- * the heritage BossNyumba tenancy enforcement chain.
+ * the heritage pre-Borjie tenancy enforcement chain.
  */
 
 import { buildEntries, enOnlyBatch, type EntrySpec } from './helpers.js';

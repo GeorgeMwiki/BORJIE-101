@@ -1,7 +1,7 @@
 /**
  * Mining-vocabulary glossary.
  *
- * Borjie-era replacement for the legacy BossNyumba estate translations.
+ * Borjie-era replacement for the legacy pre-Borjie estate translations.
  * Every term carries an English canonical form, Swahili (sw), and the
  * priority Tanzanian-mining locales (where curated). Domain coverage:
  * shaft / drill / ore / assay / fingerprint / licence / gold-window /

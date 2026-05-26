@@ -1,7 +1,7 @@
 /**
  * ESTATE template bundle — ships the 2 surviving Piece-B handlers
  * (`create_lease_application` + `post_receipt_draft`). The 3
- * BossNyumba-era handlers (open_maintenance_case,
+ * pre-Borjie handlers (open_maintenance_case,
  * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
  * to mining-domain equivalents under `templates/mining/`. Closes the
  * historical gh-issue #34 work-item.

@@ -13,7 +13,7 @@
  * On Zod failure, returns `{ ok: false, error }` so the dispatcher flips
  * the proposal to `failed` (the human can edit-then-approve).
  *
- * The 3 BossNyumba-era handlers (open_maintenance_case,
+ * The 3 pre-Borjie handlers (open_maintenance_case,
  * schedule_renewal_negotiation, bulk_mark_for_renewal_prep) were ported
  * to mining-domain equivalents under `templates/mining/handlers/` —
  * see `../mining/accept-proposal-handlers.ts`. Closes the historical

@@ -9,7 +9,7 @@
  *   - MINING → `schedule_licence_renewal`, `open_equipment_maintenance`,
  *              `bulk_mark_licences_for_renewal`
  *
- * The 3 MINING handlers replace the BossNyumba-era estate stubs (the
+ * The 3 MINING handlers replace the pre-Borjie estate stubs (the
  * historical gh-issue #34 work-item, now closed). The other nine module
  * templates register handler stubs; their wiring lands in later waves.
  */
@@ -100,7 +100,7 @@ export type {
   ReceiptStorePort,
 } from './templates/estate/handlers/post-receipt-draft.js';
 
-// ─── MINING — 3 actions (replaces the BossNyumba estate stubs) ────────────
+// ─── MINING — 3 actions (replaces the pre-Borjie estate stubs) ────────────
 
 export {
   buildMiningHandlerSet,

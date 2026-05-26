@@ -1,7 +1,7 @@
 /**
  * Mining-domain accept-proposal handlers — barrel.
  *
- * Three handlers converted from the BossNyumba-era estate stubs (the
+ * Three handlers converted from the pre-Borjie estate stubs (the
  * historical gh-issue #34 work-item, now closed) into typed mining-
  * domain inserts:
  *

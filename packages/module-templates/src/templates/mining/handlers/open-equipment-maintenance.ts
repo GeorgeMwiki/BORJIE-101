@@ -14,7 +14,7 @@
  *   - `tasks`              — follow-up task so the agent chases the
  *                            supervisor on the asset's behalf
  *
- * Replaces the BossNyumba `open_maintenance_case` stub (the historical
+ * Replaces the pre-Borjie `open_maintenance_case` stub (the historical
  * gh-issue #34 work-item, now closed) that targeted `unit_id` (a
  * building/apartment unit). The mining equivalent
  * targets `asset_id` (an excavator, drill, truck, etc.).

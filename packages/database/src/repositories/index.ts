@@ -14,7 +14,11 @@ export {
   DEFAULT_PAGINATION,
 } from './base.repository.js';
 
-export { TenantRepository, UserRepository } from './tenant.repository.js';
+export {
+  TenantRepository,
+  UserRepository,
+  type RepoEncryptionDeps,
+} from './tenant.repository.js';
 
 // Brain — Thread Store. Reads conversation.schema, which survives the
 // hard-fork. Required by the kernel composition root.

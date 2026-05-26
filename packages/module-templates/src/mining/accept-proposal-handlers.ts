@@ -13,7 +13,7 @@
  * On Zod failure, returns `{ ok: false, error }` so the dispatcher flips
  * the proposal to `failed` (the human can edit-then-approve).
  *
- * Replaces the equivalent BossNyumba-era estate adapters
+ * Replaces the equivalent pre-Borjie estate adapters
  * (`createOpenMaintenanceCaseAdapter`, `createScheduleRenewalNegotiationAdapter`,
  * `createBulkMarkForRenewalPrepAdapter`) — closes the historical
  * gh-issue #34 work-item.
