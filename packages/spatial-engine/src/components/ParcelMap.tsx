@@ -198,7 +198,7 @@ export function ParcelMap(props: ParcelMapProps): React.ReactElement {
           // Hidden from TS module resolution because the dep is optional
           // and not in package.json. Wrapped in Function() so the bundler
           // and TS compiler don't try to resolve it at build time.
-          // eslint-disable-next-line no-new-func
+          // eslint-disable-next-line no-new-func -- SCRUB-5f: rule-disabled because @geoman-io/maplibre-geoman-free is an optional draw dep loaded via the dynamic-import dodge so the bundler does not statically resolve it
           const dynamicImport = new Function(
             'specifier',
             'return import(specifier);',

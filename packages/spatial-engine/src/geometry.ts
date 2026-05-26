@@ -32,7 +32,7 @@ type TurfArea = (geom: { type: string; coordinates: unknown }) => number;
 
 let turfArea: TurfArea | null = null;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- SCRUB-5f: rule-disabled because @turf/turf is a soft optional dep loaded via sync require so the local area impl can fall back when absent
   const turf = require('@turf/turf') as { area?: TurfArea };
   if (turf && typeof turf.area === 'function') {
     turfArea = turf.area;
