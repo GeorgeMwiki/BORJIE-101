@@ -5,12 +5,30 @@ import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 
+/**
+ * Resolve the canonical marketing site origin. Preview deploys override
+ * via `NEXT_PUBLIC_MARKETING_SITE_URL`; production builds must set it
+ * (we keep a literal dev fallback only for `next dev`).
+ */
+function resolveSiteUrl(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_MARKETING_SITE_URL?.trim();
+  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'NEXT_PUBLIC_MARKETING_SITE_URL must be set in production marketing builds.',
+    );
+  }
+  return 'https://borjie.co.tz';
+}
+
+const SITE_URL = resolveSiteUrl();
+
 export const metadata: Metadata = {
   title: 'Borjie — AI-native operating system for Tanzanian mining',
   description:
     'Borjie is the AI-native operating system for Tanzanian mining. Master Brain, licence calendar, drill-hole logger, FX & treasury, marketplace, compliance pack. Swahili-first. Multi-tenant. Multi-lingual.',
   applicationName: 'Borjie',
-  metadataBase: new URL('https://borjie.co.tz'),
+  metadataBase: new URL(SITE_URL),
   keywords: [
     'Tanzania mining software',
     'AI-native mining OS',
@@ -31,7 +49,7 @@ export const metadata: Metadata = {
     siteName: 'Borjie',
     locale: 'sw_TZ',
     alternateLocale: ['en_US'],
-    url: 'https://borjie.co.tz',
+    url: SITE_URL,
   },
   twitter: {
     card: 'summary_large_image',
@@ -41,10 +59,10 @@ export const metadata: Metadata = {
     creator: '@borjie_tz',
   },
   alternates: {
-    canonical: 'https://borjie.co.tz',
+    canonical: SITE_URL,
     languages: {
-      sw: 'https://borjie.co.tz',
-      en: 'https://borjie.co.tz?lang=en',
+      sw: SITE_URL,
+      en: `${SITE_URL}?lang=en`,
     },
   },
   robots: {
