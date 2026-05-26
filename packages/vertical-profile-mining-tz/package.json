@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/vertical-profile-mining-tz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Live vertical profile for mining-tz (Wave VP-1). Borjie's launch beachhead — the only profile with status='live' at GA. Ships 10 canonical entities (Mine Site, Pit, Shaft, Stockpile, Buyer, Royalty Filing, Permit, Licence, Worker, Shift), 6 mining-TZ workflows (TRA monthly VAT, Tumemadini annual royalty, NEMC EIA, BoT FX, Safety Audit, KYC), and the Mining-TZ glossary. Companion spec: Docs/DESIGN/UNIVERSAL_VERTICAL_PROFILES_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/vertical-profiles": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
