@@ -643,6 +643,21 @@ export * from './graph-rag.schema.js';
 export * from './strategic-layer.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave 19H — Swahili Linguistics (morphology + dialect + bilingual glossary)
+// ---------------------------------------------------------------------------
+// Three tenant-scoped tables backing migration 0049_swahili_linguistics.sql:
+//   swahili_terms              — bilingual glossary entries (term, lemma,
+//                                noun class, register, domain tag).
+//                                Mining-domain seed lives in TS.
+//   swahili_morphology_cache   — memoised morphological analyses per
+//                                surface form; verb / noun decompositions.
+//   swahili_dialect_signals    — per-user dialect-signal counters that
+//                                drive register adaptation.
+// Consumed by @borjie/swahili-linguistics.
+// See Docs/DESIGN/SWAHILI_LINGUISTICS_SOTA_SPEC.md.
+export * from './swahili-linguistics.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 19I — Translation SOTA (bidirectional EN<->SW with terminology lock)
 // ---------------------------------------------------------------------------
 // Three tenant-scoped tables backing migration 0050_translation_sota.sql:
