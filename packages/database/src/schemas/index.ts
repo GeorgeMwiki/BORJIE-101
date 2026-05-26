@@ -849,3 +849,15 @@ export * from './connector-teams.schema.js';
 export * from './connector-voice.schema.js';
 export * from './connector-zoom.schema.js';
 export * from './marketing-promotion.schema.js';
+
+// ---------------------------------------------------------------------------
+// UNIV-2 — Universal Language Packs (migration 0056)
+// ---------------------------------------------------------------------------
+// Global, NOT tenant-scoped reference registry backing migration
+// 0056_universal_language_packs.sql:
+//   language_pack_definitions  — one row per pack (live or reserved).
+//                                30 rows at launch (2 live: en, sw;
+//                                28 reserved). NO RLS — global ref.
+// Consumed by @borjie/language-packs.
+// See Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.
+export * from './universal-language-packs.schema.js';
