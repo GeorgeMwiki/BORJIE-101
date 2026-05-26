@@ -418,3 +418,199 @@ Hints: capability-promotion only (no pre-fill, no field-related).
 *Every UI surface improves itself, every visit, in front of the owner,
 under the same audit discipline as every other loop. No static
 surfaces. Ever.*
+
+---
+
+## 12. Wave M5 — Persistent Tab Sessions
+
+> Status: Wave M5. Companion to migration
+> `packages/database/drizzle/0036_tab_as_loop.sql` and
+> package `@borjie/tab-as-loop`. Adds the **server-side persistence
+> layer** that turns the in-tab loop iteration story (§3–§5) into a
+> resumable, refresh-tolerant, multi-device session.
+
+The earlier sections (1–11) describe how a single open tab behaves *while*
+it is alive. Wave M5 answers the founder's working question:
+
+> "If I close the tab in Tabora and re-open it on my phone in Mwanza
+> three hours later, what does the system remember?"
+
+The answer: **the tab session is a first-class, server-anchored entity**.
+Closing the tab pauses the loop. Reopening — even on a different device
+— resumes from the last committed state. The client is a *view*. The
+session is the truth.
+
+This pattern is now standard in mature web platforms. Linear's
+["resume where you left off"](https://linear.app/changelog/2025-06-13-resume-where-you-left-off)
+(2025-06-13) ships open-tab restoration scoped to the workspace.
+Notion's [server-anchored editor sessions](https://www.notion.com/releases/2025-08-21)
+(2025-08-21) survive refresh and cross-device. Cursor's
+[multi-device editor restore](https://cursor.com/changelog) (2026-02)
+restores cursor position + selection + open files across a fresh
+laptop. Borjie's contribution is to anchor **the loop's working memory
++ proposals + friction stream**, not just UI chrome.
+
+---
+
+## 13. Tab lifecycle states
+
+Every tab transitions through **five canonical states**, recorded in
+`tab_sessions.state` (a typed envelope, not a free-form jsonb).
+
+```
+   ┌─────────┐  open()       ┌──────────┐
+   │ OPENING │ ────────────▶ │ HYDRATING│
+   └─────────┘               └────┬─────┘
+                                  │ hydrated()
+                                  ▼
+                             ┌────────┐
+                             │ ACTIVE │ ◀──┐
+                             └────┬───┘    │
+                              blur│        │focus()
+                                  ▼        │
+                             ┌────────┐    │
+                             │ PAUSED │ ───┘
+                             └────┬───┘
+                                  │ ttlElapsed()
+                                  ▼
+                             ┌──────────┐ purge()   ┌────────┐
+                             │ EXPIRING │ ────────▶ │ CLOSED │
+                             └──────────┘           └────────┘
+```
+
+| State | Trigger | Server contract | Client observable |
+|-------|---------|-----------------|-------------------|
+| OPENING | client posts `POST /tab-sessions` with kind + scope | insert `tab_sessions` row, emit `tab.opened` event | spinner / skeleton |
+| HYDRATING | server returns session id + snapshot | client subscribes to delta channel | recipe + last-known state load |
+| ACTIVE | hydration ack | accepts deltas, emits hints | UI rendered, sensors live |
+| PAUSED | client visibility blur for >2s, or explicit `close()` | freeze deltas, set `paused_at`, schedule expiry | tab grey / icon |
+| EXPIRING | `expires_at` reached without reopen | move row to cold storage, drop in-memory subs | reopen requires re-hydrate |
+
+ACTIVE and PAUSED are the only "warm" states. The other three are
+short-lived transitions. The state machine lives in
+`packages/tab-as-loop/src/lifecycle/tab-lifecycle.ts` and rejects any
+transition not in the diagram.
+
+---
+
+## 14. State shape — what the session remembers
+
+```ts
+interface TabState {
+  recipeId: string;            // e.g. tab_recipe.buyer_kyb_start.v7
+  recipeVersion: number;
+  scopeId: string | null;      // org-scope binding
+  uiState: Readonly<Record<string, unknown>>;  // form drafts, scroll
+  loopCursor: {
+    iteration: number;         // monotonic; ++ per layered run
+    lastSensorAt: string;      // ISO
+    lastPolicyVerdict: 'allow' | 'deny' | 'review';
+  };
+  pendingHints: ReadonlyArray<HintRef>;
+  frictionLedger: {
+    score: number;             // 0..1, see §4.3
+    samples: number;
+  };
+  recipeProposals: ReadonlyArray<string>; // proposal ids
+}
+```
+
+State is **immutable** — every mutation produces a new value and a
+`tab_events` row. We never overwrite in place. This is the same
+discipline as the Wave 18S mutation chain.
+
+---
+
+## 15. Hydration protocol on reopen
+
+When a tab reopens (same user, same recipe, same scope, within the
+expiry window):
+
+1. Client posts `POST /tab-sessions/{id}/hydrate` with the last known
+   `loopCursor.iteration` it has cached locally (may be stale).
+2. Server reads the latest snapshot from `tab_sessions.state` and
+   *all* `tab_events` whose `recorded_at > client_cursor_at`. It
+   replays them deterministically on top of the snapshot.
+3. Server returns `{ session, snapshotIteration, eventsApplied }`.
+4. Client transitions HYDRATING → ACTIVE; the dynamic-ui rail
+   re-mounts the recipe with the rehydrated state.
+
+The hydration protocol is **at-least-once + idempotent**. Replaying an
+event twice yields the same state (each event carries a
+content-addressed `audit_hash`; duplicates drop on the chain).
+
+---
+
+## 16. Client→server delta sync
+
+Loop iterations on the client (form edits, layered runs, hint
+acknowledgements) emit **deltas** — small, typed, ordered patches.
+The sync contract:
+
+```ts
+POST /tab-sessions/{id}/deltas
+body: {
+  deltas: ReadonlyArray<TabDelta>,
+  fromIteration: number  // last server-confirmed iteration
+}
+```
+
+Each `TabDelta` is one of:
+
+- `ui.field-edit`         — form patch
+- `loop.iteration-done`   — closed an inner loop (§3)
+- `hint.acknowledge`      — owner reacted to a proactive hint
+- `friction.sample`       — added a friction signal
+- `recipe.proposal`       — proposed a recipe variant
+
+Server validates each delta against the current snapshot, applies
+in order, persists each to `tab_events` (one row per delta), and
+updates the canonical `tab_sessions.state`. If `fromIteration` is
+behind the server, the response includes a `rebase` payload — the
+client re-applies its local deltas on top of the server's authoritative
+state. This is the same conflict model as
+[Linear sync](https://linear.app/blog/scaling-the-linear-sync-engine)
+(2025-04, "Scaling the Linear Sync Engine") and
+[Replicache](https://replicache.dev/docs/concepts/how-it-works) (2024-10).
+
+---
+
+## 17. Server-side persistence — schema overview
+
+Migration `0036_tab_as_loop.sql` introduces two tables:
+
+- `tab_sessions` — one row per (user, tab kind, scope). `state jsonb`
+  carries the canonical `TabState`. `audit_hash` chains forward;
+  `prev_hash` enables verification. RLS on `tenant_id`.
+- `tab_events` — one row per applied delta. FK to `tab_sessions`.
+  RLS inherited via tenant join.
+
+A nightly cron sweeps `tab_sessions` with `expires_at < now() - 7d`
+into a cold archive (planned Wave M7). No telemetry is dropped.
+
+---
+
+## 18. M5 implementation map
+
+- **Package** `@borjie/tab-as-loop` — types + lifecycle + sync + repos.
+- **Migration** `0036_tab_as_loop.sql` — `tab_sessions` + `tab_events`.
+- **Drizzle schema** `packages/database/src/schemas/tab-as-loop.schema.ts`.
+- **API gateway** (planned M5.1) — `POST /tab-sessions`,
+  `POST /tab-sessions/{id}/hydrate`, `POST /tab-sessions/{id}/deltas`.
+- **Client adapter** (planned M5.2) — wires the dynamic-ui rail to the
+  hydrate + delta endpoints.
+
+The package ships pure logic + in-memory repository. The SQL repository
+is exported as a stub interface — the database package wires the real
+adapter so the cyclic dep is avoided.
+
+---
+
+## 19. References (M5)
+
+- [Linear — Resume where you left off](https://linear.app/changelog/2025-06-13-resume-where-you-left-off) (2025-06-13).
+- [Notion — Server-anchored editor sessions](https://www.notion.com/releases/2025-08-21) (2025-08-21).
+- [Cursor — Multi-device restore](https://cursor.com/changelog) (2026-02).
+- [Scaling the Linear Sync Engine](https://linear.app/blog/scaling-the-linear-sync-engine) (2025-04).
+- [Replicache — How it works](https://replicache.dev/docs/concepts/how-it-works) (2024-10).
+- [Figma — Multiplayer architecture](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/) (2024-12 update).

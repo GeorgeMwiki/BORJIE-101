@@ -361,3 +361,16 @@ export * from './persistent-memory.schema.js';
 // See Docs/DESIGN/FUNCTION_ATTACHED_DASHBOARD_SPEC.md and
 // Docs/STRATEGY/EPHEMERAL_SOFTWARE_SOTA.md.
 export * from './ephemeral-dashboard-telemetry.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 18BB-MCP-EXT — MCP External Client (consume the public MCP ecosystem)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration 0033_mcp_external_connections.sql:
+//   mcp_external_connections — per-tenant connection records to public MCP
+//                              servers (Slack, GitHub, Notion, GDrive, …).
+//                              `encrypted_credentials` is AES-GCM ciphertext.
+//   mcp_tool_invocations     — per-invocation audit log; cross-walks into
+//                              ai_audit_chain via `audit_chain_id`.
+// Consumed by @borjie/agent-platform/src/mcp-external-client.
+// See Docs/DESIGN/MCP_EXTERNAL_CLIENT_SPEC.md.
+export * from './mcp-external-connections.schema.js';
