@@ -26,6 +26,7 @@ import {
   dispatchToProvider,
   reorderForCapabilityAndCost,
 } from '../providers/dispatcher.js';
+import { applyLiveModeGuard } from '../providers/live-mode-guard.js';
 import { scanBrandViolation } from '../safety/brand-violation-scanner.js';
 import { scanForNsfw } from '../safety/nsfw-scanner.js';
 import { detectDeepfake } from '../safety/deepfake-detector.js';
@@ -96,11 +97,16 @@ export async function runRecipe(args: RunRecipeArgs): Promise<MediaArtifact> {
   const remaining_budget_cents =
     providerCtx.cost_tracker.budget() -
     (await providerCtx.cost_tracker.spent());
-  const ordered = reorderForCapabilityAndCost(
+  const costOrdered = reorderForCapabilityAndCost(
     args.capability,
     args.adapters,
     remaining_budget_cents,
   );
+  // Caveat 5 — live-test discipline. In strict live mode
+  // (BORJIE_LIVE_MODE=strict, set by the production bootstrap)
+  // refuse adapters explicitly marked non-live so recorded fixtures
+  // cannot masquerade as a real provider call. No-op in tests.
+  const ordered = applyLiveModeGuard(costOrdered);
   const { artifact } = await dispatchToProvider({
     capability: args.capability,
     input,

@@ -244,6 +244,14 @@ export {
   type DispatchResult,
 } from './providers/dispatcher.js';
 
+export {
+  applyLiveModeGuard,
+  isLiveAdapter,
+  isStrictLiveMode,
+  markAdapterAsNonLive,
+  type NonLiveAdapterMarker,
+} from './providers/live-mode-guard.js';
+
 // ---------------------------------------------------------------------------
 // Safety
 // ---------------------------------------------------------------------------
