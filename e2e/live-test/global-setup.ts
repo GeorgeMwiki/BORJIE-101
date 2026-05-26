@@ -26,7 +26,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const TOKEN_FILE = join(__dirname, '.live-test-token.json');
 
 export default async function globalSetup(): Promise<void> {
-  // eslint-disable-next-line no-console
   console.log('[live-test] globalSetup: validating env + bootstrap signin');
   const env = loadLiveTestEnv();
 
@@ -56,7 +55,6 @@ export default async function globalSetup(): Promise<void> {
     JSON.stringify({ ownerToken, otherToken }, null, 2),
     'utf8',
   );
-  // eslint-disable-next-line no-console
   console.log('[live-test] globalSetup: ok — tokens cached');
 }
 

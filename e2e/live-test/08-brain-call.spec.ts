@@ -144,7 +144,6 @@ test.describe('08 — Brain + Wave 12 features', () => {
       // High-stakes path SHOULD trigger debate (Wave 12 BL2). Allow undefined
       // when feature-flagged off for this tenant, but warn.
       if (debate === undefined) {
-        // eslint-disable-next-line no-console
         console.warn('[live-test] high-stakes question did not record debate metadata');
       } else {
         expect(debate.invocations).toBeGreaterThanOrEqual(1);
@@ -201,7 +200,6 @@ test.describe('08 — Brain + Wave 12 features', () => {
             ? (reflexion.retries ?? 0) >= 0
             : Boolean(reflexion.triggered)));
       if (!oneFired) {
-        // eslint-disable-next-line no-console
         console.warn(
           '[live-test] neither LATS nor reflexion fired — feature flags may be off',
         );

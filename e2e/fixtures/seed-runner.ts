@@ -30,7 +30,6 @@ async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_URL;
   const sql = readFileSync(SEED_PATH, 'utf8');
 
-  // eslint-disable-next-line no-console
   console.log(`[seed-runner] applying seed.sql to ${redact(databaseUrl)}`);
 
   const client = postgres(databaseUrl, { max: 1, onnotice: () => undefined });
@@ -44,10 +43,8 @@ async function main(): Promise<void> {
       if (stmt.trim().length === 0) continue;
       await client.unsafe(stmt);
     }
-    // eslint-disable-next-line no-console
     console.log(`[seed-runner] seed applied (${statements.length} statements) ✓`);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('[seed-runner] seed failed:', error);
     throw new Error('Seed failed — ensure migrations have run first');
   } finally {
@@ -77,7 +74,6 @@ function redact(url: string): string {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });

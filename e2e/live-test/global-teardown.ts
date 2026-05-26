@@ -15,11 +15,9 @@ import { cleanupLiveTest } from './fixtures/cleanup';
 import { TOKEN_FILE } from './global-setup';
 
 export default async function globalTeardown(): Promise<void> {
-  // eslint-disable-next-line no-console
   console.log('[live-test] globalTeardown: best-effort cleanup');
 
   if (!existsSync(TOKEN_FILE)) {
-    // eslint-disable-next-line no-console
     console.log('[live-test] globalTeardown: no token file — skip cleanup');
     return;
   }
@@ -32,19 +30,16 @@ export default async function globalTeardown(): Promise<void> {
     const authed = await authedRequest(env, ownerToken);
     try {
       const result = await cleanupLiveTest(authed);
-      // eslint-disable-next-line no-console
       console.log(
         `[live-test] globalTeardown: tenantDeleted=${result.tenantDeleted} warnings=${result.warnings.length}`,
       );
       for (const warning of result.warnings) {
-        // eslint-disable-next-line no-console
         console.warn(`[live-test]   warn: ${warning}`);
       }
     } finally {
       await authed.dispose();
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn('[live-test] globalTeardown: error (non-fatal):', err);
   } finally {
     try {
