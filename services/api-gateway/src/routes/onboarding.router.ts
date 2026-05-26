@@ -1,6 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union widens
-//   across multiple c.json branches; tracked with other routers already on nocheck.
-
 /**
  * Phase F.5 — Tenant-signup onboarding flow router.
  *

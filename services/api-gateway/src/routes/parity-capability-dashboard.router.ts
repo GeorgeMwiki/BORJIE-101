@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal widening.
 /**
  * Parity capability dashboard router — Wave-K (parity-litfin).
  *

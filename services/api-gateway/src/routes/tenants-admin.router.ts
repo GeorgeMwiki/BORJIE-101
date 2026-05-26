@@ -25,8 +25,6 @@
  * worker walks the schedule and fires `tenant-purge-worker` at expiry.
  */
 
-// @ts-nocheck — Hono v4 status-code literal union widens c.json branches.
-
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';

@@ -1,8 +1,7 @@
-// @ts-nocheck — Hono v4 streamSSE + status-literal-union widening
-// (hono-dev/hono#3891). Brain wire-up runs through the chat
-// orchestrator (see `./chat-orchestrator.ts`) — this route is the
-// Master Brain SSE entry surface; the orchestrator owns evidence
-// resolution, junior dispatch, and mode-to-Master-Brain translation.
+// Brain wire-up runs through the chat orchestrator
+// (see `./chat-orchestrator.ts`) — this route is the Master Brain SSE
+// entry surface; the orchestrator owns evidence resolution, junior
+// dispatch, and mode-to-Master-Brain translation.
 /**
  * /api/v1/mining/chat — Master Brain entry (SSE).
  *
