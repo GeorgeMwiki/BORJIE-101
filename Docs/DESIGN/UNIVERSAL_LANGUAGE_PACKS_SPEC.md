@@ -247,11 +247,11 @@ spec rewrite.
 
 ## 9. Reserved slots roster
 
-The launch ships 30 pack definitions:
+The launch ships 31 pack definitions:
 
 - **Live (2):** `en` (English), `sw` (Swahili — with TZ + KE region
   variants).
-- **Reserved (28):** `fr` (French), `ar` (Arabic, RTL), `pt`
+- **Reserved (29):** `fr` (French), `ar` (Arabic, RTL), `pt`
   (Portuguese), `es` (Spanish), `zh-CN` (Chinese Simplified), `ru`
   (Russian, Cyrillic), `hi` (Hindi, Devanagari), `id` (Indonesian),
   `tr` (Turkish), `vi` (Vietnamese), `de` (German), `it` (Italian),

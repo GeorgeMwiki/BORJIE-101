@@ -184,12 +184,12 @@ CREATE INDEX IF NOT EXISTS idx_language_pack_definitions_rtl
 -- NO Row-Level Security
 -- -----------------------------------------------------------------------------
 -- Intentional. This is a global reference dataset. Every tenant reads
--- the same 30 rows; RLS would impose useless predicate cost on every
+-- the same 31 rows; RLS would impose useless predicate cost on every
 -- query. Tenant-specific *preferences* over packs live in a separate
 -- table (see header comment).
 
 COMMENT ON TABLE language_pack_definitions IS
-  'UNIV-2 — global registry of language packs (live + reserved). 30 rows at launch (2 live, 28 reserved). No RLS by design — global reference dataset. Spec: Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.';
+  'UNIV-2 — global registry of language packs (live + reserved). 31 rows at launch (2 live: en, sw; 29 reserved). No RLS by design — global reference dataset. Spec: Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.';
 
 COMMENT ON COLUMN language_pack_definitions.id IS
   'Canonical pack id. Equals BCP-47 primary subtag for monolingual packs (en, sw, fr) and the full BCP-47 tag for region-locked packs (sw-TZ, zh-CN). PRIMARY KEY.';

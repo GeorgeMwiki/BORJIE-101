@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/language-packs",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Universal Language Pack Registry (UNIV-2). Canonical in-memory and database-backed registry of every language pack Mr. Mwikila supports — 30 pack definitions at launch (2 live: en, sw; 28 reserved). Adding a new language = adding a row + a @borjie/language-pack-{code} package; no core change. See Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
