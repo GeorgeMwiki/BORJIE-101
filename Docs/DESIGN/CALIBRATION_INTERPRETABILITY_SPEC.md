@@ -4,7 +4,7 @@
 > **Wave**: 18BB-gap (P0 #5 closer)
 > **Owner**: Mr. Mwikila platform team
 > **Companion packages**: `@borjie/calibration-monitor`, `@borjie/sae-probe`
-> **Companion migration**: `0033_calibration_interpretability.sql`
+> **Companion migration**: `0037_calibration_interpretability.sql`
 > **References**: Anthropic Constitutional AI, Anthropic SAE work
 > ("Towards Monosemanticity"), Goodfire SAE probing toolkit,
 > Niculescu-Mizil & Caruana — Brier/ECE foundations.
@@ -217,7 +217,7 @@ categories. Listed here so the dictionary contract is clear:
 
 ---
 
-## 5. Database schema (migration 0033)
+## 5. Database schema (migration 0037)
 
 Three tables, all RLS-tenant-scoped using the canonical
 `app.tenant_id` GUC pattern from migration 0003. All writes go
