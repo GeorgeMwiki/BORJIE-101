@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/connector-slack",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Omnidata P0 Batch 1 — Slack ingest (channels, threads, files, reactions, presence). Cursor-based incremental poller, OAuth v2 install, boundary PII redaction, attachments to MinIO. Spec: Docs/DESIGN/OMNI_P0_BATCH1_CONNECTORS_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
