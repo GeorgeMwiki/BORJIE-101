@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
 /**
  * /api/v1/mining/sites — physical mining locations within a licence area.
  *

@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 status-literal-union widening (hono-dev/hono#3891).
 /**
  * Mining-domain Hono sub-app — aggregates every mining route into a
  * single mount-point so `services/api-gateway/src/index.ts` only needs

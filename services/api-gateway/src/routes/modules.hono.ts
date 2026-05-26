@@ -1,5 +1,3 @@
-// @ts-nocheck — Hono v4 typed-response union widening (see brain.hono.ts).
-
 /**
  * /api/v1/modules — Piece B dynamic module spawning endpoints.
  *
