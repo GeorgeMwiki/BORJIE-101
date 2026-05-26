@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { Sparkles, ShieldAlert } from 'lucide-react';
 
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 /**
  * PrivacyBudgetCard — right-pane budget readout for /ask.
@@ -26,8 +27,10 @@ type BudgetResult =
 
 async function fetchBudget(cookieHeader: string): Promise<BudgetResult> {
   try {
-    const base =
-      process.env.NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL ?? 'http://localhost:3020';
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL',
+      'http://localhost:3020',
+    );
     const res = await fetch(`${base}/api/platform/budget`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',

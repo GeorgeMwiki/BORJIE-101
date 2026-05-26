@@ -4,6 +4,7 @@ import { MessageSquare, AlertTriangle } from 'lucide-react';
 
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
 import { PrefetchNavLink } from '@/components/PrefetchNavLink';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 /**
  * ThreadList — left column of the /ask surface.
@@ -29,8 +30,10 @@ type ListResult =
 
 async function fetchThreads(cookieHeader: string): Promise<ListResult> {
   try {
-    const base =
-      process.env.NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL ?? 'http://localhost:3020';
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL',
+      'http://localhost:3020',
+    );
     const res = await fetch(`${base}/api/platform/intelligence/threads`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',

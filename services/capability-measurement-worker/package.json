@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/capability-measurement-worker",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Wave CAPABILITY — measures every capability over time on three axes (competence / calibration / utility) over 7d / 28d / 91d rolling windows. Persists capability_measurements rows + optionally drives lifecycle promotions through @borjie/capability-catalogue. Companion: Docs/DESIGN/CAPABILITY_CATALOGUE_SPEC.md §9.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/capability-catalogue": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

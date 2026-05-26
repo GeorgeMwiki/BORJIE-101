@@ -733,6 +733,22 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/ambient-listener:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/analytics:
     dependencies:
       '@borjie/ai-copilot':
@@ -1728,6 +1744,18 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/dp-federation:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/dynamic-sections:
     dependencies:
       clsx:
@@ -2302,6 +2330,25 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/internal-software-generator:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/inventory-management:
     dependencies:
       zod:
@@ -2320,6 +2367,63 @@ importers:
 
   packages/knowledge-graph:
     dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/language-self-improve:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/language-sota:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/legibility:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      '@borjie/observability':
+        specifier: workspace:*
+        version: link:../observability
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -2617,6 +2721,18 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/meta-learning-conductor:
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -3688,6 +3804,25 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/swahili-linguistics:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/swarm-coordination:
     dependencies:
       '@borjie/audit-hash-chain':
@@ -3768,6 +3903,25 @@ importers:
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/timezone-detection:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/translation-sota:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -4255,6 +4409,28 @@ importers:
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  services/capability-measurement-worker:
+    dependencies:
+      '@borjie/capability-catalogue':
+        specifier: workspace:*
+        version: link:../../packages/capability-catalogue
+      '@borjie/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

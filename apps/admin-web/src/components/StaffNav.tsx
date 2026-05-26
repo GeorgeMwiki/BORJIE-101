@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { Logomark } from '@borjie/design-system';
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { PrefetchNavLink } from './PrefetchNavLink';
 
 interface NavGroup {
@@ -85,7 +86,10 @@ interface BudgetPayload {
 
 async function fetchBudget(cookieHeader: string): Promise<BudgetPayload | null> {
   try {
-    const base = process.env.NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL ?? 'http://localhost:3020';
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL',
+      'http://localhost:3020',
+    );
     const res = await fetch(`${base}/api/platform/budget`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',

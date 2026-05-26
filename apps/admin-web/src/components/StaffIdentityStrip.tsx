@@ -1,9 +1,13 @@
 import { cookies } from 'next/headers';
 import { PLATFORM_SESSION_COOKIE, type PlatformStaff } from '@/lib/session';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 async function fetchMe(cookieHeader: string): Promise<PlatformStaff | null> {
   try {
-    const base = process.env.NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL ?? 'http://localhost:3020';
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL',
+      'http://localhost:3020',
+    );
     const res = await fetch(`${base}/api/platform/me`, {
       headers: { cookie: cookieHeader },
       cache: 'no-store',
