@@ -83,12 +83,19 @@ jobs:
         run: pnpm -F @borjie/database build
 
       # Pre-build every workspace dependency that @borjie/ai-copilot imports
-      # at test time (e.g. @borjie/observability for audit-hash-chain,
-      # @borjie/forecasting for predictive paths). The `^...` selector
-      # builds dependencies of @borjie/ai-copilot but not the package
-      # itself — keeps the test step honest about exercising source. See #28.
+      # at test time (e.g. @borjie/forecasting for predictive paths). The
+      # `^...` selector builds dependencies of @borjie/ai-copilot but not
+      # the package itself — keeps the test step honest about exercising
+      # source.
+      #
+      # @borjie/observability is listed as a *peerDependency* (optional) so
+      # pnpm's dep walker skips it; build it explicitly because
+      # security/audit-hash-chain imports it at runtime. See #28.
       - name: Build @borjie/ai-copilot workspace deps
         run: pnpm --filter "@borjie/ai-copilot^..." build
+
+      - name: Build @borjie/observability (peerDep of ai-copilot)
+        run: pnpm -F @borjie/observability build
 
       - name: Test @borjie/ai-copilot
         run: pnpm -F @borjie/ai-copilot test
