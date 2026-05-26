@@ -300,6 +300,13 @@ export * from './junior-architecture.schema.js';
 export * from './junior-lifecycle.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave 18HH — Swarm Coordination (active registry + A2A + blackboard +
+// conflicts). Four tables backing migration 0030_swarm_coordination.sql:
+// active_agents, agent_messages, blackboard_postings, coordination_conflicts.
+// See Docs/DESIGN/AGENT_SWARM_COORDINATION_SOTA.md.
+export * from './swarm-coordination.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 18X — Org Hierarchy + Terminology (multi-level MD foundation)
 // ---------------------------------------------------------------------------
 // Three tables backing migration 0026_org_scope_hierarchy.sql:
