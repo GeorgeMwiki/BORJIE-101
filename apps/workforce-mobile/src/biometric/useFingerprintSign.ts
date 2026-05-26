@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
 import * as LocalAuthentication from 'expo-local-authentication'
 
-// TODO(#14,#21): requires EAS dev build — expo-local-authentication
-// needs the native biometric module. Falls back to a stub "sign" if
-// hardware is absent so developers without a device can still exercise
-// the flow.
+// See gh-issue #14 + #21: requires EAS dev build —
+// expo-local-authentication needs the native biometric module. Falls
+// back to a stub "sign" if hardware is absent so developers without a
+// device can still exercise the flow.
 
 export interface FingerprintResult {
   signedAt: number

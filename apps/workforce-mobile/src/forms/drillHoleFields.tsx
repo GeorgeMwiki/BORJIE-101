@@ -87,9 +87,10 @@ export function DrillHoleFields({ control, setValue, t }: DrillHoleFieldsProps):
         label={t.drillHole.scanSampleTag}
         variant="ghost"
         onPress={() => {
-          // TODO(#14): requires EAS dev build — wire to expo-barcode-scanner when
-          // the sample-tag scanner module ships. For now we simulate a scan
-          // by generating a tag prefix so QA can exercise the flow.
+          // See gh-issue #14: requires EAS dev build — wire to
+          // expo-barcode-scanner when the sample-tag scanner module
+          // ships. For now we simulate a scan by generating a tag
+          // prefix so QA can exercise the flow.
           const simulated = `SMP-${Date.now().toString().slice(-6)}`
           setValue('sampleTag', simulated, { shouldValidate: true })
         }}

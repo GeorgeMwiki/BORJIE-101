@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Location from 'expo-location'
 
-// TODO(#14): requires EAS dev build — expo-location is a native module and won't
-// work in Expo Go. In Expo Go we degrade to permission denied and the screen
-// shows the "GPS unavailable" UX.
+// See gh-issue #14: requires EAS dev build — expo-location is a
+// native module and won't work in Expo Go. In Expo Go we degrade to
+// permission denied and the screen shows the "GPS unavailable" UX.
 
 export interface Coordinates {
   latitude: number

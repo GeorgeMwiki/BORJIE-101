@@ -1,9 +1,19 @@
 /**
- * LME REST adapter — stub implementation.
+ * LME REST adapter.
  *
- * TODO(#32): wire up the real LME REST endpoint once credentials + base
- * URL are provisioned. The structural shape matches PriceSourceAdapter
- * so the orchestrator can already consume this in tests.
+ * Wave 18Z-cleanup (SCRUB-3): the previous stub branch fabricated price
+ * ticks when no `apiKey` was configured. That violates the live-test
+ * discipline (`borjie/no-mock-data-in-runtime`) — a managing director
+ * the owner trusts MUST NOT make up data. The adapter now throws a
+ * `LmeAdapterNotConfiguredError` when no key is present, so the
+ * orchestrator surfaces the missing-config posture rather than feeding
+ * fake numbers into downstream recommendations.
+ *
+ * Tests inject `fetchImpl` to return canned responses (see
+ * `__tests__/commodity-intelligence.spec.ts` + `__fixtures__/`).
+ *
+ * See gh-issue #32: wire up the real LME REST endpoint once credentials
+ * + base URL are provisioned in the production secret store.
  */
 
 import type { PriceSourceAdapter } from '../ports.js';
@@ -19,6 +29,17 @@ export const LME_SOURCE_ID = 'lme-rest';
 
 const DEFAULT_BASE_URL = 'https://api.lme.com/v1';
 
+export class LmeAdapterNotConfiguredError extends Error {
+  constructor() {
+    super(
+      'LME adapter not configured — set LmeAdapterConfig.apiKey before ' +
+        'wiring this adapter into the live commodity-intelligence pipeline. ' +
+        'See packages/mining-commodity-intelligence/README.md.',
+    );
+    this.name = 'LmeAdapterNotConfiguredError';
+  }
+}
+
 export function createLmeAdapter(config: LmeAdapterConfig = {}): PriceSourceAdapter {
   const baseUrl = config.baseUrl ?? DEFAULT_BASE_URL;
   const apiKey = config.apiKey;
@@ -26,10 +47,8 @@ export function createLmeAdapter(config: LmeAdapterConfig = {}): PriceSourceAdap
   return {
     name: LME_SOURCE_ID,
     async fetchLatest(commodity: Commodity): Promise<PriceTick> {
-      // TODO(#32): production fetch path. Stub branch (no apiKey)
-      // keeps the orchestrator + tests deterministic.
       if (apiKey === undefined) {
-        return stubTick(commodity, 1);
+        throw new LmeAdapterNotConfiguredError();
       }
       const url = `${baseUrl}/spot/${commodity}`;
       const res = await f(url, {
@@ -49,8 +68,7 @@ export function createLmeAdapter(config: LmeAdapterConfig = {}): PriceSourceAdap
     },
     async fetchHistory(commodity: Commodity, sinceISO: string): Promise<ReadonlyArray<PriceTick>> {
       if (apiKey === undefined) {
-        const days = Math.max(1, daysBetween(sinceISO, new Date().toISOString()));
-        return Array.from({ length: days }, (_, idx) => stubTick(commodity, days - idx));
+        throw new LmeAdapterNotConfiguredError();
       }
       const url = `${baseUrl}/history/${commodity}?since=${encodeURIComponent(sinceISO)}`;
       const res = await f(url, {
@@ -70,33 +88,3 @@ export function createLmeAdapter(config: LmeAdapterConfig = {}): PriceSourceAdap
     },
   };
 }
-
-function stubTick(commodity: Commodity, daysAgo: number): PriceTick {
-  const base = STUB_BASE[commodity] ?? 1000;
-  const drift = base * 0.001 * daysAgo;
-  const day = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-  return {
-    commodity,
-    pricePerTonne: base + drift,
-    currency: 'USD',
-    source: LME_SOURCE_ID,
-    asOfISO: day.toISOString(),
-  };
-}
-
-function daysBetween(aISO: string, bISO: string): number {
-  return Math.abs(
-    Math.round((new Date(aISO).getTime() - new Date(bISO).getTime()) / (24 * 60 * 60 * 1000)),
-  );
-}
-
-const STUB_BASE: Partial<Record<Commodity, number>> = {
-  gold: 65_000_000,
-  silver: 800_000,
-  copper: 9_500,
-  cobalt: 30_000,
-  nickel: 18_000,
-  tin: 28_000,
-  zinc: 2_500,
-  lead: 2_100,
-};
