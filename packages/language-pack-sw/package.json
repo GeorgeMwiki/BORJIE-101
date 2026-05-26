@@ -1,0 +1,32 @@
+{
+  "name": "@borjie/language-pack-sw",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Swahili language pack (UNIV-2). sw-TZ + sw-KE region variants with CLDR-derived locale resources, voice profile defaults (Lelapa Vulavula primary, ElevenLabs v3 Swahili fallback, Google Cloud Chirp 3 tertiary — Gemini Live explicitly excluded since it lacks Swahili support), dialect signals (Bongo / Coastal / Sheng / Standard) and a 50-entry mining-domain glossary citing Tume ya Madini, TRA, NEMC, Ministry of Minerals and the Mining Act Cap.123. See Docs/DESIGN/UNIVERSAL_LANGUAGE_PACKS_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/language-packs": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

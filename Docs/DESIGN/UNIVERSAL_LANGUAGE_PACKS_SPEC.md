@@ -34,14 +34,14 @@ brittle: the second-class languages get their adjectival concord
 wrong, their currency formatted in the wrong direction, their dates
 in the wrong order, their voice provider mapped to the wrong dialect.
 Borjie inverts that. Every language gets the same first-class pack
-shape from day one, even if the first 28 of them are reserved slots
+shape from day one, even if the first 29 of them are reserved slots
 with no implementation behind them yet.
 
 This document defines (a) the pack shape every implementation must
 honour, (b) the registry table and its lookup semantics, (c) the
 mapping between BCP-47 / ISO 639-1 / ISO 639-2 / ISO 639-3 / CLDR
 locale identifiers, (d) the 5-step recipe for adding a new pack, and
-(e) the 30 reserved-slot roster the launch ships with.
+(e) the 31-pack reserved-slot roster the launch ships with.
 
 ## 2. The pack shape
 
