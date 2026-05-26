@@ -14,6 +14,7 @@ import { ContextBadge } from './ContextBadge';
 import { SegmentHeader } from './SegmentHeader';
 import { VoiceOverlay } from './VoiceOverlay';
 import { buildAttachment } from './useUnifiedChat';
+import type { InlineRichRenderVariant } from '../shared/InlineRichRender';
 
 interface ChatPanelProps {
   readonly chat: UnifiedChat;
@@ -198,6 +199,14 @@ export function ChatPanel({ chat, strings, onClose, variant = 'floating', render
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {chat.messages.map((m) => {
             const segment = chat.segments.find((s) => s.id === m.segmentId);
+            // Floating + bottom-sheet panels are width-constrained (380px
+            // on desktop, full-bleed bottom-sheet on mobile). Pass the
+            // `compact` variant so InlineRichRender uses tighter padding
+            // and lets embedded primitives shrink to fit. `full` variant
+            // is the home/full-screen chat surface where embeds can use
+            // their full layout.
+            const inlineVariant: InlineRichRenderVariant =
+              variant === 'full' ? 'expanded' : 'compact';
             return (
               <div key={m.id}>
                 {segment ? <SegmentHeader segment={segment} language={chat.language} /> : null}
@@ -205,6 +214,11 @@ export function ChatPanel({ chat, strings, onClose, variant = 'floating', render
                   message={m}
                   personaName={strings.personaName}
                   blockSlot={renderBlockSlot ? renderBlockSlot(m.id) : undefined}
+                  inlineVariant={inlineVariant}
+                  inlineLanguage={chat.language}
+                  onSendMessage={(text) => {
+                    void chat.sendMessage(text);
+                  }}
                 />
               </div>
             );

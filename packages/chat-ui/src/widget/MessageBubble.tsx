@@ -1,16 +1,55 @@
 /**
  * MessageBubble — user + mwikila variants, markdown rendered body,
- * optional block-embed slot for AdaptiveRenderer.
+ * optional block-embed slot for AdaptiveRenderer, plus the SHARED
+ * `InlineRichRender` for tab-detail / blackboard / uiBlocks / uiParts
+ * payloads carried on `message.metadata`. The home chat surface and the
+ * floating widget BOTH use this bubble so they render identical rich
+ * content (per-founder directive: floating must reach home parity).
  */
 import type { ReactNode } from 'react';
 import type { ChatMessage } from './types';
 import { renderMarkdown } from './markdown';
 import { DegradedBanner, type DegradedMarker } from '../components/DegradedBanner';
+import {
+  InlineRichRender,
+  type InlineRichRenderVariant,
+} from '../shared/InlineRichRender';
+import type { Language } from '../chat-modes/types';
 
 interface MessageBubbleProps {
   readonly message: ChatMessage;
   readonly personaName: string;
+  /**
+   * Optional caller-supplied block slot (legacy host-supplied embed).
+   * Rendered IN ADDITION to the automatic InlineRichRender so a host
+   * that already wires its own renderer continues to work.
+   */
   readonly blockSlot?: ReactNode;
+  /**
+   * Variant controls how InlineRichRender packs its embeds. Floating
+   * chat passes `compact` (380px panel); home chat passes `expanded`.
+   * Defaults to `expanded` — safe for any wide surface.
+   */
+  readonly inlineVariant?: InlineRichRenderVariant;
+  /**
+   * Optional language override for the InlineRichRender. Falls back to
+   * `message.language` when omitted.
+   */
+  readonly inlineLanguage?: Language;
+  /**
+   * Forwarded to the InlineRichRender so quick-reply / action-button
+   * blocks can send messages back into the conversation.
+   */
+  readonly onSendMessage?: (msg: string) => void;
+  /**
+   * Forwarded to the InlineRichRender so embedded quiz blocks can
+   * report answers back to the host.
+   */
+  readonly onQuizAnswer?: (
+    blockId: string,
+    optionId: string,
+    correct: boolean,
+  ) => void;
 }
 
 /**
@@ -40,9 +79,18 @@ function extractDegradedMarker(message: ChatMessage): DegradedMarker | null {
   };
 }
 
-export function MessageBubble({ message, personaName, blockSlot }: MessageBubbleProps): JSX.Element {
+export function MessageBubble({
+  message,
+  personaName,
+  blockSlot,
+  inlineVariant = 'expanded',
+  inlineLanguage,
+  onSendMessage,
+  onQuizAnswer,
+}: MessageBubbleProps): JSX.Element {
   const isUser = message.role === 'user';
   const degraded = extractDegradedMarker(message);
+  const resolvedLanguage: Language = inlineLanguage ?? message.language;
   return (
     <li
       data-testid="message-bubble"
@@ -84,6 +132,15 @@ export function MessageBubble({ message, personaName, blockSlot }: MessageBubble
           </ul>
         ) : null}
       </div>
+      {!isUser ? (
+        <InlineRichRender
+          metadata={message.metadata}
+          language={resolvedLanguage}
+          variant={inlineVariant}
+          {...(onSendMessage ? { onSendMessage } : {})}
+          {...(onQuizAnswer ? { onQuizAnswer } : {})}
+        />
+      ) : null}
       {blockSlot ? <div data-testid="message-bubble-blocks">{blockSlot}</div> : null}
     </li>
   );
