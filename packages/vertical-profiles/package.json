@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/vertical-profiles",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Universal Vertical Profile Registry (Wave VP-1). In-memory + SQL-shaped registry of every (vertical, region) tuple Mr. Mwikila supports — 75 profile definitions at launch (1 live: mining-tz; 74 reserved across mining/agri/oilgas/fisheries/forestry/manufacturing/tourism/realestate). Adding a new vertical+region = adding a row + a @borjie/vertical-profile-{vertical}-{region} package. Spec: Docs/DESIGN/UNIVERSAL_VERTICAL_PROFILES_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

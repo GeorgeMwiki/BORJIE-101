@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/employee-perf-followup",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Wave PERF-1 — Mr. Mwikila follows up on every employee's daily performance. Per-employee scorecards (role-default KPIs + assignments + outputs), three-tier rendering (subject / supervisor / owner) per FOUNDER_LOCKED_DECISIONS_2026_05_26 §3, coaching nudges in the subject's persona-voice mode, daily 06:00 local scheduler honouring §1 quiet hours. Companion: Docs/DESIGN/EMPLOYEE_DAILY_PERFORMANCE_FOLLOWUP_SPEC.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
