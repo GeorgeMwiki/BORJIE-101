@@ -30,7 +30,7 @@ export function buildStubUser(role: Role): User {
     role,
     tenantId: 'tenant-dev',
     fullName: stubName(role),
-    preferredLang: 'sw'
+    preferredLang: 'en'
   }
 }
 

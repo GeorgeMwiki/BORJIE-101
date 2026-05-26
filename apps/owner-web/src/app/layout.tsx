@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="sw" className="dark">
+    <html lang="en" className="dark">
       <body className="bg-background text-foreground antialiased min-h-screen">
         <a href="#main-content" className="skip-link">
           Skip to main content

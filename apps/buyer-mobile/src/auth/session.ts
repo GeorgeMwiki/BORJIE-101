@@ -14,7 +14,7 @@ const stubUser: BuyerUser = {
   role: 'buyer',
   companyName: 'Pamoja Refinery Ltd',
   countryCode: 'TZ',
-  preferredLang: 'sw',
+  preferredLang: 'en',
   kycStatus: 'submitted',
   phone: '+255 712 000 001'
 }
