@@ -348,3 +348,186 @@ integration (Sentinel-2/Landsat exploration probes) into
 [s25]: https://www.appfolio.com/blog/best-property-management-softwares-compared-2026 "AppFolio — Best property management software 2026"
 [s26]: https://www.usehaven.ai/post/third-party-property-management-ai-ultimate-guide "Haven — Third-party PM AI 2026 Ultimate Guide"
 [s27]: https://tech.africa/african-mining-week-2026-ai-exploration/ "tech.africa — African Mining Week 2026"
+
+---
+
+## 4. Prioritised punch list
+
+P-tier definitions: **P0** is a moat-or-die gap that blocks the
+capability-boost thesis; **P1** is a strong differentiator a competitor
+will close within 12 months if we don't; **P2** is a polish item that
+shows up in the next big customer demo; **P3** is a future-proofing
+hedge.
+
+| # | Gap | Tier | Wave | Cost | Depends-on |
+|---|-----|------|------|------|------------|
+| 1 | PRM + MCTS reasoning loop | P0 | 19A | L | s3.1 |
+| 2 | GraphRAG hierarchical retrieval router | P0 | 19B | M | knowledge-graph, consolidation-worker |
+| 3 | Verifier-RL (RLVR) post-training pipeline | P0 | 19C | L | brain-evolution-worker |
+| 4 | MCP external-client wiring (≥10 servers) | P0 | 19D | M | agent-orchestrator |
+| 5 | Calibration + SAE-probe layer | P0 | 19E | M | bias-handling, ethics-framework |
+| 6 | Gemini Live + Swahili STT/TTS | P0 | 19F | M | voice-agent, content-studio |
+| 7 | Durable orchestration (Temporal) | P1 | 20A | M | long-horizon-agent |
+| 8 | Browser-action fleet (Tumemadini, TRA) | P1 | 20B | L | browser-perception, action-runtime |
+| 9 | Langfuse + guarded-release shadow deploy | P1 | 20C | S | observability |
+| 10 | 5-store Hono-context wiring fix | P1 | 20D | S | api-gateway |
+| 11 | Cross-tenant leak test in CI | P1 | 20E | S | database, supabase-client |
+| 12 | Schema-constrained neuro-symbolic decoder | P2 | 21A | M | regulatory-tz-mining, document-quality-guarantor |
+| 13 | Satellite-RSe ingest into geology-advisor | P2 | 21B | M | geo-platform, geology-advisor |
+| 14 | Kiswahili advisor lineage (Mr. Mwikila SW) | P2 | 21C | M | persona-runtime, brain-llm-router |
+| 15 | Federated DPO data-collection schema | P2 | 22A | S | brain-evolution-worker |
+| 16 | Continual-learning live SFT loop | P2 | 22B | L | brain-evolution-worker |
+| 17 | Multi-tenant schema-per-tenant tier | P3 | 23A | XL | database |
+| 18 | On-device GraphRAG (edge tenant) | P3 | 23B | L | knowledge-graph |
+| 19 | Self-hosted speculative-decoding inference | P3 | 24A | XL | (no current dep — we use providers) |
+| 20 | Federated DPO live round-trip | P3 | 24B | XL | depends on 15 |
+
+P0 cluster (19A–19F) closes the six top gaps in one quarter.
+P1 cluster (20A–20E) hardens production. P2 (21A–22B) widens the
+moat. P3 (23A–24B) is the long horizon — defer unless a customer
+specifically asks.
+
+---
+
+## 5. Honest critique — spec ambition vs actual code state
+
+This section is the part that gets uncomfortable. The Borjie codebase
+has an unusually high spec-to-runtime-depth ratio. Several packages
+with grand titles are scaffolds. The table below is brutal but fair —
+LoC ranges are from `find packages/$pkg -name '*.ts' -not -path '*node_modules*' | xargs wc -l` spot-checks at audit time.
+
+| Package / Service | Spec promise | Actual code state | Verdict |
+|-------------------|--------------|-------------------|---------|
+| `central-intelligence/kernel` | "40+ kernel modules: cot-reservoir, world-model, critics, reflexion, debate, persona-drift, killswitch" | Modules exist; runtime loop hand-rolled; not consuming AI SDK 5 ToolLoopAgent; no PRM | Scaffold-deep; production-shallow |
+| `scientific-discovery` | "Hypothesis generation, experiment design, paper synthesis" | Skeleton; sidecar service exists but TODO-heavy | Scaffold |
+| `agentic-os` | "OS for agents" | <800 LoC; tutorial-grade | Scaffold |
+| `self-codegen` | "Self-modifying code with mutation-authority gates" | Mutation gate works; generator stub | Half-built |
+| `brain-evolution-worker` (service) | "Brain evolves overnight" | Cron skeleton; no SFT/DPO call | Scaffold |
+| `apollo-gauntlet-runner` | "Adversarial gauntlets against the brain" | Working synthetic gauntlet; not wired to evolution worker | Half-built |
+| `long-horizon-agent` | "Multi-day autonomous loops" | No durable engine; loses state on restart | Spec-only |
+| `extended-reasoning` | "MCTS, ToT, SC, PRM" | Thin shim over provider extended-thinking | Spec-only |
+| `cognitive-engine` | "6 disciplines under all 5 capabilities" | Recently committed (5c15bfc); module skeletons | Scaffold |
+| `mutation-authority` | "Proposal/approval/execution/audit chain" | Scaffold landed (290918f) | Scaffold |
+| `cognitive-memory` | "Unified memory with consolidation" | Storage + retrieval present; consolidation is a placeholder | Half-built |
+| `voice-agent` (service) | "Voice-native operator" | Older Realtime API; no Gemini Live | Half-built |
+| `persona-runtime` + `juniors` | "Mr. Mwikila + specialised juniors" | Working: persona resolved, display unified to Mr. Mwikila | Production-ready |
+| `regulatory-tz-mining` + `mcp-server-tumemadini` + `mcp-server-tra` | "Tanzania compliance MCP" | Working server scaffolds; need real-world soak | Production-ready (light) |
+| `mine-planner-advisor`, `geology-advisor`, `mining-commodity-intelligence` | "Mining-AI advisors" | Working: domain prompts + tool ports wired | Production-ready (light) |
+| `org-scope`, `org-graph`, `org-hierarchy` | "Multi-level MD scope + terminology" | Recently shipped (66ff716, 1601547); 3 tables, scope resolver | Production-ready |
+| `data-onboarding` | "7-stage capability" | Recently shipped (869f6c8); scaffold under flag | Half-built |
+| `marketing-studio` | "12 channels + A/B + compliance" | Scaffold (f4f0f17) | Half-built |
+| `customer-geo-routing` | "Proximity routing" | Spec landed (5207d94); package empty | Spec-only |
+
+**The single biggest divergence** between spec ambition and actual
+code state is in the *self-improving* tier — every package claiming
+self-modification (`self-codegen`, `brain-evolution-worker`,
+`apollo-gauntlet-runner`, `self-improving-loops`) is either a stub or
+half-wired. The CAPABILITY_BOOST_VISION promises literal self-improving
+loops from the ground up; what ships today is a *capability surface*
+for self-improvement (gates, audit chain, mutation authority) without
+the *engine* (SFT/DPO/RL loop). This is the most important honest
+admission to investors: we have the chassis, not the engine.
+
+The same applies to the **reasoning tier**. `extended-reasoning`,
+`reasoning-substrate`, and the kernel debate/reflexion modules are a
+chassis for o1-style reasoning — but the engine (PRM-guided MCTS over
+tool calls) is missing. Borjie's current reasoning capability is exactly
+what Claude 4.7 + extended thinking gives you out of the box; we are
+not adding inference-time compute structure on top.
+
+Finally: **17 of 124 packages are litfin-port-*-extra** — legacy
+imports from the litfin fork. They mostly work; they also bloat the
+dependency graph. A dead-code sweep is overdue.
+
+---
+
+## 6. Domain-specific gaps — mining vs property
+
+### Mining (Borjie's native domain)
+
+We are ahead of every peer on this domain — `mcp-server-tumemadini`,
+`mcp-server-tra`, `regulatory-tz-mining`, the four mining advisors
+(planner, geology, commodity, treasury), the OpenClaw operating-model
+package, are unique surface area. The gaps:
+
+- **Satellite remote-sensing ingest** is missing. Sentinel-2,
+  Landsat-9, ASTER L1T mineral indices, are the standard 2026 inputs
+  for any exploration AI ([Farmonaut / RSe 2026][s23]). A
+  `packages/remote-sensing-mineral` module plus a Cloud-Optimized
+  GeoTIFF ingest pipeline closes this in 3 weeks.
+- **NI 43-101 traceability** is a 2026 regulator requirement for any
+  AI-derived recommendation in a technical report ([Farmonaut / NI
+  43-101 2026][s24]). The `audit-hash-chain` package can ground this
+  but we don't yet emit a NI-43-101-compatible provenance receipt.
+- **Tumemadini live filings** — the MCP server is scaffolded but no
+  end-to-end signed-submission soak has run against the live portal.
+  This is a prove-it-or-lose-the-thesis bet for the founder.
+- **Mining-finance recsys** — `mining-commodity-intelligence` is
+  scaffold; the LBMA/LME price-feed routing is not wired.
+
+### Property (BossNyumba parent + Borjie inherited)
+
+AppFolio Realm-X, Yardi Chat IQ, Entrata Leasing AI are 2026
+incumbents saving customers 10 h/week ([AppFolio / Best PM software
+2026][s25]). Borjie inherits property-tier packages from the parent
+(`geo-parcels`, `fleet-management`, `procurement-coordination`,
+`inventory-management`) but does not actively expose property
+features. For the BossNyumba port the gaps mirror Borjie's, plus:
+
+- **Leasing AI parity**: no `leasing-ai` package equivalent to
+  AppFolio Realm-X.
+- **Maintenance-triage agent**: no `maintenance-triage-agent` that
+  reads tenant complaint → dispatches vendor → closes loop with
+  resident notification. The full agentic-triage loop is the single
+  most-cited AppFolio differentiator in 2026.
+
+---
+
+## 7. Six-month recommended roadmap
+
+**Premise.** Close all six P0 gaps inside one quarter (Q3 2026); harden
+production and ship P1 in Q4 2026; queue P2 for Q1 2027. Each wave is
+1–3 weeks of effort for one full-stack engineer plus partial AI/ML lead.
+
+| Wave | Weeks | Deliverable | Depends-on |
+|------|-------|-------------|------------|
+| **19A** | wk 1-3 | `packages/process-reward-model` + MCTS in `agent-orchestrator` for regulatory-form filings | extended-reasoning, central-intelligence |
+| **19B** | wk 2-4 | `graph-rag-router` + community summaries in `consolidation-worker` | knowledge-graph, memory-v2 |
+| **19C** | wk 3-6 | `post-training-pipeline` package — SFT first; RLVR loop on regulatory-form correctness | brain-evolution-worker |
+| **19D** | wk 4-5 | MCP external client + ≥10 public servers (fs, github, slack, gws, sentry, jira, notion, linear, postgres, stripe) | agent-orchestrator |
+| **19E** | wk 5-7 | `calibration-monitor` (Brier+ECE) + small SAE probe on top advisors | bias-handling, ethics-framework |
+| **19F** | wk 6-8 | Gemini Live integration in `voice-agent` + Swahili STT/TTS gauntlet | voice-agent, content-studio |
+| **20A** | wk 9-11 | Temporal adapter in `long-horizon-agent`; durable Apollo Gauntlet | apollo-gauntlet-runner |
+| **20B** | wk 10-13 | `services/browser-action-fleet` — Browser Use as harness for Tumemadini + TRA portal automation | browser-perception, action-runtime |
+| **20C** | wk 12-13 | Langfuse self-hosted + LaunchDarkly Guarded Releases; shadow LLM mirror | observability |
+| **20D** | wk 13 | Fix 5-store Hono-context wiring (lessonStore, wormAudit, skillRegistry, aopRegistry, a2aTaskStore) | api-gateway |
+| **20E** | wk 13 | Cross-tenant leak CI test (every router, 2 tenants, assert 404) | database, supabase-client |
+| **21A** | wk 14-16 | Schema-constrained neuro-symbolic decoder for any regulatory-form-fill | regulatory-tz-mining, document-quality-guarantor |
+| **21B** | wk 15-17 | Sentinel-2/Landsat ingest into `geology-advisor` (COG pipeline) | geo-platform |
+| **21C** | wk 16-19 | Kiswahili advisor lineage — Mr. Mwikila SW; routed by `org-scope` terminology | persona-runtime, brain-llm-router |
+| **22A** | wk 20 | Federated DPO data-collection schema (tables + emit-points; no live federation yet) | brain-evolution-worker |
+| **22B** | wk 21-26 | Live SFT loop — nightly fine-tune on cleaned RLHF data; gated by mutation-authority | brain-evolution-worker, mutation-authority |
+
+Critical path is `19A → 19C → 22B` (reasoning loop → post-training
+pipeline → live SFT). Everything else can parallelise.
+
+**Buy-vs-build decisions.** Three big ones:
+1. **Buy** Temporal Cloud or Inngest for durable orchestration (20A).
+   Roll-your-own here is ≥ 3 months and the open-source alternatives
+   (Restate, Cadence) are equally good but operationally heavier.
+2. **Build** the PRM (19A) and GraphRAG router (19B). They are the
+   moat. No vendor PRM is domain-specific to TZ regulatory-forms.
+3. **Buy** Langfuse self-hosted (20C). LangSmith locks vendor; OTel
+   alone has no UI; Langfuse is the right pareto.
+
+**Reporting cadence.** Weekly wave-status note in `Docs/STRATEGY/`;
+monthly investor update referencing this gap analysis + 6-month
+roadmap; quarterly re-audit against this same SOTA dimension set.
+
+---
+
+## Sources cited
+
+[s1]…[s27] above. Count: 27 distinct citations across 14 web searches,
+all dated 2025–2026, all live URLs at audit time (2026-05-26).
+
