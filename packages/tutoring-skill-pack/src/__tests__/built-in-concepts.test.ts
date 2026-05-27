@@ -14,13 +14,16 @@ import {
 } from '../index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+// Migration was moved to `.archive/migrations/` during the wave 10E
+// mechanical cleanup — it's still the canonical source for the seed
+// slugs we mirror in BUILT_IN_CONCEPTS.
 const MIGRATION_PATH = join(
   here,
   '..',
   '..',
   '..',
   'database',
-  'src',
+  '.archive',
   'migrations',
   '0210_tutoring_skill_pack.sql',
 );
