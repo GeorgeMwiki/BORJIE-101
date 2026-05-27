@@ -23,7 +23,7 @@ import type { Language } from '../chat-modes/types';
 import { useChatStream, type ChatStreamEvent } from '../hooks/useChatStream';
 
 export interface UseUnifiedChatOptions {
-  readonly endpoint?: string;
+  readonly endpoint?: string | undefined;
   readonly persona: PersonaId;
   readonly tenantId: string | null;
   readonly language: Language;
@@ -33,7 +33,7 @@ export interface UseUnifiedChatOptions {
   readonly setSoundsEnabled: (on: boolean) => void;
   readonly voiceEnabled: boolean;
   readonly setVoiceEnabled: (on: boolean) => void;
-  readonly onReceive?: (msg: ChatMessage) => void;
+  readonly onReceive?: ((msg: ChatMessage) => void) | undefined;
 }
 
 /**

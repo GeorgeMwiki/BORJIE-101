@@ -34,7 +34,7 @@ import type { CSSProperties, ReactNode } from 'react';
 export interface DegradedMarker {
   readonly reason: string;
   readonly affected_capabilities: ReadonlyArray<string>;
-  readonly since?: string;
+  readonly since?: string | undefined;
 }
 
 export interface DegradedBannerProps {

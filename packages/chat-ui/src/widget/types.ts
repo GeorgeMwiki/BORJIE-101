@@ -41,7 +41,7 @@ export interface ChatAttachment {
   readonly kind: 'image' | 'document';
   readonly name: string;
   readonly size: number;
-  readonly previewUrl?: string;
+  readonly previewUrl?: string | undefined;
 }
 
 export interface ChatMessage {
@@ -50,10 +50,10 @@ export interface ChatMessage {
   readonly text: string;
   readonly language: Language;
   readonly createdAt: string;
-  readonly isStreaming?: boolean;
-  readonly attachments?: readonly ChatAttachment[];
-  readonly segmentId?: string;
-  readonly metadata?: Record<string, unknown>;
+  readonly isStreaming?: boolean | undefined;
+  readonly attachments?: readonly ChatAttachment[] | undefined;
+  readonly segmentId?: string | undefined;
+  readonly metadata?: Record<string, unknown> | undefined;
 }
 
 export interface ChatSegment {

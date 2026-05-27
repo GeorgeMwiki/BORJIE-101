@@ -12,7 +12,7 @@ import type { BorjieLanguage, BorjieMessage } from './useBorjieChat';
 interface BorjieChatBubbleProps {
   readonly message: BorjieMessage;
   readonly language: BorjieLanguage;
-  readonly onOpenEvidence?: (evidenceId: string) => void;
+  readonly onOpenEvidence?: ((evidenceId: string) => void) | undefined;
 }
 
 export function BorjieChatBubble({

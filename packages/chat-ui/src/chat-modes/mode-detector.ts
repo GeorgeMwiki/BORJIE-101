@@ -222,9 +222,10 @@ export function extractTeachingData(
   const bloomMatch = responseText.match(
     /bloom('s)?\s*(level|taxonomy)?\s*:?\s*(remember|understand|apply|analyze|evaluate|create)/i,
   );
-  const bloomLevel: BloomLevel = bloomMatch
-    ? (bloomMatch[3].toLowerCase() as BloomLevel)
-    : 'understand';
+  const bloomLevel: BloomLevel =
+    bloomMatch && bloomMatch[3]
+      ? (bloomMatch[3].toLowerCase() as BloomLevel)
+      : 'understand';
 
   return {
     keyPoints,
@@ -242,9 +243,12 @@ export function extractQuizData(
   const pattern = /([A-D])\)\s*(.+?)(?=\n|$)/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(responseText)) !== null) {
+    const idGroup = match[1];
+    const labelGroup = match[2];
+    if (!idGroup || !labelGroup) continue;
     options.push({
-      id: match[1].toUpperCase(),
-      label: match[2].trim(),
+      id: idGroup.toUpperCase(),
+      label: labelGroup.trim(),
       labelSw: null,
     });
   }
@@ -283,12 +287,13 @@ export function extractReviewData(
   responseText: string,
 ): Partial<ReviewModeData> {
   const scoreMatch = responseText.match(/(\d{1,3})\s*(%|percent|out of 100)/i);
-  const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
+  const score = scoreMatch && scoreMatch[1] ? parseInt(scoreMatch[1], 10) : 0;
 
   const deltaMatch = responseText.match(
     /(?:increased|improved)(?: by)? \+?(\d{1,3})%/i,
   );
-  const masteryDelta = deltaMatch ? parseInt(deltaMatch[1], 10) / 100 : 0;
+  const masteryDelta =
+    deltaMatch && deltaMatch[1] ? parseInt(deltaMatch[1], 10) / 100 : 0;
 
   return {
     overallScore: score,

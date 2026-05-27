@@ -20,8 +20,8 @@ interface ChatPanelProps {
   readonly chat: UnifiedChat;
   readonly strings: WidgetStrings;
   readonly onClose: () => void;
-  readonly variant?: 'floating' | 'full' | 'bottom-sheet';
-  readonly renderBlockSlot?: (messageId: string) => ReactNode;
+  readonly variant?: 'floating' | 'full' | 'bottom-sheet' | undefined;
+  readonly renderBlockSlot?: ((messageId: string) => ReactNode) | undefined;
 }
 
 export function ChatPanel({ chat, strings, onClose, variant = 'floating', renderBlockSlot }: ChatPanelProps): JSX.Element {

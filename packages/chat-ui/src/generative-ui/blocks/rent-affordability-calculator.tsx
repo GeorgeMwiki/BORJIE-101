@@ -5,7 +5,7 @@ import type { Language, Translator } from '../../chat-modes/types';
 interface Props {
   readonly block: RentAffordabilityCalculatorBlock;
   readonly language: Language;
-  readonly t?: Translator;
+  readonly t?: Translator | undefined;
 }
 
 const DEFAULT_LABELS: Record<string, string> = {

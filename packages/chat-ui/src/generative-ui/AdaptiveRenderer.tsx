@@ -26,11 +26,11 @@ import { FivePsTenancyRiskWheel } from './blocks/5ps-tenancy-risk-wheel';
 import { logger } from '../logger.js';
 
 interface AdaptiveRendererProps {
-  readonly metadata?: AdaptiveMessageMetadata;
+  readonly metadata?: AdaptiveMessageMetadata | undefined;
   readonly language: Language;
-  readonly t?: Translator;
-  readonly onSendMessage?: (msg: string) => void;
-  readonly onQuizAnswer?: (blockId: string, optionId: string, correct: boolean) => void;
+  readonly t?: Translator | undefined;
+  readonly onSendMessage?: ((msg: string) => void) | undefined;
+  readonly onQuizAnswer?: ((blockId: string, optionId: string, correct: boolean) => void) | undefined;
 }
 
 class BlockErrorBoundary extends Component<
@@ -67,8 +67,8 @@ function renderBlock(
   language: Language,
   t: Translator | undefined,
   handlers: {
-    readonly onSendMessage?: (msg: string) => void;
-    readonly onQuizAnswer?: (blockId: string, optionId: string, correct: boolean) => void;
+    readonly onSendMessage?: ((msg: string) => void) | undefined;
+    readonly onQuizAnswer?: ((blockId: string, optionId: string, correct: boolean) => void) | undefined;
   },
 ): ReactNode {
   switch (block.type) {
@@ -225,7 +225,7 @@ function QuizRenderer({
   onAnswer,
 }: {
   readonly block: QuizBlock;
-  readonly onAnswer?: (blockId: string, optionId: string, correct: boolean) => void;
+  readonly onAnswer?: ((blockId: string, optionId: string, correct: boolean) => void) | undefined;
 }) {
   return (
     <div
@@ -262,7 +262,7 @@ function ActionButtonsRenderer({
   onSend,
 }: {
   readonly block: ActionButtonsBlock;
-  readonly onSend?: (msg: string) => void;
+  readonly onSend?: ((msg: string) => void) | undefined;
 }) {
   return (
     <div
@@ -296,7 +296,7 @@ function QuickRepliesRenderer({
   onSend,
 }: {
   readonly block: QuickRepliesBlock;
-  readonly onSend?: (msg: string) => void;
+  readonly onSend?: ((msg: string) => void) | undefined;
 }) {
   return (
     <div data-testid="quick-replies" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -327,7 +327,7 @@ function InsightCardRenderer({
   onSend,
 }: {
   readonly block: InsightCardBlock;
-  readonly onSend?: (msg: string) => void;
+  readonly onSend?: ((msg: string) => void) | undefined;
 }) {
   const colors: Record<InsightCardBlock['insightType'], string> = {
     tip: '#3b82f6',

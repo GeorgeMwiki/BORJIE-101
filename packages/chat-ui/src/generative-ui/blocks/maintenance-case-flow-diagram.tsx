@@ -4,7 +4,7 @@ import type { Language, Translator } from '../../chat-modes/types';
 interface Props {
   readonly block: MaintenanceCaseFlowDiagramBlock;
   readonly language: Language;
-  readonly t?: Translator;
+  readonly t?: Translator | undefined;
 }
 
 const STAGE_ORDER = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed'] as const;

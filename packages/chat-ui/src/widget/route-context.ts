@@ -55,7 +55,10 @@ export function extractEntityMentions(path: string): readonly string[] {
   let m: RegExpExecArray | null;
   const re = new RegExp(ENTITY_PATTERN.source, 'gi');
   while ((m = re.exec(path)) !== null) {
-    matches.push(`${m[1].toLowerCase()}:${m[2]}`);
+    const g1 = m[1];
+    const g2 = m[2];
+    if (!g1 || g2 === undefined) continue;
+    matches.push(`${g1.toLowerCase()}:${g2}`);
   }
   return Object.freeze(matches);
 }

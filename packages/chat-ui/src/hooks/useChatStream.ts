@@ -48,8 +48,8 @@ export type ChatStreamEvent =
 
 export interface ChatStreamToolEntry {
   readonly name: string;
-  readonly ok?: boolean;
-  readonly args?: Record<string, unknown>;
+  readonly ok?: boolean | undefined;
+  readonly args?: Record<string, unknown> | undefined;
 }
 
 export interface ChatStreamHandoff {

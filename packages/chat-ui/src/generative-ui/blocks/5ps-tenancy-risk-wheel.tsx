@@ -5,7 +5,7 @@ import type { Language, Translator } from '../../chat-modes/types';
 interface Props {
   readonly block: FivePsRiskWheelBlock;
   readonly language: Language;
-  readonly t?: Translator;
+  readonly t?: Translator | undefined;
 }
 
 export interface FivePsBreakdown {
@@ -48,7 +48,11 @@ export function computeFivePs(
     ...e,
     share: total > 0 ? e.score / total : 0,
   }));
-  const dominant = entries.reduce((acc, cur) => (cur.score > acc.score ? cur : acc), entries[0]);
+  const head = entries[0] ?? { key: 'paymentHistory' as keyof typeof scores, label: LABELS.paymentHistory, score: 0 };
+  const dominant = entries.reduce<{ readonly key: keyof typeof scores; readonly label: string; readonly score: number }>(
+    (acc, cur) => (cur.score > acc.score ? cur : acc),
+    head,
+  );
   return { dimensions, dominant, total };
 }
 

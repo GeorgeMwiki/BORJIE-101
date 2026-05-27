@@ -13,8 +13,8 @@ import { useOptionalBossnyumbaAI } from './BossnyumbaAIProvider';
 import { ChatPanel } from './ChatPanel';
 
 interface FloatingChatWidgetProps {
-  readonly mobileBreakpoint?: number;
-  readonly renderBlockSlot?: (messageId: string) => ReactNode;
+  readonly mobileBreakpoint?: number | undefined;
+  readonly renderBlockSlot?: ((messageId: string) => ReactNode) | undefined;
 }
 
 function isMobileViewport(breakpoint: number): boolean {

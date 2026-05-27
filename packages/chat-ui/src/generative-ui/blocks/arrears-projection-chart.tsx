@@ -4,7 +4,7 @@ import type { Language, Translator } from '../../chat-modes/types';
 interface Props {
   readonly block: ArrearsProjectionChartBlock;
   readonly language: Language;
-  readonly t?: Translator;
+  readonly t?: Translator | undefined;
 }
 
 export function ArrearsProjectionChart({ block, language: _language, t: _t }: Props) {

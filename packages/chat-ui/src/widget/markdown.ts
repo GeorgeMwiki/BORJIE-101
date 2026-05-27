@@ -52,7 +52,7 @@ export function renderMarkdown(input: string): string {
       continue;
     }
     const h = /^(#{1,3})\s+(.*)$/.exec(line);
-    if (h) {
+    if (h && h[1] && h[2] !== undefined) {
       closeLists();
       const level = h[1].length;
       out.push(`<h${level}>${inline(h[2])}</h${level}>`);
