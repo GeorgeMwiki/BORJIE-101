@@ -84,6 +84,15 @@ export default [
       '**/*.generated.ts',
       '**/*.generated.tsx',
       '**/*.d.ts',
+      // CSS files — ESLint's espree parser cannot tokenize Tailwind
+      // directives (`@tailwind`, `@layer`, `@apply`, `@theme`) nor the
+      // `@import` syntax used by globals.css. Style linting is handled
+      // by PostCSS at build time + stylelint where configured; ESLint
+      // has no CSS-aware grammar in this monorepo. Migrating to
+      // eslint-plugin-css with a Tailwind v4 grammar is the larger,
+      // separate follow-up — for now we exclude CSS from the ESLint
+      // scan so `next lint` does not choke on the `@` directive char.
+      '**/*.css',
     ],
   },
 

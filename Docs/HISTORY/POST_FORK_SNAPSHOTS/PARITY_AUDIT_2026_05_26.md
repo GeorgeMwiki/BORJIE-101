@@ -1,10 +1,11 @@
-# Parity Audit — BossNyumba vs Borjie (2026-05-26)
+# Borjie ANCESTRY snapshot (post-fork divergence) — 2026-05-26
 
-> **ARCHIVED — HISTORY ONLY.** Archived snapshot of state at fork-day
-> comparison. Borjie has evolved independently since. This document is
-> HISTORY, not an ongoing tracking artefact. Borjie and BossNyumba are two
-> separate projects; they share fork-day origin but do not share an ongoing
-> identity, ongoing parity goal, or shared roadmap.
+> **ARCHIVED — HISTORY ONLY.** Snapshot of Borjie's surface-area state
+> shortly after the hard-fork from its sibling property-management
+> codebase. Borjie has evolved independently since. This document is
+> HISTORY, not an ongoing tracking artefact. Borjie and BossNyumba are
+> two separate products; they share fork-day origin but do not share
+> an ongoing identity, parity goal, or shared roadmap.
 
 Comparison of `BOSSNYUMBA101` (parent property-management SaaS) against `Borjie`
 (mining hard-fork). All counts taken via `find`, `grep`, `wc -l` on
@@ -1075,6 +1076,31 @@ Listed in §4b.
 8. `/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Cursor Projects/BOSSNYUMBA101/.github/workflows/red-team.yml` → red team probe
 9. `/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Cursor Projects/BOSSNYUMBA101/.github/workflows/zero-hardcoded.yml` → zero-hardcoded audit
 10. `/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Cursor Projects/BOSSNYUMBA101/.github/workflows/security-route-coverage.yml` → security route coverage gate
+
+---
+
+## Closing note — ancestry, not parity
+
+This document is a historical snapshot of what Borjie inherited from
+its sibling property-management codebase at the moment of fork
+(2026-05-26). It is preserved for engineering archaeology: "what did
+we start with?" rather than "what should we still mirror?".
+
+**Future parity work between the two products is NOT planned.** Each
+product evolves independently from this point. Borjie's wave plan,
+juniors substrate, schema, OpenAPI surface, regulator pack, marketing
+surface, and CI pipeline are owned by Borjie and answer only to
+Borjie's roadmap. The "Top 10 BossNyumba paths Borjie SHOULD re-port"
+section above was a fork-day shopping list; whether or not Borjie
+adopts those patterns now depends solely on Borjie's own needs, and
+any new development happens against Borjie's own surface — not as a
+port from the sibling.
+
+If you find yourself reaching for this document to answer "should we
+copy X from BossNyumba?", the answer is almost certainly: design X
+for Borjie's mining domain, with Mr. Mwikila as the front door, and
+the universal pluggable jurisdictional profile substrate as the
+spread mechanism. The ancestry is a fact; the dependency is not.
 
 ---
 
