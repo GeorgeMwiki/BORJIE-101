@@ -16,7 +16,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  BORJIE_REDACT_TERMS,
+  BRAND_REDACT_TERMS,
   DEFAULT_PROPERTY_JUDGE_PANEL,
   REDACTION_PLACEHOLDER,
   redactBrands,
@@ -277,21 +277,21 @@ describe('runJudgePanel — brand-redactor pre-pass', () => {
   it('redactBrands export: case-insensitive whole-word matching', () => {
     const out = redactBrands(
       'I love borjie and BORJIE',
-      BORJIE_REDACT_TERMS,
+      BRAND_REDACT_TERMS,
     );
     expect(out.redacted).not.toMatch(/borjie/i);
     expect(out.replacements).toContain('BORJIE');
   });
 
   it('redactBrands export: handles empty input safely', () => {
-    expect(redactBrands('', BORJIE_REDACT_TERMS).redacted).toBe('');
+    expect(redactBrands('', BRAND_REDACT_TERMS).redacted).toBe('');
     expect(redactBrands('hello', []).redacted).toBe('hello');
   });
 
   it('redactBrands export: multi-word brand matches before single-word fragments', () => {
     const out = redactBrands(
       'Visit Boss Nyumba today',
-      BORJIE_REDACT_TERMS,
+      BRAND_REDACT_TERMS,
     );
     // "Boss Nyumba" (multi-word) should match — verifies sort-by-length.
     expect(out.redacted).toContain(REDACTION_PLACEHOLDER);
