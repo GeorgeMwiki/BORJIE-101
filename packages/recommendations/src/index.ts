@@ -118,3 +118,27 @@ export {
   type ExplanationPort,
   type ExplainArgs,
 } from './explain/explanation-generator.js';
+
+// Domain wrappers (Mr. Mwikila)
+export {
+  buyerMineMatch,
+  workerSiteMatch,
+  regulatorFilingMatch,
+  supplierMineMatch,
+  trainingCourseWorkerMatch,
+  type MiningRecoOptions,
+} from './domain/mining-reco.js';
+
+// Repository
+export {
+  createInMemoryRecommendationRepository,
+  createSqlRecommendationRepository,
+  type RecommendationRepository,
+  type SaveRunInput,
+  type RecordFeedbackInput,
+  type FindRunsArgs,
+  type FindFeedbackArgs,
+  type SqlExecutor,
+  type SqlRepoOptions,
+  type InMemoryRepoOptions,
+} from './repositories/recommendation-repository.js';
