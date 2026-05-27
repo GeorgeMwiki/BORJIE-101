@@ -2,25 +2,44 @@
 
 **This repository is BORJIE only.**
 
-- **BORJIE** = this repo. Mining estate planning, management, and intelligence
-  operating system for Tanzanian (and pan-African) artisanal-to-mid-tier
-  mining. Hard-fork of BossNyumba's brain layer wrapped around a mining
-  domain (sites, licences, drill-holes, ore parcels, FX/treasury, TZ
-  regulatory rules).
-- **BossNyumba** = the **parent project** at
-  `/Cursor Projects/BOSSNYUMBA101/`. Property management SaaS — different
-  codebase, different product, different repo. Reference-only (read).
-- **Pongezi** / **LITFIN** = unrelated sibling projects. Different repos,
-  different products. Not in this repo.
+Borjie is the AI-native mining operations OS for Tanzania (and pan-African
+artisanal-to-mid-tier mining). The product evolves independently, with its
+own roadmap, schema, OpenAPI surface, mobile apps, juniors, regulator pack,
+marketing surface, and CI pipeline. Persona: **Mr. Mwikila**.
 
-Do **not**:
-- Refer to BossNyumba property entities (buildings, units, leases, occupancy,
-  arrears, tenants-as-renters) in Borjie code, docs, or config.
-- Copy code or docs from BossNyumba into Borjie unless it is generic AI-OS
-  infrastructure that survives the property-domain trim (per
-  `$BORJIE_MINING_CORPUS_PATH/build/BOJI_BUILD_PLAN.md` Phase 1).
-- Conflate Borjie's "tenant" (multi-tenant SaaS organisation =
-  mining company group) with BossNyumba's "tenant" (renting occupant).
-- Refer to Pongezi or LITFIN in Borjie code, docs, or config.
+## Scope
+
+Everything in this repo is Borjie. Mining domain. Tanzanian launch
+vertical. Universal pluggable jurisdictional profiles (TZ → KE → NG →
+universal) substrate. Mr. Mwikila as the front-door persona.
+
+## Sibling project (informational only)
+
+Borjie was hard-forked from a sibling property-management codebase
+(BossNyumba). That codebase lives at
+`/Cursor Projects/BOSSNYUMBA101/` and is reference-only (read). The
+two products share fork-day origin but do not share an ongoing
+identity, roadmap, persona, or parity goal — see
+`Docs/BRAND/SEPARATION_AUDIT_2026_05_27.md` for the explicit
+non-relationships list and the grep-results table.
+
+Pongezi and LITFIN are unrelated sibling research projects. Different
+repos, different products. Not in this repo.
+
+## Do not
+
+- Refer to property-domain entities (buildings, units, leases,
+  occupancy, arrears, tenants-as-renters) in Borjie code, docs, or
+  config. Property is not Borjie's vertical.
+- Copy code or docs from the sibling project into Borjie unless it is
+  generic AI-OS infrastructure that survives the property-domain trim
+  (per the brand boundary note).
+- Conflate Borjie's "tenant" (multi-tenant SaaS organisation = mining
+  company group) with the property-domain "tenant" (renting
+  occupant).
+- Refer to Pongezi, LITFIN, or any other sibling project in Borjie
+  code, docs, or config.
+- Imply that Mr. Mwikila is the persona for any non-Borjie surface.
+  Mr. Mwikila is Borjie-only.
 
 All work in this repo applies to Borjie only.

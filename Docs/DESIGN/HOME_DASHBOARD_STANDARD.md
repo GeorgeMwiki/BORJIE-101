@@ -91,10 +91,12 @@ secondary navigation — they are never the default landing route.
 | workforce-mobile | site_manager | Mr. Mwikila for cross-domain; scoped junior for in-domain | yes |
 | workforce-mobile | worker | Safety / comms / shift junior | yes |
 | buyer-mobile | buyer | Marketplace / KYB junior | yes |
-| BossNyumba owner-portal | owner | Mr. Mwikila (full MD) | yes |
-| BossNyumba admin-portal | admin | Mr. Mwikila (full MD) | yes |
-| BossNyumba customer-app | tenant | Tenant / lease junior | yes |
-| BossNyumba estate-manager-app | site_manager | Estate-ops junior | yes |
+
+Mr. Mwikila is Borjie-only. The persona-routing table above lists only
+Borjie's own surfaces. The sibling property-management codebase
+(BossNyumba) has its own surfaces and its own persona contract; this
+spec does not steer it. See `Docs/BRAND/SEPARATION_AUDIT_2026_05_27.md`
+for the explicit non-relationships between the two products.
 
 Persona resolution is a single function call. The Home tab MUST NOT
 hardcode persona — it consumes the resolver. This guarantees that as

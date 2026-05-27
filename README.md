@@ -30,11 +30,14 @@ backed by a citation from your own corpus (licences, drill-hole logs, shift
 reports, assay results) or refuses to answer. Multi-tenant from row one, with
 row-level security baked into Postgres.
 
-Borjie is a hard-fork of BossNyumba's brain layer (Master-Brain orchestrator,
-juniors substrate, evidence-required answer pipeline, bi-temporal memory)
-wrapped around a brand-new mining domain — 48 mining tables, 63 mining API
-endpoints, mining-specific juniors, and the Living Mining Business Map (LMBM)
-graph. See `PROJECT_BOUNDARY.md` for what was inherited versus rebuilt.
+Borjie is the AI-native mining operations OS for Tanzania — 48 mining
+tables, 63 mining API endpoints, 28 mining-domain juniors, and the
+Living Mining Business Map (LMBM) graph. The product evolves
+independently against its own roadmap; see `PROJECT_BOUNDARY.md` for
+the brand boundary and `Docs/BRAND/SEPARATION_AUDIT_2026_05_27.md` for
+the post-fork separation audit.[^lineage]
+
+[^lineage]: Historical footnote — the brain-layer scaffolding (Master-Brain orchestrator, juniors substrate, evidence-required answer pipeline, bi-temporal memory) originated as a hard-fork from a sibling property-management codebase. That scaffolding has since been re-grounded around mining domain primitives and the two products evolve independently. There is no ongoing parity goal; see `Docs/BRAND/SEPARATION_AUDIT_2026_05_27.md`.
 
 ## Four surfaces
 
@@ -220,7 +223,7 @@ spec must regenerate cleanly from the Hono route source on every PR.
 | Postgres live with PostGIS + pgvector + TimescaleDB + AGE | Embedding provider (returns deterministic dev vectors) | Pilot acceptance test ([#27](https://github.com/GeorgeMwiki/BORJIE-101/issues/27)) |
 | All 4 apps build green (`pnpm build` clean) | Mapbox tiles (placeholder map in dev) | OCR pipeline swap to `@borjie/document-analysis` ([#23](https://github.com/GeorgeMwiki/BORJIE-101/issues/23)) |
 | 63 mining API endpoints mounted + tenant-scoped | Innovatrics / Suprema biometric SDKs (mocked) | RBAC for two-operator killswitch ([#25](https://github.com/GeorgeMwiki/BORJIE-101/issues/25)) |
-| Drizzle migrations, RLS, seed users | TRA / NEMC / Tumemadini gov-API connectors | Prune 45 inherited BossNyumba workflows ([#26](https://github.com/GeorgeMwiki/BORJIE-101/issues/26)) |
+| Drizzle migrations, RLS, seed users | TRA / NEMC / Tumemadini gov-API connectors | Prune 45 legacy pre-fork workflows ([#26](https://github.com/GeorgeMwiki/BORJIE-101/issues/26)) |
 | 17 prioritised backlog issues filed | Voice (Whisper STT / ElevenLabs TTS scaffold only) | Releases — [v0.1.0](https://github.com/GeorgeMwiki/BORJIE-101/releases/tag/v0.1.0) |
 
 ## Tanzania-first design choices
@@ -228,7 +231,7 @@ spec must regenerate cleanly from the Hono route source on every PR.
 - **Swahili as the default UI language**, English as a switch — copy lives in `packages/design-system/src/i18n/`
 - **TZS-primary currency** everywhere, USD as a secondary view; treasury runs a 27-Mar-2026 USD-cliff remediation mode by default
 - **PostGIS** for licence polygons, site boundaries, and the LMBM spatial graph — not WKT-in-text
-- **Mining-specific juniors**, not the real-estate juniors of the upstream fork — geology, mine planning, fuel, weighbridge, KYC, off-take
+- **Mining-specific juniors**, designed for the domain — geology, mine planning, fuel, weighbridge, KYC, off-take
 - **Offline-first mobile** for field workers — `workforce-mobile` queues shift reports, fingerprint events, and fuel logs locally and reconciles when a tower appears
 - **Regulator pack export** native — Tumemadini / TRA / NEMC schedules drop straight from the audit-hash chain into `services/reports`
 
