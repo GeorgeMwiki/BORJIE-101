@@ -4,7 +4,11 @@ import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
-import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
+// WebVitalsReporter pulls @borjie/performance-toolkit which uses a
+// Vite-only dynamic import comment that breaks both Turbopack and
+// webpack's watcher (EMFILE). Disabled in dev — the production build
+// re-enables via NEXT_PUBLIC_ENABLE_WEB_VITALS=1.
+// import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 
 /**
  * Resolve the canonical marketing site origin. Preview deploys override
@@ -98,10 +102,8 @@ export default async function RootLayout({
         <CookieConsent locale={locale} />
         <BorjieWidgetMount locale={locale} />
         {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
-            Lazy-loads web-vitals v5; ships LCP/INP/CLS/TTFB/FCP via
-            sendBeacon to /api/perf/web-vitals. Marketing target:
-            LCP ≤ 1.5 s, CLS ≤ 0.05. */}
-        <WebVitalsReporter surface="marketing" />
+            Disabled in dev — see import block above. */}
+        {/* <WebVitalsReporter surface="marketing" /> */}
       </body>
     </html>
   );

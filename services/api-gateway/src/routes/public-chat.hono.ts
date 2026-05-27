@@ -31,6 +31,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import pino from 'pino';
 
 import {
   AnthropicAdapter,
@@ -42,6 +43,11 @@ import type {
   BrainLLMResponse,
   ContentBlock,
 } from '@borjie/brain-llm-router';
+
+const logger = pino({
+  name: 'public-chat',
+  level: process.env.LOG_LEVEL ?? 'info',
+});
 
 const PublicChatSchema = z
   .object({
@@ -513,12 +519,22 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
         depth = i;
         break;
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
         attempts.push({
           provider: entry.providerName,
           model: entry.model,
-          error: err instanceof Error ? err.message : String(err),
+          error: errMsg,
           latencyMs: Date.now() - t0,
         });
+        logger.warn(
+          {
+            provider: entry.providerName,
+            model: entry.model,
+            err: errMsg.slice(0, 800),
+            latencyMs: Date.now() - t0,
+          },
+          'public-chat: provider attempt failed',
+        );
       }
     }
 
