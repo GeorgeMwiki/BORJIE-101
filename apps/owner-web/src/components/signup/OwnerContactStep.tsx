@@ -137,31 +137,45 @@ export function OwnerContactStep({
   }
 
   return (
-    <div data-testid="signup-contact-step" className="space-y-5">
+    <div data-testid="signup-contact-step" className="space-y-6">
       <header>
-        <h2 className="text-lg font-medium text-foreground">Thibitisha</h2>
-        <p className="text-xs text-neutral-500">Confirm and verify</p>
+        <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
+          Thibitisha
+        </h2>
+        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          Confirm and verify
+        </p>
       </header>
 
-      <dl className="space-y-2 rounded-md border border-neutral-800 bg-neutral-900/40 p-3 text-sm">
+      <dl className="space-y-2 rounded-xl border border-border bg-surface-raised p-4 text-sm">
         <div className="flex justify-between gap-2">
-          <dt className="text-neutral-400">Aina</dt>
+          <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+            Aina
+          </dt>
           <dd className="text-foreground">{draft.kind}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-neutral-400">Muhtasari</dt>
+          <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+            Muhtasari
+          </dt>
           <dd className="text-foreground text-right">{summaryLine(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-neutral-400">Mmiliki</dt>
+          <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+            Mmiliki
+          </dt>
           <dd className="text-foreground text-right">{ownerNameFor(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-neutral-400">Simu</dt>
+          <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+            Simu
+          </dt>
           <dd className="text-foreground">{phoneFor(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-neutral-400">Barua pepe</dt>
+          <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+            Barua pepe
+          </dt>
           <dd className="text-foreground">{emailFor(draft)}</dd>
         </div>
       </dl>
@@ -173,14 +187,17 @@ export function OwnerContactStep({
           onClick={() => {
             void submitSignup();
           }}
-          className="w-full rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-amber-400"
+          className="w-full rounded-md bg-signal-500 px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
           Tuma OTP kwa simu yangu · Send OTP to my phone
         </button>
       )}
 
       {phase.kind === 'submitting' && (
-        <p className="text-sm text-neutral-400" data-testid="signup-contact-submitting">
+        <p
+          className="text-sm text-neutral-400"
+          data-testid="signup-contact-submitting"
+        >
           Inatuma…
         </p>
       )}
@@ -189,10 +206,10 @@ export function OwnerContactStep({
         <div className="space-y-3">
           <label
             htmlFor="otp"
-            className="block text-xs font-medium text-neutral-300"
+            className="block text-xs font-medium text-foreground"
           >
             OTP iliyotumwa kwa {phoneFor(draft)}
-            <span className="ml-2 text-[10px] uppercase tracking-wider text-neutral-500">
+            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
               OTP code
             </span>
           </label>
@@ -203,7 +220,7 @@ export function OwnerContactStep({
             onChange={(e) => setOtp(e.target.value)}
             inputMode="numeric"
             autoComplete="one-time-code"
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-3 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
           <button
             type="button"
@@ -212,22 +229,28 @@ export function OwnerContactStep({
               void verifyOtp();
             }}
             disabled={phase.kind === 'verifying'}
-            className="w-full rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-amber-400 disabled:opacity-60"
+            className="w-full rounded-md bg-signal-500 px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
-            {phase.kind === 'verifying' ? 'Inathibitisha…' : 'Thibitisha · Verify'}
+            {phase.kind === 'verifying'
+              ? 'Inathibitisha…'
+              : 'Thibitisha · Verify'}
           </button>
         </div>
       )}
 
       {phase.kind === 'error' && (
         <div className="space-y-2">
-          <p role="alert" className="text-sm text-rose-400" data-testid="signup-contact-error">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            data-testid="signup-contact-error"
+          >
             {phase.message}
           </p>
           <button
             type="button"
             onClick={() => setPhase({ kind: 'review' })}
-            className="text-xs text-neutral-400 underline"
+            className="text-xs text-neutral-400 underline-offset-2 hover:text-foreground hover:underline"
           >
             Jaribu tena · Try again
           </button>
@@ -238,7 +261,7 @@ export function OwnerContactStep({
         type="button"
         onClick={onBack}
         data-testid="signup-contact-back"
-        className="text-xs text-neutral-400 hover:text-foreground"
+        className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
       >
         ‹ Rudi
       </button>

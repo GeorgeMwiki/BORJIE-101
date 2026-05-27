@@ -112,10 +112,12 @@ export function BusinessOwnerStep({
       noValidate
     >
       <header>
-        <h2 className="text-lg font-medium text-foreground">
+        <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
           Taarifa za kampuni yako
         </h2>
-        <p className="text-xs text-neutral-500">Your company details</p>
+        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          Your company details
+        </p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -130,7 +132,7 @@ export function BusinessOwnerStep({
             id="orgName"
             data-testid="signup-business-orgName"
             {...register('orgName')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -145,7 +147,7 @@ export function BusinessOwnerStep({
             id="country"
             data-testid="signup-business-country"
             {...register('country')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {COUNTRIES.map((c) => (
               <option key={c} value={c}>
@@ -166,7 +168,7 @@ export function BusinessOwnerStep({
             id="businessRegistrationNumber"
             data-testid="signup-business-brela"
             {...register('businessRegistrationNumber')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -181,7 +183,7 @@ export function BusinessOwnerStep({
             id="taxId"
             data-testid="signup-business-tin"
             {...register('taxId')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -197,7 +199,7 @@ export function BusinessOwnerStep({
             data-testid="signup-business-ownerFullName"
             autoComplete="name"
             {...register('ownerFullName')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -215,7 +217,7 @@ export function BusinessOwnerStep({
             inputMode="tel"
             placeholder="+255712345678"
             {...register('ownerPhoneE164')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -232,7 +234,7 @@ export function BusinessOwnerStep({
             autoComplete="email"
             type="email"
             {...register('ownerEmail')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -247,7 +249,7 @@ export function BusinessOwnerStep({
             id="defaultLanguage"
             data-testid="signup-business-language"
             {...register('defaultLanguage')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             <option value="sw">Kiswahili</option>
             <option value="en">English</option>
@@ -265,7 +267,7 @@ export function BusinessOwnerStep({
             id="primaryCurrency"
             data-testid="signup-business-currency"
             {...register('primaryCurrency')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
@@ -285,7 +287,7 @@ export function BusinessOwnerStep({
             id="miningLicenceNumber"
             data-testid="signup-business-pml"
             {...register('miningLicenceNumber')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -299,7 +301,7 @@ export function BusinessOwnerStep({
             id="vatNumber"
             data-testid="signup-business-vat"
             {...register('vatNumber')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
       </div>
@@ -309,7 +311,7 @@ export function BusinessOwnerStep({
           type="button"
           onClick={onBack}
           data-testid="signup-business-back"
-          className="text-sm text-neutral-400 hover:text-foreground"
+          className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
         >
           ‹ Rudi
         </button>
@@ -317,7 +319,7 @@ export function BusinessOwnerStep({
           type="submit"
           disabled={formState.isSubmitting}
           data-testid="signup-business-next"
-          className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-amber-400 disabled:opacity-60"
+          className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
           Endelea ›
         </button>
@@ -335,20 +337,20 @@ function Field(props: {
   readonly children: React.ReactNode;
 }): JSX.Element {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <label
         htmlFor={props.id}
-        className="block text-xs font-medium text-neutral-300"
+        className="block text-xs font-medium text-foreground"
       >
         {props.label}
-        {props.required ? <span className="text-amber-500"> *</span> : null}
-        <span className="ml-2 text-[10px] uppercase tracking-wider text-neutral-500">
+        {props.required ? <span className="text-signal-500"> *</span> : null}
+        <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
           {props.subLabel}
         </span>
       </label>
       {props.children}
       {props.error ? (
-        <p role="alert" className="text-xs text-rose-400">
+        <p role="alert" className="text-xs text-destructive">
           {props.error}
         </p>
       ) : null}

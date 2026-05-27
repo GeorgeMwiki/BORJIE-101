@@ -207,7 +207,7 @@ export function SignupWizard(): JSX.Element {
     return (
       <div
         data-testid="signup-wizard-loading"
-        className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6"
+        className="rounded-2xl border border-border bg-surface p-8"
       >
         <p className="text-sm text-neutral-400">Inapakia…</p>
       </div>
@@ -218,18 +218,61 @@ export function SignupWizard(): JSX.Element {
     <section
       data-testid="signup-wizard"
       data-step={state.step}
-      className="rounded-2xl border border-neutral-800 bg-neutral-950 p-6 shadow-lg"
+      className="rounded-2xl border border-border bg-surface p-8 shadow-md sm:p-10"
     >
       <ol
         aria-label="Hatua za kujisajili"
-        className="mb-6 flex items-center gap-2 text-xs text-neutral-500"
+        className="mb-8 flex items-center justify-center gap-3 font-mono text-caption uppercase tracking-widest"
       >
-        <li className={state.step === 1 ? 'text-amber-400' : ''}>1. Aina</li>
-        <li>›</li>
-        <li className={state.step === 2 ? 'text-amber-400' : ''}>2. Taarifa</li>
-        <li>›</li>
-        <li className={state.step === 3 ? 'text-amber-400' : ''}>
-          3. Thibitisha
+        <li className="flex items-center gap-2">
+          <span
+            className={
+              state.step === 1
+                ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+            }
+          >
+            1
+          </span>
+          <span
+            className={state.step === 1 ? 'text-foreground' : 'text-neutral-500'}
+          >
+            Aina
+          </span>
+        </li>
+        <li aria-hidden="true" className="h-px w-6 bg-border" />
+        <li className="flex items-center gap-2">
+          <span
+            className={
+              state.step === 2
+                ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+            }
+          >
+            2
+          </span>
+          <span
+            className={state.step === 2 ? 'text-foreground' : 'text-neutral-500'}
+          >
+            Taarifa
+          </span>
+        </li>
+        <li aria-hidden="true" className="h-px w-6 bg-border" />
+        <li className="flex items-center gap-2">
+          <span
+            className={
+              state.step === 3
+                ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+            }
+          >
+            3
+          </span>
+          <span
+            className={state.step === 3 ? 'text-foreground' : 'text-neutral-500'}
+          >
+            Thibitisha
+          </span>
         </li>
       </ol>
 

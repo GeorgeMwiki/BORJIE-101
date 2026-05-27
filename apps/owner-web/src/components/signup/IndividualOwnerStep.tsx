@@ -102,10 +102,12 @@ export function IndividualOwnerStep({
       noValidate
     >
       <header>
-        <h2 className="text-lg font-medium text-foreground">
+        <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
           Taarifa zako binafsi
         </h2>
-        <p className="text-xs text-neutral-500">Your personal details</p>
+        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          Your personal details
+        </p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -121,7 +123,7 @@ export function IndividualOwnerStep({
             data-testid="signup-individual-fullName"
             autoComplete="name"
             {...register('fullName')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -136,7 +138,7 @@ export function IndividualOwnerStep({
             id="country"
             data-testid="signup-individual-country"
             {...register('country')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {COUNTRIES.map((c) => (
               <option key={c} value={c}>
@@ -160,7 +162,7 @@ export function IndividualOwnerStep({
             inputMode="tel"
             placeholder="+255712345678"
             {...register('phoneE164')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -177,7 +179,7 @@ export function IndividualOwnerStep({
             autoComplete="email"
             type="email"
             {...register('email')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -192,7 +194,7 @@ export function IndividualOwnerStep({
             id="defaultLanguage"
             data-testid="signup-individual-language"
             {...register('defaultLanguage')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             <option value="sw">Kiswahili</option>
             <option value="en">English</option>
@@ -210,7 +212,7 @@ export function IndividualOwnerStep({
             id="primaryCurrency"
             data-testid="signup-individual-currency"
             {...register('primaryCurrency')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
@@ -230,7 +232,7 @@ export function IndividualOwnerStep({
             id="miningLicenceNumber"
             data-testid="signup-individual-pml"
             {...register('miningLicenceNumber')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -244,7 +246,7 @@ export function IndividualOwnerStep({
             id="nationalIdNumber"
             data-testid="signup-individual-nida"
             {...register('nationalIdNumber')}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
       </div>
@@ -253,7 +255,7 @@ export function IndividualOwnerStep({
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-neutral-400 hover:text-foreground"
+          className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
           data-testid="signup-individual-back"
         >
           ‹ Rudi
@@ -262,7 +264,7 @@ export function IndividualOwnerStep({
           type="submit"
           disabled={formState.isSubmitting}
           data-testid="signup-individual-next"
-          className="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-amber-400 disabled:opacity-60"
+          className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
           Endelea ›
         </button>
@@ -280,20 +282,20 @@ function Field(props: {
   readonly children: React.ReactNode;
 }): JSX.Element {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <label
         htmlFor={props.id}
-        className="block text-xs font-medium text-neutral-300"
+        className="block text-xs font-medium text-foreground"
       >
         {props.label}
-        {props.required ? <span className="text-amber-500"> *</span> : null}
-        <span className="ml-2 text-[10px] uppercase tracking-wider text-neutral-500">
+        {props.required ? <span className="text-signal-500"> *</span> : null}
+        <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
           {props.subLabel}
         </span>
       </label>
       {props.children}
       {props.error ? (
-        <p role="alert" className="text-xs text-rose-400">
+        <p role="alert" className="text-xs text-destructive">
           {props.error}
         </p>
       ) : null}

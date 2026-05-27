@@ -3,14 +3,16 @@
 /**
  * SignupKindStep — Step 1 of the owner self-signup wizard.
  *
- * Pure presentational component. Renders two large card pickers:
+ * Two large card pickers presented in the LitFin two-up grid pattern:
  *   - INDIVIDUAL ("Mimi ni mtu binafsi (mchimbaji wa kawaida)")
  *   - BUSINESS   ("Mimi nina kampuni / shirika")
  *
- * Each card lists the information that will be needed in step 2 so
- * the user can pick the lighter path knowingly.
+ * Hairline border, signal-gold focus ring + hover glow, mono-caption
+ * "Endelea ›" affordance at the bottom that matches the wider Borjie
+ * surface vocabulary.
  */
 
+import { ArrowRight } from 'lucide-react';
 import type { AccountKind } from './SignupWizard';
 
 interface SignupKindStepProps {
@@ -57,44 +59,49 @@ const CARDS: ReadonlyArray<KindCard> = [
 
 export function SignupKindStep({ onPick }: SignupKindStepProps): JSX.Element {
   return (
-    <div data-testid="signup-kind-step" className="space-y-5">
+    <div data-testid="signup-kind-step" className="space-y-6">
       <header>
-        <h2 className="text-lg font-medium text-foreground">
+        <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
           Unataka kujisajili kama nani?
         </h2>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
           How would you like to sign up?
         </p>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         {CARDS.map((card) => (
           <button
             key={card.kind}
             type="button"
             data-testid={`signup-kind-card-${card.kind}`}
             onClick={() => onPick(card.kind)}
-            className="group flex flex-col items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 text-left hover:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="group flex flex-col items-start gap-3 rounded-2xl border border-border bg-surface-raised p-6 text-left transition-all duration-base ease-out hover:border-signal-500/50 hover:shadow-signal-glow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             <div>
-              <h3 className="text-base font-medium text-foreground group-hover:text-amber-400">
+              <h3 className="font-display text-lg font-medium tracking-tight text-foreground group-hover:text-signal-500">
                 {card.titleSw}
               </h3>
-              <p className="text-xs text-neutral-500">{card.titleEn}</p>
+              <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
+                {card.titleEn}
+              </p>
             </div>
-            <p className="text-sm text-neutral-300">{card.subtitleSw}</p>
-            <ul className="space-y-1 text-xs text-neutral-400">
+            <p className="text-sm leading-relaxed text-neutral-300">
+              {card.subtitleSw}
+            </p>
+            <ul className="space-y-1.5 text-xs text-neutral-400">
               {card.bulletsSw.map((bullet) => (
                 <li key={bullet} className="flex items-start gap-2">
-                  <span aria-hidden="true" className="text-amber-500">
+                  <span aria-hidden="true" className="text-signal-500">
                     •
                   </span>
                   <span>{bullet}</span>
                 </li>
               ))}
             </ul>
-            <span className="mt-auto text-xs font-medium uppercase tracking-wider text-amber-500">
-              Endelea ›
+            <span className="mt-auto inline-flex items-center gap-1 font-mono text-caption uppercase tracking-widest text-signal-500">
+              Endelea
+              <ArrowRight className="h-3 w-3 transition-transform duration-fast group-hover:translate-x-0.5" />
             </span>
           </button>
         ))}
