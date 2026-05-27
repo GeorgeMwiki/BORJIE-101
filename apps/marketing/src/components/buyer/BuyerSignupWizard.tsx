@@ -186,18 +186,40 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
     <section
       data-testid="buyer-signup-wizard"
       data-step={state.step}
-      className="rounded-2xl border border-border bg-surface/40 p-6 shadow-sm"
+      className="rounded-2xl border border-border bg-surface p-8 shadow-md sm:p-10"
     >
       <ol
         aria-label={`${t.steps.kind} › ${t.steps.details}`}
-        className="mb-6 flex items-center gap-2 font-mono text-meta uppercase tracking-widest text-foreground/50"
+        className="mb-8 flex items-center justify-center gap-3 font-mono text-caption uppercase tracking-widest"
       >
-        <li className={state.step === 1 ? 'text-signal-500' : ''}>
-          {t.steps.kind}
+        <li className="flex items-center gap-2">
+          <span
+            className={
+              state.step === 1
+                ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+            }
+          >
+            1
+          </span>
+          <span className={state.step === 1 ? 'text-foreground' : 'text-neutral-500'}>
+            {t.steps.kind}
+          </span>
         </li>
-        <li aria-hidden="true">›</li>
-        <li className={state.step === 2 ? 'text-signal-500' : ''}>
-          {t.steps.details}
+        <li aria-hidden="true" className="h-px w-8 bg-border" />
+        <li className="flex items-center gap-2">
+          <span
+            className={
+              state.step === 2
+                ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+            }
+          >
+            2
+          </span>
+          <span className={state.step === 2 ? 'text-foreground' : 'text-neutral-500'}>
+            {t.steps.details}
+          </span>
         </li>
       </ol>
 

@@ -2,19 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { getMessages, type Locale } from '@/lib/i18n';
 
-interface WordmarkProps {
-  readonly size?: 'sm' | 'md' | 'lg';
-  readonly premium?: boolean;
-}
-function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
-  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
-  const tone = premium
-    ? 'bg-gradient-to-r from-[oklch(0.78_0.16_75)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
-    : '';
-  return (
-    <span className={`font-display font-bold tracking-tight ${cls} ${tone}`}>Borjie</span>
-  );
-}
 interface LogomarkProps {
   readonly size?: number;
   readonly className?: string;
@@ -37,20 +24,19 @@ function Logomark({ size = 24, className = '' }: LogomarkProps) {
 /**
  * Hero — the headline surface.
  *
- * Display-serif Fraunces, MASSIVE (clamp 56-104px), tight tracking,
- * text-balance. The type IS the design. Subtle gold aurora behind,
- * geological-paper grid underlay, two CTAs (pilot primary, demo
- * ghost). Trustline names actual Tanzanian mining regions to ground
- * the brand in place rather than in adjectives.
+ * Mirrors the LitFin / Mercury / Linear 2026 hero rhythm:
+ *   - Single pill kicker at the top.
+ *   - One declarative seven-word headline (display-medium, clamp-sized).
+ *   - One-sentence supporting subhead with concrete outcomes
+ *     (royalty returns, gold-window hedge, audit chain).
+ *   - Dual CTA: primary "Start free" + ghost "See it run".
+ *   - Trustline of Tanzanian mining regions in mono-caption.
+ *
+ * Stats no longer sit inline — they live in the dedicated StatsBand
+ * lower in the page so the hero reads as one calm declarative beat.
  */
 export function Hero({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).hero;
-  const stats: ReadonlyArray<{ readonly value: string; readonly label: string }> = [
-    { value: '4', label: t.stats.pilotRegions },
-    { value: 'sw / en', label: t.stats.bilingual },
-    { value: 'TZS', label: t.stats.baseCurrency },
-    { value: '24/7', label: t.stats.masterBrain },
-  ];
 
   return (
     <section
@@ -63,7 +49,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 sm:pb-32 sm:pt-28 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-20 sm:pb-28 sm:pt-28 lg:px-8">
         <div className="mb-10 flex justify-center">
           <span className="group inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface/60 px-3 py-1 text-xs font-medium text-neutral-400 backdrop-blur">
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
@@ -77,10 +63,9 @@ export function Hero({ locale }: { readonly locale: Locale }) {
 
         <h1
           id="hero-headline"
-          className="font-display text-hero font-medium tracking-tighter text-foreground text-balance text-center"
+          className="mx-auto max-w-5xl font-display text-hero font-medium tracking-tighter text-foreground text-balance text-center"
         >
-          {t.headline.split(' ').slice(0, -2).join(' ')}
-          <br />
+          {t.headline.split(' ').slice(0, -2).join(' ')}{' '}
           <span className="relative inline-block">
             <span className="italic text-signal-500">
               {t.headline.split(' ').slice(-2).join(' ')}
@@ -122,23 +107,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
           </Link>
         </div>
 
-        <dl className="mt-20 grid grid-cols-2 gap-6 border-t border-border/60 pt-10 sm:grid-cols-4">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="flex flex-col gap-1 border-l border-border/50 pl-6 first:border-l-0 first:pl-0 sm:border-l sm:pl-6 sm:first:border-l-0 sm:first:pl-0"
-            >
-              <dt className="font-mono text-xs uppercase tracking-widest text-neutral-400">
-                {stat.label}
-              </dt>
-              <dd className="font-display text-3xl font-medium leading-tight tracking-tight text-foreground tabular-nums sm:text-4xl">
-                {stat.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        <p className="mt-10 flex items-center justify-center gap-2 font-mono text-meta uppercase tracking-widest text-neutral-500">
+        <p className="mt-14 flex items-center justify-center gap-2 font-mono text-meta uppercase tracking-widest text-neutral-500">
           <Logomark size={10} className="text-signal-500" />
           <MapPin className="h-3 w-3 text-signal-500" />
           <span>{t.trustline}</span>

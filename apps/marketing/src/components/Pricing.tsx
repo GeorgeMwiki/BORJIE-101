@@ -32,7 +32,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
         </p>
       </div>
 
-      <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
         {TIERS.map((tier) => {
           const features = tierFeatures(tier, locale);
           const tagline = tierTagline(tier, locale);
@@ -42,13 +42,13 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
             <article
               key={tier.id}
               className={[
-                'flex flex-col rounded-2xl border p-6 transition-all duration-base ease-out',
+                'flex flex-col rounded-2xl border p-7 transition-all duration-base ease-out',
                 tier.highlighted
-                  ? 'border-signal-500/40 bg-surface ring-1 ring-signal-500/30 shadow-signal-glow-card'
-                  : 'border-border bg-surface',
+                  ? 'border-signal-500/40 bg-surface ring-1 ring-signal-500/30 shadow-signal-glow-card lg:scale-[1.02]'
+                  : 'border-border bg-surface hover:border-border-strong',
               ].join(' ')}
             >
-              <header>
+              <header className="min-h-[5rem]">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-display text-xl font-medium tracking-tight">
                     {tier.name}
@@ -60,22 +60,27 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-neutral-400">{tagline}</p>
+                <p className="mt-2 text-xs leading-relaxed text-neutral-400">{tagline}</p>
               </header>
 
-              <div className="mt-5">
-                <p className="font-display text-3xl font-medium leading-none tracking-tight tabular-nums">
+              <div className="mt-6 border-t border-border pt-6">
+                <p className="font-display text-4xl font-medium leading-none tracking-tight tabular-nums">
                   {tier.price === 'TZS 0' ? (
                     <span>
-                      TZS 0<span className="text-base text-neutral-400"> / {t.freeForever}</span>
+                      TZS 0
+                      <span className="block mt-2 text-sm font-normal text-neutral-400">
+                        {t.freeForever}
+                      </span>
                     </span>
                   ) : tier.price === 'Bespoke' ? (
-                    <span>{t.bespoke}</span>
+                    <span className="text-2xl">{t.bespoke}</span>
                   ) : (
                     <span>
                       {tier.price}
                       {showsPerMonth && (
-                        <span className="text-base text-neutral-400">/{t.perMonth.split(' ')[1] ?? 'mo'}</span>
+                        <span className="block mt-2 text-sm font-normal text-neutral-400">
+                          /{t.perMonth.split(' ')[1] ?? 'mo'}
+                        </span>
                       )}
                     </span>
                   )}
@@ -85,7 +90,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
               <Link
                 href={tier.href}
                 className={[
-                  'mt-6 inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition-all duration-fast ease-out active:scale-[0.98]',
+                  'mt-7 inline-flex h-11 items-center justify-center rounded-md px-4 text-sm font-semibold transition-all duration-fast ease-out active:scale-[0.98]',
                   tier.highlighted
                     ? 'bg-signal-500 text-primary-foreground shadow-md hover:bg-signal-400 hover:shadow-lg'
                     : 'border border-border text-foreground hover:bg-surface-raised',
@@ -94,7 +99,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                 {cta}
               </Link>
 
-              <ul className="mt-6 space-y-2 border-t border-border pt-5">
+              <ul className="mt-7 space-y-2.5 border-t border-border pt-6">
                 {features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-xs">
                     <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-500" />

@@ -102,7 +102,7 @@ export function BuyerSignInForm({
       data-testid="buyer-signin-form"
       onSubmit={handleSubmit}
       noValidate
-      className="space-y-5 rounded-2xl border border-border bg-surface/40 p-6 shadow-sm"
+      className="space-y-6 rounded-2xl border border-border bg-surface p-8 shadow-md sm:p-10"
     >
       {fromSignup ? (
         <p
@@ -127,7 +127,7 @@ export function BuyerSignInForm({
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.currentTarget.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         />
       </Field>
 
@@ -144,7 +144,7 @@ export function BuyerSignInForm({
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.currentTarget.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+          className="w-full rounded-md border border-border bg-background px-3 py-3 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         />
       </Field>
 
@@ -162,7 +162,7 @@ export function BuyerSignInForm({
         type="submit"
         disabled={phase.kind === 'submitting'}
         data-testid="buyer-signin-submit"
-        className="w-full rounded-md bg-signal-500 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.99] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+        className="w-full rounded-md bg-signal-500 px-4 py-3.5 text-base font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
       >
         {phase.kind === 'submitting' ? t.actions.submitting : t.actions.submit}
       </button>

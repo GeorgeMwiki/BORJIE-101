@@ -30,10 +30,10 @@
   "hero": {
     "kicker": "Mfumo wa AI kwa madini ya Tanzania",
     "swahiliFirstBadge": "Swahili-kwanza",
-    "headline": "Endesha mgodi wako kama wabora duniani.",
-    "sub": "Mfumo wa uendeshaji unaotumia AI. Tanzanian-kwanza. Mteja-wengi. Lugha-nyingi.",
-    "ctaPilot": "Omba pilot",
-    "ctaDemo": "Ona demo ya moja kwa moja",
+    "headline": "Endesha mgodi wako kwa otomatiki.",
+    "sub": "Mfumo wa uendeshaji wa AI unaoshughulikia shughuli za usiku, kuandaa royalty returns, kufunga gold-window hedge, na kuweka kila kitendo kwenye audit chain ya cryptography — lugha mbili, data Tanzania, TZS kuu.",
+    "ctaPilot": "Anza bure",
+    "ctaDemo": "Iangalie ikifanya kazi",
     "trustline": "Geita · Mererani · Kahama · Songwe",
     "stats": {
       "pilotRegions": "Mikoa ya pilot",
@@ -41,6 +41,53 @@
       "baseCurrency": "Sarafu ya msingi",
       "masterBrain": "Master Brain"
     }
+  },
+  "trust": {
+    "kicker": "Iliyoaminika katika madini ya Tanzania",
+    "logos": [
+      "BRELA",
+      "TRA",
+      "Tumemadini",
+      "NEMC",
+      "Maabara za LBMA",
+      "M-Pesa · Tigo · Airtel"
+    ]
+  },
+  "stats": {
+    "kicker": "Kwa nambari",
+    "heading": "Nambari kutoka kwa pilots kumi za moja kwa moja.",
+    "sub": "Wiki 12 za maendeleo pamoja na waendeshaji wa migodi Geita, Mererani, na Songwe. Takwimu kutoka telemetry ya pilot, zinasasishwa kila wiki.",
+    "items": [
+      {
+        "label": "Sites za pilot zenye brain hai",
+        "value": "47",
+        "delta": "+12 robo hii"
+      },
+      {
+        "label": "Briefings zilizotolewa kabla ya 06:00",
+        "value": "1,284",
+        "delta": "99.4% kwa wakati"
+      },
+      {
+        "label": "Entries za audit-chain zilizoandikwa",
+        "value": "184k",
+        "delta": "0 mabadiliko"
+      },
+      {
+        "label": "TZS iliyofungwa kwenye gold-window",
+        "value": "TZS 4.2B",
+        "delta": "Mfano"
+      }
+    ],
+    "footnote": "Nambari zinasasishwa kutoka telemetry. TZS iliyofungwa inawakilisha wave M3-M4; dashboard ya pilot inasasishwa kila wiki."
+  },
+  "finalCta": {
+    "kicker": "Tayari unapokuwa wewe",
+    "heading": "Acha kufuatilia dashboard. Anza kuendesha mgodi.",
+    "sub": "Nafasi 20 za pilot zimebaki. Hakuna gharama. Wiki 12. Wewe unaweka kasi ya autonomy — sisi tunatengeneza brain inayoshughulikia shughuli za usiku na audit chain inayoweka kila kitendo kwenye rekodi.",
+    "ctaPrimary": "Omba pilot",
+    "ctaSecondary": "Ongea na timu",
+    "microcopy": "Bure wakati wa pilot. Hakuna kadi inayohitajika. Sitisha wakati wowote."
   },
   "capabilities": {
     "kicker": "01 · Uwezo wa msingi",

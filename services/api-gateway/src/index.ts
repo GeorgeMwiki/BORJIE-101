@@ -389,19 +389,31 @@ app.use(expressCacheControl('private-revalidate'));
 // env var; absence is fatal in production.
 const allowedOrigins = (() => {
   const raw = process.env.ALLOWED_ORIGINS?.trim();
-  if (raw) return raw.split(',').map((o) => o.trim()).filter(Boolean);
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'api-gateway: ALLOWED_ORIGINS env var is required in production ' +
-        '(comma-separated list of https://... origins).'
-    );
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd) {
+    if (!raw) {
+      throw new Error(
+        'api-gateway: ALLOWED_ORIGINS env var is required in production ' +
+          '(comma-separated list of https://... origins).'
+      );
+    }
+    return raw.split(',').map((o) => o.trim()).filter(Boolean);
   }
-  return [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003',
-  ];
+  // Dev: ALWAYS include the canonical localhost / 127.0.0.1 dev surface
+  // matrix, then union with any explicit ALLOWED_ORIGINS the operator
+  // sets (e.g. a tunneled origin for mobile-on-device tests). Chrome
+  // treats `localhost` and `127.0.0.1` as distinct origins; the user
+  // can hit either. Ports: 3000/3010/3020/3030/3040 web surfaces,
+  // 3001-3003 legacy spare, 5173 Vite.
+  const devHosts = ['localhost', '127.0.0.1'];
+  const devPorts = ['3000', '3001', '3002', '3003', '3010', '3020', '3030', '3040', '5173', '8081', '8082'];
+  const baseDev = devHosts.flatMap((host) =>
+    devPorts.map((port) => `http://${host}:${port}`),
+  );
+  const fromEnv = raw
+    ? raw.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+  return Array.from(new Set([...baseDev, ...fromEnv]));
 })();
 
 app.use(

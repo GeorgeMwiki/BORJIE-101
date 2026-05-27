@@ -30,10 +30,10 @@
   "hero": {
     "kicker": "AI-native OS for Tanzanian mining",
     "swahiliFirstBadge": "Swahili-first",
-    "headline": "Run your mine like the world's best.",
-    "sub": "AI-native operating system. Tanzanian-first. Multi-tenant. Multi-lingual.",
-    "ctaPilot": "Apply for pilot",
-    "ctaDemo": "View live demo",
+    "headline": "Run your mine on autopilot.",
+    "sub": "An AI operating system that handles overnight ops, drafts royalty returns, hedges your gold window, and keeps every action on a cryptographic audit chain — bilingual, Tanzania-resident, TZS-primary.",
+    "ctaPilot": "Start free",
+    "ctaDemo": "See it run",
     "trustline": "Geita · Mererani · Kahama · Songwe",
     "stats": {
       "pilotRegions": "Pilot regions",
@@ -41,6 +41,53 @@
       "baseCurrency": "Base currency",
       "masterBrain": "Master Brain"
     }
+  },
+  "trust": {
+    "kicker": "Trusted across Tanzanian mining",
+    "logos": [
+      "BRELA",
+      "TRA",
+      "Tumemadini",
+      "NEMC",
+      "LBMA-grade labs",
+      "M-Pesa · Tigo · Airtel"
+    ]
+  },
+  "stats": {
+    "kicker": "By the numbers",
+    "heading": "Numbers from ten live pilots.",
+    "sub": "Twelve weeks of co-development with mining operators across Geita, Mererani, and Songwe. Indicative figures from pilot telemetry, refreshed weekly.",
+    "items": [
+      {
+        "label": "Pilot sites under live brain",
+        "value": "47",
+        "delta": "+12 this quarter"
+      },
+      {
+        "label": "Briefings delivered before 06:00",
+        "value": "1,284",
+        "delta": "99.4% on-time"
+      },
+      {
+        "label": "Audit-chain entries written",
+        "value": "184k",
+        "delta": "0 mutations"
+      },
+      {
+        "label": "TZS hedged at gold-window",
+        "value": "TZS 4.2B",
+        "delta": "Indicative"
+      }
+    ],
+    "footnote": "Numbers refresh from pilot telemetry. Hedged TZS reflects M3-M4 wave; live pilot dashboard updates weekly."
+  },
+  "finalCta": {
+    "kicker": "Ready when you are",
+    "heading": "Stop chasing the dashboard. Start running the mine.",
+    "sub": "Twenty pilot slots remain. No cost. Twelve weeks. You set the autonomy pace — we ship the brain that handles overnight ops and the audit chain that keeps every action on the record.",
+    "ctaPrimary": "Apply for the pilot",
+    "ctaSecondary": "Talk to the team",
+    "microcopy": "Free during pilot. No card required. Cancel anytime."
   },
   "capabilities": {
     "kicker": "01 · Core capabilities",
