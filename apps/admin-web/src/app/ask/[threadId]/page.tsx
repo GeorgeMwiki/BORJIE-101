@@ -17,13 +17,13 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
   const { threadId } = await params;
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-[280px] shrink-0 border-r border-border bg-surface-sunken lg:block">
+      <aside className="hidden w-thread-narrow shrink-0 border-r border-border bg-surface-sunken lg:block">
         <ThreadList activeThreadId={threadId} />
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
         <header className="border-b border-border px-8 py-5">
-          <p className="font-mono text-[0.68rem] uppercase tracking-widest text-signal-500">
+          <p className="font-mono text-meta uppercase tracking-widest text-signal-500">
             Industry conversation
           </p>
           <h1 className="mt-1 font-display text-2xl font-medium tracking-tight">
@@ -40,7 +40,7 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
         </div>
       </main>
 
-      <aside className="hidden w-[360px] shrink-0 flex-col gap-4 border-l border-border bg-surface lg:flex">
+      <aside className="hidden w-thread-wide shrink-0 flex-col gap-4 border-l border-border bg-surface lg:flex">
         <div className="px-5 pt-5">
           <PrivacyBudgetCard />
         </div>

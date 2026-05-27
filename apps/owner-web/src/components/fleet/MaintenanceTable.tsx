@@ -109,7 +109,7 @@ function GroupRows({ group }: { readonly group: AssetGroup }) {
   return (
     <>
       <tr className="border-t border-border bg-background/40">
-        <td colSpan={7} className="px-3 py-1.5 text-[11px] font-semibold text-foreground">
+        <td colSpan={7} className="px-3 py-1.5 text-badge font-semibold text-foreground">
           {group.assetId}
           <span className="ml-2 text-neutral-500">
             {group.rows.length} event{group.rows.length === 1 ? '' : 's'}

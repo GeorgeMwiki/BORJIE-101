@@ -27,7 +27,7 @@ export function DocumentSurface() {
 
   if (isLoading) {
     return (
-      <div className="h-[600px] animate-pulse rounded-lg border border-border bg-surface/40" />
+      <div className="h-chart-xl animate-pulse rounded-lg border border-border bg-surface/40" />
     );
   }
   if (!selected) {
@@ -40,7 +40,7 @@ export function DocumentSurface() {
   }
 
   return (
-    <div className="grid h-[640px] grid-cols-12 gap-4">
+    <div className="grid h-chart-2xl grid-cols-12 gap-4">
       <aside className="col-span-3 overflow-y-auto rounded-lg border border-border bg-surface/40">
         <header className="border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">
           Documents · {documents.length}

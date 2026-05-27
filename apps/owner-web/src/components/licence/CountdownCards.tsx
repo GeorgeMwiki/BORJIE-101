@@ -42,13 +42,13 @@ export function CountdownCards({
                 : 'border-border bg-surface text-neutral-400'
             }`}
           >
-            <div className="text-[10px] uppercase tracking-wide">
+            <div className="text-tiny uppercase tracking-wide">
               {t.key} renewal gate
             </div>
             <div className="mt-1 text-2xl font-display">
               {reached ? 'reached' : `${daysToWindow - t.days}d to go`}
             </div>
-            <div className="mt-1 text-[11px]">
+            <div className="mt-1 text-badge">
               window opens {windowOpensAt} · closes {windowClosesAt}
             </div>
           </article>

@@ -18,7 +18,7 @@ const TONE_CLASSES: Record<Tone, string> = {
 export function StubBadge({ tone = 'neutral', children }: StubBadgeProps): JSX.Element {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wider ${TONE_CLASSES[tone]}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-caption-lg font-medium uppercase tracking-wider ${TONE_CLASSES[tone]}`}
     >
       {children}
     </span>

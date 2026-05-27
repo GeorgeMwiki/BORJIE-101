@@ -19,7 +19,7 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
   const isOwner = message.role === 'owner';
   return (
     <div className={`flex flex-col gap-1 ${isOwner ? '' : 'items-end'}`}>
-      <div className="text-[11px] text-neutral-500">
+      <div className="text-badge text-neutral-500">
         {isOwner ? 'Owner' : `Master Brain · ${message.mode}`} · {fmtTime(message.createdAt)}
       </div>
       <div
@@ -38,7 +38,7 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
           </div>
         ) : null}
         {message.breadcrumbs.length > 0 ? (
-          <div className="mt-2 text-[10px] text-neutral-500">
+          <div className="mt-2 text-tiny text-neutral-500">
             Junior calls:{' '}
             {message.breadcrumbs
               .map((bc) => `${bc.agent}·${bc.action} (${bc.latencyMs}ms)`)

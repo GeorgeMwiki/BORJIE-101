@@ -16,7 +16,7 @@ export function SiteCockpitSurface({ siteId }: SiteCockpitSurfaceProps) {
   const [tab, setTab] = useState<TabId>('shift');
   if (isLoading || !data) {
     return (
-      <div className="h-[400px] animate-pulse rounded-lg border border-border bg-surface/40" />
+      <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
     );
   }
   return (

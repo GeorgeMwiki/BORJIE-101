@@ -49,7 +49,7 @@ export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanva
 
   if (!mapModule) {
     return (
-      <div className="flex h-[560px] items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 text-sm text-neutral-400">
+      <div className="flex h-chart-lg items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 text-sm text-neutral-400">
         Loading map…
       </div>
     );
@@ -62,7 +62,7 @@ export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanva
   const points = visible.filter((f) => f.geometry.type === 'Point');
 
   return (
-    <div className="h-[560px] overflow-hidden rounded-lg border border-border">
+    <div className="h-chart-lg overflow-hidden rounded-lg border border-border">
       <Map
         mapboxAccessToken={mapboxToken}
         initialViewState={MAP_INITIAL_VIEW}

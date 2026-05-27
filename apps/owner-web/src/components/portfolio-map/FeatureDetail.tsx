@@ -21,7 +21,7 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
     <div className="rounded-md border border-border bg-surface px-3 py-3 text-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+          <div className="text-tiny uppercase tracking-wide text-neutral-500">
             {feature.kind}
           </div>
           <div className="mt-0.5 font-medium text-foreground">{feature.name}</div>

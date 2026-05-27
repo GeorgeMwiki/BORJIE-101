@@ -38,11 +38,8 @@ import {
   type LeaseId,
   type CurrencyCode,
 } from '@borjie/domain-models';
-import {
-  paymentIntents,
-  type DatabaseClient,
-  type PaymentIntentRow,
-} from '@borjie/database';
+import { type DatabaseClient } from '@borjie/database';
+import { paymentIntents, type PaymentIntentRow } from './drizzle-schema';
 import type { PaymentStatus } from '../types';
 import type {
   IPaymentIntentRepository,

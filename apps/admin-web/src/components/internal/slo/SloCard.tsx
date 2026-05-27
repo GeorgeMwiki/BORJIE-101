@@ -17,7 +17,7 @@ const TONE_CLASS: Record<NonNullable<SloCardProps['tone']>, string> = {
 export function SloCard({ label, value, hint, sparkline, tone = 'neutral' }: SloCardProps): JSX.Element {
   return (
     <div className={`rounded-lg border p-4 ${TONE_CLASS[tone]}`}>
-      <p className="text-[0.62rem] uppercase tracking-widest text-neutral-500">{label}</p>
+      <p className="text-caption uppercase tracking-widest text-neutral-500">{label}</p>
       <p className="text-2xl font-display text-foreground tabular-nums mt-1">{value}</p>
       {hint ? <p className="text-xs text-neutral-500 mt-1">{hint}</p> : null}
       {sparkline ? (

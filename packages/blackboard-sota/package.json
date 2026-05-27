@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/blackboard-sota",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Blackboard SOTA (Wave BLACKBOARD-CORE) — classic Erman/Hayes-Roth blackboard pattern modernised for multi-agent LLM systems: regions, knowledge sources, opportunistic control shell, cross-reference detection, token-budgeted summarisation, per-region hash chain. Persona: Mr. Mwikila. See Docs/DESIGN/BLACKBOARD_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

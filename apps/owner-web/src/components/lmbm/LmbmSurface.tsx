@@ -25,7 +25,7 @@ export function LmbmSurface() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {isLoading || !data ? (
-            <div className="h-[520px] animate-pulse rounded-lg border border-border bg-surface/40" />
+            <div className="h-chart-md animate-pulse rounded-lg border border-border bg-surface/40" />
           ) : (
             <GraphCanvas
               graph={data}

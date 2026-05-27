@@ -66,7 +66,7 @@ export function ShiftReportCard({ latest, blockers, photos }: ShiftReportCardPro
           {photos.map((p) => (
             <div
               key={p.id}
-              className="flex aspect-square flex-col justify-end rounded-md border border-border bg-background p-2 text-[10px] text-neutral-400"
+              className="flex aspect-square flex-col justify-end rounded-md border border-border bg-background p-2 text-tiny text-neutral-400"
             >
               {p.caption}
             </div>
@@ -80,7 +80,7 @@ export function ShiftReportCard({ latest, blockers, photos }: ShiftReportCardPro
 function Stat({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-neutral-500">
         {label}
       </div>
       <div className="mt-0.5 text-lg font-display text-foreground">{value}</div>

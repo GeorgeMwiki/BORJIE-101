@@ -8,12 +8,13 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import type { ReactNode } from 'react';
-import type { ChatAttachment, UnifiedChat, WidgetStrings } from './types';
+import type { ChatAttachment, ChatMessage, UnifiedChat, WidgetStrings } from './types';
 import { MessageBubble } from './MessageBubble';
 import { ContextBadge } from './ContextBadge';
 import { SegmentHeader } from './SegmentHeader';
 import { VoiceOverlay } from './VoiceOverlay';
 import { buildAttachment } from './useUnifiedChat';
+import { useMessageWindow } from './useMessageWindow';
 import type { InlineRichRenderVariant } from '../shared/InlineRichRender';
 
 interface ChatPanelProps {
@@ -32,6 +33,15 @@ export function ChatPanel({ chat, strings, onClose, variant = 'floating', render
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
+
+  // SOTA lazy-load Wave: long-history windowing. Past 50 bubbles we
+  // mount only the most recent 50 + a "load older" toggle. Zero
+  // intelligence loss — the underlying `chat.messages` array is
+  // unchanged; the consumer can extend the window at will.
+  const messageWindow = useMessageWindow<ChatMessage>(chat.messages, {
+    idOf: (m) => m.id,
+  });
+  const visibleMessages = messageWindow.visibleMessages;
 
   useEffect(() => {
     const node = listEndRef.current;
@@ -196,8 +206,28 @@ export function ChatPanel({ chat, strings, onClose, variant = 'floating', render
             {strings.greet}
           </p>
         ) : null}
+        {messageWindow.hasOlder ? (
+          <button
+            type="button"
+            data-testid="chat-load-older"
+            onClick={messageWindow.loadOlder}
+            style={{
+              alignSelf: 'center',
+              background: 'transparent',
+              border: '1px dashed #cbd5e1',
+              borderRadius: 999,
+              padding: '4px 12px',
+              fontSize: 11,
+              color: '#64748b',
+              cursor: 'pointer',
+            }}
+            aria-label={`Load ${messageWindow.olderCount} older messages`}
+          >
+            {`Load ${messageWindow.olderCount} older`}
+          </button>
+        ) : null}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {chat.messages.map((m) => {
+          {visibleMessages.map((m) => {
             const segment = chat.segments.find((s) => s.id === m.segmentId);
             // Floating + bottom-sheet panels are width-constrained (380px
             // on desktop, full-bleed bottom-sheet on mobile). Pass the

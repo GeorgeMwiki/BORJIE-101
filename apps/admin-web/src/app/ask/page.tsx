@@ -20,19 +20,19 @@ export const metadata = {
 export default function IndustryAskLandingPage() {
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-[280px] shrink-0 border-r border-border bg-surface-sunken lg:block">
+      <aside className="hidden w-thread-narrow shrink-0 border-r border-border bg-surface-sunken lg:block">
         <ThreadList />
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
         <header className="border-b border-border px-8 py-6">
-          <p className="font-mono text-[0.68rem] uppercase tracking-widest text-signal-500">
+          <p className="font-mono text-meta uppercase tracking-widest text-signal-500">
             Central intelligence · platform scope
           </p>
           <h1 className="mt-1 font-display text-3xl font-medium tracking-tight">
             Talk to the industry
           </h1>
-          <p className="mt-2 max-w-[66ch] text-sm leading-relaxed text-neutral-500">
+          <p className="mt-2 max-w-prose-md text-sm leading-relaxed text-neutral-500">
             Across the network. Every claim is grounded in
             differentially-private aggregates. No single tenant is ever
             named. Every query costs privacy budget — the network
@@ -45,10 +45,10 @@ export default function IndustryAskLandingPage() {
         </div>
       </main>
 
-      <aside className="hidden w-[320px] shrink-0 flex-col gap-4 border-l border-border bg-surface px-5 py-5 lg:flex">
+      <aside className="hidden w-thread-medium shrink-0 flex-col gap-4 border-l border-border bg-surface px-5 py-5 lg:flex">
         <PrivacyBudgetCard />
         <div className="rounded-lg border border-border bg-background p-4">
-          <p className="font-mono text-[0.62rem] uppercase tracking-widest text-neutral-500">
+          <p className="font-mono text-caption uppercase tracking-widest text-neutral-500">
             Observer note
           </p>
           <p className="mt-2 text-xs leading-relaxed text-neutral-500">

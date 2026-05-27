@@ -162,7 +162,7 @@ export function AuditTrailPanel({
     <section className="flex h-full flex-col" aria-label="Audit trail">
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
-          <p className="font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
+          <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
             {scope === 'platform' ? 'Platform audit chain' : 'Audit chain'}
           </p>
           <h2 className="mt-0.5 truncate font-display text-base font-medium tracking-tight">
@@ -172,7 +172,7 @@ export function AuditTrailPanel({
         <button
           type="button"
           onClick={() => void load()}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[0.65rem] font-medium text-neutral-500 transition-colors duration-fast hover:bg-surface-raised hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-caption-lg font-medium text-neutral-500 transition-colors duration-fast hover:bg-surface-raised hover:text-foreground"
           aria-label="Reload audit trail"
         >
           <RefreshCw className="h-3 w-3" />
@@ -201,7 +201,7 @@ export function AuditTrailPanel({
                   <button
                     type="button"
                     onClick={() => void load()}
-                    className="mt-2 text-[0.65rem] font-semibold text-signal-500 underline-offset-2 hover:underline"
+                    className="mt-2 text-caption-lg font-semibold text-signal-500 underline-offset-2 hover:underline"
                   >
                     Try again
                   </button>
@@ -230,7 +230,7 @@ export function AuditTrailPanel({
                     aria-expanded={isOpen}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2 font-mono text-[0.62rem] uppercase tracking-widest text-neutral-500">
+                      <div className="flex items-baseline gap-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
                         <span className="tabular-nums">#{r.sequenceId}</span>
                         <span>·</span>
                         <span>{formatTime(r.occurredAt)}</span>
@@ -239,7 +239,7 @@ export function AuditTrailPanel({
                       <p className="mt-1 truncate text-sm font-medium text-foreground">
                         {humaniseAction(r.actionKind)}
                       </p>
-                      <p className="mt-0.5 truncate font-mono text-[0.62rem] text-neutral-500">
+                      <p className="mt-0.5 truncate font-mono text-caption text-neutral-500">
                         {r.actorKind}
                         {r.actorId ? ` · ${r.actorId}` : ''}
                         {r.aiModelVersion ? ` · ${r.aiModelVersion}` : ''}
@@ -262,7 +262,7 @@ export function AuditTrailPanel({
       </div>
 
       {state.kind === 'ok' && state.records.length > 0 && (
-        <footer className="border-t border-border px-5 py-3 text-[0.6rem] uppercase tracking-widest text-neutral-500">
+        <footer className="border-t border-border px-5 py-3 text-micro-num uppercase tracking-widest text-neutral-500">
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="h-3 w-3 text-signal-500" />
             <span className="tabular-nums">{state.records.length} entries</span>
@@ -281,7 +281,7 @@ export function AuditTrailPanel({
 function RecordDetails({ record }: { readonly record: AuditRecord }) {
   const evidenceJson = JSON.stringify(record.evidence ?? {}, null, 2);
   return (
-    <dl className="mt-3 space-y-2 rounded-md border border-border bg-background p-3 text-[0.68rem]">
+    <dl className="mt-3 space-y-2 rounded-md border border-border bg-background p-3 text-meta">
       <DetailRow label="Category" value={record.actionCategory} />
       {record.subjectResourceUri && (
         <DetailRow label="Subject" value={record.subjectResourceUri} mono />
@@ -315,10 +315,10 @@ function RecordDetails({ record }: { readonly record: AuditRecord }) {
         />
       )}
       <div>
-        <div className="font-mono text-[0.6rem] uppercase tracking-widest text-neutral-500">
+        <div className="font-mono text-micro-num uppercase tracking-widest text-neutral-500">
           Evidence
         </div>
-        <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-surface-sunken p-2 font-mono text-[0.65rem] text-foreground">
+        <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-surface-sunken p-2 font-mono text-caption-lg text-foreground">
           {evidenceJson}
         </pre>
       </div>
@@ -339,7 +339,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-baseline gap-2">
-      <dt className="min-w-[64px] font-mono text-[0.6rem] uppercase tracking-widest text-neutral-500">
+      <dt className="min-w-thumb font-mono text-micro-num uppercase tracking-widest text-neutral-500">
         {label}
       </dt>
       <dd

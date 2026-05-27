@@ -130,7 +130,7 @@ export function PersonaDriftClient() {
                   className="w-6 rounded-t-sm bg-indigo-500"
                   style={{ height: `${heightPct}%` }}
                 />
-                <span className="text-[10px] text-slate-500">
+                <span className="text-tiny text-slate-500">
                   {bar.day.slice(5)}
                 </span>
               </div>

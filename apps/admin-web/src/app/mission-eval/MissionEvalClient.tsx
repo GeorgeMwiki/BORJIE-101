@@ -439,13 +439,13 @@ export function MissionEvalClient() {
               </div>
               <div>
                 <dt>Prompt hash</dt>
-                <dd className="break-all font-mono text-[10px] text-neutral-500">
+                <dd className="break-all font-mono text-tiny text-neutral-500">
                   {selected.promptHash ?? '—'}
                 </dd>
               </div>
               <div>
                 <dt>Response hash</dt>
-                <dd className="break-all font-mono text-[10px] text-neutral-500">
+                <dd className="break-all font-mono text-tiny text-neutral-500">
                   {selected.responseHash ?? '—'}
                 </dd>
               </div>

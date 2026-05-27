@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 
 import { reportWebVitals } from '@borjie/performance-toolkit/perf-metrics';
 import type { WebVitalReport } from '@borjie/performance-toolkit';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 interface WebVitalsReporterProps {
   readonly surface: 'marketing';
@@ -32,7 +33,7 @@ function postBeacon(endpoint: string, payload: unknown): void {
     }
     void fetch(endpoint, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
       body,
       keepalive: true,
     }).catch(() => {});

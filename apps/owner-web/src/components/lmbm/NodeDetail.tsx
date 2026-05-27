@@ -16,16 +16,16 @@ interface NodeDetailProps {
 export function NodeDetail({ node, onClose }: NodeDetailProps) {
   if (!node) {
     return (
-      <aside className="flex h-[520px] w-full flex-col rounded-lg border border-dashed border-border bg-surface/30 px-4 py-4 text-sm text-neutral-400">
+      <aside className="flex h-chart-md w-full flex-col rounded-lg border border-dashed border-border bg-surface/30 px-4 py-4 text-sm text-neutral-400">
         Select a node to see its attributes and evidence chain.
       </aside>
     );
   }
   return (
-    <aside className="flex h-[520px] w-full flex-col overflow-hidden rounded-lg border border-border bg-surface/50">
+    <aside className="flex h-chart-md w-full flex-col overflow-hidden rounded-lg border border-border bg-surface/50">
       <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+          <div className="text-tiny uppercase tracking-wide text-neutral-500">
             {node.kind}
           </div>
           <div className="mt-0.5 text-sm font-medium text-foreground">
@@ -75,7 +75,7 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
               >
                 <div className="text-neutral-300">{ev.source}</div>
                 <div className="mt-1 italic text-neutral-400">{ev.excerpt}</div>
-                <div className="mt-1 text-[10px] text-neutral-500">
+                <div className="mt-1 text-tiny text-neutral-500">
                   confidence {(ev.confidence * 100).toFixed(0)}%
                 </div>
               </li>

@@ -29,7 +29,7 @@ const KIND_COLOR: Record<LmbmNode['kind'], string> = {
 export function GraphCanvas({ graph, selectedId, onSelect }: GraphCanvasProps) {
   const layout = useMemo(() => buildLayout(graph), [graph]);
   return (
-    <div className="relative h-[520px] rounded-lg border border-border bg-surface/30">
+    <div className="relative h-chart-md rounded-lg border border-border bg-surface/30">
       <svg viewBox="0 0 800 520" className="h-full w-full">
         {graph.edges.map((edge) => {
           const s = layout.get(edge.source);
@@ -140,7 +140,7 @@ function truncate(value: string, max: number): string {
 
 function Legend() {
   return (
-    <div className="absolute bottom-2 left-2 flex flex-wrap gap-2 rounded-md border border-border bg-surface/90 px-2 py-1 text-[10px] text-neutral-300">
+    <div className="absolute bottom-2 left-2 flex flex-wrap gap-2 rounded-md border border-border bg-surface/90 px-2 py-1 text-tiny text-neutral-300">
       {(Object.keys(KIND_COLOR) as Array<keyof typeof KIND_COLOR>).map((kind) => (
         <span key={kind} className="inline-flex items-center gap-1">
           <span

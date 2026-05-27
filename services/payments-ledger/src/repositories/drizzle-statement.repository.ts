@@ -38,11 +38,8 @@ import {
   type StatementType,
   type TenantId,
 } from '@borjie/domain-models';
-import {
-  statements,
-  type DatabaseClient,
-  type StatementRow,
-} from '@borjie/database';
+import { type DatabaseClient } from '@borjie/database';
+import { statements, type StatementRow } from './drizzle-schema';
 import type {
   IStatementRepository,
   StatementFilters,

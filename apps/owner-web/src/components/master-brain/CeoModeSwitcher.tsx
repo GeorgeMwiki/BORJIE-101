@@ -37,7 +37,7 @@ export function CeoModeSwitcher({ activeMode, onChange }: CeoModeSwitcherProps) 
             }`}
           >
             {mode.label}
-            <span className="ml-1.5 text-[10px] text-neutral-500">
+            <span className="ml-1.5 text-tiny text-neutral-500">
               · {mode.labelSw}
             </span>
           </button>

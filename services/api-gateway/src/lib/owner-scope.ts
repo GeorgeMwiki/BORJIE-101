@@ -40,11 +40,21 @@ export interface OwnerAuthContext {
  * types live in `routes/db-row-types.ts`; this helper is intentionally
  * structural so a heterogeneous list of repos can share the same
  * pagination-aware contract without re-stating each table's columns.
+ *
+ * The index signature is open (`unknown`) because the BFF enrichers
+ * (`enrichOwnerInvoices`, `enrichOwnerPayments`, `enrichOwnerWorkOrders`)
+ * read per-entity fields (firstName, unitCode, name, phone, ...) off
+ * heterogeneous rows. Per-call-site narrowing happens via the
+ * type-guards the enrichers already carry.
  */
 export interface OwnerEntityRow {
   readonly id: string;
   readonly propertyId?: string | null;
   readonly vendorId?: string | null;
+  // Indexed access for per-entity columns (firstName/unitCode/etc.) that
+  // are not enumerated here because OwnerScope is shared across 7+
+  // entity tables with disjoint column sets.
+  readonly [field: string]: unknown;
 }
 
 interface PaginatedRows<T> {

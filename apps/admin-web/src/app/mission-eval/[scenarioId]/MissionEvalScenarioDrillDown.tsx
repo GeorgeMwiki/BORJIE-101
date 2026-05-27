@@ -269,7 +269,7 @@ function RubricCell({
   return (
     <div className="rounded border border-neutral-800 bg-neutral-900/50 p-1 text-center">
       <div className={`font-mono text-sm ${colour}`}>{value.toFixed(2)}</div>
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-neutral-500">
         {label}
       </div>
     </div>

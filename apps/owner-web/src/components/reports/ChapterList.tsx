@@ -90,7 +90,7 @@ export function ChapterList({
                 }`}
               >
                 <span className="truncate">{chapter.label}</span>
-                <span className="ml-2 font-mono text-[11px] text-neutral-500">
+                <span className="ml-2 font-mono text-badge text-neutral-500">
                   {formatTimestamp(chapter.at)}
                 </span>
               </button>
@@ -98,7 +98,7 @@ export function ChapterList({
           );
         })}
       </ul>
-      <footer className="flex items-center justify-between border-t border-border px-3 py-1.5 text-[10px] text-neutral-500">
+      <footer className="flex items-center justify-between border-t border-border px-3 py-1.5 text-tiny text-neutral-500">
         <span>{previousLabel}: ←</span>
         <span>{nextLabel}: →</span>
       </footer>

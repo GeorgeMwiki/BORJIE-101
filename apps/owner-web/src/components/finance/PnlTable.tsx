@@ -63,7 +63,7 @@ function Group({
   return (
     <>
       <tr className="bg-surface/40">
-        <td colSpan={2} className="py-1 text-[10px] uppercase tracking-wide text-neutral-500">
+        <td colSpan={2} className="py-1 text-tiny uppercase tracking-wide text-neutral-500">
           {GROUP_LABEL[group]}
         </td>
       </tr>
@@ -80,8 +80,8 @@ function Group({
         </tr>
       ))}
       <tr className="border-t border-border bg-surface/30">
-        <td className="py-1 text-[11px] italic text-neutral-400">subtotal</td>
-        <td className="py-1 text-right font-mono text-[11px] text-foreground">
+        <td className="py-1 text-badge italic text-neutral-400">subtotal</td>
+        <td className="py-1 text-right font-mono text-badge text-foreground">
           {fmtTzsM(subtotal)}
         </td>
       </tr>

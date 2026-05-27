@@ -25,7 +25,7 @@ export function PaymentHistory({ payments }: PaymentHistoryProps) {
       </div>
       <table className="mt-3 w-full text-sm">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-neutral-500">
+          <tr className="text-tiny uppercase tracking-wide text-neutral-500">
             <th className="py-1 text-left">Date</th>
             <th className="py-1 text-left">Description</th>
             <th className="py-1 text-right">Amount</th>

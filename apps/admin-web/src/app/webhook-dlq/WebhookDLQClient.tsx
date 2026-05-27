@@ -114,11 +114,11 @@ export function WebhookDLQClient() {
                   className="border-t border-border/40 text-neutral-200"
                 >
                   <td className="px-3 py-2 font-medium">{e.eventType}</td>
-                  <td className="px-3 py-2 max-w-[18ch] truncate font-mono text-xs text-neutral-400">
+                  <td className="px-3 py-2 max-w-truncate-sm truncate font-mono text-xs text-neutral-400">
                     {e.webhookUrl}
                   </td>
                   <td className="px-3 py-2">{e.attempts}</td>
-                  <td className="px-3 py-2 max-w-[24ch] truncate text-xs text-rose-300">
+                  <td className="px-3 py-2 max-w-truncate-md truncate text-xs text-rose-300">
                     {e.lastError}
                   </td>
                   <td className="px-3 py-2 text-xs text-neutral-500">

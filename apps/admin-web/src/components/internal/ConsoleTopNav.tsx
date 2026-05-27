@@ -21,7 +21,7 @@ export function ConsoleTopNav(): JSX.Element {
           <Logomark size={28} variant="premium" />
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-display text-foreground">Borjie Console</span>
-            <span className="text-[0.62rem] uppercase tracking-widest text-neutral-500">
+            <span className="text-caption uppercase tracking-widest text-neutral-500">
               Internal admin
             </span>
           </div>
@@ -52,7 +52,7 @@ export function ConsoleTopNav(): JSX.Element {
                     href={internalHref(screen.slug)}
                     className="block rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-surface-sunken transition-colors"
                   >
-                    <span className="text-[0.62rem] uppercase tracking-widest text-neutral-500 mr-2">
+                    <span className="text-caption uppercase tracking-widest text-neutral-500 mr-2">
                       {screen.id}
                     </span>
                     {screen.title}

@@ -30,7 +30,7 @@ export function RenewalActions({ licenceId, completePct, missing }: RenewalActio
         <div className="text-xs uppercase tracking-wide text-neutral-500">
           Renewal pack
         </div>
-        <div className="text-[11px] text-neutral-400">{completePct}% complete</div>
+        <div className="text-badge text-neutral-400">{completePct}% complete</div>
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
         <div

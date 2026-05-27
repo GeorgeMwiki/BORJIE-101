@@ -35,7 +35,7 @@ export function ChatPanel({ mode }: ChatPanelProps) {
   const modeName = activeMode?.label ?? mode;
 
   return (
-    <section className="flex h-[600px] overflow-hidden rounded-lg border border-border bg-surface/40">
+    <section className="flex h-chart-xl overflow-hidden rounded-lg border border-border bg-surface/40">
       <div className="flex min-w-0 flex-1 flex-col">
         <BreadcrumbStrip
           breadcrumbs={state.streamingBreadcrumbs}
@@ -51,7 +51,7 @@ export function ChatPanel({ mode }: ChatPanelProps) {
           ))}
           {state.streaming && state.streamingText ? (
             <div className="flex flex-col items-end gap-1">
-              <div className="text-[11px] text-neutral-500">
+              <div className="text-badge text-neutral-500">
                 Master Brain · {modeName} · streaming…
               </div>
               <div className="max-w-2xl rounded-lg border border-warning/40 bg-warning-subtle/20 px-3 py-2 text-sm leading-relaxed text-foreground">

@@ -211,7 +211,7 @@ export function JarvisConsole(): JSX.Element {
         </div>
       </div>
 
-      <div className="flex min-h-[60vh] flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
+      <div className="flex min-h-console-pane flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
         {turns.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Ask Nyumba Mind anything about the platform — collection trends, vacancy drift,
@@ -303,7 +303,7 @@ export function JarvisConsole(): JSX.Element {
               key={`${f.name}_${f.size}_${i}`}
               className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-sunken px-3 py-1 text-xs text-foreground"
             >
-              <span className="max-w-[14rem] truncate">{f.name}</span>
+              <span className="max-w-meta-rail truncate">{f.name}</span>
               <button
                 type="button"
                 onClick={() => removeImage(i)}

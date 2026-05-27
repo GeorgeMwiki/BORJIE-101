@@ -70,9 +70,9 @@ function SyntheticPdf({
           return (
             <article
               key={page}
-              className="relative aspect-[3/4] w-full rounded-md border border-border bg-surface p-4 text-[10px] text-neutral-400"
+              className="relative aspect-[3/4] w-full rounded-md border border-border bg-surface p-4 text-tiny text-neutral-400"
             >
-              <div className="absolute right-2 top-2 text-[9px] text-neutral-500">
+              <div className="absolute right-2 top-2 text-spark text-neutral-500">
                 page {page} of {document.pages}
               </div>
               <h3 className="mb-2 font-display text-sm text-foreground">

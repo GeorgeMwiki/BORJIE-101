@@ -66,7 +66,7 @@ export function DocumentList({
               <button
                 type="button"
                 onClick={() => onToggleCompare(doc.id)}
-                className={`rounded-md border px-2 py-0.5 text-[10px] ${
+                className={`rounded-md border px-2 py-0.5 text-tiny ${
                   isCompare
                     ? 'border-warning text-warning'
                     : 'border-border text-neutral-400 hover:text-foreground'

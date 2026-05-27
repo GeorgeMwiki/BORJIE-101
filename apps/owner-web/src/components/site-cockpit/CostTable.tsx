@@ -32,7 +32,7 @@ export function CostTable({ costs }: CostTableProps) {
       </div>
       <table className="mt-3 w-full text-sm">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-neutral-500">
+          <tr className="text-tiny uppercase tracking-wide text-neutral-500">
             <th className="py-1 text-left">Line</th>
             <th className="py-1 text-right">TZS / g</th>
             <th className="py-1 text-right">% of total</th>

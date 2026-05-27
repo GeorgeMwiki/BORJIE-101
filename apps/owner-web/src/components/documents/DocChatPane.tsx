@@ -75,7 +75,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
             key={m.id}
             className={`max-w-md ${m.role === 'owner' ? '' : 'ml-auto text-right'}`}
           >
-            <div className="text-[10px] text-neutral-500">
+            <div className="text-tiny text-neutral-500">
               {m.role === 'owner' ? 'Owner' : 'Document agent'}
             </div>
             <div
@@ -90,7 +90,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
                 <button
                   type="button"
                   onClick={() => onAnchor(m.citedChunkId ?? null)}
-                  className="mt-1 text-[10px] text-warning hover:underline"
+                  className="mt-1 text-tiny text-warning hover:underline"
                 >
                   jump to citation
                 </button>

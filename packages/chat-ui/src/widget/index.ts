@@ -6,6 +6,11 @@ export { useWidgetLanguage } from './useWidgetLanguage';
 export type { UseWidgetLanguageResult } from './useWidgetLanguage';
 export { useChatSounds } from './useChatSounds';
 export type { ChatSoundKind, UseChatSoundsResult } from './useChatSounds';
+export { useMessageWindow } from './useMessageWindow';
+export type {
+  MessageWindowOptions,
+  MessageWindowResult,
+} from './useMessageWindow';
 export {
   BorjieAIProvider,
   useBorjieAI,

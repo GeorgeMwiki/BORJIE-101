@@ -54,7 +54,7 @@ export function ConfirmModal({
       }}
       className="rounded-lg border border-border bg-surface p-0 backdrop:bg-black/60"
     >
-      <div className="w-[28rem] max-w-[90vw] p-6">
+      <div className="w-dialog-md max-w-modal-cap p-6">
         <h2 className="text-base font-display text-foreground mb-2">{title}</h2>
         <div className="text-sm text-neutral-300 mb-6">{body}</div>
         <div className="flex justify-end gap-2">

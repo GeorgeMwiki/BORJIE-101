@@ -1,0 +1,63 @@
+{
+  "name": "@borjie/blackboard-viz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA visualisation layer for the Borjie multi-agent blackboard. Four orthogonal lenses (timeline / threaded / kanban / tree-graph) on the same post stream, with live cursors, entity links, permalinks, full-text search, WCAG 2.2 AA accessibility, virtualised for 10k posts, brand-locked OKLCH, GenUI block adapter for Mr. Mwikila persona.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.2.0",
+    "@testing-library/react": "^14.1.2",
+    "@types/jest-axe": "^3.5.9",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "jest-axe": "^9.0.0",
+    "jsdom": "^24.0.0",
+    "tsup": "^8.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "@borjie/genui": "workspace:*",
+    "@borjie/graph-viz": "workspace:*",
+    "@borjie/mutation-authority": "workspace:*",
+    "@dnd-kit/core": "^6.1.0",
+    "@dnd-kit/sortable": "^8.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "virtua": "^0.33.0"
+  },
+  "peerDependenciesMeta": {
+    "@dnd-kit/core":      { "optional": true },
+    "@dnd-kit/sortable":  { "optional": true },
+    "virtua":             { "optional": true },
+    "@borjie/graph-viz":  { "optional": true },
+    "@borjie/mutation-authority": { "optional": true }
+  }
+}

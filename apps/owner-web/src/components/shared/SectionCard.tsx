@@ -33,7 +33,7 @@ export function SectionCard({
             {title}
           </div>
           {subtitle ? (
-            <div className="mt-0.5 text-[11px] text-neutral-500">{subtitle}</div>
+            <div className="mt-0.5 text-badge text-neutral-500">{subtitle}</div>
           ) : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

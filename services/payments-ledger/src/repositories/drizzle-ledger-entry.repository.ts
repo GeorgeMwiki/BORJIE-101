@@ -43,11 +43,8 @@ import {
   type TenantId,
   type UnitId,
 } from '@borjie/domain-models';
-import {
-  ledgerEntries,
-  type DatabaseClient,
-  type LedgerEntryRow,
-} from '@borjie/database';
+import { type DatabaseClient } from '@borjie/database';
+import { ledgerEntries, type LedgerEntryRow } from './drizzle-schema';
 import type {
   AccountBalance,
   ILedgerRepository,

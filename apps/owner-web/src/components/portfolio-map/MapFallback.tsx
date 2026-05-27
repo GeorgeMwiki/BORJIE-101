@@ -20,7 +20,7 @@ export function MapFallback({ features, enabled, onSelect }: MapFallbackProps) {
     items: features.filter((f) => f.kind === kind),
   }));
   return (
-    <div className="h-[560px] overflow-y-auto rounded-lg border border-dashed border-border bg-surface/30 p-4">
+    <div className="h-chart-lg overflow-y-auto rounded-lg border border-dashed border-border bg-surface/30 p-4">
       <div className="mb-3 text-xs text-neutral-400">
         NEXT_PUBLIC_MAPBOX_TOKEN not set — showing the GeoJSON feature catalogue
         as a tile-free fallback.

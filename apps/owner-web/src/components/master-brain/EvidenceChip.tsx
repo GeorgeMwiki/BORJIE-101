@@ -21,7 +21,7 @@ export function EvidenceChip({ id, label, onClick }: EvidenceChipProps) {
     <button
       type="button"
       onClick={() => onClick(id)}
-      className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning-subtle/10 px-2 py-0.5 text-[11px] text-warning hover:bg-warning-subtle/30"
+      className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning-subtle/10 px-2 py-0.5 text-badge text-warning hover:bg-warning-subtle/30"
     >
       <FileText className="h-3 w-3" />
       {label ?? id}

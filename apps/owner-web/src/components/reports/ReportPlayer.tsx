@@ -136,7 +136,7 @@ export function ReportPlayer({ report, lang = 'sw', shareUrl }: ReportPlayerProp
       <header className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-foreground">{validated.title}</h2>
-          <p className="text-[11px] text-neutral-500">{validated.id}</p>
+          <p className="text-badge text-neutral-500">{validated.id}</p>
         </div>
         <div className="flex items-center gap-2">
           <SpeedSelector

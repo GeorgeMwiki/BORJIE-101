@@ -90,7 +90,7 @@ function CitationDetail({ citation, onClose }: { readonly citation: Citation; re
       <div className="w-full max-w-2xl rounded-lg border border-border bg-surface p-6">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-[0.62rem] uppercase tracking-widest text-signal-500 mb-1">{citation.source}</p>
+            <p className="text-caption uppercase tracking-widest text-signal-500 mb-1">{citation.source}</p>
             <h3 className="text-lg font-display text-foreground">{citation.statute}</h3>
             <p className="text-xs text-neutral-500">
               {citation.section} · published {citation.publishedOn}

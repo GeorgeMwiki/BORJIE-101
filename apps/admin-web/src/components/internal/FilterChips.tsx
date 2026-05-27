@@ -21,7 +21,7 @@ export function FilterChips<T extends string>({
 }: FilterChipsProps<T>): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[0.62rem] uppercase tracking-widest text-neutral-500">{label}</span>
+      <span className="text-caption uppercase tracking-widest text-neutral-500">{label}</span>
       {options.map((opt) => {
         const isOn = active.has(opt);
         return (

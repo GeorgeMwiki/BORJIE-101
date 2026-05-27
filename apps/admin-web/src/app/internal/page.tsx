@@ -16,7 +16,7 @@ export default function ConsoleHomePage(): JSX.Element {
   return (
     <main id="main-content" className="mx-auto max-w-7xl px-6 py-10">
       <header className="mb-10">
-        <p className="text-[0.62rem] uppercase tracking-widest text-signal-500 mb-2">
+        <p className="text-caption uppercase tracking-widest text-signal-500 mb-2">
           Internal admin · Section D
         </p>
         <h1 className="text-4xl font-display text-foreground mb-3">
@@ -67,7 +67,7 @@ export default function ConsoleHomePage(): JSX.Element {
                     className="platform-card hover:border-signal-500/40 transition-colors group"
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <span className="text-[0.62rem] uppercase tracking-widest text-signal-500">
+                      <span className="text-caption uppercase tracking-widest text-signal-500">
                         {screen.id}
                       </span>
                       <ArrowRight className="w-4 h-4 text-neutral-500 group-hover:text-signal-500 transition-colors" />

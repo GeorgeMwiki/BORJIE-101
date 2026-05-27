@@ -60,7 +60,7 @@ export function CliffBanner() {
             Cliff date {cliffDate}. Post-cliff sales {live.postCliffSales}; USD
             denominated {live.usdDenominated}.{live.note ? ` ${live.note}` : ''}
           </div>
-          <div className={`mt-3 inline-block rounded-md border px-2 py-1 text-[11px] ${banner}`}>
+          <div className={`mt-3 inline-block rounded-md border px-2 py-1 text-badge ${banner}`}>
             Facility notification: {status}
           </div>
           <div className="mt-3 text-xs italic text-destructive/80">

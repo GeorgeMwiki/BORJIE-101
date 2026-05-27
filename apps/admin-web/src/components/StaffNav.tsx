@@ -127,7 +127,7 @@ export async function StaffNav() {
           <div key={group.heading} className="space-y-1" role="group" aria-labelledby={`nav-group-${group.heading.replace(/\s+/g, '-').toLowerCase()}`}>
             <div
               id={`nav-group-${group.heading.replace(/\s+/g, '-').toLowerCase()}`}
-              className="px-3 text-[0.62rem] uppercase tracking-widest text-neutral-500 mb-1"
+              className="px-3 text-caption uppercase tracking-widest text-neutral-500 mb-1"
             >
               {group.heading}
             </div>

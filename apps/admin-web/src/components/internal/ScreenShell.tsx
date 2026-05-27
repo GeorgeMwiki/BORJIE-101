@@ -27,7 +27,7 @@ export function ScreenShell({ screen, children, actions, stub = false }: ScreenS
 
       <header className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
-          <p className="text-[0.62rem] uppercase tracking-widest text-signal-500 mb-1">
+          <p className="text-caption uppercase tracking-widest text-signal-500 mb-1">
             {screen.id}
           </p>
           <h1 className="text-3xl font-display text-foreground mb-2">

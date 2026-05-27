@@ -93,7 +93,7 @@ export default async function HomePage() {
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="text-[0.62rem] uppercase tracking-widest text-signal-500 mb-1">
+                <p className="text-caption uppercase tracking-widest text-signal-500 mb-1">
                   Internal admin · Section D
                 </p>
                 <h2 className="text-2xl font-display text-foreground">
@@ -111,7 +111,7 @@ export default async function HomePage() {
               {SCREEN_GROUPS.map((group) => (
                 <span
                   key={group.id}
-                  className="text-[0.62rem] uppercase tracking-widest text-neutral-400 border border-border rounded-full px-2 py-0.5"
+                  className="text-caption uppercase tracking-widest text-neutral-400 border border-border rounded-full px-2 py-0.5"
                 >
                   {group.label}
                 </span>

@@ -39,11 +39,8 @@ import type {
   PropertyId,
   TenantId,
 } from '@borjie/domain-models';
-import {
-  accounts,
-  type AccountRow,
-  type DatabaseClient,
-} from '@borjie/database';
+import { type DatabaseClient } from '@borjie/database';
+import { accounts, type AccountRow } from './drizzle-schema';
 import type {
   AccountFilters,
   IAccountRepository,

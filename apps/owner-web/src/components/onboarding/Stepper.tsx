@@ -32,7 +32,7 @@ export function Stepper({ steps, current }: StepperProps) {
             <div className="flex w-full items-center gap-2">
               <span
                 aria-current={isActive ? 'step' : undefined}
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-badge font-semibold ${
                   isCompleted
                     ? 'border-success bg-success text-background'
                     : isActive
@@ -52,14 +52,14 @@ export function Stepper({ steps, current }: StepperProps) {
             </div>
             <div className="w-full text-center">
               <p
-                className={`text-[11px] font-medium ${
+                className={`text-badge font-medium ${
                   isActive ? 'text-foreground' : 'text-neutral-500'
                 }`}
               >
                 {step.label}
               </p>
               <p
-                className={`text-[10px] italic ${
+                className={`text-tiny italic ${
                   isActive ? 'text-neutral-400' : 'text-neutral-600'
                 }`}
               >

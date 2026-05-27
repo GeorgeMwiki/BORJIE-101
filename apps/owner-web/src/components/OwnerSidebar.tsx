@@ -56,7 +56,7 @@ export function OwnerSidebar() {
                       href={`/${screen.slug}`}
                       className="block rounded-md px-2 py-1.5 text-sm text-neutral-200 hover:bg-surface hover:text-foreground"
                     >
-                      <span className="text-neutral-500 mr-2 font-mono text-[11px]">
+                      <span className="text-neutral-500 mr-2 font-mono text-badge">
                         {screen.id.replace('O-W-', '')}
                       </span>
                       {screen.title}

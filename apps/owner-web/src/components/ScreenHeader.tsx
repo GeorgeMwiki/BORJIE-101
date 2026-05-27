@@ -28,7 +28,7 @@ export function ScreenHeader({ slug }: ScreenHeaderProps) {
     <header className="border-b border-border px-8 py-6">
       <div className="flex items-center gap-3">
         <span className="font-mono text-xs text-neutral-500">{screen.id}</span>
-        <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] text-neutral-400">
+        <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-badge text-neutral-400">
           {screen.persona}
         </span>
       </div>

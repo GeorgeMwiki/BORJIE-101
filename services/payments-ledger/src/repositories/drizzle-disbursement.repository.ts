@@ -27,11 +27,8 @@
 
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { CurrencyCode, OwnerId, TenantId } from '@borjie/domain-models';
-import {
-  disbursements,
-  type DatabaseClient,
-  type DisbursementRow,
-} from '@borjie/database';
+import { type DatabaseClient } from '@borjie/database';
+import { disbursements, type DisbursementRow } from './drizzle-schema';
 import type {
   Disbursement,
   DisbursementFilters,
