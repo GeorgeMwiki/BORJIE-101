@@ -132,14 +132,18 @@
     --shadow-lg:   0 16px 32px -8px hsl(222 36% 8% / 0.12), 0 8px 16px -4px hsl(222 36% 8% / 0.06);
     --shadow-xl:   0 24px 48px -12px hsl(222 36% 8% / 0.18);
 
-    /* --- Typography stack ---
-       Display: Fraunces — editorial serif-adjacent, humanist warmth,
-       free, weight-variable, supports many scripts including Latin
-       Extended for European diacritics.
-       Text: Geist — Vercel's open sans; neutral, crisp, international.
-       Mono: JetBrains Mono — tabular, readable, supports code + data. */
-    --font-display: 'Fraunces', 'GT Alpina', 'Source Serif 4', Georgia, serif;
-    --font-sans:    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* --- Typography stack — LitFin parity (2026-05) ---
+       Display: Syne — geometric sans with a distinctive weight curve,
+       free, weight-variable, the LitFin signature.
+       Text: Inter — variable, optical-size aware, neutral crisp.
+       Mono: JetBrains Mono — tabular for numerals + code.
+       The host app (marketing/owner-web/admin-web) loads Syne + Inter
+       via `next/font/google` and exposes them through the same CSS
+       variables so the design-system stays font-aware without owning
+       the loader. Geist + Fraunces remain in the chain as graceful
+       fallbacks for surfaces that haven't migrated yet. */
+    --font-display: var(--font-display-override, 'Syne'), 'Geist', 'Fraunces', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-sans:    var(--font-sans-override, 'Inter'), 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
     /* --- Motion tokens --- */

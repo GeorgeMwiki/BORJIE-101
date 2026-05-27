@@ -1,9 +1,29 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Syne } from 'next/font/google';
 import './globals.css';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+
+// Typography stack — LitFin parity:
+//   - Display: Syne (geometric sans, distinctive weight curve)
+//   - Sans:    Inter (variable, optical-size aware)
+// Both shipped from next/font/google with subset-latin only so the
+// initial CSS payload stays small. Variable forms keep paint sharp
+// without preloading multiple weight files.
+const fontSans = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans-override',
+  display: 'swap',
+});
+
+const fontDisplay = Syne({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  variable: '--font-display-override',
+  display: 'swap',
+});
 import { ScrollProgressBar } from '@/components/animations/ScrollProgressBar';
 // WebVitalsReporter pulls @borjie/performance-toolkit which uses a
 // Vite-only dynamic import comment that breaks both Turbopack and
@@ -94,8 +114,8 @@ export default async function RootLayout({
   const locale = await getLocale();
   const t = getMessages(locale).common;
   return (
-    <html lang={locale} className="dark">
-      <body className="bg-background text-foreground antialiased min-h-screen">
+    <html lang={locale} className={`dark ${fontSans.variable} ${fontDisplay.variable}`}>
+      <body className="bg-background text-foreground antialiased min-h-screen font-sans">
         <ScrollProgressBar />
         <a href="#main-content" className="skip-link">
           {t.skipToContent}
