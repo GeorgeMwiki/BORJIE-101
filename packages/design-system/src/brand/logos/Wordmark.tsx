@@ -143,6 +143,11 @@ export function WordmarkOnly({
  * baseline dot between the two capitalised syllables. Reads "Borjie"
  * but optically flags the internal word-break. If the label isn't the
  * canonical Borjie, renders plain text.
+ *
+ * The micro-dot dimensions are intentionally specified in *ems* so the
+ * glyph scales proportionally with the surrounding type. This is the
+ * canonical brand wordmark — these em-units ARE the brand spec, not
+ * arbitrary escape hatches, hence the localized rule disable below.
  */
 function splitCompoundLabel(label: string): React.ReactNode {
   const trimmed = label.trim();
@@ -153,6 +158,11 @@ function splitCompoundLabel(label: string): React.ReactNode {
       <span>{match[1]}</span>
       <span
         aria-hidden="true"
+        // SCRUB-5f: justified-because this file IS the brand wordmark spec;
+        // mx/h/w/translate-y in *ems* scale proportionally with type-size and
+        // ARE the canonical token for this glyph metric. Arbitrary-value
+        // Tailwind brackets are not used as a layout escape hatch here.
+        // eslint-disable-next-line borjie/no-non-token-style
         className="mx-[0.02em] inline-block h-[0.14em] w-[0.14em] translate-y-[-0.04em] rounded-full bg-signal-500/85 align-baseline"
       />
       <span>{match[2]}</span>
