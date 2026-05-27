@@ -50,6 +50,15 @@ export function Nav({ locale }: { readonly locale: Locale }) {
     { href: '/docs', label: t.docs },
   ];
 
+  // Owner cockpit lives on a different origin (port 3010 in dev). The
+  // marketing site never owns auth — Sign In + Start free trial both
+  // bounce to owner-web. The env override lets prod point at the live
+  // cockpit while dev falls back to localhost.
+  const ownerWebUrl =
+    process.env['NEXT_PUBLIC_OWNER_WEB_URL'] ?? 'http://localhost:3010';
+  const signInHref = `${ownerWebUrl}/sign-in`;
+  const signupHref = `${ownerWebUrl}/signup`;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/70 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
@@ -76,18 +85,18 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
         <div className="flex items-center gap-3">
           <LanguageToggle current={locale} />
-          <Link
-            href="/sign-in"
+          <a
+            href={signInHref}
             className="hidden rounded-md px-3 py-2 text-sm font-medium text-neutral-400 transition-colors duration-fast hover:bg-accent hover:text-foreground sm:inline-block"
           >
             {t.signIn}
-          </Link>
-          <Link
-            href="/pilot"
+          </a>
+          <a
+            href={signupHref}
             className="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98]"
           >
             {t.pilot}
-          </Link>
+          </a>
         </div>
       </nav>
     </header>
