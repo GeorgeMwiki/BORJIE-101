@@ -1,4 +1,3 @@
-// @ts-nocheck — domain-models has PaymentMethod/WorkOrder exported as namespaces not types + missing Priority/Status type exports. Rewrite pending domain-models namespace→type refactor. Tracked: BORJIE-42.
 /**
  * Payments API Service
  */
@@ -110,10 +109,11 @@ export const paymentsService = {
    * Get customer's payment history
    */
   async getHistory(page = 1, limit = 20): Promise<ApiResponse<PaymentIntent[]>> {
-    return getApiClient().get<PaymentIntent[]>('/payments/history', {
+    const params: Record<string, string> = {
       page: String(page),
       limit: String(limit),
-    });
+    };
+    return getApiClient().get<PaymentIntent[]>('/payments/history', params);
   },
 
   /**
@@ -174,10 +174,11 @@ export const statementsService = {
    * List customer's statements
    */
   async list(page = 1, limit = 12): Promise<ApiResponse<Statement[]>> {
-    return getApiClient().get<Statement[]>('/statements', {
+    const params: Record<string, string> = {
       page: String(page),
       limit: String(limit),
-    });
+    };
+    return getApiClient().get<Statement[]>('/statements', params);
   },
 
   /**

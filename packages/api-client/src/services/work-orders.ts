@@ -1,4 +1,3 @@
-// @ts-nocheck — domain-models has PaymentMethod/WorkOrder exported as namespaces not types + missing Priority/Status type exports. Rewrite pending domain-models namespace→type refactor. Tracked: BORJIE-42.
 /**
  * Work Orders API Service
  */
