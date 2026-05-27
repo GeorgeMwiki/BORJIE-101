@@ -1,0 +1,50 @@
+{
+  "name": "@borjie/graph-database",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA-Graph-DB — unified graph-database abstraction for Borjie. Neo4j 5 primary, FalkorDB Redis-based fast in-memory alternative, Apache AGE Postgres-co-located fallback. Tenant-scoped Cypher builder, versioned migrations, audit-hash-chained query log, mining-domain wrappers (licence-permit hierarchy, supply-chain provenance, worker certifications, buyer network). Persona: Mr. Mwikila. Spec: Docs/DESIGN/GRAPH_DATABASE_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "falkordb": "^6.2.0",
+    "neo4j-driver": "^6.0.0",
+    "pg": "^8.11.0"
+  },
+  "peerDependenciesMeta": {
+    "falkordb": {
+      "optional": true
+    },
+    "neo4j-driver": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
+  }
+}
