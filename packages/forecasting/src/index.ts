@@ -129,3 +129,10 @@ export {
   type MarketCycleForecastInput,
   type RentCapPolicy,
 } from './re-forecasters/index.js';
+
+// ─────────────────────────────────────────────────────────────────────
+// SOTA mining-domain time-series forecasting — wave SOTA-FORECAST
+// (Mr. Mwikila). See Docs/DESIGN/FORECASTING_SOTA_2026.md.
+// ─────────────────────────────────────────────────────────────────────
+
+export * as sota from './sota/index.js';
