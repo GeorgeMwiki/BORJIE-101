@@ -68,6 +68,12 @@ import { schedulingRouter } from './routes/scheduling';
 import { messagingRouter } from './routes/messaging';
 import { casesRouter } from './routes/cases.hono';
 import { brainRouter } from './routes/brain.hono';
+// Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
+// /api/chat/exploration register with multi-block teaching, 5-step
+// lesson ladder, tenant-grounded examples, and mandatory citation
+// chain. Sibling mount under /brain so Hono composes it next to the
+// existing /turn route without touching the kernel.
+import { brainTeachRouter } from './routes/brain-teach.hono';
 import { maintenanceRouter } from './routes/maintenance.hono';
 import { hrRouter } from './routes/hr.hono';
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
@@ -833,6 +839,11 @@ api.route('/scheduling', schedulingRouter);
 api.route('/messaging', messagingRouter);
 api.route('/cases', casesRouter);
 api.route('/brain', brainRouter);
+// Sibling /brain mount for the teaching chat — Hono composes both
+// routers under the same prefix; brainRouter already owns /turn,
+// /threads, /personae, /migrate so the only path brainTeachRouter
+// claims is /teach. Additive: NEVER touches /turn behaviour.
+api.route('/brain', brainTeachRouter);
 api.route('/maintenance', maintenanceRouter);
 api.route('/hr', hrRouter);
 // Borjie mining-domain: aggregates /mining/sites, /licences, /drill-holes,
