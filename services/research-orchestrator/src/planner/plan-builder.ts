@@ -208,7 +208,11 @@ export async function buildPlan(input: BuildPlanInput): Promise<ResearchPlan> {
 async function pickStepTemplates(
   input: BuildPlanInput,
 ): Promise<ReadonlyArray<StepTemplate>> {
-  if (input.stepTemplate && input.stepTemplate.length > 0) {
+  // Explicit override — when the caller passes `stepTemplate`, honour
+  // it verbatim (including an empty array). The empty-array case
+  // intentionally surfaces "zero steps" so plan-validator can reject
+  // it; if we silently fell back here we'd hide the misuse.
+  if (input.stepTemplate !== undefined) {
     return input.stepTemplate.filter((s) =>
       input.availableTools.includes(s.tool),
     );
