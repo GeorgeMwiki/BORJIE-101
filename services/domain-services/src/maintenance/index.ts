@@ -29,29 +29,78 @@ import {
 // @borjie/domain-models. Shim them locally so the property-domain
 // maintenance service remains exported (api-gateway still wires its
 // composition root against this surface).
-type WorkOrder = Record<string, any>;
 type WorkOrderId = string;
 type WorkOrderPriority = string;
 type WorkOrderStatus = string;
 type WorkOrderCategory = string;
 type WorkOrderSource = string;
-type WorkOrderAttachment = Record<string, any>;
-type SLAConfig = Record<string, any>;
-const createWorkOrder: any = (..._args: any[]) => ({});
-const triageWorkOrder: any = (..._args: any[]) => ({});
-const assignWorkOrder: any = (..._args: any[]) => ({});
-const scheduleWorkOrder: any = (..._args: any[]) => ({});
-const startWork: any = (..._args: any[]) => ({});
-const completeWorkOrder: any = (..._args: any[]) => ({});
-const verifyCompletion: any = (..._args: any[]) => ({});
-const escalateWorkOrder: any = (..._args: any[]) => ({});
-const pauseSLA: any = (..._args: any[]) => ({});
-const resumeSLA: any = (..._args: any[]) => ({});
-const generateWorkOrderNumber: any = (..._args: any[]) => '';
-const isResponseSLABreached: any = (..._args: any[]) => false;
-const isResolutionSLABreached: any = (..._args: any[]) => false;
-const DEFAULT_SLA_CONFIG: any = {};
-const asWorkOrderId: any = (s: string) => s;
+type WorkOrderAttachment = Record<string, unknown>;
+type SLAConfig = Record<string, unknown>;
+
+interface WorkOrderSLA {
+  submittedAt: string;
+  resolvedAt?: string | null;
+  responseDueAt: string;
+  resolutionDueAt: string;
+  pausedAt?: string | null;
+  responseBreached: boolean;
+  resolutionBreached: boolean;
+}
+
+interface WorkOrderTimelineEntry {
+  timestamp: string;
+  action: string;
+  status: WorkOrderStatus;
+  userId: UserId;
+  notes?: string | null;
+}
+
+interface WorkOrder {
+  id: WorkOrderId;
+  tenantId: TenantId;
+  workOrderNumber: string;
+  propertyId: PropertyId;
+  unitId: UnitId | null;
+  customerId?: CustomerId | null;
+  priority: WorkOrderPriority;
+  category: WorkOrderCategory;
+  source?: WorkOrderSource;
+  title: string;
+  description: string;
+  location?: string;
+  attachments?: readonly WorkOrderAttachment[];
+  slaConfig?: SLAConfig;
+  requiresEntry?: boolean;
+  entryInstructions?: string;
+  permissionToEnter?: boolean;
+  status: WorkOrderStatus;
+  vendorId?: VendorId | null;
+  assignedToUserId?: UserId | null;
+  timeline: readonly WorkOrderTimelineEntry[];
+  completionNotes?: string;
+  customerRating?: number | null;
+  sla: WorkOrderSLA;
+  updatedAt: string;
+  updatedBy: UserId;
+  [key: string]: unknown;
+}
+
+type WorkOrderFn = (..._args: unknown[]) => WorkOrder;
+const createWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const triageWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const assignWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const scheduleWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const startWork = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const completeWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const verifyCompletion = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const escalateWorkOrder = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const pauseSLA = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const resumeSLA = ((..._args: unknown[]) => ({}) as unknown as WorkOrder) as WorkOrderFn;
+const generateWorkOrderNumber: (..._args: unknown[]) => string = (..._args: unknown[]) => '';
+const isResponseSLABreached: (..._args: unknown[]) => boolean = (..._args: unknown[]) => false;
+const isResolutionSLABreached: (..._args: unknown[]) => boolean = (..._args: unknown[]) => false;
+const DEFAULT_SLA_CONFIG: SLAConfig = {};
+const asWorkOrderId: (s: string) => WorkOrderId = (s: string) => s;
 void DEFAULT_SLA_CONFIG;
 import type { EventBus } from '../common/events.js';
 import { createEventEnvelope, generateEventId } from '../common/events.js';
@@ -588,8 +637,8 @@ export class MaintenanceService {
       payload: {
         workOrderId: savedWorkOrder.id,
         workOrderNumber: savedWorkOrder.workOrderNumber,
-        vendorId: savedWorkOrder.vendorId,
-        assignedToUserId: savedWorkOrder.assignedToUserId,
+        vendorId: savedWorkOrder.vendorId ?? null,
+        assignedToUserId: savedWorkOrder.assignedToUserId ?? null,
       },
     };
 

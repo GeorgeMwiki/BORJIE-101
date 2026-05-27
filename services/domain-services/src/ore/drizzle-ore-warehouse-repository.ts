@@ -39,13 +39,22 @@ import {
 // Drizzle client surface
 // ---------------------------------------------------------------------------
 
+/** Loose drizzle chain — see iot-service / migration repo. */
+interface OreDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => OreDrizzleChain;
+  returning: (..._args: unknown[]) => OreDrizzleChain;
+  from: (..._args: unknown[]) => OreDrizzleChain;
+  where: (..._args: unknown[]) => OreDrizzleChain;
+  set: (..._args: unknown[]) => OreDrizzleChain;
+  limit: (..._args: unknown[]) => OreDrizzleChain;
+  orderBy: (..._args: unknown[]) => OreDrizzleChain;
+}
+
 interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
+  select: (..._args: unknown[]) => OreDrizzleChain;
+  insert: (..._args: unknown[]) => OreDrizzleChain;
+  update: (..._args: unknown[]) => OreDrizzleChain;
   transaction?: <T>(fn: (tx: DrizzleLike) => Promise<T>) => Promise<T>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
 }
 
 // ---------------------------------------------------------------------------

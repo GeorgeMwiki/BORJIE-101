@@ -18,12 +18,15 @@ import { migrationRuns, employees } from '@borjie/database';
 // tables were retired by `0003_mining_domain.sql`. Migrations are still
 // served against the new mining-domain tables via a per-bundle adapter
 // (see api-gateway/.../migration.hono.ts); these placeholders keep the
-// dependency-resolution graph compiling.
-const properties: any = undefined;
-const units: any = undefined;
-const customers: any = undefined;
-const departments: any = undefined;
-const teams: any = undefined;
+// dependency-resolution graph compiling. They are passed to
+// `insertReturning` which accepts an `unknown` table arg and will throw
+// inside the catch-block at runtime when called (preserving the
+// historical behaviour where these were effectively `any = undefined`).
+const properties: unknown = undefined;
+const units: unknown = undefined;
+const customers: unknown = undefined;
+const departments: unknown = undefined;
+const teams: unknown = undefined;
 import type {
   IMigrationRepository,
   MigrationBundle,
@@ -35,15 +38,32 @@ import type {
   MigrationRunCounts,
 } from './migration-run.js';
 
+/**
+ * Loose chainable shape — every drizzle builder method returns another
+ * builder. Each step also `then`-ables so callers may `await` mid-chain.
+ * Structural typing is intentionally loose because the surface here only
+ * needs `db.insert(x).values(y).returning(z)`-style fluent composition.
+ */
+export interface DrizzleChain extends PromiseLike<unknown> {
+  values: (..._args: unknown[]) => DrizzleChain;
+  returning: (..._args: unknown[]) => DrizzleChain;
+  onConflictDoNothing: (..._args: unknown[]) => DrizzleChain;
+  from: (..._args: unknown[]) => DrizzleChain;
+  where: (..._args: unknown[]) => DrizzleChain;
+  set: (..._args: unknown[]) => DrizzleChain;
+  limit: (..._args: unknown[]) => DrizzleChain;
+  orderBy: (..._args: unknown[]) => DrizzleChain;
+  [method: string]: unknown;
+}
+
 /** Minimal Drizzle client shape — matches the approvals repo convention. */
 export interface DrizzleLike {
   transaction<T>(fn: (tx: DrizzleLike) => Promise<T>): Promise<T>;
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  delete?: (...args: unknown[]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  select: (..._args: unknown[]) => DrizzleChain;
+  insert: (..._args: unknown[]) => DrizzleChain;
+  update: (..._args: unknown[]) => DrizzleChain;
+  delete?: (..._args: unknown[]) => DrizzleChain;
+  [k: string]: unknown;
 }
 
 export interface PostgresMigrationRepositoryDeps {
@@ -110,13 +130,13 @@ export class PostgresMigrationRepository implements IMigrationRepository {
   }
 
   async findRun(runId: string, tenantId: string): Promise<MigrationRun | null> {
-    const rows = await this.db
+    const rows = (await this.db
       .select()
       .from(migrationRuns)
       .where(
         and(eq(migrationRuns.id, runId), eq(migrationRuns.tenantId, tenantId))
       )
-      .limit(1);
+      .limit(1)) as ReadonlyArray<Parameters<typeof rowToMigrationRun>[0]>;
     const row = rows[0];
     if (!row) return null;
     return rowToMigrationRun(row);

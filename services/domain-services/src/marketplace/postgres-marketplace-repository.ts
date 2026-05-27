@@ -10,13 +10,29 @@
  * read/update. Duplicate bids are prevented at the DB layer by the
  * unique index (tender_id, vendor_id).
  */
-import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, type Column, type SQLWrapper } from 'drizzle-orm';
 import { marketplaceListings } from '@borjie/database';
 // Mining-domain hard-fork drift: `tenders` + `bids` schemas were removed.
 // Tenant marketplace tenders are now under
 // `services/domain-services/src/offtake-queue` for the mining domain.
-const tenders: any = undefined;
-const bids: any = undefined;
+// Structural placeholders preserve the drizzle column-access surface
+// so the legacy query code still type-checks (it throws at runtime if
+// reached because nothing in service-registry wires it now).
+type MarketplaceColumn = Column & SQLWrapper;
+interface TendersTable {
+  readonly id: MarketplaceColumn;
+  readonly tenantId: MarketplaceColumn;
+  readonly status: MarketplaceColumn;
+  readonly closesAt: MarketplaceColumn;
+}
+interface BidsTable {
+  readonly id: MarketplaceColumn;
+  readonly tenantId: MarketplaceColumn;
+  readonly tenderId: MarketplaceColumn;
+  readonly price: MarketplaceColumn;
+}
+const tenders = undefined as unknown as TendersTable;
+const bids = undefined as unknown as BidsTable;
 void and; void asc; void desc; void eq; void gte; void lte;
 import type { TenantId } from '@borjie/domain-models';
 import type {
@@ -32,13 +48,25 @@ import type {
   TenderRepository,
 } from './types.js';
 
+/** Loose drizzle chain. */
+interface MarketplaceDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  returning: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  onConflictDoUpdate: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  from: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  where: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  set: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  limit: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  offset: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  orderBy: (..._args: unknown[]) => MarketplaceDrizzleChain;
+}
+
 interface DrizzleLike {
   transaction<T>(fn: (tx: DrizzleLike) => Promise<T>): Promise<T>;
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  select: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  insert: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  update: (..._args: unknown[]) => MarketplaceDrizzleChain;
+  [k: string]: unknown;
 }
 
 // ============================================================================

@@ -24,12 +24,21 @@ import type { TenantId } from '@borjie/domain-models';
 // Drizzle client surface
 // ---------------------------------------------------------------------------
 
+/** Loose drizzle chain — see iot-service / migration repo. */
+interface GradingDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => GradingDrizzleChain;
+  returning: (..._args: unknown[]) => GradingDrizzleChain;
+  from: (..._args: unknown[]) => GradingDrizzleChain;
+  where: (..._args: unknown[]) => GradingDrizzleChain;
+  set: (..._args: unknown[]) => GradingDrizzleChain;
+  limit: (..._args: unknown[]) => GradingDrizzleChain;
+  orderBy: (..._args: unknown[]) => GradingDrizzleChain;
+}
+
 interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  select: (..._args: unknown[]) => GradingDrizzleChain;
+  insert: (..._args: unknown[]) => GradingDrizzleChain;
+  update: (..._args: unknown[]) => GradingDrizzleChain;
 }
 
 // ---------------------------------------------------------------------------

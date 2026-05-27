@@ -19,11 +19,23 @@
  * Spec: Docs/analysis/SCAFFOLDED_COMPLETION.md §3 (SLA worker).
  */
 
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, type Column, type SQLWrapper } from 'drizzle-orm';
 // Mining-domain hard-fork drift: the `cases` table was renamed during
 // `0003_mining_domain.sql`. The Wave-3 SLA worker still wires this repo
 // in api-gateway, so we keep the file compiling with a placeholder.
-const casesTable: any = undefined;
+// Structural shape preserves drizzle column accessors so `eq()/lt()`
+// still type-check; the repo throws at runtime if reached.
+type CaseColumn = Column & SQLWrapper;
+interface CasesTableShape {
+  readonly id: CaseColumn;
+  readonly tenantId: CaseColumn;
+  readonly caseNumber: CaseColumn;
+  readonly customerId: CaseColumn;
+  readonly assignedTo: CaseColumn;
+  readonly propertyId: CaseColumn;
+  readonly resolutionDueAt: CaseColumn;
+}
+const casesTable = undefined as unknown as CasesTableShape;
 void and; void eq; void lt;
 import type {
   TenantId,
@@ -484,7 +496,42 @@ function entityToRow(entity: Case): Record<string, unknown> {
   };
 }
 
-function rowToEntity(row: any): Case {
+/**
+ * Loose row shape — matches the pre-mining `cases` table columns. After
+ * the hard-fork the table is gone; this type pins what the legacy SLA
+ * worker still expects (it will never see real rows again because the
+ * placeholder `casesTable` throws at runtime).
+ */
+interface CaseRow {
+  id: string;
+  tenantId: string;
+  caseNumber: string;
+  status?: string | null;
+  caseType?: string | null;
+  severity?: string | null;
+  title: string;
+  description?: string | null;
+  customerId?: string | null;
+  leaseId?: string | null;
+  propertyId?: string | null;
+  unitId?: string | null;
+  amountInDispute?: number | string | null;
+  currency?: string | null;
+  assignedTo?: string | null;
+  escalationLevel?: number | null;
+  resolutionDueAt?: Date | string | null;
+  escalatedAt?: Date | string | null;
+  closedAt?: Date | string | null;
+  closedBy?: string | null;
+  closureReason?: string | null;
+  payload?: Record<string, unknown> | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+function rowToEntity(row: CaseRow): Case {
   const payload = (row.payload ?? {}) as Partial<{
     timeline: readonly CaseTimelineEvent[];
     notices: readonly unknown[];
@@ -508,9 +555,9 @@ function rowToEntity(row: any): Case {
     title: row.title,
     description: row.description ?? '',
     customerId: (row.customerId ?? '') as CustomerId,
-    ...(row.leaseId != null ? { leaseId: row.leaseId } : {}),
-    ...(row.propertyId != null ? { propertyId: row.propertyId } : {}),
-    ...(row.unitId != null ? { unitId: row.unitId } : {}),
+    ...(row.leaseId != null ? { leaseId: row.leaseId as unknown as NonNullable<Case['leaseId']> } : {}),
+    ...(row.propertyId != null ? { propertyId: row.propertyId as unknown as NonNullable<Case['propertyId']> } : {}),
+    ...(row.unitId != null ? { unitId: row.unitId as unknown as NonNullable<Case['unitId']> } : {}),
     relatedInvoiceIds: (payload.relatedInvoiceIds ?? []) as NonNullable<Case['relatedInvoiceIds']>,
     ...(row.amountInDispute != null ? { amountInDispute: Number(row.amountInDispute) } : {}),
     ...(row.currency != null ? { currency: row.currency } : {}),

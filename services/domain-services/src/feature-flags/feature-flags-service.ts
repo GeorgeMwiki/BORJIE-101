@@ -209,11 +209,24 @@ export function createFeatureFlagsService(
 // Drizzle-backed repository
 // ---------------------------------------------------------------------------
 
+/** Loose drizzle chain — see iot-service / migration repo for the convention. */
+interface FlagsDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => FlagsDrizzleChain;
+  returning: (..._args: unknown[]) => FlagsDrizzleChain;
+  onConflictDoUpdate: (..._args: unknown[]) => FlagsDrizzleChain;
+  from: (..._args: unknown[]) => FlagsDrizzleChain;
+  where: (..._args: unknown[]) => FlagsDrizzleChain;
+  set: (..._args: unknown[]) => FlagsDrizzleChain;
+  limit: (..._args: unknown[]) => FlagsDrizzleChain;
+  orderBy: (..._args: unknown[]) => FlagsDrizzleChain;
+  [method: string]: unknown;
+}
+
 export interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  [k: string]: any;
+  select: (..._args: unknown[]) => FlagsDrizzleChain;
+  insert: (..._args: unknown[]) => FlagsDrizzleChain;
+  update: (..._args: unknown[]) => FlagsDrizzleChain;
+  [k: string]: unknown;
 }
 
 export class DrizzleFeatureFlagsRepository implements FeatureFlagsRepository {

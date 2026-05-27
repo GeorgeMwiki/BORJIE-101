@@ -24,13 +24,40 @@
  * Spec: Docs/analysis/MISSING_FEATURES_DESIGN.md §S3 (Post-lease IoT usage).
  */
 
-import { and, desc, eq, gte, isNotNull, isNull } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, isNull, type Column, type SQLWrapper } from 'drizzle-orm';
 // Mining-domain hard-fork drift: the iot tables were retired during the
 // schema rewrite. The repo factory in api-gateway still wires this
-// module; we keep it compiling with placeholders.
-const iotSensors: any = undefined;
-const iotObservations: any = undefined;
-const iotAnomalies: any = undefined;
+// module; we keep it compiling with placeholders. The drizzle-table
+// shape (`$inferSelect`, named columns) is preserved structurally so
+// the downstream mapper/query code still type-checks against
+// drizzle-orm's helpers (`eq`, `and`, `desc`, …). At runtime these
+// references throw because `iot-service` is now wired through the
+// mining-domain repo replacement, not this shim.
+type IotColumn = Column & SQLWrapper;
+interface IotSensorsTable {
+  readonly $inferSelect: Record<string, unknown>;
+  readonly $inferInsert: Record<string, unknown>;
+  readonly id: IotColumn;
+  readonly tenantId: IotColumn;
+  readonly externalId: IotColumn;
+}
+interface IotObservationsTable {
+  readonly $inferSelect: Record<string, unknown>;
+  readonly $inferInsert: Record<string, unknown>;
+  readonly tenantId: IotColumn;
+  readonly sensorId: IotColumn;
+  readonly observedAt: IotColumn;
+}
+interface IotAnomaliesTable {
+  readonly $inferSelect: Record<string, unknown>;
+  readonly $inferInsert: Record<string, unknown>;
+  readonly id: IotColumn;
+  readonly tenantId: IotColumn;
+  readonly detectedAt: IotColumn;
+}
+const iotSensors = undefined as unknown as IotSensorsTable;
+const iotObservations = undefined as unknown as IotObservationsTable;
+const iotAnomalies = undefined as unknown as IotAnomaliesTable;
 void and; void desc; void eq; void gte; void isNotNull; void isNull;
 import { randomHex } from '../common/id-generator.js';
 
@@ -326,8 +353,35 @@ export interface IotService {
   ): Promise<IotAnomaly>;
 }
 
+/**
+ * Loose drizzle chain — every builder method returns a chainable
+ * promise-like. `await`ing a chain resolves to `unknown[]` (drizzle
+ * always returns row arrays for selects/returning() calls); callers
+ * narrow via the mapper helpers (`rowToSensor`, …).
+ */
+type IotRow = Record<string, unknown>;
+interface IotDrizzleChain extends PromiseLike<IotRow[]> {
+  values: (..._args: unknown[]) => IotDrizzleChain;
+  returning: (..._args: unknown[]) => IotDrizzleChain;
+  onConflictDoNothing: (..._args: unknown[]) => IotDrizzleChain;
+  from: (..._args: unknown[]) => IotDrizzleChain;
+  where: (..._args: unknown[]) => IotDrizzleChain;
+  set: (..._args: unknown[]) => IotDrizzleChain;
+  limit: (..._args: unknown[]) => IotDrizzleChain;
+  orderBy: (..._args: unknown[]) => IotDrizzleChain;
+  [method: string]: unknown;
+}
+
+interface IotDrizzleClient {
+  select: (..._args: unknown[]) => IotDrizzleChain;
+  insert: (..._args: unknown[]) => IotDrizzleChain;
+  update: (..._args: unknown[]) => IotDrizzleChain;
+  delete?: (..._args: unknown[]) => IotDrizzleChain;
+  [k: string]: unknown;
+}
+
 export function createIotService(deps: IotServiceDeps): IotService {
-  const db = deps.db as any;
+  const db = deps.db as IotDrizzleClient;
   const now = deps.now ?? (() => new Date());
   const genId = deps.idGenerator ?? (() => randomHex(16));
 
@@ -335,9 +389,62 @@ export function createIotService(deps: IotServiceDeps): IotService {
   // Mappers
   // -------------------------------------------------------------------------
 
-  type SensorRow = typeof iotSensors.$inferSelect;
-  type ObservationRow = typeof iotObservations.$inferSelect;
-  type AnomalyRow = typeof iotAnomalies.$inferSelect;
+  // Drizzle's `$inferSelect` would normally produce these for us; with the
+  // mining-domain shim above we declare them explicitly so the mapper
+  // functions accept the exact column shape the legacy `iot_*` tables
+  // exposed.
+  interface SensorRow {
+    id: string;
+    tenantId: string;
+    kind: IotSensorKind;
+    externalId: string;
+    vendor: string;
+    unitId: string | null;
+    propertyId: string | null;
+    geoNodeId: string | null;
+    label: string | null;
+    unitOfMeasure: string | null;
+    samplingIntervalSeconds: number | null;
+    expectedMin: number | null;
+    expectedMax: number | null;
+    silenceThresholdSeconds: number | null;
+    active: boolean;
+    metadata: unknown;
+    registeredAt: Date | string | null;
+    lastSeenAt: Date | string | null;
+  }
+  interface ObservationRow {
+    id: string;
+    tenantId: string;
+    sensorId: string;
+    observedAt: Date | string | null;
+    numericValue: number | null;
+    booleanValue: boolean | null;
+    stringValue: string | null;
+    jsonbValue: unknown;
+    quality: IotObservationQuality | null;
+    rawPayload: unknown;
+    ingestedAt: Date | string | null;
+  }
+  interface AnomalyRow {
+    id: string;
+    tenantId: string;
+    sensorId: string;
+    detectedAt: Date | string | null;
+    anomalyType: IotAnomalyType | string;
+    severity: IotAnomalySeverity | null;
+    observationId: string | null;
+    observedValue: number | null;
+    expectedRangeMin: number | null;
+    expectedRangeMax: number | null;
+    message: string;
+    acknowledgedAt: Date | string | null;
+    acknowledgedBy: string | null;
+    resolvedAt: Date | string | null;
+    resolvedBy: string | null;
+    resolutionNotes: string | null;
+    metadata: unknown;
+  }
 
   function rowToSensor(row: SensorRow): IotSensor {
     return {
@@ -438,7 +545,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
           eq(iotSensors.externalId, externalId)
         )
       )
-      .limit(1);
+      .limit(1) as unknown as SensorRow[];
     return rows[0] ? rowToSensor(rows[0]) : null;
   }
 
@@ -452,7 +559,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
       .where(
         and(eq(iotSensors.tenantId, tenantId), eq(iotSensors.id, sensorId))
       )
-      .limit(1);
+      .limit(1) as unknown as SensorRow[];
     return rows[0] ? rowToSensor(rows[0]) : null;
   }
 
@@ -469,7 +576,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
           eq(iotAnomalies.id, anomalyId)
         )
       )
-      .limit(1);
+      .limit(1) as unknown as AnomalyRow[];
     return rows[0] ? rowToAnomaly(rows[0]) : null;
   }
 
@@ -667,7 +774,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
       const rows = await db
         .select()
         .from(iotSensors)
-        .where(eq(iotSensors.tenantId, tenantId));
+        .where(eq(iotSensors.tenantId, tenantId)) as unknown as SensorRow[];
       const mapped = rows.map(rowToSensor);
       return mapped.filter((s: IotSensor) => {
         if (filters?.kind && s.kind !== filters.kind) return false;
@@ -710,7 +817,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
           )
         )
         .orderBy(desc(iotObservations.observedAt))
-        .limit(limit);
+        .limit(limit) as unknown as ObservationRow[];
       const mapped = rows.map(rowToObservation);
       if (options?.since) {
         const since = options.since;
@@ -727,7 +834,7 @@ export function createIotService(deps: IotServiceDeps): IotService {
         .select()
         .from(iotAnomalies)
         .where(eq(iotAnomalies.tenantId, tenantId))
-        .orderBy(desc(iotAnomalies.detectedAt));
+        .orderBy(desc(iotAnomalies.detectedAt)) as unknown as AnomalyRow[];
       const mapped = rows.map(rowToAnomaly);
       return mapped.filter((a: IotAnomaly) => {
         if (filters?.unresolved && a.resolvedAt !== null) return false;

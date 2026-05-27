@@ -8,11 +8,23 @@ import { eq, and } from 'drizzle-orm';
 import { gdprDeletionRequests } from '@borjie/database';
 import type { GdprDeletionRequest, GdprRepository, GdprDeletionStatus } from './gdpr-service.js';
 
+/** Loose drizzle chain — see iot-service for the convention. */
+interface GdprDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => GdprDrizzleChain;
+  returning: (..._args: unknown[]) => GdprDrizzleChain;
+  from: (..._args: unknown[]) => GdprDrizzleChain;
+  where: (..._args: unknown[]) => GdprDrizzleChain;
+  set: (..._args: unknown[]) => GdprDrizzleChain;
+  limit: (..._args: unknown[]) => GdprDrizzleChain;
+  orderBy: (..._args: unknown[]) => GdprDrizzleChain;
+  [method: string]: unknown;
+}
+
 export interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  [k: string]: any;
+  select: (..._args: unknown[]) => GdprDrizzleChain;
+  insert: (..._args: unknown[]) => GdprDrizzleChain;
+  update: (..._args: unknown[]) => GdprDrizzleChain;
+  [k: string]: unknown;
 }
 
 export class DrizzleGdprRepository implements GdprRepository {

@@ -38,16 +38,37 @@ import {
 // removed from @borjie/domain-models. We shim them locally as the
 // pre-hard-fork property domain still has consumers in api-gateway
 // (see services/api-gateway/.../leases.hono.ts).
-type Lease = Record<string, any>;
 type LeaseStatus = string;
 type LeaseType = string;
-type LeaseOccupant = Record<string, any>;
+type LeaseOccupant = Record<string, unknown>;
 type RentFrequency = string;
-const LeaseFns: Record<string, any> = {};
-const createLease: any = (..._args: any[]) => ({});
-const activateLease: any = (..._args: any[]) => ({});
-const terminateLease: any = (..._args: any[]) => ({});
-const generateLeaseNumber: any = (..._args: any[]) => '';
+
+interface Lease {
+  id: LeaseId;
+  leaseNumber: string;
+  customerId: CustomerId;
+  unitId: UnitId;
+  startDate: ISOTimestamp;
+  endDate: ISOTimestamp | null;
+  status: LeaseStatus;
+  rentAmount?: unknown;
+  rentDueDay?: number | undefined;
+  lateFeePercentage?: number | undefined;
+  lateFeeGraceDays?: number | undefined;
+  additionalOccupants?: readonly LeaseOccupant[] | undefined;
+  specialTerms?: string | undefined;
+  /** Money-like — `{ amount: number; currency: string }` per @borjie/domain-models. */
+  securityDeposit?: Money;
+  depositPaid?: boolean;
+  [key: string]: unknown;
+}
+
+const LeaseFns: Record<string, unknown> = {};
+type LeaseFn = (..._args: unknown[]) => Lease;
+const createLease = ((..._args: unknown[]) => ({}) as unknown as Lease) as LeaseFn;
+const activateLease = ((..._args: unknown[]) => ({}) as unknown as Lease) as LeaseFn;
+const terminateLease = ((..._args: unknown[]) => ({}) as unknown as Lease) as LeaseFn;
+const generateLeaseNumber: (..._args: unknown[]) => string = (..._args: unknown[]) => '';
 import type { EventBus } from '../common/events.js';
 import { createEventEnvelope, generateEventId } from '../common/events.js';
 
@@ -1277,6 +1298,12 @@ export class LeaseService {
     }
 
     const totalDeposit = lease.securityDeposit;
+    if (!totalDeposit) {
+      return err({
+        code: LeaseServiceError.INVALID_LEASE_DATA,
+        message: 'No security deposit recorded for this lease',
+      });
+    }
     const currency = totalDeposit.currency;
     let totalDeductionAmount = 0;
 

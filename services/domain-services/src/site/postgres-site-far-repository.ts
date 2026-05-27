@@ -43,12 +43,22 @@ import {
 // Drizzle client surface
 // ---------------------------------------------------------------------------
 
+/** Loose drizzle chain — see iot-service / migration repo. */
+interface FarDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => FarDrizzleChain;
+  returning: (..._args: unknown[]) => FarDrizzleChain;
+  onConflictDoUpdate: (..._args: unknown[]) => FarDrizzleChain;
+  from: (..._args: unknown[]) => FarDrizzleChain;
+  where: (..._args: unknown[]) => FarDrizzleChain;
+  set: (..._args: unknown[]) => FarDrizzleChain;
+  limit: (..._args: unknown[]) => FarDrizzleChain;
+  orderBy: (..._args: unknown[]) => FarDrizzleChain;
+}
+
 export interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  insert: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  select: (..._args: unknown[]) => FarDrizzleChain;
+  insert: (..._args: unknown[]) => FarDrizzleChain;
+  update: (..._args: unknown[]) => FarDrizzleChain;
 }
 
 // ---------------------------------------------------------------------------

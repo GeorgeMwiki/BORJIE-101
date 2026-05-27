@@ -21,21 +21,54 @@
  * preserved even after a customer has moved out.
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql, type Column, type SQLWrapper } from 'drizzle-orm';
 // Legacy pre-Borjie symbols — no longer exported from `@borjie/database`.
-// See header notice. Local placeholders keep typecheck green.
-const leases: any = undefined;
-const customers: any = undefined;
+// See header notice. Local placeholders keep typecheck green; structural
+// types preserve the drizzle column-access surface so `eq()`/`and()` calls
+// still type-check.
+type OccupancyColumn = Column & SQLWrapper;
+interface LeasesTableShape {
+  readonly id: OccupancyColumn;
+  readonly tenantId: OccupancyColumn;
+  readonly unitId: OccupancyColumn;
+  readonly propertyId: OccupancyColumn;
+  readonly customerId: OccupancyColumn;
+  readonly startDate: OccupancyColumn;
+  readonly endDate: OccupancyColumn;
+  readonly terminationDate: OccupancyColumn;
+  readonly rentAmount: OccupancyColumn;
+  readonly rentCurrency: OccupancyColumn;
+  readonly status: OccupancyColumn;
+  readonly terminationReason: OccupancyColumn;
+}
+interface CustomersTableShape {
+  readonly id: OccupancyColumn;
+  readonly firstName: OccupancyColumn;
+  readonly lastName: OccupancyColumn;
+}
+const leases = undefined as unknown as LeasesTableShape;
+const customers = undefined as unknown as CustomersTableShape;
 import type {
   OccupancyPeriod,
   OccupancyPeriodStatus,
   OccupancyTimelineRepository,
 } from './occupancy-timeline-service.js';
 
+/** Loose drizzle chain — mirrors the iot-service shim convention. */
+interface OccupancyDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  from: (..._args: unknown[]) => OccupancyDrizzleChain;
+  leftJoin: (..._args: unknown[]) => OccupancyDrizzleChain;
+  where: (..._args: unknown[]) => OccupancyDrizzleChain;
+  orderBy: (..._args: unknown[]) => OccupancyDrizzleChain;
+  limit: (..._args: unknown[]) => OccupancyDrizzleChain;
+  offset: (..._args: unknown[]) => OccupancyDrizzleChain;
+  [method: string]: unknown;
+}
+
 export interface DrizzleLike {
-  select: (...args: unknown[]) => any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [k: string]: any;
+  select: (..._args: unknown[]) => OccupancyDrizzleChain;
+  selectDistinct: (..._args: unknown[]) => OccupancyDrizzleChain;
+  [k: string]: unknown;
 }
 
 function mapStatus(leaseStatus: string): OccupancyPeriodStatus {
@@ -59,6 +92,24 @@ function mapStatus(leaseStatus: string): OccupancyPeriodStatus {
 function toIso(d: Date | string | null | undefined): string | null {
   if (!d) return null;
   return d instanceof Date ? d.toISOString() : String(d);
+}
+
+/** Row shape returned by the occupancy timeline lease+customer join. */
+interface OccupancyJoinRow {
+  id: string;
+  tenantId: string;
+  unitId: string;
+  propertyId: string;
+  customerId: string | null;
+  customerFirstName: string | null;
+  customerLastName: string | null;
+  startDate: Date | string | null;
+  endDate: Date | string | null;
+  terminationDate: Date | string | null;
+  rentAmount: number | string | null;
+  rentCurrency: string | null;
+  status: string | null;
+  terminationReason: string | null;
 }
 
 export class PostgresOccupancyTimelineRepository
@@ -90,7 +141,7 @@ export class PostgresOccupancyTimelineRepository
       )) as Array<{ count: number }>;
     const total = countRows[0]?.count ?? 0;
 
-    const rows = await this.db
+    const rows = (await this.db
       .select({
         id: leases.id,
         tenantId: leases.tenantId,
@@ -117,11 +168,11 @@ export class PostgresOccupancyTimelineRepository
       )
       .orderBy(desc(leases.startDate))
       .limit(input.limit)
-      .offset(offset);
+      .offset(offset)) as unknown as OccupancyJoinRow[];
 
     const propertyId = rows[0]?.propertyId ?? '';
 
-    const periods: OccupancyPeriod[] = rows.map((row: any) => ({
+    const periods: OccupancyPeriod[] = rows.map((row) => ({
       id: row.id,
       tenantId: row.tenantId,
       unitId: row.unitId,

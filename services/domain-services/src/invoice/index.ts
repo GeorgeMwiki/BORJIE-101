@@ -25,17 +25,55 @@ import {
 // @borjie/domain-models. Shim them locally — the api-gateway still
 // wires PostgresInvoiceRepository via the property-domain composition
 // root, so the file must still compile + export the type names.
-type Invoice = Record<string, any>;
 type InvoiceStatus = string;
 type InvoiceType = string;
-type InvoiceLineItem = Record<string, any>;
-const createInvoice: any = (..._args: any[]) => ({});
-const sendInvoice: any = (..._args: any[]) => ({});
-const recordPayment: any = (..._args: any[]) => ({});
-const markOverdue: any = (..._args: any[]) => ({});
-const voidInvoice: any = (..._args: any[]) => ({});
-const generateInvoiceNumber: any = (..._args: any[]) => '';
-const isOverdue: any = (..._args: any[]) => false;
+type InvoiceLineItem = Record<string, unknown>;
+
+/**
+ * `amountDue` / `amountPaid` / `totalAmount` are kept as `unknown` because the
+ * shim has historically been called with both numeric and Money-like
+ * (`{ value, currency }`) payloads depending on the calling repo. Narrowing
+ * happens at each callsite via `asNumber` / `extractCurrency`. The hard-fork
+ * plan is to replace the shim with the proper `@borjie/domain-models` Invoice
+ * once that package re-exports it.
+ */
+interface Invoice {
+  id: InvoiceId;
+  invoiceNumber: string;
+  customerId: CustomerId;
+  totalAmount: unknown;
+  amountDue: unknown;
+  amountPaid: unknown;
+  dueDate: ISOTimestamp;
+  status: InvoiceStatus;
+  [key: string]: unknown;
+}
+
+/** Coerce a number-or-Money-like value to a number. Preserves prior runtime semantics. */
+const asNumber = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  if (v !== null && typeof v === 'object' && 'value' in v && typeof (v as { value: unknown }).value === 'number') {
+    return (v as { value: number }).value;
+  }
+  return 0;
+};
+
+/** Extract a `currency` string from a Money-like value, or empty string. */
+const extractCurrency = (v: unknown): string => {
+  if (v !== null && typeof v === 'object' && 'currency' in v && typeof (v as { currency: unknown }).currency === 'string') {
+    return (v as { currency: string }).currency;
+  }
+  return '';
+};
+
+type InvoiceFn = (..._args: unknown[]) => Invoice;
+const createInvoice = ((..._args: unknown[]) => ({}) as unknown as Invoice) as InvoiceFn;
+const sendInvoice = ((..._args: unknown[]) => ({}) as unknown as Invoice) as InvoiceFn;
+const recordPayment = ((..._args: unknown[]) => ({}) as unknown as Invoice) as InvoiceFn;
+const markOverdue = ((..._args: unknown[]) => ({}) as unknown as Invoice) as InvoiceFn;
+const voidInvoice = ((..._args: unknown[]) => ({}) as unknown as Invoice) as InvoiceFn;
+const generateInvoiceNumber: (..._args: unknown[]) => string = (..._args: unknown[]) => '';
+const isOverdue: (..._args: unknown[]) => boolean = (..._args: unknown[]) => false;
 import type { EventBus } from '../common/events.js';
 import { createEventEnvelope, generateEventId } from '../common/events.js';
 
@@ -227,7 +265,7 @@ export class InvoiceService {
       causationId: null, metadata: {},
       payload: {
         invoiceId: savedInvoice.id, invoiceNumber: savedInvoice.invoiceNumber,
-        customerId: savedInvoice.customerId, totalAmount: savedInvoice.totalAmount,
+        customerId: savedInvoice.customerId, totalAmount: asNumber(savedInvoice.totalAmount),
         dueDate: savedInvoice.dueDate,
       },
     };
@@ -308,7 +346,7 @@ export class InvoiceService {
       return err({ code: InvoiceServiceError.INVOICE_VOIDED, message: 'Cannot record payment on voided invoice' });
     }
 
-    if (input.amount > invoice.amountDue) {
+    if (input.amount > asNumber(invoice.amountDue)) {
       return err({ code: InvoiceServiceError.PAYMENT_EXCEEDS_BALANCE, message: 'Payment amount exceeds outstanding balance' });
     }
 
@@ -322,7 +360,7 @@ export class InvoiceService {
       payload: {
         invoiceId: savedInvoice.id, invoiceNumber: savedInvoice.invoiceNumber,
         customerId: savedInvoice.customerId, amountPaid: input.amount,
-        totalPaid: savedInvoice.amountPaid, remainingBalance: savedInvoice.amountDue,
+        totalPaid: asNumber(savedInvoice.amountPaid), remainingBalance: asNumber(savedInvoice.amountDue),
       },
     };
     await this.eventBus.publish(createEventEnvelope(event, savedInvoice.id, 'Invoice'));
@@ -343,7 +381,7 @@ export class InvoiceService {
     const totalOutstanding = await this.invoiceRepo.sumOutstandingByCustomer(customerId, tenantId);
     const overdueInvoices = await this.invoiceRepo.findOverdue(tenantId);
     const customerOverdue = overdueInvoices.items.filter(inv => inv.customerId === customerId);
-    const overdueAmount = customerOverdue.reduce((sum, inv) => sum + inv.amountDue, 0);
+    const overdueAmount = customerOverdue.reduce((sum, inv) => sum + asNumber(inv.amountDue), 0);
     
     let oldestOverdueDays = 0;
     if (customerOverdue.length > 0) {
@@ -356,9 +394,9 @@ export class InvoiceService {
     // currency — multi-currency aggregation is not supported here; callers
     // must filter by currency upstream if they need it.
     const derivedCurrency =
-      customerOverdue[0]?.amountDue?.currency ??
-      overdueInvoices.items[0]?.amountDue?.currency ??
-      (overdueInvoices.items[0] as unknown as { currency?: string })?.currency ??
+      extractCurrency(customerOverdue[0]?.amountDue) ||
+      extractCurrency(overdueInvoices.items[0]?.amountDue) ||
+      (overdueInvoices.items[0] as { currency?: string } | undefined)?.currency ||
       '';
     return {
       customerId, totalOutstanding, overdueAmount,

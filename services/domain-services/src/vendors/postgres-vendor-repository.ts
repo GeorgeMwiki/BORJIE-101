@@ -279,14 +279,41 @@ export function createPostgresVendorRepository(db: DrizzleLike): VendorRepositor
 // `createPostgresVendorRepositoryV2({ db, schemas })` when a live DB is wired.
 // ---------------------------------------------------------------------------
 
+/**
+ * Drizzle table shapes used by V2. We pull the named columns we touch
+ * out into explicit `Column`-typed fields so `eq()`/`and()`/`notInArray()`
+ * still type-check against drizzle-orm's helpers.
+ */
+type VendorColumn = import('drizzle-orm').Column & import('drizzle-orm').SQLWrapper;
+export interface VendorsTableSchema {
+  readonly id: VendorColumn;
+  readonly tenantId: VendorColumn;
+  readonly status: VendorColumn;
+  readonly emergencyAvailable: VendorColumn;
+}
+export interface WorkOrdersTableSchema {
+  readonly tenantId: VendorColumn;
+  readonly vendorId: VendorColumn;
+  readonly completedAt: VendorColumn;
+}
 export interface VendorRepositorySchemas {
-  vendors: any;
-  workOrders: any;
+  vendors: VendorsTableSchema;
+  workOrders: WorkOrdersTableSchema;
+}
+
+/** Loose drizzle chain — see iot-service / migration repo. */
+interface VendorDrizzleChain extends PromiseLike<Record<string, unknown>[]> {
+  values: (..._args: unknown[]) => VendorDrizzleChain;
+  returning: (..._args: unknown[]) => VendorDrizzleChain;
+  from: (..._args: unknown[]) => VendorDrizzleChain;
+  where: (..._args: unknown[]) => VendorDrizzleChain;
+  set: (..._args: unknown[]) => VendorDrizzleChain;
+  limit: (..._args: unknown[]) => VendorDrizzleChain;
 }
 
 export interface DrizzleV2Client {
-  select: (...args: unknown[]) => any;
-  update: (...args: unknown[]) => any;
+  select: (..._args: unknown[]) => VendorDrizzleChain;
+  update: (..._args: unknown[]) => VendorDrizzleChain;
 }
 
 export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
@@ -318,7 +345,7 @@ export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
       .where(and(...conditions))
       .limit(limit * 2);
 
-    const profiles = (rows as VendorRowLike[]).map(mapVendorRow);
+    const profiles = (rows as unknown as VendorRowLike[]).map(mapVendorRow);
     return profiles
       .filter((v) => v.categories.includes(params.category))
       .filter((v) =>
@@ -334,7 +361,7 @@ export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
       .from(vendors)
       .where(and(eq(vendors.id, vendorId), eq(vendors.tenantId, tenantId)))
       .limit(1);
-    const row = (rows as VendorRowLike[])[0];
+    const row = (rows as unknown as VendorRowLike[])[0];
     return row ? mapVendorRow(row) : null;
   }
 
@@ -344,7 +371,7 @@ export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
       .select()
       .from(vendors)
       .where(and(eq(vendors.tenantId, tenantId), eq(vendors.status, 'active')));
-    return (rows as VendorRowLike[]).map(mapVendorRow);
+    return (rows as unknown as VendorRowLike[]).map(mapVendorRow);
   }
 
   async listRecentOutcomes(params: {
@@ -366,7 +393,7 @@ export class PostgresVendorRepositoryV2 implements VendorRepositoryPort {
           lte(workOrders.completedAt, params.windowEnd)
         )
       );
-    return (rows as WorkOrderOutcomeRowLike[])
+    return (rows as unknown as WorkOrderOutcomeRowLike[])
       .map(mapWorkOrderOutcome)
       .filter((o): o is VendorWorkOrderOutcomeDto => o !== null);
   }
