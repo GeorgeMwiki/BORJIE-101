@@ -211,7 +211,11 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- SCRUB-5f: rule-disabled because toggleOpen is a stable callback re-defined below; including it would re-bind the keyboard listener on every render
+    // SCRUB-5f: justified-because toggleOpen is a stable callback re-defined
+    // below via useCallback([]); listing it here would re-bind the keyboard
+    // listener on every render. react-hooks/exhaustive-deps would warn but
+    // the plugin is not loaded for chat-ui (only the Next.js apps register
+    // it), so no eslint-disable directive is needed.
   }, [open]);
 
   const toggleOpen = useCallback((next: boolean) => {
