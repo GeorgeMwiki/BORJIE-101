@@ -100,3 +100,8 @@ expo-env.d.ts
 
 # Local IDE launch config (operator-specific)
 .claude/launch.json
+
+# Env backups created during reorg / port operations
+.env.bak.*
+.env.local
+.env.*.local
