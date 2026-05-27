@@ -64,13 +64,12 @@ export function topicFilesToMemoryWire(
         : 0;
       if (candidateMs > existingMs) {
         seen.set(s.topic, s);
-      } else {
-        errors.push({
-          kind: "duplicate_topic",
-          message: `Duplicate topic; keeping the version with the more recent lastModifiedIso.`,
-          offending: s.topic,
-        });
       }
+      errors.push({
+        kind: "duplicate_topic",
+        message: `Duplicate topic; keeping the version with the more recent lastModifiedIso.`,
+        offending: s.topic,
+      });
     } else {
       seen.set(s.topic, s);
     }
