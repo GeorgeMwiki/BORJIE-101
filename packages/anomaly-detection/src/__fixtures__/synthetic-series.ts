@@ -120,3 +120,23 @@ export function stableGaussianStream(opts: {
   }
   return data;
 }
+
+/**
+ * Stable Bernoulli stream — values in {0, 1} with constant
+ * probability `p`. This is the canonical input regime for ADWIN /
+ * KSWIN tests because the Hoeffding bound underlying ADWIN's cut
+ * criterion is tight only on [0, 1]-bounded random variables
+ * (Bifet & Gavaldà 2007).
+ */
+export function stableBernoulliStream(opts: {
+  readonly n: number;
+  readonly p: number;
+  readonly seed: number;
+}): ReadonlyArray<number> {
+  const rng = createSeededRng(opts.seed);
+  const data: number[] = [];
+  for (let i = 0; i < opts.n; i += 1) {
+    data.push(rng.next() < opts.p ? 1 : 0);
+  }
+  return data;
+}

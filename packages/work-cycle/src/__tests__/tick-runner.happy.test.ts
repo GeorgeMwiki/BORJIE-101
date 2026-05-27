@@ -58,7 +58,12 @@ describe('tick-runner / happy path', () => {
   it('runs a tick and writes a completed journal entry', async () => {
     const journal = createInMemoryJournalRepository();
     const stateRepo = createInMemoryStateRepository();
-    const ledger = createInMemoryBudgetLedger();
+    // Pin the ledger's "now" to the same simulated tick clock so the
+    // 24h rolling window check on the recorded spend is deterministic
+    // regardless of when the suite is actually run.
+    const ledger = createInMemoryBudgetLedger({
+      now: () => new Date('2026-05-26T02:00:00.501Z'),
+    });
     const runner = createTickRunner({
       policyGate: createDefaultPolicyGate(),
       toolBag: makeSweepToolBag(),
