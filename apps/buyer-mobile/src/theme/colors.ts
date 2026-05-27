@@ -18,8 +18,11 @@ export const colors = {
   inkMuted: '#6E6E6E',
   line: '#D9D2BD',
   success: '#2F7A4D',
+  successSoft: '#DDEEDF',
   warning: '#C77A1F',
+  warningSoft: '#FAE9CC',
   danger: '#A93A2C',
+  dangerSoft: '#F4D7D2',
   white: '#FFFFFF'
 } as const
 

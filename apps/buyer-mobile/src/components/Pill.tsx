@@ -11,9 +11,9 @@ export interface PillProps {
 
 const toneStyles: Record<PillTone, { bg: string; fg: string }> = {
   neutral: { bg: colors.sand, fg: colors.inkSoft },
-  success: { bg: '#DDEEDF', fg: colors.success },
-  warning: { bg: '#FAE9CC', fg: colors.warning },
-  danger: { bg: '#F4D7D2', fg: colors.danger },
+  success: { bg: colors.successSoft, fg: colors.success },
+  warning: { bg: colors.warningSoft, fg: colors.warning },
+  danger: { bg: colors.dangerSoft, fg: colors.danger },
   gold: { bg: colors.goldSoft, fg: colors.earth }
 }
 
