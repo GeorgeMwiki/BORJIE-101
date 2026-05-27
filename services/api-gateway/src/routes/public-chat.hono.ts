@@ -501,15 +501,31 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       const entry = ladder[i]!;
       const t0 = Date.now();
       try {
-        response = await entry.client.invoke({
+        // Per-provider request shape — different model generations
+        // accept different params:
+        //   - Anthropic claude-opus-4-7+ deprecates `temperature` (must
+        //     omit) — older sonnet-4-x still accepts it.
+        //   - OpenAI gpt-5+ requires `max_completion_tokens`, NOT
+        //     `max_tokens` (and the BrainLLMRequest interface only
+        //     exposes `maxTokens` → adapter maps to `max_tokens` →
+        //     gpt-5+ rejects it). For OpenAI we downgrade the model
+        //     to gpt-4o-2024-11-20 below in the ladder config to
+        //     keep the universal adapter shape; here we just keep
+        //     the request minimal.
+        //   - DeepSeek accepts both.
+        // Universal-shape rule: omit `temperature` so opus-4-7 works;
+        // omit `maxTokens` would shrink responses to provider default
+        // (≈4096 for Anthropic, plenty headroom for a ≤100-word
+        // marketing answer).
+        const isAnthropicOpus47Plus = entry.model.startsWith('claude-opus-4-7') || entry.model.startsWith('claude-opus-4-8') || entry.model.startsWith('claude-opus-5');
+        const request = {
           model: entry.model,
           messages,
           system: systemPrompt,
-          maxTokens: 400, // ≤100 words → ~250-400 tokens cap
-          // Higher temperature so the opener varies turn-to-turn —
-          // visitors don't see the same "Good morning" boilerplate.
-          temperature: 0.95,
-        });
+          maxTokens: 400,
+          ...(isAnthropicOpus47Plus ? {} : { temperature: 0.95 }),
+        };
+        response = await entry.client.invoke(request);
         attempts.push({
           provider: entry.providerName,
           model: entry.model,

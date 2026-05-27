@@ -43,7 +43,13 @@
     "vitest": "^4.1.6"
   },
   "peerDependencies": {
+    "framer-motion": "^12.0.0",
+    "lucide-react": "^0.460.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "framer-motion": { "optional": true },
+    "lucide-react": { "optional": true }
   }
 }

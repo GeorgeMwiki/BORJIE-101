@@ -70,12 +70,24 @@ export class OpenAIAdapter implements BrainLLMClient {
       ...(req.system !== undefined ? [{ role: 'system' as const, content: req.system }] : []),
       ...req.messages.map((m) => this.translateMessageOut(m)),
     ];
+    // GPT-5 family + o1/o3 reasoning models require `max_completion_tokens`
+    // instead of `max_tokens` (the latter is rejected with HTTP 400
+    // "Unsupported parameter"). Detect by model-name prefix.
+    const needsCompletionTokens =
+      model.startsWith('gpt-5') ||
+      model.startsWith('o1') ||
+      model.startsWith('o3') ||
+      model.startsWith('o4');
+    const tokensKey = needsCompletionTokens ? 'max_completion_tokens' : 'max_tokens';
+    // GPT-5 reasoning models also reject `temperature` (they sample
+    // their own reasoning budget). Filter it out of the request shape.
+    const supportsTemperature = !needsCompletionTokens;
     const base: Record<string, unknown> = {
       model,
       messages,
-      max_tokens: req.maxTokens ?? 4096,
+      [tokensKey]: req.maxTokens ?? 4096,
     };
-    if (req.temperature !== undefined) base.temperature = req.temperature;
+    if (req.temperature !== undefined && supportsTemperature) base.temperature = req.temperature;
     if (req.stopSequences !== undefined) base.stop = req.stopSequences;
     if (req.tools !== undefined) {
       base.tools = req.tools.map((t) => ({

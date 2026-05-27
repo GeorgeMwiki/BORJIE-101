@@ -148,6 +148,42 @@ export const MESSAGES = {
     en: 'Sorry, something went wrong on the wire. Please try again.',
     sw: 'Samahani, kuna tatizo kwenye mtandao. Jaribu tena.',
   },
+
+  // ── Relative time labels (mirror LitFin "Just now / 2m ago") ─────
+  relativeJustNow: {
+    en: 'Just now',
+    sw: 'Sasa hivi',
+  },
+  relativeMinutesAgo: {
+    en: '{n}m ago',
+    sw: 'Dakika {n}',
+  },
+  relativeHoursAgo: {
+    en: '{n}h ago',
+    sw: 'Saa {n}',
+  },
+  relativeYesterday: {
+    en: 'Yesterday',
+    sw: 'Jana',
+  },
+  relativeEarlierToday: {
+    en: 'Earlier today',
+    sw: 'Mapema leo',
+  },
+
+  // ── Speaker / TTS controls (LitFin Volume2 parity) ───────────────
+  listenAloud: {
+    en: 'Listen aloud',
+    sw: 'Sikiliza kwa sauti',
+  },
+  stopListening: {
+    en: 'Stop listening',
+    sw: 'Acha kusikiliza',
+  },
+  speechUnsupported: {
+    en: 'Speech not supported in this browser',
+    sw: 'Hii kivinjari hakitumii sauti',
+  },
 } as const satisfies Readonly<Record<string, BilingualString>>;
 
 /** Friendly label for the context pill given a recently-cited evidence
