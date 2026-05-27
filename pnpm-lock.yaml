@@ -328,6 +328,9 @@ importers:
       react-native-screens:
         specifier: 3.31.1
         version: 3.31.1(react-native@0.74.5)(react@18.2.0)
+      react-native-sse:
+        specifier: ^1.2.0
+        version: 1.2.1
       react-native-web:
         specifier: ~0.19.10
         version: 0.19.13(react-dom@18.2.0)(react@18.2.0)
@@ -359,6 +362,12 @@ importers:
       '@borjie/performance-toolkit':
         specifier: workspace:*
         version: link:../../packages/performance-toolkit
+      '@supabase/ssr':
+        specifier: ^0.5.0
+        version: 0.5.2(@supabase/supabase-js@2.106.2)
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@18.3.1)
@@ -589,6 +598,9 @@ importers:
       react-native-screens:
         specifier: 3.31.1
         version: 3.31.1(react-native@0.74.5)(react@18.2.0)
+      react-native-sse:
+        specifier: ^1.2.0
+        version: 1.2.1
       react-native-web:
         specifier: ~0.19.10
         version: 0.19.13(react-dom@18.2.0)(react@18.2.0)
@@ -4809,6 +4821,12 @@ importers:
       '@borjie/central-intelligence':
         specifier: workspace:*
         version: link:../../packages/central-intelligence
+      '@borjie/cognitive-composition':
+        specifier: workspace:*
+        version: link:../../packages/cognitive-composition
+      '@borjie/cognitive-memory':
+        specifier: workspace:*
+        version: link:../../packages/cognitive-memory
       '@borjie/compliance-pack':
         specifier: workspace:*
         version: link:../../packages/compliance-pack
@@ -4920,6 +4938,9 @@ importers:
       '@borjie/performance-toolkit':
         specifier: workspace:*
         version: link:../../packages/performance-toolkit
+      '@borjie/persistent-memory':
+        specifier: workspace:*
+        version: link:../../packages/persistent-memory
       '@borjie/persona-runtime':
         specifier: workspace:*
         version: link:../../packages/persona-runtime
@@ -29334,6 +29355,10 @@ packages:
       react-freeze: 1.0.4(react@18.2.0)
       react-native: 0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.5)(@types/react@18.3.28)(react@18.2.0)
       warn-once: 0.1.1
+    dev: false
+
+  /react-native-sse@1.2.1:
+    resolution: {integrity: sha512-zejanlScF+IB9tYnbdry0MT34qjBXbiV/E72qGz33W/tX1bx8MXsbB4lxiuPETc9v/008vYZ60yjIstW22VlVg==}
     dev: false
 
   /react-native-web@0.19.13(react-dom@18.2.0)(react@18.2.0):

@@ -147,7 +147,7 @@ export function SignupWizard(): JSX.Element {
                 prev.draft?.kind === 'individual' ? prev.draft.miningLicenceNumber : '',
               nationalIdNumber:
                 prev.draft?.kind === 'individual' ? prev.draft.nationalIdNumber : '',
-              defaultLanguage: 'sw',
+              defaultLanguage: 'en',
               primaryCurrency: 'TZS',
             }
           : {
@@ -165,7 +165,7 @@ export function SignupWizard(): JSX.Element {
               miningLicenceNumber:
                 prev.draft?.kind === 'business' ? prev.draft.miningLicenceNumber : '',
               vatNumber: prev.draft?.kind === 'business' ? prev.draft.vatNumber : '',
-              defaultLanguage: 'sw',
+              defaultLanguage: 'en',
               primaryCurrency: 'TZS',
             },
     }));

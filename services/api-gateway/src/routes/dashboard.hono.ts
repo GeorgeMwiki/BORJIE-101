@@ -20,22 +20,22 @@ function endOfMonth(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-function isWithinRange(dateValue, start, end) {
+function isWithinRange(dateValue: any, start: Date, end: Date) {
   if (!dateValue) return false;
   const value = new Date(dateValue);
   return value >= start && value <= end;
 }
 
-function formatMonth(dateValue) {
+function formatMonth(dateValue: any) {
   return new Date(dateValue).toLocaleDateString('en', {
     month: 'short',
     year: 'numeric',
   });
 }
 
-function buildMonthSeries(items, getDate, getValue, months = 7) {
+function buildMonthSeries(items: any[], getDate: (item: any) => any, getValue: (item: any) => any, months = 7) {
   const now = new Date();
-  const buckets = [];
+  const buckets: Array<{ key: string; label: string; fullLabel: string; value: number }> = [];
 
   for (let index = months - 1; index >= 0; index -= 1) {
     const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
@@ -47,7 +47,9 @@ function buildMonthSeries(items, getDate, getValue, months = 7) {
     });
   }
 
-  const bucketMap = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  const bucketMap = new Map<string, { key: string; label: string; fullLabel: string; value: number }>(
+    buckets.map((bucket) => [bucket.key, bucket])
+  );
 
   for (const item of items) {
     const dateValue = getDate(item);
@@ -66,7 +68,7 @@ function buildMonthSeries(items, getDate, getValue, months = 7) {
   }));
 }
 
-async function getScopedOwnerData(auth, repos) {
+async function getScopedOwnerData(auth: any, repos: any) {
   const propertyResult = await repos.properties.findMany(auth.tenantId, {
     limit: 1000,
     offset: 0,
@@ -74,9 +76,9 @@ async function getScopedOwnerData(auth, repos) {
   const allProperties = propertyResult.items;
   const properties = auth.propertyAccess?.includes('*')
     ? allProperties
-    : allProperties.filter((property) => auth.propertyAccess?.includes(property.id));
+    : allProperties.filter((property: any) => auth.propertyAccess?.includes(property.id));
 
-  const propertyIds = new Set(properties.map((property) => property.id));
+  const propertyIds = new Set(properties.map((property: any) => property.id));
 
   const [unitsResult, leasesResult, invoicesResult, paymentsResult, workOrdersResult] =
     await Promise.all([
@@ -87,29 +89,29 @@ async function getScopedOwnerData(auth, repos) {
       repos.workOrders.findMany(auth.tenantId, 5000, 0),
     ]);
 
-  const scopedUnits = unitsResult.items.filter((unit) => propertyIds.has(unit.propertyId));
-  const scopedUnitIds = new Set(scopedUnits.map((unit) => unit.id));
+  const scopedUnits = unitsResult.items.filter((unit: any) => propertyIds.has(unit.propertyId));
+  const scopedUnitIds = new Set(scopedUnits.map((unit: any) => unit.id));
 
   const scopedLeases = leasesResult.items.filter(
-    (lease) => propertyIds.has(lease.propertyId) || scopedUnitIds.has(lease.unitId)
+    (lease: any) => propertyIds.has(lease.propertyId) || scopedUnitIds.has(lease.unitId)
   );
-  const scopedLeaseIds = new Set(scopedLeases.map((lease) => lease.id));
-  const scopedCustomerIds = new Set(scopedLeases.map((lease) => lease.customerId));
+  const scopedLeaseIds = new Set(scopedLeases.map((lease: any) => lease.id));
+  const scopedCustomerIds = new Set(scopedLeases.map((lease: any) => lease.customerId));
 
   const scopedInvoices = invoicesResult.items.filter(
-    (invoice) =>
+    (invoice: any) =>
       (invoice.leaseId && scopedLeaseIds.has(invoice.leaseId)) ||
       (invoice.customerId && scopedCustomerIds.has(invoice.customerId))
   );
 
   const scopedPayments = paymentsResult.items.filter(
-    (payment) =>
+    (payment: any) =>
       (payment.leaseId && scopedLeaseIds.has(payment.leaseId)) ||
       (payment.customerId && scopedCustomerIds.has(payment.customerId)) ||
-      (payment.invoiceId && scopedInvoices.some((invoice) => invoice.id === payment.invoiceId))
+      (payment.invoiceId && scopedInvoices.some((invoice: any) => invoice.id === payment.invoiceId))
   );
 
-  const scopedWorkOrders = workOrdersResult.items.filter((workOrder) =>
+  const scopedWorkOrders = workOrdersResult.items.filter((workOrder: any) =>
     propertyIds.has(workOrder.propertyId)
   );
 
@@ -118,7 +120,7 @@ async function getScopedOwnerData(auth, repos) {
   // and V vendors as 1+N+V round-trips; now 1+2.
   const customerIdList = Array.from(scopedCustomerIds);
   const vendorIdList = Array.from(
-    new Set(scopedWorkOrders.map((workOrder) => workOrder.vendorId).filter(Boolean))
+    new Set(scopedWorkOrders.map((workOrder: any) => workOrder.vendorId).filter(Boolean))
   );
   const [customers, vendors] = await Promise.all([
     customerIdList.length === 0
@@ -136,23 +138,23 @@ async function getScopedOwnerData(auth, repos) {
     invoices: scopedInvoices,
     payments: scopedPayments,
     workOrders: scopedWorkOrders,
-    customers: customers.filter(Boolean),
-    vendors: vendors.filter(Boolean),
+    customers: (customers as any[]).filter(Boolean),
+    vendors: (vendors as any[]).filter(Boolean),
   };
 }
 
-function enrichInvoices(invoices, leases, customers, units, properties) {
-  const leaseMap = new Map(leases.map((lease) => [lease.id, lease]));
-  const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
-  const unitMap = new Map(units.map((unit) => [unit.id, unit]));
-  const propertyMap = new Map(properties.map((property) => [property.id, property]));
+function enrichInvoices(invoices: any[], leases: any[], customers: any[], units: any[], properties: any[]) {
+  const leaseMap = new Map<string, any>(leases.map((lease: any) => [lease.id, lease]));
+  const customerMap = new Map<string, any>(customers.map((customer: any) => [customer.id, customer]));
+  const unitMap = new Map<string, any>(units.map((unit: any) => [unit.id, unit]));
+  const propertyMap = new Map<string, any>(properties.map((property: any) => [property.id, property]));
 
-  return invoices.map((row) => {
+  return invoices.map((row: any) => {
     const invoice = mapInvoiceRow(row);
-    const lease = row.leaseId ? leaseMap.get(row.leaseId) : undefined;
-    const unit = lease?.unitId ? unitMap.get(lease.unitId) : undefined;
-    const property = lease?.propertyId ? propertyMap.get(lease.propertyId) : undefined;
-    const customer = row.customerId ? customerMap.get(row.customerId) : undefined;
+    const lease: any = row.leaseId ? leaseMap.get(row.leaseId) : undefined;
+    const unit: any = lease?.unitId ? unitMap.get(lease.unitId) : undefined;
+    const property: any = lease?.propertyId ? propertyMap.get(lease.propertyId) : undefined;
+    const customer: any = row.customerId ? customerMap.get(row.customerId) : undefined;
 
     return {
       ...invoice,
@@ -168,20 +170,20 @@ function enrichInvoices(invoices, leases, customers, units, properties) {
   });
 }
 
-function enrichPayments(payments, invoices, leases, customers) {
-  const invoiceMap = new Map(invoices.map((invoice) => [invoice.id, invoice]));
-  const leaseMap = new Map(leases.map((lease) => [lease.id, lease]));
-  const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
+function enrichPayments(payments: any[], invoices: any[], leases: any[], customers: any[]) {
+  const invoiceMap = new Map<string, any>(invoices.map((invoice: any) => [invoice.id, invoice]));
+  const leaseMap = new Map<string, any>(leases.map((lease: any) => [lease.id, lease]));
+  const customerMap = new Map<string, any>(customers.map((customer: any) => [customer.id, customer]));
 
-  return payments.map((row) => {
+  return payments.map((row: any) => {
     const payment = mapPaymentRow(row);
-    const invoice = row.invoiceId ? invoiceMap.get(row.invoiceId) : undefined;
-    const lease = row.leaseId
+    const invoice: any = row.invoiceId ? invoiceMap.get(row.invoiceId) : undefined;
+    const lease: any = row.leaseId
       ? leaseMap.get(row.leaseId)
       : invoice?.leaseId
       ? leaseMap.get(invoice.leaseId)
       : undefined;
-    const customer = row.customerId
+    const customer: any = row.customerId
       ? customerMap.get(row.customerId)
       : invoice?.customerId
       ? customerMap.get(invoice.customerId)
@@ -202,7 +204,7 @@ function enrichPayments(payments, invoices, leases, customers) {
   });
 }
 
-function buildOwnerDashboardPayload(scope) {
+function buildOwnerDashboardPayload(scope: any) {
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
   const currentMonthEnd = endOfMonth(now);
@@ -216,30 +218,30 @@ function buildOwnerDashboardPayload(scope) {
   const payments = scope.payments.map(mapPaymentRow);
   const workOrders = scope.workOrders.map(mapWorkOrderRow);
 
-  const currentMonthPayments = payments.filter((payment) =>
+  const currentMonthPayments = payments.filter((payment: any) =>
     isWithinRange(payment.completedAt || payment.createdAt, currentMonthStart, currentMonthEnd)
   );
-  const previousMonthPayments = payments.filter((payment) =>
+  const previousMonthPayments = payments.filter((payment: any) =>
     isWithinRange(payment.completedAt || payment.createdAt, previousMonthStart, previousMonthEnd)
   );
-  const currentMonthInvoices = invoices.filter((invoice) =>
+  const currentMonthInvoices = invoices.filter((invoice: any) =>
     isWithinRange(invoice.createdAt, currentMonthStart, currentMonthEnd)
   );
   const overdueInvoices = invoices.filter(
-    (invoice) => invoice.status === 'OVERDUE' || (invoice.amountDue > 0 && new Date(invoice.dueDate) < now)
+    (invoice: any) => invoice.status === 'OVERDUE' || (invoice.amountDue > 0 && new Date(invoice.dueDate) < now)
   );
-  const currentMonthWorkOrders = workOrders.filter((workOrder) =>
+  const currentMonthWorkOrders = workOrders.filter((workOrder: any) =>
     isWithinRange(workOrder.createdAt, currentMonthStart, currentMonthEnd)
   );
 
-  const currentMonthRevenue = currentMonthPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  const previousMonthRevenue = previousMonthPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  const outstandingBalance = overdueInvoices.reduce((sum, invoice) => sum + invoice.amountDue, 0);
-  const currentMonthInvoiced = currentMonthInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
+  const currentMonthRevenue = currentMonthPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0);
+  const previousMonthRevenue = previousMonthPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0);
+  const outstandingBalance = overdueInvoices.reduce((sum: number, invoice: any) => sum + invoice.amountDue, 0);
+  const currentMonthInvoiced = currentMonthInvoices.reduce((sum: number, invoice: any) => sum + invoice.total, 0);
   const collectionRate =
     currentMonthInvoiced > 0 ? (currentMonthRevenue / currentMonthInvoiced) * 100 : 0;
   const totalMaintenanceCost = currentMonthWorkOrders.reduce(
-    (sum, workOrder) => sum + (workOrder.actualCost || workOrder.estimatedCost || 0),
+    (sum: number, workOrder: any) => sum + (workOrder.actualCost || workOrder.estimatedCost || 0),
     0
   );
 
@@ -250,18 +252,18 @@ function buildOwnerDashboardPayload(scope) {
       ? 100
       : 0;
 
-  const occupiedUnits = units.filter((unit) => unit.status === 'OCCUPIED').length;
-  const vacantUnits = units.filter((unit) => unit.status !== 'OCCUPIED').length;
+  const occupiedUnits = units.filter((unit: any) => unit.status === 'OCCUPIED').length;
+  const vacantUnits = units.filter((unit: any) => unit.status !== 'OCCUPIED').length;
 
   const recentActivity = [
-    ...payments.slice(0, 5).map((payment) => ({
+    ...payments.slice(0, 5).map((payment: any) => ({
       id: `payment-${payment.id}`,
       type: 'payment',
       title: `Payment ${payment.paymentNumber}`,
       description: `Received KES ${payment.amount.toLocaleString()}`,
       timestamp: payment.completedAt || payment.createdAt,
     })),
-    ...workOrders.slice(0, 5).map((workOrder) => ({
+    ...workOrders.slice(0, 5).map((workOrder: any) => ({
       id: `work-order-${workOrder.id}`,
       type: 'maintenance',
       title: workOrder.title,
@@ -269,11 +271,11 @@ function buildOwnerDashboardPayload(scope) {
       timestamp: workOrder.updatedAt || workOrder.createdAt,
     })),
   ]
-    .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp))
+    .sort((left: any, right: any) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
     .slice(0, 8);
 
   const alerts = [
-    ...overdueInvoices.slice(0, 5).map((invoice) => ({
+    ...overdueInvoices.slice(0, 5).map((invoice: any) => ({
       id: `invoice-${invoice.id}`,
       type: 'arrears',
       title: `Invoice ${invoice.number} overdue`,
@@ -281,9 +283,9 @@ function buildOwnerDashboardPayload(scope) {
       actionUrl: '/financial?tab=invoices&filter=overdue',
     })),
     ...workOrders
-      .filter((workOrder) => workOrder.status === 'PENDING_APPROVAL')
+      .filter((workOrder: any) => workOrder.status === 'PENDING_APPROVAL')
       .slice(0, 5)
-      .map((workOrder) => ({
+      .map((workOrder: any) => ({
         id: `approval-${workOrder.id}`,
         type: 'maintenance',
         title: 'Maintenance approval pending',
@@ -299,7 +301,7 @@ function buildOwnerDashboardPayload(scope) {
     overdue_90_plus: 0,
   };
 
-  for (const invoice of overdueInvoices) {
+  for (const invoice of overdueInvoices as any[]) {
     const ageDays = Math.floor((now.getTime() - new Date(invoice.dueDate).getTime()) / 86400000);
     if (ageDays <= 30) arrearsBuckets.overdue_30 += invoice.amountDue;
     else if (ageDays <= 60) arrearsBuckets.overdue_60 += invoice.amountDue;
@@ -310,7 +312,7 @@ function buildOwnerDashboardPayload(scope) {
     portfolio: {
       totalProperties: properties.length,
       totalUnits: units.length,
-      portfolioValue: leases.reduce((sum, lease) => sum + lease.rentAmount * 12, 0),
+      portfolioValue: leases.reduce((sum: number, lease: any) => sum + lease.rentAmount * 12, 0),
     },
     financial: {
       currentMonthRevenue,
@@ -321,21 +323,21 @@ function buildOwnerDashboardPayload(scope) {
       noi: currentMonthRevenue - totalMaintenanceCost,
     },
     maintenance: {
-      openRequests: workOrders.filter((workOrder) => !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(workOrder.status)).length,
-      inProgress: workOrders.filter((workOrder) => workOrder.status === 'IN_PROGRESS').length,
+      openRequests: workOrders.filter((workOrder: any) => !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(workOrder.status)).length,
+      inProgress: workOrders.filter((workOrder: any) => workOrder.status === 'IN_PROGRESS').length,
       completedThisMonth: workOrders.filter(
-        (workOrder) =>
+        (workOrder: any) =>
           workOrder.status === 'COMPLETED' &&
           isWithinRange(workOrder.completedAt || workOrder.updatedAt, currentMonthStart, currentMonthEnd)
       ).length,
       totalCostThisMonth: totalMaintenanceCost,
-      pendingApprovals: workOrders.filter((workOrder) => workOrder.status === 'PENDING_APPROVAL').length,
+      pendingApprovals: workOrders.filter((workOrder: any) => workOrder.status === 'PENDING_APPROVAL').length,
     },
     occupancy: {
       occupancyRate: units.length > 0 ? Math.round((occupiedUnits / units.length) * 100) : 0,
       occupancyChange: 0,
       vacantUnits,
-      totalTenants: new Set(leases.filter((lease) => lease.status === 'ACTIVE').map((lease) => lease.customerId)).size,
+      totalTenants: new Set(leases.filter((lease: any) => lease.status === 'ACTIVE').map((lease: any) => lease.customerId)).size,
     },
     arrears: [
       { bucket: 'Current', amount: arrearsBuckets.current },
@@ -348,16 +350,16 @@ function buildOwnerDashboardPayload(scope) {
   };
 }
 
-async function getAdminDashboardData(auth, repos) {
+async function getAdminDashboardData(auth: any, repos: any) {
   // nosemgrep: missing-tenant-id-arg reason: platform-admin branch only — cross-tenant listing is the intent. Non-admin branch falls back to the caller's own tenant via auth.tenantId, which IS the tenant key.
   const tenantRows =
     auth.role === UserRole.SUPER_ADMIN || auth.role === UserRole.ADMIN || auth.role === UserRole.SUPPORT
       ? (await repos.tenants.findMany({ limit: 500, offset: 0 })).items
       : [await repos.tenants.findById(auth.tenantId)].filter(Boolean);
 
-  const tenantMetrics = [];
+  const tenantMetrics: Array<{ tenant: any; users: any[]; properties: any[]; units: any[]; payments: any[]; invoices: any[] }> = [];
 
-  for (const tenant of tenantRows) {
+  for (const tenant of tenantRows as any[]) {
     const [usersResult, propertiesResult, unitsResult, paymentsResult, invoicesResult] =
       await Promise.all([
         repos.users.findMany(tenant.id, 5000, 0),
@@ -378,10 +380,10 @@ async function getAdminDashboardData(auth, repos) {
   }
 
   const allPayments = tenantMetrics.flatMap((metric) =>
-    metric.payments.map((payment) => ({ ...mapPaymentRow(payment), tenantName: metric.tenant.name }))
+    metric.payments.map((payment: any) => ({ ...mapPaymentRow(payment), tenantName: metric.tenant.name }))
   );
   const allInvoices = tenantMetrics.flatMap((metric) =>
-    metric.invoices.map((invoice) => ({ ...mapInvoiceRow(invoice), tenantName: metric.tenant.name }))
+    metric.invoices.map((invoice: any) => ({ ...mapInvoiceRow(invoice), tenantName: metric.tenant.name }))
   );
 
   const currentMonthStart = startOfMonth();
@@ -391,23 +393,23 @@ async function getAdminDashboardData(auth, repos) {
 
   const currentRevenue = allPayments
     .filter((payment) => isWithinRange(payment.completedAt || payment.createdAt, currentMonthStart, currentMonthEnd))
-    .reduce((sum, payment) => sum + payment.amount, 0);
+    .reduce((sum: number, payment) => sum + payment.amount, 0);
   const previousRevenue = allPayments
     .filter((payment) => isWithinRange(payment.completedAt || payment.createdAt, previousMonthStart, previousMonthEnd))
-    .reduce((sum, payment) => sum + payment.amount, 0);
+    .reduce((sum: number, payment) => sum + payment.amount, 0);
 
   const growthRate =
     previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
   const revenueTrend = buildMonthSeries(
     allPayments,
-    (payment) => payment.completedAt || payment.createdAt,
-    (payment) => payment.amount
+    (payment: any) => payment.completedAt || payment.createdAt,
+    (payment: any) => payment.amount
   ).map((bucket) => ({ month: bucket.month, value: bucket.value }));
 
   const tenantGrowthBuckets = buildMonthSeries(
-    tenantRows,
-    (tenant) => tenant.createdAt,
+    tenantRows as any[],
+    (tenant: any) => tenant.createdAt,
     () => 1
   );
   let runningTenants = 0;
@@ -416,13 +418,13 @@ async function getAdminDashboardData(auth, repos) {
     return { month: bucket.month, tenants: runningTenants };
   });
 
-  const statusCounts = tenantRows.reduce((acc, tenant) => {
+  const statusCounts = (tenantRows as any[]).reduce((acc: Record<string, number>, tenant: any) => {
     const status = String(tenant.status || 'pending');
     acc[status] = (acc[status] || 0) + 1;
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
 
-  const statusPalette = {
+  const statusPalette: Record<string, string> = {
     active: '#22c55e',
     trial: '#3b82f6',
     suspended: '#f59e0b',
@@ -431,7 +433,7 @@ async function getAdminDashboardData(auth, repos) {
   };
 
   const statusDistribution = Object.entries(statusCounts).map(([name, value]) => ({
-    name: name[0].toUpperCase() + name.slice(1),
+    name: (name[0] ?? '').toUpperCase() + name.slice(1),
     value,
     color: statusPalette[name] || '#6b7280',
   }));
@@ -441,9 +443,9 @@ async function getAdminDashboardData(auth, repos) {
   );
 
   const alerts = [
-    ...tenantRows
-      .filter((tenant) => tenant.status === 'suspended')
-      .map((tenant) => ({
+    ...(tenantRows as any[])
+      .filter((tenant: any) => tenant.status === 'suspended')
+      .map((tenant: any) => ({
         id: `tenant-${tenant.id}`,
         severity: 'warning',
         message: `${tenant.name} is suspended`,
@@ -458,7 +460,7 @@ async function getAdminDashboardData(auth, repos) {
   ].slice(0, 6);
 
   const recentActivity = [
-    ...tenantRows.slice(0, 5).map((tenant) => ({
+    ...(tenantRows as any[]).slice(0, 5).map((tenant: any) => ({
       id: `tenant-${tenant.id}`,
       type: 'tenant_updated',
       description: `Tenant ${tenant.name} is ${tenant.status}`,
@@ -473,16 +475,16 @@ async function getAdminDashboardData(auth, repos) {
       user: payment.tenantName,
     })),
   ]
-    .sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp))
+    .sort((left: any, right: any) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
     .slice(0, 8);
 
   return {
     kpis: {
       totalTenants: tenantRows.length,
-      activeTenants: tenantRows.filter((tenant) => tenant.status === 'active').length,
-      totalUsers: tenantMetrics.reduce((sum, metric) => sum + metric.users.length, 0),
-      totalProperties: tenantMetrics.reduce((sum, metric) => sum + metric.properties.length, 0),
-      totalUnits: tenantMetrics.reduce((sum, metric) => sum + metric.units.length, 0),
+      activeTenants: (tenantRows as any[]).filter((tenant: any) => tenant.status === 'active').length,
+      totalUsers: tenantMetrics.reduce((sum: number, metric) => sum + metric.users.length, 0),
+      totalProperties: tenantMetrics.reduce((sum: number, metric) => sum + metric.properties.length, 0),
+      totalUnits: tenantMetrics.reduce((sum: number, metric) => sum + metric.units.length, 0),
       monthlyRevenue: currentRevenue,
       growthRate,
     },
@@ -509,7 +511,7 @@ app.get('/admin', async (c) => {
   const auth = c.get('auth');
   const repos = c.get('repos');
 
-  if (![UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPPORT, UserRole.TENANT_ADMIN].includes(auth.role)) {
+  if (!([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPPORT, UserRole.TENANT_ADMIN] as UserRole[]).includes(auth.role)) {
     return c.json(
       {
         success: false,

@@ -181,6 +181,9 @@ export * from './aop-registry.schema.js';
 // A2A task store
 export * from './a2a-tasks.schema.js';
 
+// Document drafts registry (contracts/RFPs/letters/notices/memos)
+export * from './drafts.schema.js';
+
 // Carbon-market book
 export * from './carbon-market-book.schema.js';
 

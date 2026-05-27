@@ -33,6 +33,13 @@ import { handle } from '@hono/node-server/vercel';
 import { Hono } from 'hono';
 import { authRouter } from './routes/auth';
 import { authMfaRouter } from './routes/auth-mfa';
+// Public self-signup endpoints — owner / mining-tenant + mineral-buyer.
+// Run OUTSIDE auth (they are the act of creating a tenant); DI surface
+// wired via `composition/signup-wiring.ts` so tests inject stubs and
+// production gets real Supabase + Drizzle + hash-chained audit.
+import { createOrgsRouter } from './routes/orgs/index';
+import { createBuyersRouter } from './routes/buyers/index';
+import { createSignupWiring } from './composition/signup-wiring';
 import { tenantsRouter } from './routes/tenants.hono';
 import { usersRouter } from './routes/users.hono';
 import { propertiesRouter } from './routes/properties';
@@ -772,6 +779,17 @@ api.use('*', createAmbientBrainMiddleware(behaviorObserver, logger));
 // at `.github/workflows/security-route-coverage.yml` detects this mount
 // and counts every router under `/api/v1/*` as wrapped.
 api.use('*', securityEventsMiddleware);
+// Public self-signup — /orgs/signup (owner / mining tenant) and
+// /buyers/signup (mineral buyer). Mount BEFORE /auth so the routes
+// remain public; both routers attach no auth middleware internally
+// and degrade to 503 reasons when DATABASE_URL or
+// SUPABASE_SERVICE_ROLE_KEY are unset.
+const signupWiring = createSignupWiring({
+  db: getDb(),
+  logger,
+});
+api.route('/orgs', createOrgsRouter(signupWiring.orgs));
+api.route('/buyers', createBuyersRouter(signupWiring.buyers));
 api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);
 api.route('/tenants', tenantsRouter);
@@ -1141,6 +1159,9 @@ const openApiRouter = createOpenApiRouter({
   mountedRouters: [
     { prefix: '/auth', app: authRouter, defaultTag: 'auth' },
     { prefix: '/auth/mfa', app: authMfaRouter, defaultTag: 'auth' },
+    // Public self-signup endpoints (no auth) — see composition/signup-wiring.ts.
+    { prefix: '/orgs', app: createOrgsRouter(signupWiring.orgs), defaultTag: 'signup' },
+    { prefix: '/buyers', app: createBuyersRouter(signupWiring.buyers), defaultTag: 'signup' },
     { prefix: '/tenants', app: tenantsRouter, defaultTag: 'tenants' },
     { prefix: '/users', app: usersRouter, defaultTag: 'users' },
     { prefix: '/properties', app: propertiesRouter, defaultTag: 'properties' },

@@ -31,16 +31,22 @@ export default async function BuyersPage() {
           <p className="mt-6 text-xl text-foreground/70">
             {t.sub}
           </p>
-          <div className="mt-10 flex flex-wrap gap-4">
+          <div className="mt-10 flex flex-wrap items-center gap-4">
             <Link
-              href="/pilot?role=buyer"
-              className="rounded-md bg-primary px-6 py-3 font-semibold text-background hover:bg-accent"
+              href="/buyers/signup"
+              className="rounded-md bg-primary px-6 py-3 font-semibold text-background transition-colors duration-fast hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
             >
               {t.ctaSignUpBuy}
             </Link>
             <Link
+              href="/buyers/sign-in"
+              className="rounded-md border border-border px-6 py-3 font-semibold transition-colors duration-fast hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            >
+              {t.ctaAlreadyBuyer}
+            </Link>
+            <Link
               href="/pricing"
-              className="rounded-md border border-border px-6 py-3 font-semibold hover:bg-surface"
+              className="rounded-md px-3 py-3 text-sm font-medium text-foreground/70 transition-colors duration-fast hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
             >
               {t.ctaPricingFees}
             </Link>

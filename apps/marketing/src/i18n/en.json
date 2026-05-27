@@ -617,7 +617,125 @@
       "sub": "The buyer mobile app is in private testing with sixteen Tanzanian and East African buyers. Join the waitlist for the September 2026 public release.",
       "primary": "Join buyer waitlist",
       "secondary": "Talk to sourcing team"
-    }
+    },
+    "ctaAlreadyBuyer": "Already a buyer? Sign in"
+  },
+  "buyerSignupPage": {
+    "metaTitle": "Sign up as a buyer — Borjie",
+    "metaDescription": "Sign up as a mineral buyer on Borjie. KYC-verified sellers, chain-of-custody assays, biometric off-take contracts.",
+    "kicker": "Sign up as a buyer",
+    "heading": "Start buying verified minerals.",
+    "sub": "Pick your account type. Individual accounts are for personal-capacity mineral buyers. Business accounts are for refineries, brokers, fabricators, and investors.",
+    "steps": {
+      "kind": "1. Type",
+      "details": "2. Details",
+      "review": "3. Confirm"
+    },
+    "kindStep": {
+      "heading": "How would you like to sign up?",
+      "subHeading": "Unataka kujisajili kama nani?",
+      "individualTitle": "I'm an individual buyer",
+      "individualTitleEn": "Mimi ni mtu binafsi",
+      "individualSubtitle": "Personal-capacity mineral buyer.",
+      "individualBullets": [
+        "Full name and phone",
+        "Email",
+        "National ID (NIDA) — optional"
+      ],
+      "businessTitle": "I represent a company",
+      "businessTitleEn": "Mimi nina kampuni / shirika",
+      "businessSubtitle": "Refinery, broker, fabricator, or investor.",
+      "businessBullets": [
+        "Company name + BRELA registration",
+        "Tax ID (TIN)",
+        "Business type (refiner / broker / fabricator / investor)",
+        "Contact full name, phone, and email"
+      ],
+      "continue": "Continue"
+    },
+    "fields": {
+      "country": "Country",
+      "countryEn": "Nchi",
+      "fullName": "Full name",
+      "fullNameEn": "Jina kamili",
+      "phone": "Phone (E.164)",
+      "phoneEn": "Simu",
+      "email": "Email",
+      "emailEn": "Barua pepe",
+      "preferredLanguage": "Language",
+      "preferredLanguageEn": "Lugha",
+      "preferredCurrency": "Currency",
+      "preferredCurrencyEn": "Sarafu",
+      "nationalId": "National ID (optional)",
+      "nationalIdEn": "Kitambulisho cha NIDA",
+      "orgName": "Company name",
+      "orgNameEn": "Jina la kampuni",
+      "businessKind": "Business type",
+      "businessKindEn": "Aina ya biashara",
+      "businessRegistrationNumber": "Business registration #",
+      "businessRegistrationNumberEn": "Nambari ya BRELA",
+      "taxId": "Tax ID",
+      "taxIdEn": "Nambari ya TIN",
+      "contactFullName": "Contact full name",
+      "contactFullNameEn": "Jina la mawasiliano",
+      "contactPhone": "Contact phone (E.164)",
+      "contactPhoneEn": "Simu ya mawasiliano",
+      "contactEmail": "Contact email",
+      "contactEmailEn": "Barua pepe ya mawasiliano"
+    },
+    "businessKinds": {
+      "refiner": "Refinery",
+      "broker": "Broker",
+      "fabricator": "Fabricator",
+      "investor": "Investor",
+      "other": "Other"
+    },
+    "actions": {
+      "back": "Back",
+      "next": "Continue",
+      "submit": "Create account",
+      "submitting": "Submitting…"
+    },
+    "errors": {
+      "fullNameRequired": "Full name is required",
+      "phoneInvalid": "Enter a valid phone (e.g. +255712345678)",
+      "emailInvalid": "Enter a valid email address",
+      "orgNameRequired": "Company name is required",
+      "businessKindRequired": "Choose a business type",
+      "businessRegRequired": "Business registration # is required",
+      "taxIdRequired": "Tax ID is required",
+      "submitFailed": "Sign-up failed. Please try again.",
+      "emailAlreadyRegistered": "This email is already registered.",
+      "phoneAlreadyRegistered": "This phone number is already registered.",
+      "providerUnavailable": "Authentication provider is temporarily unavailable."
+    },
+    "alreadyHaveAccount": "Already have an account?",
+    "signInLink": "Sign in"
+  },
+  "buyerSignInPage": {
+    "metaTitle": "Sign in as a buyer — Borjie",
+    "metaDescription": "Sign in to your Borjie buyer account.",
+    "kicker": "Sign in as a buyer",
+    "heading": "Welcome back.",
+    "sub": "Sign in to your buyer account to keep sourcing verified minerals.",
+    "fields": {
+      "email": "Email",
+      "emailEn": "Barua pepe",
+      "password": "Password",
+      "passwordEn": "Nenosiri"
+    },
+    "actions": {
+      "submit": "Sign in",
+      "submitting": "Signing in…"
+    },
+    "errors": {
+      "emailRequired": "Enter a valid email address",
+      "passwordRequired": "Password is required",
+      "signInFailed": "Sign-in failed. Check your credentials."
+    },
+    "fromSignup": "Your account has been created. Sign in to start buying.",
+    "noAccountYet": "No account yet?",
+    "signUpLink": "Sign up"
   },
   "investorsPage": {
     "kicker": "For investors and lenders",

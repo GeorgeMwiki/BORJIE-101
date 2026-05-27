@@ -10,7 +10,7 @@ import { e400, e403, e404, e503, errorResponse } from '../../utils/error-respons
 import { getOwnerScope as resolveOwnerScope } from '../../lib/owner-scope';
 
 import { withSecurityEvents } from '@borjie/observability';
-function csvEscape(value) {
+function csvEscape(value: any) {
   const text = String(value ?? '');
   if (text.includes(',') || text.includes('"') || text.includes('\n')) {
     return `"${text.replace(/"/g, '""')}"`;
@@ -18,7 +18,7 @@ function csvEscape(value) {
   return text;
 }
 
-function toDataUrl(content, mimeType = 'text/plain') {
+function toDataUrl(content: any, mimeType = 'text/plain') {
   return `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`;
 }
 
@@ -36,21 +36,21 @@ function toDataUrl(content, mimeType = 'text/plain') {
  * single WHERE clause (tenant + soft-delete still enforced inside each
  * repo).
  */
-async function getOwnerScope(auth, repos) {
+async function getOwnerScope(auth: any, repos: any) {
   return resolveOwnerScope(auth, repos, { limit: 1000, offset: 0 });
 }
 
-function enrichOwnerInvoices(scope) {
-  const leaseMap = new Map(scope.leases.map((lease) => [lease.id, lease]));
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
-  const unitMap = new Map(scope.units.map((unit) => [unit.id, unit]));
-  const propertyMap = new Map(scope.properties.map((property) => [property.id, property]));
+function enrichOwnerInvoices(scope: any) {
+  const leaseMap = new Map<string, any>(scope.leases.map((lease: any) => [lease.id, lease]));
+  const customerMap = new Map<string, any>(scope.customers.map((customer: any) => [customer.id, customer]));
+  const unitMap = new Map<string, any>(scope.units.map((unit: any) => [unit.id, unit]));
+  const propertyMap = new Map<string, any>(scope.properties.map((property: any) => [property.id, property]));
 
-  return scope.invoices.map((row) => {
-    const lease = row.leaseId ? leaseMap.get(row.leaseId) : undefined;
-    const customer = row.customerId ? customerMap.get(row.customerId) : undefined;
-    const unit = lease?.unitId ? unitMap.get(lease.unitId) : undefined;
-    const property = lease?.propertyId ? propertyMap.get(lease.propertyId) : undefined;
+  return scope.invoices.map((row: any) => {
+    const lease: any = row.leaseId ? leaseMap.get(row.leaseId) : undefined;
+    const customer: any = row.customerId ? customerMap.get(row.customerId) : undefined;
+    const unit: any = lease?.unitId ? unitMap.get(lease.unitId) : undefined;
+    const property: any = lease?.propertyId ? propertyMap.get(lease.propertyId) : undefined;
 
     return {
       ...mapInvoiceRow(row),
@@ -66,14 +66,14 @@ function enrichOwnerInvoices(scope) {
   });
 }
 
-function enrichOwnerPayments(scope, invoices) {
-  const invoiceMap = new Map(invoices.map((invoice) => [invoice.id, invoice]));
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
+function enrichOwnerPayments(scope: any, invoices: any[]) {
+  const invoiceMap = new Map<string, any>(invoices.map((invoice: any) => [invoice.id, invoice]));
+  const customerMap = new Map<string, any>(scope.customers.map((customer: any) => [customer.id, customer]));
 
-  return scope.payments.map((row) => {
+  return scope.payments.map((row: any) => {
     const payment = mapPaymentRow(row);
-    const invoice = row.invoiceId ? invoiceMap.get(row.invoiceId) : undefined;
-    const customer = row.customerId
+    const invoice: any = row.invoiceId ? invoiceMap.get(row.invoiceId) : undefined;
+    const customer: any = row.customerId
       ? customerMap.get(row.customerId)
       : invoice?.customerId
       ? customerMap.get(invoice.customerId)
@@ -93,15 +93,15 @@ function enrichOwnerPayments(scope, invoices) {
   });
 }
 
-function enrichOwnerWorkOrders(scope) {
-  const unitMap = new Map(scope.units.map((unit) => [unit.id, unit]));
-  const propertyMap = new Map(scope.properties.map((property) => [property.id, property]));
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
-  const vendorMap = new Map(scope.vendors.map((vendor) => [vendor.id, vendor]));
+function enrichOwnerWorkOrders(scope: any) {
+  const unitMap = new Map<string, any>(scope.units.map((unit: any) => [unit.id, unit]));
+  const propertyMap = new Map<string, any>(scope.properties.map((property: any) => [property.id, property]));
+  const customerMap = new Map<string, any>(scope.customers.map((customer: any) => [customer.id, customer]));
+  const vendorMap = new Map<string, any>(scope.vendors.map((vendor: any) => [vendor.id, vendor]));
 
-  return scope.workOrders.map((row) => {
+  return scope.workOrders.map((row: any) => {
     const mapped = mapWorkOrderRow(row);
-    const vendor = row.vendorId ? vendorMap.get(row.vendorId) : undefined;
+    const vendor: any = row.vendorId ? vendorMap.get(row.vendorId) : undefined;
 
     return {
       ...mapped,
@@ -143,14 +143,14 @@ function enrichOwnerWorkOrders(scope) {
   });
 }
 
-function buildFinancialStats(invoices, payments, workOrders) {
-  const totalInvoiced = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const totalOutstanding = invoices.reduce((sum, invoice) => sum + invoice.amountDue, 0);
+function buildFinancialStats(invoices: any[], payments: any[], workOrders: any[]) {
+  const totalInvoiced = invoices.reduce((sum: number, invoice: any) => sum + invoice.total, 0);
+  const totalCollected = payments.reduce((sum: number, payment: any) => sum + payment.amount, 0);
+  const totalOutstanding = invoices.reduce((sum: number, invoice: any) => sum + invoice.amountDue, 0);
   const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
   const pendingDisbursement = Math.max(
     totalCollected -
-      workOrders.reduce((sum, workOrder) => sum + Number(workOrder.actualCost || workOrder.estimatedCost || 0), 0),
+      workOrders.reduce((sum: number, workOrder: any) => sum + Number(workOrder.actualCost || workOrder.estimatedCost || 0), 0),
     0
   );
 
@@ -163,15 +163,15 @@ function buildFinancialStats(invoices, payments, workOrders) {
   };
 }
 
-function buildDisbursementData(scope, payments) {
-  const propertyMap = new Map(scope.properties.map((property) => [property.id, property]));
-  const leaseMap = new Map(scope.leases.map((lease) => [lease.id, lease]));
-  const invoiceMap = new Map(scope.invoices.map((invoice) => [invoice.id, invoice]));
-  const grouped = new Map();
+function buildDisbursementData(scope: any, payments: any[]) {
+  const propertyMap = new Map(scope.properties.map((property: any) => [property.id, property]));
+  const leaseMap = new Map(scope.leases.map((lease: any) => [lease.id, lease]));
+  const invoiceMap = new Map(scope.invoices.map((invoice: any) => [invoice.id, invoice]));
+  const grouped = new Map<string, any>();
 
   for (const payment of scope.payments) {
-    const invoice = payment.invoiceId ? invoiceMap.get(payment.invoiceId) : undefined;
-    const lease = payment.leaseId
+    const invoice: any = payment.invoiceId ? invoiceMap.get(payment.invoiceId) : undefined;
+    const lease: any = payment.leaseId
       ? leaseMap.get(payment.leaseId)
       : invoice?.leaseId
       ? leaseMap.get(invoice.leaseId)
@@ -190,7 +190,7 @@ function buildDisbursementData(scope, payments) {
         status: 'COMPLETED',
         method: 'BANK_TRANSFER',
         period,
-        property: propertyId ? { id: propertyId, name: propertyMap.get(propertyId)?.name || propertyId } : undefined,
+        property: propertyId ? { id: propertyId, name: (propertyMap.get(propertyId) as any)?.name || propertyId } : undefined,
       });
     }
 
@@ -198,7 +198,7 @@ function buildDisbursementData(scope, payments) {
   }
 
   const disbursements = Array.from(grouped.values())
-    .sort((left, right) => new Date(right.date) - new Date(left.date))
+    .sort((left: any, right: any) => new Date(right.date).getTime() - new Date(left.date).getTime())
     .map((disbursement) => ({
       ...disbursement,
       breakdown: {
@@ -234,26 +234,26 @@ function buildDisbursementData(scope, payments) {
   };
 }
 
-async function listOwnerConversations(c, auth, repos) {
+async function listOwnerConversations(c: any, auth: any, repos: any) {
   const db = c.get('db');
   const scope = await getOwnerScope(auth, repos);
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
+  const customerMap = new Map(scope.customers.map((customer: any) => [customer.id, customer]));
 
   const rows = await db
     .select()
     .from(conversations)
     .where(eq(conversations.tenantId, auth.tenantId));
 
-  const messagingRows = rows
-    .sort((left, right) => new Date(right.lastMessageAt || right.updatedAt || right.createdAt) - new Date(left.lastMessageAt || left.updatedAt || left.createdAt))
+  const messagingRows = (rows as any[])
+    .sort((left: any, right: any) => new Date(right.lastMessageAt || right.updatedAt || right.createdAt).getTime() - new Date(left.lastMessageAt || left.updatedAt || left.createdAt).getTime())
     .slice(0, 100);
 
   const messagesByConversation = await Promise.all(
-    messagingRows.map((conversation) => repos.messaging.getMessages(conversation.id, { limit: 1, offset: 0 }))
+    messagingRows.map((conversation: any) => repos.messaging.getMessages(conversation.id, { limit: 1, offset: 0 }))
   );
 
-  return messagingRows.map((conversation, index) => {
-    const customer = conversation.customerId ? customerMap.get(conversation.customerId) : undefined;
+  return messagingRows.map((conversation: any, index: number) => {
+    const customer: any = conversation.customerId ? customerMap.get(conversation.customerId) : undefined;
     const latestMessage = messagesByConversation[index]?.[0];
     const participantName = customer
       ? `${customer.firstName} ${customer.lastName}`.trim()
@@ -267,7 +267,7 @@ async function listOwnerConversations(c, auth, repos) {
         .split(/\s+/)
         .filter(Boolean)
         .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() || '')
+        .map((part: string) => part[0]?.toUpperCase() || '')
         .join(''),
       lastMessage: latestMessage?.content,
       lastMessageTime: latestMessage?.createdAt || conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt,
@@ -286,7 +286,7 @@ app.use('*', databaseMiddleware);
 app.use('*', async (c, next) => {
   const auth = c.get('auth');
 
-  if (![UserRole.OWNER, UserRole.TENANT_ADMIN, UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(auth.role)) {
+  if (!([UserRole.OWNER, UserRole.TENANT_ADMIN, UserRole.ADMIN, UserRole.SUPER_ADMIN] as UserRole[]).includes(auth.role)) {
     return e403(c, 'FORBIDDEN', 'Owner portal access is not allowed for this role.');
   }
 
@@ -354,7 +354,7 @@ app.get('/financial/stats', async (c) => {
   const scope = await getOwnerScope(auth, repos);
   const invoices = enrichOwnerInvoices(scope);
   const payments = enrichOwnerPayments(scope, invoices);
-  return c.json({ success: true, data: buildFinancialStats(invoices, payments, scope.workOrders) });
+  return c.json({ success: true, data: buildFinancialStats(invoices, payments, scope.workOrders as any[]) });
 });
 
 app.get('/invoices', async (c) => {
@@ -464,10 +464,10 @@ app.get('/messaging/conversations', async (c) => {
 
 app.get('/messaging/conversations/:id/messages', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos: any = c.get('repos');
   const scope = await getOwnerScope(auth, repos);
   const user = await repos.users.findById(auth.userId, auth.tenantId);
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
+  const customerMap = new Map(scope.customers.map((customer: any) => [customer.id, customer]));
   const conversation = await repos.messaging.getConversation(c.req.param('id'), auth.tenantId);
 
   if (!conversation) {
@@ -478,8 +478,8 @@ app.get('/messaging/conversations/:id/messages', async (c) => {
   const data = rows
     .slice()
     .reverse()
-    .map((message) => {
-      const customer = customerMap.get(message.senderId);
+    .map((message: any) => {
+      const customer: any = customerMap.get(message.senderId);
       const senderName = customer
         ? `${customer.firstName} ${customer.lastName}`.trim()
         : message.senderId === auth.userId
@@ -549,19 +549,19 @@ app.post('/messaging/conversations/:id/messages', withSecurityEvents({ action: '
 
 app.get('/documents/signatures', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos');
+  const repos: any = c.get('repos');
   const scope = await getOwnerScope(auth, repos);
   // Pending-signatures is a small working set; cap fetch at 500 and
   // filter in-memory. Move to repo-level filter when doc volume grows.
   const docs = (await repos.documents.findMany(auth.tenantId, { limit: 500, offset: 0 })).items;
-  const propertyMap = new Map(scope.properties.map((property) => [property.id, property]));
-  const unitMap = new Map(scope.units.map((unit) => [unit.id, unit]));
-  const customerMap = new Map(scope.customers.map((customer) => [customer.id, customer]));
+  const propertyMap = new Map(scope.properties.map((property: any) => [property.id, property]));
+  const unitMap = new Map(scope.units.map((unit: any) => [unit.id, unit]));
+  const customerMap = new Map(scope.customers.map((customer: any) => [customer.id, customer]));
 
-  const pending = docs
-    .filter((doc) => ['lease_agreement', 'move_in_report', 'move_out_report'].includes(doc.documentType))
-    .filter((doc) => !doc.metadata?.signedAt)
-    .map((doc) => ({
+  const pending = (docs as any[])
+    .filter((doc: any) => ['lease_agreement', 'move_in_report', 'move_out_report'].includes(doc.documentType))
+    .filter((doc: any) => !doc.metadata?.signedAt)
+    .map((doc: any) => ({
       id: doc.id,
       name: doc.fileName,
       type: String(doc.documentType).toUpperCase(),
@@ -588,20 +588,20 @@ app.get('/documents/signatures', async (c) => {
       previewUrl: doc.fileUrl,
     }));
 
-  const history = docs
-    .filter((doc) => doc.metadata?.signedAt)
-    .map((doc) => ({
+  const history = (docs as any[])
+    .filter((doc: any) => doc.metadata?.signedAt)
+    .map((doc: any) => ({
       id: `hist-${doc.id}`,
       documentName: doc.fileName,
       signedAt: doc.metadata.signedAt,
       signedBy: doc.metadata.signedBy || auth.userId,
       property: doc.metadata?.propertyId
-        ? { id: doc.metadata.propertyId, name: propertyMap.get(doc.metadata.propertyId)?.name || doc.metadata.propertyId }
+        ? { id: doc.metadata.propertyId, name: (propertyMap.get(doc.metadata.propertyId) as any)?.name || doc.metadata.propertyId }
         : undefined,
       status: 'SIGNED',
       ipAddress: doc.metadata?.signedIp,
     }))
-    .sort((left, right) => new Date(right.signedAt) - new Date(left.signedAt));
+    .sort((left: any, right: any) => new Date(right.signedAt).getTime() - new Date(left.signedAt).getTime());
 
   return c.json({ success: true, data: { pending, history } });
 });
@@ -701,7 +701,7 @@ const COMMUNICATIONS_NOTE =
 const INVITATIONS_NOTE =
   'invitation pipeline not yet wired — token signed for forward-compat, list reads empty';
 
-function reposUnavailable(c) {
+function reposUnavailable(c: any) {
   return e503(c, 'SERVICE_UNAVAILABLE', 'Owner BFF requires repositories to be wired.');
 }
 
@@ -922,7 +922,7 @@ function getInvitationSecret() {
   );
 }
 
-function signInvitationToken(payload) {
+function signInvitationToken(payload: any) {
   const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
   const sig = createHmac('sha256', getInvitationSecret())
     .update(body)

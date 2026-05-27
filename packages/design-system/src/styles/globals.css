@@ -1,23 +1,28 @@
 /**
- * Boss Nyumba — Design Tokens (Wave 29)
+ * Borjie — Design Tokens (LitFin-inspired refresh)
  *
- * Direction A + 15% B: "Midnight Ledger with Cinematic Display."
+ * Direction: "Midnight Slate Ledger with Warm-Gold Signal."
  *
  * Foundation principles:
  *   - Dark-first. Operators live in this 8 hours a day. Light mode is
  *     the guest experience (tenants, owners, marketing, docs) and is
  *     still first-class.
- *   - Near-monochromatic with ONE signal color: warm amber. Semantic
- *     colors are dialled-down so they read institutional, not alarmist.
+ *   - Background shifts from earth-brown to LitFin's rich navy-slate
+ *     (#0B0F19). The Borjie warm-gold wordmark stays — it's now the
+ *     ONE signal color on a cool slate foundation, mirroring LitFin's
+ *     gold-on-navy contrast.
+ *   - Semantic colors are dialled-down so they read institutional,
+ *     not alarmist. Emerald success (#2EBD85), warm-red danger
+ *     (#E14B4B), bright gold info / warning.
  *   - 4px spacing grid, 1.25 type scale (major third), radii pinned to
  *     a 7-step scale, one light-source shadow system.
- *   - Reference feel: Stripe × Spotify × Netflix × Anthropic.
+ *   - Reference feel: LitFin × Stripe × Bloomberg Terminal.
  *   - Anti-slop: no gradient orbs, no "Revolutionize" copy, no cutesy
  *     proptech house-icon anything.
  *
  * Tokens are HSL space-separated so `hsl(var(--foo))` works in the
- * Tailwind config without change. OKLCH comments document the
- * perceptual intent.
+ * Tailwind config without change. Hex equivalents are documented inline
+ * so colour-pickers can verify against LitFin side-by-side.
  */
 
 @tailwind base;
@@ -26,90 +31,90 @@
 
 /* ============================================================
    LIGHT MODE — guest surfaces
-   Warm paper-white background, deep-ink near-black text,
-   warm amber as the one signal color. Editorial, not sterile.
+   Cool paper-cream background, deep slate-ink text, warm gold as
+   the one signal color. Mirrors LitFin's light treatment.
    ============================================================ */
 @layer base {
   :root {
     /* --- Foundation --- */
-    --background:            42 30% 98%;          /* warm paper white */
-    --foreground:            30 18% 12%;          /* deep ink near-black */
-    --surface:               0 0% 100%;
-    --surface-foreground:    30 18% 12%;
-    --surface-raised:        42 30% 96%;
-    --surface-sunken:        40 25% 93%;
+    --background:            220 20% 98%;         /* #F7F8FA cool paper */
+    --foreground:            222 36%  10%;        /* #0B0F19 deep slate */
+    --surface:               0 0% 100%;           /* #FFFFFF */
+    --surface-foreground:    222 36%  10%;
+    --surface-raised:        220 20% 96%;
+    --surface-sunken:        220 18% 93%;
 
     --popover:               0 0% 100%;
-    --popover-foreground:    30 18% 12%;
+    --popover-foreground:    222 36% 10%;
 
     --card:                  0 0% 100%;
-    --card-foreground:       30 18% 12%;
+    --card-foreground:       222 36% 10%;
 
-    /* --- Neutral ramp (11 steps), warm-shifted --- */
-    --neutral-50:            40 25% 98%;
-    --neutral-100:           40 22% 96%;
-    --neutral-200:           36 18% 91%;
-    --neutral-300:           34 14% 83%;
-    --neutral-400:           32 10% 65%;
-    --neutral-500:           30 8%  50%;
-    --neutral-600:           28 10% 38%;
-    --neutral-700:           28 12% 28%;
-    --neutral-800:           28 14% 18%;
-    --neutral-900:           30 16% 12%;
-    --neutral-950:           30 20% 7%;
+    /* --- Neutral ramp (11 steps), cool slate-shifted --- */
+    --neutral-50:            220 20% 98%;
+    --neutral-100:           220 18% 95%;
+    --neutral-200:           222 16% 90%;
+    --neutral-300:           223 14% 82%;
+    --neutral-400:           224 12% 64%;
+    --neutral-500:           225  8% 50%;         /* #A0A4B0-ish muted slate */
+    --neutral-600:           223 14% 38%;
+    --neutral-700:           223 22% 26%;
+    --neutral-800:           223 28% 17%;
+    --neutral-900:           222 32% 12%;
+    --neutral-950:           222 36%  7%;
 
-    /* --- Signal — warm amber, the one brand color ---
-       Shifted institutional; reads premium, never cheap. */
-    --signal-50:             38 80% 96%;
-    --signal-100:            38 85% 92%;
-    --signal-200:            36 85% 82%;
-    --signal-300:            34 82% 70%;
-    --signal-400:            32 78% 60%;
-    --signal-500:            30 72% 52%;   /* hero amber */
-    --signal-600:            26 70% 44%;
-    --signal-700:            22 65% 36%;
-    --signal-800:            20 60% 28%;
-    --signal-900:            20 55% 20%;
-    --signal-950:            22 50% 12%;
+    /* --- Signal — warm gold, the one brand color ---
+       Tuned to LitFin's bright premium #FFC857 family. */
+    --signal-50:             45 100% 96%;
+    --signal-100:            44 95%  90%;
+    --signal-200:            43 95%  82%;
+    --signal-300:            42 95%  74%;
+    --signal-400:            40 92%  62%;         /* #F5B23E hover */
+    --signal-500:            42 100% 67%;         /* #FFC857 hero gold */
+    --signal-600:            38 88%  55%;
+    --signal-700:            34 78%  45%;
+    --signal-800:            28 70%  34%;
+    --signal-900:            24 65%  24%;
+    --signal-950:            22 55%  14%;
 
     /* --- shadcn compat aliases --- */
-    --primary:               30 72% 52%;
-    --primary-foreground:    30 25% 10%;
+    --primary:               42 100% 67%;         /* #FFC857 */
+    --primary-foreground:    222 38% 8%;          /* near-black slate */
 
-    --secondary:             40 22% 96%;
-    --secondary-foreground:  30 16% 15%;
+    --secondary:             220 18% 95%;
+    --secondary-foreground:  222 32% 14%;
 
-    --muted:                 40 22% 96%;
-    --muted-foreground:      28 10% 42%;
+    --muted:                 220 18% 95%;
+    --muted-foreground:      225 8% 42%;
 
-    --accent:                40 22% 94%;
-    --accent-foreground:     30 16% 15%;
+    --accent:                220 18% 93%;
+    --accent-foreground:     222 32% 14%;
 
     /* --- Borders + rings --- */
-    --border:                36 18% 89%;
-    --border-strong:         34 14% 80%;
-    --input:                 36 18% 89%;
-    --ring:                  30 72% 52%;
+    --border:                222 16% 88%;
+    --border-strong:         223 14% 78%;
+    --input:                 222 16% 88%;
+    --ring:                  42 100% 67%;
 
     /* --- Semantic (institutional, never alarmist) --- */
-    --success:               148 55% 38%;
-    --success-foreground:    148 45% 96%;
-    --success-subtle:        148 45% 94%;
+    --success:               155 60% 38%;         /* #2EBD85 family, deeper for light bg */
+    --success-foreground:    155 45% 96%;
+    --success-subtle:        155 45% 94%;
 
-    --warning:               36 85% 55%;
-    --warning-foreground:    30 18% 12%;
-    --warning-subtle:        36 85% 95%;
+    --warning:               42 100% 55%;
+    --warning-foreground:    222 36% 10%;
+    --warning-subtle:        42 95% 95%;
 
-    --danger:                12 72% 50%;
-    --danger-foreground:     12 60% 97%;
-    --danger-subtle:         12 70% 95%;
+    --danger:                0 73% 52%;           /* #E14B4B family */
+    --danger-foreground:     0 60% 97%;
+    --danger-subtle:         0 70% 95%;
 
-    --info:                  215 55% 48%;
+    --info:                  215 60% 48%;
     --info-foreground:       215 60% 97%;
     --info-subtle:           215 60% 95%;
 
-    --destructive:           12 72% 50%;
-    --destructive-foreground: 12 60% 97%;
+    --destructive:           0 73% 52%;
+    --destructive-foreground: 0 60% 97%;
 
     /* --- Radii (pinned scale) --- */
     --radius-sm:   0.25rem;    /* 4px  chips, tags */
@@ -119,13 +124,13 @@
     --radius-xl:   1.125rem;   /* 18px modals */
     --radius-2xl:  1.5rem;     /* 24px hero panels */
 
-    /* --- Shadows (one light source, warm umbra) --- */
-    --shadow-xs:   0 1px 2px 0 hsl(30 20% 10% / 0.04);
-    --shadow-sm:   0 1px 2px 0 hsl(30 20% 10% / 0.06), 0 1px 1px 0 hsl(30 20% 10% / 0.04);
-    --shadow:      0 4px 8px -2px hsl(30 20% 10% / 0.08), 0 2px 4px -2px hsl(30 20% 10% / 0.04);
-    --shadow-md:   0 8px 16px -4px hsl(30 20% 10% / 0.10), 0 4px 6px -2px hsl(30 20% 10% / 0.05);
-    --shadow-lg:   0 16px 32px -8px hsl(30 20% 10% / 0.12), 0 8px 16px -4px hsl(30 20% 10% / 0.06);
-    --shadow-xl:   0 24px 48px -12px hsl(30 20% 10% / 0.18);
+    /* --- Shadows (one light source, slate umbra) --- */
+    --shadow-xs:   0 1px 2px 0 hsl(222 36% 8% / 0.04);
+    --shadow-sm:   0 1px 2px 0 hsl(222 36% 8% / 0.06), 0 1px 1px 0 hsl(222 36% 8% / 0.04);
+    --shadow:      0 4px 8px -2px hsl(222 36% 8% / 0.08), 0 2px 4px -2px hsl(222 36% 8% / 0.04);
+    --shadow-md:   0 8px 16px -4px hsl(222 36% 8% / 0.10), 0 4px 6px -2px hsl(222 36% 8% / 0.05);
+    --shadow-lg:   0 16px 32px -8px hsl(222 36% 8% / 0.12), 0 8px 16px -4px hsl(222 36% 8% / 0.06);
+    --shadow-xl:   0 24px 48px -12px hsl(222 36% 8% / 0.18);
 
     /* --- Typography stack ---
        Display: Fraunces — editorial serif-adjacent, humanist warmth,
@@ -149,91 +154,91 @@
   }
 
   /* ============================================================
-     DARK MODE — operator surfaces
-     Deep near-pure black (warm-shifted so it doesn't read cold /
-     corporate), amber becomes the only color on screen. Feels
-     like Bloomberg × Spotify × Anthropic.
+     DARK MODE — operator + marketing surfaces
+     LitFin-aligned rich navy-slate foundation (#0B0F19) with the
+     Borjie warm-gold signal as the ONLY brand color. Feels like
+     LitFin × Bloomberg × Anthropic.
      ============================================================ */
   .dark {
-    --background:            30 14% 7%;           /* near-pure black, warm-shifted */
-    --foreground:            40 20% 95%;          /* warm off-white */
-    --surface:               28 12% 10%;
-    --surface-foreground:    40 20% 95%;
-    --surface-raised:        28 10% 13%;
-    --surface-sunken:        28 14% 5%;
+    --background:            222 36%  7%;         /* #0B0F19 LitFin navy-slate */
+    --foreground:            45 25%  95%;         /* #F5F5F0 cream off-white */
+    --surface:               223 28% 10%;         /* #11151F card */
+    --surface-foreground:    45 25%  95%;
+    --surface-raised:        223 25% 12%;         /* #161B27 raised */
+    --surface-sunken:        222 38%  5%;         /* deeper pit */
 
-    --popover:               28 10% 11%;
-    --popover-foreground:    40 20% 95%;
+    --popover:               223 28% 11%;
+    --popover-foreground:    45 25%  95%;
 
-    --card:                  28 12% 10%;
-    --card-foreground:       40 20% 95%;
+    --card:                  223 28% 10%;         /* #11151F */
+    --card-foreground:       45 25%  95%;
 
-    --neutral-50:            30 14% 7%;
-    --neutral-100:           28 12% 10%;
-    --neutral-200:           28 10% 14%;
-    --neutral-300:           28 9%  20%;
-    --neutral-400:           28 8%  30%;
-    --neutral-500:           28 7%  48%;
-    --neutral-600:           30 8%  64%;
-    --neutral-700:           32 10% 76%;
-    --neutral-800:           34 14% 86%;
-    --neutral-900:           36 18% 93%;
-    --neutral-950:           40 20% 97%;
+    --neutral-50:            222 36%  7%;
+    --neutral-100:           223 28% 10%;
+    --neutral-200:           223 22% 14%;
+    --neutral-300:           223 18% 20%;
+    --neutral-400:           224 12% 32%;
+    --neutral-500:           225  8% 50%;
+    --neutral-600:           225  8% 66%;         /* #A0A4B0 muted slate text */
+    --neutral-700:           224 14% 78%;
+    --neutral-800:           42 15%  88%;
+    --neutral-900:           45 22%  94%;
+    --neutral-950:           45 25%  97%;
 
-    --signal-50:             22 45% 14%;
-    --signal-100:            22 50% 20%;
-    --signal-200:            24 55% 28%;
-    --signal-300:            26 60% 38%;
-    --signal-400:            28 65% 50%;
-    --signal-500:            34 85% 62%;   /* lamp-glow amber */
-    --signal-600:            36 85% 68%;
-    --signal-700:            38 85% 76%;
-    --signal-800:            40 80% 84%;
-    --signal-900:            42 70% 92%;
-    --signal-950:            44 55% 97%;
+    --signal-50:             24 55% 14%;
+    --signal-100:            26 60% 20%;
+    --signal-200:            30 70% 28%;
+    --signal-300:            34 80% 38%;
+    --signal-400:            38 90% 55%;
+    --signal-500:            42 100% 67%;         /* #FFC857 LitFin gold */
+    --signal-600:            40 95%  74%;
+    --signal-700:            40 90%  82%;
+    --signal-800:            42 85%  88%;
+    --signal-900:            44 75%  93%;
+    --signal-950:            45 60%  97%;
 
-    --primary:               34 85% 62%;
-    --primary-foreground:    30 20% 8%;
+    --primary:               42 100% 67%;         /* #FFC857 */
+    --primary-foreground:    222 38% 8%;          /* near-black slate, AAA on gold */
 
-    --secondary:             28 10% 14%;
-    --secondary-foreground:  40 20% 93%;
+    --secondary:             223 22% 14%;
+    --secondary-foreground:  45 22%  93%;
 
-    --muted:                 28 10% 14%;
-    --muted-foreground:      30 8%  64%;
+    --muted:                 223 22% 14%;
+    --muted-foreground:      225 8% 66%;          /* #A0A4B0 muted slate */
 
-    --accent:                28 10% 16%;
-    --accent-foreground:     40 20% 93%;
+    --accent:                223 22% 16%;
+    --accent-foreground:     45 22% 93%;
 
-    --border:                28 8%  18%;
-    --border-strong:         28 8%  26%;
-    --input:                 28 10% 14%;
-    --ring:                  34 85% 62%;
+    --border:                223 22% 16%;         /* #1E2330 hairline */
+    --border-strong:         223 20% 24%;         /* #2A3040 stronger */
+    --input:                 223 22% 14%;
+    --ring:                  42 100% 67%;
 
-    --success:               148 50% 55%;
-    --success-foreground:    148 40% 10%;
-    --success-subtle:        148 40% 16%;
+    --success:               155 60% 46%;         /* #2EBD85 emerald */
+    --success-foreground:    155 45% 10%;
+    --success-subtle:        155 45% 16%;
 
-    --warning:               36 85% 65%;
-    --warning-foreground:    30 20% 10%;
-    --warning-subtle:        36 55% 18%;
+    --warning:               42 100% 67%;         /* gold = warning/info */
+    --warning-foreground:    222 38% 10%;
+    --warning-subtle:        42 55% 18%;
 
-    --danger:                12 72% 62%;
-    --danger-foreground:     12 40% 10%;
-    --danger-subtle:         12 55% 18%;
+    --danger:                0 73% 59%;           /* #E14B4B warm red */
+    --danger-foreground:     0 50% 12%;
+    --danger-subtle:         0 55% 20%;
 
-    --info:                  215 65% 65%;
-    --info-foreground:       215 40% 10%;
-    --info-subtle:           215 45% 18%;
+    --info:                  42 100% 67%;         /* gold doubles as info */
+    --info-foreground:       222 38% 10%;
+    --info-subtle:           42 50% 18%;
 
-    --destructive:           12 72% 62%;
-    --destructive-foreground: 12 40% 10%;
+    --destructive:           0 73% 59%;
+    --destructive-foreground: 0 50% 12%;
 
-    --shadow-xs:   0 1px 2px 0 hsl(0 0% 0% / 0.25);
-    --shadow-sm:   0 1px 3px 0 hsl(0 0% 0% / 0.35);
-    --shadow:      0 4px 12px -2px hsl(0 0% 0% / 0.40);
-    --shadow-md:   0 10px 20px -4px hsl(0 0% 0% / 0.50);
-    --shadow-lg:   0 20px 40px -8px hsl(0 0% 0% / 0.60);
-    --shadow-xl:   0 32px 64px -16px hsl(0 0% 0% / 0.70);
+    --shadow-xs:   0 1px 2px 0 hsl(222 50% 2% / 0.30);
+    --shadow-sm:   0 1px 3px 0 hsl(222 50% 2% / 0.40);
+    --shadow:      0 4px 12px -2px hsl(222 50% 2% / 0.45);
+    --shadow-md:   0 10px 20px -4px hsl(222 50% 2% / 0.55);
+    --shadow-lg:   0 20px 40px -8px hsl(222 50% 2% / 0.65);
+    --shadow-xl:   0 32px 64px -16px hsl(222 50% 2% / 0.75);
   }
 }
 

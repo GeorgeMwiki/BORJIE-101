@@ -74,7 +74,7 @@ export function IndividualOwnerStep({
       email: values.email ?? '',
       miningLicenceNumber: values.miningLicenceNumber ?? '',
       nationalIdNumber: values.nationalIdNumber ?? '',
-      defaultLanguage: (values.defaultLanguage ?? 'sw') as LanguageCode,
+      defaultLanguage: (values.defaultLanguage ?? 'en') as LanguageCode,
       primaryCurrency: (values.primaryCurrency ?? 'TZS') as CurrencyCode,
     };
     onChange(next);

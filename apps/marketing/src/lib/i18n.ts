@@ -4,8 +4,9 @@ import en from '@/i18n/en.json';
 /**
  * Lightweight i18n helper.
  *
- * Borjie marketing is bilingual sw/en. Swahili is the default; English
- * is opt-in via the `borjie_locale` cookie. We avoid pulling in
+ * Borjie marketing is bilingual sw/en. English is the default per the
+ * 2026-05 dev preference flip (was Swahili-first up to that date);
+ * Swahili is opt-in via the `borjie_locale` cookie. We avoid pulling in
  * next-intl/i18next to keep the marketing bundle slim — the strings live
  * in two JSON dictionaries and a single `t()` helper resolves dotted
  * paths.

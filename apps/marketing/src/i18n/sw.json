@@ -617,7 +617,125 @@
       "sub": "Buyer mobile app iko katika upimaji wa kibinafsi pamoja na wanunuzi kumi na sita wa Tanzania na Afrika Mashariki. Jiunge na waitlist kwa toleo la umma la Septemba 2026.",
       "primary": "Jiunge na buyer waitlist",
       "secondary": "Ongea na timu ya sourcing"
-    }
+    },
+    "ctaAlreadyBuyer": "Una akaunti tayari? Ingia"
+  },
+  "buyerSignupPage": {
+    "metaTitle": "Jisajili kama mnunuzi — Borjie",
+    "metaDescription": "Jisajili kama mnunuzi wa madini kwenye Borjie. KYC, mnyororo wa ushahidi, na sahihi za alama ya kidole.",
+    "kicker": "Jisajili kama mnunuzi",
+    "heading": "Anza kununua madini yaliyothibitishwa.",
+    "sub": "Chagua aina ya akaunti yako. Akaunti binafsi kwa wanunuzi wa kawaida. Akaunti ya biashara kwa refineries, brokers, fabricators, na investors.",
+    "steps": {
+      "kind": "1. Aina",
+      "details": "2. Taarifa",
+      "review": "3. Thibitisha"
+    },
+    "kindStep": {
+      "heading": "Unataka kujisajili kama nani?",
+      "subHeading": "How would you like to sign up?",
+      "individualTitle": "Mimi ni mtu binafsi",
+      "individualTitleEn": "I'm an individual buyer",
+      "individualSubtitle": "Mnunuzi wa kawaida wa madini.",
+      "individualBullets": [
+        "Jina kamili na simu",
+        "Barua pepe",
+        "Nambari ya NIDA — si lazima"
+      ],
+      "businessTitle": "Mimi nina kampuni / shirika",
+      "businessTitleEn": "I represent a company",
+      "businessSubtitle": "Refinery, broker, fabricator, au investor.",
+      "businessBullets": [
+        "Jina la kampuni + nambari ya BRELA",
+        "Nambari ya TIN",
+        "Aina ya biashara (refiner / broker / fabricator / investor)",
+        "Jina, simu, na barua pepe ya mawasiliano"
+      ],
+      "continue": "Endelea"
+    },
+    "fields": {
+      "country": "Nchi",
+      "countryEn": "Country",
+      "fullName": "Jina kamili",
+      "fullNameEn": "Full name",
+      "phone": "Simu",
+      "phoneEn": "Phone (E.164)",
+      "email": "Barua pepe",
+      "emailEn": "Email",
+      "preferredLanguage": "Lugha",
+      "preferredLanguageEn": "Language",
+      "preferredCurrency": "Sarafu",
+      "preferredCurrencyEn": "Currency",
+      "nationalId": "Kitambulisho cha NIDA",
+      "nationalIdEn": "National ID (optional)",
+      "orgName": "Jina la kampuni",
+      "orgNameEn": "Company name",
+      "businessKind": "Aina ya biashara",
+      "businessKindEn": "Business type",
+      "businessRegistrationNumber": "Nambari ya BRELA",
+      "businessRegistrationNumberEn": "Business reg #",
+      "taxId": "Nambari ya TIN",
+      "taxIdEn": "Tax ID",
+      "contactFullName": "Jina la mawasiliano",
+      "contactFullNameEn": "Contact full name",
+      "contactPhone": "Simu ya mawasiliano",
+      "contactPhoneEn": "Contact phone (E.164)",
+      "contactEmail": "Barua pepe ya mawasiliano",
+      "contactEmailEn": "Contact email"
+    },
+    "businessKinds": {
+      "refiner": "Refinery",
+      "broker": "Broker",
+      "fabricator": "Fabricator",
+      "investor": "Investor",
+      "other": "Nyingine"
+    },
+    "actions": {
+      "back": "Rudi",
+      "next": "Endelea",
+      "submit": "Jisajili sasa",
+      "submitting": "Inatuma…"
+    },
+    "errors": {
+      "fullNameRequired": "Jina kamili linahitajika",
+      "phoneInvalid": "Weka simu sahihi (mfano +255712345678)",
+      "emailInvalid": "Weka anwani halali ya barua pepe",
+      "orgNameRequired": "Jina la kampuni linahitajika",
+      "businessKindRequired": "Chagua aina ya biashara",
+      "businessRegRequired": "Nambari ya BRELA inahitajika",
+      "taxIdRequired": "Nambari ya TIN inahitajika",
+      "submitFailed": "Imeshindwa kujisajili. Jaribu tena.",
+      "emailAlreadyRegistered": "Barua pepe hii tayari imesajiliwa.",
+      "phoneAlreadyRegistered": "Simu hii tayari imesajiliwa.",
+      "providerUnavailable": "Huduma ya uthibitishaji haipatikani kwa sasa."
+    },
+    "alreadyHaveAccount": "Una akaunti tayari?",
+    "signInLink": "Ingia"
+  },
+  "buyerSignInPage": {
+    "metaTitle": "Ingia kama mnunuzi — Borjie",
+    "metaDescription": "Ingia kwenye akaunti yako ya mnunuzi wa madini ya Borjie.",
+    "kicker": "Ingia kama mnunuzi",
+    "heading": "Karibu tena.",
+    "sub": "Ingia kwenye akaunti yako ya mnunuzi ili kuendelea kununua madini yaliyothibitishwa.",
+    "fields": {
+      "email": "Barua pepe",
+      "emailEn": "Email",
+      "password": "Nenosiri",
+      "passwordEn": "Password"
+    },
+    "actions": {
+      "submit": "Ingia",
+      "submitting": "Inaingia…"
+    },
+    "errors": {
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordRequired": "Nenosiri linahitajika",
+      "signInFailed": "Imeshindwa kuingia. Hakiki taarifa zako."
+    },
+    "fromSignup": "Akaunti yako imeundwa. Ingia ili kuanza kununua.",
+    "noAccountYet": "Huna akaunti?",
+    "signUpLink": "Jisajili"
   },
   "investorsPage": {
     "kicker": "Kwa wawekezaji na wakopeshaji",

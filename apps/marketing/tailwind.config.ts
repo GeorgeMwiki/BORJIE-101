@@ -25,12 +25,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: 'oklch(0.18 0.02 80)',
-        foreground: 'oklch(0.95 0.01 80)',
-        primary: 'oklch(0.58 0.12 65)',
-        accent: 'oklch(0.78 0.16 75)',
-        border: 'oklch(0.30 0.02 80)',
-        surface: 'oklch(0.22 0.02 80)',
+        // LitFin-aligned palette (warm gold on navy-slate). Keep these
+        // synchronised with packages/design-system/src/styles/globals.css —
+        // the marketing-local Tailwind config overrides arbitrary-value
+        // call-sites, while the design-system HSL CSS vars cascade
+        // everywhere else.
+        background: 'oklch(0.16 0.025 260)',     /* #0B0F19 navy-slate */
+        foreground: 'oklch(0.96 0.005 95)',      /* #F5F5F0 cream off-white */
+        primary:    'oklch(0.78 0.17 78)',       /* #F5B23E gold hover */
+        accent:     'oklch(0.84 0.15 80)',       /* #FFC857 hero gold */
+        border:     'oklch(0.24 0.02 260)',      /* #1E2330 hairline slate */
+        surface:    'oklch(0.19 0.025 260)',     /* #11151F card slate */
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

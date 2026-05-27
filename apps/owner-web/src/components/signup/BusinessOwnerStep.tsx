@@ -82,7 +82,7 @@ export function BusinessOwnerStep({
       ownerPhoneE164: values.ownerPhoneE164 ?? '+255',
       miningLicenceNumber: values.miningLicenceNumber ?? '',
       vatNumber: values.vatNumber ?? '',
-      defaultLanguage: (values.defaultLanguage ?? 'sw') as LanguageCode,
+      defaultLanguage: (values.defaultLanguage ?? 'en') as LanguageCode,
       primaryCurrency: (values.primaryCurrency ?? 'TZS') as CurrencyCode,
     });
   });
