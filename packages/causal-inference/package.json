@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/causal-inference",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA-CAUSAL — causal-inference primitives for Mr. Mwikila. Four-step pipeline (model -> identify -> estimate -> refute) implementing PCMCI+ (Runge et al., Python sidecar), Granger (pure TS), Pearl back-door / front-door identification, DoWhy ATE (Python sidecar), synthetic control (Abadie), differences-in-differences, regression discontinuity, twin-network counterfactuals, placebo / bootstrap / E-value refutation. Mining-domain wrappers and hash-chained `causal_runs` audit. See Docs/DESIGN/CAUSAL_INFERENCE_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

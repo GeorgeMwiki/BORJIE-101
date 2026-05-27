@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 0067 — Causal Inference Runs (SOTA-CAUSAL)
+-- Migration 0069 — Causal Inference Runs (SOTA-CAUSAL)
 --
 -- Companion to Docs/DESIGN/CAUSAL_INFERENCE_SOTA_2026.md.
 --

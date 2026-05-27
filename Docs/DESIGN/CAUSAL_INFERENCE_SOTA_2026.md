@@ -115,7 +115,8 @@ packages/causal-inference/
 
 Every causal answer Mr. Mwikila asks is recorded as a `causal_runs` row: the natural-language question, the identified treatment + outcome columns, the identification strategy (back-door / front-door / DiD / synthetic-control), the point estimate, the 95 % CI, the timestamp, and a SHA-256 audit hash chained against the previous row in the tenant's chain. The chain makes the analytic record tamper-evident — a regulator can replay every causal claim Mr. Mwikila relied on and verify the hash chain.
 
-## 5. Migration 0067 — `causal_runs`
+## 5. Migration 0069 — `causal_runs`
+
 
 ```
 id               uuid primary key

@@ -65,8 +65,10 @@ export function createDefaultPdfReader(): PdfReader {
   return {
     async readText(pdfPath: string): Promise<string> {
       if (/\.txt$/i.test(pdfPath)) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is supplied by the trusted junior workflow caller (tenant-scoped upload pipeline). PDF reader contract requires a filesystem path; non-literal is intrinsic.
         return readFileSync(pdfPath, 'utf8');
       }
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- same as above; trusted caller-supplied path to PDF fixture under tenant-scoped uploads.
       const buf = readFileSync(pdfPath);
       const out = await pdfParse(buf);
       return out.text ?? '';

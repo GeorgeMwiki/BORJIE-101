@@ -89,7 +89,7 @@ function loadIvm(): IvmModule {
     throw new Error('isolated-vm sandbox is server-only');
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam for the optional isolated-vm native dep
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-eval -- SCRUB-5f: rule-disabled because eval('require') is the documented bundler-evading sync-require seam for the optional isolated-vm native dep
     const dynamicRequire = eval('require') as (m: string) => unknown;
     const modName = ['isolated', 'vm'].join('-');
     _ivmCache = dynamicRequire(modName) as IvmModule;
