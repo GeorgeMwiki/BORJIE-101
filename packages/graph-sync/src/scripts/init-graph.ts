@@ -11,9 +11,9 @@ import { createNeo4jClient } from '../client/neo4j-client.js';
 import { applyConstraintsAndIndexes } from '../schema/constraints.js';
 
 async function main() {
-  console.log('═══════════════════════════════════════════════════════════════');
-  console.log('  Boss Nyumba — Canonical Property Graph Initialization');
-  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('═══════════════════════════════════════════════════════════════'); // eslint-disable-line no-console -- init script CLI banner
+  console.log('  Borjie — Canonical Property Graph Initialization'); // eslint-disable-line no-console -- init script CLI banner
+  console.log('═══════════════════════════════════════════════════════════════'); // eslint-disable-line no-console -- init script CLI banner
   console.log('');
 
   const client = createNeo4jClient();
