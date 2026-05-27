@@ -9,13 +9,16 @@ import { dirname, join } from 'node:path';
 import { BUILT_IN_THEMES, InMemoryThemeStore } from '../index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+// Migration was moved to `.archive/migrations/` during the wave 10E
+// mechanical cleanup (commit dcf89c1) — it's still the canonical
+// source for the seed slugs we mirror in BUILT_IN_THEMES.
 const MIGRATION_PATH = join(
   here,
   '..',
   '..',
   '..',
   'database',
-  'src',
+  '.archive',
   'migrations',
   '0209_presentation_themes.sql',
 );

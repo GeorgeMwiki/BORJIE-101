@@ -111,6 +111,10 @@ export async function ingestCorpus(opts: IngestOptions): Promise<IngestReport> {
     for (const absolutePath of files) {
       filesScanned += 1;
       try {
+        // SCRUB-5f: justified-because path comes from walkMarkdown() recursing
+        // operator-supplied corpus roots; not user input. Filenames are
+        // filtered to *.md and resolved via path.join from the trusted root.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         const raw = await readFile(absolutePath, 'utf8');
         const relPath = relative(root, absolutePath);
         const sourceFile = join(basename(root), relPath);
@@ -185,6 +189,10 @@ export function splitByH2(sourceFile: string, raw: string): ReadonlyArray<Corpus
 async function walkMarkdown(root: string, errors: string[]): Promise<string[]> {
   const out: string[] = [];
   try {
+    // SCRUB-5f: justified-because `root` is an operator-supplied corpus
+    // root from IngestOptions.corpusRoots — never user input. Recursion
+    // only descends into already-trusted directories.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const entries = await readdir(root, { withFileTypes: true });
     for (const entry of entries) {
       const full = join(root, entry.name);
@@ -204,6 +212,10 @@ async function walkMarkdown(root: string, errors: string[]): Promise<string[]> {
 
 async function isReadableFile(path: string): Promise<boolean> {
   try {
+    // SCRUB-5f: justified-because `path` is built from walkMarkdown() output
+    // which only emits files matching `\.md$` joined from trusted corpus
+    // roots; not user input. Errors are absorbed by the catch-block above.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const s = await stat(path);
     return s.isFile() && s.size > 0;
   } catch {
