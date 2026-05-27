@@ -1,0 +1,29 @@
+{
+  "name": "@borjie/data-analysis",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA statistical and analytical primitives for Mr. Mwikila — descriptive, inferential, regression, clustering, dimensionality reduction, distributions, sampling, lightweight DataFrame, and mining-domain wrappers. Pure TypeScript, no native bindings, reference-vector validated.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
