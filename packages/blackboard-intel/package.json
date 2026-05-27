@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/blackboard-intel",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "BLACKBOARD-INTEL — wires blackboard posts into the self-improving loop and adds hybrid (FTS + dense + RRF) search across blackboard history for Mr. Mwikila. Three-axis quality scoring (groundedness, calibration, utility), capability-catalogue registration, meta-learning-conductor curator feedback, Postgres tsvector + GIN FTS, pgvector HNSW dense search, Reciprocal Rank Fusion (Cormack 2009). Tenant-scoped at every layer; audit-chained scores. See Docs/DESIGN/BLACKBOARD_INTEL_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
