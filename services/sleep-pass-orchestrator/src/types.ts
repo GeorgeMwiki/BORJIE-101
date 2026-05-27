@@ -7,7 +7,8 @@
  * — so unit tests use in-memory mocks and production wires real adapters
  * at the composition root.
  *
- * Ported from LITFIN PROJECT/src/core/heartbeat/sleep-passes.
+ * Structure inherited from a pre-fork lineage; evolved independently
+ * as part of Borjie.
  */
 
 /** ISO-8601 timestamp string. */

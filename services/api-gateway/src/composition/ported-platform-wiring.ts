@@ -1,5 +1,8 @@
 /**
- * LITFIN-port platform composition helper (Batch 3).
+ * Borjie ported-platform composition helper (Batch 3).
+ *
+ * Structure inherited from a pre-fork lineage; evolved independently as
+ * part of Borjie.
  *
  * Wires 5 platform-domain packages onto `ServiceRegistry`:
  *
@@ -62,7 +65,7 @@ import {
 } from '@borjie/document-quality-guarantor';
 import { createAudioCapture, type AudioCapture } from '@borjie/audio-capture';
 
-export interface LitfinPlatformBundle {
+export interface PortedPlatformBundle {
   /** WebAuthn + TOTP + headers + rate-limit + anomaly namespace. */
   readonly securityHardening: typeof SecurityHardeningNs;
   /** Document AI namespace (OCR + chat-with-doc + form extraction + e-sig). */
@@ -119,11 +122,11 @@ function resolveSecurityHeadersEnv(): SecurityHeaderEnv {
 }
 
 /**
- * Build the LITFIN platform bundle. Always non-null in both degraded
+ * Build the ported-platform bundle. Always non-null in both degraded
  * and live modes; all 5 facades have safe in-memory / mock-port
  * defaults so the gateway boots without external creds.
  */
-export function createLitfinPlatformBundle(): LitfinPlatformBundle {
+export function createPortedPlatformBundle(): PortedPlatformBundle {
   return Object.freeze({
     securityHardening: SecurityHardeningNs,
     documentAI: DocumentAINs,

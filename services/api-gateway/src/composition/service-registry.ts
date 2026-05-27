@@ -461,46 +461,46 @@ import {
   createCrossOrgDenialRecorderBundle,
   type CrossOrgDenialRecorderBundle,
 } from './cross-org-denial-recorder-wiring.js';
-// LITFIN-port wave wiring (Batch 1 — 5 utility namespaces).
+// Borjie ported-utilities wiring (Batch 1 — 5 utility namespaces, structure inherited from pre-fork lineage; evolved independently).
 // Bundles audit-hash-chain + memory-tool-wire-adapter + probe-runners +
 // property-voices-debate + conformal-calibration-online so consumers
 // can pull canonical pure-function surfaces via DI rather than reaching
 // for the raw packages from arbitrary callsites.
 import {
-  createLitfinUtilitiesBundle,
-  type LitfinUtilitiesBundle,
-} from './litfin-utilities-wiring.js';
-// LITFIN-port wave wiring (Batch 2 — 5 domain bundles).
+  createPortedUtilitiesBundle,
+  type PortedUtilitiesBundle,
+} from './ported-utilities-wiring.js';
+// Borjie ported-domain wiring (Batch 2 — 5 domain bundles, structure inherited).
 // Bundles mcp-cost-persistence + fairness-eval + analytics +
 // knowledge-graph + compliance-pack. Analytics + KG ship pre-wired
 // in-memory instances; the others are DI-exposed namespaces (their
 // instantiation needs per-tenant brain / collectors which the
 // composition root cannot bind statically).
 import {
-  createLitfinDomainBundle,
-  type LitfinDomainBundle,
-} from './litfin-domain-wiring.js';
-// LITFIN-port wave wiring (Batch 3 — 5 platform bundles).
+  createPortedDomainBundle,
+  type PortedDomainBundle,
+} from './ported-domain-wiring.js';
+// Borjie ported-platform wiring (Batch 3 — 5 platform bundles, structure inherited).
 // Bundles security-hardening + document-ai + progressive-intelligence +
 // document-quality-guarantor + audio-capture. Each ships a pre-wired
 // facade with safe defaults (in-memory stores / mock ports) plus the
 // raw namespace export so consumers can swap in concrete adapters.
 import {
-  createLitfinPlatformBundle,
-  type LitfinPlatformBundle,
-} from './litfin-platform-wiring.js';
-// LITFIN-port wave wiring (Batch 4 — 6 agent-stack bundles).
+  createPortedPlatformBundle,
+  type PortedPlatformBundle,
+} from './ported-platform-wiring.js';
+// Borjie ported-agent-stack wiring (Batch 4 — 6 agent-stack bundles, structure inherited).
 // Bundles agent-runtime + mcp + agent-orchestrator + open-coding-agent-
 // patterns + openclaw-operating-model + agentic-os. Brain-dependent
 // members are namespace-only (no safe defaults without an LLM key);
 // the OpenClaw operating-model facade is pre-wired async via a
 // Promise slot (same pattern as cross-portal bus).
 import {
-  createLitfinAgentStackBundle,
-  type LitfinAgentStackBundle,
-} from './litfin-agent-stack-wiring.js';
+  createPortedAgentStackBundle,
+  type PortedAgentStackBundle,
+} from './ported-agent-stack-wiring.js';
 // P75 follow-up — per-tenant brain-dependent agent-stack assembly. The
-// LITFIN bundle exposes namespaces only because the brain port must be
+// The ported-agent-stack bundle exposes namespaces only because the brain port must be
 // tenant-scoped (every Anthropic call debits the correct tenant's
 // budget cap). This factory + LRU+TTL cache resolves a fully-wired
 // AgentStack (brain + orchestrator + open-coding + agent-runtime
@@ -855,10 +855,10 @@ export interface ServiceRegistry {
   readonly crossOrgDenialRecorder: CrossOrgDenialRecorderBundle;
 
   /**
-   * LITFIN-port batch 1 — 5 utility namespaces exposed via DI.
+   * Ported-utilities batch 1 — 5 utility namespaces exposed via DI (structure inherited from pre-fork lineage).
    *
    * Always non-null in both degraded + live modes (every member is a
-   * pure-function surface). Consumers reach for `litfinUtilities.<pkg>.<fn>`
+   * pure-function surface). Consumers reach for `portedUtilities.<pkg>.<fn>`
    * to avoid scattering raw package imports across the codebase. The
    * downstream consumers per package:
    *   - `auditHashChain` — sovereign + tenant + decision audit
@@ -872,10 +872,10 @@ export interface ServiceRegistry {
    *   - `conformalCalibrationOnline` — adaptive α-update for the
    *     forecasting confidence interval calibrator
    */
-  readonly litfinUtilities: LitfinUtilitiesBundle;
+  readonly portedUtilities: PortedUtilitiesBundle;
 
   /**
-   * LITFIN-port batch 2 — 5 domain bundles exposed via DI.
+   * Ported-domain batch 2 — 5 domain bundles exposed via DI (structure inherited).
    *
    * Always non-null in both degraded + live modes. Members:
    *   - `mcpCostPersistence` — per-MCP cost tracking + health
@@ -893,10 +893,10 @@ export interface ServiceRegistry {
    *     notification namespace (per-tenant engine instantiated by
    *     the caller via `createComplianceEngine`)
    */
-  readonly litfinDomain: LitfinDomainBundle;
+  readonly portedDomain: PortedDomainBundle;
 
   /**
-   * LITFIN-port batch 3 — 5 platform-domain bundles exposed via DI.
+   * Ported-platform batch 3 — 5 platform-domain bundles exposed via DI (structure inherited).
    *
    * Always non-null in both degraded + live modes. Each bundle member
    * ships a pre-wired facade with safe defaults so the gateway boots
@@ -920,10 +920,10 @@ export interface ServiceRegistry {
    *     with no ports — every adapter is null until provider creds
    *     land. Consumers gate on `audioCaptureInstance.stt !== null`
    */
-  readonly litfinPlatform: LitfinPlatformBundle;
+  readonly portedPlatform: PortedPlatformBundle;
 
   /**
-   * LITFIN-port batch 4 — 6 agent-stack bundles exposed via DI.
+   * Ported-agent-stack batch 4 — 6 agent-stack bundles exposed via DI (structure inherited).
    *
    * Always non-null in both degraded + live modes. Most members are
    * namespace-only because they require a brain port (per-tenant,
@@ -946,7 +946,7 @@ export interface ServiceRegistry {
    *   - `agenticOS` namespace (meta-synthesis layer). Requires 5+
    *     concrete ports; namespace-only until those converge.
    */
-  readonly litfinAgentStack: LitfinAgentStackBundle;
+  readonly portedAgentStack: PortedAgentStackBundle;
 
   /**
    * P75 follow-up — per-tenant brain-dependent agent-stack factory.
@@ -1530,25 +1530,25 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // wired (in-memory sink in degraded mode). The recorder is fire-
     // and-forget; rate-limit + LRU-trim guarantee bounded memory.
     crossOrgDenialRecorder: createCrossOrgDenialRecorderBundle(),
-    // LITFIN-port batch 1 — 5 pure-function utility namespaces. Always
+    // Ported-utilities batch 1 — 5 pure-function utility namespaces. Always
     // wired (no I/O). Consumers (sleep-pass, probe cron, debate gate,
     // ACI calibrator) pull from this bundle via DI.
-    litfinUtilities: createLitfinUtilitiesBundle(),
-    // LITFIN-port batch 2 — 5 domain bundles (mcp-cost-persistence,
+    portedUtilities: createPortedUtilitiesBundle(),
+    // Ported-domain batch 2 — 5 domain bundles (mcp-cost-persistence,
     // fairness-eval, analytics, knowledge-graph, compliance-pack).
     // Always wired; in-memory facade for analytics + KG.
-    litfinDomain: createLitfinDomainBundle(),
-    // LITFIN-port batch 3 — 5 platform bundles (security-hardening,
+    portedDomain: createPortedDomainBundle(),
+    // Ported-platform batch 3 — 5 platform bundles (security-hardening,
     // document-ai, progressive-intelligence, document-quality-guarantor,
     // audio-capture). Always wired; pre-wired facades with safe
     // defaults; namespaces exposed for follow-up port wiring.
-    litfinPlatform: createLitfinPlatformBundle(),
-    // LITFIN-port batch 4 — 6 agent-stack bundles (agent-runtime, mcp,
+    portedPlatform: createPortedPlatformBundle(),
+    // Ported-agent-stack batch 4 — 6 agent-stack bundles (agent-runtime, mcp,
     // agent-orchestrator, open-coding-agent-patterns, openclaw-
     // operating-model, agentic-os). Always wired; brain-dependent
     // members are namespace-only; openclaw ships an async pre-wired
     // facade with auto-seeded shipped domains.
-    litfinAgentStack: createLitfinAgentStackBundle(),
+    portedAgentStack: createPortedAgentStackBundle(),
     // P75 follow-up — per-tenant brain-dependent agent-stack factory.
     // Degraded mode has no Anthropic key wiring, so the bundle hands
     // back a stack with `brain: null`. The factory still exposes the
@@ -2331,25 +2331,25 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // always non-null so `ensureTenantIsolation` and any other authz-
     // policy denial site can record without null-guards.
     crossOrgDenialRecorder: createCrossOrgDenialRecorderBundle(),
-    // LITFIN-port batch 1 — 5 pure-function utility namespaces (same in
+    // Ported-utilities batch 1 — 5 pure-function utility namespaces (same in
     // live mode; no I/O to swap to a Postgres adapter). Consumers pull
-    // canonical surfaces via `registry.litfinUtilities.<pkg>`.
-    litfinUtilities: createLitfinUtilitiesBundle(),
-    // LITFIN-port batch 2 — 5 domain bundles (mcp-cost-persistence,
+    // canonical surfaces via `registry.portedUtilities.<pkg>`.
+    portedUtilities: createPortedUtilitiesBundle(),
+    // Ported-domain batch 2 — 5 domain bundles (mcp-cost-persistence,
     // fairness-eval, analytics, knowledge-graph, compliance-pack).
     // Live mode is identical today; Neo4j-backed KG + per-tenant
     // compliance engines are follow-up wirings.
-    litfinDomain: createLitfinDomainBundle(),
-    // LITFIN-port batch 3 — 5 platform bundles (security-hardening,
+    portedDomain: createPortedDomainBundle(),
+    // Ported-platform batch 3 — 5 platform bundles (security-hardening,
     // document-ai, progressive-intelligence, document-quality-guarantor,
     // audio-capture). Live mode is identical today; concrete OCR /
     // STT / WebAuthn ports land via follow-up wirings.
-    litfinPlatform: createLitfinPlatformBundle(),
-    // LITFIN-port batch 4 — 6 agent-stack bundles. Live mode identical
+    portedPlatform: createPortedPlatformBundle(),
+    // Ported-agent-stack batch 4 — 6 agent-stack bundles. Live mode identical
     // today; brain-dependent members instantiated per-tenant by their
     // consumers (brain port resolves at request time via the per-tenant
     // budget-guarded Anthropic client).
-    litfinAgentStack: createLitfinAgentStackBundle(),
+    portedAgentStack: createPortedAgentStackBundle(),
     // P75 follow-up — per-tenant brain-dependent agent-stack factory.
     // Live mode threads the budget-guarded Anthropic factory through
     // the bundle so every per-tenant brain call debits the right

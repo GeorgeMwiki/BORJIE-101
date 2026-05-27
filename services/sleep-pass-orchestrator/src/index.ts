@@ -1,8 +1,9 @@
 /**
  * `@borjie/sleep-pass-orchestrator` — public surface + Fastify entrypoint.
  *
- * Always-on heartbeat orchestrator + 8 universally-applicable sleep passes
- * ported from LITFIN PROJECT/src/core/heartbeat. Production wires real
+ * Always-on heartbeat orchestrator + 8 universally-applicable sleep passes.
+ * Structure inherited from a pre-fork lineage; evolved independently as
+ * part of Borjie. Production wires real
  * adapters at the composition root; in-memory adapters under
  * `./passes/adapters` power tests + local development AND the standalone
  * pod's in-process loop until prod adapters land.

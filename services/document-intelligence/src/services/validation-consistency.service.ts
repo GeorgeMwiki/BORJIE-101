@@ -13,6 +13,7 @@ import type {
   UserId,
   CustomerId,
   DocumentId,
+  DocumentType,
   ValidationResultId,
   DocumentUpload,
   ValidationResult,
@@ -605,11 +606,11 @@ export class ValidationConsistencyService {
     const checks: ValidationCheck[] = [];
 
     // Check if all required document types are present
-    const requiredTypes = ['national_id', 'lease_agreement'];
-    const presentTypes = new Set(documents.map(d => d.documentType));
+    const requiredTypes: ReadonlyArray<DocumentType> = ['national_id', 'lease_agreement'];
+    const presentTypes = new Set<DocumentType>(documents.map(d => d.documentType));
 
     for (const requiredType of requiredTypes) {
-      const isPresent = presentTypes.has(requiredType as any);
+      const isPresent = presentTypes.has(requiredType);
 
       checks.push({
         checkType: 'document_authenticity',

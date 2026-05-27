@@ -1,5 +1,8 @@
 /**
- * LITFIN-port agent-stack composition helper (Batch 4).
+ * Borjie ported-agent-stack composition helper (Batch 4).
+ *
+ * Structure inherited from a pre-fork lineage; evolved independently as
+ * part of Borjie.
  *
  * Wires the 6-package agent stack onto `ServiceRegistry`:
  *
@@ -53,7 +56,7 @@ import {
   type OpenClawOperatingModel,
 } from '@borjie/openclaw-operating-model';
 
-export interface LitfinAgentStackBundle {
+export interface PortedAgentStackBundle {
   /** Claude-Code-parity agent runtime namespace (hooks + slash +
    *  sub-agents + skills + MCP host + memory + permissions). Async
    *  factory; instantiated by consumers per project / per worker. */
@@ -87,13 +90,13 @@ export interface LitfinAgentStackBundle {
 }
 
 /**
- * Build the LITFIN agent-stack bundle. Always non-null in both degraded
+ * Build the ported-agent-stack bundle. Always non-null in both degraded
  * and live modes; the brain-dependent members are namespace-only so the
  * gateway boots without any LLM creds. The OpenClaw facade is the only
  * pre-wired stateful member — its async construction is hidden behind
  * a Promise slot.
  */
-export function createLitfinAgentStackBundle(): LitfinAgentStackBundle {
+export function createPortedAgentStackBundle(): PortedAgentStackBundle {
   return Object.freeze({
     agentRuntime: AgentRuntimeNs,
     mcp: MCPNs,

@@ -8,7 +8,7 @@
  *   - profanity-toward-agent count > 3 in 30s     → 'profanity-burst'
  *
  * Adapter strategy:
- *   - If a `LitfinBrainPort.analyzeEmotion` is provided (e.g. Hume EVI 3),
+ *   - If a `BrainPort.analyzeEmotion` is provided (e.g. Hume EVI 3),
  *     we use that as the source of truth.
  *   - Otherwise, fall back to a deterministic heuristic over the supplied
  *     emotion timeline + transcript so unit tests are reproducible.
@@ -20,7 +20,7 @@
 import {
   type EmotionEscalation,
   type EmotionEvidence,
-  type LitfinBrainPort,
+  type BrainPort,
 } from '../types.js';
 
 export interface AnalyzeEmotionalStateArgs {
@@ -30,7 +30,7 @@ export interface AnalyzeEmotionalStateArgs {
   readonly transcript?: string;
   /** Optional total audio length for duration-based triggers. */
   readonly audioDurationMs?: number;
-  readonly brain?: LitfinBrainPort;
+  readonly brain?: BrainPort;
 }
 
 const PROFANITY_LIST: ReadonlyArray<string> = Object.freeze([

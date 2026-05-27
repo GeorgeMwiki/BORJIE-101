@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeEmotionalState } from '../index.js';
-import type { EmotionEvidence, LitfinBrainPort } from '../../types.js';
+import type { EmotionEvidence, BrainPort } from '../../types.js';
 
 describe('analyzeEmotionalState', () => {
   it('does not escalate when emotion timeline is calm', async () => {
@@ -72,7 +72,7 @@ describe('analyzeEmotionalState', () => {
 
   it('uses brain.analyzeEmotion when supplied and no timeline is given', async () => {
     let called = false;
-    const brain: LitfinBrainPort = {
+    const brain: BrainPort = {
       analyzeEmotion: async () => {
         called = true;
         return [{ timestampMs: 0, emotion: 'fear', score: 0.9 }];

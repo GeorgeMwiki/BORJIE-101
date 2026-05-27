@@ -1,10 +1,12 @@
 /**
- * LITFIN-port utilities composition helper.
+ * Borjie ported-utilities composition helper.
  *
- * Bundles 5 PO-port LITFIN packages as DI-exposed namespaces so the
- * composition root can expose them on `ServiceRegistry` and consumers
+ * Bundles 5 pure-function PO-port packages as DI-exposed namespaces so
+ * the composition root can expose them on `ServiceRegistry` and consumers
  * (sleep-pass orchestrator, sycophancy / defection probe cron, debate
  * preset, ACI calibration loop) can pull them via dependency injection.
+ * Structure inherited from a pre-fork lineage; evolved independently as
+ * part of Borjie.
  *
  * All 5 packages ship pure functions (no I/O, no DB). Wiring them
  * here means we never accidentally re-implement their logic anywhere
@@ -29,7 +31,7 @@ import * as ProbeRunners from '@borjie/probe-runners';
 import * as PropertyVoicesDebate from '@borjie/property-voices-debate';
 import * as ConformalCalibrationOnline from '@borjie/conformal-calibration-online';
 
-export interface LitfinUtilitiesBundle {
+export interface PortedUtilitiesBundle {
   /** PO-14 — hash-chain audit primitive (append + verify + rotate). */
   readonly auditHashChain: typeof AuditHashChain;
   /** PO-9 — bidirectional Anthropic Memory Tool wire adapter. */
@@ -43,12 +45,12 @@ export interface LitfinUtilitiesBundle {
 }
 
 /**
- * Build the LITFIN utilities bundle. Always non-null in both degraded
+ * Build the ported-utilities bundle. Always non-null in both degraded
  * and live mode — every member is a pure-function surface so there is
  * no I/O to short-circuit. Construction is effectively a frozen
  * namespace projection.
  */
-export function createLitfinUtilitiesBundle(): LitfinUtilitiesBundle {
+export function createPortedUtilitiesBundle(): PortedUtilitiesBundle {
   return Object.freeze({
     auditHashChain: AuditHashChain,
     memoryToolWireAdapter: MemoryToolWireAdapter,

@@ -32,10 +32,10 @@ import {
   recordConsent,
   verifyConsentBeforeStorage,
 } from './compliance-recording/index.js';
-import type { LitfinBrainPort } from './types.js';
+import type { BrainPort } from './types.js';
 
 export interface CreateAudioLogicsLitfinOptions {
-  readonly brain?: LitfinBrainPort;
+  readonly brain?: BrainPort;
   readonly evidenceSigner?: SigningKey;
   readonly biometricsAdapter?: BiometricsAdapter;
   readonly fingerprintAdapter?: FingerprintAdapter;

@@ -1,5 +1,8 @@
 /**
- * LITFIN-port domain composition helper (Batch 2).
+ * Borjie ported-domain composition helper (Batch 2).
+ *
+ * Structure inherited from a pre-fork lineage; evolved independently as
+ * part of Borjie.
  *
  * Wires 5 domain-shaped packages onto `ServiceRegistry`:
  *
@@ -47,7 +50,7 @@ import {
 } from '@borjie/knowledge-graph';
 type KnowledgeGraphInstance = ReturnType<typeof createKnowledgeGraph>;
 
-export interface LitfinDomainBundle {
+export interface PortedDomainBundle {
   /** PO-37 — MCP cost + health probe namespace. Stateful state machines
    *  are instantiated per-server via the namespace's factories. */
   readonly mcpCostPersistence: typeof McpCostPersistenceNs;
@@ -82,7 +85,7 @@ export interface LitfinDomainBundle {
 }
 
 /**
- * Build the LITFIN domain bundle.
+ * Build the ported-domain bundle.
  *
  * Same shape in degraded and live modes — every member is either a
  * pure-function namespace or an in-memory facade. Postgres / Neo4j /
@@ -90,7 +93,7 @@ export interface LitfinDomainBundle {
  * helper per concrete adapter — see e.g. `cross-org-denial-recorder-
  * wiring.ts` for the established pattern).
  */
-export function createLitfinDomainBundle(): LitfinDomainBundle {
+export function createPortedDomainBundle(): PortedDomainBundle {
   return Object.freeze({
     mcpCostPersistence: McpCostPersistenceNs,
     fairnessEval: FairnessEvalNs,

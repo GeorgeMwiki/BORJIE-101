@@ -12,7 +12,23 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import type { Context } from 'hono';
+import type { Context as HonoContext, Env } from 'hono';
+
+/**
+ * Loose route-handler context for these handlers. They're registered
+ * separately from the `zValidator()` middleware so Hono cannot infer
+ * `valid()` parameter types from the chain. We loosen the input map
+ * with the wide validator-target union (`'json' | 'param' | 'query' |
+ * 'form' | 'header' | 'cookie' | undefined`) so handlers can parse
+ * their declared schemas without each callsite re-declaring its own
+ * `Context<Env, Path, Input>` generic triple. Avoids `c: any`.
+ */
+type ValidatorTargets = 'json' | 'param' | 'query' | 'form' | 'header' | 'cookie';
+type LooseInput = {
+  in: Record<ValidatorTargets, Record<string, unknown>>;
+  out: Record<ValidatorTargets, Record<string, unknown>>;
+};
+type Context = HonoContext<Env, string, LooseInput>;
 import { securityEventsMiddleware } from '@borjie/observability';
 import {
   DocumentTypeSchema,
@@ -391,7 +407,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/documents/upload',
     zValidator('json', uploadDocumentSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       // Implementation would use DocumentCollectionService
       return successResponse(c, {
@@ -407,7 +423,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/documents/verify',
     zValidator('json', verifyDocumentSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       // Implementation would use OCRExtractionService and FraudDetectionService
       return successResponse(c, {
@@ -424,8 +440,8 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/documents/verify/batch',
     zValidator('json', verifyBatchSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
-      const body = c.req.valid('json');
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
+      const body = c.req.valid('json') as VerifyBatchInput;
       return successResponse(c, {
         documentsProcessed: body.documentIds.length,
         results: body.documentIds.map((id: string) => ({
@@ -441,7 +457,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/documents/:id/status',
     zValidator('param', documentIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { id } = c.req.valid('param');
       return successResponse(c, {
         documentId: id,
@@ -458,7 +474,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/documents/:id',
     zValidator('param', documentIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { id } = c.req.valid('param');
       return successResponse(c, {
         id,
@@ -473,7 +489,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.delete(
     '/documents/:id',
     zValidator('param', documentIdParamSchema),
-    withSecurityEvents({ action: 'document.delete', resource: 'document', severity: 'notice' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.delete', resource: 'document', severity: 'notice' }, async (c: Context) => {
       const { id } = c.req.valid('param');
       return successResponse(c, {
         id,
@@ -486,7 +502,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/documents/reupload-request',
     zValidator('json', requestReuploadSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       return successResponse(c, {
         documentId: body.documentId,
@@ -505,7 +521,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/validation/customer',
     zValidator('json', validateCustomerSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       return successResponse(c, {
         customerId: body.customerId,
@@ -523,7 +539,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/validation/:customerId/latest',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       return successResponse(c, {
         customerId,
@@ -539,7 +555,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
     '/validation/:validationId/review',
     zValidator('param', validationIdParamSchema),
     zValidator('json', recordValidationReviewSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { validationId } = c.req.valid('param');
       const body = c.req.valid('json');
       return successResponse(c, {
@@ -559,8 +575,8 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/evidence-packs/generate',
     zValidator('json', generateEvidencePackSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
-      const body = c.req.valid('json');
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
+      const body = c.req.valid('json') as z.infer<typeof generateEvidencePackSchema>;
       return successResponse(c, {
         packId: `evp_${Date.now()}`,
         title: body.title,
@@ -577,7 +593,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/evidence-packs/generate/quick',
     zValidator('json', generateQuickPackSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       return successResponse(c, {
         packId: `evp_${Date.now()}`,
@@ -592,7 +608,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/evidence-packs/:packId',
     zValidator('param', packIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { packId } = c.req.valid('param');
       return successResponse(c, {
         id: packId,
@@ -609,7 +625,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/evidence-packs/:packId/pdf',
     zValidator('param', packIdParamSchema),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { packId } = c.req.valid('param');
       return successResponse(c, {
         packId,
@@ -624,7 +640,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/evidence-packs/:packId/submit',
     zValidator('param', packIdParamSchema),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { packId } = c.req.valid('param');
       const body = await c.req.json().catch(() => ({})) as { submittedTo?: string };
       return successResponse(c, {
@@ -640,7 +656,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/evidence-packs/customer/:customerId',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       return successResponse(c, {
         customerId,
@@ -658,7 +674,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/identity/:customerId/badges',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       return successResponse(c, {
         customerId,
@@ -679,7 +695,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/identity/badges',
     zValidator('json', createBadgeSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       return successResponse(c, {
         id: `badge_${Date.now()}`,
@@ -696,7 +712,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
     '/identity/badges/:badgeId/revoke',
     zValidator('param', badgeIdParamSchema),
     zValidator('json', revokeBadgeSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { badgeId } = c.req.valid('param');
       const body = c.req.valid('json');
       return successResponse(c, {
@@ -712,7 +728,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/identity/:customerId/profile',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       // Identity lookup is not yet wired to the real repository — return
       // 501 rather than a hardcoded "John Doe" so production callers can
@@ -739,7 +755,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/fraud/:id/score',
     zValidator('param', documentIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { id } = c.req.valid('param');
       return successResponse(c, {
         documentId: id,
@@ -755,7 +771,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/fraud/customer/:customerId',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       return successResponse(c, {
         customerId,
@@ -772,7 +788,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
     '/fraud/:fraudScoreId/review',
     zValidator('param', fraudScoreIdParamSchema),
     zValidator('json', recordFraudReviewSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { fraudScoreId } = c.req.valid('param');
       const body = c.req.valid('json');
       return successResponse(c, {
@@ -791,7 +807,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/expiry/trackers',
     zValidator('json', createExpiryTrackerSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const body = c.req.valid('json');
       return successResponse(c, {
         id: `exp_${Date.now()}`,
@@ -809,7 +825,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/expiry/trackers/:trackerId',
     zValidator('param', trackerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { trackerId } = c.req.valid('param');
       return successResponse(c, {
         id: trackerId,
@@ -824,7 +840,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
     '/expiry/customer/:customerId',
     zValidator('param', customerIdParamSchema),
     zValidator('query', expiryQuerySchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       const query = c.req.valid('query');
       return successResponse(c, {
@@ -843,7 +859,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/expiry/expiring-soon',
     zValidator('query', expiryQuerySchema),
-    async (c: any) => {
+    async (c: Context) => {
       const query = c.req.valid('query');
       return successResponse(c, {
         trackers: [],
@@ -861,7 +877,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/expiry/expired',
     zValidator('query', paginationQuerySchema),
-    async (c: any) => {
+    async (c: Context) => {
       const query = c.req.valid('query');
       return successResponse(c, {
         trackers: [],
@@ -878,7 +894,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/expiry/trackers/:trackerId/acknowledge',
     zValidator('param', trackerIdParamSchema),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { trackerId } = c.req.valid('param');
       return successResponse(c, {
         id: trackerId,
@@ -892,7 +908,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/expiry/trackers/:trackerId/renew',
     zValidator('param', trackerIdParamSchema),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
       const { trackerId } = c.req.valid('param');
       const body = await c.req.json().catch(() => ({})) as { newDocumentId?: string; newExpiresAt?: string };
       return successResponse(c, {
@@ -905,7 +921,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   );
 
   // POST /expiry/process-reminders - Process pending reminders (called by scheduler)
-  app.post('/expiry/process-reminders', withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
+  app.post('/expiry/process-reminders', withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
     return successResponse(c, {
       processed: 0,
       remindersSent: 0,
@@ -918,8 +934,8 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.post(
     '/expiry/missing-document-chaser',
     zValidator('json', sendMissingDocChaserSchema, validationErrorHook),
-    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: any) => {
-      const body = c.req.valid('json');
+    withSecurityEvents({ action: 'document.create', resource: 'document', severity: 'info' }, async (c: Context) => {
+      const body = c.req.valid('json') as z.infer<typeof sendMissingDocChaserSchema>;
       return successResponse(c, {
         customerId: body.customerId,
         missingDocumentsCount: body.missingDocumentTypes.length,
@@ -930,7 +946,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   );
 
   // GET /expiry/statistics - Get expiry statistics
-  app.get('/expiry/statistics', async (c: any) => {
+  app.get('/expiry/statistics', async (c: Context) => {
     return successResponse(c, {
       total: 0,
       active: 0,
@@ -949,7 +965,7 @@ export function createDocumentIntelligenceRoutes(deps?: DocumentIntelligenceRout
   app.get(
     '/progress/:customerId',
     zValidator('param', customerIdParamSchema),
-    async (c: any) => {
+    async (c: Context) => {
       const { customerId } = c.req.valid('param');
       return successResponse(c, {
         customerId,

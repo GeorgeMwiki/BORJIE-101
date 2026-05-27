@@ -1,7 +1,7 @@
 /**
  * Per-tenant brain-dependent agent-stack composition (P75 follow-up).
  *
- * The LITFIN-port batch-4 wiring (`litfin-agent-stack-wiring.ts`) ships
+ * The ported-agent-stack batch-4 wiring (`ported-agent-stack-wiring.ts`) ships
  * the 6 packages as namespaces because their brain-dependent factories
  * (`createOrchestrator({ brain })`, `createOpenCodingAgent({ brain })`,
  * `createAgentRuntime({ projectPath, brain? })`) cannot be statically

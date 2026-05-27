@@ -327,7 +327,7 @@ export interface BrainAnalysisInput {
   readonly audioMs?: number;
 }
 
-export interface LitfinBrainPort {
+export interface BrainPort {
   /** Coarse emotion analysis fallback when no Hume-style adapter is wired. */
   readonly analyzeEmotion?: (
     input: BrainAnalysisInput,
