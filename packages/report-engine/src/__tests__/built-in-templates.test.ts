@@ -23,13 +23,16 @@ import {
 } from '../index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+// Migration was moved to `.archive/migrations/` during the wave 10E
+// mechanical cleanup (commit dcf89c1) — it's still the canonical
+// source for the seed rows we mirror in BUILT_IN_TEMPLATES.
 const MIGRATION_PATH = join(
   here,
   '..',
   '..',
   '..',
   'database',
-  'src',
+  '.archive',
   'migrations',
   '0208_report_templates.sql',
 );
