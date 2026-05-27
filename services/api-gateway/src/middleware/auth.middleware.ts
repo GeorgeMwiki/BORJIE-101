@@ -146,6 +146,8 @@ export interface AuthContext {
   sessionId?: string;
   tokenExp?: number;
   tokenIat?: number;
+  /** Optional customerId for customer-portal accounts (BFF scope). */
+  customerId?: string;
 }
 
 export interface JWTPayload {

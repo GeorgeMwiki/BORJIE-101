@@ -21,6 +21,8 @@ export interface AuthContext {
   role: UserRole;
   permissions: string[];
   propertyAccess: string[];
+  /** Optional customerId for customer-portal accounts (BFF scope). */
+  customerId?: string;
 }
 
 export interface JWTPayload {

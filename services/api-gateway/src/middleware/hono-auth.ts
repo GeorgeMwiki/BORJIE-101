@@ -35,6 +35,10 @@ export interface AuthContext {
   jti?: string;
   /** Token expiry epoch seconds — paired with jti for blocklist TTL. */
   exp?: number;
+  /** Customer-portal accounts carry a denormalised customerId on the auth
+   *  context so BFF routes can scope queries without a second join. The
+   *  field is optional: only customer-facing JWTs include it. */
+  customerId?: string;
 }
 
 export interface JWTPayload {
