@@ -1,0 +1,55 @@
+{
+  "name": "@borjie/market-intelligence",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Tanzania mining market intelligence — gold/copper/tanzanite tracking, 90-day demand forecasts (p5/p50/p95 bands), disruption alerts (logistics/regulatory/weather/geopolitics), and buy/sell signals with causal reasoning. Wraps @borjie/mining-commodity-intelligence, @borjie/forecasting-engine, @borjie/proactive-intel, @borjie/anomaly-detection, @borjie/causal-inference, @borjie/fx-treasury-advisor, @borjie/observability, @borjie/ocsf-emitter behind injected Ports so unit tests stay deterministic. Tenant-isolated; emits OSHA-TZ / TMAA regulatory context tags.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@borjie/mining-commodity-intelligence": "workspace:*",
+    "@borjie/forecasting-engine": "workspace:*",
+    "@borjie/forecasting": "workspace:*",
+    "@borjie/proactive-intel": "workspace:*",
+    "@borjie/anomaly-detection": "workspace:*",
+    "@borjie/causal-inference": "workspace:*",
+    "@borjie/fx-treasury-advisor": "workspace:*",
+    "@borjie/observability": "workspace:*",
+    "@borjie/ocsf-emitter": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/mining-commodity-intelligence": { "optional": true },
+    "@borjie/forecasting-engine": { "optional": true },
+    "@borjie/forecasting": { "optional": true },
+    "@borjie/proactive-intel": { "optional": true },
+    "@borjie/anomaly-detection": { "optional": true },
+    "@borjie/causal-inference": { "optional": true },
+    "@borjie/fx-treasury-advisor": { "optional": true },
+    "@borjie/observability": { "optional": true },
+    "@borjie/ocsf-emitter": { "optional": true }
+  }
+}
