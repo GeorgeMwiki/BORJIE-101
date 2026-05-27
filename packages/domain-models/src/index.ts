@@ -125,9 +125,21 @@ export * as Occupancy from './lease/occupancy';
 
 // Payments
 export * from './payments/payment-intent';
-// payment-method defines local PaymentMethodType that shadows common/enums;
-// expose it under a namespace instead.
-export * as PaymentMethod from './payments/payment-method';
+// BORJIE-42: payment-method was previously namespaced because the file
+// declared its own PaymentMethodType. That symbol does not exist in
+// common/enums (only PaymentMethod itself does, and we already skip
+// re-exporting PaymentMethod from common/enums on line ~21), so the
+// namespace wrapper was unnecessary. Flatten so api-client consumers
+// can import `PaymentMethod`, `PaymentMethodId`, `PaymentMethodType`,
+// etc. directly.
+export * from './payments/payment-method';
+
+// BORJIE-42: aliases for api-client surface. Some api-client services
+// were authored against an earlier draft of these names; preserve both
+// forms so existing payment-intent consumers keep working AND the
+// api-client compiles without further import rewrites.
+export type { PaymentStatus as PaymentIntentStatus } from './common/enums';
+export type { PaymentIntentType as PaymentType } from './payments/payment-intent';
 
 // Financial — each module exports its own mark*/assign*/resolve* helpers
 // with the same names. Namespace them.
@@ -146,9 +158,14 @@ export * from './ledger/ledger-entry';
 // Statements
 export * from './statements/statement';
 
-// Maintenance and work orders — work-order.ts re-exports VendorId from
-// vendor.ts; expose both via namespaces.
-export * as WorkOrder from './maintenance/work-order';
+// Maintenance and work orders.
+// BORJIE-42: work-order.ts previously re-declared VendorId/asVendorId,
+// which forced this module to live behind a `WorkOrder` namespace
+// wrapper. work-order.ts now imports VendorId as a type from vendor.ts,
+// so the module is safe to flat-export. This unblocks api-client
+// services (work-orders.ts, sla.ts) which need direct WorkOrderId /
+// WorkOrderStatus / WorkOrderPriority / WorkOrderCategory imports.
+export * from './maintenance/work-order';
 export * from './maintenance/inspection';
 export * from './maintenance/vendor';
 export * from './maintenance/vendor-scorecard';

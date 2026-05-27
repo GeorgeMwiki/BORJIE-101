@@ -8,16 +8,15 @@ import type { Money } from '../common/money';
 import type { CustomerId } from '../payments/payment-intent';
 import type { PropertyId } from '../property/property';
 import type { UnitId } from '../property/unit';
+// BORJIE-42: VendorId / asVendorId previously duplicated here AND in vendor.ts —
+// the duplicate was the only reason this module needed a namespace wrapper.
+// Import them as types from vendor.ts instead so this module can be flat-exported.
+import type { VendorId } from './vendor';
 
 export type WorkOrderId = Brand<string, 'WorkOrderId'>;
-export type VendorId = Brand<string, 'VendorId'>;
 
 export function asWorkOrderId(id: string): WorkOrderId {
   return id as WorkOrderId;
-}
-
-export function asVendorId(id: string): VendorId {
-  return id as VendorId;
 }
 
 /** Work order priority */
@@ -368,8 +367,15 @@ export function scheduleWorkOrder(
   };
 }
 
-/** Start work on order */
-export function startWork(
+/**
+ * Start work on a work order.
+ *
+ * BORJIE-42: renamed from `startWork` to `startWorkOrder` to avoid a
+ * symbol collision with `operations/dispatch-event.ts#startWork`. The
+ * old name was only reachable via the `WorkOrder.startWork` namespace
+ * prefix which had no callers outside this package.
+ */
+export function startWorkOrder(
   workOrder: WorkOrder,
   notes: string | null,
   updatedBy: UserId
