@@ -118,8 +118,8 @@ export function meterCall(args: MeterCallArgs): CostMeterEvent {
     {
       inputTokens: args.inputTokens,
       outputTokens: args.outputTokens,
-      cacheReadTokens: args.cacheReadTokens,
-      cacheWriteTokens: args.cacheWriteTokens,
+      ...(args.cacheReadTokens !== undefined && { cacheReadTokens: args.cacheReadTokens }),
+      ...(args.cacheWriteTokens !== undefined && { cacheWriteTokens: args.cacheWriteTokens }),
     },
     pricing,
   );
