@@ -22,14 +22,63 @@ export interface EntityRecord {
   readonly identifiers: Readonly<Record<string, string>>;
 }
 
+/**
+ * Canonical abbreviation expansion table (Mr. Mwikila / FIX-68).
+ *
+ * Why: tokens like "Apts" vs "Apartments" share zero set-intersection in
+ * Jaccard and have a large edit distance once you cross the cap. Expanding
+ * known canonical abbreviations *before* tokenisation lets the existing
+ * similarity scoring recognise the underlying identity without raising
+ * thresholds globally (which would also let unrelated near-matches merge).
+ *
+ * Scope is intentionally narrow: real-estate / legal-entity / common
+ * directional terms that LITFIN entity resolution already encounters in
+ * production fixtures. Extend conservatively — every entry widens recall
+ * but also slightly increases false-positive risk.
+ */
+const ABBREVIATIONS: Readonly<Record<string, string>> = {
+  // Real estate
+  apt: 'apartments',
+  apts: 'apartments',
+  bldg: 'building',
+  bldgs: 'buildings',
+  ste: 'suite',
+  fl: 'floor',
+  hts: 'heights',
+  mgmt: 'management',
+  // Legal entity / org suffixes (commonly shortened)
+  co: 'company',
+  corp: 'corporation',
+  ltd: 'limited',
+  intl: 'international',
+  // Directional / street-style tokens (helpful for property/address kinds)
+  st: 'street',
+  ave: 'avenue',
+  rd: 'road',
+  blvd: 'boulevard',
+  dr: 'drive',
+  ln: 'lane',
+  n: 'north',
+  s: 'south',
+  e: 'east',
+  w: 'west',
+};
+
+const expandAbbreviations = (parts: readonly string[]): readonly string[] =>
+  parts.map((p) => ABBREVIATIONS[p] ?? p);
+
 const normalize = (s: string): string =>
-  s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  expandAbbreviations(
+    s
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter((t) => t.length > 0),
+  ).join(' ');
 
 const tokens = (s: string): readonly string[] => normalize(s).split(' ').filter((t) => t.length > 0);
 
@@ -70,7 +119,19 @@ export const editDistanceCapped = (a: string, b: string, cap: number): number =>
   return Math.min(prev[n] ?? cap, cap);
 };
 
-/** Default per-kind decision thresholds. Property requires high confidence. */
+/**
+ * Default per-kind decision thresholds.
+ *
+ * Score interpretation (combo = 0.6·jaccard + 0.4·editScore):
+ *   - score ≥ threshold              → merge
+ *   - threshold − reviewBand ≤ score → needs-review (human-in-the-loop)
+ *   - score < threshold − reviewBand → keep-separate
+ *
+ * Property requires the highest confidence (assets are material). Org is
+ * lowest because legal-entity suffixes ("Plc", "Limited") create natural
+ * near-misses that are usually safe to merge once normalised. `reviewBand`
+ * default is 0.08 (see `ResolutionOptions.reviewBandWidth`).
+ */
 export const DEFAULT_KIND_THRESHOLD: Readonly<Record<EntityKind, number>> = {
   person: 0.78,
   org: 0.7,
