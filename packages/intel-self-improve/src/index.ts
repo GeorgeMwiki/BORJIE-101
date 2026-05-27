@@ -5,7 +5,7 @@
  * Tanzanian mining operators. Companion spec:
  * Docs/DESIGN/INTELLIGENCE_SELF_IMPROVE_WIRING_2026.md.
  *
- * Six concerns exposed:
+ * Eight concerns exposed:
  *
  *   - types               — MeasuredCapability + IntelInvocationContext +
  *                           OutcomeObservation + IntelKind enumeration.
@@ -17,8 +17,10 @@
  *   - measurers           — per-kind ground-truth measurers that reduce
  *                           raw observations to competence + calibration
  *                           + utility axes (capability-catalogue scoring).
- *   - observe             — outcome-observer cron worker.
- *   - curate              — intel-trace curator that shapes training pairs.
+ *   - observe             — outcome-observer cron worker that attaches
+ *                           ground truth to pending audit rows.
+ *   - curate              — intel-trace curator that shapes training pairs
+ *                           for the meta-learning conductor.
  *   - repositories        — port + in-memory + SQL adapters for the two
  *                           tenant-scoped tables backing migration 0072.
  *
@@ -53,6 +55,59 @@ export {
   type IdGen,
   type WrapAsMeasuredDeps,
 } from './wrap/wrap-as-measured.js';
+
+// ── Verifiers ─────────────────────────────────────────────────────────
+export {
+  createAllIntelVerifiers,
+  createAnomalyPrecisionRecallVerifier,
+  createCausalRefutationStableVerifier,
+  createForecastIntervalCoverageVerifier,
+  createGraphQueryNonEmptyVerifier,
+  createRecommendationHitRateVerifier,
+  createStatResultShapeVerifier,
+  type AnomalyPrecisionRecallInputs,
+  type CausalRefutationInputs,
+  type ForecastIntervalCoverageInputs,
+  type GraphQueryNonEmptyInputs,
+  type RecommendationHitRateInputs,
+  type StatResultShapeInputs,
+} from './verifiers/intel-builtins.js';
+
+// ── Measurers ─────────────────────────────────────────────────────────
+export {
+  measureForecasts,
+  type ForecastMeasurementResult,
+  type ForecastObservation,
+} from './measure/forecast-measurer.js';
+export {
+  measureAnomalies,
+  type AnomalyMeasurementResult,
+  type AnomalyObservation,
+} from './measure/anomaly-measurer.js';
+export {
+  measureRecommendations,
+  type RecommendationMeasurementResult,
+  type RecommendationObservation,
+} from './measure/recommendation-measurer.js';
+
+// ── Observe ───────────────────────────────────────────────────────────
+export {
+  runOutcomeObserverTick,
+  type OutcomeFeedPort,
+  type OutcomeFeedSnapshot,
+  type OutcomeObserverConfig,
+  type OutcomeObserverDeps,
+  type OutcomeObserverTickResult,
+} from './observe/outcome-observer.js';
+
+// ── Curate ────────────────────────────────────────────────────────────
+export {
+  curateIntelTrainingPairs,
+  DEFAULT_INTEL_CURATOR_CONFIG,
+  shapeIntelTrainingPair,
+  type IntelCuratorConfig,
+  type IntelTrainingPair,
+} from './curate/intel-trace-curator.js';
 
 // ── Repositories ──────────────────────────────────────────────────────
 export {
