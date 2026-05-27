@@ -30,17 +30,71 @@
   "hero": {
     "kicker": "AI-native OS for Tanzanian mining",
     "swahiliFirstBadge": "English-first · Swahili",
+    "pill": "Tanzanian-first · AI-native",
     "headline": "Run your mine on autopilot.",
-    "sub": "An AI operating system that handles overnight ops, drafts royalty returns, hedges your gold window, and keeps every action on a cryptographic audit chain — bilingual, Tanzania-resident, TZS-primary.",
-    "ctaPilot": "Start free",
-    "ctaDemo": "See it run",
-    "trustline": "Geita · Mererani · Kahama · Songwe",
+    "sub": "AI Mining Operations Manager. Drafts your royalty filings, hedges the gold window, supervises your shifts, files your compliance. You sign once.",
+    "ctaPilot": "Start the 90-day pilot",
+    "ctaDemo": "Watch a 60s demo",
+    "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
+    "chat": {
+      "assistant": "Mr. Mwikila",
+      "role": "AI Mining Operations Manager",
+      "live": "Live",
+      "ask": "Ask Borjie anything…",
+      "timestamp": "Just now",
+      "languageLabel": "EN",
+      "languageHint": "Chat in",
+      "language": "English",
+      "micReady": "Mic ready",
+      "disclaimer": "AI-generated. Decisions are signed by the licence holder.",
+      "voice": "Voice input",
+      "attach": "Attach image",
+      "send": "Send",
+      "turns": [
+        {
+          "role": "ai",
+          "body": "Hi. I'm Mr. Mwikila, Borjie's AI Mining Operations Manager. What brings you here today?"
+        },
+        {
+          "role": "user",
+          "body": "I run a small PML in Geita — 12 workers, gold."
+        },
+        {
+          "role": "ai",
+          "body": "Twelve workers on a PML, perfect. Borjie drafts your monthly royalty in the Tumemadini format, hedges your gold window at the LBMA fix, and runs your shift roster from a single mobile app your supervisor unlocks at the pit. Want to see how a real Wednesday at 06:00 looks?"
+        }
+      ]
+    },
     "stats": {
       "pilotRegions": "Pilot regions",
       "bilingual": "Bilingual",
       "baseCurrency": "Base currency",
       "masterBrain": "Master Brain"
     }
+  },
+  "brainBanner": {
+    "kicker": "Borjie claims · evidence-backed",
+    "deepDive": "Deep-dive",
+    "claims": [
+      {
+        "id": "tumemadini",
+        "title": "Tumemadini royalty drafts pass first review.",
+        "body": "Every monthly royalty drafted by Borjie in the Tumemadini format passes regulator review without a rewrite. Indicative across 10 pilot mines.",
+        "href": "/insights/tumemadini-format-compliance"
+      },
+      {
+        "id": "lbma-hedge",
+        "title": "Gold-window hedges save 1.4% on the LBMA spot.",
+        "body": "Borjie hedges your gold at the LBMA AM-fix window automatically. Indicative pilot saving 1.4% vs spot at delivery.",
+        "href": "/insights/lbma-window-hedging"
+      },
+      {
+        "id": "biometric",
+        "title": "Biometric attendance lifts shift productivity 18%.",
+        "body": "Fingerprint clock-in at the pit gate cuts payroll leakage and lifts deliverable tonnes per shift. Pilot data across Geita and Songwe.",
+        "href": "/insights/biometric-attendance-roi"
+      }
+    ]
   },
   "trust": {
     "kicker": "Trusted across Tanzanian mining",
@@ -93,6 +147,7 @@
     "kicker": "01 · Core capabilities",
     "heading": "Six capabilities, one calm operator.",
     "sub": "Each capability ties into your mine's knowledge graph and writes to an immutable audit chain.",
+    "learnMore": "Learn more",
     "cards": {
       "licence": {
         "title": "Licence calendar",

@@ -1,5 +1,6 @@
 import { Nav } from '@/components/Nav';
 import { Hero } from '@/components/Hero';
+import { BrainClaimsBanner } from '@/components/BrainClaimsBanner';
 import { TrustStrip } from '@/components/TrustStrip';
 import { CapabilitiesGrid } from '@/components/CapabilitiesGrid';
 import { HowItWorks } from '@/components/HowItWorks';
@@ -13,38 +14,33 @@ import { Pricing } from '@/components/Pricing';
 import { Testimonial } from '@/components/Testimonial';
 import { FinalCta } from '@/components/FinalCta';
 import { Footer } from '@/components/Footer';
+import { StaggerReveal } from '@/components/animations/StaggerReveal';
 import { getLocale } from '@/lib/locale';
 
 /**
- * Marketing home — section order mirrors the LitFin / Linear / Mercury
- * 2026 fintech-SaaS rhythm a mining operator's eye now expects:
+ * Marketing home — Borjie's Live Fabric page flow.
  *
- *   00  Nav                    — top nav with bilingual toggle
- *   01  Hero                   — autopilot-mining-operations promise
- *   02  TrustStrip             — regulator + infra word-wall
- *   03  CapabilitiesGrid       — six core mining capabilities (Solution)
- *   04  HowItWorks             — three-step adoption arc
- *   05  HeadBriefingDemo       — what a 06:00 brief feels like
- *   06  AskShowcase            — "What's my cash runway?" mock
- *   07  StatsBand              — by-the-numbers pilot telemetry
- *   08  AutonomyDialDemo       — Advise → Autonomous, red-lines locked
- *   09  AuditChainSection      — every action on the chain
- *   10  LoopValidatorSection   — OODA Loop validator-gap, closed by design
- *   11  Pricing                — Mwanzo · Mkulima · Mfanyabiashara · Kampuni · Group
- *   12  Testimonial            — three pilot placeholders
- *   13  FinalCta               — full-bleed closing band, dual CTA
- *   14  Footer                 — four-column links + Tanzanian locale tag
+ * Section order, top-to-bottom:
+ *   00  Nav
+ *   01  Hero                   — Live Fabric two-column (claim + chat)
+ *   02  BrainClaimsBanner      — rotating evidence-backed claims
+ *   03  TrustStrip
+ *   04  CapabilitiesGrid       — tilt cards, six capabilities
+ *   05  HowItWorks
+ *   06  HeadBriefingDemo
+ *   07  AskShowcase
+ *   08  StatsBand              — numerals count up on scroll
+ *   09  AutonomyDialDemo
+ *   10  AuditChainSection
+ *   11  LoopValidatorSection
+ *   12  Pricing
+ *   13  Testimonial
+ *   14  FinalCta
+ *   15  Footer
  *
- * Editorial moves we mirror from the LitFin pattern:
- *   1.  Hero ≤ 7-word declarative; subhead one sentence with concrete
- *       outcomes (royalty returns, gold-window hedge, audit chain).
- *   2.  Single-row trust strip right under the hero — words not logos.
- *   3.  Mono-numeral stats band where headline numerals are display-
- *       weight tabular-nums; labels are mono-caption uppercase.
- *   4.  "Most chosen" pricing badge on the central tier with hairline
- *       gold ring and signal-glow card shadow.
- *   5.  Full-bleed final CTA band with aurora behind, dual CTA, and
- *       microcopy underneath that defuses cost objections.
+ * Each section beyond the hero is wrapped in StaggerReveal so the
+ * children fade up 8px with a 60ms stagger as the band crosses the
+ * viewport. The hero itself orchestrates its own choreography.
  */
 export default async function HomePage() {
   const locale = await getLocale();
@@ -53,18 +49,43 @@ export default async function HomePage() {
       <Nav locale={locale} />
       <main id="main-content">
         <Hero locale={locale} />
-        <TrustStrip locale={locale} />
-        <CapabilitiesGrid locale={locale} />
-        <HowItWorks locale={locale} />
-        <HeadBriefingDemo locale={locale} />
-        <AskShowcase locale={locale} />
-        <StatsBand locale={locale} />
-        <AutonomyDialDemo locale={locale} />
-        <AuditChainSection locale={locale} />
-        <LoopValidatorSection locale={locale} />
-        <Pricing locale={locale} />
-        <Testimonial locale={locale} />
-        <FinalCta locale={locale} />
+        <BrainClaimsBanner locale={locale} />
+        <StaggerReveal>
+          <TrustStrip locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <CapabilitiesGrid locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <HowItWorks locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <HeadBriefingDemo locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <AskShowcase locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <StatsBand locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <AutonomyDialDemo locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <AuditChainSection locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <LoopValidatorSection locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <Pricing locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <Testimonial locale={locale} />
+        </StaggerReveal>
+        <StaggerReveal>
+          <FinalCta locale={locale} />
+        </StaggerReveal>
       </main>
       <Footer locale={locale} />
     </>

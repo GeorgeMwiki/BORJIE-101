@@ -1,21 +1,43 @@
 import { getMessages, type Locale } from '@/lib/i18n';
+import { CountUp } from '@/components/animations/CountUp';
 
 /**
- * StatsBand — the "by the numbers" band LitFin and the broader 2026
- * fintech SaaS pattern uses to convert hero promise into measurable
- * proof. Big mono numerals, faint editorial labels, a single subtle
- * delta chip per stat that mirrors the daily-brief stat tile.
+ * StatsBand — four big numerals that count up from 0 to their target
+ * value when the band enters the viewport. Tabular-nums mono digits keep
+ * the columns visually stable while the count animates.
  *
- * Stats are sourced from pilot telemetry (i18n `stats.items`). Every
- * delta is explicitly labelled "indicative" when it doesn't reflect a
- * closed deal — per the truth-first hard rule in CLAUDE.md.
- *
- * Sits between AskShowcase and AutonomyDialDemo in the homepage flow:
- * after the visitor has seen what the brain DOES (brief + Ask), the
- * stats band turns capability into outcome.
+ * Each numeral is split into prefix + numeric target + suffix so the
+ * count-up tween animates only the number portion while the surrounding
+ * label text (currency code, unit suffix) stays static.
  */
+
+interface AnimatedStat {
+  readonly key: string;
+  readonly label: string;
+  readonly prefix: string;
+  readonly target: number;
+  readonly suffix: string;
+  readonly decimals: number;
+  readonly delta: string;
+}
+
+const STATS_BY_INDEX: readonly Omit<AnimatedStat, 'label' | 'delta'>[] = [
+  { key: 'sites', prefix: '', target: 47, suffix: '', decimals: 0 },
+  { key: 'briefs', prefix: '', target: 1284, suffix: '', decimals: 0 },
+  { key: 'chain', prefix: '', target: 184, suffix: 'k', decimals: 0 },
+  { key: 'hedged', prefix: 'TZS ', target: 4.2, suffix: 'B', decimals: 1 },
+];
+
 export function StatsBand({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).stats;
+  const stats: readonly AnimatedStat[] = t.items.map((item, i) => {
+    const base = STATS_BY_INDEX[i] ?? STATS_BY_INDEX[0];
+    return {
+      ...base!,
+      label: item.label,
+      delta: item.delta,
+    };
+  });
 
   return (
     <section
@@ -38,15 +60,19 @@ export function StatsBand({ locale }: { readonly locale: Locale }) {
       </div>
 
       <dl className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border lg:grid-cols-4">
-        {t.items.map((stat) => (
-          <div key={stat.label} className="flex flex-col gap-3 bg-surface p-7">
+        {stats.map((stat) => (
+          <div key={stat.key} className="flex flex-col gap-3 bg-surface p-7">
             <dt className="font-mono text-caption uppercase tracking-widest text-neutral-400">
               {stat.label}
             </dt>
             <dd className="flex items-baseline justify-between gap-3">
-              <span className="font-display text-5xl font-medium leading-none tracking-tight text-foreground tabular-nums">
-                {stat.value}
-              </span>
+              <CountUp
+                target={stat.target}
+                prefix={stat.prefix}
+                suffix={stat.suffix}
+                decimals={stat.decimals}
+                className="font-display text-5xl font-medium leading-none tracking-tight text-foreground"
+              />
               <span className="font-mono text-caption-lg uppercase tracking-widest text-signal-500">
                 {stat.delta}
               </span>

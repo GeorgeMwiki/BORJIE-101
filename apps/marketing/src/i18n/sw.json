@@ -30,17 +30,71 @@
   "hero": {
     "kicker": "Mfumo wa AI kwa madini ya Tanzania",
     "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
+    "pill": "Tanzania-kwanza · Inayoongozwa na AI",
     "headline": "Endesha mgodi wako kwa otomatiki.",
-    "sub": "Mfumo wa uendeshaji wa AI unaoshughulikia shughuli za usiku, kuandaa royalty returns, kufunga gold-window hedge, na kuweka kila kitendo kwenye audit chain ya cryptography — lugha mbili, data Tanzania, TZS kuu.",
-    "ctaPilot": "Anza bure",
-    "ctaDemo": "Iangalie ikifanya kazi",
-    "trustline": "Geita · Mererani · Kahama · Songwe",
+    "sub": "Meneja wa Uendeshaji wa Madini wa AI. Anaandaa royalty zako, anafunga gold-window hedge, anasimamia zamu, anawasilisha compliance. Wewe unasaini mara moja tu.",
+    "ctaPilot": "Anzisha pilot ya siku 90",
+    "ctaDemo": "Tazama demo ya sekunde 60",
+    "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
+    "chat": {
+      "assistant": "Mwl. Mwikila",
+      "role": "Meneja wa Uendeshaji wa Madini wa AI",
+      "live": "Hai",
+      "ask": "Uliza Borjie chochote…",
+      "timestamp": "Sasa hivi",
+      "languageLabel": "SW",
+      "languageHint": "Ongea kwa",
+      "language": "Kiswahili",
+      "micReady": "Mic iko tayari",
+      "disclaimer": "Imetengenezwa na AI. Maamuzi yanasainiwa na mwenye leseni.",
+      "voice": "Ingiza kwa sauti",
+      "attach": "Ambatisha picha",
+      "send": "Tuma",
+      "turns": [
+        {
+          "role": "ai",
+          "body": "Habari. Mimi ni Mwl. Mwikila, Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Umekuja kwa shida gani leo?"
+        },
+        {
+          "role": "user",
+          "body": "Nina PML ndogo Geita — wafanyakazi 12, dhahabu."
+        },
+        {
+          "role": "ai",
+          "body": "Wafanyakazi 12 kwenye PML, vizuri sana. Borjie anaandaa royalty yako ya mwezi kwa muundo wa Tumemadini, anafunga gold-window kwa LBMA fix, na anaendesha ratiba ya zamu kupitia app moja ya simu ambayo supervisor wako anaifungua pit-ni. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
+        }
+      ]
+    },
     "stats": {
       "pilotRegions": "Mikoa ya pilot",
       "bilingual": "Lugha mbili",
       "baseCurrency": "Sarafu ya msingi",
       "masterBrain": "Master Brain"
     }
+  },
+  "brainBanner": {
+    "kicker": "Madai ya Borjie · yamethibitishwa",
+    "deepDive": "Soma zaidi",
+    "claims": [
+      {
+        "id": "tumemadini",
+        "title": "Royalty drafts za Tumemadini zinapita ukaguzi wa kwanza.",
+        "body": "Kila royalty ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu za mfano kutoka migodi 10 ya pilot.",
+        "href": "/insights/tumemadini-format-compliance"
+      },
+      {
+        "id": "lbma-hedge",
+        "title": "Hedges za gold-window zinaokoa 1.4% kwenye LBMA spot.",
+        "body": "Borjie anafunga dhahabu yako kwenye dirisha la LBMA AM-fix kiotomatiki. Akiba ya mfano ya 1.4% dhidi ya spot wakati wa kupokea.",
+        "href": "/insights/lbma-window-hedging"
+      },
+      {
+        "id": "biometric",
+        "title": "Mahudhurio ya kidole yanaongeza tija ya zamu 18%.",
+        "body": "Fingerprint clock-in lango la pit inapunguza upotevu wa malipo na kuongeza tani zinazotolewa kwa zamu. Data ya pilot Geita na Songwe.",
+        "href": "/insights/biometric-attendance-roi"
+      }
+    ]
   },
   "trust": {
     "kicker": "Iliyoaminika katika madini ya Tanzania",
@@ -93,6 +147,7 @@
     "kicker": "01 · Uwezo wa msingi",
     "heading": "Sita kwa moja, kwa uwazi.",
     "sub": "Kila uwezo umeunganishwa na grafu ya maarifa ya mgodi wako na chain ya audit isiyobadilika.",
+    "learnMore": "Soma zaidi",
     "cards": {
       "licence": {
         "title": "Kalenda ya Leseni",

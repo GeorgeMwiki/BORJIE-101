@@ -4,6 +4,7 @@ import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { ScrollProgressBar } from '@/components/animations/ScrollProgressBar';
 // WebVitalsReporter pulls @borjie/performance-toolkit which uses a
 // Vite-only dynamic import comment that breaks both Turbopack and
 // webpack's watcher (EMFILE). Disabled in dev — the production build
@@ -95,6 +96,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="dark">
       <body className="bg-background text-foreground antialiased min-h-screen">
+        <ScrollProgressBar />
         <a href="#main-content" className="skip-link">
           {t.skipToContent}
         </a>
