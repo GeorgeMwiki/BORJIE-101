@@ -19,6 +19,7 @@ import type {
   RentRecommendationRepository,
 } from '../dynamic-pricing/types.js';
 import { AiBudgetExceededError } from '../../cost-ledger.js';
+import type { CostLedger } from '../../cost-ledger.js';
 
 function makeRepo(): {
   repo: RentRecommendationRepository;
@@ -174,7 +175,7 @@ describe('DynamicRentOptimizer', () => {
       propose: vi.fn(),
     };
 
-    const ledger: any = {
+    const ledger: CostLedger = {
       async assertWithinBudget() {
         throw new AiBudgetExceededError({
           tenantId: 'tnt_1',

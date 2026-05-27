@@ -70,12 +70,14 @@ describe('dp-memory/pattern-aggregator', () => {
     await expect(
       agg.contribute(
         contribution({
-          filters: { jurisdiction: '00000000-0000-4000-8000-000000000000' } as any,
+          // @ts-expect-error — intentional PII filter to assert rejection
+          filters: { jurisdiction: '00000000-0000-4000-8000-000000000000' },
         }),
       ),
     ).rejects.toHaveProperty('reason', 'malformed_filters');
     await expect(
-      agg.contribute(contribution({ filters: { bucket: 'george@example.com' } as any })),
+      // @ts-expect-error — intentional PII filter (email) to assert rejection
+      agg.contribute(contribution({ filters: { bucket: 'george@example.com' } })),
     ).rejects.toHaveProperty('reason', 'malformed_filters');
   });
 

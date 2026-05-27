@@ -18,6 +18,7 @@ import type {
   ExtractedObligation,
 } from '../doc-intelligence/types.js';
 import { AiBudgetExceededError } from '../../cost-ledger.js';
+import type { CostLedger } from '../../cost-ledger.js';
 
 function makeRepo() {
   const entities: ExtractedEntity[] = [];
@@ -163,7 +164,7 @@ describe('DocumentIntelligence', () => {
     const llm: DocIntelligenceLLMPort = {
       extract: vi.fn(),
     };
-    const ledger: any = {
+    const ledger: CostLedger = {
       async assertWithinBudget() {
         throw new AiBudgetExceededError({
           tenantId: 'tnt_1',

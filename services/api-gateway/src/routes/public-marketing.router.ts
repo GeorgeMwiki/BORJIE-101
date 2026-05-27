@@ -34,6 +34,11 @@ import type { StreamTurnEvent } from '@borjie/ai-copilot';
 // gateway instance keeps its own; a shared Redis cache is a follow-up.
 const demoStore = createDemoStore();
 
+// UNIV-4: all `country: z.enum(['KE','TZ','UG',...])` enums below hardcode the
+// EA launch market set. Future expansion: import the enum values from
+// @borjie/jurisdiction-profiles. Tracked gh-issue (universal-from-day-one).
+// See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
+
 const ChatTurnSchema = z.object({
   sessionId: z.string().min(1).max(120),
   message: z.string().min(1).max(4000),

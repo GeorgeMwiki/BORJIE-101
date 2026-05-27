@@ -30,6 +30,12 @@
 // direction; the constitution should be PASSED IN as data, not pulled).
 // Keep this list in sync with
 // `packages/autonomy-governance/src/constitution/borjie-constitution.ts`.
+//
+// UNIV-4: hardcoded jurisdiction union — TZ is the launch beachhead, the
+// other 5 are EA + reserved expansion targets. When expanding beyond this
+// closed set, replace the literal union with a string-derived type backed
+// by the @borjie/jurisdiction-profiles registry. Tracked gh-issue
+// (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export type Jurisdiction = 'TZ' | 'KE' | 'UG' | 'NG' | 'RW' | 'ZA';
 
 // ---------------------------------------------------------------------------

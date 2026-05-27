@@ -64,11 +64,11 @@ describe('Task agents — degrade to no_op when ports missing', () => {
 
 describe('rent_reminder_agent — with dispatcher wired', () => {
   it('sends reminders and returns executed', async () => {
-    const sent: any[] = [];
+    const sent: Array<Record<string, unknown>> = [];
     const services = {
       notifications: {
         dispatcher: {
-          async dispatch(input: any) {
+          async dispatch(input: Record<string, unknown>) {
             sent.push(input);
             return { id: `n_${sent.length}` };
           },
@@ -115,7 +115,7 @@ describe('arrears_ladder_tick_agent — wraps the ladder task', () => {
 
 describe('payment_plan_proposer_agent — drafts plans for overdue cases', () => {
   it('calls proposer per case', async () => {
-    const calls: any[] = [];
+    const calls: Array<Record<string, unknown>> = [];
     const services = {
       listArrearsCasesOverDays: async () => [
         {
@@ -127,7 +127,7 @@ describe('payment_plan_proposer_agent — drafts plans for overdue cases', () =>
         },
       ],
       arrearsProposer: {
-        async proposePaymentPlan(input: any) {
+        async proposePaymentPlan(input: Record<string, unknown>) {
           calls.push(input);
           return { id: `prop_${calls.length}` };
         },
@@ -150,7 +150,7 @@ describe('vacancy_marketer_agent — requests marketplace publish', () => {
   it('sends request and tracks listing ID', async () => {
     const services = {
       marketplacePublishRequester: {
-        async requestListingPublish(input: any) {
+        async requestListingPublish(input: { unitId: string }) {
           return { listingId: `list_${input.unitId}` };
         },
       },

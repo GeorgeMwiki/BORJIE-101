@@ -17,6 +17,10 @@ import type { LanguageTag } from '../providers/types.js';
  * Canonical tags we route on. Keep this list aligned with the STT / TTS
  * router policy tables — adding a new language requires touching all three.
  */
+// UNIV-4: SUPPORTED_LANGUAGES hardcodes the EA/Nigeria launch language set including
+// the TZ-launch sw-TZ variant. Future expansion: drive from @borjie/language-packs
+// registry (one row per installed pack). Tracked gh-issue (universal-from-day-one).
+// See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export const SUPPORTED_LANGUAGES: readonly LanguageTag[] = [
   'en',
   'en-KE',

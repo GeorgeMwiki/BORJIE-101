@@ -1,6 +1,10 @@
 /**
  * Common payment types
  */
+// UNIV-4: CurrencyCode hardcodes EA launch currencies (TZS launch beachhead).
+// Future jurisdictions: type as ISO-4217 string derived from @borjie/jurisdiction-profiles
+// currencyCode field. Tracked gh-issue (universal-from-day-one).
+// See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export type CurrencyCode = 'KES' | 'TZS' | 'UGX' | 'USD';
 
 export interface Money {

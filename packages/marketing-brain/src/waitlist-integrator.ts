@@ -9,6 +9,9 @@
 
 import { z } from 'zod';
 
+// UNIV-4: country enum hardcodes EA launch markets (TZ + KE/UG reserved). Future
+// expansion: drive the enum from @borjie/jurisdiction-profiles. Tracked gh-issue
+// (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export const WaitlistSignupSchema = z.object({
   sessionId: z.string().min(1),
   contactName: z.string().min(1).max(200),

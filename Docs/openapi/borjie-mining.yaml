@@ -7,8 +7,6 @@ info:
 servers:
   - url: 'http://localhost:3001'
     description: Local development gateway
-  - url: 'https://api.borjie.example.com'
-    description: Production (placeholder)
 components:
   securitySchemes:
     BearerAuth:

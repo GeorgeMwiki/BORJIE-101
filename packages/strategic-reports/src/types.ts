@@ -95,6 +95,9 @@ export const PAGE_BUDGET: Readonly<Record<ReportDepth, { readonly target: number
 // Jurisdictions — aligned with `@borjie/document-studio` + authz-policy.
 // ────────────────────────────────────────────────────────────────────────────
 
+// UNIV-4: hardcoded report-jurisdiction set — TZ launch beachhead + reserved EA + NG.
+// Future jurisdictions: import this list from @borjie/jurisdiction-profiles registry.
+// Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export const REPORT_JURISDICTIONS = ['TZ', 'KE', 'UG', 'NG'] as const;
 export type ReportJurisdiction = (typeof REPORT_JURISDICTIONS)[number];
 

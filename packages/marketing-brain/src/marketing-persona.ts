@@ -89,6 +89,9 @@ export const MARKETING_METADATA = {
  * Build the full system prompt for a marketing conversation.
  * Composes the base identity (Mr. Mwikila) + marketing dimension.
  */
+// UNIV-4: visitorCountry hardcodes EA launch markets — future expansion should
+// type this as a jurisdiction-profile id from @borjie/jurisdiction-profiles.
+// Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export function buildMarketingSystemPrompt(opts: {
   readonly visitorCountry?: 'KE' | 'TZ' | 'UG' | 'RW' | 'other';
   readonly visitorRole?: 'owner' | 'tenant' | 'manager' | 'station_master' | 'unknown';

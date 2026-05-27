@@ -147,11 +147,14 @@ describe('TaskAgentExecutor', () => {
 
   it('budget-guard skip only applies when the agent declares invokesLLM=true', async () => {
     const exec = makeExecutor({
+      // Partial fixture — executor only calls `assertWithinBudget` on
+      // this branch, so we intentionally omit the other ledger methods.
+      // @ts-expect-error — partial CostLedger fixture
       costLedger: {
         async assertWithinBudget() {
           throw new Error('over budget');
         },
-      } as any,
+      },
     });
     // echoAgent has invokesLLM=false → budget-guard should not trigger.
     const out = await exec.execute({

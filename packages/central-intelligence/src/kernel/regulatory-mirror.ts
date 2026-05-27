@@ -24,6 +24,9 @@
 // zero domain-models dependency footprint (kernel ports are
 // intentionally structural). Composition root wires the data sets.
 
+// UNIV-4: hardcoded regulatory-jurisdiction union — TZ launch beachhead +
+// KE/UAE reserved. Future jurisdictions: route through @borjie/jurisdiction-profiles
+// registry. Tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export type RegulatoryJurisdiction = 'TZ' | 'KE' | 'UAE';
 
 export type RegulatoryVerdict = 'allow' | 'refuse' | 'flag';

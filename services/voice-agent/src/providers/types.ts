@@ -8,6 +8,10 @@
  * runtime without leaking vendor specifics into the persona / route layer.
  */
 
+// UNIV-4: LanguageTag union hardcodes EA + NG launch language set including
+// TZ-launch sw-TZ. When adding new jurisdictions, type this as a string-derived
+// union from @borjie/language-packs registry installed-pack list. Tracked
+// gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
 export type LanguageTag =
   | 'en'
   | 'en-KE'
