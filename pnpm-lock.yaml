@@ -120,6 +120,9 @@ importers:
       '@borjie/performance-toolkit':
         specifier: workspace:*
         version: link:../../packages/performance-toolkit
+      '@borjie/persona-runtime':
+        specifier: workspace:*
+        version: link:../../packages/persona-runtime
       '@borjie/realtime-rooms':
         specifier: workspace:*
         version: link:../../packages/realtime-rooms
@@ -244,6 +247,9 @@ importers:
 
   apps/buyer-mobile:
     dependencies:
+      '@borjie/persona-runtime':
+        specifier: workspace:*
+        version: link:../../packages/persona-runtime
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.75.0)
@@ -329,6 +335,9 @@ importers:
       typescript:
         specifier: ~5.3.3
         version: 5.3.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/marketing:
     dependencies:
@@ -402,6 +411,9 @@ importers:
       '@borjie/performance-toolkit':
         specifier: workspace:*
         version: link:../../packages/performance-toolkit
+      '@borjie/persona-runtime':
+        specifier: workspace:*
+        version: link:../../packages/persona-runtime
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.75.0)
@@ -484,6 +496,9 @@ importers:
 
   apps/workforce-mobile:
     dependencies:
+      '@borjie/persona-runtime':
+        specifier: workspace:*
+        version: link:../../packages/persona-runtime
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.75.0)
@@ -578,6 +593,9 @@ importers:
       typescript:
         specifier: ~5.3.3
         version: 5.3.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/action-runtime:
     dependencies:
@@ -1170,6 +1188,34 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.41)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/buyer-marketplace-advisor:
+    dependencies:
+      '@borjie/compliance-pack':
+        specifier: workspace:*
+        version: link:../compliance-pack
+      '@borjie/fx-treasury-advisor':
+        specifier: workspace:*
+        version: link:../fx-treasury-advisor
+      '@borjie/geo-intelligence':
+        specifier: workspace:*
+        version: link:../geo-intelligence
+      '@borjie/mining-commodity-intelligence':
+        specifier: workspace:*
+        version: link:../mining-commodity-intelligence
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/calibration-monitor:
     dependencies:
       zod:
@@ -1329,6 +1375,25 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.8.0)(jsdom@24.1.3)(vite@6.4.2)
+
+  packages/cognitive-composition:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cognitive-engine:
     dependencies:
@@ -1841,6 +1906,28 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.7
         version: 4.1.7(vitest@4.1.6)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/document-composer:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+      '@borjie/ocsf-emitter':
+        specifier: workspace:*
+        version: link:../ocsf-emitter
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -3035,6 +3122,49 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/market-intelligence:
+    dependencies:
+      '@borjie/anomaly-detection':
+        specifier: workspace:*
+        version: link:../anomaly-detection
+      '@borjie/causal-inference':
+        specifier: workspace:*
+        version: link:../causal-inference
+      '@borjie/forecasting':
+        specifier: workspace:*
+        version: link:../forecasting
+      '@borjie/forecasting-engine':
+        specifier: workspace:*
+        version: link:../forecasting-engine
+      '@borjie/fx-treasury-advisor':
+        specifier: workspace:*
+        version: link:../fx-treasury-advisor
+      '@borjie/mining-commodity-intelligence':
+        specifier: workspace:*
+        version: link:../mining-commodity-intelligence
+      '@borjie/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@borjie/ocsf-emitter':
+        specifier: workspace:*
+        version: link:../ocsf-emitter
+      '@borjie/proactive-intel':
+        specifier: workspace:*
+        version: link:../proactive-intel
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/marketing-brain:
     dependencies:
       uuid:
@@ -3249,6 +3379,34 @@ importers:
       '@borjie/observability':
         specifier: workspace:*
         version: link:../observability
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/mining-shift-planner:
+    dependencies:
+      '@borjie/assignment-registry':
+        specifier: workspace:*
+        version: link:../assignment-registry
+      '@borjie/mine-planner-advisor':
+        specifier: workspace:*
+        version: link:../mine-planner-advisor
+      '@borjie/regulatory-tz-mining':
+        specifier: workspace:*
+        version: link:../regulatory-tz-mining
+      '@borjie/workforce-orchestrator':
+        specifier: workspace:*
+        version: link:../workforce-orchestrator
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -18659,7 +18817,7 @@ packages:
   /@types/papaparse@5.5.2:
     resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
     dependencies:
-      '@types/node': 25.8.0
+      '@types/node': 22.19.19
     dev: true
 
   /@types/pbf@3.0.5:

@@ -1,0 +1,45 @@
+{
+  "name": "@borjie/mining-shift-planner",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Mining shift-planning engine — constraint solver across equipment availability, worker certifications, OSHA-TZ rest/safety rules, and fatigue scoring. Wraps workforce-orchestrator, mine-planner-advisor, regulatory-tz-mining, assignment-registry.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@borjie/workforce-orchestrator": "workspace:*",
+    "@borjie/mine-planner-advisor": "workspace:*",
+    "@borjie/regulatory-tz-mining": "workspace:*",
+    "@borjie/assignment-registry": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/workforce-orchestrator": { "optional": true },
+    "@borjie/mine-planner-advisor": { "optional": true },
+    "@borjie/regulatory-tz-mining": { "optional": true },
+    "@borjie/assignment-registry": { "optional": true }
+  }
+}
