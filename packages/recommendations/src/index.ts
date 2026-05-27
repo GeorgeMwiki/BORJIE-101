@@ -85,3 +85,36 @@ export {
   type TwoTowerPort,
   type TwoTowerOptions,
 } from './algorithms/two-tower-port.js';
+
+// Bandits
+export {
+  createThompsonSamplingBandit,
+  type ThompsonSamplingBandit,
+  type ThompsonSamplingOptions,
+  type ThompsonSamplingState,
+} from './bandits/thompson-sampling.js';
+export {
+  createLinUCBBandit,
+  type LinUCBBandit,
+  type LinUCBOptions,
+  type LinUCBState,
+} from './bandits/linucb.js';
+
+// Cold-start
+export {
+  createColdstartRouter,
+  type ColdstartOptions,
+  type ColdstartRouter,
+} from './coldstart/coldstart-strategy.js';
+
+// Diversity
+export { rerankMMR, type MMROptions } from './diversity/mmr.js';
+
+// Explain
+export {
+  createDefaultExplanationGenerator,
+  createLLMExplanationGenerator,
+  type Explanation,
+  type ExplanationPort,
+  type ExplainArgs,
+} from './explain/explanation-generator.js';
