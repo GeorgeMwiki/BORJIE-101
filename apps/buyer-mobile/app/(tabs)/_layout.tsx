@@ -20,6 +20,13 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: t('tabs.dashboard'),
+          tabBarIcon: ({ color }) => <TabIcon glyph="H" color={color} />
+        }}
+      />
+      <Tabs.Screen
         name="marketplace"
         options={{
           title: t('tabs.marketplace'),
@@ -38,6 +45,13 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.documents'),
           tabBarIcon: ({ color }) => <TabIcon glyph="D" color={color} />
+        }}
+      />
+      <Tabs.Screen
+        name="documents-intel"
+        options={{
+          title: 'Live docs',
+          tabBarIcon: ({ color }) => <TabIcon glyph="L" color={color} />
         }}
       />
       <Tabs.Screen

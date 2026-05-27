@@ -2,15 +2,22 @@
  * /api/v1/mining/incidents — safety / environmental / community incidents.
  *
  * Routes:
- *   GET   /     list (filter by siteId, kind, severity, status)
- *   POST  /     create incident report
+ *   GET   /             list (filter by siteId, kind, severity, status)
+ *   POST  /             create incident report
+ *   POST  /:id/close    mark an incident as closed (idempotent)
  *
  * Migrated to `@hono/zod-openapi` (issue #60).
+ *
+ * Closure flow (migration 0082): the close endpoint stamps closedAt /
+ * closedByUserId / closureReason on the row and flips status -> 'closed'.
+ * Already-closed rows are no-ops (200 with the existing row). The
+ * `withSecurityEvents` wrapper appends a hash-chained audit entry.
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { incidents } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
@@ -76,6 +83,93 @@ app.openapi(
         })
         .returning();
       return c.json({ success: true as const, data: row }, 201);
+    },
+  ),
+);
+
+// ---------------------------------------------------------------------------
+// POST /:id/close — terminal closure for an incident.
+//
+// Idempotent: re-closing a closed incident returns the existing row at
+// 200 without mutating closedAt / closedByUserId. Mandatory closure
+// reason; rejected on empty.
+// ---------------------------------------------------------------------------
+
+const closeBodySchema = z.object({
+  closureReason: z.string().min(1).max(2000),
+});
+
+app.post(
+  '/:id/close',
+  withSecurityEvents(
+    {
+      action: 'mining.incident.close',
+      resource: 'mining.incident',
+      severity: 'warn',
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (c: any) => {
+      const { tenantId, userId } = c.get('auth');
+      const db = c.get('db');
+      const id = c.req.param('id');
+      if (!id) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'BAD_REQUEST', message: 'id required' },
+          },
+          400,
+        );
+      }
+      const body = await c.req.json().catch(() => null);
+      const parsed = closeBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'closureReason is required',
+            },
+          },
+          400,
+        );
+      }
+
+      const [existing] = await db
+        .select()
+        .from(incidents)
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .limit(1);
+
+      if (!existing) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Incident not found' },
+          },
+          404,
+        );
+      }
+
+      // Idempotent: already closed — return existing row, no mutation.
+      if (existing.status === 'closed') {
+        return c.json({ success: true as const, data: existing }, 200);
+      }
+
+      const now = new Date();
+      const [updated] = await db
+        .update(incidents)
+        .set({
+          status: 'closed',
+          closedAt: now,
+          closedByUserId: userId,
+          closureReason: parsed.data.closureReason,
+        })
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .returning();
+
+      return c.json({ success: true as const, data: updated }, 200);
     },
   ),
 );

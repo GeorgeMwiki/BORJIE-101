@@ -144,10 +144,61 @@ export const tenants = pgTable(
      */
     region: text('region').notNull().default(PLATFORM_DEFAULT_REGION),
 
+    // ── Self-signup discriminator + locale beachhead (migration 0085) ──
+    /**
+     * Discriminator for the owner self-signup flow:
+     *   - 'individual': artisanal/single-person owner. No business reg.
+     *   - 'business':   registered company (BRELA in TZ). Requires reg
+     *                   number + TIN once kyc_status='verified'.
+     * Legacy rows default to 'business' so existing seeded tenants
+     * (which represent companies) inherit the right semantics.
+     */
+    accountKind: text('account_kind').notNull().default('business'),
+    /**
+     * Display currency preference. The platform is multi-currency
+     * (CLAUDE.md "Multi-currency, TZS-primary") so this is the user's
+     * preferred rendering currency, NOT the contract-leg currency.
+     */
+    primaryCurrency: text('primary_currency').notNull().default('TZS'),
+    /**
+     * UI language preference at the tenant level. Used to seed every
+     * new user invited into this tenant. Swahili-first per CLAUDE.md.
+     */
+    defaultLanguage: text('default_language').notNull().default('sw'),
+
+    // ── KYC atoms (migration 0085) ──
+    /** PML / PL / ML number (TZ mining licence). Voluntary at signup. */
+    miningLicenceNumber: text('mining_licence_number'),
+    /** BRELA company registration number. Business-kind only. */
+    businessRegistrationNumber: text('business_registration_number'),
+    /** TIN (TZ tax identification number). Required for businesses. */
+    taxId: text('tax_id'),
+    /** VAT number. Business-kind only, optional. */
+    vatNumber: text('vat_number'),
+    /** Bank account IBAN. Business-kind only, optional. */
+    bankAccountIban: text('bank_account_iban'),
+    /** NIDA national-ID number. Individual-kind only, voluntary. */
+    nationalIdNumber: text('national_id_number'),
+    /** Emergency / next-of-kin contact. Individual-kind only. */
+    kinContact: jsonb('kin_contact'),
+    /**
+     * KYC lifecycle:
+     *   - unverified: signup complete, no atoms cleared
+     *   - partial:    some atoms cleared (e.g. NIDA but no biometric)
+     *   - verified:   all required atoms cleared per account_kind
+     */
+    kycStatus: text('kyc_status').notNull().default('unverified'),
+    /**
+     * Array of atom slugs that the compliance-plugins have cleared.
+     * Append-only at the application layer; the migration's CHECK
+     * constraint enforces the verified-state invariant.
+     */
+    kycAtomsCompleted: jsonb('kyc_atoms_completed').notNull().default([]),
+
     // Settings
     settings: jsonb('settings').default({}),
     billingSettings: jsonb('billing_settings').default({}),
-    
+
     // Usage tracking
     maxUsers: integer('max_users').default(5),
     maxProperties: integer('max_properties').default(10),
@@ -155,7 +206,7 @@ export const tenants = pgTable(
     currentUsers: integer('current_users').default(0),
     currentProperties: integer('current_properties').default(0),
     currentUnits: integer('current_units').default(0),
-    
+
     // Trial
     trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
     
@@ -175,6 +226,12 @@ export const tenants = pgTable(
     statusIdx: index('tenants_status_idx').on(table.status),
     createdAtIdx: index('tenants_created_at_idx').on(table.createdAt),
     countryIdx: index('tenants_country_idx').on(table.country),
+    accountKindIdx: index('tenants_account_kind_idx').on(table.accountKind),
+    kycStatusIdx: index('tenants_kyc_status_idx').on(table.kycStatus),
+    countryAccountKindIdx: index('tenants_country_account_kind_idx').on(
+      table.country,
+      table.accountKind,
+    ),
   })
 );
 

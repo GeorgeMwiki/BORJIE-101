@@ -109,6 +109,8 @@ import { tendersRouter } from './routes/tenders.router';
 import geoPlatformRouter from './routes/geo-platform.router';
 // Wave 8 gap-closure routers
 import warehouseRouter from './routes/warehouse.router';
+// Wave PRE-LAUNCH-MISC — top-level currency-rates surface for FX lookups.
+import { currencyRatesRouter } from './routes/currency-rates.hono';
 import maintenanceTaxonomyRouter from './routes/maintenance-taxonomy.router';
 import iotRouter from './routes/iot.router';
 // Wave 9 enterprise polish routers
@@ -298,6 +300,8 @@ import {
   createIntelligenceHistorySupervisor,
 } from './composition/background-wiring';
 import { setBrainExtraSkills } from './composition/brain-extensions';
+import { createDrizzleDraftPersistence } from './services/document-drafter';
+import { buildDocumentDrafterTools } from './services/document-drafter/brain-tools';
 // Wave-3-int2 — brain↔tab loop composition (Piece L → Piece B handlers).
 import {
   createDispatchRouterWiring,
@@ -626,12 +630,23 @@ try {
       return queryService.answer(req);
     },
   });
-  setBrainExtraSkills([orgSkill]);
-  logger.info('brain-extensions: org.query_organization skill wired');
+
+  // Document drafter (B-DocDrafter) — register draft_contract,
+  // draft_rfp, draft_rfp_response, draft_letter, revise_draft. The
+  // persistence port uses the shared db client; RLS enforces tenant
+  // isolation at the row level on every call.
+  const draftPersistence = createDrizzleDraftPersistence(getDb());
+  const draftTools = buildDocumentDrafterTools({ persistence: draftPersistence });
+
+  setBrainExtraSkills([orgSkill, ...draftTools]);
+  logger.info(
+    { drafterToolCount: draftTools.length },
+    'brain-extensions: org.query_organization + document-drafter skills wired',
+  );
 } catch (err) {
   logger.warn(
     { err: err instanceof Error ? err.message : String(err) },
-    'brain-extensions: failed to wire org skill (non-fatal)'
+    'brain-extensions: failed to wire org / drafter skills (non-fatal)'
   );
 }
 
@@ -862,6 +877,8 @@ api.route('/geo-platform', geoPlatformRouter);
 api.route('/warehouse', warehouseRouter);
 api.route('/maintenance-taxonomy', maintenanceTaxonomyRouter);
 api.route('/iot', iotRouter);
+// Wave PRE-LAUNCH-MISC — currency-rates surface for FX lookups (latest rates only).
+api.route('/currency-rates', currencyRatesRouter);
 // Wave 9 — feature flags, GDPR right-to-be-forgotten, AI cost ledger.
 api.route('/feature-flags', featureFlagsRouter);
 api.route('/gdpr', gdprRouter);

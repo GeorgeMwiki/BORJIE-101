@@ -4,11 +4,36 @@
     "slogan": "Real minerals market"
   },
   "tabs": {
+    "dashboard": "Dashibodi",
     "marketplace": "Marketplace",
     "bids": "My Bids",
     "documents": "Documents",
     "kyc": "KYC",
     "profile": "Profile"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of your market and bids",
+    "live_lobby": "Live auctions",
+    "live": "LIVE",
+    "no_live": "No live auctions right now",
+    "recommended": "Recommended parcels",
+    "no_recommended": "No recommendations yet",
+    "active_bids": "Active bids",
+    "pipeline": "Deal pipeline",
+    "pipeline_subtitle": "KYC, payment, and dispatch milestones",
+    "pipeline_kyc": "KYC",
+    "pipeline_payment": "Payment",
+    "pipeline_dispatch": "Dispatch",
+    "performance": "Your performance",
+    "performance_subtitle": "Rolling last 90 days",
+    "win_rate": "Win rate",
+    "response_time": "Response time",
+    "deal_volume": "Deal volume",
+    "bids_placed": "Bids placed",
+    "bids_accepted": "Accepted",
+    "load_failed": "Could not load the dashboard",
+    "unauthenticated": "Please sign in to view your dashboard"
   },
   "marketplace": {
     "title": "Ore parcels",

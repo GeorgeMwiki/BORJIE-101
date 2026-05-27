@@ -53,6 +53,9 @@ export * from './ore-stockpiles.schema.js';
 // Mining-domain workforce + marketplace extensions (migration 0007)
 export * from './mining-workforce-extensions.schema.js';
 
+// Workforce Invitations — owner/admin invites + worker activation (migration 0086)
+export * from './workforce-invitations.schema.js';
+
 // ---------------------------------------------------------------------------
 // AI-OS infra (generic)
 // ---------------------------------------------------------------------------

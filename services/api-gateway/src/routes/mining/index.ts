@@ -25,6 +25,11 @@
  *   /marketplace       — public listings
  *   /bids              — bids + accept / reject
  *   /buyers/kyc        — buyer KYC submission + status
+ *   /csr-plans         — CSR commitments with delivered_pct (migration 0082)
+ *   /drafts            — document drafter (contracts, RFPs, letters, memos)
+ *   /escalations       — manager-dispatch escalation chain (migration 0081)
+ *   /approvals         — unified Linear-Triage approval queue (migration 0081)
+ *   /tasks/:id/suggest-assignee — AI-suggested assignee (rules v1)
  *   /internal/*        — admin-console SUPER_ADMIN surfaces
  */
 
@@ -51,7 +56,21 @@ import { miningPortfolioMapRouter } from './portfolio-map.hono';
 import { miningMarketplaceRouter } from './marketplace.hono';
 import { miningBidsRouter } from './bids.hono';
 import { miningBuyersKycRouter } from './buyers-kyc.hono';
+import { miningCsrPlansRouter } from './csr-plans.hono';
 import { miningDocsRouter } from './docs.hono';
+
+// Document Drafter (B-DocDrafter) — drafts of contracts / RFPs /
+// letters / notices / memos. Bilingual (sw + en) templates;
+// migration 0084.
+import { miningDraftsRouter } from './draft.hono';
+
+// Manager Dispatch (B-MgrDispatch) — escalations, approvals, AI suggest.
+// `tasks-suggest` is mounted under `/tasks` and exposes only
+// `:id/suggest-assignee`, so it coexists with `tasks.hono.ts` (owned by
+// the B-WorkerTasks wave) without endpoint collision.
+import { miningEscalationsRouter } from './escalations.hono';
+import { miningApprovalsRouter } from './approvals.hono';
+import { miningTasksSuggestRouter } from './tasks-suggest.hono';
 
 import { miningInternalTenantsRouter } from './internal/tenants.hono';
 import { miningInternalCorpusRouter } from './internal/corpus.hono';
@@ -93,6 +112,20 @@ mining.route('/portfolio-map', miningPortfolioMapRouter);
 mining.route('/marketplace', miningMarketplaceRouter);
 mining.route('/bids', miningBidsRouter);
 mining.route('/buyers', miningBuyersKycRouter);
+// /csr-plans — Corporate Social Responsibility commitments + delivered_pct
+// (migration 0082).
+mining.route('/csr-plans', miningCsrPlansRouter);
+
+// Document drafter (B-DocDrafter).
+mining.route('/drafts', miningDraftsRouter);
+
+// Manager Dispatch surfaces (B-MgrDispatch).
+mining.route('/escalations', miningEscalationsRouter);
+mining.route('/approvals', miningApprovalsRouter);
+// `tasks-suggest` only handles POST /:id/suggest-assignee — does not
+// collide with the worker tasks router endpoints (`/`, `/:id/complete`,
+// `/:id/block`, `/:id/reassign`).
+mining.route('/tasks', miningTasksSuggestRouter);
 
 // OpenAPI 3.1 static spec + Swagger UI for the mining sub-API.
 // Mount BEFORE `/internal/*` so the docs surface is open even when

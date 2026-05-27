@@ -34,6 +34,10 @@ export default function TabsLayout(): JSX.Element {
         options={{ title: t.tabs.home, headerTitle: t.tabs.home }}
       />
       <Tabs.Screen
+        name="dashboard"
+        options={{ title: t.tabs.dashboard, headerTitle: t.tabs.dashboard }}
+      />
+      <Tabs.Screen
         name="field"
         options={{
           title: t.tabs.field,
@@ -75,6 +79,14 @@ export default function TabsLayout(): JSX.Element {
           title: t.tabs.docs,
           headerTitle: t.tabs.docs,
           href: isOwner || isManager ? '/(tabs)/docs' : null
+        }}
+      />
+      <Tabs.Screen
+        name="documents"
+        options={{
+          title: 'Hati hai',
+          headerTitle: 'Hati hai',
+          href: '/(tabs)/documents'
         }}
       />
       <Tabs.Screen

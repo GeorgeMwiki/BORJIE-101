@@ -4,11 +4,36 @@
     "slogan": "Soko la madini halisi"
   },
   "tabs": {
+    "dashboard": "Dashibodi",
     "marketplace": "Soko",
     "bids": "Zabuni",
     "documents": "Mikataba",
     "kyc": "KYC",
     "profile": "Wasifu"
+  },
+  "dashboard": {
+    "title": "Dashibodi",
+    "subtitle": "Muhtasari wa soko lako na zabuni",
+    "live_lobby": "Minada hai",
+    "live": "HAI",
+    "no_live": "Hakuna minada inayoendelea sasa",
+    "recommended": "Vifurushi vilivyopendekezwa",
+    "no_recommended": "Hakuna mapendekezo bado",
+    "active_bids": "Zabuni hai",
+    "pipeline": "Mlolongo wa biashara",
+    "pipeline_subtitle": "Hatua za KYC, malipo na usafirishaji",
+    "pipeline_kyc": "KYC",
+    "pipeline_payment": "Malipo",
+    "pipeline_dispatch": "Usafirishaji",
+    "performance": "Utendaji wako",
+    "performance_subtitle": "Kwa siku 90 zilizopita",
+    "win_rate": "Asilimia ya ushindi",
+    "response_time": "Muda wa kujibu",
+    "deal_volume": "Thamani ya biashara",
+    "bids_placed": "Zabuni zilizowekwa",
+    "bids_accepted": "Zilizokubaliwa",
+    "load_failed": "Imeshindwa kupakia dashibodi",
+    "unauthenticated": "Tafadhali ingia ili kuona dashibodi"
   },
   "marketplace": {
     "title": "Vifurushi vya madini",

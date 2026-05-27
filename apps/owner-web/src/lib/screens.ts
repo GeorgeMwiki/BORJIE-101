@@ -28,6 +28,16 @@ export interface OwnerScreen {
 
 export const OWNER_SCREENS: ReadonlyArray<OwnerScreen> = [
   {
+    id: 'O-W-00',
+    slug: 'home',
+    title: 'Home — chat with Borjie',
+    titleSw: 'Nyumbani — ongea na Borjie',
+    intent:
+      'Chat-first home. Persona greeting, suggestion chips, transcript, and a sidebar of orchestrator tool calls.',
+    persona: 'Borjie Brain',
+    group: 'overview',
+  },
+  {
     id: 'O-W-01',
     slug: 'cockpit',
     title: 'Cockpit dashboard',
@@ -251,6 +261,16 @@ export const OWNER_SCREENS: ReadonlyArray<OwnerScreen> = [
     intent:
       'Live wire to POST /api/v1/brain/turn — full chat with corpus-cited evidence.',
     persona: 'Borjie Brain',
+    group: 'overview',
+  },
+  {
+    id: 'D-W-01',
+    slug: 'dashboard',
+    title: 'Dashboard',
+    titleSw: 'Dashibodi',
+    intent:
+      'Structured-status secondary view. Seven slots from /api/v1/owner/brief: AI brief, alert queue, KPI strip, production, cash + USD cliff, compliance, safety.',
+    persona: 'Report Writer + Master Brain',
     group: 'overview',
   },
 ];

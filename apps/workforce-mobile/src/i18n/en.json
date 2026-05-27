@@ -16,6 +16,7 @@
   },
   "tabs": {
     "home": "Home",
+    "dashboard": "Dashboard",
     "field": "Field",
     "decisions": "Decisions",
     "cash": "Cash",
@@ -302,7 +303,9 @@
     "W-M-20": { "title": "Driver Letter Receipt", "intent": "Tap to view + share" },
     "W-M-21": { "title": "Sync Status", "intent": "Upload queue + reconciliation" },
     "W-M-22": { "title": "Help / Training (Offline Videos)", "intent": "Voice-narrated tutorials" },
-    "photo-advisor": { "title": "Ask with a photo · Borjie Vision", "intent": "Take a photo of an area and get Borjie's advice" }
+    "photo-advisor": { "title": "Ask with a photo · Borjie Vision", "intent": "Take a photo of an area and get Borjie's advice" },
+    "home-chat": { "title": "Home · Talk to Borjie", "intent": "Type or speak — data arrives as cards" },
+    "dashboard": { "title": "Dashboard", "intent": "Your role-aware status at a glance" }
   },
   "onboarding": {
     "stepIndicator": "Step {{current}} of {{total}}",

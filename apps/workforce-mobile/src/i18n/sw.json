@@ -16,6 +16,7 @@
   },
   "tabs": {
     "home": "Nyumbani",
+    "dashboard": "Dashibodi",
     "field": "Shambani",
     "decisions": "Maamuzi",
     "cash": "Hela",
@@ -302,7 +303,9 @@
     "W-M-20": { "title": "Barua ya Dereva", "intent": "Tazama na shiriki" },
     "W-M-21": { "title": "Hali ya Sync", "intent": "Foleni + upatanisho" },
     "W-M-22": { "title": "Msaada na Mafunzo", "intent": "Video za sauti, bila mtandao" },
-    "photo-advisor": { "title": "Uliza picha · Borjie Vision", "intent": "Piga picha ya eneo, pata ushauri wa Borjie" }
+    "photo-advisor": { "title": "Uliza picha · Borjie Vision", "intent": "Piga picha ya eneo, pata ushauri wa Borjie" },
+    "home-chat": { "title": "Nyumbani · Sema na Borjie", "intent": "Andika au sema — data inakuja kama kadi" },
+    "dashboard": { "title": "Dashibodi", "intent": "Hali ya kazi yako kwa muhtasari" }
   },
   "onboarding": {
     "stepIndicator": "Hatua {{current}} kati ya {{total}}",

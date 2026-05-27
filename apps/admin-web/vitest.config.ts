@@ -71,6 +71,11 @@ export default defineConfig({
       // smoke tests. jsdom render; submitter is injected so the test
       // never reaches the Supabase auth client.
       'src/components/__tests__/**/*.test.tsx',
+      // Chat-first home Wave — HomeChat surface + brain-api unit tests.
+      // Lives under src/__tests__ so the chat-home test bundle is grouped
+      // away from the central-command and sensorium test families.
+      'src/__tests__/**/*.test.ts',
+      'src/__tests__/**/*.test.tsx',
     ],
     testTimeout: 10000,
   },

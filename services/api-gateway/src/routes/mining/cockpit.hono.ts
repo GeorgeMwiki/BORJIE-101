@@ -7,6 +7,8 @@
  *   GET  /licence-health          dormancy + expiry-risk per licence
  *   GET  /production-vs-target    rolling 30-day production gap
  *   GET  /27mar-cliff-status      USD-cliff remediation rollup
+ *   GET  /decisions               pending owner-decision queue (B-MgrDispatch)
+ *   GET  /sic-pings               supervisor SIC ping queue (migration 0082)
  *
  * Migrated to `@hono/zod-openapi` (issue #19). Route definitions live
  * in `./_openapi/route-defs.ts` so the static spec generator can
@@ -21,6 +23,8 @@ import {
   sales,
   incidents,
   grievances,
+  miningApprovalItems,
+  miningSicPings,
 } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -31,6 +35,9 @@ import {
   cockpitProductionVsTargetRoute,
   cockpitCliffStatusRoute,
 } from './_openapi/route-defs';
+import { createLogger } from '../../utils/logger';
+
+const moduleLogger = createLogger('mining-cockpit');
 
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
@@ -174,6 +181,119 @@ app.openapi(cockpitCliffStatusRoute, async (c) => {
     },
     200,
   );
+});
+
+// ---------------------------------------------------------------------------
+// GET /decisions — pending owner-decision queue.
+//
+// Sources from `mining_approval_items` (B-MgrDispatch, migration 0081).
+// Only rows targeted at the current authenticated user as approver, with
+// status = 'pending', are returned. The mobile wiring agent surfaces
+// these in the owner cockpit widget.
+//
+// If the `mining_approval_items` table is missing, the handler returns
+// `{ items: [], note: 'awaiting B-Manager migration 0081' }` with 200.
+// ---------------------------------------------------------------------------
+app.get('/decisions', async (c) => {
+  const { tenantId, userId } = c.get('auth');
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      {
+        success: true as const,
+        data: {
+          items: [] as const,
+          note: 'database not configured',
+        },
+      },
+      200,
+    );
+  }
+  try {
+    const rows = await db
+      .select()
+      .from(miningApprovalItems)
+      .where(
+        and(
+          eq(miningApprovalItems.tenantId, tenantId),
+          eq(miningApprovalItems.approverUserId, userId),
+          eq(miningApprovalItems.status, 'pending'),
+        ),
+      )
+      .orderBy(desc(miningApprovalItems.createdAt))
+      .limit(100);
+    return c.json({ success: true as const, data: { items: rows } }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      /relation\s+"?mining_approval_items"?\s+does not exist/i.test(message) ||
+      /no such table:?\s*mining_approval_items/i.test(message)
+    ) {
+      moduleLogger.warn(
+        { tenantId },
+        'mining_approval_items missing — returning empty decisions queue',
+      );
+      return c.json(
+        {
+          success: true as const,
+          data: {
+            items: [] as const,
+            note: 'awaiting B-Manager migration 0081',
+          },
+        },
+        200,
+      );
+    }
+    throw err;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /sic-pings — supervisor Short Interval Control ping queue.
+//
+// Reads `mining_sic_pings` (migration 0082) newest-first. Bounded to the
+// last 100 pings; the owner cockpit widget renders the top N.
+// ---------------------------------------------------------------------------
+app.get('/sic-pings', async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      {
+        success: true as const,
+        data: { items: [] as const, note: 'database not configured' },
+      },
+      200,
+    );
+  }
+  try {
+    const rows = await db
+      .select()
+      .from(miningSicPings)
+      .where(eq(miningSicPings.tenantId, tenantId))
+      .orderBy(desc(miningSicPings.pingedAt))
+      .limit(100);
+    return c.json({ success: true as const, data: { items: rows } }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      /relation\s+"?mining_sic_pings"?\s+does not exist/i.test(message) ||
+      /no such table:?\s*mining_sic_pings/i.test(message)
+    ) {
+      moduleLogger.warn(
+        { tenantId },
+        'mining_sic_pings missing — returning empty SIC ping queue',
+      );
+      return c.json(
+        {
+          success: true as const,
+          data: { items: [] as const, note: 'awaiting migration 0082' },
+        },
+        200,
+      );
+    }
+    throw err;
+  }
 });
 
 export const miningCockpitRouter = app;

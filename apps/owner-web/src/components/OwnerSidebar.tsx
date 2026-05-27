@@ -50,19 +50,23 @@ export function OwnerSidebar() {
                 {group.heading}
               </div>
               <ul className="flex flex-col gap-0.5">
-                {items.map((screen) => (
-                  <li key={screen.id}>
-                    <Link
-                      href={`/${screen.slug}`}
-                      className="block rounded-md px-2 py-1.5 text-sm text-neutral-200 hover:bg-surface hover:text-foreground"
-                    >
-                      <span className="text-neutral-500 mr-2 font-mono text-badge">
-                        {screen.id.replace('O-W-', '')}
-                      </span>
-                      {screen.title}
-                    </Link>
-                  </li>
-                ))}
+                {items.map((screen) => {
+                  const href =
+                    screen.slug === 'home' ? '/' : `/${screen.slug}`;
+                  return (
+                    <li key={screen.id}>
+                      <Link
+                        href={href}
+                        className="block rounded-md px-2 py-1.5 text-sm text-neutral-200 hover:bg-surface hover:text-foreground"
+                      >
+                        <span className="text-neutral-500 mr-2 font-mono text-badge">
+                          {screen.id.replace('O-W-', '')}
+                        </span>
+                        {screen.title}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

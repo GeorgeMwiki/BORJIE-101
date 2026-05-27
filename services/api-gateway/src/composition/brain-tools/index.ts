@@ -1,0 +1,141 @@
+/**
+ * Brain-tools barrel — assembles the persona-aware tool catalog.
+ *
+ * `buildPersonaToolHandlers(gate)` is the single entry point called from
+ * `brain-extensions.ts`. It:
+ *
+ *   1. Concatenates the five persona-scoped catalogs (owner / manager /
+ *      worker / buyer / admin) with the shared catalog.
+ *   2. Deduplicates by tool id (defensive — DRAFT-Tools agent owns the
+ *      parallel `draft_*` family; if either agent re-registers the same
+ *      id by accident, the first occurrence wins and a warning surfaces
+ *      via the optional `onDuplicate` callback).
+ *   3. Wraps each descriptor with `toBrainToolHandler` so the
+ *      orchestrator's `ToolDispatcher` can register it.
+ *
+ * Tenant isolation: each handler resolves `tenantId` from the
+ * tool-execution context per call. No descriptor closes over a tenant
+ * identifier.
+ */
+
+import type { ToolHandler } from '@borjie/ai-copilot';
+import { z } from 'zod';
+import {
+  toBrainToolHandler,
+  type PersonaToolDescriptor,
+  type PersonaToolGate,
+} from './types';
+import { SHARED_TOOLS } from './shared-tools';
+import { OWNER_TOOLS } from './owner-tools';
+import { MANAGER_TOOLS } from './manager-tools';
+import { WORKER_TOOLS } from './worker-tools';
+import { BUYER_TOOLS } from './buyer-tools';
+import { ADMIN_TOOLS } from './admin-tools';
+
+export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
+  z.ZodTypeAny,
+  z.ZodTypeAny
+>;
+
+export interface BuildPersonaToolHandlersOptions {
+  /**
+   * Invoked when the same tool id appears in more than one source list.
+   * Defaults to a no-op so production boot stays silent; tests can hook
+   * the callback to fail loudly.
+   */
+  readonly onDuplicate?: (toolId: string) => void;
+  /** Optional `now()` injection for deterministic audit timestamps. */
+  readonly now?: () => string;
+}
+
+/**
+ * Build the complete, deduplicated list of persona-aware brain
+ * tool handlers. The returned array is frozen so callers can rely on
+ * stable identity across registrations.
+ */
+export function buildPersonaToolHandlers(
+  gate: PersonaToolGate,
+  options?: BuildPersonaToolHandlersOptions,
+): ReadonlyArray<ToolHandler> {
+  const merged = mergeDescriptors(
+    [
+      SHARED_TOOLS,
+      OWNER_TOOLS,
+      MANAGER_TOOLS,
+      WORKER_TOOLS,
+      BUYER_TOOLS,
+      ADMIN_TOOLS,
+    ],
+    options?.onDuplicate,
+  );
+
+  // Kill-switch fail-closed: when the switch is open we return an empty
+  // catalog so the brain has nothing to call. The per-tool execute hook
+  // also refuses for defense in depth, but starting from `[]` makes the
+  // intent unambiguous to every downstream consumer (tests, UI counters,
+  // metrics).
+  if (gate.killSwitchOpen) {
+    return Object.freeze([]);
+  }
+
+  const handlers = merged.map((descriptor) =>
+    toBrainToolHandler(descriptor, gate, { now: options?.now }),
+  );
+  return Object.freeze(handlers);
+}
+
+/**
+ * Return the unwrapped descriptor list — useful for tests / catalog
+ * audits that need access to the persona metadata before the orchestrator
+ * adapter wraps them.
+ */
+export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescriptor> {
+  return mergeDescriptors(
+    [
+      SHARED_TOOLS,
+      OWNER_TOOLS,
+      MANAGER_TOOLS,
+      WORKER_TOOLS,
+      BUYER_TOOLS,
+      ADMIN_TOOLS,
+    ],
+    undefined,
+  );
+}
+
+function mergeDescriptors(
+  lists: ReadonlyArray<ReadonlyArray<AnyPersonaToolDescriptor>>,
+  onDuplicate: ((toolId: string) => void) | undefined,
+): ReadonlyArray<AnyPersonaToolDescriptor> {
+  const seen = new Set<string>();
+  const out: AnyPersonaToolDescriptor[] = [];
+  for (const list of lists) {
+    for (const descriptor of list) {
+      if (seen.has(descriptor.id)) {
+        onDuplicate?.(descriptor.id);
+        continue;
+      }
+      seen.add(descriptor.id);
+      out.push(descriptor);
+    }
+  }
+  return Object.freeze(out);
+}
+
+// Re-export for ergonomic imports from `brain-extensions.ts`.
+export {
+  toBrainToolHandler,
+  type PersonaToolDescriptor,
+  type PersonaToolGate,
+  type PersonaToolHandlerContext,
+  type PersonaToolAuditSink,
+  type PersonaToolAuditEntry,
+  type PersonaToolHttpClient,
+  PERSONA_SLUGS,
+} from './types';
+export { SHARED_TOOLS } from './shared-tools';
+export { OWNER_TOOLS } from './owner-tools';
+export { MANAGER_TOOLS } from './manager-tools';
+export { WORKER_TOOLS } from './worker-tools';
+export { BUYER_TOOLS } from './buyer-tools';
+export { ADMIN_TOOLS } from './admin-tools';

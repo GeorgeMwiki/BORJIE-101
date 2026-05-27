@@ -151,6 +151,27 @@ function mapErr(
   );
 }
 
+/**
+ * Derive `daysRemaining` from `(currentQty, dailyBurnRate)` on the item row.
+ * Burn rate is sourced from `metadata.dailyBurnRate` — set by the
+ * analytics consolidation worker when enough movement history exists.
+ * Missing burn rate yields `null` (UI renders "—").
+ */
+function withDaysRemaining(item: unknown): unknown {
+  if (!item || typeof item !== 'object') return item;
+  const row = item as {
+    currentQty?: number | string;
+    quantity?: number | string;
+    metadata?: { dailyBurnRate?: number } | null;
+    [key: string]: unknown;
+  };
+  const qty = Number(row.currentQty ?? row.quantity ?? 0);
+  const burn = Number(row.metadata?.dailyBurnRate ?? 0);
+  const daysRemaining =
+    burn > 0 && Number.isFinite(qty) ? Math.floor(qty / burn) : null;
+  return { ...row, daysRemaining };
+}
+
 app.get('/items', async (c: AnyContext) => {
   const auth = c.get('auth');
   const s = svc(c);
@@ -162,7 +183,10 @@ app.get('/items', async (c: AnyContext) => {
     : undefined;
   const condition = conditionParsed?.success ? conditionParsed.data : undefined;
   const items = await s.listItems(auth.tenantId, { category, condition });
-  return c.json({ success: true, data: items });
+  const decorated = Array.isArray(items)
+    ? items.map(withDaysRemaining)
+    : items;
+  return c.json({ success: true, data: decorated });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.

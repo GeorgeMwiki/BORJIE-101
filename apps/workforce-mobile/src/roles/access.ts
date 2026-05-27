@@ -64,7 +64,13 @@ export const SCREEN_ROLE_ACCESS: Readonly<Record<string, ReadonlyArray<Role>>> =
   'W-M-22': ['employee', 'manager', 'owner'],
 
   // Cross-role feature screens (no W-M / O-M prefix).
-  'photo-advisor': ['owner', 'manager', 'employee']
+  'photo-advisor': ['owner', 'manager', 'employee'],
+  // Chat-first home tab — single surface for all three roles. The persona
+  // (owner/manager/employee greeting + suggestions) is resolved at render
+  // time so a single screen id is enough.
+  'home-chat': ['owner', 'manager', 'employee'],
+  // Role-aware dashboard surface (CH-Dashboard agent — see src/dashboard/).
+  dashboard: ['owner', 'manager', 'employee']
 } as const
 
 export function canSee(screenId: string, role: Role): boolean {

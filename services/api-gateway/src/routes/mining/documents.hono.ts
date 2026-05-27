@@ -2,21 +2,19 @@
  * /api/v1/mining/documents — mining-domain document store.
  *
  * Routes:
+ *   GET   /                list tenant documents (filter by documentType, status)
  *   POST  /upload          multipart upload (stores via storage-adapter
  *                          → MinIO). Returns a documentUploads row.
  *   POST  /:id/chat        ask a question scoped to one document.
  *   POST  /:id/sign        biometric-signed sign-off (stub).
- *
- * Storage policy: real binary write happens in storage-adapter; this
- * route records the metadata + presigned-PUT URL so the client can
- * complete the upload directly.
  *
  * Migrated to `@hono/zod-openapi` (issue #60).
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { z } from 'zod';
 import { documentUploads } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
@@ -162,5 +160,62 @@ app.openapi(
     },
   ),
 );
+
+// ---------------------------------------------------------------------------
+// GET / — list tenant documents.
+// ---------------------------------------------------------------------------
+
+const ListDocumentsQuerySchema = z.object({
+  documentType: z.string().optional(),
+  status: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(500).default(100).optional(),
+});
+
+app.get('/', async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db');
+  const rawQuery = {
+    documentType: c.req.query('documentType'),
+    status: c.req.query('status'),
+    limit: c.req.query('limit'),
+  };
+  const parsed = ListDocumentsQuerySchema.safeParse(rawQuery);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid query parameters',
+        },
+      },
+      400,
+    );
+  }
+  if (!db) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+  const limit = Math.min(parsed.data.limit ?? 100, 500);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const conds: any[] = [
+    eq(documentUploads.tenantId, tenantId),
+    isNull(documentUploads.deletedAt),
+  ];
+  if (parsed.data.documentType) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    conds.push(eq(documentUploads.documentType as any, parsed.data.documentType));
+  }
+  if (parsed.data.status) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    conds.push(eq(documentUploads.status as any, parsed.data.status));
+  }
+  const rows = await db
+    .select()
+    .from(documentUploads)
+    .where(and(...conds))
+    .orderBy(desc(documentUploads.createdAt))
+    .limit(limit);
+  return c.json({ success: true as const, data: rows }, 200);
+});
 
 export const miningDocumentsRouter = app;

@@ -49,6 +49,12 @@ export const incidents = pgTable(
     photos: text('photos').array().notNull().default([]),
     evidenceIds: text('evidence_ids').array().notNull().default([]),
     attributes: jsonb('attributes').notNull().default({}),
+    /** Terminal closure timestamp — non-null iff status = 'closed' (migration 0082). */
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    /** User who closed the incident — non-null iff status = 'closed' (migration 0082). */
+    closedByUserId: text('closed_by_user_id'),
+    /** Free-text closure justification (migration 0082). */
+    closureReason: text('closure_reason'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -126,6 +132,18 @@ export const csrPlans = pgTable(
     beneficiariesCount: smallint('beneficiaries_count'),
     evidenceIds: text('evidence_ids').array().notNull().default([]),
     attributes: jsonb('attributes').notNull().default({}),
+    /**
+     * Derived delivery percentage (migration 0082).
+     *
+     * GENERATED ALWAYS AS (
+     *   LEAST(100.00, GREATEST(0.00,
+     *     ROUND((COALESCE(spent_tzs, 0) / NULLIF(budget_tzs, 0)) * 100, 2)
+     *   ))
+     * ) STORED.
+     *
+     * Read-only column; INSERT/UPDATE must NOT supply a value.
+     */
+    deliveredPct: numeric('delivered_pct', { precision: 5, scale: 2 }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

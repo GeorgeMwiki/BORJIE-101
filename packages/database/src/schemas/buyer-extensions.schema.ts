@@ -138,3 +138,140 @@ export type BuyerAmlStatus = (typeof BUYER_AML_STATUSES)[number];
 export function buyerAmlSeverity(status: BuyerAmlStatus): number {
   return BUYER_AML_STATUSES.indexOf(status);
 }
+
+// ============================================================================
+// Buyer self-signup extension columns (migration 0087)
+//
+// Companion to `services/api-gateway/src/routes/buyers/signup.hono.ts`. The
+// `buyers` Drizzle table (canonical definition in production-sales.schema.ts)
+// is NOT redeclared here — adding fields a second time would conflict at
+// runtime. Instead we expose:
+//
+//   * A typed view of the new columns so the signup route can build a
+//     well-typed insert payload via the canonical `buyers` import.
+//   * The discriminated-union enums + KYC atom catalogues that the route
+//     handler, the workforce/buyer mobile clients, and the compliance
+//     plugins all share — single source of truth on what an INDIVIDUAL vs
+//     a BUSINESS buyer must complete before they can place bids.
+// ============================================================================
+
+/** Top-level discriminator — INDIVIDUAL (personal) vs BUSINESS (org). */
+export const BUYER_ACCOUNT_KINDS = ['individual', 'business'] as const;
+export type BuyerAccountKind = (typeof BUYER_ACCOUNT_KINDS)[number];
+
+/** Sub-type when account_kind = 'business'. */
+export const BUYER_BUSINESS_KINDS = [
+  'refiner',
+  'broker',
+  'fabricator',
+  'investor',
+  'other',
+] as const;
+export type BuyerBusinessKind = (typeof BUYER_BUSINESS_KINDS)[number];
+
+/** Jurisdictions accepted at buyer signup time. */
+export const BUYER_COUNTRY_CODES = [
+  'TZ',
+  'KE',
+  'UG',
+  'NG',
+  'CN',
+  'IN',
+  'AE',
+  'EU',
+  'OTHER',
+] as const;
+export type BuyerCountryCode = (typeof BUYER_COUNTRY_CODES)[number];
+
+/** Buyer-side display currencies. Authoritative money still lives in
+ *  payments-ledger; this is the preferred render unit. */
+export const BUYER_CURRENCY_CODES = [
+  'USD',
+  'TZS',
+  'KES',
+  'EUR',
+  'CNY',
+  'INR',
+] as const;
+export type BuyerCurrencyCode = (typeof BUYER_CURRENCY_CODES)[number];
+
+/** Per the Swahili-first hard rule, `sw` is the default. */
+export const BUYER_LANGUAGE_CODES = ['sw', 'en'] as const;
+export type BuyerLanguageCode = (typeof BUYER_LANGUAGE_CODES)[number];
+
+/** Lifecycle a buyer's KYC moves through under the atom chain. */
+export const BUYER_KYC_STATUSES = [
+  'not_started',
+  'in_progress',
+  'partial',
+  'verified',
+  'rejected',
+] as const;
+export type BuyerKycStatus = (typeof BUYER_KYC_STATUSES)[number];
+
+/**
+ * KYC atoms required for an INDIVIDUAL buyer. Chunked, progressive — the
+ * buyer mobile wizard walks them in order but allows skipping
+ * non-blocking atoms (the compliance plugin reads `kyc_atoms_completed`
+ * and decides which gate to lift).
+ */
+export const BUYER_KYC_ATOMS_INDIVIDUAL = [
+  'identity',
+  'address',
+  'bank_account',
+  'source_of_funds',
+] as const;
+export type BuyerKycAtomIndividual =
+  (typeof BUYER_KYC_ATOMS_INDIVIDUAL)[number];
+
+/**
+ * KYC atoms required for a BUSINESS buyer (refiner / broker / fabricator /
+ * investor). Deeper than individual — adds company docs, tax compliance,
+ * beneficial owners, AML screening.
+ */
+export const BUYER_KYC_ATOMS_BUSINESS = [
+  'identity',
+  'address',
+  'company_docs',
+  'tax_compliance',
+  'bank_account',
+  'beneficial_owners',
+  'aml_screening',
+] as const;
+export type BuyerKycAtomBusiness = (typeof BUYER_KYC_ATOMS_BUSINESS)[number];
+
+export type BuyerKycAtom = BuyerKycAtomIndividual | BuyerKycAtomBusiness;
+
+/**
+ * Initial atom list a buyer must work through given their account kind.
+ * Single source of truth — every consumer (signup route, mobile wizard,
+ * admin-console review queue) reads the same list.
+ */
+export function initialKycAtomsFor(
+  kind: BuyerAccountKind,
+): ReadonlyArray<BuyerKycAtom> {
+  return kind === 'individual'
+    ? BUYER_KYC_ATOMS_INDIVIDUAL
+    : BUYER_KYC_ATOMS_BUSINESS;
+}
+
+/**
+ * Typed projection of the new `buyers` columns added by migration 0087.
+ * Used as a builder type — the route handler composes an insert payload
+ * conforming to this shape, then merges it with the canonical `buyers`
+ * insert (which carries the pre-existing columns).
+ */
+export interface BuyerSignupColumns {
+  readonly accountKind: BuyerAccountKind;
+  readonly businessKind: BuyerBusinessKind | null;
+  readonly orgName: string | null;
+  readonly preferredCurrency: BuyerCurrencyCode;
+  readonly preferredLanguage: BuyerLanguageCode;
+  readonly fullName: string;
+  readonly nationalIdNumber: string | null;
+  readonly taxId: string | null;
+  readonly businessRegistrationNumber: string | null;
+  readonly kycAtomsCompleted: ReadonlyArray<BuyerKycAtom>;
+  readonly walletBalanceMinor: number;
+  readonly bidLimitMinor: number;
+}

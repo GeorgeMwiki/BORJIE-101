@@ -1,28 +1,46 @@
+import { Suspense } from 'react';
 import { getOwnerSession } from '@/lib/session';
-import { CockpitGrid } from '@/components/cockpit/CockpitGrid';
+import { HomeChat } from '@/components/home-chat/HomeChat';
 
 /**
- * O-W-01 — Owner cockpit dashboard.
+ * Owner-web home (/) — chat-first surface.
  *
- * The 10 cockpit cards are now wired to the daily-brief TanStack
- * query: stale-while-revalidate, last-updated timestamp, refresh
- * button. The grid itself is a client island; the page shell stays a
- * server component so session resolution happens on the server.
+ * Pivot 2026-05-27: the home was previously the cockpit dashboard
+ * (CockpitGrid). The cockpit is preserved at `/cockpit` for direct
+ * access from the sidebar; `/` now opens a conversational surface with
+ * a persona greeting, suggestion chips, and a side panel that renders
+ * the orchestrator's tool calls.
+ *
+ * Server boundary: this page resolves the owner session on the server
+ * so identity / tenant / language preference are available without a
+ * client-side waterfall. The chat surface itself is a client island
+ * (`HomeChat`) because it owns react-query state and the brain wire.
+ *
+ * Suspense wrapping: `HomeChat` calls `useSearchParams` (for `?thread=`
+ * deep links) which Next.js 15 requires to live inside a Suspense
+ * boundary. The fallback is intentionally tiny so the page paints
+ * instantly — the persona greeting + composer arrive on next tick.
  */
-export default async function CockpitHomePage() {
+export default async function HomePage() {
   const session = await getOwnerSession();
   return (
-    <div className="px-8 py-8">
-      <header className="mb-8">
-        <h1 className="font-display text-3xl text-foreground">
-          Habari za asubuhi, {session.salutation}.
-        </h1>
-        <p className="mt-1 text-sm text-neutral-400">
-          {session.tenant.legalName} · {session.tenant.region} ·{' '}
-          {session.sites.length} sites · plan: {session.tenant.plan}
-        </p>
-      </header>
-      <CockpitGrid />
+    <Suspense fallback={<HomeChatFallback />}>
+      <HomeChat
+        salutation={session.salutation}
+        tradingName={session.tenant.tradingName}
+        languagePreference={session.languagePreference}
+      />
+    </Suspense>
+  );
+}
+
+function HomeChatFallback() {
+  return (
+    <div
+      className="mx-auto my-12 max-w-xl rounded-lg border border-border bg-surface/40 p-6 text-sm text-neutral-400"
+      data-testid="home-chat-fallback"
+    >
+      Loading Borjie…
     </div>
   );
 }
