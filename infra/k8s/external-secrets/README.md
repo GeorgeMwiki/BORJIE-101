@@ -102,7 +102,7 @@ Scoped to BORJIE's secret tree only. Replace `ACCOUNT_ID`:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ReadBossnyumbaSecrets",
+      "Sid": "ReadBorjieSecrets",
       "Effect": "Allow",
       "Action": [
         "secretsmanager:GetSecretValue",
@@ -111,7 +111,7 @@ Scoped to BORJIE's secret tree only. Replace `ACCOUNT_ID`:
       "Resource": "arn:aws:secretsmanager:af-south-1:ACCOUNT_ID:secret:borjie/*"
     },
     {
-      "Sid": "ListBossnyumbaSecrets",
+      "Sid": "ListBorjieSecrets",
       "Effect": "Allow",
       "Action": "secretsmanager:ListSecrets",
       "Resource": "*"

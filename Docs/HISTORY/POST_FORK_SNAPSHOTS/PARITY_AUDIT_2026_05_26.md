@@ -1,5 +1,11 @@
 # Parity Audit — BossNyumba vs Borjie (2026-05-26)
 
+> **ARCHIVED — HISTORY ONLY.** Archived snapshot of state at fork-day
+> comparison. Borjie has evolved independently since. This document is
+> HISTORY, not an ongoing tracking artefact. Borjie and BossNyumba are two
+> separate projects; they share fork-day origin but do not share an ongoing
+> identity, ongoing parity goal, or shared roadmap.
+
 Comparison of `BOSSNYUMBA101` (parent property-management SaaS) against `Borjie`
 (mining hard-fork). All counts taken via `find`, `grep`, `wc -l` on
 2026-05-26 against the current state of both worktrees on disk.

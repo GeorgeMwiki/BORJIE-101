@@ -71,7 +71,7 @@ Change `secretStoreRef.name` per env (`kustomize` patch or Helm `--set`).
 | Env: `EKS_CLUSTER`         | EKS cluster name for OIDC binding                                           |
 | OIDC provider              | `eksctl utils associate-iam-oidc-provider`                                  |
 | IAM policy                 | `secretsmanager:GetSecretValue` + `DescribeSecret` on `borjie/*`        |
-| IAM role                   | `BossnyumbaESORole` trusted by the cluster OIDC, mapped to KSA via IRSA    |
+| IAM role                   | `BorjieESORole` trusted by the cluster OIDC, mapped to KSA via IRSA        |
 
 ### kubeseal
 
