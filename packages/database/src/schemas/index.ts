@@ -907,3 +907,56 @@ export * from './employee-perf-followup.schema.js';
 // Consumed by @borjie/dynamic-recipe-authoring.
 // See Docs/DESIGN/DYNAMIC_RECIPE_AUTHORING_SPEC.md.
 export * from './dynamic-authored-recipes.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave INTEL-SELF-IMPROVE — Intel Self-Improve Wiring (migration 0072)
+// ---------------------------------------------------------------------------
+// Two tenant-scoped tables backing migration
+// 0072_intel_self_improve.sql:
+//   intel_invocation_audit — one row per intel call (forecast | stat |
+//                            graph_db | causal | anomaly |
+//                            recommendation). FK to capabilities.id.
+//                            observed_outcome populated later by the
+//                            outcome-observer cron. Hash-chained per
+//                            (tenant_id, intel_kind).
+//   intel_skill_traces     — per-(tenant, intel_kind,
+//                            pattern_signature) success/failure
+//                            counter. Powers Voyager-style skill reuse
+//                            (Wang et al., arXiv 2305.16291).
+//                            UNIQUE on the triple.
+// Consumed by @borjie/intel-self-improve.
+// See Docs/DESIGN/INTELLIGENCE_SELF_IMPROVE_WIRING_2026.md.
+export * from './intel-self-improve.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave BLACKBOARD-CORE — Blackboard SOTA (migration 0073)
+// ---------------------------------------------------------------------------
+// Five tenant-scoped tables backing migration
+// 0073_blackboard_sota.sql:
+//   blackboard_regions             — per-namespace problem-solving
+//                                    scope. region_kind enumeration
+//                                    incident-investigation,
+//                                    royalty-filing-prep,
+//                                    buyer-deal-room, shift-planning,
+//                                    regulator-correspondence,
+//                                    deep-research-session,
+//                                    dashboard-composition. Per-region
+//                                    audit chain.
+//   blackboard_knowledge_sources   — KS registry. ks_kind in
+//                                    {junior, connector, tool, user,
+//                                    external-feed}. UNIQUE on
+//                                    (tenant_id, ks_kind, ks_name).
+//   blackboard_posts_v2            — threaded posts with embeddings.
+//                                    Successor to 18HH's
+//                                    blackboard_postings. content +
+//                                    vector(1536). Hash-chains into
+//                                    the region's chain.
+//   blackboard_cross_references    — detected post-to-post links.
+//                                    ref_kind in {cites, contradicts,
+//                                    answers, supersedes, elaborates}.
+//   blackboard_summaries           — rolling / final / digest
+//                                    summaries. covers_from /
+//                                    covers_to fence the window.
+// Consumed by @borjie/blackboard-sota.
+// See Docs/DESIGN/BLACKBOARD_SOTA_2026.md.
+export * from './blackboard-sota.schema.js';
