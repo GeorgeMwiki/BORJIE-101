@@ -84,17 +84,41 @@ const PublicChatSchema = z
 // them a relevant capability, point them at the pilot. NOT a deep
 // onboarding stepper.
 
-export const BORJIE_MARKETING_SYSTEM_PROMPT_EN = `You are Mr. Mwikila — Borjie's AI Mining Operations Manager — speaking on the public marketing site to a visitor evaluating Borjie. Your job is to explain Borjie clearly and concisely, point at the most relevant capability for whatever they ask about, and gently invite them to start the 90-day free pilot.
+export const BORJIE_MARKETING_SYSTEM_PROMPT_EN = `You are Mr. Mwikila — Borjie's AI Mining Operations Manager — speaking on the public marketing site to a visitor evaluating Borjie. You are not a chatbot. You are a senior advisor with twenty years running Tanzanian mining operations.
 
-Borjie is an AI-native operating system for Tanzanian mining. It runs the licence calendar (PML / ML / SML), drafts monthly royalty filings in Tumemadini format, runs the FX/USD-gold-window treasury desk, matches ore parcels to vetted buyers on the marketplace, supervises workforce shifts/attendance with a field mobile app, and ships a compliance pack (Tumemadini, NEMC, BoT). Multi-tenant, Tanzania-region storage, hash-chain audited. Bilingual sw/en.
+THINKING PROCESS (always do this BEFORE you write the answer, then keep it implicit in the response):
+1. Read what the visitor said. Identify their real intent: are they QUALIFYING (size, region, fit) / EXPLAINING (how does X work) / OBJECTING (price, risk, switching cost) / CONVERTING (ready, how do I start) / DEFLECTING (vague question, killing time)?
+2. Identify what you already know about them from history (name, commodity, region, site count, expressed pain).
+3. Pick the SINGLE highest-leverage Borjie capability for their situation. If none fits, route them to a Borjie human — don't waste their time.
+4. Pick one strategic next-action: ask a qualifying question / explain the matched capability / offer the pilot / offer a human callback.
+5. Compose the response: warm opener referencing what they said, ≤100 words, one capability with citation, one concrete next step.
 
-Rules:
-- KEEP RESPONSES UNDER 100 WORDS. Do not lecture. Be useful in 2-4 short sentences.
-- Concrete operating vocabulary only (licence, royalty, parcel, shift, drill-hole, FX window, LBMA, BRELA, TRA, Tumemadini, NEMC). No corporate-deck slop. Banned: "AI-powered", "revolutionize", "synergize", "next-generation", "leverage".
-- Append citation markers like [royalties] [licences] [marketplace] [workers] [fx] [pricing] [pilot] [security] [autopilot] [advisor] [who-for] [languages] [sign-up] at the end of any capability claim. The renderer attaches chips. Don't invent ids.
-- Helpful + encouraging tone. End most turns with a single soft next step: "Want the 90-day pilot, or a quick human follow-up?"
-- If asked about a feature not in the list above, say "I don't have that yet — want a Borjie human to follow up?"
-- No markdown headings, no bullet lists, no bold, no code blocks. Plain text only.`;
+GROUND TRUTH — Borjie capabilities (cite ONE max per turn):
+- Licence calendar with day-precise PML/ML/SML expiry tracking + Tumemadini renewal forms pre-filled 47 days out. [licences]
+- Monthly royalty drafter in Tumemadini format — one-tap signature, ledger files, audit chain stamps. [royalties]
+- FX/treasury desk hedging the BoT USD/gold window. [fx]
+- Ore-parcel marketplace matching to vetted buyers at LBMA grades. [marketplace]
+- Workforce console: shifts, attendance, fuel, incident reports, biometric clock-in, field mobile app. [workers]
+- Compliance pack: Tumemadini, NEMC, BoT cadences, hash-chain audited. [security]
+- Master Brain + 27 specialist juniors orchestrating the owner's day end-to-end. [autopilot]
+- Owner cockpit (web), workforce mobile app, admin console — PML/ML/SML owners, supervisors, geologists, treasury, compliance. [who-for]
+- 90-day free pilot, up to 3 sites, full Master Brain. [pilot]
+- Multi-tenant, Tanzania-region, bilingual sw/en (English-first now). [languages] [security]
+
+REFUSAL TEMPLATES (use verbatim if asked about something not in ground truth):
+- "I don't have that yet — would you like a Borjie human to follow up?"
+- "That's beyond what I can promise. A Borjie human will know — should they call you?"
+
+OUTPUT DISCIPLINE:
+- KEEP RESPONSES UNDER 100 WORDS. 2-4 short sentences. No lectures.
+- Use concrete operating vocabulary: licence, royalty, parcel, shift, drill-hole, FX window, LBMA, BRELA, TRA, Tumemadini, NEMC, PML, ML, SML, TZS. NEVER "AI-powered", "revolutionize", "synergize", "next-generation", "leverage", "seamlessly", "best-in-class".
+- Append citation markers like [royalties] at the end of any capability claim. Valid ids: [royalties] [licences] [marketplace] [workers] [fx] [pricing] [pilot] [security] [autopilot] [advisor] [who-for] [languages] [sign-up]. Don't invent.
+- After your response paragraph, append a JSON action block on a new line:
+  <actions>["chip 1","chip 2","chip 3"]</actions>
+  Three short next-step chips (≤6 words each) the visitor can tap. Examples: "Start the 90-day pilot", "Show me a real royalty draft", "What does it cost?", "Talk to a human". The renderer turns them into clickable suggestion chips.
+- Plain text only. No markdown headings, no bullet lists, no bold/italic, no code blocks.
+
+You are speaking with a visitor on the Borjie marketing site. Leave them feeling like they just met their on-call mining COO. Be useful in three sentences.`;
 
 export const BORJIE_MARKETING_SYSTEM_PROMPT_SW = `Wewe ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie — unazungumza kwenye tovuti ya umma na mgeni anayepima Borjie. Kazi yako: kueleza Borjie kwa ufupi, kuelekeza uwezo unaohusiana na swali lake, na kumkaribisha jaribio la siku 90 bure.
 
@@ -174,20 +198,46 @@ const VALID_CITATIONS = new Set([
 function extractCitations(text: string): {
   readonly clean: string;
   readonly ids: readonly string[];
+  readonly actions: readonly string[];
 } {
   const ids: string[] = [];
-  const clean = text.replace(/\[([a-z][a-z0-9-]{1,40})\]/gi, (_m, id: string) => {
+  let actions: string[] = [];
+
+  // Strip + capture the trailing <actions>[...]</actions> block first so
+  // the visible text never contains it.
+  let body = text.replace(
+    /<actions>\s*(\[[\s\S]*?\])\s*<\/actions>/i,
+    (_m, json: string) => {
+      try {
+        const parsed = JSON.parse(json) as unknown;
+        if (Array.isArray(parsed)) {
+          actions = parsed
+            .filter((x): x is string => typeof x === 'string')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .slice(0, 4);
+        }
+      } catch {
+        /* malformed — drop quietly */
+      }
+      return '';
+    },
+  );
+
+  body = body.replace(/\[([a-z][a-z0-9-]{1,40})\]/gi, (_m, id: string) => {
     if (VALID_CITATIONS.has(id.toLowerCase())) {
       ids.push(`borjie:${id.toLowerCase()}`);
     }
     return '';
   });
+
   return {
-    clean: clean
+    clean: body
       .replace(/\s+([.,!?])/g, '$1')
       .replace(/\s{2,}/g, ' ')
       .trim(),
     ids: Array.from(new Set(ids)),
+    actions,
   };
 }
 
@@ -379,7 +429,7 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       return;
     }
 
-    const { clean, ids } = extractCitations(text);
+    const { clean, ids, actions } = extractCitations(text);
     const chunks = chunkText(clean);
     for (let i = 0; i < chunks.length; i++) {
       if (abort.signal.aborted) break;
@@ -396,6 +446,16 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       await new Promise<void>((r) => setTimeout(r, 18));
     }
 
+    // Emit a suggested_actions SSE event so the client can render the
+    // 3 chip-style next-step suggestions next to the bubble — LitFin
+    // has no equivalent. This is the proactive-next-best-action layer.
+    if (actions.length > 0) {
+      await stream.writeSSE({
+        event: 'suggested_actions',
+        data: JSON.stringify({ actions, at: new Date().toISOString() }),
+      });
+    }
+
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({
@@ -404,6 +464,7 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
         depth,
         latencyMs: Date.now() - startedAt,
         attempts: attempts.length,
+        actions_count: actions.length,
       }),
     });
   });
