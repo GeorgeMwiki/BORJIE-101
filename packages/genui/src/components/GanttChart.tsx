@@ -47,7 +47,7 @@ export const GanttChartSchema = z
 
 export type GanttChartProps = z.infer<typeof GanttChartSchema> & {
   /** Fired when the user clicks a bar. Receives the bar id. */
-  readonly onSelect?: (stepId: string) => void;
+  readonly onSelect?: ((stepId: string) => void) | undefined;
 };
 
 const STATUS_FILL: Record<GanttBarStatus, string> = {

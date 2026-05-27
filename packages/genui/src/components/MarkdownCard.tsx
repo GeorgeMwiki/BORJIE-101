@@ -96,7 +96,7 @@ function parseMarkdown(md: string): ReadonlyArray<Block> {
   const blocks: Block[] = [];
   let i = 0;
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i] ?? '';
     if (line.startsWith('### ')) {
       blocks.push({ tag: 'h3', content: line.slice(4) });
       i += 1;
@@ -109,16 +109,16 @@ function parseMarkdown(md: string): ReadonlyArray<Block> {
     } else if (line.startsWith('```')) {
       const buf: string[] = [];
       i += 1;
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        buf.push(lines[i]);
+      while (i < lines.length && !(lines[i] ?? '').startsWith('```')) {
+        buf.push(lines[i] ?? '');
         i += 1;
       }
       i += 1;
       blocks.push({ tag: 'pre', content: buf.join('\n') });
     } else if (/^[-*]\s+/.test(line)) {
       const items: string[] = [];
-      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*]\s+/, ''));
+      while (i < lines.length && /^[-*]\s+/.test(lines[i] ?? '')) {
+        items.push((lines[i] ?? '').replace(/^[-*]\s+/, ''));
         i += 1;
       }
       blocks.push({ tag: 'ul', content: '', items });
@@ -128,8 +128,12 @@ function parseMarkdown(md: string): ReadonlyArray<Block> {
       // paragraph: consume until blank line.
       const buf: string[] = [line];
       i += 1;
-      while (i < lines.length && lines[i].trim() !== '' && !/^([#`-]|\s*[-*]\s+)/.test(lines[i])) {
-        buf.push(lines[i]);
+      while (
+        i < lines.length &&
+        (lines[i] ?? '').trim() !== '' &&
+        !/^([#`-]|\s*[-*]\s+)/.test(lines[i] ?? '')
+      ) {
+        buf.push(lines[i] ?? '');
         i += 1;
       }
       blocks.push({ tag: 'p', content: buf.join(' ') });

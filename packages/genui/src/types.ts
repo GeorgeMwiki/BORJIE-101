@@ -42,10 +42,10 @@ export interface TimelineEvent {
 export interface KpiTile {
   readonly label: string;
   readonly value: number | string;
-  readonly delta?: number;
-  readonly deltaDirection?: 'up' | 'down' | 'flat';
+  readonly delta?: number | undefined;
+  readonly deltaDirection?: 'up' | 'down' | 'flat' | undefined;
   readonly format: 'currency' | 'percent' | 'number';
-  readonly currency?: Iso4217;
+  readonly currency?: Iso4217 | undefined;
 }
 
 export interface WorkflowStep {

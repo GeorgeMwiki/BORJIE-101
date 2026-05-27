@@ -17,17 +17,17 @@ import { useEffect, useState, type ComponentType } from 'react';
 import type { CalendarEvent } from '../types';
 
 interface FullCalendarEventInput {
-  readonly id?: string;
+  readonly id?: string | undefined;
   readonly title: string;
   readonly start: string;
-  readonly end?: string;
-  readonly color?: string;
+  readonly end?: string | undefined;
+  readonly color?: string | undefined;
 }
 interface FullCalendarProps {
   readonly plugins: ReadonlyArray<unknown>;
-  readonly initialView?: string;
+  readonly initialView?: string | undefined;
   readonly events: ReadonlyArray<FullCalendarEventInput>;
-  readonly height?: 'auto' | number | string;
+  readonly height?: 'auto' | number | string | undefined;
 }
 
 interface FullCalendarBundle {

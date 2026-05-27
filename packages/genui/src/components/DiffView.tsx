@@ -23,8 +23,8 @@ export type DiffViewProps = AgUiUiPartByKind<'diff-view'>;
 type LineKind = 'same' | 'add' | 'del';
 interface DiffLine {
   readonly kind: LineKind;
-  readonly left?: string;
-  readonly right?: string;
+  readonly left?: string | undefined;
+  readonly right?: string | undefined;
 }
 
 function lcsDiff(a: ReadonlyArray<string>, b: ReadonlyArray<string>): DiffLine[] {
@@ -46,10 +46,20 @@ function lcsDiff(a: ReadonlyArray<string>, b: ReadonlyArray<string>): DiffLine[]
     }
     return out;
   }
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  const getDp = (i: number, j: number): number => {
+    const row = dp[i];
+    if (!row) return 0;
+    const v = row[j];
+    return v === undefined ? 0 : v;
+  };
+  const setDp = (i: number, j: number, value: number): void => {
+    const row = dp[i];
+    if (row) row[j] = value;
+  };
   for (let i = m - 1; i >= 0; i -= 1) {
     for (let j = n - 1; j >= 0; j -= 1) {
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      setDp(i, j, a[i] === b[j] ? getDp(i + 1, j + 1) + 1 : Math.max(getDp(i + 1, j), getDp(i, j + 1)));
     }
   }
   const out: DiffLine[] = [];
@@ -60,7 +70,7 @@ function lcsDiff(a: ReadonlyArray<string>, b: ReadonlyArray<string>): DiffLine[]
       out.push({ kind: 'same', left: a[i], right: b[j] });
       i += 1;
       j += 1;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+    } else if (getDp(i + 1, j) >= getDp(i, j + 1)) {
       out.push({ kind: 'del', left: a[i] });
       i += 1;
     } else {

@@ -101,7 +101,7 @@ export function Heatmap(props: HeatmapProps): JSX.Element {
             {props.yAxis.map((y, yi) => (
               <tr key={y}>
                 <td className="px-2 py-1 text-muted-foreground">{y}</td>
-                {props.cells[yi].map((v, xi) => (
+                {(props.cells[yi] ?? []).map((v, xi) => (
                   <td
                     key={xi}
                     title={formatCellValue(props, v)}
