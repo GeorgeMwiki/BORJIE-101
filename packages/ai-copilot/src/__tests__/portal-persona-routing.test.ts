@@ -1,8 +1,9 @@
 /**
  * Portal -> primary persona routing and sub-persona layer routing tests.
  *
- * These tests lock in the LitFin-style persona architecture ported into
- * Borjie: 6 portal-bound primary personae plus 7 differential
+ * These tests lock in Borjie's portal-bound persona architecture
+ * (structure inherited from the pre-fork lineage; evolved
+ * independently): 6 portal-bound primary personae plus 7 differential
  * sub-persona prompt layers.
  */
 
@@ -18,7 +19,7 @@ import {
   composePersonaPrompt,
   composeAvailableTools,
   SUB_PERSONA_REGISTRY,
-  type BossnyumbaPersonaId,
+  type BorjiePersonaId,
   type PortalId,
   type SubPersonaRoutingContext,
   type SubPersonaId,
@@ -90,7 +91,7 @@ describe('portal -> primary persona routing', () => {
   });
 
   it('PORTAL_PERSONA_MAP covers every defined portal exactly once', () => {
-    const entries = Object.entries(PORTAL_PERSONA_MAP) as Array<[PortalId, BossnyumbaPersonaId]>;
+    const entries = Object.entries(PORTAL_PERSONA_MAP) as Array<[PortalId, BorjiePersonaId]>;
     const personaIds = new Set(entries.map(([, v]) => v));
     expect(personaIds.size).toBe(entries.length);
   });

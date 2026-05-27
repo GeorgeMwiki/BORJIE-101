@@ -1,6 +1,6 @@
 /**
  * Tests for createJarvisClient — verifies that each surface routes
- * correctly through the underlying BossnyumbaClient and uses the right
+ * correctly through the underlying BorjieClient and uses the right
  * paths, methods, and bodies.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -9,12 +9,12 @@ import {
   type JarvisSurface,
   type JarvisSurfaceClient,
 } from '../jarvis-client.js';
-import type { BossnyumbaClient, RequestArgs } from '../client.js';
+import type { BorjieClient, RequestArgs } from '../client.js';
 
 interface CapturedRequest extends RequestArgs {}
 
 function makeClientStub(): {
-  client: BossnyumbaClient;
+  client: BorjieClient;
   calls: CapturedRequest[];
   reply: (value: unknown) => void;
 } {
@@ -24,7 +24,7 @@ function makeClientStub(): {
     calls.push(args);
     return nextReply as never;
   });
-  const client: BossnyumbaClient = {
+  const client: BorjieClient = {
     baseUrl: 'http://api',
     config: { baseUrl: 'http://api' },
     request: request as never,

@@ -7,9 +7,9 @@
  * requires it.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createCoworker(): BossnyumbaPersona {
+export function createCoworker(): BorjiePersona {
   return Object.freeze({
     id: 'coworker',
     displayName: 'Your Borjie Coworker',

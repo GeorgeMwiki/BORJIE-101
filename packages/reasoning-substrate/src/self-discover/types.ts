@@ -21,7 +21,7 @@ import type { ReasoningPrimitive } from './module-library.js';
  * Canonical BORJIE task classes. Extend cautiously — every new
  * task class triggers a fresh discovery cycle (3× one-time cost).
  */
-export type BossnyumbaTaskClass =
+export type BorjieTaskClass =
   | 'eviction'
   | 'lease-renewal'
   | 'rent-collection'
@@ -63,7 +63,7 @@ export interface ReasoningStep {
 export interface ReasoningStructure {
   /** Bumping schemaVersion invalidates every cached structure. */
   readonly schemaVersion: number;
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   /** Jurisdiction code (e.g. 'TZ-DSM', 'KE-NRB', 'GLOBAL'). */
   readonly jurisdiction: string;
   /** ISO timestamp of discovery. */
@@ -102,7 +102,7 @@ export interface ReasoningStructureCachePort {
    * miss. The schemaVersion check is the caller's responsibility.
    */
   lookup(args: {
-    readonly taskClass: BossnyumbaTaskClass;
+    readonly taskClass: BorjieTaskClass;
     readonly jurisdiction: string;
   }): Promise<ReasoningStructure | null>;
 
@@ -129,7 +129,7 @@ export interface DiscovererPort {
    * stubs.
    */
   discover(args: {
-    readonly taskClass: BossnyumbaTaskClass;
+    readonly taskClass: BorjieTaskClass;
     readonly jurisdiction: string;
     readonly selectPrompt: string;
     readonly adaptPrompt: string;

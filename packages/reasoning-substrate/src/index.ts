@@ -83,7 +83,7 @@ export {
   discoverReasoningStructure,
   findPrimitiveById,
   primitiveCounts,
-  type BossnyumbaTaskClass,
+  type BorjieTaskClass,
   type DiscoverArgs,
   type DiscoverResult,
   type DiscovererPort,

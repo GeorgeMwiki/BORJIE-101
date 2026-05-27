@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBossnyumbaMcpServer,
+  createBorjieMcpServer,
   createMcpAuth,
   createTierRouter,
   BORJIE_TOOLS,
@@ -15,9 +15,9 @@ import {
   makeResourceResolvers,
 } from './test-fixtures.js';
 
-describe('createBossnyumbaMcpServer', () => {
+describe('createBorjieMcpServer', () => {
   it('starts and exposes every tool in the canonical registry', () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -44,7 +44,7 @@ describe('createBossnyumbaMcpServer', () => {
   });
 
   it('invokes a tool end-to-end and returns tenant-scoped data', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -63,7 +63,7 @@ describe('createBossnyumbaMcpServer', () => {
   });
 
   it('returns TOOL_NOT_FOUND for an unregistered tool', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -75,7 +75,7 @@ describe('createBossnyumbaMcpServer', () => {
   });
 
   it('returns tenant-scoped resources from static URIs', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),

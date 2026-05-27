@@ -9,7 +9,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
-  BossnyumbaAIProvider,
+  BorjieAIProvider,
   ChatPanel,
   ContextBadge,
   FloatingChatWidget,
@@ -20,7 +20,7 @@ import {
   renderMarkdown,
   resolveSubPersona,
   routeContextsEqual,
-  useBossnyumbaAI,
+  useBorjieAI,
 } from '../widget';
 import type { ChatSegment, PortalId } from '../widget/types';
 
@@ -165,7 +165,7 @@ function renderWithProvider(opts: {
   readonly children?: React.ReactNode;
 }) {
   return render(
-    <BossnyumbaAIProvider
+    <BorjieAIProvider
       portal={opts.portal ?? 'admin'}
       defaultPersona="manager-chat"
       currentPath={opts.path ?? '/'}
@@ -174,7 +174,7 @@ function renderWithProvider(opts: {
     >
       <FloatingChatWidget />
       {opts.children}
-    </BossnyumbaAIProvider>,
+    </BorjieAIProvider>,
   );
 }
 
@@ -359,7 +359,7 @@ describe('ChatPanel — keyboard + mic + attachments', () => {
 // -----------------------------------------------------------------------------
 
 function PortalReadout(): JSX.Element {
-  const { chat } = useBossnyumbaAI();
+  const { chat } = useBorjieAI();
   return (
     <div data-testid={`portal-readout-${chat.route.portal}`}>
       {chat.route.portal}:{chat.persona}
@@ -370,25 +370,25 @@ function PortalReadout(): JSX.Element {
 describe('Multi-app mounting', () => {
   it('each app root owns its own chat context', () => {
     const { rerender } = render(
-      <BossnyumbaAIProvider portal="customer" defaultPersona="tenant-assistant" currentPath="/">
+      <BorjieAIProvider portal="customer" defaultPersona="tenant-assistant" currentPath="/">
         <PortalReadout />
-      </BossnyumbaAIProvider>,
+      </BorjieAIProvider>,
     );
     expect(screen.getByTestId('portal-readout-customer').textContent).toBe('customer:tenant-assistant');
 
     rerender(
-      <BossnyumbaAIProvider portal="owner" defaultPersona="owner-advisor" currentPath="/portfolio">
+      <BorjieAIProvider portal="owner" defaultPersona="owner-advisor" currentPath="/portfolio">
         <PortalReadout />
-      </BossnyumbaAIProvider>,
+      </BorjieAIProvider>,
     );
     expect(screen.getByTestId('portal-readout-owner').textContent).toBe('owner:owner-advisor');
   });
 
   it('route change updates the context badge sub-persona', () => {
     const { rerender } = render(
-      <BossnyumbaAIProvider portal="admin" defaultPersona="manager-chat" currentPath="/admin/arrears/case-1">
+      <BorjieAIProvider portal="admin" defaultPersona="manager-chat" currentPath="/admin/arrears/case-1">
         <FloatingChatWidget />
-      </BossnyumbaAIProvider>,
+      </BorjieAIProvider>,
     );
     act(() => {
       fireEvent.click(screen.getByTestId('floating-chat-bubble'));
@@ -396,9 +396,9 @@ describe('Multi-app mounting', () => {
     expect(screen.getByTestId('context-badge').getAttribute('data-sub-persona')).toBe('finance');
 
     rerender(
-      <BossnyumbaAIProvider portal="admin" defaultPersona="manager-chat" currentPath="/maintenance">
+      <BorjieAIProvider portal="admin" defaultPersona="manager-chat" currentPath="/maintenance">
         <FloatingChatWidget />
-      </BossnyumbaAIProvider>,
+      </BorjieAIProvider>,
     );
     expect(screen.getByTestId('context-badge').getAttribute('data-sub-persona')).toBe('maintenance');
   });

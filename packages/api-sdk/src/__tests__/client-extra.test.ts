@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ApiSdkError,
   buildUrl,
-  createBossnyumbaClient,
+  createBorjieClient,
   parseErrorResponse,
 } from '../client.js';
 
@@ -72,10 +72,10 @@ describe('buildUrl edge cases', () => {
   });
 });
 
-describe('createBossnyumbaClient — auth + headers', () => {
+describe('createBorjieClient — auth + headers', () => {
   it('throws when no baseUrl is provided', () => {
     expect(() =>
-      createBossnyumbaClient({ baseUrl: '' }),
+      createBorjieClient({ baseUrl: '' }),
     ).toThrowError(/baseUrl is required/);
   });
 
@@ -85,7 +85,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       capturedHeaders = init?.headers as Record<string, string>;
       return jsonResponse(200, { ok: true });
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://api',
       apiKey: 'k-1',
       fetchFn,
@@ -100,7 +100,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       captured = init?.headers as Record<string, string>;
       return jsonResponse(200, {});
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://api',
       defaultHeaders: { 'X-Tenant-Id': 'tenant-a' },
       fetchFn,
@@ -115,7 +115,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       captured = init?.headers as Record<string, string>;
       return jsonResponse(200, {});
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://api',
       defaultHeaders: { 'X-Custom': 'default' },
       fetchFn,
@@ -134,7 +134,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       captured = init?.headers as Record<string, string>;
       return jsonResponse(200, {});
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.request({ method: 'GET', path: '/x' });
     expect(captured?.['Authorization']).toBeUndefined();
   });
@@ -145,7 +145,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       captured = init?.headers as Record<string, string>;
       return jsonResponse(200, {});
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.request({ method: 'GET', path: '/x' });
     expect(captured?.['Content-Type']).toBeUndefined();
   });
@@ -156,7 +156,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       captured = init?.headers as Record<string, string>;
       return jsonResponse(200, {});
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.request({
       method: 'POST',
       path: '/x',
@@ -168,13 +168,13 @@ describe('createBossnyumbaClient — auth + headers', () => {
 
   it('returns text body when content-type is not JSON', async () => {
     const fetchFn = vi.fn(async () => textResponse(200, 'hello world')) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     const out = await client.request({ method: 'GET', path: '/p' });
     expect(out).toBe('hello world');
   });
 
   it('exposes baseUrl and config on the returned client', () => {
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://api',
       bearerToken: 'tok',
     });
@@ -188,7 +188,7 @@ describe('createBossnyumbaClient — auth + headers', () => {
       url = String(input);
       return jsonResponse(200, { status: 'ok' });
     }) as unknown as typeof fetch;
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.health.check();
     expect(url).toBe('http://api/health');
   });

@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createBossnyumbaClient } from '../client.js';
+import { createBorjieClient } from '../client.js';
 import {
   createJarvisStream,
   parseSseBlock,
@@ -68,7 +68,7 @@ async function collect(
 }
 
 function makeClient(fetchFn: typeof fetch) {
-  return createBossnyumbaClient({
+  return createBorjieClient({
     baseUrl: 'http://api.test',
     fetchFn,
   });

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createBossnyumbaClient, createJarvisClient } from '@borjie/api-sdk';
+import { createBorjieClient, createJarvisClient } from '@borjie/api-sdk';
 import {
   MicButton,
   createWebSpeechAudioPort,
@@ -60,7 +60,7 @@ export function JarvisConsole(): JSX.Element {
   const client = useMemo(
     () =>
       createJarvisClient(
-        createBossnyumbaClient({
+        createBorjieClient({
           baseUrl: DEFAULT_GATEWAY,
           // Bearer comes from the existing Supabase auth session in the
           // page wrapper; the gateway middleware also accepts an

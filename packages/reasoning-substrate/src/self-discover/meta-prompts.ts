@@ -10,7 +10,7 @@
  */
 
 import type { ReasoningPrimitive } from './module-library.js';
-import type { BossnyumbaTaskClass, TaskSampleInput } from './types.js';
+import type { BorjieTaskClass, TaskSampleInput } from './types.js';
 
 function renderLibrary(library: ReadonlyArray<ReasoningPrimitive>): string {
   return library
@@ -36,7 +36,7 @@ function renderSamples(samples: ReadonlyArray<TaskSampleInput>): string {
 // ─────────────────────────────────────────────────────────────────────
 
 export function buildSelectPrompt(args: {
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   readonly jurisdiction: string;
   readonly samples: ReadonlyArray<TaskSampleInput>;
   readonly library: ReadonlyArray<ReasoningPrimitive>;
@@ -65,7 +65,7 @@ export function buildSelectPrompt(args: {
 // ─────────────────────────────────────────────────────────────────────
 
 export function buildAdaptPrompt(args: {
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   readonly jurisdiction: string;
   readonly samples: ReadonlyArray<TaskSampleInput>;
   readonly selectedPrimitives: ReadonlyArray<ReasoningPrimitive>;
@@ -99,7 +99,7 @@ export function buildAdaptPrompt(args: {
 // ─────────────────────────────────────────────────────────────────────
 
 export function buildImplementPrompt(args: {
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   readonly jurisdiction: string;
   readonly adaptedNarrative: string;
   readonly selectedPrimitives: ReadonlyArray<ReasoningPrimitive>;

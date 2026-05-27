@@ -15,7 +15,7 @@ import type { paths } from './types.js';
 // Public types
 // ---------------------------------------------------------------------------
 
-export interface BossnyumbaClientConfig {
+export interface BorjieClientConfig {
   /** Base URL of the gateway, e.g. `http://localhost:4001`. Trailing slash optional. */
   baseUrl: string;
   /** Bearer token (JWT) or a function returning one. */
@@ -116,7 +116,7 @@ function encodeQuery(query: Record<string, unknown>): string {
 }
 
 async function resolveBearer(
-  t: BossnyumbaClientConfig['bearerToken']
+  t: BorjieClientConfig['bearerToken']
 ): Promise<string | undefined> {
   if (!t) return undefined;
   if (typeof t === 'function') return await t();
@@ -180,9 +180,9 @@ export interface RequestArgs {
   signal?: AbortSignal | undefined;
 }
 
-export interface BossnyumbaClient {
+export interface BorjieClient {
   readonly baseUrl: string;
-  readonly config: BossnyumbaClientConfig;
+  readonly config: BorjieClientConfig;
   request<T = unknown>(args: RequestArgs): Promise<T>;
   /** Typed helpers — one namespace per top-level OpenAPI tag we expose. */
   readonly marketplace: {
@@ -196,14 +196,14 @@ export interface BossnyumbaClient {
   };
 }
 
-export function createBossnyumbaClient(config: BossnyumbaClientConfig): BossnyumbaClient {
+export function createBorjieClient(config: BorjieClientConfig): BorjieClient {
   if (!config.baseUrl) {
-    throw new Error('createBossnyumbaClient: baseUrl is required');
+    throw new Error('createBorjieClient: baseUrl is required');
   }
   const fetchFn = config.fetchFn ?? globalThis.fetch;
   if (typeof fetchFn !== 'function') {
     throw new Error(
-      'createBossnyumbaClient: global fetch is not available. Provide config.fetchFn.'
+      'createBorjieClient: global fetch is not available. Provide config.fetchFn.'
     );
   }
   const timeoutMs = config.timeoutMs ?? 30_000;

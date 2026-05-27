@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBossnyumbaMcpServer,
+  createBorjieMcpServer,
   createMcpAuth,
   createInMemoryCostLedger,
   type McpToolHandler,
@@ -19,7 +19,7 @@ describe('tenant isolation', () => {
       return { ok: true, data: { tenantId: context.tenantId } };
     };
 
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers({ query_property_graph: handler }),
       resourceResolvers: makeResourceResolvers(),
@@ -42,7 +42,7 @@ describe('tenant isolation', () => {
 
   it('cost entries are tenant-scoped — one tenant cannot see another tenant spend', async () => {
     const ledger = createInMemoryCostLedger();
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -77,7 +77,7 @@ describe('tenant isolation', () => {
   });
 
   it('resolves template resources with the calling tenant injected into the payload', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -97,7 +97,7 @@ describe('tenant isolation', () => {
   });
 
   it('rejects path-traversal attempts in template variables', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),

@@ -13,7 +13,7 @@ import { Hono } from 'hono';
 
 import mcpRouter from '../mcp.router';
 import type {
-  BossnyumbaMcpServer,
+  BorjieMcpServer,
   McpAuthContext,
   McpScope,
   McpTier,
@@ -53,7 +53,7 @@ const ALL_SCOPES: ReadonlyArray<McpScope> = Object.freeze([
   'execute:skills',
 ]);
 
-function makeFakeMcp(context: McpAuthContext): BossnyumbaMcpServer {
+function makeFakeMcp(context: McpAuthContext): BorjieMcpServer {
   return {
     config: Object.freeze({
       name: 'fake-mcp',

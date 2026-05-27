@@ -4,7 +4,7 @@
  * Verifies that the project has:
  *   - The `public.set_tenant_context(p_tenant_id, p_user_id)` RPC
  *     used by the RLS-aware client.
- *   - Bossnyumba's expected storage buckets (best-effort — does not fail
+ *   - Borjie's expected storage buckets (best-effort — does not fail
  *     if a bucket is missing, just reports it).
  *
  * Called during boot in the api-gateway when `AUTH_PROVIDER=supabase`.

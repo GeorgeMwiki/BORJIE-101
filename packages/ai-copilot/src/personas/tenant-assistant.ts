@@ -5,9 +5,9 @@
  * unit, lease, payments, requests. Never sees other tenants' data.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createTenantAssistant(): BossnyumbaPersona {
+export function createTenantAssistant(): BorjiePersona {
   return Object.freeze({
     id: 'tenant-assistant',
     displayName: 'Borjie Tenant Assistant',

@@ -35,7 +35,7 @@
  *     `error` so the consumer can decide whether to retry.
  */
 
-import type { BossnyumbaClient } from './client.js';
+import type { BorjieClient } from './client.js';
 import type {
   JarvisDecision,
   JarvisSurface,
@@ -147,7 +147,7 @@ const SURFACE_PATH: Record<JarvisSurface, string> = {
  * iteration. This matches the shape the chat-ui hook expects.
  */
 export function createJarvisStream(
-  client: BossnyumbaClient,
+  client: BorjieClient,
   surface: JarvisSurface,
   req: JarvisThinkRequest,
   options: StreamOptions = {},
@@ -185,7 +185,7 @@ export function createJarvisStream(
 // ---------------------------------------------------------------------------
 
 async function* iterateStream(
-  client: BossnyumbaClient,
+  client: BorjieClient,
   url: string,
   req: JarvisThinkRequest,
   signal: AbortSignal,
@@ -521,7 +521,7 @@ function synthesiseDecision(
 }
 
 async function resolveBearer(
-  t: BossnyumbaClient['config']['bearerToken'],
+  t: BorjieClient['config']['bearerToken'],
 ): Promise<string | undefined> {
   if (!t) return undefined;
   if (typeof t === 'function') return await t();

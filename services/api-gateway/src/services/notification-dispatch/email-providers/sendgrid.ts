@@ -9,7 +9,7 @@
  *   - `SENDGRID_FROM_NAME`
  *   - `SENDGRID_API_BASE_URL` (defaults to https://api.sendgrid.com)
  *
- * Tenant scoping: passes `X-Bossnyumba-Tenant-Id` header so SendGrid
+ * Tenant scoping: passes `X-Borjie-Tenant-Id` header so SendGrid
  * sub-account routing / IP pool selection can be tenant-aware in the
  * future without re-shaping this adapter.
  *
@@ -107,7 +107,7 @@ export function createSendGridEmailProvider(
             headers: {
               authorization: `Bearer ${config.apiKey}`,
               'content-type': 'application/json',
-              'X-Bossnyumba-Tenant-Id': input.tenantId,
+              'X-Borjie-Tenant-Id': input.tenantId,
             },
             body: JSON.stringify(body),
             signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),

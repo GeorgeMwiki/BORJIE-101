@@ -8,9 +8,9 @@
  * the base orchestrator contract.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createManagerChat(): BossnyumbaPersona {
+export function createManagerChat(): BorjiePersona {
   return Object.freeze({
     id: 'manager-chat',
     displayName: 'Mr. Mwikila',

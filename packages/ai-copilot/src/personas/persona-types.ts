@@ -6,8 +6,8 @@
  * it communicates. The LLM generates every response dynamically - the
  * prompt is a character sheet, not a flow chart.
  *
- * This is ported from LitFin's persona architecture and translated from
- * the lending domain to the estate-management domain. Borjie has SIX
+ * Structure inherited from a pre-fork lineage and adapted to Borjie's
+ * estate-management domain; evolved independently. Borjie has SIX
  * primary portal-bound personae; a differential sub-persona prompt layer
  * stacks on top based on context signals (route, message keywords,
  * emotional tone, session metrics).
@@ -28,7 +28,7 @@ export type PortalId =
 /**
  * Canonical primary-persona identifiers.
  */
-export type BossnyumbaPersonaId =
+export type BorjiePersonaId =
   | 'manager-chat'
   | 'coworker'
   | 'tenant-assistant'
@@ -38,9 +38,10 @@ export type BossnyumbaPersonaId =
 
 /**
  * Portal -> primary persona deterministic map.
- * Matches LitFin's PORTAL_PERSONA_MAP pattern - zero LLM cost, O(1) lookup.
+ * Deterministic portal->persona map — zero LLM cost, O(1) lookup
+ * (structure inherited from the pre-fork lineage; evolved independently).
  */
-export const PORTAL_PERSONA_MAP: Readonly<Record<PortalId, BossnyumbaPersonaId>> = {
+export const PORTAL_PERSONA_MAP: Readonly<Record<PortalId, BorjiePersonaId>> = {
   'admin-portal': 'manager-chat',
   'estate-manager-app': 'coworker',
   'customer-app': 'tenant-assistant',
@@ -66,9 +67,9 @@ export interface PersonaCommunicationStyle {
  * A Borjie primary persona - the identity + capabilities for a
  * specific portal. Immutable shape; factories return frozen values.
  */
-export interface BossnyumbaPersona {
+export interface BorjiePersona {
   /** Unique identifier (kebab-case). */
-  readonly id: BossnyumbaPersonaId;
+  readonly id: BorjiePersonaId;
   /** Human-readable name shown in the widget. */
   readonly displayName: string;
   /** Which portal this persona serves. */

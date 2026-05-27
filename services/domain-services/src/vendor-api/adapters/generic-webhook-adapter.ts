@@ -91,10 +91,10 @@ export class GenericWebhookAdapter implements VendorApiAdapter {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      'X-Bossnyumba-Dispatch-Id': dispatchId,
+      'X-Borjie-Dispatch-Id': dispatchId,
     };
     if (this.signingSecret) {
-      headers['X-Bossnyumba-Signature'] = await signPayload(payload, this.signingSecret);
+      headers['X-Borjie-Signature'] = await signPayload(payload, this.signingSecret);
     }
 
     const response = await this.fetchImpl(this.webhookUrl, {

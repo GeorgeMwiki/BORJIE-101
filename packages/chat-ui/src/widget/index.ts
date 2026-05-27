@@ -7,11 +7,11 @@ export type { UseWidgetLanguageResult } from './useWidgetLanguage';
 export { useChatSounds } from './useChatSounds';
 export type { ChatSoundKind, UseChatSoundsResult } from './useChatSounds';
 export {
-  BossnyumbaAIProvider,
-  useBossnyumbaAI,
-  useOptionalBossnyumbaAI,
-} from './BossnyumbaAIProvider';
-export type { BossnyumbaAIProviderProps } from './BossnyumbaAIProvider';
+  BorjieAIProvider,
+  useBorjieAI,
+  useOptionalBorjieAI,
+} from './BorjieAIProvider';
+export type { BorjieAIProviderProps } from './BorjieAIProvider';
 export { ChatPanel } from './ChatPanel';
 export { MessageBubble } from './MessageBubble';
 export { ContextBadge } from './ContextBadge';

@@ -242,7 +242,7 @@ import {
   OpenAIVoiceProvider,
   type VoiceRouter,
 } from '@borjie/ai-copilot/voice';
-import type { BossnyumbaMcpServer } from '@borjie/mcp-server';
+import type { BorjieMcpServer } from '@borjie/mcp-server';
 import { buildMcpServer } from './mcp-wiring.js';
 import {
   createClassroomService,
@@ -708,7 +708,7 @@ export interface ServiceRegistry {
   };
 
   /** Wave 12 — AI copilot subsystems wired into the composition root. */
-  readonly mcp: BossnyumbaMcpServer | null;
+  readonly mcp: BorjieMcpServer | null;
   readonly agentCertification: AgentCertificationService | null;
   readonly classroom: ClassroomService | null;
   readonly training: TrainingAdminEndpoints | null;
@@ -1682,7 +1682,7 @@ export function buildServices(input: BuildServicesInput): ServiceRegistry {
   // MCP server is built after the registry because its handlers close
   // over the populated services. Patch the `mcp` slot — the rest of the
   // object remains effectively immutable from callers' perspective.
-  (registry as { mcp: BossnyumbaMcpServer | null }).mcp = buildMcpServer(
+  (registry as { mcp: BorjieMcpServer | null }).mcp = buildMcpServer(
     registry,
     registry.agentCertification,
   );

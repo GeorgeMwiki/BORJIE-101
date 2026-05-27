@@ -34,7 +34,7 @@ describe('GenericWebhookAdapter', () => {
       'https://borjie.example/api/v1/vendor-dispatch/callback/tok123',
     );
     expect(fakeFetch.calls).toHaveLength(1);
-    expect(fakeFetch.calls[0].init?.headers?.['X-Bossnyumba-Signature']).toBeTruthy();
+    expect(fakeFetch.calls[0].init?.headers?.['X-Borjie-Signature']).toBeTruthy();
   });
 
   it('confirmOnSite throws retryable error before callback arrives', async () => {

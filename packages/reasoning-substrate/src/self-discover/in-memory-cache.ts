@@ -9,12 +9,12 @@
 
 import { REASONING_STRUCTURE_SCHEMA_VERSION } from './types.js';
 import type {
-  BossnyumbaTaskClass,
+  BorjieTaskClass,
   ReasoningStructure,
   ReasoningStructureCachePort,
 } from './types.js';
 
-function cacheKey(taskClass: BossnyumbaTaskClass, jurisdiction: string): string {
+function cacheKey(taskClass: BorjieTaskClass, jurisdiction: string): string {
   return `${taskClass}::${jurisdiction}`;
 }
 

@@ -9,11 +9,11 @@
  *   - the expected step count of the IMPLEMENT output
  */
 
-import type { BossnyumbaTaskClass, TaskSampleInput } from '../types.js';
+import type { BorjieTaskClass, TaskSampleInput } from '../types.js';
 
 export interface SelfDiscoverFixture {
   readonly id: string;
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   readonly jurisdiction: string;
   readonly samples: ReadonlyArray<TaskSampleInput>;
   readonly expectedPrimitives: ReadonlyArray<string>;

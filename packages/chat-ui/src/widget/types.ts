@@ -3,7 +3,7 @@
  *
  * The widget is mounted once per app root and reads route + portal context
  * so the sub-persona router in the backend always has the right "muscle"
- * flexed for the current page. All state sits on BossnyumbaAIProvider so
+ * flexed for the current page. All state sits on BorjieAIProvider so
  * page-level chat surfaces (ManagerChat, OwnerAdvisor, …) share one
  * conversation with the floating bubble.
  */

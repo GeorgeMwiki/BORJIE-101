@@ -6,9 +6,9 @@
  * pushy. Never locked behind a signup wall.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createPublicGuide(): BossnyumbaPersona {
+export function createPublicGuide(): BorjiePersona {
   return Object.freeze({
     id: 'public-guide',
     displayName: 'Borjie',

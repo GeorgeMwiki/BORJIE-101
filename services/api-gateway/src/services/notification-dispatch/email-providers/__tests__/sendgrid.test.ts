@@ -92,7 +92,7 @@ describe('createSendGridEmailProvider', () => {
     expect(url).toBe('https://api.sendgrid.com/v3/mail/send');
     expect(init.method).toBe('POST');
     expect(init.headers.authorization).toBe(`Bearer ${FAKE_KEY}`);
-    expect(init.headers['X-Bossnyumba-Tenant-Id']).toBe('tenant-A');
+    expect(init.headers['X-Borjie-Tenant-Id']).toBe('tenant-A');
     const body = JSON.parse(init.body);
     expect(body.from.email).toBe('from@borjie.io');
     expect(body.personalizations[0].to[0].email).toBe('owner@example.com');

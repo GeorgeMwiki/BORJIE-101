@@ -3,7 +3,7 @@
  *
  * Coverage:
  *   1. `buildUrl` handles path params + sorted query params
- *   2. `createBossnyumbaClient` wires bearer auth on every call
+ *   2. `createBorjieClient` wires bearer auth on every call
  *   3. Non-2xx responses throw `ApiSdkError` with code/message from envelope
  *   4. The generate step produces valid TS (smoke-tested by importing types)
  *   5. `marketplace.listings.list` builds the correct URL
@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import {
-  createBossnyumbaClient,
+  createBorjieClient,
   ApiSdkError,
   buildUrl,
   parseErrorResponse,
@@ -58,14 +58,14 @@ describe('buildUrl', () => {
   });
 });
 
-describe('createBossnyumbaClient', () => {
+describe('createBorjieClient', () => {
   it('sends Authorization + JSON body and parses response', async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const fetchFn = mockFetch((input, init) => {
       calls.push({ url: String(input), init });
       return jsonResponse(200, { ok: true });
     });
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://localhost:4001',
       bearerToken: 'static-jwt',
       fetchFn,
@@ -88,7 +88,7 @@ describe('createBossnyumbaClient', () => {
   it('resolves bearer token lazily when given a function', async () => {
     let n = 0;
     const fetchFn = mockFetch(() => jsonResponse(200, {}));
-    const client = createBossnyumbaClient({
+    const client = createBorjieClient({
       baseUrl: 'http://api',
       bearerToken: async () => `tok-${++n}`,
       fetchFn,
@@ -114,7 +114,7 @@ describe('createBossnyumbaClient', () => {
         },
       })
     );
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await expect(client.request({ method: 'GET', path: '/x' })).rejects.toMatchObject({
       name: 'ApiSdkError',
       status: 400,
@@ -130,7 +130,7 @@ describe('createBossnyumbaClient', () => {
       capturedUrl = String(input);
       return jsonResponse(200, { data: [] });
     });
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.marketplace.listings.list({ limit: 10, cursor: 'abc' });
     expect(capturedUrl).toBe('http://api/api/v1/marketplace/listings?cursor=abc&limit=10');
   });
@@ -141,14 +141,14 @@ describe('createBossnyumbaClient', () => {
       capturedUrl = String(input);
       return jsonResponse(200, { id: 'L-1' });
     });
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await client.marketplace.listings.get('L-1');
     expect(capturedUrl).toBe('http://api/api/v1/marketplace/listings/L-1');
   });
 
   it('returns undefined for 204 No Content', async () => {
     const fetchFn = mockFetch(() => new Response(null, { status: 204 }));
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     const out = await client.request<void>({ method: 'DELETE', path: '/a/1' });
     expect(out).toBeUndefined();
   });
@@ -157,7 +157,7 @@ describe('createBossnyumbaClient', () => {
     const fetchFn = mockFetch(() => {
       throw new TypeError('fetch failed');
     });
-    const client = createBossnyumbaClient({ baseUrl: 'http://api', fetchFn });
+    const client = createBorjieClient({ baseUrl: 'http://api', fetchFn });
     await expect(
       client.request({ method: 'GET', path: '/a' })
     ).rejects.toMatchObject({ code: 'NETWORK_ERROR', status: 0 });

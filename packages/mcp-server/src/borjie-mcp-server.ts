@@ -9,7 +9,7 @@
  *   - cost persistence (`cost-persistence.ts`)
  *   - static + template resources (`mcp-resources.ts`)
  *
- * The factory returns a lightweight `BossnyumbaMcpServer` value object
+ * The factory returns a lightweight `BorjieMcpServer` value object
  * rather than directly constructing `@modelcontextprotocol/sdk`'s
  * `McpServer`. This lets the gateway decide which transport to attach
  * (SSE for HTTP, stdio for Claude-Desktop compatibility), and lets us
@@ -66,7 +66,7 @@ export type HandlerMap = Readonly<Record<string, McpToolHandler>>;
 // Factory deps
 // ============================================================================
 
-export interface BossnyumbaMcpDeps {
+export interface BorjieMcpDeps {
   readonly auth: AuthPort;
   readonly handlers: HandlerMap;
   readonly resourceResolvers: ResourceResolvers;
@@ -76,10 +76,10 @@ export interface BossnyumbaMcpDeps {
 }
 
 // ============================================================================
-// The value returned by `createBossnyumbaMcpServer`
+// The value returned by `createBorjieMcpServer`
 // ============================================================================
 
-export interface BossnyumbaMcpServer {
+export interface BorjieMcpServer {
   readonly config: McpServerConfig;
   readonly tools: ReadonlyArray<McpToolDefinition>;
   readonly staticResources: typeof BORJIE_STATIC_RESOURCES;
@@ -115,9 +115,9 @@ const DEFAULT_CONFIG: McpServerConfig = Object.freeze({
     'BORJIE property-management platform — MCP server exposing tenant-scoped tools and resources to Claude Desktop, GPT, Cursor, and partner platforms.',
 });
 
-export function createBossnyumbaMcpServer(
-  deps: BossnyumbaMcpDeps,
-): BossnyumbaMcpServer {
+export function createBorjieMcpServer(
+  deps: BorjieMcpDeps,
+): BorjieMcpServer {
   const config: McpServerConfig = Object.freeze({
     ...DEFAULT_CONFIG,
     ...(deps.config ?? {}),
@@ -305,7 +305,7 @@ export interface McpSdkResourceResponse {
 /**
  * Register every tool and static resource on an SDK `McpServer`. Call this
  * once from the api-gateway composition root after constructing both the
- * SDK server and the Bossnyumba façade.
+ * SDK server and the Borjie façade.
  *
  * NOTE: the SDK server is per-connection; the auth context is resolved
  * from the connection's metadata via `resolveContext`. Callers are
@@ -313,7 +313,7 @@ export interface McpSdkResourceResponse {
  */
 export function attachToMcpSdkServer(
   sdkServer: McpSdkServerLike,
-  borjie: BossnyumbaMcpServer,
+  borjie: BorjieMcpServer,
   resolveContext: () => McpAuthContext,
 ): void {
   for (const toolDef of borjie.tools) {

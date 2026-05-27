@@ -1,5 +1,5 @@
 /**
- * BossnyumbaAIProvider — single source of truth for all chat UI.
+ * BorjieAIProvider — single source of truth for all chat UI.
  *
  * Mounted at the root of each portal app. Page-level surfaces
  * (ManagerChat, OwnerAdvisor …) read from the same context so the floating
@@ -20,15 +20,15 @@ import { buildRouteContext } from './route-context';
 import { useUnifiedChat } from './useUnifiedChat';
 import { useWidgetLanguage } from './useWidgetLanguage';
 
-interface BossnyumbaAIContextValue {
+interface BorjieAIContextValue {
   readonly chat: UnifiedChat;
   readonly strings: WidgetStrings;
   readonly featureEnabled: boolean;
 }
 
-const BossnyumbaAIContext = createContext<BossnyumbaAIContextValue | null>(null);
+const BorjieAIContext = createContext<BorjieAIContextValue | null>(null);
 
-export interface BossnyumbaAIProviderProps {
+export interface BorjieAIProviderProps {
   readonly children: ReactNode;
   readonly portal: PortalId;
   readonly defaultPersona: PersonaId;
@@ -43,7 +43,7 @@ export interface BossnyumbaAIProviderProps {
   };
 }
 
-export function BossnyumbaAIProvider({
+export function BorjieAIProvider({
   children,
   portal,
   defaultPersona,
@@ -53,7 +53,7 @@ export function BossnyumbaAIProvider({
   featureEnabled = true,
   endpoint,
   strings,
-}: BossnyumbaAIProviderProps): JSX.Element {
+}: BorjieAIProviderProps): JSX.Element {
   const { language, setLanguage } = useWidgetLanguage(defaultLanguage);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [soundsEnabled, setSoundsEnabled] = useState(false);
@@ -79,22 +79,22 @@ export function BossnyumbaAIProvider({
     return { ...base, ...(override ?? {}) };
   }, [language, strings]);
 
-  const value = useMemo<BossnyumbaAIContextValue>(
+  const value = useMemo<BorjieAIContextValue>(
     () => ({ chat, strings: mergedStrings, featureEnabled }),
     [chat, mergedStrings, featureEnabled],
   );
 
-  return <BossnyumbaAIContext.Provider value={value}>{children}</BossnyumbaAIContext.Provider>;
+  return <BorjieAIContext.Provider value={value}>{children}</BorjieAIContext.Provider>;
 }
 
-export function useBossnyumbaAI(): BossnyumbaAIContextValue {
-  const ctx = useContext(BossnyumbaAIContext);
+export function useBorjieAI(): BorjieAIContextValue {
+  const ctx = useContext(BorjieAIContext);
   if (!ctx) {
-    throw new Error('useBossnyumbaAI must be used inside BossnyumbaAIProvider');
+    throw new Error('useBorjieAI must be used inside BorjieAIProvider');
   }
   return ctx;
 }
 
-export function useOptionalBossnyumbaAI(): BossnyumbaAIContextValue | null {
-  return useContext(BossnyumbaAIContext);
+export function useOptionalBorjieAI(): BorjieAIContextValue | null {
+  return useContext(BorjieAIContext);
 }

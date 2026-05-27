@@ -2,17 +2,17 @@
  * @borjie/api-sdk — public entry.
  *
  * Re-exports:
- *   - `createBossnyumbaClient` and friends from `./client`
+ *   - `createBorjieClient` and friends from `./client`
  *   - The OpenAPI-generated `paths`, `components`, `operations` types
  */
 
 export {
-  createBossnyumbaClient,
+  createBorjieClient,
   ApiSdkError,
   buildUrl,
   parseErrorResponse,
-  type BossnyumbaClient,
-  type BossnyumbaClientConfig,
+  type BorjieClient,
+  type BorjieClientConfig,
   type ApiSdkErrorPayload,
   type HttpMethod,
   type RequestArgs,

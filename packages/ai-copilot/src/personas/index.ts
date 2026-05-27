@@ -8,8 +8,9 @@
  *     persona-snapshot.test.ts. Do not remove until every consumer
  *     migrates.
  *
- *  2. LitFin-style portal-bound primary personae + differential
- *     sub-persona prompt layers, exposed as PRIMARY_PERSONAE,
+ *  2. Borjie's portal-bound primary personae + differential
+ *     sub-persona prompt layers (structure inherited from the pre-fork
+ *     lineage; evolved independently), exposed as PRIMARY_PERSONAE,
  *     SUB_PERSONA_LAYERS, resolvePersona, routeToSubPersona,
  *     composePersonaPrompt. This is the cleaner model.
  */
@@ -21,8 +22,8 @@ export * from './personas.catalog.js';
 
 // ----- New portal-bound primary persona API -----
 export type {
-  BossnyumbaPersona,
-  BossnyumbaPersonaId,
+  BorjiePersona,
+  BorjiePersonaId,
   PortalId,
   PersonaCommunicationStyle,
 } from './persona-types.js';
@@ -40,7 +41,7 @@ export { createManagerChat } from './manager-chat.js';
 export { createCoworker } from './coworker.js';
 export { createTenantAssistant } from './tenant-assistant.js';
 export { createOwnerAdvisor } from './owner-advisor.js';
-export { createBossnyumbaStudio } from './borjie-studio.js';
+export { createBorjieStudio } from './borjie-studio.js';
 export { createPublicGuide } from './public-guide.js';
 
 // ----- Mining-domain Master Brain persona (MVP1+) -----

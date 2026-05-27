@@ -57,7 +57,7 @@ export interface OCSFPrivacy {
 }
 
 /** BORJIE extensions on the OCSF envelope. */
-export interface BossnyumbaExtensions {
+export interface BorjieExtensions {
   readonly tool_name?: string;
   readonly tool_category?: string;
   readonly tenant_id?: string;
@@ -90,7 +90,7 @@ export interface OCSFSecurityEvent {
   readonly message?: string;
   readonly policy?: OCSFPolicy;
   readonly privacy?: OCSFPrivacy;
-  readonly borjie: BossnyumbaExtensions;
+  readonly borjie: BorjieExtensions;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }
 

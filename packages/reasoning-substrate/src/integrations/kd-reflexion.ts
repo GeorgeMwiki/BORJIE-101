@@ -17,7 +17,7 @@
  */
 
 import type {
-  BossnyumbaTaskClass,
+  BorjieTaskClass,
   ReasoningStructure,
 } from '../self-discover/types.js';
 
@@ -35,7 +35,7 @@ export interface ReflexionWriterPort {
     readonly reflection: string;
     readonly outcome: ReflexionOutcome;
     /** Optional task-class tag — K-D's Drizzle store supports it. */
-    readonly taskClass?: BossnyumbaTaskClass;
+    readonly taskClass?: BorjieTaskClass;
     /** Optional jurisdiction tag. */
     readonly jurisdiction?: string;
   }): Promise<{ readonly id: string }>;

@@ -6,9 +6,9 @@
  * rules, negotiation bounds, notice templates.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createBossnyumbaStudio(): BossnyumbaPersona {
+export function createBorjieStudio(): BorjiePersona {
   return Object.freeze({
     id: 'borjie-studio',
     displayName: 'Borjie Studio',

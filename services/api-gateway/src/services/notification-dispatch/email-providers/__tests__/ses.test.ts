@@ -115,7 +115,7 @@ describe('createSesEmailProvider', () => {
       /^AWS4-HMAC-SHA256 Credential=AKIAFAKE/,
     );
     expect(init.headers['x-amz-date']).toBe('20260508T120000Z');
-    expect(init.headers['X-Bossnyumba-Tenant-Id']).toBe('tenant-A');
+    expect(init.headers['X-Borjie-Tenant-Id']).toBe('tenant-A');
     expect(init.body).toContain('Action=SendEmail');
     expect(init.body).toContain('Source=from%40borjie.io');
     expect(init.body).toContain(

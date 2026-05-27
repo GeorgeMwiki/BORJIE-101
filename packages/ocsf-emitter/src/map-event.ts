@@ -17,7 +17,7 @@ import {
 } from "./ocsf-constants.js";
 import { deepStripPii } from "./redaction.js";
 import type {
-  BossnyumbaExtensions,
+  BorjieExtensions,
   InternalAuditEvent,
   OCSFActor,
   OCSFSecurityEvent,
@@ -139,7 +139,7 @@ export function mapInternalEventToOcsf(
     message = stripped ?? (deepStripPii(message).value as string);
   }
 
-  const borjie: BossnyumbaExtensions = {
+  const borjie: BorjieExtensions = {
     schema_version: OCSF_VERSION,
     ...(event.tenantId !== undefined ? { tenant_id: event.tenantId } : {}),
   };

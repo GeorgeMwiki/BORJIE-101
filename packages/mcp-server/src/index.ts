@@ -82,10 +82,10 @@ export {
 
 // Server
 export {
-  createBossnyumbaMcpServer,
+  createBorjieMcpServer,
   attachToMcpSdkServer,
-  type BossnyumbaMcpServer,
-  type BossnyumbaMcpDeps,
+  type BorjieMcpServer,
+  type BorjieMcpDeps,
   type HandlerMap,
   type McpSdkServerLike,
   type McpSdkToolResponse,

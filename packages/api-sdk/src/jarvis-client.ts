@@ -15,7 +15,7 @@
  * surface prefix and uses the same call shapes.
  */
 
-import type { BossnyumbaClient } from './client.js';
+import type { BorjieClient } from './client.js';
 import {
   createJarvisStream,
   type JarvisStreamHandle,
@@ -295,12 +295,12 @@ const SURFACE_PATH: Record<JarvisSurface, string> = {
 
 /**
  * Build a typed Jarvis client for one surface. The underlying
- * transport is the shared BossnyumbaClient; we call its low-level
+ * transport is the shared BorjieClient; we call its low-level
  * `request<T>` method (the Jarvis routes aren't yet codegen'd into
  * the OpenAPI `paths` shape so the typed helpers can't reach them).
  */
 export function createJarvisClient(
-  client: BossnyumbaClient,
+  client: BorjieClient,
   surface: JarvisSurface,
 ): JarvisSurfaceClient {
   const root = SURFACE_PATH[surface];
@@ -345,7 +345,7 @@ export function createJarvisClient(
       });
     },
     async listActions(filter) {
-      const args: Parameters<BossnyumbaClient['request']>[0] = {
+      const args: Parameters<BorjieClient['request']>[0] = {
         method: 'GET',
         path: `${root}/actions`,
       };

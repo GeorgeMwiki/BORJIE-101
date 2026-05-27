@@ -13,14 +13,14 @@
  *   GET  /.well-known/agent.json   — A2A Agent Card
  *
  * NOTE: This router expects the composition root to have built a
- * `BossnyumbaMcpServer` via `buildMcpServer()` and attached it to the
+ * `BorjieMcpServer` via `buildMcpServer()` and attached it to the
  * Hono context as `services.mcp`. Until wired, the router returns
  * 503 Not Implemented.
  */
 
 import { Hono } from 'hono';
 import type {
-  BossnyumbaMcpServer,
+  BorjieMcpServer,
   McpAuthContext,
 } from '@borjie/mcp-server';
 import { getPrompt, listPrompts } from '@borjie/mcp-server';
@@ -71,14 +71,14 @@ function rpcOk(id: number | string | null, result: unknown): JsonRpcSuccess {
 
 const app = new Hono();
 
-function getMcp(c: any): BossnyumbaMcpServer | null {
+function getMcp(c: any): BorjieMcpServer | null {
   const services = c.get('services') ?? {};
   return services.mcp ?? null;
 }
 
 async function authenticate(
   c: any,
-  mcp: BossnyumbaMcpServer,
+  mcp: BorjieMcpServer,
 ): Promise<McpAuthContext | null> {
   const headers: Record<string, string | undefined> = {};
   // Hono's header accessor

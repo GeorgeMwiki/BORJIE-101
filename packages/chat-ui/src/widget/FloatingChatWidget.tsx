@@ -9,7 +9,7 @@
  * effectively zero-cost for tenants that disable it.
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { useOptionalBossnyumbaAI } from './BossnyumbaAIProvider';
+import { useOptionalBorjieAI } from './BorjieAIProvider';
 import { ChatPanel } from './ChatPanel';
 
 interface FloatingChatWidgetProps {
@@ -23,7 +23,7 @@ function isMobileViewport(breakpoint: number): boolean {
 }
 
 export function FloatingChatWidget({ mobileBreakpoint = 640, renderBlockSlot }: FloatingChatWidgetProps): JSX.Element | null {
-  const ctx = useOptionalBossnyumbaAI();
+  const ctx = useOptionalBorjieAI();
   const [mobile, setMobile] = useState(false);
 
   useEffect(() => {

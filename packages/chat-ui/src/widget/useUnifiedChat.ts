@@ -5,7 +5,7 @@
  * exposes a UI-friendly `{ messages, sendMessage, isStreaming, mode,
  * switchMode, abort, … }` shape. Floating widget, expanded panel and
  * full-page surfaces all consume this same hook via
- * BossnyumbaAIProvider context, so one conversation is shared.
+ * BorjieAIProvider context, so one conversation is shared.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {

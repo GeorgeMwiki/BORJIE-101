@@ -13,9 +13,9 @@
  */
 
 import {
-  createBossnyumbaMcpServer,
+  createBorjieMcpServer,
   createMcpAuth,
-  type BossnyumbaMcpServer,
+  type BorjieMcpServer,
   type HandlerMap,
   type JwtVerifier,
   type JwtClaims,
@@ -500,7 +500,7 @@ function buildResolvers(registry: ServiceRegistry): ResourceResolvers {
 export function buildMcpServer(
   registry: ServiceRegistry,
   certService?: AgentCertificationService | null,
-): BossnyumbaMcpServer {
+): BorjieMcpServer {
   const jwt = buildJwtVerifier();
   const auth = createMcpAuth(jwt !== undefined ? { jwt } : {});
 
@@ -513,7 +513,7 @@ export function buildMcpServer(
   const resourceResolvers = buildResolvers(registry);
   const costLedger = adaptCostLedger(registry);
 
-  return createBossnyumbaMcpServer({
+  return createBorjieMcpServer({
     auth,
     handlers,
     resourceResolvers,

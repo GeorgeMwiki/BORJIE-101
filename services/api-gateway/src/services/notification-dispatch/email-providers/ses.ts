@@ -110,7 +110,7 @@ export function createSesEmailProvider(
       });
       const allHeaders: Record<string, string> = {
         ...headers,
-        'X-Bossnyumba-Tenant-Id': input.tenantId,
+        'X-Borjie-Tenant-Id': input.tenantId,
       };
 
       try {

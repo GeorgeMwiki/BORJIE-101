@@ -30,7 +30,7 @@ import {
 } from './meta-prompts.js';
 import {
   REASONING_STRUCTURE_SCHEMA_VERSION,
-  type BossnyumbaTaskClass,
+  type BorjieTaskClass,
   type DiscovererPort,
   type ReasoningStructure,
   type ReasoningStructureCachePort,
@@ -43,7 +43,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────
 
 export interface DiscoverArgs {
-  readonly taskClass: BossnyumbaTaskClass;
+  readonly taskClass: BorjieTaskClass;
   readonly jurisdiction: string;
   readonly samples: ReadonlyArray<TaskSampleInput>;
   readonly cache?: ReasoningStructureCachePort;

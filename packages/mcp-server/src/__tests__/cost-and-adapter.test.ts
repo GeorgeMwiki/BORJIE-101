@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createBossnyumbaMcpServer,
+  createBorjieMcpServer,
   createMcpAuth,
   createInMemoryCostLedger,
   type McpToolHandler,
@@ -15,7 +15,7 @@ import {
 describe('cost persistence', () => {
   it('records a cost entry on every tool call (even failures)', async () => {
     const ledger = createInMemoryCostLedger();
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers({
         list_maintenance_cases: async () => ({
@@ -46,7 +46,7 @@ describe('cost persistence', () => {
 
 describe('universal tool adapter', () => {
   it('validates required inputs before executing', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -64,7 +64,7 @@ describe('universal tool adapter', () => {
   });
 
   it('enforces scope requirements — a caller without write:cases cannot create_maintenance_case', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -85,7 +85,7 @@ describe('universal tool adapter', () => {
   });
 
   it('gates premium tools behind the tier router', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -116,7 +116,7 @@ describe('universal tool adapter', () => {
     const throwing: McpToolHandler = async () => {
       throw new Error('kaboom');
     };
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers({ list_maintenance_cases: throwing }),
       resourceResolvers: makeResourceResolvers(),
@@ -135,7 +135,7 @@ describe('universal tool adapter', () => {
   });
 
   it('rejects oversized input payloads', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),
@@ -152,7 +152,7 @@ describe('universal tool adapter', () => {
   });
 
   it('run_skill dispatches to the named tool on enterprise tier', async () => {
-    const server = createBossnyumbaMcpServer({
+    const server = createBorjieMcpServer({
       auth: createMcpAuth({}),
       handlers: makeHandlers(),
       resourceResolvers: makeResourceResolvers(),

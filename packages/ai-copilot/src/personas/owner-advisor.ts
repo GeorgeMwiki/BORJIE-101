@@ -7,9 +7,9 @@
  * performance. Delegates operational work back to the Estate Manager.
  */
 
-import type { BossnyumbaPersona } from './persona-types.js';
+import type { BorjiePersona } from './persona-types.js';
 
-export function createOwnerAdvisor(): BossnyumbaPersona {
+export function createOwnerAdvisor(): BorjiePersona {
   return Object.freeze({
     id: 'owner-advisor',
     displayName: 'Borjie Owner Advisor',
