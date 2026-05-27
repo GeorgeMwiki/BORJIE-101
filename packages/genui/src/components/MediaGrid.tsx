@@ -48,6 +48,7 @@ export function MediaGrid(props: MediaGridProps): JSX.Element {
                 src={item.thumbUrl ?? item.url}
                 alt={item.caption ?? item.id}
                 loading="lazy"
+                decoding="async"
                 className="block aspect-[4/3] w-full object-cover"
               />
             </button>
@@ -76,6 +77,9 @@ export function MediaGrid(props: MediaGridProps): JSX.Element {
             <img
               src={active.url}
               alt={active.caption ?? active.id}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               className="max-h-[80vh] max-w-[85vw] object-contain"
             />
             <div className="mt-2 flex items-center justify-between text-xs">

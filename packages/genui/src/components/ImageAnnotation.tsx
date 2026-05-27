@@ -39,6 +39,8 @@ export function ImageAnnotation(props: ImageAnnotationProps): JSX.Element {
           src={props.imageUrl}
           alt={props.title ?? 'annotated image'}
           className="block max-w-full rounded border border-border"
+          loading="lazy"
+          decoding="async"
         />
         {props.annotations.map((a, i) => (
           <span

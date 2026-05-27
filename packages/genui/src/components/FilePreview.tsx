@@ -52,6 +52,8 @@ export function FilePreview(props: FilePreviewProps): JSX.Element {
           src={props.url}
           alt={props.name}
           className="max-w-full rounded border border-border"
+          loading="lazy"
+          decoding="async"
         />
         <div className="mt-1 text-[11px] text-muted-foreground">
           {props.name} · {props.mimeType}
