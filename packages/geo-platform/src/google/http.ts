@@ -118,6 +118,15 @@ export async function fetchJson<T>(input: FetchJsonInput): Promise<GeoResult<T>>
     // strings today; this still catches the case where a future
     // change introduces a tenant-supplied URL upstream.
     await assertUrlSafe(input.url);
+    // assertUrlSafe is async (DNS lookup); the caller may have
+    // aborted (or the timeout may have fired) during that gap.
+    // AbortSignal listeners do not fire on already-aborted signals
+    // in Node, so we must check explicitly before dispatching fetch.
+    if (signal.aborted) {
+      const abortErr = new Error('abort');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
     response = await fetch(input.url, {
       method: input.method ?? 'GET',
       headers,
