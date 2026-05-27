@@ -43,8 +43,48 @@ import {
   type TenantId,
   type UnitId,
 } from '@borjie/domain-models';
+import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
-import { ledgerEntries, type LedgerEntryRow } from './drizzle-schema';
+
+// Local Drizzle table declaration for the legacy payments-ledger
+// `ledger_entries` table. The canonical schema was archived in
+// `packages/database/.archive/migrations/0167b_payments_ledger_drizzle.sql`
+// when the database package pivoted to the mining domain; the repository
+// adapter still needs the shape for production deployments that retain
+// the table. Declared as a module-internal const so its inferred type
+// stays inside this compilation unit. Column-name parity with the
+// archived schema is mandatory.
+const ledgerEntries = pgTable('ledger_entries', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  accountId: text('account_id').notNull(),
+  journalId: text('journal_id').notNull(),
+  type: text('type').notNull(),
+  direction: text('direction').notNull(),
+  amountMinorUnits: integer('amount_minor_units').notNull(),
+  currency: text('currency').notNull(),
+  balanceAfterMinorUnits: integer('balance_after_minor_units').notNull(),
+  sequenceNumber: integer('sequence_number').notNull(),
+  effectiveDate: timestamp('effective_date', {
+    withTimezone: true,
+  }).notNull(),
+  postedAt: timestamp('posted_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  paymentIntentId: text('payment_intent_id'),
+  leaseId: text('lease_id'),
+  propertyId: text('property_id'),
+  unitId: text('unit_id'),
+  invoiceId: text('invoice_id'),
+  description: text('description'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdBy: text('created_by'),
+});
+
+type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
 import type {
   AccountBalance,
   ILedgerRepository,

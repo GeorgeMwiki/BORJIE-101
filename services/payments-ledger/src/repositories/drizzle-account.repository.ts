@@ -39,8 +39,47 @@ import type {
   PropertyId,
   TenantId,
 } from '@borjie/domain-models';
+import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
-import { accounts, type AccountRow } from './drizzle-schema';
+
+// Local Drizzle table declaration for the legacy payments-ledger
+// `accounts` table. The canonical schema was archived in
+// `packages/database/.archive/migrations/0167b_payments_ledger_drizzle.sql`
+// when the database package pivoted to the mining domain; the repository
+// adapter still needs the shape for production deployments that retain
+// the table. Declared as a module-internal const so its inferred type
+// stays inside this compilation unit (avoids TS2883 portability
+// diagnostics that fire on cross-module re-exports of deep drizzle-orm
+// generics). Column-name parity with the archived schema is mandatory.
+const accounts = pgTable('accounts', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  customerId: text('customer_id'),
+  ownerId: text('owner_id'),
+  propertyId: text('property_id'),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  currency: text('currency').notNull(),
+  balanceMinorUnits: integer('balance_minor_units').notNull().default(0),
+  lastEntryId: text('last_entry_id'),
+  lastEntryAt: timestamp('last_entry_at', { withTimezone: true }),
+  entryCount: integer('entry_count').notNull().default(0),
+  description: text('description'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdBy: text('created_by'),
+  updatedBy: text('updated_by'),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  closedBy: text('closed_by'),
+});
+
+type AccountRow = typeof accounts.$inferSelect;
 import type {
   AccountFilters,
   IAccountRepository,

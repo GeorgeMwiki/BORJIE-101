@@ -38,8 +38,55 @@ import {
   type StatementType,
   type TenantId,
 } from '@borjie/domain-models';
+import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
-import { statements, type StatementRow } from './drizzle-schema';
+
+// Local Drizzle table declaration for the legacy payments-ledger
+// `statements` table. The canonical schema was archived in
+// `packages/database/.archive/migrations/0167b_payments_ledger_drizzle.sql`
+// when the database package pivoted to the mining domain; the repository
+// adapter still needs the shape for production deployments that retain
+// the table. Declared as a module-internal const so its inferred type
+// stays inside this compilation unit. Column-name parity with the
+// archived schema is mandatory.
+const statements = pgTable('statements', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  accountId: text('account_id').notNull(),
+  ownerId: text('owner_id'),
+  customerId: text('customer_id'),
+  propertyId: text('property_id'),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  periodType: text('period_type').notNull(),
+  periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+  periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+  currency: text('currency').notNull(),
+  openingBalanceMinorUnits: integer('opening_balance_minor_units'),
+  closingBalanceMinorUnits: integer('closing_balance_minor_units'),
+  totalDebitsMinorUnits: integer('total_debits_minor_units'),
+  totalCreditsMinorUnits: integer('total_credits_minor_units'),
+  netChangeMinorUnits: integer('net_change_minor_units'),
+  lineItems: jsonb('line_items').notNull().default([]),
+  summaries: jsonb('summaries').notNull().default([]),
+  recipientEmail: text('recipient_email'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }),
+  documentUrl: text('document_url'),
+  generatedAt: timestamp('generated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdBy: text('created_by'),
+  updatedBy: text('updated_by'),
+});
+
+type StatementRow = typeof statements.$inferSelect;
 import type {
   IStatementRepository,
   StatementFilters,

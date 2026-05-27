@@ -27,8 +27,50 @@
 
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { CurrencyCode, OwnerId, TenantId } from '@borjie/domain-models';
+import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
-import { disbursements, type DisbursementRow } from './drizzle-schema';
+
+// Local Drizzle table declaration for the legacy payments-ledger
+// `disbursements` table. The canonical schema was archived in
+// `packages/database/.archive/migrations/0167b_payments_ledger_drizzle.sql`
+// when the database package pivoted to the mining domain; the repository
+// adapter still needs the shape for production deployments that retain
+// the table. Declared as a module-internal const so its inferred type
+// stays inside this compilation unit. Column-name parity with the
+// archived schema is mandatory.
+const disbursements = pgTable('disbursements', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  ownerId: text('owner_id').notNull(),
+  amountMinorUnits: integer('amount_minor_units').notNull(),
+  currency: text('currency').notNull(),
+  status: text('status').notNull(),
+  destination: text('destination').notNull(),
+  destinationType: text('destination_type').notNull().default('bank_account'),
+  provider: text('provider'),
+  transferId: text('transfer_id'),
+  providerResponse: jsonb('provider_response').default({}),
+  description: text('description'),
+  initiatedAt: timestamp('initiated_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  failedAt: timestamp('failed_at', { withTimezone: true }),
+  estimatedArrival: timestamp('estimated_arrival', { withTimezone: true }),
+  failureReason: text('failure_reason'),
+  failureCode: text('failure_code'),
+  idempotencyKey: text('idempotency_key'),
+  ledgerEntryId: text('ledger_entry_id'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdBy: text('created_by'),
+  updatedBy: text('updated_by'),
+});
+
+type DisbursementRow = typeof disbursements.$inferSelect;
 import type {
   Disbursement,
   DisbursementFilters,

@@ -38,8 +38,51 @@ import {
   type LeaseId,
   type CurrencyCode,
 } from '@borjie/domain-models';
+import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
-import { paymentIntents, type PaymentIntentRow } from './drizzle-schema';
+
+// Local Drizzle table declaration for the legacy payments-ledger
+// `payment_intents` table. The canonical schema was archived in
+// `packages/database/.archive/migrations/0167b_payments_ledger_drizzle.sql`
+// when the database package pivoted to the mining domain; the repository
+// adapter still needs the shape for production deployments that retain
+// the table. Declared as a module-internal const so its inferred type
+// stays inside this compilation unit. Column-name parity with the
+// archived schema is mandatory.
+const paymentIntents = pgTable('payment_intents', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  leaseId: text('lease_id'),
+  type: text('type').notNull(),
+  status: text('status').notNull(),
+  amountMinorUnits: integer('amount_minor_units').notNull(),
+  currency: text('currency').notNull(),
+  platformFeeMinorUnits: integer('platform_fee_minor_units'),
+  netAmountMinorUnits: integer('net_amount_minor_units'),
+  providerName: text('provider_name'),
+  externalId: text('external_id'),
+  description: text('description'),
+  statementDescriptor: text('statement_descriptor'),
+  idempotencyKey: text('idempotency_key'),
+  receiptUrl: text('receipt_url'),
+  refundedAmountMinorUnits: integer('refunded_amount_minor_units').default(0),
+  failureReason: text('failure_reason'),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  refundedAt: timestamp('refunded_at', { withTimezone: true }),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdBy: text('created_by'),
+  updatedBy: text('updated_by'),
+});
+
+type PaymentIntentRow = typeof paymentIntents.$inferSelect;
 import type { PaymentStatus } from '../types';
 import type {
   IPaymentIntentRepository,
