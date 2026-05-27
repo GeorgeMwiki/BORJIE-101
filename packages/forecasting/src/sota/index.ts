@@ -145,3 +145,20 @@ export {
   type OutlierClipResult,
   type OutlierMethod,
 } from './preprocess/outlier.js';
+
+// Mining-domain wrappers
+export {
+  forecastGoldPrice,
+  forecastProductionVolume,
+  forecastDemand,
+  forecastWorkforce,
+  forecastFuelCost,
+  forecastRoyaltyRevenue,
+  type ForecastGoldPriceInput,
+  type ForecastProductionVolumeInput,
+  type ForecastDemandInput,
+  type ForecastWorkforceInput,
+  type ForecastFuelCostInput,
+  type ForecastRoyaltyRevenueInput,
+  type MiningForecastDeps,
+} from './domain/mining-forecasts.js';
