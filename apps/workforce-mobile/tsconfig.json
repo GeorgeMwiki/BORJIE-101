@@ -6,6 +6,7 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true,
+    "module": "es2022",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

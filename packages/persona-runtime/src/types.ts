@@ -193,6 +193,17 @@ export const AuthorizationContextSchema = z.object({
   moduleId: z.string().optional(),
   /** Active region hint when persona is region_scope. */
   regionId: z.string().optional(),
+  /**
+   * Federated `persons.id` — when set the brain's recall path overlays
+   * the user's personal_memory_cells onto tenant memory per
+   * Docs/research/unified-personal-kb.md §5. The api-gateway
+   * `person-context.ts` middleware sets this ONLY when (a) a
+   * `person_links` row resolves the user → person + tenant join AND
+   * (b) `persons.consent_unified_kb_at` is non-null and not revoked.
+   * Pure additive — when absent, every existing caller behaves
+   * identically.
+   */
+  personId: z.string().min(1).optional(),
   /** Caller's channel for the current request. */
   channel: ChannelSchema.default('web'),
   /** Sentinel — when TRUE the gate refuses every tool. */

@@ -1,13 +1,10 @@
 /**
- * /api/v1/brain — Borjie Brain gateway routes.
- *
- * Production policy:
- *  - Requires verified Supabase JWT on every request (no dev fallback).
- *  - Per-tenant Brain instances backed by Postgres ThreadStore.
- *  - 401 on missing token, 403 on missing tenant claim, 503 on missing env.
+ * /api/v1/brain — Borjie Brain gateway routes (SSE + JSON).
  */
 
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
+import pino from 'pino';
 import {
   createBrain,
   BrainRegistry,
@@ -24,6 +21,8 @@ import {
   MigrationExtractParamsSchema,
   ExtractionBundleSchema,
   checkBrainHealth,
+  streamTurn,
+  type StreamTurnEvent,
 } from '@borjie/ai-copilot';
 import {
   createDatabaseClient,
@@ -39,13 +38,12 @@ import {
 import { getBrainExtraSkills } from '../composition/brain-extensions';
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
-
 import { withSecurityEvents } from '@borjie/observability';
-// ---------------------------------------------------------------------------
-// Lazy boot — fail fast on missing env, but defer until first request so the
-// gateway can boot for unrelated routes (health, auth-only) when Brain env
-// is intentionally not set.
-// ---------------------------------------------------------------------------
+
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  name: 'brain-gateway',
+});
 
 let envCache: ReturnType<typeof loadBrainEnv> | null = null;
 let dbCache: ReturnType<typeof createDatabaseClient> | null = null;
@@ -63,26 +61,15 @@ function db() {
   return dbCache;
 }
 
-/**
- * Resolve the tenant's country/currency/default-city. Currently uses
- * env-sourced defaults so we can remove the `'KE' / 'KES' / 'Nairobi'`
- * hardcoded constants from the migration writer without a Postgres
- * schema change; a follow-up will read these from `tenants.country`
- * once that column is populated on every tenant row.
- */
 async function resolveTenantRegion(
   _tenantId: string
 ): Promise<{ country: string; currency: string; defaultCity?: string }> {
-  // Env-driven so each deployment tenant can customize without code
-  // changes. Production must set these; dev falls through with clear
-  // empty strings so the violation is visible in the DB row.
   const country = process.env.DEFAULT_TENANT_COUNTRY?.trim() || '';
   const currency = process.env.DEFAULT_TENANT_CURRENCY?.trim() || '';
   const defaultCity = process.env.DEFAULT_TENANT_CITY?.trim() || undefined;
   if (process.env.NODE_ENV === 'production' && (!country || !currency)) {
     throw new Error(
-      'brain.hono: DEFAULT_TENANT_COUNTRY and DEFAULT_TENANT_CURRENCY are ' +
-        'required in production until per-tenant region-config lookup is wired.'
+      'brain.hono: DEFAULT_TENANT_COUNTRY and DEFAULT_TENANT_CURRENCY are required in production.'
     );
   }
   return { country, currency, defaultCity };
@@ -91,9 +78,6 @@ async function resolveTenantRegion(
 function registry() {
   if (registryCache) return registryCache;
   const e = env();
-  // Lazily-constructed graph toolkit — present only when NEO4J_URI is set.
-  // Otherwise graph tools are not registered (and any persona that references
-  // one will surface a loud TOOL_NOT_FOUND).
   const graphToolkit = (() => {
     if (!process.env.NEO4J_URI?.trim()) return undefined;
     try {
@@ -101,9 +85,7 @@ function registry() {
       const queryService = createGraphQueryService(neo4j);
       return createGraphAgentToolkit(queryService);
     } catch (err) {
-      // Use the gateway's pino logger if exposed, else fall back to console.
-      // eslint-disable-next-line no-console
-      console.error('brain.hono: failed to construct graph toolkit', err);
+      logger.error({ err: err instanceof Error ? err.message : String(err) }, 'failed to construct graph toolkit');
       return undefined;
     }
   })();
@@ -137,34 +119,6 @@ async function authenticate(c) {
   };
 }
 
-/**
- * F8 (BORJIE101 Supabase audit) — bind the RLS GUC for the current
- * tenant on the Brain's Postgres client BEFORE any repository read.
- *
- * Brain routes do not flow through the gateway's `databaseMiddleware`
- * (which is where the rest of the API sets `app.current_tenant_id`), so
- * Brain's `BrainThreadRepository` reads would run with an unbound GUC
- * and the RLS policies on `brain_threads` + `brain_thread_events` would
- * evaluate `tenant_id = current_setting('app.tenant_id', true)` against
- * NULL — silently zero rows if RLS is honoured, full bypass if the row
- * happens to also satisfy a different role's policy. Either outcome is
- * a defense-in-depth failure: the WHERE-clause tenant filter in the
- * repo is the primary defence, but RLS must back it up.
- *
- * The historical Postgres GUC name in this codebase is split across two
- * migrations:
- *   - 0005..0093 use `app.current_tenant_id` (legacy).
- *   - 0146 / 0156 / 0155 helper use `app.tenant_id` (canonical, what
- *     newer policies and `public.current_app_tenant_id()` read).
- *
- * Z-SUPA-F2 will unify these. Until that lands, we bind BOTH names in
- * the same statement so Brain is correct under either policy phase.
- * The third arg `false` (NOT `SET LOCAL`) matches the existing pattern
- * in `services/api-gateway/src/middleware/database.ts`: postgres.js
- * checks out a connection per request, so the setting persists for the
- * duration of the request only — every authenticated request re-binds
- * before any read, so no cross-tenant leak through pool reuse.
- */
 async function bindTenantGuc(
   database: ReturnType<typeof createDatabaseClient>,
   tenantId: string
@@ -182,27 +136,10 @@ function handleError(c, err) {
     return c.json({ error: err.message, code: 'AUTH' }, err.status);
   }
   if (err instanceof BrainConfigError) {
-    return c.json(
-      { error: err.message, code: 'BRAIN_NOT_CONFIGURED' },
-      503
-    );
+    return c.json({ error: err.message, code: 'BRAIN_NOT_CONFIGURED' }, 503);
   }
-  return c.json(
-    { error: scrubMessage(err, 'Internal error'), code: 'INTERNAL' },
-    500
-  );
+  return c.json({ error: scrubMessage(err, 'Internal error'), code: 'INTERNAL' }, 500);
 }
-
-// ---------------------------------------------------------------------------
-// Per-tenant + per-actor rate limiter
-//
-// Bug fix (A-BUG-DEEP #2): replaces a stale module-local `RATE_BUCKETS` Map
-// with the shared `rateLimiter`/`rateLimitStore` used by
-// `perUserRateLimit` (which `memory-declare.router.ts` mounts as middleware).
-// The shared store is process-wide today and is the same primitive a Redis
-// adapter will plug into in the follow-up; replacing the per-route Map
-// removes the inconsistency where every router managed its own bucket.
-// ---------------------------------------------------------------------------
 
 const BRAIN_RATE_CONFIG = {
   maxRequests: 30,
@@ -214,8 +151,6 @@ function checkRate(key: string): boolean {
 }
 
 const brainRouter = new Hono();
-
-// ----- Health -----------------------------------------------------------
 
 brainRouter.get('/health', async (c) => {
   let ctx;
@@ -234,8 +169,6 @@ brainRouter.get('/health', async (c) => {
   }
 });
 
-// ----- Personae roster --------------------------------------------------
-
 brainRouter.get('/personae', async (c) => {
   try {
     await authenticate(c);
@@ -251,36 +184,92 @@ brainRouter.get('/personae', async (c) => {
   return c.json({ personae });
 });
 
-// ----- Turn (chat) ------------------------------------------------------
-
-brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
-  let body;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_json' }, 400);
+function clientWantsSse(accept: string | undefined): boolean {
+  if (!accept || typeof accept !== 'string') return false;
+  const parts = accept.split(',').map((p) => p.trim().toLowerCase());
+  for (const p of parts) {
+    if (!p.startsWith('text/event-stream')) continue;
+    const qMatch = p.match(/;\s*q\s*=\s*([0-9.]+)/);
+    if (qMatch && Number(qMatch[1]) === 0) return false;
+    return true;
   }
+  return false;
+}
+
+interface PublicSseFrame {
+  readonly event: string;
+  readonly data: Record<string, unknown>;
+}
+
+function projectStreamEvent(evt: StreamTurnEvent, threadId: string): PublicSseFrame | null {
+  switch (evt.type) {
+    case 'turn_start':
+      return null;
+    case 'delta':
+      return { event: 'message_chunk', data: { text: evt.content, done: false } };
+    case 'tool_call':
+      return { event: 'tool_call', data: { tool: evt.name, status: 'started', args: evt.args ?? null } };
+    case 'tool_result':
+      return { event: 'tool_call', data: { tool: evt.name, status: evt.ok ? 'ok' : 'error' } };
+    case 'handoff':
+      return {
+        event: 'tool_call',
+        data: { tool: `handoff:${evt.from}->${evt.to}`, status: 'ok', args: { objective: evt.objective } },
+      };
+    case 'proposed_action':
+      return {
+        event: 'message_chunk',
+        data: {
+          text: '',
+          done: false,
+          proposedAction: {
+            risk: evt.risk,
+            description: evt.description,
+            reviewRequired: evt.reviewRequired,
+            executionHeld: evt.executionHeld,
+          },
+        },
+      };
+    case 'error':
+      return { event: 'error', data: { message: evt.message, code: evt.code, retryable: evt.retryable } };
+    case 'turn_end':
+      return {
+        event: 'done',
+        data: {
+          threadId,
+          tokensUsed: evt.totalTokens,
+          totalMs: evt.timeMs,
+          finalPersonaId: evt.finalPersonaId,
+          advisorConsulted: evt.advisorConsulted,
+          cacheReadTokens: null,
+        },
+      };
+  }
+}
+
+interface TurnGateContext {
+  readonly tenant: { tenantId: string; tenantName: string; environment: 'production' | 'staging' | 'development' };
+  readonly actor: { type: 'user'; id: string; email?: string; roles: string[] };
+  readonly viewer: { userId: string; roles: string[]; teamIds: string[]; employeeId?: string; isAdmin: boolean; isManagement: boolean };
+}
+
+async function gateTurn(
+  c: any,
+  body: { userText?: unknown; threadId?: unknown; forcePersonaId?: unknown },
+): Promise<{ ok: true; ctx: TurnGateContext } | { ok: false; response: Response }> {
   if (!body?.userText || typeof body.userText !== 'string') {
-    return c.json({ error: 'userText_required' }, 400);
+    return { ok: false, response: c.json({ error: 'userText_required' }, 400) };
   }
-
-  let ctx;
+  let ctx: TurnGateContext;
   try {
-    ctx = await authenticate(c);
+    ctx = (await authenticate(c)) as TurnGateContext;
   } catch (err) {
-    return handleError(c, err);
+    return { ok: false, response: handleError(c, err) };
   }
-
-  // Rate limit (per tenant + per actor).
   const rateKey = `${ctx.tenant.tenantId}:${ctx.actor.id}`;
   if (!checkRate(rateKey)) {
-    return c.json({ error: 'rate_limited', code: 'RATE_LIMIT' }, 429);
+    return { ok: false, response: c.json({ error: 'rate_limited', code: 'RATE_LIMIT' }, 429) };
   }
-
-  // Wave-26 Agent Z4 — enforce per-tenant monthly AI budget BEFORE the Brain
-  // orchestrator fires any LLM call. This is the same primitive `withBudgetGuard`
-  // and the multi-LLM router use, surfaced here so the brain's non-streaming
-  // /turn endpoint behaves identically to the SSE chat router.
   const services = c.get('services');
   const ledger = services?.aiCostLedger;
   if (ledger) {
@@ -289,35 +278,41 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
     } catch (err) {
       const e = err as { code?: string; name?: string; message?: string };
       if (e?.code === 'AI_BUDGET_EXCEEDED' || e?.name === 'AiBudgetExceededError') {
-        return c.json(
-          {
-            error: e.message ?? 'monthly AI budget exceeded',
-            code: 'BUDGET_EXCEEDED',
-          },
-          429,
-        );
+        return {
+          ok: false,
+          response: c.json({ error: e.message ?? 'monthly AI budget exceeded', code: 'BUDGET_EXCEEDED' }, 429),
+        };
       }
-      // eslint-disable-next-line no-console
-      console.warn('brain.hono: budget pre-flight check failed (non-fatal)', e?.message ?? e);
+      logger.warn(
+        { tenantId: ctx.tenant.tenantId, err: e?.message ?? String(err) },
+        'budget pre-flight check failed (non-fatal)',
+      );
     }
   }
-
-  const brain = registry().for(ctx.tenant.tenantId);
-
   try {
-    // F8: bind RLS GUC before the orchestrator triggers any thread repo read/write.
     await bindTenantGuc(db(), ctx.tenant.tenantId);
+  } catch (err) {
+    return { ok: false, response: handleError(c, err) };
+  }
+  return { ok: true, ctx };
+}
+
+async function handleTurnJson(
+  c: any,
+  body: { userText: string; threadId?: string; forcePersonaId?: string },
+  ctx: TurnGateContext,
+): Promise<Response> {
+  const brain = registry().for(ctx.tenant.tenantId);
+  try {
     if (!body.threadId) {
       const result = await brain.orchestrator.startThread({
         tenant: ctx.tenant,
         actor: ctx.actor,
         viewer: ctx.viewer,
         initialUserText: body.userText,
-        forcePersonaId: body.forcePersonaId,
+        ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
       });
-      if (!result.success) {
-        return c.json({ error: result.error.message }, 500);
-      }
+      if (!result.success) return c.json({ error: result.error.message }, 500);
       const turn = result.data.turn;
       return c.json({
         threadId: result.data.thread.id,
@@ -336,11 +331,9 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
       actor: ctx.actor,
       viewer: ctx.viewer,
       userText: body.userText,
-      forcePersonaId: body.forcePersonaId,
+      ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
     });
-    if (!result.success) {
-      return c.json({ error: result.error.message }, 500);
-    }
+    if (!result.success) return c.json({ error: result.error.message }, 500);
     return c.json({
       threadId: result.data.threadId,
       finalPersonaId: result.data.finalPersonaId,
@@ -354,9 +347,214 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   } catch (err) {
     return handleError(c, err);
   }
-}));
+}
 
-// ----- Threads ----------------------------------------------------------
+interface StartedTurnPayload {
+  readonly threadId: string;
+  readonly finalPersonaId: string;
+  readonly responseText: string;
+  readonly toolCalls: ReadonlyArray<{ tool: string; ok: boolean }>;
+  readonly handoffs: ReadonlyArray<{ from: string; to: string; objective: string }>;
+  readonly tokensUsed: number;
+  readonly timeMs: number;
+  readonly advisorConsulted: boolean;
+  readonly proposedAction?: {
+    verb: string;
+    object: string;
+    riskLevel: string;
+    reviewRequired: boolean;
+    executionHeld?: boolean;
+  };
+}
+
+async function emitStartedTurnFrames(
+  stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
+  turn: StartedTurnPayload,
+): Promise<void> {
+  for (const tc of turn.toolCalls) {
+    await stream.writeSSE({
+      event: 'tool_call',
+      data: JSON.stringify({ tool: tc.tool, status: tc.ok ? 'ok' : 'error' }),
+    });
+  }
+  for (const h of turn.handoffs) {
+    await stream.writeSSE({
+      event: 'tool_call',
+      data: JSON.stringify({
+        tool: `handoff:${h.from}->${h.to}`,
+        status: 'ok',
+        args: { objective: h.objective },
+      }),
+    });
+  }
+  const text = turn.responseText ?? '';
+  const chunkSize = 80;
+  for (let i = 0; i < text.length; i += chunkSize) {
+    await stream.writeSSE({
+      event: 'message_chunk',
+      data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+    });
+  }
+  if (turn.proposedAction) {
+    await stream.writeSSE({
+      event: 'message_chunk',
+      data: JSON.stringify({
+        text: '',
+        done: false,
+        proposedAction: {
+          risk: turn.proposedAction.riskLevel,
+          description: `${turn.proposedAction.verb} ${turn.proposedAction.object}`,
+          reviewRequired: turn.proposedAction.reviewRequired,
+          executionHeld: turn.proposedAction.executionHeld ?? turn.proposedAction.reviewRequired,
+        },
+      }),
+    });
+  }
+  await stream.writeSSE({
+    event: 'done',
+    data: JSON.stringify({
+      threadId: turn.threadId,
+      tokensUsed: turn.tokensUsed,
+      totalMs: turn.timeMs,
+      finalPersonaId: turn.finalPersonaId,
+      advisorConsulted: turn.advisorConsulted,
+      cacheReadTokens: null,
+    }),
+  });
+}
+
+async function handleTurnSse(
+  c: any,
+  body: { userText: string; threadId?: string; forcePersonaId?: string },
+  ctx: TurnGateContext,
+): Promise<Response> {
+  const brain = registry().for(ctx.tenant.tenantId);
+  return streamSSE(c, async (stream) => {
+    const acceptedAt = new Date().toISOString();
+    try {
+      await stream.writeSSE({
+        event: 'turn.accepted',
+        data: JSON.stringify({
+          at: acceptedAt,
+          tenantId: ctx.tenant.tenantId,
+          threadId: body.threadId ?? null,
+        }),
+      });
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'failed to send turn.accepted frame',
+      );
+      return;
+    }
+    let threadId = body.threadId;
+    let bootstrap:
+      | { type: 'started'; turn: StartedTurnPayload }
+      | { type: 'existing'; threadId: string }
+      | null = null;
+    try {
+      if (!threadId) {
+        const startRes = await brain.orchestrator.startThread({
+          tenant: ctx.tenant,
+          actor: ctx.actor,
+          viewer: ctx.viewer,
+          initialUserText: body.userText,
+          ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+        });
+        if (!startRes.success) {
+          await stream.writeSSE({
+            event: 'error',
+            data: JSON.stringify({
+              message: startRes.error.message,
+              code: startRes.error.code,
+              retryable: startRes.error.retryable,
+            }),
+          });
+          return;
+        }
+        threadId = startRes.data.thread.id;
+        bootstrap = {
+          type: 'started',
+          turn: { ...startRes.data.turn, threadId },
+        };
+      } else {
+        bootstrap = { type: 'existing', threadId };
+      }
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: ctx.tenant.tenantId,
+          threadId: threadId ?? null,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain /turn bootstrap failed',
+      );
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          message: scrubMessage(err, 'orchestrator_failed'),
+          code: 'INTERNAL',
+          retryable: false,
+        }),
+      });
+      return;
+    }
+    try {
+      if (bootstrap.type === 'started') {
+        await emitStartedTurnFrames(stream, bootstrap.turn);
+        return;
+      }
+      const gen = streamTurn(brain.orchestrator, {
+        threadId: bootstrap.threadId,
+        tenant: ctx.tenant,
+        actor: ctx.actor,
+        viewer: ctx.viewer,
+        userText: body.userText,
+        ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+      });
+      for await (const evt of gen) {
+        const frame = projectStreamEvent(evt, bootstrap.threadId);
+        if (!frame) continue;
+        await stream.writeSSE({
+          event: frame.event,
+          data: JSON.stringify(frame.data),
+        });
+        if (frame.event === 'error') return;
+      }
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: ctx.tenant.tenantId,
+          threadId: threadId ?? null,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain /turn stream failed',
+      );
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          message: scrubMessage(err, 'stream_failed'),
+          code: 'INTERNAL',
+          retryable: false,
+        }),
+      });
+    }
+  });
+}
+
+brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_json' }, 400);
+  }
+  const gate = await gateTurn(c, body);
+  if (!gate.ok) return gate.response;
+  const wantsSse = clientWantsSse(c.req.header('accept'));
+  if (wantsSse) return handleTurnSse(c, body, gate.ctx);
+  return handleTurnJson(c, body, gate.ctx);
+}));
 
 brainRouter.get('/threads', async (c) => {
   let ctx;
@@ -366,7 +564,6 @@ brainRouter.get('/threads', async (c) => {
     return handleError(c, err);
   }
   try {
-    // F8: bind RLS GUC before any thread repo read.
     await bindTenantGuc(db(), ctx.tenant.tenantId);
   } catch (err) {
     return handleError(c, err);
@@ -388,7 +585,6 @@ brainRouter.get('/threads/:id', async (c) => {
     return handleError(c, err);
   }
   try {
-    // F8: bind RLS GUC before any thread repo read.
     await bindTenantGuc(db(), ctx.tenant.tenantId);
   } catch (err) {
     return handleError(c, err);
@@ -403,8 +599,6 @@ brainRouter.get('/threads/:id', async (c) => {
   const events = await brain.threads.readAs(id, ctx.viewer);
   return c.json({ thread, events });
 });
-
-// ----- Migration --------------------------------------------------------
 
 brainRouter.post('/migrate/extract', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
   try {
@@ -448,12 +642,8 @@ brainRouter.post('/migrate/commit', withSecurityEvents({ action: 'brain.create',
   const parsed = schema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
   try {
-    // F8: bind RLS GUC before the migration writer touches any
-    // tenant-scoped tables.
     await bindTenantGuc(db(), ctx.tenant.tenantId);
     const writer = new MigrationWriterService(db());
-    // Resolve tenant region settings from DB rather than hardcoding —
-    // helper falls back to env defaults when unavailable.
     const region = await resolveTenantRegion(ctx.tenant.tenantId);
     const report = await writer.commit(
       parsed.data.bundle,

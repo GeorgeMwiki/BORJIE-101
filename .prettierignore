@@ -5,3 +5,10 @@ build
 coverage
 .turbo
 pnpm-lock.yaml
+
+# Vitest/Vite/Next configs hold long alias arrays that
+# prettier-plugin-organize-imports has misclassified as "unused imports"
+# and silently stripped, breaking test discovery (see KI-PRETTIER-1).
+# Re-format these by hand if needed.
+**/vitest.config.ts
+**/vite.config.ts

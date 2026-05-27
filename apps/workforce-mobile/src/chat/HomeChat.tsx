@@ -1,23 +1,32 @@
 /**
- * HomeChat — chat-first home tab. The brain (POST /api/v1/brain/turn) is
- * the primary interaction; data surfaces inline via tool-renderable cards.
+ * HomeChat — chat-first home tab with SSE streaming + R7 polish.
  *
- * Layout:
- *   - Greeting card (only when there are no turns yet) — persona-aware
- *     copy + 3 suggestion chips.
- *   - Turn list — each turn is a user bubble, an assistant bubble, and
- *     zero-or-more tool-call cards rendered via ToolCallRenderer.
- *   - Composer — TextInput + voice button + paperclip placeholder + send.
- *
- * State lives in useState (ChatTurn[]) and is persisted to AsyncStorage
- * keyed by role so each pilot user keeps their own conversation when the
- * tab unmounts. Persistence is best-effort; storage failures are quietly
- * swallowed so an unwriteable disk never blocks the UI.
+ * Wire path:
+ *   • Submit → optimistic user bubble paints BEFORE network (R7 §4.1).
+ *   • `streamBrainTurn` opens SSE to /api/v1/brain/turn (JSON-fallback
+ *     transparent to this surface).
+ *   • `accepted` swaps the "anafikiri" placeholder for a streaming
+ *     bubble inside Doherty's 400 ms bound.
+ *   • `message_chunk` appends text into the live bubble. `Animated`
+ *     drives only opacity / transform so the layout thread is free.
+ *   • `tool_call` pushes a card into the live turn.
+ *   • `proposed_action` attaches the action footer.
+ *   • `done` settles the turn and persists to AsyncStorage.
+ *   • `error` attaches a FailureDot to the user bubble — NEVER a banner
+ *     (R7 §6.1; PreviewBanner is reserved for env-missing / offline /
+ *     no-data per CLAUDE.md).
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useMutation } from '@tanstack/react-query'
 import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import {
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,11 +39,14 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 import { ApiError } from '../api/errors'
-import { PreviewBanner } from '../components/PreviewBanner'
 import { workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
-import { postBrainTurn } from './brainTurn'
+import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
+import { ChatSkeleton } from './ChatSkeleton'
+import { FailureDot } from './FailureDot'
+import { SendButton } from './SendButton'
+import { ThreeDotPulse } from './ThreeDotPulse'
 import { ToolCallRenderer } from './ToolCallRenderer'
 import {
   HOME_CHAT_OPENERS,
@@ -42,18 +54,30 @@ import {
   pickLabel,
   type ChatSuggestion
 } from './homeChatCopy'
-import type { ChatTurn } from './types'
+import {
+  R7_TIMINGS,
+  applyMessageChunk,
+  applyProposedAction,
+  applyStreamError,
+  applyToolCall,
+  applyTurnAccepted,
+  finaliseTurn,
+  newTurnId,
+  optimisticTurn,
+  toPersistedSlice,
+  type LiveTurn,
+  type SettledTurn
+} from './chatTurns'
 
 const STORAGE_KEY_PREFIX = 'borjie.home-chat.turns.v1'
 const MAX_PERSISTED_TURNS = 40
-const PENDING_ID = 'pending'
+const SKELETON_ONSET_MS = R7_TIMINGS['SKELETON_ONSET_MS'] ?? 200
+const SLOW_INDICATOR_MS = R7_TIMINGS['SLOW_INDICATOR_MS'] ?? 3_000
+const PULSE_GRACE_MS = R7_TIMINGS['PULSE_GRACE_MS'] ?? 400
+const ENTRY_DURATION_MS = R7_TIMINGS['BUBBLE_ENTRY_DURATION_MS'] ?? 200
 
 function storageKey(role: string): string {
   return `${STORAGE_KEY_PREFIX}.${role}`
-}
-
-function newTurnId(): string {
-  return `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 export function HomeChat(): JSX.Element {
@@ -63,14 +87,14 @@ export function HomeChat(): JSX.Element {
   const opener = openerFor(role)
   const personaSlug = workforcePersonaSpec(role).slug
 
-  const [turns, setTurns] = useState<ReadonlyArray<ChatTurn>>([])
-  const [pendingUserText, setPendingUserText] = useState<string | null>(null)
+  const [turns, setTurns] = useState<ReadonlyArray<SettledTurn>>([])
+  const [live, setLive] = useState<LiveTurn | null>(null)
   const [draft, setDraft] = useState<string>('')
   const [threadId, setThreadId] = useState<string | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const [showSlow, setShowSlow] = useState(false)
 
-  // Restore persisted turns once per role change. Failure is non-fatal —
-  // the chat just starts empty.
   useEffect(() => {
     let cancelled = false
     const load = async (): Promise<void> => {
@@ -79,12 +103,12 @@ export function HomeChat(): JSX.Element {
         if (raw === null || cancelled) {
           return
         }
-        const parsed = JSON.parse(raw) as ReadonlyArray<ChatTurn>
+        const parsed = JSON.parse(raw) as ReadonlyArray<SettledTurn>
         if (Array.isArray(parsed) && !cancelled) {
           setTurns(parsed)
         }
       } catch {
-        // swallow — see file header
+        // best-effort
       }
     }
     void load()
@@ -93,70 +117,124 @@ export function HomeChat(): JSX.Element {
     }
   }, [role])
 
-  // Persist turns whenever they change. Cap the persisted slice so a long
-  // pilot session can't blow out AsyncStorage.
   useEffect(() => {
     const persist = async (): Promise<void> => {
       try {
-        const slice = turns.slice(-MAX_PERSISTED_TURNS)
-        await AsyncStorage.setItem(storageKey(role), JSON.stringify(slice))
+        await AsyncStorage.setItem(
+          storageKey(role),
+          JSON.stringify(toPersistedSlice(turns, MAX_PERSISTED_TURNS))
+        )
       } catch {
-        // swallow — see file header
+        // best-effort
       }
     }
     void persist()
   }, [turns, role])
 
-  const mutation = useMutation({
-    mutationFn: (userText: string) =>
-      postBrainTurn({ userText, threadId, persona: personaSlug }),
-    onSuccess: (data, userText) => {
-      const turn: ChatTurn = {
-        id: newTurnId(),
-        userText,
-        responseText: data.responseText,
-        toolCalls: data.toolCalls,
-        proposedAction: data.proposedAction ?? null,
-        createdAtMs: Date.now()
-      }
-      setTurns((prev) => [...prev, turn])
-      setThreadId(data.threadId)
-      setPendingUserText(null)
-    },
-    onError: () => {
-      setPendingUserText(null)
+  useEffect(() => {
+    if (live === null || live.kind === 'failed') {
+      setShowSkeleton(false)
+      return
     }
-  })
+    if (
+      live.kind === 'pending' ||
+      (live.kind === 'streaming' && live.text.length === 0)
+    ) {
+      const handle = setTimeout(() => setShowSkeleton(true), SKELETON_ONSET_MS)
+      return () => clearTimeout(handle)
+    }
+    setShowSkeleton(false)
+    return
+  }, [live])
 
-  const send = useCallback(
-    (text: string): void => {
-      const trimmed = text.trim()
-      if (trimmed.length === 0 || mutation.isPending) {
+  useEffect(() => {
+    if (
+      live === null ||
+      live.kind === 'streaming-complete' ||
+      live.kind === 'failed'
+    ) {
+      setShowSlow(false)
+      return
+    }
+    const handle = setTimeout(() => setShowSlow(true), SLOW_INDICATOR_MS)
+    return () => clearTimeout(handle)
+  }, [live])
+
+  const handleEvent = useCallback(
+    (turnId: string, event: BrainStreamEvent): void => {
+      setLive((prev) => {
+        if (prev === null || prev.id !== turnId) {
+          return prev
+        }
+        if (event.kind === 'accepted' && event.data.type === 'accepted') {
+          return applyTurnAccepted(prev, event.data.threadId)
+        }
+        if (event.kind === 'message_chunk' && event.data.type === 'message_chunk') {
+          return applyMessageChunk(prev, event.data.delta)
+        }
+        if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
+          return applyToolCall(prev, event.data.toolCall)
+        }
+        if (
+          event.kind === 'proposed_action' &&
+          event.data.type === 'proposed_action'
+        ) {
+          return applyProposedAction(prev, event.data.action)
+        }
+        return prev
+      })
+    },
+    []
+  )
+
+  const submitTurn = useCallback(
+    (userText: string): void => {
+      const trimmed = userText.trim()
+      if (trimmed.length === 0 || live !== null) {
         return
       }
-      setPendingUserText(trimmed)
+      const fresh = optimisticTurn(trimmed)
+      setLive(fresh)
       setDraft('')
-      mutation.mutate(trimmed)
+      void runStream(fresh, threadId, personaSlug, handleEvent)
+        .then((settled) => {
+          setLive(null)
+          setTurns((prev) => [...prev, settled])
+          setThreadId(settled.threadId)
+          setShowSkeleton(false)
+          setShowSlow(false)
+        })
+        .catch((cause: unknown) => {
+          const message =
+            cause instanceof ApiError ? cause.message : 'stream_error'
+          setLive((prev) =>
+            prev !== null && prev.id === fresh.id
+              ? applyStreamError(prev, message)
+              : prev
+          )
+          setShowSkeleton(false)
+          setShowSlow(false)
+        })
     },
-    [mutation]
+    [handleEvent, live, personaSlug, threadId]
   )
 
   const onSendPress = useCallback((): void => {
-    send(draft)
-  }, [draft, send])
+    submitTurn(draft)
+  }, [draft, submitTurn])
 
   const onSubmitEditing = useCallback(
     (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>): void => {
-      send(event.nativeEvent.text ?? draft)
+      submitTurn(event.nativeEvent.text ?? draft)
     },
-    [draft, send]
+    [draft, submitTurn]
   )
 
   const onSuggestionPress = useCallback(
     (suggestion: ChatSuggestion): void => {
-      send(suggestion.sw)
+      submitTurn(suggestion.sw)
     },
-    [send]
+    [submitTurn]
   )
 
   const onContentSizeChange = useCallback((): void => {
@@ -165,8 +243,19 @@ export function HomeChat(): JSX.Element {
     }
   }, [])
 
-  const showGreeting = turns.length === 0 && pendingUserText === null
-  const canSend = draft.trim().length > 0 && !mutation.isPending
+  const retryFailedTurn = useCallback(
+    (failed: LiveTurn): void => {
+      if (failed.kind !== 'failed') {
+        return
+      }
+      setLive(null)
+      submitTurn(failed.userText)
+    },
+    [submitTurn]
+  )
+
+  const showGreeting = turns.length === 0 && live === null
+  const canSend = draft.trim().length > 0
 
   return (
     <View style={styles.root} testID="home-chat-root">
@@ -183,16 +272,21 @@ export function HomeChat(): JSX.Element {
             lang={lang}
             suggestions={opener.suggestions}
             onPick={onSuggestionPress}
-            disabled={mutation.isPending}
           />
         ) : null}
         {turns.map((turn) => (
-          <TurnView key={turn.id} turn={turn} />
+          <SettledTurnView key={turn.id} turn={turn} />
         ))}
-        {pendingUserText !== null ? (
-          <PendingTurnView userText={pendingUserText} lang={lang} />
+        {live !== null ? (
+          <LiveTurnView
+            turn={live}
+            lang={lang}
+            showSkeleton={showSkeleton}
+            showSlow={showSlow}
+            pulseGraceMs={PULSE_GRACE_MS}
+            onRetry={() => retryFailedTurn(live)}
+          />
         ) : null}
-        {mutation.isError ? <PreviewBanner kind="env-missing" /> : null}
       </ScrollView>
       <Composer
         draft={draft}
@@ -212,7 +306,6 @@ interface GreetingCardProps {
   readonly lang: 'sw' | 'en'
   readonly suggestions: ReadonlyArray<ChatSuggestion>
   readonly onPick: (suggestion: ChatSuggestion) => void
-  readonly disabled: boolean
 }
 
 function GreetingCard({
@@ -220,13 +313,14 @@ function GreetingCard({
   greetingEn,
   lang,
   suggestions,
-  onPick,
-  disabled
+  onPick
 }: GreetingCardProps): JSX.Element {
   return (
     <View style={styles.greetingCard} testID="home-chat-greeting">
       <Text style={styles.greetingPrimary}>{greetingSw}</Text>
-      {lang === 'en' ? <Text style={styles.greetingSecondary}>{greetingEn}</Text> : null}
+      {lang === 'en' ? (
+        <Text style={styles.greetingSecondary}>{greetingEn}</Text>
+      ) : null}
       <Text style={styles.suggestionsTitle}>
         {pickLabel('suggestionsTitle', lang)}
       </Text>
@@ -235,14 +329,12 @@ function GreetingCard({
           <Pressable
             key={suggestion.id}
             onPress={() => onPick(suggestion)}
-            disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={suggestion.sw}
             testID={`home-chat-suggestion-${suggestion.id}`}
             style={({ pressed }) => [
               styles.suggestionChip,
-              pressed ? styles.suggestionChipPressed : null,
-              disabled ? styles.suggestionChipDisabled : null
+              pressed ? styles.suggestionChipPressed : null
             ]}
           >
             <Text style={styles.suggestionText}>{suggestion.sw}</Text>
@@ -253,24 +345,27 @@ function GreetingCard({
   )
 }
 
-interface TurnViewProps {
-  readonly turn: ChatTurn
-}
-
-function TurnView({ turn }: TurnViewProps): JSX.Element {
+function SettledTurnView({ turn }: { readonly turn: SettledTurn }): JSX.Element {
   const { lang } = useI18n()
   return (
     <View testID={`home-chat-turn-${turn.id}`}>
-      <View style={[styles.bubbleRow, styles.bubbleRowUser]}>
-        <View style={[styles.bubble, styles.bubbleUser]}>
-          <Text style={styles.bubbleUserText}>{turn.userText}</Text>
+      <BubbleEnter>
+        <View style={[styles.bubbleRow, styles.bubbleRowUser]}>
+          <View style={[styles.bubble, styles.bubbleUser]}>
+            <Text style={styles.bubbleUserText}>{turn.userText}</Text>
+          </View>
         </View>
-      </View>
-      <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
-        <View style={[styles.bubble, styles.bubbleAssistant]}>
-          <Text style={styles.bubbleAssistantText}>{turn.responseText}</Text>
+      </BubbleEnter>
+      <BubbleEnter>
+        <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
+          <View style={[styles.bubble, styles.bubbleAssistant]}>
+            <Text style={styles.bubbleAssistantText}>{turn.responseText}</Text>
+            {turn.citations.length > 0 ? (
+              <CitationChips citations={turn.citations} />
+            ) : null}
+          </View>
         </View>
-      </View>
+      </BubbleEnter>
       {turn.toolCalls.map((call, index) => (
         <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
       ))}
@@ -281,37 +376,143 @@ function TurnView({ turn }: TurnViewProps): JSX.Element {
   )
 }
 
-function PendingTurnView({
-  userText,
-  lang
-}: {
-  readonly userText: string
+interface LiveTurnViewProps {
+  readonly turn: LiveTurn
   readonly lang: 'sw' | 'en'
-}): JSX.Element {
+  readonly showSkeleton: boolean
+  readonly showSlow: boolean
+  readonly pulseGraceMs: number
+  readonly onRetry: () => void
+}
+
+function LiveTurnView({
+  turn,
+  lang,
+  showSkeleton,
+  showSlow,
+  pulseGraceMs,
+  onRetry
+}: LiveTurnViewProps): JSX.Element {
+  const hasStream = turn.kind === 'streaming' && turn.text.length > 0
+  const showPulse =
+    pulseGraceMs >= 0 &&
+    (turn.kind === 'pending' ||
+      (turn.kind === 'streaming' && turn.text.length === 0)) &&
+    showSkeleton
+  const showPlaceholder =
+    turn.kind === 'pending' && !showSkeleton && !hasStream
+
   return (
-    <View testID={`home-chat-turn-${PENDING_ID}`}>
-      <View style={[styles.bubbleRow, styles.bubbleRowUser]}>
-        <View style={[styles.bubble, styles.bubbleUser]}>
-          <Text style={styles.bubbleUserText}>{userText}</Text>
+    <View testID={`home-chat-turn-${turn.id}`}>
+      <BubbleEnter>
+        <View style={[styles.bubbleRow, styles.bubbleRowUser]}>
+          <View style={[styles.bubble, styles.bubbleUser]}>
+            <Text style={styles.bubbleUserText}>{turn.userText}</Text>
+            {turn.kind === 'failed' ? (
+              <FailureDot
+                onPress={onRetry}
+                accessibilityLabel={pickLabel('errorRetry', lang)}
+              />
+            ) : null}
+          </View>
         </View>
-      </View>
-      <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
-        <View style={[styles.bubble, styles.bubbleAssistant]}>
-          <Text style={styles.bubbleAssistantTextThinking}>
-            {pickLabel('thinking', lang)}
+      </BubbleEnter>
+      {turn.kind !== 'failed' ? (
+        <BubbleEnter>
+          <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
+            <View
+              style={[
+                styles.bubble,
+                styles.bubbleAssistant,
+                styles.bubbleAssistantFlexible
+              ]}
+            >
+              {showPlaceholder ? (
+                <Text style={styles.bubbleAssistantTextThinking}>
+                  {pickLabel('thinking', lang)}
+                </Text>
+              ) : null}
+              {showSkeleton && !hasStream ? <ChatSkeleton /> : null}
+              {hasStream ? (
+                <Text style={styles.bubbleAssistantText}>{turn.text}</Text>
+              ) : null}
+              {showPulse ? <ThreeDotPulse /> : null}
+              {showSlow ? (
+                <Text style={styles.slowIndicator}>
+                  {lang === 'sw'
+                    ? 'Borjie ana shughuli, jaribu tena…'
+                    : 'Borjie is busy, hold on…'}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </BubbleEnter>
+      ) : null}
+      {turn.toolCalls.map((call, index) => (
+        <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
+      ))}
+      {turn.proposedAction ? (
+        <ProposedActionCard action={turn.proposedAction} lang={lang} />
+      ) : null}
+    </View>
+  )
+}
+
+interface BubbleEnterProps {
+  readonly children: ReactNode
+}
+
+function BubbleEnter({ children }: BubbleEnterProps): JSX.Element {
+  const progress = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: ENTRY_DURATION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start()
+  }, [progress])
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 0]
+  })
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  )
+}
+
+interface CitationChipsProps {
+  readonly citations: ReadonlyArray<{
+    readonly id: string
+    readonly label: string
+  }>
+}
+
+function CitationChips({ citations }: CitationChipsProps): JSX.Element {
+  return (
+    <View style={styles.citationRow} testID="home-chat-citations">
+      {citations.map((citation, index) => (
+        <View key={citation.id} style={styles.citationPill}>
+          <Text style={styles.citationText}>
+            [{index + 1}] {citation.label}
           </Text>
         </View>
-      </View>
+      ))}
     </View>
   )
 }
 
 interface ProposedActionCardProps {
-  readonly action: NonNullable<ChatTurn['proposedAction']>
+  readonly action: NonNullable<SettledTurn['proposedAction']>
   readonly lang: 'sw' | 'en'
 }
 
-function ProposedActionCard({ action, lang }: ProposedActionCardProps): JSX.Element {
+function ProposedActionCard({
+  action,
+  lang
+}: ProposedActionCardProps): JSX.Element {
   const riskKey =
     action.riskLevel === 'CRITICAL'
       ? 'riskCritical'
@@ -352,51 +553,103 @@ function Composer({
   canSend,
   lang
 }: ComposerProps): JSX.Element {
+  const [recording, setRecording] = useState(false)
+
+  const onLongPressVoice = useCallback(() => {
+    setRecording(true)
+  }, [])
+  const onPressOutVoice = useCallback(() => {
+    if (recording) {
+      setRecording(false)
+    }
+  }, [recording])
+
   return (
     <View style={styles.composer} testID="home-chat-composer">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={pickLabel('attach', lang)}
-        style={styles.iconButton}
-        testID="home-chat-attach"
-      >
-        <Text style={styles.iconButtonText}>+</Text>
-      </Pressable>
-      <TextInput
-        value={draft}
-        onChangeText={onChangeDraft}
-        placeholder={pickLabel('composerPlaceholder', lang)}
-        placeholderTextColor={colors.textMuted}
-        style={styles.input}
-        multiline
-        onSubmitEditing={onSubmit}
-        blurOnSubmit={false}
-        testID="home-chat-input"
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={pickLabel('voice', lang)}
-        style={styles.iconButton}
-        testID="home-chat-voice"
-      >
-        <Text style={styles.iconButtonText}>S</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={pickLabel('send', lang)}
-        onPress={onSendPress}
-        disabled={!canSend}
-        style={({ pressed }) => [
-          styles.sendButton,
-          pressed ? styles.sendButtonPressed : null,
-          !canSend ? styles.sendButtonDisabled : null
-        ]}
-        testID="home-chat-send"
-      >
-        <Text style={styles.sendButtonText}>{pickLabel('send', lang)}</Text>
-      </Pressable>
+      {recording ? (
+        <View style={styles.voiceCue} testID="home-chat-voice-cue">
+          <Text style={styles.voiceCueText}>
+            {lang === 'sw'
+              ? 'Shikilia kuongea • Achia kutuma'
+              : 'Hold to speak • Release to send'}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.composerRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pickLabel('attach', lang)}
+          style={styles.iconButton}
+          hitSlop={6}
+          testID="home-chat-attach"
+        >
+          <Text style={styles.iconButtonText}>+</Text>
+        </Pressable>
+        <TextInput
+          value={draft}
+          onChangeText={onChangeDraft}
+          placeholder={pickLabel('composerPlaceholder', lang)}
+          placeholderTextColor={colors.textMuted}
+          style={styles.input}
+          multiline
+          onSubmitEditing={onSubmit}
+          blurOnSubmit={false}
+          testID="home-chat-input"
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pickLabel('voice', lang)}
+          style={[styles.iconButton, recording ? styles.iconButtonActive : null]}
+          onLongPress={onLongPressVoice}
+          onPressOut={onPressOutVoice}
+          delayLongPress={300}
+          hitSlop={6}
+          testID="home-chat-voice"
+        >
+          <Text style={styles.iconButtonText}>S</Text>
+        </Pressable>
+        <SendButton
+          label={pickLabel('send', lang)}
+          accessibilityLabel={pickLabel('send', lang)}
+          onPress={onSendPress}
+          enabled={canSend}
+        />
+      </View>
     </View>
   )
+}
+
+async function runStream(
+  optimistic: LiveTurn,
+  threadId: string | null,
+  persona: string | undefined,
+  onEvent: (turnId: string, event: BrainStreamEvent) => void
+): Promise<SettledTurn> {
+  let working = optimistic
+  const result = await streamBrainTurn({
+    userText: optimistic.userText,
+    threadId,
+    ...(persona !== undefined ? { persona } : {}),
+    onEvent: (event) => {
+      onEvent(optimistic.id, event)
+      if (event.kind === 'accepted' && event.data.type === 'accepted') {
+        working = applyTurnAccepted(working, event.data.threadId)
+      } else if (
+        event.kind === 'message_chunk' &&
+        event.data.type === 'message_chunk'
+      ) {
+        working = applyMessageChunk(working, event.data.delta)
+      } else if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
+        working = applyToolCall(working, event.data.toolCall)
+      } else if (
+        event.kind === 'proposed_action' &&
+        event.data.type === 'proposed_action'
+      ) {
+        working = applyProposedAction(working, event.data.action)
+      }
+    }
+  })
+  return finaliseTurn(working, result.threadId, result.tokensUsed)
 }
 
 // Pure helpers re-exported for tests.
@@ -404,7 +657,12 @@ export const __internals__ = Object.freeze({
   storageKey,
   STORAGE_KEY_PREFIX,
   MAX_PERSISTED_TURNS,
-  openersMap: HOME_CHAT_OPENERS
+  SKELETON_ONSET_MS,
+  SLOW_INDICATOR_MS,
+  PULSE_GRACE_MS,
+  ENTRY_DURATION_MS,
+  openersMap: HOME_CHAT_OPENERS,
+  newTurnId
 })
 
 const styles = StyleSheet.create({
@@ -464,9 +722,6 @@ const styles = StyleSheet.create({
   suggestionChipPressed: {
     backgroundColor: colors.gold
   },
-  suggestionChipDisabled: {
-    opacity: 0.5
-  },
   suggestionText: {
     color: colors.earth900,
     fontSize: fontSize.body,
@@ -489,12 +744,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg
   },
   bubbleUser: {
-    backgroundColor: colors.gold
+    backgroundColor: colors.gold,
+    position: 'relative'
   },
   bubbleAssistant: {
     backgroundColor: colors.earth100,
     borderWidth: 1,
     borderColor: colors.border
+  },
+  bubbleAssistantFlexible: {
+    minHeight: 48
   },
   bubbleUserText: {
     color: colors.earth900,
@@ -512,13 +771,52 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 20
   },
-  composer: {
+  slowIndicator: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    fontStyle: 'italic',
+    marginTop: spacing.xs
+  },
+  citationRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm
+  },
+  citationPill: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  citationText: {
+    color: colors.earth700,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
+  },
+  composer: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border
+  },
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm
+  },
+  voiceCue: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm
+  },
+  voiceCueText: {
+    color: colors.earth700,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
   },
   iconButton: {
     width: 44,
@@ -529,6 +827,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  iconButtonActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.goldDark
   },
   iconButtonText: {
     color: colors.earth900,
@@ -547,24 +849,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     color: colors.text,
     fontSize: fontSize.body
-  },
-  sendButton: {
-    backgroundColor: colors.gold,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    minHeight: 44,
-    justifyContent: 'center'
-  },
-  sendButtonPressed: {
-    backgroundColor: colors.goldDark
-  },
-  sendButtonDisabled: {
-    opacity: 0.5
-  },
-  sendButtonText: {
-    color: colors.earth900,
-    fontSize: fontSize.body,
-    fontWeight: '700'
   },
   proposedActionWrap: {
     backgroundColor: colors.surfaceAlt,
@@ -594,7 +878,5 @@ const styles = StyleSheet.create({
   }
 })
 
-// Surface the `ApiError` type so consumers (and tests) don't have to walk
-// back through `api/errors`. The import is preserved so tree-shaking can
-// drop it if the upstream change ever removes it.
+// Surface ApiError so callers don't have to walk back through api/errors.
 export type HomeChatApiError = ApiError

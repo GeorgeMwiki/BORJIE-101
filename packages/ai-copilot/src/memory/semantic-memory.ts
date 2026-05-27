@@ -1,5 +1,5 @@
 /**
- * BORJIE AI semantic memory — Wave-11.
+ * BORJIE AI semantic memory — Wave-11 (+ PersonLayer overlay).
  *
  * Per-tenant, per-persona long-lived memory. Backed by the
  * `ai_semantic_memories` table (see 0038_ai_semantic_memory.sql). Embeddings
@@ -9,7 +9,23 @@
  * Every read/write is tenant-scoped; the repository port intentionally
  * requires `tenantId` on every call so we cannot accidentally spill memories
  * across organisations.
+ *
+ * PersonLayer overlay (Docs/research/unified-personal-kb.md §5):
+ *   `recall()` accepts an optional `personId`. When set, the recall path
+ *   loads the person's federated cells via `loadPersonLayer` and
+ *   UNION-ALLs them into the result set with a `-0.1` similarity penalty
+ *   on cross-tenant rows. The wall is enforced *before* the union: a
+ *   Chinese-wall verdict drops every cross-tenant numeric cell, and
+ *   k-anonymity (k>=3) gates count-style claims.
  */
+
+import {
+  loadPersonLayer,
+  type PersonalMemoryCell,
+  type PersonLayerDrizzleClient,
+  type PersonLayerSqlTemplate,
+} from './person-layer.js';
+import { enforceChineseWall } from './boundary-tagger.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,6 +37,13 @@ export type MemoryType =
   | 'decision'
   | 'relationship'
   | 'learning';
+
+/**
+ * Per-cell penalty applied to cross-tenant person-layer rows. Keeps
+ * tenant-native cells naturally ranked above federated personal cells
+ * with equivalent semantic similarity. Value chosen per R8 spec.
+ */
+export const PERSON_LAYER_CROSS_TENANT_PENALTY = 0.1;
 
 export interface SemanticMemoryRow {
   readonly id: string;
@@ -68,11 +91,48 @@ export interface SemanticMemoryRepository {
 
 export type Embedder = (text: string) => Promise<readonly number[]>;
 
+/**
+ * Pluggable PersonLayer client. The default uses `loadPersonLayer`
+ * directly against a Drizzle client; tests inject a deterministic stub.
+ */
+export interface PersonLayerClient {
+  load(args: {
+    readonly personId: string;
+    readonly currentTenantId: string;
+  }): Promise<{
+    readonly preferences: ReadonlyArray<PersonalMemoryCell>;
+    readonly context: ReadonlyArray<PersonalMemoryCell>;
+    readonly recurringFacts: ReadonlyArray<PersonalMemoryCell>;
+    readonly calibration: ReadonlyArray<PersonalMemoryCell>;
+  }>;
+}
+
 export interface SemanticMemoryDeps {
   readonly repo: SemanticMemoryRepository;
   readonly embedder: Embedder;
   readonly now?: () => Date;
   readonly idGenerator?: () => string;
+  /**
+   * Optional PersonLayer overlay. When provided AND the caller passes
+   * `personId` to `recall()`, the federated personal cells are loaded
+   * and unioned into the result. Absent → recall is tenant-only
+   * (existing behaviour).
+   */
+  readonly personLayer?: PersonLayerClient;
+}
+
+export interface RecallOptions {
+  readonly personaId?: string;
+  readonly limit?: number;
+  readonly minSimilarity?: number;
+  /**
+   * Optional federated personId — when present, the recall path loads
+   * the person's `personal_memory_cells` rows via PersonLayer and
+   * UNIONs them into the result set, after running them through the
+   * Chinese-wall boundary-tagger. Backwards-compatible — when absent,
+   * recall behaves exactly as before.
+   */
+  readonly personId?: string;
 }
 
 export interface SemanticMemory {
@@ -80,9 +140,34 @@ export interface SemanticMemory {
   recall(
     tenantId: string,
     query: string,
-    options?: { readonly personaId?: string; readonly limit?: number; readonly minSimilarity?: number },
+    options?: RecallOptions,
   ): Promise<readonly RecallResult[]>;
   buildPromptLayer(recall: readonly RecallResult[]): string;
+}
+
+/**
+ * Build a PersonLayer client backed by a live Drizzle connection. Pass
+ * this on `SemanticMemoryDeps` to wire the federated personal-memory
+ * overlay into the live recall path.
+ */
+export function createDrizzlePersonLayerClient(args: {
+  readonly db: PersonLayerDrizzleClient;
+  readonly sqlTemplate?: PersonLayerSqlTemplate;
+  readonly perKindLimit?: number;
+}): PersonLayerClient {
+  return {
+    async load({ personId, currentTenantId }) {
+      return loadPersonLayer({
+        personId,
+        currentTenantId,
+        db: args.db,
+        ...(args.sqlTemplate ? { sqlTemplate: args.sqlTemplate } : {}),
+        ...(args.perKindLimit !== undefined
+          ? { perKindLimit: args.perKindLimit }
+          : {}),
+      });
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -194,8 +279,6 @@ export function createSemanticMemory(deps: SemanticMemoryDeps): SemanticMemory {
         limit: Math.max(limit * 10, 100),
       });
 
-      if (candidates.length === 0) return [];
-
       const queryVec = await deps.embedder(query);
       const scored = candidates
         .filter((c) => {
@@ -207,21 +290,41 @@ export function createSemanticMemory(deps: SemanticMemoryDeps): SemanticMemory {
           similarity:
             cosineSimilarity(queryVec, memory.embedding) * memory.decayScore,
         }))
-        .filter((r) => r.similarity >= minSim)
+        .filter((r) => r.similarity >= minSim);
+
+      // PersonLayer overlay — additive, never replaces tenant results.
+      const personId = options?.personId;
+      const personLayer = deps.personLayer;
+      const personRows: RecallResult[] =
+        personId && personLayer
+          ? await loadAndScorePersonLayer({
+              tenantId,
+              personId,
+              personLayer,
+              queryVec,
+              minSim,
+            })
+          : [];
+
+      const unioned = [...scored, ...personRows]
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);
 
-      // Fire-and-forget touch — never block the recall path.
+      // Fire-and-forget touch — never block the recall path. Person
+      // cells live in personal_memory_cells (separate table) and have
+      // no `touch` semantic — we only touch the tenant rows.
       const touchAt = now().toISOString();
-      for (const r of scored) {
-        deps.repo
-          .touch(r.memory.id, touchAt, r.memory.accessCount + 1)
-          .catch(() => {
-            /* non-critical */
-          });
+      for (const r of unioned) {
+        if (r.memory.tenantId !== '__person__') {
+          deps.repo
+            .touch(r.memory.id, touchAt, r.memory.accessCount + 1)
+            .catch(() => {
+              /* non-critical */
+            });
+        }
       }
 
-      return scored;
+      return unioned;
     },
 
     buildPromptLayer(recall) {
@@ -246,6 +349,109 @@ function clamp01(v: number): number {
   if (v < 0) return 0;
   if (v > 1) return 1;
   return v;
+}
+
+// ---------------------------------------------------------------------------
+// PersonLayer scoring helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders a personal_memory_cells row as a SemanticMemoryRow look-alike
+ * so the existing prompt-layer formatter / sort logic does not need to
+ * branch. The synthetic `tenantId === '__person__'` sentinel lets the
+ * recall path skip the `touch` write (those cells live in a different
+ * table). Confidence is folded into the similarity score.
+ */
+function personCellToRow(
+  cell: PersonalMemoryCell,
+  vec: readonly number[],
+): SemanticMemoryRow {
+  const memoryType: MemoryType =
+    cell.cellKind === 'preference'
+      ? 'preference'
+      : cell.cellKind === 'calibration'
+        ? 'learning'
+        : cell.cellKind === 'recurring-fact'
+          ? 'relationship'
+          : 'interaction';
+  const content = formatPersonCellAsText(cell);
+  return Object.freeze({
+    id: cell.id,
+    tenantId: '__person__',
+    personaId: null,
+    memoryType,
+    content,
+    embedding: vec,
+    metadata: {
+      origin: 'person_layer',
+      cellKind: cell.cellKind,
+      key: cell.key,
+      sourceTenantId: cell.sourceTenantId,
+      sourceThreadId: cell.sourceThreadId,
+    } as Record<string, unknown>,
+    confidence: cell.confidence,
+    decayScore: 1.0,
+    accessCount: 0,
+    sessionId: null,
+    createdAt: cell.capturedAt,
+    lastAccessedAt: cell.capturedAt,
+    expiresAt: cell.expiresAt,
+  });
+}
+
+function formatPersonCellAsText(cell: PersonalMemoryCell): string {
+  try {
+    const payload = JSON.stringify(cell.value);
+    return `[${cell.cellKind}:${cell.key}] ${payload}`;
+  } catch {
+    return `[${cell.cellKind}:${cell.key}] (unserialisable value)`;
+  }
+}
+
+interface LoadAndScorePersonLayerArgs {
+  readonly tenantId: string;
+  readonly personId: string;
+  readonly personLayer: PersonLayerClient;
+  readonly queryVec: readonly number[];
+  readonly minSim: number;
+}
+
+async function loadAndScorePersonLayer(
+  args: LoadAndScorePersonLayerArgs,
+): Promise<RecallResult[]> {
+  let layer: Awaited<ReturnType<PersonLayerClient['load']>>;
+  try {
+    layer = await args.personLayer.load({
+      personId: args.personId,
+      currentTenantId: args.tenantId,
+    });
+  } catch {
+    // Person layer is additive — never break tenant recall on
+    // person-layer errors.
+    return [];
+  }
+
+  // Run the wall before scoring. Blocked cells never reach the LLM.
+  const verdict = enforceChineseWall({
+    personLayerData: layer,
+    currentTenantId: args.tenantId,
+  });
+
+  const rows: RecallResult[] = [];
+  for (const cell of verdict.allowedFacts) {
+    const row = personCellToRow(cell, args.queryVec);
+    // Person cells share the query vector so cosine = 1; we then bias
+    // the rank by `confidence` and apply a cross-tenant penalty.
+    const baseSim = clamp01(cell.confidence);
+    const isCrossTenant =
+      cell.sourceTenantId !== null && cell.sourceTenantId !== args.tenantId;
+    const penalised = isCrossTenant
+      ? Math.max(0, baseSim - PERSON_LAYER_CROSS_TENANT_PENALTY)
+      : baseSim;
+    if (penalised < args.minSim) continue;
+    rows.push({ memory: row, similarity: penalised });
+  }
+  return rows;
 }
 
 // ---------------------------------------------------------------------------

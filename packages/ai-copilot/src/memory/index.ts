@@ -8,13 +8,17 @@ export {
   createSemanticMemory,
   createInMemorySemanticMemoryRepo,
   createHashEmbedder,
+  createDrizzlePersonLayerClient,
   cosineSimilarity,
+  PERSON_LAYER_CROSS_TENANT_PENALTY,
   type SemanticMemory,
   type SemanticMemoryRepository,
   type SemanticMemoryRow,
   type SemanticMemoryDeps,
   type RememberInput,
   type RecallResult,
+  type RecallOptions,
+  type PersonLayerClient,
   type Embedder,
   type MemoryType,
 } from './semantic-memory.js';
@@ -56,3 +60,36 @@ export {
   type DecideMem0Options,
   type Mem0Embedder,
 } from './mem0-semantics.js';
+
+// PersonLayer — federated personal-memory loader + upsert.
+// Companion to Docs/research/unified-personal-kb.md §10 + migration
+// 0088 + packages/database/src/schemas/personal-memory.schema.ts.
+export {
+  loadPersonLayer,
+  upsertPersonalFact,
+  flattenPersonLayer,
+  PERSON_CELL_KINDS,
+  PERSON_LAYER_PER_KIND_LIMIT,
+  type PersonalMemoryCell,
+  type PersonCellKind,
+  type PersonLayerResult,
+  type PersonLayerDrizzleClient,
+  type PersonLayerSqlTemplate,
+  type LoadPersonLayerArgs,
+  type UpsertPersonalFactArgs,
+} from './person-layer.js';
+
+// Chinese-wall boundary tagger — pure rules engine sitting between
+// PersonLayer and the reply composer. Enforces "counts ok, specifics
+// not" + k=3 anonymity per Docs/research/unified-personal-kb.md §3.3.
+export {
+  enforceChineseWall,
+  tagBoundary,
+  cellContainsNumeric,
+  K_ANONYMITY_FLOOR,
+  type EnforceChineseWallArgs,
+  type EnforceChineseWallResult,
+  type TagBoundaryArgs,
+  type BoundaryTags,
+  type CrossTenantCount,
+} from './boundary-tagger.js';

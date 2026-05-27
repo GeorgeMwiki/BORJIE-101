@@ -60,6 +60,15 @@ export default defineConfig({
         find: /^@borjie\/brain-llm-router\/dynamic-registry$/,
         replacement: path.resolve(__dirname, '../../packages/brain-llm-router/src/dynamic-registry/index.ts'),
       },
+      // Wave PAY-1 — route the top-level payments-ledger barrel through
+      // source so the new mpesa/stripe mock clients are visible in tests
+      // without a `pnpm --filter @borjie/payments-ledger-service build`
+      // round-trip. The `$` anchor preserves the subpath alias for
+      // `@borjie/payments-ledger-service/arrears` above.
+      {
+        find: /^@borjie\/payments-ledger-service$/,
+        replacement: path.resolve(__dirname, '../payments-ledger/src/index.ts'),
+      },
     ],
   },
   test: {

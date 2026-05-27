@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { createLogger } from '../utils/logger.js';
 
 /**
  * Marketing-surface router.
@@ -9,12 +10,14 @@ import { z } from 'zod';
  * middleware — these endpoints are public by design (a prospect
  * cannot have a tenant yet).
  *
- * TODO(borjie-marketing-1): persist applications into a real table
- * (e.g. `marketing.pilot_applications`) and trigger a notification to
- * pilot@borjie.co.tz. For now we accept, validate, log, and return
- * `{ success: true }` so the marketing site has a functioning end-to-
- * end submission path during pre-launch.
+ * Persistence (write to `marketing.pilot_applications` + notify
+ * pilot@borjie.co.tz) is tracked in `Docs/KNOWN_ISSUES.md` as
+ * KI-MARKETING-1; for now we accept, validate, log via the structured
+ * logger, and return `{ success: true }` so the marketing site has a
+ * functioning end-to-end submission path during pre-launch.
  */
+const moduleLogger = createLogger('marketing');
+
 const PilotApplicationSchema = z.object({
   name: z.string().min(2).max(120),
   company: z.string().min(2).max(160),
@@ -55,11 +58,11 @@ app.post('/pilot-application', async (c) => {
     );
   }
 
-  // TODO(borjie-marketing-1): persist to marketing.pilot_applications +
-  // notify pilot@borjie.co.tz via the notifications service.
-  // For now we just acknowledge so the marketing surface has a working
-  // end-to-end path in dev/staging.
-  console.log('[marketing] pilot application received', {
+  // Persistence + notification wiring is tracked as KI-MARKETING-1 in
+  // Docs/KNOWN_ISSUES.md. For now we acknowledge via the structured
+  // logger so the marketing surface has a working end-to-end path in
+  // dev/staging. The PII-scrubber in the logger masks `email` for us.
+  moduleLogger.info('pilot application received', {
     company: parsed.data.company,
     email: parsed.data.email,
     portfolioSize: parsed.data.portfolioSize,

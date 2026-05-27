@@ -418,3 +418,31 @@ optimizer once the ML service ships. The port signature
 days-to-expiry so no breaking API change is needed.
 
 **Owners.** Various squads — file per use case.
+
+---
+
+## KI-MARKETING-1 — Pilot application submissions are not persisted
+
+**Severity:** LOW (pre-launch; marketing site is dev/staging only).
+
+**Symptoms.** The marketing surface POSTs to
+`/api/v1/marketing/pilot-application` and receives `201 { success:
+true }`, but the validated payload is only emitted to the structured
+logger — it is not persisted and no inbound notification fires.
+
+**File.**
+`services/api-gateway/src/routes/marketing.hono.ts` —
+`/pilot-application` handler.
+
+**Proposed fix.**
+1. Add a `marketing.pilot_applications` table via a new Drizzle
+   migration (`packages/database/src/migrations/`).
+2. Insert the validated payload through a thin `PilotApplicationRepo`
+   bound at the composition root.
+3. Trigger an email to `pilot@borjie.co.tz` via the notifications
+   service so a human picks the inbound up.
+
+Out of scope for the cleanup wave because it spans a migration + new
+repo + composition wiring + notifications fan-out.
+
+**Owners.** Marketing / Platform.

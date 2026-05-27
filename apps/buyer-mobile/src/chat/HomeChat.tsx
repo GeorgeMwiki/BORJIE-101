@@ -1,6 +1,33 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+/**
+ * HomeChat — buyer-mobile chat surface with SSE streaming + R7 polish.
+ *
+ * R7 changes baked in:
+ *   • The permanent `ActivityIndicator` is gone (was an anti-pattern
+ *     per R7 §6.2); a `ChatSkeleton` shimmer + `ThreeDotPulse` cover
+ *     the wait window. Skeleton onset 200 ms after send, slow indicator
+ *     at 3 s, FailureDot on terminal error.
+ *   • Optimistic user bubble paints BEFORE the network ack, slides up
+ *     200 ms ease-out via `Animated`.
+ *   • Auto-scroll only fires when the user is already at the bottom
+ *     (within 80 px) — typing while reading earlier turns no longer
+ *     yanks the viewport.
+ *   • Smart-reply chips appear above the composer after each brain
+ *     response, derived from the first tool call's name.
+ *   • Citation chips render at the bottom of the assistant bubble.
+ *   • Composer NEVER disables during pending — the user can queue
+ *     follow-ups; the next mutation waits for the prior to settle.
+ */
 import {
-  ActivityIndicator,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
+import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,82 +35,191 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent
 } from 'react-native'
-import { useMutation } from '@tanstack/react-query'
 import { Screen } from '@/components/Screen'
-import { Card } from '@/components/Card'
-import { Pill } from '@/components/Pill'
-import { PrimaryButton } from '@/components/PrimaryButton'
 import { useSession } from '@/auth/session'
 import { useTranslation } from '@/hooks/useTranslation'
+import { ApiError } from '@/api/errors'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
-import { postBrainTurn } from './brainTurn'
+import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
+import { ChatSkeleton } from './ChatSkeleton'
+import { FailureDot } from './FailureDot'
+import { SendButton } from './SendButton'
+import { ThreeDotPulse } from './ThreeDotPulse'
 import { ToolCallRenderer } from './ToolCallRenderer'
 import {
   buyerGreeting,
   buyerSuggestions,
-  composerPlaceholder,
-  errorLabel,
-  loadingLabel
+  composerPlaceholder
 } from './greeting'
-import { fail, settle } from './historyReducer'
-import type { ChatTurn } from './types'
+import {
+  R7_TIMINGS,
+  applyMessageChunk,
+  applyStreamError,
+  applyToolCall,
+  applyTurnAccepted,
+  finaliseTurn,
+  optimisticTurn,
+  shouldAutoScroll,
+  smartReplyChips,
+  type LiveTurn,
+  type SettledTurn
+} from './chatTurns'
 
-// Buyer-mobile home is a chat surface. The user types (or taps a chip),
-// `/api/v1/brain/turn` returns text + tool calls, the renderer maps each
-// tool call to an inline buyer-context card (listings, lobby, bids, KYC,
-// bid recommendation, deal pipeline). The composer + history are the
-// only persistent UI — no marketplace filter bar, no parcel feed unless
-// the brain renders one inline.
+const SKELETON_ONSET_MS = R7_TIMINGS['SKELETON_ONSET_MS'] ?? 200
+const SLOW_INDICATOR_MS = R7_TIMINGS['SLOW_INDICATOR_MS'] ?? 3_000
+const ENTRY_DURATION_MS = R7_TIMINGS['BUBBLE_ENTRY_DURATION_MS'] ?? 200
 
 export function HomeChat() {
   const user = useSession()
   const { t, lang } = useTranslation()
   const [draft, setDraft] = useState('')
-  const [history, setHistory] = useState<readonly ChatTurn[]>([])
-  const [threadId, setThreadId] = useState<string | undefined>(undefined)
+  const [history, setHistory] = useState<readonly SettledTurn[]>([])
+  const [live, setLive] = useState<LiveTurn | null>(null)
+  const [threadId, setThreadId] = useState<string | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
-
-  const mutation = useMutation({
-    mutationFn: postBrainTurn,
-    onSuccess: (response, variables) => {
-      setThreadId(response.threadId)
-      setHistory((prev) => settle(prev, variables.userText, response))
-      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }))
-    },
-    onError: (_error, variables) => {
-      setHistory((prev) => fail(prev, variables.userText, errorLabel(lang)))
-    }
-  })
-
-  const submitText = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (trimmed.length === 0 || mutation.isPending) {
-        return
-      }
-      const optimistic: ChatTurn = {
-        id: `user-${Date.now()}`,
-        role: 'user',
-        text: trimmed,
-        pending: true,
-        createdAt: new Date().toISOString()
-      }
-      setHistory((prev) => [...prev, optimistic])
-      setDraft('')
-      mutation.mutate({ userText: trimmed, threadId })
-      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }))
-    },
-    [lang, mutation, threadId]
-  )
+  const scrollMetrics = useRef({ y: 0, contentHeight: 0, viewportHeight: 0 })
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const [showSlow, setShowSlow] = useState(false)
 
   const suggestions = useMemo(() => buyerSuggestions(lang), [lang])
   const greeting = useMemo(() => buyerGreeting(lang), [lang])
   const placeholder = useMemo(() => composerPlaceholder(lang), [lang])
-  const loadingText = useMemo(() => loadingLabel(lang), [lang])
-  const showGreeting = history.length === 0
+
+  const lastToolName = useMemo<string | null>(() => {
+    const last = history[history.length - 1]
+    if (!last || last.toolCalls.length === 0) {
+      return null
+    }
+    return last.toolCalls[0]?.name ?? null
+  }, [history])
+
+  const smartReplies = useMemo(
+    () => smartReplyChips(lastToolName, lang),
+    [lastToolName, lang]
+  )
+
+  // Skeleton onset — 200 ms post send if pending / no chunks yet.
+  useEffect(() => {
+    if (live === null || live.kind === 'failed') {
+      setShowSkeleton(false)
+      return
+    }
+    if (
+      live.kind === 'pending' ||
+      (live.kind === 'streaming' && live.text.length === 0)
+    ) {
+      const handle = setTimeout(() => setShowSkeleton(true), SKELETON_ONSET_MS)
+      return () => clearTimeout(handle)
+    }
+    setShowSkeleton(false)
+    return
+  }, [live])
+
+  // Slow indicator — 3 s post send (R7 §6.2).
+  useEffect(() => {
+    if (live === null || live.kind === 'failed') {
+      setShowSlow(false)
+      return
+    }
+    const handle = setTimeout(() => setShowSlow(true), SLOW_INDICATOR_MS)
+    return () => clearTimeout(handle)
+  }, [live])
+
+  const handleEvent = useCallback(
+    (turnId: string, event: BrainStreamEvent): void => {
+      setLive((prev) => {
+        if (prev === null || prev.id !== turnId) {
+          return prev
+        }
+        if (event.kind === 'accepted' && event.data.type === 'accepted') {
+          return applyTurnAccepted(prev, event.data.threadId)
+        }
+        if (event.kind === 'message_chunk' && event.data.type === 'message_chunk') {
+          return applyMessageChunk(prev, event.data.delta)
+        }
+        if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
+          return applyToolCall(prev, event.data.toolCall)
+        }
+        return prev
+      })
+    },
+    []
+  )
+
+  const safeScrollToEnd = useCallback((): void => {
+    const m = scrollMetrics.current
+    if (m.contentHeight === 0 || m.viewportHeight === 0) {
+      scrollRef.current?.scrollToEnd({ animated: true })
+      return
+    }
+    if (shouldAutoScroll(m.y, m.contentHeight, m.viewportHeight)) {
+      scrollRef.current?.scrollToEnd({ animated: true })
+    }
+  }, [])
+
+  const submitText = useCallback(
+    (text: string): void => {
+      const trimmed = text.trim()
+      if (trimmed.length === 0 || live !== null) {
+        return
+      }
+      const fresh = optimisticTurn(trimmed)
+      setLive(fresh)
+      setDraft('')
+      safeScrollToEnd()
+      void runStream(fresh, threadId, handleEvent)
+        .then((settled) => {
+          setLive(null)
+          setHistory((prev) => [...prev, settled])
+          setThreadId(settled.threadId)
+          setShowSkeleton(false)
+          setShowSlow(false)
+          safeScrollToEnd()
+        })
+        .catch((cause: unknown) => {
+          const message =
+            cause instanceof ApiError ? cause.message : 'stream_error'
+          setLive((prev) =>
+            prev !== null && prev.id === fresh.id
+              ? applyStreamError(prev, message)
+              : prev
+          )
+          setShowSkeleton(false)
+          setShowSlow(false)
+        })
+    },
+    [handleEvent, live, threadId, safeScrollToEnd]
+  )
+
+  const retry = useCallback(
+    (failed: LiveTurn): void => {
+      if (failed.kind !== 'failed') {
+        return
+      }
+      setLive(null)
+      submitText(failed.userText)
+    },
+    [submitText]
+  )
+
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const e = event.nativeEvent
+      scrollMetrics.current = {
+        y: e.contentOffset.y,
+        contentHeight: e.contentSize.height,
+        viewportHeight: e.layoutMeasurement.height
+      }
+    },
+    []
+  )
+
+  const showGreeting = history.length === 0 && live === null
 
   return (
     <Screen scroll={false} padded={false}>
@@ -95,6 +231,8 @@ export function HomeChat() {
           ref={scrollRef}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          onScroll={onScroll}
+          scrollEventThrottle={64}
         >
           {showGreeting ? (
             <View style={styles.greetingBlock}>
@@ -115,16 +253,38 @@ export function HomeChat() {
           ) : null}
 
           {history.map((turn) => (
-            <TurnView key={turn.id} turn={turn} translate={t} />
+            <SettledTurnView key={turn.id} turn={turn} translate={t} />
           ))}
 
-          {mutation.isPending ? (
-            <View style={styles.pending}>
-              <ActivityIndicator color={colors.forest} />
-              <Text style={styles.pendingText}>{loadingText}</Text>
-            </View>
+          {live !== null ? (
+            <LiveTurnView
+              turn={live}
+              lang={lang}
+              showSkeleton={showSkeleton}
+              showSlow={showSlow}
+              translate={t}
+              onRetry={() => retry(live)}
+            />
           ) : null}
         </ScrollView>
+
+        {smartReplies.length > 0 && live === null ? (
+          <View style={styles.smartReplyRow} testID="buyer-chat-smart-replies">
+            {smartReplies.map((chip) => (
+              <Pressable
+                key={chip.id}
+                onPress={() => setDraft(chip.prompt)}
+                style={({ pressed }) => [
+                  styles.smartReplyChip,
+                  pressed && styles.chipPressed
+                ]}
+                testID={`buyer-chat-smart-reply-${chip.id}`}
+              >
+                <Text style={styles.smartReplyLabel}>{chip.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.composer}>
           <TextInput
@@ -135,11 +295,13 @@ export function HomeChat() {
             style={styles.input}
             multiline
             blurOnSubmit
+            testID="buyer-chat-input"
           />
-          <PrimaryButton
+          <SendButton
             label={t('chat.send')}
+            accessibilityLabel={t('chat.send')}
             onPress={() => submitText(draft)}
-            disabled={mutation.isPending || draft.trim().length === 0}
+            enabled={draft.trim().length > 0}
           />
         </View>
       </KeyboardAvoidingView>
@@ -147,41 +309,162 @@ export function HomeChat() {
   )
 }
 
-interface TurnViewProps {
-  readonly turn: ChatTurn
+interface SettledTurnViewProps {
+  readonly turn: SettledTurn
   readonly translate: (key: string) => string
 }
 
-function TurnView({ turn, translate }: TurnViewProps) {
-  if (turn.role === 'user') {
-    return (
-      <View style={[styles.bubble, styles.bubbleUser]}>
-        <Text style={styles.bubbleUserText}>{turn.text}</Text>
-      </View>
-    )
-  }
-  if (turn.role === 'system') {
-    return (
-      <Card>
-        <View style={styles.systemRow}>
-          <Pill label="!" tone="danger" />
-          <Text style={styles.systemText}>{turn.text}</Text>
-        </View>
-      </Card>
-    )
-  }
+function SettledTurnView({ turn, translate }: SettledTurnViewProps) {
   return (
-    <View style={styles.brainBlock}>
-      {turn.text.length > 0 ? (
-        <View style={[styles.bubble, styles.bubbleBrain]}>
-          <Text style={styles.bubbleBrainText}>{turn.text}</Text>
+    <View style={styles.turnBlock}>
+      <BubbleEnter>
+        <View style={[styles.bubble, styles.bubbleUser]}>
+          <Text style={styles.bubbleUserText}>{turn.userText}</Text>
         </View>
-      ) : null}
-      {turn.toolCalls && turn.toolCalls.length > 0 ? (
+      </BubbleEnter>
+      <BubbleEnter>
+        {turn.responseText.length > 0 ? (
+          <View style={[styles.bubble, styles.bubbleBrain]}>
+            <Text style={styles.bubbleBrainText}>{turn.responseText}</Text>
+            {turn.citations.length > 0 ? (
+              <CitationChips citations={turn.citations} />
+            ) : null}
+          </View>
+        ) : null}
+      </BubbleEnter>
+      {turn.toolCalls.length > 0 ? (
         <ToolCallRenderer toolCalls={turn.toolCalls} translate={translate} />
       ) : null}
     </View>
   )
+}
+
+interface LiveTurnViewProps {
+  readonly turn: LiveTurn
+  readonly lang: 'sw' | 'en'
+  readonly showSkeleton: boolean
+  readonly showSlow: boolean
+  readonly translate: (key: string) => string
+  readonly onRetry: () => void
+}
+
+function LiveTurnView({
+  turn,
+  lang,
+  showSkeleton,
+  showSlow,
+  translate,
+  onRetry
+}: LiveTurnViewProps) {
+  const hasStream = turn.kind === 'streaming' && turn.text.length > 0
+  const showPulse =
+    (turn.kind === 'pending' ||
+      (turn.kind === 'streaming' && turn.text.length === 0)) &&
+    showSkeleton
+
+  return (
+    <View style={styles.turnBlock}>
+      <BubbleEnter>
+        <View style={[styles.bubble, styles.bubbleUser]}>
+          <Text style={styles.bubbleUserText}>{turn.userText}</Text>
+          {turn.kind === 'failed' ? (
+            <FailureDot
+              onPress={onRetry}
+              accessibilityLabel={lang === 'sw' ? 'Jaribu tena' : 'Try again'}
+            />
+          ) : null}
+        </View>
+      </BubbleEnter>
+      {turn.kind !== 'failed' ? (
+        <BubbleEnter>
+          <View style={[styles.bubble, styles.bubbleBrain, styles.bubbleBrainFlexible]}>
+            {showSkeleton && !hasStream ? <ChatSkeleton /> : null}
+            {hasStream ? (
+              <Text style={styles.bubbleBrainText}>{turn.text}</Text>
+            ) : null}
+            {showPulse ? <ThreeDotPulse /> : null}
+            {showSlow ? (
+              <Text style={styles.slowIndicator}>
+                {lang === 'sw'
+                  ? 'Borjie ana shughuli, jaribu tena…'
+                  : 'Borjie is busy, hold on…'}
+              </Text>
+            ) : null}
+          </View>
+        </BubbleEnter>
+      ) : null}
+      {turn.toolCalls.length > 0 ? (
+        <ToolCallRenderer toolCalls={turn.toolCalls} translate={translate} />
+      ) : null}
+    </View>
+  )
+}
+
+interface BubbleEnterProps {
+  readonly children: ReactNode
+}
+
+function BubbleEnter({ children }: BubbleEnterProps) {
+  const progress = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: ENTRY_DURATION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start()
+  }, [progress])
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 0]
+  })
+  return (
+    <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  )
+}
+
+interface CitationChipsProps {
+  readonly citations: ReadonlyArray<{ readonly id: string; readonly label: string }>
+}
+
+function CitationChips({ citations }: CitationChipsProps) {
+  return (
+    <View style={styles.citationRow} testID="buyer-chat-citations">
+      {citations.map((citation, index) => (
+        <View key={citation.id} style={styles.citationPill}>
+          <Text style={styles.citationText}>[{index + 1}] {citation.label}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
+
+async function runStream(
+  optimistic: LiveTurn,
+  threadId: string | null,
+  onEvent: (turnId: string, event: BrainStreamEvent) => void
+): Promise<SettledTurn> {
+  let working = optimistic
+  const result = await streamBrainTurn({
+    userText: optimistic.userText,
+    threadId,
+    onEvent: (event) => {
+      onEvent(optimistic.id, event)
+      if (event.kind === 'accepted' && event.data.type === 'accepted') {
+        working = applyTurnAccepted(working, event.data.threadId)
+      } else if (
+        event.kind === 'message_chunk' &&
+        event.data.type === 'message_chunk'
+      ) {
+        working = applyMessageChunk(working, event.data.delta)
+      } else if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
+        working = applyToolCall(working, event.data.toolCall)
+      }
+    }
+  })
+  return finaliseTurn(working, result.threadId, result.tokensUsed)
 }
 
 const styles = StyleSheet.create({
@@ -202,20 +485,80 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.line
+    borderColor: colors.line,
+    minHeight: 44,
+    justifyContent: 'center'
   },
   chipPressed: { opacity: 0.7 },
   chipLabel: { ...typography.bodyStrong, color: colors.earth },
-  bubble: { padding: spacing.md, borderRadius: radius.lg, maxWidth: '85%' },
+  smartReplyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm
+  },
+  smartReplyChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.bone,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.forestSoft,
+    minHeight: 36
+  },
+  smartReplyLabel: {
+    ...typography.caption,
+    color: colors.forest,
+    fontWeight: '600'
+  },
+  turnBlock: {
+    gap: spacing.sm
+  },
+  bubble: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    maxWidth: '85%',
+    position: 'relative'
+  },
   bubbleUser: { alignSelf: 'flex-end', backgroundColor: colors.forest },
   bubbleUserText: { ...typography.body, color: colors.bone },
-  bubbleBrain: { alignSelf: 'flex-start', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  bubbleBrain: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line
+  },
+  bubbleBrainFlexible: {
+    minHeight: 48,
+    minWidth: 120
+  },
   bubbleBrainText: { ...typography.body, color: colors.ink },
-  brainBlock: { gap: spacing.sm },
-  pending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
-  pendingText: { ...typography.caption, color: colors.inkMuted },
-  systemRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  systemText: { ...typography.body, color: colors.danger, flex: 1 },
+  slowIndicator: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    fontStyle: 'italic',
+    marginTop: spacing.xs
+  },
+  citationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm
+  },
+  citationPill: {
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2
+  },
+  citationText: {
+    ...typography.caption,
+    color: colors.earth,
+    fontWeight: '600'
+  },
   composer: {
     flexDirection: 'row',
     gap: spacing.sm,

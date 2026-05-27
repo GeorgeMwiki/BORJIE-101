@@ -293,6 +293,11 @@ import { buildServices, type ServiceRegistry } from './composition/service-regis
 import { getDb } from './composition/db-client';
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
+  wireCognitive,
+  createCognitiveContextMiddleware,
+  type WiredCognitive,
+} from './composition/cognitive-wiring';
+import {
   createHeartbeatSupervisor,
   createBackgroundSupervisor,
   createPostgresWebhookDeliveryRepository,
@@ -537,6 +542,24 @@ try {
   serviceRegistry = buildServices({ db: null });
 }
 
+// ----------------------------------------------------------------------------
+// R8 wiring follow-up — construct the cognitive-memory + persistent-memory
+// bundles so brain-turn handlers can prepend recalled context to the system
+// prompt. The 12-wire cognitive-composition.compose() pipeline is deferred
+// until the cognitive-engine / brain-llm-router / calibration ports land
+// (see composition/cognitive-wiring.ts file header). Construction is
+// fail-soft: a broken bundle degrades to null and enrichment short-circuits.
+// ----------------------------------------------------------------------------
+const wiredCognitive: WiredCognitive = wireCognitive({
+  db: getDb(),
+  logger: {
+    debug: (message, meta) => logger.debug(meta ?? {}, message),
+    info: (message, meta) => logger.info(meta ?? {}, message),
+    warn: (message, meta) => logger.warn(meta ?? {}, message),
+    error: (message, meta) => logger.error(meta ?? {}, message),
+  },
+});
+
 // Wave 12 — heartbeat engine + Wave 27 Agent F risk-recompute dispatcher.
 // Constructed here (ahead of the api routes) because the risk-recompute
 // router needs accessors to the dispatcher + in-memory job tracker the
@@ -725,6 +748,17 @@ api.use('*', ensureTenantIsolation);
 // Inject the service registry + flat tenantId/userId into the request ctx
 // so 22 new routers can pull real service instances out of the context.
 api.use('*', createServiceContextMiddleware(serviceRegistry));
+// R8 wiring follow-up — expose the cognitive bundle on every request via
+// `c.get('cognitive')`. Routes (e.g. brain.hono.ts /turn) can read it to
+// enrich the system prompt with recalled memories. When the bundle is
+// fully degraded (cognitiveMemory=null + persistent=null) the enrichment
+// function returns an empty result, so dependent routes still serve.
+api.use(
+  '*',
+  createCognitiveContextMiddleware(wiredCognitive) as Parameters<
+    typeof api.use
+  >[1],
+);
 // Wave 12 — Ambient brain observer. Records a behaviour event on every
 // authed request so stalls/errors can bubble up into proactive
 // interventions. Shared observer instance passed to the middleware so
