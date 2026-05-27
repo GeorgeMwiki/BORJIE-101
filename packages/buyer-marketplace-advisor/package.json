@@ -1,0 +1,45 @@
+{
+  "name": "@borjie/buyer-marketplace-advisor",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Buyer-side marketplace advisor — recommends mines for a buyer's commodity/volume/quality need, assesses KYC risk, proposes payment terms (Net/LC/escrow + FX hedge ladder), and estimates ETA + route disruption flags. Wraps mining-commodity-intelligence, compliance-pack, fx-treasury-advisor, geo-intelligence.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@borjie/mining-commodity-intelligence": "workspace:*",
+    "@borjie/compliance-pack": "workspace:*",
+    "@borjie/fx-treasury-advisor": "workspace:*",
+    "@borjie/geo-intelligence": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@borjie/mining-commodity-intelligence": { "optional": true },
+    "@borjie/compliance-pack": { "optional": true },
+    "@borjie/fx-treasury-advisor": { "optional": true },
+    "@borjie/geo-intelligence": { "optional": true }
+  }
+}
