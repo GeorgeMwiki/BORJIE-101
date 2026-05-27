@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/customer-geo-routing",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Customer Geographic Routing + Scope-Login Selector (Wave 18Z). Routes a customer to the nearest org_unit whose service_area includes them (polygon | postal codes | station radius | administrative codes), with audit-chained override paths. Builds session_scopes rows from a user's multi-binding scope set and produces the contract for the login-time scope picker + mid-session switcher. Implements Docs/DESIGN/CUSTOMER_GEO_ROUTING_AND_SCOPE_LOGIN.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
