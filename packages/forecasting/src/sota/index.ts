@@ -146,6 +146,15 @@ export {
   type OutlierMethod,
 } from './preprocess/outlier.js';
 
+// Repository
+export {
+  createInMemoryForecastRunRepository,
+  createSqlForecastRunRepository,
+  type InMemoryForecastRunRepoDeps,
+  type SqlForecastRunRepoDeps,
+  type SqlForecastRunDriver,
+} from './repositories/forecast-runs-repository.js';
+
 // Mining-domain wrappers
 export {
   forecastGoldPrice,
