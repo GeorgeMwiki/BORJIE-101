@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/cognitive-composition",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Cognitive Composition (Wave NEURO-WIRING-SOTA, Phase 3) — composition root that wires cognitive-engine + cognitive-memory + extended-reasoning + reasoning-substrate + central-intelligence + calibration-monitor + conformal-calibration-online + audit-hash-chain + brain-llm-router into a single named cognitive pipeline. Owns the 12-wire health probe persisted to cognitive_wiring_health (migration 0076). Persona: Mr. Mwikila. See Docs/DESIGN/NEURO_WIRING_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
