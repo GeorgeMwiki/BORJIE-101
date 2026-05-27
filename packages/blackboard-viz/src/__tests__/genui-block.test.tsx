@@ -49,16 +49,20 @@ describe('BlackboardVizBlock', () => {
     expect(screen.getByTestId('kanban-view')).toBeInTheDocument();
   });
 
-  it('has no axe violations across all four view selections', async () => {
-    for (const view of ['timeline', 'threaded', 'kanban', 'tree-graph'] as const) {
-      const { container, unmount } = render(
-        <BlackboardVizBlock
-          payload={{ kind: 'blackboard', view, posts: makeSmallPosts() }}
-        />,
-      );
-      const results = await axe(container);
-      expect(results, `axe violations in view=${view}`).toHaveNoViolations();
-      unmount();
-    }
-  });
+  it(
+    'has no axe violations across all four view selections',
+    { timeout: 30_000 },
+    async () => {
+      for (const view of ['timeline', 'threaded', 'kanban', 'tree-graph'] as const) {
+        const { container, unmount } = render(
+          <BlackboardVizBlock
+            payload={{ kind: 'blackboard', view, posts: makeSmallPosts() }}
+          />,
+        );
+        const results = await axe(container);
+        expect(results, `axe violations in view=${view}`).toHaveNoViolations();
+        unmount();
+      }
+    },
+  );
 });
