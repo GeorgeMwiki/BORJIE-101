@@ -67,7 +67,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
         <div className="mb-10 flex justify-center">
           <span className="group inline-flex items-center gap-2 rounded-full border border-border/80 bg-surface/60 px-3 py-1 text-xs font-medium text-neutral-400 backdrop-blur">
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
-            <span className="tracking-wide uppercase text-[0.68rem]">
+            <span className="tracking-wide uppercase text-meta">
               {t.swahiliFirstBadge}
             </span>
             <span className="h-3 w-px bg-border" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
 
         <h1
           id="hero-headline"
-          className="font-display text-[clamp(2.75rem,7vw,6.5rem)] font-medium leading-[1.02] tracking-tighter text-foreground text-balance text-center"
+          className="font-display text-hero font-medium tracking-tighter text-foreground text-balance text-center"
         >
           {t.headline.split(' ').slice(0, -2).join(' ')}
           <br />
@@ -102,7 +102,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
           </span>
         </h1>
 
-        <p className="mx-auto mt-8 max-w-[62ch] text-center text-lg leading-relaxed text-neutral-400 sm:text-xl">
+        <p className="mx-auto mt-8 max-w-prose-widest text-center text-lg leading-relaxed text-neutral-400 sm:text-xl">
           {t.sub}
         </p>
 
@@ -138,7 +138,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
           ))}
         </dl>
 
-        <p className="mt-10 flex items-center justify-center gap-2 font-mono text-[0.68rem] uppercase tracking-widest text-neutral-500">
+        <p className="mt-10 flex items-center justify-center gap-2 font-mono text-meta uppercase tracking-widest text-neutral-500">
           <Logomark size={10} className="text-signal-500" />
           <MapPin className="h-3 w-3 text-signal-500" />
           <span>{t.trustline}</span>

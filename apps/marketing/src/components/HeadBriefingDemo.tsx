@@ -34,7 +34,7 @@ export function HeadBriefingDemo({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[52ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-tight text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -88,10 +88,10 @@ export function HeadBriefingDemo({ locale }: { readonly locale: Locale }) {
                   <span className={tagClass(l.tone as Tone)}>{l.tag}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400">
+                      <span className="font-mono text-meta uppercase tracking-widest text-neutral-400">
                         {l.domain}
                       </span>
-                      <span className="font-mono text-[0.68rem] text-neutral-500">· {l.time}</span>
+                      <span className="font-mono text-meta text-neutral-500">· {l.time}</span>
                     </div>
                     <p className="mt-0.5 text-sm text-foreground">{l.body}</p>
                   </div>
@@ -122,12 +122,12 @@ function Stat({
   const positive = trend === 'up';
   return (
     <div className="border-l border-border pl-3">
-      <dt className="font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400">{label}</dt>
+      <dt className="font-mono text-meta uppercase tracking-widest text-neutral-400">{label}</dt>
       <dd className="mt-1 flex items-baseline justify-between">
         <span className="font-display text-2xl font-medium tracking-tight tabular-nums">{value}</span>
         <span
           className={[
-            'rounded-full px-1.5 py-0.5 font-mono text-[0.65rem]',
+            'rounded-full px-1.5 py-0.5 font-mono text-caption-lg',
             positive ? 'bg-success-subtle text-success' : 'bg-destructive/15 text-destructive',
           ].join(' ')}
         >
@@ -140,10 +140,10 @@ function Stat({
 
 function tagClass(tone: Tone) {
   if (tone === 'warn')
-    return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-warning/10 font-mono text-[0.6rem] font-semibold text-warning';
+    return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-warning/10 font-mono text-micro-num font-semibold text-warning';
   if (tone === 'flag')
-    return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 font-mono text-[0.6rem] font-semibold text-destructive';
-  return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal-500/10 font-mono text-[0.6rem] font-semibold text-signal-500';
+    return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 font-mono text-micro-num font-semibold text-destructive';
+  return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal-500/10 font-mono text-micro-num font-semibold text-signal-500';
 }
 
 function iconForLine(tone: Tone, tag: string, domain: string): ReactNode {

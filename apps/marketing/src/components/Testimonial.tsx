@@ -28,7 +28,7 @@ export function Testimonial({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[58ch] text-base leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-wide text-base leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -41,7 +41,7 @@ export function Testimonial({ locale }: { readonly locale: Locale }) {
           >
             <div className="flex items-center justify-between">
               <Quote className="h-6 w-6 text-signal-500" aria-hidden="true" />
-              <span className="inline-flex items-center gap-1 rounded-full border border-signal-500/30 bg-signal-500/5 px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-widest text-signal-500">
+              <span className="inline-flex items-center gap-1 rounded-full border border-signal-500/30 bg-signal-500/5 px-2 py-0.5 font-mono text-micro-num uppercase tracking-widest text-signal-500">
                 {t.placeholderBadge}
               </span>
             </div>
@@ -56,7 +56,7 @@ export function Testimonial({ locale }: { readonly locale: Locale }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{c.name}</p>
-                <p className="font-mono text-[0.65rem] uppercase tracking-widest text-neutral-500">
+                <p className="font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
                   <UserRound className="mr-1 inline h-2.5 w-2.5" />
                   {c.role}
                 </p>

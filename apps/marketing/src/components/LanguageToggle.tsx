@@ -28,7 +28,7 @@ export function LanguageToggle({ current }: { readonly current: Locale }) {
     <div
       role="group"
       aria-label="Language switcher"
-      className="inline-flex items-center rounded-md border border-border bg-surface p-0.5 font-mono text-[0.7rem] uppercase tracking-widest"
+      className="inline-flex items-center rounded-md border border-border bg-surface p-0.5 font-mono text-pill uppercase tracking-widest"
     >
       {(['sw', 'en'] as const).map((code) => {
         const active = code === current;

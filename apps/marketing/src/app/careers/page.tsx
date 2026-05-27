@@ -78,7 +78,7 @@ export default async function CareersPage() {
                 <h2 className="font-display text-xl font-semibold">
                   {role.title}
                 </h2>
-                <span className="font-mono text-[0.7rem] uppercase tracking-widest text-neutral-400">
+                <span className="font-mono text-pill uppercase tracking-widest text-neutral-400">
                   {role.type}
                 </span>
               </div>

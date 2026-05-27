@@ -90,7 +90,7 @@ export function Footer({ locale }: { readonly locale: Locale }) {
           <div>
             <Wordmark size="md" premium />
             <p className="mt-6 max-w-sm text-sm leading-relaxed text-neutral-400">{t.tagline}</p>
-            <p className="mt-8 font-mono text-[0.65rem] uppercase tracking-widest text-neutral-500">
+            <p className="mt-8 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
               {t.locale}
             </p>
           </div>
@@ -98,7 +98,7 @@ export function Footer({ locale }: { readonly locale: Locale }) {
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {cols.map((col) => (
               <nav key={col.title} aria-label={col.title}>
-                <h3 className="font-mono text-[0.65rem] uppercase tracking-widest text-neutral-400">
+                <h3 className="font-mono text-caption-lg uppercase tracking-widest text-neutral-400">
                   {col.title}
                 </h3>
                 <ul className="mt-4 space-y-2.5">
@@ -130,10 +130,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
         </div>
 
         <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 sm:flex-row sm:items-center">
-          <p className="font-mono text-[0.68rem] text-neutral-400">
+          <p className="font-mono text-meta text-neutral-400">
             © 2026 Borjie. {t.rights}
           </p>
-          <div className="flex items-center gap-4 font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400">
+          <div className="flex items-center gap-4 font-mono text-meta uppercase tracking-widest text-neutral-400">
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />
               {t.systemsOperational}

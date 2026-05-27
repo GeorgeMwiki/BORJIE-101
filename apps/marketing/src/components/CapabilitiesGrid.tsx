@@ -43,7 +43,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[54ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -56,7 +56,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
               key={c.id}
               className="group relative flex flex-col gap-4 bg-surface p-7 transition-colors duration-fast hover:bg-surface-raised"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-md border border-signal-500/25 bg-signal-500/5 text-signal-500 transition-all duration-base ease-out group-hover:border-signal-500/50 group-hover:shadow-[0_0_24px_-8px_hsl(var(--signal-500)/0.6)]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md border border-signal-500/25 bg-signal-500/5 text-signal-500 transition-all duration-base ease-out group-hover:border-signal-500/50 group-hover:shadow-signal-glow">
                 <Icon className="h-5 w-5" />
               </span>
               <div>
@@ -67,7 +67,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
                   {c.blurb}
                 </p>
               </div>
-              <span className="absolute right-5 top-5 font-mono text-[0.65rem] uppercase tracking-widest text-neutral-500">
+              <span className="absolute right-5 top-5 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
                 {String(i + 1).padStart(2, '0')}
               </span>
             </li>

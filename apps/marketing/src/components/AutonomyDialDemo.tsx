@@ -34,7 +34,7 @@ export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[52ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-tight text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -68,7 +68,7 @@ export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
               className="accent-signal-500 w-full"
               aria-label={labels.dialLabel}
             />
-            <div className="mt-2 grid grid-cols-4 font-mono text-[0.65rem] uppercase tracking-widest text-neutral-400">
+            <div className="mt-2 grid grid-cols-4 font-mono text-caption-lg uppercase tracking-widest text-neutral-400">
               {labels.steps.map((s) => (
                 <span key={s}>{s}</span>
               ))}
@@ -78,7 +78,7 @@ export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
           <div className="mt-6 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-signal-500" />
-              <span className="font-mono text-[0.68rem] uppercase tracking-widest text-signal-500">
+              <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
                 {labels.redLineKicker}
               </span>
             </div>
@@ -120,7 +120,7 @@ export function AutonomyDialDemo({ locale }: { readonly locale: Locale }) {
                 </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground">{c.label}</p>
-                  <p className="mt-0.5 font-mono text-[0.65rem] uppercase tracking-widest text-neutral-400">
+                  <p className="mt-0.5 font-mono text-caption-lg uppercase tracking-widest text-neutral-400">
                     {redLine
                       ? labels.redLineTag
                       : allowed

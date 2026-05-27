@@ -25,7 +25,7 @@ export default async function PilotPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           {t.heading}
         </h1>
-        <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mt-5 max-w-prose-wide text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
 

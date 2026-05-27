@@ -72,7 +72,7 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
       <div>
         <label
           htmlFor="mineralFocus"
-          className="font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400"
+          className="font-mono text-meta uppercase tracking-widest text-neutral-400"
         >
           {t.fields.mineralFocus}
         </label>
@@ -138,7 +138,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="font-mono text-[0.68rem] uppercase tracking-widest text-neutral-400"
+        className="font-mono text-meta uppercase tracking-widest text-neutral-400"
       >
         {label}
       </label>

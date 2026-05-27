@@ -30,7 +30,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[60ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -38,10 +38,10 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
       <div className="mt-14 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
-            <p className="font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
+            <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
               {t.fragmentHeader}
             </p>
-            <span className="inline-flex items-center gap-1.5 font-mono text-[0.6rem] uppercase tracking-widest text-neutral-400">
+            <span className="inline-flex items-center gap-1.5 font-mono text-micro-num uppercase tracking-widest text-neutral-400">
               <ShieldCheck className="h-3 w-3 text-signal-500" />
               {t.verifiedLabel}
             </span>
@@ -50,7 +50,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
             {fragment.map((entry) => (
               <li key={entry.seq} className="grid grid-cols-[auto_1fr] gap-4 px-5 py-3">
                 <div className="flex flex-col items-center gap-1 pt-0.5">
-                  <span className="font-mono text-[0.58rem] uppercase tracking-widest text-neutral-400">
+                  <span className="font-mono text-micro uppercase tracking-widest text-neutral-400">
                     #{entry.seq}
                   </span>
                   <span className="flex h-6 w-6 items-center justify-center rounded-md border border-signal-500/30 bg-signal-500/5 text-signal-500">
@@ -58,7 +58,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-2 font-mono text-[0.6rem] uppercase tracking-widest text-neutral-400">
+                  <div className="flex flex-wrap items-baseline gap-2 font-mono text-micro-num uppercase tracking-widest text-neutral-400">
                     <span>{entry.at}</span>
                     <span>·</span>
                     <span className="text-foreground">{entry.actor}</span>
@@ -66,7 +66,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
                     <span className={decisionToneClass(entry.decisionTone)}>{entry.decision}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium text-foreground">{entry.action}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[0.62rem] text-neutral-400">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-caption text-neutral-400">
                     <span>
                       prev <span className="text-foreground">{entry.prev}</span>
                     </span>
@@ -83,7 +83,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
             ))}
           </ol>
           <footer className="border-t border-border px-5 py-3">
-            <p className="font-mono text-[0.58rem] uppercase tracking-widest text-neutral-400">
+            <p className="font-mono text-micro uppercase tracking-widest text-neutral-400">
               {t.depthFooter}
             </p>
           </footer>
@@ -95,7 +95,7 @@ export function AuditChainSection({ locale }: { readonly locale: Locale }) {
               key={g.title}
               className="rounded-xl border border-border bg-surface p-5"
             >
-              <p className="font-mono text-[0.62rem] uppercase tracking-widest text-signal-500">
+              <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
                 {g.kicker}
               </p>
               <h3 className="mt-2 font-display text-lg font-medium tracking-tight">

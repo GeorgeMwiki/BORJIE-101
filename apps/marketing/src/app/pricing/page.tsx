@@ -34,7 +34,7 @@ export default async function PricingPage() {
           <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
             {t.heading}
           </h1>
-          <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-neutral-400">
+          <p className="mt-5 max-w-prose-wide text-lg leading-relaxed text-neutral-400">
             {t.sub}
           </p>
         </header>
@@ -46,7 +46,7 @@ export default async function PricingPage() {
             <h2 className="font-display text-3xl font-medium tracking-tight">
               {t.compareHeading}
             </h2>
-            <p className="mx-auto mt-3 max-w-[52ch] text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-tight text-base leading-relaxed text-neutral-400">
               {t.compareSub}
             </p>
           </div>
@@ -55,7 +55,7 @@ export default async function PricingPage() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-raised">
-                  <th className="px-4 py-3 text-left font-mono text-[0.65rem] uppercase tracking-widest text-neutral-400">
+                  <th className="px-4 py-3 text-left font-mono text-caption-lg uppercase tracking-widest text-neutral-400">
                     {t.featureColumn}
                   </th>
                   {TIERS.map((tier) => (

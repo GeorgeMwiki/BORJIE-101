@@ -27,7 +27,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-[52ch] text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-tight text-lg leading-relaxed text-neutral-400">
           {t.sub}
         </p>
       </div>
@@ -44,7 +44,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
               className={[
                 'flex flex-col rounded-2xl border p-6 transition-all duration-base ease-out',
                 tier.highlighted
-                  ? 'border-signal-500/40 bg-surface ring-1 ring-signal-500/30 shadow-[0_0_48px_-16px_hsl(var(--signal-500)/0.35)]'
+                  ? 'border-signal-500/40 bg-surface ring-1 ring-signal-500/30 shadow-signal-glow-card'
                   : 'border-border bg-surface',
               ].join(' ')}
             >
@@ -54,7 +54,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                     {tier.name}
                   </h3>
                   {tier.highlighted && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-widest text-signal-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 font-mono text-micro-num font-semibold uppercase tracking-widest text-signal-500">
                       <Star className="h-2.5 w-2.5" />
                       {t.mostChosenBadge}
                     </span>

@@ -86,7 +86,7 @@ export default async function DpaPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           Data Processing Agreement
         </h1>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-widest text-neutral-400">
+        <p className="mt-2 font-mono text-pill uppercase tracking-widest text-neutral-400">
           Last updated · 2026-05
         </p>
         <p className="mt-6 text-sm leading-relaxed text-neutral-300">
