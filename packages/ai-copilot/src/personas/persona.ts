@@ -164,12 +164,14 @@ export function bindPersona(
   if (template.kind === 'coworker' && bindings.employeeId) {
     id = `${PERSONA_IDS.COWORKER_FAMILY}.${bindings.employeeId}`;
   }
+  const teamId = bindings.teamId ?? template.teamId;
+  const employeeId = bindings.employeeId ?? template.employeeId;
   return {
     ...template,
     id,
     tenantId: bindings.tenantId,
-    teamId: bindings.teamId ?? template.teamId,
-    employeeId: bindings.employeeId ?? template.employeeId,
+    ...(teamId !== undefined ? { teamId } : {}),
+    ...(employeeId !== undefined ? { employeeId } : {}),
   };
 }
 

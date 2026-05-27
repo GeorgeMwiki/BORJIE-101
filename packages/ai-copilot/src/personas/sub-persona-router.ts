@@ -184,7 +184,9 @@ function pickWinner(
   const total = entries.reduce((sum, [, v]) => sum + v, 0);
   if (total === 0) return null;
   const sorted = [...entries].sort((a, b) => b[1] - a[1]);
-  const [topId, topScore] = sorted[0];
+  const top = sorted[0];
+  if (!top) return null;
+  const [topId, topScore] = top;
   if (topScore === 0) return null;
   const confidence = topScore / total;
   if (confidence < MIN_CONFIDENCE) return null;
