@@ -1,0 +1,37 @@
+{
+  "name": "@borjie/document-composer",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Document Composer façade — unifies template/research/brand/render packages with provenance + citation stamping and tenant-isolated hash-chain audit on every emitted document.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/ocsf-emitter": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
