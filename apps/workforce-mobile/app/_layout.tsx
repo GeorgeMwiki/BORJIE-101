@@ -28,10 +28,21 @@ export default function RootLayout(): JSX.Element {
             >
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
               <Stack.Screen
                 name="onboarding/role"
                 options={{ title: 'Borjie', headerShown: false }}
               />
+              <Stack.Screen name="onboarding/welcome" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/phone" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/identity" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/role-detect" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/site" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/certifications" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/biometric" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/safety" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/calibration" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/done" options={{ headerShown: false }} />
             </Stack>
           </AuthProvider>
         </QueryClientProvider>

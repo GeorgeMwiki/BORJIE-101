@@ -22,7 +22,7 @@ export default function IndexRoute(): JSX.Element {
     )
   }
   if (!user) {
-    return <Redirect href="/onboarding/role" />
+    return <Redirect href="/onboarding/welcome" />
   }
   return <Redirect href="/(tabs)/home" />
 }
