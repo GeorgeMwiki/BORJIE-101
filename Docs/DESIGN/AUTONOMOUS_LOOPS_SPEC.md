@@ -5,7 +5,9 @@ the engineering contract for the 4 autonomous loops that turn Mr. Mwikila
 from a reactive assistant into a 24/7 Managing Director.
 
 Status: design only. Implementation lands in Phase 2 once the strict-TS
-flag rollout + BossNyumba port complete.
+flag rollout is complete.[^fork-history]
+
+[^fork-history]: Initial scaffold from the 2026-04 hard-fork; Borjie has evolved independently since. This spec describes Borjie's own Autonomous Loops implementation — there is no ongoing cross-brand port pipeline.
 
 ---
 

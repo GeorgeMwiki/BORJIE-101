@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Migration 0003 — Borjie mining-domain schema
 --
--- 1. Drops legacy BossNyumba property tables.
+-- 1. Drops legacy property-domain tables (pre-fork inheritance).
 -- 2. Installs PostGIS + pgvector + TimescaleDB extensions.
 -- 3. Creates Borjie mining-domain tables (companies, licences, sites,
 --    geology, workforce, fleet, production/sales, treasury, safety/CSR,
@@ -39,7 +39,7 @@ EXCEPTION WHEN OTHERS THEN
 END$$;
 
 -- -----------------------------------------------------------------------------
--- 1. Drop legacy BossNyumba property-domain tables
+-- 1. Drop legacy property-domain tables (pre-fork inheritance)
 -- -----------------------------------------------------------------------------
 -- These tables were created by the legacy property migrations (0001*-0270*).
 -- CASCADE removes dependent FKs, indexes, RLS policies, views.

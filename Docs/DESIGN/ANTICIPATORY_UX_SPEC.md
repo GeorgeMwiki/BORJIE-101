@@ -8,7 +8,9 @@
 
 Founder, verbatim:
 
-> "Anticipatory UX layer — even in dynamic UI, knowing what fields to add, why, how. Constantly branding on the tab dynamic UIs. When to lock tab UI vs when to improve it to better suit user needs, all with proper human intervention. Again BossNyumba porting opportunities."
+> "Anticipatory UX layer — even in dynamic UI, knowing what fields to add, why, how. Constantly branding on the tab dynamic UIs. When to lock tab UI vs when to improve it to better suit user needs, all with proper human intervention."[^fork-history]
+
+[^fork-history]: Initial scaffold from the 2026-04 hard-fork; Borjie has evolved independently since. This spec describes Borjie's own Anticipatory UX implementation — there is no ongoing cross-brand port pipeline.
 
 Expanded: Mr. Mwikila — Borjie's resident Mining Operations Manager brain — is not merely "spawning the right tab when a buyer KYB conversation kicks off." Mr. Mwikila is a **dynamic UI designer + UX optimizer**. He composes form schemas in real time from the corpus + the operator's joined data + the operator's mastery profile, renders them through a brand-locked primitive layer so nothing off-brand can ever ship, watches telemetry on every rendered field, and proposes UI improvements that the owner explicitly approves before they go live. Any UI evolution above Tier 0 is owner-gated. The brand DNA is not negotiable — every dynamically composed surface inherits Borjie's OKLCH amber-signal palette, Fraunces × Geist × JetBrains Mono triad, the 4 px spacing grid and the 7-step radius scale exposed by `@borjie/design-system`.
 

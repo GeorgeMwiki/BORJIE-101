@@ -6,7 +6,7 @@
 --   2. Enums used by tenants/users + the mining domain
 --   3. Core identity tables: tenants, organizations, users
 --
--- This replaces the BossNyumba legacy 0001_initial.sql (~50 property tables)
+-- This replaces the legacy property-domain 0001_initial.sql (~50 tables)
 -- with a 3-table minimum that 0003 immediately augments.
 --
 -- Idempotent (IF NOT EXISTS, ON CONFLICT DO NOTHING). Safe to re-run.

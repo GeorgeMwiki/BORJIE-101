@@ -498,10 +498,13 @@ CREATE POLICY tenant_isolation ON session_scopes
 
 ### E.1 This wave (Wave 18Z spec + scaffold)
 
-- Spec doc (this file) — ported to BossNyumba.
+- Spec doc (this file) — Borjie ships its own geo-routing + scope-login
+  contract.[^fork-history]
 - `packages/customer-geo-routing/` — types, haversine, polygon
   containment, district resolver, session-scope builder, audit chain
   glue. Tests; typecheck clean; >= 70% coverage.
+
+[^fork-history]: Initial scaffold from the 2026-04 hard-fork; Borjie has evolved independently since. This spec describes Borjie's own Customer Geo-Routing implementation — there is no ongoing cross-brand port pipeline.
 - ESLint rule `borjie/no-mock-data-in-runtime` + RuleTester unit
   tests. Wired into `eslint.config.mjs` as `warn` (will flip to
   `error` after Wave 18Z-cleanup).
