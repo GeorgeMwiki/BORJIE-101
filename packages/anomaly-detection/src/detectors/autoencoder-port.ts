@@ -79,7 +79,8 @@ export async function scoreAutoencoder(
   // `quantile` is captured at threshold-build time, but we keep the
   // config plumbed so future quantile-recalibration loops can pass
   // through this scoring path.
-  void config.quantile ?? DEFAULT_QUANTILE;
+  const _q = config.quantile ?? DEFAULT_QUANTILE;
+  void _q;
   const error = await port.reconstructionError(point);
   return Object.freeze({
     value: point[0]!,
