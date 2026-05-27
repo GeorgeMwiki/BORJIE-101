@@ -1,0 +1,29 @@
+{
+  "name": "@borjie/anomaly-detection",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA real-time + batch anomaly detection for Mr. Mwikila's mining operations. Score-based detectors (Isolation Forest, LOF, One-Class SVM port, autoencoder port), threshold detectors (z-score, MAD), drift detectors (ADWIN, KSWIN, Page-Hinkley), online stream wrapper, voting ensembles, mining-domain wrappers (fuel consumption, weight bridge, worker check-in, royalty filing, equipment vibration), and a tenant-scoped hash-chained verdict repository. Pure TypeScript; Python sidecars (OC-SVM, autoencoder) behind ports. Companion to Docs/DESIGN/ANOMALY_DETECTION_SOTA_2026.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

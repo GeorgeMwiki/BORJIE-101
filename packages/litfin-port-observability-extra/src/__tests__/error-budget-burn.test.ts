@@ -29,7 +29,9 @@ describe('error-budget-burn', () => {
   });
 
   it('burnRate spikes when error rate > allowed', () => {
-    expect(burnRate({ totalRequests: 100, badRequests: 10 }, slo)).toBe(100);
+    // 0.1 / 0.001 = 100 (within IEEE-754 precision; matches the
+    // toBeCloseTo style used for the burn=1 case above).
+    expect(burnRate({ totalRequests: 100, badRequests: 10 }, slo)).toBeCloseTo(100, 5);
   });
 
   it('burnRate handles 100% SLO as infinite', () => {
