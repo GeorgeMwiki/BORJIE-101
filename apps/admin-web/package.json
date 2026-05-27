@@ -22,6 +22,7 @@
     "@borjie/graph-privacy": "workspace:*",
     "@borjie/observability": "workspace:^",
     "@borjie/performance-toolkit": "workspace:*",
+    "@borjie/persona-runtime": "workspace:*",
     "@borjie/realtime-rooms": "workspace:*",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",

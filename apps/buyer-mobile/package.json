@@ -9,9 +9,11 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@borjie/persona-runtime": "workspace:*",
     "@hookform/resolvers": "^3.9.0",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.3.1",
@@ -41,6 +43,7 @@
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@types/react": "~18.2.79",
-    "typescript": "~5.3.3"
+    "typescript": "~5.3.3",
+    "vitest": "^4.1.6"
   }
 }
