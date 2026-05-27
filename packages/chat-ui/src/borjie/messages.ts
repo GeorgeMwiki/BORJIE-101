@@ -135,9 +135,12 @@ export const MESSAGES = {
   },
 
   // ── Footer ────────────────────────────────────────────────────────
+  // 3-segment LitFin-parity micro-copy. Single line, 11px, muted.
+  // The hash-chain segment cites the immutable AI audit chain that
+  // the Auditor Agent appends to every junior response.
   footerAttribution: {
-    en: 'Powered by Borjie  •  Tanzania-region storage',
-    sw: 'Inaendeshwa na Borjie  •  Kuhifadhiwa Tanzania',
+    en: 'Powered by Borjie  •  Tanzania-region storage  •  Hash-chain audited',
+    sw: 'Inaendeshwa na Borjie  •  Imehifadhiwa Tanzania  •  Ukaguzi wa mlolongo',
   },
 
   // ── Errors ────────────────────────────────────────────────────────
