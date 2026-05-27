@@ -46,8 +46,14 @@ async function loadSpec(): Promise<{ yaml: string | null; path: string | null; e
   if (loadError !== null) return { yaml: null, path: null, error: loadError };
   for (const candidate of SPEC_CANDIDATES) {
     try {
+      // SCRUB-5f: justified-because `candidate` is iterated from the
+      // compile-time SPEC_CANDIDATES array of resolved literal paths;
+      // never user input.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       const s = await stat(candidate);
       if (!s.isFile()) continue;
+      // SCRUB-5f: same — candidate is a known-trusted literal path.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       cachedYaml = await readFile(candidate, 'utf8');
       cachedPath = candidate;
       logger.info({ specPath: candidate, bytes: cachedYaml.length }, 'mining-openapi: spec loaded');

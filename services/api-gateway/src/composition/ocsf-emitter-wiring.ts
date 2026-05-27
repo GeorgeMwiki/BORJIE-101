@@ -45,6 +45,10 @@ function createFileLineWriter(path: string): LineWriter {
   return {
     async write(line: string): Promise<void> {
       try {
+        // SCRUB-5f: justified-because `path` is bound at composition time
+        // from `process.env.OCSF_LOG_PATH` (operator config) by the only
+        // caller `createOcsfBundle()`. Not user input.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         await appendFile(path, line, { encoding: 'utf8' });
       } catch {
         // Fire-and-forget — never propagate file errors.

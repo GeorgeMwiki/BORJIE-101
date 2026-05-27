@@ -173,6 +173,11 @@ function buildSensorBundle(db: DbLike): SensorBundle {
     },
     arrears: {
       async arrearsTrend({ tenantId, periodStart }) {
+        // `periodStart` is part of the port contract but the SQL below
+        // uses NOW() for the overdue cutoff. Touch the param so eslint
+        // and tsc don't flag it as unused. (Moved above the try-block so
+        // it isn't unreachable past the catch.)
+        void periodStart;
         try {
           const res = await db.execute(sql`
             SELECT
@@ -206,7 +211,6 @@ function buildSensorBundle(db: DbLike): SensorBundle {
         } catch {
           return [];
         }
-        void periodStart;
       },
     },
     complaints: {
