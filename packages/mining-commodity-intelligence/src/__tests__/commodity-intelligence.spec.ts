@@ -66,16 +66,24 @@ describe('commodity-intelligence.recommend', () => {
   });
 });
 
-describe('source adapters (stub mode)', () => {
-  it('LME adapter returns a tick without crashing in stub mode', async () => {
-    const adapter = createLmeAdapter();
+describe('source adapters (injected fetch)', () => {
+  it('LME adapter returns a tick when fetchImpl returns valid data', async () => {
+    const fetchImpl = (async () => ({
+      ok: true,
+      json: async () => ({ price: 9_000_000, asOf: '2026-05-01T00:00:00Z' }),
+    })) as unknown as typeof fetch;
+    const adapter = createLmeAdapter({ apiKey: 'test-key', fetchImpl });
     const tick = await adapter.fetchLatest('copper');
     expect(tick.commodity).toBe('copper');
     expect(tick.source).toBe('lme-rest');
   });
 
-  it('Kitco adapter returns a tick for gold', async () => {
-    const adapter = createKitcoAdapter({ fetchImpl: (async () => ({ ok: false })) as unknown as typeof fetch });
+  it('Kitco adapter returns a tick for gold when fetchImpl returns valid data', async () => {
+    const fetchImpl = (async () => ({
+      ok: true,
+      json: async () => ({ price: 65_000_000, asOf: '2026-05-01T00:00:00Z' }),
+    })) as unknown as typeof fetch;
+    const adapter = createKitcoAdapter({ fetchImpl });
     const tick = await adapter.fetchLatest('gold');
     expect(tick.commodity).toBe('gold');
   });
