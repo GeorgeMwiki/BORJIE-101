@@ -89,6 +89,15 @@ export {
   resolveUserScope,
   type ResolveUserScopeInput,
 } from './scope/resolve-user-scope.js';
+export {
+  canDelegateBinding,
+  computeCascadeRevocations,
+  type CanDelegateBindingInput,
+  type CascadeRevocationInput,
+  type DelegationVerdict,
+  type DelegationVerdictReason,
+  type RequestedBinding,
+} from './scope/delegation-policy.js';
 
 // ── Terminology ──────────────────────────────────────────────────────
 export {

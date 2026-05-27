@@ -64,10 +64,23 @@ export interface ApplyEventArgs {
   readonly currentStatus: ProposalStatus;
   readonly priorApprovals: ReadonlyArray<ApprovalRecord>;
   readonly event: WorkflowEvent;
+  /**
+   * Optional user id of the principal who initiated the proposal. When
+   * supplied, the workflow refuses any `decide` event whose
+   * `approverUserId` matches it — the four-eye rule. Without an
+   * initiator id the workflow can only enforce primary != second
+   * (the existing check inside `checkDoubleVerify`), which leaves a
+   * gap for an admin to self-approve a Tier 1 proposal.
+   *
+   * Wave 5 adds this field so org-scoped admins cannot rubber-stamp
+   * their own mutations even when they nominally hold approve power.
+   */
+  readonly initiatorUserId?: string;
 }
 
 export function applyEvent(args: ApplyEventArgs): WorkflowOutcome {
-  const { proposal, currentStatus, priorApprovals, event } = args;
+  const { proposal, currentStatus, priorApprovals, event, initiatorUserId } =
+    args;
 
   if (
     currentStatus === 'rejected' ||
@@ -85,6 +98,17 @@ export function applyEvent(args: ApplyEventArgs): WorkflowOutcome {
       approvalRecord: null,
       readyToExecute: false,
     };
+  }
+
+  // Four-eye rule — the initiator can never approve their own proposal,
+  // regardless of role or tier. Catches the case where a delegated
+  // admin holds both initiate AND approve capability.
+  if (
+    event.kind === 'decide' &&
+    initiatorUserId !== undefined &&
+    event.approverUserId === initiatorUserId
+  ) {
+    return { ok: false, reason: 'self_approval_forbidden' };
   }
 
   if (event.kind === 'auto_promote') {
