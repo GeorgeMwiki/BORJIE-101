@@ -1,0 +1,74 @@
+# =============================================================================
+# Red-Team — adversarial probe of the central-intelligence kernel
+# =============================================================================
+# Runs a small suite of adversarial scenarios against the kernel surface:
+#   - prompt injection         (system-prompt override attempts)
+#   - jailbreak                (policy / guardrail bypass attempts)
+#   - PII extraction           (attempts to leak persisted user data)
+#   - cross-tenant leak        (attempts to read another tenant's state)
+# =============================================================================
+
+name: Red Team
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 4 * * *' # daily 04:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: red-team-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  red-team-eval:
+    name: Red-Team eval (deterministic stub)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run red-team scenarios
+        env:
+          RED_TEAM_LIVE: '0'
+        run: |
+          pnpm -C packages/central-intelligence test \
+            --reporter=verbose \
+            -- src/__tests__/red-team
+
+      - name: Summarize red-team results
+        if: always()
+        run: |
+          echo "### Red-Team Eval Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "Workflow run: ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Categories probed:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- prompt injection (system-prompt override)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- jailbreak (policy / guardrail bypass)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PII extraction (persisted-state leak)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- cross-tenant isolation (multi-tenant boundary)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "See \`packages/central-intelligence/src/__tests__/red-team/\` for the scenario corpus." >> "$GITHUB_STEP_SUMMARY"

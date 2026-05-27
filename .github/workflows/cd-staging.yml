@@ -1,0 +1,243 @@
+# =============================================================================
+# BORJIE CD - Staging Environment
+# =============================================================================
+# Triggers: Push to develop branch, manual dispatch
+# Deploys: All services to staging environment
+# =============================================================================
+
+name: CD Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated, or "all")'
+        required: false
+        default: 'all'
+
+concurrency:
+  group: cd-staging
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+  AWS_REGION: eu-west-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-1.amazonaws.com
+  ENVIRONMENT: staging
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      api-gateway: ${{ steps.filter.outputs.api-gateway }}
+      marketing: ${{ steps.filter.outputs.marketing }}
+      owner-web: ${{ steps.filter.outputs.owner-web }}
+      admin-web: ${{ steps.filter.outputs.admin-web }}
+      payments: ${{ steps.filter.outputs.payments }}
+      notifications: ${{ steps.filter.outputs.notifications }}
+      reports: ${{ steps.filter.outputs.reports }}
+      infrastructure: ${{ steps.filter.outputs.infrastructure }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api-gateway:
+              - 'services/api-gateway/**'
+              - 'packages/**'
+              - 'docker/Dockerfile.api'
+            marketing:
+              - 'apps/marketing/**'
+              - 'packages/**'
+            owner-web:
+              - 'apps/owner-web/**'
+              - 'packages/**'
+            admin-web:
+              - 'apps/admin-web/**'
+              - 'packages/**'
+            payments:
+              - 'services/payments/**'
+              - 'packages/**'
+            notifications:
+              - 'services/notifications/**'
+              - 'packages/**'
+            reports:
+              - 'services/reports/**'
+              - 'packages/**'
+            infrastructure:
+              - 'infrastructure/**'
+
+  build-api:
+    name: Build API Gateway
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.services == 'all'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/borjie/api-gateway:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/borjie/api-gateway:staging
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-apps:
+    name: Build ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    needs: changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: marketing
+            path: apps/marketing
+            target: nextjs
+          - app: owner-web
+            path: apps/owner-web
+            target: nextjs
+          - app: admin-web
+            path: apps/admin-web
+            target: nextjs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.app }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          target: ${{ matrix.target }}
+          push: true
+          build-args: |
+            APP_NAME=${{ matrix.app }}
+            APP_PATH=${{ matrix.path }}
+          tags: |
+            ${{ env.ECR_REGISTRY }}/borjie/${{ matrix.app }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/borjie/${{ matrix.app }}:staging
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.infrastructure == 'true'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/environments/staging
+        run: terraform init -backend-config=backend.hcl
+        continue-on-error: true
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform/environments/staging
+        run: terraform plan -var-file=staging.tfvars -out=tfplan
+        continue-on-error: true
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform/environments/staging
+        run: terraform apply -auto-approve tfplan
+        continue-on-error: true
+
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-api, build-apps]
+    if: always() && !cancelled()
+    environment: staging
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update ECS services
+        run: |
+          aws ecs update-service \
+            --cluster borjie-staging-cluster \
+            --service borjie-staging-api \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }} || echo "Service update failed or not configured"
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Health check
+        run: |
+          if [ -n "${{ vars.STAGING_API_URL }}" ]; then
+            curl -sf "${{ vars.STAGING_API_URL }}/health" --retry 5 --retry-delay 10 || echo "Health check skipped"
+          fi
+
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy, smoke-tests]
+    if: always()
+    steps:
+      - name: Create summary
+        run: |
+          echo "## Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY

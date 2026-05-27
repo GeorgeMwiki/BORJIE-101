@@ -1,0 +1,167 @@
+# =============================================================================
+# Strict CI — blocking lint / typecheck / test / build / e2e
+# =============================================================================
+# Full quality gate in BLOCKING mode and intended to become the canonical CI
+# once legacy non-blocking issues are resolved. Until then, runs alongside
+# the existing non-blocking ci.yml; required-status-check configuration can
+# be toggled in branch protection.
+# =============================================================================
+
+name: Strict CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: strict-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (strict)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+
+  typecheck:
+    name: Type Check (strict)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm typecheck
+
+  unit-tests:
+    name: Unit Tests (strict)
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - name: Run unit tests (verbose)
+        run: pnpm test -- --reporter=verbose
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-node-${{ matrix.node-version }}
+          path: |
+            **/coverage/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+  build:
+    name: Build (strict)
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    strategy:
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: strict-build-node-${{ matrix.node-version }}
+          path: |
+            packages/*/dist
+            apps/*/dist
+            apps/*/.next
+            services/*/dist
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E (Playwright, strict)
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Start E2E stack
+        run: docker compose -f docker-compose.e2e.yml up -d --wait
+      - name: Seed test data
+        run: pnpm tsx e2e/fixtures/seed-runner.ts
+        env:
+          DATABASE_URL: postgresql://borjie:borjie_e2e@localhost:55432/borjie_e2e
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run Playwright (all portal projects, real backend)
+        run: pnpm test:e2e
+        env:
+          CI: 'true'
+          API_GATEWAY_URL: http://localhost:4000
+      - name: Capture stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs > e2e-stack-logs.txt
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-strict
+          path: |
+            e2e/e2e-report/
+            e2e/test-results/
+            playwright-report/
+            e2e-stack-logs.txt
+          retention-days: 14
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+  strict-ci-success:
+    name: Strict CI Gate
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, unit-tests, build, e2e]
+    steps:
+      - run: echo "All strict CI jobs passed"

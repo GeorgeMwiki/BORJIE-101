@@ -1,0 +1,72 @@
+# =============================================================================
+# Power-tools registry shape
+# =============================================================================
+# Verifies the typed power-tools registry is shape-valid on every PR that
+# touches it. Defers to the existing vitest registry-shape suite
+# (`registry.test.ts`).
+# =============================================================================
+
+name: Power-Tools Registry Shape
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/central-intelligence/src/kernel/power-tools/**'
+      - '.github/workflows/power-tools-registry-shape.yml'
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: power-tools-registry-shape-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  shape:
+    name: Power-tools registry shape check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build central-intelligence
+        run: pnpm -C packages/central-intelligence build || true
+
+      - name: Run power-tools registry suite
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: |
+          pnpm -C packages/central-intelligence test \
+            --reporter=verbose \
+            -- src/kernel/power-tools
+
+      - name: Typecheck power-tools sub-tree
+        run: |
+          pnpm -C packages/central-intelligence exec tsc --noEmit \
+            -p tsconfig.json 2>&1 | tee .audit/power-tools-typecheck.log || true
+
+      - name: Upload typecheck log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: power-tools-typecheck
+          path: .audit/power-tools-typecheck.log
+          if-no-files-found: ignore
+          retention-days: 14

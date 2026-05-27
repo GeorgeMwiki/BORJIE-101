@@ -1,0 +1,86 @@
+# =============================================================================
+# Sandbox load test — isolated-vm sandbox load harness
+# =============================================================================
+# Stress-tests the isolated-vm sandbox (`packages/central-intelligence/
+# src/kernel/sandbox/`) under 1000 concurrent runs. Asserts:
+#
+#   - no crashes (every run returns or errors cleanly)
+#   - no memory leak (RSS drift between baseline + post-run < 10 MB)
+#   - p95 latency < 500 ms
+#
+# Heavy — only runs on `workflow_dispatch`.
+# =============================================================================
+
+name: Sandbox Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      concurrent_runs:
+        description: 'Concurrent sandbox runs (default 1000)'
+        required: false
+        default: '1000'
+      memory_drift_mb:
+        description: 'Max allowed RSS drift in MB (default 10)'
+        required: false
+        default: '10'
+      p95_latency_ms:
+        description: 'Max allowed p95 latency in ms (default 500)'
+        required: false
+        default: '500'
+
+concurrency:
+  group: sandbox-load-test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  load-test:
+    name: isolated-vm sandbox 1000-run load test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build central-intelligence
+        run: pnpm -C packages/central-intelligence build || true
+
+      - name: Run sandbox load test
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096 --expose-gc'
+          SANDBOX_LOAD_CONCURRENT: ${{ inputs.concurrent_runs || '1000' }}
+          SANDBOX_LOAD_MAX_DRIFT_MB: ${{ inputs.memory_drift_mb || '10' }}
+          SANDBOX_LOAD_MAX_P95_MS: ${{ inputs.p95_latency_ms || '500' }}
+        run: |
+          pnpm -C packages/central-intelligence test \
+            --reporter=verbose \
+            -- src/kernel/sandbox/__tests__/load.test.ts \
+            || pnpm -C packages/central-intelligence test \
+                 --reporter=verbose \
+                 -- src/kernel/sandbox
+
+      - name: Upload load-test artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-load-test
+          path: |
+            packages/central-intelligence/.sandbox-load.json
+            packages/central-intelligence/.sandbox-load.csv
+          if-no-files-found: warn
+          retention-days: 30

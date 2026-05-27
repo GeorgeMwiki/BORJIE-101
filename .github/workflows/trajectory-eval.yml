@@ -1,0 +1,66 @@
+# =============================================================================
+# Trajectory eval — does the agent's tool-path match the optimal path?
+# =============================================================================
+# Replays the curated trajectory corpus and asserts every scenario stays
+# within its declared `tolerance` edit-distance.
+# =============================================================================
+
+name: Trajectory Eval
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 5 * * *' # daily 05:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: trajectory-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  trajectory-eval:
+    name: Trajectory eval (deterministic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run trajectory scenarios
+        run: |
+          pnpm -C packages/central-intelligence test \
+            --reporter=verbose \
+            -- src/__tests__/eval/trajectory
+
+      - name: Summarize trajectory results
+        if: always()
+        run: |
+          echo "### Trajectory Eval Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "Workflow run: ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Categories probed:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- mining ops / compliance / inspection / finance / comms" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "See \`packages/central-intelligence/src/__tests__/eval/trajectory/\` for the corpus." >> "$GITHUB_STEP_SUMMARY"

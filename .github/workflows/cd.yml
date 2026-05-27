@@ -1,0 +1,328 @@
+# =============================================================================
+# BORJIE — Continuous Deployment (Kubernetes via Kustomize + ghcr.io)
+# =============================================================================
+# Trigger:
+#   push to main          -> build + deploy staging + smoke test
+#   workflow_dispatch     -> manual prod promotion (with environment gate)
+# =============================================================================
+
+name: CD (Kubernetes)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "Docs/**"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        required: true
+        default: staging
+        options: [staging, prod]
+      image_tag:
+        description: "Image tag to deploy (default: commit SHA)"
+        type: string
+        required: false
+
+concurrency:
+  group: cd-k8s-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  deployments: write
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_OWNER: georgemwiki
+
+jobs:
+  guard:
+    name: Preflight — skip if secrets absent
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - id: check
+        run: |
+          if [[ "${{ vars.HAS_DEPLOY_SECRETS }}" == "true" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping CD (Kubernetes): vars.HAS_DEPLOY_SECRETS not set; see .github/CI_SOFT_FAILURES.md"
+          fi
+
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    needs: guard
+    if: needs.guard.outputs.should_run == 'true'
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      tag: ${{ steps.meta.outputs.tag }}
+      target: ${{ steps.meta.outputs.target }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: meta
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          TAG="${{ github.event.inputs.image_tag }}"
+          [ -z "$TAG" ] && TAG="$SHA"
+          TARGET="${{ github.event.inputs.environment }}"
+          [ -z "$TARGET" ] && TARGET="staging"
+          echo "sha=$SHA"     >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+  build-images:
+    name: Build ${{ matrix.service }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - service: api-gateway
+            context: .
+            dockerfile: docker/Dockerfile.api
+          - service: consolidation-worker
+            context: .
+            dockerfile: services/consolidation-worker/Dockerfile
+          - service: document-intelligence
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=document-intelligence
+              PACKAGE_NAME=@borjie/document-intelligence-service
+          - service: domain-services
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=domain-services
+              PACKAGE_NAME=@borjie/domain-services
+          - service: identity
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=identity
+              PACKAGE_NAME=@borjie/identity-service
+          - service: notifications
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=notifications
+              PACKAGE_NAME=@borjie/notifications-service
+          - service: payments
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=payments-ledger
+              PACKAGE_NAME=@borjie/payments-ledger-service
+              ENTRY_PATH=dist/services/payments-ledger/src/server.js
+          - service: reports
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=reports
+              PACKAGE_NAME=@borjie/reports-service
+          - service: webhooks
+            context: .
+            dockerfile: docker/Dockerfile.service
+            build_args: |
+              SERVICE_NAME=webhooks
+              PACKAGE_NAME=@borjie/webhooks-service
+          - service: marketing
+            context: .
+            dockerfile: docker/Dockerfile.web
+            target: nextjs
+            build_args: |
+              APP_NAME=marketing
+              APP_PATH=apps/marketing
+          - service: owner-web
+            context: .
+            dockerfile: docker/Dockerfile.web
+            target: nextjs
+            build_args: |
+              APP_NAME=owner-web
+              APP_PATH=apps/owner-web
+          - service: admin-web
+            context: .
+            dockerfile: docker/Dockerfile.web
+            target: nextjs
+            build_args: |
+              APP_NAME=admin-web
+              APP_PATH=apps/admin-web
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          build-args: ${{ matrix.build_args }}
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}:${{ needs.prepare.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}:${{ needs.prepare.outputs.sha }}
+            ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  deploy-staging:
+    name: Deploy staging
+    needs: [prepare, build-images]
+    if: |
+      github.ref == 'refs/heads/main'
+      || github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.borjie.com
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Configure kubeconfig (staging)
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Pin image tags
+        working-directory: infra/k8s/overlays/staging
+        run: |
+          for service in api-gateway consolidation-worker \
+                         document-intelligence domain-services identity \
+                         notifications payments reports webhooks \
+                         marketing owner-web admin-web; do
+            kustomize edit set image \
+              "ghcr.io/${{ env.REGISTRY_OWNER }}/borjie-${service}=ghcr.io/${{ env.REGISTRY_OWNER }}/borjie-${service}:${{ needs.prepare.outputs.tag }}"
+          done
+
+      - name: kubectl apply (staging)
+        run: |
+          kubectl apply -k infra/k8s/overlays/staging
+          kubectl -n borjie-staging rollout status deploy/api-gateway --timeout=5m
+
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -sf https://staging-api.borjie.com/healthz; then
+              echo "Smoke OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Smoke FAIL"
+          exit 1
+
+  deploy-prod:
+    name: Deploy production
+    needs: [prepare, build-images, deploy-staging]
+    if: |
+      github.event_name == 'workflow_dispatch'
+      && github.event.inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: https://api.borjie.com
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Configure kubeconfig (prod)
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.PROD_KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Pin image tags
+        working-directory: infra/k8s/overlays/prod
+        run: |
+          for service in api-gateway consolidation-worker \
+                         document-intelligence domain-services identity \
+                         notifications payments reports webhooks \
+                         marketing owner-web admin-web; do
+            kustomize edit set image \
+              "ghcr.io/${{ env.REGISTRY_OWNER }}/borjie-${service}=ghcr.io/${{ env.REGISTRY_OWNER }}/borjie-${service}:${{ needs.prepare.outputs.tag }}"
+          done
+
+      - name: Canary 25%
+        run: |
+          kubectl -n borjie-prod patch deploy api-gateway --type=merge -p \
+            '{"spec":{"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":0}}}}'
+          kubectl apply -k infra/k8s/overlays/prod
+          kubectl -n borjie-prod rollout status deploy/api-gateway --timeout=10m
+
+      - name: Smoke test
+        id: smoke
+        run: |
+          curl -sf https://api.borjie.com/healthz
+
+      - name: Check SLO compliance (Prometheus)
+        id: slo
+        env:
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+          PROMETHEUS_BEARER_TOKEN: ${{ secrets.PROMETHEUS_BEARER_TOKEN }}
+          SLO_WINDOW: 5m
+          SLO_P99_LATENCY_MS_THRESHOLD: "1500"
+          SLO_ERROR_RATE_5XX_THRESHOLD: "0.01"
+          SLO_PAYMENTS_SUCCESS_THRESHOLD: "0.99"
+        run: |
+          chmod +x scripts/check-prometheus-slo.sh
+          scripts/check-prometheus-slo.sh
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          kubectl -n borjie-prod rollout undo deploy/api-gateway
+          kubectl -n borjie-prod rollout status deploy/api-gateway --timeout=5m
+          exit 1
+
+  notify:
+    name: Notify
+    needs: [prepare, deploy-staging, deploy-prod]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          {
+            echo "## BORJIE CD (Kubernetes)"
+            echo ""
+            echo "| Item    | Value |"
+            echo "|---------|-------|"
+            echo "| Tag     | ${{ needs.prepare.outputs.tag }} |"
+            echo "| Commit  | ${{ github.sha }} |"
+            echo "| Staging | ${{ needs.deploy-staging.result }} |"
+            echo "| Prod    | ${{ needs.deploy-prod.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
