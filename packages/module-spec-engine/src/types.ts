@@ -32,7 +32,7 @@
  *     slug:           string
  *     title:          string
  *     trigger_entity: string  (must match an entity.slug or be a built-in)
- *     trigger_event:  'create'|'update'|'delete'|'time'|'manual'
+ *     trigger_event:  'create'|'update'|'delete'|'time'|'manual'|'payment'|'bulk_update'
  *     steps:          string[]  (slugs of canonical step functions)
  *   }
  *
@@ -206,6 +206,8 @@ export const WORKFLOW_EVENTS = [
   'delete',
   'time',
   'manual',
+  'payment',
+  'bulk_update',
 ] as const;
 
 export const WorkflowDeclSchema = z.object({
