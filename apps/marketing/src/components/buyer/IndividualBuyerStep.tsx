@@ -104,7 +104,7 @@ export function IndividualBuyerStep({
           label={t.fields.fullName}
           subLabel={t.fields.fullNameEn}
           required
-          error={errors.fullName}
+          {...(errors.fullName !== undefined && { error: errors.fullName })}
         >
           <input
             id="fullName"
@@ -144,7 +144,7 @@ export function IndividualBuyerStep({
           label={t.fields.phone}
           subLabel={t.fields.phoneEn}
           required
-          error={errors.phoneE164}
+          {...(errors.phoneE164 !== undefined && { error: errors.phoneE164 })}
         >
           <input
             id="phoneE164"
@@ -163,7 +163,7 @@ export function IndividualBuyerStep({
           label={t.fields.email}
           subLabel={t.fields.emailEn}
           required
-          error={errors.email}
+          {...(errors.email !== undefined && { error: errors.email })}
         >
           <input
             id="email"

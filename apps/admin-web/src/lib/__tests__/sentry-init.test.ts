@@ -10,7 +10,7 @@
  * transport is not installed in this workspace's hoist set under
  * vitest's transformed environment).
  */
-process.env.NODE_ENV = 'production';
+(process.env as Record<string, string>).NODE_ENV = 'production';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

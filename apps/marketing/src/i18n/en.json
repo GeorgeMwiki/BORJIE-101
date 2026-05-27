@@ -492,6 +492,366 @@
       }
     ]
   },
+  "home": {
+    "frontierBanner": {
+      "kicker": "Frontier release",
+      "title": "Mining infrastructure, rewritten for the operator.",
+      "titleAccent": "Not the dashboard.",
+      "sub": "Borjie ships the operating system that turns a Tanzanian mining licence into a calm, audited, AI-managed business — bilingual on day one."
+    },
+    "problemSolution": {
+      "kicker": "Why a mining OS",
+      "title": "Mining is at the margin.",
+      "titleAccent": "Borjie closes that gap.",
+      "subOne": "Tanzanian mining still runs on Excel, WhatsApp, and physical compliance binders. The deposit is world-class. The infrastructure around it is not.",
+      "subTwo": "Borjie is the AI-native operating system the sector has been waiting for.",
+      "problem": {
+        "title": "Mining at the margin",
+        "items": [
+          {
+            "title": "Royalty filings are manual",
+            "desc": "Owners file Tumemadini returns in Excel and miss the 47-day renewal window 18% of the time. Every missed window costs a re-filing fee and burns goodwill with the regulator."
+          },
+          {
+            "title": "The gold window swings 2.4% a day",
+            "desc": "Small miners hedge with WhatsApp messages to brokers in Dubai. They lose 4-6% of margin to spread, timing, and information asymmetry on every off-take."
+          },
+          {
+            "title": "Compliance is fragmented",
+            "desc": "Tumemadini, NEMC, Bank of Tanzania, and TRA all want different artifacts on different cadences. The owner becomes a part-time compliance officer instead of a miner."
+          },
+          {
+            "title": "Workforce visibility ends at the gate",
+            "desc": "Owners can't see who clocked in, what fuel was burned, or what incidents happened on Wednesday's B-shift. Payroll leakage and safety blindspots compound week-over-week."
+          }
+        ]
+      },
+      "solution": {
+        "title": "Borjie does the work",
+        "items": [
+          {
+            "title": "Royalty drafts in Tumemadini format",
+            "desc": "Mr. Mwikila drafts your monthly royalty in the official Tumemadini format the day after each gold parcel window closes. One-tap signature, cited line-by-line."
+          },
+          {
+            "title": "Gold-window hedge at LBMA fix",
+            "desc": "The treasury desk hedges the BoT USD/gold window automatically — every hedge cited to the LBMA AM-fix. Pilot saving of 1.4% versus walk-in spot."
+          },
+          {
+            "title": "Compliance pack on every cadence",
+            "desc": "Borjie files Tumemadini, NEMC, BoT, and TRA on each authority's own cadence. Hash-chain audited so the regulator can verify offline without trusting us."
+          },
+          {
+            "title": "Workforce console on the supervisor's phone",
+            "desc": "Run shifts, attendance, fuel logs, and incidents from the foreman's pocket. Biometric clock-in at the pit gate lifts shift productivity by 18% on pilot sites."
+          }
+        ]
+      }
+    },
+    "ecosystem": {
+      "kicker": "Regulators · markets · rails",
+      "title": "Wired into every counterpart",
+      "titleAccent": "Tanzanian mining touches.",
+      "sub": "Borjie integrates with every regulator, market, lab, and money-rail an operator already deals with. No new portals to learn — the work flows through the systems Tanzania already trusts.",
+      "categories": [
+        {
+          "title": "Regulators",
+          "items": [
+            { "name": "Tumemadini", "desc": "Mining commission · royalty returns, PML/ML/SML lifecycle" },
+            { "name": "NEMC", "desc": "Environmental Council · EIA, quarterly emissions, audit pack" },
+            { "name": "Bank of Tanzania", "desc": "USD-cliff window, gold-window settlements, BoT fix" },
+            { "name": "TRA", "desc": "Revenue Authority · royalty, VAT, PAYE, withholding" },
+            { "name": "BRELA", "desc": "Business registration · KYB, directors, shareholding" },
+            { "name": "GST", "desc": "Geological Survey of Tanzania · drill-hole + assay lodgement" }
+          ]
+        },
+        {
+          "title": "Markets & labs",
+          "items": [
+            { "name": "LBMA", "desc": "London Bullion Market Association · AM-fix window for gold" },
+            { "name": "ICA Brussels", "desc": "International Coloured-stone Assoc. · tanzanite grading" },
+            { "name": "Mining Commission", "desc": "PML/ML/SML registry · transfers, renewals, public record" }
+          ]
+        },
+        {
+          "title": "Money rails",
+          "items": [
+            { "name": "M-Pesa", "desc": "Vodacom · vendor payouts, payroll, supplier float" },
+            { "name": "Tigo Pesa", "desc": "Yas Tanzania · vendor wallet, settlement, B2C" },
+            { "name": "Airtel Money", "desc": "Bharti Airtel · cross-border float, agent network" }
+          ]
+        }
+      ]
+    },
+    "universalAccess": {
+      "kicker": "Bilingual · multi-device · multi-role",
+      "title": "Every artifact in Swahili first.",
+      "titleAccent": "English on toggle.",
+      "sub": "Every supervisor on a phone. Every owner on a tablet. Every regulator on a desktop. Borjie is the only mining OS that ships in Tanzania's working languages from line one of every screen.",
+      "cards": [
+        {
+          "title": "Swahili-first by default",
+          "body": "Every label, every brief, every regulator artifact ships in Swahili. English is one tap away. No translation lag — the language flag flips and the entire UI follows, including signed PDFs."
+        },
+        {
+          "title": "Phone for the pit, tablet for the office",
+          "body": "Supervisors run shifts from a phone — biometric clock-in, fuel logs, incident reports. Owners review on tablet — daily brief, treasury, licence calendar. The same data, the right surface."
+        },
+        {
+          "title": "Desktop for the regulator",
+          "body": "Tumemadini, NEMC, TRA, and audit-pack consumers get a desktop console with one-click export to NDJSON, cryptographically signed and verifiable offline."
+        }
+      ]
+    },
+    "mwikilaModes": {
+      "kicker": "Meet Mr. Mwikila",
+      "title": "Seven modes, one calm operator.",
+      "titleAccent": "Switch tabs to see them work.",
+      "sub": "Mr. Mwikila is Borjie's AI Mining Operations Manager. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, hedging your gold at the LBMA window. Pick a mode to see what he does.",
+      "modes": [
+        {
+          "id": "build",
+          "label": "Build",
+          "headline": "Stands up your mining knowledge graph in 48 hours",
+          "capabilities": [
+            "Imports PML/ML/SML licences via OCR and reconciles them against the Mining Commission registry",
+            "Ingests pit maps as GeoJSON or PDF and links every drill-hole to a segment",
+            "Builds your vendor, off-taker, and worker registries from existing M-Pesa and payroll records",
+            "Issues every team member their role-gated credential — owner, manager, supervisor, employee"
+          ]
+        },
+        {
+          "id": "strategy",
+          "label": "Strategy",
+          "headline": "Models the long arc — pit, treasury, workforce, market",
+          "capabilities": [
+            "Simulates 12-month production against three gold-price scenarios",
+            "Projects cash runway from current burn, hedge book, and off-take pipeline",
+            "Flags PML renewals 90, 60, and 30 days out with Tumemadini drafts pre-filled",
+            "Recommends fleet, contractor, and explosives purchases against quarterly plan"
+          ]
+        },
+        {
+          "id": "operations",
+          "label": "Operations",
+          "headline": "Runs the day from the pit gate to the wash plant",
+          "capabilities": [
+            "Schedules shifts and tracks biometric clock-in on the supervisor's phone",
+            "Logs every drill-hole, assay, and grade-control measurement to the chain",
+            "Tracks fuel, lubricants, and explosives consumption against pit segments",
+            "Surfaces overnight incidents, near-misses, and equipment downtime by 06:00"
+          ]
+        },
+        {
+          "id": "document",
+          "label": "Document",
+          "headline": "Drafts every artifact — royalty, NEMC EIA, OSHA log",
+          "capabilities": [
+            "Tumemadini royalty drafts in the official format every month",
+            "NEMC EIA and quarterly emissions report templates auto-populated from telemetry",
+            "OSHA shift log, incident report, and corrective-action notes",
+            "Off-take contracts with biometric fingerprint signature workflow"
+          ]
+        },
+        {
+          "id": "finance",
+          "label": "Finance",
+          "headline": "Hedges the gold window, watches the cash, files the tax",
+          "capabilities": [
+            "Hedges gold at the LBMA AM-fix automatically inside policy",
+            "Tracks TZS · USD · gold-ounce balances against the BoT USD cliff",
+            "Drafts VAT, PAYE, and withholding-tax returns ready for TRA filing",
+            "Settles vendor wallets through M-Pesa, Tigo Pesa, and Airtel Money"
+          ]
+        },
+        {
+          "id": "risk",
+          "label": "Risk",
+          "headline": "Five gates between every decision and the world",
+          "capabilities": [
+            "Groundedness gate — every claim cites an evidence artifact",
+            "Calibration gate — confidence labels match historical accuracy",
+            "Brand gate — Mr. Mwikila stays in voice, never drifts",
+            "Authority + budget gates — tier and ε-budget enforced before any tool call"
+          ]
+        },
+        {
+          "id": "compliance",
+          "label": "Compliance",
+          "headline": "Hash-chain audited so the regulator never has to trust us",
+          "capabilities": [
+            "Append-only audit chain — SHA-256 prev-hash plus per-entry HMAC",
+            "Per-tenant isolation — your chain is never co-mingled with anyone else's",
+            "Minimal disclosure — user content is hashed, not stored, on the chain",
+            "Tumemadini-exportable NDJSON bundle, verifiable offline"
+          ]
+        }
+      ]
+    },
+    "interactiveModes": {
+      "kicker": "How you talk to Borjie",
+      "title": "Three doors into the same brain.",
+      "titleAccent": "Pick the one that fits the moment.",
+      "sub": "Borjie is everywhere a mining owner needs it: on the marketing page when you're sizing it up, on the home screen when you're learning it, and in the truck when you can't look at a screen.",
+      "modes": [
+        {
+          "id": "marketing",
+          "title": "Marketing chat",
+          "subtitle": "Sells",
+          "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and books a pilot when you're ready.",
+          "preview": {
+            "user": "What does Borjie do for a Geita PML?",
+            "ai": "Drafts your Tumemadini royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
+          }
+        },
+        {
+          "id": "home",
+          "title": "Home chat",
+          "subtitle": "Teaches",
+          "desc": "Once you're inside Borjie, the home chat teaches you the system. Ask about the licence calendar, the autonomy dial, or how royalty is filed — it answers with citations to your own data.",
+          "preview": {
+            "user": "How do I add a new PML?",
+            "ai": "Open the licence calendar, tap +PML, scan the licence cover with your phone. OCR populates the Tumemadini fields. I'll flag any field that doesn't match the registry."
+          }
+        },
+        {
+          "id": "voice",
+          "title": "Voice",
+          "subtitle": "Hands-free",
+          "desc": "In the truck on the haul road. On the wash plant deck. At the pit gate when both hands are dirty. Tap the mic, talk, and Borjie answers in Swahili or English.",
+          "preview": {
+            "user": "Mwikila, ni gani limetokea usiku?",
+            "ai": "Zamu B imetoa tani 184 kwa daraja la 3.2 g/t. Gari moja la mafuta limepoteza saa mbili kwa breakdown. Hakuna ajali. Royalty ya Aprili iko tayari kusainiwa."
+          }
+        }
+      ]
+    },
+    "platformShowcase": {
+      "kicker": "Three product surfaces, one OS",
+      "title": "Where Borjie lives.",
+      "titleAccent": "On every screen the mine needs.",
+      "sub": "The Owner Cockpit, the Workforce Mobile app, and the Buyer Marketplace are three windows into the same audited data fabric. The owner runs the business. The supervisor runs the shift. The buyer sources the parcel.",
+      "tiles": [
+        {
+          "title": "Owner Cockpit",
+          "subtitle": "Tablet · desktop · 22 screens",
+          "desc": "Daily brief, licence calendar, treasury, drill-hole logger, compliance pack. The strategic command surface for the mining owner.",
+          "mockType": "kpi",
+          "kpis": [
+            { "label": "Oz Au this month", "value": "184" },
+            { "label": "Cash runway (wks)", "value": "18.3" },
+            { "label": "Days to renew PML", "value": "47" }
+          ]
+        },
+        {
+          "title": "Workforce Mobile",
+          "subtitle": "Phone · 47 screens · role-gated",
+          "desc": "Biometric clock-in, shift log, fuel ledger, incident report. The pit-floor app the supervisor uses every shift.",
+          "mockType": "shift",
+          "rows": [
+            { "label": "Shift B · pit segment 4", "value": "184 t", "tone": "good" },
+            { "label": "Fuel · diesel", "value": "412 L", "tone": "warn" },
+            { "label": "Incidents", "value": "0", "tone": "good" }
+          ]
+        },
+        {
+          "title": "Buyer Marketplace",
+          "subtitle": "Web · mobile · 12 screens",
+          "desc": "KYB-verified sellers, LBMA-grade assays, biometric off-take signatures. The marketplace for buyers sourcing verified Tanzanian minerals.",
+          "mockType": "market",
+          "listings": [
+            { "label": "Geita doré · 60 oz", "value": "TZS 142M", "tone": "live" },
+            { "label": "Mererani tanzanite · Block-D", "value": "TZS 88M", "tone": "live" },
+            { "label": "Kigoma coltan · 2.4 t", "value": "TZS 56M", "tone": "live" }
+          ]
+        }
+      ]
+    },
+    "bento": {
+      "kicker": "Borjie at a glance",
+      "title": "Five tiles, one calm operator.",
+      "titleAccent": "The work, surfaced.",
+      "sub": "Borjie's heaviest features distilled into a single asymmetric grid. Each tile is a real piece of the operating system — not a marketing illustration.",
+      "tiles": [
+        {
+          "id": "audit",
+          "title": "Audit chain",
+          "desc": "Every action Mr. Mwikila proposes lands on a SHA-256 hash-chained, HMAC-signed, append-only log. Tumemadini, NEMC, and your lender verify offline, no trust required.",
+          "badge": "Cryptographic"
+        },
+        {
+          "id": "licence",
+          "title": "47-day licence radar",
+          "desc": "PML, ML, SML on one calendar with 90-, 60-, 30-, and 14-day expiry warnings. Tumemadini renewal pack drafted automatically the day the radar flips amber.",
+          "badge": "Live now"
+        },
+        {
+          "id": "hedge",
+          "title": "LBMA window hedge",
+          "desc": "Borjie hedges your gold against the BoT USD/gold window at the LBMA AM-fix. Every hedge cited to the fix price, indicative pilot saving of 1.4% versus spot.",
+          "badge": "Treasury"
+        },
+        {
+          "id": "royalty",
+          "title": "Tumemadini royalty",
+          "desc": "Monthly royalty drafted in the official Tumemadini format the day after each parcel window closes. One-tap signature, full audit chain.",
+          "badge": "Auto-draft"
+        },
+        {
+          "id": "wallet",
+          "title": "M-Pesa vendor wallet",
+          "desc": "Settle suppliers, contractors, and casual labour through M-Pesa, Tigo Pesa, and Airtel Money. Every payout signed with the audit chain, ledger reconciled nightly.",
+          "badge": "Mobile money"
+        }
+      ]
+    },
+    "insights": {
+      "kicker": "By the numbers · pilot voices",
+      "title": "What pilots are telling us.",
+      "titleAccent": "Indicative, refreshed weekly.",
+      "sub": "Ten pioneer operators across Geita, Mererani, and Songwe are running 12-week pilots. Below: numbers from telemetry on the left, and what operators are saying on the right.",
+      "statsHeading": "By the numbers",
+      "stats": [
+        { "value": 47, "suffix": "", "label": "Pilot sites under live brain" },
+        { "value": 1284, "suffix": "", "label": "Briefings delivered before 06:00" },
+        { "value": 184, "suffix": "k", "label": "Audit-chain entries (zero mutations)" },
+        { "value": 4.2, "suffix": "B", "decimals": 1, "label": "TZS hedged at gold window" }
+      ],
+      "quotesHeading": "Pilot voices",
+      "quotes": [
+        {
+          "body": "The 06:00 brief in Swahili changed how my Wednesday starts. I used to spend two hours pulling reports. Now I sign three decisions and head to the pit.",
+          "name": "Joyce Mhagama",
+          "role": "Owner · Geita PML · 4 sites"
+        },
+        {
+          "body": "The Tumemadini royalty draft has not been rewritten by the regulator once. Twelve months in. That's the proof for me.",
+          "name": "Hamisi Ngao",
+          "role": "Chair · Mererani co-op · 18 members"
+        },
+        {
+          "body": "Biometric clock-in killed our payroll leakage in one week. The supervisor finally has a phone that does the job, not just makes calls.",
+          "name": "Asha Mwakajila",
+          "role": "CFO · Songwe trading group · 9 sites"
+        }
+      ]
+    },
+    "roadmap": {
+      "kicker": "Roadmap · what's next",
+      "title": "Run your mine on autopilot.",
+      "titleAccent": "Here's the year ahead.",
+      "sub": "Borjie ships in waves. We protect the existing pilots while opening four new capabilities across 2026. Each pill below maps to a quarter; each is shipping into the same hash-chained audit fabric.",
+      "pills": [
+        { "label": "Q1 2026", "title": "Pilot — ten live mines", "tone": "active" },
+        { "label": "Q2 2026", "title": "Licence radar — 47-day pre-fill", "tone": "next" },
+        { "label": "Q3 2026", "title": "Vendor wallet — M-Pesa · Tigo · Airtel", "tone": "later" },
+        { "label": "Q4 2026", "title": "Buyer marketplace — public beta", "tone": "later" }
+      ],
+      "ctaPrimary": "Start the pilot",
+      "ctaSecondary": "Talk to a human",
+      "microcopy": "Twenty pilot slots remain. No card. Twelve weeks. You keep your data."
+    }
+  },
   "footer": {
     "tagline": "AI-native operating system for Tanzanian mining. Master Brain, audit chain, bilingual.",
     "product": "Product",
@@ -501,6 +861,8 @@
     "rights": "All rights reserved.",
     "locale": "Dar es Salaam · UTC+3",
     "systemsOperational": "All systems operational",
+    "regulatorStrip": "Aligned with Tumemadini · NEMC · BoT · TRA · BRELA · LBMA",
+    "tanzaniaStorage": "Tanzania-region storage · Dar es Salaam",
     "links": {
       "capabilities": "Capabilities",
       "masterBrain": "Master Brain",

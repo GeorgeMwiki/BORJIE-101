@@ -60,10 +60,12 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
           <motion.div
             key={k.label}
             initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-            animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={
-              reducedMotion ? undefined : { duration: 0.3, delay: 0.3 + idx * 0.08 }
-            }
+            {...(reducedMotion
+              ? {}
+              : {
+                  animate: { opacity: 1, y: 0 },
+                  transition: { duration: 0.3, delay: 0.3 + idx * 0.08 },
+                })}
             className="rounded-md bg-background/60 px-2 py-2 text-center"
           >
             <div className="font-display text-xl font-semibold tabular-nums text-foreground">
@@ -80,10 +82,12 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
       <div className="absolute inset-x-3 bottom-3 h-px overflow-hidden rounded-full bg-border">
         <motion.div
           initial={reducedMotion ? false : { width: '10%' }}
-          animate={reducedMotion ? undefined : { width: '70%' }}
-          transition={
-            reducedMotion ? undefined : { duration: 1.6, ease: 'easeOut', delay: 0.6 }
-          }
+          {...(reducedMotion
+            ? {}
+            : {
+                animate: { width: '70%' },
+                transition: { duration: 1.6, ease: 'easeOut' as const, delay: 0.6 },
+              })}
           className="h-full"
           style={{
             background:

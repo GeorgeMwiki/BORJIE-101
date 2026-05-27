@@ -115,7 +115,7 @@ export function BusinessBuyerStep({
           label={t.fields.orgName}
           subLabel={t.fields.orgNameEn}
           required
-          error={errors.orgName}
+          {...(errors.orgName !== undefined && { error: errors.orgName })}
         >
           <input
             id="orgName"
@@ -155,7 +155,7 @@ export function BusinessBuyerStep({
           label={t.fields.businessKind}
           subLabel={t.fields.businessKindEn}
           required
-          error={errors.businessKind}
+          {...(errors.businessKind !== undefined && { error: errors.businessKind })}
         >
           <select
             id="businessKind"
@@ -182,7 +182,9 @@ export function BusinessBuyerStep({
           label={t.fields.businessRegistrationNumber}
           subLabel={t.fields.businessRegistrationNumberEn}
           required
-          error={errors.businessRegistrationNumber}
+          {...(errors.businessRegistrationNumber !== undefined && {
+            error: errors.businessRegistrationNumber,
+          })}
         >
           <input
             id="businessRegistrationNumber"
@@ -200,7 +202,7 @@ export function BusinessBuyerStep({
           label={t.fields.taxId}
           subLabel={t.fields.taxIdEn}
           required
-          error={errors.taxId}
+          {...(errors.taxId !== undefined && { error: errors.taxId })}
         >
           <input
             id="taxId"
@@ -216,7 +218,9 @@ export function BusinessBuyerStep({
           label={t.fields.contactFullName}
           subLabel={t.fields.contactFullNameEn}
           required
-          error={errors.contactFullName}
+          {...(errors.contactFullName !== undefined && {
+            error: errors.contactFullName,
+          })}
         >
           <input
             id="contactFullName"
@@ -233,7 +237,9 @@ export function BusinessBuyerStep({
           label={t.fields.contactPhone}
           subLabel={t.fields.contactPhoneEn}
           required
-          error={errors.contactPhoneE164}
+          {...(errors.contactPhoneE164 !== undefined && {
+            error: errors.contactPhoneE164,
+          })}
         >
           <input
             id="contactPhoneE164"
@@ -254,7 +260,7 @@ export function BusinessBuyerStep({
           label={t.fields.contactEmail}
           subLabel={t.fields.contactEmailEn}
           required
-          error={errors.contactEmail}
+          {...(errors.contactEmail !== undefined && { error: errors.contactEmail })}
         >
           <input
             id="contactEmail"
