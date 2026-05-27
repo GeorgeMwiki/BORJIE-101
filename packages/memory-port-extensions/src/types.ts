@@ -1,9 +1,12 @@
 /**
- * Shared types for litfin-port-memory-extra patterns.
+ * Shared types for `@borjie/memory-port-extensions` patterns.
  *
  * All identifiers are branded to prevent cross-type leakage. All
  * structures are immutable (`readonly`); helpers create new objects
  * rather than mutating inputs.
+ *
+ * Structure inherited from a pre-fork lineage; evolved independently
+ * as part of Borjie.
  */
 
 export type TenantId = string & { readonly __brand: 'TenantId' };

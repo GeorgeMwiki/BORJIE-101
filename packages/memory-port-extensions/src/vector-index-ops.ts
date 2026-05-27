@@ -1,9 +1,10 @@
 /**
  * Vector index optimizations — lazy-rebuild + delta-update.
  *
- * LITFIN ref: src/core/memory/semantic-store.ts +
- * src/core/knowledge-graph/graph-rag.ts — maintains an in-memory
- * shadow alongside a slow persistent index so writes don't block reads.
+ * Borjie's vector-index optimisation — structure inherited from the
+ * pre-fork lineage; evolved independently as part of Borjie. Maintains
+ * an in-memory shadow alongside a slow persistent index so writes
+ * don't block reads.
  *
  * Two policies:
  *   - lazy-rebuild: accumulate dirty entries until a threshold, then
@@ -75,7 +76,7 @@ export const planCompaction = (
 /**
  * Apply a delta-merge plan: shadow-search the delta arena, then return
  * the merged committed list with deltas appended and de-duplicated by id
- * (latest wins, which is the LITFIN semantics).
+ * (latest wins — the inherited semantics from the pre-fork lineage).
  */
 export const applyDeltaMerge = <T>(
   committed: readonly VectorEntry<T>[],

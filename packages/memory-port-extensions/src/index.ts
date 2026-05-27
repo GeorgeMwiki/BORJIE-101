@@ -1,7 +1,8 @@
 /**
- * `@borjie/litfin-port-memory-extra` — public surface.
+ * `@borjie/memory-port-extensions` — extends `@borjie/persistent-memory`
+ * with port shapes for external memory adapters. Public surface.
  *
- * LITFIN-ported memory + RAG patterns:
+ * Memory + RAG port extensions:
  *   - conversational-summary memory layer
  *   - KG entity-resolution heuristics
  *   - vector index optimizations (lazy-rebuild + delta-update)
@@ -10,6 +11,9 @@
  *
  * All modules are pure functions. Side-effects (DB / vector store /
  * LLM) are wired by callers via ports.
+ *
+ * Structure inherited from a pre-fork lineage; evolved independently
+ * as part of Borjie.
  */
 
 export * from './types.js';

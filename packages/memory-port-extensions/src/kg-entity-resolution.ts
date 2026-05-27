@@ -1,12 +1,11 @@
 /**
  * KG entity-resolution heuristics — deduplication beyond exact-match.
  *
- * LITFIN ref: src/core/knowledge-graph/triple-store.ts +
- * src/core/knowledge-intelligence/* — uses a chain of cheap-to-expensive
- * comparators with early-exit and per-domain thresholds.
- *
- * Ported here without the LLM-confirmation tail; the caller plugs that
- * in via the `disambiguator` port if desired.
+ * Borjie's entity-resolution heuristic — structure inherited from the
+ * pre-fork lineage; evolved independently as part of Borjie. Uses a
+ * chain of cheap-to-expensive comparators with early-exit and
+ * per-domain thresholds. The LLM-confirmation tail is left to the
+ * caller via the `disambiguator` port if desired.
  */
 
 import type { EntityId } from './types.js';
@@ -32,7 +31,7 @@ export interface EntityRecord {
  * thresholds globally (which would also let unrelated near-matches merge).
  *
  * Scope is intentionally narrow: real-estate / legal-entity / common
- * directional terms that LITFIN entity resolution already encounters in
+ * directional terms that Borjie's entity resolution encounters in
  * production fixtures. Extend conservatively — every entry widens recall
  * but also slightly increases false-positive risk.
  */

@@ -1,11 +1,11 @@
 /**
  * Recall scoring — predict-then-verify for low-confidence recalls.
  *
- * LITFIN ref: src/core/memory/memory-service.ts +
- * src/core/litfin-ai/calibration/* — emits a calibrated confidence and
- * gates verification on a configurable acceptance threshold. Below the
- * threshold, the caller is told to run verification (e.g. re-query KG,
- * call out to expert, ask user).
+ * Borjie's recall-scoring port — structure inherited from the pre-fork
+ * lineage; evolved independently as part of Borjie. Emits a calibrated
+ * confidence and gates verification on a configurable acceptance
+ * threshold. Below the threshold, the caller is told to run
+ * verification (e.g. re-query KG, call out to expert, ask user).
  */
 
 export interface RecallCandidate<T> {

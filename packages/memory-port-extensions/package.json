@@ -1,9 +1,9 @@
 {
-  "name": "@borjie/litfin-port-memory-extra",
+  "name": "@borjie/memory-port-extensions",
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "LITFIN-ported memory + RAG patterns: conversational-summary memory, KG entity-resolution, vector index optimizations, cache-invalidation-by-fact, recall scoring (predict-then-verify). Pure functions; injectable ports for stores.",
+  "description": "Memory + RAG port extensions: conversational-summary memory layer, KG entity-resolution heuristics, vector index optimizations (lazy-rebuild + delta-update), cache-invalidation-by-fact, recall scoring (predict-then-verify). Pure functions; injectable ports for stores. Structure inherited from a pre-fork lineage; evolved independently as part of Borjie.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

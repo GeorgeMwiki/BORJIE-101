@@ -2,9 +2,10 @@
  * Cache-invalidation-by-fact — when a structured fact changes, invalidate
  * every cached answer whose derivation cited that fact.
  *
- * LITFIN ref: src/core/memory/{semantic-store,reflective-store}.ts —
- * keeps a reverse index from fact-id to answer-cache-key. When a fact
- * mutates, all dependent cache keys are dropped atomically.
+ * Borjie's cache-invalidation primitive — structure inherited from the
+ * pre-fork lineage; evolved independently as part of Borjie. Keeps a
+ * reverse index from fact-id to answer-cache-key. When a fact mutates,
+ * all dependent cache keys are dropped atomically.
  */
 
 import type { AnswerCacheKey, FactId } from './types.js';

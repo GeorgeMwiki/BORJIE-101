@@ -1,10 +1,11 @@
 /**
  * Conversational-summary memory layer.
  *
- * LITFIN ref: src/core/memory/{semantic-store,episodic-store}.ts —
- * compresses long agent transcripts into rolling summaries when token
- * budget is exceeded. We extract the prompt scaffolding and budget
- * arithmetic; the summarizer itself is an injected port.
+ * Borjie's conversational-summary memory — structure inherited from
+ * the pre-fork lineage; evolved independently as part of Borjie.
+ * Compresses long agent transcripts into rolling summaries when token
+ * budget is exceeded. The prompt scaffolding and budget arithmetic
+ * live here; the summarizer itself is an injected port.
  */
 
 import type { MemoryClock } from './types.js';
