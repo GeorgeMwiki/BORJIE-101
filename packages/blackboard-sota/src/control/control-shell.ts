@@ -94,10 +94,12 @@ export function createControlShell(deps: ControlShellDeps): ControlShell {
             ks.id,
             region.id,
           );
-          // Δt = ∞ if the KS has never spoken (rewards first-mover).
-          // We model "∞" as Number.MAX_SAFE_INTEGER which makes
-          // freshness saturate at 1.0.
-          const deltaMs = lastMs ?? Number.MAX_SAFE_INTEGER;
+          // A KS that has never spoken in this region is treated as
+          // "perfectly fresh" — Δt = 0 → freshness = 1.0 — so the
+          // first-mover can be picked on priority × competence alone.
+          // (The exponential decay penalises *recent* activation, not
+          // never-activation; see spec §3.2.)
+          const deltaMs = lastMs ?? 0;
           const measured = await competence.scoreFor(
             region.tenantId,
             ks.ksName,

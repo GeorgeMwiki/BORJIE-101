@@ -85,8 +85,14 @@ export function createRollingSummaryCron(
           region.id,
           { ascending: true },
         );
-        const fresh = posts.filter(
-          (p) => p.postedAt.getTime() > coversFrom.getTime(),
+        // First rolling summary: include posts back to and including
+        // openedAt (postedAt >= coversFrom). Subsequent rolls: strict
+        // greater-than so the same post is not summarised twice.
+        const isFirstRoll = last === null;
+        const fresh = posts.filter((p) =>
+          isFirstRoll
+            ? p.postedAt.getTime() >= coversFrom.getTime()
+            : p.postedAt.getTime() > coversFrom.getTime(),
         );
         if (fresh.length === 0) {
           skipped += 1;
