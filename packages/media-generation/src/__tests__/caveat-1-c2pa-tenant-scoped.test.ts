@@ -125,14 +125,20 @@ describe('Caveat 1 — C2PA manifest is tenant-scoped', () => {
   });
 
   it('embeds tenant_id + brand into the brand_credentials assertion', () => {
+    // Use a non-Borjie tenant brand so this test asserts a SIBLING brand's
+    // identity flows through the manifest (the multi-tenant guarantee),
+    // not just the host product's. Naming the fixture 'sibling-brand'
+    // (rather than e.g. the BossNyumba parent project name) keeps the
+    // test brand-agnostic and avoids leaking parent-project ancestry
+    // into assertion strings.
     const m = buildC2paManifest({
       ...MANIFEST_BASE,
-      tenant_id: 'tenant-alt-brand-ke',
-      brand: 'alt-brand',
+      tenant_id: 'tenant-sibling-brand-ke',
+      brand: 'sibling-brand',
     });
     const credentials = m.assertions[1]?.data as Record<string, unknown>;
-    expect(credentials['tenant_id']).toBe('tenant-alt-brand-ke');
-    expect(credentials['brand']).toBe('alt-brand');
+    expect(credentials['tenant_id']).toBe('tenant-sibling-brand-ke');
+    expect(credentials['brand']).toBe('sibling-brand');
   });
 
   it('produces a distinct signature per tenant', () => {
@@ -143,7 +149,7 @@ describe('Caveat 1 — C2PA manifest is tenant-scoped', () => {
 
   it('produces a distinct signature per brand fork', () => {
     const a = buildC2paManifest({ ...MANIFEST_BASE, brand: 'borjie' });
-    const b = buildC2paManifest({ ...MANIFEST_BASE, brand: 'alt-brand' });
+    const b = buildC2paManifest({ ...MANIFEST_BASE, brand: 'sibling-brand' });
     expect(a.signature.value).not.toBe(b.signature.value);
   });
 
