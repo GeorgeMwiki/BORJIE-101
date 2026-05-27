@@ -1,13 +1,58 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { BigNumber } from '../../src/components/StubBlocks'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi, request } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
+import { API_BASE_URL } from '../../src/api/config'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-07'
+
+const COPY = Object.freeze({
+  loading: 'Inapakia hali ya fedha…',
+  runwayTitle: 'Muda uliobaki',
+  daysLabel: 'Siku za hela',
+  scenarioTitle: 'Hali za muda mfupi',
+  scenarioHint: 'Bonyeza moja kubadili makadirio',
+  inflowTitle: 'Mapato ya siku 90',
+  riskHigh: 'Hatari kubwa · panga sasa',
+  riskMid: 'Kabla ya kufungwa',
+  riskLow: 'Hali nzuri',
+  burnPrefix: 'Burn: ',
+  perDaySuffix: ' kwa siku',
+  scenarioBase: 'Hali ya kawaida',
+  scenarioFuelCut: 'Kata mafuta 20%',
+  scenarioExpansion: 'Panua wafanyakazi',
+  subscriptionTitle: 'Mpango wa malipo'
+})
+
+interface CashRunwayResponse {
+  readonly success: true
+  readonly data: {
+    readonly ninetyDayNetTzs: number
+    readonly dailyAvgTzs: number
+    readonly sampleCount: number
+    readonly note: string
+  }
+}
+
+interface SubscriptionResponse {
+  readonly success: boolean
+  readonly data?: {
+    readonly plan: string | null
+    readonly status: string | null
+    readonly currency: string | null
+    readonly renewalAt: string | null
+    readonly mrrMinor?: number
+    readonly seats?: number
+  }
+}
 
 type ScenarioKey = 'base' | 'fuelCut' | 'expansion'
 
@@ -15,48 +60,17 @@ interface Scenario {
   readonly key: ScenarioKey
   readonly label: string
   readonly daysRemaining: number
-  readonly burnRatePerDay: number
+  readonly burnRateTzs: number
 }
 
-interface CashAccount {
-  readonly id: string
-  readonly currency: 'TZS' | 'USD' | 'KES'
-  readonly amount: number
-  readonly bank: string
+const CASH_QUERY_KEY = ['mining', 'cockpit', 'cash-runway'] as const
+const BILLING_QUERY_KEY = ['owner', 'billing', 'subscription'] as const
+
+function formatAmount(value: number, currencyCode: string): string {
+  if (!Number.isFinite(value)) return `${currencyCode} -`
+  const rounded = Math.round(value)
+  return `${currencyCode} ${rounded.toLocaleString('en-US')}`
 }
-
-interface OutflowLine {
-  readonly id: string
-  readonly category: string
-  readonly amountTzs: number
-  readonly dueInDays: number
-}
-
-const ACCOUNTS: ReadonlyArray<CashAccount> = [
-  { id: 'a1', currency: 'TZS', amount: 184_000_000, bank: 'CRDB Geita' },
-  { id: 'a2', currency: 'USD', amount: 74_000, bank: 'NMB Mwanza' },
-  { id: 'a3', currency: 'KES', amount: 2_100_000, bank: 'Equity Nairobi' }
-]
-
-const OUTFLOWS: ReadonlyArray<OutflowLine> = [
-  { id: 'o1', category: 'Mishahara ya wafanyakazi', amountTzs: 42_000_000, dueInDays: 7 },
-  { id: 'o2', category: 'Mafuta na vifaa', amountTzs: 28_500_000, dueInDays: 3 },
-  { id: 'o3', category: 'Ada za leseni za PML', amountTzs: 18_000_000, dueInDays: 14 },
-  { id: 'o4', category: 'Kodi ya forodha (TRA)', amountTzs: 21_400_000, dueInDays: 30 }
-]
-
-const BASE_SCENARIO: Scenario = {
-  key: 'base',
-  label: 'Hali ya kawaida',
-  daysRemaining: 38,
-  burnRatePerDay: 6_400_000
-}
-
-const SCENARIOS: ReadonlyArray<Scenario> = [
-  BASE_SCENARIO,
-  { key: 'fuelCut', label: 'Kata mafuta 20%', daysRemaining: 52, burnRatePerDay: 4_700_000 },
-  { key: 'expansion', label: 'Panua wafanyakazi', daysRemaining: 24, burnRatePerDay: 9_100_000 }
-]
 
 export default function Screen(): JSX.Element {
   return (
@@ -71,34 +85,101 @@ export default function Screen(): JSX.Element {
 function CashRunwayView(): JSX.Element {
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('base')
 
-  const activeScenario = useMemo<Scenario>(
-    () => SCENARIOS.find((s) => s.key === scenarioKey) ?? BASE_SCENARIO,
-    [scenarioKey]
-  )
+  const cashQuery = useQuery<CashRunwayResponse['data'], ApiError>({
+    queryKey: CASH_QUERY_KEY,
+    queryFn: async ({ signal }) => {
+      const response = await miningApi.get<CashRunwayResponse>('/cockpit/cash-runway', {
+        signal
+      })
+      return response.data
+    }
+  })
 
-  const totalOutflowTzs = useMemo<number>(
-    () => OUTFLOWS.reduce((sum, line) => sum + line.amountTzs, 0),
-    []
-  )
+  const billingQuery = useQuery<SubscriptionResponse, ApiError>({
+    queryKey: BILLING_QUERY_KEY,
+    queryFn: async ({ signal }) => {
+      return await request<SubscriptionResponse>(`${API_BASE_URL}/api/v1/billing/subscription`, {
+        signal
+      })
+    },
+    retry: false
+  })
 
-  const runwayCaption = useMemo<string>(() => {
-    if (activeScenario.daysRemaining < 30) return 'Hatari kubwa · panga sasa'
-    if (activeScenario.daysRemaining < 45) return 'Kabla ya kufungwa'
-    return 'Hali nzuri'
-  }, [activeScenario])
+  const currencyCode = useMemo<string>(() => {
+    const code = billingQuery.data?.data?.currency
+    return code && code.length > 0 ? code : 'TZS'
+  }, [billingQuery.data])
+
+  const scenarios = useMemo<ReadonlyArray<Scenario>>(() => {
+    const dailyAvg = cashQuery.data?.dailyAvgTzs ?? 0
+    if (dailyAvg <= 0) return []
+    const ninetyDayNet = cashQuery.data?.ninetyDayNetTzs ?? 0
+    const baseDays = Math.max(0, Math.floor(ninetyDayNet / dailyAvg))
+    return [
+      {
+        key: 'base',
+        label: COPY.scenarioBase,
+        daysRemaining: baseDays,
+        burnRateTzs: dailyAvg
+      },
+      {
+        key: 'fuelCut',
+        label: COPY.scenarioFuelCut,
+        daysRemaining: dailyAvg === 0 ? 0 : Math.floor(ninetyDayNet / (dailyAvg * 0.8)),
+        burnRateTzs: Math.round(dailyAvg * 0.8)
+      },
+      {
+        key: 'expansion',
+        label: COPY.scenarioExpansion,
+        daysRemaining: dailyAvg === 0 ? 0 : Math.floor(ninetyDayNet / (dailyAvg * 1.4)),
+        burnRateTzs: Math.round(dailyAvg * 1.4)
+      }
+    ]
+  }, [cashQuery.data])
+
+  const activeScenario = useMemo<Scenario | null>(() => {
+    if (scenarios.length === 0) return null
+    return scenarios.find((s) => s.key === scenarioKey) ?? scenarios[0] ?? null
+  }, [scenarios, scenarioKey])
+
+  if (cashQuery.isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.goldDark} />
+        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+      </View>
+    )
+  }
+
+  if (cashQuery.isError) {
+    return <PreviewBanner kind={isOfflineError(cashQuery.error) ? 'offline' : 'env-missing'} />
+  }
+
+  if (!cashQuery.data || cashQuery.data.sampleCount === 0 || !activeScenario) {
+    return <PreviewBanner kind="no-data" />
+  }
+
+  const runwayCaption =
+    activeScenario.daysRemaining < 30
+      ? COPY.riskHigh
+      : activeScenario.daysRemaining < 45
+        ? COPY.riskMid
+        : COPY.riskLow
+
+  const billing = billingQuery.data?.data
 
   return (
     <View>
-      <Section title="Muda uliobaki" hint={runwayCaption}>
+      <Section title={COPY.runwayTitle} hint={runwayCaption}>
         <BigNumber
           value={String(activeScenario.daysRemaining)}
-          label="Siku za hela"
-          caption={`Burn: TZS ${formatThousands(activeScenario.burnRatePerDay)} kwa siku`}
+          label={COPY.daysLabel}
+          caption={`${COPY.burnPrefix}${formatAmount(activeScenario.burnRateTzs, currencyCode)}${COPY.perDaySuffix}`}
         />
       </Section>
-      <Section title="Hali za muda mfupi" hint="Bonyeza moja kubadili makadirio">
+      <Section title={COPY.scenarioTitle} hint={COPY.scenarioHint}>
         <View style={styles.scenarios}>
-          {SCENARIOS.map((scenario) => {
+          {scenarios.map((scenario) => {
             const isActive = scenarioKey === scenario.key
             return (
               <Pressable
@@ -123,45 +204,48 @@ function CashRunwayView(): JSX.Element {
           })}
         </View>
       </Section>
-      <Section title="Mfuko kwa benki na sarafu">
-        {ACCOUNTS.map((acc) => (
-          <View key={acc.id} style={styles.accountRow}>
-            <View style={styles.accountHead}>
-              <Text style={styles.accountCurrency}>{acc.currency}</Text>
-              <Text style={styles.accountAmount}>{formatThousands(acc.amount)}</Text>
-            </View>
-            <Text style={styles.accountBank}>{acc.bank}</Text>
-          </View>
-        ))}
-      </Section>
-      <Section title="Malipo yajayo" hint={`Jumla TZS ${formatThousands(totalOutflowTzs)}`}>
-        {OUTFLOWS.map((line) => (
-          <View key={line.id} style={styles.outflowRow}>
-            <View style={styles.outflowMain}>
-              <Text style={styles.outflowCategory}>{line.category}</Text>
-              <Text style={styles.outflowAmount}>TZS {formatThousands(line.amountTzs)}</Text>
-            </View>
-            <Text style={[styles.outflowDue, dueStyle(line.dueInDays)]}>
-              Siku {line.dueInDays}
+      <Section
+        title={COPY.inflowTitle}
+        hint={`${cashQuery.data.sampleCount} mauzo`}
+      >
+        <View style={styles.accountRow}>
+          <View style={styles.accountHead}>
+            <Text style={styles.accountCurrency}>{currencyCode}</Text>
+            <Text style={styles.accountAmount}>
+              {formatAmount(cashQuery.data.ninetyDayNetTzs, currencyCode).replace(`${currencyCode} `, '')}
             </Text>
           </View>
-        ))}
+          <Text style={styles.accountBank}>{cashQuery.data.note}</Text>
+        </View>
       </Section>
+      {billing && billing.plan ? (
+        <Section title={COPY.subscriptionTitle}>
+          <View style={styles.accountRow}>
+            <View style={styles.accountHead}>
+              <Text style={styles.accountCurrency}>{billing.plan}</Text>
+              <Text style={styles.accountAmount}>{billing.status ?? '-'}</Text>
+            </View>
+            {billing.renewalAt ? (
+              <Text style={styles.accountBank}>{billing.renewalAt}</Text>
+            ) : null}
+          </View>
+        </Section>
+      ) : null}
     </View>
   )
 }
 
-function formatThousands(value: number): string {
-  return value.toLocaleString('en-US')
-}
-
-function dueStyle(days: number): { color: string } {
-  if (days <= 7) return { color: colors.danger }
-  if (days <= 14) return { color: colors.warn }
-  return { color: colors.success }
+function isOfflineError(error: ApiError | null): boolean {
+  return error !== null && error.status === 0
 }
 
 const styles = StyleSheet.create({
+  center: { paddingVertical: spacing.xl, alignItems: 'center' },
+  loadingLabel: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
+  },
   scenarios: {
     gap: spacing.sm
   },
@@ -223,31 +307,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.body,
     marginTop: spacing.xs
-  },
-  outflowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    marginBottom: spacing.sm
-  },
-  outflowMain: {
-    flex: 1
-  },
-  outflowCategory: {
-    color: colors.text,
-    fontSize: fontSize.body,
-    fontWeight: '600'
-  },
-  outflowAmount: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.xs
-  },
-  outflowDue: {
-    fontSize: fontSize.body,
-    fontWeight: '700'
   }
 })

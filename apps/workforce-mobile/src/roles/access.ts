@@ -61,7 +61,10 @@ export const SCREEN_ROLE_ACCESS: Readonly<Record<string, ReadonlyArray<Role>>> =
   'W-M-19': ['employee', 'manager'],
   'W-M-20': ['employee', 'manager'],
   'W-M-21': ['employee', 'manager', 'owner'],
-  'W-M-22': ['employee', 'manager', 'owner']
+  'W-M-22': ['employee', 'manager', 'owner'],
+
+  // Cross-role feature screens (no W-M / O-M prefix).
+  'photo-advisor': ['owner', 'manager', 'employee']
 } as const
 
 export function canSee(screenId: string, role: Role): boolean {

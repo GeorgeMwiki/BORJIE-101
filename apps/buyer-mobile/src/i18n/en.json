@@ -175,6 +175,7 @@
     "phone_placeholder": "+255 712 345 678",
     "send_otp": "Send OTP",
     "otp_label": "Enter OTP code",
+    "otp_placeholder": "123456",
     "verify": "Verify",
     "terms": "By signing in you agree to the terms of service",
     "otp_sent": "OTP sent",

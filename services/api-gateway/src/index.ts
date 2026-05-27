@@ -87,6 +87,7 @@ import { universalMarketplaceRouter } from './routes/marketplace/index.js';
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
 import { translateRouter } from './routes/translate.hono';
+import { createPilotErrorsRouter } from './routes/pilot-errors.hono';
 import { createMigrationRouter } from './routes/migration.router';
 // REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
 import { createNotificationPreferencesRouter } from './routes/notification-preferences.router';
@@ -784,6 +785,12 @@ api.route('/marketing', marketingRouter);
 // Mounted publicly (no auth) because the widget translates already-visible
 // chat content; cached in Redis with sha256(text+from+to+context) keys.
 api.route('/translate', translateRouter);
+// Pilot-mode error dashboard — admin-tier only. Reads the in-memory
+// ring buffer populated by `captureErrorWithPilotContext()` so QA can
+// pull "last hour of errors per cohort" without standing up Sentry.
+// See `routes/pilot-errors.hono.ts` for the auth gate + Sentry-reader
+// upgrade path.
+api.route('/pilot', createPilotErrorsRouter());
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot

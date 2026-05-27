@@ -1,55 +1,45 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useMutation } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { FingerprintPlaceholder } from '../../src/components/FingerprintPlaceholder'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
+import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
+import { useAuth } from '../../src/auth/useAuth'
+import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-03'
+const MISSING_ENDPOINT = 'GET /api/v1/mining/attendance/toolbox-topics'
 
-type Severity = 'info' | 'warn' | 'danger'
+const COPY = {
+  loading: 'Inapakia mada za toolbox... · Loading briefing topics...',
+  empty: 'Hakuna mada za toolbox bado. · No toolbox topics yet.',
+  errorPrefix: 'Hitilafu: ',
+  missing: `Endpoint haijaundwa: ${MISSING_ENDPOINT}`,
+  ackOk: 'Briefing imethibitishwa kwenye seva.',
+  ackQueued: 'Briefing imehifadhiwa kwa sync ya baadaye.'
+} as const
 
-interface BriefingItem {
-  readonly id: string
-  readonly title: string
-  readonly detail: string
-  readonly severity: Severity
+interface CheckInRequest {
+  readonly employeeId: string
+  readonly siteId: string
+  readonly workDate: string
+  readonly shiftKind: 'day' | 'night'
+  readonly lat: number
+  readonly lon: number
+  readonly withinFence: boolean
+  readonly fingerprintEventId?: string
 }
 
-const ITEMS: ReadonlyArray<BriefingItem> = [
-  {
-    id: 'b1',
-    title: 'Hatari ya leo: mteremko wa kusini',
-    detail: 'Mvua imelainisha bench. Kaa angalau mita 3 mbali na ukingo.',
-    severity: 'danger'
-  },
-  {
-    id: 'b2',
-    title: 'PPE muhimu',
-    detail: 'Kofia, viatu vya chuma, jaketi, miwani, glavu.',
-    severity: 'warn'
-  },
-  {
-    id: 'b3',
-    title: 'Excavator EX-04 ina huduma',
-    detail: 'Tumia EX-02 mpaka saa 14:00.',
-    severity: 'info'
-  },
-  {
-    id: 'b4',
-    title: 'Maji safi ya kunywa',
-    detail: 'Pata kontena karibu na kambi ya kaskazini.',
-    severity: 'info'
-  },
-  {
-    id: 'b5',
-    title: 'Nambari ya dharura',
-    detail: 'Foreman: +255 754 000 000 · Lab: +255 754 111 222',
-    severity: 'warn'
-  }
-]
+interface AttendanceRow {
+  readonly id: string
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -62,151 +52,124 @@ export default function Screen(): JSX.Element {
 }
 
 function BriefingView(): JSX.Element {
-  const [acked, setAcked] = useState<ReadonlyArray<string>>([])
-  const [signed, setSigned] = useState<boolean>(false)
+  const { user } = useAuth()
+  const { online } = useOnlineStatus()
+  const [signedFlag, setSignedFlag] = useState<'idle' | 'ok' | 'queued'>('idle')
 
-  const toggle = useCallback((id: string): void => {
-    setAcked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }, [])
+  const mutation = useMutation<AttendanceRow, ApiError, CheckInRequest>({
+    mutationFn: async (input) =>
+      miningApi.post<{ success: true; data: AttendanceRow }>('/attendance/check-in', input).then((r) => r.data),
+    onSuccess: () => {
+      setSignedFlag('ok')
+    },
+    onError: async (error, input) => {
+      if (error.status === 0 || !online) {
+        await enqueueWrite('attendance', input)
+        setSignedFlag('queued')
+      }
+    }
+  })
 
   const onSign = useCallback((): void => {
-    setSigned(true)
-  }, [])
+    if (!user) return
+    const today = new Date().toISOString().slice(0, 10)
+    mutation.mutate({
+      employeeId: user.id,
+      siteId: user.tenantId,
+      workDate: today,
+      shiftKind: 'day',
+      lat: 0,
+      lon: 0,
+      withinFence: true,
+      fingerprintEventId: `fp-briefing-${Date.now()}`
+    })
+  }, [mutation, user])
 
-  const allAcked = useMemo(() => acked.length === ITEMS.length, [acked])
-  const progress = `${acked.length}/${ITEMS.length}`
+  const submitting = mutation.isPending
+  const submitError = mutation.error
+  const submitNetwork = submitError?.status === 0 || !online
+  const submitMissing = submitError?.status === 503
+  const successCopy = useMemo<string | null>(() => {
+    if (signedFlag === 'ok') return COPY.ackOk
+    if (signedFlag === 'queued') return COPY.ackQueued
+    return null
+  }, [signedFlag])
 
   return (
     <View>
-      <Section title={`Mada za toolbox (${progress})`} hint="Gusa kila mada baada ya kusoma">
-        {ITEMS.map((item) => {
-          const isAcked = acked.includes(item.id)
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: isAcked }}
-              accessibilityLabel={item.title}
-              onPress={() => toggle(item.id)}
-              style={({ pressed }) => [
-                styles.row,
-                isAcked && styles.rowAcked,
-                pressed && styles.rowPressed
-              ]}
-            >
-              <View style={[styles.tag, severityStyles[item.severity]]}>
-                <Text style={styles.tagText}>{severityLabel(item.severity)}</Text>
-              </View>
-              <View style={styles.body}>
-                <Text style={[styles.title, isAcked && styles.titleAcked]}>{item.title}</Text>
-                <Text style={styles.detail}>{item.detail}</Text>
-              </View>
-              <View style={[styles.checkbox, isAcked && styles.checkboxAcked]}>
-                {isAcked ? <Text style={styles.checkmark}>✓</Text> : null}
-              </View>
-            </Pressable>
-          )
-        })}
+      <Section title="Mada za toolbox">
+        <PreviewBanner kind="env-missing" />
+        <Text style={styles.missing}>{COPY.missing}</Text>
+        <Text style={styles.empty}>{COPY.empty}</Text>
       </Section>
       <Section title="Thibitisha kwa kidole">
-        {allAcked ? (
-          <FingerprintPlaceholder
-            label={signed ? 'Imethibitishwa' : 'Saini kuthibitisha'}
-            onSign={onSign}
-          />
+        {signedFlag === 'idle' ? (
+          submitting ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.gold} />
+              <Text style={styles.loadingText}>{COPY.loading}</Text>
+            </View>
+          ) : (
+            <FingerprintPlaceholder label="Saini briefing" onSign={onSign} />
+          )
         ) : (
-          <View style={styles.lock}>
-            <Text style={styles.lockText}>Soma na gusa mada zote kabla ya kusaini.</Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={successCopy ?? ''}
+            onPress={() => undefined}
+            style={styles.signedBox}
+          >
+            <Text style={styles.signedText}>{successCopy}</Text>
+          </Pressable>
         )}
+        {submitError && !submitNetwork && !submitMissing ? (
+          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+        ) : null}
+        {submitNetwork ? <PreviewBanner kind="offline" /> : null}
+        {submitMissing ? <PreviewBanner kind="env-missing" /> : null}
       </Section>
     </View>
   )
 }
 
-function severityLabel(s: Severity): string {
-  if (s === 'danger') return 'HATARI'
-  if (s === 'warn') return 'ONYO'
-  return 'TAARIFA'
-}
-
-const severityStyles = StyleSheet.create({
-  info: { backgroundColor: colors.earth500 },
-  warn: { backgroundColor: colors.warn },
-  danger: { backgroundColor: colors.danger }
-})
-
 const styles = StyleSheet.create({
-  row: {
+  missing: {
+    color: colors.warn,
+    fontSize: fontSize.caption,
+    fontWeight: '700',
+    marginBottom: spacing.sm
+  },
+  empty: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
+  loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    marginBottom: spacing.sm,
-    gap: spacing.md
-  },
-  rowPressed: {
-    backgroundColor: colors.earth100
-  },
-  rowAcked: {
-    opacity: 0.7
-  },
-  tag: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    minWidth: 64,
-    alignItems: 'center'
-  },
-  tagText: {
-    color: colors.textInverse,
-    fontSize: fontSize.caption,
-    fontWeight: '800',
-    letterSpacing: 1
-  },
-  body: {
-    flex: 1
-  },
-  title: {
-    color: colors.text,
-    fontSize: fontSize.lead,
-    fontWeight: '600'
-  },
-  titleAcked: {
-    color: colors.textMuted,
-    textDecorationLine: 'line-through'
-  },
-  detail: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.xs
-  },
-  checkbox: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.earth700,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  checkboxAcked: {
-    backgroundColor: colors.success,
-    borderColor: colors.success
-  },
-  checkmark: {
-    color: colors.textInverse,
-    fontWeight: '800',
-    fontSize: fontSize.lead
-  },
-  lock: {
     padding: spacing.lg,
     backgroundColor: colors.earth100,
-    borderRadius: radius.md
+    borderRadius: radius.md,
+    gap: spacing.md
   },
-  lockText: {
+  loadingText: {
     color: colors.earth700,
     fontSize: fontSize.body
+  },
+  signedBox: {
+    padding: spacing.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success
+  },
+  signedText: {
+    color: colors.success,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
   }
 })

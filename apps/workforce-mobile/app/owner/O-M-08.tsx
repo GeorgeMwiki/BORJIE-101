@@ -1,65 +1,105 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { AskBorjie } from '../../src/components/AskBorjie'
 import { RoleGuard } from '../../src/components/RoleGuard'
-import { useI18n } from '../../src/i18n/useI18n'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { request } from '../../src/api/client'
+import { API_BASE_URL } from '../../src/api/config'
+import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-08'
 
-interface SourceDoc {
+const COPY = Object.freeze({
+  loading: 'Inapakia hati zako…',
+  asking: 'Inajibu swali…',
+  errorInline: 'Imeshindwa kuwasiliana na huduma ya doc-chat.',
+  validationEmpty: 'Tafadhali andika swali.',
+  emptyDocs: 'Hakuna hati zilizoidhinishwa kwenye akaunti yako.',
+  emptyTurns: 'Andika swali la kwanza ili kuanza mazungumzo.',
+  sectionAsk: 'Uliza hati zako',
+  sectionAskHint: 'Jibu lenye chanzo · evidence_id imethibitishwa',
+  sectionCompose: 'Andika swali',
+  sectionTurns: 'Maswali ya hivi karibuni',
+  sectionDocs: 'Hati zilizopatikana',
+  sourcesLabel: 'Chanzo:',
+  pageLabel: 'ukurasa'
+})
+
+const DOC_CHAT_BASE = `${API_BASE_URL}/api/v1/doc-chat`
+const DOCUMENTS_BASE = `${API_BASE_URL}/api/v1/documents`
+
+interface DocRow {
   readonly id: string
-  readonly title: string
-  readonly category: 'leseni' | 'assay' | 'mkataba' | 'usalama'
-  readonly dateLabel: string
-  readonly pages: number
+  readonly name?: string | null
+  readonly mimeType?: string | null
+  readonly size?: number | null
+  readonly verificationStatus?: string | null
+  readonly createdAt?: string | null
+}
+
+interface DocumentsListResponse {
+  readonly success: boolean
+  readonly data?: ReadonlyArray<DocRow>
+  readonly error?: { code?: string; message?: string }
+}
+
+interface ChatSession {
+  readonly id: string
+  readonly scope: string
+  readonly documentIds: ReadonlyArray<string>
+}
+
+interface SessionEnvelope {
+  readonly success: boolean
+  readonly data?: ChatSession
+  readonly error?: { code?: string; message?: string }
+}
+
+interface Citation {
+  readonly documentId: string
+  readonly chunkIndex: number
+  readonly quote: string
+  readonly score: number
+  readonly page?: number
+}
+
+interface ChatMessage {
+  readonly id: string
+  readonly role: 'user' | 'assistant'
+  readonly content: string
+  readonly citations?: ReadonlyArray<Citation>
+  readonly createdAt?: string | null
+}
+
+interface AskEnvelope {
+  readonly success: boolean
+  readonly data?: {
+    readonly userMessage: ChatMessage
+    readonly assistantMessage: ChatMessage
+    readonly fallback: boolean
+  }
+  readonly error?: { code?: string; message?: string }
 }
 
 interface QaTurn {
   readonly id: string
   readonly question: string
   readonly reply: string
-  readonly sources: ReadonlyArray<string>
+  readonly citations: ReadonlyArray<Citation>
   readonly askedAtISO: string
 }
-
-const DOCS: ReadonlyArray<SourceDoc> = [
-  { id: 'doc1', title: 'PML 12345 renewal letter', category: 'leseni', dateLabel: '2026-05-12', pages: 8 },
-  { id: 'doc2', title: 'Geita assay 2026-05', category: 'assay', dateLabel: '2026-05-22', pages: 14 },
-  { id: 'doc3', title: 'Mkataba wa mnunuzi Dar', category: 'mkataba', dateLabel: '2026-05-18', pages: 22 },
-  { id: 'doc4', title: 'Ripoti ya usalama Mwanza', category: 'usalama', dateLabel: '2026-05-25', pages: 6 },
-  { id: 'doc5', title: 'PML 67890 application', category: 'leseni', dateLabel: '2026-04-30', pages: 11 }
-]
-
-const SEED_TURNS: ReadonlyArray<QaTurn> = [
-  {
-    id: 'q1',
-    question: 'Lini PML 12345 inakwisha?',
-    reply: 'PML 12345 inakwisha tarehe 2026-06-10. Hati ya kuomba upya inahitajika ndani ya siku 30.',
-    sources: ['doc1'],
-    askedAtISO: '2026-05-26T09:20:00Z'
-  },
-  {
-    id: 'q2',
-    question: 'Ni daraja gani la dhahabu kutoka Geita mwezi huu?',
-    reply: 'Wastani wa daraja ni 4.2 g/t kutoka sampuli 36. Hii ni ongezeko la 0.3 g/t ikilinganishwa na mwezi uliopita.',
-    sources: ['doc2'],
-    askedAtISO: '2026-05-26T11:45:00Z'
-  }
-]
-
-type CategoryFilter = 'all' | SourceDoc['category']
-
-const FILTERS: ReadonlyArray<{ key: CategoryFilter; label: string }> = [
-  { key: 'all', label: 'Zote' },
-  { key: 'leseni', label: 'Leseni' },
-  { key: 'assay', label: 'Assay' },
-  { key: 'mkataba', label: 'Mikataba' },
-  { key: 'usalama', label: 'Usalama' }
-]
 
 export default function Screen(): JSX.Element {
   return (
@@ -72,111 +112,231 @@ export default function Screen(): JSX.Element {
 }
 
 function DocumentChatView(): JSX.Element {
-  const { t } = useI18n()
-  const [turns, setTurns] = useState<ReadonlyArray<QaTurn>>(SEED_TURNS)
+  const queryClient = useQueryClient()
+  const [turns, setTurns] = useState<ReadonlyArray<QaTurn>>([])
   const [draft, setDraft] = useState<string>('')
-  const [filter, setFilter] = useState<CategoryFilter>('all')
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
 
-  const docsByCategory = useMemo<ReadonlyArray<SourceDoc>>(
-    () => (filter === 'all' ? DOCS : DOCS.filter((d) => d.category === filter)),
-    [filter]
-  )
-
-  const submit = useCallback((): void => {
-    const trimmed = draft.trim()
-    if (trimmed.length === 0) return
-    const firstDoc = docsByCategory[0]
-    const turn: QaTurn = {
-      id: `q-${turns.length + 1}`,
-      question: trimmed,
-      reply: t.app.borjieReply,
-      sources: firstDoc ? [firstDoc.id] : [],
-      askedAtISO: new Date().toISOString()
+  const docsQuery = useQuery<ReadonlyArray<DocRow>, Error>({
+    queryKey: ['doc-chat', 'documents'],
+    queryFn: async ({ signal }) => {
+      const envelope = await request<DocumentsListResponse>(DOCUMENTS_BASE, { signal })
+      if (!envelope.success) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return envelope.data ?? []
     }
-    setTurns([turn, ...turns])
-    setDraft('')
-  }, [draft, turns, t.app.borjieReply, docsByCategory])
+  })
 
-  const docLookup = useMemo<Record<string, SourceDoc>>(
-    () => DOCS.reduce<Record<string, SourceDoc>>((acc, doc) => ({ ...acc, [doc.id]: doc }), {}),
-    []
-  )
+  const startSession = useMutation<ChatSession, Error, ReadonlyArray<string>>({
+    mutationFn: async (documentIds) => {
+      const envelope = await request<SessionEnvelope>(`${DOC_CHAT_BASE}/sessions`, {
+        method: 'POST',
+        body: { scope: 'multi_document', documentIds: [...documentIds] }
+      })
+      if (!envelope.success || !envelope.data) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return envelope.data
+    }
+  })
+
+  const askMutation = useMutation<
+    { question: string; reply: string; citations: ReadonlyArray<Citation> },
+    Error,
+    { sessionId: string; question: string }
+  >({
+    mutationFn: async (input) => {
+      const envelope = await request<AskEnvelope>(
+        `${DOC_CHAT_BASE}/sessions/${encodeURIComponent(input.sessionId)}/ask`,
+        {
+          method: 'POST',
+          body: { question: input.question }
+        }
+      )
+      if (!envelope.success || !envelope.data) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return {
+        question: envelope.data.userMessage.content,
+        reply: envelope.data.assistantMessage.content,
+        citations: envelope.data.assistantMessage.citations ?? []
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['doc-chat'] })
+    }
+  })
+
+  const docs = docsQuery.data ?? []
+  const docLookup = useMemo<Record<string, DocRow>>(() => {
+    const acc: Record<string, DocRow> = {}
+    for (const doc of docs) {
+      acc[doc.id] = doc
+    }
+    return Object.freeze(acc)
+  }, [docs])
+
+  const submit = useCallback(async (): Promise<void> => {
+    const trimmed = draft.trim()
+    if (trimmed.length === 0) {
+      setValidationError(COPY.validationEmpty)
+      return
+    }
+    setValidationError(null)
+    try {
+      let currentSessionId = sessionId
+      if (!currentSessionId) {
+        if (docs.length === 0) {
+          setValidationError(COPY.emptyDocs)
+          return
+        }
+        const session = await startSession.mutateAsync(docs.map((d) => d.id))
+        currentSessionId = session.id
+        setSessionId(currentSessionId)
+      }
+      const result = await askMutation.mutateAsync({
+        sessionId: currentSessionId,
+        question: trimmed
+      })
+      const turn: QaTurn = {
+        id: `turn-${Date.now()}`,
+        question: result.question,
+        reply: result.reply,
+        citations: result.citations,
+        askedAtISO: new Date().toISOString()
+      }
+      setTurns((prev) => [turn, ...prev])
+      setDraft('')
+    } catch {
+      // Surfacing via askMutation.isError below — keep handler quiet.
+    }
+  }, [askMutation, docs, draft, sessionId, startSession])
+
+  if (docsQuery.isPending) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.gold} />
+        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+      </View>
+    )
+  }
+
+  if (docsQuery.isError) {
+    return (
+      <View>
+        {isBackendUnavailable(docsQuery.error) ? (
+          <PreviewBanner kind="env-missing" />
+        ) : (
+          <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+        )}
+      </View>
+    )
+  }
+
+  if (docs.length === 0) {
+    return (
+      <View>
+        <PreviewBanner kind="no-data" />
+        <Text style={styles.emptyHint}>{COPY.emptyDocs}</Text>
+      </View>
+    )
+  }
+
+  const askError = askMutation.error ?? startSession.error
+  const askingNow = startSession.isPending || askMutation.isPending
 
   return (
     <View>
-      <Section title="Uliza hati zako" hint="Jibu lenye chanzo · evidence_id imethibitishwa">
+      <Section title={COPY.sectionAsk} hint={COPY.sectionAskHint}>
         <AskBorjie label="Uliza Hati" />
       </Section>
-      <Section title="Andika swali">
+      <Section title={COPY.sectionCompose}>
         <View style={styles.composer}>
           <TextInput
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={(value) => {
+              setDraft(value)
+              if (validationError && value.trim().length > 0) {
+                setValidationError(null)
+              }
+            }}
             placeholder="Mfano: Lini PML 67890 itapata jibu?"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             multiline
+            editable={!askingNow}
           />
+          {validationError ? (
+            <Text style={styles.validationError}>{validationError}</Text>
+          ) : null}
+          {askError ? (
+            isBackendUnavailable(askError) ? (
+              <PreviewBanner kind="env-missing" />
+            ) : (
+              <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+            )
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Tuma swali"
-            onPress={submit}
-            style={({ pressed }) => [styles.send, pressed && styles.sendPressed]}
+            onPress={() => void submit()}
+            disabled={askingNow}
+            style={({ pressed }) => [
+              styles.send,
+              askingNow && styles.sendDisabled,
+              pressed && !askingNow && styles.sendPressed
+            ]}
           >
-            <Text style={styles.sendLabel}>Tuma</Text>
+            {askingNow ? (
+              <ActivityIndicator color={colors.earth900} />
+            ) : (
+              <Text style={styles.sendLabel}>Tuma</Text>
+            )}
           </Pressable>
         </View>
       </Section>
-      <Section title="Maswali ya hivi karibuni">
-        {turns.map((turn) => (
-          <View key={turn.id} style={styles.turn}>
-            <Text style={styles.question}>{turn.question}</Text>
-            <Text style={styles.reply}>{turn.reply}</Text>
-            {turn.sources.length > 0 ? (
-              <View style={styles.sources}>
-                <Text style={styles.sourcesLabel}>Chanzo:</Text>
-                {turn.sources.map((sid) => {
-                  const doc = docLookup[sid]
-                  if (!doc) {
-                    return null
-                  }
-                  return (
-                    <Text key={sid} style={styles.sourceChip}>
-                      {doc.title}
-                    </Text>
-                  )
-                })}
-              </View>
-            ) : null}
-          </View>
-        ))}
+      <Section title={COPY.sectionTurns}>
+        {turns.length === 0 ? (
+          <Text style={styles.emptyHint}>{COPY.emptyTurns}</Text>
+        ) : (
+          turns.map((turn) => (
+            <View key={turn.id} style={styles.turn}>
+              <Text style={styles.question}>{turn.question}</Text>
+              <Text style={styles.reply}>{turn.reply}</Text>
+              {turn.citations.length > 0 ? (
+                <View style={styles.sources}>
+                  <Text style={styles.sourcesLabel}>{COPY.sourcesLabel}</Text>
+                  {turn.citations.map((citation, index) => {
+                    const doc = docLookup[citation.documentId]
+                    const filename = doc?.name && doc.name.length > 0
+                      ? doc.name
+                      : citation.documentId
+                    const page = citation.page
+                      ? ` · ${COPY.pageLabel} ${citation.page}`
+                      : ''
+                    return (
+                      <Text
+                        key={`${turn.id}-cite-${index}`}
+                        style={styles.sourceChip}
+                      >
+                        {filename}
+                        {page}
+                      </Text>
+                    )
+                  })}
+                </View>
+              ) : null}
+            </View>
+          ))
+        )}
       </Section>
-      <Section title="Chuja hati">
-        <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
-            <Pressable
-              key={f.key}
-              accessibilityRole="button"
-              accessibilityLabel={f.label}
-              onPress={() => setFilter(f.key)}
-              style={({ pressed }) => [
-                styles.chip,
-                filter === f.key && styles.chipActive,
-                pressed && styles.chipPressed
-              ]}
-            >
-              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>
-                {f.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {docsByCategory.map((doc) => (
+      <Section title={`${COPY.sectionDocs} (${docs.length})`}>
+        {docs.map((doc) => (
           <View key={doc.id} style={styles.docRow}>
-            <Text style={styles.docTitle}>{doc.title}</Text>
-            <Text style={styles.docMeta}>
-              {categoryLabel(doc.category)} · {doc.dateLabel} · kurasa {doc.pages}
-            </Text>
+            <Text style={styles.docTitle}>{doc.name ?? doc.id}</Text>
+            <Text style={styles.docMeta}>{describeDoc(doc)}</Text>
           </View>
         ))}
       </Section>
@@ -184,14 +344,53 @@ function DocumentChatView(): JSX.Element {
   )
 }
 
-function categoryLabel(category: SourceDoc['category']): string {
-  if (category === 'leseni') return 'Leseni'
-  if (category === 'assay') return 'Assay'
-  if (category === 'mkataba') return 'Mkataba'
-  return 'Usalama'
+function describeDoc(doc: DocRow): string {
+  const parts: string[] = []
+  if (typeof doc.size === 'number' && doc.size > 0) {
+    parts.push(`${Math.round(doc.size / 1024)} KB`)
+  }
+  if (doc.mimeType) parts.push(doc.mimeType)
+  if (doc.verificationStatus) parts.push(doc.verificationStatus)
+  if (doc.createdAt) {
+    const parsed = Date.parse(doc.createdAt)
+    if (Number.isFinite(parsed)) {
+      parts.push(new Date(parsed).toISOString().slice(0, 10))
+    }
+  }
+  return parts.length > 0 ? parts.join(' · ') : '—'
+}
+
+function isBackendUnavailable(error: unknown): boolean {
+  if (isNetworkError(error)) return true
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 503
+  return false
 }
 
 const styles = StyleSheet.create({
+  center: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl
+  },
+  loadingLabel: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontSize: fontSize.body
+  },
+  errorInline: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginVertical: spacing.sm
+  },
+  emptyHint: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
+  validationError: {
+    color: colors.warn,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
+  },
   composer: {
     gap: spacing.sm
   },
@@ -210,10 +409,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill
+    borderRadius: radius.pill,
+    minWidth: 100,
+    alignItems: 'center'
   },
   sendPressed: {
     backgroundColor: colors.goldDark
+  },
+  sendDisabled: {
+    opacity: 0.6
   },
   sendLabel: {
     color: colors.earth900,
@@ -256,35 +460,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     fontWeight: '600',
     overflow: 'hidden'
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border
-  },
-  chipActive: {
-    backgroundColor: colors.earth700,
-    borderColor: colors.earth700
-  },
-  chipPressed: {
-    opacity: 0.7
-  },
-  chipLabel: {
-    color: colors.text,
-    fontSize: fontSize.body,
-    fontWeight: '600'
-  },
-  chipLabelActive: {
-    color: colors.textInverse
   },
   docRow: {
     padding: spacing.md,

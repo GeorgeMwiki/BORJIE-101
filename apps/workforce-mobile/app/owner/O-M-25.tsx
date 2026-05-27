@@ -1,124 +1,215 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { Button } from '../../src/forms/Button'
 import { FingerprintPlaceholder } from '../../src/components/FingerprintPlaceholder'
+import { request } from '../../src/api/client'
+import { API_BASE_URL } from '../../src/api/config'
+import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-25'
 
-type PackageStatus = 'ready' | 'generating' | 'expired'
+const COPY = Object.freeze({
+  loading: 'Inakusanya entries za audit-trail…',
+  errorInline: 'Imeshindwa kupakua entries za audit-trail.',
+  emptyHint: 'Hakuna entries za audit-trail kwa akaunti yako bado.',
+  sectionSummary: 'Muhtasari',
+  sectionInclusions: 'Vifaa vinavyojumuishwa',
+  sectionInclusionsHint: 'Ushahidi kamili kwa mdhibiti (kutoka audit-trail)',
+  sectionPackages: 'Historia ya pakeji',
+  sectionPackagesHint: 'Pakeji moja kwa kila robo ya mwaka',
+  sectionSign: 'Saini ya kuondoa pakeji',
+  sectionSignHint: 'Idhinisha kwa kidole',
+  startNew: 'Anzisha pakeji ya robo hii',
+  startingNow: 'Inazalishwa…',
+  exportLabel: 'Hamisha bundle (JSON)',
+  exportBusy: 'Inahamisha…',
+  exportUnavailable: 'Haipatikani',
+  exportSucceeded: 'Bundle imehifadhiwa kwa export.',
+  exportFailed: 'Export ya bundle imeshindwa.'
+})
 
-interface AuditPackage {
+const AUDIT_BASE = `${API_BASE_URL}/api/v1/audit-trail`
+
+interface AuditEntry {
+  readonly id: string
+  readonly tenantId: string
+  readonly sequenceId: number
+  readonly occurredAt: string
+  readonly actorKind: string
+  readonly actorDisplay: string | null
+  readonly actionKind: string
+  readonly actionCategory: string
+  readonly decision?: string | null
+  readonly createdAt: string
+}
+
+interface EntriesEnvelope {
+  readonly success: boolean
+  readonly data?: ReadonlyArray<AuditEntry>
+  readonly meta?: { limit: number; offset: number; count: number }
+  readonly error?: { code?: string; message?: string }
+}
+
+interface BundleEnvelope {
+  readonly success: boolean
+  readonly data?: Readonly<Record<string, unknown>>
+  readonly error?: { code?: string; message?: string }
+}
+
+interface PackageSummary {
   readonly id: string
   readonly quarter: string
   readonly periodLabel: string
-  readonly generatedAtISO: string
-  readonly sizeMb: number
-  readonly pages: number
-  readonly status: PackageStatus
-  readonly regulator: string
+  readonly startIso: string
+  readonly endIso: string
+  readonly entryCount: number
+  readonly latestEntryAt: string
+  readonly status: 'ready' | 'empty'
 }
 
-const SEED_PACKAGES: ReadonlyArray<AuditPackage> = [
-  {
-    id: 'pkg-2026-q1',
-    quarter: 'Q1 2026',
-    periodLabel: 'Jan - Mar 2026',
-    generatedAtISO: '2026-04-12T08:00:00Z',
-    sizeMb: 18.4,
-    pages: 142,
-    status: 'ready',
-    regulator: 'TMAA + TRA'
-  },
-  {
-    id: 'pkg-2025-q4',
-    quarter: 'Q4 2025',
-    periodLabel: 'Okt - Des 2025',
-    generatedAtISO: '2026-01-15T08:00:00Z',
-    sizeMb: 22.1,
-    pages: 168,
-    status: 'ready',
-    regulator: 'TMAA + TRA + NEMC'
-  },
-  {
-    id: 'pkg-2025-q3',
-    quarter: 'Q3 2025',
-    periodLabel: 'Jul - Sep 2025',
-    generatedAtISO: '2025-10-08T08:00:00Z',
-    sizeMb: 19.7,
-    pages: 151,
-    status: 'expired',
-    regulator: 'TMAA'
-  }
-]
-
 const INCLUDED_SECTIONS: ReadonlyArray<{ readonly id: string; readonly label: string }> = [
-  { id: 's1', label: 'Maamuzi yote ya AI (na evidence chain)' },
-  { id: 's2', label: 'Hati za PML na leseni za migodi' },
-  { id: 's3', label: 'Ripoti za shifti na mahudhurio' },
-  { id: 's4', label: 'Ledger ya double-entry (TZS-primary)' },
-  { id: 's5', label: 'Matukio ya safety na NEMC reports' }
+  { id: 's1', label: 'Maamuzi yote ya AI (ai_autonomous / ai_proposal)' },
+  { id: 's2', label: 'Vitendo vya wanadamu (human_action / human_approval)' },
+  { id: 's3', label: 'Mlolongo wa hash (prev_hash → this_hash)' },
+  { id: 's4', label: 'Saini za chain (per-entry signature)' },
+  { id: 's5', label: 'Evidence attachments per row' }
 ]
 
 export default function Screen(): JSX.Element {
   return (
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
-        <AuditPackages />
+        <AuditPackagesView />
       </ScreenShell>
     </RoleGuard>
   )
 }
 
-function AuditPackages(): JSX.Element {
-  const [packages, setPackages] = useState<ReadonlyArray<AuditPackage>>(SEED_PACKAGES)
-  const [exportedId, setExportedId] = useState<string | null>(null)
-  const [newQueued, setNewQueued] = useState<boolean>(false)
+function AuditPackagesView(): JSX.Element {
+  const queryClient = useQueryClient()
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
-  const exportPackage = useCallback((id: string): void => {
-    setExportedId(id)
-  }, [])
-
-  const generateNew = useCallback((): void => {
-    const next: AuditPackage = {
-      id: `pkg-2026-q2`,
-      quarter: 'Q2 2026',
-      periodLabel: 'Apr - Jun 2026',
-      generatedAtISO: new Date().toISOString(),
-      sizeMb: 0,
-      pages: 0,
-      status: 'generating',
-      regulator: 'TMAA + TRA'
+  const entriesQuery = useQuery<ReadonlyArray<AuditEntry>, Error>({
+    queryKey: ['audit-trail', 'entries'],
+    queryFn: async ({ signal }) => {
+      const envelope = await request<EntriesEnvelope>(`${AUDIT_BASE}/entries?limit=500`, {
+        signal
+      })
+      if (!envelope.success) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return envelope.data ?? []
     }
-    setPackages([next, ...packages.filter((row) => row.id !== next.id)])
-    setNewQueued(true)
-  }, [packages])
+  })
 
-  const totalSizeMb = useMemo<number>(
-    () => packages.reduce<number>((sum, row) => sum + row.sizeMb, 0),
-    [packages]
+  const bundleMutation = useMutation<
+    Readonly<Record<string, unknown>>,
+    Error,
+    { from: string; to: string }
+  >({
+    mutationFn: async (input) => {
+      const params = new URLSearchParams({ from: input.from, to: input.to })
+      const envelope = await request<BundleEnvelope>(
+        `${AUDIT_BASE}/bundle?${params.toString()}`
+      )
+      if (!envelope.success || !envelope.data) {
+        throw new Error(envelope.error?.message ?? COPY.exportFailed)
+      }
+      return envelope.data
+    },
+    onSuccess: async () => {
+      setActionMessage(COPY.exportSucceeded)
+      await queryClient.invalidateQueries({ queryKey: ['audit-trail'] })
+    },
+    onError: () => {
+      setActionMessage(COPY.exportFailed)
+    }
+  })
+
+  const entries = entriesQuery.data ?? []
+
+  const packages = useMemo<ReadonlyArray<PackageSummary>>(() => {
+    return computeQuarterlyPackages(entries)
+  }, [entries])
+
+  const currentQuarter = useMemo(() => computeCurrentQuarter(new Date()), [])
+
+  const startNewPackage = useCallback((): void => {
+    setActionMessage(null)
+    bundleMutation.mutate({
+      from: currentQuarter.startIso,
+      to: currentQuarter.endIso
+    })
+  }, [bundleMutation, currentQuarter])
+
+  const exportPackage = useCallback(
+    (summary: PackageSummary): void => {
+      setActionMessage(null)
+      bundleMutation.mutate({ from: summary.startIso, to: summary.endIso })
+    },
+    [bundleMutation]
   )
+
+  if (entriesQuery.isPending) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.gold} />
+        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+      </View>
+    )
+  }
+
+  if (entriesQuery.isError) {
+    return (
+      <View>
+        {isBackendUnavailable(entriesQuery.error) ? (
+          <PreviewBanner kind="env-missing" />
+        ) : (
+          <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+        )}
+      </View>
+    )
+  }
+
+  if (entries.length === 0) {
+    return (
+      <View>
+        <PreviewBanner kind="no-data" />
+        <Text style={styles.emptyHint}>{COPY.emptyHint}</Text>
+      </View>
+    )
+  }
 
   return (
     <View>
-      <Section title="Muhtasari" hint={`Pakeji ${packages.length} · jumla ${totalSizeMb.toFixed(1)} MB`}>
+      <Section
+        title={COPY.sectionSummary}
+        hint={`Entries ${entries.length} · ${packages.length} robo`}
+      >
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Pakeji ya Ukaguzi - Q2 2026</Text>
-          <Text style={styles.summaryLine}>Tarehe ya mwisho: 15 Julai 2026</Text>
-          <Text style={styles.summaryLine}>Mdhibiti: TMAA + TRA</Text>
+          <Text style={styles.summaryTitle}>
+            Pakeji ya Ukaguzi · {currentQuarter.label}
+          </Text>
+          <Text style={styles.summaryLine}>
+            Kipindi: {formatDate(currentQuarter.startIso)} → {formatDate(currentQuarter.endIso)}
+          </Text>
+          <Text style={styles.summaryLine}>Endpoint: POST /api/v1/audit-trail/bundle</Text>
         </View>
         <Button
-          label={newQueued ? 'Inazalishwa kwenye foleni…' : 'Anzisha Pakeji Mpya'}
-          onPress={generateNew}
-          disabled={newQueued}
+          label={bundleMutation.isPending ? COPY.startingNow : COPY.startNew}
+          onPress={startNewPackage}
+          disabled={bundleMutation.isPending}
         />
       </Section>
 
-      <Section title="Vifaa vinavyojumuishwa" hint="Ushahidi kamili kwa mdhibiti">
+      <Section title={COPY.sectionInclusions} hint={COPY.sectionInclusionsHint}>
         {INCLUDED_SECTIONS.map((row) => (
           <View key={row.id} style={styles.itemRow}>
             <View style={styles.dot} />
@@ -127,74 +218,159 @@ function AuditPackages(): JSX.Element {
         ))}
       </Section>
 
-      <Section title="Historia ya pakeji" hint="Bonyeza ili kuhamisha PDF">
-        {packages.map((pkg) => (
-          <View key={pkg.id} style={styles.packageRow}>
-            <View style={styles.packageHead}>
-              <Text style={styles.packageQuarter}>{pkg.quarter}</Text>
-              <View style={[styles.statusPill, statusPillStyle(pkg.status)]}>
-                <Text style={styles.statusPillText}>{statusLabel(pkg.status)}</Text>
+      <Section title={COPY.sectionPackages} hint={COPY.sectionPackagesHint}>
+        {packages.length === 0 ? (
+          <Text style={styles.emptyHint}>{COPY.emptyHint}</Text>
+        ) : (
+          packages.map((pkg) => (
+            <View key={pkg.id} style={styles.packageRow}>
+              <View style={styles.packageHead}>
+                <Text style={styles.packageQuarter}>{pkg.quarter}</Text>
+                <View style={[styles.statusPill, statusPillStyle(pkg.status)]}>
+                  <Text style={styles.statusPillText}>{statusLabel(pkg.status)}</Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.packageMeta}>{pkg.periodLabel}</Text>
-            <Text style={styles.packageMeta}>
-              {pkg.sizeMb > 0 ? `${pkg.sizeMb.toFixed(1)} MB · kurasa ${pkg.pages}` : 'Inakokotoa…'}
-            </Text>
-            <Text style={styles.packageMeta}>Mdhibiti: {pkg.regulator}</Text>
-            <Text style={styles.packageMeta}>Imezalishwa {formatDate(pkg.generatedAtISO)}</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Hamisha ${pkg.quarter}`}
-              onPress={() => exportPackage(pkg.id)}
-              disabled={pkg.status !== 'ready'}
-              style={({ pressed }) => [
-                styles.exportBtn,
-                pkg.status !== 'ready' ? styles.exportBtnDisabled : null,
-                pressed && pkg.status === 'ready' ? styles.exportBtnPressed : null
-              ]}
-            >
-              <Text style={styles.exportBtnText}>
-                {pkg.status === 'ready' ? 'Hamisha PDF' : 'Haipatikani'}
+              <Text style={styles.packageMeta}>{pkg.periodLabel}</Text>
+              <Text style={styles.packageMeta}>
+                Entries {pkg.entryCount} · ya mwisho {formatDate(pkg.latestEntryAt)}
               </Text>
-            </Pressable>
-          </View>
-        ))}
-      </Section>
-
-      <Section title="Saini ya kuondoa pakeji" hint="Idhinisha kwa kidole">
-        <FingerprintPlaceholder label="Idhinisha kupakua" />
-        {exportedId ? (
-          <Text style={styles.exportedNote}>
-            Pakeji {exportedId} imepelekwa kwenye foleni ya export
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Hamisha ${pkg.quarter}`}
+                onPress={() => exportPackage(pkg)}
+                disabled={bundleMutation.isPending}
+                style={({ pressed }) => [
+                  styles.exportBtn,
+                  bundleMutation.isPending ? styles.exportBtnDisabled : null,
+                  pressed && !bundleMutation.isPending ? styles.exportBtnPressed : null
+                ]}
+              >
+                <Text style={styles.exportBtnText}>
+                  {bundleMutation.isPending ? COPY.exportBusy : COPY.exportLabel}
+                </Text>
+              </Pressable>
+            </View>
+          ))
+        )}
+        {actionMessage ? (
+          <Text
+            style={
+              actionMessage === COPY.exportSucceeded
+                ? styles.exportedNote
+                : styles.errorInline
+            }
+          >
+            {actionMessage}
           </Text>
         ) : null}
+      </Section>
+
+      <Section title={COPY.sectionSign} hint={COPY.sectionSignHint}>
+        <FingerprintPlaceholder label="Idhinisha kupakua" />
       </Section>
     </View>
   )
 }
 
-function statusLabel(status: PackageStatus): string {
-  if (status === 'ready') return 'Tayari'
-  if (status === 'generating') return 'Inazalishwa'
-  return 'Imepitwa na wakati'
+function computeQuarterlyPackages(
+  entries: ReadonlyArray<AuditEntry>
+): ReadonlyArray<PackageSummary> {
+  if (entries.length === 0) return []
+  const groups = new Map<string, AuditEntry[]>()
+  for (const entry of entries) {
+    const occurred = Date.parse(entry.occurredAt)
+    if (!Number.isFinite(occurred)) continue
+    const date = new Date(occurred)
+    const quarter = Math.floor(date.getUTCMonth() / 3) + 1
+    const key = `Q${quarter}-${date.getUTCFullYear()}`
+    const bucket = groups.get(key)
+    if (bucket) {
+      bucket.push(entry)
+    } else {
+      groups.set(key, [entry])
+    }
+  }
+  const summaries: PackageSummary[] = []
+  for (const [key, bucket] of groups.entries()) {
+    const [quarterRaw, yearRaw] = key.split('-')
+    const year = Number(yearRaw)
+    const quarterNum = Number(quarterRaw?.slice(1))
+    if (!Number.isFinite(year) || !Number.isFinite(quarterNum)) continue
+    const startMonth = (quarterNum - 1) * 3
+    const startIso = new Date(Date.UTC(year, startMonth, 1)).toISOString()
+    const endIso = new Date(Date.UTC(year, startMonth + 3, 0, 23, 59, 59, 999)).toISOString()
+    const latest = bucket.reduce<string>((acc, e) => {
+      return e.occurredAt > acc ? e.occurredAt : acc
+    }, bucket[0]?.occurredAt ?? startIso)
+    summaries.push({
+      id: `${key}`,
+      quarter: `${quarterRaw} ${year}`,
+      periodLabel: `${formatDate(startIso)} → ${formatDate(endIso)}`,
+      startIso,
+      endIso,
+      entryCount: bucket.length,
+      latestEntryAt: latest,
+      status: bucket.length > 0 ? 'ready' : 'empty'
+    })
+  }
+  return summaries.sort((a, b) => b.startIso.localeCompare(a.startIso))
 }
 
-function statusPillStyle(status: PackageStatus): { backgroundColor: string } {
+function computeCurrentQuarter(now: Date): {
+  label: string
+  startIso: string
+  endIso: string
+} {
+  const year = now.getUTCFullYear()
+  const quarter = Math.floor(now.getUTCMonth() / 3) + 1
+  const startMonth = (quarter - 1) * 3
+  const startIso = new Date(Date.UTC(year, startMonth, 1)).toISOString()
+  const endIso = new Date(Date.UTC(year, startMonth + 3, 0, 23, 59, 59, 999)).toISOString()
+  return { label: `Q${quarter} ${year}`, startIso, endIso }
+}
+
+function statusLabel(status: PackageSummary['status']): string {
+  if (status === 'ready') return 'Tayari'
+  return 'Tupu'
+}
+
+function statusPillStyle(status: PackageSummary['status']): { backgroundColor: string } {
   if (status === 'ready') return { backgroundColor: colors.success }
-  if (status === 'generating') return { backgroundColor: colors.warn }
   return { backgroundColor: colors.earth300 }
 }
 
 function formatDate(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  const parsed = Date.parse(iso)
+  if (!Number.isFinite(parsed)) return iso
+  return new Date(parsed).toISOString().slice(0, 10)
+}
+
+function isBackendUnavailable(error: unknown): boolean {
+  if (isNetworkError(error)) return true
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 503
+  return false
 }
 
 const styles = StyleSheet.create({
+  center: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl
+  },
+  loadingLabel: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontSize: fontSize.body
+  },
+  errorInline: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginVertical: spacing.md
+  },
+  emptyHint: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
   summaryCard: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
@@ -283,6 +459,7 @@ const styles = StyleSheet.create({
   exportedNote: {
     color: colors.success,
     fontSize: fontSize.caption,
-    marginTop: spacing.sm
+    marginTop: spacing.sm,
+    fontWeight: '600'
   }
 })

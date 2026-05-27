@@ -57,6 +57,7 @@
     "@borjie/domain-services": "workspace:*",
     "@borjie/enterprise-hardening": "workspace:*",
     "@borjie/fairness-eval": "workspace:*",
+    "@borjie/feature-flags-adapter": "workspace:*",
     "@borjie/forecasting": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/geo-platform": "workspace:*",

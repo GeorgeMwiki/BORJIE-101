@@ -1,34 +1,64 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
+import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-04'
 
-type LicenseStatus = 'active' | 'pending' | 'working' | 'expired'
+const COPY = Object.freeze({
+  loading: 'Inapakia ramani ya portfolio…',
+  errorInline: 'Ombi la portfolio limeshindwa kuthibitishwa.',
+  emptyHint: 'Hakuna leseni au tovuti zilizosajiliwa kwenye akaunti yako.',
+  sectionMap: 'Ramani ya portifolio',
+  sectionMapHint: 'Polygons + rangi za hali · bonyeza kuchagua',
+  sectionFilter: 'Chuja kwa hali',
+  sectionList: 'Migodi',
+  unknown: 'Haijulikani'
+})
 
-interface MiningLicense {
-  readonly id: string
-  readonly licenseCode: string
-  readonly region: string
-  readonly status: LicenseStatus
-  readonly hectares: number
-  readonly mineral: string
+type FeatureLayer = 'site' | 'licence'
+type FilterKey = 'all' | 'active' | 'working' | 'pending' | 'expired'
+type MineStatus = Exclude<FilterKey, 'all'>
+
+interface PortfolioFeature {
+  readonly type: 'Feature'
+  readonly geometry: Readonly<Record<string, unknown>>
+  readonly properties: Readonly<Record<string, unknown>>
 }
 
-const SEED_LICENSES: ReadonlyArray<MiningLicense> = [
-  { id: 'l1', licenseCode: 'PML 12345', region: 'Geita', status: 'active', hectares: 8.4, mineral: 'Dhahabu' },
-  { id: 'l2', licenseCode: 'PML 67890', region: 'Chunya', status: 'pending', hectares: 6.1, mineral: 'Dhahabu' },
-  { id: 'l3', licenseCode: 'PML 24680', region: 'Mwanza', status: 'working', hectares: 9.7, mineral: 'Dhahabu' },
-  { id: 'l4', licenseCode: 'PML 13579', region: 'Mererani', status: 'working', hectares: 2.2, mineral: 'Tanzanite' },
-  { id: 'l5', licenseCode: 'PML 99001', region: 'Kahama', status: 'expired', hectares: 7.5, mineral: 'Shaba' },
-  { id: 'l6', licenseCode: 'PML 55012', region: 'Singida', status: 'active', hectares: 5.0, mineral: 'Dhahabu' }
-]
+interface PortfolioMapResponse {
+  readonly type: 'FeatureCollection'
+  readonly features: ReadonlyArray<PortfolioFeature>
+  readonly layers: {
+    readonly sites: number
+    readonly licences: number
+    readonly settlements: number
+    readonly protectedAreas: number
+  }
+}
 
-type FilterKey = LicenseStatus | 'all'
+interface ApiEnvelope<T> {
+  readonly success: boolean
+  readonly data?: T
+  readonly error?: { code?: string; message?: string }
+}
+
+interface NormalizedMine {
+  readonly id: string
+  readonly label: string
+  readonly region: string
+  readonly mineral: string
+  readonly layer: FeatureLayer
+  readonly status: MineStatus
+  readonly rawStatus: string
+}
 
 const FILTERS: ReadonlyArray<{ key: FilterKey; label: string }> = [
   { key: 'all', label: 'Zote' },
@@ -49,42 +79,96 @@ export default function Screen(): JSX.Element {
 }
 
 function PortfolioMapView(): JSX.Element {
-  const [filter, setFilter] = useState<FilterKey>('all')
-  const [selectedId, setSelectedId] = useState<string | null>(SEED_LICENSES[0]?.id ?? null)
+  const query = useQuery<PortfolioMapResponse, Error>({
+    queryKey: ['mining', 'portfolio-map'],
+    queryFn: async ({ signal }) => {
+      const envelope = await miningApi.get<ApiEnvelope<PortfolioMapResponse>>(
+        '/portfolio-map',
+        { signal }
+      )
+      if (!envelope.success || !envelope.data) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return envelope.data
+    }
+  })
 
-  const visible = useMemo<ReadonlyArray<MiningLicense>>(
-    () => (filter === 'all' ? SEED_LICENSES : SEED_LICENSES.filter((l) => l.status === filter)),
-    [filter]
+  const mines = useMemo<ReadonlyArray<NormalizedMine>>(() => {
+    if (!query.data) return []
+    return query.data.features.map((feature, index) => normalize(feature, index))
+  }, [query.data])
+
+  const [filter, setFilter] = useState<FilterKey>('all')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const visible = useMemo<ReadonlyArray<NormalizedMine>>(
+    () => (filter === 'all' ? mines : mines.filter((m) => m.status === filter)),
+    [filter, mines]
   )
 
-  const totals = useMemo(() => {
-    const counts: Record<LicenseStatus, number> = { active: 0, working: 0, pending: 0, expired: 0 }
-    SEED_LICENSES.forEach((l) => {
-      counts[l.status] += 1
+  const totals = useMemo<Record<MineStatus, number>>(() => {
+    const counts: Record<MineStatus, number> = {
+      active: 0,
+      working: 0,
+      pending: 0,
+      expired: 0
+    }
+    mines.forEach((m) => {
+      counts[m.status] += 1
     })
     return counts
-  }, [])
+  }, [mines])
+
+  if (query.isPending) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.gold} />
+        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+      </View>
+    )
+  }
+
+  if (query.isError) {
+    return (
+      <View>
+        {isBackendUnavailable(query.error) ? (
+          <PreviewBanner kind="env-missing" />
+        ) : (
+          <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+        )}
+      </View>
+    )
+  }
+
+  if (mines.length === 0) {
+    return (
+      <View>
+        <PreviewBanner kind="no-data" />
+        <Text style={styles.emptyHint}>{COPY.emptyHint}</Text>
+      </View>
+    )
+  }
 
   return (
     <View>
-      <Section title="Ramani ya portifolio" hint="Polygons + rangi za hali · bonyeza kuchagua">
+      <Section title={COPY.sectionMap} hint={COPY.sectionMapHint}>
         <View style={styles.mapBox}>
           <View style={styles.mapGrid}>
-            {SEED_LICENSES.map((license) => (
+            {mines.map((mine) => (
               <Pressable
-                key={license.id}
+                key={mine.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${license.licenseCode} ${license.region}`}
-                onPress={() => setSelectedId(license.id)}
+                accessibilityLabel={`${mine.label} ${mine.region}`}
+                onPress={() => setSelectedId(mine.id)}
                 style={({ pressed }) => [
                   styles.polygon,
-                  { backgroundColor: statusColor(license.status) },
+                  { backgroundColor: statusColor(mine.status) },
                   pressed && styles.polygonPressed,
-                  selectedId === license.id && styles.polygonSelected
+                  selectedId === mine.id && styles.polygonSelected
                 ]}
               >
-                <Text style={styles.polygonLabel}>{license.licenseCode.split(' ')[1]}</Text>
-                <Text style={styles.polygonRegion}>{license.region}</Text>
+                <Text style={styles.polygonLabel}>{mine.label}</Text>
+                <Text style={styles.polygonRegion}>{mine.region}</Text>
               </Pressable>
             ))}
           </View>
@@ -96,7 +180,7 @@ function PortfolioMapView(): JSX.Element {
           </View>
         </View>
       </Section>
-      <Section title="Chuja kwa hali">
+      <Section title={COPY.sectionFilter}>
         <View style={styles.filterRow}>
           {FILTERS.map((f) => (
             <Pressable
@@ -110,31 +194,33 @@ function PortfolioMapView(): JSX.Element {
                 pressed && styles.chipPressed
               ]}
             >
-              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>{f.label}</Text>
+              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>
+                {f.label}
+              </Text>
             </Pressable>
           ))}
         </View>
       </Section>
-      <Section title={`Migodi (${visible.length})`}>
-        {visible.map((license) => (
+      <Section title={`${COPY.sectionList} (${visible.length})`}>
+        {visible.map((mine) => (
           <Pressable
-            key={license.id}
+            key={mine.id}
             accessibilityRole="button"
-            accessibilityLabel={license.licenseCode}
-            onPress={() => setSelectedId(license.id)}
+            accessibilityLabel={mine.label}
+            onPress={() => setSelectedId(mine.id)}
             style={({ pressed }) => [
               styles.row,
-              selectedId === license.id && styles.rowSelected,
+              selectedId === mine.id && styles.rowSelected,
               pressed && styles.rowPressed
             ]}
           >
-            <View style={[styles.statusDot, { backgroundColor: statusColor(license.status) }]} />
+            <View style={[styles.statusDot, { backgroundColor: statusColor(mine.status) }]} />
             <View style={styles.rowBody}>
               <Text style={styles.rowTitle}>
-                {license.licenseCode} · {statusLabel(license.status)}
+                {mine.label} · {statusLabel(mine.status)}
               </Text>
               <Text style={styles.rowMeta}>
-                {license.region} · {license.hectares} ha · {license.mineral}
+                {mine.region} · {mine.mineral} · {mine.layer === 'site' ? 'tovuti' : 'leseni'}
               </Text>
             </View>
           </Pressable>
@@ -144,7 +230,13 @@ function PortfolioMapView(): JSX.Element {
   )
 }
 
-function LegendDot({ status, label }: { status: LicenseStatus; label: string }): JSX.Element {
+function LegendDot({
+  status,
+  label
+}: {
+  status: MineStatus
+  label: string
+}): JSX.Element {
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, { backgroundColor: statusColor(status) }]} />
@@ -153,21 +245,118 @@ function LegendDot({ status, label }: { status: LicenseStatus; label: string }):
   )
 }
 
-function statusColor(status: LicenseStatus): string {
+function statusColor(status: MineStatus): string {
   if (status === 'active') return colors.success
   if (status === 'working') return colors.gold
   if (status === 'pending') return colors.warn
   return colors.danger
 }
 
-function statusLabel(status: LicenseStatus): string {
+function statusLabel(status: MineStatus): string {
   if (status === 'active') return 'hai'
   if (status === 'working') return 'kazi'
   if (status === 'pending') return 'subiri'
   return 'imekwisha'
 }
 
+function normalize(feature: PortfolioFeature, index: number): NormalizedMine {
+  const props = feature.properties ?? {}
+  const layer: FeatureLayer = props['layer'] === 'licence' ? 'licence' : 'site'
+  const rawIdValue = props['id']
+  const rawId = typeof rawIdValue === 'string' ? rawIdValue : null
+  const id = rawId ?? `feature-${index}`
+  const numberValue = props['number']
+  const nameValue = props['name']
+  const label =
+    layer === 'licence' && typeof numberValue === 'string'
+      ? numberValue
+      : typeof nameValue === 'string' && nameValue.length > 0
+        ? nameValue
+        : id.slice(0, 8)
+  const region = pickRegion(feature)
+  const mineralValue = props['mineral']
+  const mineral = typeof mineralValue === 'string' && mineralValue.length > 0
+    ? mineralValue
+    : COPY.unknown
+  const rawStatus = pickStatus(props)
+  return {
+    id,
+    label,
+    region,
+    mineral,
+    layer,
+    status: mapStatus(rawStatus, props),
+    rawStatus: rawStatus ?? ''
+  }
+}
+
+function pickStatus(props: Readonly<Record<string, unknown>>): string | null {
+  const value = props['status']
+  return typeof value === 'string' ? value : null
+}
+
+function pickRegion(feature: PortfolioFeature): string {
+  const props = feature.properties ?? {}
+  const candidates = ['region', 'district', 'province', 'phase'] as const
+  for (const key of candidates) {
+    const value = props[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+  return COPY.unknown
+}
+
+function mapStatus(
+  raw: string | null,
+  props: Readonly<Record<string, unknown>>
+): MineStatus {
+  if (!raw) return 'pending'
+  const normalized = raw.toLowerCase()
+  if (normalized === 'expired' || normalized === 'cancelled' || normalized === 'revoked') {
+    return 'expired'
+  }
+  if (normalized === 'pending' || normalized === 'pending_review' || normalized === 'submitted') {
+    return 'pending'
+  }
+  if (normalized === 'production' || normalized === 'producing' || normalized === 'working') {
+    return 'working'
+  }
+  if (normalized === 'active' || normalized === 'approved' || normalized === 'valid') {
+    return 'active'
+  }
+  const expiry = props['expiryDate']
+  if (typeof expiry === 'string') {
+    const expiryMs = Date.parse(expiry)
+    if (Number.isFinite(expiryMs) && expiryMs < Date.now()) return 'expired'
+  }
+  return 'pending'
+}
+
+function isBackendUnavailable(error: unknown): boolean {
+  if (isNetworkError(error)) return true
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 503
+  return false
+}
+
 const styles = StyleSheet.create({
+  center: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl
+  },
+  loadingLabel: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontSize: fontSize.body
+  },
+  errorInline: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginVertical: spacing.md
+  },
+  emptyHint: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
   mapBox: {
     backgroundColor: colors.earth100,
     borderRadius: radius.md,

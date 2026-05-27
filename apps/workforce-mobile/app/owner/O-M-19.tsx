@@ -1,107 +1,275 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
-import { PlaceholderList } from '../../src/components/PlaceholderList'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { request } from '../../src/api/client'
+import { API_BASE_URL } from '../../src/api/config'
+import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-19'
 
-type ReportKind = 'all' | 'weekly' | 'monthly' | 'compliance'
+const COPY = Object.freeze({
+  loading: 'Inapakia maktaba ya ripoti…',
+  errorInline: 'Imeshindwa kupakua orodha ya ripoti.',
+  emptyHint: 'Hakuna ripoti za maingiliano zilizopatikana kwenye akaunti yako.',
+  shareMissing: 'POST /api/v1/mining/reports/{id}/share haipatikani kwa sasa.',
+  sectionFilter: 'Chuja kwa aina ya render',
+  sectionReports: 'Ripoti za maingiliano',
+  shareLabel: 'Fungua kiunga (signed URL)',
+  shareUnavailableLabel: 'Hakuna kiunga cha signed URL',
+  metaGenerated: 'Imezalishwa',
+  metaExpires: 'Inakwisha',
+  metaActions: 'Vitendo',
+  filterAll: 'Zote'
+})
 
-interface Report {
+const REPORTS_BASE = `${API_BASE_URL}/api/v1/interactive-reports`
+
+interface InteractiveReportRow {
   readonly id: string
-  readonly title: string
-  readonly kind: Exclude<ReportKind, 'all'>
-  readonly issuedOn: string
-  readonly sizeKb: number
-  readonly approvedBy: string
+  readonly reportInstanceId: string
+  readonly version: number
+  readonly renderKind: string
+  readonly signedUrl: string | null
+  readonly signedUrlKey: string | null
+  readonly expiresAt: string | null
+  readonly contentHash: string | null
+  readonly generatedAt: string
+  readonly generatedBy: string | null
+  readonly mediaReferences: ReadonlyArray<unknown> | null
+  readonly actionPlans: ReadonlyArray<unknown> | null
+  readonly createdAt: string
 }
 
-const SEED_REPORTS: ReadonlyArray<Report> = [
-  { id: 'r1', title: 'Ripoti ya wiki — 21 Mei 2026', kind: 'weekly', issuedOn: '21 Mei 2026', sizeKb: 184, approvedBy: 'Meneja Geita' },
-  { id: 'r2', title: 'Ripoti ya wiki — 14 Mei 2026', kind: 'weekly', issuedOn: '14 Mei 2026', sizeKb: 176, approvedBy: 'Meneja Geita' },
-  { id: 'r3', title: 'Ripoti ya mwezi — Aprili 2026', kind: 'monthly', issuedOn: '30 Apr 2026', sizeKb: 642, approvedBy: 'Mmiliki' },
-  { id: 'r4', title: 'Ripoti ya mwezi — Machi 2026', kind: 'monthly', issuedOn: '31 Mar 2026', sizeKb: 598, approvedBy: 'Mmiliki' },
-  { id: 'r5', title: 'Compliance TMAA Q1', kind: 'compliance', issuedOn: '15 Apr 2026', sizeKb: 1248, approvedBy: 'Wakili wa kampuni' },
-  { id: 'r6', title: 'Compliance OSHA — usalama', kind: 'compliance', issuedOn: '03 Mei 2026', sizeKb: 312, approvedBy: 'Afisa Usalama' }
-]
-
-const FILTER_LABELS: ReadonlyArray<{ kind: ReportKind; label: string }> = [
-  { kind: 'all', label: 'Zote' },
-  { kind: 'weekly', label: 'Wiki' },
-  { kind: 'monthly', label: 'Mwezi' },
-  { kind: 'compliance', label: 'Compliance' }
-]
+interface ReportsListEnvelope {
+  readonly success: boolean
+  readonly data?: ReadonlyArray<InteractiveReportRow>
+  readonly error?: { code?: string; message?: string }
+}
 
 export default function Screen(): JSX.Element {
-  const [filter, setFilter] = useState<ReportKind>('all')
-  const [lastShared, setLastShared] = useState<string | null>(null)
+  const [filter, setFilter] = useState<string>('all')
+  const [openError, setOpenError] = useState<string | null>(null)
 
-  const visible = useMemo<ReadonlyArray<Report>>(() => {
-    if (filter === 'all') return SEED_REPORTS
-    return SEED_REPORTS.filter((r) => r.kind === filter)
-  }, [filter])
+  const query = useQuery<ReadonlyArray<InteractiveReportRow>, Error>({
+    queryKey: ['interactive-reports', 'list'],
+    queryFn: async ({ signal }) => {
+      const envelope = await request<ReportsListEnvelope>(REPORTS_BASE, { signal })
+      if (!envelope.success) {
+        throw new Error(envelope.error?.message ?? COPY.errorInline)
+      }
+      return envelope.data ?? []
+    }
+  })
 
-  const shareViaWhatsApp = (report: Report): void => {
-    setLastShared(`${report.title} — imetumwa kwa WhatsApp`)
+  const reports = query.data ?? []
+
+  const renderKinds = useMemo<ReadonlyArray<string>>(() => {
+    const unique = new Set<string>()
+    reports.forEach((r) => unique.add(r.renderKind))
+    return Array.from(unique).sort()
+  }, [reports])
+
+  const visible = useMemo<ReadonlyArray<InteractiveReportRow>>(() => {
+    if (filter === 'all') return reports
+    return reports.filter((r) => r.renderKind === filter)
+  }, [filter, reports])
+
+  const openSignedUrl = async (report: InteractiveReportRow): Promise<void> => {
+    setOpenError(null)
+    if (!report.signedUrl) {
+      setOpenError(COPY.shareUnavailableLabel)
+      return
+    }
+    try {
+      const supported = await Linking.canOpenURL(report.signedUrl)
+      if (!supported) {
+        setOpenError(COPY.shareUnavailableLabel)
+        return
+      }
+      await Linking.openURL(report.signedUrl)
+    } catch {
+      setOpenError(COPY.shareUnavailableLabel)
+    }
+  }
+
+  if (query.isPending) {
+    return (
+      <RoleGuard screenId={SCREEN_ID}>
+        <ScreenShell screenId={SCREEN_ID}>
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+          </View>
+        </ScreenShell>
+      </RoleGuard>
+    )
+  }
+
+  if (query.isError) {
+    return (
+      <RoleGuard screenId={SCREEN_ID}>
+        <ScreenShell screenId={SCREEN_ID}>
+          {isBackendUnavailable(query.error) ? (
+            <PreviewBanner kind="env-missing" />
+          ) : (
+            <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+          )}
+        </ScreenShell>
+      </RoleGuard>
+    )
+  }
+
+  if (reports.length === 0) {
+    return (
+      <RoleGuard screenId={SCREEN_ID}>
+        <ScreenShell screenId={SCREEN_ID}>
+          <PreviewBanner kind="no-data" />
+          <Text style={styles.emptyHint}>{COPY.emptyHint}</Text>
+        </ScreenShell>
+      </RoleGuard>
+    )
   }
 
   return (
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
-        <Section title="Chuja kwa aina">
+        <Section title={COPY.sectionFilter}>
           <View style={styles.filterRow}>
-            {FILTER_LABELS.map((f) => (
-              <Pressable
-                key={f.kind}
-                accessibilityRole="button"
-                accessibilityLabel={`Chuja ${f.label}`}
-                onPress={() => setFilter(f.kind)}
-                style={[styles.chip, filter === f.kind && styles.chipActive]}
-              >
-                <Text style={[styles.chipLabel, filter === f.kind && styles.chipLabelActive]}>{f.label}</Text>
-              </Pressable>
+            <FilterChip
+              key="all"
+              label={`${COPY.filterAll} (${reports.length})`}
+              active={filter === 'all'}
+              onPress={() => setFilter('all')}
+            />
+            {renderKinds.map((kind) => (
+              <FilterChip
+                key={kind}
+                label={`${kind} (${reports.filter((r) => r.renderKind === kind).length})`}
+                active={filter === kind}
+                onPress={() => setFilter(kind)}
+              />
             ))}
           </View>
         </Section>
-        <Section title={`Ripoti zilizoidhinishwa (${visible.length})`}>
-          {visible.length === 0 ? (
-            <PlaceholderList items={[]} emptyLabel="Hakuna ripoti katika kichujio hiki" />
-          ) : (
-            <View style={styles.reportList}>
-              {visible.map((r) => (
-                <View key={r.id} style={styles.reportCard}>
-                  <Text style={styles.reportTitle}>{r.title}</Text>
+        <Section
+          title={`${COPY.sectionReports} (${visible.length})`}
+          hint={COPY.shareMissing}
+        >
+          <View style={styles.reportList}>
+            {visible.map((report) => (
+              <View key={report.id} style={styles.reportCard}>
+                <Text style={styles.reportTitle}>
+                  {report.reportInstanceId} · v{report.version}
+                </Text>
+                <Text style={styles.reportMeta}>
+                  {report.renderKind} · {COPY.metaGenerated} {formatDate(report.generatedAt)}
+                </Text>
+                {report.expiresAt ? (
                   <Text style={styles.reportMeta}>
-                    {r.issuedOn} · {r.sizeKb} KB · idhinishwa na {r.approvedBy}
+                    {COPY.metaExpires} {formatDate(report.expiresAt)}
                   </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Shiriki ${r.title} kwa WhatsApp`}
-                    onPress={() => shareViaWhatsApp(r)}
-                    style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+                ) : null}
+                {report.actionPlans && report.actionPlans.length > 0 ? (
+                  <Text style={styles.reportMeta}>
+                    {COPY.metaActions}: {report.actionPlans.length}
+                  </Text>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Fungua ${report.reportInstanceId}`}
+                  onPress={() => void openSignedUrl(report)}
+                  disabled={!report.signedUrl}
+                  style={({ pressed }) => [
+                    styles.shareButton,
+                    !report.signedUrl ? styles.shareButtonDisabled : null,
+                    pressed && Boolean(report.signedUrl) ? styles.shareButtonPressed : null
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.shareLabel,
+                      !report.signedUrl ? styles.shareLabelDisabled : null
+                    ]}
                   >
-                    <Text style={styles.shareLabel}>Shiriki kwa WhatsApp</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
+                    {report.signedUrl ? COPY.shareLabel : COPY.shareUnavailableLabel}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
         </Section>
-        {lastShared ? (
-          <Section title="Tukio la mwisho">
-            <Text style={styles.toast}>{lastShared}</Text>
-          </Section>
-        ) : null}
+        {openError ? <Text style={styles.errorInline}>{openError}</Text> : null}
       </ScreenShell>
     </RoleGuard>
   )
 }
 
+function FilterChip({
+  label,
+  active,
+  onPress
+}: {
+  label: string
+  active: boolean
+  onPress: () => void
+}): JSX.Element {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={[styles.chip, active && styles.chipActive]}
+    >
+      <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{label}</Text>
+    </Pressable>
+  )
+}
+
+function formatDate(iso: string): string {
+  const parsed = Date.parse(iso)
+  if (!Number.isFinite(parsed)) return iso
+  return new Date(parsed).toISOString().slice(0, 10)
+}
+
+function isBackendUnavailable(error: unknown): boolean {
+  if (isNetworkError(error)) return true
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 503
+  return false
+}
+
 const styles = StyleSheet.create({
+  center: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl
+  },
+  loadingLabel: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontSize: fontSize.body
+  },
+  errorInline: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginVertical: spacing.md
+  },
+  emptyHint: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -156,14 +324,15 @@ const styles = StyleSheet.create({
   shareButtonPressed: {
     opacity: 0.85
   },
+  shareButtonDisabled: {
+    backgroundColor: colors.border
+  },
   shareLabel: {
     color: colors.textInverse,
     fontSize: fontSize.body,
     fontWeight: '700'
   },
-  toast: {
-    color: colors.success,
-    fontSize: fontSize.body,
-    fontWeight: '600'
+  shareLabelDisabled: {
+    color: colors.textMuted
   }
 })

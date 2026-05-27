@@ -175,6 +175,7 @@
     "phone_placeholder": "+255 712 345 678",
     "send_otp": "Tuma OTP",
     "otp_label": "Weka msimbo wa OTP",
+    "otp_placeholder": "123456",
     "verify": "Thibitisha",
     "terms": "Kwa kuingia unakubali masharti ya matumizi",
     "otp_sent": "OTP imetumwa",

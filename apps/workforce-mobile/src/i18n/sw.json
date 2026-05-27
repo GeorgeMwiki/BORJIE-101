@@ -228,6 +228,32 @@
     "cancel": "Ghairi",
     "retry": "Jaribu tena"
   },
+  "photoAdvisor": {
+    "title": "Uliza picha · Borjie Vision",
+    "intent": "Piga picha ya eneo, ongeza swali, pata ushauri.",
+    "captureCta": "Piga Picha",
+    "retakeCta": "Piga tena",
+    "prompt": "Niambie kuhusu eneo hili (hiari)",
+    "promptPlaceholder": "k.m. Je, ni salama kuchimba hapa?",
+    "analyzeCta": "Uliza Borjie",
+    "analyzing": "Borjie anachunguza picha…",
+    "summary": "Muhtasari",
+    "reasoning": "Sababu",
+    "suggestions": "Pendekezo",
+    "citations": "Vyanzo",
+    "gpsChip": "GPS",
+    "gpsRequesting": "Inapata GPS…",
+    "gpsRequired": "Hatuna GPS. Bonyeza tena kuruhusu.",
+    "gpsDenied": "GPS imezuiwa — ushauri utakuwa wa jumla zaidi.",
+    "cameraRequired": "Hatuna ruhusa ya kamera. Iwashe kwenye Mipangilio.",
+    "noPhoto": "Bado hujapiga picha.",
+    "backendUnavailable": "Mtoa huduma wa vision bado haujaunganishwa. Mwekezaji wa nyuma anahitaji kuwezesha POST /api/v1/mining/brain/vision-turn.",
+    "backendUnavailableContract": "Mkataba unaohitajika kwenye api-gateway",
+    "errorAuth": "Tafadhali ingia tena.",
+    "errorNetwork": "Mtandao umekata. Jaribu tena.",
+    "errorMalformed": "Jibu la seva halikueleweka.",
+    "errorUnknown": "Tatizo limetokea. Jaribu tena."
+  },
   "screens": {
     "O-M-01": { "title": "Nyumbani · Muhtasari wa Leo", "intent": "Kadi 3 za juu kwa mmiliki" },
     "O-M-02": { "title": "Uliza Borjie", "intent": "Sauti + mazungumzo" },
@@ -275,7 +301,8 @@
     "W-M-19": { "title": "Hudhuria · Ingia / Toka", "intent": "Punch ya GPS" },
     "W-M-20": { "title": "Barua ya Dereva", "intent": "Tazama na shiriki" },
     "W-M-21": { "title": "Hali ya Sync", "intent": "Foleni + upatanisho" },
-    "W-M-22": { "title": "Msaada na Mafunzo", "intent": "Video za sauti, bila mtandao" }
+    "W-M-22": { "title": "Msaada na Mafunzo", "intent": "Video za sauti, bila mtandao" },
+    "photo-advisor": { "title": "Uliza picha · Borjie Vision", "intent": "Piga picha ya eneo, pata ushauri wa Borjie" }
   },
   "onboarding": {
     "stepIndicator": "Hatua {{current}} kati ya {{total}}",

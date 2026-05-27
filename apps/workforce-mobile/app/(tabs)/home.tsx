@@ -33,6 +33,20 @@ export default function HomeTab(): JSX.Element {
         </Text>
       </Section>
 
+      <Section title="Borjie Vision" hint="Piga picha ya eneo — pata ushauri">
+        <Link href="/photo-advisor" asChild>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Uliza picha"
+            style={({ pressed }) => [styles.heroCta, pressed ? styles.heroCtaPressed : null]}
+            testID="home-photo-advisor-cta"
+          >
+            <Text style={styles.heroCtaTitle}>Uliza picha</Text>
+            <Text style={styles.heroCtaSub}>Piga picha → pata jibu la Borjie</Text>
+          </Pressable>
+        </Link>
+      </Section>
+
       <Section title={screen(screenId).intent}>
         <PlaceholderList
           items={[
@@ -86,6 +100,32 @@ const styles = StyleSheet.create({
   lead: {
     color: colors.text,
     fontSize: fontSize.lead
+  },
+  heroCta: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.gold,
+    borderWidth: 1,
+    borderColor: colors.goldDark,
+    shadowColor: colors.earth900,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
+  },
+  heroCtaPressed: {
+    backgroundColor: colors.goldDark
+  },
+  heroCtaTitle: {
+    color: colors.earth900,
+    fontSize: fontSize.h2,
+    fontWeight: '800'
+  },
+  heroCtaSub: {
+    color: colors.earth800,
+    fontSize: fontSize.body,
+    marginTop: spacing.xs,
+    fontWeight: '600'
   },
   grid: {
     flexDirection: 'row',

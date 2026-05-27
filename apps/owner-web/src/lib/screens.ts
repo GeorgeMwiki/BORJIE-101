@@ -243,6 +243,16 @@ export const OWNER_SCREENS: ReadonlyArray<OwnerScreen> = [
     persona: 'Boji internal proxy',
     group: 'settings',
   },
+  {
+    id: 'O-W-23',
+    slug: 'ask',
+    title: 'Ask Borjie Brain',
+    titleSw: 'Uliza Borjie',
+    intent:
+      'Live wire to POST /api/v1/brain/turn — full chat with corpus-cited evidence.',
+    persona: 'Borjie Brain',
+    group: 'overview',
+  },
 ];
 
 export function getScreenBySlug(slug: string): OwnerScreen | undefined {

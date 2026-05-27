@@ -1,28 +1,34 @@
 import { useEffect, useState } from 'react'
-import { clearAuthToken } from './token'
+import type { Session } from '@supabase/supabase-js'
+import { clearAuthToken, setAuthToken } from './token'
+import { getSupabaseClient } from './supabaseClient'
+import { parseSupabaseTokenForBuyer } from './buyerClaims'
 import type { BuyerUser } from '@/types/auth'
 
-// Reactive in-memory session store. Wired against /api/v1/auth/* via
-// src/api/auth.ts; persistence is handled by AsyncStorage in token.ts.
+// Reactive in-memory session store, backed by Supabase phone OTP.
+// The mobile UI consumes `useSession()` — when Supabase emits a session
+// change (sign-in, refresh, sign-out), we project it to a BuyerUser and
+// notify subscribers so React components re-render.
 //
-// The stub user remains so screens render before login completes — once
-// verifyOtp() resolves, setCurrentUser() flips the state and subscribers
-// (useSession) re-render with real data.
+// `GUEST_USER` is the unauthenticated sentinel: it contains no PII and is
+// only used to keep screens that read `user.preferredLang` (i18n) and
+// `user.id` (KYC route param) from crashing before the user signs in.
+// Routing guards must use `isAuthenticated()` to redirect to /auth/login.
 
-// UNIV-4: hardcoded launch-beachhead stub user (TZ/+255) — pre-login render placeholder; production callers replace via setCurrentUser(). Future stub generation should seed from jurisdiction-profile registry; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
-const stubUser: BuyerUser = {
-  id: 'buyer-001',
+const GUEST_USER: BuyerUser = {
+  id: '',
   role: 'buyer',
-  companyName: 'Pamoja Refinery Ltd',
+  companyName: '',
   countryCode: 'TZ',
   preferredLang: 'en',
-  kycStatus: 'submitted',
-  phone: '+255 712 000 001'
+  kycStatus: 'pending',
+  phone: ''
 }
 
 type Listener = (user: BuyerUser | null) => void
 
-let currentUser: BuyerUser | null = stubUser
+let currentUser: BuyerUser | null = null
+let bootstrapped = false
 const listeners = new Set<Listener>()
 
 function emit(): void {
@@ -31,8 +37,58 @@ function emit(): void {
   }
 }
 
+function projectSession(session: Session | null): BuyerUser | null {
+  if (!session) return null
+  const accessToken = session.access_token
+  const claims = parseSupabaseTokenForBuyer(accessToken)
+  if (!claims) return null
+  const phone = (claims.phone ?? session.user.phone ?? '').replace(/\s+/g, '')
+  const phoneFormatted = phone.startsWith('+') ? phone : phone.length > 0 ? `+${phone}` : ''
+  const companyName =
+    (session.user.user_metadata?.company_name as string | undefined) ?? 'Buyer'
+  return {
+    id: claims.userId || session.user.id,
+    role: 'buyer',
+    companyName,
+    countryCode: 'TZ',
+    preferredLang: 'en',
+    kycStatus: 'pending',
+    phone: phoneFormatted
+  }
+}
+
+async function ensureBootstrapped(): Promise<void> {
+  if (bootstrapped) return
+  bootstrapped = true
+  try {
+    const supabase = getSupabaseClient()
+    const { data } = await supabase.auth.getSession()
+    const next = projectSession(data.session)
+    if (next) {
+      currentUser = next
+      if (data.session) {
+        await setAuthToken(data.session.access_token)
+      }
+    }
+    supabase.auth.onAuthStateChange((_event, session) => {
+      const projected = projectSession(session)
+      currentUser = projected
+      if (session) {
+        void setAuthToken(session.access_token)
+      } else {
+        void clearAuthToken()
+      }
+      emit()
+    })
+    emit()
+  } catch {
+    // Bootstrap failed (e.g. missing env in dev) — leave currentUser null;
+    // subscribers will render unauthenticated state.
+  }
+}
+
 export function getCurrentUser(): BuyerUser {
-  return currentUser ?? stubUser
+  return currentUser ?? GUEST_USER
 }
 
 export function isAuthenticated(): boolean {
@@ -53,12 +109,58 @@ export function setPreferredLang(lang: BuyerUser['preferredLang']): void {
 }
 
 export async function logout(): Promise<void> {
+  try {
+    const supabase = getSupabaseClient()
+    await supabase.auth.signOut()
+  } catch {
+    // ignore — local state is the source of truth for the UI
+  }
   currentUser = null
   await clearAuthToken()
   emit()
 }
 
+export interface OtpResult {
+  readonly error?: string
+}
+
+function normaliseE164(phone: string): string {
+  return phone.replace(/\s+/g, '')
+}
+
+export async function sendBuyerOtp(phoneE164: string): Promise<OtpResult> {
+  try {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: normaliseE164(phoneE164)
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'send_otp_failed' }
+  }
+}
+
+export async function verifyBuyerOtp(
+  phoneE164: string,
+  code: string
+): Promise<OtpResult> {
+  try {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.auth.verifyOtp({
+      phone: normaliseE164(phoneE164),
+      token: code,
+      type: 'sms'
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'verify_otp_failed' }
+  }
+}
+
 export function subscribe(listener: Listener): () => void {
+  void ensureBootstrapped()
   listeners.add(listener)
   return () => {
     listeners.delete(listener)
@@ -67,6 +169,6 @@ export function subscribe(listener: Listener): () => void {
 
 export function useSession(): BuyerUser {
   const [user, setUser] = useState<BuyerUser>(() => getCurrentUser())
-  useEffect(() => subscribe((next) => setUser(next ?? stubUser)), [])
+  useEffect(() => subscribe((next) => setUser(next ?? GUEST_USER)), [])
   return user
 }

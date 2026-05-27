@@ -247,6 +247,9 @@ importers:
 
   apps/buyer-mobile:
     dependencies:
+      '@borjie/observability':
+        specifier: workspace:^
+        version: link:../../packages/observability
       '@borjie/persona-runtime':
         specifier: workspace:*
         version: link:../../packages/persona-runtime
@@ -259,6 +262,9 @@ importers:
       '@react-native-community/netinfo':
         specifier: 11.3.1
         version: 11.3.1(react-native@0.74.5)
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       '@tanstack/react-query':
         specifier: ^5.51.23
         version: 5.100.9(react@18.2.0)
@@ -286,6 +292,9 @@ importers:
       expo-router:
         specifier: ~3.5.0
         version: 3.5.24(expo-constants@16.0.2)(expo-linking@6.3.1)(expo-modules-autolinking@56.0.12)(expo-status-bar@1.12.1)(expo@51.0.39)(react-native-reanimated@3.10.1)(react-native-safe-area-context@4.10.5)(react-native-screens@3.31.1)(react-native@0.74.5)(react@18.2.0)(typescript@5.3.3)
+      expo-secure-store:
+        specifier: ~13.0.2
+        version: 13.0.2(expo@51.0.39)
       expo-splash-screen:
         specifier: ~0.27.0
         version: 0.27.7(expo-modules-autolinking@56.0.12)(expo@51.0.39)
@@ -508,6 +517,9 @@ importers:
       '@react-native-community/netinfo':
         specifier: 11.3.1
         version: 11.3.1(react-native@0.74.5)
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.106.2
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.100.9(react@18.2.0)
@@ -541,6 +553,9 @@ importers:
       expo-router:
         specifier: ~3.5.0
         version: 3.5.24(expo-constants@16.0.2)(expo-linking@6.3.1)(expo-modules-autolinking@56.0.12)(expo-status-bar@1.12.1)(expo@51.0.39)(react-native-reanimated@3.10.1)(react-native-safe-area-context@4.10.5)(react-native-screens@3.31.1)(react-native@0.74.5)(react@18.2.0)(typescript@5.3.3)
+      expo-secure-store:
+        specifier: ~13.0.2
+        version: 13.0.2(expo@51.0.39)
       expo-splash-screen:
         specifier: ~0.27.0
         version: 0.27.7(expo-modules-autolinking@56.0.12)(expo@51.0.39)
@@ -4836,6 +4851,9 @@ importers:
       '@borjie/fairness-eval':
         specifier: workspace:*
         version: link:../../packages/fairness-eval
+      '@borjie/feature-flags-adapter':
+        specifier: workspace:*
+        version: link:../../packages/feature-flags-adapter
       '@borjie/forecasting':
         specifier: workspace:*
         version: link:../../packages/forecasting
@@ -23035,6 +23053,14 @@ packages:
       - react-native
       - supports-color
       - typescript
+    dev: false
+
+  /expo-secure-store@13.0.2(expo@51.0.39):
+    resolution: {integrity: sha512-3QYgoneo8p8yeeBPBiAfokNNc2xq6+n8+Ob4fAlErEcf4H7Y72LH+K/dx0nQyWau2ZKZUXBxyyfuHFyVKrEVLg==}
+    peerDependencies:
+      expo: '*'
+    dependencies:
+      expo: 51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.5)(react-native@0.74.5)(react@18.2.0)
     dev: false
 
   /expo-splash-screen@0.27.7(expo-modules-autolinking@56.0.12)(expo@51.0.39):

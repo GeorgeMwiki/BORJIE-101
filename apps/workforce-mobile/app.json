@@ -85,6 +85,8 @@
     "extra": {
       "splashTagline": "Borjie - Ofisi ya Mgodi",
       "apiGatewayUrl": "http://localhost:4001",
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
       "eas": {
         "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }

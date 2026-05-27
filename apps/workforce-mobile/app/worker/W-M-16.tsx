@@ -1,39 +1,69 @@
 import { useCallback, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMutation } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { AskBorjie } from '../../src/components/AskBorjie'
 import { RoleGuard } from '../../src/components/RoleGuard'
-import { useI18n } from '../../src/i18n/useI18n'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { workforcePersonaSpec } from '../../src/roles/persona'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
+import { API_BASE_URL } from '../../src/api/config'
+import { ApiError } from '../../src/api/errors'
+import { getAuthToken } from '../../src/auth/session'
 
 const SCREEN_ID = 'W-M-16'
 
+const COPY = {
+  composerTitle: 'Andika swali',
+  composerPlaceholder: 'Andika swali lako hapa…',
+  sendCta: 'Tuma',
+  voiceTitle: 'Uliza kwa Kiswahili',
+  historyTitle: 'Maswali ya hivi karibuni',
+  loading: 'Borjie anafikiri…',
+  empty: 'Hujauliza swali bado. Anza kwa kuandika au kubonyeza kitufe cha sauti.',
+  errorPrefix: 'Hitilafu: '
+} as const
+
 interface AskTurn {
-  id: string
-  question: string
-  reply: string
-  askedAtISO: string
+  readonly id: string
+  readonly question: string
+  readonly reply: string
+  readonly askedAtISO: string
 }
 
-const SEED_TURNS: ReadonlyArray<AskTurn> = [
-  {
-    id: 'q1',
-    question: 'Nifanye nini ikiwa fuel imekwisha?',
-    reply:
-      'Wasiliana na meneja wa zamu mara moja, andika namba ya jenereta, na simamisha shughuli za kuvunja mwamba mpaka kuhakikishwa salama.',
-    askedAtISO: '2026-05-26T07:14:00Z'
-  },
-  {
-    id: 'q2',
-    question: 'Nina kuumia kidogo, je nirudi nyumbani?',
-    reply:
-      'Ripoti jeraha kwa kiongozi wa zamu kwa fomu W-M-12. Borjie itatuma daktari wa karibu na kushikilia malipo ya siku.',
-    askedAtISO: '2026-05-26T11:02:00Z'
+interface BrainTurnResponse {
+  readonly threadId: string
+  readonly responseText: string
+  readonly finalPersonaId?: string
+  readonly tokensUsed?: number
+}
+
+async function postBrainTurn(args: { userText: string; threadId: string | null }): Promise<BrainTurnResponse> {
+  const url = `${API_BASE_URL}/api/v1/brain/turn`
+  const token = await getAuthToken()
+  if (!token) {
+    throw new ApiError('not_authenticated', 401, url, null)
   }
-]
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      userText: args.userText,
+      ...(args.threadId ? { threadId: args.threadId } : {})
+    })
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new ApiError(`brain.turn ${res.status}`, res.status, url, text.slice(0, 200))
+  }
+  return (await res.json()) as BrainTurnResponse
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -46,57 +76,84 @@ export default function Screen(): JSX.Element {
 }
 
 function AskBorjieChat(): JSX.Element {
-  const { t } = useI18n()
-  const [turns, setTurns] = useState<ReadonlyArray<AskTurn>>(SEED_TURNS)
-  const [draft, setDraft] = useState<string>('')
   const personaSlug = workforcePersonaSpec('employee').slug
+  const [turns, setTurns] = useState<ReadonlyArray<AskTurn>>([])
+  const [draft, setDraft] = useState<string>('')
+  const [threadId, setThreadId] = useState<string | null>(null)
+
+  const mutation = useMutation<BrainTurnResponse, ApiError, string>({
+    mutationFn: (userText) => postBrainTurn({ userText, threadId }),
+    onSuccess: (data, userText) => {
+      const turn: AskTurn = {
+        id: data.threadId + ':' + Date.now().toString(36),
+        question: userText,
+        reply: data.responseText,
+        askedAtISO: new Date().toISOString()
+      }
+      setTurns((prev) => [turn, ...prev])
+      setThreadId(data.threadId)
+      setDraft('')
+    }
+  })
 
   const submit = useCallback((): void => {
     const trimmed = draft.trim()
-    if (trimmed.length === 0) return
-    const turn: AskTurn = {
-      id: `q-${turns.length + 1}`,
-      question: trimmed,
-      reply: t.app.borjieReply,
-      askedAtISO: new Date().toISOString()
-    }
-    setTurns([turn, ...turns])
-    setDraft('')
-  }, [draft, turns, t.app.borjieReply])
+    if (trimmed.length === 0 || mutation.isPending) return
+    mutation.mutate(trimmed)
+  }, [draft, mutation])
 
   return (
     <View>
-      <Section title="Uliza kwa Kiswahili">
+      <Section title={COPY.voiceTitle}>
         <AskBorjie />
       </Section>
-      <Section title="Andika swali">
+      <Section title={COPY.composerTitle}>
         <View style={styles.composer}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Andika swali lako hapa…"
+            placeholder={COPY.composerPlaceholder}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             multiline
+            editable={!mutation.isPending}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tuma swali"
+            accessibilityLabel={COPY.sendCta}
             onPress={submit}
-            style={({ pressed }) => [styles.send, pressed && styles.sendPressed]}
+            disabled={mutation.isPending || draft.trim().length === 0}
+            style={({ pressed }) => [
+              styles.send,
+              pressed && styles.sendPressed,
+              (mutation.isPending || draft.trim().length === 0) && styles.sendDisabled
+            ]}
           >
-            <Text style={styles.sendLabel}>Tuma</Text>
+            <Text style={styles.sendLabel}>{COPY.sendCta}</Text>
           </Pressable>
         </View>
-      </Section>
-      <Section title={`Maswali ya hivi karibuni (persona: ${personaSlug})`}>
-        {turns.map((turn) => (
-          <View key={turn.id} style={styles.turn}>
-            <Text style={styles.question}>{turn.question}</Text>
-            <Text style={styles.reply}>{turn.reply}</Text>
-            <Text style={styles.timestamp}>{formatRelative(turn.askedAtISO)}</Text>
+        {mutation.isPending ? (
+          <View style={styles.loading}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.loadingText}>{COPY.loading}</Text>
           </View>
-        ))}
+        ) : null}
+        {mutation.isError ? (
+          <PreviewBanner kind="env-missing" />
+        ) : null}
+      </Section>
+      <Section title={`${COPY.historyTitle} (persona: ${personaSlug})`}>
+        {turns.length === 0 ? (
+          <PreviewBanner kind="no-data" />
+        ) : (
+          turns.map((turn) => (
+            <View key={turn.id} style={styles.turn}>
+              <Text style={styles.question}>{turn.question}</Text>
+              <Text style={styles.reply}>{turn.reply}</Text>
+              <Text style={styles.timestamp}>{formatRelative(turn.askedAtISO)}</Text>
+            </View>
+          ))
+        )}
       </Section>
     </View>
   )
@@ -136,9 +193,22 @@ const styles = StyleSheet.create({
   sendPressed: {
     backgroundColor: colors.goldDark
   },
+  sendDisabled: {
+    opacity: 0.5
+  },
   sendLabel: {
     color: colors.earth900,
     fontWeight: '700',
+    fontSize: fontSize.body
+  },
+  loading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md
+  },
+  loadingText: {
+    color: colors.textMuted,
     fontSize: fontSize.body
   },
   turn: {

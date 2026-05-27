@@ -31,3 +31,16 @@ export {
   type DBAdapterConfig,
   type DBClient,
 } from "./db-adapter.js";
+export {
+  isPilotEnabled,
+  isPilotKillSwitchOpen,
+  isPilotEnvOptIn,
+  PILOT_KILL_SWITCH_ENV,
+  PILOT_ENABLED_ENV,
+  PILOT_ENABLED_FLAG,
+  PILOT_KILL_SWITCH_RESPONSE,
+  type PilotEnabledQuery,
+  type PilotEnvSource,
+  type PilotKillSwitchDeps,
+  type PilotKillSwitchResponse,
+} from "./pilot-kill-switch.js";

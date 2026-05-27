@@ -43,6 +43,7 @@ export default function RootLayout(): JSX.Element {
               <Stack.Screen name="onboarding/safety" options={{ headerShown: false }} />
               <Stack.Screen name="onboarding/calibration" options={{ headerShown: false }} />
               <Stack.Screen name="onboarding/done" options={{ headerShown: false }} />
+              <Stack.Screen name="photo-advisor" options={{ headerShown: false }} />
             </Stack>
           </AuthProvider>
         </QueryClientProvider>

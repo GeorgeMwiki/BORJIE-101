@@ -1,66 +1,47 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { API_BASE_URL } from '../../src/api/config'
+import { request } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
+import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
+import { useAuth } from '../../src/auth/useAuth'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-22'
+const TRAINING_PATH = '/api/v1/training'
 
-type DownloadState = 'downloaded' | 'streaming' | 'queued'
+const COPY = {
+  loading: 'Inapakia mafunzo... · Loading training catalogue...',
+  empty: 'Hakuna mafunzo umepangiwa. · No training paths assigned.',
+  errorPrefix: 'Hitilafu: ',
+  startedOk: 'Mafunzo yameanza kwenye seva.'
+} as const
 
-interface TrainingVideo {
-  id: string
-  title: string
-  durationMin: number
-  fileMb: number
-  state: DownloadState
-  topic: string
+interface AssignmentRow {
+  readonly id: string
+  readonly status: string
+  readonly title?: string
+  readonly pathTitle?: string
+  readonly pathId?: string
+  readonly stepCount?: number
+  readonly assignedAt?: string
 }
 
-const SEED_VIDEOS: ReadonlyArray<TrainingVideo> = [
-  {
-    id: 'v-1',
-    title: 'Jinsi ya kuvaa PPE kwa usahihi',
-    durationMin: 2,
-    fileMb: 8.4,
-    state: 'downloaded',
-    topic: 'Usalama'
-  },
-  {
-    id: 'v-2',
-    title: 'Jinsi ya kurekodi shifti — fomu W-M-04',
-    durationMin: 3,
-    fileMb: 11.2,
-    state: 'downloaded',
-    topic: 'Mafunzo'
-  },
-  {
-    id: 'v-3',
-    title: 'Hatari ya pit slope kwenye mvua',
-    durationMin: 4,
-    fileMb: 14.8,
-    state: 'downloaded',
-    topic: 'Usalama'
-  },
-  {
-    id: 'v-4',
-    title: 'Kuripoti tukio — fomu W-M-14',
-    durationMin: 5,
-    fileMb: 18.6,
-    state: 'streaming',
-    topic: 'Mafunzo'
-  },
-  {
-    id: 'v-5',
-    title: 'Lockout / Tagout kwa generator',
-    durationMin: 6,
-    fileMb: 22.1,
-    state: 'queued',
-    topic: 'Usalama'
-  }
-]
+interface AssignmentsResponse {
+  readonly success: true
+  readonly data: ReadonlyArray<AssignmentRow>
+}
+
+interface NextStepResponse {
+  readonly success: true
+  readonly data: { readonly assignmentId?: string; readonly conceptId?: string; readonly title?: string } | null
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -73,101 +54,168 @@ export default function Screen(): JSX.Element {
 }
 
 function TrainingLibrary(): JSX.Element {
-  const [videos, setVideos] = useState<ReadonlyArray<TrainingVideo>>(SEED_VIDEOS)
-  const [playingId, setPlayingId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const { online } = useOnlineStatus()
+  const queryClient = useQueryClient()
+  const queryKey = useMemo(
+    () => [SCREEN_ID, 'training-assignments', user?.id ?? ''],
+    [user?.id]
+  )
+  const nextKey = useMemo(() => [SCREEN_ID, 'training-next', user?.id ?? ''], [user?.id])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<'idle' | 'ok'>('idle')
 
-  const play = useCallback((id: string): void => {
-    setPlayingId(id)
+  const list = useQuery<AssignmentsResponse, ApiError>({
+    queryKey,
+    queryFn: () =>
+      request<AssignmentsResponse>(`${API_BASE_URL}${TRAINING_PATH}/assignments`, {
+        query: { assigneeUserId: user?.id }
+      }),
+    enabled: Boolean(user)
+  })
+
+  const nextStep = useQuery<NextStepResponse, ApiError>({
+    queryKey: nextKey,
+    queryFn: () => request<NextStepResponse>(`${API_BASE_URL}${TRAINING_PATH}/next-step`),
+    enabled: Boolean(user)
+  })
+
+  const completeMutation = useMutation<unknown, ApiError, string>({
+    mutationFn: async (assignmentId) =>
+      request<{ success: true; data: unknown }>(
+        `${API_BASE_URL}${TRAINING_PATH}/assignments/${assignmentId}/mark-complete`,
+        { method: 'POST', body: {} }
+      ),
+    onSuccess: () => {
+      setConfirmation('ok')
+      queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: nextKey })
+    }
+  })
+
+  const assignments = list.data?.data ?? []
+  const completed = assignments.filter((a) => a.status === 'completed')
+  const networkError = list.error?.status === 0 || list.error?.status === 503
+
+  const onActivate = useCallback((id: string): void => {
+    setActiveId(id)
   }, [])
 
-  const downloadOne = useCallback(
+  const onMarkComplete = useCallback(
     (id: string): void => {
-      setVideos(
-        videos.map((video) =>
-          video.id === id && video.state !== 'downloaded'
-            ? { ...video, state: 'downloaded' }
-            : video
-        )
-      )
+      completeMutation.mutate(id)
     },
-    [videos]
-  )
-
-  const downloadedCount = useMemo<number>(
-    () => videos.filter((video) => video.state === 'downloaded').length,
-    [videos]
-  )
-
-  const totalSizeMb = useMemo<number>(
-    () =>
-      videos
-        .filter((video) => video.state === 'downloaded')
-        .reduce((sum, video) => sum + video.fileMb, 0),
-    [videos]
+    [completeMutation]
   )
 
   return (
     <View>
-      <Section title={`Mafunzo · Kiswahili (${downloadedCount} offline)`}>
-        <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>Zinapatikana bila mtandao</Text>
-          <Text style={styles.summaryValue}>
-            {downloadedCount} video · {totalSizeMb.toFixed(1)} MB
-          </Text>
-        </View>
+      <Section title="Mafunzo · Kiswahili">
+        {list.isLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.loading}</Text>
+          </View>
+        ) : null}
+        {list.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
+        {list.error && !networkError ? (
+          <Text style={styles.errorText}>{COPY.errorPrefix}{list.error.message}</Text>
+        ) : null}
+        {!list.isLoading && !list.error && assignments.length === 0 ? (
+          <View>
+            <PreviewBanner kind="no-data" />
+            <Text style={styles.muted}>{COPY.empty}</Text>
+          </View>
+        ) : null}
+        {assignments.length > 0 ? (
+          <View style={styles.summary}>
+            <Text style={styles.summaryLabel}>Mafunzo yaliyokamilika</Text>
+            <Text style={styles.summaryValue}>
+              {completed.length} / {assignments.length}
+            </Text>
+          </View>
+        ) : null}
       </Section>
-      <Section title="Orodha ya video">
-        {videos.map((video) => (
-          <Pressable
-            key={video.id}
-            accessibilityRole="button"
-            accessibilityLabel={video.title}
-            onPress={() => play(video.id)}
-            style={({ pressed }) => [
-              styles.videoRow,
-              playingId === video.id ? styles.videoRowActive : null,
-              pressed && styles.pressed
-            ]}
-          >
-            <View style={styles.playIcon}>
-              <Text style={styles.playIconLabel}>▶</Text>
-            </View>
-            <View style={styles.videoBody}>
-              <Text style={styles.videoTitle}>{video.title}</Text>
-              <Text style={styles.videoMeta}>
-                {video.topic} · {video.durationMin} min · {video.fileMb.toFixed(1)} MB
-              </Text>
-              <View style={styles.statusContainer}>
-                <View style={[styles.statusDot, dotStyleFor(video.state)]} />
-                <Text style={styles.statusText}>{stateLabel(video.state)}</Text>
-                {video.state !== 'downloaded' ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Pakua"
-                    onPress={() => downloadOne(video.id)}
-                    style={({ pressed }) => [styles.downloadLink, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.downloadLinkLabel}>Pakua</Text>
-                  </Pressable>
-                ) : null}
+      {nextStep.data?.data ? (
+        <Section title="Hatua inayofuata">
+          <View style={styles.next}>
+            <Text style={styles.nextTitle}>{nextStep.data.data.title ?? 'Hatua inayofuata'}</Text>
+            <Text style={styles.nextMeta}>
+              {nextStep.data.data.assignmentId ? `Assignment: ${nextStep.data.data.assignmentId.slice(0, 8)}…` : ''}
+            </Text>
+          </View>
+        </Section>
+      ) : null}
+      {assignments.length > 0 ? (
+        <Section title="Orodha ya mafunzo">
+          {assignments.map((row) => (
+            <Pressable
+              key={row.id}
+              accessibilityRole="button"
+              accessibilityLabel={row.title ?? row.pathTitle ?? row.id}
+              onPress={() => onActivate(row.id)}
+              style={({ pressed }) => [
+                styles.videoRow,
+                activeId === row.id ? styles.videoRowActive : null,
+                pressed && styles.pressed
+              ]}
+            >
+              <View style={styles.playIcon}>
+                <Text style={styles.playIconLabel}>▶</Text>
               </View>
-            </View>
-          </Pressable>
-        ))}
-      </Section>
+              <View style={styles.videoBody}>
+                <Text style={styles.videoTitle}>
+                  {row.title ?? row.pathTitle ?? `Mafunzo #${row.id.slice(0, 6)}`}
+                </Text>
+                <Text style={styles.videoMeta}>
+                  {row.stepCount ? `${row.stepCount} hatua · ` : ''}
+                  Hali: {row.status}
+                </Text>
+                <View style={styles.statusContainer}>
+                  <View style={[styles.statusDot, dotStyleFor(row.status)]} />
+                  <Text style={styles.statusText}>{statusLabel(row.status)}</Text>
+                  {row.status !== 'completed' ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Maliza"
+                      onPress={() => onMarkComplete(row.id)}
+                      disabled={completeMutation.isPending}
+                      style={({ pressed }) => [
+                        styles.markBtn,
+                        pressed && styles.pressed
+                      ]}
+                    >
+                      <Text style={styles.markBtnLabel}>
+                        {completeMutation.isPending ? '...' : 'Maliza'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            </Pressable>
+          ))}
+          {confirmation === 'ok' ? <Text style={styles.successText}>{COPY.startedOk}</Text> : null}
+          {completeMutation.error && completeMutation.error.status !== 0 && completeMutation.error.status !== 503 ? (
+            <Text style={styles.errorText}>
+              {COPY.errorPrefix}{completeMutation.error.message}
+            </Text>
+          ) : null}
+        </Section>
+      ) : null}
+      {!online ? <PreviewBanner kind="offline" /> : null}
     </View>
   )
 }
 
-function stateLabel(state: DownloadState): string {
-  if (state === 'downloaded') return 'Offline · tayari'
-  if (state === 'streaming') return 'Inahitaji mtandao'
-  return 'Inasubiri sync'
+function statusLabel(status: string): string {
+  if (status === 'completed') return 'Imekamilika'
+  if (status === 'in_progress') return 'Inaendelea'
+  return 'Imepangiwa'
 }
 
-function dotStyleFor(state: DownloadState): { backgroundColor: string } {
-  if (state === 'downloaded') return { backgroundColor: colors.success }
-  if (state === 'streaming') return { backgroundColor: colors.warn }
+function dotStyleFor(status: string): { backgroundColor: string } {
+  if (status === 'completed') return { backgroundColor: colors.success }
+  if (status === 'in_progress') return { backgroundColor: colors.warn }
   return { backgroundColor: colors.textMuted }
 }
 
@@ -187,6 +235,23 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700',
+    marginTop: spacing.xs
+  },
+  next: {
+    padding: spacing.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.gold
+  },
+  nextTitle: {
+    color: colors.text,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  nextMeta: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
     marginTop: spacing.xs
   },
   videoRow: {
@@ -249,16 +314,37 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     fontWeight: '600'
   },
-  downloadLink: {
+  markBtn: {
     marginLeft: 'auto',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     backgroundColor: colors.earth700,
     borderRadius: radius.sm
   },
-  downloadLinkLabel: {
+  markBtnLabel: {
     color: colors.textInverse,
     fontSize: fontSize.caption,
     fontWeight: '700'
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.md
+  },
+  muted: {
+    color: colors.textMuted,
+    fontSize: fontSize.body
+  },
+  successText: {
+    color: colors.success,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm,
+    fontWeight: '600'
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
   }
 })

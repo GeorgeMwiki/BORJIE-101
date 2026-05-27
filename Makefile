@@ -10,7 +10,8 @@
         tf-init tf-plan tf-apply tf-destroy \
         k8s-apply k8s-delete k8s-status \
         deploy-staging deploy-production \
-        graph-init graph-sync graph-browser docker-shell-neo4j
+        graph-init graph-sync graph-browser docker-shell-neo4j \
+        pilot-summary pilot-auto-assign pilot-provision
 
 # Default target
 .DEFAULT_GOAL := help
@@ -238,3 +239,21 @@ gen-secret: ## Generate a random secret
 
 setup: install env-check ## Initial project setup
 	@echo "Setup complete! Run 'make docker-up' to start services."
+
+# -----------------------------------------------------------------------------
+# Pilot triage (Wave PILOT-TRIAGE)
+# -----------------------------------------------------------------------------
+pilot-summary: ## Daily 1-screen markdown summary of pilot errors (paste into standup)
+	@pnpm tsx scripts/triage/summarize-pilot-errors.ts
+
+pilot-auto-assign: ## Suggest assignee for a pilot GitHub issue (ISSUE=<url>)
+	@pnpm tsx scripts/triage/auto-assign.ts --issue=$(ISSUE)
+
+# -----------------------------------------------------------------------------
+# Pilot human-in-the-loop kit (Wave PILOT-HITL)
+# -----------------------------------------------------------------------------
+pilot-provision: ## Provision a Supabase pilot user (USER=+255... TENANT=tnt_... COHORT=pilot-...)
+	@pnpm tsx scripts/pilot-provision.ts \
+		--phone $(USER) \
+		--tenant $(TENANT) \
+		--cohort $(COHORT)

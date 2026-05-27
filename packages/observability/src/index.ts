@@ -275,6 +275,26 @@ export {
 export { requireEnv, optionalEnv, envFlag } from './env.js';
 
 // ============================================================================
+// Pilot-mode — wider sampling + cohort tags during the 3-5 pilot window
+// ============================================================================
+
+export type {
+  PilotEnvSource,
+  PilotEventContext,
+  PilotEventInput,
+  PilotModeEnvName,
+  PilotUser,
+} from './pilot-mode.js';
+
+export {
+  PILOT_MODE_ENV_NAMES,
+  isPilotMode,
+  buildPilotEventContext,
+  resolvePilotSampleRate,
+  readDefaultPilotCohort,
+} from './pilot-mode.js';
+
+// ============================================================================
 // Eval — online LLM-judge sampling + R-MOAT-6 dimensions
 // ============================================================================
 

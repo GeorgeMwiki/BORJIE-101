@@ -1,37 +1,51 @@
 import { useCallback, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMutation } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
+import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
+import { useAuth } from '../../src/auth/useAuth'
+import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-20'
+const MISSING_LIST_ENDPOINT = 'GET /api/v1/mining/documents (orodha)'
 
-interface DriverLetter {
-  regNumber: string
-  driverName: string
-  truckType: string
-  mineralType: string
-  tonnage: number
-  routeFrom: string
-  routeTo: string
-  validFromISO: string
-  validToISO: string
-  letterRef: string
+const COPY = {
+  loading: 'Inatengeneza barua... · Creating letter...',
+  errorPrefix: 'Hitilafu: ',
+  missing: `Endpoint ya orodha haijaundwa: ${MISSING_LIST_ENDPOINT}`,
+  hint: 'Weka taarifa za safari, kisha tuma kuingia kwenye seva. Hii itarekodiwa kama document upload.',
+  letterOk: 'Barua imehifadhiwa kwenye seva.',
+  letterQueued: 'Barua imehifadhiwa offline kwa sync.'
+} as const
+
+interface DocumentRow {
+  readonly id: string
+  readonly fileName: string
+  readonly fileUrl: string
+  readonly documentType: string
+  readonly entityType: string | null
+  readonly entityId: string | null
 }
 
-const LETTER: DriverLetter = {
-  regNumber: 'T-512-DKL',
-  driverName: 'Juma Mwakasege',
-  truckType: 'Howo 6×4 dumper',
-  mineralType: 'Madini ya dhahabu (oxidized ore)',
-  tonnage: 7.2,
-  routeFrom: 'Pit 2, Geita',
-  routeTo: 'Buyer warehouse, Mwanza',
-  validFromISO: '2026-05-27T05:00:00Z',
-  validToISO: '2026-05-28T18:00:00Z',
-  letterRef: 'LV-2231'
+interface UploadResponse {
+  readonly success: true
+  readonly data: { readonly document: DocumentRow; readonly presignedPut: string }
+}
+
+interface LetterDraft {
+  readonly truckReg: string
+  readonly driverName: string
+  readonly mineral: string
+  readonly tonnage: string
+  readonly routeFrom: string
+  readonly routeTo: string
 }
 
 export default function Screen(): JSX.Element {
@@ -45,94 +59,217 @@ export default function Screen(): JSX.Element {
 }
 
 function DriverLetterView(): JSX.Element {
-  const [shared, setShared] = useState<boolean>(false)
+  const { user } = useAuth()
+  const { online } = useOnlineStatus()
+  const [draft, setDraft] = useState<LetterDraft>({
+    truckReg: '',
+    driverName: '',
+    mineral: '',
+    tonnage: '',
+    routeFrom: '',
+    routeTo: ''
+  })
+  const [issued, setIssued] = useState<DocumentRow | null>(null)
+  const [confirmation, setConfirmation] = useState<'idle' | 'ok' | 'queued'>('idle')
 
-  const share = useCallback((): void => {
-    setShared(true)
-  }, [])
+  const mutation = useMutation<DocumentRow, ApiError, LetterDraft>({
+    mutationFn: async (input) => {
+      const filename = `driver-letter-${input.truckReg.trim() || Date.now()}.pdf`
+      const resp = await miningApi.post<UploadResponse>('/documents/upload', {
+        fileName: filename,
+        fileSize: 0,
+        mimeType: 'application/pdf',
+        documentType: 'other',
+        entityType: 'driver_letter',
+        entityId: user?.id ?? null,
+        tags: ['driver_letter', SCREEN_ID],
+        metadata: {
+          truckReg: input.truckReg.trim(),
+          driverName: input.driverName.trim(),
+          mineral: input.mineral.trim(),
+          tonnage: input.tonnage.trim(),
+          routeFrom: input.routeFrom.trim(),
+          routeTo: input.routeTo.trim(),
+          issuedAtIso: new Date().toISOString()
+        }
+      })
+      return resp.data.document
+    },
+    onSuccess: (row) => {
+      setIssued(row)
+      setConfirmation('ok')
+    },
+    onError: async (error, input) => {
+      if (error.status === 0 || !online) {
+        const queued = await enqueueWrite('driver_letter_ack', input)
+        setIssued({
+          id: queued.id,
+          fileName: `driver-letter-${input.truckReg || queued.id}.pdf`,
+          fileUrl: '',
+          documentType: 'other',
+          entityType: 'driver_letter',
+          entityId: user?.id ?? null
+        })
+        setConfirmation('queued')
+      }
+    }
+  })
+
+  const setField = useCallback(
+    (key: keyof LetterDraft) =>
+      (value: string): void => {
+        setDraft((prev) => ({ ...prev, [key]: value }))
+      },
+    []
+  )
+
+  const onSubmit = useCallback((): void => {
+    mutation.mutate(draft)
+  }, [draft, mutation])
+
+  const disabled =
+    draft.truckReg.trim().length === 0 ||
+    draft.driverName.trim().length === 0 ||
+    draft.routeFrom.trim().length === 0 ||
+    draft.routeTo.trim().length === 0
+
+  const submitError = mutation.error
+  const networkError = submitError?.status === 0 || submitError?.status === 503
 
   return (
     <View>
-      <Section title="Barua ya dereva">
-        <View style={styles.letter}>
-          <View style={styles.letterHeader}>
-            <Text style={styles.letterRef}>{LETTER.letterRef}</Text>
-            <Text style={styles.letterStamp}>Borjie Mining Estate</Text>
+      <Section title="Barua ya dereva" hint="Itahifadhiwa kama document upload kwenye seva">
+        <PreviewBanner kind="env-missing" />
+        <Text style={styles.missing}>{COPY.missing}</Text>
+        <Text style={styles.muted}>{COPY.hint}</Text>
+      </Section>
+      <Section title="Maelezo ya safari">
+        {Object.entries(FIELDS).map(([key, label]) => (
+          <View key={key} style={styles.fieldRow}>
+            <Text style={styles.label}>{label}</Text>
+            <TextInput
+              accessibilityLabel={label}
+              value={draft[key as keyof LetterDraft]}
+              onChangeText={setField(key as keyof LetterDraft)}
+              placeholder={label}
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+            />
           </View>
-          <Text style={styles.letterTitle}>{LETTER.driverName}</Text>
-          <Text style={styles.letterReg}>{LETTER.regNumber} · {LETTER.truckType}</Text>
-          <View style={styles.divider} />
-          <Row label="Bidhaa" value={LETTER.mineralType} />
-          <Row label="Uzito" value={`${LETTER.tonnage.toFixed(1)} tani`} />
-          <Row label="Kutoka" value={LETTER.routeFrom} />
-          <Row label="Kwenda" value={LETTER.routeTo} />
-        </View>
-      </Section>
-      <Section title="Uhalali wa barua">
-        <Row label="Inaanza" value={formatDateTime(LETTER.validFromISO)} />
-        <Row label="Inaisha" value={formatDateTime(LETTER.validToISO)} />
-        <View style={styles.validBadge}>
-          <Text style={styles.validBadgeLabel}>
-            Inavalid kwa {hoursUntil(LETTER.validToISO)} hrs
-          </Text>
-        </View>
-      </Section>
-      <Section title="Shiriki na wengine">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Shiriki kwa WhatsApp"
-          onPress={share}
-          style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.shareIcon}>↗</Text>
-          <Text style={styles.shareLabel}>Shiriki kwa WhatsApp</Text>
-        </Pressable>
-        {shared ? (
-          <Text style={styles.sharedNote}>
-            Barua imeshirikishwa. Mpokeaji atapokea PDF na link ya uthibitisho.
-          </Text>
+        ))}
+        {mutation.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.loading}</Text>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Tuma barua"
+            onPress={onSubmit}
+            disabled={disabled}
+            style={({ pressed }) => [
+              styles.submitBtn,
+              pressed && styles.pressed,
+              disabled && styles.submitDisabled
+            ]}
+          >
+            <Text style={styles.submitLabel}>Tuma barua</Text>
+          </Pressable>
+        )}
+        {!online ? <PreviewBanner kind="offline" /> : null}
+        {submitError && !networkError ? (
+          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
         ) : null}
       </Section>
+      {issued ? (
+        <Section title="Risiti ya seva">
+          <View style={[styles.letter, confirmation === 'queued' && styles.letterWarn]}>
+            <Text style={styles.letterRef}>{issued.id}</Text>
+            <Text style={styles.letterStamp}>{issued.fileName}</Text>
+            <Text style={styles.successText}>
+              {confirmation === 'ok' ? COPY.letterOk : COPY.letterQueued}
+            </Text>
+          </View>
+        </Section>
+      ) : null}
     </View>
   )
 }
 
-function Row({ label, value }: { label: string; value: string }): JSX.Element {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
-    </View>
-  )
-}
-
-function formatDateTime(iso: string): string {
-  const date = new Date(iso)
-  if (!Number.isFinite(date.getTime())) return iso
-  const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  return `${day} ${time}`
-}
-
-function hoursUntil(iso: string): number {
-  const target = new Date(iso).getTime()
-  if (!Number.isFinite(target)) return 0
-  return Math.max(0, Math.round((target - Date.now()) / (60 * 60 * 1000)))
+const FIELDS: Readonly<Record<keyof LetterDraft, string>> = {
+  truckReg: 'Namba ya gari',
+  driverName: 'Jina la dereva',
+  mineral: 'Aina ya madini',
+  tonnage: 'Uzito (tani)',
+  routeFrom: 'Kutoka',
+  routeTo: 'Kwenda'
 }
 
 const styles = StyleSheet.create({
+  muted: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
+  },
+  missing: {
+    color: colors.warn,
+    fontSize: fontSize.caption,
+    fontWeight: '700',
+    marginTop: spacing.sm
+  },
+  fieldRow: {
+    marginBottom: spacing.sm
+  },
+  label: {
+    color: colors.text,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginBottom: spacing.xs
+  },
+  input: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    fontSize: fontSize.body
+  },
+  submitBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.gold,
+    borderRadius: radius.md,
+    alignItems: 'center'
+  },
+  submitDisabled: {
+    opacity: 0.5
+  },
+  submitLabel: {
+    color: colors.earth900,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  pressed: {
+    opacity: 0.85
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.md
+  },
   letter: {
     padding: spacing.lg,
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     borderLeftWidth: 4,
-    borderLeftColor: colors.gold
+    borderLeftColor: colors.success
   },
-  letterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm
+  letterWarn: {
+    borderLeftColor: colors.warn
   },
   letterRef: {
     color: colors.goldDark,
@@ -142,80 +279,18 @@ const styles = StyleSheet.create({
   },
   letterStamp: {
     color: colors.textMuted,
-    fontSize: fontSize.caption
+    fontSize: fontSize.caption,
+    marginTop: spacing.xs
   },
-  letterTitle: {
-    color: colors.text,
-    fontSize: fontSize.h2,
-    fontWeight: '700'
-  },
-  letterReg: {
-    color: colors.earth700,
+  successText: {
+    color: colors.success,
     fontSize: fontSize.body,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
     fontWeight: '600'
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs
-  },
-  rowLabel: {
-    color: colors.textMuted,
-    fontSize: fontSize.body
-  },
-  rowValue: {
-    color: colors.text,
+  errorText: {
+    color: colors.danger,
     fontSize: fontSize.body,
-    fontWeight: '600',
-    flexShrink: 1,
-    textAlign: 'right',
-    marginLeft: spacing.md
-  },
-  validBadge: {
-    marginTop: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.success,
-    borderRadius: radius.md,
-    alignItems: 'center'
-  },
-  validBadgeLabel: {
-    color: colors.textInverse,
-    fontWeight: '700',
-    fontSize: fontSize.body
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.success,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-    gap: spacing.sm
-  },
-  pressed: {
-    opacity: 0.85
-  },
-  shareIcon: {
-    color: colors.textInverse,
-    fontSize: fontSize.h3,
-    fontWeight: '700'
-  },
-  shareLabel: {
-    color: colors.textInverse,
-    fontSize: fontSize.lead,
-    fontWeight: '700'
-  },
-  sharedNote: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    textAlign: 'center'
+    marginTop: spacing.sm
   }
 })

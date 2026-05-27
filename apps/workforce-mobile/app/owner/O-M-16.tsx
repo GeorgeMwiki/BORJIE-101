@@ -1,121 +1,232 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { PlaceholderList } from '../../src/components/PlaceholderList'
 import { BigNumber } from '../../src/components/StubBlocks'
 import { RoleGuard } from '../../src/components/RoleGuard'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-16'
+const CSR_ENDPOINT_PATH = '/api/v1/mining/csr-plans'
 
-interface Commitment {
+const COPY = Object.freeze({
+  loading: 'Inapakia data ya jamii…',
+  csrTitle: 'Ahadi za jamii — utekelezaji',
+  csrLabel: 'Ahadi zilizotekelezwa',
+  csrSection: 'Orodha ya ahadi',
+  grievancesTitle: 'Malalamiko ya jamii',
+  filterAll: 'Yote',
+  filterOpen: 'Wazi',
+  filterAllAccessibility: 'Onyesha yote',
+  filterOpenAccessibility: 'Onyesha wazi tu',
+  openLabel: 'Wazi',
+  closedLabel: 'Imefungwa',
+  emptyGrievances: 'Hakuna malalamiko wazi',
+  unresolvedLabel: 'wazi',
+  categoryLabels: Object.freeze({
+    noise: 'Kelele',
+    dust: 'Vumbi',
+    water: 'Maji',
+    land: 'Ardhi',
+    wages: 'Mishahara',
+    housing: 'Makazi',
+    access: 'Ufikiaji',
+    other: 'Nyingine'
+  }),
+  raisedByLabels: Object.freeze({
+    worker: 'Mfanyakazi',
+    villager: 'Mwanakijiji',
+    landowner: 'Mmiliki wa ardhi',
+    community_leader: 'Kiongozi wa jamii',
+    local_govt: 'Serikali ya mtaa',
+    ngo: 'NGO'
+  })
+})
+
+type GrievanceCategory =
+  | 'noise'
+  | 'dust'
+  | 'water'
+  | 'land'
+  | 'wages'
+  | 'housing'
+  | 'access'
+  | 'other'
+
+type RaisedByKind =
+  | 'worker'
+  | 'villager'
+  | 'landowner'
+  | 'community_leader'
+  | 'local_govt'
+  | 'ngo'
+
+interface GrievanceRow {
   readonly id: string
-  readonly title: string
-  readonly village: string
-  readonly status: 'fulfilled' | 'in_progress' | 'overdue'
-  readonly amountTzs: number
+  readonly siteId: string | null
+  readonly raisedByKind: RaisedByKind
+  readonly raisedByName: string | null
+  readonly category: GrievanceCategory
+  readonly summary: string
+  readonly status: string
+  readonly raisedAt: string
 }
 
-interface Grievance {
-  readonly id: string
-  readonly issue: string
-  readonly location: string
-  readonly openDays: number
-  readonly resolved: boolean
+interface GrievancesResponse {
+  readonly success: true
+  readonly data: ReadonlyArray<GrievanceRow>
 }
 
-const SEED_COMMITMENTS: ReadonlyArray<Commitment> = [
-  { id: 'cm1', title: 'Borehole #3 — maji safi', village: 'Nyamongo', status: 'fulfilled', amountTzs: 18_500_000 },
-  { id: 'cm2', title: 'Madawati ya shule', village: 'Geita Kati', status: 'fulfilled', amountTzs: 6_200_000 },
-  { id: 'cm3', title: 'Barabara ya kijiji', village: 'Buzwagi', status: 'in_progress', amountTzs: 42_000_000 },
-  { id: 'cm4', title: 'Zahanati — vifaa', village: 'Chunya', status: 'in_progress', amountTzs: 12_750_000 },
-  { id: 'cm5', title: 'Mafunzo ya vijana', village: 'Mbeya', status: 'overdue', amountTzs: 8_400_000 }
-]
-
-const SEED_GRIEVANCES: ReadonlyArray<Grievance> = [
-  { id: 'g1', issue: 'Vumbi la lori usiku', location: 'Kijiji A · njia kuu', openDays: 5, resolved: false },
-  { id: 'g2', issue: 'Maji yenye uchafu', location: 'Borehole 3', openDays: 0, resolved: true },
-  { id: 'g3', issue: 'Kelele za jenereta', location: 'Karibu na shule', openDays: 12, resolved: false }
-]
+const QUERY_KEY = ['mining', 'grievances', 'all'] as const
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export default function Screen(): JSX.Element {
-  const [filter, setFilter] = useState<'all' | 'open'>('all')
-
-  const fulfilledPct = useMemo<number>(() => {
-    const done = SEED_COMMITMENTS.filter((c) => c.status === 'fulfilled').length
-    return Math.round((done / SEED_COMMITMENTS.length) * 100)
-  }, [])
-
-  const grievances = useMemo(() => {
-    if (filter === 'open') return SEED_GRIEVANCES.filter((g) => !g.resolved)
-    return SEED_GRIEVANCES
-  }, [filter])
-
   return (
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
-        <Section title="Ahadi za jamii — utekelezaji">
-          <BigNumber
-            value={`${fulfilledPct}%`}
-            label="Ahadi zilizotekelezwa"
-            caption={`${SEED_COMMITMENTS.length} ahadi · TZS milioni 87.85`}
-          />
-        </Section>
-        <Section title="Orodha ya ahadi">
-          <PlaceholderList
-            items={SEED_COMMITMENTS.map((c) => ({
-              id: c.id,
-              primary: `${c.title} · ${c.village}`,
-              secondary: `${labelStatus(c.status)} · TZS ${formatTzs(c.amountTzs)}`
-            }))}
-          />
-        </Section>
-        <Section title="Malalamiko ya jamii">
-          <View style={styles.toggleRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Onyesha yote"
-              onPress={() => setFilter('all')}
-              style={[styles.toggle, filter === 'all' && styles.toggleActive]}
-            >
-              <Text style={[styles.toggleLabel, filter === 'all' && styles.toggleLabelActive]}>Yote</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Onyesha wazi tu"
-              onPress={() => setFilter('open')}
-              style={[styles.toggle, filter === 'open' && styles.toggleActive]}
-            >
-              <Text style={[styles.toggleLabel, filter === 'open' && styles.toggleLabelActive]}>Wazi</Text>
-            </Pressable>
-          </View>
-          <PlaceholderList
-            items={grievances.map((g) => ({
-              id: g.id,
-              primary: `${g.issue} · ${g.location}`,
-              secondary: g.resolved ? 'Imefungwa' : `Wazi · siku ${g.openDays}`
-            }))}
-            emptyLabel="Hakuna malalamiko wazi"
-          />
-        </Section>
+        <CommunityRelations />
       </ScreenShell>
     </RoleGuard>
   )
 }
 
-function labelStatus(status: Commitment['status']): string {
-  if (status === 'fulfilled') return 'Imetekelezwa'
-  if (status === 'in_progress') return 'Inaendelea'
-  return 'Imechelewa'
+function CommunityRelations(): JSX.Element {
+  const [filter, setFilter] = useState<'all' | 'open'>('all')
+  const query = useQuery<ReadonlyArray<GrievanceRow>, ApiError>({
+    queryKey: QUERY_KEY,
+    queryFn: async ({ signal }) => {
+      const response = await miningApi.get<GrievancesResponse>('/grievances/', { signal })
+      return response.data
+    }
+  })
+
+  const grievances = query.data ?? []
+
+  const filtered = useMemo(() => {
+    if (filter === 'open') {
+      return grievances.filter((row) => !isResolved(row.status))
+    }
+    return grievances
+  }, [grievances, filter])
+
+  return (
+    <View>
+      <Section title={COPY.csrTitle}>
+        <PreviewBanner kind="env-missing" />
+        <Text style={styles.missingPath}>{CSR_ENDPOINT_PATH}</Text>
+        <View style={styles.csrSummary}>
+          <BigNumber value="—" label={COPY.csrLabel} />
+        </View>
+      </Section>
+      <Section title={COPY.grievancesTitle}>
+        {renderGrievancesContent(query.isLoading, query.isError, query.error, grievances, filtered, filter, setFilter)}
+      </Section>
+    </View>
+  )
 }
 
-function formatTzs(amount: number): string {
-  return amount.toLocaleString('en-US')
+function renderGrievancesContent(
+  isLoading: boolean,
+  isError: boolean,
+  error: ApiError | null,
+  all: ReadonlyArray<GrievanceRow>,
+  filtered: ReadonlyArray<GrievanceRow>,
+  filter: 'all' | 'open',
+  setFilter: (next: 'all' | 'open') => void
+): JSX.Element {
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.goldDark} />
+        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+      </View>
+    )
+  }
+  if (isError) {
+    return <PreviewBanner kind={isOfflineError(error) ? 'offline' : 'env-missing'} />
+  }
+  if (all.length === 0) {
+    return <PreviewBanner kind="no-data" />
+  }
+  const now = Date.now()
+  return (
+    <View>
+      <View style={styles.toggleRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={COPY.filterAllAccessibility}
+          onPress={() => setFilter('all')}
+          style={[styles.toggle, filter === 'all' && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleLabel, filter === 'all' && styles.toggleLabelActive]}>
+            {COPY.filterAll}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={COPY.filterOpenAccessibility}
+          onPress={() => setFilter('open')}
+          style={[styles.toggle, filter === 'open' && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleLabel, filter === 'open' && styles.toggleLabelActive]}>
+            {COPY.filterOpen}
+          </Text>
+        </Pressable>
+      </View>
+      <PlaceholderList
+        items={filtered.map((row) => ({
+          id: row.id,
+          primary: `${COPY.categoryLabels[row.category]} - ${row.summary}`,
+          secondary: secondaryLabel(row, now)
+        }))}
+        emptyLabel={COPY.emptyGrievances}
+      />
+    </View>
+  )
+}
+
+function secondaryLabel(row: GrievanceRow, now: number): string {
+  if (isResolved(row.status)) {
+    return COPY.closedLabel
+  }
+  const raised = Date.parse(row.raisedAt)
+  if (!Number.isFinite(raised)) {
+    return COPY.unresolvedLabel
+  }
+  const days = Math.max(0, Math.floor((now - raised) / MS_PER_DAY))
+  return `${COPY.openLabel} - ${COPY.raisedByLabels[row.raisedByKind]} - siku ${days}`
+}
+
+function isResolved(status: string): boolean {
+  return status === 'resolved' || status === 'withdrawn'
+}
+
+function isOfflineError(error: ApiError | null): boolean {
+  return error !== null && error.status === 0
 }
 
 const styles = StyleSheet.create({
+  center: { paddingVertical: spacing.lg, alignItems: 'center' },
+  loadingLabel: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
+  },
+  missingPath: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    fontFamily: 'monospace',
+    marginBottom: spacing.sm
+  },
+  csrSummary: {
+    marginTop: spacing.sm
+  },
   toggleRow: {
     flexDirection: 'row',
     gap: spacing.sm,

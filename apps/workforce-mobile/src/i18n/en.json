@@ -228,6 +228,32 @@
     "cancel": "Cancel",
     "retry": "Try again"
   },
+  "photoAdvisor": {
+    "title": "Ask with a photo · Borjie Vision",
+    "intent": "Take a photo of the site, add a question, get advice.",
+    "captureCta": "Take photo",
+    "retakeCta": "Retake",
+    "prompt": "Tell me about this area (optional)",
+    "promptPlaceholder": "e.g. Is it safe to mine here?",
+    "analyzeCta": "Ask Borjie",
+    "analyzing": "Borjie is studying the photo…",
+    "summary": "Summary",
+    "reasoning": "Reasoning",
+    "suggestions": "Suggested actions",
+    "citations": "Citations",
+    "gpsChip": "GPS",
+    "gpsRequesting": "Getting GPS…",
+    "gpsRequired": "No GPS yet. Tap again to allow.",
+    "gpsDenied": "GPS denied — advice will be more general.",
+    "cameraRequired": "No camera permission. Enable it in Settings.",
+    "noPhoto": "No photo captured yet.",
+    "backendUnavailable": "Vision endpoint not yet wired. Backend must implement POST /api/v1/mining/brain/vision-turn.",
+    "backendUnavailableContract": "Required contract on the api-gateway",
+    "errorAuth": "Please sign in again.",
+    "errorNetwork": "Network dropped. Try again.",
+    "errorMalformed": "Server reply was not understood.",
+    "errorUnknown": "Something went wrong. Try again."
+  },
   "screens": {
     "O-M-01": { "title": "Home · Daily Brief", "intent": "Top 3 cards for owner" },
     "O-M-02": { "title": "Ask Boji (chat + voice)", "intent": "Voice round-trip < 3s" },
@@ -275,7 +301,8 @@
     "W-M-19": { "title": "Attendance Check-in / Out", "intent": "GPS-fenced punch" },
     "W-M-20": { "title": "Driver Letter Receipt", "intent": "Tap to view + share" },
     "W-M-21": { "title": "Sync Status", "intent": "Upload queue + reconciliation" },
-    "W-M-22": { "title": "Help / Training (Offline Videos)", "intent": "Voice-narrated tutorials" }
+    "W-M-22": { "title": "Help / Training (Offline Videos)", "intent": "Voice-narrated tutorials" },
+    "photo-advisor": { "title": "Ask with a photo · Borjie Vision", "intent": "Take a photo of an area and get Borjie's advice" }
   },
   "onboarding": {
     "stepIndicator": "Step {{current}} of {{total}}",

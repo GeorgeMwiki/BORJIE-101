@@ -44,6 +44,13 @@ export default defineConfig({
       },
     ],
   },
+  // React 17+ automatic JSX runtime so component tests (.tsx) don't need
+  // `import React from 'react'`. Matches the Next.js build + owner-web's
+  // vitest config.
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -60,6 +67,10 @@ export default defineConfig({
       // + PII mask. rrweb itself is dynamically imported; tests inject
       // their own factory so they pass without `pnpm install`.
       'src/lib/session-replay/__tests__/**/*.test.ts',
+      // Wave PILOT-HITL — FeedbackButton (pilot in-app feedback widget)
+      // smoke tests. jsdom render; submitter is injected so the test
+      // never reaches the Supabase auth client.
+      'src/components/__tests__/**/*.test.tsx',
     ],
     testTimeout: 10000,
   },

@@ -1,47 +1,48 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useCallback, useState } from 'react'
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMutation } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { FingerprintPlaceholder } from '../../src/components/FingerprintPlaceholder'
+import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
+import { ApiError } from '../../src/api/errors'
+import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
+import { useAuth } from '../../src/auth/useAuth'
+import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-18'
+const MISSING_LIST_ENDPOINT = 'GET /api/v1/mining/documents'
 
-type DocStatus = 'waiting' | 'signed'
+const COPY = {
+  loading: 'Inasaini... · Signing...',
+  errorPrefix: 'Hitilafu: ',
+  missing: `Endpoint ya orodha haijaundwa: ${MISSING_LIST_ENDPOINT}`,
+  signOk: 'Hati imesainiwa kwenye seva.',
+  signQueued: 'Sahihi imehifadhiwa offline kwa sync.',
+  hint: 'Weka rejeleo la hati uliyopewa na meneja, kisha bonyeza saini.'
+} as const
 
-interface OfficialDoc {
-  id: string
-  title: string
-  refNumber: string
-  issuedISO: string
-  status: DocStatus
+interface DocumentRow {
+  readonly id: string
+  readonly fileName: string
+  readonly status: string
+  readonly verifiedAt: string | null
+  readonly verifiedBy: string | null
 }
 
-const SEED_DOCS: ReadonlyArray<OfficialDoc> = [
-  {
-    id: 'd-1',
-    title: 'Mkataba wa Ajira ya Muda — Pit 2',
-    refNumber: 'CON-2026-0418',
-    issuedISO: '2026-05-26T08:30:00Z',
-    status: 'waiting'
-  },
-  {
-    id: 'd-2',
-    title: 'Idhini ya Madini — Sehemu B',
-    refNumber: 'PRM-2026-1102',
-    issuedISO: '2026-05-25T14:12:00Z',
-    status: 'waiting'
-  },
-  {
-    id: 'd-3',
-    title: 'Risiti ya Mishahara — Mei 2026',
-    refNumber: 'PAY-2026-0531',
-    issuedISO: '2026-05-23T11:00:00Z',
-    status: 'signed'
-  }
-]
+interface SignResponse {
+  readonly success: true
+  readonly data: DocumentRow
+}
+
+interface SignPayload {
+  readonly documentId: string
+  readonly fingerprintEventId: string
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -54,152 +55,148 @@ export default function Screen(): JSX.Element {
 }
 
 function DocumentSigning(): JSX.Element {
-  const [docs, setDocs] = useState<ReadonlyArray<OfficialDoc>>(SEED_DOCS)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const { online } = useOnlineStatus()
+  const [docId, setDocId] = useState<string>('')
+  const [signedDocId, setSignedDocId] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<'idle' | 'ok' | 'queued'>('idle')
 
-  const select = useCallback((id: string): void => {
-    setSelectedId(id)
-  }, [])
+  const mutation = useMutation<DocumentRow, ApiError, SignPayload>({
+    mutationFn: async (input) => {
+      const resp = await miningApi.post<SignResponse>(`/documents/${input.documentId}/sign`, {
+        fingerprintEventId: input.fingerprintEventId,
+        signerRole: user?.role ?? null,
+        note: `Signed via ${SCREEN_ID}`
+      })
+      return resp.data
+    },
+    onSuccess: (row) => {
+      setSignedDocId(row.id)
+      setConfirmation('ok')
+      setDocId('')
+    },
+    onError: async (error, input) => {
+      if (error.status === 0 || !online) {
+        await enqueueWrite('fingerprint_sign', {
+          documentId: input.documentId,
+          fingerprintEventId: input.fingerprintEventId,
+          signedAtIso: new Date().toISOString(),
+          signerRole: user?.role ?? null
+        })
+        setSignedDocId(input.documentId)
+        setConfirmation('queued')
+        setDocId('')
+      }
+    }
+  })
 
-  const sign = useCallback((): void => {
-    if (!selectedId) return
-    setDocs(
-      docs.map((doc) =>
-        doc.id === selectedId && doc.status === 'waiting'
-          ? { ...doc, status: 'signed' }
-          : doc
-      )
-    )
-    setSelectedId(null)
-  }, [docs, selectedId])
+  const onSign = useCallback((): void => {
+    const trimmed = docId.trim()
+    if (trimmed.length === 0) return
+    mutation.mutate({
+      documentId: trimmed,
+      fingerprintEventId: `fp-${SCREEN_ID}-${Date.now()}`
+    })
+  }, [docId, mutation])
 
-  const selectedDoc = useMemo<OfficialDoc | null>(
-    () => docs.find((doc) => doc.id === selectedId) ?? null,
-    [docs, selectedId]
-  )
-
-  const waitingCount = useMemo<number>(
-    () => docs.filter((doc) => doc.status === 'waiting').length,
-    [docs]
-  )
+  const submitError = mutation.error
+  const networkError = submitError?.status === 0 || submitError?.status === 503
+  const notFound = submitError?.status === 404
 
   return (
     <View>
-      <Section title={`Hati za rasmi (${waitingCount} zinasubiri)`}>
-        {docs.map((doc) => (
-          <Pressable
-            key={doc.id}
-            accessibilityRole="button"
-            accessibilityLabel={doc.title}
-            onPress={() => select(doc.id)}
-            style={({ pressed }) => [
-              styles.docRow,
-              selectedId === doc.id ? styles.docRowSelected : null,
-              pressed && styles.pressed
-            ]}
-          >
-            <View style={styles.docBody}>
-              <Text style={styles.docTitle}>{doc.title}</Text>
-              <Text style={styles.docMeta}>
-                {doc.refNumber} · {formatDate(doc.issuedISO)}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                doc.status === 'signed' ? styles.statusSigned : styles.statusWaiting
-              ]}
-            >
-              <Text style={styles.statusLabel}>
-                {doc.status === 'signed' ? 'Imesainiwa' : 'Inasubiri'}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
+      <Section title="Hati za rasmi">
+        <PreviewBanner kind="env-missing" />
+        <Text style={styles.missing}>{COPY.missing}</Text>
+        <Text style={styles.muted}>{COPY.hint}</Text>
+        <Text style={styles.label}>Rejeleo la hati (Document ID)</Text>
+        <TextInput
+          accessibilityLabel="Document ID"
+          value={docId}
+          onChangeText={setDocId}
+          placeholder="mfano: 9f6d2c..."
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.input}
+        />
       </Section>
-      <Section title="Tazama na saini">
-        {selectedDoc ? (
+      <Section title="Saini kwa kidole">
+        {confirmation === 'ok' && signedDocId ? (
           <View style={styles.preview}>
-            <Text style={styles.previewTitle}>{selectedDoc.title}</Text>
-            <Text style={styles.previewRef}>Ref: {selectedDoc.refNumber}</Text>
-            <Text style={styles.previewBody}>
-              Hii ni hati rasmi inayohitaji uthibitisho wa kidole. Kwa kusaini hapa,
-              unakiri kuwa umesoma na kuelewa masharti yote ndani ya hati.
-            </Text>
-            {selectedDoc.status === 'waiting' ? (
-              <FingerprintPlaceholder label="Saini kwa kidole" onSign={sign} />
-            ) : (
-              <Text style={styles.alreadySigned}>Hati hii tayari imesainiwa.</Text>
-            )}
+            <Text style={styles.previewTitle}>{COPY.signOk}</Text>
+            <Text style={styles.previewRef}>Ref: {signedDocId}</Text>
           </View>
+        ) : confirmation === 'queued' && signedDocId ? (
+          <View style={[styles.preview, styles.previewWarn]}>
+            <Text style={styles.previewWarnTitle}>{COPY.signQueued}</Text>
+            <Text style={styles.previewRef}>Ref: {signedDocId}</Text>
+          </View>
+        ) : mutation.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.loading}</Text>
+          </View>
+        ) : docId.trim().length === 0 ? (
+          <FingerprintPlaceholder label="Weka Document ID kwanza" />
         ) : (
-          <Text style={styles.placeholder}>Chagua hati hapo juu ili kuona maelezo.</Text>
+          <FingerprintPlaceholder label="Saini kwa kidole" onSign={onSign} />
         )}
+        {!online ? <PreviewBanner kind="offline" /> : null}
+        {notFound ? <Text style={styles.errorText}>Hati haijapatikana kwenye seva.</Text> : null}
+        {submitError && !networkError && !notFound ? (
+          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+        ) : null}
       </Section>
     </View>
   )
 }
 
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  if (!Number.isFinite(date.getTime())) return iso
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
 const styles = StyleSheet.create({
-  docRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'transparent'
-  },
-  docRowSelected: {
-    borderColor: colors.gold,
-    backgroundColor: colors.surface
-  },
-  pressed: {
-    opacity: 0.85
-  },
-  docBody: {
-    flex: 1
-  },
-  docTitle: {
-    color: colors.text,
-    fontSize: fontSize.lead,
-    fontWeight: '600'
-  },
-  docMeta: {
+  muted: {
     color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.sm
+  },
+  missing: {
+    color: colors.warn,
     fontSize: fontSize.caption,
-    marginTop: spacing.xs
-  },
-  statusBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill
-  },
-  statusWaiting: {
-    backgroundColor: colors.warn
-  },
-  statusSigned: {
-    backgroundColor: colors.success
-  },
-  statusLabel: {
-    color: colors.textInverse,
     fontWeight: '700',
-    fontSize: fontSize.caption
+    marginTop: spacing.sm
+  },
+  label: {
+    color: colors.text,
+    fontSize: fontSize.body,
+    fontWeight: '600',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs
+  },
+  input: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    fontSize: fontSize.body
   },
   preview: {
     padding: spacing.lg,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md
+    borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success
+  },
+  previewWarn: {
+    borderLeftColor: colors.warn
   },
   previewTitle: {
-    color: colors.text,
+    color: colors.success,
+    fontSize: fontSize.h3,
+    fontWeight: '700'
+  },
+  previewWarnTitle: {
+    color: colors.warn,
     fontSize: fontSize.h3,
     fontWeight: '700'
   },
@@ -209,25 +206,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing.xs
   },
-  previewBody: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.md,
-    lineHeight: 20
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.md
   },
-  alreadySigned: {
-    color: colors.success,
+  errorText: {
+    color: colors.danger,
     fontSize: fontSize.body,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: spacing.md
-  },
-  placeholder: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    textAlign: 'center'
+    marginTop: spacing.sm
   }
 })
