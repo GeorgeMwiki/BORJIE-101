@@ -1,0 +1,564 @@
+{
+  "schema_version": 1,
+  "generated_at_date": "2026-05-27",
+  "target_count": 40,
+  "audited": [
+    "cognitive-engine",
+    "cognitive-memory",
+    "persistent-memory",
+    "swarm-coordination",
+    "capability-catalogue",
+    "meta-learning-conductor",
+    "post-training-rlvr",
+    "calibration-monitor",
+    "sae-probe",
+    "loop-runner",
+    "loop-quality-gates",
+    "work-cycle",
+    "user-followup",
+    "persona-voice",
+    "graph-rag-router",
+    "process-reward-model",
+    "research-tools",
+    "forecasting",
+    "data-analysis",
+    "causal-inference",
+    "anomaly-detection",
+    "recommendations",
+    "graph-database",
+    "intel-self-improve",
+    "blackboard-sota",
+    "blackboard-viz",
+    "blackboard-intel",
+    "mutation-authority",
+    "tenant-isolation-guard",
+    "data-protection",
+    "agent-security-guard",
+    "agent-platform",
+    "ambient-listener",
+    "language-sota",
+    "swahili-linguistics",
+    "translation-sota",
+    "language-self-improve"
+  ],
+  "missing": [
+    "wave-resilience-manager",
+    "research-orchestrator",
+    "voice-agent"
+  ],
+  "has_src": {
+    "cognitive-engine": true,
+    "cognitive-memory": true,
+    "persistent-memory": true,
+    "swarm-coordination": true,
+    "capability-catalogue": true,
+    "meta-learning-conductor": true,
+    "post-training-rlvr": true,
+    "calibration-monitor": true,
+    "sae-probe": true,
+    "loop-runner": true,
+    "loop-quality-gates": true,
+    "work-cycle": true,
+    "user-followup": true,
+    "persona-voice": true,
+    "graph-rag-router": true,
+    "process-reward-model": true,
+    "research-tools": true,
+    "forecasting": true,
+    "data-analysis": true,
+    "causal-inference": true,
+    "anomaly-detection": true,
+    "recommendations": false,
+    "graph-database": true,
+    "intel-self-improve": false,
+    "blackboard-sota": false,
+    "blackboard-viz": false,
+    "blackboard-intel": true,
+    "mutation-authority": true,
+    "tenant-isolation-guard": true,
+    "data-protection": true,
+    "agent-security-guard": true,
+    "agent-platform": true,
+    "ambient-listener": true,
+    "language-sota": true,
+    "swahili-linguistics": true,
+    "translation-sota": true,
+    "language-self-improve": true
+  },
+  "edges_declared_in_package_json": {
+    "cognitive-engine": [
+      "audit-hash-chain"
+    ],
+    "cognitive-memory": [
+      "audit-hash-chain"
+    ],
+    "persistent-memory": [],
+    "swarm-coordination": [
+      "audit-hash-chain"
+    ],
+    "capability-catalogue": [
+      "observability"
+    ],
+    "meta-learning-conductor": [],
+    "post-training-rlvr": [],
+    "calibration-monitor": [],
+    "sae-probe": [],
+    "loop-runner": [
+      "loop-quality-gates"
+    ],
+    "loop-quality-gates": [],
+    "work-cycle": [
+      "audit-hash-chain",
+      "cognitive-memory",
+      "observability"
+    ],
+    "user-followup": [],
+    "persona-voice": [],
+    "graph-rag-router": [
+      "audit-hash-chain"
+    ],
+    "process-reward-model": [
+      "audit-hash-chain"
+    ],
+    "research-tools": [
+      "ai-copilot",
+      "audit-hash-chain"
+    ],
+    "forecasting": [
+      "domain-models",
+      "graph-sync"
+    ],
+    "data-analysis": [],
+    "causal-inference": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "anomaly-detection": [],
+    "recommendations": [],
+    "graph-database": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "intel-self-improve": [],
+    "blackboard-sota": [],
+    "blackboard-viz": [],
+    "blackboard-intel": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "mutation-authority": [
+      "audit-hash-chain"
+    ],
+    "tenant-isolation-guard": [
+      "observability"
+    ],
+    "data-protection": [],
+    "agent-security-guard": [],
+    "agent-platform": [
+      "enterprise-hardening"
+    ],
+    "ambient-listener": [],
+    "language-sota": [
+      "audit-hash-chain"
+    ],
+    "swahili-linguistics": [
+      "audit-hash-chain"
+    ],
+    "translation-sota": [
+      "audit-hash-chain"
+    ],
+    "language-self-improve": []
+  },
+  "edges_imported_in_src": {
+    "cognitive-engine": [
+      "audit-hash-chain"
+    ],
+    "cognitive-memory": [],
+    "persistent-memory": [],
+    "swarm-coordination": [
+      "audit-hash-chain"
+    ],
+    "capability-catalogue": [
+      "observability"
+    ],
+    "meta-learning-conductor": [],
+    "post-training-rlvr": [],
+    "calibration-monitor": [],
+    "sae-probe": [],
+    "loop-runner": [
+      "loop-quality-gates"
+    ],
+    "loop-quality-gates": [],
+    "work-cycle": [
+      "audit-hash-chain"
+    ],
+    "user-followup": [],
+    "persona-voice": [],
+    "graph-rag-router": [
+      "audit-hash-chain"
+    ],
+    "process-reward-model": [],
+    "research-tools": [
+      "audit-hash-chain"
+    ],
+    "forecasting": [],
+    "data-analysis": [],
+    "causal-inference": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "anomaly-detection": [],
+    "recommendations": [],
+    "graph-database": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "intel-self-improve": [],
+    "blackboard-sota": [],
+    "blackboard-viz": [],
+    "blackboard-intel": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "mutation-authority": [
+      "audit-hash-chain"
+    ],
+    "tenant-isolation-guard": [],
+    "data-protection": [],
+    "agent-security-guard": [],
+    "agent-platform": [
+      "enterprise-hardening"
+    ],
+    "ambient-listener": [],
+    "language-sota": [
+      "audit-hash-chain"
+    ],
+    "swahili-linguistics": [
+      "audit-hash-chain"
+    ],
+    "translation-sota": [
+      "audit-hash-chain"
+    ],
+    "language-self-improve": []
+  },
+  "adjacency_all_borjie": {
+    "cognitive-engine": [
+      "audit-hash-chain"
+    ],
+    "cognitive-memory": [
+      "audit-hash-chain"
+    ],
+    "persistent-memory": [],
+    "swarm-coordination": [
+      "audit-hash-chain"
+    ],
+    "capability-catalogue": [
+      "observability"
+    ],
+    "meta-learning-conductor": [],
+    "post-training-rlvr": [],
+    "calibration-monitor": [],
+    "sae-probe": [],
+    "loop-runner": [
+      "loop-quality-gates"
+    ],
+    "loop-quality-gates": [],
+    "work-cycle": [
+      "audit-hash-chain",
+      "cognitive-memory",
+      "observability"
+    ],
+    "user-followup": [],
+    "persona-voice": [],
+    "graph-rag-router": [
+      "audit-hash-chain"
+    ],
+    "process-reward-model": [
+      "audit-hash-chain"
+    ],
+    "research-tools": [
+      "ai-copilot",
+      "audit-hash-chain"
+    ],
+    "forecasting": [
+      "domain-models",
+      "graph-sync"
+    ],
+    "data-analysis": [],
+    "causal-inference": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "anomaly-detection": [],
+    "recommendations": [],
+    "graph-database": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "intel-self-improve": [],
+    "blackboard-sota": [],
+    "blackboard-viz": [],
+    "blackboard-intel": [
+      "audit-hash-chain",
+      "observability"
+    ],
+    "mutation-authority": [
+      "audit-hash-chain"
+    ],
+    "tenant-isolation-guard": [
+      "observability"
+    ],
+    "data-protection": [],
+    "agent-security-guard": [],
+    "agent-platform": [
+      "enterprise-hardening"
+    ],
+    "ambient-listener": [],
+    "language-sota": [
+      "audit-hash-chain"
+    ],
+    "swahili-linguistics": [
+      "audit-hash-chain"
+    ],
+    "translation-sota": [
+      "audit-hash-chain"
+    ],
+    "language-self-improve": []
+  },
+  "adjacency_in_target_subgraph": {
+    "cognitive-engine": [],
+    "cognitive-memory": [],
+    "persistent-memory": [],
+    "swarm-coordination": [],
+    "capability-catalogue": [],
+    "meta-learning-conductor": [],
+    "post-training-rlvr": [],
+    "calibration-monitor": [],
+    "sae-probe": [],
+    "loop-runner": [
+      "loop-quality-gates"
+    ],
+    "loop-quality-gates": [],
+    "work-cycle": [
+      "cognitive-memory"
+    ],
+    "user-followup": [],
+    "persona-voice": [],
+    "graph-rag-router": [],
+    "process-reward-model": [],
+    "research-tools": [],
+    "forecasting": [],
+    "data-analysis": [],
+    "causal-inference": [],
+    "anomaly-detection": [],
+    "recommendations": [],
+    "graph-database": [],
+    "intel-self-improve": [],
+    "blackboard-sota": [],
+    "blackboard-viz": [],
+    "blackboard-intel": [],
+    "mutation-authority": [],
+    "tenant-isolation-guard": [],
+    "data-protection": [],
+    "agent-security-guard": [],
+    "agent-platform": [],
+    "ambient-listener": [],
+    "language-sota": [],
+    "swahili-linguistics": [],
+    "translation-sota": [],
+    "language-self-improve": []
+  },
+  "summary": {
+    "audited_count": 37,
+    "missing_count": 3,
+    "missing_packages": [
+      "wave-resilience-manager",
+      "research-orchestrator",
+      "voice-agent"
+    ],
+    "all_borjie_edge_count": 26,
+    "in_target_edge_count": 2,
+    "critical_wires_results": [
+      {
+        "src": "cognitive-engine",
+        "dst": "capability-catalogue",
+        "status": "missing"
+      },
+      {
+        "src": "capability-catalogue",
+        "dst": "meta-learning-conductor",
+        "status": "missing"
+      },
+      {
+        "src": "meta-learning-conductor",
+        "dst": "post-training-rlvr",
+        "status": "missing"
+      },
+      {
+        "src": "post-training-rlvr",
+        "dst": "calibration-monitor",
+        "status": "missing"
+      },
+      {
+        "src": "calibration-monitor",
+        "dst": "loop-quality-gates",
+        "status": "missing"
+      },
+      {
+        "src": "swarm-coordination",
+        "dst": "blackboard-sota",
+        "status": "missing"
+      },
+      {
+        "src": "blackboard-sota",
+        "dst": "cognitive-memory",
+        "status": "missing"
+      },
+      {
+        "src": "cognitive-memory",
+        "dst": "loop-runner",
+        "status": "missing"
+      },
+      {
+        "src": "loop-runner",
+        "dst": "wave-resilience-manager",
+        "status": "missing"
+      },
+      {
+        "src": "mutation-authority",
+        "dst": "loop-quality-gates",
+        "status": "missing"
+      },
+      {
+        "src": "ambient-listener",
+        "dst": "cognitive-memory",
+        "status": "missing"
+      },
+      {
+        "src": "tenant-isolation-guard",
+        "dst": "*",
+        "status": "missing",
+        "non-consumer-count": 36,
+        "non-consumers-sample": [
+          "cognitive-engine",
+          "cognitive-memory",
+          "persistent-memory",
+          "swarm-coordination",
+          "capability-catalogue",
+          "meta-learning-conductor",
+          "post-training-rlvr",
+          "calibration-monitor",
+          "sae-probe",
+          "loop-runner"
+        ]
+      }
+    ],
+    "extra_wiring_gaps": [
+      {
+        "src": "graph-rag-router",
+        "dst": "graph-database",
+        "status": "missing"
+      },
+      {
+        "src": "graph-rag-router",
+        "dst": "cognitive-memory",
+        "status": "missing"
+      },
+      {
+        "src": "research-tools",
+        "dst": "graph-rag-router",
+        "status": "missing"
+      },
+      {
+        "src": "forecasting",
+        "dst": "data-analysis",
+        "status": "missing"
+      },
+      {
+        "src": "recommendations",
+        "dst": "data-analysis",
+        "status": "missing"
+      },
+      {
+        "src": "anomaly-detection",
+        "dst": "data-analysis",
+        "status": "missing"
+      },
+      {
+        "src": "causal-inference",
+        "dst": "data-analysis",
+        "status": "missing"
+      },
+      {
+        "src": "intel-self-improve",
+        "dst": "blackboard-intel",
+        "status": "missing"
+      },
+      {
+        "src": "blackboard-viz",
+        "dst": "blackboard-sota",
+        "status": "missing"
+      },
+      {
+        "src": "language-self-improve",
+        "dst": "language-sota",
+        "status": "missing"
+      },
+      {
+        "src": "translation-sota",
+        "dst": "language-sota",
+        "status": "missing"
+      },
+      {
+        "src": "swahili-linguistics",
+        "dst": "language-sota",
+        "status": "missing"
+      },
+      {
+        "src": "persona-voice",
+        "dst": "language-sota",
+        "status": "missing"
+      },
+      {
+        "src": "ambient-listener",
+        "dst": "language-sota",
+        "status": "missing"
+      },
+      {
+        "src": "user-followup",
+        "dst": "cognitive-memory",
+        "status": "missing"
+      },
+      {
+        "src": "work-cycle",
+        "dst": "loop-runner",
+        "status": "missing"
+      },
+      {
+        "src": "process-reward-model",
+        "dst": "post-training-rlvr",
+        "status": "missing"
+      },
+      {
+        "src": "sae-probe",
+        "dst": "calibration-monitor",
+        "status": "missing"
+      },
+      {
+        "src": "agent-security-guard",
+        "dst": "tenant-isolation-guard",
+        "status": "missing"
+      },
+      {
+        "src": "agent-platform",
+        "dst": "agent-security-guard",
+        "status": "missing"
+      },
+      {
+        "src": "data-protection",
+        "dst": "tenant-isolation-guard",
+        "status": "missing"
+      }
+    ]
+  }
+}

@@ -3,6 +3,7 @@ import './globals.css';
 import { SensoriumProvider } from '@/lib/sensorium/SensoriumProvider';
 import { SessionReplayProvider } from '@/components/SessionReplayProvider';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 
 export const metadata: Metadata = {
   title: {
@@ -43,6 +44,12 @@ export default function RootLayout({
           <SensoriumProvider surface="admin-web">
             {children}
             <BorjieWidgetMount />
+            {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
+                Lazy-loads web-vitals v5; ships LCP/INP/CLS/TTFB/FCP via
+                sendBeacon to /api/perf/web-vitals. Held SEPARATELY from
+                sensorium + session-replay because Web Vitals is a per-
+                page rendering measurement, not a behavioural signal. */}
+            <WebVitalsReporter surface="admin-web" />
           </SensoriumProvider>
         </SessionReplayProvider>
       </body>

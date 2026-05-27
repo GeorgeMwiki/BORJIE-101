@@ -4,6 +4,7 @@ import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 
 /**
  * Resolve the canonical marketing site origin. Preview deploys override
@@ -96,6 +97,11 @@ export default async function RootLayout({
         {children}
         <CookieConsent locale={locale} />
         <BorjieWidgetMount locale={locale} />
+        {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
+            Lazy-loads web-vitals v5; ships LCP/INP/CLS/TTFB/FCP via
+            sendBeacon to /api/perf/web-vitals. Marketing target:
+            LCP ≤ 1.5 s, CLS ≤ 0.05. */}
+        <WebVitalsReporter surface="marketing" />
       </body>
     </html>
   );

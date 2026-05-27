@@ -19,6 +19,7 @@
     "@borjie/design-system": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/observability": "workspace:^",
+    "@borjie/performance-toolkit": "workspace:*",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
     "@hookform/resolvers": "^3.9.0",

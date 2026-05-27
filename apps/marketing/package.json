@@ -16,6 +16,7 @@
   "dependencies": {
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
+    "@borjie/performance-toolkit": "workspace:*",
     "lucide-react": "^0.460.0",
     "next": "^15.5.15",
     "react": "^18.3.0",

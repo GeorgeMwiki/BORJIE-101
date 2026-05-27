@@ -8,6 +8,7 @@ const nextConfig = {
     '@borjie/genui',
     '@borjie/observability',
     '@borjie/api-sdk',
+    '@borjie/performance-toolkit',
   ],
   experimental: {
     optimizePackageImports: [
