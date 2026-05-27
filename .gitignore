@@ -98,6 +98,9 @@ expo-env.d.ts
 .borjie-project-ref.tmp
 .gitignore.tmp
 
+# Boji project intake — preserve planning material despite global build/dist ignores
+!Docs/_BOJI_PROJECT_INTAKE_2026_05_27/**
+
 # Local IDE launch config (operator-specific)
 .claude/launch.json
 
