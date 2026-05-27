@@ -134,15 +134,24 @@ function KpiTile({
   testId,
 }: KpiTileProps): JSX.Element {
   return (
-    <article className="cockpit-card" data-testid={testId}>
-      <h3 className="cockpit-card-title">{label}</h3>
-      <p className="text-xs italic text-neutral-600">{labelSw}</p>
-      <div className={`mt-2 font-display text-3xl ${TONE_TEXT[tone]}`}>
+    <article
+      className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-5 shadow-sm transition-colors duration-fast hover:border-border-strong"
+      data-testid={testId}
+    >
+      <h3 className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+        {label}
+      </h3>
+      <p className="font-mono text-caption text-neutral-500">{labelSw}</p>
+      <div
+        className={`mt-1 font-display text-4xl font-medium leading-none tracking-tight tabular-nums ${TONE_TEXT[tone]}`}
+      >
         {value}
       </div>
-      <div className="cockpit-card-meta">{meta}</div>
+      <div className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+        {meta}
+      </div>
       {sparkData && sparkData.length >= 3 ? (
-        <div className="mt-3" data-testid={`${testId}-spark`}>
+        <div className="mt-2" data-testid={`${testId}-spark`}>
           <Sparkline
             data={sparkData}
             tone={tone}

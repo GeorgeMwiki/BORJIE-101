@@ -20,12 +20,16 @@ interface FormState {
 /**
  * Swahili-first email + password sign-in for the owner cockpit.
  *
+ * LitFin-pattern single-column card:
+ *   - Big gradient wordmark above
+ *   - Small mono kicker, declarative heading
+ *   - Generous spacing between fields
+ *   - Full-width primary CTA in signal gold
+ *   - Trust microcopy below
+ *
  * Validates with Zod, then calls `supabase.auth.signInWithPassword`.
  * On success, redirects to the `next` query param (or `/`) and lets
- * Next.js middleware re-validate the session. Supabase SSR cookies
- * are written by the browser client via `@supabase/ssr`'s document
- * cookie writer, so server components see the new session on the
- * next navigation without an extra round trip.
+ * Next.js middleware re-validate the session.
  */
 export function SignInForm() {
   const router = useRouter();
@@ -68,23 +72,38 @@ export function SignInForm() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-neutral-800 bg-neutral-950 p-6 shadow-lg">
-      <header className="mb-6">
-        <h1 className="text-lg font-medium text-foreground">
-          Borjie Owner Cockpit
+    <div className="w-full max-w-md">
+      <header className="mb-10 text-center">
+        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-signal-500 to-signal-700 shadow-md">
+          <span className="font-display text-xl font-bold tracking-tight text-neutral-950">
+            B
+          </span>
+        </div>
+        <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
+          Owner Cockpit
+        </p>
+        <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
+          Karibu tena.
         </h1>
-        <p className="text-xs uppercase tracking-wider text-neutral-500">
-          Ingia
+        <p className="mt-3 text-sm text-neutral-400">
+          Ingia ili kuendelea kwenye cockpit yako.
         </p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <div>
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6 rounded-2xl border border-border bg-surface p-8 shadow-md sm:p-10"
+        noValidate
+      >
+        <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-xs font-medium text-neutral-300 mb-1"
+            className="block text-sm font-medium text-foreground"
           >
             Barua pepe
+            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+              Email
+            </span>
           </label>
           <input
             id="email"
@@ -93,16 +112,19 @@ export function SignInForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-md border border-border bg-background px-3 py-3 text-base text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </div>
 
-        <div>
+        <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-xs font-medium text-neutral-300 mb-1"
+            className="block text-sm font-medium text-foreground"
           >
             Nenosiri
+            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+              Password
+            </span>
           </label>
           <input
             id="password"
@@ -111,12 +133,15 @@ export function SignInForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:border-amber-500 focus:outline-none"
+            className="w-full rounded-md border border-border bg-background px-3 py-3 text-base text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </div>
 
         {state.phase === 'error' && state.error ? (
-          <p role="alert" className="text-sm text-rose-400">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {state.error}
           </p>
         ) : null}
@@ -124,11 +149,15 @@ export function SignInForm() {
         <button
           type="submit"
           disabled={state.phase === 'submitting'}
-          className="w-full rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-neutral-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-md bg-signal-500 px-4 py-3.5 text-base font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
           {state.phase === 'submitting' ? 'Inaingia…' : 'Ingia'}
         </button>
       </form>
+
+      <p className="mt-8 text-center font-mono text-caption uppercase tracking-widest text-neutral-500">
+        Audit chain · bilingual · Tanzania-resident
+      </p>
     </div>
   );
 }

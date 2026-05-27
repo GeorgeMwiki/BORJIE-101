@@ -26,19 +26,22 @@ export default function AdminDashboardPage() {
     <div className="flex min-h-screen">
       <StaffNav />
       <main className="flex-1 p-10" id="main-content">
-        <header className="mb-8 flex items-start justify-between">
+        <header className="mb-10 flex items-start justify-between border-b border-border pb-8">
           <div>
-            <p className="text-caption uppercase tracking-widest text-signal-500">
+            <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
               Dashboard
             </p>
-            <h1 className="mt-1 text-4xl font-display text-foreground">
+            <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
               Platform status
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-neutral-400">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-neutral-400">
               Read-only structured view across every Borjie tenant. Tenants,
               pilot errors, kill-switch, corpus, feature flags, audit chain
               integrity. For investigation hop into chat at{' '}
-              <a className="text-signal-500 underline" href="/">
+              <a
+                className="font-medium text-signal-500 underline-offset-4 hover:underline"
+                href="/"
+              >
                 HQ
               </a>
               .

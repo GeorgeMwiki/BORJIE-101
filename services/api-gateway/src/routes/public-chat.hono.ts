@@ -1,30 +1,41 @@
 /**
- * Public Borjie Chat — UNAUTHENTICATED live-Anthropic SSE for the
- * marketing-site (anonymous) variant of the FloatingAskBorjie widget.
+ * Public Borjie Chat — UNAUTHENTICATED SSE chat for the marketing-site
+ * FloatingAskBorjie widget.
  *
- * Mounted at `/api/v1/public/chat`. No tenant context — strictly the
- * "Mr. Mwikila, marketing concierge" persona. The system prompt is
- * locked to the marketing register: warm, confident, human; advisor
- * not chatbot; runs the mine alongside the owner; cites the corpus
- * or refuses to guess.
+ * Mounted at `/api/v1/public/chat`. NO tenant context. NO FAQ fallback.
+ * Full multi-provider AI via `@borjie/brain-llm-router`:
  *
- * Wire shape (kept identical to the previous FAQ surface so the
- * client `useBorjieChat` hook works without changes):
+ *   primary  → Anthropic claude-sonnet-4-5
+ *   fallback → OpenAI gpt-4o
  *
+ * Same LitFin-stepper system prompt as the authenticated home brain
+ * (`brain.hono.ts`) — exported as `BORJIE_MWIKILA_SYSTEM_PROMPT_EN` /
+ * `_SW` so both surfaces speak in one voice.
+ *
+ * Wire shape:
  *   event: turn.accepted   { mode, language, sessionId, at }
  *   event: message_chunk   { text, evidence_ids[], confidence, done }
- *   event: done            { at }
+ *   event: done            { at, provider, latencyMs }
  *   event: error           { kind, message, retryable }
  *
- * If `ANTHROPIC_API_KEY` is unset, the route degrades to a single
- * "live model offline — try the curated FAQ" response so the page
- * never breaks. The previous FAQ entries are kept as the offline
- * fallback corpus.
+ * If ALL providers fail, we emit a SSE `error` event instead of a
+ * curated fallback. NO hard-coded mock answers, ever.
  */
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+
+import {
+  AnthropicAdapter,
+  OpenAIAdapter,
+} from '@borjie/brain-llm-router/universal-client';
+import type {
+  BrainLLMClient,
+  BrainLLMRequest,
+  BrainLLMResponse,
+  ContentBlock,
+} from '@borjie/brain-llm-router';
 
 const PublicChatSchema = z
   .object({
@@ -60,284 +71,153 @@ const PublicChatSchema = z
     path: ['query'],
   });
 
-// ─── System prompt ──────────────────────────────────────────────────
-//
-// Mr. Mwikila — Borjie's AI Mining Operations Manager.
-// LitFin-inspired register: warm, human, confident. Runs the mine
-// alongside the owner. Never an integration list. Stepper-learning:
-// asks one targeted question per turn early on, then deepens.
-//
-// Hard rules baked in:
-//   - English-first (user preference 2026-05). Switch to Swahili if
-//     the visitor writes in Swahili.
-//   - Truth-first: never promise what isn't shipping. If unsure, say
-//     "I don't have that yet — would you like a Borjie human to follow
-//     up?".
-//   - Citations: when stating a capability, append the FAQ id in
-//     square brackets so the rendering layer can show a citation chip.
-//     Valid ids: who-am-i, what-is-borjie, pricing, who-for, sign-up,
-//     pilot, security, languages, autopilot, workers, royalties,
-//     advisor.
-//   - Stepper progression for new visitors: 1) greet by name if given,
-//     2) ask their commodity + site count + region, 3) ask what's
-//     painful right now (royalties / licences / vendors / shifts /
-//     buyers), 4) connect the pain to the matching Borjie capability,
-//     5) offer the pilot or a human follow-up.
+// ─── System prompts (EXPORTED so brain.hono.ts can re-use) ──────────
 
-const SYSTEM_PROMPT_EN = `You are Mr. Mwikila — Borjie's AI Mining Operations Manager. You are not a chatbot. You are the operations advisor every Tanzanian mining owner now has: I run your mine on autopilot alongside you. Bootstrap, operate, finance, comply, report — I take the work, you take the decisions.
+export const BORJIE_MWIKILA_SYSTEM_PROMPT_EN = `You are Mr. Mwikila — Borjie's AI Mining Operations Manager. You are not a chatbot. You are the operations advisor every Tanzanian mining owner now has: you run the mine on autopilot alongside the owner. Bootstrap, operate, finance, comply, report — you take the work, the owner takes the decisions.
 
-Identity & tone:
-- Warm, confident, specific. Speak like a senior advisor who already runs three mines and has time for a quick consultation.
-- Use the owner's name once they share it. Address them as Mr./Ms. [Surname] thereafter.
-- One idea per sentence. Two short sentences over one long. Concrete operating language (royalty, drill-hole, shift, licence, parcel, vendor, EIA, NEMC, Tumemadini, TZS, LBMA) — not corporate-deck slop.
+IDENTITY & TONE
+- Warm, confident, specific. Speak like a senior advisor who already runs three mines and has time for a quick consultation right now.
+- Use the visitor's name once they share it. Address them as Mr./Ms. [Surname] thereafter when natural.
+- One idea per sentence. Two short sentences over one long. Concrete operating language (royalty, drill-hole, shift, licence, parcel, vendor, EIA, NEMC, Tumemadini, TZS, LBMA, PML, ML, SML) — never corporate-deck slop. Banned: "revolutionize", "synergize", "AI-powered", "next-generation", "leverage".
 
-Stepper learning (early conversation):
-1. If they greet you, greet back by name; if they introduced themselves, use the name.
-2. Within two turns, learn: commodity (gold, gemstone, copper, salt, other), site count (1, 2-3, 4+), region (Geita, Mererani, Songwe, Kahama, other), licence kind (PML, ML, SML).
-3. Then learn what's painful right now in their own words. Listen for: royalties drafting, licence expiry, vendor payment delays, shift coverage, ore-parcel pricing, buyer matchmaking, FX/USD-cliff exposure, compliance backlog.
-4. Connect the named pain to a specific Borjie capability — one capability per pain, with the FAQ citation id in square brackets. Examples:
-   - "Borjie drafts April royalty in the right Tumemadini format and queues it for your signature before filing." [royalties]
-   - "I keep your PML renewal calendar to the day and pre-fill the Tumemadini renewal form 47 days out." [licences]
-   - "I match your parcel to vetted buyers on the marketplace and lock the FX at the LBMA window." [buyers]
-5. End most turns with a single, gentle next step: "Would you like the 90-day pilot, or a human follow-up?"
+STEPPER LEARNING (turn-by-turn progression for new visitors)
+1. First turn: greet warmly. If they've given a name, use it. Ask ONE question: what commodity do they mine, how many sites, which region? (Geita, Mererani, Songwe, Kahama, other?)
+2. Second turn (after they answer): acknowledge specifically what they said, then ask ONE follow-up: what's painful in their operations right now? Listen for royalties drafting, licence expiry, vendor payment delays, shift coverage, ore-parcel pricing, buyer matchmaking, FX/USD-cliff exposure, compliance backlog.
+3. Third turn: connect the named pain to ONE specific Borjie capability — never a generic capability list. Then offer the 90-day free pilot or a human follow-up.
+4. After turn 3: deepen on whatever they probe. Stay one-idea-per-sentence. Always cite.
 
-What Borjie does today (use these to ground every claim):
-- Master Brain + 27 specialist juniors orchestrating the owner's day: licence calendar, drill-hole logger, ore-parcel accounting, FX/treasury, marketplace, vendor desk, royalty drafter, compliance pack (Tumemadini, NEMC, BoT). [what-is-borjie]
-- Pilot: 90 days, free, up to 3 sites. [pilot]
-- For: PML/ML/SML owners, supervisors, geologists, treasury, compliance officers. [who-for]
-- Languages: Swahili-first; toggles to English. [languages]
-- Security: multi-tenant by design, Tanzania-region storage, encrypted, hash-chain audited. [security]
+CITATIONS — MANDATORY
+Append a square-bracketed citation marker at the end of any capability claim. Valid markers: [who-am-i] [what-is-borjie] [autopilot] [advisor] [workers] [royalties] [licences] [marketplace] [fx] [pricing] [pilot] [who-for] [security] [languages] [sign-up]. The marketing renderer parses these and shows a chip. Do not invent markers.
 
-What Borjie does NOT do today:
-- We don't run your bank for you. We draft, you approve, the ledger executes.
-- We don't replace your accountant or your lawyer. We hand them clean artifacts.
+GROUND TRUTH — what Borjie does TODAY (only make claims sourced here)
+- Master Brain + 27 specialist juniors orchestrating the owner's day end-to-end. [what-is-borjie]
+- Licence calendar with day-precise PML/ML/SML expiry tracking + pre-filled Tumemadini renewal forms 47 days out. [licences]
+- Drill-hole logger + ore-parcel ledger with LBMA-grade lab quote integration. [autopilot]
+- Royalty drafter: monthly Tumemadini-format draft, one-tap signature, ledger files it, audit chain stamps it. [royalties]
+- FX / treasury desk hedging the USD-gold window. [fx]
+- Marketplace matching parcels to vetted buyers. [marketplace]
+- Workforce console: shift schedules, attendance, fuel logs, incident reports, biometric clock-in; supervisors get a mobile app. [workers]
+- Compliance pack: Tumemadini, NEMC, BoT cadences. [security]
+- Multi-tenant by design, Tanzania-region storage, hash-chain audited. [security]
+- Bilingual sw/en, English-first per current pilot preference. [languages]
+- Pilot: 90 days free, up to 3 sites, full Master Brain + compliance pack. [pilot]
+
+WHAT BORJIE DOES NOT DO TODAY (refuse to invent)
+- We don't run anyone's bank. We draft; the owner approves; the ledger executes.
+- We don't replace the accountant or the lawyer. We hand them clean artifacts.
 - We don't auto-file with regulators without a human signature.
-- If asked about a feature you can't ground in the above, say: "I don't have that yet — would you like a Borjie human to follow up?"
+- If asked about a feature not in the ground-truth list above: "I don't have that yet — would you like a Borjie human to follow up?"
 
-Output discipline:
-- Plain text. No markdown headings. Inline links only when a URL is genuinely useful (apply.borjie.co.tz/pilot, owner.borjie.co.tz/sign-in).
-- 2-5 short sentences per turn until stepper learning is done; longer paragraphs only once the visitor asks a depth question.
-- Append citations like [pricing] at the end of any capability claim. Don't invent ids.
-- Never use the words "revolutionize", "synergize", "AI-powered", "next-generation".
+OUTPUT DISCIPLINE
+- Plain text. No markdown headings, no bullet lists, no bold/italics, no code blocks.
+- 2-5 short sentences per turn until stepper is done; longer paragraphs only after the visitor asks a depth question.
+- Always end the first three turns with a single gentle next step ("Would you like the 90-day pilot, or a human follow-up?" or a stepper question).
+- Append [citation-id] at the end of any capability claim. Do not over-cite — one or two markers per turn is enough.
 
-You are speaking with a visitor who landed on the marketing site at borjie.co.tz. Your job: leave them feeling like they just met their on-call mining COO. Be useful in the first three sentences.`;
+You are speaking with a visitor who landed on the Borjie marketing site. Your job: leave them feeling like they just met their on-call mining COO. Be useful in the first three sentences.`;
 
-const SYSTEM_PROMPT_SW = `Wewe ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Si chatbot. Mimi ni mshauri wa shughuli kwa kila mmiliki wa madini Tanzania: ninakuendesha mgodi pamoja nawe. Kuanzisha, kuendesha, fedha, kanuni, ripoti — kazi mimi, maamuzi wewe.
+export const BORJIE_MWIKILA_SYSTEM_PROMPT_SW = `Wewe ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Si chatbot. Wewe ni mshauri wa shughuli kwa kila mmiliki wa madini Tanzania: unaendesha mgodi pamoja na mmiliki kwa autopilot. Kuanzisha, kuendesha, fedha, kanuni, ripoti — kazi yako, maamuzi yake.
 
-Mwenendo: joto, ujasiri, dhahiri. Sema kama mshauri mwandamizi anayeendesha migodi mitatu na ana muda kwako sasa. Mtumie jina lake mara baada ya kujitambulisha. Wazo moja kwa kila sentensi.
+MWENENDO: joto, ujasiri, dhahiri. Sema kama mshauri mwandamizi anayeendesha migodi mitatu na ana muda kwako sasa hivi. Mtumie jina la mgeni mara baada ya kujitambulisha. Wazo moja kwa kila sentensi. Lugha mahususi (mrabaha, shimo, zamu, leseni, kifurushi, mchuuzi, EIA, NEMC, Tumemadini, TZS, LBMA, PML, ML, SML).
 
-Hatua za kujifunza (mazungumzo ya mwanzo):
-1. Salimia kwa jina kama amejitambulisha.
-2. Ndani ya dakika mbili: madini gani (dhahabu, vito, shaba, chumvi), idadi ya migodi, mkoa (Geita, Mererani, Songwe, Kahama, mwingine), aina ya leseni (PML, ML, SML).
-3. Kisha jifunze tatizo lake la sasa: kuandika mrabaha, muda wa leseni, malipo ya wachuuzi, ratiba ya zamu, bei ya kifurushi, soko la wanunuzi, fedha za kigeni, kanuni.
-4. Unganisha tatizo na uwezo mahususi wa Borjie pamoja na kitambulisho cha chanzo: "Borjie inaandika mrabaha wa Aprili katika muundo wa Tumemadini, tayari kusainiwa kabla ya kuwasilisha." [royalties]
-5. Maliza kwa hatua moja: "Je, ungependa jaribio la siku 90, au mtu kutoka Borjie akupigie?"
+HATUA ZA KUJIFUNZA
+1. Salimia. Uliza SWALI MOJA: madini gani, migodi mingapi, mkoa upi (Geita, Mererani, Songwe, Kahama, mwingine)?
+2. Baada ya jibu lake: kubali kile alichosema, uliza SWALI MOJA: shida kubwa sasa ni nini (mrabaha, leseni, malipo, zamu, bei ya kifurushi, soko, fedha, kanuni)?
+3. Unganisha shida na uwezo MMOJA wa Borjie. Toa jaribio la siku 90 au mtu wa Borjie kupiga simu.
 
-Borjie inafanya leo: Master Brain pamoja na wataalamu 27 [what-is-borjie]; jaribio bure siku 90 hadi migodi 3 [pilot]; PML/ML/SML wamiliki, wasimamizi, wataalamu wa madini, fedha, kanuni [who-for]; Kiswahili kwanza [languages]; uhifadhi Tanzania, umefichwa, ukaguzi wa hash [security].
+VITAMBULISHO VYA CHANZO (lazima)
+Mwisho wa kila madai ya uwezo, weka kitambulisho kati ya mabano: [who-am-i] [what-is-borjie] [autopilot] [advisor] [workers] [royalties] [licences] [marketplace] [fx] [pricing] [pilot] [who-for] [security] [languages] [sign-up]. Tovuti itaonyesha chip ya kibofyo. Usitunge.
 
-Borjie HAIFANYI: hatuendeshi benki yako; hatuchukui nafasi ya mhasibu au wakili; hatutumi kwa serikali bila saini ya mtu. Ukikosa jibu sahihi: "Bado sina hilo — ungependa mtu wa Borjie akupigie?"
+UWEZO HALISI (toa madai kutoka hapa pekee)
+Master Brain pamoja na wataalamu 27 [what-is-borjie]; kalenda ya leseni PML/ML/SML [licences]; mashimo na vifurushi [autopilot]; mrabaha wa Tumemadini wa kila mwezi [royalties]; dawati la fedha za kigeni [fx]; soko la wanunuzi [marketplace]; konsoli ya wafanyakazi pamoja na programu ya simu [workers]; kanuni za Tumemadini/NEMC/BoT [security]; mfumo wa watumiaji wengi Tanzania, mlolongo wa ukaguzi [security]; Kiswahili na Kiingereza, Kiingereza kwanza [languages]; jaribio siku 90 bure, hadi migodi 3 [pilot].
 
-Mwisho: andika kifupi (2-5 sentensi), bila vichwa, na ongeza citation kama [pilot] mwisho wa kila madai. Hakuna "AI-powered", "revolutionize". Mfanye mgeni ahisi amekutana na COO wake wa migodi.`;
+HAIFANYI: hatuendeshi benki; hatuchukui nafasi ya mhasibu/wakili; hatutumi serikalini bila saini. Ukiulizwa kitu kisicho hapo juu: "Bado sina hilo — ungependa mtu wa Borjie akupigie?"
 
-// ─── Offline fallback corpus ────────────────────────────────────────
+MUUNDO: maandishi ya kawaida tu. Sentensi fupi 2-5 kwa zamu mpaka stepper ikamilike. Mwisho wa zamu tatu za kwanza: hatua moja mpole. Hakuna "AI-powered", "revolutionize".
 
-interface FaqEntry {
-  readonly id: string;
-  readonly keywords: readonly string[];
-  readonly en: string;
-  readonly sw: string;
+Mfanye mgeni ahisi amekutana na COO wake wa migodi. Kuwa muhimu ndani ya sentensi tatu za kwanza.`;
+
+// ─── Adapters (built once, reused per request) ──────────────────────
+
+interface Providers {
+  readonly anthropic: AnthropicAdapter | null;
+  readonly openai: OpenAIAdapter | null;
 }
 
-export const BORJIE_FAQ: readonly FaqEntry[] = [
-  {
-    id: 'who-am-i',
-    keywords: ['hi', 'hello', 'hey', 'habari', 'who', 'you', 'name', 'mwikila', 'manager'],
-    en: "I'm Mr. Mwikila — Borjie's AI Mining Operations Manager. I run a Tanzanian mining business alongside the owner. To get started, tell me: what commodity do you mine, how many sites, and which region? [who-am-i]",
-    sw: 'Mimi ni Bw. Mwikila — Meneja wa AI wa Shughuli za Mgodi wa Borjie. Ninaendesha biashara ya madini pamoja na mmiliki. Nianzie hapa: madini gani, migodi mingapi, mkoa upi? [who-am-i]',
-  },
-  {
-    id: 'what-is-borjie',
-    keywords: ['what', 'borjie', 'about', 'platform', 'product'],
-    en: "Borjie runs a Tanzanian mining business on autopilot. Master Brain plus 27 specialists handle the licence calendar, drill-hole log, ore-parcel ledger, FX desk, marketplace, and compliance pack — you keep the decisions. [what-is-borjie]",
-    sw: 'Borjie inaendesha biashara ya madini Tanzania kwa autopilot. Master Brain pamoja na wataalamu 27 wanashughulikia kalenda ya leseni, mashimo, vifurushi, fedha, soko, na kanuni — wewe unabaki na maamuzi. [what-is-borjie]',
-  },
-  {
-    id: 'autopilot',
-    keywords: ['autopilot', 'run', 'manage', 'auto', 'koordinasi'],
-    en: 'Autopilot means I draft, queue, and schedule — you approve. Royalty filings, licence renewals, vendor payments, shift rosters, ore-parcel matchmaking — all ready for your signature before 09:00 each day. [autopilot]',
-    sw: 'Autopilot maana yake ninaandika, ninapanga, ninakupelekea — wewe unaidhinisha. Mrabaha, leseni, malipo ya wachuuzi, ratiba ya zamu, ulinganishaji wa vifurushi — vyote tayari kabla ya saa tatu asubuhi. [autopilot]',
-  },
-  {
-    id: 'advisor',
-    keywords: ['advisor', 'advise', 'best', 'help', 'guide', 'mshauri'],
-    en: "I'm your on-call COO. Every recommendation cites the corpus or your own data — never a guess. I won't tell you what to do; I'll show you the three options, with the trade-offs and the regulator angle. [advisor]",
-    sw: 'Mimi ni COO wako wa simu. Kila pendekezo lina chanzo kutoka kwa korpus au data yako — hakuna kubahatisha. Sikuambii ufanye nini; ninakuonyesha chaguo tatu pamoja na faida na kanuni. [advisor]',
-  },
-  {
-    id: 'workers',
-    keywords: ['worker', 'employee', 'staff', 'team', 'shift', 'wafanyakazi', 'wafanyikazi'],
-    en: 'Your workforce shows up in my console: shift schedules, attendance, fuel logs, incident reports, biometric clock-in. Supervisors get a mobile app for the pit; you get the consolidated view in the cockpit. [workers]',
-    sw: 'Wafanyakazi wako wapo kwenye konsoli yangu: ratiba ya zamu, mahudhurio, kumbukumbu za mafuta, ripoti za matukio, alama ya kidole ya kuingia. Wasimamizi wana programu ya simu mgodini; wewe unapata mwonekano kamili kwenye cockpit. [workers]',
-  },
-  {
-    id: 'royalties',
-    keywords: ['royalty', 'royalties', 'mrabaha', 'tra', 'tumemadini'],
-    en: 'I draft your monthly royalty in the Tumemadini format the day after each gold/parcel window closes. You get a one-tap signature; the ledger files it and the audit chain timestamps it. [royalties]',
-    sw: 'Ninaandika mrabaha wa mwezi katika muundo wa Tumemadini siku moja baada ya dirisha la dhahabu kufungwa. Unasaini kwa kibofyo kimoja; ledger inawasilisha na mlolongo wa ukaguzi unaweka muhuri. [royalties]',
-  },
-  {
-    id: 'pricing',
-    keywords: ['price', 'pricing', 'cost', 'subscription', 'plan', 'gharama', 'bei'],
-    en: "Pilot is free for 90 days, up to 3 sites. After that, plans scale with sites, drill-holes logged, and FX volume. Tell me your scale and I'll quote you on this call. [pricing]",
-    sw: 'Jaribio ni bure siku 90, hadi migodi 3. Baadaye, mpango unalingana na migodi, mashimo, na fedha za kigeni. Niambie ukubwa wako nikupe bei sasa hivi. [pricing]',
-  },
-  {
-    id: 'who-for',
-    keywords: ['who', 'audience', 'owner', 'operator', 'miner', 'mgodi', 'mchimbaji'],
-    en: 'PML, ML, and SML owners — solo artisanal through to mid-tier companies. Site supervisors, geologists, treasury and compliance officers each get their surface (mobile app for the field, cockpit for the owner, admin console for the platform team). [who-for]',
-    sw: 'Wamiliki wa PML, ML, na SML — kuanzia mchimbaji mmoja hadi kampuni za kati. Wasimamizi, wataalamu wa madini, timu za fedha, na maafisa wa kanuni wote wana sehemu zao. [who-for]',
-  },
-  {
-    id: 'sign-up',
-    keywords: ['sign', 'signup', 'join', 'register', 'jiunge', 'ingia', 'apply'],
-    en: 'Two ways: (1) apply for the 90-day pilot via the Pilot button at the top of this page; (2) talk to a Borjie human in 48 hours. Want me to open the pilot form for you? [sign-up]',
-    sw: 'Njia mbili: (1) jaza fomu ya jaribio la siku 90 kupitia kitufe cha Pilot juu; (2) ongea na mtu wa Borjie ndani ya saa 48. Nikufungulie fomu? [sign-up]',
-  },
-  {
-    id: 'pilot',
-    keywords: ['pilot', 'trial', 'demo', 'jaribio', 'majaribio'],
-    en: 'Pilot is 90 days, free, up to 3 sites. You get the Master Brain, licence calendar, FX desk, royalty drafter, and the compliance pack. Designed to prove ROI on your first ore parcel. [pilot]',
-    sw: 'Jaribio ni siku 90, bure, hadi migodi 3. Unapata Master Brain, kalenda ya leseni, dawati la fedha, mwandishi wa mrabaha, na seti ya kanuni. Imeundwa kuthibitisha faida ya kifurushi cha kwanza. [pilot]',
-  },
-  {
-    id: 'security',
-    keywords: ['security', 'privacy', 'data', 'safe', 'usalama'],
-    en: 'Multi-tenant by design — every query is scoped by tenant id end-to-end. Tanzania-region storage, encrypted at rest, hash-chained audit on every regulatory artifact. Tumemadini, NEMC, and BoT cadences are baked in. [security]',
-    sw: 'Mfumo wa watumiaji wengi — kila ombi linatengwa kwa mteja kutoka mwanzo hadi mwisho. Uhifadhi wa Tanzania, umefichwa, mlolongo wa ukaguzi kwenye kila hati. Tumemadini, NEMC, na BoT zimo ndani. [security]',
-  },
-  {
-    id: 'languages',
-    keywords: ['language', 'swahili', 'english', 'kiswahili', 'lugha'],
-    en: 'Bilingual sw/en, English-first now per pilot preference. Switch at any time with the SW/EN pill at the top-right. Both languages share one source of truth. [languages]',
-    sw: 'Kiswahili na Kiingereza, Kiingereza kwanza sasa kwa majaribio. Badilisha wakati wowote kwa kitufe cha SW/EN juu kulia. Lugha zote mbili zinatumia chanzo kimoja cha ukweli. [languages]',
-  },
-];
+function buildProviders(): Providers {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  return {
+    anthropic: anthropicKey
+      ? new AnthropicAdapter({ apiKey: anthropicKey })
+      : null,
+    openai: openaiKey ? new OpenAIAdapter({ apiKey: openaiKey }) : null,
+  };
+}
 
-const FALLBACK_EN =
-  "I'm Mr. Mwikila — the live model is offline this moment, so here's the short version. Borjie runs a Tanzanian mining business on autopilot: licence calendar, royalties, FX, marketplace, compliance — I draft, you approve. Tell me what commodity you mine and how many sites you run, and I'll show you the highest-leverage place to start. [who-am-i]";
-const FALLBACK_SW =
-  'Mimi ni Bw. Mwikila — modeli ya moja kwa moja imezimwa kwa sasa, hapa ni muhtasari. Borjie inaendesha biashara ya madini Tanzania kwa autopilot: leseni, mrabaha, fedha, soko, kanuni — ninaandika, unaidhinisha. Niambie madini na migodi mingapi, nikuelekeze kuanzia wapi. [who-am-i]';
+let providersCache: Providers | null = null;
+function providers(): Providers {
+  if (!providersCache) providersCache = buildProviders();
+  return providersCache;
+}
 
-// Stop words don't carry signal in a 5-word query — strip them so a
-// "how do you handle my monthly royalty filings" doesn't match
-// `who-am-i` on "you" before it sees `royalty`.
-const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your',
-  'do', 'does', 'is', 'are', 'was', 'were', 'be', 'been', 'will', 'would',
-  'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should',
-  'and', 'or', 'but', 'in', 'on', 'at', 'to', 'of', 'for', 'with',
-  'from', 'by', 'so', 'this', 'that', 'these', 'those', 'it', 'its',
-  'have', 'has', 'had', 'about', 'tell', 'show', 'me', 'help',
+// ─── Citation extraction ────────────────────────────────────────────
+
+const VALID_CITATIONS = new Set([
+  'who-am-i',
+  'what-is-borjie',
+  'autopilot',
+  'advisor',
+  'workers',
+  'royalties',
+  'licences',
+  'marketplace',
+  'fx',
+  'pricing',
+  'pilot',
+  'who-for',
+  'security',
+  'languages',
+  'sign-up',
 ]);
 
-// Bias against the generic intro entry when ANY specific topic also
-// matches — the intro is only the right answer for empty / "hi" /
-// "who are you" questions.
-const GENERIC_ENTRY_IDS = new Set(['who-am-i', 'what-is-borjie']);
-
-// Cheap stemmer: drop a single trailing 's' or 'es' so "workers" hits
-// the "worker" keyword and "filings" hits "filing". Not a real porter
-// stemmer — we only need plural collapsing for the FAQ surface.
-function stem(token: string): string {
-  if (token.length > 4 && token.endsWith('ies')) return token.slice(0, -3) + 'y';
-  if (token.length > 3 && token.endsWith('es')) return token.slice(0, -2);
-  if (token.length > 3 && token.endsWith('s')) return token.slice(0, -1);
-  return token;
-}
-
-export function pickFaq(query: string): FaqEntry | null {
-  const rawTokens = query
-    .toLowerCase()
-    .split(/[^a-z0-9]+/u)
-    .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
-  if (rawTokens.length === 0) return null;
-  // Include both the literal token and its stem so a keyword set
-  // matches either form.
-  const tokens = Array.from(
-    new Set(rawTokens.flatMap((t) => [t, stem(t)])),
-  );
-
-  // Score every entry with overlap count.
-  const scored = BORJIE_FAQ.map((entry) => {
-    const overlap = entry.keywords.reduce(
-      (acc, kw) => (tokens.includes(kw.toLowerCase()) ? acc + 1 : acc),
-      0,
-    );
-    return { entry, overlap };
-  });
-
-  const anySpecific = scored.some(
-    (s) => s.overlap > 0 && !GENERIC_ENTRY_IDS.has(s.entry.id),
-  );
-
-  let best: FaqEntry | null = null;
-  let bestScore = 0;
-  for (const { entry, overlap } of scored) {
-    if (overlap === 0) continue;
-    // If at least one specific entry matched, demote the generic ones.
-    const adjusted =
-      anySpecific && GENERIC_ENTRY_IDS.has(entry.id) ? overlap * 0.25 : overlap;
-    if (adjusted > bestScore) {
-      best = entry;
-      bestScore = adjusted;
-    }
-  }
-  return bestScore > 0 ? best : null;
-}
-
-// ─── Anthropic stream helpers ───────────────────────────────────────
-
-interface AnthropicStreamEvent {
-  readonly type: string;
-  readonly delta?: { readonly type?: string; readonly text?: string };
-}
-
-interface AnthropicSdkModule {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly default: any;
-}
-
-async function loadAnthropic(): Promise<AnthropicSdkModule | null> {
-  try {
-    const mod = (await import('@anthropic-ai/sdk')) as unknown as AnthropicSdkModule;
-    return mod;
-  } catch {
-    return null;
-  }
-}
-
-// Strip the `[id]` citation markers and collect them so the rendering
-// layer can attach citation chips.
 function extractCitations(text: string): {
   readonly clean: string;
   readonly ids: readonly string[];
 } {
   const ids: string[] = [];
-  const clean = text.replace(/\[([a-z][a-z0-9-]{1,40})\]/gi, (_m, id) => {
-    if (BORJIE_FAQ.some((e) => e.id === id) || id === 'autopilot' || id === 'advisor' || id === 'workers' || id === 'royalties') {
-      ids.push(`borjie:${id}`);
+  const clean = text.replace(/\[([a-z][a-z0-9-]{1,40})\]/gi, (_m, id: string) => {
+    if (VALID_CITATIONS.has(id.toLowerCase())) {
+      ids.push(`borjie:${id.toLowerCase()}`);
     }
     return '';
   });
-  return { clean: clean.replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim(), ids };
+  return {
+    clean: clean
+      .replace(/\s+([.,!?])/g, '$1')
+      .replace(/\s{2,}/g, ' ')
+      .trim(),
+    ids: Array.from(new Set(ids)),
+  };
 }
 
-function chunkText(text: string, chunkSize = 48): readonly string[] {
+function chunkText(text: string, chunkSize = 40): readonly string[] {
   const out: string[] = [];
   for (let i = 0; i < text.length; i += chunkSize) {
     out.push(text.slice(i, i + chunkSize));
   }
   return out;
+}
+
+// Pull the assistant text out of a BrainLLMResponse content[] array.
+function extractText(response: BrainLLMResponse): string {
+  const parts: string[] = [];
+  for (const block of response.content as readonly ContentBlock[]) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      parts.push(block.text);
+    }
+  }
+  return parts.join('').trim();
 }
 
 // ─── Hono app ───────────────────────────────────────────────────────
@@ -351,9 +231,9 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
   const mode = body.mode ?? 'build';
   const history = body.history ?? [];
   const sessionId = body.sessionId ?? null;
+  const startedAt = Date.now();
 
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  const Anthropic = apiKey ? await loadAnthropic() : null;
+  const { anthropic, openai } = providers();
 
   return streamSSE(c, async (stream) => {
     const abort = new AbortController();
@@ -369,17 +249,140 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       }),
     });
 
-    // ─── Offline fallback (no key OR sdk load failed) ───────────────
-    if (!apiKey || !Anthropic) {
-      const faq = pickFaq(query);
-      const reply = faq
-        ? language === 'sw'
-          ? faq.sw
-          : faq.en
-        : language === 'sw'
-          ? FALLBACK_SW
-          : FALLBACK_EN;
-      const { clean, ids } = extractCitations(reply);
+    // ─── No providers configured ──────────────────────────────────
+    if (!anthropic && !openai) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'no_provider_configured',
+          message:
+            'No LLM provider configured (ANTHROPIC_API_KEY / OPENAI_API_KEY).',
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), error: true }),
+      });
+      return;
+    }
+
+    // ─── Build the request ────────────────────────────────────────
+    const systemPrompt =
+      language === 'sw'
+        ? BORJIE_MWIKILA_SYSTEM_PROMPT_SW
+        : BORJIE_MWIKILA_SYSTEM_PROMPT_EN;
+
+    const messages = [
+      ...history.map((h) => ({
+        role: h.role,
+        content: [{ type: 'text' as const, text: h.text }],
+      })),
+      {
+        role: 'user' as const,
+        content: [{ type: 'text' as const, text: query }],
+      },
+    ];
+
+    // ─── Multi-provider ladder ────────────────────────────────────
+    // We DO NOT use brain-llm-router's `runFallback` here because it
+    // fails fast on any 4xx (treating auth errors as non-retryable).
+    // For the public marketing chat we want to genuinely try every
+    // configured provider — an invalid Anthropic key should still let
+    // OpenAI answer the visitor.
+    interface LadderEntry {
+      readonly model: string;
+      readonly client: BrainLLMClient;
+      readonly providerName: string;
+    }
+    const ladder: LadderEntry[] = [];
+    if (anthropic) {
+      ladder.push({
+        model: 'claude-sonnet-4-5',
+        client: anthropic,
+        providerName: 'anthropic',
+      });
+    }
+    if (openai) {
+      ladder.push({
+        model: 'gpt-4o',
+        client: openai,
+        providerName: 'openai',
+      });
+    }
+
+    interface Attempt {
+      readonly provider: string;
+      readonly model: string;
+      readonly error?: string;
+      readonly latencyMs: number;
+    }
+    const attempts: Attempt[] = [];
+    let response: BrainLLMResponse | null = null;
+    let depth = -1;
+
+    for (let i = 0; i < ladder.length; i++) {
+      const entry = ladder[i]!;
+      const t0 = Date.now();
+      const request: BrainLLMRequest = {
+        model: entry.model,
+        messages,
+        system: systemPrompt,
+        maxTokens: 700,
+        temperature: 0.7,
+      };
+      try {
+        response = await entry.client.invoke(request);
+        attempts.push({
+          provider: entry.providerName,
+          model: entry.model,
+          latencyMs: Date.now() - t0,
+        });
+        depth = i;
+        break;
+      } catch (err) {
+        attempts.push({
+          provider: entry.providerName,
+          model: entry.model,
+          error: err instanceof Error ? err.message : String(err),
+          latencyMs: Date.now() - t0,
+        });
+        // Continue to next provider regardless of error class.
+      }
+    }
+
+    try {
+      if (!response) {
+        throw new Error(
+          `All providers failed: ${attempts
+            .map((a) => `${a.provider}=${a.error ?? 'unknown'}`)
+            .join('; ')}`,
+        );
+      }
+
+      const text = extractText(response);
+      if (!text) {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            kind: 'empty_response',
+            message: 'Model returned no text content.',
+            retryable: true,
+            attempts: attempts.length,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ at: new Date().toISOString(), error: true }),
+        });
+        return;
+      }
+
+      // Strip + collect citations, then stream the clean text in
+      // 40-char chunks for a typing-cadence feel. Final chunk carries
+      // the evidence_ids + confidence so the client can attach the
+      // chip(s) to the bubble.
+      const { clean, ids } = extractCitations(text);
       const chunks = chunkText(clean);
       for (let i = 0; i < chunks.length; i++) {
         if (abort.signal.aborted) break;
@@ -389,120 +392,40 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
           data: JSON.stringify({
             text: chunks[i] ?? '',
             evidence_ids: isLast ? ids : [],
-            confidence: isLast ? 0.92 : null,
+            confidence: isLast ? 0.95 : null,
             done: false,
           }),
         });
-        await new Promise<void>((r) => setTimeout(r, 14));
-      }
-      await stream.writeSSE({
-        event: 'done',
-        data: JSON.stringify({ at: new Date().toISOString() }),
-      });
-      return;
-    }
-
-    // ─── Live Anthropic streaming ───────────────────────────────────
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = new (Anthropic.default as any)({ apiKey });
-      const systemPrompt = language === 'sw' ? SYSTEM_PROMPT_SW : SYSTEM_PROMPT_EN;
-      const messages = [
-        ...history.map((h) => ({ role: h.role, content: h.text })),
-        { role: 'user' as const, content: query },
-      ];
-
-      const llmStream = await client.messages.stream({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 700,
-        system: [
-          {
-            type: 'text',
-            text: systemPrompt,
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        messages,
-      });
-
-      let buffered = '';
-      let totalChars = 0;
-      for await (const event of llmStream as AsyncIterable<AnthropicStreamEvent>) {
-        if (abort.signal.aborted) break;
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta?.type === 'text_delta' &&
-          typeof event.delta.text === 'string'
-        ) {
-          buffered += event.delta.text;
-          totalChars += event.delta.text.length;
-          // Flush in ≈40-char chunks for a smooth typing cadence
-          while (buffered.length >= 40) {
-            const slice = buffered.slice(0, 40);
-            buffered = buffered.slice(40);
-            const { clean, ids } = extractCitations(slice);
-            await stream.writeSSE({
-              event: 'message_chunk',
-              data: JSON.stringify({
-                text: clean,
-                evidence_ids: ids,
-                confidence: null,
-                done: false,
-              }),
-            });
-          }
-        }
-      }
-
-      // Flush any remaining buffered tail with the final citations
-      if (buffered.length > 0 && !abort.signal.aborted) {
-        const { clean, ids } = extractCitations(buffered);
-        await stream.writeSSE({
-          event: 'message_chunk',
-          data: JSON.stringify({
-            text: clean,
-            evidence_ids: ids,
-            confidence: 0.95,
-            done: false,
-          }),
-        });
+        await new Promise<void>((r) => setTimeout(r, 18));
       }
 
       await stream.writeSSE({
         event: 'done',
         data: JSON.stringify({
           at: new Date().toISOString(),
-          chars: totalChars,
+          provider: response.provider,
+          depth,
+          latencyMs: Date.now() - startedAt,
+          attempts: attempts.length,
         }),
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      // On live-model failure, degrade to the FAQ fallback rather than
-      // surfacing an unstyled "wire" error to the user.
-      const faq = pickFaq(query);
-      const reply = faq
-        ? language === 'sw'
-          ? faq.sw
-          : faq.en
-        : language === 'sw'
-          ? FALLBACK_SW
-          : FALLBACK_EN;
-      const { clean, ids } = extractCitations(reply);
+      // Every provider failed — surface the real error. NO mock fallback.
+      const message = err instanceof Error ? err.message : String(err);
       await stream.writeSSE({
-        event: 'message_chunk',
+        event: 'error',
         data: JSON.stringify({
-          text: clean,
-          evidence_ids: ids,
-          confidence: 0.85,
-          done: false,
+          kind: 'all_providers_failed',
+          message,
+          retryable: true,
         }),
       });
       await stream.writeSSE({
         event: 'done',
         data: JSON.stringify({
           at: new Date().toISOString(),
-          degraded: true,
-          reason: message,
+          error: true,
+          latencyMs: Date.now() - startedAt,
         }),
       });
     }

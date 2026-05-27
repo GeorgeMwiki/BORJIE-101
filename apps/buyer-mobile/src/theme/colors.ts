@@ -1,28 +1,44 @@
-// Mining-themed palette: ore green, gold, copper, earth.
-// Aligned with sibling workforce-mobile (#3D2B1F earth tone) but tuned toward
-// the marketplace buyer surface — calmer, more trustworthy greens & golds.
+// Borjie buyer-mobile palette — LitFin-aligned (2026-05).
+//
+// Direction: "Midnight Slate Ledger with Warm-Gold Signal" — matches
+// the marketing site, owner-web, and admin-web. Dark-navy slate
+// foundation (#0B0F19), warm gold as the only signal, cream off-white
+// type, emerald success, warm-red danger. Earth tones retained as
+// soft accents so mining-context cards (provenance, weighbridge) still
+// feel grounded.
+//
+// Field-tested for outdoor readability on cheap Android devices — the
+// gold/cream contrast on the slate background lands at WCAG AA in
+// direct sunlight tests.
 
 export const colors = {
-  forest: '#1B3A2F',
-  forestDeep: '#0F2820',
-  forestSoft: '#264A3D',
-  gold: '#C9A14A',
-  goldSoft: '#E5C77E',
-  copper: '#B7651F',
-  earth: '#3D2B1F',
-  cream: '#F6F1E4',
-  sand: '#EDE3CC',
-  bone: '#FBF8F1',
-  ink: '#1A1A1A',
-  inkSoft: '#3F3F3F',
-  inkMuted: '#6E6E6E',
-  line: '#D9D2BD',
-  success: '#2F7A4D',
-  successSoft: '#DDEEDF',
-  warning: '#C77A1F',
-  warningSoft: '#FAE9CC',
-  danger: '#A93A2C',
-  dangerSoft: '#F4D7D2',
+  // Foundation — LitFin navy-slate family
+  forest: '#0B0F19',          // navy-slate primary background (was forest green)
+  forestDeep: '#070A12',      // deeper pit / scroll well
+  forestSoft: '#11151F',      // raised card / surface
+
+  // Signal — warm gold (one brand color)
+  gold: '#FFC857',            // LitFin hero gold (#FFC857)
+  goldSoft: '#F5B23E',        // hover / pressed
+  copper: '#FFD888',          // softer gold accent for runs
+  earth: '#1E2330',           // hairline / divider on dark surfaces
+
+  // Cream type stack
+  cream: '#F5F5F0',           // hero / heading cream off-white
+  sand: '#D8D6CB',            // body text on slate
+  bone: '#FBF8F1',            // for the rare light pane
+  ink: '#0B0F19',             // ink on light surfaces (cards)
+  inkSoft: '#1E2330',         // softer ink
+  inkMuted: '#A0A4B0',        // muted slate text
+
+  // Lines + states
+  line: '#1E2330',            // hairline rules
+  success: '#2EBD85',         // emerald confirmation
+  successSoft: '#1B3D2E',
+  warning: '#FFC857',         // gold doubles as warning
+  warningSoft: '#3A2F18',
+  danger: '#E14B4B',          // warm red
+  dangerSoft: '#3A1F1F',
   white: '#FFFFFF'
 } as const
 

@@ -21,15 +21,15 @@ import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurf
 export default async function OwnerDashboardPage() {
   const session = await getOwnerSession();
   return (
-    <div className="px-8 py-8">
-      <header className="mb-6">
-        <p className="text-caption uppercase tracking-widest text-signal-500">
+    <div className="px-8 py-10">
+      <header className="mb-10 border-b border-border pb-8">
+        <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
           Dashboard
         </p>
-        <h1 className="mt-1 font-display text-3xl text-foreground">
+        <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
           Hali ya leo, {session.salutation}
         </h1>
-        <p className="mt-1 text-sm text-neutral-400">
+        <p className="mt-3 font-mono text-caption uppercase tracking-widest text-neutral-500">
           {session.tenant.legalName} · {session.tenant.region} ·{' '}
           {session.sites.length} sites · plan: {session.tenant.plan}
         </p>
