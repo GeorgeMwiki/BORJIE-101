@@ -1,0 +1,70 @@
+{
+  "name": "@borjie/graph-viz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "SOTA interactive graph + chart visualisation primitives for Borjie. Wraps Cytoscape.js, react-flow, vis-network, sigma.js, D3 7 and Apache ECharts behind a single typed surface that integrates with @borjie/genui's AdaptiveRenderer so the Jarvis brain can drop a graph block inline in chat. Mining-domain wrappers (Mr. Mwikila persona) render licence relationship graphs, supply-chain Sankeys, worker-shift Gantts, royalty flow Sankeys, and mineral price time-series with forecast intervals.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.2.0",
+    "@testing-library/react": "^14.1.2",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "jsdom": "^24.0.0",
+    "tsup": "^8.0.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "peerDependencies": {
+    "@borjie/forecasting": "workspace:*",
+    "@borjie/genui": "workspace:*",
+    "cytoscape": "^3.30.0",
+    "d3": "^7.9.0",
+    "d3-sankey": "^0.12.3",
+    "echarts": "^5.5.0",
+    "echarts-for-react": "^3.0.2",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "reactflow": "^11.11.0",
+    "sigma": "^3.0.0",
+    "graphology": "^0.25.4",
+    "vis-network": "^9.1.9"
+  },
+  "peerDependenciesMeta": {
+    "cytoscape":        { "optional": true },
+    "d3":               { "optional": true },
+    "d3-sankey":        { "optional": true },
+    "echarts":          { "optional": true },
+    "echarts-for-react":{ "optional": true },
+    "reactflow":        { "optional": true },
+    "sigma":            { "optional": true },
+    "graphology":       { "optional": true },
+    "vis-network":      { "optional": true }
+  }
+}
