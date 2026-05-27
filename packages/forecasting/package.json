@@ -22,6 +22,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
+    "@borjie/observability": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {
