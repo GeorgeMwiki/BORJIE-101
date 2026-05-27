@@ -97,3 +97,6 @@ expo-env.d.ts
 .borjie-db-pass.tmp
 .borjie-project-ref.tmp
 .gitignore.tmp
+
+# Local IDE launch config (operator-specific)
+.claude/launch.json
