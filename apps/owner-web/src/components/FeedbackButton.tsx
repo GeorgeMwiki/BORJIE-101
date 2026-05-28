@@ -11,14 +11,19 @@
  *   - Optimistic UI: the modal closes immediately on Send; if the POST
  *     fails, the modal re-opens with the error.
  *
- * Mounting policy: this file ONLY exports the component. Layouts choose
- * whether to mount it (we never auto-mount on every page — pilot scope
- * is opt-in by the page owner).
+ * Mounting policy: this file ONLY exports the component. Layouts
+ * choose whether to mount it (we never auto-mount on every page —
+ * pilot scope is opt-in by the page owner).
+ *
+ * LitFin DNA: trigger is the signal-gold CTA, modal sits inside our
+ * standard `bg-card border-border` panel with the same rounded-xl
+ * inputs as the auth surfaces. Stars become tinted icon buttons.
  *
  * Bilingual: Swahili-first labels per CLAUDE.md.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MessageSquarePlus, Star, X } from 'lucide-react';
 import { apiRequest, ApiError } from '@/lib/api-client';
 
 export interface FeedbackButtonProps {
@@ -42,6 +47,7 @@ const LABELS = {
   open: { sw: 'Niarifu Borjie', en: 'Tell Borjie' },
   title: { sw: 'Tueleze uzoefu wako', en: 'Share your experience' },
   ratingPrompt: { sw: 'Ulipenda kiasi gani?', en: 'How was it?' },
+  noteLabel: { sw: 'Ujumbe wako', en: 'Your note' },
   messagePlaceholder: {
     sw: 'Andika kwa Kiswahili au Kiingereza...',
     en: 'Write in Swahili or English...',
@@ -98,6 +104,15 @@ export function FeedbackButton({
     reset();
   }, [reset]);
 
+  useEffect((): (() => void) => {
+    if (!open) return () => undefined;
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') close();
+    }
+    window.addEventListener('keydown', onKey);
+    return (): void => window.removeEventListener('keydown', onKey);
+  }, [open, close]);
+
   const send = useCallback(async (): Promise<void> => {
     if (submitting) return;
     const trimmed = message.trim();
@@ -137,29 +152,50 @@ export function FeedbackButton({
       <button
         type="button"
         onClick={(): void => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 rounded-full border border-yellow-700 bg-yellow-400 px-4 py-2 text-sm font-bold text-neutral-900 shadow-lg hover:bg-yellow-300"
+        className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:bg-signal-400 hover:shadow-xl active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label={pick(LABELS.open, lang)}
         data-testid="feedback-button-open"
       >
+        <MessageSquarePlus aria-hidden="true" className="h-4 w-4" />
         {pick(LABELS.open, lang)}
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
           data-testid="feedback-button-modal"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="owner-feedback-title"
+          onClick={close}
         >
-          <div className="w-full max-w-md rounded-t-xl bg-surface p-6 shadow-xl sm:rounded-xl">
-            <h2 className="text-lg font-bold text-foreground">
+          <div
+            className="relative w-full max-w-md rounded-t-2xl border border-border bg-card p-6 shadow-xl sm:rounded-2xl"
+            onClick={(e): void => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={close}
+              className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40"
+              aria-label={pick(LABELS.cancel, lang)}
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+            <h2
+              id="owner-feedback-title"
+              className="font-display text-xl font-medium tracking-tight text-foreground"
+            >
               {pick(LABELS.title, lang)}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {pick(LABELS.ratingPrompt, lang)}
             </p>
 
-            <div className="mt-3 flex gap-2" role="radiogroup" aria-label={pick(LABELS.ratingPrompt, lang)}>
+            <div
+              className="mt-4 flex gap-2"
+              role="radiogroup"
+              aria-label={pick(LABELS.ratingPrompt, lang)}
+            >
               {RATINGS.map((star) => {
                 const active = rating >= star;
                 return (
@@ -171,42 +207,57 @@ export function FeedbackButton({
                     onClick={(): void => setRating(star)}
                     className={
                       active
-                        ? 'h-11 w-11 rounded-md border border-yellow-700 bg-yellow-400 text-base font-bold text-neutral-900'
-                        : 'h-11 w-11 rounded-md border border-border bg-surface-sunken text-base font-bold text-foreground hover:bg-surface'
+                        ? 'inline-flex h-11 w-11 items-center justify-center rounded-xl bg-signal-500 text-primary-foreground shadow-sm transition-transform hover:scale-[1.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40'
+                        : 'inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-muted/30 text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40'
                     }
                     data-testid={`feedback-button-star-${star}`}
                   >
-                    {star}
+                    <Star
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      fill={active ? 'currentColor' : 'none'}
+                    />
+                    <span className="sr-only">{star}</span>
                   </button>
                 );
               })}
             </div>
 
+            <label
+              htmlFor="owner-feedback-message"
+              className="mt-5 block text-sm font-medium text-foreground"
+            >
+              {pick(LABELS.noteLabel, lang)}
+            </label>
             <textarea
+              id="owner-feedback-message"
               value={message}
               onChange={(e): void => setMessage(e.target.value.slice(0, 1500))}
               placeholder={pick(LABELS.messagePlaceholder, lang)}
-              className="mt-3 min-h-[96px] w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+              className="mt-1.5 min-h-[96px] w-full rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/20"
               maxLength={1500}
               aria-label={pick(LABELS.messagePlaceholder, lang)}
               data-testid="feedback-button-message"
             />
+            <p className="mt-1 text-right font-mono text-[10px] tabular-nums text-muted-foreground/70">
+              {message.length} / 1500
+            </p>
 
             {error ? (
               <p
                 role="alert"
-                className="mt-2 text-sm text-destructive"
+                className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
                 data-testid="feedback-button-error"
               >
                 {error}
               </p>
             ) : null}
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={close}
-                className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-sunken"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40"
                 data-testid="feedback-button-cancel"
               >
                 {pick(LABELS.cancel, lang)}
@@ -217,7 +268,7 @@ export function FeedbackButton({
                   void send();
                 }}
                 disabled={submitting}
-                className="rounded-md border border-yellow-700 bg-yellow-400 px-4 py-2 text-sm font-bold text-neutral-900 hover:bg-yellow-300 disabled:opacity-50"
+                className="rounded-xl bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 data-testid="feedback-button-send"
               >
                 {pick(LABELS.send, lang)}

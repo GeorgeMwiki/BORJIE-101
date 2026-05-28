@@ -19,17 +19,21 @@
 @tailwind utilities;
 
 @layer components {
+  /* LitFin-pattern surface cards for the HQ console. Hairline border,
+     tinted-card bg, generous padding, no heavy shadows in dark. The
+     `-degraded` variant tints with warning at 10% with an inset ring
+     so it reads as "muted alert" not "broken panel". */
   .platform-card {
-    @apply rounded-lg border border-border bg-surface shadow-sm p-6;
+    @apply rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-border-strong;
   }
   .platform-card-degraded {
-    @apply rounded-lg border border-warning/40 bg-warning-subtle/20 p-6;
+    @apply rounded-2xl border border-warning/30 bg-warning/10 p-6 ring-1 ring-inset ring-warning/20;
   }
   .platform-card-title {
-    @apply text-sm font-medium text-neutral-400 mb-2;
+    @apply font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2;
   }
   .platform-card-value {
-    @apply text-3xl font-display text-foreground;
+    @apply text-3xl font-display font-medium tracking-tight text-foreground tabular-nums;
   }
 }
 
