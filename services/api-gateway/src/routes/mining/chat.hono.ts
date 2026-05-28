@@ -31,7 +31,7 @@ const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-app.openapi(chatTurnRoute, async (c) => {
+app.openapi(chatTurnRoute, ((c) => {
   const { tenantId, userId } = c.get('auth');
   const db = c.get('db');
   const input = c.req.valid('json');
@@ -118,6 +118,6 @@ app.openapi(chatTurnRoute, async (c) => {
       });
     }
   });
-});
+}) as any);
 
 export const miningChatRouter = app;

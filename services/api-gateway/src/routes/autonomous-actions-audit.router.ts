@@ -67,9 +67,9 @@ autonomousActionsAuditRouter.get(
     const q = c.req.valid('query');
     const since = q.since ? new Date(q.since) : undefined;
     const rows = await getAudit(c).list(tenantId, {
-      domain: q.domain,
-      since,
-      limit: q.limit,
+      ...(q.domain && { domain: q.domain }),
+      ...(since && { since }),
+      ...(q.limit && { limit: q.limit }),
     });
     return c.json({
       success: true,

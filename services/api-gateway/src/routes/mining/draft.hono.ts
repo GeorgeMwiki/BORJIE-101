@@ -99,9 +99,9 @@ app.get('/', async (c) => {
   const rows = await drafter.listDrafts({
     tenantId: auth.tenantId,
     userId: auth.userId,
-    status: parsed.data.status,
-    kind: parsed.data.kind,
-    limit: parsed.data.limit,
+    ...(parsed.data.status && { status: parsed.data.status }),
+    ...(parsed.data.kind && { kind: parsed.data.kind }),
+    ...(parsed.data.limit && { limit: parsed.data.limit }),
   });
   return c.json({ success: true, data: rows }, 200);
 });
@@ -143,8 +143,8 @@ app.post('/', async (c) => {
       templateSlug: parsed.data.templateSlug,
       language: parsed.data.language,
       titleSw: parsed.data.titleSw,
-      titleEn: parsed.data.titleEn,
-      jurisdiction: parsed.data.jurisdiction,
+      ...(parsed.data.titleEn && { titleEn: parsed.data.titleEn }),
+      ...(parsed.data.jurisdiction && { jurisdiction: parsed.data.jurisdiction }),
       fillVars: parsed.data.fillVars,
     });
     return c.json({ success: true, data: draft }, 201);

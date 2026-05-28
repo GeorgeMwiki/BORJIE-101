@@ -94,7 +94,7 @@ app.get('/subscribe', authMiddleware, async (c) => {
   }
 
   const tenantId = String(auth.tenantId);
-  const userId = String(auth.userId ?? auth.sub ?? 'unknown-user');
+  const userId = String(auth.userId ?? 'unknown-user');
   const tenantChannel = tenantTopic(tenantId);
   const globalChannel = globalTopic();
 

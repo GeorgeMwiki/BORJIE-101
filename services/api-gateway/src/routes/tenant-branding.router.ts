@@ -86,7 +86,6 @@ app.put(
     } catch (err: any) {
       return routeCatch(c, err, {
         code: 'TENANT_BRANDING_UPDATE_FAILED',
-        status: 400,
         fallback: 'Failed to update tenant branding',
       });
     }
@@ -109,7 +108,6 @@ app.post(
     } catch (err: any) {
       return routeCatch(c, err, {
         code: 'TENANT_BRANDING_RESET_FAILED',
-        status: 400,
         fallback: 'Failed to reset tenant branding',
       });
     }

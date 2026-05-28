@@ -180,7 +180,6 @@ app.post('/record', zValidator('json', RecordSchema), async (c: any) => {
   } catch (err: any) {
     return routeCatch(c, err, {
       code: 'AUDIT_TRAIL_RECORD_FAILED',
-      status: 400,
       fallback: 'Failed to record audit entry',
     });
   }
@@ -243,7 +242,7 @@ app.get('/bundle', zValidator('query', BundleQuerySchema), async (c: any) => {
         to: parseDate(q.to),
         category: q.category,
         actorKind: q.actorKind,
-        limit: q.limit ? parseIntClamped(q.limit, 1000, 10000) : undefined,
+        ...(q.limit && { limit: parseIntClamped(q.limit, 1000, 10000) }),
       },
     );
     return c.json({ success: true, data: bundle });

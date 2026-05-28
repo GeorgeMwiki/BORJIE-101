@@ -38,8 +38,8 @@ function notConfigured(c) {
 }
 
 app.get('/', async (c) => {
-  const services = c.get('services') ?? {};
-  const db = services.db;
+  const services = c.get('services') as any ?? {};
+  const db = services.db as any;
   if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const limitParam = c.req.query('limit');
@@ -62,14 +62,14 @@ app.get('/', async (c) => {
 });
 
 app.get('/unread/count', async (c) => {
-  const services = c.get('services') ?? {};
-  const db = services.db;
+  const services = c.get('services') as any ?? {};
+  const db = services.db as any;
   if (!db) return notConfigured(c);
   // Unread is a function of per-user delivery state that isn't tracked in
   // dispatch log directly (there's no `read_at`). The in-app notification
   // inbox schema is not landed yet — return a loud 501 unless the
   // `flag.bff.notifications.unread_count` flag is explicitly on (dev mode).
-  const ff = services.featureFlags;
+  const ff = services.featureFlags as any;
   const tenantId = c.get('tenantId');
   let flagOn = false;
   if (ff && typeof ff.isEnabled === 'function') {
@@ -97,8 +97,8 @@ app.get('/unread/count', async (c) => {
 });
 
 app.get('/:id', async (c) => {
-  const services = c.get('services') ?? {};
-  const db = services.db;
+  const services = c.get('services') as any ?? {};
+  const db = services.db as any;
   if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');

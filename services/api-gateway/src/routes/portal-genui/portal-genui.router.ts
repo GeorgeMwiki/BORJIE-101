@@ -195,7 +195,6 @@ router.post(
       const intent = await engine.detectIntent({
         message: parsed.data.message,
         role: parsed.data.role ?? (auth?.role as never),
-        currentTabKeys: undefined,
       });
       return c.json({ success: true, data: { intent } });
     },
@@ -256,17 +255,20 @@ router.post(
         );
       }
       try {
+        const orgCtx = parsed.data.orgContext ? {
+          ...(parsed.data.orgContext.tenantRegion && { tenantRegion: parsed.data.orgContext.tenantRegion }),
+          ...(parsed.data.orgContext.tenantName && { tenantName: parsed.data.orgContext.tenantName }),
+          ...(parsed.data.orgContext.tenantCurrency && { tenantCurrency: parsed.data.orgContext.tenantCurrency }),
+          ...(parsed.data.orgContext.userPersona && { userPersona: parsed.data.orgContext.userPersona }),
+          ...(parsed.data.orgContext.existingTabKeys && { existingTabKeys: parsed.data.orgContext.existingTabKeys }),
+        } : undefined;
         const result = await engine.generate({
           intent: parsed.data.intent,
           tenantId: auth.tenantId,
           userId: auth.userId,
           actorId: auth.userId,
-          ...(parsed.data.orgContext !== undefined
-            ? { orgContext: parsed.data.orgContext }
-            : {}),
-          ...(parsed.data.sourceConversationId !== undefined
-            ? { sourceConversationId: parsed.data.sourceConversationId }
-            : {}),
+          ...(orgCtx && { orgContext: orgCtx }),
+          ...(parsed.data.sourceConversationId && { sourceConversationId: parsed.data.sourceConversationId }),
         });
         if (parsed.data.persist) {
           await engine.persist({ tab: result.tab });

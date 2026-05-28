@@ -272,6 +272,12 @@ import type {
 } from './workers/lease-expiry-alert-cron';
 import { createExecutiveBriefCron } from './workers/executive-brief-cron';
 import { createExecutiveBriefActionRunner } from './workers/executive-brief-action-runner';
+// Wave OWNER-OS DAILY-BRIEF rebuild. Mining-native replacement for the
+// disabled BossNyumba `executive-brief-cron` — composes per-tenant
+// briefs, persists snapshots, dispatches via email/sms/slack with
+// UNIQUE-constraint idempotency.
+import { createDailyBriefCron } from './workers/daily-brief-cron';
+import { registerDailyBriefCron } from './workers/daily-brief-cron-registry';
 import {
   registerDomainEventSubscribers,
   type SubscribableBus,
@@ -305,6 +311,16 @@ import { ownerFormsRouter } from './routes/owner/forms.hono';
 import { ownerRemindersRouter } from './routes/owner/reminders.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
+import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
+// Wave WORKFORCE-FIXED-TABS — fixed-tab catalog server, owner-side
+// configurator surface, worker-side change requests. See:
+//   services/api-gateway/src/routes/workforce/tab-configs.hono.ts
+//   packages/database/src/migrations/0091_workforce_role_tab_configs.sql
+//   packages/persona-runtime/src/workforce-tab-catalog.ts
+import {
+  workforceTabConfigWorkerRouter,
+  workforceTabConfigOwnerRouter,
+} from './routes/workforce/tab-configs.hono';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
@@ -1161,10 +1177,19 @@ api.route('/owner/messaging', ownerMessagingRouter);
 // Wave OWNER-OS — mount BEFORE the wildcard owner mounts so the more
 // specific paths win lookup order.
 api.route('/owner/brief', ownerBriefRouter);
+// Wave OWNER-OS DAILY-BRIEF rebuild — cron-aware daily brief surface.
+// GET / returns today's snapshot (cached or null); POST /trigger forces
+// a generate-and-dispatch right now (owner-only). Mounted BEFORE the
+// generic /owner/* wildcards so the specific path wins lookup.
+api.route('/owner/daily-brief', ownerDailyBriefRouter);
 api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
 api.route('/owner/tabs', ownerTabsRouter);
+// Wave WORKFORCE-FIXED-TABS — mount BEFORE wildcard owner mounts so the
+// more specific `/owner/workforce/*` paths win lookup order.
+api.route('/owner/workforce', workforceTabConfigOwnerRouter);
+api.route('/workforce', workforceTabConfigWorkerRouter);
 api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
@@ -1427,6 +1452,46 @@ const leaseExpiryCron = { start() {}, stop() {}, async tickOnce() { return { sca
 // migration lands and a mining-domain subscription schema is finalized.
 const executiveBriefCron = { start() {}, stop() {}, async tickOnce() { return { scanned: 0, generated: 0, degraded: 0, refused: 0, failed: 0 }; } };
 
+// Wave OWNER-OS DAILY-BRIEF rebuild — mining-native daily-brief cron.
+// Ticks every BORJIE_DAILY_BRIEF_CRON_INTERVAL_MS (default 5 min) and
+// composes / dispatches today's brief for every tenant whose
+// `daily_brief_cadence` matches the current minute in their local
+// timezone (Africa/Dar_es_Salaam fallback). Idempotent via
+// UNIQUE(tenant_id, snapshot_date, channel, recipient) on
+// `daily_brief_dispatches`. Persists snapshots in
+// `owner_brief_snapshots` so the owner-web dashboard hits cache.
+const dailyBriefCron = serviceRegistry.db
+  ? createDailyBriefCron({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      emailProvider: createEmailProviderFromEnv(),
+      smsProvider: resolveSmsProviderFromEnv(),
+      intervalMs: Number(process.env.BORJIE_DAILY_BRIEF_CRON_INTERVAL_MS ?? 5 * 60_000) || 5 * 60_000,
+      enabled:
+        process.env.NODE_ENV !== 'test' &&
+        process.env.BORJIE_DAILY_BRIEF_CRON_DISABLED !== 'true',
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return { scanned: 0, generated: 0, dispatched: 0, failed: 0 };
+      },
+      async triggerForTenant(tenantId: string) {
+        return {
+          tenantId,
+          generated: false,
+          snapshotId: null,
+          dispatched: 0,
+          skipped: 0,
+          failed: 0,
+          reason: 'db_unwired',
+        };
+      },
+    };
+// Expose the live handle so the manual-trigger endpoint can call it.
+registerDailyBriefCron(dailyBriefCron);
+
 // Piece E (issue #41) — executive-brief action runner. Drains
 // `executive_brief_actions WHERE status='approved' AND executed_at IS NULL`
 // every BORJIE_ACTION_RUNNER_INTERVAL_MS (default 10s) and dispatches
@@ -1519,6 +1584,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: executive-brief cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: executive-brief cron stop failed');
+  }
+  try {
+    dailyBriefCron.stop();
+    logger.info('shutdown: daily-brief cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: daily-brief cron stop failed');
   }
   try {
     executiveBriefActionRunner.stop();
@@ -1633,6 +1704,11 @@ if (require.main === module) {
   // get briefs generated at their local_time + cadence. ON_DEMAND
   // subscriptions are never auto-fired.
   executiveBriefCron.start();
+  // Wave OWNER-OS DAILY-BRIEF rebuild — start the per-tenant daily-brief
+  // cron. Ticks every 5 min, fires per tenant when their local
+  // `daily_brief_cadence` matches the wall clock; idempotent via
+  // UNIQUE constraint on the dispatch ledger.
+  dailyBriefCron.start();
   // Piece E (issue #41) — drain the approved-actions queue every 10s,
   // dispatch to the junior executor, audit each dispatch.
   executiveBriefActionRunner.start();

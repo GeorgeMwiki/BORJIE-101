@@ -14,6 +14,7 @@ export type ScreenGroup =
   | 'money'
   | 'compliance'
   | 'community'
+  | 'estate'
   | 'settings';
 
 export interface OwnerScreen {
@@ -272,6 +273,88 @@ export const OWNER_SCREENS: ReadonlyArray<OwnerScreen> = [
       'Structured-status secondary view. Seven slots from /api/v1/owner/brief: AI brief, alert queue, KPI strip, production, cash + USD cliff, compliance, safety.',
     persona: 'Report Writer + Master Brain',
     group: 'overview',
+  },
+  // Wave OPS-WIDE — full end-to-end mining operations scope.
+  {
+    id: 'O-W-24',
+    slug: 'counterparties',
+    title: 'Counterparties',
+    titleSw: 'Washirika wa Nje',
+    intent:
+      'Every counterparty the operation touches (upstream, downstream, adjacent) with a scorecard and full engagement timeline.',
+    persona: 'External-Stakeholder Window',
+    group: 'operations',
+  },
+  {
+    id: 'O-W-25',
+    slug: 'chain-of-custody',
+    title: 'Chain of custody',
+    titleSw: 'Mlolongo wa Mali',
+    intent:
+      'Pit-to-buyer custody trail per ore parcel, hash-chain-audited so the regulator can verify nothing was reordered.',
+    persona: 'Compliance + Auditor',
+    group: 'operations',
+  },
+  {
+    id: 'O-W-26',
+    slug: 'regulatory-calendar',
+    title: 'Regulatory calendar',
+    titleSw: 'Kalenda ya Wakaguzi',
+    intent:
+      'Every Mining Commission, TRA, NEMC, BoT, BRELA, OSHA, TBS, TCRA, LHRC filing on one calendar, color-coded by status.',
+    persona: 'Compliance',
+    group: 'compliance',
+  },
+  // Wave ESTATE-OS — family-office shell above on-mine ops.
+  {
+    id: 'O-W-27',
+    slug: 'estate',
+    title: 'Estate overview',
+    titleSw: 'Muonekano wa Miliki',
+    intent:
+      'Family-office shell, tree view of every entity, total asset value, recent capital flows, succession status.',
+    persona: 'Family-Office Chief of Staff',
+    group: 'estate',
+  },
+  {
+    id: 'O-W-28',
+    slug: 'estate/entities',
+    title: 'Estate entities',
+    titleSw: 'Kampuni za Miliki',
+    intent:
+      'Every business under the family-office shell with kind, ownership percentage, and lifecycle status.',
+    persona: 'Family-Office Chief of Staff',
+    group: 'estate',
+  },
+  {
+    id: 'O-W-29',
+    slug: 'estate/capital-movements',
+    title: 'Capital flows',
+    titleSw: 'Mitiririko ya Mtaji',
+    intent:
+      'Chronological intercompany money flows: dividends, intercompany loans, capital injections, JV distributions.',
+    persona: 'Family-Office Chief of Staff',
+    group: 'estate',
+  },
+  {
+    id: 'O-W-30',
+    slug: 'estate/succession',
+    title: 'Succession',
+    titleSw: 'Urithi',
+    intent:
+      'Succession plan per group, designated successor, contingency, next review due chip, draft-will affordance.',
+    persona: 'Family-Office Chief of Staff',
+    group: 'estate',
+  },
+  {
+    id: 'O-W-31',
+    slug: 'estate/assets',
+    title: 'Asset register',
+    titleSw: 'Daftari la Mali',
+    intent:
+      'Consolidated asset register filterable by class with current valuation and encumbrances.',
+    persona: 'Family-Office Chief of Staff',
+    group: 'estate',
   },
 ];
 

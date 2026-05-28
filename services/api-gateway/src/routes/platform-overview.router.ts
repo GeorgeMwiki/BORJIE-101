@@ -192,8 +192,6 @@ platformOverviewRouter.get('/', async (c) => {
   const userId =
     typeof auth.userId === 'string'
       ? auth.userId
-      : typeof auth.sub === 'string'
-      ? auth.sub
       : null;
   const tenantId = typeof auth.tenantId === 'string' ? auth.tenantId : null;
   const preferences = createCurrencyPreferencesService(db);

@@ -56,13 +56,13 @@ app.use(
 
 app.get('/users', async (c) => {
   const auth = c.get('auth');
-  const services = c.get('services') ?? {};
+  const services = c.get('services') as any ?? {};
 
   // Real wire: the platform users service exposes `listUsers({ tenantId,
   // role, limit, cursor })`. We adapt to the admin UI's expected shape
   // (paginated rows + total). This is the same service the HQ tool
   // surface uses (B1), so we're not divergent.
-  const usersSvc = services?.platformUsers;
+  const usersSvc = services?.platformUsers as any;
   if (usersSvc && typeof usersSvc.listUsers === 'function') {
     try {
       const limitParam = c.req.query('limit');

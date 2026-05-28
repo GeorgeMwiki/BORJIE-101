@@ -16,6 +16,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 
+// @ts-ignore - import.meta is available in NodeNext module system
 const TEMPLATE_DIR = dirname(fileURLToPath(import.meta.url));
 
 export interface TemplateDefinition {

@@ -78,7 +78,7 @@ app.use('*', databaseMiddleware);
 
 app.get('/', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos')!;
+  const repos = c.get('repos') as any;
   const db = c.get('db');
   const page = Number(c.req.query('page') || '1');
   const pageSize = Number(c.req.query('pageSize') || '20');
@@ -105,7 +105,7 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos')!;
+  const repos = c.get('repos') as any;
   const db = c.get('db');
   const row = await repos.users.findById(c.req.param('id'), auth.tenantId);
   if (!row) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
@@ -122,7 +122,7 @@ const SUPER_ADMIN_ONLY_ROLES = new Set(['super_admin']);
 
 app.post('/', withSecurityEvents({ action: 'user.create', resource: 'user', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos')!;
+  const repos = c.get('repos') as any;
   const db = c.get('db');
 
   // Authorization gate: only admins can create users.
@@ -187,7 +187,7 @@ app.post('/', withSecurityEvents({ action: 'user.create', resource: 'user', seve
 
 app.put('/:id', withSecurityEvents({ action: 'user.update', resource: 'user', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos')!;
+  const repos = c.get('repos') as any;
   const db = c.get('db');
   const id = c.req.param('id');
   const body = await c.req.json();
@@ -205,7 +205,7 @@ app.put('/:id', withSecurityEvents({ action: 'user.update', resource: 'user', se
 
 app.delete('/:id', withSecurityEvents({ action: 'user.delete', resource: 'user', severity: 'warn' }, async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos')!;
+  const repos = c.get('repos') as any;
   await repos.users.delete(c.req.param('id'), auth.tenantId, auth.userId);
   return c.json({ success: true, data: { message: 'User deleted' } });
 }));

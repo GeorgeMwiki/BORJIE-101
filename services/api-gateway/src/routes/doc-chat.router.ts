@@ -139,7 +139,7 @@ async function fallbackRetrieve(
         chunkIndex: r.chunkIndex,
         text,
         score,
-        page: typeof page === 'number' ? page : undefined,
+        ...(typeof page === 'number' && { page }),
       };
     })
     .filter((r) => r.score > 0)

@@ -83,6 +83,8 @@ import { miningInternalPromotionsRouter } from './internal/promotions.hono';
 import { miningInternalRegulatorPipelineRouter } from './internal/regulator-pipeline.hono';
 import { miningInternalCitationsRouter } from './internal/citations.hono';
 import { miningInternalComplianceQueueRouter } from './internal/compliance-queue.hono';
+// Wave OWNER-OS DAILY-BRIEF rebuild — fleet overview for the admin cockpit.
+import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.hono';
 
 // Use OpenAPIHono so the `app.openapi(routeDef, handler)` registrations
 // inside the migrated route files (sites, licences, cockpit, chat,
@@ -143,5 +145,8 @@ mining.route('/internal/promotions', miningInternalPromotionsRouter);
 mining.route('/internal/regulator-pipeline', miningInternalRegulatorPipelineRouter);
 mining.route('/internal/citations', miningInternalCitationsRouter);
 mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
+// Wave OWNER-OS DAILY-BRIEF rebuild — admin fleet overview of today's
+// daily-brief sends + failures + top alerts across every tenant.
+mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);
 
 export const miningRouter = mining;

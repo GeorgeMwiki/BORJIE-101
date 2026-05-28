@@ -152,7 +152,17 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
         400,
       );
     }
-    const page = await dataPort.searchListings(parsed.data);
+    const filters = {
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      ...(parsed.data.city && { city: parsed.data.city }),
+      ...(parsed.data.type && { type: parsed.data.type }),
+      ...(parsed.data.bedrooms && { bedrooms: parsed.data.bedrooms }),
+      ...(parsed.data.orgId && { orgId: parsed.data.orgId }),
+      ...(parsed.data.minPrice !== undefined && { minPrice: parsed.data.minPrice }),
+      ...(parsed.data.maxPrice !== undefined && { maxPrice: parsed.data.maxPrice }),
+    };
+    const page = await dataPort.searchListings(filters);
     return c.json({
       success: true,
       data: page.items,

@@ -75,7 +75,11 @@ import {
   chunkText,
   extractText,
 } from './public-chat.hono';
-import { extractSpawnTabs } from '@borjie/owner-os-tabs';
+import {
+  extractSpawnTabs,
+  parseInlineBlocks,
+  extractAutoAuthorized,
+} from '@borjie/owner-os-tabs';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -489,9 +493,14 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
 
     // Order of stripping matters: spawn_tabs first (free-form JSON object
     // that may contain commas/braces that confuse later regexes), then
-    // ui_block, then inline metrics, then actions+citations.
+    // auto_authorized (sibling of confirmation_card), then INLINE blocks
+    // (Flow A — the inline-first catalog), then the legacy primary
+    // ui_block (teaching blocks — Flow A escape hatch), then inline
+    // metrics, then actions+citations.
     const spawnResult = extractSpawnTabs(rawText);
-    const uiResult = extractUiBlock(spawnResult.body);
+    const autoAuthResult = extractAutoAuthorized(spawnResult.body);
+    const inlineResult = parseInlineBlocks(autoAuthResult.body);
+    const uiResult = extractUiBlock(inlineResult.body);
     const metricsResult = extractInlineMetrics(uiResult.body);
     const { clean, ids, actions } = extractCitations(metricsResult.body);
 
@@ -523,8 +532,35 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
-    // Primary ui_block — emit after text so the renderer can place it
-    // directly under the assistant bubble.
+    // Inline blocks (Flow A — INLINE-FIRST) — emit each as its own SSE
+    // frame in document order. The FE renders these inside the bubble.
+    // Cap at 8 enforced by the parser; further duplication is dropped.
+    for (const block of inlineResult.blocks) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'inline_block',
+        data: JSON.stringify({
+          block,
+          at: new Date().toISOString(),
+        }),
+      });
+    }
+
+    // Auto-authorized companion — fired BEFORE the audit chain is
+    // written. The FE renders the rationale without buttons; the server
+    // is responsible for executing the action and writing the audit row.
+    if (autoAuthResult.autoAuthorized) {
+      await stream.writeSSE({
+        event: 'auto_authorized',
+        data: JSON.stringify({
+          payload: autoAuthResult.autoAuthorized,
+          at: new Date().toISOString(),
+        }),
+      });
+    }
+
+    // Primary ui_block (teaching) — emit after text so the renderer can
+    // place it directly under the assistant bubble.
     if (uiResult.block) {
       await stream.writeSSE({
         event: 'ui_block',
@@ -570,6 +606,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         actions_count: actions.length,
         ui_block: uiResult.block ? uiResult.block.type : null,
         inline_metrics: metricsResult.metrics.length,
+        inline_blocks: inlineResult.blocks.length,
+        inline_block_types: inlineResult.blocks.map((b) => b.type),
+        auto_authorized: autoAuthResult.autoAuthorized
+          ? autoAuthResult.autoAuthorized.action
+          : null,
         spawn_tabs: spawnResult.batch.tabs.length,
       }),
     });

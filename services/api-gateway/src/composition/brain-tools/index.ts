@@ -27,6 +27,7 @@ import {
 } from './types';
 import { SHARED_TOOLS } from './shared-tools';
 import { OWNER_TOOLS } from './owner-tools';
+import { OWNER_ESTATE_TOOLS } from './owner-estate-tools';
 import { MANAGER_TOOLS } from './manager-tools';
 import { WORKER_TOOLS } from './worker-tools';
 import { BUYER_TOOLS } from './buyer-tools';
@@ -61,6 +62,7 @@ export function buildPersonaToolHandlers(
     [
       SHARED_TOOLS,
       OWNER_TOOLS,
+      OWNER_ESTATE_TOOLS,
       MANAGER_TOOLS,
       WORKER_TOOLS,
       BUYER_TOOLS,
@@ -96,6 +98,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
     [
       SHARED_TOOLS,
       OWNER_TOOLS,
+      OWNER_ESTATE_TOOLS,
       MANAGER_TOOLS,
       WORKER_TOOLS,
       BUYER_TOOLS,
@@ -137,6 +140,7 @@ export {
 } from './types';
 export { SHARED_TOOLS } from './shared-tools';
 export { OWNER_TOOLS } from './owner-tools';
+export { OWNER_ESTATE_TOOLS } from './owner-estate-tools';
 export { MANAGER_TOOLS } from './manager-tools';
 export { WORKER_TOOLS } from './worker-tools';
 export { BUYER_TOOLS } from './buyer-tools';

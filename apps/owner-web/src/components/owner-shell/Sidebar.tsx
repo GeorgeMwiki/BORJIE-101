@@ -26,6 +26,9 @@ import {
   Sparkles,
   Settings,
   MessageCircle,
+  Building2,
+  Link as LinkIcon,
+  Scale,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Logomark } from '@borjie/design-system';
@@ -85,6 +88,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { label: 'Licences', labelSw: 'Leseni', href: '/licences', icon: FileCheck },
       { label: 'Documents', labelSw: 'Hati', href: '/documents', icon: FileText },
       { label: 'People', labelSw: 'Watu', href: '/people', icon: Users },
+      { label: 'Workforce tabs', labelSw: 'Tabo za wafanyakazi', href: '/workforce-tabs', icon: Users },
     ],
   },
   {
@@ -94,6 +98,18 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { label: 'Fleet', labelSw: 'Magari', href: '/fleet', icon: Truck },
       { label: 'Inventory', labelSw: 'Bidhaa', href: '/inventory', icon: Package },
       { label: 'Geology', labelSw: 'Jiolojia', href: '/geology', icon: TestTubes },
+      {
+        label: 'Counterparties',
+        labelSw: 'Washirika wa Nje',
+        href: '/counterparties',
+        icon: Building2,
+      },
+      {
+        label: 'Chain of custody',
+        labelSw: 'Mlolongo wa Mali',
+        href: '/chain-of-custody',
+        icon: LinkIcon,
+      },
     ],
   },
   {
@@ -112,6 +128,12 @@ const SECTIONS: ReadonlyArray<NavSection> = [
     items: [
       { label: 'Compliance', labelSw: 'Uzingatiaji', href: '/compliance', icon: ShieldCheck },
       { label: 'Safety', labelSw: 'Usalama', href: '/safety', icon: HardHat },
+      {
+        label: 'Regulator calendar',
+        labelSw: 'Kalenda ya Wakaguzi',
+        href: '/regulatory-calendar',
+        icon: Scale,
+      },
     ],
   },
   {

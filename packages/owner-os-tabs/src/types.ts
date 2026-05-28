@@ -80,6 +80,11 @@ export const OWNER_OS_TAB_TYPES = [
   'family-office',
   'succession',
   'asset-register',
+  // Wave OPS-WIDE — full end-to-end mining operations scope.
+  'counterparties',
+  'chain-of-custody',
+  'regulatory-filings',
+  'csr-community',
 ] as const;
 
 export type OwnerOSTabType = (typeof OWNER_OS_TAB_TYPES)[number];

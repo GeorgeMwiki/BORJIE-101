@@ -68,9 +68,9 @@ exceptionsRouter.get('/', zValidator('query', ListQuerySchema), async (c) => {
   const query = c.req.valid('query');
   try {
     const items = await getInbox(c).listOpen(tenantId, {
-      domain: query.domain,
-      priority: query.priority,
-      limit: query.limit,
+      ...(query.domain && { domain: query.domain }),
+      ...(query.priority && { priority: query.priority }),
+      ...(query.limit && { limit: query.limit }),
     });
     return c.json({
       success: true,

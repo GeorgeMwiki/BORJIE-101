@@ -1,13 +1,17 @@
 /**
  * Owner persona — T1 strategist cockpit tools.
  *
- * Eight read-only tools backing the owner-web cockpit and the workforce
- * app's owner role. Every handler defers to the corresponding cockpit
+ * Twelve tools backing the owner-web cockpit and the workforce app's
+ * owner role: eight read-only cockpit slices (1-8) plus four ops-wide
+ * tools (9-12, Wave OPS-WIDE) covering the end-to-end operation
+ * (chain of custody, regulator filings, counterparty lookup, engagement
+ * logging). Every handler defers to the corresponding cockpit / ops
  * route via the injected HTTP client so the LLM and the UI render
  * identical data (no parallel data paths).
  *
- * No WRITE tools at this tier — the owner cockpit is read-and-decide;
- * actions get routed through the manager / approvals queue.
+ * Tier discipline: cockpit slices stay read-only; tools 9-11 are read,
+ * tool 12 (log_engagement) is the sole WRITE — it lands a row in
+ * external_party_engagements and hash-chain-audits the mutation.
  */
 
 import { z } from 'zod';

@@ -26,6 +26,7 @@ const GROUPS: ReadonlyArray<GroupConfig> = [
   { id: 'money', heading: 'Money', headingSw: 'Fedha' },
   { id: 'compliance', heading: 'Compliance', headingSw: 'Uzingatiaji' },
   { id: 'community', heading: 'Community', headingSw: 'Jamii' },
+  { id: 'estate', heading: 'Estate', headingSw: 'Miliki' },
   { id: 'settings', heading: 'Settings', headingSw: 'Mipangilio' },
 ];
 

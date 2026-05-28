@@ -106,3 +106,19 @@ export type {
   SeedPort,
   SeedResult,
 } from './seeds.js';
+
+// ── Workforce tab catalog (fixed tabs, owner-driven visibility) ──────
+export {
+  WORKFORCE_ROLE_IDS,
+  WORKFORCE_TAB_CATALOG,
+  MANDATORY_WORKFORCE_TAB_IDS,
+  listTabsAllowedForRole,
+  defaultEnabledTabIdsForRole,
+  validateEnabledTabsForRole,
+} from './workforce-tab-catalog.js';
+
+export type {
+  WorkforceRoleId,
+  WorkforceTabId,
+  WorkforceTabSpec,
+} from './workforce-tab-catalog.js';

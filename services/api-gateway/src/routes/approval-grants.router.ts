@@ -128,7 +128,6 @@ app.post('/standing', zValidator('json', GrantStandingSchema), withSecurityEvent
   } catch (err: any) {
     return routeCatch(c, err, {
       code: 'APPROVAL_GRANT_STANDING_FAILED',
-      status: 400,
       fallback: 'Failed to issue standing grant',
     });
   }
@@ -151,7 +150,6 @@ app.post('/single', zValidator('json', GrantSingleSchema), withSecurityEvents({ 
   } catch (err: any) {
     return routeCatch(c, err, {
       code: 'APPROVAL_GRANT_SINGLE_FAILED',
-      status: 400,
       fallback: 'Failed to issue single-action grant',
     });
   }
@@ -170,10 +168,8 @@ app.post('/:id/revoke', zValidator('json', RevokeSchema), withSecurityEvents({ a
     const grant = await service.revoke(id, auth.tenantId, auth.userId, reason);
     return c.json({ success: true, data: grant });
   } catch (err: any) {
-    const status = /not found|already/i.test(String(err?.message ?? '')) ? 404 : 400;
     return routeCatch(c, err, {
       code: 'APPROVAL_GRANT_REVOKE_FAILED',
-      status,
       fallback: 'Failed to revoke grant',
     });
   }

@@ -91,11 +91,11 @@ function registry() {
     return createBrain({
       anthropic: {
         apiKey: e.ANTHROPIC_API_KEY,
-        baseUrl: e.ANTHROPIC_BASE_URL,
-        defaultModel: e.ANTHROPIC_MODEL_DEFAULT,
+        ...(e.ANTHROPIC_BASE_URL && { baseUrl: e.ANTHROPIC_BASE_URL }),
+        ...(e.ANTHROPIC_MODEL_DEFAULT && { defaultModel: e.ANTHROPIC_MODEL_DEFAULT }),
       },
       threadStoreBackend: backend,
-      graphToolkit,
+      ...(graphToolkit && { graphToolkit }),
       extraSkills: getBrainExtraSkills(),
     });
   });
@@ -258,7 +258,7 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
 
   // Ensure a thread exists. The authenticated /api/v1/brain/turn endpoint
   // starts a thread on demand, so we mirror that behaviour here.
-  let threadId = parsed.data.threadId;
+  let threadId: string = parsed.data.threadId ?? '';
   if (!threadId) {
     const thread = await brain.threads.createThread({
       id: uuid(),

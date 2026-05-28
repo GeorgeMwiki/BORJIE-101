@@ -43,6 +43,14 @@ import { workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { greet } from '../ui-litfin'
+// Wave WORKFORCE-FIXED-TABS — workers cannot mutate tabs locally. When
+// the brain detects a tab/access-change intent we open the request
+// sheet instead of opening a brain stream. The sheet posts to
+// /api/v1/workforce/tab-change-requests for owner approval.
+import { detectTabChangeIntent } from '../lib/tabChangeIntent'
+import { useWorkforceTabConfig } from '../lib/hooks/useWorkforceTabConfig'
+import { RequestTabChangeSheet } from '../components/RequestTabChangeSheet'
+import type { WorkforceRoleId } from '@borjie/persona-runtime'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
@@ -95,6 +103,13 @@ export function HomeChat(): JSX.Element {
   const scrollRef = useRef<ScrollView | null>(null)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [showSlow, setShowSlow] = useState(false)
+  // Wave WORKFORCE-FIXED-TABS — sheet state + current tab snapshot.
+  const tabConfig = useWorkforceTabConfig()
+  const [tabSheetVisible, setTabSheetVisible] = useState<boolean>(false)
+  const [tabSheetReasonSeed, setTabSheetReasonSeed] = useState<string>('')
+  const workforceRoleId: WorkforceRoleId =
+    (tabConfig.config?.role as WorkforceRoleId | undefined) ??
+    (role === 'owner' ? 'owner' : role === 'manager' ? 'manager' : 'pit_operator')
 
   useEffect(() => {
     let cancelled = false
@@ -194,6 +209,17 @@ export function HomeChat(): JSX.Element {
       if (trimmed.length === 0 || live !== null) {
         return
       }
+      // Wave WORKFORCE-FIXED-TABS — intercept tab/access-change intent
+      // BEFORE opening a brain stream. Routes the request through the
+      // owner-approval sheet instead of letting the brain promise a
+      // change it cannot make.
+      const intent = detectTabChangeIntent(trimmed, lang)
+      if (intent) {
+        setTabSheetReasonSeed(intent.reasonSeed)
+        setTabSheetVisible(true)
+        setDraft('')
+        return
+      }
       const fresh = optimisticTurn(trimmed)
       setLive(fresh)
       setDraft('')
@@ -217,7 +243,7 @@ export function HomeChat(): JSX.Element {
           setShowSlow(false)
         })
     },
-    [handleEvent, live, personaSlug, threadId]
+    [handleEvent, lang, live, personaSlug, threadId]
   )
 
   const onSendPress = useCallback((): void => {
@@ -296,6 +322,19 @@ export function HomeChat(): JSX.Element {
         onSendPress={onSendPress}
         canSend={canSend}
         lang={lang}
+      />
+      <RequestTabChangeSheet
+        visible={tabSheetVisible}
+        onClose={() => setTabSheetVisible(false)}
+        role={workforceRoleId}
+        siteId={
+          tabConfig.config?.siteScope &&
+          tabConfig.config.siteScope !== 'global'
+            ? tabConfig.config.siteScope
+            : null
+        }
+        currentTabs={tabConfig.tabs}
+        initialReason={tabSheetReasonSeed}
       />
     </View>
   )

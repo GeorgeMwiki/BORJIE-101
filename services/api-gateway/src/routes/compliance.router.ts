@@ -246,7 +246,7 @@ complianceRouter.post('/exports/:id/generate', withSecurityEvents({ action: 'com
 complianceRouter.get('/exports/:id/download', async (c) => {
   const id = c.req.param('id');
   const tenantId = c.get('tenantId');
-  const service = c.get('complianceExportService');
+  const service = c.get('complianceExportService') as any;
   if (!service) {
     return c.json(
       { success: false, error: 'ComplianceExportService not yet wired' },

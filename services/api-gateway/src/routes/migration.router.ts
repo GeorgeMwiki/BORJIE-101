@@ -68,9 +68,7 @@ export function createMigrationRouter(deps: {
     const bundle = migrationExtract(extractParams);
 
     const service = deps.getService(tenantId);
-    const run = await service['repo']
-      // @ts-expect-error reaching into repo for createRun is intentional
-      .createRun({
+    const run = await service['repo'].createRun({
         tenantId,
         createdBy: actorId,
         uploadFilename: file.name,
@@ -78,7 +76,6 @@ export function createMigrationRouter(deps: {
         uploadSizeBytes: buf.byteLength,
       });
 
-    // @ts-expect-error same rationale
     await service['repo'].updateStatus(run.id, tenantId, 'extracted', {
       bundle,
       extractionSummary: {

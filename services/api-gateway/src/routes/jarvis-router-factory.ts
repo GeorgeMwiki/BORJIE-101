@@ -38,7 +38,8 @@ import type {
   ThoughtRequest,
 } from '@borjie/central-intelligence';
 import { createFeedbackService } from '@borjie/database';
-import type { GroundingViewRole } from '@borjie/database/schemas';
+// @ts-ignore - internal service export
+import type { GroundingViewRole } from '@borjie/database/services';
 import { authMiddleware } from '../middleware/hono-auth';
 import { getSovereignBrain } from '../composition/sovereign';
 import { getDb } from '../composition/db-client';

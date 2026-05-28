@@ -519,7 +519,7 @@ async function composeAdvisorSlice(slots: {
 
 export interface SnapshotReadResult {
   readonly brief: OwnerBrief;
-  readonly source: 'cron' | 'on-demand';
+  readonly source: 'cron' | 'on-demand' | 'daily_cron';
   readonly generatedAtIso: string;
 }
 
@@ -558,9 +558,15 @@ export async function readTodaysSnapshot(
     row.generatedAt instanceof Date
       ? row.generatedAt.toISOString()
       : String(row.generatedAt ?? new Date().toISOString());
+  const sourceValue: 'cron' | 'on-demand' | 'daily_cron' =
+    row.source === 'daily_cron'
+      ? 'daily_cron'
+      : row.source === 'cron'
+        ? 'cron'
+        : 'on-demand';
   return {
     brief: parsed.data,
-    source: row.source === 'cron' ? 'cron' : 'on-demand',
+    source: sourceValue,
     generatedAtIso,
   };
 }
@@ -570,7 +576,7 @@ export async function persistSnapshot(
   args: {
     readonly tenantId: string;
     readonly brief: OwnerBrief;
-    readonly source: 'cron' | 'on-demand';
+    readonly source: 'cron' | 'on-demand' | 'daily_cron';
     readonly now?: Date;
   },
 ): Promise<{ readonly id: string; readonly hashChainId: string | null }> {
@@ -622,7 +628,7 @@ async function appendAuditChainEntry(
   args: {
     readonly tenantId: string;
     readonly brief: OwnerBrief;
-    readonly source: 'cron' | 'on-demand';
+    readonly source: 'cron' | 'on-demand' | 'daily_cron';
     readonly now: Date;
   },
 ): Promise<string | null> {

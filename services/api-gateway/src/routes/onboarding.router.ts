@@ -582,7 +582,7 @@ app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEv
     businessName: session.businessName,
     country: session.country,
     ownerPrompt: body.prompt,
-    previousIntent: session.intent,
+    ...(session.intent && { previousIntent: session.intent }),
   });
 
   const threadId = session.firstChatThreadId ?? newId('thr');

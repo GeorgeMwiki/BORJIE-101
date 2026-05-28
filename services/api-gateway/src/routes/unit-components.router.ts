@@ -33,8 +33,8 @@ function dbUnavailable(c) {
 }
 
 app.get('/', async (c) => {
-  const services = c.get('services') ?? {};
-  const db = services.db;
+  const services = c.get('services') as any ?? {};
+  const db = services.db as any;
   if (!db) return dbUnavailable(c);
 
   const tenantId = c.get('tenantId');

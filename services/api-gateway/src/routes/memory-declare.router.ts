@@ -70,7 +70,7 @@ router.post('/declare', zValidator('json', DeclareSchema), withSecurityEvents({ 
   const body = c.req.valid('json');
   const auth = c.get('auth') ?? {};
   const tenantId = auth.tenantId ?? null;
-  const userId = auth.userId ?? auth.sub ?? null;
+  const userId = auth.userId ?? null;
 
   if (!tenantId || !userId) {
     return c.json(
@@ -152,7 +152,7 @@ router.get('/declare', zValidator('query', ListSchema), async (c) => {
   const { prefix, limit } = c.req.valid('query');
   const auth = c.get('auth') ?? {};
   const tenantId = auth.tenantId ?? null;
-  const userId = auth.userId ?? auth.sub ?? null;
+  const userId = auth.userId ?? null;
 
   if (!tenantId || !userId) {
     return c.json(
@@ -188,7 +188,7 @@ router.delete('/declare', zValidator('json', DeleteSchema), withSecurityEvents({
   const { key } = c.req.valid('json');
   const auth = c.get('auth') ?? {};
   const tenantId = auth.tenantId ?? null;
-  const userId = auth.userId ?? auth.sub ?? null;
+  const userId = auth.userId ?? null;
 
   if (!tenantId || !userId) {
     return c.json(

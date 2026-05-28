@@ -985,3 +985,15 @@ export * from './owner-tabs.schema.js';
 // barrel; re-export so brief.hono.ts can pull `ownerBriefSnapshots` from
 // `@borjie/database` like every other tenant schema.
 export * from './owner-brief.schema.js';
+
+// Wave WORKFORCE-FIXED-TABS (migration 0091). Workers see FIXED tabs only;
+// the owner sets the per-(role,scope) catalog + density via the owner-web
+// configurator and approves / rejects worker change requests. Both tables
+// hash-chain into ai_audit_chain on every create / decide / apply.
+export * from './workforce-role-tab-configs.schema.js';
+
+// Wave OWNER-OS DAILY-BRIEF rebuild (migration 0092). Append-only ledger
+// for daily-brief dispatches — one row per (tenant, day, channel,
+// recipient). UNIQUE constraint makes the cron's INSERT … ON CONFLICT
+// DO NOTHING idempotent across ticks, restarts, and manual triggers.
+export * from './daily-brief-dispatches.schema.js';

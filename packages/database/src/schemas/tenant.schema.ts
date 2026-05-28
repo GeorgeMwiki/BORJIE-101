@@ -195,6 +195,45 @@ export const tenants = pgTable(
      */
     kycAtomsCompleted: jsonb('kyc_atoms_completed').notNull().default([]),
 
+    // ── Daily-brief cadence + delivery (migration 0092) ──
+    /**
+     * Cron-driven cadence selector for the AI daily brief.
+     * Format: 'off' OR 'daily_HH:MM_tz' (HH:MM in Africa/Dar_es_Salaam).
+     * The `daily-brief-cron` worker parses HH:MM and fires the brief
+     * once per local-day per tenant. DB CHECK constraint enforces shape.
+     */
+    dailyBriefCadence: text('daily_brief_cadence')
+      .notNull()
+      .default('daily_06:00_tz'),
+    /**
+     * Channels the worker should dispatch the brief on. Subset of
+     * ['email','sms','slack']. Email default — sms / slack opt-in.
+     * Per-channel adapters live in `services/api-gateway/src/services/
+     * notification-dispatch/`.
+     */
+    dailyBriefChannels: jsonb('daily_brief_channels')
+      .$type<ReadonlyArray<'email' | 'sms' | 'slack'>>()
+      .notNull()
+      .default(['email']),
+    /**
+     * Recipients for the brief — one envelope per row.
+     * `[{userId, email, phone, slackHandle}, ...]`.
+     * The cron resolves each recipient against its enabled channels;
+     * missing handles per channel are recorded as `skipped` in the
+     * dispatch ledger so the operator can see the gap.
+     */
+    dailyBriefRecipients: jsonb('daily_brief_recipients')
+      .$type<
+        ReadonlyArray<{
+          readonly userId?: string;
+          readonly email?: string;
+          readonly phone?: string;
+          readonly slackHandle?: string;
+        }>
+      >()
+      .notNull()
+      .default([]),
+
     // Settings
     settings: jsonb('settings').default({}),
     billingSettings: jsonb('billing_settings').default({}),

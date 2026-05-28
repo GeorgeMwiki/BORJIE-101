@@ -102,7 +102,7 @@ function registry() {
     return createBrain({
       anthropic,
       threadStoreBackend: backend,
-      graphToolkit,
+      ...(graphToolkit && { graphToolkit }),
       extraSkills: getBrainExtraSkills(),
     });
   });

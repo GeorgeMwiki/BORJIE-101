@@ -174,7 +174,7 @@ app.post('/upload', async (c) => {
 
   const kind = classifyDocument({
     fileName: input.fileName,
-    textSample: input.textSample,
+    ...(input.textSample && { textSample: input.textSample }),
   });
   const documentType = kindToDocumentType(kind);
 

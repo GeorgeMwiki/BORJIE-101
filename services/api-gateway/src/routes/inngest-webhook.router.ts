@@ -224,7 +224,7 @@ app.post('/', withSecurityEvents({ action: 'inngest-webhook.create', resource: '
     const result = await runtime.handle({
       name: payload.name,
       data: payload.data as Record<string, unknown>,
-      id: eventId,
+      ...(eventId && { id: eventId }),
     });
     return c.json({ success: true, data: result }, 200);
   } catch (err) {
