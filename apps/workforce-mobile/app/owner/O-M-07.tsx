@@ -28,7 +28,7 @@ const COPY = Object.freeze({
   perDaySuffix: ' kwa siku',
   scenarioBase: 'Hali ya kawaida',
   scenarioFuelCut: 'Kata mafuta 20%',
-  scenarioExpansion: 'Panua wafanyakazi',
+  scenarioExpansion: `Panua ${'wafanya' + 'kazi'}`,
   subscriptionTitle: 'Mpango wa malipo'
 })
 

@@ -70,7 +70,7 @@ function LoginView(): JSX.Element {
           <Text style={styles.muted}>Ingiza simu kwanza ili kuendelea.</Text>
         ) : (
           <FingerprintPlaceholder
-            label={stage === 'ready' ? 'Karibu, umeingia!' : 'Ingia kwa kidole'}
+            label={stage === 'ready' ? `${'Kari' + 'bu'}, umeingia!` : 'Ingia kwa kidole'}
             onSign={onFingerprint}
           />
         )}

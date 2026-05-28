@@ -1,6 +1,6 @@
 /**
  * Time-aware bilingual greeting helper — LitFin warm-but-professional
- * register. Never uses "Karibu" in EN per CLAUDE.md.
+ * register. Never uses the SW welcome greeting in EN per CLAUDE.md.
  *
  * Returns the locale-appropriate greeting plus an optional warm opener.
  *

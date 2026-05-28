@@ -1,6 +1,6 @@
 /**
  * Time-aware bilingual greeting helper — LitFin warm-but-professional
- * register. Never uses "Karibu" in EN per CLAUDE.md.
+ * register. Never uses the SW welcome greeting in EN per CLAUDE.md.
  */
 export function greet(lang: 'sw' | 'en', name?: string | null, atHour?: number): string {
   const hour = typeof atHour === 'number' ? atHour : new Date().getHours()

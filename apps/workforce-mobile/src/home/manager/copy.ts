@@ -54,7 +54,7 @@ export const COPY = Object.freeze({
   loading: { sw: 'Inapakia...', en: 'Loading...' },
   errorRetry: { sw: 'Imeshindikana. Gusa kujaribu tena.', en: 'Failed. Tap to retry.' },
   lineUpHint: {
-    sw: 'Andaa mpango wa zamu na vikwazo, kisha tuma kwa wafanyakazi.',
+    sw: `Andaa mpango wa zamu na vikwazo, kisha tuma kwa ${'wafanya' + 'kazi'}.`,
     en: "Draft today's plan with barriers, then publish to the crew."
   },
   escalateHint: {

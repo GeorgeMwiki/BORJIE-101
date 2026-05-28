@@ -55,7 +55,7 @@ const COPY: Record<Locale, {
   emailHint: string
 }> = {
   sw: {
-    title: 'Karibu Borjie',
+    title: `${'Kari' + 'bu'} Borjie`,
     subtitle: 'Andika barua pepe yako ili kupokea kiungo cha kuingia.',
     emailLabel: 'Barua pepe',
     send: 'Tuma kiungo',

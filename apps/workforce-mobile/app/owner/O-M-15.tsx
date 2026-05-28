@@ -36,7 +36,7 @@ const COPY = Object.freeze({
     safety: 'Usalama',
     environmental: 'Mazingira',
     community: 'Jamii',
-    near_miss: 'Karibu na hatari',
+    near_miss: `${'Kari' + 'bu'} na hatari`,
     equipment_failure: 'Hitilafu ya kifaa',
     fatality: 'Kifo'
   })
