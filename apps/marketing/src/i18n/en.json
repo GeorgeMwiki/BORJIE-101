@@ -336,7 +336,12 @@
     },
     "labels": {
       "dialLabel": "Autonomy level",
-      "steps": ["Advise", "Propose", "Execute-with-approval", "Autonomous"],
+      "steps": [
+        "Advise",
+        "Propose",
+        "Execute-with-approval",
+        "Autonomous"
+      ],
       "redLineKicker": "Red-line guarantee",
       "redLineBody": "The Master Brain never auto-files royalty to TRA, never auto-submits NEMC EIA, and never auto-sells gold above 200 oz. At any autonomy level. Ever.",
       "redLineTag": "Red-line · never autonomous",
@@ -344,14 +349,46 @@
       "unlocksAtL": "Unlocks at L"
     },
     "capabilities": [
-      { "id": "price", "label": "Draft daily price brief", "minLevel": 0 },
-      { "id": "shift", "label": "Issue shift handover report", "minLevel": 1 },
-      { "id": "vendor", "label": "Settle small vendor POs (< TZS 5M)", "minLevel": 2 },
-      { "id": "hedge", "label": "Place weekly FX hedge", "minLevel": 2 },
-      { "id": "pml", "label": "File PML renewal to Tumemadini", "minLevel": 99 },
-      { "id": "royalty", "label": "File royalty return to TRA", "minLevel": 99 },
-      { "id": "nemc", "label": "Submit NEMC EIA", "minLevel": 99 },
-      { "id": "sale", "label": "Sell gold > 200 oz", "minLevel": 99 }
+      {
+        "id": "price",
+        "label": "Draft daily price brief",
+        "minLevel": 0
+      },
+      {
+        "id": "shift",
+        "label": "Issue shift handover report",
+        "minLevel": 1
+      },
+      {
+        "id": "vendor",
+        "label": "Settle small vendor POs (< TZS 5M)",
+        "minLevel": 2
+      },
+      {
+        "id": "hedge",
+        "label": "Place weekly FX hedge",
+        "minLevel": 2
+      },
+      {
+        "id": "pml",
+        "label": "File PML renewal to Tumemadini",
+        "minLevel": 99
+      },
+      {
+        "id": "royalty",
+        "label": "File royalty return to TRA",
+        "minLevel": 99
+      },
+      {
+        "id": "nemc",
+        "label": "Submit NEMC EIA",
+        "minLevel": 99
+      },
+      {
+        "id": "sale",
+        "label": "Sell gold > 200 oz",
+        "minLevel": 99
+      }
     ]
   },
   "chain": {
@@ -472,7 +509,12 @@
     "diagram": {
       "kicker": "The 5-layer loop · validator gate visible between Decide and Act",
       "legend": "Brand-locked OKLCH · no hex",
-      "stages": ["Observe", "Orient", "Decide", "Act"],
+      "stages": [
+        "Observe",
+        "Orient",
+        "Decide",
+        "Act"
+      ],
       "validatorLabel": "Quality Gates",
       "gapLabel": "Where IEEE + Snyk said the validator is missing",
       "closedByDesignLabel": "Closed by design",
@@ -589,28 +631,64 @@
         {
           "title": "Regulators",
           "items": [
-            { "name": "Tumemadini", "desc": "Mining commission · royalty returns, PML/ML/SML lifecycle" },
-            { "name": "NEMC", "desc": "Environmental Council · EIA, quarterly emissions, audit pack" },
-            { "name": "Bank of Tanzania", "desc": "USD-cliff window, gold-window settlements, BoT fix" },
-            { "name": "TRA", "desc": "Revenue Authority · royalty, VAT, PAYE, withholding" },
-            { "name": "BRELA", "desc": "Business registration · KYB, directors, shareholding" },
-            { "name": "GST", "desc": "Geological Survey of Tanzania · drill-hole + assay lodgement" }
+            {
+              "name": "Tumemadini",
+              "desc": "Mining commission · royalty returns, PML/ML/SML lifecycle"
+            },
+            {
+              "name": "NEMC",
+              "desc": "Environmental Council · EIA, quarterly emissions, audit pack"
+            },
+            {
+              "name": "Bank of Tanzania",
+              "desc": "USD-cliff window, gold-window settlements, BoT fix"
+            },
+            {
+              "name": "TRA",
+              "desc": "Revenue Authority · royalty, VAT, PAYE, withholding"
+            },
+            {
+              "name": "BRELA",
+              "desc": "Business registration · KYB, directors, shareholding"
+            },
+            {
+              "name": "GST",
+              "desc": "Geological Survey of Tanzania · drill-hole + assay lodgement"
+            }
           ]
         },
         {
           "title": "Markets & labs",
           "items": [
-            { "name": "LBMA", "desc": "London Bullion Market Association · AM-fix window for gold" },
-            { "name": "ICA Brussels", "desc": "International Coloured-stone Assoc. · tanzanite grading" },
-            { "name": "Mining Commission", "desc": "PML/ML/SML registry · transfers, renewals, public record" }
+            {
+              "name": "LBMA",
+              "desc": "London Bullion Market Association · AM-fix window for gold"
+            },
+            {
+              "name": "ICA Brussels",
+              "desc": "International Coloured-stone Assoc. · tanzanite grading"
+            },
+            {
+              "name": "Mining Commission",
+              "desc": "PML/ML/SML registry · transfers, renewals, public record"
+            }
           ]
         },
         {
           "title": "Money rails",
           "items": [
-            { "name": "M-Pesa", "desc": "Vodacom · vendor payouts, payroll, supplier float" },
-            { "name": "Tigo Pesa", "desc": "Yas Tanzania · vendor wallet, settlement, B2C" },
-            { "name": "Airtel Money", "desc": "Bharti Airtel · cross-border float, agent network" }
+            {
+              "name": "M-Pesa",
+              "desc": "Vodacom · vendor payouts, payroll, supplier float"
+            },
+            {
+              "name": "Tigo Pesa",
+              "desc": "Yas Tanzania · vendor wallet, settlement, B2C"
+            },
+            {
+              "name": "Airtel Money",
+              "desc": "Bharti Airtel · cross-border float, agent network"
+            }
           ]
         }
       ]
@@ -770,9 +848,18 @@
           "desc": "Daily brief, licence calendar, treasury, drill-hole logger, compliance pack. The strategic command surface for the mining owner.",
           "mockType": "kpi",
           "kpis": [
-            { "label": "Oz Au this month", "value": "184" },
-            { "label": "Cash runway (wks)", "value": "18.3" },
-            { "label": "Days to renew PML", "value": "47" }
+            {
+              "label": "Oz Au this month",
+              "value": "184"
+            },
+            {
+              "label": "Cash runway (wks)",
+              "value": "18.3"
+            },
+            {
+              "label": "Days to renew PML",
+              "value": "47"
+            }
           ]
         },
         {
@@ -781,9 +868,21 @@
           "desc": "Biometric clock-in, shift log, fuel ledger, incident report. The pit-floor app the supervisor uses every shift.",
           "mockType": "shift",
           "rows": [
-            { "label": "Shift B · pit segment 4", "value": "184 t", "tone": "good" },
-            { "label": "Fuel · diesel", "value": "412 L", "tone": "warn" },
-            { "label": "Incidents", "value": "0", "tone": "good" }
+            {
+              "label": "Shift B · pit segment 4",
+              "value": "184 t",
+              "tone": "good"
+            },
+            {
+              "label": "Fuel · diesel",
+              "value": "412 L",
+              "tone": "warn"
+            },
+            {
+              "label": "Incidents",
+              "value": "0",
+              "tone": "good"
+            }
           ]
         },
         {
@@ -792,9 +891,21 @@
           "desc": "KYB-verified sellers, LBMA-grade assays, biometric off-take signatures. The marketplace for buyers sourcing verified Tanzanian minerals.",
           "mockType": "market",
           "listings": [
-            { "label": "Geita doré · 60 oz", "value": "TZS 142M", "tone": "live" },
-            { "label": "Mererani tanzanite · Block-D", "value": "TZS 88M", "tone": "live" },
-            { "label": "Kigoma coltan · 2.4 t", "value": "TZS 56M", "tone": "live" }
+            {
+              "label": "Geita doré · 60 oz",
+              "value": "TZS 142M",
+              "tone": "live"
+            },
+            {
+              "label": "Mererani tanzanite · Block-D",
+              "value": "TZS 88M",
+              "tone": "live"
+            },
+            {
+              "label": "Kigoma coltan · 2.4 t",
+              "value": "TZS 56M",
+              "tone": "live"
+            }
           ]
         }
       ]
@@ -844,10 +955,27 @@
       "sub": "Ten pioneer operators across Geita, Mererani, and Songwe are running 12-week pilots. Below: numbers from telemetry on the left, and what operators are saying on the right.",
       "statsHeading": "By the numbers",
       "stats": [
-        { "value": 47, "suffix": "", "label": "Pilot sites under live brain" },
-        { "value": 1284, "suffix": "", "label": "Briefings delivered before 06:00" },
-        { "value": 184, "suffix": "k", "label": "Audit-chain entries (zero mutations)" },
-        { "value": 4.2, "suffix": "B", "decimals": 1, "label": "TZS hedged at gold window" }
+        {
+          "value": 47,
+          "suffix": "",
+          "label": "Pilot sites under live brain"
+        },
+        {
+          "value": 1284,
+          "suffix": "",
+          "label": "Briefings delivered before 06:00"
+        },
+        {
+          "value": 184,
+          "suffix": "k",
+          "label": "Audit-chain entries (zero mutations)"
+        },
+        {
+          "value": 4.2,
+          "suffix": "B",
+          "decimals": 1,
+          "label": "TZS hedged at gold window"
+        }
       ],
       "quotesHeading": "Pilot voices",
       "quotes": [
@@ -874,10 +1002,26 @@
       "titleAccent": "Here's the year ahead.",
       "sub": "Borjie ships in waves. We protect the existing pilots while opening four new capabilities across 2026. Each pill below maps to a quarter; each is shipping into the same hash-chained audit fabric.",
       "pills": [
-        { "label": "Q1 2026", "title": "Pilot — ten live mines", "tone": "active" },
-        { "label": "Q2 2026", "title": "Licence radar — 47-day pre-fill", "tone": "next" },
-        { "label": "Q3 2026", "title": "Vendor wallet — M-Pesa · Tigo · Airtel", "tone": "later" },
-        { "label": "Q4 2026", "title": "Buyer marketplace — public beta", "tone": "later" }
+        {
+          "label": "Q1 2026",
+          "title": "Pilot — ten live mines",
+          "tone": "active"
+        },
+        {
+          "label": "Q2 2026",
+          "title": "Licence radar — 47-day pre-fill",
+          "tone": "next"
+        },
+        {
+          "label": "Q3 2026",
+          "title": "Vendor wallet — M-Pesa · Tigo · Airtel",
+          "tone": "later"
+        },
+        {
+          "label": "Q4 2026",
+          "title": "Buyer marketplace — public beta",
+          "tone": "later"
+        }
       ],
       "ctaPrimary": "Start the pilot",
       "ctaSecondary": "Talk to a human",
@@ -927,7 +1071,15 @@
       "portfolioSize": "Number of sites you operate",
       "mineralFocus": "Primary mineral focus"
     },
-    "minerals": ["Gold", "Tanzanite", "Diamond", "Tin", "Coltan", "Coal", "Other"],
+    "minerals": [
+      "Gold",
+      "Tanzanite",
+      "Diamond",
+      "Tin",
+      "Coltan",
+      "Coal",
+      "Other"
+    ],
     "submit": "Submit application",
     "success": "Thank you. We'll be in touch within 5 business days.",
     "error": "Something went wrong. Please try again or email pilot@borjie.co.tz"
@@ -1886,6 +2038,692 @@
       "ctaHeading": "Federate your cooperative on Borjie.",
       "ctaSub": "One pilot. No card. No commitment. Borjie reads your last season and shows you the cooperative cockpit running on your own data.",
       "ctaPrimary": "Request a pilot"
+    },
+    "familyOffice": {
+      "metaTitle": "For family offices, multi-generational mining wealth, Borjie",
+      "metaDescription": "Borjie for family offices: governance, succession, holdings consolidation, and audit-grade reporting across the mining estate.",
+      "heroKicker": "For family offices",
+      "heroHeadline": "Run the family mining estate like an",
+      "heroHeadlineAccent": "institution",
+      "heroSub": "Borjie consolidates every subsidiary, every licence, every royalty stream and every member account into one Master Brain, with the governance ceremony your trustees require.",
+      "heroPrimaryCta": "Brief us on the estate",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "ISO 27001 ready",
+        "Audit-hash chain on every artefact",
+        "Multi-currency, TZS-primary"
+      ],
+      "statsHeading": "Three levers that change the family's risk profile.",
+      "statsSub": "Concrete numbers, not promises. The exact moves Borjie makes for a family that owns several licences across several names.",
+      "stats": [
+        {
+          "value": "4 to 1",
+          "label": "Subsidiaries consolidated into one ledger",
+          "sub": "Holdings, licences, royalty contracts, and ancillary businesses fold into one tenant with audit-hash traceability."
+        },
+        {
+          "value": "T+0",
+          "label": "Daily brief at the family desk",
+          "sub": "Mr. Mwikila assembles the night's production, payroll, treasury and compliance posture in one bilingual brief."
+        },
+        {
+          "value": "4-eye",
+          "label": "Trustee approvals at every high-risk move",
+          "sub": "Sovereign and four-eye policy gates ensure no single member can release funds, sign off royalty, or cancel a licence alone."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from the family deed to one operating system.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "We map the estate.",
+          "body": "We ingest every licence, contract, mineral right, subsidiary and member account into one Master Brain with auditable provenance."
+        },
+        {
+          "n": "02",
+          "title": "Trustees set the rails.",
+          "body": "Sovereign, four-eye, and kill-switch policies are configured per asset class. Mr. Mwikila enforces them every move."
+        },
+        {
+          "n": "03",
+          "title": "The family runs on dashboards, not phone calls.",
+          "body": "Daily brief, monthly statement, quarterly trustee report, all evidence-cited, all bilingual sw / en."
+        }
+      ],
+      "problemKicker": "Why a Mining OS",
+      "problemHeading": "What family-office paper",
+      "problemHeadingAccent": "cannot solve",
+      "problemSub": "When a family owns more than one mine and more than one name, every spreadsheet becomes a liability.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Subsidiary sprawl.",
+          "desc": "Each licence sits in a different name, different bank, different signatory, no single view of net position."
+        },
+        {
+          "title": "Succession risk.",
+          "desc": "When a senior member is unavailable, payroll and royalty filings stall, every day is a fine."
+        },
+        {
+          "title": "Royalty leakage.",
+          "desc": "Off-takers and middlemen extract spread that the family never sees in writing."
+        },
+        {
+          "title": "Trustee burnout.",
+          "desc": "Quarterly reports are assembled by phone and email, by the time they land, the data is stale."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "One Master Brain across every subsidiary.",
+          "desc": "Consolidate licences, contracts, and accounts under one tenant with role-based access."
+        },
+        {
+          "title": "Sovereign and four-eye policy on every move.",
+          "desc": "No single member can release funds, file a return, or sign a sale without the trustees' configured threshold."
+        },
+        {
+          "title": "Daily brief, monthly statement, quarterly trustee report.",
+          "desc": "Evidence-cited, hash-chained, signed off by the agent that produced each line."
+        },
+        {
+          "title": "Succession-ready from day one.",
+          "desc": "If a member is unreachable, the next-in-line picks up the same brief on the same screen."
+        }
+      ],
+      "ctaHeading": "Run the estate on autopilot.",
+      "ctaSub": "Schedule a private brief. We map your structure, configure your policy, and show you the daily brief running on safe demo data.",
+      "ctaPrimary": "Brief our team"
+    },
+    "investor": {
+      "metaTitle": "For investors and lenders, Borjie",
+      "metaDescription": "Borjie for investors and mining lenders: daily evidence-cited telemetry, covenant tracking, and ground-truth on every mine in your book.",
+      "heroKicker": "For investors and lenders",
+      "heroHeadline": "Mining capital with daily",
+      "heroHeadlineAccent": "evidence",
+      "heroSub": "Borjie streams production telemetry, treasury exposure, licence posture and HSE incidents from every mine in your book, bilingual, evidence-cited, audit-grade.",
+      "heroPrimaryCta": "Request a portfolio brief",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Evidence required on every figure",
+        "Covenant gates configurable",
+        "ISO 27001 ready"
+      ],
+      "statsHeading": "Three numbers that change your underwriting.",
+      "statsSub": "Not slogans. The concrete things Borjie unlocks for capital partners that finance mining in Tanzania and across the region.",
+      "stats": [
+        {
+          "value": "T+0",
+          "label": "Daily portfolio telemetry",
+          "sub": "Production, treasury, compliance and HSE posture from every borrower mine in one dashboard."
+        },
+        {
+          "value": "100%",
+          "label": "Evidence chain on every figure",
+          "sub": "Every number cites at least one signed source, Tumemadini receipt, M-Pesa statement, drill-hole log."
+        },
+        {
+          "value": "Auto",
+          "label": "Covenant breach alerts",
+          "sub": "When a borrower's licence approaches expiry or treasury covenant slips, you hear it the same morning."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from term-sheet to live monitoring.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Borrower opts you in.",
+          "body": "Borrower grants scoped read access to the metrics in your term sheet. RLS keeps the rest of their data invisible to you."
+        },
+        {
+          "n": "02",
+          "title": "Borjie streams telemetry.",
+          "body": "Daily evidence-cited briefs, monthly statements, covenant trackers, written by Mr. Mwikila, signed by the borrower."
+        },
+        {
+          "n": "03",
+          "title": "You hear breaches first.",
+          "body": "The Auditor Agent flags covenant slippage the moment it shows in the ledger, not at quarter-end."
+        }
+      ],
+      "problemKicker": "Why capital partners switch",
+      "problemHeading": "What spreadsheet reporting",
+      "problemHeadingAccent": "cannot deliver",
+      "problemSub": "Mining capital lives or dies by ground-truth, and quarterly PDFs are not ground-truth.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Stale telemetry.",
+          "desc": "Quarterly PDFs arrive 60 days late, after the breach has already happened."
+        },
+        {
+          "title": "No evidence chain.",
+          "desc": "Production numbers come without provenance, you cannot tell a real receipt from a typed-in cell."
+        },
+        {
+          "title": "Manual covenant tracking.",
+          "desc": "Your analyst rebuilds the covenant spreadsheet every cycle, a single missed condition wipes the year's spread."
+        },
+        {
+          "title": "Borrower silos.",
+          "desc": "When a borrower switches accounting software, the whole reporting pipeline breaks."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "Daily evidence-cited telemetry.",
+          "desc": "Read-scoped access to the metrics your term sheet defines, written by Mr. Mwikila and hash-chained."
+        },
+        {
+          "title": "Auditor Agent on every covenant.",
+          "desc": "Breaches are detected the moment they appear in the ledger, surfaced to you the same morning."
+        },
+        {
+          "title": "One source of truth across every borrower.",
+          "desc": "Every mine in your book exposes the same shape of data, no per-borrower spreadsheet wrangling."
+        },
+        {
+          "title": "Multi-currency, TZS-primary.",
+          "desc": "Treasury exposure aggregated across TZS, USD, KES, with FX P&L attribution."
+        }
+      ],
+      "ctaHeading": "Underwrite mining with eyes open.",
+      "ctaSub": "Brief our team. We connect a sandbox mine, scope the covenant set, and show you the daily telemetry on safe data.",
+      "ctaPrimary": "Brief our team"
+    },
+    "buyer": {
+      "metaTitle": "For mineral buyers, Borjie",
+      "metaDescription": "Borjie for mineral buyers: KYB-verified Tanzanian supply, traceable parcels, escrow-ready settlement, biometric proof-of-delivery.",
+      "heroKicker": "For mineral buyers",
+      "heroHeadline": "Tanzanian minerals with",
+      "heroHeadlineAccent": "proof",
+      "heroSub": "Borjie's marketplace lists KYB-verified parcels with end-to-end chain-of-custody, biometric proof-of-delivery, and escrow-ready settlement.",
+      "heroPrimaryCta": "Browse the marketplace",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "KYB-verified sellers",
+        "Escrow-ready settlement",
+        "Biometric proof-of-delivery"
+      ],
+      "statsHeading": "Three reasons buyers route through Borjie.",
+      "statsSub": "Concrete numbers, the things you can verify before you commit a single dollar.",
+      "stats": [
+        {
+          "value": "100%",
+          "label": "KYB-verified sellers",
+          "sub": "Every seller is biometrically registered, licensed, and audit-trail attached."
+        },
+        {
+          "value": "Hash",
+          "label": "Chain-of-custody on every parcel",
+          "sub": "Assay report, weigh-in, transit, delivery, every step hashed and signed."
+        },
+        {
+          "value": "Escrow",
+          "label": "Settlement only after acceptance",
+          "sub": "Funds release on buyer-side acknowledgement, not on shipper invoice."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from listing to delivery.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Browse verified parcels.",
+          "body": "Filter by mineral, grade, region, and licence holder, every parcel cites its assay and licence."
+        },
+        {
+          "n": "02",
+          "title": "Bid in escrow.",
+          "body": "Place a bid; funds are held in escrow with full visibility to both sides."
+        },
+        {
+          "n": "03",
+          "title": "Accept on delivery.",
+          "body": "Biometric proof-of-delivery releases funds. Disputes flow through the Sovereign Agent."
+        }
+      ],
+      "problemKicker": "Why buyers switch",
+      "problemHeading": "What buying through brokers",
+      "problemHeadingAccent": "actually costs",
+      "problemSub": "Tanzanian mineral supply is real, but the path from licence holder to off-taker is full of opaque middlemen.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Unverified sellers.",
+          "desc": "Every parcel needs a phone call to confirm the licence is real and the seller is the holder."
+        },
+        {
+          "title": "Broken chain-of-custody.",
+          "desc": "Assays arrive on paper, parcels are repacked in transit, by the time you receive, the chain is opaque."
+        },
+        {
+          "title": "No escrow.",
+          "desc": "Pay-in-advance is the norm, and the loss when supply does not arrive is total."
+        },
+        {
+          "title": "Currency friction.",
+          "desc": "TZS / USD / KES quoting confusion eats spread on every parcel."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "Every seller KYB-verified.",
+          "desc": "Biometric registration, licence cross-check with Tumemadini, audit-trail signed."
+        },
+        {
+          "title": "Chain-of-custody on every parcel.",
+          "desc": "Assay, weigh-in, transit and delivery hashes are signed and presented inline."
+        },
+        {
+          "title": "Escrow with biometric release.",
+          "desc": "Funds release on buyer-side acknowledgement; disputes are routed through the Sovereign Agent."
+        },
+        {
+          "title": "Multi-currency quoting.",
+          "desc": "Quote in TZS, USD or KES; settlement currency is explicit on every offer."
+        }
+      ],
+      "ctaHeading": "Source minerals with proof.",
+      "ctaSub": "Register your buyer profile. Browse the marketplace on safe demo data. We brief you on the verification path.",
+      "ctaPrimary": "Register as a buyer"
+    },
+    "offTaker": {
+      "metaTitle": "For off-takers and exporters, Borjie",
+      "metaDescription": "Borjie for off-takers: aggregated supply, traceable parcels, BOT compliance documentation, multi-currency settlement.",
+      "heroKicker": "For off-takers and exporters",
+      "heroHeadline": "Aggregate Tanzanian mineral supply with",
+      "heroHeadlineAccent": "clean papers",
+      "heroSub": "Borjie aggregates KYB-verified parcels from PML and ML holders across the country and delivers them with the export documentation, BOT filings, and chain-of-custody auditors require.",
+      "heroPrimaryCta": "Request a supply brief",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "BOT-aligned export packs",
+        "Multi-tenant supply rails",
+        "TZS / USD multi-currency"
+      ],
+      "statsHeading": "Three reasons off-takers consolidate on Borjie.",
+      "statsSub": "Concrete numbers, the things that close the gap between artisanal supply and a clean Bill of Lading.",
+      "stats": [
+        {
+          "value": "100+",
+          "label": "PML / ML licence holders networked",
+          "sub": "Every seller is biometrically verified and licence-cross-checked with Tumemadini."
+        },
+        {
+          "value": "Full",
+          "label": "Export documentation pack",
+          "sub": "Royalty proof, certificate of origin, assay, BOT filings, assembled per parcel."
+        },
+        {
+          "value": "Multi-FX",
+          "label": "TZS / USD settlement",
+          "sub": "Settle in the currency the off-take contract calls for, with audit-grade FX P&L attribution."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from licence holder to export.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Borjie aggregates verified supply.",
+          "body": "Every PML / ML holder on the platform exposes parcels with hash-chained provenance."
+        },
+        {
+          "n": "02",
+          "title": "You contract per parcel.",
+          "body": "Bid into escrow; the off-take contract is signed end-to-end with biometric attestation."
+        },
+        {
+          "n": "03",
+          "title": "Borjie packs the export.",
+          "body": "Royalty receipt, assay, BOT filings and chain-of-custody hashes, all assembled into one signed export pack."
+        }
+      ],
+      "problemKicker": "Why off-takers switch",
+      "problemHeading": "What artisanal supply",
+      "problemHeadingAccent": "cannot deliver alone",
+      "problemSub": "PMLs and MLs have the minerals, what they lack is the export-grade paper trail customs and your bank require.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Fragmented supply.",
+          "desc": "Twenty licence holders, twenty conversations, twenty paper trails, none of them stitched together."
+        },
+        {
+          "title": "Missing export papers.",
+          "desc": "Royalty receipts, assays and origin certificates arrive late or in inconsistent formats."
+        },
+        {
+          "title": "Currency mismatch.",
+          "desc": "Off-take contracts in USD, supplier invoicing in TZS, no audit of the FX leak."
+        },
+        {
+          "title": "BOT compliance gaps.",
+          "desc": "Filings happen late and incomplete, penalties stack up on every shipment."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "One contract surface for every supplier.",
+          "desc": "All PML / ML holders on Borjie expose parcels in the same shape, with the same KYB stack behind them."
+        },
+        {
+          "title": "Export pack auto-assembled.",
+          "desc": "Royalty receipt, assay, certificate of origin, BOT filing, all packed per parcel."
+        },
+        {
+          "title": "FX-explicit settlement.",
+          "desc": "Every parcel carries its currency, FX gate, and P&L attribution."
+        },
+        {
+          "title": "BOT-aligned out of the box.",
+          "desc": "Every parcel exports with the BOT filing already filed and stamped, no late penalties."
+        }
+      ],
+      "ctaHeading": "Aggregate Tanzanian supply, ship clean.",
+      "ctaSub": "Brief our team. We map your off-take contract, configure the export pack, and show you a parcel running end-to-end.",
+      "ctaPrimary": "Brief our team"
+    },
+    "bank": {
+      "metaTitle": "For banks and microfinance, Borjie",
+      "metaDescription": "Borjie for banks and microfinance: mining-collateral verification, escrow rails, royalty assignment, BOT-aligned underwriting.",
+      "heroKicker": "For banks and microfinance",
+      "heroHeadline": "Lend to mining with",
+      "heroHeadlineAccent": "ground truth",
+      "heroSub": "Borjie verifies mining collateral, tracks royalty assignment, and streams covenant compliance, so credit officers see ground truth, not borrower-typed spreadsheets.",
+      "heroPrimaryCta": "Request a pilot",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "BOT-aligned underwriting pack",
+        "Real-time covenant tracker",
+        "Audit-hash chain on every artefact"
+      ],
+      "statsHeading": "Three numbers that move your mining book.",
+      "statsSub": "Concrete levers, the moves that change the underwriting math on a PML / ML loan.",
+      "stats": [
+        {
+          "value": "Verified",
+          "label": "Mining collateral, not borrower assertion",
+          "sub": "Borjie cross-checks the licence with Tumemadini and stamps a hash-signed proof per file."
+        },
+        {
+          "value": "T+0",
+          "label": "Covenant tracker live",
+          "sub": "Production, treasury, royalty assignment, every covenant is monitored daily."
+        },
+        {
+          "value": "100%",
+          "label": "Audit-grade artefacts",
+          "sub": "Every credit decision references signed, hashed source documents, no PDF can be tampered with retroactively."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from application to drawdown.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Borrower opts in.",
+          "body": "PML / ML holder grants the bank scoped read on its Borjie tenant, only the metrics in your covenant pack."
+        },
+        {
+          "n": "02",
+          "title": "Underwriting on signed data.",
+          "body": "Your officer sees licence proof, production telemetry, treasury posture and royalty-assignment status with hash provenance."
+        },
+        {
+          "n": "03",
+          "title": "Covenant tracker on every drawdown.",
+          "body": "Borjie streams daily evidence-cited compliance, breaches flagged the morning they appear."
+        }
+      ],
+      "problemKicker": "Why banks switch",
+      "problemHeading": "What underwriting on paper",
+      "problemHeadingAccent": "actually misses",
+      "problemSub": "Mining loans live or die by ground-truth, and the paper packs that cross officer desks today are months stale and unsigned.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Unverified collateral.",
+          "desc": "Officers cannot independently confirm the licence is active, the holder is the borrower, and no double-pledge exists."
+        },
+        {
+          "title": "Paper-only royalty assignment.",
+          "desc": "Royalty assignment letters live in scanned PDFs, when off-takers pay, the bank is invisible to the flow."
+        },
+        {
+          "title": "Late covenant breach detection.",
+          "desc": "Quarterly reporting means the bank learns of a slippage 60 days after it happened."
+        },
+        {
+          "title": "No BOT-aligned export pack.",
+          "desc": "When the borrower ships and clears, the bank cannot match the export to the underlying loan."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "Licence-verified collateral.",
+          "desc": "Cross-check with Tumemadini, biometric holder attestation, hash-signed proof in the underwriting pack."
+        },
+        {
+          "title": "Royalty assignment on rails.",
+          "desc": "Off-take settlement flows split at source, bank's portion routed before the holder sees the residual."
+        },
+        {
+          "title": "Daily covenant telemetry.",
+          "desc": "Every drawdown is monitored against the covenant set; breaches surface the morning they appear."
+        },
+        {
+          "title": "BOT-aligned export visibility.",
+          "desc": "Every parcel shipped under the loan ties back to the drawdown, full audit-grade traceability."
+        }
+      ],
+      "ctaHeading": "Lend to mining with eyes open.",
+      "ctaSub": "Brief our team. We scope a single borrower for a 90-day pilot, configure the covenant pack, and show you the telemetry on safe data.",
+      "ctaPrimary": "Brief our team"
+    },
+    "regulator": {
+      "metaTitle": "For regulators and ministries, Borjie",
+      "metaDescription": "Borjie for regulators: real-time visibility into PML / ML compliance, royalty reconciliation, and HSE incident reporting across the mining estate.",
+      "heroKicker": "For regulators and ministries",
+      "heroHeadline": "Mining oversight with",
+      "heroHeadlineAccent": "evidence at speed",
+      "heroSub": "Borjie streams licence posture, royalty reconciliation, HSE incidents and compliance filings from every PML / ML on the platform, so regulators see ground-truth in real time, not after quarter-end.",
+      "heroPrimaryCta": "Brief our team",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Tumemadini-aligned filing",
+        "NEMC HSE feed",
+        "Audit-hash chain on every artefact"
+      ],
+      "statsHeading": "Three reasons the regulator joins early.",
+      "statsSub": "Concrete levers, what real-time mining oversight unlocks for Tumemadini, NEMC and the Ministry of Minerals.",
+      "stats": [
+        {
+          "value": "T+0",
+          "label": "Licence posture across the estate",
+          "sub": "Every active PML, PL and ML on the platform exposes status, expiry, and royalty assignment in real time."
+        },
+        {
+          "value": "Hash",
+          "label": "Filing artefacts immutable",
+          "sub": "Every Tumemadini / NEMC submission carries a hash-chained provenance, no retroactive tampering."
+        },
+        {
+          "value": "Real-time",
+          "label": "HSE incidents reported",
+          "sub": "Lost-time injury, environmental incident, community grievance, reported through Borjie the moment they happen."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from licence to oversight.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Licence holder onboards.",
+          "body": "PML / ML holder configures their Borjie tenant; the regulator-scoped feed is established automatically."
+        },
+        {
+          "n": "02",
+          "title": "Filings happen on rails.",
+          "body": "Tumemadini returns and NEMC HSE reports are assembled and signed inside the Borjie operating system."
+        },
+        {
+          "n": "03",
+          "title": "Regulator reads ground-truth.",
+          "body": "Live posture across the estate, evidence-cited, bilingual sw / en, no quarter-end scramble."
+        }
+      ],
+      "problemKicker": "Why regulators switch",
+      "problemHeading": "What paper-cycle oversight",
+      "problemHeadingAccent": "fails to catch",
+      "problemSub": "The mining sector pays Tanzania's bills, and the oversight stack that monitors it still runs on paper, phone, and quarter-end.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Late filings.",
+          "desc": "Royalty returns and HSE reports arrive after the activity they describe, penalties stack but ground-truth is gone."
+        },
+        {
+          "title": "Unverifiable artefacts.",
+          "desc": "Scanned PDFs and faxed letters can be retro-edited; no hash-chain proves the timing."
+        },
+        {
+          "title": "Fragmented visibility.",
+          "desc": "Tumemadini, NEMC, BOT and the Ministry each hold a different slice of the same mine, no consolidated view."
+        },
+        {
+          "title": "HSE incident black-out.",
+          "desc": "Community grievances and incidents are reported by phone, often days after the event."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "Real-time filing.",
+          "desc": "Tumemadini returns, NEMC reports, BOT royalty receipts, all generated and signed inside Borjie."
+        },
+        {
+          "title": "Hash-chained artefacts.",
+          "desc": "Every filing carries provenance, no retroactive tampering."
+        },
+        {
+          "title": "Consolidated posture.",
+          "desc": "One view across the estate per region, per mineral, per licence type."
+        },
+        {
+          "title": "HSE feed live.",
+          "desc": "Incidents reported at the time of event, with media-evidence captured biometrically by the supervisor on site."
+        }
+      ],
+      "ctaHeading": "Mining oversight at the speed of the sector.",
+      "ctaSub": "Brief our team. We map the data feed your regulator needs, configure read-scoped access, and show you the live posture on safe demo data.",
+      "ctaPrimary": "Brief our team"
+    },
+    "csrCommunity": {
+      "metaTitle": "For CSR and community partners, Borjie",
+      "metaDescription": "Borjie for CSR and community partners: transparent community-investment disbursement, grievance handling, and shared-value reporting.",
+      "heroKicker": "For CSR and community partners",
+      "heroHeadline": "Community investment with",
+      "heroHeadlineAccent": "real evidence",
+      "heroSub": "Borjie tracks every shilling of community-investment commitment, every grievance, and every shared-value programme, bilingual, signed, audit-grade.",
+      "heroPrimaryCta": "Brief our team",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Grievance handling on chain",
+        "Shared-value reporting",
+        "Bilingual sw / en"
+      ],
+      "statsHeading": "Three reasons CSR moves onto Borjie.",
+      "statsSub": "Concrete levers, what evidence-grade community-investment tracking unlocks for the licence holder and the host community alike.",
+      "stats": [
+        {
+          "value": "100%",
+          "label": "Disbursement traceability",
+          "sub": "Every commitment in the CSR plan ties to a transaction on the ledger, signed by the community recipient."
+        },
+        {
+          "value": "Same-day",
+          "label": "Grievance handling",
+          "sub": "Community grievances are logged in Swahili, routed to the Sovereign Agent, resolved on chain."
+        },
+        {
+          "value": "Live",
+          "label": "Shared-value report",
+          "sub": "The host community sees the running CSR position on their own dashboard, in their language."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from CSR plan to shared evidence.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "CSR plan goes on chain.",
+          "body": "Every commitment in the licence holder's Community Development Agreement is loaded into Borjie with sign-off from the regulator."
+        },
+        {
+          "n": "02",
+          "title": "Disbursements run through the operating system.",
+          "body": "Funds release on biometric receipt, schools, clinics, water-point operators sign for what they receive."
+        },
+        {
+          "n": "03",
+          "title": "Shared dashboard.",
+          "body": "The community sees its CSR position. The licence holder sees its compliance. The regulator sees the audit-hash chain."
+        }
+      ],
+      "problemKicker": "Why CSR moves on chain",
+      "problemHeading": "What paper CSR plans",
+      "problemHeadingAccent": "fail to deliver",
+      "problemSub": "Community development agreements are real obligations, but the way they're tracked today loses both communities and licence holders the trust they need.",
+      "problemTitle": "What goes wrong today",
+      "problems": [
+        {
+          "title": "Disbursement opacity.",
+          "desc": "Community commitments are tracked in spreadsheets, when funds release, no community member sees a signed receipt."
+        },
+        {
+          "title": "Grievance vacuum.",
+          "desc": "Complaints reach the mine by phone or rumour; they never get logged in a way that can be audited."
+        },
+        {
+          "title": "Plan drift.",
+          "desc": "The CSR plan signed at licensing day looks nothing like the actual disbursements five years later."
+        },
+        {
+          "title": "Language barrier.",
+          "desc": "Most community-facing material is English-only, even when the host community is Swahili-primary."
+        }
+      ],
+      "solutionTitle": "How Borjie changes the math",
+      "solutions": [
+        {
+          "title": "Plan on chain, disbursement on rails.",
+          "desc": "Every commitment loaded with regulator sign-off; every disbursement signed biometrically by the recipient."
+        },
+        {
+          "title": "Grievance handling open.",
+          "desc": "Complaints are logged in Swahili through the public chat widget and the Sovereign Agent."
+        },
+        {
+          "title": "Shared dashboard.",
+          "desc": "The community, the holder and the regulator see the same numbers in their language."
+        },
+        {
+          "title": "Audit-hash on every line.",
+          "desc": "Every CSR transaction carries provenance, nothing can be edited retroactively."
+        }
+      ],
+      "ctaHeading": "Community investment that earns trust.",
+      "ctaSub": "Brief our team. We map your CDA, configure the disbursement rails, and show you the dashboard running on safe demo data.",
+      "ctaPrimary": "Brief our team"
     }
   }
 }
