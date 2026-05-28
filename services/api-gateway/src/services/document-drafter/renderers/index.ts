@@ -57,9 +57,12 @@ export async function renderDraft(
       };
     case 'pdf': {
       // Try to load the sibling-owned PDF renderer if it has landed.
+      // The path is built at runtime so tsc / the bundler do not try
+      // to resolve the file at compile time.
       try {
+        const path = './pdf-' + 'renderer.js';
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod: any = await import('./pdf-renderer.js').catch(() => null);
+        const mod: any = await import(/* @vite-ignore */ path).catch(() => null);
         if (mod && typeof mod.renderPdf === 'function') {
           const buf: Buffer = mod.renderPdf(body, ctx);
           return { body: buf, contentType: 'application/pdf', extension: 'pdf' };

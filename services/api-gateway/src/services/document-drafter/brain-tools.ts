@@ -34,7 +34,7 @@ interface DraftPreview {
   readonly contentPreview: string;
   readonly revisionCount: number;
   readonly status: string;
-  readonly templateSlug: string;
+  readonly templateSlug: string | null;
 }
 
 function previewOf(content: string): string {
