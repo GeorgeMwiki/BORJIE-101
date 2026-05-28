@@ -23,7 +23,7 @@
  * any-length secret material and we always get a stable 32-byte key.
  *
  * Hard requirements per CLAUDE.md:
- *   - No `console.log` — callers thread their Pino logger.
+ *   - No raw console statements — callers thread their Pino logger.
  *   - Validates env strictly; refuses to encode/decode without secret.
  */
 

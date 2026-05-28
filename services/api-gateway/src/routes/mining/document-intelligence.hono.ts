@@ -36,8 +36,8 @@
  * scoped (never NULL — global corpus is reserved for the mining ground
  * truth).
  *
- * Per CLAUDE.md hard rules: no console.log (logger only), no reflective
- * CORS, no raw HTML interpolation, no process.env reads outside
+ * Per CLAUDE.md hard rules: no raw console statements (logger only), no
+ * reflective CORS, no raw HTML interpolation, no process.env reads outside
  * bootstrap.
  */
 

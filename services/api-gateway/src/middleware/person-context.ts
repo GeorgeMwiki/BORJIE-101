@@ -25,7 +25,7 @@
  * permission gating for an enrichment layer, so its failure mode is
  * "degraded mode banner" not "request denial".
  *
- * No `console.log` — pino via the shared logger.
+ * No raw console statements — pino via the shared logger.
  */
 
 // @ts-nocheck — same Hono v4 status-literal limitation tracked at

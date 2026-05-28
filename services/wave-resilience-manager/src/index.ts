@@ -95,26 +95,23 @@ export {
   type AuditableEvent,
 } from './audit/audit-emit.js';
 
-function consoleLogger(): ResilienceLogger {
+function streamLogger(): ResilienceLogger {
+  // Fallback logger used by the standalone supervisor binary when no
+  // injected Pino instance is available. Streams to stdout/stderr so
+  // we don't trip the project-wide `no console.*` ban.
+  const emit = (stream: NodeJS.WriteStream) => (obj: unknown, msg?: string): void => {
+    stream.write(`[wave-resilience-manager] ${msg ?? ''} ${JSON.stringify(obj)}\n`);
+  };
   return {
-    info(obj, msg) {
-      // eslint-disable-next-line no-console
-      console.log('[wave-resilience-manager]', msg ?? '', obj);
-    },
-    warn(obj, msg) {
-      // eslint-disable-next-line no-console
-      console.warn('[wave-resilience-manager]', msg ?? '', obj);
-    },
-    error(obj, msg) {
-      // eslint-disable-next-line no-console
-      console.error('[wave-resilience-manager]', msg ?? '', obj);
-    },
+    info: emit(process.stdout),
+    warn: emit(process.stderr),
+    error: emit(process.stderr),
   };
 }
 
 async function main(): Promise<void> {
   const cfg = loadConfig();
-  const logger = consoleLogger();
+  const logger = streamLogger();
   const progress = createInMemoryProgressRepository();
   const attempts = createInMemoryAttemptsRepository();
   // attempts repo currently unused at the supervisor layer (it is

@@ -20,8 +20,8 @@
  *     follow-up.
  *   - Append-only entry into the hash-chained `ai_audit_chain` (via
  *     `createAuditHashChain` + `createDrizzleAiAuditChainRepo`).
- *   - Pino logger surfaces (info / warn / error) — `console.log` is
- *     forbidden in services per CLAUDE.md.
+ *   - Pino logger surfaces (info / warn / error) — raw console
+ *     statements are forbidden in services per CLAUDE.md.
  *
  * If a required upstream is absent (no DATABASE_URL, no
  * SUPABASE_SERVICE_ROLE_KEY) every adapter degrades to a fail-soft

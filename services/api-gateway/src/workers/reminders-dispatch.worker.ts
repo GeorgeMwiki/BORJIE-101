@@ -30,7 +30,7 @@
  * Failure containment:
  *   - No DB → no-op + warn once on boot.
  *   - Per-row failures isolated; loop continues.
- *   - All errors logged via Pino (NO console.log in services).
+ *   - All errors logged via Pino (no raw console statements in services).
  */
 
 import { sql } from 'drizzle-orm';

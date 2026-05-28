@@ -112,13 +112,16 @@ function log(level: LogLevel, service: string, message: string, meta?: Record<st
   };
 
   const output = formatEntry(entry);
-  
+
+  // Logger sink — we ARE the structured-log primitive. `console.*` is
+  // banned project-wide for callers; here we emit directly to the
+  // underlying stream so we don't recurse through our own ban rule.
   if (level === 'error') {
-    console.error(output);
+    process.stderr.write(output + '\n');
   } else if (level === 'warn') {
-    console.warn(output);
+    process.stderr.write(output + '\n');
   } else {
-    console.log(output);
+    process.stdout.write(output + '\n');
   }
 }
 

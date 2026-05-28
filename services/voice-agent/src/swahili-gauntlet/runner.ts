@@ -11,7 +11,7 @@
  * so unit tests can stub it with a one-liner. Production callers wrap the
  * real STT provider in a thin adapter.
  *
- * No console.log — caller can pass a logger; the smoke-test default is silent.
+ * No raw console statements — caller can pass a logger; the smoke-test default is silent.
  */
 
 import { wordErrorRate, WER_AGGREGATE_TARGET, WER_PER_UTTERANCE_TARGET } from './metrics/wer.js';

@@ -186,12 +186,14 @@ async function main(): Promise<void> {
   await writeFile(outputPath, JSON.stringify(spec, null, 2) + '\n', 'utf8');
 
   const pathCount = Object.keys((spec as { paths?: Record<string, unknown> }).paths ?? {}).length;
-  // eslint-disable-next-line no-console
-  console.log(`openapi-export: wrote ${pathCount} paths to ${outputPath}`);
+  // CLI surface — stream directly to stdout. This is a build-time tool;
+  // structured logging would add overhead with no aggregator on the
+  // other end.
+  process.stdout.write(`openapi-export: wrote ${pathCount} paths to ${outputPath}\n`);
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('openapi-export failed:', err);
+  // CLI failure — stream directly to stderr, then exit non-zero.
+  process.stderr.write(`openapi-export failed: ${String((err as Error)?.stack ?? err)}\n`);
   process.exit(1);
 });

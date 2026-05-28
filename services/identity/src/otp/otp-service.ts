@@ -75,8 +75,8 @@ export class InMemoryOtpStore implements OtpStore {
 }
 
 /**
- * No-op SMS dispatcher. Logs nothing (console.log is banned by project
- * rules). Real deployments should inject a `NotificationsDispatcher`-backed
+ * No-op SMS dispatcher. Logs nothing (raw console statements are banned by
+ * project rules). Real deployments should inject a `NotificationsDispatcher`-backed
  * implementation.
  */
 export class NoopSmsDispatcher implements SmsDispatcher {

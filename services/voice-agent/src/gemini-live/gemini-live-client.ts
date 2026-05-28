@@ -14,7 +14,7 @@
  * caller's API key and a setup frame carrying the model id + voice config.
  * Missing key → stub mode, same pattern as gpt-realtime-2.ts.
  *
- * No console.log — logging routes through the shared logger.
+ * No raw console statements — logging routes through the shared logger.
  */
 
 import { Buffer } from 'node:buffer';

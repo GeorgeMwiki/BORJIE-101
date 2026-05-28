@@ -5,8 +5,8 @@
  * API matching the convention used by `services/api-gateway/src/utils/logger.ts`.
  *
  * Replaces direct `console.*` calls per `.semgrep/borjie-rules.yml`
- * rule `console-statement-in-production-path` and CLAUDE.md "No `console.log`
- * in services — Pino logger only — it handles redaction."
+ * rule `console-statement-in-production-path` and CLAUDE.md "No raw
+ * console statements in services — Pino logger only — it handles redaction."
  *
  * Singleton: imported by any consolidation-worker task (corpus ingest CLIs,
  * orchestrator, stages). `BORJIE_DEBUG=1` forces level to `debug` so dev

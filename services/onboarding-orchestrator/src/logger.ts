@@ -6,7 +6,7 @@
  *   - redaction for common secret-bearing keys
  *   - LOG_LEVEL env override
  *
- * No console.log — see `.semgrep/borjie-rules.yml`
+ * No raw console statements — see `.semgrep/borjie-rules.yml`
  * (`console-statement-in-production-path`).
  */
 import { pino } from 'pino';

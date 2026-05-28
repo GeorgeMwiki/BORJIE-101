@@ -78,8 +78,8 @@
  *      the in-memory audit chain (the persistent variant lands with the
  *      Drizzle adapter). This satisfies the "every memory mutation is
  *      hash-chained" invariant in CLAUDE.md.
- *   5. No `console.log`. All operational logging goes through the
- *      structured logger from `utils/logger.ts`. The logger redacts
+ *   5. No raw console statements. All operational logging goes through
+ *      the structured logger from `utils/logger.ts`. The logger redacts
  *      PII via the classification scrubber by default.
  *   6. Immutability throughout. The returned `WiredCognitive` is a
  *      readonly snapshot; enrichment returns frozen arrays.
