@@ -41,15 +41,37 @@ export interface LoggerConfig {
   baseContext?: LoggerContext;
 }
 
+// Scale-hardening: expanded to cover the full set of sensitive headers /
+// fields the BORJIE platform handles. Names are de-duplicated by Pino,
+// so adding the snake_case and camelCase variants is safe and
+// belt-and-suspenders against the rapid mix of conventions across the
+// brain / payments / auth services.
+//
+// - `authorization` (header), `cookie` (header) — request headers.
+// - `password`, `passwordHash` — auth flows.
+// - `token`, `tokenHash`, `refreshToken`, `jwt`, `bearer` — auth tokens.
+// - `secret`, `mfaSecret`, `apiKey`, `api_key`, `webhookSecret` — secrets.
+// - `creditCard`, `ssn`, `bankAccount`, `iban`, `nationalId` — PII.
 const DEFAULT_REDACT_FIELDS = [
   'password',
+  'passwordHash',
   'token',
+  'tokenHash',
+  'refreshToken',
+  'jwt',
+  'bearer',
   'secret',
+  'mfaSecret',
   'apiKey',
+  'api_key',
+  'webhookSecret',
   'authorization',
+  'cookie',
   'creditCard',
   'ssn',
   'bankAccount',
+  'iban',
+  'nationalId',
 ];
 
 /**

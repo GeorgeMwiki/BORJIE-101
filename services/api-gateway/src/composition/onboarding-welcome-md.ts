@@ -208,7 +208,7 @@ function inferIntent(prompt: string | undefined): 'cashflow' | 'growth' | 'exit'
 function buildGreeting(input: WelcomeCoordinatorInput): string {
   const businessLabel = input.businessName || 'your portfolio';
   return [
-    `Karibu! I'm Mr. Mwikila — the MD for ${businessLabel}.`,
+    `Hi, I'm Mr. Mwikila — the MD for ${businessLabel}.`,
     `I'll keep your operations tight, your rent on time, and your books audit-ready.`,
     `To pick the right starter Skills, tell me which of the three best fits where you are today:`,
   ].join(' ');

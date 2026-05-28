@@ -49,7 +49,7 @@ export default async function SignupPage() {
             Borjie Owner Cockpit
           </p>
           <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-            Karibu Borjie.
+            Welcome to Borjie.
           </h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-neutral-400">
             Jisajili ili kuanza kusimamia mgodi wako. Welcome to Borjie — sign

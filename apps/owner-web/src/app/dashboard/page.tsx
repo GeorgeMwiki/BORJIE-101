@@ -44,7 +44,7 @@ export default async function OwnerDashboardPage() {
   const isSw = session.languagePreference === 'sw';
 
   const greeting = isSw
-    ? `Karibu tena, ${session.salutation}`
+    ? `Welcome back, ${session.salutation}`
     : `Welcome back, ${session.salutation}`;
 
   const subline = isSw

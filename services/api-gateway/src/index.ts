@@ -302,6 +302,20 @@ import { billingRouter } from './routes/owner/billing.router';
 import { ownerMessagingRouter } from './routes/owner/owner-messaging.router';
 import { supportRouter } from './routes/owner/support.router';
 import { adminUsersRouter } from './routes/owner/admin-users.router';
+// Wave OWNER-OS — owner cockpit OS surface (docs intake + drop-zone,
+// regulator-form drafter, reminders CRUD + dispatcher, dynamic tabs,
+// per-tenant advisor slice on /owner/brief). See:
+//   services/api-gateway/src/routes/owner/{docs,forms,reminders,tabs,brief}.hono.ts
+//   services/api-gateway/src/workers/reminders-dispatch.worker.ts
+//   packages/database/src/migrations/0089_owner_reminders_and_tabs.sql
+import { ownerDocsRouter } from './routes/owner/docs.hono';
+import { ownerFormsRouter } from './routes/owner/forms.hono';
+import { ownerRemindersRouter } from './routes/owner/reminders.hono';
+import { ownerTabsRouter } from './routes/owner/tabs.hono';
+import { ownerBriefRouter } from './routes/owner/brief.hono';
+import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
+import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
 import { getDb } from './composition/db-client';
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
@@ -1160,6 +1174,13 @@ api.route('/analytics/growth', analyticsGrowthRouter);
 api.route('/analytics/usage', analyticsUsageRouter);
 api.route('/billing', billingRouter);
 api.route('/owner/messaging', ownerMessagingRouter);
+// Wave OWNER-OS — mount BEFORE the wildcard owner mounts so the more
+// specific paths win lookup order.
+api.route('/owner/brief', ownerBriefRouter);
+api.route('/owner/docs', ownerDocsRouter);
+api.route('/owner/forms', ownerFormsRouter);
+api.route('/owner/reminders', ownerRemindersRouter);
+api.route('/owner/tabs', ownerTabsRouter);
 api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
@@ -1440,6 +1461,22 @@ const executiveBriefActionRunner = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, executed: 0, failed: 0, skipped: 0 }; } };
 
+// Wave OWNER-OS — reminders dispatch worker. Polls the `reminders`
+// table every 30s and ships rows by email (SendGrid/SES via env), SMS
+// (Africa's Talking / Twilio composite), or Slack webhook. Disabled
+// transparently when DATABASE_URL is unset (degraded mode). Single
+// no-op tick is returned so callers can still invoke tickOnce in tests.
+const remindersDispatchWorker = serviceRegistry.db
+  ? createRemindersDispatchWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      emailProvider: createEmailProviderFromEnv(),
+      smsProvider: resolveSmsProviderFromEnv(),
+      intervalMs: Number(process.env.BORJIE_REMINDERS_INTERVAL_MS ?? 30_000) || 30_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_REMINDERS_WORKER_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0 }; } };
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -1510,6 +1547,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: executive-brief action runner stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: executive-brief action runner stop failed');
+  }
+  try {
+    remindersDispatchWorker.stop();
+    logger.info('shutdown: reminders-dispatch worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: reminders-dispatch stop failed');
   }
   try {
     serviceRegistry.wakeLoopCron?.stop();
@@ -1615,6 +1658,10 @@ if (require.main === module) {
   // Piece E (issue #41) — drain the approved-actions queue every 10s,
   // dispatch to the junior executor, audit each dispatch.
   executiveBriefActionRunner.start();
+  // Wave OWNER-OS — reminders dispatch worker. Polls the `reminders`
+  // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
+  // Email default; SMS / Slack land when the operator wires the keys.
+  remindersDispatchWorker.start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval

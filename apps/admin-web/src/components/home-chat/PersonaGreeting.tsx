@@ -65,7 +65,7 @@ export function PersonaGreeting({
 
       <div className="space-y-2">
         <h1 className="font-display text-4xl leading-tight text-foreground">
-          Karibu kwa Borjie internal.
+          Welcome to Borjie internal.
         </h1>
         <p className="text-base text-neutral-400">
           Niambie unahitaji nini. Investigate tenants, dispatch jobs, query data —

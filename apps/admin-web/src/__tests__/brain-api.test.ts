@@ -96,7 +96,7 @@ describe('brain-api (admin) · createThread', () => {
       body: {
         threadId: 'thr_admin_first',
         finalPersonaId: 'T2_admin_strategist',
-        responseText: 'Karibu kwa Borjie internal.',
+        responseText: 'Welcome to Borjie internal.',
         handoffs: [],
         toolCalls: [],
         advisorConsulted: false,

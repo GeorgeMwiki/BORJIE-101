@@ -114,6 +114,18 @@ const LicenceHealthSlotSchema = z.object({
   ),
 });
 
+// Advisor slice — Wave OWNER-OS. Live-brain strategic insight (≤2
+// sentences) + a single concrete next action that the FE renders as a
+// sticky "Today's advisor note" chip above the home-chat composer.
+// nullable so the surrounding brief still loads when the brain is down.
+const AdvisorSlotSchema = z.object({
+  insight: z.string(),
+  action: z.string(),
+  generatedAtIso: z.string(),
+  provider: z.string(),
+  latencyMs: z.number().int().nonnegative(),
+});
+
 export const OwnerBriefSchema = z.object({
   schemaVersion: z.literal(1),
   composedAtIso: z.string(),
@@ -124,6 +136,8 @@ export const OwnerBriefSchema = z.object({
   cliffStatus: CliffStatusSlotSchema,
   openHighIncidents: OpenHighIncidentsSlotSchema,
   licenceHealth: LicenceHealthSlotSchema,
+  /** Optional — null when the brain ladder failed during composition. */
+  advisor: AdvisorSlotSchema.nullable().optional(),
 });
 
 export type OwnerBrief = z.infer<typeof OwnerBriefSchema>;
@@ -415,6 +429,24 @@ export async function composeOwnerBrief(
     getOpenHighIncidents(db, tenantId),
     getLicenceHealth(db, tenantId),
   ]);
+  // Best-effort advisor slice — Wave OWNER-OS. If the brain ladder is
+  // unwired or every provider errors we surface `advisor: null` and the
+  // FE simply hides the sticky note chip. Never blocks the brief.
+  const advisor = await composeAdvisorSlice({
+    dailyBrief,
+    decisions,
+    cashRunway,
+    productionVsTarget,
+    cliffStatus,
+    openHighIncidents,
+    licenceHealth,
+  }).catch((err) => {
+    moduleLogger.warn('advisor slice failed', {
+      tenantId,
+      reason: messageOf(err),
+    });
+    return null;
+  });
   return {
     schemaVersion: 1,
     composedAtIso: new Date().toISOString(),
@@ -425,6 +457,59 @@ export async function composeOwnerBrief(
     cliffStatus,
     openHighIncidents,
     licenceHealth,
+    advisor,
+  };
+}
+
+/**
+ * One-shot brain call that turns the brief slots into a 2-sentence
+ * strategic insight + 1 concrete action. Returns null if the brain
+ * ladder is unavailable or every provider returns empty.
+ */
+async function composeAdvisorSlice(slots: {
+  readonly dailyBrief: z.infer<typeof DailyBriefSlotSchema>;
+  readonly decisions: z.infer<typeof DecisionsSlotSchema>;
+  readonly cashRunway: z.infer<typeof CashRunwaySlotSchema>;
+  readonly productionVsTarget: z.infer<typeof ProductionSlotSchema>;
+  readonly cliffStatus: z.infer<typeof CliffStatusSlotSchema>;
+  readonly openHighIncidents: z.infer<typeof OpenHighIncidentsSlotSchema>;
+  readonly licenceHealth: z.infer<typeof LicenceHealthSlotSchema>;
+}): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
+  // Lazy import so the brain-call helper isn't required when this file
+  // is bundled for the cron worker (which sets no API keys).
+  const { callBrainOnce } = await import('./brain-call');
+  const summary = JSON.stringify({
+    shiftsToday: slots.dailyBrief.shiftsToday,
+    openIncidents: slots.dailyBrief.openIncidents,
+    criticalIncidents: slots.dailyBrief.criticalIncidents,
+    pendingDecisions: slots.decisions.pendingCount,
+    cashNet90dTzs: slots.cashRunway.ninetyDayNetTzs,
+    cashDailyAvgTzs: slots.cashRunway.dailyAvgTzs,
+    productionPerSite: slots.productionVsTarget.perSite,
+    cliffRemediation: slots.cliffStatus.remediationComplete,
+    licencesAtRisk: slots.licenceHealth.atRiskCount,
+    licencesTotal: slots.licenceHealth.totalCount,
+  });
+  const systemPrompt =
+    'You are Mr. Mwikila, the Borjie strategic advisor for a Tanzanian mining owner. Read the JSON brief and respond with EXACTLY two compact lines: line 1 is your strategic insight (≤2 sentences, no preamble), line 2 starts with "ACTION:" followed by ONE concrete next action under 14 words. No emoji, no markdown, no provider chatter.';
+  const userPrompt = `Today's owner brief slots (JSON):\n${summary}`;
+  let result: { text: string; provider: string; latencyMs: number };
+  try {
+    result = await callBrainOnce({ systemPrompt, userPrompt, maxTokens: 280 });
+  } catch {
+    return null;
+  }
+  const lines = result.text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const insight = lines[0] ?? '';
+  const actionLine = lines.find((l) => /^action[:\s]/i.test(l)) ?? lines[1] ?? '';
+  const action = actionLine.replace(/^action[:\s]+/i, '').trim();
+  if (!insight || !action) return null;
+  return {
+    insight,
+    action,
+    generatedAtIso: new Date().toISOString(),
+    provider: result.provider,
+    latencyMs: result.latencyMs,
   };
 }
 
