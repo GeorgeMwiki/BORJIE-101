@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import type { PersonaToolDescriptor } from './types';
+import { withChatProvenance } from './provenance-injector';
 
 const OWNER: ReadonlyArray<'T1_owner_strategist'> = ['T1_owner_strategist'];
 
@@ -729,7 +730,7 @@ export const ownerLogEngagementTool: PersonaToolDescriptor<
         engagement: { id: string; partyId: string; kind: string; status: string };
         auditHash: string | null;
       };
-    }>('/ops/engagements', body);
+    }>('/ops/engagements', withChatProvenance(body, ctx));
     const data = res.data;
     return {
       engagementId: data?.engagement?.id ?? '',

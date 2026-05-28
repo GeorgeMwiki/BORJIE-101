@@ -63,8 +63,8 @@ function ctx() {
 }
 
 describe('buyer-tools — surface', () => {
-  it('registers exactly seven buyer tools', () => {
-    expect(BUYER_TOOLS).toHaveLength(7);
+  it('registers exactly ten buyer tools', () => {
+    expect(BUYER_TOOLS).toHaveLength(10);
   });
 
   it('every buyer tool is gated to T5_customer_concierge only', () => {
@@ -73,13 +73,20 @@ describe('buyer-tools — surface', () => {
     }
   });
 
-  it('write tools are exactly {place, cancel, kyc upload-atom}', () => {
+  it('write tools are exactly {place, cancel, kyc upload-atom, accept-offer}', () => {
     const writeIds = BUYER_TOOLS.filter((t) => t.isWrite).map((t) => t.id);
     expect(writeIds.sort()).toEqual([
       'mining.bids.cancel',
       'mining.bids.place',
       'mining.buyers.kyc.upload-atom',
+      'mining.marketplace.accept-offer',
     ]);
+  });
+
+  it('exposes marketplace intel and custody read tools', () => {
+    const ids = BUYER_TOOLS.map((t) => t.id);
+    expect(ids).toContain('mining.marketplace.market-intel');
+    expect(ids).toContain('mining.marketplace.chain-of-custody');
   });
 });
 

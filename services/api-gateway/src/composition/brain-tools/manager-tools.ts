@@ -18,6 +18,7 @@
 
 import { z } from 'zod';
 import type { PersonaToolDescriptor } from './types';
+import { withChatProvenance } from './provenance-injector';
 
 const MANAGER: ReadonlyArray<'T3_module_manager'> = ['T3_module_manager'];
 
@@ -128,14 +129,17 @@ export const managerAssignTaskTool: PersonaToolDescriptor<typeof AssignInput, ty
     }
     return client.post<{ taskId: string; assignee: string; assignedAt: string }>(
       '/mining/tasks/assign',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        taskId: input.taskId,
-        workerId: input.workerId,
-        notesEn: input.notesEn,
-        notesSw: input.notesSw,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          taskId: input.taskId,
+          workerId: input.workerId,
+          notesEn: input.notesEn,
+          notesSw: input.notesSw,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -300,14 +304,17 @@ export const managerDecideApprovalTool: PersonaToolDescriptor<
     }
     return client.post<{ approvalId: string; decision: 'approve' | 'reject'; decidedAt: string }>(
       '/mining/approvals/decide',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        approvalId: input.approvalId,
-        decision: input.decision,
-        reasonEn: input.reasonEn,
-        reasonSw: input.reasonSw,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          approvalId: input.approvalId,
+          decision: input.decision,
+          reasonEn: input.reasonEn,
+          reasonSw: input.reasonSw,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -346,15 +353,18 @@ export const managerEscalateTool: PersonaToolDescriptor<
     }
     return client.post<{ ticketId: string; raisedAt: string }>(
       '/mining/escalations',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        subjectEn: input.subjectEn,
-        subjectSw: input.subjectSw,
-        bodyEn: input.bodyEn,
-        bodySw: input.bodySw,
-        severity: input.severity,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          subjectEn: input.subjectEn,
+          subjectSw: input.subjectSw,
+          bodyEn: input.bodyEn,
+          bodySw: input.bodySw,
+          severity: input.severity,
+        },
+        ctx,
+      ),
     );
   },
 };

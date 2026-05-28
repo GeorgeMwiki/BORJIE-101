@@ -58,6 +58,19 @@ export interface PersonaToolHandlerContext {
   readonly personaSlug: string;
   readonly auditSink?: PersonaToolAuditSink;
   readonly httpClient?: PersonaToolHttpClient;
+  /**
+   * Optional chat-session + turn IDs supplied by the brain orchestrator
+   * when a tool call is made on behalf of a chat turn. Threaded into
+   * every WRITE tool's POST body as `provenance.sessionId` /
+   * `provenance.turnId` so the row's "via Mr. Mwikila" pill in the
+   * downstream UI can deep-link back to the originating chat turn.
+   *
+   * Absent for tool calls made outside a chat (eg. scheduled cron,
+   * tests). The provenance helper falls back to
+   * `{via:'chat', sessionId:null, turnId:null}` in that case.
+   */
+  readonly chatSessionId?: string;
+  readonly chatTurnId?: string;
 }
 
 export interface PersonaToolDescriptor<
@@ -125,6 +138,15 @@ export interface PersonaToolGate {
    * tool refuse (fail-closed).
    */
   resolvePersonaSlug(ctx: ToolExecutionContext): string | undefined;
+  /**
+   * Resolve the chat-turn ID for the current tool invocation if the
+   * dispatcher can derive one. Returning `undefined` leaves the
+   * `provenance.turnId` field null — provenance is still well-formed,
+   * just without per-turn deep-linking. The gate adapter SHOULD
+   * implement this when the upstream orchestrator exposes a stable
+   * per-turn ID (most do — the LLM call carries one).
+   */
+  resolveChatTurnId?(ctx: ToolExecutionContext): string | undefined;
   readonly auditSink?: PersonaToolAuditSink;
   readonly httpClient?: PersonaToolHttpClient;
 }
@@ -207,12 +229,15 @@ export function toBrainToolHandler<
       }
 
       try {
+        const chatTurnId = gate.resolveChatTurnId?.(context);
         const handlerCtx: PersonaToolHandlerContext = Object.freeze({
           tenantId: context.tenant.tenantId,
           actorId: context.actor.id,
           personaSlug,
           ...(gate.auditSink !== undefined && { auditSink: gate.auditSink }),
           ...(gate.httpClient !== undefined && { httpClient: gate.httpClient }),
+          ...(context.threadId && { chatSessionId: context.threadId }),
+          ...(chatTurnId && { chatTurnId }),
         });
 
         const data = await descriptor.handler(parsed.data, handlerCtx);

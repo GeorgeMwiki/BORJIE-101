@@ -64,14 +64,22 @@ function ctx() {
 }
 
 describe('worker-tools — surface', () => {
-  it('registers exactly nine worker tools', () => {
-    expect(WORKER_TOOLS).toHaveLength(9);
+  it('registers exactly thirteen worker tools', () => {
+    expect(WORKER_TOOLS).toHaveLength(13);
   });
 
   it('every worker tool is gated to T4_field_employee only', () => {
     for (const t of WORKER_TOOLS) {
       expect(t.personaSlugs).toEqual(['T4_field_employee']);
     }
+  });
+
+  it('exposes role-aware tools (crew, drill, fuel, attendance)', () => {
+    const ids = WORKER_TOOLS.map((t) => t.id);
+    expect(ids).toContain('mining.workforce.my-crew');
+    expect(ids).toContain('mining.geology.log-drill-hole');
+    expect(ids).toContain('mining.workforce.log-fuel');
+    expect(ids).toContain('mining.workforce.shift-attendance');
   });
 });
 

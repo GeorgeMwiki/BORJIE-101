@@ -30,6 +30,10 @@
  *   /escalations       — manager-dispatch escalation chain (migration 0081)
  *   /approvals         — unified Linear-Triage approval queue (migration 0081)
  *   /tasks/:id/suggest-assignee — AI-suggested assignee (rules v1)
+ *   /tasks             — manager-assigned worker tasks (B-WorkerTasks)
+ *   /toolbox-talks     — pre-shift safety briefings (acknowledge / schedule)
+ *   /document-intelligence — corpus-scoped doc-chat sessions
+ *   /brain/vision-turn — multimodal Brain (Photo Advisor)
  *   /internal/*        — admin-console SUPER_ADMIN surfaces
  */
 
@@ -48,6 +52,8 @@ import { miningSalesRouter } from './sales.hono';
 import { miningIncidentsRouter } from './incidents.hono';
 import { miningGrievancesRouter } from './grievances.hono';
 import { miningCockpitRouter } from './cockpit.hono';
+// Live FX feed read path — see workers/fx-feed-cron.ts for the writer.
+import { miningFxRouter } from './fx.hono';
 import { miningChatRouter } from './chat.hono';
 import { miningLmbmRouter } from './lmbm.hono';
 import { miningDocumentsRouter } from './documents.hono';
@@ -71,6 +77,23 @@ import { miningDraftsRouter } from './draft.hono';
 import { miningEscalationsRouter } from './escalations.hono';
 import { miningApprovalsRouter } from './approvals.hono';
 import { miningTasksSuggestRouter } from './tasks-suggest.hono';
+
+// B-WorkerTasks — manager-assigned worker tasks (list / complete /
+// block / reassign). Coexists with miningTasksSuggestRouter under
+// the same `/tasks` prefix (suggest only owns `/:id/suggest-assignee`).
+import { miningTasksRouter } from './tasks.hono';
+
+// Worker safety — pre-shift toolbox talks (list / schedule / ack).
+import { miningToolboxRouter } from './toolbox.hono';
+
+// DOC-INTEL — "documents as alive entities" (upload / sessions /
+// ask / summary).
+import { miningDocumentIntelligenceRouter } from './document-intelligence.hono';
+
+// Photo Advisor — multimodal Brain turn for workforce-mobile vision.
+// Returns 503 BACKEND_VISION_UNAVAILABLE until orchestrator multimodal
+// API ships; the route itself is wired so the FE contract is honored.
+import { miningBrainVisionRouter } from './brain-vision.hono';
 
 import { miningInternalTenantsRouter } from './internal/tenants.hono';
 import { miningInternalCorpusRouter } from './internal/corpus.hono';
@@ -106,6 +129,7 @@ mining.route('/sales', miningSalesRouter);
 mining.route('/incidents', miningIncidentsRouter);
 mining.route('/grievances', miningGrievancesRouter);
 mining.route('/cockpit', miningCockpitRouter);
+mining.route('/fx', miningFxRouter);
 mining.route('/chat', miningChatRouter);
 mining.route('/lmbm', miningLmbmRouter);
 mining.route('/documents', miningDocumentsRouter);
@@ -126,8 +150,20 @@ mining.route('/escalations', miningEscalationsRouter);
 mining.route('/approvals', miningApprovalsRouter);
 // `tasks-suggest` only handles POST /:id/suggest-assignee — does not
 // collide with the worker tasks router endpoints (`/`, `/:id/complete`,
-// `/:id/block`, `/:id/reassign`).
+// `/:id/block`, `/:id/reassign`). Mount the tasks router AFTER the
+// suggest router so Hono trie resolution gives the more specific
+// `/:id/suggest-assignee` priority. Both nest at `/tasks/*`.
 mining.route('/tasks', miningTasksSuggestRouter);
+mining.route('/tasks', miningTasksRouter);
+
+// Worker safety pulse — toolbox-talks.
+mining.route('/toolbox-talks', miningToolboxRouter);
+
+// "Documents as alive entities" — corpus-scoped doc-intelligence.
+mining.route('/document-intelligence', miningDocumentIntelligenceRouter);
+
+// Photo Advisor — multimodal Brain vision turn.
+mining.route('/brain', miningBrainVisionRouter);
 
 // OpenAPI 3.1 static spec + Swagger UI for the mining sub-API.
 // Mount BEFORE `/internal/*` so the docs surface is open even when

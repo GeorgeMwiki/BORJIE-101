@@ -71,10 +71,15 @@ export interface RemindersDispatchOptions {
   readonly enabled?: boolean;
   readonly now?: () => Date;
   /** Resolver from owner_id → email address. Required for email channel
-   *  to land. Defaults to env BORJIE_OWNER_FALLBACK_EMAIL when set. */
+   *  to land. The owner-identity resolver wires this in production from
+   *  `owner_contact_prefs` then falls back to `users.email`. */
   readonly emailForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
   /** Resolver from owner_id → E.164 phone for SMS. */
   readonly phoneForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
+  /** Resolver from owner_id → Slack handle (e.g. @mwikila). Optional —
+   *  when present the Slack channel can DM the owner directly instead
+   *  of posting to the tenant-wide webhook. */
+  readonly slackHandleForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
 }
 
 export interface RemindersDispatchHandle {
@@ -209,8 +214,13 @@ export function createRemindersDispatchWorker(
 
   async function dispatchOne(r: PendingReminder): Promise<{ sent: boolean }> {
     if (r.channel === 'email') {
+      // Owner-identity resolver (preferred) → owner_contact_prefs →
+      // users.email. The legacy BORJIE_OWNER_FALLBACK_EMAIL is retained
+      // only as a final escape hatch for local-dev environments that
+      // have not yet seeded the prefs table.
       const addr = options.emailForOwner
-        ? await options.emailForOwner(r.tenantId, r.ownerId).catch(() => null)
+        ? (await options.emailForOwner(r.tenantId, r.ownerId).catch(() => null)) ??
+          (process.env.BORJIE_OWNER_FALLBACK_EMAIL?.trim() ?? null)
         : process.env.BORJIE_OWNER_FALLBACK_EMAIL?.trim() ?? null;
       if (!addr) {
         await markFailed(r, 'no_email_address_for_owner');
@@ -276,12 +286,21 @@ export function createRemindersDispatchWorker(
       await markFailed(r, 'slack_webhook_not_configured');
       return { sent: false };
     }
+    // Per-owner Slack handle resolved from owner_contact_prefs. When
+    // present we prepend a mention so the owner is paged directly in
+    // the tenant-wide channel.
+    const slackHandle = options.slackHandleForOwner
+      ? await options.slackHandleForOwner(r.tenantId, r.ownerId).catch(() => null)
+      : null;
+    const slackMention = slackHandle
+      ? `<${slackHandle.startsWith('@') ? slackHandle : `@${slackHandle}`}> `
+      : '';
     try {
       const res = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `*${r.title}*\n${r.body}`,
+          text: `${slackMention}*${r.title}*\n${r.body}`,
           username: 'Mr. Mwikila (Borjie)',
         }),
       });

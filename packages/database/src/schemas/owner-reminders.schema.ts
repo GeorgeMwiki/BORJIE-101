@@ -30,6 +30,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const REMINDER_CHANNELS = ['email', 'sms', 'slack'] as const;
 export type ReminderChannel = (typeof REMINDER_CHANNELS)[number];
@@ -71,6 +72,12 @@ export const reminders = pgTable(
       .defaultNow(),
     dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
     dispatchError: text('dispatch_error'),
+    /**
+     * Chat-as-OS bidirectional parity: which path produced this row
+     * (chat | form | agent_apply | api | legacy | unknown). See
+     * migration 0101 + helper `provenanceColumn()`.
+     */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     dispatchQueueIdx: index('idx_reminders_dispatch_queue').on(t.triggerAt),

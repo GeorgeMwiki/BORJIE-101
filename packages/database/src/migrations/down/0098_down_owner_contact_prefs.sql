@@ -1,0 +1,3 @@
+BEGIN;
+DROP TABLE IF EXISTS owner_contact_prefs CASCADE;
+COMMIT;

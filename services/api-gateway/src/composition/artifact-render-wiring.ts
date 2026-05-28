@@ -447,3 +447,39 @@ export function contentTypeFor(format: ArtifactOutputFormat): string {
     default: return 'application/octet-stream';
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Not-wired service — used when the artifact render pipeline is not
+// yet bound in this environment (e.g. no Chromium / DB). The /types
+// endpoint stays live (returns the static catalog), but /:id/render
+// throws a clear "artifact not found" so the FE surfaces a 404 with a
+// useful error body instead of crashing.
+// ─────────────────────────────────────────────────────────────────────
+
+export function createNotWiredArtifactRenderService(): ArtifactRenderService {
+  const renderer = createStubArtifactRenderer();
+  const artifactRepository: ArtifactRepository = {
+    async findById(): Promise<UiArtifactRow | null> {
+      return null;
+    },
+    async insert(): Promise<void> {
+      throw new Error('artifact render service not wired (insert)');
+    },
+  };
+  const cacheRepository: ArtifactRenderCacheRepository = {
+    async findCached(): Promise<RenderedArtifact | null> {
+      return null;
+    },
+    async upsertCached(): Promise<void> {
+      /* no-op */
+    },
+    async invalidate(): Promise<void> {
+      /* no-op */
+    },
+  };
+  return createArtifactRenderService({
+    renderer,
+    artifactRepository,
+    cacheRepository,
+  });
+}

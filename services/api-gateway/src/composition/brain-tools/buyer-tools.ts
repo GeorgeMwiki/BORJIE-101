@@ -13,6 +13,7 @@
 
 import { z } from 'zod';
 import type { PersonaToolDescriptor } from './types';
+import { withChatProvenance } from './provenance-injector';
 
 const BUYER: ReadonlyArray<'T5_customer_concierge'> = ['T5_customer_concierge'];
 
@@ -159,13 +160,16 @@ export const buyerPlaceBidTool: PersonaToolDescriptor<
     }
     return client.post<{ bidId: string; placedAt: string; status: 'active' | 'rejected' }>(
       '/mining/marketplace/bids',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        parcelId: input.parcelId,
-        amount: input.amount,
-        currency: input.currency,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          parcelId: input.parcelId,
+          amount: input.amount,
+          currency: input.currency,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -235,12 +239,15 @@ export const buyerCancelBidTool: PersonaToolDescriptor<
     }
     return client.post<{ bidId: string; withdrawnAt: string }>(
       '/mining/marketplace/bids/cancel',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        bidId: input.bidId,
-        reasonEn: input.reasonEn,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          bidId: input.bidId,
+          reasonEn: input.reasonEn,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -315,14 +322,196 @@ export const buyerKycUploadAtomTool: PersonaToolDescriptor<
     }
     return client.post<{ sessionId: string; chunkIndex: number; acceptedAt: string; assembled: boolean }>(
       '/mining/buyers/kyc/upload-atom',
-      {
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          sessionId: input.sessionId,
+          chunkIndex: input.chunkIndex,
+          chunkBase64: input.chunkBase64,
+          isLast: input.isLast,
+        },
+        ctx,
+      ),
+    );
+  },
+};
+
+// 8. Market intel (LBMA fix + benchmark + trend)
+const MarketIntelInput = z.object({
+  commodity: z.enum(['gold', 'tanzanite', 'copper', 'any']).default('gold'),
+  region: z.string().optional(),
+  windowDays: z.number().int().positive().max(180).default(30),
+});
+const MarketIntelOutput = z.object({
+  commodity: z.string(),
+  lbmaFixUsdPerOz: z.number().optional(),
+  benchmarkTzsPerGram: z.number().optional(),
+  trend: z.array(
+    z.object({
+      asOf: z.string(),
+      priceTzs: z.number(),
+    }),
+  ),
+  asOf: z.string(),
+});
+export const buyerMarketIntelTool: PersonaToolDescriptor<
+  typeof MarketIntelInput,
+  typeof MarketIntelOutput
+> = {
+  id: 'mining.marketplace.market-intel',
+  name: 'Buyer — market intel',
+  description:
+    'Current LBMA fix + local benchmark + price trend for the given commodity and ' +
+    'optional region over a configurable window (default 30 days).',
+  personaSlugs: BUYER,
+  inputSchema: MarketIntelInput,
+  outputSchema: MarketIntelOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        commodity: input.commodity,
+        trend: [],
+        asOf: new Date().toISOString(),
+      };
+    }
+    return client.get<{
+      commodity: string;
+      lbmaFixUsdPerOz?: number;
+      benchmarkTzsPerGram?: number;
+      trend: Array<{ asOf: string; priceTzs: number }>;
+      asOf: string;
+    }>('/mining/marketplace/market-intel', {
+      query: {
         tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        sessionId: input.sessionId,
-        chunkIndex: input.chunkIndex,
-        chunkBase64: input.chunkBase64,
-        isLast: input.isLast,
+        commodity: input.commodity,
+        region: input.region,
+        windowDays: input.windowDays,
       },
+    });
+  },
+};
+
+// 9. Chain of custody (parcel timeline, hash-chained)
+const CustodyInput = z.object({
+  parcelId: z.string().min(1),
+});
+const CustodyOutput = z.object({
+  parcelId: z.string(),
+  timeline: z.array(
+    z.object({
+      hopId: z.string(),
+      stage: z.enum([
+        'pit',
+        'assayer',
+        'smelter',
+        'exporter',
+        'buyer',
+        'transit',
+        'custom',
+      ]),
+      label: z.string(),
+      occurredAt: z.string(),
+      hashChainPrev: z.string().optional(),
+      hashChainSelf: z.string(),
+    }),
+  ),
+  totalHops: z.number().int().nonnegative(),
+});
+export const buyerChainOfCustodyTool: PersonaToolDescriptor<
+  typeof CustodyInput,
+  typeof CustodyOutput
+> = {
+  id: 'mining.marketplace.chain-of-custody',
+  name: 'Buyer — chain of custody',
+  description:
+    'Full hash-chained custody timeline for a marketplace parcel (pit through buyer ' +
+    'delivery). Every hop carries its own hash plus the previous-hop hash.',
+  personaSlugs: BUYER,
+  inputSchema: CustodyInput,
+  outputSchema: CustodyOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return { parcelId: input.parcelId, timeline: [], totalHops: 0 };
+    }
+    return client.get<{
+      parcelId: string;
+      timeline: Array<{
+        hopId: string;
+        stage:
+          | 'pit'
+          | 'assayer'
+          | 'smelter'
+          | 'exporter'
+          | 'buyer'
+          | 'transit'
+          | 'custom';
+        label: string;
+        occurredAt: string;
+        hashChainPrev?: string;
+        hashChainSelf: string;
+      }>;
+      totalHops: number;
+    }>(
+      `/mining/marketplace/listings/${encodeURIComponent(input.parcelId)}/custody`,
+      { query: { tenantId: ctx.tenantId } },
+    );
+  },
+};
+
+// 10. Accept offer (WRITE — MEDIUM)
+const AcceptOfferInput = z.object({
+  offerId: z.string().min(1),
+  signedAt: z.string(),
+});
+const AcceptOfferOutput = z.object({
+  offerId: z.string(),
+  acceptedAt: z.string(),
+  bidId: z.string().optional(),
+});
+export const buyerAcceptOfferTool: PersonaToolDescriptor<
+  typeof AcceptOfferInput,
+  typeof AcceptOfferOutput
+> = {
+  id: 'mining.marketplace.accept-offer',
+  name: 'Buyer — accept seller offer',
+  description:
+    'Accept a seller counter-offer on an existing bid. Audit-tracked. The upstream ' +
+    'route revalidates the offer is still open before commit.',
+  personaSlugs: BUYER,
+  inputSchema: AcceptOfferInput,
+  outputSchema: AcceptOfferOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return { offerId: input.offerId, acceptedAt: new Date().toISOString() };
+    }
+    return client.post<{
+      offerId: string;
+      acceptedAt: string;
+      bidId?: string;
+    }>(
+      '/mining/marketplace/offers/accept',
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          offerId: input.offerId,
+          signedAt: input.signedAt,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -337,4 +526,7 @@ export const BUYER_TOOLS: ReadonlyArray<
   buyerCancelBidTool,
   buyerKycStatusTool,
   buyerKycUploadAtomTool,
+  buyerMarketIntelTool,
+  buyerChainOfCustodyTool,
+  buyerAcceptOfferTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

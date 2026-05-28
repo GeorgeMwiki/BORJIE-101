@@ -32,6 +32,8 @@ import { MANAGER_TOOLS } from './manager-tools';
 import { WORKER_TOOLS } from './worker-tools';
 import { BUYER_TOOLS } from './buyer-tools';
 import { ADMIN_TOOLS } from './admin-tools';
+import { SCOPE_TOOLS } from './scope-tools';
+import { MD_INTELLIGENCE_TOOLS } from './md-intelligence-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -67,6 +69,8 @@ export function buildPersonaToolHandlers(
       WORKER_TOOLS,
       BUYER_TOOLS,
       ADMIN_TOOLS,
+      SCOPE_TOOLS,
+      MD_INTELLIGENCE_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -103,6 +107,8 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       WORKER_TOOLS,
       BUYER_TOOLS,
       ADMIN_TOOLS,
+      SCOPE_TOOLS,
+      MD_INTELLIGENCE_TOOLS,
     ],
     undefined,
   );
@@ -145,3 +151,5 @@ export { MANAGER_TOOLS } from './manager-tools';
 export { WORKER_TOOLS } from './worker-tools';
 export { BUYER_TOOLS } from './buyer-tools';
 export { ADMIN_TOOLS } from './admin-tools';
+export { SCOPE_TOOLS } from './scope-tools';
+export { MD_INTELLIGENCE_TOOLS } from './md-intelligence-tools';

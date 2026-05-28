@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import type { PersonaToolDescriptor } from './types';
+import { withChatProvenance } from './provenance-injector';
 
 const WORKER: ReadonlyArray<'T4_field_employee'> = ['T4_field_employee'];
 
@@ -70,7 +71,10 @@ export const workerClockInTool: PersonaToolDescriptor<typeof ClockInInput, typeo
     }
     return client.post<{ shiftId: string; clockedInAt: string }>(
       '/mining/attendance/clock-in',
-      { tenantId: ctx.tenantId, actorId: ctx.actorId, siteId: input.siteId, geo: input.geo },
+      withChatProvenance(
+        { tenantId: ctx.tenantId, actorId: ctx.actorId, siteId: input.siteId, geo: input.geo },
+        ctx,
+      ),
     );
   },
 };
@@ -104,7 +108,10 @@ export const workerClockOutTool: PersonaToolDescriptor<
     }
     return client.post<{ shiftId: string; clockedOutAt: string }>(
       '/mining/attendance/clock-out',
-      { tenantId: ctx.tenantId, actorId: ctx.actorId, shiftId: input.shiftId, geo: input.geo },
+      withChatProvenance(
+        { tenantId: ctx.tenantId, actorId: ctx.actorId, shiftId: input.shiftId, geo: input.geo },
+        ctx,
+      ),
     );
   },
 };
@@ -173,13 +180,16 @@ export const workerCompleteTaskTool: PersonaToolDescriptor<
     }
     return client.post<{ taskId: string; completedAt: string }>(
       '/mining/tasks/complete',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        taskId: input.taskId,
-        noteEn: input.noteEn,
-        noteSw: input.noteSw,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          taskId: input.taskId,
+          noteEn: input.noteEn,
+          noteSw: input.noteSw,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -256,12 +266,15 @@ export const workerAckToolboxTool: PersonaToolDescriptor<
     }
     return client.post<{ talkId: string; acknowledgedAt: string }>(
       '/mining/toolbox-talks/acknowledge',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        talkId: input.talkId,
-        biometric: input.biometricAssertion,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          talkId: input.talkId,
+          biometric: input.biometricAssertion,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -300,17 +313,20 @@ export const workerReportIncidentTool: PersonaToolDescriptor<
     }
     return client.post<{ incidentId: string; reportedAt: string }>(
       '/mining/incidents/report',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        titleEn: input.titleEn,
-        titleSw: input.titleSw,
-        descriptionEn: input.descriptionEn,
-        descriptionSw: input.descriptionSw,
-        severity: input.severity,
-        siteId: input.siteId,
-        geo: input.geo,
-      },
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          titleEn: input.titleEn,
+          titleSw: input.titleSw,
+          descriptionEn: input.descriptionEn,
+          descriptionSw: input.descriptionSw,
+          severity: input.severity,
+          siteId: input.siteId,
+          geo: input.geo,
+        },
+        ctx,
+      ),
     );
   },
 };
@@ -347,16 +363,261 @@ export const workerSubmitSampleTool: PersonaToolDescriptor<
     }
     return client.post<{ sampleId: string; submittedAt: string }>(
       '/mining/samples/submit',
-      {
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          sampleKind: input.sampleKind,
+          weightGrams: input.weightGrams,
+          siteId: input.siteId,
+          notesEn: input.notesEn,
+          notesSw: input.notesSw,
+        },
+        ctx,
+      ),
+    );
+  },
+};
+
+// 10. My crew today (supervisor role)
+const MyCrewInput = z.object({
+  siteId: z.string().optional(),
+});
+const MyCrewOutput = z.object({
+  shiftDate: z.string(),
+  crew: z.array(
+    z.object({
+      workerId: z.string(),
+      fullName: z.string(),
+      role: z.string(),
+      attendanceState: z.enum(['scheduled', 'on_shift', 'absent', 'late']),
+    }),
+  ),
+  totalCrew: z.number().int().nonnegative(),
+});
+export const workerMyCrewTool: PersonaToolDescriptor<
+  typeof MyCrewInput,
+  typeof MyCrewOutput
+> = {
+  id: 'mining.workforce.my-crew',
+  name: 'Worker — my crew today',
+  description:
+    'Crew roster for today\'s shift visible to the calling supervisor. Optionally ' +
+    'scoped to a specific site.',
+  personaSlugs: WORKER,
+  inputSchema: MyCrewInput,
+  outputSchema: MyCrewOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        shiftDate: new Date().toISOString().slice(0, 10),
+        crew: [],
+        totalCrew: 0,
+      };
+    }
+    return client.get<{
+      shiftDate: string;
+      crew: Array<{
+        workerId: string;
+        fullName: string;
+        role: string;
+        attendanceState: 'scheduled' | 'on_shift' | 'absent' | 'late';
+      }>;
+      totalCrew: number;
+    }>('/mining/workforce/my-crew', {
+      query: { tenantId: ctx.tenantId, actorId: ctx.actorId, siteId: input.siteId },
+    });
+  },
+};
+
+// 11. Log drill hole (WRITE — geologist role)
+const DrillHoleInput = z.object({
+  siteId: z.string().min(1),
+  holeId: z.string().min(1),
+  depthMeters: z.number().nonnegative(),
+  bearingDeg: z.number().min(0).max(360).optional(),
+  dipDeg: z.number().min(-90).max(90).optional(),
+  notesEn: z.string().max(2000).optional(),
+  notesSw: z.string().max(2000).optional(),
+});
+const DrillHoleOutput = z.object({
+  drillHoleId: z.string(),
+  loggedAt: z.string(),
+});
+export const workerLogDrillHoleTool: PersonaToolDescriptor<
+  typeof DrillHoleInput,
+  typeof DrillHoleOutput
+> = {
+  id: 'mining.geology.log-drill-hole',
+  name: 'Worker — log drill hole',
+  description:
+    'Log a new drill-hole observation from the field (geologist role). Audit-tracked. ' +
+    'Stored against the site\'s drilling registry.',
+  personaSlugs: WORKER,
+  inputSchema: DrillHoleInput,
+  outputSchema: DrillHoleOutput,
+  stakes: 'LOW',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        drillHoleId: `pending:${ctx.actorId}`,
+        loggedAt: new Date().toISOString(),
+      };
+    }
+    return client.post<{ drillHoleId: string; loggedAt: string }>(
+      '/mining/geology/drill-holes',
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          siteId: input.siteId,
+          holeId: input.holeId,
+          depthMeters: input.depthMeters,
+          bearingDeg: input.bearingDeg,
+          dipDeg: input.dipDeg,
+          notesEn: input.notesEn,
+          notesSw: input.notesSw,
+        },
+        ctx,
+      ),
+    );
+  },
+};
+
+// 12. Log fuel (WRITE — supervisor role)
+const FuelLogInput = z.object({
+  siteId: z.string().min(1),
+  vehicleId: z.string().min(1),
+  litres: z.number().positive(),
+  priceTzsPerLitre: z.number().positive(),
+  meterReading: z.number().nonnegative().optional(),
+  notesEn: z.string().max(2000).optional(),
+});
+const FuelLogOutput = z.object({
+  fuelLogId: z.string(),
+  loggedAt: z.string(),
+  totalCostTzs: z.number(),
+});
+export const workerLogFuelTool: PersonaToolDescriptor<
+  typeof FuelLogInput,
+  typeof FuelLogOutput
+> = {
+  id: 'mining.workforce.log-fuel',
+  name: 'Worker — log fuel',
+  description:
+    'Log a fuel purchase for a site vehicle (supervisor role). Audit-tracked. Feeds ' +
+    'the fuel-vs-output rolling metric on the owner cockpit.',
+  personaSlugs: WORKER,
+  inputSchema: FuelLogInput,
+  outputSchema: FuelLogOutput,
+  stakes: 'LOW',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        fuelLogId: `pending:${ctx.actorId}`,
+        loggedAt: new Date().toISOString(),
+        totalCostTzs: input.litres * input.priceTzsPerLitre,
+      };
+    }
+    return client.post<{ fuelLogId: string; loggedAt: string; totalCostTzs: number }>(
+      '/mining/workforce/fuel-logs',
+      withChatProvenance(
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          siteId: input.siteId,
+          vehicleId: input.vehicleId,
+          litres: input.litres,
+          priceTzsPerLitre: input.priceTzsPerLitre,
+          meterReading: input.meterReading,
+          notesEn: input.notesEn,
+        },
+        ctx,
+      ),
+    );
+  },
+};
+
+// 13. Shift attendance summary (supervisor / manager)
+const ShiftAttendanceInput = z.object({
+  siteId: z.string().min(1),
+  date: z.string().optional(),
+});
+const ShiftAttendanceOutput = z.object({
+  siteId: z.string(),
+  shiftDate: z.string(),
+  totalCrew: z.number().int().nonnegative(),
+  present: z.number().int().nonnegative(),
+  late: z.number().int().nonnegative(),
+  absent: z.number().int().nonnegative(),
+  rows: z.array(
+    z.object({
+      workerId: z.string(),
+      fullName: z.string(),
+      state: z.enum(['scheduled', 'on_shift', 'absent', 'late']),
+      clockedInAt: z.string().optional(),
+    }),
+  ),
+});
+export const workerShiftAttendanceTool: PersonaToolDescriptor<
+  typeof ShiftAttendanceInput,
+  typeof ShiftAttendanceOutput
+> = {
+  id: 'mining.workforce.shift-attendance',
+  name: 'Worker — shift attendance summary',
+  description:
+    'Per-site attendance summary for a given date (defaults to today). Visible to ' +
+    'supervisor + manager roles.',
+  personaSlugs: WORKER,
+  inputSchema: ShiftAttendanceInput,
+  outputSchema: ShiftAttendanceOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        siteId: input.siteId,
+        shiftDate: input.date ?? new Date().toISOString().slice(0, 10),
+        totalCrew: 0,
+        present: 0,
+        late: 0,
+        absent: 0,
+        rows: [],
+      };
+    }
+    return client.get<{
+      siteId: string;
+      shiftDate: string;
+      totalCrew: number;
+      present: number;
+      late: number;
+      absent: number;
+      rows: Array<{
+        workerId: string;
+        fullName: string;
+        state: 'scheduled' | 'on_shift' | 'absent' | 'late';
+        clockedInAt?: string;
+      }>;
+    }>('/mining/workforce/shift-attendance', {
+      query: {
         tenantId: ctx.tenantId,
         actorId: ctx.actorId,
-        sampleKind: input.sampleKind,
-        weightGrams: input.weightGrams,
         siteId: input.siteId,
-        notesEn: input.notesEn,
-        notesSw: input.notesSw,
+        date: input.date,
       },
-    );
+    });
   },
 };
 
@@ -372,4 +633,8 @@ export const WORKER_TOOLS: ReadonlyArray<
   workerAckToolboxTool,
   workerReportIncidentTool,
   workerSubmitSampleTool,
+  workerMyCrewTool,
+  workerLogDrillHoleTool,
+  workerLogFuelTool,
+  workerShiftAttendanceTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

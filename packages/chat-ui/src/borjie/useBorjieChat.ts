@@ -55,6 +55,32 @@ export interface BorjieJuniorCall {
 }
 
 /**
+ * Debate metadata — populated when the server's accuracy mode runs the
+ * turn through `runDebate` (fan-out across 3 providers + judge). The
+ * FE renders a "Verified ✓ 3-model debate" badge above the assistant
+ * bubble when `verified` is true.
+ */
+export interface BorjieDebateMetadata {
+  readonly verified: boolean;
+  readonly winner: { readonly provider: string; readonly model: string };
+  readonly scores: ReadonlyArray<{
+    readonly provider: string;
+    readonly score: number;
+    readonly reason: string;
+  }>;
+  readonly trace: {
+    readonly judgeProvider: string | null;
+    readonly winnerReason: string;
+    readonly responses: ReadonlyArray<{
+      readonly provider: string;
+      readonly model: string;
+      readonly latencyMs: number;
+      readonly error?: string;
+    }>;
+  };
+}
+
+/**
  * Bilingual message cache. `originalLang` records the language the turn
  * was authored in (user message) or generated in (assistant); `content`
  * holds whatever translations have been resolved so far.
@@ -69,6 +95,8 @@ export interface BorjieChatMessage {
   readonly streaming: boolean;
   readonly errored: boolean;
   readonly createdAt: string;
+  /** Optional 3-model debate metadata when accuracy mode ran the turn. */
+  readonly debate?: BorjieDebateMetadata;
 }
 
 /**
@@ -424,6 +452,50 @@ export function useBorjieChat(opts: UseBorjieChatOptions): UseBorjieChatResult {
   };
 }
 
+function parseDebateMetadata(raw: Record<string, unknown>): BorjieDebateMetadata | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const winner = raw.winner;
+  if (typeof winner !== 'object' || winner === null) return null;
+  const w = winner as Record<string, unknown>;
+  if (typeof w.provider !== 'string' || typeof w.model !== 'string') return null;
+  const rawScores = Array.isArray(raw.scores) ? raw.scores : [];
+  const scores: BorjieDebateMetadata['scores'] = rawScores
+    .filter(
+      (s): s is Record<string, unknown> =>
+        typeof s === 'object' && s !== null,
+    )
+    .map((s) => ({
+      provider: typeof s.provider === 'string' ? s.provider : '',
+      score: typeof s.score === 'number' ? s.score : 0,
+      reason: typeof s.reason === 'string' ? s.reason : '',
+    }));
+  const trace = (raw.trace ?? {}) as Record<string, unknown>;
+  const rawResponses = Array.isArray(trace.responses) ? trace.responses : [];
+  const responses: BorjieDebateMetadata['trace']['responses'] = rawResponses
+    .filter(
+      (r): r is Record<string, unknown> =>
+        typeof r === 'object' && r !== null,
+    )
+    .map((r) => ({
+      provider: typeof r.provider === 'string' ? r.provider : '',
+      model: typeof r.model === 'string' ? r.model : '',
+      latencyMs: typeof r.latencyMs === 'number' ? r.latencyMs : 0,
+      ...(typeof r.error === 'string' ? { error: r.error } : {}),
+    }));
+  return {
+    verified: Boolean(raw.verified),
+    winner: { provider: w.provider, model: w.model },
+    scores,
+    trace: {
+      judgeProvider:
+        typeof trace.judgeProvider === 'string' ? trace.judgeProvider : null,
+      winnerReason:
+        typeof trace.winnerReason === 'string' ? trace.winnerReason : '',
+      responses,
+    },
+  };
+}
+
 function applyFrame(
   setMessages: React.Dispatch<React.SetStateAction<readonly BorjieChatMessage[]>>,
   assistantId: string,
@@ -470,6 +542,15 @@ function applyFrame(
       prev.map((m) =>
         m.id === assistantId ? { ...m, juniorCalls: [...m.juniorCalls, call] } : m,
       ),
+    );
+    return;
+  }
+
+  if (frame.event === 'debate_metadata') {
+    const debate = parseDebateMetadata(parsed);
+    if (!debate) return;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === assistantId ? { ...m, debate } : m)),
     );
     return;
   }

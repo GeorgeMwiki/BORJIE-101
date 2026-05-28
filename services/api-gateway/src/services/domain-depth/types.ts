@@ -107,6 +107,14 @@ export interface SubAreaScope {
     readonly from: string;
     readonly to: string;
   };
+  /**
+   * Optional Drizzle client the resolver may use to read its backing
+   * data. Composition root passes the tenant-bound client; tests pass
+   * `undefined` so resolvers degrade gracefully.
+   */
+  readonly db?: {
+    readonly execute: (query: unknown) => Promise<unknown>;
+  };
 }
 
 /** Per-sub-area resolver function signature. */

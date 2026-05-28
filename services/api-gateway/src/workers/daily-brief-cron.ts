@@ -61,6 +61,8 @@ export interface DailyBriefRecipient {
   readonly email?: string;
   readonly phone?: string;
   readonly slackHandle?: string;
+  /** Preferred bilingual locale; defaults to 'en' when absent. */
+  readonly locale?: 'en' | 'sw';
 }
 
 export interface DailyBriefCronOptions {
@@ -514,14 +516,31 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         readonly insight: string;
         readonly action: string;
         readonly greetingEn?: string;
+        readonly greetingSw?: string;
         readonly summaryEn?: string;
+        readonly summarySw?: string;
       }
     | null
     | undefined;
+  const recipientLocale: 'en' | 'sw' =
+    args.recipientPayload.locale === 'sw' ? 'sw' : 'en';
   const summary = advisor?.insight ?? "Today's mining brief is ready.";
   const action = advisor?.action ?? '';
-  const subject = `Mr. Mwikila — daily brief for ${args.snapshotDate}`;
+  const subject =
+    recipientLocale === 'sw'
+      ? `Bw. Mwikila — muhtasari wa siku wa ${args.snapshotDate}`
+      : `Mr. Mwikila — daily brief for ${args.snapshotDate}`;
   const body = renderBriefBody({
+    locale: recipientLocale,
+    advisor,
+    snapshotDate: args.snapshotDate,
+    decisionsCount: args.brief.decisions.pendingCount,
+    incidentsCount: args.brief.openHighIncidents.count,
+    licencesAtRisk: args.brief.licenceHealth.atRiskCount,
+  });
+  const bodyHtml = renderBriefBodyHtml({
+    locale: recipientLocale,
+    subject,
     advisor,
     snapshotDate: args.snapshotDate,
     decisionsCount: args.brief.decisions.pendingCount,
@@ -535,10 +554,11 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         tenantId: args.tenant.tenantId,
         recipientAddress: args.recipient,
         templateKey: 'owner.daily_brief',
-        locale: 'en',
+        locale: recipientLocale,
         payload: {
           subject,
           body,
+          bodyHtml,
           summary,
           action,
           snapshotDate: args.snapshotDate,
@@ -560,7 +580,7 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         tenantId: args.tenant.tenantId,
         recipientAddress: args.recipient,
         templateKey: 'owner.daily_brief',
-        locale: 'en',
+        locale: recipientLocale,
         payload: { summary, action, snapshotDate: args.snapshotDate },
         idempotencyKey,
         channel: 'sms',
@@ -587,12 +607,27 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         errorMessage: 'no webhook configured for tenant',
       };
     }
+    const slackHeader =
+      recipientLocale === 'sw'
+        ? `*Bw. Mwikila — muhtasari wa siku* (${args.snapshotDate})`
+        : `*Mr. Mwikila — daily brief* (${args.snapshotDate})`;
+    const slackAction =
+      recipientLocale === 'sw'
+        ? action
+          ? `\n_Hatua:_ ${action}`
+          : ''
+        : action
+          ? `\n_Action:_ ${action}`
+          : '';
     const res = await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: `*Mr. Mwikila — daily brief* (${args.snapshotDate})\n${summary}${action ? `\n_Action:_ ${action}` : ''}`,
-        username: 'Mr. Mwikila (Borjie)',
+        text: `${slackHeader}\n${summary}${slackAction}`,
+        username:
+          recipientLocale === 'sw'
+            ? 'Bw. Mwikila (Borjie)'
+            : 'Mr. Mwikila (Borjie)',
       }),
     });
     if (!res.ok) {
@@ -613,44 +648,164 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
   }
 }
 
-function renderBriefBody(args: {
-  readonly advisor:
-    | {
-        readonly insight: string;
-        readonly action: string;
-        readonly greetingEn?: string;
-        readonly summaryEn?: string;
-      }
-    | null
-    | undefined;
+interface BriefAdvisorShape {
+  readonly insight: string;
+  readonly action: string;
+  readonly greetingEn?: string;
+  readonly greetingSw?: string;
+  readonly summaryEn?: string;
+  readonly summarySw?: string;
+}
+
+interface RenderBriefBodyArgs {
+  readonly locale: 'en' | 'sw';
+  readonly advisor: BriefAdvisorShape | null | undefined;
   readonly snapshotDate: string;
   readonly decisionsCount: number;
   readonly incidentsCount: number;
   readonly licencesAtRisk: number;
-}): string {
+}
+
+function renderBriefBody(args: RenderBriefBodyArgs): string {
+  const labels = bodyLabelsFor(args.locale);
   const lines: string[] = [];
   if (args.advisor) {
-    if (args.advisor.greetingEn) {
-      lines.push(args.advisor.greetingEn);
+    const greeting =
+      args.locale === 'sw'
+        ? args.advisor.greetingSw ?? args.advisor.greetingEn
+        : args.advisor.greetingEn ?? args.advisor.greetingSw;
+    if (greeting) {
+      lines.push(greeting);
       lines.push('');
     }
-    if (args.advisor.summaryEn) {
-      lines.push(args.advisor.summaryEn);
+    const summary =
+      args.locale === 'sw'
+        ? args.advisor.summarySw ?? args.advisor.summaryEn
+        : args.advisor.summaryEn ?? args.advisor.summarySw;
+    if (summary) {
+      lines.push(summary);
       lines.push('');
     }
     if (args.advisor.insight) {
-      lines.push(`Insight: ${args.advisor.insight}`);
+      lines.push(`${labels.insightLabel}: ${args.advisor.insight}`);
     }
     if (args.advisor.action) {
-      lines.push(`Action: ${args.advisor.action}`);
+      lines.push(`${labels.actionLabel}: ${args.advisor.action}`);
     }
     lines.push('');
   }
-  lines.push(`Snapshot for ${args.snapshotDate}`);
-  lines.push(`- Decisions awaiting you: ${args.decisionsCount}`);
-  lines.push(`- Open high-severity incidents: ${args.incidentsCount}`);
-  lines.push(`- Licences at risk: ${args.licencesAtRisk}`);
+  lines.push(`${labels.snapshotLabel} ${args.snapshotDate}`);
+  lines.push(`- ${labels.decisionsLabel}: ${args.decisionsCount}`);
+  lines.push(`- ${labels.incidentsLabel}: ${args.incidentsCount}`);
+  lines.push(`- ${labels.licencesLabel}: ${args.licencesAtRisk}`);
+  lines.push('');
+  lines.push(labels.footerLine);
   return lines.join('\n');
+}
+
+interface RenderBriefBodyHtmlArgs extends RenderBriefBodyArgs {
+  readonly subject: string;
+}
+
+/**
+ * Renders the brief as a branded, table-based, inlined-CSS HTML email
+ * (so it survives every modern client including Outlook). Bilingual,
+ * never says "Karibu" in the English path, never uses em-dashes.
+ */
+function renderBriefBodyHtml(args: RenderBriefBodyHtmlArgs): string {
+  const labels = bodyLabelsFor(args.locale);
+  const greeting =
+    args.advisor && args.locale === 'sw'
+      ? args.advisor.greetingSw ?? args.advisor.greetingEn ?? ''
+      : args.advisor?.greetingEn ?? args.advisor?.greetingSw ?? '';
+  const summary =
+    args.advisor && args.locale === 'sw'
+      ? args.advisor.summarySw ?? args.advisor.summaryEn ?? ''
+      : args.advisor?.summaryEn ?? args.advisor?.summarySw ?? '';
+  const insight = args.advisor?.insight ?? '';
+  const action = args.advisor?.action ?? '';
+
+  return `<!DOCTYPE html>
+<html lang="${args.locale}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(args.subject)}</title>
+</head>
+<body style="margin:0;padding:0;background:#F7F4ED;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#17100A;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F7F4ED;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background:#FFFFFF;border:1px solid #E8E2D2;border-radius:14px;overflow:hidden;">
+        <tr><td style="background:linear-gradient(135deg,#C9A66B 0%,#8B6914 100%);padding:18px 24px;">
+          <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#17100A;font-weight:600;">${esc(labels.brandLine)}</div>
+          <div style="font-size:18px;color:#17100A;font-weight:600;margin-top:4px;">${esc(args.subject)}</div>
+        </td></tr>
+        <tr><td style="padding:24px;">
+          ${greeting ? `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#17100A;">${esc(greeting)}</p>` : ''}
+          ${summary ? `<p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#3F2D1A;">${esc(summary)}</p>` : ''}
+          ${insight ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#FBF5E6;border:1px solid #E8D7A6;border-radius:10px;margin-bottom:14px;"><tr><td style="padding:12px 14px;font-size:13px;line-height:1.55;color:#3F2D1A;"><strong style="color:#8B6914;">${esc(labels.insightLabel)}:</strong> ${esc(insight)}</td></tr></table>` : ''}
+          ${action ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#F4F8F3;border:1px solid #C4DDB8;border-radius:10px;margin-bottom:18px;"><tr><td style="padding:12px 14px;font-size:13px;line-height:1.55;color:#1F3D17;"><strong style="color:#2E6326;">${esc(labels.actionLabel)}:</strong> ${esc(action)}</td></tr></table>` : ''}
+          <div style="border-top:1px solid #E8E2D2;padding-top:16px;margin-top:8px;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#8A7553;margin-bottom:8px;">${esc(labels.snapshotLabel)} ${esc(args.snapshotDate)}</div>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:13px;line-height:1.5;color:#17100A;">
+              <tr><td style="padding:4px 0;">${esc(labels.decisionsLabel)}</td><td align="right" style="padding:4px 0;font-weight:600;">${args.decisionsCount}</td></tr>
+              <tr><td style="padding:4px 0;">${esc(labels.incidentsLabel)}</td><td align="right" style="padding:4px 0;font-weight:600;">${args.incidentsCount}</td></tr>
+              <tr><td style="padding:4px 0;">${esc(labels.licencesLabel)}</td><td align="right" style="padding:4px 0;font-weight:600;">${args.licencesAtRisk}</td></tr>
+            </table>
+          </div>
+        </td></tr>
+        <tr><td style="background:#F7F4ED;padding:14px 24px;border-top:1px solid #E8E2D2;">
+          <div style="font-size:11px;color:#8A7553;line-height:1.5;">${esc(labels.footerLine)}</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function bodyLabelsFor(locale: 'en' | 'sw'): {
+  readonly brandLine: string;
+  readonly insightLabel: string;
+  readonly actionLabel: string;
+  readonly snapshotLabel: string;
+  readonly decisionsLabel: string;
+  readonly incidentsLabel: string;
+  readonly licencesLabel: string;
+  readonly footerLine: string;
+} {
+  if (locale === 'sw') {
+    return {
+      brandLine: 'Borjie · Mkurugenzi wa AI',
+      insightLabel: 'Maoni',
+      actionLabel: 'Hatua',
+      snapshotLabel: 'Picha ya leo',
+      decisionsLabel: 'Maamuzi yanayokusubiri',
+      incidentsLabel: 'Matukio makubwa yaliyo wazi',
+      licencesLabel: 'Leseni zilizo hatarini',
+      footerLine:
+        'Umepokea ujumbe huu kwa kuwa unafuatiliwa kwenye muhtasari wa kila siku wa Borjie. Badilisha mapendeleo kwenye console yako.',
+    };
+  }
+  return {
+    brandLine: 'Borjie · AI Managing Director',
+    insightLabel: 'Insight',
+    actionLabel: 'Action',
+    snapshotLabel: 'Snapshot for',
+    decisionsLabel: 'Decisions awaiting you',
+    incidentsLabel: 'Open high-severity incidents',
+    licencesLabel: 'Licences at risk',
+    footerLine:
+      'You received this email because you subscribe to Borjie daily briefs. Change preferences in your console.',
+  };
+}
+
+function esc(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1080,6 +1235,9 @@ function normaliseRecipients(raw: unknown): ReadonlyArray<DailyBriefRecipient> {
       ...(typeof r.phone === 'string' ? { phone: r.phone } : {}),
       ...(typeof r.slackHandle === 'string'
         ? { slackHandle: r.slackHandle }
+        : {}),
+      ...(r.locale === 'sw' || r.locale === 'en'
+        ? { locale: r.locale }
         : {}),
     };
     if (entry.email || entry.phone || entry.slackHandle) {

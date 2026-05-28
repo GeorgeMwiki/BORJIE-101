@@ -1,0 +1,3 @@
+BEGIN;
+DROP TABLE IF EXISTS four_eye_requests CASCADE;
+COMMIT;

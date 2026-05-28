@@ -81,6 +81,25 @@ import {
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
 import { parseBoardElements } from './board-element-parser';
+import {
+  isHighStakes,
+  runDebate,
+  type DebateContender,
+  type DebateResult,
+} from '../services/brain-debate/index.js';
+import {
+  inferMindState,
+  createAffectiveAccumulator,
+  renderMindStateDirectiveWithProfile,
+  type AffectiveProfile,
+} from '@borjie/central-intelligence';
+import {
+  getMemory,
+  recordObservation,
+  renderMemoryDirective,
+  type MemorySnapshot,
+} from '../services/advisor-memory/index.js';
+import { getDb } from '../composition/db-client.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -171,6 +190,125 @@ let providersCache: Providers | null = null;
 function providers(): Providers {
   if (!providersCache) providersCache = buildProviders();
   return providersCache;
+}
+
+// ─── Reasoning pipelines (Wave BRAIN-DEPTH) ─────────────────────────
+//
+// Wakes the kernel's stateful theory-of-mind accumulator + the
+// persistent advisor memory + a ladder-failure tracker for the
+// degraded-brain badge. All three are process-global singletons so a
+// warm api-gateway carries owner-affective state across turns within
+// the 24h TTL of the kernel accumulator.
+
+const affectiveAccumulator = createAffectiveAccumulator();
+
+/**
+ * Sliding window of recent ladder outcomes per (tenant, user). When two
+ * consecutive turns end in `all_providers_failed`, the next turn
+ * surfaces a degraded-brain badge.
+ *
+ * Capped at 1024 keys via FIFO eviction so a misbehaving caller can't
+ * grow the map indefinitely.
+ */
+const ladderFailureStreaks = new Map<string, number>();
+const LADDER_STREAK_CAP = 1024;
+
+function bumpLadderStreak(key: string, failed: boolean): number {
+  const prev = ladderFailureStreaks.get(key) ?? 0;
+  const next = failed ? prev + 1 : 0;
+  if (next === 0) {
+    ladderFailureStreaks.delete(key);
+    return 0;
+  }
+  ladderFailureStreaks.set(key, next);
+  if (ladderFailureStreaks.size > LADDER_STREAK_CAP) {
+    // Drop oldest insertion (Map preserves insertion order).
+    const oldest = ladderFailureStreaks.keys().next().value;
+    if (oldest !== undefined) ladderFailureStreaks.delete(oldest);
+  }
+  return next;
+}
+
+function inferEngagementHint(
+  history: ReadonlyArray<{ readonly role: string; readonly text: string }>,
+  ladderFailed: boolean,
+): 'continue' | 'accept' | 'bounce' {
+  if (ladderFailed) return 'bounce';
+  // Owner provided a follow-up message → continue.
+  if (history.length >= 2) return 'continue';
+  // Fresh thread, no prior signal → treat as continue (neutral).
+  return 'continue';
+}
+
+/**
+ * Classify the question kind from the message. Free-form short tag the
+ * brain uses for routing + observation. Pure heuristic — no model
+ * call, no DB.
+ */
+function classifyQuestionKind(message: string): string {
+  const m = message.toLowerCase();
+  if (/(how much|earned|revenue|profit|sales|made)/.test(m)) return 'finance.summary';
+  if (/(licen[cs]e|pml|permit|expir)/.test(m)) return 'compliance.licence';
+  if (/(royalt|tra)/.test(m)) return 'compliance.tax';
+  if (/(hire|fire|worker|payroll)/.test(m)) return 'hr.staffing';
+  if (/(buyer|price|sell|offtake)/.test(m)) return 'marketplace.deal';
+  if (/(safe|accident|incident|nemc|spill)/.test(m)) return 'risk.incident';
+  if (/(remind|notify|set up)/.test(m)) return 'workflow.reminder';
+  return 'general';
+}
+
+/**
+ * Heuristic owner local hour. Uses the persisted timezone preference
+ * when available (`Africa/Dar_es_Salaam` by default) so observations
+ * record an hour-of-day that matches the owner's real wall clock.
+ */
+function localHourForTimezone(tz: string): number {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      hour12: false,
+      timeZone: tz,
+    });
+    const parts = formatter.formatToParts(new Date());
+    const hourPart = parts.find((p) => p.type === 'hour');
+    const n = hourPart ? Number(hourPart.value) : NaN;
+    if (Number.isFinite(n) && n >= 0 && n <= 23) return n;
+  } catch {
+    /* fall through to UTC hour */
+  }
+  return new Date().getUTCHours();
+}
+
+/**
+ * Detect routine action from a user message. Pure heuristic, conservative.
+ * Returns a routine descriptor only when the message is unambiguously a
+ * confirmation of an action being taken (e.g. "filed royalty for May").
+ */
+function detectRoutineAction(message: string): { action: string; dom?: number } | null {
+  const m = message.toLowerCase();
+  const filed = /(filed|paid|submitted|sent)\s+(royalty|royalt)/.test(m);
+  if (filed) {
+    const today = new Date();
+    return { action: 'royalty_file', dom: today.getUTCDate() };
+  }
+  if (/(scheduled|booked|reserved)\s+(safety|toolbox|inspection)/.test(m)) {
+    return { action: 'safety_toolbox_schedule' };
+  }
+  return null;
+}
+
+/**
+ * Detect rejection in the user message. Conservative — false negatives
+ * are fine; false positives would slowly bias the model toward avoiding
+ * useful recommendations.
+ */
+function detectRejectedRecommendation(message: string): string | null {
+  const m = message.toLowerCase();
+  if (/(don'?t|do not|won'?t|no thanks|skip)\s+(hire|fire|sell|buy|change|move)/.test(m)) {
+    const action = m.match(/(hire|fire|sell|buy|change|move)/)?.[0];
+    if (action) return `${action}_action`;
+  }
+  return null;
 }
 
 // ─── UI-block extraction ────────────────────────────────────────────
@@ -336,24 +474,93 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         ? BORJIE_HOME_TEACHING_SYSTEM_PROMPT_SW
         : BORJIE_HOME_TEACHING_SYSTEM_PROMPT_EN;
 
+    // Wave BRAIN-DEPTH: wake the sleeping reasoning pipelines.
+    //
+    // 1) Theory-of-mind sensor — infer per-turn mind state from the
+    //    user message, accumulate into the stateful affective profile
+    //    keyed by (tenant, user).
+    // 2) Advisor memory — read persisted preferences + observed patterns
+    //    so the brain remembers WHO the owner is across sessions.
+    // 3) Degraded badge — if the last 2 turns from this user ended with
+    //    every provider failing, surface a yellow pill ahead of the
+    //    response so the owner sees the brain is operating degraded.
+    const tenantId = auth.tenant.tenantId;
+    const userId = auth.actor.id ?? 'anon';
+    const ladderKey = `${tenantId}:${userId}`;
+    const turnAtIso = new Date().toISOString();
+
+    const mindState = inferMindState(message);
+    let affectiveProfile: AffectiveProfile | null = null;
+    try {
+      affectiveProfile = affectiveAccumulator.observe(tenantId, userId, {
+        mindState,
+        capturedAt: turnAtIso,
+      });
+    } catch {
+      affectiveProfile = null;
+    }
+
+    // Memory snapshot — never blocks the turn; falls back to defaults.
+    const memoryDb = getDb();
+    let memorySnapshot: MemorySnapshot | null = null;
+    if (memoryDb) {
+      try {
+        memorySnapshot = await getMemory(memoryDb, tenantId);
+      } catch {
+        memorySnapshot = null;
+      }
+    }
+
+    const degradedStreak = ladderFailureStreaks.get(ladderKey) ?? 0;
+    const degradedBrain = degradedStreak >= 2;
+    if (degradedBrain) {
+      await stream.writeSSE({
+        event: 'brain_state',
+        data: JSON.stringify({
+          degraded: true,
+          consecutiveFailures: degradedStreak,
+          label: language === 'sw' ? 'Ubongo umepungua nguvu' : 'Brain operating in degraded mode',
+          at: turnAtIso,
+        }),
+      });
+    }
+
     // Inject the owner's tenant context BEFORE the teaching prompt so
     // the model can reference real data ("Your PML 0241/2023 expires in
     // 47 days") instead of LitFin's generic anchors. The actor name
     // doubles as the salutation hook (the model may use it once, but
     // the system prompt explicitly forbids opening with "Good morning").
     const ownerCtx = {
-      tenantId: auth.tenant.tenantId,
+      tenantId,
       tenantName: auth.tenant.tenantName,
       fullName: auth.actor.email ?? null,
       country: process.env.DEFAULT_TENANT_COUNTRY?.trim() || 'TZ',
       language,
       step: clientStep,
     };
-    const systemPrompt = [
+
+    const ownerStateDirective = renderMindStateDirectiveWithProfile(
+      mindState,
+      affectiveProfile,
+    );
+    const memoryDirective = memorySnapshot ? renderMemoryDirective(memorySnapshot) : '';
+
+    const systemPromptParts: string[] = [
       `<owner_context>${JSON.stringify(ownerCtx)}</owner_context>`,
       '',
-      basePrompt,
-    ].join('\n');
+    ];
+    if (ownerStateDirective) {
+      systemPromptParts.push('## OWNER_STATE');
+      systemPromptParts.push(ownerStateDirective);
+      systemPromptParts.push('');
+    }
+    if (memoryDirective) {
+      systemPromptParts.push('## OWNER_MEMORY');
+      systemPromptParts.push(memoryDirective);
+      systemPromptParts.push('');
+    }
+    systemPromptParts.push(basePrompt);
+    const systemPrompt = systemPromptParts.join('\n');
 
     const messages = [
       ...history.map((h) => ({
@@ -420,8 +627,52 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     let response: BrainLLMResponse | null = null;
     let winningProvider: string | null = null;
     let depth = -1;
+    let debateResult: DebateResult | null = null;
 
-    for (let i = 0; i < ladder.length; i++) {
+    // Accuracy mode — when the user message matches a high-stakes intent
+    // (regulator filing, royalty submission, payment, hire/fire, contract
+    // sign), fan out across every available provider, judge them, and
+    // pick the winner. The single-shot ladder below is the fallback if
+    // every contender fails.
+    const highStakes = isHighStakes(message);
+    if (highStakes && ladder.length >= 2) {
+      const contenders: DebateContender[] = ladder.map((entry) => ({
+        provider: entry.providerName,
+        model: entry.model,
+        client: entry.client,
+      }));
+      try {
+        debateResult = await runDebate(contenders, {
+          messages,
+          system: systemPrompt,
+          maxTokens: 1200,
+          temperature: 0.7,
+        });
+        response = debateResult.winner.response;
+        winningProvider = debateResult.winner.provider;
+        depth = ladder.findIndex(
+          (entry) => entry.providerName === debateResult!.winner.provider,
+        );
+        for (const r of debateResult.trace.responses) {
+          attempts.push({
+            provider: r.provider,
+            model: r.model,
+            latencyMs: r.latencyMs,
+            ...(r.error ? { error: r.error } : {}),
+          });
+        }
+      } catch (err) {
+        // Debate failed entirely; fall through to single-shot ladder.
+        attempts.push({
+          provider: 'debate',
+          model: 'multi',
+          error: err instanceof Error ? err.message : String(err),
+          latencyMs: 0,
+        });
+      }
+    }
+
+    for (let i = 0; response === null && i < ladder.length; i++) {
       const entry = ladder[i]!;
       const t0 = Date.now();
       try {
@@ -454,6 +705,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     }
 
     if (!response) {
+      bumpLadderStreak(ladderKey, true);
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
@@ -463,6 +715,21 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           retryable: true,
         }),
       });
+      // Best-effort: record bounce so future turns reflect the
+      // engagement signal even when the response itself failed.
+      if (memoryDb) {
+        await recordObservation(memoryDb, {
+          tenantId,
+          userId,
+          responseLengthChars: 0,
+          localHour: localHourForTimezone(
+            memorySnapshot?.preferences.timeZone ?? 'Africa/Dar_es_Salaam',
+          ),
+          questionKind: classifyQuestionKind(message),
+          normalizedQuestion: message,
+          engagement: 'bounce',
+        }).catch(() => {});
+      }
       await stream.writeSSE({
         event: 'done',
         data: JSON.stringify({
@@ -473,6 +740,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
       return;
     }
+
+    // Successful provider response — reset the consecutive-failure
+    // streak so a healthy turn clears the degraded-brain badge for
+    // the next turn.
+    bumpLadderStreak(ladderKey, false);
 
     const rawText = extractText(response);
     if (!rawText) {
@@ -506,6 +778,34 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     const uiResult = extractUiBlock(inlineResult.body);
     const metricsResult = extractInlineMetrics(uiResult.body);
     const { clean, ids, actions } = extractCitations(metricsResult.body);
+
+    // Emit debate metadata BEFORE the message_chunks so the FE renders
+    // the "Verified ✓ 3-model debate" badge above the assistant bubble
+    // as soon as the first token paints.
+    if (debateResult) {
+      await stream.writeSSE({
+        event: 'debate_metadata',
+        data: JSON.stringify({
+          verified: debateResult.verified,
+          winner: {
+            provider: debateResult.winner.provider,
+            model: debateResult.winner.model,
+          },
+          scores: debateResult.scores,
+          trace: {
+            judgeProvider: debateResult.trace.judgeProvider,
+            winnerReason: debateResult.trace.winnerReason,
+            responses: debateResult.trace.responses.map((r) => ({
+              provider: r.provider,
+              model: r.model,
+              latencyMs: r.latencyMs,
+              ...(r.error ? { error: r.error } : {}),
+            })),
+          },
+          at: new Date().toISOString(),
+        }),
+      });
+    }
 
     // Stream the cleaned text first so the renderer can paint
     // progressively before the ui_block lands at the end of the bubble.
@@ -609,6 +909,36 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // Wave BRAIN-DEPTH: record the observation so the next turn sees
+    // the engagement signal, the question kind, and any detected
+    // routine / aversion in the persistent advisor memory. Never
+    // blocks the SSE — failures are swallowed inside the recorder.
+    if (memoryDb) {
+      const observation = {
+        tenantId,
+        userId,
+        responseLengthChars: clean.length,
+        localHour: localHourForTimezone(
+          memorySnapshot?.preferences.timeZone ?? 'Africa/Dar_es_Salaam',
+        ),
+        questionKind: classifyQuestionKind(message),
+        normalizedQuestion: message,
+        engagement: inferEngagementHint(history, false),
+      } as Parameters<typeof recordObservation>[1];
+      const routine = detectRoutineAction(message);
+      if (routine) {
+        Object.assign(observation, {
+          detectedRoutineAction: routine.action,
+          ...(routine.dom !== undefined ? { routineDayOfMonth: routine.dom } : {}),
+        });
+      }
+      const rejected = detectRejectedRecommendation(message);
+      if (rejected) {
+        Object.assign(observation, { rejectedRecommendationKind: rejected });
+      }
+      await recordObservation(memoryDb, observation).catch(() => {});
+    }
+
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({
@@ -629,6 +959,21 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         board_elements: boardResult.elements.length,
         board_element_types: boardResult.elements.map((e) => e.type),
         board_dropped: boardResult.dropped,
+        brain_state: {
+          degraded: degradedBrain,
+          consecutiveFailures: degradedStreak,
+        },
+        sensors: {
+          mindState: mindState,
+          affectiveTurns: affectiveProfile?.turns ?? 0,
+          memory: memorySnapshot ? memorySnapshot.patterns.length : null,
+        },
+        debate: debateResult
+          ? {
+              verified: debateResult.verified,
+              contenders: debateResult.trace.responses.length,
+            }
+          : null,
       }),
     });
   });

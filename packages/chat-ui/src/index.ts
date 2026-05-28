@@ -72,3 +72,26 @@ export {
   MR_MWIKILA_CANONICAL_DISPLAY,
   type MrMwikilaCanonicalDisplay,
 } from './canonical-display.js';
+// Composer primitives — shared slash command + `@`-reference menus
+// surfaced across every Borjie chat surface (marketing / owner-web /
+// admin-web / workforce-mobile / buyer-mobile). The trigger-parser is
+// pure; SlashMenu / AtMenu are renderer-only. See ./composer/index.ts.
+export {
+  parseTrigger,
+  filterSlashCommands,
+  filterEntities,
+  applySelection,
+  buildTriggerProbe,
+  SlashMenu,
+  AtMenu,
+} from './composer/index.js';
+export type {
+  TriggerKind,
+  TriggerState,
+  SlashCommand,
+  EntityReference,
+  ComposerSelection,
+  SlashMenuProps,
+  AtMenuProps,
+  MenuItemLabel,
+} from './composer/index.js';

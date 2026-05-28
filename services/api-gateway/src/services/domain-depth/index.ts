@@ -6,6 +6,12 @@
  * see one frozen catalog.
  *
  * Source: `Docs/DESIGN/DOMAIN_DEPTH_MANIFEST.md`.
+ *
+ * Wave BRAIN-DEPTH extension: the `RESOLVER_REGISTRY` maps each
+ * sub-area's `dataResolverKey` to a real data-source function. Any
+ * key NOT in the registry falls through to the legacy "awaiting data
+ * source" stub so the FE keeps rendering and the brain keeps the
+ * honest "no signal yet on X" framing.
  */
 
 import type {
@@ -31,6 +37,10 @@ import { HOLDINGS_DOMAIN } from './domains/holdings';
 import { SUBSIDIARIES_DOMAIN } from './domains/subsidiaries';
 import { SUCCESSION_DOMAIN } from './domains/succession';
 import { ASSET_REGISTER_DOMAIN } from './domains/asset-register';
+
+import { resolvePccb } from './resolvers/pccb-resolver.js';
+import { resolvePdpa } from './resolvers/pdpa-resolver.js';
+import type { ResolverDeps, ResolverFn } from './resolvers/types.js';
 
 export const DOMAIN_DEPTH_CATALOG: ReadonlyArray<DomainDescriptor> =
   Object.freeze([
@@ -89,6 +99,25 @@ export const awaitingDataResolver: SubAreaResolver = async () => ({
   note: 'awaiting data source',
 });
 
+/**
+ * Map sub-area `dataResolverKey` → real resolver function. Keys not
+ * present here fall through to `awaitingDataResolver`. Resolvers MUST
+ * never throw — they return `{ status: 'unknown', note }` on failure.
+ *
+ * New keys are added here in lockstep with their backing migration so
+ * the catalog and the data source stay in sync.
+ */
+export const RESOLVER_REGISTRY: Readonly<Record<string, ResolverFn>> =
+  Object.freeze({
+    'compliance.anti_corruption': resolvePccb,
+    'compliance.data_protection': resolvePdpa,
+  });
+
+/** Per-call resolver dependency bag. Composed at the route layer. */
+function buildDeps(scope: SubAreaScope): ResolverDeps {
+  return { db: scope.db ?? null };
+}
+
 /** Resolve the status of a single sub-area, dispatching by key. */
 export async function resolveSubArea(
   domainId: DomainId,
@@ -99,10 +128,14 @@ export async function resolveSubArea(
   if (!subArea) {
     return { status: 'unknown', note: 'unknown sub-area' };
   }
-  // Resolvers are not wired here yet — the catalog returns an
-  // "awaiting data" tone so the FE renders the matrix without error.
-  // When a per-sub-area resolver lands it will be looked up by
-  // `dataResolverKey` in a resolver registry.
+  const registered = RESOLVER_REGISTRY[subArea.dataResolverKey];
+  if (registered) {
+    try {
+      return await registered(buildDeps(scope), { tenantId: scope.tenantId });
+    } catch {
+      return { status: 'unknown', note: 'resolver failure' };
+    }
+  }
   return awaitingDataResolver(scope);
 }
 

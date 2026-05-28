@@ -19,10 +19,14 @@
  * but stay visible as static state markers so streaming is still
  * legible. WCAG 2.2 AA contrast on every text/background pair.
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { BorjieMark } from './BorjieMark';
 import { MESSAGES, t } from './messages';
-import type { BorjieLanguage, BorjieMessage } from './useBorjieChat';
+import type {
+  BorjieDebateMetadata,
+  BorjieLanguage,
+  BorjieMessage,
+} from './useBorjieChat';
 
 interface BorjieChatBubbleProps {
   readonly message: BorjieMessage;
@@ -94,6 +98,9 @@ export function BorjieChatBubble({
           alignItems: isUser ? 'flex-end' : 'flex-start',
         }}
       >
+        {!isUser && message.debate?.verified ? (
+          <DebateBadge debate={message.debate} language={language} />
+        ) : null}
         <div
           style={{
             position: 'relative',
@@ -299,5 +306,129 @@ function ThinkingDots({
         {t(MESSAGES.thinking, language)}…
       </span>
     </span>
+  );
+}
+
+/**
+ * DebateBadge — "Verified ✓ 3-model debate" affordance shown above an
+ * assistant bubble when the server's accuracy mode ran the turn
+ * through `runDebate`. Click reveals the per-provider scores + judge
+ * reasoning so the owner can audit the deliberation.
+ */
+function DebateBadge({
+  debate,
+  language,
+}: {
+  readonly debate: BorjieDebateMetadata;
+  readonly language: BorjieLanguage;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const contenders = debate.trace.responses.length;
+  const badgeLabel =
+    language === 'sw'
+      ? `Imehakikiwa kwa mjadala wa modeli ${contenders}`
+      : `Verified by ${contenders}-model debate`;
+  const detailsLabel =
+    language === 'sw' ? 'Ona uchanganuzi' : 'See breakdown';
+  return (
+    <div
+      data-testid="borjie-debate-badge"
+      style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        gap: 4,
+        alignItems: 'flex-start',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={badgeLabel}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'rgba(34, 197, 94, 0.10)',
+          color: '#166534',
+          border: '1px solid rgba(34, 197, 94, 0.32)',
+          padding: '3px 9px',
+          borderRadius: 999,
+          fontSize: 10.5,
+          fontWeight: 600,
+          cursor: 'pointer',
+          letterSpacing: '0.01em',
+        }}
+      >
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        {badgeLabel}
+        <span aria-hidden="true" style={{ opacity: 0.65, fontSize: 9 }}>
+          {open ? '▲' : '▼'}
+        </span>
+      </button>
+      {open ? (
+        <div
+          data-testid="borjie-debate-trace"
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid rgba(11, 15, 25, 0.12)',
+            borderRadius: 8,
+            padding: '8px 10px',
+            fontSize: 11,
+            color: '#1F2937',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            minWidth: 240,
+          }}
+        >
+          <div style={{ fontWeight: 600 }}>{detailsLabel}</div>
+          <div style={{ color: '#475569', fontSize: 10.5 }}>
+            {debate.trace.winnerReason || '—'}
+          </div>
+          <ul
+            style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+            }}
+          >
+            {debate.scores.map((s) => (
+              <li
+                key={s.provider}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  fontFamily:
+                    "'JetBrains Mono', 'SF Mono', ui-monospace, monospace",
+                }}
+              >
+                <span>{s.provider}</span>
+                <span>
+                  {Math.round(s.score * 100)}%
+                  {s.provider === debate.winner.provider ? ' ★' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }

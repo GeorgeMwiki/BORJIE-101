@@ -990,6 +990,17 @@ export * from './ui-redesign-audit.schema.js';
 // `@borjie/database` like every other tenant schema.
 export * from './owner-brief.schema.js';
 
+// Wave OWNER-CONTACT-RESOLVER (migration 0098). Per-owner channel /
+// address resolver — replaces the BORJIE_OWNER_FALLBACK_EMAIL env-var
+// crutch used by the reminders worker.
+export * from './owner-contact-prefs.schema.js';
+
+// Wave FOUR-EYE-APPROVAL (migration 0099). Two-person sign-off on
+// high-stakes owner actions (payment > 5M TZS, regulator filing,
+// contract signature). Hash-chained into ai_audit_chain on every
+// state change.
+export * from './four-eye-requests.schema.js';
+
 // Wave WORKFORCE-FIXED-TABS (migration 0091). Workers see FIXED tabs only;
 // the owner sets the per-(role,scope) catalog + density via the owner-web
 // configurator and approves / rejects worker change requests. Both tables

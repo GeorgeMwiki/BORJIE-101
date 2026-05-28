@@ -42,3 +42,9 @@ export {
   ROTATION_SOAK_WINDOW_MS,
   type RotationGuardDeps,
 } from './security/encryption/key-rotation-soak-window.js';
+
+// Wave CHAT-AS-OS-PARITY — universal `provenance` jsonb column factory.
+export {
+  provenanceColumn,
+  type ProvenanceJson,
+} from './helpers/provenance-column.js';

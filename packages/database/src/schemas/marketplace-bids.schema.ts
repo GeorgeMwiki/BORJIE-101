@@ -32,6 +32,7 @@ import { tenants } from './tenant.schema.js';
 import { marketplaceListings } from './marketplace.schema.js';
 import { buyers } from './production-sales.schema.js';
 import { fingerprintEvents } from './fingerprint-events.schema.js';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // ============================================================================
 // Enums
@@ -80,6 +81,12 @@ export const marketplaceBids = pgTable(
     signedFingerprintEventId: text('signed_fingerprint_event_id'),
     /** Optional free-form metadata (rejection reason, etc.). */
     attributes: jsonb('attributes').notNull().default({}),
+    /**
+     * Chat-as-OS bidirectional parity: which path produced this row
+     * (chat | form | agent_apply | api | legacy | unknown). See
+     * migration 0101 + helper `provenanceColumn()`.
+     */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

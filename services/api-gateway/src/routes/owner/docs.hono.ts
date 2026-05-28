@@ -47,6 +47,11 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { callBrainOnce } from './brain-call.js';
+// Wave OWNER-OS — REAL Supabase Storage presigned PUT replacing the
+// previous placeholder. Uses `createSignedUploadUrl` against the
+// shared `tenant-uploads` bucket. Path scheme:
+//   tenant-uploads/<tenant_id>/<yyyy-mm>/<uuid>.<ext>
+import { issueOwnerDocPresign } from '../../services/owner-docs-storage/presign';
 
 const moduleLogger = createLogger('owner-docs');
 

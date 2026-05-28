@@ -59,6 +59,16 @@ import {
   briefingSubscriptionRouter,
 } from './routes/executive-brief.hono';
 import { casesRouter } from './routes/cases.hono';
+// Mining-domain backends (Wave MINING-BACKENDS) — six new scopes shipped
+// as siblings to the existing /mining surface. Each carries chat-as-OS
+// parity (both explicit tab + chat reach same backend) via persona tool
+// handlers registered in composition/brain-tools/mining-domain-tools.ts.
+import { geologyRouter } from './routes/geology/index';
+import { productionRouter } from './routes/production/index';
+import { cooperativesRouter } from './routes/cooperatives/index';
+import { insuranceRouter } from './routes/insurance/index';
+import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
+import { workforceClockInRouter } from './routes/workforce/clock-in.hono';
 import { brainRouter } from './routes/brain.hono';
 // Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
 // /api/chat/exploration register with multi-block teaching, 5-step
@@ -304,6 +314,10 @@ import {
   type SubscribableBus,
   type NotificationDispatcher,
 } from './workers/event-subscribers';
+// Outbound webhook retry — consumes `WebhookDeliveryQueued` events
+// from the bus, walks the 1s/3s/9s/27s/81s backoff ladder, persists
+// attempt records, and pushes terminal failures into the DLQ.
+import { createWebhookRetryWorker } from './workers/webhook-retry-worker';
 import { ensureTenantIsolation } from './middleware/tenant-context.middleware';
 import { assertApiKeyConfig } from './middleware/api-key-registry';
 import { customerAppRouter } from './routes/bff/customer-app';
@@ -355,6 +369,13 @@ import { engagementsRouter as opsEngagementsRouter } from './routes/ops/engageme
 import { chainOfCustodyRouter as opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
 import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave OWNER-CONTACT-RESOLVER — per-owner email/phone/slack resolver
+// replaces the BORJIE_OWNER_FALLBACK_EMAIL env-var crutch.
+import {
+  makeEmailForOwner,
+  makePhoneForOwner,
+  makeSlackHandleForOwner,
+} from './services/owner-identity/resolver';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
@@ -936,6 +957,13 @@ api.route('/complaints', complaintsRouter);
 api.route('/briefs', executiveBriefRouter);
 api.route('/briefing-subscriptions', briefingSubscriptionRouter);
 api.route('/cases', casesRouter);
+// Mining-domain backends — Wave MINING-BACKENDS.
+api.route('/geology', geologyRouter);
+api.route('/production', productionRouter);
+api.route('/cooperatives', cooperativesRouter);
+api.route('/insurance', insuranceRouter);
+api.route('/owner/threads', ownerThreadsRouter);
+api.route('/workforce', workforceClockInRouter);
 api.route('/brain', brainRouter);
 // Sibling /brain mount for the teaching chat — Hono composes both
 // routers under the same prefix; brainRouter already owns /turn,
@@ -1635,6 +1663,19 @@ const remindersDispatchWorker = serviceRegistry.db
       logger,
       emailProvider: createEmailProviderFromEnv(),
       smsProvider: resolveSmsProviderFromEnv(),
+      // Wave OWNER-CONTACT-RESOLVER — replace the fallback-email env
+      // var with a per-owner resolver. The resolver reads
+      // `owner_contact_prefs` first then falls back to `users.email`,
+      // `users.phone`, and the user's preferred locale/timezone.
+      emailForOwner: makeEmailForOwner(
+        serviceRegistry.db as unknown as Parameters<typeof makeEmailForOwner>[0],
+      ),
+      phoneForOwner: makePhoneForOwner(
+        serviceRegistry.db as unknown as Parameters<typeof makePhoneForOwner>[0],
+      ),
+      slackHandleForOwner: makeSlackHandleForOwner(
+        serviceRegistry.db as unknown as Parameters<typeof makeSlackHandleForOwner>[0],
+      ),
       intervalMs: Number(process.env.BORJIE_REMINDERS_INTERVAL_MS ?? 30_000) || 30_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_REMINDERS_WORKER_DISABLED !== 'true',
     })
@@ -1942,6 +1983,64 @@ if (require.main === module) {
         logger,
         arrearsService: serviceRegistry.arrears?.service ?? null,
       });
+
+      // Outbound webhook delivery — subscribe the retry-worker to every
+      // `WebhookDeliveryQueued` event emitted by the DLQ admin router
+      // and any future point that pushes onto the queue. Without this
+      // subscription the events were being published to nowhere and
+      // outbound webhooks silently failed.
+      //
+      // When the database-backed repository is not bound (test runs,
+      // local dev without a webhook table) the worker is created
+      // anyway but every delivery short-circuits to a single attempt
+      // logged at warn level — same shape as the bus-empty path. We
+      // never want a partial wire to crash the bus subscriber chain.
+      if (serviceRegistry.isLive && serviceRegistry.db) {
+        try {
+          const webhookRepo = createPostgresWebhookDeliveryRepository(
+            serviceRegistry.db,
+          );
+          const webhookRetryWorker = createWebhookRetryWorker({
+            repository: webhookRepo,
+            logger,
+          });
+          subscribableBus.subscribe(
+            'WebhookDeliveryQueued',
+            async (event) => {
+              const payload = (event.payload ?? {}) as Record<string, unknown>;
+              if (
+                typeof payload['deliveryId'] !== 'string' ||
+                typeof payload['tenantId'] !== 'string' ||
+                typeof payload['targetUrl'] !== 'string' ||
+                typeof payload['eventType'] !== 'string'
+              ) {
+                logger.warn(
+                  { eventType: event.eventType },
+                  'webhook-retry: malformed WebhookDeliveryQueued payload',
+                );
+                return;
+              }
+              await webhookRetryWorker.processDelivery({
+                deliveryId: payload['deliveryId'] as string,
+                tenantId: payload['tenantId'] as string,
+                targetUrl: payload['targetUrl'] as string,
+                eventType: payload['eventType'] as string,
+                payload: (payload['payload'] ?? {}) as Record<string, unknown>,
+                ...(typeof payload['hmacSecret'] === 'string'
+                  ? { hmacSecret: payload['hmacSecret'] as string }
+                  : {}),
+              });
+            },
+            { id: 'webhook-retry.queued' },
+          );
+          logger.info('webhook-retry: subscribed to WebhookDeliveryQueued');
+        } catch (err) {
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            'webhook-retry: subscription skipped (persistence not ready)',
+          );
+        }
+      }
 
       // Wave 19 — bridge the domain bus onto the observability bus.
       // Domain services publish through `InMemoryEventBus` (the
