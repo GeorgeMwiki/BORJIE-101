@@ -997,3 +997,15 @@ export * from './workforce-role-tab-configs.schema.js';
 // recipient). UNIQUE constraint makes the cron's INSERT … ON CONFLICT
 // DO NOTHING idempotent across ticks, restarts, and manual triggers.
 export * from './daily-brief-dispatches.schema.js';
+
+// Wave OPS-WIDE (migration 0093). The four supporting tables for the
+// upstream, downstream, and adjacent layers of mining ops:
+//   - external_parties              eighteen counterparty kinds
+//   - external_party_engagements    timeline of interactions
+//   - mineral_chain_of_custody      hash-chained pit-to-buyer ledger
+//   - regulatory_filings            calendar of regulator obligations
+// All RLS FORCE.
+export * from './external-parties.schema.js';
+export * from './external-party-engagements.schema.js';
+export * from './mineral-chain-of-custody.schema.js';
+export * from './regulatory-filings.schema.js';

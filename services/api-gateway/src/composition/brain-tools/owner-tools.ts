@@ -410,6 +410,168 @@ export const ownerReportsListTool: PersonaToolDescriptor<
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// 9. Ops-wide tools — Wave OPS-WIDE
+// ─────────────────────────────────────────────────────────────────────
+
+const TrackParcelInput = z.object({
+  parcelId: z.string().trim().min(1).max(120),
+});
+const TrackParcelOutput = z.object({
+  parcelId: z.string(),
+  steps: z.array(z.record(z.any())),
+  verification: z.object({
+    ok: z.boolean(),
+    brokenAt: z.number().nullable(),
+  }),
+  latestHash: z.string(),
+});
+
+export const ownerTrackParcelChainTool: PersonaToolDescriptor<
+  typeof TrackParcelInput,
+  typeof TrackParcelOutput
+> = {
+  id: 'mining.ops.track_parcel_chain',
+  name: 'Owner — track parcel chain',
+  description:
+    'Pull the full hash-chained chain-of-custody trail for one mineral parcel. ' +
+    'Read-only. Defers to /api/v1/ops/chain-of-custody.',
+  personaSlugs: OWNER,
+  inputSchema: TrackParcelInput,
+  outputSchema: TrackParcelOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        parcelId: input.parcelId,
+        steps: [],
+        verification: { ok: true, brokenAt: null },
+        latestHash: '',
+      };
+    }
+    return client.get<{
+      parcelId: string;
+      steps: Array<Record<string, any>>;
+      verification: { ok: boolean; brokenAt: number | null };
+      latestHash: string;
+    }>('/ops/chain-of-custody', {
+      query: { parcelId: input.parcelId },
+    });
+  },
+};
+
+const CheckRegulatoryDeadlineInput = z.object({
+  regulator: z.string().optional(),
+  dueWithinDays: z.coerce.number().int().min(1).max(365).default(60),
+});
+const CheckRegulatoryDeadlineOutput = z.object({
+  filings: z.array(z.record(z.any())),
+});
+
+export const ownerCheckRegulatoryDeadlineTool: PersonaToolDescriptor<
+  typeof CheckRegulatoryDeadlineInput,
+  typeof CheckRegulatoryDeadlineOutput
+> = {
+  id: 'mining.ops.check_regulatory_deadline',
+  name: 'Owner — check regulatory deadline',
+  description:
+    'List upcoming regulator filings within a window. Read-only. Defers to ' +
+    '/api/v1/ops/regulatory-filings.',
+  personaSlugs: OWNER,
+  inputSchema: CheckRegulatoryDeadlineInput,
+  outputSchema: CheckRegulatoryDeadlineOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { filings: [] };
+    const dueBefore = new Date(
+      Date.now() + input.dueWithinDays * 86_400_000,
+    ).toISOString();
+    const query: Record<string, string> = { dueBefore };
+    if (input.regulator) query.regulator = input.regulator;
+    return client.get<{ filings: Array<Record<string, any>> }>(
+      '/ops/regulatory-filings',
+      { query },
+    );
+  },
+};
+
+const LookupCounterpartyInput = z.object({
+  search: z.string().trim().min(1).max(200),
+  partyType: z.string().optional(),
+});
+const LookupCounterpartyOutput = z.object({
+  parties: z.array(z.record(z.any())),
+});
+
+export const ownerLookupCounterpartyTool: PersonaToolDescriptor<
+  typeof LookupCounterpartyInput,
+  typeof LookupCounterpartyOutput
+> = {
+  id: 'mining.ops.lookup_counterparty',
+  name: 'Owner — lookup counterparty',
+  description:
+    'Find a counterparty by name / TIN / BRELA. Read-only. Defers to ' +
+    '/api/v1/ops/external-parties.',
+  personaSlugs: OWNER,
+  inputSchema: LookupCounterpartyInput,
+  outputSchema: LookupCounterpartyOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { parties: [] };
+    const query: Record<string, string> = { search: input.search };
+    if (input.partyType) query.partyType = input.partyType;
+    return client.get<{ parties: Array<Record<string, any>> }>(
+      '/ops/external-parties',
+      { query },
+    );
+  },
+};
+
+const LogEngagementInput = z.object({
+  partyId: z.string().uuid(),
+  siteId: z.string().nullable().optional(),
+  kind: z.string(),
+  summary: z.string().trim().min(1).max(4000),
+});
+const LogEngagementOutput = z.object({
+  id: z.string(),
+  auditHashId: z.string().nullable(),
+});
+
+export const ownerLogEngagementTool: PersonaToolDescriptor<
+  typeof LogEngagementInput,
+  typeof LogEngagementOutput
+> = {
+  id: 'mining.ops.log_engagement',
+  name: 'Owner — log engagement',
+  description:
+    'Append a single engagement row in external_party_engagements. WRITE — ' +
+    'hash-chained audit. Defers to POST /api/v1/ops/engagements.',
+  personaSlugs: OWNER,
+  inputSchema: LogEngagementInput,
+  outputSchema: LogEngagementOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { id: '', auditHashId: null };
+    return client.post<{ id: string; auditHashId: string | null }>(
+      '/ops/engagements',
+      input as Record<string, unknown>,
+    );
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -421,4 +583,8 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerLicenceHealthTool,
   ownerMarketBidsTool,
   ownerReportsListTool,
+  ownerTrackParcelChainTool,
+  ownerCheckRegulatoryDeadlineTool,
+  ownerLookupCounterpartyTool,
+  ownerLogEngagementTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

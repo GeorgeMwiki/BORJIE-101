@@ -321,6 +321,16 @@ import {
   workforceTabConfigWorkerRouter,
   workforceTabConfigOwnerRouter,
 } from './routes/workforce/tab-configs.hono';
+// Wave OPS-WIDE — counterparties, engagements, chain of custody,
+// regulatory filings. See:
+//   services/api-gateway/src/routes/ops/
+//   packages/database/src/migrations/0093_full_mining_operations_scope.sql
+import {
+  externalPartiesRouter,
+  engagementsRouter,
+  chainOfCustodyRouter,
+  regulatoryFilingsRouter,
+} from './routes/ops';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
@@ -1190,6 +1200,12 @@ api.route('/owner/tabs', ownerTabsRouter);
 // more specific `/owner/workforce/*` paths win lookup order.
 api.route('/owner/workforce', workforceTabConfigOwnerRouter);
 api.route('/workforce', workforceTabConfigWorkerRouter);
+// Wave OPS-WIDE — full mining ops scope (counterparties, engagements,
+// chain of custody, regulatory filings).
+api.route('/ops/external-parties', externalPartiesRouter);
+api.route('/ops/engagements', engagementsRouter);
+api.route('/ops/chain-of-custody', chainOfCustodyRouter);
+api.route('/ops/regulatory-filings', regulatoryFilingsRouter);
 api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
