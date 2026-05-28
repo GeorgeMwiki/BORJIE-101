@@ -19,6 +19,7 @@ import {
   X,
   FileText,
   HelpCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import { LanguageToggle } from './LanguageToggle';
 import { getMessages, type Locale } from '@/lib/i18n';
@@ -45,11 +46,7 @@ import { getMessages, type Locale } from '@/lib/i18n';
 interface AudienceItem {
   readonly id: string;
   readonly href: string;
-  readonly icon: React.ComponentType<{
-    readonly className?: string;
-    readonly strokeWidth?: number;
-    readonly 'aria-hidden'?: boolean;
-  }>;
+  readonly icon: LucideIcon;
 }
 
 interface AudienceCategory {
