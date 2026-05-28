@@ -35,6 +35,16 @@ export {
 } from './theme/index';
 
 // ============================================================================
+// Command Palette - universal Cmd-K palette (Wave SUPERPOWERS)
+// ============================================================================
+export {
+  CommandPalette,
+  type CommandPaletteProps,
+  type CommandItem,
+  type CommandKind,
+} from './command-palette/index';
+
+// ============================================================================
 // Core Components
 // ============================================================================
 
