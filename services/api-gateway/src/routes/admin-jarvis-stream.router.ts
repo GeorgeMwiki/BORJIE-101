@@ -146,14 +146,9 @@ function buildOtelRecorder(): AgUiOtelSpanRecorder | null {
         // don't have it, so the span gets a near-zero duration but the
         // attributes + status are preserved for downstream filtering.
         if (status === 'error') {
-<<<<<<< Updated upstream
-          span.setStatus({ code: 2, ...(errorMessage && { message: errorMessage }) });
-=======
           const statusBody: { code: 2; message?: string } = { code: 2 };
           if (errorMessage) statusBody.message = errorMessage;
-          span.setStatus(statusBody);
->>>>>>> Stashed changes
-        }
+          span.setStatus(statusBody);        }
         span.setAttribute('ag_ui.duration_ms', durationMs);
         span.end();
       },

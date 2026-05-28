@@ -998,15 +998,6 @@ export * from './workforce-role-tab-configs.schema.js';
 // DO NOTHING idempotent across ticks, restarts, and manual triggers.
 export * from './daily-brief-dispatches.schema.js';
 
-<<<<<<< Updated upstream
-// Wave OPS-WIDE (migration 0093). The four supporting tables for the
-// upstream, downstream, and adjacent layers of mining ops:
-//   - external_parties              eighteen counterparty kinds
-//   - external_party_engagements    timeline of interactions
-//   - mineral_chain_of_custody      hash-chained pit-to-buyer ledger
-//   - regulatory_filings            calendar of regulator obligations
-// All RLS FORCE.
-=======
 // ---------------------------------------------------------------------------
 // Wave OPS-WIDE — full end-to-end mining operations scope (migration 0093)
 // ---------------------------------------------------------------------------
@@ -1027,34 +1018,11 @@ export * from './daily-brief-dispatches.schema.js';
 // Consumed by services/api-gateway/src/routes/ops/*.hono.ts and the
 // owner brain-tools (track_parcel_chain, check_regulatory_deadline,
 // lookup_counterparty, log_engagement).
->>>>>>> Stashed changes
 export * from './external-parties.schema.js';
 export * from './external-party-engagements.schema.js';
 export * from './mineral-chain-of-custody.schema.js';
 export * from './regulatory-filings.schema.js';
 
-<<<<<<< Updated upstream
-// Wave ESTATE-OS (migration 0094). Family-office layer for the mining-
-// rooted business empire:
-//   - estate_groups              top-level holding registry
-//   - estate_entities            subsidiaries / JVs / standalone holdings
-//   - estate_capital_movements   intercompany flows (VIEW LAYER)
-//   - succession_plans           successor designation + review cadence
-//   - estate_assets              asset register per entity
-// All RLS FORCE.
-export * from './estate-holdings.schema.js';
-
-// Wave MD-INTELLIGENCE (migration 0095). Read-only benchmark surface:
-//   - peer_cohort_aggregates    anonymised per-cohort percentile bands
-//   - external_benchmarks       point-in-time external reference values
-// Not tenant-scoped; read-only for the comparison-framework.
-export * from './peer-cohort-benchmarks.schema.js';
-
-// Wave SCOPE-SEGMENTATION (migrations 0096, 0096b). Hierarchical
-// taxonomy tree for cross-scope MD reasoning + per-tenant display label
-// preferences. All RLS FORCE.
-export * from './scope-nodes.schema.js';
-=======
 // Wave ESTATE-OS (migration 0094). Borjie runs the entire MINING
 // ESTATE BUSINESS, not just one mine. The customer is a family-office
 // / holdings structure where the mining licence is one asset among
@@ -1085,4 +1053,3 @@ export * from './estate-entities.schema.js';
 export * from './estate-capital-movements.schema.js';
 export * from './succession-plans.schema.js';
 export * from './estate-assets.schema.js';
->>>>>>> Stashed changes

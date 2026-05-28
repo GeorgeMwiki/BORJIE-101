@@ -31,17 +31,12 @@ const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
-<<<<<<< Updated upstream
-app.openapi(chatTurnRoute, ((c) => {
-=======
 // SSE streaming handlers don't conform to the discriminated-response type
 // `OpenAPIHono` infers from the spec — `streamSSE` returns a `Response`
 // with `text/event-stream` regardless of the per-status JSON envelopes
 // declared in `chatTurnRoute`. Cast around the response narrowing while
 // keeping the spec accurate at the OpenAPI / docs surface.
-app.openapi(chatTurnRoute, (async (c) => {
->>>>>>> Stashed changes
-  const { tenantId, userId } = c.get('auth');
+app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('auth');
   const db = c.get('db');
   const input = c.req.valid('json');
   return streamSSE(c, async (stream) => {
@@ -127,10 +122,5 @@ app.openapi(chatTurnRoute, (async (c) => {
       });
     }
   });
-<<<<<<< Updated upstream
-}) as any);
-=======
 }) as Parameters<typeof app.openapi<typeof chatTurnRoute>>[1]);
->>>>>>> Stashed changes
-
 export const miningChatRouter = app;

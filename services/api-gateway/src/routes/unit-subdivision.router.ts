@@ -65,13 +65,7 @@ function hasParentUnitIdColumn(): boolean {
 }
 
 app.get('/', async (c) => {
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-  const db = services.db as any;
-=======
-  const db = getDbFromServices(c);
->>>>>>> Stashed changes
-  const tenantId = c.get('tenantId');
+  const db = getDbFromServices(c);  const tenantId = c.get('tenantId');
   const parentId = c.req.param('id');
 
   if (!hasParentUnitIdColumn()) {

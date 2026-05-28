@@ -312,66 +312,10 @@ import { ownerRemindersRouter } from './routes/owner/reminders.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
-<<<<<<< Updated upstream
-=======
-// Wave ESTATE-OS — family-office layer above on-mine ops. See:
-//   services/api-gateway/src/routes/estate/*.hono.ts
-//   packages/database/src/migrations/0094_mining_estate_holdings.sql
-import { estateGroupsRouter } from './routes/estate/groups.hono';
-import { estateEntitiesRouter } from './routes/estate/entities.hono';
-import { estateCapitalMovementsRouter } from './routes/estate/capital-movements.hono';
-import { estateSuccessionPlansRouter } from './routes/estate/succession-plans.hono';
-import { estateAssetsRouter } from './routes/estate/assets.hono';
-// Wave OPS-WIDE — full end-to-end mining operations scope. See:
-//   services/api-gateway/src/routes/ops/*.hono.ts
-//   packages/database/src/migrations/0093_full_mining_operations_scope.sql
-import { opsExternalPartiesRouter } from './routes/ops/external-parties.hono';
-import { opsEngagementsRouter } from './routes/ops/engagements.hono';
-import { opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
-import { opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
->>>>>>> Stashed changes
-// Wave WORKFORCE-FIXED-TABS — fixed-tab catalog server, owner-side
-// configurator surface, worker-side change requests. See:
-//   services/api-gateway/src/routes/workforce/tab-configs.hono.ts
-//   packages/database/src/migrations/0091_workforce_role_tab_configs.sql
-//   packages/persona-runtime/src/workforce-tab-catalog.ts
-import {
-  workforceTabConfigWorkerRouter,
-  workforceTabConfigOwnerRouter,
-} from './routes/workforce/tab-configs.hono';
-<<<<<<< Updated upstream
-// Wave OPS-WIDE — counterparties, engagements, chain of custody,
-// regulatory filings. See:
-//   services/api-gateway/src/routes/ops/
-//   packages/database/src/migrations/0093_full_mining_operations_scope.sql
-import {
-  externalPartiesRouter,
-  engagementsRouter,
-  chainOfCustodyRouter,
-  regulatoryFilingsRouter,
-} from './routes/ops';
-// Wave ESTATE-OS — family-office layer for the mining-rooted business
-// empire (groups / entities / capital movements / succession / assets).
-//   services/api-gateway/src/routes/estate/
-//   packages/database/src/migrations/0094_mining_estate_holdings.sql
-import {
-  estateGroupsRouter,
-  estateEntitiesRouter,
-  estateCapitalMovementsRouter,
-  estateSuccessionRouter,
-  estateAssetsRouter,
-} from './routes/estate';
-// Wave SCOPE-SEGMENTATION — hierarchical scope taxonomy.
-//   services/api-gateway/src/routes/scope/
-//   packages/database/src/migrations/0096_scope_nodes_taxonomy.sql
-import { scopeRouter } from './routes/scope';
-=======
 import {
   workforceTabConfigOwnerListRouter,
   workforceTabPolicyAdminRouter,
-} from './routes/workforce/tab-configs-extras.hono';
->>>>>>> Stashed changes
-import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+} from './routes/workforce/tab-configs-extras.hono';import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
@@ -1236,26 +1180,6 @@ api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
 api.route('/owner/tabs', ownerTabsRouter);
-<<<<<<< Updated upstream
-// Wave WORKFORCE-FIXED-TABS — mount BEFORE wildcard owner mounts so the
-// more specific `/owner/workforce/*` paths win lookup order.
-api.route('/owner/workforce', workforceTabConfigOwnerRouter);
-api.route('/workforce', workforceTabConfigWorkerRouter);
-// Wave OPS-WIDE — full mining ops scope (counterparties, engagements,
-// chain of custody, regulatory filings).
-api.route('/ops/external-parties', externalPartiesRouter);
-api.route('/ops/engagements', engagementsRouter);
-api.route('/ops/chain-of-custody', chainOfCustodyRouter);
-api.route('/ops/regulatory-filings', regulatoryFilingsRouter);
-// Wave ESTATE-OS — family-office layer.
-api.route('/estate/groups', estateGroupsRouter);
-api.route('/estate/entities', estateEntitiesRouter);
-api.route('/estate/capital-movements', estateCapitalMovementsRouter);
-api.route('/estate/succession-plans', estateSuccessionRouter);
-api.route('/estate/assets', estateAssetsRouter);
-// Wave SCOPE-SEGMENTATION — hierarchical taxonomy surface.
-api.route('/scope', scopeRouter);
-=======
 // Wave ESTATE-OS — family-office holdings layer.
 api.route('/estate/groups', estateGroupsRouter);
 api.route('/estate/entities', estateEntitiesRouter);
@@ -1275,9 +1199,7 @@ api.route('/ops/regulatory-filings', opsRegulatoryFilingsRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerListRouter);
 api.route('/workforce', workforceTabConfigWorkerRouter);
-api.route('/internal', workforceTabPolicyAdminRouter);
->>>>>>> Stashed changes
-api.route('/support', supportRouter);
+api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
 // path-param prefixes correctly: `:id` is parsed and exposed via

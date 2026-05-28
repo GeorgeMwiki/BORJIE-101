@@ -88,16 +88,6 @@ function registry() {
   registryCache = new BrainRegistry((tenantId) => {
     const repo = new BrainThreadRepository(db());
     const backend = new PostgresThreadStoreBackend(repo, () => tenantId);
-<<<<<<< Updated upstream
-    return createBrain({
-      anthropic: {
-        apiKey: e.ANTHROPIC_API_KEY,
-        ...(e.ANTHROPIC_BASE_URL && { baseUrl: e.ANTHROPIC_BASE_URL }),
-        ...(e.ANTHROPIC_MODEL_DEFAULT && { defaultModel: e.ANTHROPIC_MODEL_DEFAULT }),
-      },
-      threadStoreBackend: backend,
-      ...(graphToolkit && { graphToolkit }),
-=======
     const anthropic: { apiKey: string; baseUrl?: string; defaultModel?: string } = {
       apiKey: e.ANTHROPIC_API_KEY,
     };
@@ -105,9 +95,7 @@ function registry() {
     if (e.ANTHROPIC_MODEL_DEFAULT !== undefined) anthropic.defaultModel = e.ANTHROPIC_MODEL_DEFAULT;
     const brainConfig: Parameters<typeof createBrain>[0] = {
       anthropic,
-      threadStoreBackend: backend,
->>>>>>> Stashed changes
-      extraSkills: getBrainExtraSkills(),
+      threadStoreBackend: backend,      extraSkills: getBrainExtraSkills(),
     };
     if (graphToolkit !== undefined) {
       (brainConfig as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
@@ -273,12 +261,7 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
 
   // Ensure a thread exists. The authenticated /api/v1/brain/turn endpoint
   // starts a thread on demand, so we mirror that behaviour here.
-<<<<<<< Updated upstream
-  let threadId: string = parsed.data.threadId ?? '';
-=======
-  let threadId: string | undefined = parsed.data.threadId;
->>>>>>> Stashed changes
-  if (!threadId) {
+  let threadId: string | undefined = parsed.data.threadId;  if (!threadId) {
     const createInput: Parameters<typeof brain.threads.createThread>[0] = {
       id: uuid(),
       tenantId: ctx.tenant.tenantId,

@@ -582,17 +582,11 @@ app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEv
     businessName: session.businessName,
     country: session.country,
     ownerPrompt: body.prompt,
-<<<<<<< Updated upstream
-    ...(session.intent && { previousIntent: session.intent }),
-  });
-=======
   };
   if (session.intent !== undefined) {
     (welcomeInput as { previousIntent?: typeof session.intent }).previousIntent = session.intent;
   }
   const result = await runWelcomeCoordinator(welcomeInput);
->>>>>>> Stashed changes
-
   const threadId = session.firstChatThreadId ?? newId('thr');
   const nextSteps = markStep(session.steps, 'first_md_chat', {
     threadId,

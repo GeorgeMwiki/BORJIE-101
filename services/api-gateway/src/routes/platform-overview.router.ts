@@ -189,15 +189,7 @@ platformOverviewRouter.get('/', async (c) => {
   // Resolution chain: user override → tenant default → platform-default
   // (seeded as USD by migration 0119). Operators rotate the platform
   // default via the admin UI / refresh-fx-rates CLI.
-<<<<<<< Updated upstream
-  const userId =
-    typeof auth.userId === 'string'
-      ? auth.userId
-      : null;
-=======
-  const userId = typeof auth.userId === 'string' ? auth.userId : null;
->>>>>>> Stashed changes
-  const tenantId = typeof auth.tenantId === 'string' ? auth.tenantId : null;
+  const userId = typeof auth.userId === 'string' ? auth.userId : null;  const tenantId = typeof auth.tenantId === 'string' ? auth.tenantId : null;
   const preferences = createCurrencyPreferencesService(db);
   const resolved = await preferences.resolve({ userId, tenantId });
   const targetCurrency = resolved.currency;

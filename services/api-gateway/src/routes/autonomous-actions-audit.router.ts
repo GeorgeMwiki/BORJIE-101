@@ -66,21 +66,12 @@ autonomousActionsAuditRouter.get(
     }
     const q = c.req.valid('query');
     const since = q.since ? new Date(q.since) : undefined;
-<<<<<<< Updated upstream
-    const rows = await getAudit(c).list(tenantId, {
-      ...(q.domain && { domain: q.domain }),
-      ...(since && { since }),
-      ...(q.limit && { limit: q.limit }),
-    });
-=======
     type ListFilters = Parameters<ReturnType<typeof getAudit>['list']>[1];
     const filters: { -readonly [K in keyof ListFilters]: ListFilters[K] } = {};
     if (q.domain !== undefined) filters.domain = q.domain;
     if (since !== undefined) filters.since = since;
     if (q.limit !== undefined) filters.limit = q.limit;
-    const rows = await getAudit(c).list(tenantId, filters as ListFilters);
->>>>>>> Stashed changes
-    return c.json({
+    const rows = await getAudit(c).list(tenantId, filters as ListFilters);    return c.json({
       success: true,
       data: rows,
       meta: { total: rows.length, page: 1, limit: q.limit ?? rows.length },

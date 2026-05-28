@@ -145,10 +145,6 @@ async function fallbackRetrieve(
         chunkIndex: r.chunkIndex,
         text,
         score,
-<<<<<<< Updated upstream
-        ...(typeof page === 'number' && { page }),
-=======
->>>>>>> Stashed changes
       };
       if (typeof page === 'number') out.page = page;
       return out;

@@ -99,12 +99,6 @@ app.get('/', async (c) => {
   const listInput: Parameters<typeof drafter.listDrafts>[0] = {
     tenantId: auth.tenantId,
     userId: auth.userId,
-<<<<<<< Updated upstream
-    ...(parsed.data.status && { status: parsed.data.status }),
-    ...(parsed.data.kind && { kind: parsed.data.kind }),
-    ...(parsed.data.limit && { limit: parsed.data.limit }),
-  });
-=======
   };
   if (parsed.data.status !== undefined) {
     (listInput as { status?: typeof parsed.data.status }).status = parsed.data.status;
@@ -115,9 +109,7 @@ app.get('/', async (c) => {
   if (parsed.data.limit !== undefined) {
     (listInput as { limit?: number }).limit = parsed.data.limit;
   }
-  const rows = await drafter.listDrafts(listInput);
->>>>>>> Stashed changes
-  return c.json({ success: true, data: rows }, 200);
+  const rows = await drafter.listDrafts(listInput);  return c.json({ success: true, data: rows }, 200);
 });
 
 // ---------------------------------------------------------------------------
@@ -157,11 +149,6 @@ app.post('/', async (c) => {
       templateSlug: parsed.data.templateSlug,
       language: parsed.data.language,
       titleSw: parsed.data.titleSw,
-<<<<<<< Updated upstream
-      ...(parsed.data.titleEn && { titleEn: parsed.data.titleEn }),
-      ...(parsed.data.jurisdiction && { jurisdiction: parsed.data.jurisdiction }),
-=======
->>>>>>> Stashed changes
       fillVars: parsed.data.fillVars,
     };
     if (parsed.data.titleEn !== undefined) {

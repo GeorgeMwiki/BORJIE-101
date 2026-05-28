@@ -174,17 +174,11 @@ app.post('/upload', async (c) => {
 
   const classifyInput: { readonly fileName: string; readonly textSample?: string } = {
     fileName: input.fileName,
-<<<<<<< Updated upstream
-    ...(input.textSample && { textSample: input.textSample }),
-  });
-=======
   };
   if (input.textSample !== undefined) {
     (classifyInput as { textSample?: string }).textSample = input.textSample;
   }
-  const kind = classifyDocument(classifyInput);
->>>>>>> Stashed changes
-  const documentType = kindToDocumentType(kind);
+  const kind = classifyDocument(classifyInput);  const documentType = kindToDocumentType(kind);
 
   const id = randomUUID();
   const fileUrl = `s3://borjie-${tenantId}/document-intelligence/${id}/${encodeURIComponent(input.fileName)}`;

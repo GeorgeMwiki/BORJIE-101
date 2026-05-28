@@ -228,15 +228,9 @@ app.post('/', withSecurityEvents({ action: 'inngest-webhook.create', resource: '
     } = {
       name: payload.name,
       data: payload.data as Record<string, unknown>,
-<<<<<<< Updated upstream
-      ...(eventId && { id: eventId }),
-    });
-=======
     };
     if (eventId !== undefined) handlePayload.id = eventId;
-    const result = await runtime.handle(handlePayload);
->>>>>>> Stashed changes
-    return c.json({ success: true, data: result }, 200);
+    const result = await runtime.handle(handlePayload);    return c.json({ success: true, data: result }, 200);
   } catch (err) {
     return c.json(
       {

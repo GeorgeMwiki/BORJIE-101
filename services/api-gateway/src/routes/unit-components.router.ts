@@ -34,13 +34,7 @@ function dbUnavailable(c) {
 }
 
 app.get('/', async (c) => {
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-  const db = services.db as any;
-=======
-  const db = getDbFromServices(c);
->>>>>>> Stashed changes
-  if (!db) return dbUnavailable(c);
+  const db = getDbFromServices(c);  if (!db) return dbUnavailable(c);
 
   const tenantId = c.get('tenantId');
   const unitId = c.req.param('id');

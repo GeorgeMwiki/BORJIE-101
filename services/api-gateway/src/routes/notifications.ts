@@ -43,13 +43,7 @@ function notConfigured(c) {
 }
 
 app.get('/', async (c) => {
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-  const db = services.db as any;
-=======
-  const db = getDbFromServices(c);
->>>>>>> Stashed changes
-  if (!db) return notConfigured(c);
+  const db = getDbFromServices(c);  if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const limitParam = c.req.query('limit');
   const limit = limitParam ? Math.min(500, Math.max(1, Number(limitParam))) : 50;
@@ -71,23 +65,12 @@ app.get('/', async (c) => {
 });
 
 app.get('/unread/count', async (c) => {
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-  const db = services.db as any;
-=======
-  const db = getDbFromServices(c);
->>>>>>> Stashed changes
-  if (!db) return notConfigured(c);
+  const db = getDbFromServices(c);  if (!db) return notConfigured(c);
   // Unread is a function of per-user delivery state that isn't tracked in
   // dispatch log directly (there's no `read_at`). The in-app notification
   // inbox schema is not landed yet — return a loud 501 unless the
   // `flag.bff.notifications.unread_count` flag is explicitly on (dev mode).
-<<<<<<< Updated upstream
-  const ff = services.featureFlags as any;
-=======
-  const ff = getService<FeatureFlagsService>(c, 'featureFlags');
->>>>>>> Stashed changes
-  const tenantId = c.get('tenantId');
+  const ff = getService<FeatureFlagsService>(c, 'featureFlags');  const tenantId = c.get('tenantId');
   let flagOn = false;
   if (ff && typeof ff.isEnabled === 'function') {
     try {
@@ -114,13 +97,7 @@ app.get('/unread/count', async (c) => {
 });
 
 app.get('/:id', async (c) => {
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-  const db = services.db as any;
-=======
-  const db = getDbFromServices(c);
->>>>>>> Stashed changes
-  if (!db) return notConfigured(c);
+  const db = getDbFromServices(c);  if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');
   try {

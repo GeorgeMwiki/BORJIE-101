@@ -56,9 +56,6 @@ app.use(
 
 app.get('/users', async (c) => {
   const auth = c.get('auth');
-<<<<<<< Updated upstream
-  const services = c.get('services') as any ?? {};
-=======
   const services = c.get('services') as {
     platformUsers?: {
       listUsers: (input: {
@@ -69,8 +66,6 @@ app.get('/users', async (c) => {
       }) => Promise<{ rows?: unknown[]; nextCursor?: string | null; totalReturned?: number }>;
     };
   } | undefined;
->>>>>>> Stashed changes
-
   // Real wire: the platform users service exposes `listUsers({ tenantId,
   // role, limit, cursor })`. We adapt to the admin UI's expected shape
   // (paginated rows + total). This is the same service the HQ tool

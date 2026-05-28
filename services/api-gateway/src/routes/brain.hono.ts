@@ -102,10 +102,6 @@ function registry() {
     const brainConfig: Parameters<typeof createBrain>[0] = {
       anthropic,
       threadStoreBackend: backend,
-<<<<<<< Updated upstream
-      ...(graphToolkit && { graphToolkit }),
-=======
->>>>>>> Stashed changes
       extraSkills: getBrainExtraSkills(),
     };
     if (graphToolkit !== undefined) {

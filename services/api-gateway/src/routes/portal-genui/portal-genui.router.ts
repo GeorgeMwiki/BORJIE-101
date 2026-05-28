@@ -276,27 +276,10 @@ router.post(
         );
       }
       try {
-<<<<<<< Updated upstream
-        const orgCtx = parsed.data.orgContext ? {
-          ...(parsed.data.orgContext.tenantRegion && { tenantRegion: parsed.data.orgContext.tenantRegion }),
-          ...(parsed.data.orgContext.tenantName && { tenantName: parsed.data.orgContext.tenantName }),
-          ...(parsed.data.orgContext.tenantCurrency && { tenantCurrency: parsed.data.orgContext.tenantCurrency }),
-          ...(parsed.data.orgContext.userPersona && { userPersona: parsed.data.orgContext.userPersona }),
-          ...(parsed.data.orgContext.existingTabKeys && { existingTabKeys: parsed.data.orgContext.existingTabKeys }),
-        } : undefined;
-        const result = await engine.generate({
-=======
-        const generateInput: Parameters<typeof engine.generate>[0] = {
->>>>>>> Stashed changes
-          intent: parsed.data.intent,
+        const generateInput: Parameters<typeof engine.generate>[0] = {          intent: parsed.data.intent,
           tenantId: auth.tenantId,
           userId: auth.userId,
           actorId: auth.userId,
-<<<<<<< Updated upstream
-          ...(orgCtx && { orgContext: orgCtx }),
-          ...(parsed.data.sourceConversationId && { sourceConversationId: parsed.data.sourceConversationId }),
-        });
-=======
         };
         if (parsed.data.orgContext !== undefined) {
           (generateInput as { orgContext?: unknown }).orgContext = stripUndefinedDeep(
@@ -307,9 +290,7 @@ router.post(
           (generateInput as { sourceConversationId?: string }).sourceConversationId =
             parsed.data.sourceConversationId;
         }
-        const result = await engine.generate(generateInput);
->>>>>>> Stashed changes
-        if (parsed.data.persist) {
+        const result = await engine.generate(generateInput);        if (parsed.data.persist) {
           await engine.persist({ tab: result.tab });
         }
         return c.json({

@@ -411,20 +411,6 @@ export const ownerReportsListTool: PersonaToolDescriptor<
 };
 
 // ─────────────────────────────────────────────────────────────────────
-<<<<<<< Updated upstream
-// 9. Ops-wide tools — Wave OPS-WIDE
-// ─────────────────────────────────────────────────────────────────────
-
-const TrackParcelInput = z.object({
-  parcelId: z.string().trim().min(1).max(120),
-});
-const TrackParcelOutput = z.object({
-  parcelId: z.string(),
-  steps: z.array(z.record(z.any())),
-  verification: z.object({
-    ok: z.boolean(),
-    brokenAt: z.number().nullable(),
-=======
 // Wave OPS-WIDE — full end-to-end mining operations scope.
 // Each tool defers to a /api/v1/ops/* hono route so the LLM + the
 // owner-web panels render identical data (no parallel data paths).
@@ -452,26 +438,11 @@ const TrackParcelChainOutput = z.object({
   ),
   verification: z.object({
     ok: z.boolean(),
-    brokenAt: z.number().int().nullable(),
->>>>>>> Stashed changes
-  }),
+    brokenAt: z.number().int().nullable(),  }),
   latestHash: z.string(),
 });
 
 export const ownerTrackParcelChainTool: PersonaToolDescriptor<
-<<<<<<< Updated upstream
-  typeof TrackParcelInput,
-  typeof TrackParcelOutput
-> = {
-  id: 'mining.ops.track_parcel_chain',
-  name: 'Owner — track parcel chain',
-  description:
-    'Pull the full hash-chained chain-of-custody trail for one mineral parcel. ' +
-    'Read-only. Defers to /api/v1/ops/chain-of-custody.',
-  personaSlugs: OWNER,
-  inputSchema: TrackParcelInput,
-  outputSchema: TrackParcelOutput,
-=======
   typeof TrackParcelChainInput,
   typeof TrackParcelChainOutput
 > = {
@@ -482,9 +453,7 @@ export const ownerTrackParcelChainTool: PersonaToolDescriptor<
     'Use when the owner asks "where is my parcel" / "who handled the gold".',
   personaSlugs: OWNER,
   inputSchema: TrackParcelChainInput,
-  outputSchema: TrackParcelChainOutput,
->>>>>>> Stashed changes
-  stakes: 'LOW',
+  outputSchema: TrackParcelChainOutput,  stakes: 'LOW',
   isWrite: false,
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
@@ -494,28 +463,6 @@ export const ownerTrackParcelChainTool: PersonaToolDescriptor<
         parcelId: input.parcelId,
         steps: [],
         verification: { ok: true, brokenAt: null },
-<<<<<<< Updated upstream
-        latestHash: '',
-      };
-    }
-    return client.get<{
-      parcelId: string;
-      steps: Array<Record<string, any>>;
-      verification: { ok: boolean; brokenAt: number | null };
-      latestHash: string;
-    }>('/ops/chain-of-custody', {
-      query: { parcelId: input.parcelId },
-    });
-  },
-};
-
-const CheckRegulatoryDeadlineInput = z.object({
-  regulator: z.string().optional(),
-  dueWithinDays: z.coerce.number().int().min(1).max(365).default(60),
-});
-const CheckRegulatoryDeadlineOutput = z.object({
-  filings: z.array(z.record(z.any())),
-=======
         latestHash:
           '0000000000000000000000000000000000000000000000000000000000000000',
       };
@@ -581,29 +528,18 @@ const CheckRegulatoryDeadlineOutput = z.object({
       daysRemaining: z.number().int(),
     }),
   ),
-  windowDays: z.number().int(),
->>>>>>> Stashed changes
-});
+  windowDays: z.number().int(),});
 
 export const ownerCheckRegulatoryDeadlineTool: PersonaToolDescriptor<
   typeof CheckRegulatoryDeadlineInput,
   typeof CheckRegulatoryDeadlineOutput
 > = {
-<<<<<<< Updated upstream
-  id: 'mining.ops.check_regulatory_deadline',
-  name: 'Owner — check regulatory deadline',
-  description:
-    'List upcoming regulator filings within a window. Read-only. Defers to ' +
-    '/api/v1/ops/regulatory-filings.',
-=======
   id: 'ops.regulatory_filings.next_due',
   name: 'Owner — next-due regulator filings',
   description:
     'List regulator filings due within `windowDays` (default 60). Optional ' +
     '`filingType` filter (e.g. royalty_monthly, eia_refresh). Drives ' +
-    '"when is my NEMC EIA due" / "what royalty is owed" answers.',
->>>>>>> Stashed changes
-  personaSlugs: OWNER,
+    '"when is my NEMC EIA due" / "what royalty is owed" answers.',  personaSlugs: OWNER,
   inputSchema: CheckRegulatoryDeadlineInput,
   outputSchema: CheckRegulatoryDeadlineOutput,
   stakes: 'LOW',
@@ -611,27 +547,6 @@ export const ownerCheckRegulatoryDeadlineTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
-<<<<<<< Updated upstream
-    if (!client) return { filings: [] };
-    const dueBefore = new Date(
-      Date.now() + input.dueWithinDays * 86_400_000,
-    ).toISOString();
-    const query: Record<string, string> = { dueBefore };
-    if (input.regulator) query.regulator = input.regulator;
-    return client.get<{ filings: Array<Record<string, any>> }>(
-      '/ops/regulatory-filings',
-      { query },
-    );
-  },
-};
-
-const LookupCounterpartyInput = z.object({
-  search: z.string().trim().min(1).max(200),
-  partyType: z.string().optional(),
-});
-const LookupCounterpartyOutput = z.object({
-  parties: z.array(z.record(z.any())),
-=======
     if (!client) return { filings: [], windowDays: input.windowDays };
     const dueBefore = new Date(
       Date.now() + input.windowDays * 24 * 60 * 60 * 1000,
@@ -694,28 +609,17 @@ const LookupCounterpartyOutput = z.object({
       country: z.string(),
       scorecardScore: z.number(),
     }),
-  ),
->>>>>>> Stashed changes
-});
+  ),});
 
 export const ownerLookupCounterpartyTool: PersonaToolDescriptor<
   typeof LookupCounterpartyInput,
   typeof LookupCounterpartyOutput
 > = {
-<<<<<<< Updated upstream
-  id: 'mining.ops.lookup_counterparty',
-  name: 'Owner — lookup counterparty',
-  description:
-    'Find a counterparty by name / TIN / BRELA. Read-only. Defers to ' +
-    '/api/v1/ops/external-parties.',
-=======
   id: 'ops.external_parties.lookup',
   name: 'Owner — lookup counterparty',
   description:
     'Find a counterparty by name (case-insensitive substring), TIN, or BRELA ' +
-    'number. Drives "who handles our TRA payment" / "find ABX warehouse" answers.',
->>>>>>> Stashed changes
-  personaSlugs: OWNER,
+    'number. Drives "who handles our TRA payment" / "find ABX warehouse" answers.',  personaSlugs: OWNER,
   inputSchema: LookupCounterpartyInput,
   outputSchema: LookupCounterpartyOutput,
   stakes: 'LOW',
@@ -723,27 +627,6 @@ export const ownerLookupCounterpartyTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
-<<<<<<< Updated upstream
-    if (!client) return { parties: [] };
-    const query: Record<string, string> = { search: input.search };
-    if (input.partyType) query.partyType = input.partyType;
-    return client.get<{ parties: Array<Record<string, any>> }>(
-      '/ops/external-parties',
-      { query },
-    );
-  },
-};
-
-const LogEngagementInput = z.object({
-  partyId: z.string().uuid(),
-  siteId: z.string().nullable().optional(),
-  kind: z.string(),
-  summary: z.string().trim().min(1).max(4000),
-});
-const LogEngagementOutput = z.object({
-  id: z.string(),
-  auditHashId: z.string().nullable(),
-=======
     if (!client) return { matches: [] };
     const search = input.name ?? input.tin ?? input.brelaNo ?? '';
     const res = await client.get<{
@@ -806,29 +689,18 @@ const LogEngagementOutput = z.object({
   partyId: z.string(),
   kind: z.string(),
   status: z.string(),
-  auditHash: z.string().nullable(),
->>>>>>> Stashed changes
-});
+  auditHash: z.string().nullable(),});
 
 export const ownerLogEngagementTool: PersonaToolDescriptor<
   typeof LogEngagementInput,
   typeof LogEngagementOutput
 > = {
-<<<<<<< Updated upstream
-  id: 'mining.ops.log_engagement',
-  name: 'Owner — log engagement',
-  description:
-    'Append a single engagement row in external_party_engagements. WRITE — ' +
-    'hash-chained audit. Defers to POST /api/v1/ops/engagements.',
-=======
   id: 'ops.engagements.log',
   name: 'Owner — log counterparty engagement',
   description:
     'Append a new engagement row for a counterparty (contract / PO / shipment / ' +
     'assay request / export permit / levy payment / CSR pledge / env audit / ' +
-    'legal matter). Hash-chain-audited via the ai_audit_chain.',
->>>>>>> Stashed changes
-  personaSlugs: OWNER,
+    'legal matter). Hash-chain-audited via the ai_audit_chain.',  personaSlugs: OWNER,
   inputSchema: LogEngagementInput,
   outputSchema: LogEngagementOutput,
   stakes: 'MEDIUM',
@@ -836,685 +708,6 @@ export const ownerLogEngagementTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
-<<<<<<< Updated upstream
-    if (!client) return { id: '', auditHashId: null };
-    return client.post<{ id: string; auditHashId: string | null }>(
-      '/ops/engagements',
-      input as Record<string, unknown>,
-    );
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// 13. Compliance full picture — Wave SOTA-DEPTH
-//     NEVER SHALLOW. Surface the full 18-sub-area compliance matrix.
-// ─────────────────────────────────────────────────────────────────────
-
-const ComplianceFullPictureInput = z.object({
-  siteId: z.string().uuid().optional(),
-});
-const ComplianceFullPictureOutput = z.object({
-  domainId: z.literal('compliance'),
-  subAreas: z.array(
-    z.object({
-      id: z.string(),
-      labelEn: z.string(),
-      labelSw: z.string(),
-      regulator: z.string().optional(),
-      cadence: z.string(),
-      status: z.string(),
-      note: z.string().optional(),
-    }),
-  ),
-});
-
-export const ownerComplianceFullPictureTool: PersonaToolDescriptor<
-  typeof ComplianceFullPictureInput,
-  typeof ComplianceFullPictureOutput
-> = {
-  id: 'sota.compliance_full_picture',
-  name: 'Owner — compliance full picture (18 sub-areas)',
-  description:
-    'Return the ENTIRE compliance matrix (≥15 sub-areas: licences, tax, ' +
-    'environmental, banking, trade, labour, workplace safety, workforce ' +
-    'certs, anti-corruption, data protection, AML, standards, customs, ' +
-    'assay, insurance, local content, human rights, telecoms). NEVER ' +
-    'shallow — always surface the whole picture.',
-  personaSlugs: OWNER,
-  inputSchema: ComplianceFullPictureInput,
-  outputSchema: ComplianceFullPictureOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(_input, _ctx) {
-    const { getDomain, awaitingDataResolver } = await import(
-      '../../services/domain-depth/index.js'
-    );
-    const domain = getDomain('compliance');
-    if (!domain) {
-      return { domainId: 'compliance' as const, subAreas: [] };
-    }
-    const subAreas = await Promise.all(
-      domain.subAreas.map(async (sa) => {
-        const st = await awaitingDataResolver({ tenantId: '' });
-        return {
-          id: sa.id,
-          labelEn: sa.label.en,
-          labelSw: sa.label.sw,
-          regulator: sa.regulator,
-          cadence: sa.cadence,
-          status: st.status,
-          note: st.note,
-        };
-      }),
-    );
-    return { domainId: 'compliance' as const, subAreas };
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// 14. Domain full picture — generic
-// ─────────────────────────────────────────────────────────────────────
-
-const DomainFullPictureInput = z.object({
-  domainId: z.enum([
-    'compliance',
-    'finance',
-    'operations',
-    'hr',
-    'marketing',
-    'risk',
-    'treasury',
-    'geology',
-    'marketplace',
-    'licences',
-    'holdings',
-    'subsidiaries',
-    'succession',
-    'asset-register',
-  ]),
-});
-const DomainFullPictureOutput = z.object({
-  domainId: z.string(),
-  subAreas: z.array(
-    z.object({
-      id: z.string(),
-      labelEn: z.string(),
-      labelSw: z.string(),
-      cadence: z.string(),
-      status: z.string(),
-      note: z.string().optional(),
-    }),
-  ),
-});
-
-export const ownerDomainFullPictureTool: PersonaToolDescriptor<
-  typeof DomainFullPictureInput,
-  typeof DomainFullPictureOutput
-> = {
-  id: 'sota.domain_full_picture',
-  name: 'Owner — domain full picture',
-  description:
-    'Return the FULL sub-area matrix for any of the 14 owner-os ' +
-    'domains. NEVER shallow.',
-  personaSlugs: OWNER,
-  inputSchema: DomainFullPictureInput,
-  outputSchema: DomainFullPictureOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    const { getDomain, awaitingDataResolver } = await import(
-      '../../services/domain-depth/index.js'
-    );
-    const domain = getDomain(input.domainId);
-    if (!domain) return { domainId: input.domainId, subAreas: [] };
-    const subAreas = await Promise.all(
-      domain.subAreas.map(async (sa) => {
-        const st = await awaitingDataResolver({ tenantId: '' });
-        return {
-          id: sa.id,
-          labelEn: sa.label.en,
-          labelSw: sa.label.sw,
-          cadence: sa.cadence,
-          status: st.status,
-          note: st.note,
-        };
-      }),
-    );
-    return { domainId: input.domainId, subAreas };
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// 15. Sub-area drill — single sub-area, full descriptor
-// ─────────────────────────────────────────────────────────────────────
-
-const SubAreaDrillInput = z.object({
-  domainId: z.string(),
-  subAreaId: z.string(),
-});
-const SubAreaDrillOutput = z.object({
-  found: z.boolean(),
-  labelEn: z.string().optional(),
-  labelSw: z.string().optional(),
-  cadence: z.string().optional(),
-  regulator: z.string().optional(),
-  riskEn: z.string().optional(),
-  riskSw: z.string().optional(),
-  status: z.string().optional(),
-  note: z.string().optional(),
-});
-
-export const ownerSubAreaDrillTool: PersonaToolDescriptor<
-  typeof SubAreaDrillInput,
-  typeof SubAreaDrillOutput
-> = {
-  id: 'sota.sub_area_drill',
-  name: 'Owner — sub-area drill',
-  description:
-    'Drill into one sub-area of one domain: label, cadence, regulator, ' +
-    'risk-if-missed, and live status.',
-  personaSlugs: OWNER,
-  inputSchema: SubAreaDrillInput,
-  outputSchema: SubAreaDrillOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    const { getSubArea, awaitingDataResolver } = await import(
-      '../../services/domain-depth/index.js'
-    );
-    const sa = getSubArea(input.domainId as any, input.subAreaId);
-    if (!sa) return { found: false };
-    const status = await awaitingDataResolver({ tenantId: '' });
-    return {
-      found: true,
-      labelEn: sa.label.en,
-      labelSw: sa.label.sw,
-      cadence: sa.cadence,
-      regulator: sa.regulator,
-      riskEn: sa.riskIfMissed.en,
-      riskSw: sa.riskIfMissed.sw,
-      status: status.status,
-      note: status.note,
-    };
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// 16-19. Cross-domain MD intelligence — Wave MD-INTELLIGENCE
-// ─────────────────────────────────────────────────────────────────────
-
-const CorrelationInput = z.object({
-  domain: z.string(),
-  siteId: z.string().uuid().optional(),
-});
-const CorrelationOutput = z.object({
-  domain: z.string(),
-  touches: z.array(
-    z.object({
-      from: z.string(),
-      to: z.string(),
-      touchedDomain: z.string(),
-      strength: z.number(),
-      lagDays: z.number(),
-      kind: z.string(),
-      rationale: z.string(),
-    }),
-  ),
-});
-
-export const ownerCorrelationForQuestionTool: PersonaToolDescriptor<
-  typeof CorrelationInput,
-  typeof CorrelationOutput
-> = {
-  id: 'md.correlation_for_question',
-  name: 'Owner — correlation for question',
-  description:
-    'Surface which OTHER domains the asked-about state touches via the ' +
-    'signal graph. Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: CorrelationInput,
-  outputSchema: CorrelationOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, ctx) {
-    const { correlate } = await import(
-      '../../services/md-intelligence/index.js'
-    );
-    const scope: { tenantId: string; siteId?: string } = {
-      tenantId: ctx.tenantId,
-      ...(input.siteId ? { siteId: input.siteId } : {}),
-    };
-    const result = await correlate({
-      domain: input.domain as any,
-      scope,
-      probe: async () => true,
-    });
-    return {
-      domain: input.domain,
-      touches: result.touches.map((t) => ({
-        from: t.from,
-        to: t.to,
-        touchedDomain: t.touchedDomain,
-        strength: t.strength,
-        lagDays: t.lagDays,
-        kind: t.kind,
-        rationale: t.rationale,
-      })),
-    };
-  },
-};
-
-const TraceCausesInput = z.object({
-  symptom: z.string(),
-  siteId: z.string().uuid().optional(),
-});
-const TraceCausesOutput = z.object({
-  chains: z.array(
-    z.object({
-      steps: z.array(
-        z.object({
-          from: z.string(),
-          to: z.string(),
-          strength: z.number(),
-          lagDays: z.number(),
-          rationale: z.string(),
-        }),
-      ),
-    }),
-  ),
-});
-
-export const ownerTraceCausesTool: PersonaToolDescriptor<
-  typeof TraceCausesInput,
-  typeof TraceCausesOutput
-> = {
-  id: 'md.trace_causes',
-  name: 'Owner — trace causes',
-  description:
-    'Walk upstream from a symptom to surface root causes through the ' +
-    'signal graph. Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: TraceCausesInput,
-  outputSchema: TraceCausesOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, ctx) {
-    const { trace } = await import(
-      '../../services/md-intelligence/index.js'
-    );
-    const scope: { tenantId: string; siteId?: string } = {
-      tenantId: ctx.tenantId,
-      ...(input.siteId ? { siteId: input.siteId } : {}),
-    };
-    const result = await trace({
-      symptom: input.symptom,
-      scope,
-      probe: async () => true,
-      maxDepth: 4,
-    });
-    return {
-      chains: result.chains.map((chain) => ({
-        steps: chain.steps.map((s) => ({
-          from: s.from,
-          to: s.to,
-          strength: s.strength,
-          lagDays: s.lagDays,
-          rationale: s.rationale,
-        })),
-      })),
-    };
-  },
-};
-
-const CompareInputSchema = z.object({
-  metricId: z.string(),
-  liveValue: z.number(),
-  cohortKey: z.string().optional(),
-});
-const CompareOutputSchema = z.object({
-  metricId: z.string(),
-  liveValue: z.number(),
-  historicalBand: z
-    .object({ p25: z.number(), p50: z.number(), p75: z.number() })
-    .optional(),
-  peerBand: z
-    .object({ p25: z.number(), p50: z.number(), p75: z.number() })
-    .optional(),
-  externalBenchmark: z.number().optional(),
-  verdict: z.string(),
-});
-
-export const ownerCompareBaselinesTool: PersonaToolDescriptor<
-  typeof CompareInputSchema,
-  typeof CompareOutputSchema
-> = {
-  id: 'md.compare_baselines',
-  name: 'Owner — compare baselines',
-  description:
-    'Compare a live value to historical / peer / external benchmark ' +
-    'baselines. Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: CompareInputSchema,
-  outputSchema: CompareOutputSchema,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    // No DB access from a brain tool surface here — return a structured
-    // shell so the caller can hydrate against the comparison-framework
-    // through the gateway once a comparison endpoint lands.
-    return {
-      metricId: input.metricId,
-      liveValue: input.liveValue,
-      verdict: 'baseline_pending',
-    };
-  },
-};
-
-const EmitInsightsInputSchema = z.object({
-  domain: z.string(),
-  context: z.record(z.unknown()).optional(),
-});
-const EmitInsightsOutputSchema = z.object({
-  insights: z.array(
-    z.object({
-      kind: z.string(),
-      headlineEn: z.string(),
-      headlineSw: z.string(),
-      rationale: z.string(),
-      action: z.string().optional(),
-    }),
-  ),
-});
-
-export const ownerEmitInsightsTool: PersonaToolDescriptor<
-  typeof EmitInsightsInputSchema,
-  typeof EmitInsightsOutputSchema
-> = {
-  id: 'md.emit_insights',
-  name: 'Owner — emit insights',
-  description:
-    'Return 0-3 NON-OBVIOUS, GROUNDED insights for a domain. Every ' +
-    'insight is anchored to a real data point in the same turn — never ' +
-    'fabricated. Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: EmitInsightsInputSchema,
-  outputSchema: EmitInsightsOutputSchema,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(_input, _ctx) {
-    // Insight emission requires live signal data; without grounding the
-    // tool returns no insights rather than fabricated ones.
-    return { insights: [] };
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────
-// 20-24. Scope-aware reasoning — Wave SCOPE-SEGMENTATION
-// ─────────────────────────────────────────────────────────────────────
-
-const ResolveScopeLabelInput = z.object({
-  kindCanonical: z.string(),
-  locale: z.enum(['en', 'sw']).default('sw'),
-});
-const ResolveScopeLabelOutput = z.object({
-  kindCanonical: z.string(),
-  displayLabel: z.string(),
-});
-
-export const ownerResolveScopeLabelTool: PersonaToolDescriptor<
-  typeof ResolveScopeLabelInput,
-  typeof ResolveScopeLabelOutput
-> = {
-  id: 'scope.resolve_label',
-  name: 'Owner — resolve scope label',
-  description:
-    'Map a canonical scope kind to the tenant-preferred display label ' +
-    'in the requested locale.',
-  personaSlugs: OWNER,
-  inputSchema: ResolveScopeLabelInput,
-  outputSchema: ResolveScopeLabelOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, ctx) {
-    const client = ctx.httpClient;
-    if (!client) {
-      return {
-        kindCanonical: input.kindCanonical,
-        displayLabel: input.kindCanonical,
-      };
-    }
-    const res = await client.get<{
-      data: {
-        taxonomy: {
-          displayLabelEn: Record<string, string>;
-          displayLabelSw: Record<string, string>;
-        } | null;
-      };
-    }>('/scope/taxonomy', {});
-    const map =
-      input.locale === 'en'
-        ? res.data?.taxonomy?.displayLabelEn ?? {}
-        : res.data?.taxonomy?.displayLabelSw ?? {};
-    return {
-      kindCanonical: input.kindCanonical,
-      displayLabel: map[input.kindCanonical] ?? input.kindCanonical,
-    };
-  },
-};
-
-const RollUpInput = z.object({
-  scopeNodeIds: z.array(z.string().uuid()).min(1).max(200),
-  metricId: z.string(),
-});
-const RollUpOutput = z.object({
-  metricId: z.string(),
-  total: z.number(),
-  mean: z.number(),
-  min: z.number().nullable(),
-  max: z.number().nullable(),
-  count: z.number(),
-});
-
-export const ownerRollUpAcrossScopesTool: PersonaToolDescriptor<
-  typeof RollUpInput,
-  typeof RollUpOutput
-> = {
-  id: 'scope.roll_up_across_scopes',
-  name: 'Owner — roll up across scopes',
-  description:
-    'Aggregate a metric across a set of scope nodes (sum, mean, min, max). ' +
-    'Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: RollUpInput,
-  outputSchema: RollUpOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    // Sample fetch is not yet wired to a live source; return zeros so
-    // the caller knows the rollup is empty rather than fabricated.
-    const { rollUp } = await import(
-      '../../services/md-intelligence/index.js'
-    );
-    const result = await rollUp({
-      scopeNodeIds: input.scopeNodeIds,
-      metricId: input.metricId,
-      fetchSample: async () => null,
-    });
-    return {
-      metricId: result.metricId,
-      total: result.total,
-      mean: result.mean,
-      min: result.min,
-      max: result.max,
-      count: result.count,
-    };
-  },
-};
-
-const CompareScopesInput = z.object({
-  scopeNodeIds: z.array(z.string().uuid()).min(2).max(50),
-  metricId: z.string(),
-});
-const CompareScopesOutput = z.object({
-  metricId: z.string(),
-  topScopeNodeId: z.string().nullable(),
-  bottomScopeNodeId: z.string().nullable(),
-  ranking: z.array(
-    z.object({
-      scopeNodeId: z.string(),
-      value: z.number(),
-      rank: z.number(),
-      deltaFromMean: z.number(),
-    }),
-  ),
-});
-
-export const ownerCompareAcrossScopesTool: PersonaToolDescriptor<
-  typeof CompareScopesInput,
-  typeof CompareScopesOutput
-> = {
-  id: 'scope.compare_across_scopes',
-  name: 'Owner — compare across scopes',
-  description:
-    'Rank scope nodes by a metric (top / bottom / delta-from-mean). ' +
-    'Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: CompareScopesInput,
-  outputSchema: CompareScopesOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    const { compareScopes } = await import(
-      '../../services/md-intelligence/index.js'
-    );
-    const result = compareScopes({
-      metricId: input.metricId,
-      samples: input.scopeNodeIds.map((id) => ({
-        scopeNodeId: id,
-        value: 0,
-      })),
-    });
-    return {
-      metricId: result.metricId,
-      topScopeNodeId: result.topScopeNodeId,
-      bottomScopeNodeId: result.bottomScopeNodeId,
-      ranking: result.ranking.map((r) => ({
-        scopeNodeId: r.scopeNodeId,
-        value: r.value,
-        rank: r.rank,
-        deltaFromMean: r.deltaFromMean,
-      })),
-    };
-  },
-};
-
-const CrossDomainScopeInputSchema = z.object({
-  scopeNodeIds: z.array(z.string().uuid()).min(1).max(20),
-  domains: z.array(z.string()).min(1).max(14),
-});
-const CrossDomainScopeOutputSchema = z.object({
-  scopeNodeIds: z.array(z.string()),
-  domains: z.array(z.string()),
-  cells: z.array(
-    z.object({
-      scopeNodeId: z.string(),
-      domainId: z.string(),
-      status: z.string(),
-      note: z.string().optional(),
-    }),
-  ),
-});
-
-export const ownerCrossDomainScopeMatrixTool: PersonaToolDescriptor<
-  typeof CrossDomainScopeInputSchema,
-  typeof CrossDomainScopeOutputSchema
-> = {
-  id: 'scope.cross_domain_scope_matrix',
-  name: 'Owner — cross-domain × scope matrix',
-  description:
-    'Build a status matrix: rows = scopes, columns = domains, cells = ' +
-    'status tone. Read-only.',
-  personaSlugs: OWNER,
-  inputSchema: CrossDomainScopeInputSchema,
-  outputSchema: CrossDomainScopeOutputSchema,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
-    const { buildScopeDomainMatrix } = await import(
-      '../../services/md-intelligence/index.js'
-    );
-    const result = await buildScopeDomainMatrix({
-      scopeNodeIds: input.scopeNodeIds,
-      domains: input.domains as any,
-      fetchDomainStatus: async () => ({ status: 'unknown' as const }),
-    });
-    return {
-      scopeNodeIds: [...result.scopeNodeIds],
-      domains: result.domains.map((d) => d as string),
-      cells: result.cells.map((c) => ({
-        scopeNodeId: c.scopeNodeId,
-        domainId: c.domainId as string,
-        status: c.status,
-        ...(c.note !== undefined ? { note: c.note } : {}),
-      })),
-    };
-  },
-};
-
-const TaxonomyDisplayForInput = z.object({
-  locale: z.enum(['en', 'sw']).default('sw'),
-});
-const TaxonomyDisplayForOutput = z.object({
-  defaultKind: z.string(),
-  labels: z.record(z.string()),
-});
-
-export const ownerTaxonomyDisplayForTool: PersonaToolDescriptor<
-  typeof TaxonomyDisplayForInput,
-  typeof TaxonomyDisplayForOutput
-> = {
-  id: 'scope.taxonomy_display_for',
-  name: 'Owner — taxonomy display for locale',
-  description:
-    'Return the tenant-preferred scope-kind labels for the requested ' +
-    'locale, plus the default scope kind.',
-  personaSlugs: OWNER,
-  inputSchema: TaxonomyDisplayForInput,
-  outputSchema: TaxonomyDisplayForOutput,
-  stakes: 'LOW',
-  isWrite: false,
-  requiresPolicyRuleLiteral: false,
-  async handler(input, ctx) {
-    const client = ctx.httpClient;
-    if (!client) return { defaultKind: 'site', labels: {} };
-    const res = await client.get<{
-      data: {
-        taxonomy: {
-          displayLabelEn: Record<string, string>;
-          displayLabelSw: Record<string, string>;
-          defaultKind: string;
-        } | null;
-      };
-    }>('/scope/taxonomy', {});
-    const labels =
-      input.locale === 'en'
-        ? res.data?.taxonomy?.displayLabelEn ?? {}
-        : res.data?.taxonomy?.displayLabelSw ?? {};
-    return {
-      defaultKind: res.data?.taxonomy?.defaultKind ?? 'site',
-      labels,
-=======
     if (!client) {
       return {
         engagementId: '',
@@ -1543,9 +736,7 @@ export const ownerTaxonomyDisplayForTool: PersonaToolDescriptor<
       partyId: data?.engagement?.partyId ?? input.partyId,
       kind: data?.engagement?.kind ?? input.kind,
       status: data?.engagement?.status ?? 'open',
-      auditHash: data?.auditHash ?? null,
->>>>>>> Stashed changes
-    };
+      auditHash: data?.auditHash ?? null,    };
   },
 };
 
@@ -1560,27 +751,9 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerLicenceHealthTool,
   ownerMarketBidsTool,
   ownerReportsListTool,
-<<<<<<< Updated upstream
-=======
   // Wave OPS-WIDE
->>>>>>> Stashed changes
   ownerTrackParcelChainTool,
   ownerCheckRegulatoryDeadlineTool,
   ownerLookupCounterpartyTool,
   ownerLogEngagementTool,
-<<<<<<< Updated upstream
-  ownerComplianceFullPictureTool,
-  ownerDomainFullPictureTool,
-  ownerSubAreaDrillTool,
-  ownerCorrelationForQuestionTool,
-  ownerTraceCausesTool,
-  ownerCompareBaselinesTool,
-  ownerEmitInsightsTool,
-  ownerResolveScopeLabelTool,
-  ownerRollUpAcrossScopesTool,
-  ownerCompareAcrossScopesTool,
-  ownerCrossDomainScopeMatrixTool,
-  ownerTaxonomyDisplayForTool,
-=======
->>>>>>> Stashed changes
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
