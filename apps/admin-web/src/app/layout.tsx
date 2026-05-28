@@ -3,6 +3,7 @@ import './globals.css';
 import { SensoriumProvider } from '@/lib/sensorium/SensoriumProvider';
 import { SessionReplayProvider } from '@/components/SessionReplayProvider';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { AdminCommandPalette } from '@/components/AdminCommandPalette';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { AdminShell } from '@/components/AdminShell';
 import { AdminShellGate } from '@/components/admin-shell/AdminShellGate';
@@ -79,6 +80,10 @@ export default function RootLayout({
                 shell={<AdminShell>{children}</AdminShell>}
               />
               <BorjieWidgetMount />
+              {/* Wave SUPERPOWERS - universal Cmd-K palette for the
+                  admin console. Curated catalog covers every internal
+                  route + Settings + Sign out. */}
+              <AdminCommandPalette />
               {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
                   Lazy-loads web-vitals v5; ships LCP/INP/CLS/TTFB/FCP via
                   sendBeacon to /api/perf/web-vitals. Held SEPARATELY from
