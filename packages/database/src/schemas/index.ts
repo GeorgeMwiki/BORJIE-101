@@ -1026,6 +1026,15 @@ export * from './share-links.schema.js';
 export * from './undo-journal.schema.js';
 export * from './pinned-items.schema.js';
 
+// Wave ENTITY-LEGIBILITY (migration 0115). Two tables make every
+// entity in the system fully legible to AI: `entity_index` carries a
+// semantic embedding + faceted tags + summary per entity so the brain
+// can resolve any natural-language phrase to a concrete row;
+// `entity_cross_references` carries typed edges so the brain can
+// traverse the graph in one hop ("trace this incident back to its
+// drill_hole assay"). RLS FORCE-enabled on both.
+export * from './entity-index.schema.js';
+
 // Wave CLOSED-LOOP (migration 0114). Three tables back the closed-loop
 // telemetry contract: every action proposed by the brain (or taken by
 // the owner / an agent / an external system) declares a predicted
