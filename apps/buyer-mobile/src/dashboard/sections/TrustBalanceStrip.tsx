@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { Pill, type PillTone } from '@/components/Pill'
-import { colors } from '@/theme/colors'
-import { spacing, typography } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 import type { BuyerUser } from '@/types/auth'
 
 export interface TrustBalanceStripProps {
@@ -46,7 +45,7 @@ export function TrustBalanceStrip({ user, translate }: TrustBalanceStripProps) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  identity: { flexShrink: 1, paddingRight: spacing.md },
-  company: { ...typography.bodyStrong, color: colors.ink },
-  meta: { ...typography.caption, color: colors.inkMuted, marginTop: 2 }
+  identity: { flexShrink: 1, paddingRight: tokens.space.md },
+  company: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary },
+  meta: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2 }
 })

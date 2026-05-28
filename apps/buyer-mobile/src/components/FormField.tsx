@@ -1,7 +1,6 @@
 import { ReactNode } from 'react'
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native'
-import { colors } from '@/theme/colors'
-import { radius, spacing, typography } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 
 export interface FormFieldProps extends Omit<TextInputProps, 'style'> {
   readonly label: string
@@ -9,6 +8,10 @@ export interface FormFieldProps extends Omit<TextInputProps, 'style'> {
   readonly trailing?: ReactNode
 }
 
+/**
+ * LitFin form field — eyebrow label + dark-glass input pill on navy
+ * with cream text. Error state goes warm-red border + 1-line caption.
+ */
 export function FormField({ label, error, trailing, ...inputProps }: FormFieldProps) {
   return (
     <View style={styles.wrap}>
@@ -16,7 +19,7 @@ export function FormField({ label, error, trailing, ...inputProps }: FormFieldPr
       <View style={[styles.row, error ? styles.rowError : undefined]}>
         <TextInput
           {...inputProps}
-          placeholderTextColor={colors.inkMuted}
+          placeholderTextColor={tokens.color.textMuted}
           style={styles.input}
         />
         {trailing}
@@ -27,23 +30,31 @@ export function FormField({ label, error, trailing, ...inputProps }: FormFieldPr
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.md },
-  label: { ...typography.caption, color: colors.inkMuted, marginBottom: spacing.xs },
+  wrap: { marginBottom: tokens.space.md },
+  label: {
+    ...tokens.type.eyebrow,
+    color: tokens.color.gold,
+    marginBottom: tokens.space.xs
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    backgroundColor: colors.white
+    borderColor: tokens.color.borderStrong,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: tokens.color.bgRaised
   },
-  rowError: { borderColor: colors.danger },
+  rowError: { borderColor: tokens.color.danger },
   input: {
     flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    color: colors.ink,
-    ...typography.body
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.md,
+    color: tokens.color.textPrimary,
+    fontSize: 16
   },
-  errorText: { ...typography.micro, color: colors.danger, marginTop: spacing.xs }
+  errorText: {
+    ...tokens.type.micro,
+    color: tokens.color.danger,
+    marginTop: tokens.space.xs
+  }
 })

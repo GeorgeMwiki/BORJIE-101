@@ -113,21 +113,23 @@ function QuickActionsSlot({ lang }: { readonly lang: 'sw' | 'en' }): JSX.Element
 
 const styles = StyleSheet.create({
   slot: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     marginBottom: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.earth500
+    borderLeftWidth: 3,
+    borderLeftColor: colors.earth500,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)'
   },
   slotTitle: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700',
     marginBottom: spacing.xs
   },
   slotValue: {
-    color: colors.earth900,
+    color: colors.gold,
     fontSize: fontSize.h1,
     fontWeight: '800'
   },

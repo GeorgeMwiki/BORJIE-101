@@ -15,24 +15,10 @@ import { authRouter } from '../routes/auth';
 import { authMfaRouter } from '../routes/auth-mfa';
 import { tenantsRouter } from '../routes/tenants.hono';
 import { usersRouter } from '../routes/users.hono';
-import { propertiesRouter } from '../routes/properties';
-import { unitsRouter } from '../routes/units';
-import { customersRouter } from '../routes/customers';
-import { leasesRouter } from '../routes/leases';
-import { invoicesApp } from '../routes/invoices';
-import { paymentsApp } from '../routes/payments';
-import { workOrdersRouter } from '../routes/work-orders.hono';
-import { vendorsRouter } from '../routes/vendors.hono';
 import { notificationsRouter } from '../routes/notifications';
-import { reportsHonoRouter } from '../routes/reports.hono';
-import { dashboardRouter } from '../routes/dashboard.hono';
 import { onboardingRouter } from '../routes/onboarding';
 import { feedbackRouter } from '../routes/feedback';
 import { complaintsRouter } from '../routes/complaints';
-import { inspectionsRouter } from '../routes/inspections';
-import { documentsHonoRouter } from '../routes/documents.hono';
-import { schedulingRouter } from '../routes/scheduling';
-import { messagingRouter } from '../routes/messaging';
 import { casesRouter } from '../routes/cases.hono';
 import { brainRouter } from '../routes/brain.hono';
 import { maintenanceRouter } from '../routes/maintenance.hono';
@@ -72,24 +58,10 @@ export function buildStaticRouterCatalog(): MountedRouter[] {
     { prefix: '/auth/mfa', app: authMfaRouter, defaultTag: 'auth' },
     { prefix: '/tenants', app: tenantsRouter, defaultTag: 'tenants' },
     { prefix: '/users', app: usersRouter, defaultTag: 'users' },
-    { prefix: '/properties', app: propertiesRouter, defaultTag: 'properties' },
-    { prefix: '/units', app: unitsRouter, defaultTag: 'units' },
-    { prefix: '/customers', app: customersRouter, defaultTag: 'customers' },
-    { prefix: '/leases', app: leasesRouter, defaultTag: 'leases' },
-    { prefix: '/invoices', app: invoicesApp, defaultTag: 'invoices' },
-    { prefix: '/payments', app: paymentsApp, defaultTag: 'payments' },
-    { prefix: '/work-orders', app: workOrdersRouter, defaultTag: 'work-orders' },
-    { prefix: '/vendors', app: vendorsRouter, defaultTag: 'vendors' },
     { prefix: '/notifications', app: notificationsRouter, defaultTag: 'notifications' },
-    { prefix: '/reports', app: reportsHonoRouter, defaultTag: 'reports' },
-    { prefix: '/dashboard', app: dashboardRouter, defaultTag: 'dashboard' },
     { prefix: '/onboarding', app: onboardingRouter, defaultTag: 'onboarding' },
     { prefix: '/feedback', app: feedbackRouter, defaultTag: 'feedback' },
     { prefix: '/complaints', app: complaintsRouter, defaultTag: 'complaints' },
-    { prefix: '/inspections', app: inspectionsRouter, defaultTag: 'inspections' },
-    { prefix: '/documents', app: documentsHonoRouter, defaultTag: 'documents' },
-    { prefix: '/scheduling', app: schedulingRouter, defaultTag: 'scheduling' },
-    { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
     { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
     { prefix: '/maintenance', app: maintenanceRouter, defaultTag: 'maintenance' },

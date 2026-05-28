@@ -47,24 +47,25 @@ export function PreviewBanner({ kind }: PreviewBannerProps): JSX.Element {
 
 function kindStyle(kind: PreviewBannerKind): { backgroundColor: string; borderColor: string } {
   if (kind === 'offline') {
-    return { backgroundColor: colors.surfaceAlt, borderColor: colors.offline }
+    return { backgroundColor: colors.earth700, borderColor: colors.danger }
   }
   if (kind === 'no-data') {
-    return { backgroundColor: colors.surfaceAlt, borderColor: colors.earth500 }
+    return { backgroundColor: colors.earth700, borderColor: 'rgba(255, 255, 255, 0.18)' }
   }
-  return { backgroundColor: colors.surfaceAlt, borderColor: colors.warn }
+  return { backgroundColor: colors.earth700, borderColor: colors.gold }
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderLeftWidth: 4,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    borderLeftWidth: 3,
+    borderWidth: 1,
     marginBottom: spacing.md
   },
   label: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '700'
   },

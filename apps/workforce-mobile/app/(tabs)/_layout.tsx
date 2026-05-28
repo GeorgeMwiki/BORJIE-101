@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router'
 import { useAuth } from '../../src/auth/useAuth'
 import { useI18n } from '../../src/i18n/useI18n'
-import { colors } from '../../src/theme/colors'
+import { tokens } from '../../src/ui-litfin'
 import type { Role } from '../../src/roles/types'
 
 /**
@@ -22,11 +22,17 @@ export default function TabsLayout(): JSX.Element {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: colors.earth700 },
-        headerTintColor: colors.textInverse,
-        tabBarStyle: { backgroundColor: colors.earth700, borderTopColor: colors.earth900 },
-        tabBarActiveTintColor: colors.goldLight,
-        tabBarInactiveTintColor: colors.earth300
+        headerStyle: { backgroundColor: tokens.color.bgSurface },
+        headerTitleStyle: { color: tokens.color.textPrimary, fontWeight: '700' },
+        headerTintColor: tokens.color.gold,
+        tabBarStyle: {
+          backgroundColor: tokens.color.bgRaised,
+          borderTopColor: tokens.color.border,
+          borderTopWidth: 1
+        },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 11, letterSpacing: 0.3 },
+        tabBarActiveTintColor: tokens.color.gold,
+        tabBarInactiveTintColor: tokens.color.textMuted
       }}
     >
       <Tabs.Screen

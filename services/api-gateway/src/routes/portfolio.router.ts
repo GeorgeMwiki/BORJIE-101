@@ -49,57 +49,11 @@ portfolioRouter.get('/summary', async (c) => {
     });
   }
 
-  try {
-    const propertyAccess = auth.propertyAccess;
-    const allowsAll = Array.isArray(propertyAccess) && propertyAccess.includes('*');
-    const allowedIds = new Set<string>(
-      Array.isArray(propertyAccess) ? propertyAccess.filter((id) => id !== '*') : [],
-    );
-
-    const [propertiesResult, unitsResult, leasesResult] = await Promise.all([
-      repos.properties.findMany(auth.tenantId, { limit: 1000, offset: 0 }),
-      repos.units.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-      repos.leases.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-    ]);
-
-    const scopedProperties = allowsAll
-      ? propertiesResult.items ?? []
-      : (propertiesResult.items ?? []).filter((p) => allowedIds.has(p.id));
-    const propertyIds = new Set(scopedProperties.map((p) => p.id));
-
-    const scopedUnits = (unitsResult.items ?? []).filter((u) => propertyIds.has(u.propertyId));
-    const occupiedUnits = scopedUnits.filter((u) => u.status === 'occupied').length;
-    const vacantUnits = scopedUnits.length - occupiedUnits;
-    const occupancyRate = scopedUnits.length === 0 ? 0 : occupiedUnits / scopedUnits.length;
-
-    const unitIds = new Set(scopedUnits.map((u) => u.id));
-    const activeLeases = (leasesResult.items ?? []).filter(
-      (l) =>
-        l.status === 'active' && (propertyIds.has(l.propertyId) || unitIds.has(l.unitId)),
-    ).length;
-
-    return c.json({
-      success: true,
-      data: {
-        totalProperties: scopedProperties.length,
-        totalUnits: scopedUnits.length,
-        occupiedUnits,
-        vacantUnits,
-        occupancyRate,
-        activeLeases,
-        meta: { source: 'live' },
-      },
-    });
-  } catch (error) {
-    logger.warn('portfolio summary aggregation failed; falling back to empty', {
-      tenantId: auth.tenantId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return c.json({
-      success: true,
-      data: { ...EMPTY_SUMMARY, meta: { source: 'empty' } },
-    });
-  }
+  // Property-domain repos (properties, units, leases) were deleted in Borjie hard-fork. Return empty.
+  return c.json({
+    success: true,
+    data: { ...EMPTY_SUMMARY, meta: { source: 'empty' } },
+  });
 });
 
 // Loud-failure 501: the per-property revenue/NOI rollup tables are not

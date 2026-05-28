@@ -4,8 +4,7 @@ import { Pill } from '@/components/Pill'
 import { formatKg, formatTzs } from '@/components/formatters'
 import { mockDistanceKm, formatKm } from './distance'
 import { mineralGlyph } from './options'
-import { colors } from '@/theme/colors'
-import { spacing, typography, radius } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 import type { Listing } from '@/types/listing'
 
 export interface ListingCardProps {
@@ -60,32 +59,40 @@ function Stat({ label, value }: { readonly label: string; readonly value: string
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: tokens.space.md },
   glyphWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.cream,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 200, 87, 0.14)',
+    borderWidth: 1,
+    borderColor: tokens.color.borderGold,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  glyph: { ...typography.bodyStrong, color: colors.earth },
+  glyph: { fontSize: 18, fontWeight: '700', color: tokens.color.gold },
   headerBody: { flex: 1 },
-  title: { ...typography.heading, color: colors.ink },
-  meta: { ...typography.caption, color: colors.inkMuted, marginTop: 2 },
-  statRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
+  title: { ...tokens.type.h3, color: tokens.color.textPrimary },
+  meta: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2 },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: tokens.space.md },
   stat: { flex: 1 },
-  statLabel: { ...typography.micro, color: colors.inkMuted, textTransform: 'uppercase' },
-  statValue: { ...typography.bodyStrong, color: colors.ink, marginTop: 2 },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: tokens.color.textMuted,
+    textTransform: 'uppercase'
+  },
+  statValue: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary, marginTop: 4 },
   footerRow: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
+    marginTop: tokens.space.md,
+    paddingTop: tokens.space.md,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: tokens.color.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  priceLabel: { ...typography.caption, color: colors.inkMuted },
-  priceValue: { ...typography.bodyStrong, color: colors.forest }
+  priceLabel: { ...tokens.type.bodySm, color: tokens.color.textMuted },
+  priceValue: { ...tokens.type.bodyStrong, color: tokens.color.gold }
 })

@@ -2,14 +2,12 @@ import { useRouter } from 'expo-router'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { Screen } from '@/components/Screen'
-import { SectionHeader } from '@/components/SectionHeader'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useSession } from '@/auth/session'
 import { fetchListings, fetchBids } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { MarketplaceEmptyState } from '@/marketplace/home/MarketplaceEmptyState'
-import { colors } from '@/theme/colors'
-import { spacing } from '@/theme/spacing'
+import { LitFinPageHero, LitFinButton, greet, tokens } from '@/ui-litfin'
 import { TrustBalanceStrip } from './sections/TrustBalanceStrip'
 import { LiveAuctionLobby } from './sections/LiveAuctionLobby'
 import { RecommendedParcels } from './sections/RecommendedParcels'
@@ -27,8 +25,9 @@ import { BuyerPerformanceSection } from './sections/BuyerPerformanceSection'
 
 export function BuyerDashboard() {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const user = useSession()
+  const firstName = (user.companyName ?? '').split(' ')[0] ?? null
 
   const listingsQuery = useQuery({
     queryKey: queryKeys.listings({ sort: 'newest' }),
@@ -42,7 +41,11 @@ export function BuyerDashboard() {
   if (!user.id) {
     return (
       <Screen>
-        <SectionHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
+        <LitFinPageHero
+          eyebrow={t('app.name')}
+          title={greet(lang)}
+          subtitle={t('dashboard.subtitle')}
+        />
         <MarketplaceEmptyState message={t('dashboard.unauthenticated')} tone="warning" />
       </Screen>
     )
@@ -59,12 +62,43 @@ export function BuyerDashboard() {
     void bidsQuery.refetch()
   }
 
+  const heroEyebrow = lang === 'sw' ? 'Dashibodi · Borjie' : 'Buyer dashboard'
+  const heroSubtitle = lang === 'sw'
+    ? 'Soko la madini: minada hai, mauzo yanayofuata, na mwenendo wa kibiashara.'
+    : 'Mining market — live auctions, upcoming deals, and your buyer pulse.'
+
+  const renderHero = (): JSX.Element => (
+    <LitFinPageHero
+      eyebrow={heroEyebrow}
+      title={greet(lang, firstName)}
+      subtitle={heroSubtitle}
+      actions={
+        <>
+          <LitFinButton
+            label={lang === 'sw' ? 'Tafuta bidhaa' : 'Browse listings'}
+            onPress={() => router.push('/marketplace')}
+            variant="primary"
+            size="md"
+            trailingIcon=">"
+          />
+          <LitFinButton
+            label={lang === 'sw' ? 'Uliza Borjie' : 'Ask Borjie'}
+            onPress={() => router.push('/chat')}
+            variant="secondary"
+            size="md"
+            leadingIcon="*"
+          />
+        </>
+      }
+    />
+  )
+
   if (isInitialLoad) {
     return (
       <Screen>
-        <SectionHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
+        {renderHero()}
         <View style={styles.loader}>
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={tokens.color.gold} />
         </View>
       </Screen>
     )
@@ -73,7 +107,7 @@ export function BuyerDashboard() {
   if (isError) {
     return (
       <Screen refreshing={isFetching && !isInitialLoad} onRefresh={onRefresh}>
-        <SectionHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
+        {renderHero()}
         <MarketplaceEmptyState message={t('dashboard.load_failed')} tone="error" />
       </Screen>
     )
@@ -84,7 +118,7 @@ export function BuyerDashboard() {
 
   return (
     <Screen refreshing={isFetching && !isInitialLoad} onRefresh={onRefresh}>
-      <SectionHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
+      {renderHero()}
 
       <View style={styles.gap}>
         <TrustBalanceStrip user={user} translate={t} />
@@ -126,6 +160,6 @@ export function BuyerDashboard() {
 }
 
 const styles = StyleSheet.create({
-  loader: { paddingVertical: spacing.xxl, alignItems: 'center' },
-  gap: { marginBottom: spacing.sm }
+  loader: { paddingVertical: tokens.space.xxl, alignItems: 'center' },
+  gap: { marginBottom: tokens.space.sm }
 })

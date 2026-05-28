@@ -46,23 +46,27 @@ export function AiDailyBrief({ brief, lang }: AiDailyBriefProps): JSX.Element {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.earth700,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.22)'
   },
   header: {
-    color: colors.earth900,
-    fontSize: fontSize.h3,
-    fontWeight: '700'
+    color: colors.gold,
+    fontSize: fontSize.caption,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase'
   },
   body: {
     color: colors.text,
     fontSize: fontSize.lead,
     marginTop: spacing.sm,
-    lineHeight: fontSize.lead * 1.4
+    lineHeight: fontSize.lead * 1.5
   },
   footer: {
     flexDirection: 'row',

@@ -25,20 +25,6 @@ import { createMiddleware } from 'hono/factory';
 import {
   createDatabaseClient,
   TenantRepository,
-  UserRepository,
-  PropertyRepository,
-  UnitRepository,
-  CustomerRepository,
-  LeaseRepository,
-  InvoiceRepository,
-  PaymentRepository,
-  WorkOrderRepository,
-  VendorRepository,
-  MessagingRepository,
-  InspectionRepository,
-  SchedulingRepository,
-  ComplianceRepository,
-  DocumentRepository,
   selectEncryptionPort,
   createFieldEncryptionAuditService,
   type EncryptionPort,
@@ -108,24 +94,13 @@ function getDatabase(): DatabaseClient | null {
 }
 
 /**
- * Repository container - holds all repository instances
+ * Repository container - holds all repository instances.
+ * Property-domain repos (PropertyRepository, UnitRepository, etc.) were
+ * deleted in the Borjie hard-fork. Applications now use raw Drizzle queries
+ * or route-specific service layers.
  */
 export interface Repositories {
   tenants: TenantRepository;
-  users: UserRepository;
-  properties: PropertyRepository;
-  units: UnitRepository;
-  customers: CustomerRepository;
-  leases: LeaseRepository;
-  invoices: InvoiceRepository;
-  payments: PaymentRepository;
-  workOrders: WorkOrderRepository;
-  vendors: VendorRepository;
-  messaging: MessagingRepository;
-  inspections: InspectionRepository;
-  scheduling: SchedulingRepository;
-  compliance: ComplianceRepository;
-  documents: DocumentRepository;
 }
 
 // Singleton repositories instance
@@ -230,20 +205,6 @@ function getRepositories(): Repositories | null {
     const deps = { encPort, encAudit };
     repositories = {
       tenants: new TenantRepository(database, deps),
-      users: new UserRepository(database, deps),
-      properties: new PropertyRepository(database),
-      units: new UnitRepository(database),
-      customers: new CustomerRepository(database, deps),
-      leases: new LeaseRepository(database, deps),
-      invoices: new InvoiceRepository(database, deps),
-      payments: new PaymentRepository(database, deps),
-      workOrders: new WorkOrderRepository(database),
-      vendors: new VendorRepository(database),
-      messaging: new MessagingRepository(database, deps),
-      inspections: new InspectionRepository(database),
-      scheduling: new SchedulingRepository(database),
-      compliance: new ComplianceRepository(database),
-      documents: new DocumentRepository(database),
     };
     logger.info('Repositories initialized');
   }
@@ -265,20 +226,6 @@ export async function initRepositoriesAsync(): Promise<Repositories | null> {
   const deps = { encPort: port, encAudit: audit };
   repositories = {
     tenants: new TenantRepository(database, deps),
-    users: new UserRepository(database, deps),
-    properties: new PropertyRepository(database),
-    units: new UnitRepository(database),
-    customers: new CustomerRepository(database, deps),
-    leases: new LeaseRepository(database, deps),
-    invoices: new InvoiceRepository(database, deps),
-    payments: new PaymentRepository(database, deps),
-    workOrders: new WorkOrderRepository(database),
-    vendors: new VendorRepository(database),
-    messaging: new MessagingRepository(database, deps),
-    inspections: new InspectionRepository(database),
-    scheduling: new SchedulingRepository(database),
-    compliance: new ComplianceRepository(database),
-    documents: new DocumentRepository(database),
   };
   return repositories;
 }

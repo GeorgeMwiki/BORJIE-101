@@ -54,20 +54,22 @@ const styles = StyleSheet.create({
   },
   chip: {
     width: '48%',
-    padding: spacing.md,
-    backgroundColor: colors.earth100,
-    borderRadius: radius.md,
+    padding: spacing.lg,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: 'rgba(255, 255, 255, 0.08)'
   },
   chipPressed: {
-    backgroundColor: colors.earth300
+    backgroundColor: colors.earth500,
+    transform: [{ scale: 0.98 }]
   },
   chipCode: {
-    color: colors.goldDark,
-    fontSize: fontSize.caption,
+    color: colors.gold,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1
+    letterSpacing: 1.4,
+    textTransform: 'uppercase'
   },
   chipTitle: {
     color: colors.text,

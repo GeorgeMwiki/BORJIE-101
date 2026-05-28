@@ -72,7 +72,9 @@ async function resolveTenantRegion(
       'brain.hono: DEFAULT_TENANT_COUNTRY and DEFAULT_TENANT_CURRENCY are required in production.'
     );
   }
-  return { country, currency, defaultCity };
+  const out: { country: string; currency: string; defaultCity?: string } = { country, currency };
+  if (defaultCity !== undefined) out.defaultCity = defaultCity;
+  return out;
 }
 
 function registry() {
@@ -92,12 +94,13 @@ function registry() {
   registryCache = new BrainRegistry((tenantId) => {
     const repo = new BrainThreadRepository(db());
     const backend = new PostgresThreadStoreBackend(repo, () => tenantId);
+    const anthropic: { apiKey: string; baseUrl?: string; defaultModel?: string } = {
+      apiKey: e.ANTHROPIC_API_KEY,
+    };
+    if (e.ANTHROPIC_BASE_URL !== undefined) anthropic.baseUrl = e.ANTHROPIC_BASE_URL;
+    if (e.ANTHROPIC_MODEL_DEFAULT !== undefined) anthropic.defaultModel = e.ANTHROPIC_MODEL_DEFAULT;
     return createBrain({
-      anthropic: {
-        apiKey: e.ANTHROPIC_API_KEY,
-        baseUrl: e.ANTHROPIC_BASE_URL,
-        defaultModel: e.ANTHROPIC_MODEL_DEFAULT,
-      },
+      anthropic,
       threadStoreBackend: backend,
       graphToolkit,
       extraSkills: getBrainExtraSkills(),
@@ -615,7 +618,7 @@ brainRouter.post('/migrate/extract', withSecurityEvents({ action: 'brain.create'
   const parsed = MigrationExtractParamsSchema.safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
   const bundle = migrationExtract(parsed.data);
-  const diff = migrationDiff({ bundle });
+  const diff = migrationDiff({ bundle } as Parameters<typeof migrationDiff>[0]);
   return c.json({ bundle, diff });
 }));
 

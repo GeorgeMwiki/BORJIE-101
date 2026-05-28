@@ -1,10 +1,10 @@
 import { Tabs } from 'expo-router'
 import { Text } from 'react-native'
 import { useTranslation } from '@/hooks/useTranslation'
-import { colors } from '@/theme/colors'
+import { tokens } from '@/ui-litfin'
 
 function TabIcon({ glyph, color }: { glyph: string; color: string }) {
-  return <Text style={{ color, fontSize: 18, fontWeight: '600' }}>{glyph}</Text>
+  return <Text style={{ color, fontSize: 18, fontWeight: '700' }}>{glyph}</Text>
 }
 
 export default function TabsLayout() {
@@ -12,11 +12,17 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.forest,
-        tabBarInactiveTintColor: colors.inkMuted,
-        tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.line },
-        headerStyle: { backgroundColor: colors.bone },
-        headerTintColor: colors.ink
+        tabBarActiveTintColor: tokens.color.gold,
+        tabBarInactiveTintColor: tokens.color.textMuted,
+        tabBarStyle: {
+          backgroundColor: tokens.color.bgRaised,
+          borderTopColor: tokens.color.border,
+          borderTopWidth: 1
+        },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 11, letterSpacing: 0.3 },
+        headerStyle: { backgroundColor: tokens.color.bgSurface },
+        headerTitleStyle: { color: tokens.color.textPrimary, fontWeight: '700' },
+        headerTintColor: tokens.color.gold
       }}
     >
       <Tabs.Screen

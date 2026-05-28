@@ -19,6 +19,7 @@
     "@borjie/design-system": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/observability": "workspace:^",
+    "@borjie/owner-os-tabs": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",
     "@borjie/persona-runtime": "workspace:*",
     "@supabase/ssr": "^0.5.0",

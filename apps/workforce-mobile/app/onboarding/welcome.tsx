@@ -79,18 +79,23 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderRadius: radius.lg,
     backgroundColor: colors.earth700,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.32)',
+    borderTopWidth: 2,
+    borderTopColor: colors.gold,
     marginBottom: spacing.xl
   },
   brandTitle: {
-    color: colors.goldLight,
-    fontSize: fontSize.h1,
-    fontWeight: '700',
-    letterSpacing: 2
+    color: colors.gold,
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: 6
   },
   brandTagline: {
-    color: colors.textInverse,
+    color: colors.text,
     fontSize: fontSize.body,
-    marginTop: spacing.sm
+    marginTop: spacing.sm,
+    textAlign: 'center'
   },
   prompt: {
     color: colors.text,
@@ -104,27 +109,30 @@ const styles = StyleSheet.create({
   },
   chip: {
     flex: 1,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center'
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: colors.earth700,
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center'
   },
   chipSelected: {
     borderColor: colors.gold,
-    backgroundColor: colors.earth100
+    backgroundColor: 'rgba(255, 200, 87, 0.12)'
   },
   chipPressed: {
-    opacity: 0.85
+    opacity: 0.88
   },
   chipLabel: {
     color: colors.text,
-    fontSize: fontSize.lead,
+    fontSize: fontSize.body,
     fontWeight: '600'
   },
   chipLabelSelected: {
-    color: colors.goldDark,
+    color: colors.gold,
     fontWeight: '700'
   }
 })

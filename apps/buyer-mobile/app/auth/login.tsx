@@ -10,8 +10,7 @@ import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { sendBuyerOtp, verifyBuyerOtp } from '@/auth/session'
 import { phoneSchema, otpSchema, type PhoneInput, type OtpInput } from '@/schemas/auth'
-import { colors } from '@/theme/colors'
-import { spacing, typography } from '@/theme/spacing'
+import { greet, tokens } from '@/ui-litfin'
 
 type Stage = 'phone' | 'otp'
 
@@ -25,7 +24,7 @@ function normaliseE164(raw: string): string {
 
 export default function AuthLogin() {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const toast = useToast()
   const [stage, setStage] = useState<Stage>('phone')
   const [phone, setPhone] = useState<string>('')
@@ -78,8 +77,10 @@ export default function AuthLogin() {
   return (
     <Screen>
       <View style={styles.hero}>
+        <Text style={styles.eyebrow}>BORJIE · MARKETPLACE</Text>
         <Text style={styles.brand}>{t('app.name')}</Text>
         <Text style={styles.slogan}>{t('app.slogan')}</Text>
+        <Text style={styles.dayGreet}>{greet(lang)}</Text>
       </View>
 
       <Text style={styles.title}>{t('auth.login_title')}</Text>
@@ -101,8 +102,8 @@ export default function AuthLogin() {
               />
             )}
           />
-          <View style={{ height: spacing.sm }} />
-          {sending ? <ActivityIndicator color={colors.forest} style={styles.spinner} /> : null}
+          <View style={{ height: tokens.space.sm }} />
+          {sending ? <ActivityIndicator color={tokens.color.gold} style={styles.spinner} /> : null}
           <PrimaryButton
             label={t('auth.send_otp')}
             onPress={phoneForm.handleSubmit(handleSendOtp)}
@@ -127,8 +128,8 @@ export default function AuthLogin() {
               />
             )}
           />
-          <View style={{ height: spacing.sm }} />
-          {verifying ? <ActivityIndicator color={colors.forest} style={styles.spinner} /> : null}
+          <View style={{ height: tokens.space.sm }} />
+          {verifying ? <ActivityIndicator color={tokens.color.gold} style={styles.spinner} /> : null}
           <PrimaryButton
             label={t('auth.verify')}
             onPress={otpForm.handleSubmit(handleVerifyOtp)}
@@ -143,10 +144,40 @@ export default function AuthLogin() {
 }
 
 const styles = StyleSheet.create({
-  hero: { marginBottom: spacing.xxl, alignItems: 'center' },
-  brand: { ...typography.display, color: colors.forest },
-  slogan: { ...typography.body, color: colors.copper, marginTop: spacing.xs },
-  title: { ...typography.title, color: colors.ink, marginBottom: spacing.lg },
-  terms: { ...typography.caption, color: colors.inkMuted, marginTop: spacing.xl, textAlign: 'center' },
-  spinner: { marginBottom: spacing.sm }
+  hero: { marginBottom: tokens.space.xxl, alignItems: 'center' },
+  eyebrow: {
+    ...tokens.type.eyebrow,
+    color: tokens.color.gold
+  },
+  brand: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: tokens.color.gold,
+    letterSpacing: 4,
+    marginTop: tokens.space.sm
+  },
+  slogan: {
+    ...tokens.type.body,
+    color: tokens.color.textSecondary,
+    marginTop: tokens.space.xs,
+    textAlign: 'center'
+  },
+  dayGreet: {
+    ...tokens.type.bodySm,
+    color: tokens.color.textMuted,
+    marginTop: tokens.space.sm,
+    fontStyle: 'italic'
+  },
+  title: {
+    ...tokens.type.h2,
+    color: tokens.color.textPrimary,
+    marginBottom: tokens.space.lg
+  },
+  terms: {
+    ...tokens.type.bodySm,
+    color: tokens.color.textMuted,
+    marginTop: tokens.space.xl,
+    textAlign: 'center'
+  },
+  spinner: { marginBottom: tokens.space.sm }
 })

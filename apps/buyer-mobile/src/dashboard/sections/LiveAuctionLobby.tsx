@@ -4,8 +4,7 @@ import { Pill } from '@/components/Pill'
 import { MarketplaceEmptyState } from '@/marketplace/home/MarketplaceEmptyState'
 import { selectLiveLobby } from '@/marketplace/home/derivations'
 import { formatKg, formatTzs } from '@/components/formatters'
-import { colors } from '@/theme/colors'
-import { spacing, typography, radius } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 import type { Listing } from '@/types/listing'
 
 export interface LiveAuctionLobbyProps {
@@ -52,21 +51,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md
+    marginBottom: tokens.space.md
   },
-  title: { ...typography.heading, color: colors.ink },
-  list: { gap: spacing.sm },
+  title: { ...tokens.type.h3, color: tokens.color.textPrimary },
+  list: { gap: tokens.space.sm },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.cream,
-    borderRadius: radius.md
+    paddingVertical: tokens.space.md,
+    paddingHorizontal: tokens.space.md,
+    backgroundColor: tokens.color.bgBase,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.border
   },
-  main: { flex: 1, paddingRight: spacing.md },
-  rowTitle: { ...typography.bodyStrong, color: colors.ink },
-  rowMeta: { ...typography.caption, color: colors.inkMuted, marginTop: 2 },
-  rowPrice: { ...typography.bodyStrong, color: colors.forest }
+  main: { flex: 1, paddingRight: tokens.space.md },
+  rowTitle: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary },
+  rowMeta: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2 },
+  rowPrice: { ...tokens.type.bodyStrong, color: tokens.color.gold }
 })

@@ -4,8 +4,7 @@ import { Pill, type PillTone } from '@/components/Pill'
 import { MarketplaceEmptyState } from '@/marketplace/home/MarketplaceEmptyState'
 import { selectActiveBids } from '@/marketplace/home/derivations'
 import { formatTzs } from '@/components/formatters'
-import { colors } from '@/theme/colors'
-import { spacing, typography, radius } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 import type { Bid, BidStatus } from '@/types/listing'
 
 export interface ActiveBidsSectionProps {
@@ -56,20 +55,28 @@ export function ActiveBidsSection({ bids, translate, onPressBid }: ActiveBidsSec
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.heading, color: colors.ink, marginBottom: spacing.md },
-  list: { gap: spacing.sm },
+  title: { ...tokens.type.h3, color: tokens.color.textPrimary, marginBottom: tokens.space.md },
+  list: { gap: tokens.space.sm },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.cream,
-    borderRadius: radius.md
+    paddingVertical: tokens.space.md,
+    paddingHorizontal: tokens.space.md,
+    backgroundColor: tokens.color.bgBase,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.border
   },
-  main: { flex: 1, paddingRight: spacing.md },
-  rowTitle: { ...typography.bodyStrong, color: colors.ink },
-  rowMeta: { ...typography.caption, color: colors.inkMuted, marginTop: 2 },
-  actions: { alignItems: 'flex-end', gap: spacing.xs },
-  link: { ...typography.micro, color: colors.forest, textTransform: 'uppercase' }
+  main: { flex: 1, paddingRight: tokens.space.md },
+  rowTitle: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary },
+  rowMeta: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2 },
+  actions: { alignItems: 'flex-end', gap: tokens.space.xs },
+  link: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: tokens.color.gold,
+    textTransform: 'uppercase'
+  }
 })

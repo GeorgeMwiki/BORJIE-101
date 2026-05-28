@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native'
-import { colors } from '@/theme/colors'
-import { radius, spacing, typography } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 
 export interface PrimaryButtonProps {
   readonly label: string
@@ -9,6 +8,11 @@ export interface PrimaryButtonProps {
   readonly disabled?: boolean
 }
 
+/**
+ * Buyer primary button — LitFin pill family.
+ *  - primary | gold : warm gold fill, navy text (LitFin hero CTA)
+ *  - ghost          : transparent, cream text, gold hairline border
+ */
 export function PrimaryButton({
   label,
   onPress,
@@ -20,9 +24,12 @@ export function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: palette.bg, borderColor: palette.border },
+        variant === 'primary' || variant === 'gold' ? tokens.shadow.glow : null,
         pressed && styles.pressed,
         disabled && styles.disabled
       ]}
@@ -33,20 +40,21 @@ export function PrimaryButton({
 }
 
 const palettes = {
-  primary: { bg: colors.forest, border: colors.forest, fg: colors.bone },
-  gold: { bg: colors.gold, border: colors.gold, fg: colors.earth },
-  ghost: { bg: 'transparent', border: colors.forest, fg: colors.forest }
-}
+  primary: { bg: tokens.color.gold, border: tokens.color.goldDeep, fg: tokens.color.userBubbleText },
+  gold: { bg: tokens.color.gold, border: tokens.color.goldDeep, fg: tokens.color.userBubbleText },
+  ghost: { bg: 'transparent', border: tokens.color.borderGold, fg: tokens.color.gold }
+} as const
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
+    paddingVertical: tokens.space.md,
+    paddingHorizontal: tokens.space.xl,
+    borderRadius: tokens.radius.pill,
     alignItems: 'center',
-    borderWidth: 1
+    borderWidth: 1,
+    minHeight: 48
   },
-  label: { ...typography.bodyStrong },
-  pressed: { opacity: 0.88 },
-  disabled: { opacity: 0.5 }
+  label: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  disabled: { opacity: 0.45 }
 })

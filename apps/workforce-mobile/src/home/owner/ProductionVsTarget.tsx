@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg
   },
   header: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700',
     marginBottom: spacing.sm
@@ -81,11 +81,13 @@ const styles = StyleSheet.create({
     fontStyle: 'italic'
   },
   row: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     minHeight: 48
   },
   rowMain: {
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   tonnes: {
-    color: colors.earth900,
+    color: colors.gold,
     fontSize: fontSize.h3,
     fontWeight: '800'
   },

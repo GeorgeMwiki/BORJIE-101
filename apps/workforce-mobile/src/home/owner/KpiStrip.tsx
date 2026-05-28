@@ -135,28 +135,29 @@ const styles = StyleSheet.create({
   card: {
     flexBasis: '48%',
     flexGrow: 1,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
     borderWidth: 1,
+    borderTopWidth: 2,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    minHeight: 96
+    minHeight: 108
   },
   label: {
     color: colors.textMuted,
     fontSize: fontSize.caption,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase'
   },
   value: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h1,
     fontWeight: '800',
     marginTop: spacing.xs
   },
   status: {
-    color: colors.text,
+    color: colors.textMuted,
     fontSize: fontSize.caption,
     fontWeight: '600',
     marginTop: spacing.xs

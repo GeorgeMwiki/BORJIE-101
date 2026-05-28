@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { summarisePipeline } from '@/marketplace/home/derivations'
-import { colors } from '@/theme/colors'
-import { spacing, typography, radius } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 import type { Bid } from '@/types/listing'
 
 export interface DealPipelineSectionProps {
@@ -38,22 +37,26 @@ function Stat({ label, value }: { readonly label: string; readonly value: number
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.heading, color: colors.ink },
-  subtitle: { ...typography.caption, color: colors.inkMuted, marginTop: 2, marginBottom: spacing.md },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
+  title: { ...tokens.type.h3, color: tokens.color.textPrimary },
+  subtitle: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2, marginBottom: tokens.space.md },
+  row: { flexDirection: 'row', justifyContent: 'space-between', gap: tokens.space.sm },
   stat: {
     flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.cream,
-    borderRadius: radius.md,
+    paddingVertical: tokens.space.md,
+    paddingHorizontal: tokens.space.sm,
+    backgroundColor: tokens.color.bgBase,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
     alignItems: 'center'
   },
-  statValue: { ...typography.title, color: colors.forest },
+  statValue: { ...tokens.type.h2, color: tokens.color.gold },
   statLabel: {
-    ...typography.micro,
-    color: colors.inkMuted,
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: tokens.color.textMuted,
+    marginTop: 4,
     textTransform: 'uppercase',
     textAlign: 'center'
   }

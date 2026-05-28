@@ -81,6 +81,7 @@
     "@borjie/property-voices-debate": "workspace:*",
     "@borjie/cross-org-denial-recorder": "workspace:*",
     "@borjie/observability": "workspace:*",
+    "@borjie/owner-os-tabs": "workspace:*",
     "@borjie/payments-ledger-service": "workspace:*",
     "@borjie/payments-service": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",

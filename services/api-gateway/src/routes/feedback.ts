@@ -23,6 +23,7 @@ import {
 } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { routeCatch } from '../utils/safe-error';
+import { getDbFromServices } from '../utils/services-accessor';
 
 import { withSecurityEvents } from '@borjie/observability';
 // Legacy feedback shape — long-form bug/feature/etc submissions captured
@@ -107,7 +108,7 @@ function newId(prefix: string): string {
 // --- Feedback endpoints -----------------------------------------------------
 
 app.post('/', zValidator('json', submitFeedbackSchema), withSecurityEvents({ action: 'feedback.create', resource: 'feedback', severity: 'info' }, async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const auth = c.get('auth');
   const body = c.req.valid('json') as LegacyFeedbackInput | TurnFeedbackInput;
@@ -180,7 +181,7 @@ app.post('/', zValidator('json', submitFeedbackSchema), withSecurityEvents({ act
 }));
 
 app.get('/', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -212,7 +213,7 @@ app.get('/', async (c) => {
 // --- Complaints (mounted under /feedback/complaints/*) --------------------
 
 app.post('/complaints', zValidator('json', createComplaintSchema), withSecurityEvents({ action: 'feedback.create', resource: 'feedback', severity: 'info' }, async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const auth = c.get('auth');
   const body = c.req.valid('json');
@@ -241,7 +242,7 @@ app.post('/complaints', zValidator('json', createComplaintSchema), withSecurityE
 }));
 
 app.get('/complaints/:id', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');
@@ -273,7 +274,7 @@ app.put(
   '/complaints/:id/resolve',
   zValidator('json', resolveComplaintSchema),
   withSecurityEvents({ action: 'feedback.update', resource: 'feedback', severity: 'info' }, async (c) => {
-    const db = (c.get('services') ?? {}).db;
+    const db = getDbFromServices(c);
     if (!db) return dbUnavailable(c);
     const auth = c.get('auth');
     const id = c.req.param('id');
@@ -309,7 +310,7 @@ app.put(
 // --- Single feedback by id (must come after /complaints/:id) --------------
 
 app.get('/:id', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');

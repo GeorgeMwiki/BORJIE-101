@@ -1,10 +1,9 @@
 import { ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router'
-import { colors } from '../theme/colors'
-import { fontSize, spacing } from '../theme/spacing'
 import { useI18n } from '../i18n/useI18n'
 import { OfflineBanner } from './OfflineBanner'
+import { tokens } from '../ui-litfin'
 import type { ReactNode } from 'react'
 
 export interface ScreenShellProps {
@@ -16,9 +15,12 @@ export interface ScreenShellProps {
 
 /**
  * Standard chrome for every catalogue screen: SafeArea + offline banner +
- * header with screen id, localised title and intent. Pure presentational —
- * holds no role logic. Role gating happens in app/(tabs)/_layout.tsx and the
- * per-route guards.
+ * LitFin-styled header with screen id eyebrow + display title + intent.
+ * Pure presentational — holds no role logic. Role gating happens in
+ * `app/(tabs)/_layout.tsx` and the per-route guards.
+ *
+ * Palette: LitFin navy-slate ground with cream type + gold eyebrow, so
+ * the foundation matches the marketing site and owner-web shell.
  */
 export function ScreenShell({ screenId, children, contentStyle, scroll = true }: ScreenShellProps): JSX.Element {
   const { screen } = useI18n()
@@ -51,33 +53,31 @@ export function ScreenShell({ screenId, children, contentStyle, scroll = true }:
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.surface
+    backgroundColor: tokens.color.bgSurface
   },
   scrollContent: {
-    flexGrow: 1
+    flexGrow: 1,
+    paddingBottom: tokens.space.xxxl
   },
   body: {
     flex: 1,
-    padding: spacing.lg
+    padding: tokens.space.lg
   },
   header: {
-    marginBottom: spacing.lg
+    marginBottom: tokens.space.lg
   },
   badge: {
-    color: colors.goldDark,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
-    letterSpacing: 1
+    ...tokens.type.eyebrow,
+    color: tokens.color.gold
   },
   title: {
-    color: colors.text,
-    fontSize: fontSize.h1,
-    fontWeight: '700',
-    marginTop: spacing.xs
+    ...tokens.type.h1,
+    color: tokens.color.textPrimary,
+    marginTop: tokens.space.xs
   },
   intent: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.xs
+    ...tokens.type.body,
+    color: tokens.color.textSecondary,
+    marginTop: tokens.space.xs
   }
 })

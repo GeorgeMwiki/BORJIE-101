@@ -67,45 +67,16 @@ app.get('/me/dashboard', async (c) => {
     );
   }
 
-  const customerId = auth.customerId ?? auth.userId;
-  try {
-    // P0 SECURITY FIX: previously this handler fetched whole-tenant leases /
-    // invoices / payments and JS-filtered by customerId, leaking other
-    // customers' rows over the wire if filtering was bypassed. The repos
-    // already expose customer-scoped queries — use them directly so the DB
-    // does the tenant + customer filtering in a single WHERE clause.
-    const [leasesResult, invoicesResult, paymentsResult] = await Promise.all([
-      repos.leases.findByCustomer(customerId, auth.tenantId, { limit: 50, offset: 0 }),
-      repos.invoices.findByCustomer(customerId, auth.tenantId, 50, 0),
-      repos.payments.findByCustomer(customerId, auth.tenantId, 10, 0),
-    ]);
-
-    const myLeases = leasesResult.items ?? [];
-    const myInvoices = invoicesResult.items ?? [];
-    const myPayments = paymentsResult.items ?? [];
-
-    const openBalance = myInvoices
-      .filter((i) => i.status !== 'paid')
-      .reduce((sum, inv) => sum + Number(inv.amountDue ?? inv.amount ?? 0), 0);
-
-    return c.json({
-      success: true,
-      data: {
-        activeLease: myLeases.find((l) => l.status === 'active') ?? null,
-        openBalance,
-        recentInvoices: myInvoices.slice(0, 3),
-        recentPayments: myPayments.slice(0, 3),
-      },
-    });
-  } catch (error) {
-    // Wave 19 Agent H+I: the customer-app dashboard previously leaked
-    // raw exception messages to customer devices.
-    return safeInternalError(c, error, {
-      code: 'DASHBOARD_UNAVAILABLE',
-      status: 503,
-      fallback: 'Customer dashboard query failed',
-    });
-  }
+  // Property-domain repos (leases, invoices, payments) were deleted in Borjie hard-fork.
+  return c.json({
+    success: true,
+    data: {
+      activeLease: null,
+      openBalance: 0,
+      recentInvoices: [],
+      recentPayments: [],
+    },
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -141,29 +112,11 @@ app.get('/maintenance', async (c) => {
       503,
     );
   }
-  try {
-    // The work-orders repo accepts customerId-scoped queries. We try the
-    // caller's customerId first (if their auth context resolves a customer
-    // record), falling back to userId for tenants who self-submit under
-    // their user identity.
-    const lookupId = auth.customerId ?? auth.userId;
-    const result = await repos.workOrders.findByCustomer(
-      lookupId,
-      auth.tenantId,
-      1000,
-      0,
-    );
-    return c.json({
-      success: true,
-      data: (result.items ?? []).map(mapWorkOrderRow),
-    });
-  } catch (error) {
-    return safeInternalError(c, error, {
-      code: 'MAINTENANCE_LIST_FAILED',
-      status: 500,
-      fallback: 'Failed to list maintenance requests',
-    });
-  }
+  // Property-domain workOrders repo was deleted in Borjie hard-fork. Return empty.
+  return c.json({
+    success: true,
+    data: [],
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -255,7 +208,11 @@ app.post('/sublease', zValidator('json', SubleaseCreateSchema), withSecurityEven
 
 app.get('/sublease', async (c) => {
   const auth = c.get('auth');
-  const services = c.get('services');
+  const services = c.get('services') as {
+    sublease?: {
+      repo?: { listPending: (tenantId: string) => Promise<ReadonlyArray<{ requestedBy?: string }>> };
+    };
+  } | undefined;
   const repo = services?.sublease?.repo;
   if (!repo) {
     // Honest empty: sublease repo not wired yet. Frontend renders empty
@@ -290,7 +247,14 @@ app.get('/sublease', async (c) => {
 
 app.get('/move-out/disputes', async (c) => {
   const auth = c.get('auth');
-  const services = c.get('services');
+  const services = c.get('services') as {
+    damageDeductions?: {
+      repo?: { listOpen: (tenantId: string) => Promise<ReadonlyArray<Record<string, unknown>>> };
+    };
+    featureFlags?: {
+      isEnabled?: (tenantId: string, flagKey: string) => Promise<boolean>;
+    };
+  } | undefined;
   const repo = services?.damageDeductions?.repo;
   if (!repo) {
     return c.json({

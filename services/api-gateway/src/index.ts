@@ -48,30 +48,16 @@ import { createPublicAuthRouter } from './routes/auth/public-auth.hono';
 import { createPublicAuthDeps } from './composition/public-auth-wiring';
 import { tenantsRouter } from './routes/tenants.hono';
 import { usersRouter } from './routes/users.hono';
-import { propertiesRouter } from './routes/properties';
-import { unitsRouter } from './routes/units';
-import { customersRouter } from './routes/customers';
-import { leasesRouter } from './routes/leases';
-import { invoicesApp } from './routes/invoices';
-import { paymentsApp } from './routes/payments';
-import { workOrdersRouter } from './routes/work-orders.hono';
-import { vendorsRouter } from './routes/vendors.hono';
 import { notificationsRouter } from './routes/notifications';
-import { reportsHonoRouter } from './routes/reports.hono';
-import { dashboardRouter } from './routes/dashboard.hono';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
 import { feedbackRouter } from './routes/feedback';
 import { complaintsRouter } from './routes/complaints';
-import { inspectionsRouter } from './routes/inspections';
-import { documentsHonoRouter } from './routes/documents.hono';
 // Piece C — MD Executive Brief routes (briefs + briefing subscriptions).
 import {
   executiveBriefRouter,
   briefingSubscriptionRouter,
 } from './routes/executive-brief.hono';
-import { schedulingRouter } from './routes/scheduling';
-import { messagingRouter } from './routes/messaging';
 import { casesRouter } from './routes/cases.hono';
 import { brainRouter } from './routes/brain.hono';
 // Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
@@ -875,17 +861,7 @@ api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);
 api.route('/tenants', tenantsRouter);
 api.route('/users', usersRouter);
-api.route('/properties', propertiesRouter);
-api.route('/units', unitsRouter);
-api.route('/customers', customersRouter);
-api.route('/leases', leasesRouter);
-api.route('/invoices', invoicesApp);
-api.route('/payments', paymentsApp);
-api.route('/work-orders', workOrdersRouter);
-api.route('/vendors', vendorsRouter);
 api.route('/notifications', notificationsRouter);
-api.route('/reports', reportsHonoRouter);
-api.route('/dashboard', dashboardRouter);
 // Phase F.5 tenant-signup flow mounts FIRST so specific paths
 // (/signup, /first-property, /first-tenant-import, /first-md-chat,
 // /checklist) match before the legacy customer move-in router.
@@ -893,13 +869,9 @@ api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
 api.route('/feedback', feedbackRouter);
 api.route('/complaints', complaintsRouter);
-api.route('/inspections', inspectionsRouter);
-api.route('/documents', documentsHonoRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
 api.route('/briefing-subscriptions', briefingSubscriptionRouter);
-api.route('/scheduling', schedulingRouter);
-api.route('/messaging', messagingRouter);
 api.route('/cases', casesRouter);
 api.route('/brain', brainRouter);
 // Sibling /brain mount for the teaching chat — Hono composes both
@@ -1257,24 +1229,22 @@ const openApiRouter = createOpenApiRouter({
     { prefix: '/buyers', app: createBuyersRouter(signupWiring.buyers), defaultTag: 'signup' },
     { prefix: '/tenants', app: tenantsRouter, defaultTag: 'tenants' },
     { prefix: '/users', app: usersRouter, defaultTag: 'users' },
-    { prefix: '/properties', app: propertiesRouter, defaultTag: 'properties' },
-    { prefix: '/units', app: unitsRouter, defaultTag: 'units' },
-    { prefix: '/customers', app: customersRouter, defaultTag: 'customers' },
-    { prefix: '/leases', app: leasesRouter, defaultTag: 'leases' },
-    { prefix: '/invoices', app: invoicesApp, defaultTag: 'invoices' },
-    { prefix: '/payments', app: paymentsApp, defaultTag: 'payments' },
-    { prefix: '/work-orders', app: workOrdersRouter, defaultTag: 'work-orders' },
-    { prefix: '/vendors', app: vendorsRouter, defaultTag: 'vendors' },
+    // REMOVED (borjie hard-fork): { prefix: '/properties', app: propertiesRouter, defaultTag: 'properties' },
+    // REMOVED (borjie hard-fork): { prefix: '/units', app: unitsRouter, defaultTag: 'units' },
+    // REMOVED (borjie hard-fork): { prefix: '/customers', app: customersRouter, defaultTag: 'customers' },
+    // REMOVED (borjie hard-fork): { prefix: '/leases', app: leasesRouter, defaultTag: 'leases' },
+    // REMOVED (borjie hard-fork): { prefix: '/invoices', app: invoicesApp, defaultTag: 'invoices' },
+    // REMOVED (borjie hard-fork): { prefix: '/payments', app: paymentsApp, defaultTag: 'payments' },
+    // REMOVED (borjie hard-fork): { prefix: '/work-orders', app: workOrdersRouter, defaultTag: 'work-orders' },
+    // REMOVED (borjie hard-fork): { prefix: '/vendors', app: vendorsRouter, defaultTag: 'vendors' },
     { prefix: '/notifications', app: notificationsRouter, defaultTag: 'notifications' },
-    { prefix: '/reports', app: reportsHonoRouter, defaultTag: 'reports' },
-    { prefix: '/dashboard', app: dashboardRouter, defaultTag: 'dashboard' },
     { prefix: '/onboarding', app: onboardingRouter, defaultTag: 'onboarding' },
     { prefix: '/feedback', app: feedbackRouter, defaultTag: 'feedback' },
     { prefix: '/complaints', app: complaintsRouter, defaultTag: 'complaints' },
-    { prefix: '/inspections', app: inspectionsRouter, defaultTag: 'inspections' },
-    { prefix: '/documents', app: documentsHonoRouter, defaultTag: 'documents' },
-    { prefix: '/scheduling', app: schedulingRouter, defaultTag: 'scheduling' },
-    { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
+    // REMOVED (borjie hard-fork): { prefix: '/inspections', app: inspectionsRouter, defaultTag: 'inspections' },
+    // REMOVED (borjie hard-fork): { prefix: '/documents', app: documentsHonoRouter, defaultTag: 'documents' },
+    // REMOVED (borjie hard-fork): { prefix: '/scheduling', app: schedulingRouter, defaultTag: 'scheduling' },
+    // REMOVED (borjie hard-fork): { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
     { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
     { prefix: '/maintenance', app: maintenanceRouter, defaultTag: 'maintenance' },

@@ -42,6 +42,7 @@ import { ApiError } from '../api/errors'
 import { workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
+import { greet } from '../ui-litfin'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
@@ -232,9 +233,9 @@ export function HomeChat(): JSX.Element {
 
   const onSuggestionPress = useCallback(
     (suggestion: ChatSuggestion): void => {
-      submitTurn(suggestion.sw)
+      submitTurn(lang === 'sw' ? suggestion.sw : suggestion.en)
     },
-    [submitTurn]
+    [lang, submitTurn]
   )
 
   const onContentSizeChange = useCallback((): void => {
@@ -315,10 +316,14 @@ function GreetingCard({
   suggestions,
   onPick
 }: GreetingCardProps): JSX.Element {
+  const greeting = greet(lang)
+  const primary = lang === 'sw' ? greetingSw : greetingEn
   return (
     <View style={styles.greetingCard} testID="home-chat-greeting">
-      <Text style={styles.greetingPrimary}>{greetingSw}</Text>
-      {lang === 'en' ? (
+      <Text style={styles.greetingEyebrow}>MR. MWIKILA · MINING MD</Text>
+      <Text style={styles.greetingDayPart}>{greeting}</Text>
+      <Text style={styles.greetingPrimary}>{primary}</Text>
+      {lang === 'sw' ? (
         <Text style={styles.greetingSecondary}>{greetingEn}</Text>
       ) : null}
       <Text style={styles.suggestionsTitle}>
@@ -337,7 +342,7 @@ function GreetingCard({
               pressed ? styles.suggestionChipPressed : null
             ]}
           >
-            <Text style={styles.suggestionText}>{suggestion.sw}</Text>
+            <Text style={styles.suggestionText}>{lang === 'sw' ? suggestion.sw : suggestion.en}</Text>
           </Pressable>
         ))}
       </View>
@@ -677,18 +682,34 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg
   },
   greetingCard: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.earth700,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold
+    borderTopWidth: 2,
+    borderTopColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.22)'
+  },
+  greetingEyebrow: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4
+  },
+  greetingDayPart: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.xs,
+    fontStyle: 'italic'
   },
   greetingPrimary: {
-    color: colors.earth900,
-    fontSize: fontSize.lead,
+    color: colors.text,
+    fontSize: fontSize.h3,
     fontWeight: '700',
-    lineHeight: fontSize.lead * 1.4
+    lineHeight: fontSize.h3 * 1.3,
+    letterSpacing: -0.3,
+    marginTop: spacing.sm
   },
   greetingSecondary: {
     color: colors.textMuted,
@@ -696,10 +717,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs
   },
   suggestionsTitle: {
-    color: colors.textMuted,
-    fontSize: fontSize.caption,
+    color: colors.gold,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
     marginTop: spacing.lg
   },
@@ -710,20 +731,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm
   },
   suggestionChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.goldDark,
+    backgroundColor: colors.earth800,
+    borderColor: 'rgba(255, 200, 87, 0.40)',
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: 'center'
   },
   suggestionChipPressed: {
-    backgroundColor: colors.gold
+    backgroundColor: colors.gold,
+    borderColor: colors.goldDark
   },
   suggestionText: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '600'
   },
@@ -738,19 +760,24 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start'
   },
   bubble: {
-    maxWidth: '85%',
+    maxWidth: '88%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    borderRadius: radius.lg
+    borderRadius: radius.lg,
+    borderWidth: 1
   },
   bubbleUser: {
     backgroundColor: colors.gold,
+    borderColor: colors.goldDark,
+    borderBottomRightRadius: 6,
     position: 'relative'
   },
   bubbleAssistant: {
-    backgroundColor: colors.earth100,
-    borderWidth: 1,
-    borderColor: colors.border
+    backgroundColor: '#11151F',
+    borderColor: 'rgba(255, 200, 87, 0.22)',
+    borderTopWidth: 2,
+    borderTopColor: colors.gold,
+    borderBottomLeftRadius: 6
   },
   bubbleAssistantFlexible: {
     minHeight: 48
@@ -758,18 +785,19 @@ const styles = StyleSheet.create({
   bubbleUserText: {
     color: colors.earth900,
     fontSize: fontSize.body,
-    lineHeight: 20
+    lineHeight: 22,
+    fontWeight: '600'
   },
   bubbleAssistantText: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.body,
-    lineHeight: 20
+    lineHeight: 22
   },
   bubbleAssistantTextThinking: {
     color: colors.textMuted,
     fontSize: fontSize.body,
     fontStyle: 'italic',
-    lineHeight: 20
+    lineHeight: 22
   },
   slowIndicator: {
     color: colors.textMuted,
@@ -784,22 +812,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm
   },
   citationPill: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(255, 200, 87, 0.14)',
+    borderColor: 'rgba(255, 200, 87, 0.40)',
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2
   },
   citationText: {
-    color: colors.earth700,
+    color: colors.goldLight,
     fontSize: fontSize.caption,
     fontWeight: '600'
   },
   composer: {
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border
+    borderTopColor: 'rgba(255, 255, 255, 0.08)'
   },
   composerRow: {
     flexDirection: 'row',
@@ -807,24 +835,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   voiceCue: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: 'rgba(255, 200, 87, 0.12)',
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.32)',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm
   },
   voiceCueText: {
-    color: colors.earth700,
+    color: colors.gold,
     fontSize: fontSize.caption,
-    fontWeight: '600'
+    fontWeight: '700',
+    letterSpacing: 0.4
   },
   iconButton: {
     width: 44,
     height: 44,
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.earth700,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -833,7 +864,7 @@ const styles = StyleSheet.create({
     borderColor: colors.goldDark
   },
   iconButtonText: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700'
   },
@@ -841,33 +872,35 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: colors.earth700,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     color: colors.text,
     fontSize: fontSize.body
   },
   proposedActionWrap: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     marginTop: spacing.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warn
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.22)'
   },
   proposedActionLabel: {
-    color: colors.textMuted,
-    fontSize: fontSize.caption,
+    color: colors.gold,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
     textTransform: 'uppercase'
   },
   proposedActionBody: {
-    color: colors.earth900,
-    fontSize: fontSize.body,
+    color: colors.text,
+    fontSize: fontSize.lead,
     fontWeight: '700',
     marginTop: spacing.xs
   },

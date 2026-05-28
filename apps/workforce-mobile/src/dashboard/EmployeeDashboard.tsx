@@ -297,52 +297,63 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body
   },
   toolbox: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    minHeight: 56
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 64
   },
   toolboxTitle: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '700'
   },
   toolboxStatus: {
     fontSize: fontSize.caption,
     fontWeight: '700',
-    marginTop: spacing.xs
+    marginTop: spacing.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
   },
   alertRow: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     marginBottom: spacing.sm,
-    borderLeftWidth: 4,
-    minHeight: 48
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 56
   },
   alertTitle: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '600'
   },
   coach: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.22)'
   },
   coachBody: {
-    color: colors.earth900,
-    fontSize: fontSize.body,
-    fontWeight: '600'
+    color: colors.text,
+    fontSize: fontSize.lead,
+    fontWeight: '600',
+    lineHeight: fontSize.lead * 1.4
   },
   coachMeta: {
-    color: colors.textMuted,
+    color: colors.goldDark,
     fontSize: fontSize.caption,
-    fontWeight: '600',
-    marginTop: spacing.xs
+    fontWeight: '700',
+    marginTop: spacing.sm,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
   },
   actionsRow: {
     flexDirection: 'row',
@@ -363,15 +374,18 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   sync: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    minHeight: 56
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 64
   },
   syncStatus: {
     fontSize: fontSize.body,
-    fontWeight: '700'
+    fontWeight: '700',
+    letterSpacing: 0.3
   },
   syncQueue: {
     color: colors.textMuted,

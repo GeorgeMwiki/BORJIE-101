@@ -18,6 +18,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { complaintRecords } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { routeCatch } from '../utils/safe-error';
+import { getDbFromServices } from '../utils/services-accessor';
 
 import { withSecurityEvents } from '@borjie/observability';
 const createComplaintSchema = z.object({
@@ -57,7 +58,7 @@ function newId(): string {
 }
 
 app.post('/', zValidator('json', createComplaintSchema), withSecurityEvents({ action: 'complaint.create', resource: 'complaint', severity: 'info' }, async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const auth = c.get('auth');
   const body = c.req.valid('json');
@@ -86,7 +87,7 @@ app.post('/', zValidator('json', createComplaintSchema), withSecurityEvents({ ac
 }));
 
 app.get('/', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -111,7 +112,7 @@ app.get('/', async (c) => {
 });
 
 app.get('/:id', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');
@@ -140,7 +141,7 @@ app.get('/:id', async (c) => {
 });
 
 app.put('/:id/resolve', zValidator('json', resolveComplaintSchema), withSecurityEvents({ action: 'complaint.update', resource: 'complaint', severity: 'info' }, async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDbFromServices(c);
   if (!db) return dbUnavailable(c);
   const auth = c.get('auth');
   const id = c.req.param('id');

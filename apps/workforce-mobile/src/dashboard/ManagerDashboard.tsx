@@ -52,17 +52,19 @@ function TaskQueueSlot(): JSX.Element {
 
 const styles = StyleSheet.create({
   taskRow: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.earth500,
-    minHeight: 56
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 64
   },
   taskLabel: {
-    color: colors.earth900,
-    fontSize: fontSize.body,
-    fontWeight: '600'
+    color: colors.text,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
   },
   taskHint: {
     color: colors.textMuted,

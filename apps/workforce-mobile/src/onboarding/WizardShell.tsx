@@ -55,10 +55,11 @@ export function WizardShell({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.surface
+    backgroundColor: colors.earth800
   },
   scrollContent: {
-    flexGrow: 1
+    flexGrow: 1,
+    paddingBottom: spacing.xxl
   },
   body: {
     flex: 1,
@@ -68,21 +69,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg
   },
   badge: {
-    color: colors.goldDark,
-    fontSize: fontSize.caption,
+    color: colors.gold,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1
+    letterSpacing: 1.4,
+    textTransform: 'uppercase'
   },
   title: {
     color: colors.text,
     fontSize: fontSize.h1,
     fontWeight: '700',
-    marginTop: spacing.xs
+    marginTop: spacing.xs,
+    letterSpacing: -0.6
   },
   subtitle: {
     color: colors.textMuted,
     fontSize: fontSize.body,
-    marginTop: spacing.xs
+    marginTop: spacing.xs,
+    lineHeight: fontSize.body * 1.5
   },
   content: {
     marginTop: spacing.md
@@ -90,10 +94,8 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.md,
-    borderTopRightRadius: radius.md,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.earth700,
     gap: spacing.sm
   }
 })

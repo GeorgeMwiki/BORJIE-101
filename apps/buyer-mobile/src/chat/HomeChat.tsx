@@ -45,6 +45,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { ApiError } from '@/api/errors'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { greet as timeAwareGreeting } from '@/ui-litfin'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
@@ -236,7 +237,10 @@ export function HomeChat() {
         >
           {showGreeting ? (
             <View style={styles.greetingBlock}>
-              <Text style={styles.greetingTitle}>{user.companyName || t('app.name')}</Text>
+              <Text style={styles.greetingEyebrow}>MR. MWIKILA · MARKETPLACE DIRECTOR</Text>
+              <Text style={styles.greetingTitle}>
+                {timeAwareGreeting(lang, user.companyName)}
+              </Text>
               <Text style={styles.greetingBody}>{greeting}</Text>
               <View style={styles.chipRow}>
                 {suggestions.map((sug) => (
@@ -475,22 +479,49 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.md
   },
-  greetingBlock: { marginBottom: spacing.md },
-  greetingTitle: { ...typography.display, color: colors.ink },
-  greetingBody: { ...typography.body, color: colors.inkSoft, marginTop: spacing.sm },
+  greetingBlock: {
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 20,
+    backgroundColor: colors.forestSoft,
+    borderTopWidth: 2,
+    borderTopColor: colors.gold,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.22)'
+  },
+  greetingEyebrow: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase'
+  },
+  greetingTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.cream,
+    letterSpacing: -0.6,
+    marginTop: spacing.sm
+  },
+  greetingBody: {
+    ...typography.body,
+    color: colors.sand,
+    marginTop: spacing.sm,
+    lineHeight: 22
+  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.forest,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.line,
-    minHeight: 44,
+    borderColor: 'rgba(255, 200, 87, 0.40)',
+    minHeight: 40,
     justifyContent: 'center'
   },
-  chipPressed: { opacity: 0.7 },
-  chipLabel: { ...typography.bodyStrong, color: colors.earth },
+  chipPressed: { opacity: 0.84, transform: [{ scale: 0.98 }] },
+  chipLabel: { ...typography.bodyStrong, color: colors.cream },
   smartReplyRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -501,42 +532,51 @@ const styles = StyleSheet.create({
   smartReplyChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.bone,
+    backgroundColor: 'rgba(255, 200, 87, 0.10)',
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.forestSoft,
+    borderColor: 'rgba(255, 200, 87, 0.32)',
     minHeight: 36
   },
   smartReplyLabel: {
     ...typography.caption,
-    color: colors.forest,
-    fontWeight: '600'
+    color: colors.gold,
+    fontWeight: '700'
   },
   turnBlock: {
     gap: spacing.sm
   },
   bubble: {
     padding: spacing.md,
-    borderRadius: radius.lg,
-    maxWidth: '85%',
-    position: 'relative'
+    paddingHorizontal: spacing.lg,
+    borderRadius: 20,
+    maxWidth: '88%',
+    position: 'relative',
+    borderWidth: 1
   },
-  bubbleUser: { alignSelf: 'flex-end', backgroundColor: colors.forest },
-  bubbleUserText: { ...typography.body, color: colors.bone },
+  bubbleUser: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.gold,
+    borderColor: colors.goldSoft,
+    borderBottomRightRadius: 6
+  },
+  bubbleUserText: { ...typography.body, color: colors.ink, fontWeight: '600' },
   bubbleBrain: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line
+    backgroundColor: colors.forestSoft,
+    borderColor: 'rgba(255, 200, 87, 0.22)',
+    borderTopWidth: 2,
+    borderTopColor: colors.gold,
+    borderBottomLeftRadius: 6
   },
   bubbleBrainFlexible: {
     minHeight: 48,
     minWidth: 120
   },
-  bubbleBrainText: { ...typography.body, color: colors.ink },
+  bubbleBrainText: { ...typography.body, color: colors.cream, lineHeight: 22 },
   slowIndicator: {
     ...typography.caption,
-    color: colors.inkMuted,
+    color: colors.sand,
     fontStyle: 'italic',
     marginTop: spacing.xs
   },
@@ -547,8 +587,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm
   },
   citationPill: {
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
+    backgroundColor: 'rgba(255, 200, 87, 0.14)',
+    borderColor: 'rgba(255, 200, 87, 0.40)',
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
@@ -556,8 +596,8 @@ const styles = StyleSheet.create({
   },
   citationText: {
     ...typography.caption,
-    color: colors.earth,
-    fontWeight: '600'
+    color: colors.gold,
+    fontWeight: '700'
   },
   composer: {
     flexDirection: 'row',
@@ -565,19 +605,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.bone,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.forest,
     alignItems: 'flex-end'
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-    color: colors.ink,
+    backgroundColor: colors.forestSoft,
+    color: colors.cream,
     minHeight: 48,
     maxHeight: 140,
     textAlignVertical: 'top',

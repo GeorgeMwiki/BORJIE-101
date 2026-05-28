@@ -64,74 +64,14 @@ analyticsRouter.get('/summary', async (c) => {
     });
   }
 
-  try {
-    const propertyAccess = auth.propertyAccess;
-    const allowsAll = Array.isArray(propertyAccess) && propertyAccess.includes('*');
-    const allowedIds = new Set<string>(
-      Array.isArray(propertyAccess) ? propertyAccess.filter((id) => id !== '*') : [],
-    );
-
-    const [propertiesResult, unitsResult, leasesResult, invoicesResult] = await Promise.all([
-      repos.properties.findMany(auth.tenantId, { limit: 1000, offset: 0 }),
-      repos.units.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-      repos.leases.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-      repos.invoices.findMany(auth.tenantId, 5000, 0),
-    ]);
-
-    const scopedProperties = allowsAll
-      ? propertiesResult.items ?? []
-      : (propertiesResult.items ?? []).filter((p) => allowedIds.has(p.id));
-    const propertyIds = new Set(scopedProperties.map((p) => p.id));
-
-    const scopedUnits = (unitsResult.items ?? []).filter((u) => propertyIds.has(u.propertyId));
-    const occupiedUnits = scopedUnits.filter((u) => u.status === 'occupied').length;
-    const occupancyRate = scopedUnits.length === 0 ? 0 : occupiedUnits / scopedUnits.length;
-
-    const unitIds = new Set(scopedUnits.map((u) => u.id));
-    const scopedLeases = (leasesResult.items ?? []).filter(
-      (l) => propertyIds.has(l.propertyId) || unitIds.has(l.unitId),
-    );
-    const activeLeases = scopedLeases.filter((l) => l.status === 'active').length;
-    const leaseIds = new Set(scopedLeases.map((l) => l.id));
-
-    const scopedInvoices = (invoicesResult.items ?? []).filter(
-      (inv) => inv.leaseId && leaseIds.has(inv.leaseId),
-    );
-    const arrearsBalance = scopedInvoices
-      .filter((inv) => inv.status !== 'paid')
-      .reduce((sum, inv) => sum + Number(inv.amountDue ?? inv.amount ?? 0), 0);
-
-    return c.json({
-      success: true,
-      data: {
-        occupancyRate,
-        monthlyRevenue: 0,
-        revenueGrowth: 0,
-        netOperatingIncome: 0,
-        arrearsBalance,
-        collectionRate: 0,
-        totalProperties: scopedProperties.length,
-        totalUnits: scopedUnits.length,
-        activeLeases,
-        meta: {
-          source: 'live',
-          note: 'partial: revenue/NOI aggregation pending dedicated read-model',
-        },
-      },
-    });
-  } catch (error) {
-    logger.warn('analytics summary aggregation failed; falling back to empty', {
-      tenantId: auth.tenantId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return c.json({
-      success: true,
-      data: {
-        ...EMPTY_SUMMARY,
-        meta: { source: 'empty', note: EMPTY_NOTE },
-      },
-    });
-  }
+  // Property-domain repos were deleted in Borjie hard-fork. Return empty.
+  return c.json({
+    success: true,
+    data: {
+      ...EMPTY_SUMMARY,
+      meta: { source: 'empty', note: EMPTY_NOTE },
+    },
+  });
 });
 
 export default analyticsRouter;

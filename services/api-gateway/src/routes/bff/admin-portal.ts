@@ -56,45 +56,23 @@ app.get('/overview', async (c) => {
       503,
     );
   }
-  try {
-    const [properties, units, leases, invoices, customers] = await Promise.all([
-      repos.properties.findMany(auth.tenantId, { limit: 1000, offset: 0 }),
-      repos.units.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-      repos.leases.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-      repos.invoices.findMany(auth.tenantId, 5000, 0),
-      repos.customers.findMany(auth.tenantId, { limit: 5000, offset: 0 }),
-    ]);
-
-    const activeLeases = (leases.items ?? []).filter((l) => l.status === 'active');
-    const openInvoices = (invoices.items ?? []).filter((i) => i.status !== 'paid');
-    const openBalance = openInvoices.reduce(
-      (sum, inv) => sum + Number(inv.amountDue ?? inv.amount ?? 0),
-      0,
-    );
-
-    return c.json({
-      success: true,
-      data: {
-        counts: {
-          properties: properties.total ?? properties.items?.length ?? 0,
-          units: units.total ?? units.items?.length ?? 0,
-          leases: leases.total ?? leases.items?.length ?? 0,
-          activeLeases: activeLeases.length,
-          customers: customers.total ?? customers.items?.length ?? 0,
-          openInvoices: openInvoices.length,
-        },
-        financials: {
-          openBalance,
-        },
+  // Property-domain repos were deleted in Borjie hard-fork. Return stub.
+  return c.json({
+    success: true,
+    data: {
+      counts: {
+        properties: 0,
+        units: 0,
+        leases: 0,
+        activeLeases: 0,
+        customers: 0,
+        openInvoices: 0,
       },
-    });
-  } catch (error) {
-    return routeCatch(c, error, {
-      code: 'OVERVIEW_UNAVAILABLE',
-      status: 503,
-      fallback: 'Query failed',
-    });
-  }
+      financials: {
+        openBalance: 0,
+      },
+    },
+  });
 });
 
 // ----------------------------------------------------------------------------

@@ -64,18 +64,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg
   },
   header: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700',
     marginBottom: spacing.sm
   },
   row: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    backgroundColor: colors.earth700,
+    borderRadius: radius.lg,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',

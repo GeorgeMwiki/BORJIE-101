@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
-import { colors } from '@/theme/colors'
-import { radius, spacing, typography } from '@/theme/spacing'
+import { tokens } from '@/ui-litfin'
 
 export interface MarketplaceEmptyStateProps {
   readonly message: string
@@ -8,9 +7,21 @@ export interface MarketplaceEmptyStateProps {
 }
 
 const toneStyles = {
-  info: { bg: colors.cream, fg: colors.inkSoft },
-  warning: { bg: colors.warningSoft, fg: colors.warning },
-  error: { bg: colors.dangerSoft, fg: colors.danger }
+  info: {
+    bg: 'rgba(255, 255, 255, 0.06)',
+    fg: tokens.color.textSecondary,
+    border: tokens.color.border
+  },
+  warning: {
+    bg: 'rgba(255, 200, 87, 0.14)',
+    fg: tokens.color.gold,
+    border: tokens.color.borderGold
+  },
+  error: {
+    bg: 'rgba(225, 75, 75, 0.14)',
+    fg: tokens.color.danger,
+    border: 'rgba(225, 75, 75, 0.36)'
+  }
 } as const
 
 export function MarketplaceEmptyState({
@@ -19,7 +30,7 @@ export function MarketplaceEmptyState({
 }: MarketplaceEmptyStateProps) {
   const palette = toneStyles[tone]
   return (
-    <View style={[styles.wrap, { backgroundColor: palette.bg }]}>
+    <View style={[styles.wrap, { backgroundColor: palette.bg, borderColor: palette.border }]}>
       <Text style={[styles.text, { color: palette.fg }]}>{message}</Text>
     </View>
   )
@@ -27,10 +38,11 @@ export function MarketplaceEmptyState({
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    marginBottom: spacing.md
+    paddingHorizontal: tokens.space.lg,
+    paddingVertical: tokens.space.md,
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    marginBottom: tokens.space.md
   },
-  text: { ...typography.caption, textAlign: 'left' }
+  text: { ...tokens.type.bodySm, fontWeight: '600' }
 })

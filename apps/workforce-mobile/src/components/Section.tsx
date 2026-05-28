@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
-import { colors } from '../theme/colors'
-import { fontSize, spacing } from '../theme/spacing'
 import type { ReactNode } from 'react'
+import { tokens } from '../ui-litfin'
 
 export interface SectionProps {
   title: string
@@ -10,6 +9,11 @@ export interface SectionProps {
   children: ReactNode
 }
 
+/**
+ * LitFin-styled section — eyebrow-cap title in cream-on-navy with
+ * a soft gold ruling under the heading, then the body below. Mirrors
+ * the LitFin web `SectionHeader` rhythm.
+ */
 export function Section({ title, hint, style, children }: SectionProps): JSX.Element {
   return (
     <View style={[styles.wrap, style]}>
@@ -22,19 +26,18 @@ export function Section({ title, hint, style, children }: SectionProps): JSX.Ele
 
 const styles = StyleSheet.create({
   wrap: {
-    marginBottom: spacing.xl
+    marginBottom: tokens.space.xl
   },
   title: {
-    color: colors.earth900,
-    fontSize: fontSize.h3,
-    fontWeight: '700'
+    ...tokens.type.h3,
+    color: tokens.color.textPrimary
   },
   hint: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.xs
+    ...tokens.type.bodySm,
+    color: tokens.color.textMuted,
+    marginTop: tokens.space.xs
   },
   body: {
-    marginTop: spacing.md
+    marginTop: tokens.space.md
   }
 })
