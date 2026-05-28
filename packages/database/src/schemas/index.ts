@@ -1009,3 +1009,13 @@ export * from './external-parties.schema.js';
 export * from './external-party-engagements.schema.js';
 export * from './mineral-chain-of-custody.schema.js';
 export * from './regulatory-filings.schema.js';
+
+// Wave ESTATE-OS (migration 0094). Family-office layer for the mining-
+// rooted business empire:
+//   - estate_groups              top-level holding registry
+//   - estate_entities            subsidiaries / JVs / standalone holdings
+//   - estate_capital_movements   intercompany flows (VIEW LAYER)
+//   - succession_plans           successor designation + review cadence
+//   - estate_assets              asset register per entity
+// All RLS FORCE.
+export * from './estate-holdings.schema.js';

@@ -331,6 +331,17 @@ import {
   chainOfCustodyRouter,
   regulatoryFilingsRouter,
 } from './routes/ops';
+// Wave ESTATE-OS — family-office layer for the mining-rooted business
+// empire (groups / entities / capital movements / succession / assets).
+//   services/api-gateway/src/routes/estate/
+//   packages/database/src/migrations/0094_mining_estate_holdings.sql
+import {
+  estateGroupsRouter,
+  estateEntitiesRouter,
+  estateCapitalMovementsRouter,
+  estateSuccessionRouter,
+  estateAssetsRouter,
+} from './routes/estate';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
@@ -1206,6 +1217,12 @@ api.route('/ops/external-parties', externalPartiesRouter);
 api.route('/ops/engagements', engagementsRouter);
 api.route('/ops/chain-of-custody', chainOfCustodyRouter);
 api.route('/ops/regulatory-filings', regulatoryFilingsRouter);
+// Wave ESTATE-OS — family-office layer.
+api.route('/estate/groups', estateGroupsRouter);
+api.route('/estate/entities', estateEntitiesRouter);
+api.route('/estate/capital-movements', estateCapitalMovementsRouter);
+api.route('/estate/succession-plans', estateSuccessionRouter);
+api.route('/estate/assets', estateAssetsRouter);
 api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
