@@ -383,6 +383,11 @@ import { engagementsRouter as opsEngagementsRouter } from './routes/ops/engageme
 import { chainOfCustodyRouter as opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
 import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave CLOSED-LOOP - 6h reconciliation worker. Walks outcome_predictions
+// whose horizon has elapsed, resolves the entity's current state, computes
+// drift, writes outcome_observations + outcome_reconciliations, and
+// extends the AI hash-chain on each reconciliation.
+import { createOutcomeReconciliationWorker } from './workers/outcome-reconciliation-worker';
 // Wave WORKFORCE-CERT-EXPIRY — 6-hour cron that scans
 // workforce_certifications for any active cert expiring in <= 30d
 // and auto-creates reminders at 30d / 14d / 3d (idempotent).
@@ -1729,6 +1734,49 @@ const remindersDispatchWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0 }; } };
 
+// Wave CLOSED-LOOP - 6h tick. For each outcome_predictions row whose
+// horizon has elapsed and has no reconciliation yet, resolve the
+// entity's current state through the per-entity resolver port, compute
+// drift, insert outcome_observations + outcome_reconciliations, and
+// extend the AI hash-chain. Per-entity resolvers are wired sparingly
+// here - downstream agents register more via the resolver map as new
+// action_target_entity_type values come online. Unresolved entity
+// types land predictions in 'expired' status (auditable) rather than
+// dangling forever.
+const outcomeReconciliationWorker = serviceRegistry.db
+  ? createOutcomeReconciliationWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      // Resolvers ship empty here on first boot so unwired entity types
+      // close out as 'expired' (with audit) instead of looping. Sibling
+      // agents register concrete resolvers via the map as their domains
+      // come online (licence renewal, royalty filing, supplier switch,
+      // shipment delivery, ...).
+      resolvers: {},
+      intervalMs:
+        Number(
+          process.env.BORJIE_OUTCOME_RECONCILIATION_INTERVAL_MS ??
+            6 * 60 * 60 * 1000,
+        ) || 6 * 60 * 60 * 1000,
+      enabled:
+        process.env.NODE_ENV !== 'test' &&
+        process.env.BORJIE_OUTCOME_RECONCILIATION_DISABLED !== 'true',
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return {
+          claimed: 0,
+          matched: 0,
+          divergent: 0,
+          undetermined: 0,
+          expired: 0,
+          errored: 0,
+        };
+      },
+    };
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -1823,6 +1871,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: reminders-dispatch worker stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: reminders-dispatch stop failed');
+  }
+  try {
+    outcomeReconciliationWorker.stop();
+    logger.info('shutdown: outcome-reconciliation worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: outcome-reconciliation stop failed');
   }
   try {
     serviceRegistry.wakeLoopCron?.stop();
@@ -1945,6 +1999,10 @@ if (require.main === module) {
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
   remindersDispatchWorker.start();
+  // Wave CLOSED-LOOP - outcome reconciliation worker. Every 6h walks
+  // outcome_predictions whose horizon has elapsed and writes back
+  // outcome_observations + outcome_reconciliations, hash-chained.
+  outcomeReconciliationWorker.start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval
