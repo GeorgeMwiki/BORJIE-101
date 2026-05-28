@@ -1019,3 +1019,9 @@ export * from './regulatory-filings.schema.js';
 //   - estate_assets              asset register per entity
 // All RLS FORCE.
 export * from './estate-holdings.schema.js';
+
+// Wave MD-INTELLIGENCE (migration 0095). Read-only benchmark surface:
+//   - peer_cohort_aggregates    anonymised per-cohort percentile bands
+//   - external_benchmarks       point-in-time external reference values
+// Not tenant-scoped; read-only for the comparison-framework.
+export * from './peer-cohort-benchmarks.schema.js';

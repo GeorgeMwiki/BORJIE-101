@@ -769,6 +769,219 @@ export const ownerSubAreaDrillTool: PersonaToolDescriptor<
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// 16-19. Cross-domain MD intelligence — Wave MD-INTELLIGENCE
+// ─────────────────────────────────────────────────────────────────────
+
+const CorrelationInput = z.object({
+  domain: z.string(),
+  siteId: z.string().uuid().optional(),
+});
+const CorrelationOutput = z.object({
+  domain: z.string(),
+  touches: z.array(
+    z.object({
+      from: z.string(),
+      to: z.string(),
+      touchedDomain: z.string(),
+      strength: z.number(),
+      lagDays: z.number(),
+      kind: z.string(),
+      rationale: z.string(),
+    }),
+  ),
+});
+
+export const ownerCorrelationForQuestionTool: PersonaToolDescriptor<
+  typeof CorrelationInput,
+  typeof CorrelationOutput
+> = {
+  id: 'md.correlation_for_question',
+  name: 'Owner — correlation for question',
+  description:
+    'Surface which OTHER domains the asked-about state touches via the ' +
+    'signal graph. Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: CorrelationInput,
+  outputSchema: CorrelationOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const { correlate } = await import(
+      '../../services/md-intelligence/index.js'
+    );
+    const scope: { tenantId: string; siteId?: string } = {
+      tenantId: ctx.tenantId,
+      ...(input.siteId ? { siteId: input.siteId } : {}),
+    };
+    const result = await correlate({
+      domain: input.domain as any,
+      scope,
+      probe: async () => true,
+    });
+    return {
+      domain: input.domain,
+      touches: result.touches.map((t) => ({
+        from: t.from,
+        to: t.to,
+        touchedDomain: t.touchedDomain,
+        strength: t.strength,
+        lagDays: t.lagDays,
+        kind: t.kind,
+        rationale: t.rationale,
+      })),
+    };
+  },
+};
+
+const TraceCausesInput = z.object({
+  symptom: z.string(),
+  siteId: z.string().uuid().optional(),
+});
+const TraceCausesOutput = z.object({
+  chains: z.array(
+    z.object({
+      steps: z.array(
+        z.object({
+          from: z.string(),
+          to: z.string(),
+          strength: z.number(),
+          lagDays: z.number(),
+          rationale: z.string(),
+        }),
+      ),
+    }),
+  ),
+});
+
+export const ownerTraceCausesTool: PersonaToolDescriptor<
+  typeof TraceCausesInput,
+  typeof TraceCausesOutput
+> = {
+  id: 'md.trace_causes',
+  name: 'Owner — trace causes',
+  description:
+    'Walk upstream from a symptom to surface root causes through the ' +
+    'signal graph. Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: TraceCausesInput,
+  outputSchema: TraceCausesOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const { trace } = await import(
+      '../../services/md-intelligence/index.js'
+    );
+    const scope: { tenantId: string; siteId?: string } = {
+      tenantId: ctx.tenantId,
+      ...(input.siteId ? { siteId: input.siteId } : {}),
+    };
+    const result = await trace({
+      symptom: input.symptom,
+      scope,
+      probe: async () => true,
+      maxDepth: 4,
+    });
+    return {
+      chains: result.chains.map((chain) => ({
+        steps: chain.steps.map((s) => ({
+          from: s.from,
+          to: s.to,
+          strength: s.strength,
+          lagDays: s.lagDays,
+          rationale: s.rationale,
+        })),
+      })),
+    };
+  },
+};
+
+const CompareInputSchema = z.object({
+  metricId: z.string(),
+  liveValue: z.number(),
+  cohortKey: z.string().optional(),
+});
+const CompareOutputSchema = z.object({
+  metricId: z.string(),
+  liveValue: z.number(),
+  historicalBand: z
+    .object({ p25: z.number(), p50: z.number(), p75: z.number() })
+    .optional(),
+  peerBand: z
+    .object({ p25: z.number(), p50: z.number(), p75: z.number() })
+    .optional(),
+  externalBenchmark: z.number().optional(),
+  verdict: z.string(),
+});
+
+export const ownerCompareBaselinesTool: PersonaToolDescriptor<
+  typeof CompareInputSchema,
+  typeof CompareOutputSchema
+> = {
+  id: 'md.compare_baselines',
+  name: 'Owner — compare baselines',
+  description:
+    'Compare a live value to historical / peer / external benchmark ' +
+    'baselines. Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: CompareInputSchema,
+  outputSchema: CompareOutputSchema,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    // No DB access from a brain tool surface here — return a structured
+    // shell so the caller can hydrate against the comparison-framework
+    // through the gateway once a comparison endpoint lands.
+    return {
+      metricId: input.metricId,
+      liveValue: input.liveValue,
+      verdict: 'baseline_pending',
+    };
+  },
+};
+
+const EmitInsightsInputSchema = z.object({
+  domain: z.string(),
+  context: z.record(z.unknown()).optional(),
+});
+const EmitInsightsOutputSchema = z.object({
+  insights: z.array(
+    z.object({
+      kind: z.string(),
+      headlineEn: z.string(),
+      headlineSw: z.string(),
+      rationale: z.string(),
+      action: z.string().optional(),
+    }),
+  ),
+});
+
+export const ownerEmitInsightsTool: PersonaToolDescriptor<
+  typeof EmitInsightsInputSchema,
+  typeof EmitInsightsOutputSchema
+> = {
+  id: 'md.emit_insights',
+  name: 'Owner — emit insights',
+  description:
+    'Return 0-3 NON-OBVIOUS, GROUNDED insights for a domain. Every ' +
+    'insight is anchored to a real data point in the same turn — never ' +
+    'fabricated. Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: EmitInsightsInputSchema,
+  outputSchema: EmitInsightsOutputSchema,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(_input, _ctx) {
+    // Insight emission requires live signal data; without grounding the
+    // tool returns no insights rather than fabricated ones.
+    return { insights: [] };
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -787,4 +1000,8 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerComplianceFullPictureTool,
   ownerDomainFullPictureTool,
   ownerSubAreaDrillTool,
+  ownerCorrelationForQuestionTool,
+  ownerTraceCausesTool,
+  ownerCompareBaselinesTool,
+  ownerEmitInsightsTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
