@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, ChevronRight, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
-import { cn } from '@borjie/design-system';
+import { cn, ThemeToggle } from '@borjie/design-system';
 import { LanguageToggle } from '../LanguageToggle';
 import { SignOutButton } from '../SignOutButton';
 
@@ -165,6 +165,7 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
         <div className="hidden h-6 w-px bg-border/60 sm:block" />
 
         <LanguageToggle initial={languagePreference} />
+        <ThemeToggle locale={languagePreference} />
 
         <div className="ml-1 flex items-center gap-2.5">
           <div className="hidden text-right leading-tight sm:block">

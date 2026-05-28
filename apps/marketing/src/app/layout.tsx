@@ -6,6 +6,7 @@ import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 
 // Typography stack — LitFin parity:
 //   - Display: Syne (geometric sans, distinctive weight curve)
@@ -135,21 +136,35 @@ export default async function RootLayout({
   const locale = await getLocale();
   const t = getMessages(locale).common;
   return (
-    <html lang={locale} className={`dark ${fontSans.variable} ${fontDisplay.variable}`}>
+    <html
+      lang={locale}
+      className={`${fontSans.variable} ${fontDisplay.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Inline FOUC defeat: read borjie-theme localStorage before
+            React hydrates so the right `light` / `dark` class is on
+            <html> on first paint. Best-effort, never blocks render. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: BORJIE_THEME_BOOTSTRAP_SCRIPT }}
+        />
+      </head>
       <body className="bg-background text-foreground antialiased min-h-screen font-sans pt-16">
-        <ScrollProgressBar />
-        <a href="#main-content" className="skip-link">
-          {t.skipToContent}
-        </a>
-        {children}
-        <CookieConsent locale={locale} />
-        <BorjieWidgetMount locale={locale} />
-        {/* PWA — register the cache-first SW after hydration. Silent;
-            skipped in dev. See `public/sw.js` and `public/offline.html`. */}
-        <ServiceWorkerRegister />
-        {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
-            Disabled in dev — see import block above. */}
-        {/* <WebVitalsReporter surface="marketing" /> */}
+        <ThemeProvider defaultTheme="dark" enableSystem>
+          <ScrollProgressBar />
+          <a href="#main-content" className="skip-link">
+            {t.skipToContent}
+          </a>
+          {children}
+          <CookieConsent locale={locale} />
+          <BorjieWidgetMount locale={locale} />
+          {/* PWA — register the cache-first SW after hydration. Silent;
+              skipped in dev. See `public/sw.js` and `public/offline.html`. */}
+          <ServiceWorkerRegister />
+          {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
+              Disabled in dev — see import block above. */}
+          {/* <WebVitalsReporter surface="marketing" /> */}
+        </ThemeProvider>
       </body>
     </html>
   );

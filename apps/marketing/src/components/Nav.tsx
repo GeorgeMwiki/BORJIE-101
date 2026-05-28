@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { LanguageToggle } from './LanguageToggle';
 import { getMessages, type Locale } from '@/lib/i18n';
-import { BorjieLogo } from '@borjie/design-system';
+import { BorjieLogo, ThemeToggle } from '@borjie/design-system';
 
 /**
  * Marketing-site top navigation — LitFin MainNav parity, ported to the
@@ -299,6 +299,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
             Tanzania · TZS-first
           </span>
           <LanguageToggle current={locale} />
+          <ThemeToggle locale={locale} />
           <a
             href={signInHref}
             className="hidden rounded-xl px-3 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"

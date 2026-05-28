@@ -2,6 +2,7 @@
 
 import { Bell, Search } from 'lucide-react';
 import { useState } from 'react';
+import { ThemeToggle } from '@borjie/design-system';
 import { EnvBadge } from './EnvBadge';
 
 /**
@@ -66,6 +67,8 @@ export function TopBar({ identity, env }: TopBarProps): JSX.Element {
           className="absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-signal-500 ring-2 ring-background"
         />
       </button>
+
+      <ThemeToggle locale="en" />
 
       {identity ? <div className="ml-2 shrink-0">{identity}</div> : null}
     </header>

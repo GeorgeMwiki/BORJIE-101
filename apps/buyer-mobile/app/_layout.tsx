@@ -7,6 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { colors } from '@/theme/colors'
 import { createQueryClient } from '@/api/queryClient'
 import { ToastProvider } from '@/components/Toast'
+import { ThemeProvider } from '@/theme/ThemeProvider'
 
 export default function RootLayout() {
   // useMemo guarantees the QueryClient is created once per app lifetime
@@ -18,6 +19,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
+          <ThemeProvider defaultTheme="dark">
           <ToastProvider>
             <StatusBar style="dark" />
             <Stack
@@ -39,6 +41,7 @@ export default function RootLayout() {
               <Stack.Screen name="chat" options={{ title: 'Chat' }} />
             </Stack>
           </ToastProvider>
+          </ThemeProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

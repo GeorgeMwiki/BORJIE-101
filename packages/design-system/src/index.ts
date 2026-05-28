@@ -21,6 +21,20 @@ export { cn } from './lib/utils';
 export * from './brand/index';
 
 // ============================================================================
+// Theme — colour-scheme provider, three-state toggle, hydration helper
+// ============================================================================
+export {
+  ThemeProvider,
+  ThemeToggle,
+  useTheme,
+  useColorScheme,
+  BORJIE_THEME_BOOTSTRAP_SCRIPT,
+  type Theme,
+  type ResolvedTheme,
+  type ThemeToggleProps,
+} from './theme/index';
+
+// ============================================================================
 // Core Components
 // ============================================================================
 
