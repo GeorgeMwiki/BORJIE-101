@@ -38,8 +38,12 @@ const config: Config = {
         surface:    'oklch(0.19 0.025 260)',     /* #11151F card slate */
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        // LitFin parity: Inter for body, Syne for display headings. Both
+        // are loaded via next/font/google in apps/marketing/src/app/layout.tsx
+        // and exposed through the --font-sans-override / --font-display-override
+        // CSS variables consumed by the design-system globals.css.
+        sans: ['var(--font-sans-override)', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display-override)', 'Syne', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       /**

@@ -115,7 +115,7 @@ export default async function RootLayout({
   const t = getMessages(locale).common;
   return (
     <html lang={locale} className={`dark ${fontSans.variable} ${fontDisplay.variable}`}>
-      <body className="bg-background text-foreground antialiased min-h-screen font-sans">
+      <body className="bg-background text-foreground antialiased min-h-screen font-sans pt-16">
         <ScrollProgressBar />
         <a href="#main-content" className="skip-link">
           {t.skipToContent}

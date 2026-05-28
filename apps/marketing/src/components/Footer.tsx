@@ -2,18 +2,19 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { getMessages, type Locale } from '@/lib/i18n';
 
 interface WordmarkProps {
   readonly size?: 'sm' | 'md' | 'lg';
-  /** When true, paints the wordmark with the brand gradient. */
   readonly premium?: boolean;
 }
 function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
-  const cls = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
+  const cls =
+    size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
   const tone = premium
-    ? 'bg-gradient-to-r from-[oklch(0.78_0.16_75)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
-    : '';
+    ? 'bg-gradient-to-r from-[oklch(0.86_0.16_80)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
+    : 'text-foreground';
   return (
     <span className={`font-display font-bold tracking-tight ${cls} ${tone}`}>
       Borjie
@@ -22,22 +23,33 @@ function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
 }
 
 /**
- * Footer — 4-column LitFin-pattern footer.
+ * Footer — LitFin MarketingFooter parity, ported to the Borjie navy +
+ * gold palette and the mining audience taxonomy.
  *
- * Top band:
- *   - Brand column with wordmark, tagline, regulator strip badge,
- *     Tanzania-region storage badge, and locale tag.
- *   - Four link columns (Product · Resources · Company · Legal).
- *
- * Bottom strip: copyright + status pill + currency tag.
+ * Composition (top → bottom):
+ *   1. Elevated rounded-[32px] container with subtle shadow and inner
+ *      hairline grid (mirrors LitFin's nested brand-card pattern).
+ *   2. Brand row: wordmark + tagline on the left, contact chips on the
+ *      right (mailto + Dar es Salaam location).
+ *   3. Six-column grid: compliance callout (left, spans 2) + four link
+ *      columns + audience column.
+ *   4. Bottom strip: compliance badge + copyright + locale tag.
  *
  * Framer-motion fade-up on the whole top band. Honours
- * prefers-reduced-motion by collapsing to instant via the
- * `viewport.once` + `whileInView` short-circuit.
+ * prefers-reduced-motion via the underlying motion engine.
  */
 export function Footer({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).footer;
-  const cols = [
+  const nav = getMessages(locale).nav;
+
+  const cols: ReadonlyArray<{
+    readonly title: string;
+    readonly links: ReadonlyArray<{
+      readonly label: string;
+      readonly href: string;
+      readonly external?: boolean;
+    }>;
+  }> = [
     {
       title: t.product,
       links: [
@@ -45,6 +57,17 @@ export function Footer({ locale }: { readonly locale: Locale }) {
         { label: t.links.masterBrain, href: '/#brief' },
         { label: t.links.autonomy, href: '/#product' },
         { label: t.links.auditChain, href: '/#product' },
+        { label: t.links.pricing, href: '/pricing' },
+      ],
+    },
+    {
+      title: t.audience,
+      links: [
+        { label: nav.items.pml, href: '/for-pml' },
+        { label: nav.items.ml, href: '/for-ml' },
+        { label: nav.items.sml, href: '/for-sml' },
+        { label: nav.items.cooperatives, href: '/for-cooperatives' },
+        { label: nav.items.buyers, href: '/buyers' },
       ],
     },
     {
@@ -67,9 +90,8 @@ export function Footer({ locale }: { readonly locale: Locale }) {
     {
       title: t.company,
       links: [
-        { label: t.links.pricing, href: '/pricing' },
-        { label: t.links.pilot, href: '/pilot' },
         { label: t.links.about, href: '/about' },
+        { label: t.links.pilot, href: '/pilot' },
         { label: t.links.careers, href: '/careers' },
       ],
     },
@@ -88,65 +110,67 @@ export function Footer({ locale }: { readonly locale: Locale }) {
     },
   ];
 
-  // Regulator strip — kept short, comma-of-Tanzanian-rails feel.
-  const regulatorTokens = [
-    'Tumemadini',
-    'NEMC',
-    'BoT',
-    'TRA',
-    'BRELA',
-    'LBMA',
-  ];
-
   return (
-    <footer className="border-t border-border bg-surface-sunken">
+    <footer className="relative border-t border-border bg-surface-sunken">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.4 }}
-        className="mx-auto max-w-7xl px-6 py-16 lg:px-8"
+        className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6"
       >
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_3fr]">
-          {/* Brand column */}
-          <div>
-            <Wordmark size="md" premium />
-            <p className="mt-6 max-w-sm text-sm leading-relaxed text-neutral-400">
-              {t.tagline}
-            </p>
-
-            {/* Regulator alignment strip */}
-            <div className="mt-8">
-              <div className="font-mono text-meta uppercase tracking-widest text-neutral-500">
-                {t.regulatorStrip}
-              </div>
-              <ul className="mt-3 flex flex-wrap gap-1.5">
-                {regulatorTokens.map((token) => (
-                  <li
-                    key={token}
-                    className="rounded-full border border-border bg-surface px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-signal-500"
-                  >
-                    {token}
-                  </li>
-                ))}
-              </ul>
+        {/* Elevated brand-card container — LitFin signature */}
+        <div className="rounded-[32px] border border-border/60 bg-background/70 p-6 shadow-[0_24px_70px_-20px_oklch(0.16_0.025_260/0.6)] backdrop-blur-xl md:p-10">
+          {/* Brand row */}
+          <div className="mb-10 flex flex-col gap-4 border-b border-border/60 pb-8 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-2xl">
+              <Wordmark size="lg" premium />
+              <p className="mt-4 text-sm leading-relaxed text-neutral-400">
+                {t.tagline}
+              </p>
             </div>
-
-            {/* Tanzania-region storage + locale tag */}
-            <div className="mt-8 space-y-1.5 font-mono text-meta uppercase tracking-widest text-neutral-500">
-              <p>{t.tanzaniaStorage}</p>
-              <p>{t.locale}</p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={`mailto:${t.contactEmail}`}
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-neutral-300 transition-colors hover:border-signal-500/40 hover:text-foreground"
+              >
+                <Mail className="h-4 w-4" aria-hidden />
+                {t.contactEmail}
+              </a>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-neutral-300">
+                <MapPin className="h-4 w-4" aria-hidden />
+                {t.contactLocation}
+              </div>
             </div>
           </div>
 
-          {/* Four link columns */}
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          {/* Six-column grid: compliance callout + link columns */}
+          <div className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-6">
+            {/* Compliance callout — sits in the first column on lg+ */}
+            <div className="col-span-2 md:col-span-3 lg:col-span-1">
+              <div className="rounded-3xl border border-signal-500/25 bg-signal-500/10 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-signal-500" aria-hidden />
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-signal-500">
+                    {t.complianceBadge}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-neutral-300">
+                  {t.tanzaniaStorage}
+                </p>
+                <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+                  {t.regulatorStrip}
+                </div>
+              </div>
+            </div>
+
+            {/* Link columns */}
             {cols.map((col) => (
               <nav key={col.title} aria-label={col.title}>
-                <h3 className="font-mono text-caption-lg uppercase tracking-widest text-neutral-400">
+                <h3 className="mb-4 text-sm font-semibold text-foreground">
                   {col.title}
                 </h3>
-                <ul className="mt-4 space-y-2.5">
+                <ul className="space-y-2.5">
                   {col.links.map((l) => (
                     <li key={l.label}>
                       {l.external ? (
@@ -173,25 +197,24 @@ export function Footer({ locale }: { readonly locale: Locale }) {
             ))}
           </div>
         </div>
+      </motion.div>
 
-        {/* Bottom strip */}
-        <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 sm:flex-row sm:items-center">
-          <p className="font-mono text-meta text-neutral-400">
-            © 2026 Borjie. {t.rights}
-          </p>
-          <div className="flex items-center gap-4 font-mono text-meta uppercase tracking-widest text-neutral-400">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-success"
-                aria-hidden="true"
-              />
+      {/* Bottom strip */}
+      <div className="border-t border-border/60">
+        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-4 px-4 py-6 sm:flex-row sm:items-center sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-success">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-success" />
               {t.systemsOperational}
             </span>
-            <span className="h-3 w-px bg-border" aria-hidden="true" />
-            <span>Tanzania · TZS</span>
+          </div>
+          <div className="flex flex-col items-start gap-2 font-mono text-[10px] uppercase tracking-widest text-neutral-400 sm:flex-row sm:items-center sm:gap-4">
+            <span>© 2026 Borjie. {t.rights}</span>
+            <span aria-hidden className="hidden h-3 w-px bg-border/60 sm:inline-block" />
+            <span>Tanzania · TZS-first · {t.locale}</span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </footer>
   );
 }
