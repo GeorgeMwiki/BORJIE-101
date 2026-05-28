@@ -180,23 +180,39 @@ function makeFakeDb(store: ReturnType<typeof makeStore>) {
       }),
     }),
     execute: async (q: any) => {
-      // Walk the sql template's `queryChunks` to recover (a) the literal
-      // string fragments and (b) the interpolated parameter values.
+      // Walk the sql template's `queryChunks`. Modern drizzle yields a
+      // mixed array of:
+      //   - `{ value: string[] }` Name objects → literal SQL fragments
+      //   - raw interpolated values (strings / numbers / objects) →
+      //     bind parameters preserved in chunk order.
       const chunks: ReadonlyArray<unknown> = q?.queryChunks ?? [];
       const literals: string[] = [];
       const params: unknown[] = [];
       for (const ch of chunks) {
-        if (!ch || typeof ch !== 'object') continue;
-        const val = (ch as { value?: unknown }).value;
-        if (Array.isArray(val)) {
-          for (const part of val) {
-            if (typeof part === 'string') literals.push(part);
+        if (ch === null || ch === undefined) continue;
+        if (typeof ch === 'object') {
+          const val = (ch as { value?: unknown }).value;
+          if (Array.isArray(val)) {
+            for (const part of val) {
+              if (typeof part === 'string') literals.push(part);
+            }
+            continue;
           }
-        } else if (typeof val === 'string') {
-          literals.push(val);
-        } else if (val !== undefined) {
-          params.push(val);
+          if (typeof val === 'string') {
+            literals.push(val);
+            continue;
+          }
+          if (val !== undefined) {
+            params.push(val);
+            continue;
+          }
+          // Bare object that is neither a Name fragment nor a value —
+          // could be a nested SQL or Param wrapper. Skip silently.
+          continue;
         }
+        // Everything else (string / number / boolean) is an
+        // interpolated bind parameter, preserved in order.
+        params.push(ch);
       }
       const text = literals.join(' ');
       if (text.includes('MAX(sequence_id)')) {

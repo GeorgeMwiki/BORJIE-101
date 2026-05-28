@@ -127,12 +127,34 @@ function makeStubDb(
     return null;
   }
 
+  function sqlText(query: unknown): string {
+    if (!query || typeof query !== 'object') return '';
+    const q = query as { queryChunks?: unknown };
+    if (!Array.isArray(q.queryChunks)) {
+      const s = String((query as any).toString?.());
+      return s === '[object Object]' ? '' : s;
+    }
+    let out = '';
+    for (const chunk of q.queryChunks) {
+      if (typeof chunk === 'string') {
+        out += chunk;
+      } else if (chunk && typeof chunk === 'object') {
+        const c = chunk as { value?: unknown };
+        if (typeof c.value === 'string') {
+          out += c.value;
+        } else if (Array.isArray(c.value)) {
+          out += c.value.filter((v) => typeof v === 'string').join('');
+        } else if (Array.isArray((chunk as any).queryChunks)) {
+          out += sqlText(chunk);
+        }
+      }
+    }
+    return out;
+  }
+
   const db: any = {
     async execute(query: unknown) {
-      const text =
-        typeof (query as any)?.toString === 'function'
-          ? String((query as any).toString())
-          : '';
+      const text = sqlText(query);
       executeCalls.push(text);
       // Route specific kinds of queries to their stub data. We can't
       // reliably parse Drizzle's sql template, so we key off
@@ -381,10 +403,24 @@ describe('composeOwnerBrief() — service-layer composition', () => {
     // queries hit — confirms the slot wraps its error path.
     const { db } = makeStubDb({});
     db.execute = async (q: unknown) => {
-      const text =
-        typeof (q as any)?.toString === 'function'
-          ? String((q as any).toString())
-          : '';
+      // Mirror the in-stub sqlText extractor: walk Drizzle's queryChunks.
+      function extract(query: unknown): string {
+        if (!query || typeof query !== 'object') return '';
+        const queryObj = query as { queryChunks?: unknown };
+        if (!Array.isArray(queryObj.queryChunks)) return '';
+        let out = '';
+        for (const chunk of queryObj.queryChunks) {
+          if (typeof chunk === 'string') out += chunk;
+          else if (chunk && typeof chunk === 'object') {
+            const c = chunk as { value?: unknown };
+            if (typeof c.value === 'string') out += c.value;
+            else if (Array.isArray(c.value)) out += c.value.filter((v) => typeof v === 'string').join('');
+            else if (Array.isArray((chunk as any).queryChunks)) out += extract(chunk);
+          }
+        }
+        return out;
+      }
+      const text = extract(q);
       if (text.includes('incidents') && !text.toUpperCase().includes('INSERT')) {
         throw new Error('simulated db error');
       }
