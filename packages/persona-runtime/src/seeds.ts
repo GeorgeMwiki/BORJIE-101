@@ -5,7 +5,7 @@
  * strings. Tenants relabel via the `titles` table; the brain still
  * routes by tier.
  *
- * Seven built-in personas:
+ * Generic personas (7):
  *
  *   - T1_owner_strategist        — tier 1, all-tenant scope
  *   - T2_admin_strategist        — tier 2, all-tenant scope
@@ -14,6 +14,19 @@
  *   - T5_customer_concierge      — tier 5, own-records
  *   - T_auditor                  — cross-cutting read-only (no tools)
  *   - T_vendor                   — external vendor, own-records
+ *
+ * Mining role personas (9) — Mr. Mwikila as the persona "face" across
+ * every mining role. The id encodes the role context. Used by the
+ * workforce-mobile + buyer-mobile chat tabs.
+ *
+ *   - T1_manager_dispatch              — manager dispatcher (mobile)
+ *   - T1_supervisor_shift              — shift supervisor (mobile)
+ *   - T1_pit_operator                  — pit operator (mobile)
+ *   - T1_geologist                     — geologist (mobile)
+ *   - T1_treasury_clerk                — treasury clerk (mobile)
+ *   - T1_safety_officer                — safety officer (mobile)
+ *   - T1_compliance_clerk              — compliance clerk (mobile)
+ *   - T1_buyer_marketplace_director    — buyer marketplace director (mobile)
  *
  * Five built-in titles (one per tier).
  *
@@ -218,6 +231,167 @@ export const BUILT_IN_PERSONAS: ReadonlyArray<BuiltInPersonaSpec> =
       ],
       channelAllowlist: ['web', 'mobile', 'whatsapp'],
       maxActionTier: 'LOW',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    // ── Mining role personas ───────────────────────────────────────
+    // Each persona is bound to Mr. Mwikila as the visible persona
+    // "face"; the id captures the role context so the brain routes
+    // tools + tone accordingly. All mobile-allowlisted.
+    {
+      slug: 'T1_manager_dispatch',
+      displayNameEn: 'Mining Manager — Dispatch',
+      displayNameSw: 'Meneja wa Mgodi — Utumaji',
+      powerTier: 3,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'mining.attendance.my-shift',
+        'mining.tasks.mine',
+        'mining.incidents.report',
+        'reports.read',
+        'workflow.execute',
+      ],
+      channelAllowlist: ['web', 'mobile', 'whatsapp'],
+      maxActionTier: 'MEDIUM',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:project:{project_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_supervisor_shift',
+      displayNameEn: 'Shift Supervisor',
+      displayNameSw: 'Msimamizi wa Zamu',
+      powerTier: 4,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'mining.attendance.my-shift',
+        'mining.attendance.clock-in',
+        'mining.attendance.clock-out',
+        'mining.tasks.mine',
+        'mining.tasks.complete',
+        'mining.toolbox-talks.today',
+        'mining.toolbox-talks.acknowledge',
+        'mining.incidents.report',
+      ],
+      channelAllowlist: ['mobile', 'whatsapp'],
+      maxActionTier: 'LOW',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_pit_operator',
+      displayNameEn: 'Pit Operator',
+      displayNameSw: 'Mwendeshaji wa Shimo',
+      powerTier: 4,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'mining.attendance.my-shift',
+        'mining.attendance.clock-in',
+        'mining.attendance.clock-out',
+        'mining.tasks.mine',
+        'mining.tasks.complete',
+        'mining.toolbox-talks.today',
+        'mining.toolbox-talks.acknowledge',
+        'mining.incidents.report',
+      ],
+      channelAllowlist: ['mobile'],
+      maxActionTier: 'LOW',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_geologist',
+      displayNameEn: 'Geologist',
+      displayNameSw: 'Mtaalamu wa Jiolojia',
+      powerTier: 4,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'mining.samples.submit',
+        'mining.tasks.mine',
+        'mining.tasks.complete',
+        'mining.incidents.report',
+      ],
+      channelAllowlist: ['mobile', 'web'],
+      maxActionTier: 'LOW',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_treasury_clerk',
+      displayNameEn: 'Treasury Clerk',
+      displayNameSw: 'Mhasibu wa Hazina',
+      powerTier: 3,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'reports.read',
+        'mining.tasks.mine',
+        'workflow.execute',
+      ],
+      channelAllowlist: ['mobile', 'web'],
+      maxActionTier: 'MEDIUM',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_safety_officer',
+      displayNameEn: 'Safety Officer',
+      displayNameSw: 'Afisa wa Usalama',
+      powerTier: 3,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'mining.incidents.report',
+        'mining.toolbox-talks.today',
+        'mining.toolbox-talks.acknowledge',
+        'reports.read',
+      ],
+      channelAllowlist: ['mobile', 'web'],
+      maxActionTier: 'MEDIUM',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_compliance_clerk',
+      displayNameEn: 'Compliance Clerk',
+      displayNameSw: 'Mhasibu wa Utii',
+      powerTier: 3,
+      scopePredicate: { kind: 'module_scope' },
+      toolCatalogIds: [
+        'reports.read',
+        'audit.read',
+        'mining.tasks.mine',
+      ],
+      channelAllowlist: ['mobile', 'web'],
+      maxActionTier: 'MEDIUM',
+      memoryNamespaceTemplate:
+        'tenant:{tenant_id}:persona:{persona_slug}:module:{module_id}:user:{user_id}',
+      uiSectionFilter: [],
+    },
+    {
+      slug: 'T1_buyer_marketplace_director',
+      displayNameEn: 'Buyer Marketplace Director',
+      displayNameSw: 'Mkurugenzi wa Soko la Wanunuzi',
+      powerTier: 5,
+      scopePredicate: { kind: 'own_records' },
+      toolCatalogIds: [
+        'mining.marketplace.search',
+        'mining.marketplace.listing-detail',
+        'mining.marketplace.market-intel',
+        'mining.marketplace.chain-of-custody',
+        'mining.marketplace.accept-offer',
+        'mining.bids.place',
+        'mining.bids.mine',
+        'mining.bids.cancel',
+        'mining.buyers.kyc.status',
+        'mining.buyers.kyc.upload-atom',
+      ],
+      channelAllowlist: ['mobile', 'web', 'whatsapp'],
+      maxActionTier: 'MEDIUM',
       memoryNamespaceTemplate:
         'tenant:{tenant_id}:persona:{persona_slug}:user:{user_id}',
       uiSectionFilter: [],

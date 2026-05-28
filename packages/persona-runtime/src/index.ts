@@ -122,3 +122,12 @@ export type {
   WorkforceTabId,
   WorkforceTabSpec,
 } from './workforce-tab-catalog.js';
+
+// ── Mobile slash-command catalog (workforce + buyer) ─────────────────
+export {
+  WORKFORCE_SLASH_COMMANDS,
+  BUYER_SLASH_COMMANDS,
+  slashCommandsForPersona,
+} from './slash-commands.js';
+
+export type { MobileSlashCommand } from './slash-commands.js';
