@@ -44,7 +44,7 @@ export function SignOutButton(props: {
   return (
     <div className="flex items-center gap-2">
       {error ? (
-        <span role="alert" className="text-xs text-rose-400">
+        <span role="alert" className="text-xs text-destructive">
           {error}
         </span>
       ) : null}
@@ -54,7 +54,7 @@ export function SignOutButton(props: {
         disabled={pending}
         className={
           props.className ??
-          'rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-200 hover:border-neutral-500 hover:text-foreground disabled:opacity-60'
+          'inline-flex items-center gap-1.5 rounded-md border border-border bg-card/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60'
         }
       >
         {pending ? 'Signing out…' : (props.label ?? 'Sign out')}
