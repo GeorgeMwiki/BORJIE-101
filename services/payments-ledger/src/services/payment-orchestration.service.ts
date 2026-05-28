@@ -29,6 +29,7 @@ import {
   PaymentFailedEvent,
   PaymentRefundedEvent
 } from '../events/payment-events';
+import { omitUndefined } from '../lib/omit-undefined';
 
 /**
  * Logger interface
@@ -191,13 +192,13 @@ export class PaymentOrchestrationService {
     const paymentIntentId = createId<PaymentIntentId>(`pi_${uuidv4()}`);
     const now = new Date();
 
-    const paymentIntent: PaymentIntent = {
+    const paymentIntent: PaymentIntent = omitUndefined({
       id: paymentIntentId,
       tenantId: request.tenantId,
       customerId: request.customerId,
       leaseId: request.leaseId,
       type: request.type,
-      status: 'PENDING',
+      status: 'PENDING' as const,
       amount: request.amount,
       platformFee,
       netAmount,
@@ -209,7 +210,7 @@ export class PaymentOrchestrationService {
       createdBy: 'system',
       updatedAt: now,
       updatedBy: 'system'
-    };
+    }) as PaymentIntent;
 
     // Save to repository
     await this.repository.create(paymentIntent);
@@ -221,13 +222,13 @@ export class PaymentOrchestrationService {
         'PaymentIntent',
         paymentIntentId,
         request.tenantId,
-        {
+        omitUndefined({
           customerId: request.customerId,
           leaseId: request.leaseId,
           amount: request.amount.toData(),
           type: request.type,
           description: request.description
-        }
+        }) as PaymentIntentCreatedEvent['payload']
       )
     );
 
@@ -272,7 +273,7 @@ export class PaymentOrchestrationService {
 
     try {
       // Create payment with provider
-      const result = await provider.createPaymentIntent({
+      const result = await provider.createPaymentIntent(omitUndefined({
         amount: paymentIntent.amount,
         customerId: paymentMethodId, // Would need mapping in real impl
         paymentMethodId,
@@ -286,7 +287,7 @@ export class PaymentOrchestrationService {
         idempotencyKey: paymentIntent.idempotencyKey,
         applicationFeeAmount: paymentIntent.platformFee,
         transferDestination: tenant.paymentSettings.stripeAccountId
-      });
+      }) as Parameters<typeof provider.createPaymentIntent>[0]);
 
       // Update payment intent with provider details
       aggregate.markProcessing(result.externalId, provider.name);
@@ -310,14 +311,14 @@ export class PaymentOrchestrationService {
       if (result.status === 'REQUIRES_ACTION') {
         aggregate.markRequiresAction('Customer action required');
         await this.repository.update(aggregate.toData());
-        
-        return {
+
+        return omitUndefined({
           paymentIntentId,
-          status: 'REQUIRES_ACTION',
+          status: 'REQUIRES_ACTION' as const,
           clientSecret: result.clientSecret,
           redirectUrl: result.redirectUrl,
           instructions: result.instructions
-        };
+        }) as PaymentResult;
       }
 
       // If succeeded immediately
@@ -325,11 +326,11 @@ export class PaymentOrchestrationService {
         return this.handlePaymentSuccess(aggregate, tenantId);
       }
 
-      return {
+      return omitUndefined({
         paymentIntentId,
         status: result.status,
         clientSecret: result.clientSecret
-      };
+      }) as PaymentResult;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -376,7 +377,7 @@ export class PaymentOrchestrationService {
         'PaymentIntent',
         paymentIntent.id,
         tenantId,
-        {
+        omitUndefined({
           customerId: paymentIntent.customerId,
           leaseId: paymentIntent.leaseId,
           amount: paymentIntent.amount.toData(),
@@ -384,7 +385,7 @@ export class PaymentOrchestrationService {
           netAmount: paymentIntent.netAmount?.toData(),
           paidAt: paymentIntent.paidAt!,
           receiptUrl
-        }
+        }) as PaymentSucceededEvent['payload']
       )
     );
 
@@ -393,11 +394,11 @@ export class PaymentOrchestrationService {
       amount: paymentIntent.amount.toString()
     });
 
-    return {
+    return omitUndefined({
       paymentIntentId: paymentIntent.id,
-      status: 'SUCCEEDED',
+      status: 'SUCCEEDED' as const,
       receiptUrl
-    };
+    }) as PaymentResult;
   }
 
   /**
@@ -485,12 +486,12 @@ export class PaymentOrchestrationService {
     const provider = this.getProvider(paymentIntent.amount.currency);
     const idempotencyKey = request.idempotencyKey || uuidv4();
 
-    const result = await provider.refundPayment({
+    const result = await provider.refundPayment(omitUndefined({
       paymentIntentExternalId: paymentIntent.externalId!,
       amount: request.amount,
       reason: request.reason,
       idempotencyKey
-    });
+    }) as Parameters<typeof provider.refundPayment>[0]);
 
     if (result.status === 'SUCCEEDED') {
       aggregate.recordRefund(refundAmount);

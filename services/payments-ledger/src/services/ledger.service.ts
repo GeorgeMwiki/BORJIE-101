@@ -26,6 +26,7 @@ import {
   AccountBalanceUpdatedEvent
 } from '../events/payment-events';
 import { ILogger } from './payment-orchestration.service';
+import { omitUndefined } from '../lib/omit-undefined';
 
 export interface LedgerServiceDeps {
   ledgerRepository: ILedgerRepository;
@@ -116,7 +117,7 @@ export class LedgerService {
 
       // Create ledger entry
       const entryId = createId<LedgerEntryId>(`le_${uuidv4()}`);
-      const entry: LedgerEntry = {
+      const entry: LedgerEntry = omitUndefined({
         id: entryId,
         tenantId: request.tenantId,
         accountId: line.accountId,
@@ -138,7 +139,7 @@ export class LedgerService {
         createdBy: request.createdBy,
         updatedAt: now,
         updatedBy: request.createdBy
-      };
+      }) as LedgerEntry;
 
       entries.push(entry);
       accountUpdates.set(line.accountId, {
@@ -186,7 +187,7 @@ export class LedgerService {
         'Ledger',
         journalId,
         request.tenantId,
-        {
+        omitUndefined({
           journalId,
           entries: savedEntries.map(e => ({
             entryId: e.id,
@@ -196,7 +197,7 @@ export class LedgerService {
             amount: e.amount.toData()
           })),
           paymentIntentId: request.paymentIntentId
-        }
+        }) as LedgerEntriesCreatedEvent['payload']
       )
     );
 
@@ -439,12 +440,12 @@ export class LedgerService {
     const reversalDirection = originalEntry.direction === 'DEBIT' ? 'CREDIT' : 'DEBIT';
 
     // Create correcting entry (same direction as original with corrected amount)
-    const correctionEntries: CreateJournalEntryRequest = {
+    const correctionEntries: CreateJournalEntryRequest = omitUndefined({
       tenantId,
       effectiveDate: now,
       lines: [
         // Reversal of original
-        {
+        omitUndefined({
           accountId: originalEntry.accountId,
           // CORRECTION isn't in @borjie/domain-models' narrower
           // LedgerEntryType union (only the canonical trial-balance
@@ -460,9 +461,9 @@ export class LedgerService {
           propertyId: originalEntry.propertyId,
           unitId: originalEntry.unitId,
           metadata: { originalEntryId, correctionType: 'REVERSAL' },
-        },
+        }) as JournalEntryLine,
         // New corrected entry
-        {
+        omitUndefined({
           accountId: originalEntry.accountId,
           type: originalEntry.type,
           direction: originalEntry.direction,
@@ -472,11 +473,11 @@ export class LedgerService {
           propertyId: originalEntry.propertyId,
           unitId: originalEntry.unitId,
           metadata: { originalEntryId, correctionType: 'CORRECTED' },
-        },
+        }) as JournalEntryLine,
       ],
       paymentIntentId: originalEntry.paymentIntentId,
       createdBy,
-    };
+    }) as CreateJournalEntryRequest;
 
     this.logger.info('Posting correction entry', {
       originalEntryId,
@@ -510,7 +511,7 @@ export class LedgerService {
       tenantId,
       effectiveDate: new Date(),
       lines: [
-        {
+        omitUndefined({
           accountId: entry.accountId,
           // CORRECTION isn't in @borjie/domain-models' narrower
           // LedgerEntryType union (only the canonical trial-balance
@@ -526,7 +527,7 @@ export class LedgerService {
           propertyId: entry.propertyId,
           unitId: entry.unitId,
           metadata: { voidedEntryId: entryId, voidReason },
-        },
+        }) as JournalEntryLine,
       ],
       createdBy,
     };

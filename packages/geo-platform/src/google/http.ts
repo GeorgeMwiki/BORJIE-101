@@ -127,12 +127,15 @@ export async function fetchJson<T>(input: FetchJsonInput): Promise<GeoResult<T>>
       abortErr.name = 'AbortError';
       throw abortErr;
     }
-    response = await fetch(input.url, {
+    const fetchInit: RequestInit = {
       method: input.method ?? 'GET',
       headers,
-      body: input.body !== undefined ? JSON.stringify(input.body) : undefined,
       signal,
-    });
+    };
+    if (input.body !== undefined) {
+      fetchInit.body = JSON.stringify(input.body);
+    }
+    response = await fetch(input.url, fetchInit);
   } catch (err) {
     cancel();
     const reason = (err as { name?: string; message?: string }) ?? {};

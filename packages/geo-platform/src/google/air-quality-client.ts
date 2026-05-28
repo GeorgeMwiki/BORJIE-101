@@ -57,29 +57,35 @@ function normalizePollutant(raw: UpstreamPollutant): AirQualityPollutant {
 }
 
 function normalizeIndex(raw: UpstreamIndex): AirQualityIndex {
-  return {
+  const out: { -readonly [K in keyof AirQualityIndex]: AirQualityIndex[K] } = {
     code: raw.code ?? 'uaqi',
     displayName: raw.displayName ?? '',
     aqi: raw.aqi ?? 0,
     category: raw.category ?? '',
-    dominantPollutant: raw.dominantPollutant,
-    color: raw.color
-      ? {
-          red: raw.color.red ?? 0,
-          green: raw.color.green ?? 0,
-          blue: raw.color.blue ?? 0,
-        }
-      : undefined,
   };
+  if (raw.dominantPollutant !== undefined) {
+    out.dominantPollutant = raw.dominantPollutant;
+  }
+  if (raw.color) {
+    out.color = {
+      red: raw.color.red ?? 0,
+      green: raw.color.green ?? 0,
+      blue: raw.color.blue ?? 0,
+    };
+  }
+  return out;
 }
 
 function normalize(raw: UpstreamCurrentConditions): AirQualitySnapshot {
-  return {
+  const out: { -readonly [K in keyof AirQualitySnapshot]: AirQualitySnapshot[K] } = {
     dateTime: raw.dateTime ?? new Date().toISOString(),
-    regionCode: raw.regionCode,
     indexes: (raw.indexes ?? []).map(normalizeIndex),
     pollutants: (raw.pollutants ?? []).map(normalizePollutant),
   };
+  if (raw.regionCode !== undefined) {
+    out.regionCode = raw.regionCode;
+  }
+  return out;
 }
 
 export interface CurrentConditionsInput {

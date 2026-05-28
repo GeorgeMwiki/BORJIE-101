@@ -48,12 +48,15 @@ function parseDuration(s: string | undefined): number {
 }
 
 function normalize(raw: UpstreamRoute): RouteSummary {
-  return {
+  const out: { -readonly [K in keyof RouteSummary]: RouteSummary[K] } = {
     distanceMeters: raw.distanceMeters ?? 0,
     durationSeconds: parseDuration(raw.duration),
     staticDurationSeconds: parseDuration(raw.staticDuration),
-    encodedPolyline: raw.polyline?.encodedPolyline,
   };
+  if (raw.polyline?.encodedPolyline !== undefined) {
+    out.encodedPolyline = raw.polyline.encodedPolyline;
+  }
+  return out;
 }
 
 export async function computeRoute(

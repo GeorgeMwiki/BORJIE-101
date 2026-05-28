@@ -16,6 +16,7 @@
 import { randomUUID } from 'node:crypto';
 import Stripe from 'stripe';
 import { logger } from '../../logger.js';
+import { omitUndefined } from '../../lib/omit-undefined.js';
 
 // ---------------------------------------------------------------------------
 // Public surface (request/response shapes)
@@ -115,7 +116,7 @@ export class LiveStripeClient implements IStripeClient {
   async createCheckoutSession(
     req: CheckoutSessionRequest,
   ): Promise<CheckoutSessionResponse> {
-    const session = await this.stripe.checkout.sessions.create({
+    const createParams = omitUndefined({
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [
@@ -132,35 +133,39 @@ export class LiveStripeClient implements IStripeClient {
       success_url: req.successUrl,
       cancel_url: req.cancelUrl,
       metadata: req.metadata as Stripe.MetadataParam,
-    });
-    return {
+    }) as unknown as Stripe.Checkout.SessionCreateParams;
+    const session = await this.stripe.checkout.sessions.create(createParams);
+    const pi =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+    return omitUndefined({
       id: session.id,
       url: session.url ?? '',
-      paymentIntentId:
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id,
-    };
+      paymentIntentId: pi,
+    }) as CheckoutSessionResponse;
   }
 
   async retrieveCheckoutSession(id: string): Promise<CheckoutSessionResponse> {
     const session = await this.stripe.checkout.sessions.retrieve(id);
-    return {
+    const pi =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+    return omitUndefined({
       id: session.id,
       url: session.url ?? '',
-      paymentIntentId:
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id,
-    };
+      paymentIntentId: pi,
+    }) as CheckoutSessionResponse;
   }
 
   async refund(req: RefundRequest): Promise<RefundResponse> {
-    const refund = await this.stripe.refunds.create({
+    const refundParams = omitUndefined({
       payment_intent: req.paymentIntentId,
       amount: req.amount,
       reason: req.reason as Stripe.RefundCreateParams.Reason | undefined,
-    });
+    }) as Stripe.RefundCreateParams;
+    const refund = await this.stripe.refunds.create(refundParams);
     return {
       id: refund.id,
       status: refund.status as RefundResponse['status'],
@@ -344,7 +349,9 @@ export function createStripeClient(
 ): IStripeClient {
   const env = options.env ?? process.env;
   if (!isStripeLiveMode(env)) {
-    return new MockStripeClient({ scenarios: options.mockScenarios });
+    return new MockStripeClient(
+      omitUndefined({ scenarios: options.mockScenarios }) as { scenarios?: Readonly<Record<string, MockStripeScenario>> },
+    );
   }
   const secretKey = env.STRIPE_SECRET_KEY?.trim();
   const webhookSecret = env.STRIPE_WEBHOOK_SECRET?.trim();

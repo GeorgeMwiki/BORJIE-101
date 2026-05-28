@@ -32,14 +32,17 @@ interface UpstreamAerialView {
 
 function normalize(raw: UpstreamAerialView): AerialViewVideo {
   const state = raw.state === 'ACTIVE' || raw.state === 'FAILED' ? raw.state : 'PROCESSING';
-  return {
+  const out: { -readonly [K in keyof AerialViewVideo]: AerialViewVideo[K] } = {
     name: raw.name ?? '',
     uri: raw.uri ?? '',
-    imageUri: raw.imageUri,
     state,
     mediaFormat:
       raw.mediaFormat === 'WEBM' || raw.mediaFormat === 'IMAGE' ? raw.mediaFormat : 'MP4',
   };
+  if (raw.imageUri !== undefined) {
+    out.imageUri = raw.imageUri;
+  }
+  return out;
 }
 
 export async function lookupAerialView(

@@ -232,7 +232,7 @@ export async function handleMpesaWebhook(
 const defaultSeenIds = new Set<string>();
 
 function extractMetadataNumber(
-  items: ReadonlyArray<{ Name: string; Value?: string | number }>,
+  items: ReadonlyArray<{ Name: string; Value?: string | number | undefined }>,
   name: string,
 ): number | null {
   const found = items.find((item) => item.Name === name);

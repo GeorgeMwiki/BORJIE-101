@@ -61,17 +61,25 @@ function normalize(raw: UpstreamResult): AddressValidationResult {
   const granularity = GRANULARITY_SET.has(granularityRaw as AddressValidationGranularity)
     ? (granularityRaw as AddressValidationGranularity)
     : 'GRANULARITY_UNSPECIFIED';
-  return {
+  const out: { -readonly [K in keyof AddressValidationResult]: AddressValidationResult[K] } = {
     formattedAddress: r.address?.formattedAddress ?? '',
     validationGranularity: granularity,
     hasInferredComponents: r.verdict?.hasInferredComponents ?? false,
     hasUnconfirmedComponents: r.verdict?.hasUnconfirmedComponents ?? false,
-    geocode:
-      r.geocode?.location?.latitude !== undefined && r.geocode.location.longitude !== undefined
-        ? { lat: r.geocode.location.latitude, lng: r.geocode.location.longitude }
-        : undefined,
-    placeId: r.geocode?.placeId,
   };
+  if (
+    r.geocode?.location?.latitude !== undefined &&
+    r.geocode.location.longitude !== undefined
+  ) {
+    out.geocode = {
+      lat: r.geocode.location.latitude,
+      lng: r.geocode.location.longitude,
+    };
+  }
+  if (r.geocode?.placeId !== undefined) {
+    out.placeId = r.geocode.placeId;
+  }
+  return out;
 }
 
 export interface AddressValidationInput {

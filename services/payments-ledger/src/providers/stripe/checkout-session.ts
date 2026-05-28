@@ -7,7 +7,8 @@
  * webhook handler.
  */
 import { z } from 'zod';
-import type { IStripeClient } from './client';
+import type { CheckoutSessionRequest, IStripeClient } from './client';
+import { omitUndefined } from '../../lib/omit-undefined.js';
 
 // Stripe accepts these as a baseline. We restrict to the currencies the
 // Borjie platform actually settles in plus the universal majors.
@@ -57,18 +58,20 @@ export async function createCheckoutSession(
   if (parsed.data.scenarioKey) {
     metadata.scenarioKey = parsed.data.scenarioKey;
   }
-  const session = await deps.client.createCheckoutSession({
-    amount: parsed.data.amountMinor,
-    currency: parsed.data.currency,
-    customerEmail: parsed.data.customerEmail,
-    successUrl: parsed.data.successUrl,
-    cancelUrl: parsed.data.cancelUrl,
-    metadata,
-  });
-  return {
+  const session = await deps.client.createCheckoutSession(
+    omitUndefined({
+      amount: parsed.data.amountMinor,
+      currency: parsed.data.currency,
+      customerEmail: parsed.data.customerEmail,
+      successUrl: parsed.data.successUrl,
+      cancelUrl: parsed.data.cancelUrl,
+      metadata,
+    }) as CheckoutSessionRequest,
+  );
+  return omitUndefined({
     sessionId: session.id,
     url: session.url,
     paymentIntentId: session.paymentIntentId,
     mode: deps.client.mode,
-  };
+  }) as CreateCheckoutSessionResult;
 }

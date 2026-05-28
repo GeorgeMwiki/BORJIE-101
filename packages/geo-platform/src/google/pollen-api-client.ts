@@ -43,17 +43,20 @@ const POLLEN_CODES = new Set<PollenType>(['GRASS', 'TREE', 'WEED']);
 
 function normalizePollenType(raw: UpstreamPollenTypeInfo): PollenTypeInfo {
   const code = POLLEN_CODES.has(raw.code as PollenType) ? (raw.code as PollenType) : 'TREE';
-  return {
+  const out: { -readonly [K in keyof PollenTypeInfo]: PollenTypeInfo[K] } = {
     code,
     displayName: raw.displayName ?? '',
-    indexInfo: raw.indexInfo
-      ? {
-          value: raw.indexInfo.value ?? 0,
-          category: raw.indexInfo.category ?? '',
-        }
-      : undefined,
-    healthRecommendations: raw.healthRecommendations,
   };
+  if (raw.indexInfo) {
+    out.indexInfo = {
+      value: raw.indexInfo.value ?? 0,
+      category: raw.indexInfo.category ?? '',
+    };
+  }
+  if (raw.healthRecommendations !== undefined) {
+    out.healthRecommendations = raw.healthRecommendations;
+  }
+  return out;
 }
 
 function normalizeDay(raw: UpstreamDailyForecast): PollenDailyForecast {
@@ -95,11 +98,11 @@ export async function fetchPollenForecast(
   if (!result.ok) return asError(result);
 
   const raw = result.data;
-  return {
-    ok: true,
-    data: {
-      regionCode: raw.regionCode,
-      dailyInfo: (raw.dailyInfo ?? []).map(normalizeDay),
-    },
+  const data: { -readonly [K in keyof PollenForecast]: PollenForecast[K] } = {
+    dailyInfo: (raw.dailyInfo ?? []).map(normalizeDay),
   };
+  if (raw.regionCode !== undefined) {
+    data.regionCode = raw.regionCode;
+  }
+  return { ok: true, data };
 }

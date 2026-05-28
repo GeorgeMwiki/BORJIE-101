@@ -258,7 +258,8 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
       .filter(e => e.accountId === accountId && e.tenantId === tenantId)
       .sort((a, b) => b.sequenceNumber - a.sequenceNumber);
 
-    return entries.length > 0 ? { ...entries[0] } : null;
+    const first = entries[0];
+    return first ? { ...first } : null;
   }
 
   async getNextSequenceNumber(
@@ -288,6 +289,9 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
 
     entries.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
     const lastEntry = entries[entries.length - 1];
+    if (!lastEntry) {
+      return null;
+    }
 
     // Calculate balance from entries
     let balance = 0;
@@ -362,18 +366,23 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
     const seen = new Set<number>();
 
     for (let i = 0; i < entries.length; i++) {
-      const seq = entries[i].sequenceNumber;
-      
+      const current = entries[i];
+      if (!current) continue;
+      const seq = current.sequenceNumber;
+
       if (seen.has(seq)) {
         duplicates.push(seq);
       }
       seen.add(seq);
 
       if (i > 0) {
-        const prevSeq = entries[i - 1].sequenceNumber;
-        if (seq !== prevSeq + 1) {
-          for (let g = prevSeq + 1; g < seq; g++) {
-            gaps.push(g);
+        const previous = entries[i - 1];
+        if (previous) {
+          const prevSeq = previous.sequenceNumber;
+          if (seq !== prevSeq + 1) {
+            for (let g = prevSeq + 1; g < seq; g++) {
+              gaps.push(g);
+            }
           }
         }
       }

@@ -114,18 +114,23 @@ export async function fetchAreaInsights(
     });
   }
 
-  return {
+  const errors: { -readonly [K in keyof AreaInsights['errors']]: AreaInsights['errors'][K] } = {};
+  const solarErr = pickErr(solarR);
+  if (solarErr) errors.solar = solarErr;
+  const airErr = pickErr(airR);
+  if (airErr) errors.airQuality = airErr;
+  const pollenErr = pickErr(pollenR);
+  if (pollenErr) errors.pollen = pollenErr;
+  if (routesErr) errors.routes = routesErr;
+
+  const out: { -readonly [K in keyof AreaInsights]: AreaInsights[K] } = {
     center: { lat: input.lat, lng: input.lng },
     fetchedAt: new Date().toISOString(),
-    solar: solarR.ok ? solarR.data : undefined,
-    airQuality: airR.ok ? airR.data : undefined,
-    pollen: pollenR.ok ? pollenR.data : undefined,
     driveTimes,
-    errors: {
-      solar: pickErr(solarR),
-      airQuality: pickErr(airR),
-      pollen: pickErr(pollenR),
-      routes: routesErr,
-    },
+    errors,
   };
+  if (solarR.ok) out.solar = solarR.data;
+  if (airR.ok) out.airQuality = airR.data;
+  if (pollenR.ok) out.pollen = pollenR.data;
+  return out;
 }

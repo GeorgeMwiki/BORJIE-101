@@ -67,20 +67,10 @@ function normalize(raw: UpstreamBuildingInsights): SolarBuildingInsights {
     raw.imageryQuality === 'LOW'
       ? raw.imageryQuality
       : 'BASE';
-  return {
+  const out: { -readonly [K in keyof SolarBuildingInsights]: SolarBuildingInsights[K] } = {
     name: raw.name ?? '',
     center: { lat: raw.center?.latitude ?? 0, lng: raw.center?.longitude ?? 0 },
-    postalCode: raw.postalCode,
-    regionCode: raw.regionCode,
     imageryQuality,
-    imageryDate:
-      raw.imageryDate && raw.imageryDate.year && raw.imageryDate.month && raw.imageryDate.day
-        ? {
-            year: raw.imageryDate.year,
-            month: raw.imageryDate.month,
-            day: raw.imageryDate.day,
-          }
-        : undefined,
     solarPotential: {
       maxArrayPanelsCount: sp.maxArrayPanelsCount ?? 0,
       maxArrayAreaSqm: sp.maxArrayAreaMeters2 ?? 0,
@@ -89,6 +79,20 @@ function normalize(raw: UpstreamBuildingInsights): SolarBuildingInsights {
       roofSegments: (sp.roofSegmentStats ?? []).map(normalizeSegment),
     },
   };
+  if (raw.postalCode !== undefined) {
+    out.postalCode = raw.postalCode;
+  }
+  if (raw.regionCode !== undefined) {
+    out.regionCode = raw.regionCode;
+  }
+  if (raw.imageryDate && raw.imageryDate.year && raw.imageryDate.month && raw.imageryDate.day) {
+    out.imageryDate = {
+      year: raw.imageryDate.year,
+      month: raw.imageryDate.month,
+      day: raw.imageryDate.day,
+    };
+  }
+  return out;
 }
 
 export interface BuildingInsightsInput {

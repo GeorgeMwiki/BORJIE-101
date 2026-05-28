@@ -25,6 +25,7 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../../logger.js';
+import { omitUndefined } from '../../lib/omit-undefined.js';
 
 // ---------------------------------------------------------------------------
 // Public surface (request/response shapes mirroring Daraja)
@@ -320,27 +321,33 @@ export class MockMpesaClient implements IMpesaClient {
         ? 'The service request is processed successfully.'
         : 'The balance is insufficient for the transaction.');
     this.checkoutStatus.set(checkoutRequestId, { resultCode, resultDesc });
+    const stkCallback: {
+      MerchantRequestID: string;
+      CheckoutRequestID: string;
+      ResultCode: number;
+      ResultDesc: string;
+      CallbackMetadata?: { Item: ReadonlyArray<{ Name: string; Value?: string | number }> };
+    } = {
+      MerchantRequestID: merchantRequestId,
+      CheckoutRequestID: checkoutRequestId,
+      ResultCode: resultCode,
+      ResultDesc: resultDesc,
+    };
+    if (resultCode === 0) {
+      stkCallback.CallbackMetadata = {
+        Item: [
+          { Name: 'Amount', Value: Math.round(req.amount) },
+          { Name: 'MpesaReceiptNumber', Value: `MOCK${randomUUID().slice(0, 8).toUpperCase()}` },
+          { Name: 'TransactionDate', Value: Number(nowTimestamp()) },
+          { Name: 'PhoneNumber', Value: req.phoneNumber },
+        ],
+      };
+    }
     this.callbacks.push({
       callbackUrl: req.callbackUrl,
       payload: {
         Body: {
-          stkCallback: {
-            MerchantRequestID: merchantRequestId,
-            CheckoutRequestID: checkoutRequestId,
-            ResultCode: resultCode,
-            ResultDesc: resultDesc,
-            CallbackMetadata:
-              resultCode === 0
-                ? {
-                    Item: [
-                      { Name: 'Amount', Value: Math.round(req.amount) },
-                      { Name: 'MpesaReceiptNumber', Value: `MOCK${randomUUID().slice(0, 8).toUpperCase()}` },
-                      { Name: 'TransactionDate', Value: Number(nowTimestamp()) },
-                      { Name: 'PhoneNumber', Value: req.phoneNumber },
-                    ],
-                  }
-                : undefined,
-          },
+          stkCallback,
         },
       },
     });
@@ -428,7 +435,9 @@ export function createMpesaClient(
 ): IMpesaClient {
   const env = options.env ?? process.env;
   if (!isMpesaLiveMode(env)) {
-    return new MockMpesaClient({ scenarios: options.mockScenarios });
+    return new MockMpesaClient(
+      omitUndefined({ scenarios: options.mockScenarios }) as { scenarios?: Readonly<Record<string, MockMpesaScenario>> },
+    );
   }
   const config = readLiveConfig(env);
   return new LiveMpesaClient(config);
