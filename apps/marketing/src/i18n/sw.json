@@ -1429,5 +1429,399 @@
     "loading": "Inapakia hali...",
     "error": "Imeshindwa kupakia hali ya mfumo.",
     "retry": "Jaribu tena"
+  },
+  "audiencePages": {
+    "pml": {
+      "metaTitle": "Borjie kwa wenye PML, mfumo wa uchimbaji mdogo",
+      "metaDescription": "Borjie kwa wenye Leseni za Uchimbaji wa Msingi. Muhtasari wa kila siku, kalenda ya mrabaha, daftari la mashimo, malipo kupitia M-Pesa. Imejengwa kwa wachimbaji wadogo Tanzania. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa wenye PML",
+      "heroHeadline": "Endesha mgodi wako wa PML kama",
+      "heroHeadlineAccent": "mwendeshaji mkubwa",
+      "heroSub": "Borjie inawapa wachimbaji wadogo wa migodi muhtasari wa kila siku, kalenda ya mrabaha, daftari la ushahidi, na soko, vyote kwa Kiswahili kwanza. Tableti moja shambani inabadilisha lahajedwali sita.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Inalingana na Tume ya Madini",
+        "Inafanya kazi kwenye tableti moja",
+        "M-Pesa, Tigo Pesa, Airtel Money asilia"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha mgodi wako.",
+      "statsSub": "Si ahadi. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya operesheni ya uchimbaji mdogo.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "muhtasari wa kila siku simuni",
+          "sub": "Mr. Mwikila anakusanya uzalishaji wa usiku, hali ya mishahara, na kalenda ya leseni kabla ya zamu ya kwanza kuanza."
+        },
+        {
+          "value": "Sek 60",
+          "label": "kurekodi shimo au kipimo",
+          "sub": "Picha, kumbukumbu ya sauti, GPS imewekwa. Mlolongo wa ushahidi unaanza shimoni, si ofisini."
+        },
+        {
+          "value": "Sufuri",
+          "label": "uwasilishaji uliokosa wa mrabaha",
+          "sub": "Tarehe za Tume ya Madini, mapato ya TRA, na malipo ya TZS yanafuatiliwa kiotomatiki. Mfumo unajiwasilisha wenyewe kwa TZS."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka shimoni hadi uwasilishaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Rekodi uzalishaji kwa Kiswahili.",
+          "body": "Meneja wa eneo anarekodi kila kipimo na picha, sauti, na GPS. Borjie inaweka rekodi ya ushahidi kwa jina lako."
+        },
+        {
+          "n": "02",
+          "title": "Amka na muhtasari.",
+          "body": "Kila asubuhi, Mr. Mwikila anafupisha uzalishaji, hatari ya mrabaha, mishahara, na nini kinahitaji uamuzi wako leo. Lugha mbili sw na en."
+        },
+        {
+          "n": "03",
+          "title": "Wasilisha, lipa, uza.",
+          "body": "Mawasilisho ya mrabaha yanajiandika. Malipo yanaenda kupitia M-Pesa, Tigo Pesa, Airtel Money. Wanunuzi wanaona bidhaa yako sokoni."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Kwa nini migodi mingi ya PML hupoteza pesa",
+      "problemHeadingAccent": "iliyokwisha kuzipata.",
+      "problemSub": "Uchimbaji mdogo una madini mengi na rekodi chache. Uvujaji haupo shimoni, upo kwenye karatasi.",
+      "problemTitle": "Pesa zinavuja wapi",
+      "problems": [
+        {
+          "title": "Mapungufu ya mrabaha",
+          "desc": "Wenye PML wengi hukosa muda wa kuwasilisha kwa sababu hakuna anayefuatilia tarehe za Tume ya Madini pamoja na uzalishaji. Adhabu zinaongezeka kimya."
+        },
+        {
+          "title": "Mishahara ya pesa taslimu",
+          "desc": "Mishahara inayolipwa kwa pesa taslimu haina rekodi. Ukaguzi wa leseni unapokuja, hakuna anayethibitisha aliyefanya kazi gani au kupokea kiasi gani."
+        },
+        {
+          "title": "Wanunuzi wasiothibitishwa",
+          "desc": "Wanunuzi huingia, kupima, kulipa chini ya bei ya soko, na kutoweka. Bila soko lililothibitishwa, dhahabu yako huondoka nchini kwa punguzo."
+        },
+        {
+          "title": "Kumbukumbu zilizopotea",
+          "desc": "Meneja akiondoka, historia ya uzalishaji inaondoka naye. Wafanyakazi wapya huanza kutoka sufuri. Hakuna daftari la mashimo, hakuna mlolongo wa ushahidi."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Muhtasari mmoja, ukweli mmoja",
+          "desc": "Mr. Mwikila anachanganya uzalishaji, hatari ya mrabaha, mishahara, na kalenda ya leseni katika muhtasari wa 06:00 simuni mwako. Lugha mbili sw na en."
+        },
+        {
+          "title": "Mlolongo wa ushahidi wa simu",
+          "desc": "Kila kipimo kinapigwa picha, kuwekewa sauti, kuwekewa GPS, na muhuri wa muda. Rekodi ni yako, isiyobadilika, na tayari kwa Tume ya Madini."
+        },
+        {
+          "title": "Soko lililothibitishwa",
+          "desc": "Orodhesha dore au madini yako sokoni ambapo wanunuzi waliothibitishwa hushindana kwa bei. Malipo kupitia M-Pesa au benki."
+        },
+        {
+          "title": "Imejengwa kwa tableti",
+          "desc": "Meneja anaiendesha kwenye tableti moja. Mmiliki anaisoma simuni. Mhasibu anaihamishia TRA. Mfumo mmoja, majukumu matatu."
+        }
+      ],
+      "ctaHeading": "Iiangalie eneoni mwako ndani ya siku 90.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma vipimo vyako vya siku 90 zilizopita na kukuonyesha muhtasari ukifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "ml": {
+      "metaTitle": "Borjie kwa waendeshaji wa ML, mfumo wa uchimbaji wa kati",
+      "metaDescription": "Borjie kwa waendeshaji wa Leseni za Uchimbaji. Muunganisho wa migodi mingi, daftari za milipuko, telemetri za magari, otomatiki ya mrabaha, ripoti za bodi. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa waendeshaji wa ML",
+      "heroHeadline": "Migodi ya kati inastahili",
+      "heroHeadlineAccent": "programu ya kati",
+      "heroSub": "Borjie inaunganisha mashimo, magari, na wakandarasi wengi katika dashibodi moja ya operesheni. Msaada wa uamuzi kila siku kwa mmiliki, rekodi inayotetewa kwa Tume ya Madini, ripoti tayari za bodi.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Muunganisho wa migodi mingi tayari",
+        "Inaandika kwenye mfumo wako wa uhasibu",
+        "TZS kwanza, sarafu nyingi inajua"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha faida yako.",
+      "statsSub": "Si maoni. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya operesheni ya ML.",
+      "stats": [
+        {
+          "value": "Mtazamo 1",
+          "label": "mashimo, magari, mrabaha",
+          "sub": "Mashimo yote, wakandarasi, masaa ya magari, na hatari ya mrabaha kwenye skrini moja. Ingia kwenye yoyote kwa mibofyo miwili."
+        },
+        {
+          "value": "3-5x",
+          "label": "ufungaji wa mwezi haraka",
+          "sub": "Uzalishaji unajiunganisha kiotomatiki. Mrabaha unajiandika. Mhasibu anasaini, hakusanyii tena."
+        },
+        {
+          "value": "Sufuri",
+          "label": "matukio ya milipuko yasiyofuatiliwa",
+          "sub": "Kila mlipuko umerekodiwa, kila mzunguko umepimwa muda, kila uchunguzi umeunganishwa na shimo. Rekodi inajiandika yenyewe."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka mlipuko hadi pakiti ya bodi.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Unganisha mashimo.",
+          "body": "Mameneja wa mashimo wanarekodi uzalishaji, masaa ya magari, na uchunguzi kutoka tableti. Borjie inaunganisha katika muda halisi."
+        },
+        {
+          "n": "02",
+          "title": "Mfafanulie mmiliki. Wasilisha mrabaha mapema.",
+          "body": "Kila asubuhi mmiliki anaona uzalishaji, hatari, mishahara, na maamuzi kumi muhimu leo. Faili la mrabaha linajiandika."
+        },
+        {
+          "n": "03",
+          "title": "Funga mwezi kwa siku, si wiki.",
+          "body": "Borjie inalinganisha na mfumo wako wa uhasibu, inaandika pakiti ya bodi, na inampa msimamizi rekodi inayotetewa."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Waendeshaji wa ML wanaendesha kwa",
+      "problemHeadingAccent": "tepu na Excel.",
+      "problemSub": "Migodi ya kati ni mikubwa sana kwa karatasi na midogo sana kwa SAP. Pengo ni mahali ambapo thamani inavuja.",
+      "problemTitle": "Uvujaji upo wapi",
+      "problems": [
+        {
+          "title": "Data ya shimo, hakuna muunganisho",
+          "desc": "Kila shimo lina lahajedwali lake. Mmiliki anavilinganisha Jumapili usiku. Bodi inaona namba za mwezi uliopita robo nyingine."
+        },
+        {
+          "title": "Mapungufu ya wakandarasi",
+          "desc": "Wakandarasi wa usafirishaji wanawasilisha bili kwa lori. Bila telemetri, unalipa kwa safari ambazo hazikufanywa na kupoteza zile zilizofanywa."
+        },
+        {
+          "title": "Mrabaha kwa makadirio",
+          "desc": "Bila daftari moja la uzalishaji, mawasilisho ya mrabaha ni makadirio. Ukaguzi wa Tume ya Madini huadhibu mapungufu zaidi ya malipo ya ziada."
+        },
+        {
+          "title": "Pakiti ya bodi kwa hofu ya Ijumaa",
+          "desc": "Vikao vya bodi humla timu ya operesheni kwa wiki mbili. Namba zinalinganishwa kwenye PowerPoint usiku wa manane. Makosa hupita."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Muunganisho wa migodi mingi, halisi",
+          "desc": "Uzalishaji wa kila shimo, magari, na uchunguzi vinaunganishwa katika mtazamo mmoja. Mmiliki anasoma namba moja; meneja anamiliki shimo moja."
+        },
+        {
+          "title": "Telemetri ya magari bila urejeshaji",
+          "desc": "Programu ya dereva inaitikia safari, mizigo, na nyakati. Bili za mkandarasi zinalinganishwa na telemetri kabla ya mhasibu kuziona."
+        },
+        {
+          "title": "Otomatiki ya mrabaha",
+          "desc": "Daftari la uzalishaji huendesha faili la mrabaha. Inalingana na Tume ya Madini, kwa TZS, tayari kuwasilishwa tarehe 7."
+        },
+        {
+          "title": "Pakiti ya bodi kwa mahitaji",
+          "desc": "Slaidi zinajiendesha upya kutoka data halisi. Mmiliki anakagua Ijumaa jioni. Timu ya operesheni inaweka wikendi yake."
+        }
+      ],
+      "ctaHeading": "Endesha ML yako kama kampuni ya umma.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma robo yako iliyopita na kukuonyesha dashibodi ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "sml": {
+      "metaTitle": "Borjie kwa waendeshaji wa SML, mfumo wa uchimbaji mkubwa",
+      "metaDescription": "Borjie kwa wenye Leseni Maalum za Uchimbaji. Muunganisho wa migodi mingi, ulingano wa mazingira, daftari la jamii, utawala wa bodi, mlolongo wa ukaguzi wa msimamizi. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa waendeshaji wa SML",
+      "heroHeadline": "Leseni maalum zinastahili",
+      "heroHeadlineAccent": "nidhamu maalum",
+      "heroSub": "Borjie inawapa waendeshaji wa SML dashibodi ya kiwango cha bodi. Muunganisho wa migodi mingi, ulingano wa mazingira, daftari la jamii, mlolongo wa ukaguzi, na AI mkuu wa wafanyakazi anayemfafanulia mkurugenzi kila siku.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Mlolongo wa ukaguzi wa kiwango cha msimamizi",
+        "Tayari kwa mazingira na ESG",
+        "Utawala wa bodi umejengwa ndani"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha biashara yako.",
+      "statsSub": "Si mkao. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya biashara ya SML.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "muhtasari wa mkurugenzi kila siku",
+          "sub": "Uzalishaji, usalama, mazingira, jamii, na maamuzi matatu ambayo mkurugenzi pekee anaweza kufanya. Skrini moja, kila asubuhi."
+        },
+        {
+          "value": "100%",
+          "label": "ufuasaji wa mlolongo wa ukaguzi",
+          "sub": "Kila kitendo, kila idhini, kila kuchupa imewekwa kwenye mlolongo wa hash. Wasimamizi wanakagua mlolongo, si watu."
+        },
+        {
+          "value": "Sufuri",
+          "label": "mshangao wa ESG shambani",
+          "sub": "Malalamiko ya jamii, matukio ya mazingira, na ahadi za washikadau yanafuatiliwa kutoka kupokelewa hadi kufungwa. Hakuna kinachoteleza."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka shimo hadi barua kwa wawekezaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Unganisha kila eneo.",
+          "body": "Mashimo, viwanda vya kusafisha, mabwawa ya taka, kambi za utafutaji. Vyote kwenye dashibodi moja, na mlolongo wa ukaguzi."
+        },
+        {
+          "n": "02",
+          "title": "Tawala kwa mafungu.",
+          "body": "Mr. Mwikila anashughulikia mambo ya kawaida. Mkurugenzi anaona tu mambo anayopaswa kuamua: kuzima, hatua za kimkakati, idhini za macho manne."
+        },
+        {
+          "n": "03",
+          "title": "Toa ripoti kwa kila mzunguko.",
+          "body": "Muhtasari wa kila siku, bodi ya kila wiki, msimamizi wa kila mwezi, wawekezaji wa robo. Data sawa, iliyokatwa kwa hadhira sahihi."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Operesheni za SML zinazama katika",
+      "problemHeadingAccent": "ripoti hazikuzihitaji.",
+      "problemSub": "Leseni Maalum za Uchimbaji huja na ukaguzi maalum. Wasimamizi, wakopeshaji, jamii, na bodi wote wanataka namba sawa, kwa namna tofauti.",
+      "problemTitle": "Biashara inavuja wapi",
+      "problems": [
+        {
+          "title": "Mzigo wa ripoti unaponda operesheni",
+          "desc": "Nusu ya timu kuu inafanya kazi kwenye pakiti za bodi, ripoti za msimamizi, na barua za wawekezaji. Nusu nyingine inajaribu kuendesha mgodi."
+        },
+        {
+          "title": "Mapungufu ya jamii na ESG",
+          "desc": "Malalamiko ya jamii yanafika kama barua, yanawekwa kwenye folda, na kujitokeza wakati wa ukaguzi. Ahadi za ESG zinaponda bila yeyote kujua."
+        },
+        {
+          "title": "Maeneo mengi, lahajedwali moja",
+          "desc": "Kila eneo linaripoti kituo kikuu kwa ratiba yake, kwa muundo wake. Muunganisho unagharimu siku, si masaa, kila mzunguko."
+        },
+        {
+          "title": "Mapungufu ya mlolongo wa ukaguzi",
+          "desc": "Maamuzi yanafanywa kwenye WhatsApp, idhini zinatolewa kwa maneno, kuchupa hakuna rekodi. Msimamizi anapouliza, mlolongo unavunjika."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Dashibodi moja, kila mzunguko",
+          "desc": "Data ile ile inalisha muhtasari wa kila siku, pakiti ya bodi, ripoti ya msimamizi, na barua ya wawekezaji. Imeandikwa mara moja, imekatwa bila kikomo."
+        },
+        {
+          "title": "Daftari la jamii, kiwango cha ESG",
+          "desc": "Malalamiko, ahadi, na matukio ya washikadau yanafuatiliwa kutoka kupokelewa hadi kufungwa. Ukaguzi wa ESG unasoma daftari, si sanduku la barua."
+        },
+        {
+          "title": "Majukumu yamewekwa, mlolongo umewekwa",
+          "desc": "Kila kitendo, idhini, na kuchupa imewekwa kwenye mlolongo wa hash, inayoweza kuchezwa tena. Mlolongo ni ukaguzi; ukaguzi ni mlolongo."
+        },
+        {
+          "title": "AI Mkuu wa Wafanyakazi",
+          "desc": "Mr. Mwikila anaandika kumbukumbu za bodi, anamfafanulia mkurugenzi, na kupanga maamuzi matatu ya mkurugenzi pekee. Lugha mbili sw na en."
+        }
+      ],
+      "ctaHeading": "Tawala SML yako kama biashara ya kimataifa.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma robo yako iliyopita na kukuonyesha dashibodi ya mkurugenzi ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "cooperatives": {
+      "metaTitle": "Borjie kwa vyama vya ushirika, mfumo wa AMCOS",
+      "metaDescription": "Borjie kwa vyama vya ushirika vya uchimbaji mdogo na AMCOS. Daftari la wanachama, daftari la uzalishaji wa pamoja, mikopo ya pamoja, malipo ya pamoja. Imejengwa kwa vyama vya uchimbaji Tanzania. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa vyama vya ushirika",
+      "heroHeadline": "Nidhamu ya ushirika,",
+      "heroHeadlineAccent": "heshima ya mtu mmoja mmoja",
+      "heroSub": "Borjie inaunganisha chama cha ushirika wa uchimbaji mdogo. Wanachama wanahifadhi utambulisho wao, chama kinaweka daftari, na kila gramu inafuatiliwa kutoka shimoni hadi malipo. Utawala wa AMCOS, zana za kiwango cha uchimbaji.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Inajua daftari la wanachama",
+        "Mikopo ya pamoja, malipo binafsi",
+        "Tayari kwa ukaguzi kwa msingi"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha chama chako.",
+      "statsSub": "Si ahadi. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya chama cha uchimbaji.",
+      "stats": [
+        {
+          "value": "Mtazamo 1",
+          "label": "wanachama, uzalishaji, mikopo",
+          "sub": "Mchango wa kila mwanachama msimu huu, uzalishaji wa chama, na mkopo wa pamoja juu yake. Mtazamo mmoja, bodi na shambani."
+        },
+        {
+          "value": "Saa 48",
+          "label": "mkopo wa pamoja kwa malipo binafsi",
+          "sub": "Chama kinakopa dhidi ya dore iliyokusanywa. Wanachama wanapokea hisa yao kupitia simu kabla ya wikendi kufungwa."
+        },
+        {
+          "value": "Sufuri",
+          "label": "gramu zilizohesabiwa mara mbili",
+          "sub": "Kila gramu inawekewa jina la mwanachama. Hakuna vipimo vya kufikirika, hakuna mikopo mara mbili, hakuna mshangao wa ukaguzi."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka mwanachama hadi soko.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Sajili daftari, hifadhi muundo.",
+          "body": "Bodi, kamati, wanachama wa kawaida. Hisa, ukubwa, na historia ya uzalishaji vimeingizwa kutoka daftari lako lililopo."
+        },
+        {
+          "n": "02",
+          "title": "Kusanya msimu, panga mkopo.",
+          "body": "Borjie inahesabu vipokeo, inasoma soko, na inapendekeza mkopo wa pamoja ambao mnunuzi au mkopeshaji anaweza kuandika katika faili moja."
+        },
+        {
+          "n": "03",
+          "title": "Sambaza kwa wanachama, fuatilia gramu.",
+          "body": "Kila mwanachama anapokea hisa yake, kulingana na mchango wake na historia ya marejesho. Daftari linajifunga lenyewe msimu unaofungwa."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Vyama vinabeba hatari,",
+      "problemHeadingAccent": "wanachama wanabeba shaka.",
+      "problemSub": "Vyama vya ushirika vya uchimbaji mdogo ni injini ya uchimbaji wa Tanzania. Zana hazijaendana na jukumu.",
+      "problemTitle": "Imani inavunjika wapi",
+      "problems": [
+        {
+          "title": "Daftari za mikono za wanachama",
+          "desc": "Daftari za karatasi na lahajedwali za Excel. Mwanachama akiulizia hisa yake, hakuna anayethibitisha alichochangia, lini, au kwa hali gani."
+        },
+        {
+          "title": "Mikopo ya pamoja, mgawanyo usio sawa",
+          "desc": "Wanunuzi wanatoa mikopo dhidi ya uzalishaji wa pamoja. Wanachama wanashuku (mara nyingi kwa usahihi) kuwa mgawanyo unapendelea waliopata uhusiano."
+        },
+        {
+          "title": "Mshangao wa ukaguzi",
+          "desc": "TCDC, Tume ya Madini, na TRA kila mmoja anataka vipande tofauti vya data ile ile. Vyama vinatumia wiki kukusanya badala ya kuendesha."
+        },
+        {
+          "title": "Umeunganishwa, lakini si umeunganishwa",
+          "desc": "Kila mwanachama anaendesha shimo lake. Chama kinakusanya kwa simu. Hakuna anayeona muungano katika sehemu moja, kwa muda halisi."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Daftari linalojua wanachama",
+          "desc": "Kila kipokeo kinawekewa jina la mwanachama, muhuri wa muda, eneo, na picha. Rekodi ni ya chama, si daftari."
+        },
+        {
+          "title": "Mgawanyo wa wazi",
+          "desc": "Mikopo ya pamoja inaingia Borjie. Mgawanyo unahesabiwa dhidi ya michango iliyotambuliwa. Kila mwanachama anaona daftari lake simuni mwake."
+        },
+        {
+          "title": "Tayari kwa ukaguzi kwa msingi",
+          "desc": "TCDC, Tume ya Madini, na TRA kila mmoja anapata kipande chake, kinachozalishwa kutoka daftari lile lile. Ukaguzi unachukua masaa, si wiki."
+        },
+        {
+          "title": "Dashibodi ya muungano",
+          "desc": "Mwenyekiti anaona uzalishaji wa pamoja, utendaji wa mwanachama, hatari ya mkopo, na foleni ya maamuzi kwenye skrini moja. Muungano wa muda halisi."
+        }
+      ],
+      "ctaHeading": "Unganisha chama chako kwenye Borjie.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma msimu wako uliopita na kukuonyesha dashibodi ya chama ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    }
   }
 }

@@ -1429,5 +1429,399 @@
     "loading": "Loading status...",
     "error": "Failed to load system status.",
     "retry": "Retry"
+  },
+  "audiencePages": {
+    "pml": {
+      "metaTitle": "Borjie for PML holders — artisanal mining OS",
+      "metaDescription": "Borjie for Primary Mining Licence holders. Daily brief, royalty calendar, drill-hole logger, M-Pesa payouts. Built for Tanzanian artisanal miners. 90-day free pilot.",
+      "heroKicker": "For PML holders",
+      "heroHeadline": "Run your PML site like a",
+      "heroHeadlineAccent": "mid-tier operator",
+      "heroSub": "Borjie gives small-scale artisanal mines a daily brief, a royalty calendar, a chain-of-custody log, and a marketplace, all in Swahili first. One tablet on site replaces six spreadsheets.",
+      "heroPrimaryCta": "Start 90-day pilot",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Tumemadini-aligned by design",
+        "Works on a single shared tablet",
+        "M-Pesa, Tigo Pesa, Airtel Money native"
+      ],
+      "statsHeading": "Three numbers that move your site.",
+      "statsSub": "Not promises. The specific levers Borjie pulls inside a small artisanal operation.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "daily brief on your phone",
+          "sub": "Mr. Mwikila assembles the night's production, payroll status, and licence calendar before the first shift starts."
+        },
+        {
+          "value": "60s",
+          "label": "to log a drill hole or weigh-slip",
+          "sub": "Camera capture, voice memo, GPS pinned. The chain of custody starts at the pit, not at the office."
+        },
+        {
+          "value": "Zero",
+          "label": "missed royalty filings",
+          "sub": "Tumemadini deadlines, TRA returns, and TZS payouts auto-tracked. The system files itself in TZS."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from pit to filing.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Log production in Swahili.",
+          "body": "Your site manager records each weigh-slip with a photo, a voice note, and a GPS pin. Borjie keeps the audit trail in your name."
+        },
+        {
+          "n": "02",
+          "title": "Wake to the brief.",
+          "body": "Every morning, Mr. Mwikila summarises production, royalty exposure, payroll, and what needs your decision today. Bilingual sw and en."
+        },
+        {
+          "n": "03",
+          "title": "File, pay, sell.",
+          "body": "Royalty filings draft themselves. Payouts move via M-Pesa, Tigo Pesa, Airtel Money. Buyers see your inventory in the marketplace."
+        }
+      ],
+      "problemKicker": "Why Borjie",
+      "problemHeading": "Why most PML sites lose money",
+      "problemHeadingAccent": "they already earned.",
+      "problemSub": "Artisanal mining is rich in metal and poor in records. The leaks are not in the pit, they are in the paperwork.",
+      "problemTitle": "Where the money leaks",
+      "problems": [
+        {
+          "title": "Royalty compliance gaps",
+          "desc": "Most PML holders miss filing windows because no one is tracking Tumemadini deadlines in the same place as production. Penalties stack quietly."
+        },
+        {
+          "title": "Cash-in-hand payroll",
+          "desc": "Wages paid in cash leave no audit trail. When a licence audit lands, nobody can prove who worked which shift, who got paid what."
+        },
+        {
+          "title": "Unverified buyers",
+          "desc": "Off-takers walk on site, weigh, pay below spot, and disappear. Without a verified marketplace, your gold leaves the country at a discount."
+        },
+        {
+          "title": "Lost institutional memory",
+          "desc": "When a site manager leaves, the production history walks with them. New hires start from zero. No drill logs, no chain of custody, no records."
+        }
+      ],
+      "solutionTitle": "What Borjie does",
+      "solutions": [
+        {
+          "title": "One brief, one truth",
+          "desc": "Mr. Mwikila pulls production, royalty exposure, payroll status, and licence calendar into a single 06:00 brief on your phone. Bilingual sw and en."
+        },
+        {
+          "title": "Mobile-first chain of custody",
+          "desc": "Every weigh-slip is photographed, voice-tagged, GPS-pinned, and timestamped. The audit trail is yours, immutable, and Tumemadini-ready."
+        },
+        {
+          "title": "Verified marketplace",
+          "desc": "List your dore or gemstone parcels in a marketplace where KYB-cleared buyers compete on price. Settlement via mobile money or bank."
+        },
+        {
+          "title": "Built for the tablet",
+          "desc": "The site manager runs it on one tablet. The owner reads it on the phone. The accountant exports it to TRA. One system, three roles."
+        }
+      ],
+      "ctaHeading": "See it on your site in 90 days.",
+      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last 90 days of weigh-slips and shows you the brief running on your own data.",
+      "ctaPrimary": "Request a pilot"
+    },
+    "ml": {
+      "metaTitle": "Borjie for ML operators — mid-tier mining OS",
+      "metaDescription": "Borjie for Mining Licence operators across gold and gemstones. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
+      "heroKicker": "For ML operators",
+      "heroHeadline": "Mid-tier mines deserve",
+      "heroHeadlineAccent": "mid-tier software",
+      "heroSub": "Borjie consolidates multiple pits, fleets, and contractors into one operations console. Daily decision support for the owner, defensible audit trail for Tumemadini, board-ready reporting on demand.",
+      "heroPrimaryCta": "Start 90-day pilot",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Multi-pit rollups out of the box",
+        "Writes to your accounting system",
+        "TZS-first, multi-currency aware"
+      ],
+      "statsHeading": "Three numbers that move your P&L.",
+      "statsSub": "Not opinions. The specific levers Borjie pulls inside an ML-scale operation.",
+      "stats": [
+        {
+          "value": "1 view",
+          "label": "pits, fleet, royalties",
+          "sub": "All pits, contractors, fleet hours, and royalty exposure on one screen. Drill into any tile in two clicks."
+        },
+        {
+          "value": "3-5x",
+          "label": "faster month-end close",
+          "sub": "Production rolls up automatically. Royalty drafts itself. The accountant signs off, they no longer assemble."
+        },
+        {
+          "value": "Zero",
+          "label": "untracked blast events",
+          "sub": "Every blast logged, every cycle timed, every assay chained back to the source drill hole. The audit trail writes itself."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from blast to board pack.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Connect the pits.",
+          "body": "Your pit managers log production, fleet hours, and assays from the tablet. Borjie consolidates across sites in real time."
+        },
+        {
+          "n": "02",
+          "title": "Brief the owner. Pre-file the royalty.",
+          "body": "Each morning the owner sees production, exposure, payroll, and the ten decisions that matter today. The royalty file drafts itself."
+        },
+        {
+          "n": "03",
+          "title": "Close the month in days, not weeks.",
+          "body": "Borjie reconciles to your accounting system, drafts the board pack, and hands the regulator a defensible audit trail on request."
+        }
+      ],
+      "problemKicker": "Why Borjie",
+      "problemHeading": "ML operators run on",
+      "problemHeadingAccent": "duct tape and Excel.",
+      "problemSub": "Mid-tier mines are too big for paper and too small for SAP. The gap is where the value leaks.",
+      "problemTitle": "Where the leaks live",
+      "problems": [
+        {
+          "title": "Pit-level data, no rollup",
+          "desc": "Each pit keeps its own spreadsheet. The owner reconciles them on Sunday night. The board sees last month's numbers next quarter."
+        },
+        {
+          "title": "Contractor blind spots",
+          "desc": "Hauling contractors invoice by the truck. Without telemetry, you pay for trips that never happened and lose trips that did."
+        },
+        {
+          "title": "Royalty by guesswork",
+          "desc": "Without a unified production ledger, royalty filings are estimates. Tumemadini audits punish gaps far harder than overpayments."
+        },
+        {
+          "title": "Board packs by Friday panic",
+          "desc": "Board meetings consume the operations team for two weeks. Numbers reconcile in PowerPoint at midnight. Errors slip through."
+        }
+      ],
+      "solutionTitle": "What Borjie does",
+      "solutions": [
+        {
+          "title": "Multi-pit rollups, live",
+          "desc": "Every pit's production, fleet, and assays roll into one view. The owner reads one number; the manager owns one pit."
+        },
+        {
+          "title": "Fleet telemetry without retrofits",
+          "desc": "Driver app captures trips, loads, cycle times. Contractor invoices reconcile to telemetry before they reach the accountant."
+        },
+        {
+          "title": "Royalty automation",
+          "desc": "Production ledger drives the royalty file. Tumemadini-compliant, TZS-denominated, ready to file on the 7th."
+        },
+        {
+          "title": "Board-pack on demand",
+          "desc": "The deck regenerates from live data. Owner reviews on Friday evening. Operations team keeps their weekend."
+        }
+      ],
+      "ctaHeading": "Run your ML site like a public company.",
+      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last quarter and shows you the cockpit running on your own data.",
+      "ctaPrimary": "Request a pilot"
+    },
+    "sml": {
+      "metaTitle": "Borjie for SML operators — large-format mining OS",
+      "metaDescription": "Borjie for Special Mining Licence holders. Multi-site consolidation, environmental compliance, community relations ledger, board governance, regulator-grade audit chains. 90-day free pilot.",
+      "heroKicker": "For SML operators",
+      "heroHeadline": "Special licences deserve",
+      "heroHeadlineAccent": "special discipline",
+      "heroSub": "Borjie gives SML-scale operations a board-grade cockpit. Multi-site rollups, environmental compliance, community ledger, regulator audit chains, and an AI Chief of Staff that briefs the CEO daily.",
+      "heroPrimaryCta": "Start 90-day pilot",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Regulator-grade audit chains",
+        "Environmental and ESG ready",
+        "Board governance built in"
+      ],
+      "statsHeading": "Three numbers that move your franchise.",
+      "statsSub": "Not posture. The specific levers Borjie pulls inside an SML-scale franchise.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "CEO brief, every day",
+          "sub": "Production, safety, environmental, community, and the three decisions only the CEO can make. One screen, every morning."
+        },
+        {
+          "value": "100%",
+          "label": "audit-chain coverage",
+          "sub": "Every action, every approval, every override is hash-chained and append-only. Regulators audit the chain, not the people."
+        },
+        {
+          "value": "Zero",
+          "label": "ESG surprises in the field",
+          "sub": "Community grievances, environmental incidents, and stakeholder commitments tracked from intake to closure. Nothing slips."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from pit to investor letter.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Consolidate every site.",
+          "body": "Pits, processing plants, tailings dams, exploration camps. All on one operations canvas, role-gated and audit-chained."
+        },
+        {
+          "n": "02",
+          "title": "Govern by exception.",
+          "body": "Mr. Mwikila handles the routine. The CEO sees only what the CEO must decide: kill-switches, sovereign moves, four-eyed approvals."
+        },
+        {
+          "n": "03",
+          "title": "Report on every cadence.",
+          "body": "Daily brief, weekly board, monthly regulator, quarterly investor. The same data, sliced for the right audience, every time."
+        }
+      ],
+      "problemKicker": "Why Borjie",
+      "problemHeading": "SML operations drown in",
+      "problemHeadingAccent": "reports they did not need.",
+      "problemSub": "Special Mining Licences come with special scrutiny. Regulators, lenders, communities, and boards all want the same numbers, in different forms.",
+      "problemTitle": "Where the franchise leaks",
+      "problems": [
+        {
+          "title": "Reporting overhead crushes ops",
+          "desc": "Half the senior team works on board packs, regulator returns, and investor letters. The other half tries to keep the mine running."
+        },
+        {
+          "title": "Community and ESG blind spots",
+          "desc": "Community grievances arrive as letters, get filed in folders, and resurface during audits. ESG commitments slip without anyone noticing."
+        },
+        {
+          "title": "Multi-site, single-spreadsheet",
+          "desc": "Each site reports up to the centre on its own schedule, in its own format. Consolidation costs days, not hours, every cycle."
+        },
+        {
+          "title": "Audit-chain gaps",
+          "desc": "Decisions get made on WhatsApp, approvals get verbal sign-offs, overrides leave no trail. When the regulator asks, the chain breaks."
+        }
+      ],
+      "solutionTitle": "What Borjie does",
+      "solutions": [
+        {
+          "title": "One cockpit, every cadence",
+          "desc": "The same data feeds the daily brief, the board pack, the regulator return, and the investor letter. Authored once, sliced infinitely."
+        },
+        {
+          "title": "Community ledger, ESG-grade",
+          "desc": "Grievances, commitments, and stakeholder events tracked from intake to closure. ESG audits read the ledger, not the inbox."
+        },
+        {
+          "title": "Role-gated and audit-chained",
+          "desc": "Every action, approval, and override is hash-chained, append-only, and replayable. The chain is the audit; the audit is the chain."
+        },
+        {
+          "title": "AI Chief of Staff",
+          "desc": "Mr. Mwikila drafts board memos, briefs the CEO, and tees up the three decisions only the CEO can make. Bilingual sw and en."
+        }
+      ],
+      "ctaHeading": "Govern your SML like a global franchise.",
+      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last quarter and shows you the CEO cockpit running on your own data.",
+      "ctaPrimary": "Request a pilot"
+    },
+    "cooperatives": {
+      "metaTitle": "Borjie for cooperatives — AMCOS-style mining OS",
+      "metaDescription": "Borjie for artisanal mining cooperatives and AMCOS. Member roster, pooled production ledger, bulk advances, and federated payouts. Built for federated mining groups across Tanzania. 90-day free pilot.",
+      "heroKicker": "For cooperatives",
+      "heroHeadline": "Cooperative discipline,",
+      "heroHeadlineAccent": "individual dignity",
+      "heroSub": "Borjie federates the artisanal cooperative. Members keep their identity, the cooperative keeps the ledger, and every gram is tagged from pit to payout. AMCOS-style governance, mining-grade tooling.",
+      "heroPrimaryCta": "Start 90-day pilot",
+      "heroSecondaryCta": "See it move",
+      "trustline": [
+        "Member-roster aware",
+        "Pooled advances, individual payouts",
+        "Inspection-ready by default"
+      ],
+      "statsHeading": "Three numbers that move your cooperative.",
+      "statsSub": "Not promises. The specific levers Borjie pulls inside a federated mining group.",
+      "stats": [
+        {
+          "value": "1 view",
+          "label": "members, production, advances",
+          "sub": "Every member's contribution this season, the cooperative's pooled output, and the bulk advance against it. One view, board and field."
+        },
+        {
+          "value": "48h",
+          "label": "bulk advance to individual payouts",
+          "sub": "The cooperative borrows against pooled dore. Members receive their share via mobile money before the weekend closes."
+        },
+        {
+          "value": "Zero",
+          "label": "double-counted grams",
+          "sub": "Every gram tagged to a named member. No ghost weigh-slips, no double advances, no inspection surprises."
+        }
+      ],
+      "stepsKicker": "How it works",
+      "stepsHeading": "Three moves from member to market.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Enrol the roster, keep the hierarchy.",
+          "body": "Board, committee, ordinary members. Shares, seniority, and production history imported from your existing register."
+        },
+        {
+          "n": "02",
+          "title": "Aggregate the season, price the advance.",
+          "body": "Borjie tallies deliveries, reads the market, and proposes a bulk advance the off-taker or lender can underwrite in one file."
+        },
+        {
+          "n": "03",
+          "title": "Distribute to members, track to the gram.",
+          "body": "Each member receives their share, scored on their own delivery and repayment history. The ledger closes itself at season end."
+        }
+      ],
+      "problemKicker": "Why Borjie",
+      "problemHeading": "Cooperatives carry the risk,",
+      "problemHeadingAccent": "members carry the doubt.",
+      "problemSub": "Federated artisanal groups are the engine of Tanzanian mining. The tooling has not kept up with the responsibility.",
+      "problemTitle": "Where trust breaks",
+      "problems": [
+        {
+          "title": "Manual member registers",
+          "desc": "Paper ledgers and Excel sheets. When a member queries their share, nobody can prove what they contributed, when, or in what condition."
+        },
+        {
+          "title": "Bulk advances, unfair splits",
+          "desc": "Off-takers advance against pooled output. Members suspect (often correctly) that the split favours the well-connected."
+        },
+        {
+          "title": "Inspection surprises",
+          "desc": "TCDC, Tumemadini, and TRA each want different cuts of the same data. Cooperatives spend weeks assembling instead of operating."
+        },
+        {
+          "title": "Federated, but not connected",
+          "desc": "Each member runs their own pit. The cooperative aggregates by phone calls. Nobody sees the federation in one place, in real time."
+        }
+      ],
+      "solutionTitle": "What Borjie does",
+      "solutions": [
+        {
+          "title": "Member-aware ledger",
+          "desc": "Every delivery tagged to a named member, time-stamped, location-pinned, photo-attached. The audit trail is the cooperative's, not a notebook."
+        },
+        {
+          "title": "Transparent split",
+          "desc": "Bulk advances flow into Borjie. Splits compute against tagged contributions. Each member sees their own ledger on their own phone."
+        },
+        {
+          "title": "Inspection-ready by default",
+          "desc": "TCDC, Tumemadini, and TRA each get the slice they need, generated from the same ledger. Inspections take hours, not weeks."
+        },
+        {
+          "title": "Federation cockpit",
+          "desc": "The chair sees pooled output, member-level performance, advance exposure, and decision queue on one screen. Real-time federation."
+        }
+      ],
+      "ctaHeading": "Federate your cooperative on Borjie.",
+      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last season and shows you the cooperative cockpit running on your own data.",
+      "ctaPrimary": "Request a pilot"
+    }
   }
 }
