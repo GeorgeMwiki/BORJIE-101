@@ -40,6 +40,10 @@ import { ASSET_REGISTER_DOMAIN } from './domains/asset-register';
 
 import { resolvePccb } from './resolvers/pccb-resolver.js';
 import { resolvePdpa } from './resolvers/pdpa-resolver.js';
+// Wave UNWIRED-AUDIT — wire the licences mining-titles resolver onto
+// the existing `licences` schema (no new migration required).
+import { resolveLicencesMiningTitles } from './resolvers/licences-mining-titles-resolver.js';
+import { EXTRA_RESOLVERS } from './resolvers/extra-resolvers.js';
 import type { ResolverDeps, ResolverFn } from './resolvers/types.js';
 
 export const DOMAIN_DEPTH_CATALOG: ReadonlyArray<DomainDescriptor> =
@@ -109,8 +113,13 @@ export const awaitingDataResolver: SubAreaResolver = async () => ({
  */
 export const RESOLVER_REGISTRY: Readonly<Record<string, ResolverFn>> =
   Object.freeze({
+    // Broad coverage sweep (Wave BRAIN-DEPTH Scope 4) — reads existing
+    // tables for ~60 sub-area keys. Sibling-owned entries below
+    // override any key clash so explicit wiring always wins.
+    ...EXTRA_RESOLVERS,
     'compliance.anti_corruption': resolvePccb,
     'compliance.data_protection': resolvePdpa,
+    'licences.mining_titles': resolveLicencesMiningTitles,
   });
 
 /** Per-call resolver dependency bag. Composed at the route layer. */

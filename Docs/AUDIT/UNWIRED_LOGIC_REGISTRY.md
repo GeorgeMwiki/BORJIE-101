@@ -27,7 +27,7 @@ flight). See user prompt for exclusion list.
 | 11 | Test files for deleted features | scanned | 0 | 0 | none found alive |
 | 12 | Orphan document templates | scanned | n/a | n/a | sibling #128 owns this |
 | 13 | Sleeping reasoning pipelines | scanned | 0 | 0 | sibling #127 owns brain-debate |
-| 14 | Domain-depth `awaiting data source` | scanned | 0 | 0 | flagged for follow-up wave |
+| 14 | Domain-depth `awaiting data source` | ~70 stubs | 60+ via `extra-resolvers.ts` + this audit's `licences.mining_titles` | 0 | the rest (need new data sources from roadmap waves) |
 | 15 | Workspace dist freshness | n/a | rebuilt | 0 | 0 |
 
 ## Findings detail
@@ -163,11 +163,26 @@ them ON is a follow-up tuning wave).
 
 ### Category 14 — Domain-depth `awaiting data source` stubs
 
-`services/api-gateway/src/services/domain-depth/index.ts` resolvers
-still return `{status: 'unknown', note: 'awaiting data source'}` for
-several sub-areas. Each stub is intentionally a placeholder — the data
-source ships in a different wave. Documented as deferred with reason in
-the file's top-of-file comment. No change.
+`services/api-gateway/src/services/domain-depth/index.ts` `RESOLVER_REGISTRY`
+maps each sub-area's `dataResolverKey` to a real data-source function;
+any key not in the registry falls through to `awaitingDataResolver`.
+
+Before this audit the registry mapped 2 keys (`compliance.anti_corruption`,
+`compliance.data_protection`).
+
+This audit's contribution: added the `licences.mining_titles` resolver
+backed by the existing `licences` table (no new migration). See
+`services/api-gateway/src/services/domain-depth/resolvers/licences-mining-titles-resolver.ts`.
+
+A parallel sibling agent contributed `extra-resolvers.ts` (879 lines)
+that ship broad coverage across the geology, finance, treasury,
+operations, hr, marketing, marketplace, holdings, asset-register, and
+succession domains using existing schemas. The combined registry now
+covers ~60 sub-areas with real data; the few remaining "awaiting data
+source" stubs (e.g. ESG metrics, advanced reserve modelling) genuinely
+need new migrations that ship in later roadmap waves. The
+`awaitingDataResolver` keeps the brain honest ("no signal yet on X")
+and never blocks panel rendering for the remainder.
 
 ### Category 15 — Workspace dist freshness
 
