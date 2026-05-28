@@ -27,6 +27,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { Plus } from 'lucide-react';
+import {
+  getTab,
+  ownerOsSpawnBatchSchema,
+  type OwnerOSSpawnIntent,
+} from '@borjie/owner-os-tabs';
+import { SuggestedTabBanner } from '@/components/owner-os/SuggestedTabBanner';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { API_BASE, isBrainConfigured } from '@/lib/brain-api';
 import { AskComposer } from '@/components/ask/AskComposer';
@@ -47,6 +54,13 @@ export interface HomeChatTeachProps {
   readonly salutation: string;
   readonly tradingName: string;
   readonly languagePreference: 'sw' | 'en';
+  /**
+   * Optional — when the brain emits `<spawn_tabs>`, the FE renders a
+   * "Suggested tab" chip below the bubble. Clicking the chip calls this
+   * callback with one OwnerOSSpawnIntent; the OwnerOSShell routes it
+   * through `spawnOrAugment` so the registry handles dedup + augment.
+   */
+  readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
 
 interface TeachMessage {
@@ -61,6 +75,8 @@ interface TeachMessage {
   readonly errored: boolean;
   readonly errorMessage: string | null;
   readonly createdAt: string;
+  /** OwnerOS spawn-tab candidates emitted by the brain (max 3). */
+  readonly spawnTabs: ReadonlyArray<OwnerOSSpawnIntent>;
 }
 
 interface SseFrame {
@@ -136,6 +152,7 @@ export function HomeChatTeach({
   salutation,
   tradingName,
   languagePreference,
+  onSpawnTab,
 }: HomeChatTeachProps): ReactElement {
   const configured = isBrainConfigured();
   const [messages, setMessages] = useState<ReadonlyArray<TeachMessage>>([]);
@@ -165,6 +182,7 @@ export function HomeChatTeach({
         uiBlock: null,
         suggestedActions: [],
         citations: [],
+        spawnTabs: [],
         streaming: false,
         errored: false,
         errorMessage: null,
@@ -179,6 +197,7 @@ export function HomeChatTeach({
         uiBlock: null,
         suggestedActions: [],
         citations: [],
+        spawnTabs: [],
         streaming: true,
         errored: false,
         errorMessage: null,
@@ -311,6 +330,22 @@ export function HomeChatTeach({
                     : m,
                 ),
               );
+            } else if (frame.event === 'spawn_tabs') {
+              // Validate via the shared schema so malformed payloads
+              // never crash the renderer. The server already validated;
+              // the client double-checks for defence in depth.
+              const parsed = ownerOsSpawnBatchSchema.safeParse(
+                payload.batch ?? payload,
+              );
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, spawnTabs: parsed.data.tabs }
+                      : m,
+                  ),
+                );
+              }
             } else if (frame.event === 'error') {
               const msg =
                 typeof payload.message === 'string'
@@ -401,6 +436,28 @@ export function HomeChatTeach({
     return [];
   }, [messages]);
 
+  // Snippet extraction for the ambient SuggestedTabBanner. Pulls the
+  // most recent owner message + the most recent brain reply so the
+  // deterministic intent matcher can score the registry without an LLM
+  // call. The matcher runs on every keystroke; cap the snippets at 500
+  // chars each so the work stays O(descriptors × keywords).
+  const banner = useMemo(() => {
+    let userMessage: string | undefined;
+    let brainReply: string | undefined;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (!m) continue;
+      if (!brainReply && m.role === 'assistant' && m.text.trim().length > 0) {
+        brainReply = m.text.slice(-500);
+      }
+      if (!userMessage && m.role === 'user' && m.text.trim().length > 0) {
+        userMessage = m.text.slice(-500);
+      }
+      if (userMessage && brainReply) break;
+    }
+    return { userMessage, brainReply };
+  }, [messages]);
+
   return (
     <div
       className="flex flex-1 overflow-hidden"
@@ -459,7 +516,12 @@ export function HomeChatTeach({
               />
             ) : (
               messages.map((message) => (
-                <TeachBubble key={message.id} message={message} />
+                <TeachBubble
+                  key={message.id}
+                  message={message}
+                  languagePreference={languagePreference}
+                  {...(onSpawnTab ? { onSpawnTab } : {})}
+                />
               ))
             )}
             {errored && messages.length > 0 ? (
@@ -497,6 +559,35 @@ export function HomeChatTeach({
             </div>
           ) : null}
 
+          {onSpawnTab ? (
+            <div className="px-3 pb-2">
+              <SuggestedTabBanner
+                languagePreference={languagePreference}
+                {...(banner.userMessage !== undefined && {
+                  userMessage: banner.userMessage,
+                })}
+                {...(banner.brainReply !== undefined && {
+                  brainReply: banner.brainReply,
+                })}
+                onSpawn={(descriptor) => {
+                  // Convert the descriptor into a spawn-intent so the
+                  // shell's onSpawnTab callback can route through the
+                  // registry's spawnOrAugment path uniformly.
+                  const validDescriptor = getTab(descriptor.type);
+                  if (!validDescriptor) return;
+                  onSpawnTab({
+                    type: descriptor.type,
+                    context: {},
+                    reason:
+                      languagePreference === 'sw'
+                        ? validDescriptor.descriptionSw
+                        : validDescriptor.descriptionEn,
+                  });
+                }}
+              />
+            </div>
+          ) : null}
+
           <AskComposer
             busy={isStreaming}
             disabled={composerDisabled}
@@ -510,9 +601,15 @@ export function HomeChatTeach({
 
 interface TeachBubbleProps {
   readonly message: TeachMessage;
+  readonly languagePreference: 'sw' | 'en';
+  readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
 
-function TeachBubble({ message }: TeachBubbleProps): ReactElement {
+function TeachBubble({
+  message,
+  languagePreference,
+  onSpawnTab,
+}: TeachBubbleProps): ReactElement {
   const isOwner = message.role === 'user';
   return (
     <div
@@ -582,6 +679,35 @@ function TeachBubble({ message }: TeachBubbleProps): ReactElement {
           </p>
         ) : null}
       </div>
+
+      {!isOwner && message.spawnTabs.length > 0 && onSpawnTab ? (
+        <div
+          data-testid="teach-spawn-tabs"
+          className="flex max-w-2xl flex-col gap-1.5 rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5"
+        >
+          <p className="text-tiny uppercase tracking-wide text-warning">
+            {languagePreference === 'sw' ? 'Tabs zinazopendekezwa' : 'Suggested tabs'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {message.spawnTabs.map((intent, i) => (
+              <button
+                key={`${intent.type}_${i}`}
+                type="button"
+                onClick={() => onSpawnTab(intent)}
+                data-testid={`teach-spawn-${intent.type}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-tiny font-medium text-warning hover:bg-warning/20"
+              >
+                <Plus aria-hidden="true" className="h-3 w-3" />
+                <span>{intent.type}</span>
+                <span className="text-neutral-400">·</span>
+                <span className="truncate max-w-xs text-neutral-300">
+                  {intent.reason}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

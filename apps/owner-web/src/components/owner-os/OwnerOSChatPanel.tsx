@@ -13,6 +13,7 @@
 
 import { useCallback, useState, type DragEvent, type ReactElement } from 'react';
 import { Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import type { OwnerOSSpawnIntent } from '@borjie/owner-os-tabs';
 import { HomeChatTeach } from '@/components/home-chat/HomeChatTeach';
 import { apiRequest } from '@/lib/api-client';
 
@@ -39,6 +40,8 @@ export interface OwnerOSChatPanelProps {
   readonly tradingName: string;
   readonly languagePreference: 'sw' | 'en';
   readonly onSpawnDocTab: (documentId: string, label: string) => void;
+  /** Called when the brain emits a <spawn_tabs> chip the owner clicks. */
+  readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
 
 export function OwnerOSChatPanel({
@@ -46,6 +49,7 @@ export function OwnerOSChatPanel({
   tradingName,
   languagePreference,
   onSpawnDocTab,
+  onSpawnTab,
 }: OwnerOSChatPanelProps): ReactElement {
   const [dropActive, setDropActive] = useState(false);
   const [status, setStatus] = useState<
@@ -156,6 +160,7 @@ export function OwnerOSChatPanel({
         salutation={salutation}
         tradingName={tradingName}
         languagePreference={languagePreference}
+        {...(onSpawnTab ? { onSpawnTab } : {})}
       />
     </div>
   );

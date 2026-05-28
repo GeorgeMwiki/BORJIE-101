@@ -75,6 +75,7 @@ import {
   chunkText,
   extractText,
 } from './public-chat.hono';
+import { extractSpawnTabs } from '@borjie/owner-os-tabs';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -486,10 +487,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       return;
     }
 
-    // Order of stripping matters: ui_block first (longer/most likely to
-    // contain commas/braces that confuse later regexes), then inline
-    // metrics, then the actions+citations pass shared with marketing.
-    const uiResult = extractUiBlock(rawText);
+    // Order of stripping matters: spawn_tabs first (free-form JSON object
+    // that may contain commas/braces that confuse later regexes), then
+    // ui_block, then inline metrics, then actions+citations.
+    const spawnResult = extractSpawnTabs(rawText);
+    const uiResult = extractUiBlock(spawnResult.body);
     const metricsResult = extractInlineMetrics(uiResult.body);
     const { clean, ids, actions } = extractCitations(metricsResult.body);
 
@@ -542,6 +544,21 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // Spawn-tab candidates — the brain emitted one or more <spawn_tabs>
+    // intents alongside its primary teaching block. The FE renders these
+    // as "Suggested tab" chips under the assistant bubble; clicking
+    // routes through the dynamic tab registry to spawn or augment the
+    // matching tab.
+    if (spawnResult.batch.tabs.length > 0) {
+      await stream.writeSSE({
+        event: 'spawn_tabs',
+        data: JSON.stringify({
+          batch: spawnResult.batch,
+          at: new Date().toISOString(),
+        }),
+      });
+    }
+
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({
@@ -553,6 +570,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         actions_count: actions.length,
         ui_block: uiResult.block ? uiResult.block.type : null,
         inline_metrics: metricsResult.metrics.length,
+        spawn_tabs: spawnResult.batch.tabs.length,
       }),
     });
   });
