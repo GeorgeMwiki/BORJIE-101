@@ -186,11 +186,42 @@ and never blocks panel rendering for the remainder.
 
 ### Category 15 — Workspace dist freshness
 
-Rebuilt every workspace package's `dist/` via
-`pnpm -r --filter "./packages/**" build`. Confirmed all dists current
-at end of audit.
+Rebuilt the workspace packages most exposed to runtime drift:
+
+  - `@borjie/database` (clean build, 7s)
+  - `@borjie/chat-ui` (clean build, 14s; tsup CJS + ESM + DTS)
+  - `@borjie/owner-os-tabs` (clean build, <2s; tsc)
+  - `@borjie/genui` (clean build, 144s; tsup full bundle)
+
+The rest of `packages/**` were left alone — they had been built by
+the consolidate-parallel-landings commit (`8f6ae429`) earlier in
+the day and their `dist/` mtimes match `src/`. No stale dists detected.
 
 ## Commits pushed
 
-See `git log --oneline main`. Each commit body lists the specific
-finds + fixes for the category it covers.
+See `git log --oneline main`. The audit landed across two commits to
+co-exist with sibling agents in flight:
+
+  - **`8f6ae429`** chore(agents) — consolidates the route-mount,
+    artifact-render stub, and webhook-retry-worker subscription fixes
+    (Cats 2 / 7 / 15) plus the audit registry itself and the
+    extra-resolvers sweep (Cat 14).
+  - **`72eb3e2a`** feat(domain-depth,audit) — wires the
+    `licences.mining_titles` resolver (Cat 14 cherry pick on top of
+    the consolidate commit's `extra-resolvers.ts` sweep) and refreshes
+    this registry.
+
+## Final typecheck status
+
+`tsc --noEmit` on the api-gateway crawls in this sandbox (10+ minute
+wall clock; the typechecker is sandbox-killed before it finishes). A
+spot-check of every file this audit touched compiles cleanly under
+`tsc --strict --moduleResolution NodeNext`. The aggregate strict
+typecheck stays on the developer / CI path.
+
+Per-package typechecks that did complete in this session:
+
+  - `@borjie/database` — 0 errors
+  - `@borjie/owner-os-tabs` — 0 errors
+  - `@borjie/chat-ui` — 0 errors (build = typecheck via tsup DTS)
+  - `@borjie/genui` — 0 errors (build = typecheck via tsup DTS)
