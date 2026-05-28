@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1F160E"/>
+      <stop offset="100%" stop-color="#0E0906"/>
+    </linearGradient>
+    <linearGradient id="spine" x1="90" y1="36" x2="90" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="90" y1="48" x2="90" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="90" y1="92" x2="90" y2="142" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="hi" x1="90" y1="34" x2="90" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF8E6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="90" cy="90" r="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7CC85" stop-opacity="0.32"/>
+      <stop offset="65%" stop-color="#E5B26B" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="180" height="180" rx="36" fill="url(#bg)"/>
+  <circle cx="90" cy="90" r="56" fill="url(#bloom)"/>
+  <rect x="40" y="36" width="22" height="112" rx="5" fill="url(#spine)"/>
+  <path d="M62 40 H105 a22 22 0 0 1 22 22 v8 a22 22 0 0 1 -22 22 H62 z" fill="url(#upper)"/>
+  <rect x="62" y="90" width="56" height="3" fill="#E5B26B" opacity="0.9"/>
+  <path d="M62 98 H112 a28 28 0 0 1 28 28 v0 a28 28 0 0 1 -28 28 H62 z" fill="url(#lower)"/>
+  <g stroke="#FFE2B4" stroke-width="1.2" opacity="0.35">
+    <line x1="66" y1="110" x2="124" y2="110"/>
+    <line x1="66" y1="126" x2="128" y2="126"/>
+    <line x1="66" y1="142" x2="124" y2="142"/>
+  </g>
+  <rect x="41" y="37" width="20" height="17" rx="4" fill="url(#hi)"/>
+</svg>

@@ -215,6 +215,7 @@ export function HomeShell(props: HomeShellProps): JSX.Element {
           onSend={handleSend}
           disabled={state.streaming}
           placeholder={composerPlaceholder(initial_language)}
+          language={initial_language}
         />
       </div>
     </div>

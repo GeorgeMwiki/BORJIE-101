@@ -981,6 +981,10 @@ export * from './blackboard-sota.schema.js';
 // and the reminders-dispatch worker.
 export * from './owner-reminders.schema.js';
 export * from './owner-tabs.schema.js';
+// Wave BRAIN-UI-CONTROL (migration 0097) — per-user dashboard tile order
+// + sidebar order + hash-chained ui_redesign_audit.
+export * from './owner-dashboard-layout.schema.js';
+export * from './ui-redesign-audit.schema.js';
 // Companion to migration 0079 — already on disk but was missing from the
 // barrel; re-export so brief.hono.ts can pull `ownerBriefSnapshots` from
 // `@borjie/database` like every other tenant schema.

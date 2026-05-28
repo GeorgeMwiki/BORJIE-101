@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="spine" x1="24" y1="6" x2="24" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="24" y1="10" x2="24" y2="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="24" y1="26" x2="24" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="hi" x1="24" y1="8" x2="24" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF8E6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="9" fill="#17100A"/>
+  <rect x="10.5" y="9" width="6" height="30" rx="1.5" fill="url(#spine)"/>
+  <path d="M16.5 10.5 H28.5 a6 6 0 0 1 6 6 v2 a6 6 0 0 1 -6 6 H16.5 z" fill="url(#upper)"/>
+  <rect x="16.5" y="24" width="15" height="0.8" fill="#E5B26B" opacity="0.9"/>
+  <path d="M16.5 26 H30 a7.5 7.5 0 0 1 7.5 7.5 v0 a7.5 7.5 0 0 1 -7.5 7.5 H16.5 z" fill="url(#lower)"/>
+  <rect x="10.8" y="9.3" width="5.4" height="4.5" rx="1.2" fill="url(#hi)"/>
+</svg>

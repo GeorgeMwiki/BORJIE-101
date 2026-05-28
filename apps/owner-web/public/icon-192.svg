@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="spine" x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="32" y1="14" x2="32" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="32" y1="34" x2="32" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="hi" x1="32" y1="10" x2="32" y2="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF8E6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="32" cy="32" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7CC85" stop-opacity="0.32"/>
+      <stop offset="65%" stop-color="#E5B26B" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="20" fill="url(#bloom)"/>
+  <rect x="14" y="12" width="8" height="40" rx="2" fill="url(#spine)"/>
+  <path d="M22 14 H38 a8 8 0 0 1 8 8 v3 a8 8 0 0 1 -8 8 H22 z" fill="url(#upper)"/>
+  <rect x="22" y="32" width="20" height="1" fill="#E5B26B" opacity="0.9"/>
+  <path d="M22 35 H40 a10 10 0 0 1 10 10 v0 a10 10 0 0 1 -10 10 H22 z" fill="url(#lower)"/>
+  <g stroke="#FFE2B4" stroke-width="0.5" opacity="0.35">
+    <line x1="24" y1="40" x2="44" y2="40"/>
+    <line x1="24" y1="45" x2="46" y2="45"/>
+    <line x1="24" y1="50" x2="44" y2="50"/>
+  </g>
+  <rect x="14.4" y="12.4" width="7.2" height="6" rx="1.6" fill="url(#hi)"/>
+  <path d="M22 35 H40 a10 10 0 0 1 10 10 v0 a10 10 0 0 1 -10 10 H22" fill="none" stroke="#7A4F1E" stroke-width="0.6" opacity="0.55"/>
+</svg>

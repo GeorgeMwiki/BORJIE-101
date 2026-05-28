@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <title>Borjie</title>
+  <rect width="16" height="16" rx="3" fill="#17100A"/>
+  <rect x="3.5" y="3" width="2" height="10" rx="0.5" fill="#F2C27E"/>
+  <path d="M5.5 3.5 H10 a2 2 0 0 1 2 2 v0.5 a2 2 0 0 1 -2 2 H5.5 z" fill="#FFF1CF"/>
+  <rect x="5.5" y="8" width="5" height="0.4" fill="#E5B26B"/>
+  <path d="M5.5 8.5 H10.5 a2.5 2.5 0 0 1 2.5 2.5 v0 a2.5 2.5 0 0 1 -2.5 2.5 H5.5 z" fill="#A26A2A"/>
+</svg>

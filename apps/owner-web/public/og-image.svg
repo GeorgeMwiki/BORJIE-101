@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1F160E"/>
+      <stop offset="100%" stop-color="#0B0703"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="380" cy="320" r="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7CC85" stop-opacity="0.28"/>
+      <stop offset="60%" stop-color="#E5B26B" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spine" x1="380" y1="200" x2="380" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="380" y1="220" x2="380" y2="295" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="380" y1="315" x2="380" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="hi" x1="380" y1="195" x2="380" y2="235" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF8E6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="wmGrad" x1="0" y1="0" x2="100%" y2="0">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <style>
+      .wm{font-family:'Fraunces','GT Alpina','Source Serif 4',Georgia,serif;font-weight:600;font-size:140px;letter-spacing:-0.018em;fill:url(#wmGrad)}
+      .tag{font-family:'Inter','Geist',-apple-system,sans-serif;font-weight:500;font-size:30px;fill:#F5EBD8;letter-spacing:0.01em}
+      .meta{font-family:'JetBrains Mono','SF Mono',ui-monospace,monospace;font-weight:500;font-size:18px;fill:#E5B26B;letter-spacing:0.16em;text-transform:uppercase}
+    </style>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="380" cy="320" rx="360" ry="280" fill="url(#halo)"/>
+  <g>
+    <rect x="290" y="200" width="42" height="240" rx="10" fill="url(#spine)"/>
+    <path d="M332 220 H428 a46 46 0 0 1 46 46 v8 a46 46 0 0 1 -46 46 H332 z" fill="url(#upper)"/>
+    <rect x="332" y="315" width="118" height="6" fill="#E5B26B" opacity="0.9"/>
+    <path d="M332 328 H440 a60 60 0 0 1 60 60 v0 a60 60 0 0 1 -60 60 H332 z" fill="url(#lower)"/>
+    <g stroke="#FFE2B4" stroke-width="2.4" opacity="0.32">
+      <line x1="338" y1="356" x2="450" y2="356"/>
+      <line x1="338" y1="386" x2="460" y2="386"/>
+      <line x1="338" y1="416" x2="450" y2="416"/>
+    </g>
+    <rect x="292" y="202" width="38" height="32" rx="8" fill="url(#hi)"/>
+  </g>
+  <text class="meta" x="588" y="220">Borjie — Mining Estate OS</text>
+  <text class="wm" x="588" y="350">Borjie</text>
+  <circle cx="857" cy="312" r="6.4" fill="#E5B26B"/>
+  <text class="tag" x="588" y="412">The AI-native operating system</text>
+  <text class="tag" x="588" y="452">for the entire Mining Estate.</text>
+  <text class="meta" x="588" y="552">borjie.co.tz · Swahili-first</text>
+</svg>
