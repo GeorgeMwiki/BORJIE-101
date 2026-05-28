@@ -189,9 +189,24 @@ export * from './components/Label';
 // Dialog (Radix-based)
 export * from './components/Dialog';
 
+// Drawer (Radix-based, side panel)
+export * from './components/Drawer';
+
+// Popover (Radix-based, anchored floating panel)
+export * from './components/Popover';
+
 // Dropdown & DropdownMenu
 export * from './components/Dropdown';
 export * from './components/DropdownMenu';
+
+// Breadcrumb
+export * from './components/Breadcrumb';
+
+// Keyboard hint chip
+export { Kbd, kbdVariants, type KbdProps } from './components/Kbd';
+
+// Search input
+export { SearchInput, type SearchInputProps } from './components/SearchInput';
 
 // Toast
 export * from './components/Toast';
