@@ -1090,7 +1090,71 @@
     "sub": "Tiers tano. TZS. Mwanzo ni bure milele. Tunalipa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer.",
     "compareHeading": "Linganisha vipengele",
     "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na support.",
-    "featureColumn": "Kipengele"
+    "featureColumn": "Kipengele",
+    "trustBadgesHeading": "Imetengenezwa kwa jinsi migodi ya Tanzania inavyofanya kazi kweli.",
+    "trustBadges": [
+      {
+        "icon": "Lock",
+        "text": "Usimbaji wa AES-256-GCM"
+      },
+      {
+        "icon": "Shield",
+        "text": "Inalingana na BOT na Tumemadini"
+      },
+      {
+        "icon": "Globe",
+        "text": "Kiswahili na Kiingereza"
+      },
+      {
+        "icon": "Brain",
+        "text": "AI ya msingi, kiwango cha ukaguzi"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 tayari"
+      }
+    ],
+    "faqKicker": "Maswali ya kawaida",
+    "faqHeading": "Maswali yanayoulizwa mara kwa mara",
+    "faqSub": "Kila kitu unachohitaji kujua kuhusu bei ya Borjie, malipo, na jukwaa linajumuisha nini katika kila kiwango.",
+    "faqs": [
+      {
+        "q": "Mwanzo ni bure kweli?",
+        "a": "Ndio. Mwanzo ni bure kabisa, hakuna kadi inayohitajika. Mmiliki mmoja, site moja, nyaraka 10 kwa mwezi, msaada wa jumuiya, na Bw. Mwikila katika hali ya ushauri. Pandisha tu wakati shughuli yako inahitaji reli za ziada."
+      },
+      {
+        "q": "Mkulima inatofautianaje na Mfanyabiashara?",
+        "a": "Mkulima ni kwa mmiliki mmoja wa PML anayesimamia site moja au mbili na wasimamizi mmoja au wawili. Mfanyabiashara inafungua sites nyingi, leseni nyingi, reli za hazina, na Wakala wa Enzi kwa vitendo vya hatari kubwa. Kama unaendesha mgodi zaidi ya mmoja, chagua Mfanyabiashara."
+      },
+      {
+        "q": "Mnakubali njia zipi za malipo?",
+        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, na uhamisho wa benki wa TZS. Bili za kila mwaka zinaweza kutolewa kwa ankara. Sarafu nyingi (TZS, USD, KES) inasaidiwa kwenye Kampuni na juu."
+      },
+      {
+        "q": "Naweza kubadilisha kiwango baadaye?",
+        "a": "Ndio. Kupandisha kunaanza kazi mara moja na data yako, leseni, site, na daftari vinakuja nawe. Kushusha kunagawanya bei mwishoni mwa mzunguko wa malipo; hakuna kinachofutwa, lakini vipengele vilivyo na kufunga vinasimama hadi upandishe tena."
+      },
+      {
+        "q": "Data inawekwa vipi kwa kila mteja?",
+        "a": "Kila mteja anatengwa na usalama wa safu kwenye safu ya hifadhidata. GUC ya app.current_tenant_id imefungwa na middleware ya api-gateway kwenye kila ombi. Hakuna njia ya msimbo wa programu inayoweza kupita hii. Mfululizo wa hash wa wateja wengi hauwezi kubadilishwa na ni wa kuongeza tu."
+      },
+      {
+        "q": "Group kiwango kinaongeza nini?",
+        "a": "Group ni kwa shirikisho, ushirika, na eneo la familia za biashara zinazohitaji kuunganisha wateja kadhaa wa Borjie chini ya mwamvuli mmoja na ripoti za wateja, idhini za wadhamini, na usimamizi maalumu."
+      },
+      {
+        "q": "Borjie inafuata BOT na Tumemadini?",
+        "a": "Ndio. Borjie imeundwa kuwasilisha ripoti za Tumemadini, kuelekeza risiti za royalti, na kuzalisha ripoti zinazolingana na BOT tangu mwanzo. Kila kitu kina mfululizo wa hash kwa ukaguzi wa mdhibiti."
+      },
+      {
+        "q": "Data inahifadhiwa wapi?",
+        "a": "Hifadhi ya msingi ya eneo la Tanzania na chelezo cha pili katika eneo lililoidhinishwa na mdhibiti. Imesimbwa wakati wa kupumzika kwa AES-256-GCM, wakati wa usafirishaji kwa TLS 1.3. Sub-processors na maeneo ya kuhifadhi yameandikwa kwenye /legal/subprocessors."
+      }
+    ],
+    "ctaHeading": "Tayari kuendesha eneo lako kwenye Borjie?",
+    "ctaSub": "Anza bure na Mwanzo au omba pilot ya siku 90 kuruka mbele.",
+    "ctaPrimary": "Anza bure",
+    "ctaSecondary": "Omba pilot"
   },
   "privacyPage": {
     "kicker": "Faragha",

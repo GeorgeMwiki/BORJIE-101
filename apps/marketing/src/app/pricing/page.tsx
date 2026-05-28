@@ -1,26 +1,30 @@
 import type { Metadata } from 'next';
-import { Check } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import { Nav } from '@/components/Nav';
 import { Pricing } from '@/components/Pricing';
 import { FinalCta } from '@/components/FinalCta';
 import { Footer } from '@/components/Footer';
+import { FaqAccordion } from '@/components/shared/FaqAccordion';
+import { TrustBadgeStrip } from '@/components/shared/TrustBadgeStrip';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { TIERS, tierFeatures } from '@/lib/pricing';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Borjie',
+  title: 'Pricing , Borjie',
   description:
-    'Borjie pricing — Mwanzo (free) · Mkulima · Mfanyabiashara · Kampuni · Group. All tiers in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.',
+    'Borjie pricing , Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.',
 };
 
 /**
- * /pricing — full pricing page.
+ * /pricing , full pricing page.
  *
- * Hero ribbon (centered, single-column header) → Pricing cards
- * (shared component) → feature comparison matrix → FinalCta band →
- * Footer. Mirrors the LitFin pricing-page rhythm: declarative
- * heading, then proof (the comparison table), then re-offer.
+ * Hero ribbon (centered, single-column header) -> Pricing cards
+ * (shared component) -> trust-badge wordwall -> feature comparison
+ * matrix -> FAQ accordion -> closing CTA -> FinalCta band -> Footer.
+ * Mirrors the LitFin pricing-page rhythm (sections S5 / S7 / S6 /
+ * S18 / S19 / S15) section-for-section.
  */
 export default async function PricingPage() {
   const locale = await getLocale();
@@ -59,6 +63,17 @@ export default async function PricingPage() {
         </section>
 
         <Pricing locale={locale} />
+
+        {/* TRUST BADGE STRIP , LitFin S6 */}
+        <section
+          className="mx-auto max-w-4xl px-6 pb-12 pt-4 text-center lg:px-8"
+          aria-label="Trust badges"
+        >
+          <p className="mx-auto mb-6 max-w-xl font-mono text-xs uppercase tracking-widest text-neutral-500">
+            {t.trustBadgesHeading}
+          </p>
+          <TrustBadgeStrip items={t.trustBadges} />
+        </section>
 
         <section
           className="mx-auto max-w-7xl px-6 pb-24 lg:px-8"
@@ -104,7 +119,7 @@ export default async function PricingPage() {
                           {has ? (
                             <Check className="mx-auto h-4 w-4 text-signal-500" aria-label="included" />
                           ) : (
-                            <span className="text-neutral-500" aria-label="not included">—</span>
+                            <span className="text-neutral-500" aria-label="not included">,</span>
                           )}
                         </td>
                       );
@@ -113,6 +128,64 @@ export default async function PricingPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        {/* FAQ , LitFin S19 */}
+        <section
+          className="mx-auto max-w-3xl px-6 pb-24 lg:px-8"
+          aria-labelledby="pricing-faq-heading"
+        >
+          <div className="text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
+              {t.faqKicker}
+            </p>
+            <h2
+              id="pricing-faq-heading"
+              className="mt-3 font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl"
+            >
+              {t.faqHeading}
+            </h2>
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+              {t.faqSub}
+            </p>
+          </div>
+          <div className="mt-12">
+            <FaqAccordion items={t.faqs} />
+          </div>
+        </section>
+
+        {/* CLOSING CTA , LitFin S15 */}
+        <section
+          className="border-t border-border bg-surface/40 px-5 py-16 md:py-24"
+          aria-labelledby="pricing-closing-cta"
+        >
+          <div className="mx-auto max-w-3xl text-center">
+            <h2
+              id="pricing-closing-cta"
+              className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl lg:text-5xl"
+            >
+              {t.ctaHeading}
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-neutral-400">
+              {t.ctaSub}
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/sign-up"
+                className="group inline-flex h-12 items-center justify-center gap-2 rounded-md bg-signal-500 px-7 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-signal-glow active:scale-[0.98]"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                {t.ctaPrimary}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                href="/pilot"
+                className="inline-flex h-12 items-center justify-center rounded-md border border-border bg-surface/60 px-7 text-sm font-semibold text-foreground transition-colors hover:bg-surface-raised"
+              >
+                {t.ctaSecondary}
+              </Link>
+            </div>
           </div>
         </section>
 

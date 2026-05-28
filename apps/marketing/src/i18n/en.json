@@ -1090,7 +1090,71 @@
     "sub": "Five tiers. TZS. Mwanzo is free forever. We accept M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.",
     "compareHeading": "Feature comparison",
     "compareSub": "Every tier ships every feature. The difference is quotas and support.",
-    "featureColumn": "Feature"
+    "featureColumn": "Feature",
+    "trustBadgesHeading": "Built for the way Tanzanian mining actually runs.",
+    "trustBadges": [
+      {
+        "icon": "Lock",
+        "text": "AES-256-GCM encryption"
+      },
+      {
+        "icon": "Shield",
+        "text": "BOT and Tumemadini aligned"
+      },
+      {
+        "icon": "Globe",
+        "text": "Swahili and English"
+      },
+      {
+        "icon": "Brain",
+        "text": "AI-native, audit-grade"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 ready"
+      }
+    ],
+    "faqKicker": "Common questions",
+    "faqHeading": "Frequently asked questions",
+    "faqSub": "Everything you need to know about Borjie pricing, billing, and what the platform includes per tier.",
+    "faqs": [
+      {
+        "q": "Is Mwanzo really free?",
+        "a": "Yes. Mwanzo is fully free, no card required. One owner, one site, 10 documents per month, community support, and Mr. Mwikila in advise mode. Upgrade only when your operation needs the extra rails."
+      },
+      {
+        "q": "How does Mkulima differ from Mfanyabiashara?",
+        "a": "Mkulima is for a single PML holder running one or two sites with one or two supervisors. Mfanyabiashara unlocks multi-site, multi-licence, treasury rails, and Sovereign Agent for high-risk actions. If you run more than one mine, choose Mfanyabiashara."
+      },
+      {
+        "q": "What payment methods do you accept?",
+        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, and TZS bank transfer. Annual bills can be invoiced. Multi-currency (TZS, USD, KES) is supported on Kampuni and above."
+      },
+      {
+        "q": "Can I switch tiers later?",
+        "a": "Yes. Upgrades take effect immediately and your data, licences, sites, and ledger come with you. Downgrades prorate at the end of the billing cycle; nothing is deleted, but tier-locked features pause until you upgrade again."
+      },
+      {
+        "q": "How is data scoped per tenant?",
+        "a": "Every tenant is isolated by row-level security at the database layer. The app.current_tenant_id GUC is bound by api-gateway middleware on every request. No app-code shortcut can bypass it. Multi-tenant audit-hash chains are immutable and append-only."
+      },
+      {
+        "q": "What does Group tier add?",
+        "a": "Group is for federations, cooperatives, and family-office estates that need to consolidate several Borjie tenants under one umbrella with cross-tenant reporting, sovereign trustee approvals, and dedicated success management."
+      },
+      {
+        "q": "Is Borjie compliant with BOT and Tumemadini?",
+        "a": "Yes. Borjie is designed to file Tumemadini returns, route royalty receipts, and produce BOT-aligned reporting out of the box. Every artefact is hash-chained for regulator audit."
+      },
+      {
+        "q": "Where is the data stored?",
+        "a": "Tanzania-regional primary storage with secondary failover in a regulator-approved region. Encrypted at rest with AES-256-GCM, in transit with TLS 1.3. Sub-processors and storage regions are documented in /legal/subprocessors."
+      }
+    ],
+    "ctaHeading": "Ready to run your estate on Borjie?",
+    "ctaSub": "Start free with Mwanzo or apply for the 90-day pilot to skip ahead.",
+    "ctaPrimary": "Start free",
+    "ctaSecondary": "Apply for the pilot"
   },
   "privacyPage": {
     "kicker": "Privacy",
