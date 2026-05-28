@@ -33,6 +33,23 @@
 
 import { z } from 'zod';
 import { ownerOsTabTypeSchema, ownerOsTabContextSchema } from './types.js';
+import {
+  inlineTableSchema,
+  inlineChartSchema,
+  inlineWizardSchema,
+  inlineWorkflowSchema,
+  inlineComparisonSchema,
+  inlineSectionSchema,
+  inlineDashboardSchema,
+  RICH_INLINE_BLOCK_TYPES,
+  type InlineTable,
+  type InlineChart,
+  type InlineWizard,
+  type InlineWorkflow,
+  type InlineComparison,
+  type InlineSection,
+  type InlineDashboard,
+} from './rich-inline-blocks.js';
 
 // ─── Bilingual label helper ─────────────────────────────────────────
 
@@ -172,6 +189,11 @@ export const tabPromotionChipSchema = z.object({
 export type TabPromotionChip = z.infer<typeof tabPromotionChipSchema>;
 
 // ─── Discriminated union of every inline block ──────────────────────
+//
+// Layer 1 (this file) + Layer 2 (rich-inline-blocks.ts) — every block
+// the brain may emit inline lives here. The renderer dispatcher narrows
+// by `type`; the parser validates each block against this union and
+// drops any that fail.
 
 export const inlineBlockSchema = z.discriminatedUnion('type', [
   dataCaptureCardSchema,
@@ -180,9 +202,27 @@ export const inlineBlockSchema = z.discriminatedUnion('type', [
   microActionCardSchema,
   miniMetricSchema,
   tabPromotionChipSchema,
+  inlineTableSchema,
+  inlineChartSchema,
+  inlineWizardSchema,
+  inlineWorkflowSchema,
+  inlineComparisonSchema,
+  inlineSectionSchema,
+  inlineDashboardSchema,
 ]);
 
 export type InlineBlock = z.infer<typeof inlineBlockSchema>;
+
+/** Re-exported rich block types for narrowing in the dispatcher. */
+export type {
+  InlineTable,
+  InlineChart,
+  InlineWizard,
+  InlineWorkflow,
+  InlineComparison,
+  InlineSection,
+  InlineDashboard,
+};
 
 export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'data_capture_card',
@@ -191,6 +231,7 @@ export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'micro_action_card',
   'mini_metric',
   'tab_promotion_chip',
+  ...RICH_INLINE_BLOCK_TYPES,
 ];
 
 // ─── Parser ─────────────────────────────────────────────────────────

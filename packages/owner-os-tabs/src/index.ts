@@ -80,7 +80,27 @@ export {
   type MiniMetric,
   type TabPromotionChip,
   type InlineBlock,
+  type InlineTable,
+  type InlineChart,
+  type InlineWizard,
+  type InlineWorkflow,
+  type InlineComparison,
+  type InlineSection,
+  type InlineDashboard,
   type ParseInlineBlocksResult,
   type AutoAuthorized,
   type ExtractAutoAuthorizedResult,
 } from './inline-blocks.js';
+
+export {
+  inlineTableSchema,
+  inlineChartSchema,
+  inlineWizardSchema,
+  inlineWorkflowSchema,
+  inlineComparisonSchema,
+  inlineSectionSchema,
+  inlineDashboardSchema,
+  richInlineBlockSchema,
+  RICH_INLINE_BLOCK_TYPES,
+  type RichInlineBlock,
+} from './rich-inline-blocks.js';
