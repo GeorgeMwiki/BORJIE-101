@@ -1,21 +1,45 @@
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import Link from 'next/link';
+import { Sparkles, Users } from 'lucide-react';
+import { PageHero } from '@/components/shared/PageHero';
+import { PeopleSurface } from '@/components/people/PeopleSurface';
+import { getOwnerSession } from '@/lib/session';
 
 /**
- * O-W-08 — People & roles. Live data path:
- * GET /api/v1/mining/people/org + /people/advances + /people/productivity.
+ * O-W-08 — People & roles.
+ *
+ * Workforce KPI strip (on-shift count, supervisor coverage, open
+ * incidents, fuel trend) plus supervisor list, incident feed, and a
+ * fuel-consumption sparkline. Hooks
+ * `/api/v1/mining/attendance/headcount` and
+ * `/api/v1/mining/incidents` for live numbers.
  */
-export default function PeoplePage() {
+export default async function PeoplePage() {
+  const session = await getOwnerSession();
+  const isSw = session.languagePreference === 'sw';
   return (
-    <>
-      <ScreenHeader slug="people" />
-      <div className="px-8 py-6">
-        <EmptyState
-          title="People surface not yet wired"
-          description="Org chart, advances ledger, and productivity load from the live HR API. Sign in to connect."
-          hint="GET /api/v1/mining/people/org (pending)"
-        />
-      </div>
-    </>
+    <div className="space-y-8 px-8 py-8">
+      <PageHero
+        slug="people"
+        actions={
+          <>
+            <Link
+              href="/people/roster"
+              className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {isSw ? 'Onyesha ratiba' : 'Open roster'}
+            </Link>
+            <Link
+              href="/ask?prompt=people"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isSw ? 'Uliza kuhusu wafanyakazi' : 'Ask about workforce'}
+            </Link>
+          </>
+        }
+      />
+      <PeopleSurface locale={session.languagePreference} />
+    </div>
   );
 }
