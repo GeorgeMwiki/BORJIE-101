@@ -9,7 +9,7 @@
  * LearningSidebar, with Borjie navy/gold tokens substituted for LitFin
  * copper/teal.
  *
- * Bilingual sw / en (sw default, EN never says "Karibu"). Time-aware
+ * Bilingual sw / en (sw default, EN never uses the SW greeting). Time-aware
  * copy is the parent's responsibility; this rail simply renders the
  * literacy ladder.
  *

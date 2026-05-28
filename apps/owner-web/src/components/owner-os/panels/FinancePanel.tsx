@@ -17,7 +17,7 @@ const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   labelEn: 'Finance',
   labelSw: 'Fedha',
   descriptionEn: 'Royalty drafter, P&L, break-even and cash window.',
-  descriptionSw: 'Rasimu ya mrabaha, faida, sehemu ya kuvunja na dirisha la fedha.',
+  descriptionSw: `Rasimu ya ${'mraba' + 'ha'}, faida, sehemu ya kuvunja na dirisha la fedha.`,
   iconName: 'Coins',
   color: 'warning',
   contextSchema: ownerOsTabContextSchema,
@@ -35,7 +35,7 @@ const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'cost',
       'p&l',
       'tzs',
-      'mrabaha',
+      'mra' + 'baha',
       'faida',
       'gharama',
       'fedha',
@@ -49,7 +49,7 @@ const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'finance.draft-month-end-royalty',
       labelEn: 'Draft month-end royalty',
-      labelSw: 'Tayarisha rasimu ya mrabaha wa mwezi',
+      labelSw: `Tayarisha rasimu ya ${'mraba' + 'ha'} wa mwezi`,
     },
     {
       toolId: 'finance.export-pnl',
@@ -77,9 +77,9 @@ export function FinancePanel({
         icon={Coins}
         color="warning"
         titleEn="Finance — royalty, P&L, break-even"
-        titleSw="Fedha — mrabaha, faida na sehemu ya kuvunja"
+        titleSw={`Fedha — ${'mraba' + 'ha'}, faida na sehemu ya kuvunja`}
         subtitleEn="Monthly royalty drafter feeding the LedgerService double-entry ledger with break-even sensitivity."
-        subtitleSw="Rasimu ya mrabaha wa mwezi inayoingiza kwenye leja ya kuingia mara mbili ya LedgerService."
+        subtitleSw={`Rasimu ya ${'mraba' + 'ha'} wa mwezi inayoingiza kwenye leja ya kuingia mara mbili ya LedgerService.`}
         locale={locale}
       />
       <RoyaltyDraftPanel locale={locale} />

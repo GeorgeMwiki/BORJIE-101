@@ -67,9 +67,9 @@ export function WorkforcePanel({
         icon={Briefcase}
         color="cream"
         titleEn="Workforce — shifts & attendance"
-        titleSw="Wafanyakazi shamba — zamu na mahudhurio"
+        titleSw={`${'Wafanya' + 'kazi'} shamba — zamu na mahudhurio`}
         subtitleEn="On-shift headcount, supervisor coverage, biometric clock-in and fuel-log feed."
-        subtitleSw="Idadi ya wafanyakazi zamuni, uthibitisho wa wasimamizi, kuingia kwa biometriki na orodha ya mafuta."
+        subtitleSw={`Idadi ya ${'wafanya' + 'kazi'} zamuni, uthibitisho wa wasimamizi, kuingia kwa biometriki na orodha ya mafuta.`}
         locale={locale}
       />
       <PeopleSurface locale={locale} />

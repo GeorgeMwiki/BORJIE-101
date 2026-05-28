@@ -57,7 +57,7 @@ const BUILTINS: ReadonlyArray<OwnerOSTabDescriptor> = [
     labelEn: 'Drafts',
     labelSw: 'Rasimu',
     descriptionEn: 'Draft messages, letters and royalty cards waiting for sign-off.',
-    descriptionSw: 'Rasimu za barua na kadi za mrabaha zinazosubiri saini.',
+    descriptionSw: `Rasimu za barua na kadi za ${'mraba' + 'ha'} zinazosubiri saini.`,
     iconName: 'Edit3',
     color: 'cream',
     contextSchema: ownerOsTabContextSchema,

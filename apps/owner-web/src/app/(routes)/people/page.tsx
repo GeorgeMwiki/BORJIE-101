@@ -3,6 +3,7 @@ import { Sparkles, Users } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { PeopleSurface } from '@/components/people/PeopleSurface';
 import { getOwnerSession } from '@/lib/session';
+import { SW } from '@/lib/sw-tokens';
 
 /**
  * O-W-08 — People & roles.
@@ -34,7 +35,7 @@ export default async function PeoplePage() {
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Uliza kuhusu wafanyakazi' : 'Ask about workforce'}
+              {isSw ? `Uliza kuhusu ${SW.workforce}` : 'Ask about workforce'}
             </Link>
           </>
         }

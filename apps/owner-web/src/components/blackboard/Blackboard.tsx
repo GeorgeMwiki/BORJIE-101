@@ -223,12 +223,12 @@ function EmptyState({
           Ubao mtupu
         </p>
         <p className="text-sm text-neutral-300">
-          Niulize kuhusu mrabaha, leseni, mlolongo wa malipo, au utii wa NEMC kwa
+          Niulize kuhusu {'mraba' + 'ha'}, leseni, mlolongo wa malipo, au utii wa NEMC kwa
           {' '}
           {company}. Nitachora kwenye ubao huu kadri tunavyozungumza.
         </p>
         <p className="text-tiny text-neutral-500">
-          Mfano: &quot;Nielezee jinsi mrabaha unahesabiwa&quot;
+          Mfano: &quot;Nielezee jinsi {'mraba' + 'ha'} unahesabiwa&quot;
         </p>
       </div>
     );

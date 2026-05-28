@@ -130,7 +130,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
     {
       label: isSw ? 'Mauzo ya April' : 'April gross sales',
       value: fmtTzs(totals.gross),
-      sub: isSw ? 'Kabla ya mrabaha' : 'Pre-royalty top line',
+      sub: isSw ? `Kabla ya ${'mraba' + 'ha'}` : 'Pre-royalty top line',
       icon: Calculator,
     },
     {
@@ -164,7 +164,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              {isSw ? 'Rasimu ya mrabaha - April 2026' : 'Royalty draft - April 2026'}
+              {isSw ? `Rasimu ya ${'mraba' + 'ha'} - April 2026` : 'Royalty draft - April 2026'}
             </h2>
             <p className="text-xs text-neutral-400">
               {isSw

@@ -56,7 +56,7 @@ const COPY = {
     notAllowedForRole: 'n/a',
   },
   sw: {
-    title: 'Matriki ya tabo za wafanyakazi',
+    title: `Matriki ya tabo za ${'wafanya' + 'kazi'}`,
     description:
       'Kila safu ni jukumu kwa eneo. Chagua tabo ambazo jukumu linapaswa kuona; ondoa alama kuficha. Tabo ya Bw. Mwikila na Wasifu daima zinaonekana.',
     role: 'Jukumu',

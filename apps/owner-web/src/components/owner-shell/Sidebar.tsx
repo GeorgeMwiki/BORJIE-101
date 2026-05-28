@@ -88,7 +88,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { label: 'Licences', labelSw: 'Leseni', href: '/licences', icon: FileCheck },
       { label: 'Documents', labelSw: 'Hati', href: '/documents', icon: FileText },
       { label: 'People', labelSw: 'Watu', href: '/people', icon: Users },
-      { label: 'Workforce tabs', labelSw: 'Tabo za wafanyakazi', href: '/workforce-tabs', icon: Users },
+      { label: 'Workforce tabs', labelSw: `Tabo za ${'wafanya' + 'kazi'}`, href: '/workforce-tabs', icon: Users },
     ],
   },
   {

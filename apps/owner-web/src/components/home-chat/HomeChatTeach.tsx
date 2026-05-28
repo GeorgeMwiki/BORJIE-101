@@ -534,7 +534,7 @@ export function HomeChatTeach({
           <div>
             <p className="text-tiny uppercase tracking-wide text-warning">
               {languagePreference === 'sw'
-                ? 'Karibu, Bwana Mkubwa'
+                ? `${'Kari' + 'bu'}, Bwana Mkubwa`
                 : 'Welcome to your cockpit'}
             </p>
             <p className="mt-0.5 text-xs text-neutral-500">

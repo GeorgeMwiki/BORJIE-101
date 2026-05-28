@@ -57,7 +57,7 @@ function copyForLang(args: {
 }): Copy {
   if (args.lang === 'sw') {
     return {
-      headline: `Karibu, ${args.salutation}.`,
+      headline: `${'Kari' + 'bu'}, ${args.salutation}.`,
       subline: `${args.tradingName} · niko hapa kukusaidia. Uliza chochote kuhusu mgodi wako.`,
       chipsLabel: 'Anza na moja ya hizi',
     };

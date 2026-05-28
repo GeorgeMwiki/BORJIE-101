@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
+import { SW } from '@/lib/sw-tokens';
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
 import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
 import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
@@ -128,7 +129,7 @@ export default async function OwnerDashboardPage() {
             icon={FileCheck}
           />
           <MetricTile
-            label={isSw ? 'Rasimu ya mrabaha' : 'Royalty draft status'}
+            label={isSw ? `Rasimu ya ${SW.royalty}` : 'Royalty draft status'}
             value={isSw ? 'Inakaguliwa' : 'In review'}
             sub={
               isSw
@@ -170,7 +171,7 @@ export default async function OwnerDashboardPage() {
             ctaHref="/site-cockpit"
           />
           <ActionCard
-            title={isSw ? 'Kagua malipo ya wafanyakazi' : 'Approve workforce advances'}
+            title={isSw ? `Kagua malipo ya ${SW.workforce}` : 'Approve workforce advances'}
             context={
               isSw
                 ? 'Maombi 3 ya juu ya limit ya kawaida'
@@ -220,7 +221,7 @@ export default async function OwnerDashboardPage() {
             tone="warning"
           />
           <EventCard
-            title={isSw ? 'Makato ya mrabaha' : 'Royalty cut-off'}
+            title={isSw ? `Makato ya ${SW.royalty}` : 'Royalty cut-off'}
             when={isSw ? 'Jumatatu - siku 7' : 'Monday - 7 days'}
             href="/finance"
             tone="signal"

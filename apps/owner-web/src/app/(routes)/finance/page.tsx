@@ -4,6 +4,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import { BreakEvenSlider } from '@/components/finance/BreakEvenSlider';
 import { RoyaltyDraftPanel } from '@/components/finance/RoyaltyDraftPanel';
 import { getOwnerSession } from '@/lib/session';
+import { SW } from '@/lib/sw-tokens';
 
 /**
  * O-W-12 — Cost & finance.
@@ -29,7 +30,7 @@ export default async function FinancePage() {
               className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
             >
               <Calculator className="h-3.5 w-3.5" />
-              {isSw ? 'Tayarisha rasimu ya mrabaha' : 'Draft month-end royalty'}
+              {isSw ? `Tayarisha rasimu ya ${SW.royalty}` : 'Draft month-end royalty'}
             </Link>
             <Link
               href="/ask?prompt=finance"
