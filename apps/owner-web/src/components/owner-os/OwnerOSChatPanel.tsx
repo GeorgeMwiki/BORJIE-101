@@ -157,12 +157,21 @@ export function OwnerOSChatPanel({
         ) : null}
       </div>
 
-      <HomeChatTeach
-        salutation={salutation}
-        tradingName={tradingName}
-        languagePreference={languagePreference}
-        {...(onSpawnTab ? { onSpawnTab } : {})}
-      />
+      <div
+        className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,_55fr)_minmax(0,_45fr)]"
+        data-testid="owner-os-chat-board-split"
+      >
+        <HomeChatTeach
+          salutation={salutation}
+          tradingName={tradingName}
+          languagePreference={languagePreference}
+          {...(onSpawnTab ? { onSpawnTab } : {})}
+        />
+        <Blackboard
+          languagePreference={languagePreference}
+          tradingName={tradingName}
+        />
+      </div>
     </div>
   );
 }
