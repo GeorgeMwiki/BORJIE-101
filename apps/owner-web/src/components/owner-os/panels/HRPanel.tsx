@@ -89,7 +89,7 @@ export function HRPanel({ context, locale }: OwnerOSPanelProps): ReactElement {
         subtitleEn="Roster, supervisors, attendance, fuel logs and incident feed across every site."
         subtitleSw="Ratiba, wasimamizi, mahudhurio, kumbukumbu za mafuta na orodha ya matukio kwa kila tovuti."
         locale={locale}
-        metaChips={meta}
+        {...(meta ? { metaChips: meta } : {})}
       />
       <PeopleSurface locale={locale} />
     </section>

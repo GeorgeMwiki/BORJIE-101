@@ -95,7 +95,7 @@ export function CompliancePanel({
         subtitleEn="NEMC, BoT, TRA and Mining Commission cadence tracker with green / amber / red status."
         subtitleSw="Mfumo wa ratiba ya NEMC, BoT, TRA na Tume ya Madini wenye hali ya kijani / njano / nyekundu."
         locale={locale}
-        metaChips={meta}
+        {...(meta ? { metaChips: meta } : {})}
       />
       <ComplianceSurface locale={locale} />
     </section>
