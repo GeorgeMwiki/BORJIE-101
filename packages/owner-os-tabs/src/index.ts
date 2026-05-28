@@ -59,3 +59,28 @@ export {
   extractSpawnTabs,
   type ExtractSpawnResult,
 } from './spawn-extractor.js';
+
+export {
+  DATA_CAPTURE_FIELD_KINDS,
+  INLINE_BLOCK_TYPES,
+  dataCaptureCardSchema,
+  confirmationCardSchema,
+  fileRequestCardSchema,
+  microActionCardSchema,
+  miniMetricSchema,
+  tabPromotionChipSchema,
+  inlineBlockSchema,
+  parseInlineBlocks,
+  extractAutoAuthorized,
+  type BilingualLabel,
+  type DataCaptureCard,
+  type ConfirmationCard,
+  type FileRequestCard,
+  type MicroActionCard,
+  type MiniMetric,
+  type TabPromotionChip,
+  type InlineBlock,
+  type ParseInlineBlocksResult,
+  type AutoAuthorized,
+  type ExtractAutoAuthorizedResult,
+} from './inline-blocks.js';
