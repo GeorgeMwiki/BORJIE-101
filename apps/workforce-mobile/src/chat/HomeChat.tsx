@@ -39,7 +39,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 import { ApiError } from '../api/errors'
-import { workforcePersonaSpec } from '../roles/persona'
+import { resolveWorkforcePersona, workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { greet } from '../ui-litfin'
@@ -50,8 +50,21 @@ import { greet } from '../ui-litfin'
 import { detectTabChangeIntent } from '../lib/tabChangeIntent'
 import { useWorkforceTabConfig } from '../lib/hooks/useWorkforceTabConfig'
 import { RequestTabChangeSheet } from '../components/RequestTabChangeSheet'
-import type { WorkforceRoleId } from '@borjie/persona-runtime'
+import {
+  slashCommandsForPersona,
+  type WorkforceRoleId
+} from '@borjie/persona-runtime'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
+import {
+  applySelection,
+  filterEntities,
+  filterSlashCommands,
+  parseTrigger,
+  type EntityItem,
+  type SlashCommandItem
+} from './composer-triggers'
+import { SlashMenu, AtMenu } from './ComposerMenu'
+import { fetchRecentEntities } from './recentEntities'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
 import { SendButton } from './SendButton'
