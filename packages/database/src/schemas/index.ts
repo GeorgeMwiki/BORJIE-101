@@ -1025,3 +1025,8 @@ export * from './estate-holdings.schema.js';
 //   - external_benchmarks       point-in-time external reference values
 // Not tenant-scoped; read-only for the comparison-framework.
 export * from './peer-cohort-benchmarks.schema.js';
+
+// Wave SCOPE-SEGMENTATION (migrations 0096, 0096b). Hierarchical
+// taxonomy tree for cross-scope MD reasoning + per-tenant display label
+// preferences. All RLS FORCE.
+export * from './scope-nodes.schema.js';

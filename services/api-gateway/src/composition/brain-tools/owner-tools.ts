@@ -982,6 +982,269 @@ export const ownerEmitInsightsTool: PersonaToolDescriptor<
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// 20-24. Scope-aware reasoning — Wave SCOPE-SEGMENTATION
+// ─────────────────────────────────────────────────────────────────────
+
+const ResolveScopeLabelInput = z.object({
+  kindCanonical: z.string(),
+  locale: z.enum(['en', 'sw']).default('sw'),
+});
+const ResolveScopeLabelOutput = z.object({
+  kindCanonical: z.string(),
+  displayLabel: z.string(),
+});
+
+export const ownerResolveScopeLabelTool: PersonaToolDescriptor<
+  typeof ResolveScopeLabelInput,
+  typeof ResolveScopeLabelOutput
+> = {
+  id: 'scope.resolve_label',
+  name: 'Owner — resolve scope label',
+  description:
+    'Map a canonical scope kind to the tenant-preferred display label ' +
+    'in the requested locale.',
+  personaSlugs: OWNER,
+  inputSchema: ResolveScopeLabelInput,
+  outputSchema: ResolveScopeLabelOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        kindCanonical: input.kindCanonical,
+        displayLabel: input.kindCanonical,
+      };
+    }
+    const res = await client.get<{
+      data: {
+        taxonomy: {
+          displayLabelEn: Record<string, string>;
+          displayLabelSw: Record<string, string>;
+        } | null;
+      };
+    }>('/scope/taxonomy', {});
+    const map =
+      input.locale === 'en'
+        ? res.data?.taxonomy?.displayLabelEn ?? {}
+        : res.data?.taxonomy?.displayLabelSw ?? {};
+    return {
+      kindCanonical: input.kindCanonical,
+      displayLabel: map[input.kindCanonical] ?? input.kindCanonical,
+    };
+  },
+};
+
+const RollUpInput = z.object({
+  scopeNodeIds: z.array(z.string().uuid()).min(1).max(200),
+  metricId: z.string(),
+});
+const RollUpOutput = z.object({
+  metricId: z.string(),
+  total: z.number(),
+  mean: z.number(),
+  min: z.number().nullable(),
+  max: z.number().nullable(),
+  count: z.number(),
+});
+
+export const ownerRollUpAcrossScopesTool: PersonaToolDescriptor<
+  typeof RollUpInput,
+  typeof RollUpOutput
+> = {
+  id: 'scope.roll_up_across_scopes',
+  name: 'Owner — roll up across scopes',
+  description:
+    'Aggregate a metric across a set of scope nodes (sum, mean, min, max). ' +
+    'Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: RollUpInput,
+  outputSchema: RollUpOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    // Sample fetch is not yet wired to a live source; return zeros so
+    // the caller knows the rollup is empty rather than fabricated.
+    const { rollUp } = await import(
+      '../../services/md-intelligence/index.js'
+    );
+    const result = await rollUp({
+      scopeNodeIds: input.scopeNodeIds,
+      metricId: input.metricId,
+      fetchSample: async () => null,
+    });
+    return {
+      metricId: result.metricId,
+      total: result.total,
+      mean: result.mean,
+      min: result.min,
+      max: result.max,
+      count: result.count,
+    };
+  },
+};
+
+const CompareScopesInput = z.object({
+  scopeNodeIds: z.array(z.string().uuid()).min(2).max(50),
+  metricId: z.string(),
+});
+const CompareScopesOutput = z.object({
+  metricId: z.string(),
+  topScopeNodeId: z.string().nullable(),
+  bottomScopeNodeId: z.string().nullable(),
+  ranking: z.array(
+    z.object({
+      scopeNodeId: z.string(),
+      value: z.number(),
+      rank: z.number(),
+      deltaFromMean: z.number(),
+    }),
+  ),
+});
+
+export const ownerCompareAcrossScopesTool: PersonaToolDescriptor<
+  typeof CompareScopesInput,
+  typeof CompareScopesOutput
+> = {
+  id: 'scope.compare_across_scopes',
+  name: 'Owner — compare across scopes',
+  description:
+    'Rank scope nodes by a metric (top / bottom / delta-from-mean). ' +
+    'Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: CompareScopesInput,
+  outputSchema: CompareScopesOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    const { compareScopes } = await import(
+      '../../services/md-intelligence/index.js'
+    );
+    const result = compareScopes({
+      metricId: input.metricId,
+      samples: input.scopeNodeIds.map((id) => ({
+        scopeNodeId: id,
+        value: 0,
+      })),
+    });
+    return {
+      metricId: result.metricId,
+      topScopeNodeId: result.topScopeNodeId,
+      bottomScopeNodeId: result.bottomScopeNodeId,
+      ranking: result.ranking.map((r) => ({
+        scopeNodeId: r.scopeNodeId,
+        value: r.value,
+        rank: r.rank,
+        deltaFromMean: r.deltaFromMean,
+      })),
+    };
+  },
+};
+
+const CrossDomainScopeInputSchema = z.object({
+  scopeNodeIds: z.array(z.string().uuid()).min(1).max(20),
+  domains: z.array(z.string()).min(1).max(14),
+});
+const CrossDomainScopeOutputSchema = z.object({
+  scopeNodeIds: z.array(z.string()),
+  domains: z.array(z.string()),
+  cells: z.array(
+    z.object({
+      scopeNodeId: z.string(),
+      domainId: z.string(),
+      status: z.string(),
+      note: z.string().optional(),
+    }),
+  ),
+});
+
+export const ownerCrossDomainScopeMatrixTool: PersonaToolDescriptor<
+  typeof CrossDomainScopeInputSchema,
+  typeof CrossDomainScopeOutputSchema
+> = {
+  id: 'scope.cross_domain_scope_matrix',
+  name: 'Owner — cross-domain × scope matrix',
+  description:
+    'Build a status matrix: rows = scopes, columns = domains, cells = ' +
+    'status tone. Read-only.',
+  personaSlugs: OWNER,
+  inputSchema: CrossDomainScopeInputSchema,
+  outputSchema: CrossDomainScopeOutputSchema,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    const { buildScopeDomainMatrix } = await import(
+      '../../services/md-intelligence/index.js'
+    );
+    const result = await buildScopeDomainMatrix({
+      scopeNodeIds: input.scopeNodeIds,
+      domains: input.domains as any,
+      fetchDomainStatus: async () => ({ status: 'unknown' as const }),
+    });
+    return {
+      scopeNodeIds: [...result.scopeNodeIds],
+      domains: result.domains.map((d) => d as string),
+      cells: result.cells.map((c) => ({
+        scopeNodeId: c.scopeNodeId,
+        domainId: c.domainId as string,
+        status: c.status,
+        ...(c.note !== undefined ? { note: c.note } : {}),
+      })),
+    };
+  },
+};
+
+const TaxonomyDisplayForInput = z.object({
+  locale: z.enum(['en', 'sw']).default('sw'),
+});
+const TaxonomyDisplayForOutput = z.object({
+  defaultKind: z.string(),
+  labels: z.record(z.string()),
+});
+
+export const ownerTaxonomyDisplayForTool: PersonaToolDescriptor<
+  typeof TaxonomyDisplayForInput,
+  typeof TaxonomyDisplayForOutput
+> = {
+  id: 'scope.taxonomy_display_for',
+  name: 'Owner — taxonomy display for locale',
+  description:
+    'Return the tenant-preferred scope-kind labels for the requested ' +
+    'locale, plus the default scope kind.',
+  personaSlugs: OWNER,
+  inputSchema: TaxonomyDisplayForInput,
+  outputSchema: TaxonomyDisplayForOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { defaultKind: 'site', labels: {} };
+    const res = await client.get<{
+      data: {
+        taxonomy: {
+          displayLabelEn: Record<string, string>;
+          displayLabelSw: Record<string, string>;
+          defaultKind: string;
+        } | null;
+      };
+    }>('/scope/taxonomy', {});
+    const labels =
+      input.locale === 'en'
+        ? res.data?.taxonomy?.displayLabelEn ?? {}
+        : res.data?.taxonomy?.displayLabelSw ?? {};
+    return {
+      defaultKind: res.data?.taxonomy?.defaultKind ?? 'site',
+      labels,
+    };
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -1004,4 +1267,9 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerTraceCausesTool,
   ownerCompareBaselinesTool,
   ownerEmitInsightsTool,
+  ownerResolveScopeLabelTool,
+  ownerRollUpAcrossScopesTool,
+  ownerCompareAcrossScopesTool,
+  ownerCrossDomainScopeMatrixTool,
+  ownerTaxonomyDisplayForTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

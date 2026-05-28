@@ -73,3 +73,23 @@ export {
   type EmitInsightsInput,
   type EmitInsightsResult,
 } from './insight-emitter';
+
+// Wave SCOPE-SEGMENTATION — pure functional scope modules.
+export {
+  rollUp,
+  type ScopeMetricSample,
+  type ScopeRollerInput,
+  type ScopeRollerResult,
+} from './scope-roller';
+export {
+  compareScopes,
+  type ScopeComparatorInput,
+  type ScopeComparatorResult,
+  type ScopeRank,
+} from './scope-comparator';
+export {
+  buildMatrix as buildScopeDomainMatrix,
+  type CrossDomainScopeInput,
+  type CrossDomainScopeMatrix,
+  type CrossDomainScopeCell,
+} from './cross-domain-scope-correlator';

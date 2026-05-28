@@ -342,6 +342,10 @@ import {
   estateSuccessionRouter,
   estateAssetsRouter,
 } from './routes/estate';
+// Wave SCOPE-SEGMENTATION — hierarchical scope taxonomy.
+//   services/api-gateway/src/routes/scope/
+//   packages/database/src/migrations/0096_scope_nodes_taxonomy.sql
+import { scopeRouter } from './routes/scope';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
@@ -1223,6 +1227,8 @@ api.route('/estate/entities', estateEntitiesRouter);
 api.route('/estate/capital-movements', estateCapitalMovementsRouter);
 api.route('/estate/succession-plans', estateSuccessionRouter);
 api.route('/estate/assets', estateAssetsRouter);
+// Wave SCOPE-SEGMENTATION — hierarchical taxonomy surface.
+api.route('/scope', scopeRouter);
 api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
