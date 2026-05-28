@@ -4,6 +4,8 @@ import { SensoriumProvider } from '@/lib/sensorium/SensoriumProvider';
 import { SessionReplayProvider } from '@/components/SessionReplayProvider';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
+import { AdminShell } from '@/components/AdminShell';
+import { AdminShellGate } from '@/components/admin-shell/AdminShellGate';
 
 export const metadata: Metadata = {
   title: {
@@ -42,7 +44,14 @@ export default function RootLayout({
             at ≈20Hz lives here; it is NEVER fed into the LLM context. */}
         <SessionReplayProvider surface="admin-web">
           <SensoriumProvider surface="admin-web">
-            {children}
+            {/* LitFin admin-portal parity — wrap every authenticated
+                route in the AdminShell (left rail + sticky top bar +
+                wide content frame). Auth + error routes opt out via
+                AdminShellGate so they render bare. */}
+            <AdminShellGate
+              bare={children}
+              shell={<AdminShell>{children}</AdminShell>}
+            />
             <BorjieWidgetMount />
             {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
                 Lazy-loads web-vitals v5; ships LCP/INP/CLS/TTFB/FCP via

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { ConsoleTopNav } from '@/components/internal/ConsoleTopNav';
 import { QueryProvider } from '@/components/internal/QueryProvider';
 
 export const metadata: Metadata = {
@@ -9,13 +8,14 @@ export const metadata: Metadata = {
     'Borjie internal admin console — 20 operational surfaces covering tenants, intelligence corpus, quality, and platform ops.',
 };
 
+/**
+ * Internal-admin route group layout.
+ *
+ * The legacy `<ConsoleTopNav />` was removed when the LitFin-parity
+ * `AdminShell` (root layout) took over the top-level chrome. This
+ * layout now only injects the react-query provider that every
+ * internal screen depends on.
+ */
 export default function InternalLayout({ children }: { readonly children: ReactNode }) {
-  return (
-    <QueryProvider>
-      <div className="min-h-screen flex flex-col bg-background">
-        <ConsoleTopNav />
-        <div className="flex-1">{children}</div>
-      </div>
-    </QueryProvider>
-  );
+  return <QueryProvider>{children}</QueryProvider>;
 }
