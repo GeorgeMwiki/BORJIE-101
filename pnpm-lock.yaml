@@ -353,12 +353,18 @@ importers:
 
   apps/marketing:
     dependencies:
+      '@borjie/api-sdk':
+        specifier: workspace:*
+        version: link:../../packages/api-sdk
       '@borjie/chat-ui':
         specifier: workspace:*
         version: link:../../packages/chat-ui
       '@borjie/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@borjie/genui':
+        specifier: workspace:*
+        version: link:../../packages/genui
       '@borjie/performance-toolkit':
         specifier: workspace:*
         version: link:../../packages/performance-toolkit

@@ -14,8 +14,10 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@borjie/api-sdk": "workspace:*",
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
+    "@borjie/genui": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",

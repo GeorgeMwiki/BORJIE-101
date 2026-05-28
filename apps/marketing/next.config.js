@@ -2,7 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
-  transpilePackages: ['@borjie/design-system', '@borjie/performance-toolkit'],
+  transpilePackages: [
+    '@borjie/design-system',
+    '@borjie/performance-toolkit',
+    '@borjie/chat-ui',
+    '@borjie/genui',
+    '@borjie/api-sdk',
+  ],
   // SOTA lazy-load Wave: image optimisation defaults.
   // - AVIF first (≈ 50 % smaller than JPEG, 95 % browser support 2026)
   //   then WebP fallback. Cite: web.dev/image-cwv 2026.
