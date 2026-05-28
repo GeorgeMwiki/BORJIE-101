@@ -10,7 +10,7 @@ type Tone = 'good' | 'warn' | 'flag';
  * No JS / no LLM — staggered CSS keyframe animation (.brief-line) gives
  * each line a half-second fade-up cascade. Content is mining-realistic:
  * Geita night-shift output, Mererani vendor flag, PML expiry warning,
- * Tumemadini royalty return draft. Lines are content-only so a
+ * Mining Commission royalty return draft. Lines are content-only so a
  * screen-reader user reads the same brief, just instantly.
  */
 export function HeadBriefingDemo({ locale }: { readonly locale: Locale }) {

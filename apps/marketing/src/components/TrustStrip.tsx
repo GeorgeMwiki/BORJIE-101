@@ -2,7 +2,7 @@ import { getMessages, type Locale } from '@/lib/i18n';
 
 /**
  * TrustStrip — single-row, uppercase, mono-set list of the institutions
- * a Tanzanian mining operator already recognises (BRELA, TRA, Tumemadini,
+ * a Tanzanian mining operator already recognises (BRELA, TRA, Mining Commission,
  * NEMC, LBMA-grade assay labs, mobile-money rails). Stands in for the
  * "regulator + customer logo wall" that LitFin uses to anchor the hero —
  * but with text, not stock logos, because (a) regulator marks need

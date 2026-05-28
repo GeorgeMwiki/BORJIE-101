@@ -313,7 +313,7 @@ function OperationsMock() {
 
 function DocumentMock() {
   const docs = [
-    'Tumemadini royalty · April · TZS 18.4M',
+    'Mining Commission royalty · April · TZS 18.4M',
     'NEMC EIA · Q1 emissions',
     'OSHA shift log · 28 days',
     'Off-take · Pamoja Refinery · 60 oz',

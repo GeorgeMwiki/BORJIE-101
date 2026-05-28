@@ -4,11 +4,10 @@
  * Wave UNIVERSAL-DOC-DRAFTER. Renders a drafter markdown body in the
  * requested format with Borjie brand styling applied uniformly.
  *
- * NOTE: `pdf-renderer.ts` is owned by sibling #125 — when present it is
- * loaded dynamically and used; otherwise the dispatcher falls back to
- * returning the HTML rendering as a `text/html` payload labelled "pdf"
- * (callers can either ignore the content-type and pipe through their
- * own PDF chain, or wait for the sibling commit).
+ * PDF rendering is wired through `./pdf-renderer.ts` and uses the
+ * headless Chromium that ships with Playwright. The renderer degrades
+ * to an HTML-bytes payload labelled `pdf.html` when Playwright cannot
+ * launch (CI sandboxes / minimal containers).
  */
 
 import type { BrandContext } from '../brand.js';
@@ -16,6 +15,7 @@ import { renderMarkdown as renderMd } from './md-renderer.js';
 import { renderHtml } from './html-renderer.js';
 import { renderDocx, DOCX_CONTENT_TYPE } from './docx-renderer.js';
 import { renderPptx, PPTX_CONTENT_TYPE } from './pptx-renderer.js';
+import { renderPdf, PDF_CONTENT_TYPE } from './pdf-renderer.js';
 
 export type RenderFormat = 'md' | 'pdf' | 'docx' | 'pptx' | 'html';
 
@@ -56,26 +56,21 @@ export async function renderDraft(
         extension: 'pptx',
       };
     case 'pdf': {
-      // Try to load the sibling-owned PDF renderer if it has landed.
-      // The path is built at runtime so tsc / the bundler do not try
-      // to resolve the file at compile time.
-      try {
-        const path = './pdf-' + 'renderer.js';
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod: any = await import(/* @vite-ignore */ path).catch(() => null);
-        if (mod && typeof mod.renderPdf === 'function') {
-          const buf: Buffer = mod.renderPdf(body, ctx);
-          return { body: buf, contentType: 'application/pdf', extension: 'pdf' };
-        }
-      } catch {
-        // ignore — fall through
-      }
-      // Fallback: ship the HTML rendering with a PDF-friendly note.
-      const html = renderHtml(body, ctx);
+      const pdf = await renderPdf(body, ctx);
+      // When the headless Chromium launch fails we get an HTML
+      // payload back instead — content sniff the first bytes to keep
+      // the response honest. A real PDF starts with `%PDF-`.
+      const isRealPdf =
+        pdf.length >= 5 &&
+        pdf[0] === 0x25 && // %
+        pdf[1] === 0x50 && // P
+        pdf[2] === 0x44 && // D
+        pdf[3] === 0x46 && // F
+        pdf[4] === 0x2d; // -
       return {
-        body: html,
-        contentType: 'text/html; charset=utf-8',
-        extension: 'pdf.html',
+        body: pdf,
+        contentType: isRealPdf ? PDF_CONTENT_TYPE : 'text/html; charset=utf-8',
+        extension: isRealPdf ? 'pdf' : 'pdf.html',
       };
     }
     default: {

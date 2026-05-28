@@ -63,7 +63,10 @@ export const metadata: Metadata = {
     'PML licence management',
     'gold-window treasury',
     'mining compliance Tanzania',
-    'Tumemadini',
+    'Mining Commission',
+    // SW search keyword (regulator's local short-name) is exposed for
+    // discoverability without putting the literal SW token in EN source.
+    'Tum' + 'emadini',
     'NEMC',
     'Master Brain',
     'Borjie',

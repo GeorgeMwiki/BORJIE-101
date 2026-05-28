@@ -49,6 +49,7 @@
     "@borjie/conformal-calibration-online": "workspace:*",
     "@borjie/connectors": "workspace:*",
     "@borjie/database": "workspace:*",
+    "@borjie/email-templates": "workspace:*",
     "@borjie/dispatch-router": "workspace:*",
     "@borjie/document-ai": "workspace:*",
     "@borjie/document-quality-guarantor": "workspace:*",

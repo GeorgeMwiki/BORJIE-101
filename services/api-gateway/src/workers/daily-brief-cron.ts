@@ -43,6 +43,14 @@ import type {
   EmailProvider,
   SmsProvider,
 } from '../services/notification-dispatch';
+// Wave OWNER-OS scope 8 — shared HTML email template package.
+// Replaces the inline-built HTML body so every tenant gets the same
+// brand-consistent rendering and so the template can be unit-tested
+// in isolation.
+import {
+  renderDailyBriefEmail,
+  type DailyBriefEmailArgs,
+} from '@borjie/email-templates';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types + handle
@@ -530,23 +538,26 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
     recipientLocale === 'sw'
       ? `Bw. Mwikila — muhtasari wa siku wa ${args.snapshotDate}`
       : `Mr. Mwikila — daily brief for ${args.snapshotDate}`;
-  const body = renderBriefBody({
+  // Wave OWNER-OS scope 8 — render via the shared HTML template
+  // package so every tenant gets the same brand-consistent output
+  // and a deterministic plaintext fallback.
+  const ownerName =
+    (args.recipientPayload as { displayName?: string } | undefined)
+      ?.displayName ?? 'Owner';
+  const summary3 = summary;
+  const templateArgs: DailyBriefEmailArgs = {
+    ownerName,
+    dateIso: args.snapshotDate,
     locale: recipientLocale,
-    advisor,
-    snapshotDate: args.snapshotDate,
-    decisionsCount: args.brief.decisions.pendingCount,
-    incidentsCount: args.brief.openHighIncidents.count,
-    licencesAtRisk: args.brief.licenceHealth.atRiskCount,
-  });
-  const bodyHtml = renderBriefBodyHtml({
-    locale: recipientLocale,
-    subject,
-    advisor,
-    snapshotDate: args.snapshotDate,
-    decisionsCount: args.brief.decisions.pendingCount,
-    incidentsCount: args.brief.openHighIncidents.count,
-    licencesAtRisk: args.brief.licenceHealth.atRiskCount,
-  });
+    summary3Sentences: summary3,
+    advisorAction: advisor?.action ?? undefined,
+    actionLinks: undefined,
+    timezone: args.tenant.localTimezone,
+    tenantTradingName: undefined,
+  };
+  const rendered = renderDailyBriefEmail(templateArgs);
+  const body = rendered.text;
+  const bodyHtml = rendered.html;
 
   try {
     if (args.channel === 'email') {

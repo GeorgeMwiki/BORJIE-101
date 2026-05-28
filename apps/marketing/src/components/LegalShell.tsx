@@ -1,5 +1,5 @@
 /**
- * LegalShell — shared shell for every `/legal/*` page.
+ * LegalShell , shared shell for every `/legal/*` page.
  *
  * Per `Docs/DESIGN/LITFIN_MARKETING_SECONDARY_SPEC.md` section 7. The
  * shell renders the page hero (kicker, title, last-updated mono small)

@@ -41,7 +41,7 @@
       "investors": "Investors and lenders",
       "investorsDesc": "Mining capital with daily evidence-cited telemetry.",
       "regulators": "Regulators and ministries",
-      "regulatorsDesc": "Tumemadini, NEMC, BoT, TRA oversight surfaces."
+      "regulatorsDesc": "Mining Commission, NEMC, BoT, TRA oversight surfaces."
     }
   },
   "audienceSwitcher": {
@@ -110,8 +110,8 @@
     "claims": [
       {
         "id": "tumemadini",
-        "title": "Tumemadini royalty drafts pass first review.",
-        "body": "Every monthly royalty drafted by Borjie in the Tumemadini format passes regulator review without a rewrite. Indicative across 10 pilot mines.",
+        "title": "Mining Commission royalty drafts pass first review.",
+        "body": "Every monthly royalty drafted by Borjie in the Mining Commission format passes regulator review without a rewrite. Indicative across 10 pilot mines.",
         "href": "/insights/tumemadini-format-compliance"
       },
       {
@@ -133,7 +133,7 @@
     "logos": [
       "BRELA",
       "TRA",
-      "Tumemadini",
+      "Mining Commission",
       "NEMC",
       "LBMA-grade labs",
       "M-Pesa · Tigo · Airtel"
@@ -183,7 +183,7 @@
     "cards": {
       "licence": {
         "title": "Licence calendar",
-        "blurb": "PML, ML, and SML on one calendar. 90-, 60-, 30-day expiry warnings. Aware of Tumemadini renewal workflow."
+        "blurb": "PML, ML, and SML on one calendar. 90-, 60-, 30-day expiry warnings. Aware of Mining Commission renewal workflow."
       },
       "brief": {
         "title": "Daily brief",
@@ -203,7 +203,7 @@
       },
       "compliance": {
         "title": "Compliance pack",
-        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Ready for submission to Tumemadini and TRA."
+        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Ready for submission to Mining Commission and TRA."
       }
     }
   },
@@ -214,9 +214,9 @@
       "one": {
         "label": "Sign-up + KYB",
         "title": "Register and verify your business.",
-        "body": "We integrate with BRELA, TRA, and Tumemadini. Full KYB inside 48 hours. No paper forms.",
+        "body": "We integrate with BRELA, TRA, and Mining Commission. Full KYB inside 48 hours. No paper forms.",
         "bullets": [
-          "BRELA · TRA · Tumemadini APIs",
+          "BRELA · TRA · Mining Commission APIs",
           "Full KYB inside 48 hours",
           "Swahili or English from day one"
         ]
@@ -275,7 +275,7 @@
         {
           "time": "01:33",
           "domain": "PML 0241/2023 · Kahama",
-          "body": "Licence expires in 47 days. Tumemadini renewal form drafted for your review.",
+          "body": "Licence expires in 47 days. Mining Commission renewal form drafted for your review.",
           "tone": "warn",
           "tag": "!"
         },
@@ -371,7 +371,7 @@
       },
       {
         "id": "pml",
-        "label": "File PML renewal to Tumemadini",
+        "label": "File PML renewal to Mining Commission",
         "minLevel": 99
       },
       {
@@ -394,10 +394,10 @@
   "chain": {
     "kicker": "06 · Audit chain",
     "heading": "Every action is cryptographically on the record.",
-    "sub": "Append-only log with SHA-256 prev-hash and per-entry HMAC. Tumemadini, NEMC, and auditors can verify the chain without trusting us.",
+    "sub": "Append-only log with SHA-256 prev-hash and per-entry HMAC. Mining Commission, NEMC, and auditors can verify the chain without trusting us.",
     "fragmentHeader": "Chain fragment · thread th_18a · last 4 entries",
     "verifiedLabel": "Chain verified",
-    "depthFooter": "Chain depth: 18,429 entries · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle",
+    "depthFooter": "Chain depth: 18,429 entries · last signed 00:04 UTC · Mining Commission-exportable NDJSON bundle",
     "fragment": [
       {
         "seq": 18426,
@@ -453,7 +453,7 @@
       {
         "kicker": "Minimal disclosure",
         "title": "User content is hashed, not stored",
-        "body": "A Tumemadini auditor can prove you asked X at time T without re-disclosing X. Raw text lives in the conversation memory (scoped + revocable); the chain carries provenance only."
+        "body": "A Mining Commission auditor can prove you asked X at time T without re-disclosing X. Raw text lives in the conversation memory (scoped + revocable); the chain carries provenance only."
       },
       {
         "kicker": "Scope-separated",
@@ -584,7 +584,7 @@
         "items": [
           {
             "title": "Royalty filings are manual",
-            "desc": "Owners file Tumemadini returns in Excel and miss the 47-day renewal window 18% of the time. Every missed window costs a re-filing fee and burns goodwill with the regulator."
+            "desc": "Owners file Mining Commission returns in Excel and miss the 47-day renewal window 18% of the time. Every missed window costs a re-filing fee and burns goodwill with the regulator."
           },
           {
             "title": "The gold window swings 2.4% a day",
@@ -592,7 +592,7 @@
           },
           {
             "title": "Compliance is fragmented",
-            "desc": "Tumemadini, NEMC, Bank of Tanzania, and TRA all want different artifacts on different cadences. The owner becomes a part-time compliance officer instead of a miner."
+            "desc": "Mining Commission, NEMC, Bank of Tanzania, and TRA all want different artifacts on different cadences. The owner becomes a part-time compliance officer instead of a miner."
           },
           {
             "title": "Workforce visibility ends at the gate",
@@ -604,8 +604,8 @@
         "title": "Borjie does the work",
         "items": [
           {
-            "title": "Royalty drafts in Tumemadini format",
-            "desc": "Mr. Mwikila drafts your monthly royalty in the official Tumemadini format the day after each gold parcel window closes. One-tap signature, cited line-by-line."
+            "title": "Royalty drafts in Mining Commission format",
+            "desc": "Mr. Mwikila drafts your monthly royalty in the official Mining Commission format the day after each gold parcel window closes. One-tap signature, cited line-by-line."
           },
           {
             "title": "Gold-window hedge at LBMA fix",
@@ -613,7 +613,7 @@
           },
           {
             "title": "Compliance pack on every cadence",
-            "desc": "Borjie files Tumemadini, NEMC, BoT, and TRA on each authority's own cadence. Hash-chain audited so the regulator can verify offline without trusting us."
+            "desc": "Borjie files Mining Commission, NEMC, BoT, and TRA on each authority's own cadence. Hash-chain audited so the regulator can verify offline without trusting us."
           },
           {
             "title": "Workforce console on the supervisor's phone",
@@ -632,7 +632,7 @@
           "title": "Regulators",
           "items": [
             {
-              "name": "Tumemadini",
+              "name": "Mining Commission",
               "desc": "Mining commission · royalty returns, PML/ML/SML lifecycle"
             },
             {
@@ -709,7 +709,7 @@
         },
         {
           "title": "Desktop for the regulator",
-          "body": "Tumemadini, NEMC, TRA, and audit-pack consumers get a desktop console with one-click export to NDJSON, cryptographically signed and verifiable offline."
+          "body": "Mining Commission, NEMC, TRA, and audit-pack consumers get a desktop console with one-click export to NDJSON, cryptographically signed and verifiable offline."
         }
       ]
     },
@@ -737,7 +737,7 @@
           "capabilities": [
             "Simulates 12-month production against three gold-price scenarios",
             "Projects cash runway from current burn, hedge book, and off-take pipeline",
-            "Flags PML renewals 90, 60, and 30 days out with Tumemadini drafts pre-filled",
+            "Flags PML renewals 90, 60, and 30 days out with Mining Commission drafts pre-filled",
             "Recommends fleet, contractor, and explosives purchases against quarterly plan"
           ]
         },
@@ -757,7 +757,7 @@
           "label": "Document",
           "headline": "Drafts every artifact — royalty, NEMC EIA, OSHA log",
           "capabilities": [
-            "Tumemadini royalty drafts in the official format every month",
+            "Mining Commission royalty drafts in the official format every month",
             "NEMC EIA and quarterly emissions report templates auto-populated from telemetry",
             "OSHA shift log, incident report, and corrective-action notes",
             "Off-take contracts with biometric fingerprint signature workflow"
@@ -793,7 +793,7 @@
             "Append-only audit chain — SHA-256 prev-hash plus per-entry HMAC",
             "Per-tenant isolation — your chain is never co-mingled with anyone else's",
             "Minimal disclosure — user content is hashed, not stored, on the chain",
-            "Tumemadini-exportable NDJSON bundle, verifiable offline"
+            "Mining Commission-exportable NDJSON bundle, verifiable offline"
           ]
         }
       ]
@@ -811,7 +811,7 @@
           "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and books a pilot when you're ready.",
           "preview": {
             "user": "What does Borjie do for a Geita PML?",
-            "ai": "Drafts your Tumemadini royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
+            "ai": "Drafts your Mining Commission royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
           }
         },
         {
@@ -821,7 +821,7 @@
           "desc": "Once you're inside Borjie, the home chat teaches you the system. Ask about the licence calendar, the autonomy dial, or how royalty is filed — it answers with citations to your own data.",
           "preview": {
             "user": "How do I add a new PML?",
-            "ai": "Open the licence calendar, tap +PML, scan the licence cover with your phone. OCR populates the Tumemadini fields. I'll flag any field that doesn't match the registry."
+            "ai": "Open the licence calendar, tap +PML, scan the licence cover with your phone. OCR populates the Mining Commission fields. I'll flag any field that doesn't match the registry."
           }
         },
         {
@@ -919,13 +919,13 @@
         {
           "id": "audit",
           "title": "Audit chain",
-          "desc": "Every action Mr. Mwikila proposes lands on a SHA-256 hash-chained, HMAC-signed, append-only log. Tumemadini, NEMC, and your lender verify offline, no trust required.",
+          "desc": "Every action Mr. Mwikila proposes lands on a SHA-256 hash-chained, HMAC-signed, append-only log. Mining Commission, NEMC, and your lender verify offline, no trust required.",
           "badge": "Cryptographic"
         },
         {
           "id": "licence",
           "title": "47-day licence radar",
-          "desc": "PML, ML, SML on one calendar with 90-, 60-, 30-, and 14-day expiry warnings. Tumemadini renewal pack drafted automatically the day the radar flips amber.",
+          "desc": "PML, ML, SML on one calendar with 90-, 60-, 30-, and 14-day expiry warnings. Mining Commission renewal pack drafted automatically the day the radar flips amber.",
           "badge": "Live now"
         },
         {
@@ -936,8 +936,8 @@
         },
         {
           "id": "royalty",
-          "title": "Tumemadini royalty",
-          "desc": "Monthly royalty drafted in the official Tumemadini format the day after each parcel window closes. One-tap signature, full audit chain.",
+          "title": "Mining Commission royalty",
+          "desc": "Monthly royalty drafted in the official Mining Commission format the day after each parcel window closes. One-tap signature, full audit chain.",
           "badge": "Auto-draft"
         },
         {
@@ -985,7 +985,7 @@
           "role": "Owner · Geita PML · 4 sites"
         },
         {
-          "body": "The Tumemadini royalty draft has not been rewritten by the regulator once. Twelve months in. That's the proof for me.",
+          "body": "The Mining Commission royalty draft has not been rewritten by the regulator once. Twelve months in. That's the proof for me.",
           "name": "Hamisi Ngao",
           "role": "Chair · Mererani co-op · 18 members"
         },
@@ -1041,7 +1041,7 @@
     "contactLocation": "Dar es Salaam, Tanzania",
     "complianceBadge": "Tanzania-region storage",
     "systemsOperational": "All systems operational",
-    "regulatorStrip": "Aligned with Tumemadini · NEMC · BoT · TRA · BRELA · LBMA",
+    "regulatorStrip": "Aligned with Mining Commission · NEMC · BoT · TRA · BRELA · LBMA",
     "tanzaniaStorage": "Tanzania-region storage · Dar es Salaam",
     "links": {
       "capabilities": "Capabilities",
@@ -1099,7 +1099,7 @@
       },
       {
         "icon": "Shield",
-        "text": "BOT and Tumemadini aligned"
+        "text": "BOT and Mining Commission aligned"
       },
       {
         "icon": "Globe",
@@ -1143,8 +1143,8 @@
         "a": "Group is for federations, cooperatives, and family-office estates that need to consolidate several Borjie tenants under one umbrella with cross-tenant reporting, sovereign trustee approvals, and dedicated success management."
       },
       {
-        "q": "Is Borjie compliant with BOT and Tumemadini?",
-        "a": "Yes. Borjie is designed to file Tumemadini returns, route royalty receipts, and produce BOT-aligned reporting out of the box. Every artefact is hash-chained for regulator audit."
+        "q": "Is Borjie compliant with BOT and Mining Commission?",
+        "a": "Yes. Borjie is designed to file Mining Commission returns, route royalty receipts, and produce BOT-aligned reporting out of the box. Every artefact is hash-chained for regulator audit."
       },
       {
         "q": "Where is the data stored?",
@@ -1167,7 +1167,7 @@
       },
       {
         "title": "2. Why",
-        "body": "We use this data to run your Master Brain, deliver morning briefings, prepare reports for Tumemadini and TRA, and propose gold-window hedges. We do not sell it. We do not use it for advertising."
+        "body": "We use this data to run your Master Brain, deliver morning briefings, prepare reports for Mining Commission and TRA, and propose gold-window hedges. We do not sell it. We do not use it for advertising."
       },
       {
         "title": "3. Where it lives",
@@ -1178,8 +1178,8 @@
         "body": "Under the Tanzania Personal Data Protection Act 2022 you have the right to view, correct, delete, and port your data to another vendor. Email privacy@borjie.co.tz."
       },
       {
-        "title": "5. Tumemadini and NEMC",
-        "body": "If a Tanzanian authority (Tumemadini, NEMC, TRA, FIU) lawfully demands your data we will provide it, but we will notify you within 5 days unless a gag order is in place."
+        "title": "5. Mining Commission and NEMC",
+        "body": "If a Tanzanian authority (Mining Commission, NEMC, TRA, FIU) lawfully demands your data we will provide it, but we will notify you within 5 days unless a gag order is in place."
       },
       {
         "title": "6. Contact",
@@ -1202,7 +1202,7 @@
       },
       {
         "title": "3. Your data is yours",
-        "body": "You own your mining data. We hold it on your behalf. If you close the account we will export (or delete) your data within 30 days. The audit chain remains immutable per Tumemadini record-retention rules."
+        "body": "You own your mining data. We hold it on your behalf. If you close the account we will export (or delete) your data within 30 days. The audit chain remains immutable per Mining Commission record-retention rules."
       },
       {
         "title": "4. Master Brain and liability",
@@ -1278,7 +1278,7 @@
         },
         "kyb": {
           "title": "KYB'd sellers",
-          "blurb": "Borjie audits every seller before listing. BRELA, TRA, and Tumemadini cross-checks. No anonymous traders."
+          "blurb": "Borjie audits every seller before listing. BRELA, TRA, and Mining Commission cross-checks. No anonymous traders."
         },
         "assays": {
           "title": "Assay certificates",
@@ -1641,7 +1641,7 @@
       "domain": {
         "title": "Tanzania mining domain expert",
         "location": "Dar es Salaam · hybrid",
-        "blurb": "Senior mining engineer or geologist with deep PML/ML/SML and Tumemadini experience. You become the truth-teller for what our product must do."
+        "blurb": "Senior mining engineer or geologist with deep PML/ML/SML and Mining Commission experience. You become the truth-teller for what our product must do."
       },
       "engineer": {
         "title": "Senior TypeScript engineer",
@@ -1736,7 +1736,7 @@
       "heroPrimaryCta": "Start 90-day pilot",
       "heroSecondaryCta": "See it move",
       "trustline": [
-        "Tumemadini-aligned by design",
+        "Mining Commission-aligned by design",
         "Works on a single shared tablet",
         "M-Pesa, Tigo Pesa, Airtel Money native"
       ],
@@ -1756,7 +1756,7 @@
         {
           "value": "Zero",
           "label": "missed royalty filings",
-          "sub": "Tumemadini deadlines, TRA returns, and TZS payouts auto-tracked. The system files itself in TZS."
+          "sub": "Mining Commission deadlines, TRA returns, and TZS payouts auto-tracked. The system files itself in TZS."
         }
       ],
       "stepsKicker": "How it works",
@@ -1786,7 +1786,7 @@
       "problems": [
         {
           "title": "Royalty compliance gaps",
-          "desc": "Most PML holders miss filing windows because no one is tracking Tumemadini deadlines in the same place as production. Penalties stack quietly."
+          "desc": "Most PML holders miss filing windows because no one is tracking Mining Commission deadlines in the same place as production. Penalties stack quietly."
         },
         {
           "title": "Cash-in-hand payroll",
@@ -1809,7 +1809,7 @@
         },
         {
           "title": "Mobile-first chain of custody",
-          "desc": "Every weigh-slip is photographed, voice-tagged, GPS-pinned, and timestamped. The audit trail is yours, immutable, and Tumemadini-ready."
+          "desc": "Every weigh-slip is photographed, voice-tagged, GPS-pinned, and timestamped. The audit trail is yours, immutable, and Mining Commission-ready."
         },
         {
           "title": "Verified marketplace",
@@ -1830,7 +1830,7 @@
       "heroKicker": "For ML operators",
       "heroHeadline": "Mid-tier mines deserve",
       "heroHeadlineAccent": "mid-tier software",
-      "heroSub": "Borjie consolidates multiple pits, fleets, and contractors into one operations console. Daily decision support for the owner, defensible audit trail for Tumemadini, board-ready reporting on demand.",
+      "heroSub": "Borjie consolidates multiple pits, fleets, and contractors into one operations console. Daily decision support for the owner, defensible audit trail for Mining Commission, board-ready reporting on demand.",
       "heroPrimaryCta": "Start 90-day pilot",
       "heroSecondaryCta": "See it move",
       "trustline": [
@@ -1892,7 +1892,7 @@
         },
         {
           "title": "Royalty by guesswork",
-          "desc": "Without a unified production ledger, royalty filings are estimates. Tumemadini audits punish gaps far harder than overpayments."
+          "desc": "Without a unified production ledger, royalty filings are estimates. Mining Commission audits punish gaps far harder than overpayments."
         },
         {
           "title": "Board packs by Friday panic",
@@ -1911,7 +1911,7 @@
         },
         {
           "title": "Royalty automation",
-          "desc": "Production ledger drives the royalty file. Tumemadini-compliant, TZS-denominated, ready to file on the 7th."
+          "desc": "Production ledger drives the royalty file. Mining Commission-compliant, TZS-denominated, ready to file on the 7th."
         },
         {
           "title": "Board-pack on demand",
@@ -2088,7 +2088,7 @@
         },
         {
           "title": "Inspection surprises",
-          "desc": "TCDC, Tumemadini, and TRA each want different cuts of the same data. Cooperatives spend weeks assembling instead of operating."
+          "desc": "TCDC, Mining Commission, and TRA each want different cuts of the same data. Cooperatives spend weeks assembling instead of operating."
         },
         {
           "title": "Federated, but not connected",
@@ -2107,7 +2107,7 @@
         },
         {
           "title": "Inspection-ready by default",
-          "desc": "TCDC, Tumemadini, and TRA each get the slice they need, generated from the same ledger. Inspections take hours, not weeks."
+          "desc": "TCDC, Mining Commission, and TRA each get the slice they need, generated from the same ledger. Inspections take hours, not weeks."
         },
         {
           "title": "Federation cockpit",
@@ -2241,7 +2241,7 @@
         {
           "value": "100%",
           "label": "Evidence chain on every figure",
-          "sub": "Every number cites at least one signed source, Tumemadini receipt, M-Pesa statement, drill-hole log."
+          "sub": "Every number cites at least one signed source, Mining Commission receipt, M-Pesa statement, drill-hole log."
         },
         {
           "value": "Auto",
@@ -2393,7 +2393,7 @@
       "solutions": [
         {
           "title": "Every seller KYB-verified.",
-          "desc": "Biometric registration, licence cross-check with Tumemadini, audit-trail signed."
+          "desc": "Biometric registration, licence cross-check with Mining Commission, audit-trail signed."
         },
         {
           "title": "Chain-of-custody on every parcel.",
@@ -2432,7 +2432,7 @@
         {
           "value": "100+",
           "label": "PML / ML licence holders networked",
-          "sub": "Every seller is biometrically verified and licence-cross-checked with Tumemadini."
+          "sub": "Every seller is biometrically verified and licence-cross-checked with Mining Commission."
         },
         {
           "value": "Full",
@@ -2530,7 +2530,7 @@
         {
           "value": "Verified",
           "label": "Mining collateral, not borrower assertion",
-          "sub": "Borjie cross-checks the licence with Tumemadini and stamps a hash-signed proof per file."
+          "sub": "Borjie cross-checks the licence with Mining Commission and stamps a hash-signed proof per file."
         },
         {
           "value": "T+0",
@@ -2589,7 +2589,7 @@
       "solutions": [
         {
           "title": "Licence-verified collateral.",
-          "desc": "Cross-check with Tumemadini, biometric holder attestation, hash-signed proof in the underwriting pack."
+          "desc": "Cross-check with Mining Commission, biometric holder attestation, hash-signed proof in the underwriting pack."
         },
         {
           "title": "Royalty assignment on rails.",
@@ -2618,12 +2618,12 @@
       "heroPrimaryCta": "Brief our team",
       "heroSecondaryCta": "See it move",
       "trustline": [
-        "Tumemadini-aligned filing",
+        "Mining Commission-aligned filing",
         "NEMC HSE feed",
         "Audit-hash chain on every artefact"
       ],
       "statsHeading": "Three reasons the regulator joins early.",
-      "statsSub": "Concrete levers, what real-time mining oversight unlocks for Tumemadini, NEMC and the Ministry of Minerals.",
+      "statsSub": "Concrete levers, what real-time mining oversight unlocks for Mining Commission, NEMC and the Ministry of Minerals.",
       "stats": [
         {
           "value": "T+0",
@@ -2633,7 +2633,7 @@
         {
           "value": "Hash",
           "label": "Filing artefacts immutable",
-          "sub": "Every Tumemadini / NEMC submission carries a hash-chained provenance, no retroactive tampering."
+          "sub": "Every Mining Commission / NEMC submission carries a hash-chained provenance, no retroactive tampering."
         },
         {
           "value": "Real-time",
@@ -2652,7 +2652,7 @@
         {
           "n": "02",
           "title": "Filings happen on rails.",
-          "body": "Tumemadini returns and NEMC HSE reports are assembled and signed inside the Borjie operating system."
+          "body": "Mining Commission returns and NEMC HSE reports are assembled and signed inside the Borjie operating system."
         },
         {
           "n": "03",
@@ -2676,7 +2676,7 @@
         },
         {
           "title": "Fragmented visibility.",
-          "desc": "Tumemadini, NEMC, BOT and the Ministry each hold a different slice of the same mine, no consolidated view."
+          "desc": "Mining Commission, NEMC, BOT and the Ministry each hold a different slice of the same mine, no consolidated view."
         },
         {
           "title": "HSE incident black-out.",
@@ -2687,7 +2687,7 @@
       "solutions": [
         {
           "title": "Real-time filing.",
-          "desc": "Tumemadini returns, NEMC reports, BOT royalty receipts, all generated and signed inside Borjie."
+          "desc": "Mining Commission returns, NEMC reports, BOT royalty receipts, all generated and signed inside Borjie."
         },
         {
           "title": "Hash-chained artefacts.",
@@ -2975,7 +2975,7 @@
   "securityPage": {
     "kicker": "Security and trust",
     "heading": "Borjie is engineered for regulator scrutiny.",
-    "sub": "A 5-layer security model, audit-hash provenance on every artefact, and Tanzania-regional residency. Built for BOT, Tumemadini and NEMC, and aligned with ISO 27001 controls.",
+    "sub": "A 5-layer security model, audit-hash provenance on every artefact, and Tanzania-regional residency. Built for BOT, Mining Commission and NEMC, and aligned with ISO 27001 controls.",
     "pillarsHeading": "Four pillars of the Borjie security posture.",
     "pillars": [
       {
@@ -3007,7 +3007,7 @@
       },
       {
         "icon": "Shield",
-        "text": "Tumemadini aligned"
+        "text": "Mining Commission aligned"
       },
       {
         "icon": "Shield",

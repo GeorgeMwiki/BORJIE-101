@@ -14,12 +14,12 @@ const SECTIONS: ReadonlyArray<{ title: string; body: string }> = [
   {
     title: 'Why Borjie exists',
     body:
-      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach Tumemadini or NEMC on time. Borjie collapses that entire stack into one AI-native operating system — Mr. Mwikila, your AI Mining Managing Director, runs the business end-to-end alongside the owner.",
+      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach the Mining Commission or NEMC on time. Borjie collapses that entire stack into one AI-native operating system — Mr. Mwikila, your AI Mining Managing Director, runs the business end-to-end alongside the owner.",
   },
   {
     title: 'Who we serve',
     body:
-      "PML, PL, and ML licence holders across Geita, Mererani, Kahama, Mbeya, Tunduru and Chunya. Site supervisors logging drill-holes from the field. Treasury teams hedging USD/TZS. Compliance officers filing Tumemadini returns. And the buyers on the other side of every ore parcel — KYB-verified, biometrically signed, settled on-chain-of-custody.",
+      "PML, PL, and ML licence holders across Geita, Mererani, Kahama, Mbeya, Tunduru and Chunya. Site supervisors logging drill-holes from the field. Treasury teams hedging USD/TZS. Compliance officers filing Mining Commission returns. And the buyers on the other side of every ore parcel — KYB-verified, biometrically signed, settled on-chain-of-custody.",
   },
   {
     title: 'How we build',

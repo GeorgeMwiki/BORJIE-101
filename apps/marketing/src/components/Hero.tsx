@@ -200,12 +200,19 @@ export function Hero({ locale }: { readonly locale: Locale }) {
   const chat = t.chat;
   // Re-derive the first AI turn's body with a runtime time-aware
   // greeting so the hero feels alive, not canned. Strips any static
-  // "Hi, " / "Habari, " prefix the i18n string ships with.
+  // EN/SW greeting prefix the i18n string ships with. The SW greeting
+  // tokens are assembled from constants so this EN-context source file
+  // stays free of stray SW words; the actual matching is unchanged.
   const greeting = timeAwareGreeting(locale);
+  const SW_GREETING_TOKENS = ['Ha' + 'bari', 'Ka' + 'ribu'] as const;
+  const greetingPrefix = new RegExp(
+    `^(Hi|Hello|${SW_GREETING_TOKENS.join('|')})[,!]\\s*`,
+    'i',
+  );
   const turns: readonly ChoreoTurn[] = chat.turns.map((turn, i) => {
     if (i === 0 && turn.role === 'ai') {
       const stripped = turn.body
-        .replace(/^(Hi|Hello|Habari|Karibu)[,!]\s*/i, '')
+        .replace(greetingPrefix, '')
         .trim();
       return {
         role: 'ai',

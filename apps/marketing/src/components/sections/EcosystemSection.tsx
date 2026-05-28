@@ -29,7 +29,7 @@ import { StaggerReveal } from '@/components/animations/StaggerReveal';
  * StaggerReveal collapses to instant under prefers-reduced-motion.
  */
 const ICON_MAP: Record<string, LucideIcon> = {
-  Tumemadini: Landmark,
+  'Mining Commission': Landmark,
   NEMC: ShieldCheck,
   'Bank of Tanzania': Building2,
   TRA: TrendingUp,
@@ -37,7 +37,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   GST: Network,
   LBMA: Coins,
   'ICA Brussels': Gem,
-  'Mining Commission': Landmark,
   'M-Pesa': Smartphone,
   'Tigo Pesa': Smartphone,
   'Airtel Money': Wallet,

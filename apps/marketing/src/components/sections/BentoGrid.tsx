@@ -20,7 +20,7 @@ import { TiltCard } from '@/components/animations/TiltCard';
  *   1 audit chain        — col-span-2 row-span-2 hero tile
  *   2 47-day radar       — standard
  *   3 LBMA window hedge  — standard
- *   4 Tumemadini royalty — standard
+ *   4 Mining Commission royalty — standard
  *   5 M-Pesa vendor wallet — wide
  *
  * Each tile uses Borjie's signal-glow card pattern, gold icon-chip

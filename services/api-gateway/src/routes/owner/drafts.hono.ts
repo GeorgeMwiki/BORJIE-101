@@ -324,6 +324,51 @@ app.post('/:id/revert/:revNo', async (c: any) => {
   });
 });
 
+// Wave UNIVERSAL-DOC-DRAFTER scope 3 — convenience alias that always
+// renders the latest revision as a PDF binary. Matches the FE's
+// `<a href="/api/v1/owner/drafts/${id}/pdf" download>` link pattern.
+app.get('/:id/pdf', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db)
+    return c.json(
+      { success: false, error: { code: 'DRAFTER_DB_UNAVAILABLE', message: 'no db' } },
+      503,
+    );
+  const id = c.req.param('id');
+  const persistence = createDrizzleDraftPersistence(db);
+  const rp = createDrizzleRevisionsPersistence(db);
+  const draft = await persistence.findById(auth.tenantId, id);
+  if (!draft) return c.json({ success: false, error: { code: 'NOT_FOUND' } }, 404);
+  const list = await rp.listRevisions(auth.tenantId, id);
+  const latestNo =
+    list.length === 0 ? 1 : Math.max(...list.map((r) => r.revisionNo));
+  const latest = list.find((r) => r.revisionNo === latestNo);
+  const body = latest?.contentMd ?? draft.contentMd;
+  const auditHash = latest?.auditHash ?? null;
+  const tenantName =
+    (auth as { tenantName?: string }).tenantName ?? 'Borjie tenant';
+  const result = await renderDraft('pdf' as RenderFormat, body, {
+    tenantName,
+    title: draft.titleEn ?? draft.titleSw,
+    auditHashTail: tailOfHash(auditHash),
+    classification:
+      (draft as unknown as {
+        classification?: 'public' | 'internal' | 'confidential';
+      }).classification ?? 'internal',
+    author: auth.userId,
+    renderedAtUtc: new Date().toISOString(),
+  });
+  return new Response(result.body as unknown as ArrayBuffer, {
+    status: 200,
+    headers: {
+      'Content-Type': result.contentType,
+      'Content-Disposition': `attachment; filename="draft-${id}.${result.extension}"`,
+      'Cache-Control': 'private, max-age=60',
+    },
+  });
+});
+
 app.get('/:id/render', async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');
