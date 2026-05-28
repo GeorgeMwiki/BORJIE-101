@@ -345,6 +345,17 @@ import { ownerDocsRouter } from './routes/owner/docs.hono';
 import { ownerFormsRouter } from './routes/owner/forms.hono';
 import { ownerRemindersRouter } from './routes/owner/reminders.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
+// Wave SUPERPOWERS - chat-callable UI actions: navigate, prefill,
+// highlight, share, bulk, undo, bookmark. See:
+//   services/api-gateway/src/routes/owner/{share-links,undo-journal,pinned-items,superpowers}.hono.ts
+//   services/api-gateway/src/composition/brain-tools/superpowers-tools.ts
+import {
+  ownerShareLinksRouter,
+  publicShareResolverRouter,
+} from './routes/owner/share-links.hono';
+import { ownerUndoJournalRouter } from './routes/owner/undo-journal.hono';
+import { ownerPinnedItemsRouter } from './routes/owner/pinned-items.hono';
+import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Wave FOUR-EYE-APPROVAL — two-person sign-off on high-stakes owner
@@ -372,6 +383,10 @@ import { engagementsRouter as opsEngagementsRouter } from './routes/ops/engageme
 import { chainOfCustodyRouter as opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
 import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave WORKFORCE-CERT-EXPIRY — 6-hour cron that scans
+// workforce_certifications for any active cert expiring in <= 30d
+// and auto-creates reminders at 30d / 14d / 3d (idempotent).
+import { createIcaCertExpiryCron } from './workers/ica-cert-expiry-cron';
 // Wave OWNER-CONTACT-RESOLVER — per-owner email/phone/slack resolver
 // replaces the BORJIE_OWNER_FALLBACK_EMAIL env-var crutch.
 import {
@@ -1297,6 +1312,13 @@ api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
 api.route('/owner/tabs', ownerTabsRouter);
+// Wave SUPERPOWERS - chat-callable surface for share / undo / bookmark /
+// bulk. The public token resolver is mounted OUTSIDE auth (token-only).
+api.route('/owner/share-links', ownerShareLinksRouter);
+api.route('/owner/undo-journal', ownerUndoJournalRouter);
+api.route('/owner/pinned-items', ownerPinnedItemsRouter);
+api.route('/owner/superpowers', ownerSuperpowersRouter);
+api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under
 // the /owner/four-eye prefix so owner-web modals can target a single
@@ -1623,6 +1645,24 @@ const dailyBriefCron = serviceRegistry.db
 // Expose the live handle so the manual-trigger endpoint can call it.
 registerDailyBriefCron(dailyBriefCron);
 
+// Wave WORKFORCE-CERT-EXPIRY — 6h cron that scans
+// workforce_certifications for any active cert expiring within 30d
+// and auto-creates reminders at 30d / 14d / 3d. Idempotent via
+// UNIQUE(tenant_id, cert_id, days_before) on
+// workforce_cert_expiry_reminders.
+const icaCertExpiryCron = serviceRegistry.db
+  ? createIcaCertExpiryCron({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return { scanned: 0, remindersCreated: 0, dedupSkipped: 0, failed: 0 };
+      },
+    };
+
 // Live FX feed cron — see fx-feed-cron.ts. Ticks every 5 min by default;
 // override via BORJIE_FX_FEED_CRON_INTERVAL_MS. Disabled when
 // BORJIE_FX_FEED_CRON_DISABLED=true (e.g. test runs).
@@ -1759,6 +1799,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: daily-brief cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: daily-brief cron stop failed');
+  }
+  try {
+    icaCertExpiryCron.stop();
+    logger.info('shutdown: ica-cert-expiry cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: ica-cert-expiry cron stop failed');
   }
   try {
     fxFeedCron.stop();
