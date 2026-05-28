@@ -1411,25 +1411,21 @@ const leaseExpiryNotificationSender: LeaseExpiryNotificationSender = {
   },
 };
 
-const leaseExpiryCron = serviceRegistry.db
-  ? createLeaseExpiryAlertCron({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
-      sender: leaseExpiryNotificationSender,
-      logger,
-    })
-  : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, dispatched: 0, skippedAlreadySent: 0, failed: 0, byWindow: {} }; } };
+// DISABLED — BossNyumba leases/customers tables no longer exist in the
+// mining hard-fork. Queries against `leases` + `customers` were crashing
+// the process every tick. Re-enable when a mining-domain replacement is
+// designed (e.g. licence-expiry-alert-cron against `licences`).
+const leaseExpiryCron = { start() {}, stop() {}, async tickOnce() { return { scanned: 0, dispatched: 0, skippedAlreadySent: 0, failed: 0, byWindow: {} }; } };
 
 // Piece C — executive brief cron. Scans `briefing_subscriptions` every
 // EXECUTIVE_BRIEF_CRON_INTERVAL_MS (default 5 min) and generates briefs
 // for any DAILY / WEEKLY / MONTHLY subscription whose next_due_at has
 // passed. ON_DEMAND subscriptions are skipped — they fire via the
 // POST /briefs/generate route.
-const executiveBriefCron = serviceRegistry.db
-  ? createExecutiveBriefCron({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
-      logger,
-    })
-  : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, generated: 0, degraded: 0, refused: 0, failed: 0 }; } };
+// DISABLED — `briefing_subscriptions` table not yet migrated in this
+// branch; queries crash the process every tick. Re-enable once the
+// migration lands and a mining-domain subscription schema is finalized.
+const executiveBriefCron = { start() {}, stop() {}, async tickOnce() { return { scanned: 0, generated: 0, degraded: 0, refused: 0, failed: 0 }; } };
 
 // Piece E (issue #41) — executive-brief action runner. Drains
 // `executive_brief_actions WHERE status='approved' AND executed_at IS NULL`

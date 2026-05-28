@@ -17,7 +17,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, type SQL } from 'drizzle-orm';
 import { decisionTraces } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -32,7 +32,7 @@ app.use('*', databaseMiddleware);
 app.openapi(internalDecisionLogListRoute, async (c) => {
   const db = c.get('db');
   const { tenantId, junior, outcome, cursor, limit } = c.req.valid('query');
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (tenantId) conds.push(eq(decisionTraces.tenantId, tenantId));
   if (junior) conds.push(eq(decisionTraces.name, junior));
   if (outcome) conds.push(eq(decisionTraces.outcome, outcome));

@@ -15,7 +15,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, type SQL } from 'drizzle-orm';
 import { regulatorPipelineEntries } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
@@ -34,7 +34,7 @@ app.use('*', databaseMiddleware);
 app.openapi(internalRegulatorListRoute, async (c) => {
   const db = c.get('db');
   const { source, status, limit } = c.req.valid('query');
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (source) conds.push(eq(regulatorPipelineEntries.source, source));
   if (status) conds.push(eq(regulatorPipelineEntries.status, status));
   const query = db

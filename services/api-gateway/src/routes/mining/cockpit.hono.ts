@@ -230,8 +230,8 @@ app.get('/decisions', async (c) => {
       /no such table:?\s*mining_approval_items/i.test(message)
     ) {
       moduleLogger.warn(
-        { tenantId },
         'mining_approval_items missing — returning empty decisions queue',
+        { tenantId },
       );
       return c.json(
         {
@@ -281,8 +281,8 @@ app.get('/sic-pings', async (c) => {
       /no such table:?\s*mining_sic_pings/i.test(message)
     ) {
       moduleLogger.warn(
-        { tenantId },
         'mining_sic_pings missing — returning empty SIC ping queue',
+        { tenantId },
       );
       return c.json(
         {

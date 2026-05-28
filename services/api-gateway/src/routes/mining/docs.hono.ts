@@ -56,7 +56,7 @@ async function loadSpec(): Promise<{ yaml: string | null; path: string | null; e
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       cachedYaml = await readFile(candidate, 'utf8');
       cachedPath = candidate;
-      logger.info({ specPath: candidate, bytes: cachedYaml.length }, 'mining-openapi: spec loaded');
+      logger.info('mining-openapi: spec loaded', { specPath: candidate, bytes: cachedYaml.length });
       return { yaml: cachedYaml, path: candidate, error: null };
     } catch {
       // Try the next candidate.
@@ -66,7 +66,7 @@ async function loadSpec(): Promise<{ yaml: string | null; path: string | null; e
     'borjie-mining.yaml not found in any of the expected locations. ' +
     'Run `node scripts/generate-openapi-spec.mjs` (or `pnpm openapi:generate`) ' +
     'from the repo root, then restart the api-gateway.';
-  logger.warn({ candidates: SPEC_CANDIDATES }, 'mining-openapi: spec missing');
+  logger.warn('mining-openapi: spec missing', { candidates: [...SPEC_CANDIDATES] });
   return { yaml: null, path: null, error: loadError };
 }
 

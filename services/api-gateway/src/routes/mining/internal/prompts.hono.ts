@@ -15,7 +15,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, type SQL } from 'drizzle-orm';
 import { kernelPromptRegistry } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
@@ -35,7 +35,7 @@ app.openapi(internalPromptsListRoute, async (c) => {
   const db = c.get('db');
   const q = c.req.valid('query');
   const limit = Math.min(Number(q.limit ?? 200), 1000);
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (q.capability) conds.push(eq(kernelPromptRegistry.capability, q.capability));
   if (q.status) conds.push(eq(kernelPromptRegistry.status, q.status));
   const query = db

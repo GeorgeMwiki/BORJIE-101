@@ -22,7 +22,7 @@
 
 import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, isNull, like } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, like, type SQL } from 'drizzle-orm';
 import {
   killswitchPendingConfirmations,
   platformKillswitchState,
@@ -216,7 +216,13 @@ app.openapi(
           500,
         );
       }
-      const target = parsed.data;
+      const parsedTarget = parsed.data;
+      const target: import('./killswitch-rbac').ApplyTarget = {
+        scope: parsedTarget.scope,
+        level: parsedTarget.level,
+        reasonCode: parsedTarget.reasonCode,
+        ...(parsedTarget.note !== undefined ? { note: parsedTarget.note } : {}),
+      };
       const scope = parseScope(target.scope);
 
       const [initiatorOk, confirmerOk] = await Promise.all([
@@ -246,7 +252,7 @@ app.openapi(
 app.openapi(internalKillswitchListRoute, async (c) => {
   const db = c.get('db');
   const { scope, tenantId, level, limit } = c.req.valid('query');
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (scope) conds.push(eq(platformKillswitchState.scope, scope));
   if (tenantId) conds.push(like(platformKillswitchState.scope, `tenant:${tenantId}%`));
   if (level) conds.push(eq(platformKillswitchState.level, level));

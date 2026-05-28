@@ -11,7 +11,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, type SQL } from 'drizzle-orm';
 import { wormAuditLog } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -27,7 +27,7 @@ app.openapi(internalAuditLogListRoute, async (c) => {
   const db = c.get('db');
   const q = c.req.valid('query');
   const limit = Math.min(Number(q.limit ?? 50), 200);
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (q.tenantId) conds.push(eq(wormAuditLog.tenantId, q.tenantId));
   if (q.junior) conds.push(eq(wormAuditLog.actorId, q.junior));
   if (q.cursor) {

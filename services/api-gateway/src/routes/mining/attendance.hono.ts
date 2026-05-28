@@ -242,8 +242,8 @@ app.get('/toolbox-topics', async (c) => {
       /no such table:?\s*mining_toolbox_talks/i.test(message)
     ) {
       moduleLogger.warn(
-        { tenantId },
         'mining_toolbox_talks missing — returning empty toolbox topics',
+        { tenantId },
       );
       return c.json(
         {

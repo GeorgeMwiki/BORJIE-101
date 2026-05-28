@@ -13,7 +13,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, desc, eq, gte, type SQL } from 'drizzle-orm';
 import { promptPromotions } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -28,7 +28,7 @@ app.use('*', databaseMiddleware);
 app.openapi(internalPromotionsListRoute, async (c) => {
   const db = c.get('db');
   const { kind, subject, since, limit } = c.req.valid('query');
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (kind) conds.push(eq(promptPromotions.kind, kind));
   if (subject) conds.push(eq(promptPromotions.subject, subject));
   if (since) conds.push(gte(promptPromotions.promotedAt, new Date(since)));

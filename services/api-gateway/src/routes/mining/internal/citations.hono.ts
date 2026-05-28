@@ -16,7 +16,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { intelligenceCorpusChunks } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -31,24 +31,22 @@ app.use('*', databaseMiddleware);
 app.openapi(internalCitationsListRoute, async (c) => {
   const db = c.get('db');
   const { source, q, language, limit } = c.req.valid('query');
-  const conds: unknown[] = [isNull(intelligenceCorpusChunks.tenantId)];
+  const conds: SQL[] = [isNull(intelligenceCorpusChunks.tenantId)];
   if (language) conds.push(eq(intelligenceCorpusChunks.language, language));
   if (source) {
-    conds.push(
-      or(
-        sql`${intelligenceCorpusChunks.metadata}->>'source' = ${source}`,
-        ilike(intelligenceCorpusChunks.sourceFile, `%${source}%`),
-      ),
+    const sourceCond = or(
+      sql`${intelligenceCorpusChunks.metadata}->>'source' = ${source}`,
+      ilike(intelligenceCorpusChunks.sourceFile, `%${source}%`),
     );
+    if (sourceCond) conds.push(sourceCond);
   }
   if (q) {
-    conds.push(
-      or(
-        ilike(intelligenceCorpusChunks.text, `%${q}%`),
-        ilike(intelligenceCorpusChunks.sourceFile, `%${q}%`),
-        ilike(intelligenceCorpusChunks.section, `%${q}%`),
-      ),
+    const qCond = or(
+      ilike(intelligenceCorpusChunks.text, `%${q}%`),
+      ilike(intelligenceCorpusChunks.sourceFile, `%${q}%`),
+      ilike(intelligenceCorpusChunks.section, `%${q}%`),
     );
+    if (qCond) conds.push(qCond);
   }
   const rows = await db
     .select({

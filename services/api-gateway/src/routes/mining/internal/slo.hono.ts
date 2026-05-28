@@ -19,7 +19,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, sql, type SQL } from 'drizzle-orm';
 import { auditEvents, aiCostEntries } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -52,7 +52,7 @@ app.openapi(internalSloListRoute, async (c) => {
   const db = c.get('db');
   const { tenantId, junior, windowHours } = c.req.valid('query');
   const since = new Date(Date.now() - windowHours * 3_600_000);
-  const conds: unknown[] = [gte(auditEvents.timestamp, since)];
+  const conds: SQL[] = [gte(auditEvents.timestamp, since)];
   if (tenantId) conds.push(eq(auditEvents.tenantId, tenantId));
   if (junior) conds.push(eq(auditEvents.actorId, junior));
   const raw = await db
@@ -83,7 +83,7 @@ app.openapi(internalSloListRoute, async (c) => {
     const ms = (row.metadata as { durationMs?: number } | null)?.durationMs;
     if (typeof ms === 'number' && Number.isFinite(ms)) bucket.latencies.push(ms);
   }
-  const spendConds: unknown[] = [gte(aiCostEntries.occurredAt, since)];
+  const spendConds: SQL[] = [gte(aiCostEntries.occurredAt, since)];
   if (tenantId) spendConds.push(eq(aiCostEntries.tenantId, tenantId));
   const spendRows = await db
     .select({

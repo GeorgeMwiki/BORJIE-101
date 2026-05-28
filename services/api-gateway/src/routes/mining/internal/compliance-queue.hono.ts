@@ -16,7 +16,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, type SQL } from 'drizzle-orm';
 import { complianceEscalations } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
@@ -36,7 +36,7 @@ app.use('*', databaseMiddleware);
 app.openapi(internalComplianceListRoute, async (c) => {
   const db = c.get('db');
   const { tenantId, severity, state, limit } = c.req.valid('query');
-  const conds: unknown[] = [];
+  const conds: SQL[] = [];
   if (tenantId) conds.push(eq(complianceEscalations.tenantId, tenantId));
   if (severity) conds.push(eq(complianceEscalations.severity, severity));
   if (state === 'open') conds.push(isNull(complianceEscalations.resolvedAt));
