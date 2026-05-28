@@ -3,9 +3,9 @@
 /**
  * useOwnerTabsStore — owner-cockpit dynamic tab strip state.
  *
- * Wave OWNER-OS. The cockpit home is a tab strip the owner can spawn /
- * pin / close / reorder. Tabs survive sign-out + sign-in because the
- * state is persisted to:
+ * Wave OWNER-OS / OWNER-OS-DYNAMIC. The cockpit home is a tab strip the
+ * owner can spawn / pin / close / reorder. Tabs survive sign-out + sign-in
+ * because the state is persisted to:
  *
  *   1. `localStorage` (fast hydration on next visit, even offline),
  *   2. `PUT /api/v1/owner/tabs` (server-side, cross-device sync).
@@ -15,10 +15,28 @@
  * localStorage updatedAt) we adopt it; otherwise we push our local
  * state up so the server matches.
  *
+ * Phase 2 refinement — DEDUP + AUGMENT-IN-PLACE:
+ *
+ *   When the brain or owner asks for a tab type that ALREADY exists in the
+ *   current strip, do NOT spawn a duplicate. Instead, AUGMENT the existing
+ *   tab in place:
+ *
+ *     - Merge new context fields into the open tab's `context` object.
+ *       Conflicting scalars become arrays (e.g. `focus` becomes
+ *       `["NEMC EIA Geita", "BoT gold-window"]`).
+ *     - Set an `indicator: 'hint'` so the tab strip renders a "+1 update"
+ *       badge on the pip — the owner notices what changed.
+ *     - Bump `augmentedAt` so panels watching with `useTabAugmentation`
+ *       can fade-in the new rows / fields without remount.
+ *
+ *   See `spawnOrAugment(tabType, context)` below — returns the existing
+ *   tabId when a match is found, else a freshly-spawned tabId. Visual
+ *   augmentation is each panel's responsibility (panels render with a
+ *   stable `key={tabId}` so React preserves state across context merges).
+ *
  * Public surface:
- *   - `useOwnerTabs()` — hook returning `{ tabs, activeTabId, open,
- *     close, focus, rename, replace }`. Every mutation persists locally
- *     (synchronously) and schedules a debounced server sync.
+ *   - `useOwnerTabs()` — hook returning the store API including the new
+ *     `spawnOrAugment` and `acknowledgeAugmentation` methods.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
@@ -33,21 +51,46 @@ export type OwnerTabKind =
   | 'drafts'
   | 'reminders'
   | 'insights'
-  | 'doc-context';
+  | 'doc-context'
+  | 'hr'
+  | 'ops'
+  | 'finance'
+  | 'accounting'
+  | 'risk'
+  | 'compliance'
+  | 'workforce'
+  | 'procurement'
+  | 'audit'
+  | 'legal'
+  | 'esg'
+  | 'geology'
+  | 'treasury'
+  | 'marketplace'
+  | 'licences'
+  | 'sites'
+  | 'safety'
+  | 'reports';
 
 export interface OwnerTab {
-  /** Stable id. UUID for spawn-tabs; literal for built-ins. */
+  /** Stable id. Deterministic by (kind, context) for dedup; literal for built-ins. */
   readonly id: string;
   /** Kind drives the panel renderer. */
   readonly kind: OwnerTabKind;
   /** Display label. */
   readonly title: string;
-  /** Optional context payload (e.g. documentId for doc-context). */
+  /** Optional context payload. Conflicting scalars become arrays on augment. */
   readonly context?: Readonly<Record<string, unknown>>;
   /** Sticky / built-in tabs cannot be closed via the X button. */
   readonly pinned?: boolean;
   /** Optional cached state per-tab (draft message, scroll, etc.). */
   readonly state?: Readonly<Record<string, unknown>>;
+  /** ISO 8601 — when the brain / owner last AUGMENTED this tab (added context). */
+  readonly augmentedAt?: string;
+  /**
+   * Count of unacknowledged augmentations since the owner last focused.
+   * Renders as a "+N" badge on the tab pip in the strip.
+   */
+  readonly pendingUpdates?: number;
 }
 
 export interface OwnerTabsState {
@@ -69,16 +112,123 @@ const DEFAULT_STATE: OwnerTabsState = {
 };
 
 // ---------------------------------------------------------------------------
+// Context merge — conflicting scalars become arrays so augmentation never
+// silently overwrites. The Compliance example in the spec:
+//
+//   existing.context = { focus: "NEMC EIA Geita" }
+//   incoming        = { focus: "BoT gold-window" }
+//   merged          = { focus: ["NEMC EIA Geita", "BoT gold-window"] }
+//
+// Arrays are deduped. Nested objects are shallow-merged (rare).
+// ---------------------------------------------------------------------------
+
+function unique<T>(arr: ReadonlyArray<T>): ReadonlyArray<T> {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const v of arr) {
+    const key = typeof v === 'string' ? v : JSON.stringify(v);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(v);
+    }
+  }
+  return out;
+}
+
+function mergeContextValue(prev: unknown, next: unknown): unknown {
+  if (prev === undefined || prev === null) return next;
+  if (next === undefined || next === null) return prev;
+  if (Array.isArray(prev) && Array.isArray(next)) {
+    return unique([...prev, ...next]);
+  }
+  if (Array.isArray(prev)) return unique([...prev, next]);
+  if (Array.isArray(next)) return unique([prev, ...next]);
+  // Same scalar — keep as-is.
+  if (prev === next) return prev;
+  // Different scalars — promote to array.
+  if (
+    typeof prev !== 'object' &&
+    typeof next !== 'object'
+  ) {
+    return unique([prev, next]);
+  }
+  // Two objects — shallow merge.
+  if (typeof prev === 'object' && typeof next === 'object') {
+    return { ...(prev as object), ...(next as object) };
+  }
+  // Mixed object + scalar — promote to array.
+  return [prev, next];
+}
+
+export function mergeTabContext(
+  prev: Readonly<Record<string, unknown>> | undefined,
+  next: Readonly<Record<string, unknown>> | undefined,
+): Record<string, unknown> {
+  const a = prev ?? {};
+  const b = next ?? {};
+  const out: Record<string, unknown> = { ...a };
+  for (const k of Object.keys(b)) {
+    out[k] = mergeContextValue(a[k], b[k]);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic id builder — re-spawning the same (kind, scoping context)
+// produces the same id so the reducer's exists-check catches it.
+// ---------------------------------------------------------------------------
+
+const SCOPING_KEYS: ReadonlyArray<string> = [
+  'siteId',
+  'licenceId',
+  'employeeId',
+  'counterpartyId',
+  'documentId',
+];
+
+export function deterministicTabId(
+  kind: OwnerTabKind,
+  context: Readonly<Record<string, unknown>> | undefined,
+): string {
+  // Built-ins keep their literal id.
+  if (
+    kind === 'chat' ||
+    kind === 'docs' ||
+    kind === 'drafts' ||
+    kind === 'reminders' ||
+    kind === 'insights'
+  ) {
+    return kind;
+  }
+  const ctx = context ?? {};
+  const parts: string[] = [kind];
+  for (const key of SCOPING_KEYS) {
+    const v = ctx[key];
+    if (typeof v === 'string' && v.length > 0) {
+      parts.push(`${key}:${v}`);
+    }
+  }
+  return parts.join('|');
+}
+
+// ---------------------------------------------------------------------------
 // Reducer — every mutation produces a NEW state object (immutable).
 // ---------------------------------------------------------------------------
 
 type Action =
   | { type: 'hydrate'; state: OwnerTabsState }
   | { type: 'open'; tab: OwnerTab }
+  | {
+      type: 'spawn-or-augment';
+      tab: OwnerTab;
+      mergedTabId: string;
+      isNew: boolean;
+    }
   | { type: 'close'; tabId: string }
   | { type: 'focus'; tabId: string }
   | { type: 'rename'; tabId: string; title: string }
-  | { type: 'replace-state'; tabId: string; patch: Record<string, unknown> };
+  | { type: 'replace-state'; tabId: string; patch: Record<string, unknown> }
+  | { type: 'acknowledge-augmentation'; tabId: string };
 
 function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
   switch (action.type) {
@@ -86,13 +236,41 @@ function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
       return action.state;
     case 'open': {
       const exists = state.tabs.find((t) => t.id === action.tab.id);
-      const tabs = exists
-        ? state.tabs
-        : [...state.tabs, action.tab];
+      const tabs = exists ? state.tabs : [...state.tabs, action.tab];
       return {
         tabs,
         activeTabId: action.tab.id,
         updatedAt: new Date().toISOString(),
+      };
+    }
+    case 'spawn-or-augment': {
+      const now = new Date().toISOString();
+      const existing = state.tabs.find((t) => t.id === action.mergedTabId);
+      if (!existing) {
+        return {
+          tabs: [...state.tabs, action.tab],
+          activeTabId: action.tab.id,
+          updatedAt: now,
+        };
+      }
+      // Augment in place — merge context, bump update counter, mark
+      // augmentedAt for `useTabAugmentation` watchers.
+      const merged: OwnerTab = {
+        ...existing,
+        context: mergeTabContext(existing.context, action.tab.context),
+        augmentedAt: now,
+        pendingUpdates:
+          state.activeTabId === existing.id
+            ? 0
+            : (existing.pendingUpdates ?? 0) + 1,
+      };
+      const tabs = state.tabs.map((t) => (t.id === existing.id ? merged : t));
+      return {
+        tabs,
+        // Keep current focus unless caller explicitly switches — augmentation
+        // should never yank the owner out of what they were reading.
+        activeTabId: state.activeTabId,
+        updatedAt: now,
       };
     }
     case 'close': {
@@ -109,13 +287,20 @@ function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
         updatedAt: new Date().toISOString(),
       };
     }
-    case 'focus':
+    case 'focus': {
       if (!state.tabs.some((t) => t.id === action.tabId)) return state;
+      // Clear pendingUpdates when the owner focuses the tab.
+      const tabs = state.tabs.map((t) =>
+        t.id === action.tabId && (t.pendingUpdates ?? 0) > 0
+          ? { ...t, pendingUpdates: 0 }
+          : t,
+      );
       return {
-        ...state,
+        tabs,
         activeTabId: action.tabId,
         updatedAt: new Date().toISOString(),
       };
+    }
     case 'rename':
       return {
         ...state,
@@ -131,6 +316,14 @@ function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
           t.id === action.tabId
             ? { ...t, state: { ...(t.state ?? {}), ...action.patch } }
             : t,
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+    case 'acknowledge-augmentation':
+      return {
+        ...state,
+        tabs: state.tabs.map((t) =>
+          t.id === action.tabId ? { ...t, pendingUpdates: 0 } : t,
         ),
         updatedAt: new Date().toISOString(),
       };
@@ -169,11 +362,35 @@ function writeLocal(state: OwnerTabsState): void {
 // Public hook
 // ---------------------------------------------------------------------------
 
+export interface SpawnOrAugmentInput {
+  /** The tab kind to ensure is present. */
+  readonly kind: OwnerTabKind;
+  /** Display label used when a fresh tab is spawned. Ignored for augment. */
+  readonly title: string;
+  /** Optional context. Merged into the existing tab on dedup. */
+  readonly context?: Readonly<Record<string, unknown>>;
+}
+
+export interface SpawnOrAugmentResult {
+  /** The resolved tabId (existing on augment, new on spawn). */
+  readonly tabId: string;
+  /** True when a fresh tab was created; false when an existing tab was augmented. */
+  readonly isNew: boolean;
+}
+
 export interface UseOwnerTabsApi {
   readonly tabs: ReadonlyArray<OwnerTab>;
   readonly activeTabId: string | null;
   readonly activeTab: OwnerTab | null;
   open(tab: OwnerTab): void;
+  /**
+   * Idempotent spawn — returns the existing tab id when one matches the
+   * (kind, scoping-context) fingerprint, else opens a fresh tab. The
+   * returned `isNew` lets the caller decide whether to also focus.
+   */
+  spawnOrAugment(input: SpawnOrAugmentInput): SpawnOrAugmentResult;
+  /** Clear the "+N" badge for a tab (called when its panel becomes visible). */
+  acknowledgeAugmentation(tabId: string): void;
   close(tabId: string): void;
   focus(tabId: string): void;
   rename(tabId: string, title: string): void;
@@ -189,6 +406,8 @@ export function useOwnerTabs(): UseOwnerTabsApi {
   const initial = useRef(true);
   const lastServerSync = useRef<string | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // Hydrate from server once on mount.
   useEffect(() => {
@@ -203,9 +422,12 @@ export function useOwnerTabs(): UseOwnerTabsApi {
         if (res?.state && typeof res.state === 'object') {
           const serverState = res.state as unknown as Partial<OwnerTabsState>;
           const serverUpdatedAt = res.updatedAt ?? new Date(0).toISOString();
-          // Adopt server state only when newer than local.
-          const localUpdatedAt = state.updatedAt;
-          if (serverUpdatedAt > localUpdatedAt && Array.isArray(serverState.tabs) && serverState.tabs.length > 0) {
+          const localUpdatedAt = stateRef.current.updatedAt;
+          if (
+            serverUpdatedAt > localUpdatedAt &&
+            Array.isArray(serverState.tabs) &&
+            serverState.tabs.length > 0
+          ) {
             dispatch({
               type: 'hydrate',
               state: {
@@ -218,15 +440,12 @@ export function useOwnerTabs(): UseOwnerTabsApi {
           }
         }
       } catch {
-        // 401 = unauthenticated, 503 = degraded — both fall back to
-        // local. Other failures are intentionally swallowed so a flaky
-        // network never blocks the cockpit; localStorage carries us.
+        // 401 / 503 / network — fall back to local.
       }
     })();
     return () => {
       cancelled = true;
     };
-    // Run once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -242,25 +461,57 @@ export function useOwnerTabs(): UseOwnerTabsApi {
       void apiRequest(`/api/v1/owner/tabs`, {
         method: 'PUT',
         body: { state },
-      }).then(() => {
-        lastServerSync.current = state.updatedAt;
-      }).catch(() => {
-        // Server sync is best-effort; localStorage already has the
-        // authoritative copy. A retry happens on the next state change.
-      });
+      })
+        .then(() => {
+          lastServerSync.current = state.updatedAt;
+        })
+        .catch(() => {
+          // Best-effort; localStorage is authoritative.
+        });
     }, SYNC_DEBOUNCE_MS);
   }, [state]);
 
-  const open = useCallback((tab: OwnerTab) => dispatch({ type: 'open', tab }), []);
-  const close = useCallback((tabId: string) => dispatch({ type: 'close', tabId }), []);
-  const focus = useCallback((tabId: string) => dispatch({ type: 'focus', tabId }), []);
+  const open = useCallback(
+    (tab: OwnerTab) => dispatch({ type: 'open', tab }),
+    [],
+  );
+  const close = useCallback(
+    (tabId: string) => dispatch({ type: 'close', tabId }),
+    [],
+  );
+  const focus = useCallback(
+    (tabId: string) => dispatch({ type: 'focus', tabId }),
+    [],
+  );
   const rename = useCallback(
-    (tabId: string, title: string) => dispatch({ type: 'rename', tabId, title }),
+    (tabId: string, title: string) =>
+      dispatch({ type: 'rename', tabId, title }),
     [],
   );
   const patchState = useCallback(
     (tabId: string, patch: Record<string, unknown>) =>
       dispatch({ type: 'replace-state', tabId, patch }),
+    [],
+  );
+  const acknowledgeAugmentation = useCallback(
+    (tabId: string) => dispatch({ type: 'acknowledge-augmentation', tabId }),
+    [],
+  );
+
+  const spawnOrAugment = useCallback(
+    (input: SpawnOrAugmentInput): SpawnOrAugmentResult => {
+      const mergedTabId = deterministicTabId(input.kind, input.context);
+      const existing = stateRef.current.tabs.find((t) => t.id === mergedTabId);
+      const isNew = !existing;
+      const tab: OwnerTab = {
+        id: mergedTabId,
+        kind: input.kind,
+        title: input.title,
+        ...(input.context !== undefined && { context: input.context }),
+      };
+      dispatch({ type: 'spawn-or-augment', tab, mergedTabId, isNew });
+      return { tabId: mergedTabId, isNew };
+    },
     [],
   );
 
@@ -274,6 +525,8 @@ export function useOwnerTabs(): UseOwnerTabsApi {
     activeTabId: state.activeTabId,
     activeTab,
     open,
+    spawnOrAugment,
+    acknowledgeAugmentation,
     close,
     focus,
     rename,
