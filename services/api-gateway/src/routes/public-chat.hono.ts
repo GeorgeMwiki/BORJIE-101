@@ -481,12 +481,13 @@ Exactly 3 chips, ≤6 words, framed as next / deeper / wider:
 
 ## TAB SPAWNING — surface the right cockpit surface for the moment
 
-If the conversation touches an actionable domain (compliance, finance, hr, ops, risk, treasury, marketplace, audit, legal, esg, geology, procurement, workforce, licences, sites, safety, accounting, reports), emit a <spawn_tabs> block AFTER the actions line with 1 to 3 candidate tabs the owner can spawn with one click. Each candidate MUST include:
+If the conversation touches an actionable domain (compliance, finance, hr, ops, risk, treasury, marketplace, audit, legal, esg, geology, procurement, workforce, licences, sites, safety, accounting, reports, holdings, subsidiaries, ancillary, family-office, succession, asset-register), emit a <spawn_tabs> block AFTER the actions line with 1 to 3 candidate tabs the owner can spawn with one click. Each candidate MUST include:
 
   - "type"     one of: chat | docs | drafts | reminders | insights | hr | ops |
                finance | accounting | risk | compliance | workforce |
                procurement | audit | legal | esg | geology | treasury |
-               marketplace | licences | sites | safety | reports
+               marketplace | licences | sites | safety | reports | holdings |
+               subsidiaries | ancillary | family-office | succession | asset-register
   - "context"  scoped object with any of: focus, siteId, licenceId,
                employeeId, counterpartyId, documentId, dateRange, locale.
                Empty object {} when no scope applies.
@@ -503,6 +504,8 @@ Format (literal):
 ## TAB AWARENESS — every spawned tab stays in your context forever
 
 All tabs the owner has spawned remain in your awareness regardless of FE visibility. The cockpit puts inactive tabs to sleep to free CPU and memory, but the brain side keeps the full tab list and per-tab context on every turn. Reference any tab's data freely in your replies — the owner can wake the tab to see what you mention. When you re-mention a tab the owner has not focused recently, briefly cue them ("on your Compliance tab there is a NEMC item due") so they know where to look. When the owner asks you to "re-open Compliance for Geita" or "look at the Mererani context again", treat that as a spawn / augment request — emit the matching <spawn_tabs> candidate and the FE will dedupe and merge automatically (the same tab id, with the new focus appended to its context).
+
+The 6 estate tabs (holdings, subsidiaries, ancillary, family-office, succession, asset-register) are spawnable whenever the owner mentions an estate-level concept: family structure, succession planning, side businesses, net worth, inheritance, intercompany flows, who owns what, or shareholding tiers. Use the augment-in-place rule when the owner pivots within an estate context (e.g. spawn \`subsidiaries\` once, then if they narrow to "show me my transport company" emit a context update with \`focus\` set rather than spawning a new tab).
 
 ## TEACHING NOTES — anchor concepts (use when the owner asks a "why" or "how" question)
 
@@ -655,12 +658,13 @@ Chipsi 3 hasa, ≤ maneno 6, kwa mfumo wa "ifuatayo / kwa kina / kwa upana".
 
 ## KUFUNGUA TABS — onyesha cockpit sahihi kwa wakati
 
-Kama mazungumzo yanagusa eneo la kazi (utii, fedha, wafanyakazi, shughuli, hatari, hazina, soko, ukaguzi, sheria, esg, jiolojia, manunuzi, leseni, tovuti, usalama, uhasibu, ripoti), toa <spawn_tabs> block BAADA ya mstari wa actions ukiwa na tabs 1 hadi 3 anazoweza kufungua kwa kubonyeza moja. Kila kifungu KIWE na:
+Kama mazungumzo yanagusa eneo la kazi (utii, fedha, wafanyakazi, shughuli, hatari, hazina, soko, ukaguzi, sheria, esg, jiolojia, manunuzi, leseni, tovuti, usalama, uhasibu, ripoti, mali, kampuni, biashara, familia, urithi, mali-daftari), toa <spawn_tabs> block BAADA ya mstari wa actions ukiwa na tabs 1 hadi 3 anazoweza kufungua kwa kubonyeza moja. Kila kifungu KIWE na:
 
   - "type"     moja ya: chat | docs | drafts | reminders | insights | hr | ops |
                finance | accounting | risk | compliance | workforce |
                procurement | audit | legal | esg | geology | treasury |
-               marketplace | licences | sites | safety | reports
+               marketplace | licences | sites | safety | reports | holdings |
+               subsidiaries | ancillary | family-office | succession | asset-register
   - "context"  kitu chenye: focus, siteId, licenceId, employeeId,
                counterpartyId, documentId, dateRange, locale.
                Kitu tupu {} ikiwa hakuna scope.
@@ -676,6 +680,8 @@ Mfumo (halisi):
 ## UFAHAMU WA TABS — kila tab iliyofunguliwa inabaki katika muktadha wako
 
 Tabs zote ambazo mmiliki amefungua zinabaki katika ufahamu wako bila kujali zinaonekana au la kwa FE. Cockpit inalaza tabs zisizotumika ili kuhifadhi CPU na memory, lakini upande wa ubongo unabaki na orodha kamili ya tabs na muktadha wa kila tab kwa kila zamu. Rejea data ya tab yoyote kwa uhuru — mmiliki anaweza kuamsha tab kuona unachorejelea. Ukirejelea tab ambayo mmiliki hajaiangalia hivi karibuni, mwambie kwa ufupi alipoiona ("kwenye tab yako ya Utii kuna kipengele cha NEMC kinachosubiri"). Mmiliki akikuambia "fungua tena Utii kwa Geita" au "angalia tena muktadha wa Mererani", ichukue kama ombi la kufungua au kuongeza — toa <spawn_tabs> inayofaa na FE itazingatia kunakili au kuchanganya kiotomatiki (id moja ya tab, focus mpya ikiongezwa kwenye muktadha).
+
+Tabs 6 za mali (holdings, subsidiaries, ancillary, family-office, succession, asset-register) zinaweza kufunguliwa wakati mmiliki anataja dhana ya ngazi ya mali: muundo wa familia, mpango wa urithi, biashara za upande, thamini halisi, urithi, flux za kati ya kampuni, nani anamiliki nini, au ngazi za kumiliki. Tumia kanuni ya kuongeza mahali wakati mmiliki anapinzani katika muktadha wa mali (mfano: fungua \`subsidiaries\` mara moja, kisha ikiwa wanakinga kwa "onyesha kampuni yangu ya usambazaji" toa update ya muktadha kwa \`focus\` iliyoweka badala ya kufungua tab mpya).
 
 ## TEACHING NOTES — dhana za nanga
 

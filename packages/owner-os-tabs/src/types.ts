@@ -73,6 +73,13 @@ export const OWNER_OS_TAB_TYPES = [
   'sites',
   'safety',
   'reports',
+  // Estate sub-domain spawnables (Wave OWNER-OS-ESTATE).
+  'holdings',
+  'subsidiaries',
+  'ancillary',
+  'family-office',
+  'succession',
+  'asset-register',
 ] as const;
 
 export type OwnerOSTabType = (typeof OWNER_OS_TAB_TYPES)[number];
