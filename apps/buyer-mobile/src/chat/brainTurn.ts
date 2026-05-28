@@ -65,6 +65,7 @@ export type BrainStreamData =
 export interface StreamBrainTurnArgs {
   readonly userText: string
   readonly threadId: string | null
+  readonly persona?: string
   readonly onEvent: (event: BrainStreamEvent) => void
 }
 
@@ -90,6 +91,9 @@ export async function streamBrainTurn(
   const body: Record<string, unknown> = { userText: args.userText }
   if (args.threadId !== null && args.threadId.length > 0) {
     body['threadId'] = args.threadId
+  }
+  if (args.persona !== undefined && args.persona.length > 0) {
+    body['forcePersonaId'] = args.persona
   }
 
   const mod = await loadEventSource()

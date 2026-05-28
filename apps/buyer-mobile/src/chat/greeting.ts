@@ -11,9 +11,19 @@ export interface ChatSuggestion {
   readonly label: string
 }
 
+// Marketplace Director persona introduction — paired with the time-
+// aware greeting so the buyer always knows who is speaking. The brain
+// resolves the persona on every turn but the on-screen greeting hard-
+// codes the role so the first impression is consistent.
 const GREETINGS: Readonly<Record<LanguageCode, string>> = {
-  sw: 'Karibu, Mnunuzi. Niambie unataka kununua nini leo.',
-  en: 'Welcome, buyer. Tell me what you would like to source today.'
+  sw:
+    "Mimi ni Bw. Mwikila, Mkurugenzi wako wa Soko la Borjie. " +
+    "Nakusaidia kupata mizigo, kuweka zabuni, na kuthibitisha " +
+    "mlolongo wa umiliki. Niambie unataka kuagiza nini leo.",
+  en:
+    "I am Mr. Mwikila, your Borjie Marketplace Director. " +
+    "I help buyers find parcels, place bids, and verify chain of " +
+    "custody. Tell me what you would like to source today."
 }
 
 const SUGGESTIONS_SW: readonly ChatSuggestion[] = [

@@ -46,6 +46,10 @@ import { ApiError } from '@/api/errors'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
 import { greet as timeAwareGreeting } from '@/ui-litfin'
+import {
+  BUYER_SLASH_COMMANDS,
+  slashCommandsForPersona
+} from '@borjie/persona-runtime'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
@@ -57,6 +61,16 @@ import {
   buyerSuggestions,
   composerPlaceholder
 } from './greeting'
+import {
+  applySelection,
+  filterEntities,
+  filterSlashCommands,
+  parseTrigger,
+  type EntityItem,
+  type SlashCommandItem
+} from './composer-triggers'
+import { SlashMenu, AtMenu } from './ComposerMenu'
+import { fetchRecentEntities } from './recentEntities'
 import {
   R7_TIMINGS,
   applyMessageChunk,
@@ -75,10 +89,16 @@ const SKELETON_ONSET_MS = R7_TIMINGS['SKELETON_ONSET_MS'] ?? 200
 const SLOW_INDICATOR_MS = R7_TIMINGS['SLOW_INDICATOR_MS'] ?? 3_000
 const ENTRY_DURATION_MS = R7_TIMINGS['BUBBLE_ENTRY_DURATION_MS'] ?? 200
 
+// Marketplace Director — every buyer turn forces this persona. The
+// brain dispatches the 10 marketplace tools from buyer-tools.ts under
+// the persona's `toolCatalogIds`.
+const BUYER_PERSONA_SLUG = 'T1_buyer_marketplace_director'
+
 export function HomeChat() {
   const user = useSession()
   const { t, lang } = useTranslation()
   const [draft, setDraft] = useState('')
+  const [caret, setCaret] = useState(0)
   const [history, setHistory] = useState<readonly SettledTurn[]>([])
   const [live, setLive] = useState<LiveTurn | null>(null)
   const [threadId, setThreadId] = useState<string | null>(null)
@@ -86,8 +106,20 @@ export function HomeChat() {
   const scrollMetrics = useRef({ y: 0, contentHeight: 0, viewportHeight: 0 })
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [showSlow, setShowSlow] = useState(false)
+  const [atEntities, setAtEntities] = useState<ReadonlyArray<EntityItem>>([])
 
   const suggestions = useMemo(() => buyerSuggestions(lang), [lang])
+  // Reuse BUYER_SLASH_COMMANDS as a fallback in case the persona-
+  // gated filter returns empty; this keeps the menu populated for the
+  // common case where the buyer is unauthenticated against the new
+  // persona seeds during local dev.
+  const slashCatalog = useMemo<ReadonlyArray<SlashCommandItem>>(
+    () => {
+      const gated = slashCommandsForPersona(BUYER_PERSONA_SLUG, 'buyer')
+      return gated.length > 0 ? gated : BUYER_SLASH_COMMANDS
+    },
+    []
+  )
   const greeting = useMemo(() => buyerGreeting(lang), [lang])
   const placeholder = useMemo(() => composerPlaceholder(lang), [lang])
 
@@ -172,8 +204,9 @@ export function HomeChat() {
       const fresh = optimisticTurn(trimmed)
       setLive(fresh)
       setDraft('')
+      setCaret(0)
       safeScrollToEnd()
-      void runStream(fresh, threadId, handleEvent)
+      void runStream(fresh, threadId, BUYER_PERSONA_SLUG, handleEvent)
         .then((settled) => {
           setLive(null)
           setHistory((prev) => [...prev, settled])
@@ -218,6 +251,68 @@ export function HomeChat() {
       }
     },
     []
+  )
+
+  // Slash + @ trigger probe from the composer text + caret.
+  const trigger = useMemo(
+    () => parseTrigger(draft, caret),
+    [draft, caret]
+  )
+  const filteredSlash = useMemo<ReadonlyArray<SlashCommandItem>>(
+    () =>
+      trigger.kind === 'slash'
+        ? filterSlashCommands(slashCatalog, trigger.query, {
+            personaSlug: BUYER_PERSONA_SLUG,
+            locale: lang
+          })
+        : [],
+    [trigger, slashCatalog, lang]
+  )
+  const filteredAt = useMemo<ReadonlyArray<EntityItem>>(
+    () =>
+      trigger.kind === 'at'
+        ? filterEntities(atEntities, trigger.query, { locale: lang })
+        : [],
+    [trigger, atEntities, lang]
+  )
+
+  // Lazy fetch the first time `@` opens.
+  useEffect(() => {
+    if (trigger.kind !== 'at' || atEntities.length > 0) {
+      return
+    }
+    let cancelled = false
+    void fetchRecentEntities('parcel', 20).then((rows) => {
+      if (!cancelled) setAtEntities(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [trigger.kind, atEntities.length])
+
+  const onSelectSlash = useCallback(
+    (cmd: SlashCommandItem): void => {
+      const next = applySelection(
+        { text: draft, caret },
+        trigger,
+        { token: `/${cmd.id}` }
+      )
+      setDraft(next.text)
+      setCaret(next.caret)
+    },
+    [draft, caret, trigger]
+  )
+  const onSelectEntity = useCallback(
+    (entity: EntityItem): void => {
+      const next = applySelection(
+        { text: draft, caret },
+        trigger,
+        { token: `@${entity.id}` }
+      )
+      setDraft(next.text)
+      setCaret(next.caret)
+    },
+    [draft, caret, trigger]
   )
 
   const showGreeting = history.length === 0 && live === null
@@ -272,6 +367,21 @@ export function HomeChat() {
           ) : null}
         </ScrollView>
 
+        {trigger.kind === 'slash' ? (
+          <SlashMenu
+            commands={filteredSlash}
+            locale={lang}
+            onSelect={onSelectSlash}
+          />
+        ) : null}
+        {trigger.kind === 'at' ? (
+          <AtMenu
+            entities={filteredAt}
+            locale={lang}
+            onSelect={onSelectEntity}
+          />
+        ) : null}
+
         {smartReplies.length > 0 && live === null ? (
           <View style={styles.smartReplyRow} testID="buyer-chat-smart-replies">
             {smartReplies.map((chip) => (
@@ -294,6 +404,9 @@ export function HomeChat() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
+            onSelectionChange={(event) =>
+              setCaret(event.nativeEvent.selection.end)
+            }
             placeholder={placeholder}
             placeholderTextColor={colors.inkMuted}
             style={styles.input}
@@ -448,12 +561,14 @@ function CitationChips({ citations }: CitationChipsProps) {
 async function runStream(
   optimistic: LiveTurn,
   threadId: string | null,
+  persona: string,
   onEvent: (turnId: string, event: BrainStreamEvent) => void
 ): Promise<SettledTurn> {
   let working = optimistic
   const result = await streamBrainTurn({
     userText: optimistic.userText,
     threadId,
+    persona,
     onEvent: (event) => {
       onEvent(optimistic.id, event)
       if (event.kind === 'accepted' && event.data.type === 'accepted') {
