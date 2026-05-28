@@ -1017,6 +1017,15 @@ export * from './workforce-role-tab-configs.schema.js';
 // DO NOTHING idempotent across ticks, restarts, and manual triggers.
 export * from './daily-brief-dispatches.schema.js';
 
+// Wave SUPERPOWERS (migrations 0111 / 0112 / 0113). Three tables back
+// the universal "Borjie superpowers" — share links the chat brain can
+// generate on the owner's behalf, a transient undo journal so every
+// chat-initiated write earns an Undo chip, and per-owner pinned items
+// for the quick-access strip.
+export * from './share-links.schema.js';
+export * from './undo-journal.schema.js';
+export * from './pinned-items.schema.js';
+
 // ---------------------------------------------------------------------------
 // Wave OPS-WIDE — full end-to-end mining operations scope (migration 0093)
 // ---------------------------------------------------------------------------
