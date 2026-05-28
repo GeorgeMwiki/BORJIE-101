@@ -50,6 +50,19 @@ export interface BidMessage {
   readonly sentAt: string
 }
 
+/**
+ * Chat-as-OS bidirectional parity envelope. Stamped on every bid /
+ * inquiry / kyc row at insert time by the gateway. Optional for
+ * backwards compatibility with older fixtures.
+ */
+export interface ProvenanceEnvelope {
+  readonly via: 'chat' | 'form' | 'agent_apply' | 'api' | 'legacy' | 'unknown'
+  readonly actorId?: string | null
+  readonly sessionId?: string | null
+  readonly turnId?: string | null
+  readonly requestedAt?: string
+}
+
 export interface Bid {
   readonly id: string
   readonly listingId: string
@@ -60,4 +73,11 @@ export interface Bid {
   readonly status: BidStatus
   readonly placedAt: string
   readonly thread: readonly BidMessage[]
+  /**
+   * Chat-as-OS bidirectional parity. When `via === 'chat'` the buyer
+   * sees a small "via Mr. Mwikila" pill next to the bid in the My
+   * Bids list; tapping it opens the chat session at the originating
+   * turn.
+   */
+  readonly provenance?: ProvenanceEnvelope
 }

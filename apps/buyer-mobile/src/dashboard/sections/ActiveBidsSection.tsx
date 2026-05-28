@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { Pill, type PillTone } from '@/components/Pill'
+import { ProvenancePill } from '@/components/ProvenancePill'
 import { MarketplaceEmptyState } from '@/marketplace/home/MarketplaceEmptyState'
 import { selectActiveBids } from '@/marketplace/home/derivations'
 import { formatTzs } from '@/components/formatters'
@@ -11,6 +12,8 @@ export interface ActiveBidsSectionProps {
   readonly bids: readonly Bid[]
   readonly translate: (key: string) => string
   readonly onPressBid: (id: string) => void
+  /** Tapped a chat-provenance pill → open the chat session at the turn. */
+  readonly onOpenChatSession?: (sessionId: string, turnId: string | null) => void
 }
 
 const STATUS_TONE: Readonly<Record<BidStatus, PillTone>> = {
@@ -20,7 +23,7 @@ const STATUS_TONE: Readonly<Record<BidStatus, PillTone>> = {
   rejected: 'danger'
 }
 
-export function ActiveBidsSection({ bids, translate, onPressBid }: ActiveBidsSectionProps) {
+export function ActiveBidsSection({ bids, translate, onPressBid, onOpenChatSession }: ActiveBidsSectionProps) {
   const active = selectActiveBids(bids, 5)
   return (
     <Card>
@@ -32,9 +35,12 @@ export function ActiveBidsSection({ bids, translate, onPressBid }: ActiveBidsSec
           {active.map((bid) => (
             <View key={bid.id} style={styles.row}>
               <View style={styles.main}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {bid.listingTitle}
-                </Text>
+                <View style={styles.titleRow}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {bid.listingTitle}
+                  </Text>
+                  <ProvenancePill provenance={bid.provenance} onPress={onOpenChatSession} />
+                </View>
                 <Text style={styles.rowMeta} numberOfLines={1}>
                   {translate('bids.your_offer')}:{' '}
                   {formatTzs(bid.offerTzsPerKg * bid.quantityKg)}
@@ -69,7 +75,8 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border
   },
   main: { flex: 1, paddingRight: tokens.space.md },
-  rowTitle: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  rowTitle: { ...tokens.type.bodyStrong, color: tokens.color.textPrimary, flexShrink: 1 },
   rowMeta: { ...tokens.type.bodySm, color: tokens.color.textMuted, marginTop: 2 },
   actions: { alignItems: 'flex-end', gap: tokens.space.xs },
   link: {

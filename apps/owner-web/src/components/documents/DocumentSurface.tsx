@@ -5,6 +5,7 @@ import { useDocumentList } from '@/lib/queries/documents';
 import { DocumentList } from './DocumentList';
 import { PdfPreview } from './PdfPreview';
 import { DocChatPane } from './DocChatPane';
+import { OpenInChatButton } from '@/components/shared/OpenInChatButton';
 
 /**
  * Owner document workspace (O-W-04).
@@ -73,8 +74,9 @@ export function DocumentSurface() {
         )}
       </section>
       <section className="col-span-3 overflow-hidden rounded-lg border border-border bg-surface/40">
-        <header className="border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">
-          Chat · {selected.title}
+        <header className="flex items-center justify-between border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">
+          <span>Chat · {selected.title}</span>
+          <OpenInChatButton entityRef={`document-${selected.id}`} compact />
         </header>
         <DocChatPane document={selected} onAnchor={setAnchorChunkId} />
       </section>
