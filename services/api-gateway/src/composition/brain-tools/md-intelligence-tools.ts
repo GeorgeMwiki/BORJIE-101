@@ -362,4 +362,4 @@ export const MD_INTELLIGENCE_TOOLS: ReadonlyArray<
   mdTraceCausesTool,
   mdCompareBaselinesTool,
   mdEmitInsightsTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

@@ -357,4 +357,4 @@ export const SCOPE_TOOLS: ReadonlyArray<
   scopeCompareTool,
   scopeCrossDomainMatrixTool,
   scopeTaxonomyDisplayTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
