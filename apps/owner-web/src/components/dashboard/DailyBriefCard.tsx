@@ -2,9 +2,10 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Sparkles, Play, ArrowRight, Coins, ShieldAlert, TrendingUp } from 'lucide-react';
+import { Sparkles, ArrowRight, Coins, ShieldAlert, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useOwnerDailyBrief } from '@/lib/queries/owner-brief';
+import { DailyBriefListenButton } from './DailyBriefListenButton';
 
 /**
  * Daily brief card — top-of-dashboard hero. Surfaces the brain-composed
@@ -41,6 +42,13 @@ export function DailyBriefCard({
 
   const advisor = brief.advisor ?? null;
   const summarySentences = composeSummarySentences(brief, isSw);
+  const listenText = [
+    greeting,
+    ...summarySentences,
+    advisor?.action ? `${isSw ? 'Hatua: ' : 'Action: '}${advisor.action}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <section
@@ -63,15 +71,7 @@ export function DailyBriefCard({
             </h2>
           </div>
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
-          data-testid="dashboard-daily-brief-listen"
-          aria-label={isSw ? 'Sikia muhtasari' : 'Listen to brief'}
-        >
-          <Play className="h-3.5 w-3.5" aria-hidden />
-          {isSw ? 'Sikia' : 'Listen'}
-        </button>
+        <DailyBriefListenButton isSw={isSw} text={listenText} />
       </header>
 
       <div className="mt-6 space-y-2.5">

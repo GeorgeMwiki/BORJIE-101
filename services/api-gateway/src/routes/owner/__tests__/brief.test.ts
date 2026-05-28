@@ -105,14 +105,23 @@ function makeStubDb(
   function tableNameFrom(source: unknown): string | null {
     if (!source || typeof source !== 'object') return null;
     const s = source as Record<string, unknown>;
-    // Drizzle pg-core tables expose a Symbol-keyed `_` config; the
-    // simpler tap is `name` or the column `tenantId` reference. Walk
-    // toString.
+    // Drizzle pg-core tables expose the physical name via the
+    // `Symbol(drizzle:Name)` / `Symbol(drizzle:BaseName)` symbols.
+    // Modern drizzle stores the table name as a string directly under
+    // these symbols (not nested inside `.name`).
     const symbols = Object.getOwnPropertySymbols(s);
     for (const sym of symbols) {
-      const v = (s as any)[sym];
-      if (v && typeof v === 'object' && typeof v.name === 'string') {
-        return v.name as string;
+      const desc = sym.description ?? sym.toString();
+      if (
+        desc === 'drizzle:Name' ||
+        desc === 'drizzle:BaseName' ||
+        desc === 'drizzle:OriginalName'
+      ) {
+        const v = (s as any)[sym];
+        if (typeof v === 'string') return v;
+        if (v && typeof v === 'object' && typeof v.name === 'string') {
+          return v.name as string;
+        }
       }
     }
     return null;
