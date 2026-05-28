@@ -36,8 +36,11 @@ let dispatcherSingleton: unknown = null;
 async function getDispatcher(): Promise<unknown> {
   if (dispatcherSingleton !== null) return dispatcherSingleton;
   try {
+    // Resolve the package id dynamically so the bundler does not
+    // hard-require the optional dependency at compile time.
+    const pkg = '@borjie' + '/media-generation';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod: any = await import('@borjie/media-generation').catch(() => null);
+    const mod: any = await import(/* @vite-ignore */ pkg).catch(() => null);
     if (mod && typeof mod.createMediaDispatcher === 'function') {
       dispatcherSingleton = mod.createMediaDispatcher();
     }

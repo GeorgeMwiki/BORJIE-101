@@ -14,7 +14,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import * as drizzleOrm from 'drizzle-orm';
 import {
   draftRevisions,
   draftCitations,
@@ -24,6 +24,19 @@ import {
   type DraftCitation,
   type NewDraftCitation,
 } from '@borjie/database/schemas';
+
+// drizzle's strict types fight with exactOptionalPropertyTypes when
+// the table inputs include defaulted columns. Cast at the boundary so
+// the rest of the module stays tidy and the runtime behaviour is
+// unchanged.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const eq = drizzleOrm.eq as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const and = drizzleOrm.and as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const asc = drizzleOrm.asc as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const desc = drizzleOrm.desc as any;
 
 export interface RevisionInput {
   readonly tenantId: string;

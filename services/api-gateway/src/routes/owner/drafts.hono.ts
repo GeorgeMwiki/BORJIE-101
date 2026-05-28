@@ -355,7 +355,7 @@ app.get('/:id/render', async (c: any) => {
     author: auth.userId,
     renderedAtUtc: new Date().toISOString(),
   });
-  return new Response(result.body as unknown as BodyInit, {
+  return new Response(result.body as unknown as ArrayBuffer, {
     status: 200,
     headers: {
       'Content-Type': result.contentType,
@@ -364,6 +364,22 @@ app.get('/:id/render', async (c: any) => {
     },
   });
 });
+
+function appendInstructionFooter(
+  originalMarkdown: string,
+  instruction: string,
+): string {
+  if (!instruction || instruction.trim().length === 0) return originalMarkdown;
+  return [
+    originalMarkdown.trimEnd(),
+    '',
+    '---',
+    '',
+    '## Revision Instruction (queued)',
+    '',
+    `> ${instruction}`,
+  ].join('\n');
+}
 
 export const ownerDraftsRouter = app;
 export default ownerDraftsRouter;

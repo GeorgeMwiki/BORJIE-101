@@ -57,10 +57,12 @@ export const businessPlanTemplate: UniversalTemplate = {
       `## ${lang === 'sw' ? 'Mpango wa Biashara' : 'Business Plan'} (${horizon})`,
       '',
     ];
-    sections.forEach(([h, b], i) => {
-      out.push(`## ${i + 1}. ${h}`);
+    sections.forEach((entry, i) => {
+      const heading = entry[0] ?? '';
+      const body = entry[1] ?? '';
+      out.push(`## ${i + 1}. ${heading}`);
       out.push('');
-      out.push(b);
+      out.push(body);
       out.push('');
     });
     return out.join('\n');
