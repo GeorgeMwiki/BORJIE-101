@@ -12,12 +12,20 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 
+<<<<<<< Updated upstream
 // @ts-ignore - import.meta is available in NodeNext module system
 const TEMPLATE_DIR = dirname(fileURLToPath(import.meta.url));
+=======
+// Resolve the template directory relative to this compiled file. tsup
+// emits CJS for the api-gateway (no `"type": "module"` in
+// package.json), so `import.meta.url` is not allowed. `__dirname` is
+// always available at runtime in CommonJS and points at the dist
+// folder this file lives in.
+const TEMPLATE_DIR = __dirname;
+>>>>>>> Stashed changes
 
 export interface TemplateDefinition {
   /** Canonical slug — used as the persisted `source_template_slug`. */

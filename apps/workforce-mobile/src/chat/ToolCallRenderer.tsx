@@ -201,11 +201,11 @@ function ErrorLine({ lang }: { readonly lang: 'sw' | 'en' }): JSX.Element {
 
 const styles = StyleSheet.create({
   cardWrap: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.earth700,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: spacing.lg,
     marginTop: spacing.sm,
     marginBottom: spacing.sm
   },
@@ -213,14 +213,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm
   },
   cardBadge: {
-    color: colors.goldDark,
-    fontSize: fontSize.caption,
+    color: colors.gold,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
     textTransform: 'uppercase'
   },
   cardTitle: {
-    color: colors.earth900,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '700',
     marginTop: spacing.xs
@@ -231,10 +231,12 @@ const styles = StyleSheet.create({
   codeWrap: {
     backgroundColor: colors.earth900,
     borderRadius: radius.sm,
-    padding: spacing.md
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.18)'
   },
   codeText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: fontSize.caption,
     fontFamily: 'Menlo'
   },

@@ -22,15 +22,25 @@
  */
 
 import type { ReactElement } from 'react';
+import { ConceptCard as ConceptCardChrome, type ConceptCardBlock as ConceptCardChromeBlock } from './ConceptCard';
+import { MicroLessonCard, type MicroLessonCardBlock } from './MicroLessonCard';
 
 // ─── Block shapes ──────────────────────────────────────────────────
 
 export interface ConceptCardBlock {
   readonly type: 'concept_card';
   readonly title?: string;
+  readonly titleSw?: string;
+  readonly description?: string;
+  readonly descriptionSw?: string;
   readonly keyPoints?: ReadonlyArray<string>;
   readonly conceptId?: string;
   readonly bloomLevel?: string;
+  readonly category?: string;
+  readonly icon?: string;
+  readonly masteryPercent?: number;
+  readonly relatedConcepts?: ReadonlyArray<string>;
+  readonly exploredKeyPoints?: ReadonlyArray<string | number>;
 }
 
 export interface MetricStripBlock {
@@ -66,6 +76,7 @@ export type TeachUiBlock =
   | MetricStripBlock
   | DecisionCardBlock
   | StepProgressBlock
+  | MicroLessonCardBlock
   | { readonly type: string; readonly [key: string]: unknown };
 
 export interface InlineMetric {
@@ -76,32 +87,44 @@ export interface InlineMetric {
 
 // ─── Block renderers ──────────────────────────────────────────────
 
-function ConceptCard({ block }: { readonly block: ConceptCardBlock }): ReactElement {
-  const points = Array.isArray(block.keyPoints) ? block.keyPoints : [];
-  const bloom = typeof block.bloomLevel === 'string' ? block.bloomLevel : null;
+function ConceptCard({
+  block,
+  language,
+  onDeepDive,
+  onGoWider,
+  onRelatedClick,
+}: {
+  readonly block: ConceptCardBlock;
+  readonly language: 'sw' | 'en';
+  readonly onDeepDive?: (payload: { readonly title: string; readonly point: string | null }) => void;
+  readonly onGoWider?: (payload: { readonly title: string; readonly point: string | null }) => void;
+  readonly onRelatedClick?: (concept: string) => void;
+}): ReactElement {
+  // Hand off to the full-fidelity chrome renderer (matches the LitFin
+  // stepper learning chat ConceptCard pixel-by-pixel — Borjie tokens).
+  const chromeBlock: ConceptCardChromeBlock = {
+    type: 'concept_card',
+    title: block.title,
+    titleSw: block.titleSw,
+    description: block.description,
+    descriptionSw: block.descriptionSw,
+    keyPoints: block.keyPoints,
+    category: block.category,
+    icon: block.icon,
+    bloomLevel: block.bloomLevel,
+    masteryPercent: block.masteryPercent,
+    relatedConcepts: block.relatedConcepts,
+    exploredKeyPoints: block.exploredKeyPoints,
+    conceptId: block.conceptId,
+  };
   return (
-    <div
-      data-testid="teach-block-concept-card"
-      className="mt-3 rounded-md border border-warning/40 bg-warning-subtle/10 p-3"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">
-          {block.title ?? 'Concept'}
-        </h3>
-        {bloom ? (
-          <span className="rounded-full bg-warning/20 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide text-warning">
-            {bloom}
-          </span>
-        ) : null}
-      </div>
-      {points.length > 0 ? (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-neutral-200">
-          {points.map((p, i) => (
-            <li key={i}>{p}</li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <ConceptCardChrome
+      block={chromeBlock}
+      language={language}
+      {...(onDeepDive ? { onDeepDive } : {})}
+      {...(onGoWider ? { onGoWider } : {})}
+      {...(onRelatedClick ? { onRelatedClick } : {})}
+    />
   );
 }
 
@@ -238,18 +261,46 @@ function StepProgress({ block }: { readonly block: StepProgressBlock }): ReactEl
 
 interface UiBlockRendererProps {
   readonly block: TeachUiBlock;
+  readonly language?: 'sw' | 'en';
+  readonly onDeepDive?: (payload: { readonly title: string; readonly point: string | null }) => void;
+  readonly onGoWider?: (payload: { readonly title: string; readonly point: string | null }) => void;
+  readonly onRelatedClick?: (concept: string) => void;
+  readonly onMicroLessonCta?: (value: string) => void;
 }
 
-export function UiBlockRenderer({ block }: UiBlockRendererProps): ReactElement | null {
+export function UiBlockRenderer({
+  block,
+  language = 'sw',
+  onDeepDive,
+  onGoWider,
+  onRelatedClick,
+  onMicroLessonCta,
+}: UiBlockRendererProps): ReactElement | null {
   switch (block.type) {
     case 'concept_card':
-      return <ConceptCard block={block as ConceptCardBlock} />;
+      return (
+        <ConceptCard
+          block={block as ConceptCardBlock}
+          language={language}
+          {...(onDeepDive ? { onDeepDive } : {})}
+          {...(onGoWider ? { onGoWider } : {})}
+          {...(onRelatedClick ? { onRelatedClick } : {})}
+        />
+      );
     case 'metric_strip':
       return <MetricStrip block={block as MetricStripBlock} />;
     case 'decision_card':
       return <DecisionCard block={block as DecisionCardBlock} />;
     case 'step_progress':
       return <StepProgress block={block as StepProgressBlock} />;
+    case 'micro_lesson':
+      return (
+        <MicroLessonCard
+          block={block as MicroLessonCardBlock}
+          language={language}
+          {...(onMicroLessonCta ? { onCta: onMicroLessonCta } : {})}
+        />
+      );
     default:
       return null;
   }

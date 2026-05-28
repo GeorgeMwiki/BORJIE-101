@@ -134,13 +134,24 @@ async function fallbackRetrieve(
         r.chunkMeta && typeof r.chunkMeta === 'object' && 'page' in r.chunkMeta
           ? (r.chunkMeta as { page?: unknown }).page
           : undefined;
-      return {
+      const out: {
+        documentId: string;
+        chunkIndex: number;
+        text: string;
+        score: number;
+        page?: number;
+      } = {
         documentId: r.documentId,
         chunkIndex: r.chunkIndex,
         text,
         score,
+<<<<<<< Updated upstream
         ...(typeof page === 'number' && { page }),
+=======
+>>>>>>> Stashed changes
       };
+      if (typeof page === 'number') out.page = page;
+      return out;
     })
     .filter((r) => r.score > 0)
     .sort((a: any, b: any) => b.score - a.score)

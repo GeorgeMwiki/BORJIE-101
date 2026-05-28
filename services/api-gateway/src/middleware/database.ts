@@ -25,6 +25,7 @@ import { createMiddleware } from 'hono/factory';
 import {
   createDatabaseClient,
   TenantRepository,
+  UserRepository,
   selectEncryptionPort,
   createFieldEncryptionAuditService,
   type EncryptionPort,
@@ -101,6 +102,7 @@ function getDatabase(): DatabaseClient | null {
  */
 export interface Repositories {
   tenants: TenantRepository;
+  users: UserRepository;
 }
 
 // Singleton repositories instance
@@ -205,6 +207,7 @@ function getRepositories(): Repositories | null {
     const deps = { encPort, encAudit };
     repositories = {
       tenants: new TenantRepository(database, deps),
+      users: new UserRepository(database, deps),
     };
     logger.info('Repositories initialized');
   }
@@ -226,6 +229,7 @@ export async function initRepositoriesAsync(): Promise<Repositories | null> {
   const deps = { encPort: port, encAudit: audit };
   repositories = {
     tenants: new TenantRepository(database, deps),
+    users: new UserRepository(database, deps),
   };
   return repositories;
 }

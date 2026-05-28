@@ -72,23 +72,23 @@ const styles = StyleSheet.create({
   wrap: {
     width: '60%',
     height: 48,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.forestSoft,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: 'rgba(255, 200, 87, 0.22)',
     overflow: 'hidden',
     marginVertical: spacing.xs
   },
   bar: {
     flex: 1,
-    backgroundColor: colors.cream
+    backgroundColor: 'rgba(255, 200, 87, 0.08)'
   },
   shimmer: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     width: 120,
-    backgroundColor: colors.white,
-    opacity: 0.55
+    backgroundColor: 'rgba(255, 200, 87, 0.18)',
+    opacity: 0.75
   }
 })

@@ -15,6 +15,7 @@ import { and, eq } from 'drizzle-orm';
 import { assetComponents } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { routeCatch } from '../utils/safe-error';
+import { getDbFromServices } from '../utils/services-accessor';
 
 const app = new Hono();
 app.use('*', authMiddleware);
@@ -33,8 +34,12 @@ function dbUnavailable(c) {
 }
 
 app.get('/', async (c) => {
+<<<<<<< Updated upstream
   const services = c.get('services') as any ?? {};
   const db = services.db as any;
+=======
+  const db = getDbFromServices(c);
+>>>>>>> Stashed changes
   if (!db) return dbUnavailable(c);
 
   const tenantId = c.get('tenantId');

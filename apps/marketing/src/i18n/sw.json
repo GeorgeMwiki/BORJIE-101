@@ -60,11 +60,11 @@
     }
   },
   "hero": {
-    "kicker": "Mfumo wa AI kwa madini ya Tanzania",
+    "kicker": "Mfumo wa AI kwa Mali yote ya Madini",
     "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
     "pill": "Tanzania-kwanza · Inayoongozwa na AI",
-    "headline": "Endesha mgodi wako kwa otomatiki.",
-    "sub": "Meneja wa Uendeshaji wa Madini wa AI. Anaandaa royalty zako, anafunga gold-window hedge, anasimamia zamu, anawasilisha compliance. Wewe unasaini mara moja tu.",
+    "headline": "Endesha mali yote ya madini kwa otomatiki.",
+    "sub": "Mwl. Mwikila ni Mkurugenzi Mtendaji wa AI wa Madini. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, subsidiaries, biashara za ziada (usafiri, chakula, mafuta, rejareja, ardhi, kukodi vifaa), family office, urithi, daftari la mali. Anaandaa, anafunga, anasimamia, anawasilisha. Wewe unasaini mara moja.",
     "ctaPilot": "Anzisha pilot ya siku 90",
     "ctaDemo": "Tazama demo ya sekunde 60",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -527,16 +527,16 @@
   "home": {
     "frontierBanner": {
       "kicker": "Toleo la Frontier",
-      "title": "Miundombinu ya madini, imeandikwa upya kwa mwendeshaji.",
+      "title": "Miundombinu ya Mali ya Madini, imeandikwa upya kwa mwendeshaji.",
       "titleAccent": "Sio dashboard.",
-      "sub": "Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni ya madini ya Tanzania kuwa biashara tulivu, iliyokaguliwa, inayoongozwa na AI — kwa lugha mbili tangu siku ya kwanza."
+      "sub": "Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni ya madini ya Tanzania kuwa Mali ya Madini yote tulivu, iliyokaguliwa, inayoongozwa na AI, ikifunika subsidiaries, holdings, family office, urithi, daftari la mali na kila biashara ya ziada; kwa lugha mbili tangu siku ya kwanza."
     },
     "problemSolution": {
-      "kicker": "Kwa nini mfumo wa madini",
-      "title": "Madini yapo ukingoni.",
-      "titleAccent": "Borjie inafunga pengo hilo.",
-      "subOne": "Madini ya Tanzania bado yanaendeshwa kwa Excel, WhatsApp, na mafaili ya kibinadamu ya compliance. Amana ni ya kiwango cha dunia. Miundombinu inayoizunguka sio.",
-      "subTwo": "Borjie ni mfumo wa uendeshaji wa AI ambao sekta imekuwa ikisubiri.",
+      "kicker": "Kwa nini mfumo wa Mali ya Madini",
+      "title": "Mali za madini zinaendeshwa ukingoni.",
+      "titleAccent": "Borjie inafunga pengo hilo mwanzo hadi mwisho.",
+      "subOne": "Mali za madini Tanzania bado zinaendeshwa kwa Excel, WhatsApp na mafaili ya kibinadamu ya compliance, kwenye leseni, kitabu cha mrabaha, wafanyakazi, hazina, soko, subsidiaries, family office na kila biashara ya ziada. Amana ni ya kiwango cha dunia. Miundombinu inayoizunguka sio.",
+      "subTwo": "Borjie ni mfumo wa uendeshaji wa Mali ya Madini wa AI ambao sekta imekuwa ikisubiri.",
       "problem": {
         "title": "Madini ukingoni",
         "items": [
@@ -906,7 +906,7 @@
       "auditChain": "Audit chain",
       "pricing": "Bei",
       "pilot": "Pilot",
-      "about": "Karibu",
+      "about": "Kuhusu",
       "careers": "Ajira",
       "docs": "Nyaraka",
       "privacy": "Faragha",

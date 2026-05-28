@@ -152,6 +152,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
         400,
       );
     }
+<<<<<<< Updated upstream
     const filters = {
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
@@ -162,6 +163,18 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
       ...(parsed.data.minPrice !== undefined && { minPrice: parsed.data.minPrice }),
       ...(parsed.data.maxPrice !== undefined && { maxPrice: parsed.data.maxPrice }),
     };
+=======
+    const filters: import('./types').ListingsFilters = {
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+    };
+    if (parsed.data.city !== undefined) (filters as { city?: string }).city = parsed.data.city;
+    if (parsed.data.type !== undefined) (filters as { type?: string }).type = parsed.data.type;
+    if (parsed.data.bedrooms !== undefined) (filters as { bedrooms?: number }).bedrooms = parsed.data.bedrooms;
+    if (parsed.data.orgId !== undefined) (filters as { orgId?: string }).orgId = parsed.data.orgId;
+    if (parsed.data.minPrice !== undefined) (filters as { minPrice?: number }).minPrice = parsed.data.minPrice;
+    if (parsed.data.maxPrice !== undefined) (filters as { maxPrice?: number }).maxPrice = parsed.data.maxPrice;
+>>>>>>> Stashed changes
     const page = await dataPort.searchListings(filters);
     return c.json({
       success: true,

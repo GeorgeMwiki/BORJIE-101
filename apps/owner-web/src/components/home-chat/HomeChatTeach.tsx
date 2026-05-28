@@ -48,7 +48,9 @@ import {
   type TeachUiBlock,
   type InlineMetric,
 } from './UiBlockRenderer';
-import { fmtTime } from '@/lib/format';
+import { MessageBubble, TypingBubble } from './MessageBubble';
+import { QuickReplyChips } from './QuickReplyChips';
+import { StepperBar } from './StepperBar';
 
 export interface HomeChatTeachProps {
   readonly salutation: string;

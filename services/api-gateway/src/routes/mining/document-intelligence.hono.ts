@@ -172,10 +172,18 @@ app.post('/upload', async (c) => {
     return c.json(errorEnvelope('FILE_TOO_LARGE', 'Max 25 MB per upload'), 413);
   }
 
-  const kind = classifyDocument({
+  const classifyInput: { readonly fileName: string; readonly textSample?: string } = {
     fileName: input.fileName,
+<<<<<<< Updated upstream
     ...(input.textSample && { textSample: input.textSample }),
   });
+=======
+  };
+  if (input.textSample !== undefined) {
+    (classifyInput as { textSample?: string }).textSample = input.textSample;
+  }
+  const kind = classifyDocument(classifyInput);
+>>>>>>> Stashed changes
   const documentType = kindToDocumentType(kind);
 
   const id = randomUUID();

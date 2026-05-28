@@ -48,6 +48,27 @@ function unavailable(c: AnyCtx, code: string, message: string) {
   return c.json({ success: false, error: { code, message } }, 503);
 }
 
+/**
+ * Recursively materialise an object that omits keys with `undefined`
+ * values. Required so the strict orgContext shape (which forbids
+ * `tenantRegion: undefined`) accepts the zod-inferred type whose
+ * optional fields are `string | undefined`.
+ */
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefinedDeep(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefinedDeep(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Request schemas
 // ────────────────────────────────────────────────────────────────────
@@ -255,6 +276,7 @@ router.post(
         );
       }
       try {
+<<<<<<< Updated upstream
         const orgCtx = parsed.data.orgContext ? {
           ...(parsed.data.orgContext.tenantRegion && { tenantRegion: parsed.data.orgContext.tenantRegion }),
           ...(parsed.data.orgContext.tenantName && { tenantName: parsed.data.orgContext.tenantName }),
@@ -263,13 +285,30 @@ router.post(
           ...(parsed.data.orgContext.existingTabKeys && { existingTabKeys: parsed.data.orgContext.existingTabKeys }),
         } : undefined;
         const result = await engine.generate({
+=======
+        const generateInput: Parameters<typeof engine.generate>[0] = {
+>>>>>>> Stashed changes
           intent: parsed.data.intent,
           tenantId: auth.tenantId,
           userId: auth.userId,
           actorId: auth.userId,
+<<<<<<< Updated upstream
           ...(orgCtx && { orgContext: orgCtx }),
           ...(parsed.data.sourceConversationId && { sourceConversationId: parsed.data.sourceConversationId }),
         });
+=======
+        };
+        if (parsed.data.orgContext !== undefined) {
+          (generateInput as { orgContext?: unknown }).orgContext = stripUndefinedDeep(
+            parsed.data.orgContext,
+          );
+        }
+        if (parsed.data.sourceConversationId !== undefined) {
+          (generateInput as { sourceConversationId?: string }).sourceConversationId =
+            parsed.data.sourceConversationId;
+        }
+        const result = await engine.generate(generateInput);
+>>>>>>> Stashed changes
         if (parsed.data.persist) {
           await engine.persist({ tab: result.tab });
         }

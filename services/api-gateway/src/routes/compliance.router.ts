@@ -226,7 +226,9 @@ complianceRouter.post(
 complianceRouter.post('/exports/:id/generate', withSecurityEvents({ action: 'compliance.create', resource: 'compliance', severity: 'info' }, async (c) => {
   const id = c.req.param('id');
   const tenantId = c.get('tenantId');
-  const service = c.get('complianceExportService');
+  const service = c.get('complianceExportService') as
+    | { generate: (id: string, tenantId: string) => Promise<unknown> }
+    | undefined;
   if (!service) {
     return c.json(
       { success: false, error: 'ComplianceExportService not yet wired' },
@@ -246,7 +248,18 @@ complianceRouter.post('/exports/:id/generate', withSecurityEvents({ action: 'com
 complianceRouter.get('/exports/:id/download', async (c) => {
   const id = c.req.param('id');
   const tenantId = c.get('tenantId');
+<<<<<<< Updated upstream
   const service = c.get('complianceExportService') as any;
+=======
+  const service = c.get('complianceExportService') as
+    | {
+        download: (
+          id: string,
+          tenantId: string,
+        ) => Promise<{ url: string; manifest: unknown }>;
+      }
+    | undefined;
+>>>>>>> Stashed changes
   if (!service) {
     return c.json(
       { success: false, error: 'ComplianceExportService not yet wired' },

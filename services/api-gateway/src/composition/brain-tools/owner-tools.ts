@@ -411,6 +411,7 @@ export const ownerReportsListTool: PersonaToolDescriptor<
 };
 
 // ─────────────────────────────────────────────────────────────────────
+<<<<<<< Updated upstream
 // 9. Ops-wide tools — Wave OPS-WIDE
 // ─────────────────────────────────────────────────────────────────────
 
@@ -423,11 +424,42 @@ const TrackParcelOutput = z.object({
   verification: z.object({
     ok: z.boolean(),
     brokenAt: z.number().nullable(),
+=======
+// Wave OPS-WIDE — full end-to-end mining operations scope.
+// Each tool defers to a /api/v1/ops/* hono route so the LLM + the
+// owner-web panels render identical data (no parallel data paths).
+// ─────────────────────────────────────────────────────────────────────
+
+// 9. track_parcel_chain — full pit-to-buyer custody timeline
+const TrackParcelChainInput = z.object({
+  parcelId: z.string().min(1).max(120),
+});
+const TrackParcelChainOutput = z.object({
+  parcelId: z.string(),
+  steps: z.array(
+    z.object({
+      stepIndex: z.number().int(),
+      action: z.string(),
+      happenedAt: z.string(),
+      fromPartyId: z.string().nullable().optional(),
+      toPartyId: z.string(),
+      weightGrams: z.number().nullable().optional(),
+      gradePct: z.number().nullable().optional(),
+      containerSealNo: z.string().nullable().optional(),
+      location: z.string().nullable().optional(),
+      auditHashId: z.string(),
+    }),
+  ),
+  verification: z.object({
+    ok: z.boolean(),
+    brokenAt: z.number().int().nullable(),
+>>>>>>> Stashed changes
   }),
   latestHash: z.string(),
 });
 
 export const ownerTrackParcelChainTool: PersonaToolDescriptor<
+<<<<<<< Updated upstream
   typeof TrackParcelInput,
   typeof TrackParcelOutput
 > = {
@@ -439,6 +471,19 @@ export const ownerTrackParcelChainTool: PersonaToolDescriptor<
   personaSlugs: OWNER,
   inputSchema: TrackParcelInput,
   outputSchema: TrackParcelOutput,
+=======
+  typeof TrackParcelChainInput,
+  typeof TrackParcelChainOutput
+> = {
+  id: 'ops.chain_of_custody.track',
+  name: 'Owner — track parcel chain of custody',
+  description:
+    'Return the hash-chained pit-to-buyer custody timeline for an ore parcel. ' +
+    'Use when the owner asks "where is my parcel" / "who handled the gold".',
+  personaSlugs: OWNER,
+  inputSchema: TrackParcelChainInput,
+  outputSchema: TrackParcelChainOutput,
+>>>>>>> Stashed changes
   stakes: 'LOW',
   isWrite: false,
   requiresPolicyRuleLiteral: false,
@@ -449,6 +494,7 @@ export const ownerTrackParcelChainTool: PersonaToolDescriptor<
         parcelId: input.parcelId,
         steps: [],
         verification: { ok: true, brokenAt: null },
+<<<<<<< Updated upstream
         latestHash: '',
       };
     }
@@ -469,17 +515,94 @@ const CheckRegulatoryDeadlineInput = z.object({
 });
 const CheckRegulatoryDeadlineOutput = z.object({
   filings: z.array(z.record(z.any())),
+=======
+        latestHash:
+          '0000000000000000000000000000000000000000000000000000000000000000',
+      };
+    }
+    const res = await client.get<{
+      success: boolean;
+      data?: {
+        parcelId: string;
+        steps: Array<{
+          stepIndex: number;
+          action: string;
+          happenedAt: string;
+          fromPartyId: string | null;
+          toPartyId: string;
+          weightGrams: string | null;
+          gradePct: string | null;
+          containerSealNo: string | null;
+          location: string | null;
+          auditHashId: string;
+        }>;
+        verification: { ok: boolean; brokenAt: number | null };
+        latestHash: string;
+      };
+    }>('/ops/chain-of-custody', {
+      query: { parcelId: input.parcelId },
+    });
+    const data = res.data;
+    return {
+      parcelId: input.parcelId,
+      steps: (data?.steps ?? []).map((s) => ({
+        stepIndex: s.stepIndex,
+        action: s.action,
+        happenedAt: s.happenedAt,
+        fromPartyId: s.fromPartyId,
+        toPartyId: s.toPartyId,
+        weightGrams: s.weightGrams !== null ? Number(s.weightGrams) : null,
+        gradePct: s.gradePct !== null ? Number(s.gradePct) : null,
+        containerSealNo: s.containerSealNo,
+        location: s.location,
+        auditHashId: s.auditHashId,
+      })),
+      verification: data?.verification ?? { ok: true, brokenAt: null },
+      latestHash:
+        data?.latestHash ??
+        '0000000000000000000000000000000000000000000000000000000000000000',
+    };
+  },
+};
+
+// 10. check_regulatory_deadline — next-due filings
+const CheckRegulatoryDeadlineInput = z.object({
+  filingType: z.string().min(1).max(120).optional(),
+  windowDays: z.number().int().positive().max(365).default(60),
+});
+const CheckRegulatoryDeadlineOutput = z.object({
+  filings: z.array(
+    z.object({
+      filingId: z.string(),
+      regulator: z.string(),
+      filingType: z.string(),
+      dueAt: z.string(),
+      status: z.string(),
+      daysRemaining: z.number().int(),
+    }),
+  ),
+  windowDays: z.number().int(),
+>>>>>>> Stashed changes
 });
 
 export const ownerCheckRegulatoryDeadlineTool: PersonaToolDescriptor<
   typeof CheckRegulatoryDeadlineInput,
   typeof CheckRegulatoryDeadlineOutput
 > = {
+<<<<<<< Updated upstream
   id: 'mining.ops.check_regulatory_deadline',
   name: 'Owner — check regulatory deadline',
   description:
     'List upcoming regulator filings within a window. Read-only. Defers to ' +
     '/api/v1/ops/regulatory-filings.',
+=======
+  id: 'ops.regulatory_filings.next_due',
+  name: 'Owner — next-due regulator filings',
+  description:
+    'List regulator filings due within `windowDays` (default 60). Optional ' +
+    '`filingType` filter (e.g. royalty_monthly, eia_refresh). Drives ' +
+    '"when is my NEMC EIA due" / "what royalty is owed" answers.',
+>>>>>>> Stashed changes
   personaSlugs: OWNER,
   inputSchema: CheckRegulatoryDeadlineInput,
   outputSchema: CheckRegulatoryDeadlineOutput,
@@ -488,6 +611,7 @@ export const ownerCheckRegulatoryDeadlineTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
+<<<<<<< Updated upstream
     if (!client) return { filings: [] };
     const dueBefore = new Date(
       Date.now() + input.dueWithinDays * 86_400_000,
@@ -507,17 +631,90 @@ const LookupCounterpartyInput = z.object({
 });
 const LookupCounterpartyOutput = z.object({
   parties: z.array(z.record(z.any())),
+=======
+    if (!client) return { filings: [], windowDays: input.windowDays };
+    const dueBefore = new Date(
+      Date.now() + input.windowDays * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const res = await client.get<{
+      success: boolean;
+      data?: {
+        filings: Array<{
+          id: string;
+          regulator: string;
+          filingType: string;
+          dueAt: string;
+          status: string;
+        }>;
+      };
+    }>('/ops/regulatory-filings', {
+      query: { dueBefore, limit: 100 },
+    });
+    const now = Date.now();
+    const all = res.data?.filings ?? [];
+    const filtered = input.filingType
+      ? all.filter((f) => f.filingType === input.filingType)
+      : all;
+    return {
+      windowDays: input.windowDays,
+      filings: filtered.map((f) => ({
+        filingId: f.id,
+        regulator: f.regulator,
+        filingType: f.filingType,
+        dueAt: f.dueAt,
+        status: f.status,
+        daysRemaining: Math.max(
+          0,
+          Math.ceil((new Date(f.dueAt).getTime() - now) / 86_400_000),
+        ),
+      })),
+    };
+  },
+};
+
+// 11. lookup_counterparty — fuzzy lookup by name / TIN / BRELA
+const LookupCounterpartyInput = z
+  .object({
+    name: z.string().min(1).max(240).optional(),
+    tin: z.string().min(3).max(64).optional(),
+    brelaNo: z.string().min(3).max(64).optional(),
+  })
+  .refine(
+    (v) => v.name !== undefined || v.tin !== undefined || v.brelaNo !== undefined,
+    { message: 'one of name / tin / brelaNo is required' },
+  );
+const LookupCounterpartyOutput = z.object({
+  matches: z.array(
+    z.object({
+      partyId: z.string(),
+      partyType: z.string(),
+      name: z.string(),
+      tin: z.string().nullable().optional(),
+      brelaNo: z.string().nullable().optional(),
+      country: z.string(),
+      scorecardScore: z.number(),
+    }),
+  ),
+>>>>>>> Stashed changes
 });
 
 export const ownerLookupCounterpartyTool: PersonaToolDescriptor<
   typeof LookupCounterpartyInput,
   typeof LookupCounterpartyOutput
 > = {
+<<<<<<< Updated upstream
   id: 'mining.ops.lookup_counterparty',
   name: 'Owner — lookup counterparty',
   description:
     'Find a counterparty by name / TIN / BRELA. Read-only. Defers to ' +
     '/api/v1/ops/external-parties.',
+=======
+  id: 'ops.external_parties.lookup',
+  name: 'Owner — lookup counterparty',
+  description:
+    'Find a counterparty by name (case-insensitive substring), TIN, or BRELA ' +
+    'number. Drives "who handles our TRA payment" / "find ABX warehouse" answers.',
+>>>>>>> Stashed changes
   personaSlugs: OWNER,
   inputSchema: LookupCounterpartyInput,
   outputSchema: LookupCounterpartyOutput,
@@ -526,6 +723,7 @@ export const ownerLookupCounterpartyTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
+<<<<<<< Updated upstream
     if (!client) return { parties: [] };
     const query: Record<string, string> = { search: input.search };
     if (input.partyType) query.partyType = input.partyType;
@@ -545,17 +743,91 @@ const LogEngagementInput = z.object({
 const LogEngagementOutput = z.object({
   id: z.string(),
   auditHashId: z.string().nullable(),
+=======
+    if (!client) return { matches: [] };
+    const search = input.name ?? input.tin ?? input.brelaNo ?? '';
+    const res = await client.get<{
+      success: boolean;
+      data?: {
+        parties: Array<{
+          id: string;
+          partyType: string;
+          name: string;
+          tin: string | null;
+          brelaNo: string | null;
+          country: string;
+          scorecardScore: string | number;
+        }>;
+      };
+    }>('/ops/external-parties', { query: { search, limit: 50 } });
+    const all = res.data?.parties ?? [];
+    const matches = all.filter((p) => {
+      if (input.tin !== undefined && p.tin !== input.tin) return false;
+      if (input.brelaNo !== undefined && p.brelaNo !== input.brelaNo) {
+        return false;
+      }
+      return true;
+    });
+    return {
+      matches: matches.map((p) => ({
+        partyId: p.id,
+        partyType: p.partyType,
+        name: p.name,
+        tin: p.tin,
+        brelaNo: p.brelaNo,
+        country: p.country,
+        scorecardScore: Number(p.scorecardScore),
+      })),
+    };
+  },
+};
+
+// 12. log_engagement — record a new counterparty engagement
+const LogEngagementInput = z.object({
+  partyId: z.string().min(1).max(120),
+  kind: z.enum([
+    'contract',
+    'po',
+    'license_app',
+    'consignment',
+    'shipment',
+    'assay_request',
+    'export_permit',
+    'levy_payment',
+    'csr_pledge',
+    'env_audit',
+    'legal_matter',
+  ]),
+  summary: z.string().min(1).max(2000),
+  siteId: z.string().min(1).max(120).optional(),
+});
+const LogEngagementOutput = z.object({
+  engagementId: z.string(),
+  partyId: z.string(),
+  kind: z.string(),
+  status: z.string(),
+  auditHash: z.string().nullable(),
+>>>>>>> Stashed changes
 });
 
 export const ownerLogEngagementTool: PersonaToolDescriptor<
   typeof LogEngagementInput,
   typeof LogEngagementOutput
 > = {
+<<<<<<< Updated upstream
   id: 'mining.ops.log_engagement',
   name: 'Owner — log engagement',
   description:
     'Append a single engagement row in external_party_engagements. WRITE — ' +
     'hash-chained audit. Defers to POST /api/v1/ops/engagements.',
+=======
+  id: 'ops.engagements.log',
+  name: 'Owner — log counterparty engagement',
+  description:
+    'Append a new engagement row for a counterparty (contract / PO / shipment / ' +
+    'assay request / export permit / levy payment / CSR pledge / env audit / ' +
+    'legal matter). Hash-chain-audited via the ai_audit_chain.',
+>>>>>>> Stashed changes
   personaSlugs: OWNER,
   inputSchema: LogEngagementInput,
   outputSchema: LogEngagementOutput,
@@ -564,6 +836,7 @@ export const ownerLogEngagementTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
+<<<<<<< Updated upstream
     if (!client) return { id: '', auditHashId: null };
     return client.post<{ id: string; auditHashId: string | null }>(
       '/ops/engagements',
@@ -1241,6 +1514,37 @@ export const ownerTaxonomyDisplayForTool: PersonaToolDescriptor<
     return {
       defaultKind: res.data?.taxonomy?.defaultKind ?? 'site',
       labels,
+=======
+    if (!client) {
+      return {
+        engagementId: '',
+        partyId: input.partyId,
+        kind: input.kind,
+        status: 'unavailable',
+        auditHash: null,
+      };
+    }
+    const body: Record<string, unknown> = {
+      partyId: input.partyId,
+      kind: input.kind,
+      summary: input.summary,
+    };
+    if (input.siteId !== undefined) body.siteId = input.siteId;
+    const res = await client.post<{
+      success: boolean;
+      data?: {
+        engagement: { id: string; partyId: string; kind: string; status: string };
+        auditHash: string | null;
+      };
+    }>('/ops/engagements', body);
+    const data = res.data;
+    return {
+      engagementId: data?.engagement?.id ?? '',
+      partyId: data?.engagement?.partyId ?? input.partyId,
+      kind: data?.engagement?.kind ?? input.kind,
+      status: data?.engagement?.status ?? 'open',
+      auditHash: data?.auditHash ?? null,
+>>>>>>> Stashed changes
     };
   },
 };
@@ -1256,10 +1560,15 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerLicenceHealthTool,
   ownerMarketBidsTool,
   ownerReportsListTool,
+<<<<<<< Updated upstream
+=======
+  // Wave OPS-WIDE
+>>>>>>> Stashed changes
   ownerTrackParcelChainTool,
   ownerCheckRegulatoryDeadlineTool,
   ownerLookupCounterpartyTool,
   ownerLogEngagementTool,
+<<<<<<< Updated upstream
   ownerComplianceFullPictureTool,
   ownerDomainFullPictureTool,
   ownerSubAreaDrillTool,
@@ -1272,4 +1581,6 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerCompareAcrossScopesTool,
   ownerCrossDomainScopeMatrixTool,
   ownerTaxonomyDisplayForTool,
+=======
+>>>>>>> Stashed changes
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

@@ -50,9 +50,9 @@ function resolveSiteUrl(): string {
 const SITE_URL = resolveSiteUrl();
 
 export const metadata: Metadata = {
-  title: 'Borjie — AI-native operating system for Tanzanian mining',
+  title: 'Borjie — AI-native operating system for the entire Mining Estate',
   description:
-    'Borjie is the AI-native operating system for Tanzanian mining. Master Brain, licence calendar, drill-hole logger, FX & treasury, marketplace, compliance pack. Swahili-first. Multi-tenant. Multi-lingual.',
+    'Borjie is the AI-native operating system for the entire Tanzanian Mining Estate. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Swahili-first. Multi-tenant. Multi-lingual.',
   applicationName: 'Borjie',
   metadataBase: new URL(SITE_URL),
   // UNIV-4: TZ-launch-beachhead marketing keywords — defer to vertical-profile/jurisdiction-profile marketing manifest when expanding to KE/NG/ZA/etc; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
@@ -69,9 +69,9 @@ export const metadata: Metadata = {
     'mining marketplace Tanzania',
   ],
   openGraph: {
-    title: 'Borjie — AI-native operating system for Tanzanian mining',
+    title: 'Borjie — AI-native operating system for the entire Mining Estate',
     description:
-      'Run your mine like the world\'s best. Master Brain, licence calendar, FX & treasury, marketplace, compliance pack. Swahili-first.',
+      'Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Swahili-first.',
     type: 'website',
     siteName: 'Borjie',
     locale: 'sw_TZ',
@@ -80,9 +80,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Borjie — AI-native OS for Tanzanian mining',
+    title: 'Borjie — AI-native OS for the entire Mining Estate',
     description:
-      'Run your mine like the world\'s best. Master Brain, licence calendar, FX & treasury, marketplace, compliance pack.',
+      'Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, family office, succession.',
     creator: '@borjie_tz',
   },
   alternates: {

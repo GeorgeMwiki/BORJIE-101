@@ -94,6 +94,24 @@ export default async function OwnerDashboardPage() {
         </div>
       </header>
 
+      {/* 1b. Mr. Mwikila's daily brief - sits ABOVE the metric strip per
+              Wave OWNER-OS DAILY-BRIEF rebuild. The card fetches today's
+              snapshot from /api/v1/owner/daily-brief and renders the
+              brain-composed warm greeting + 3-sentence summary +
+              quick-action chips. */}
+      <section
+        aria-labelledby="daily-brief-heading"
+        data-testid="dashboard-daily-brief-section"
+      >
+        <h2 id="daily-brief-heading" className="sr-only">
+          {isSw ? 'Muhtasari wa Mr. Mwikila' : "Mr. Mwikila's daily brief"}
+        </h2>
+        <DailyBriefCard
+          languagePreference={session.languagePreference}
+          salutation={session.salutation}
+        />
+      </section>
+
       {/* 2. Today's brief - 3 metric tiles */}
       <section aria-labelledby="todays-brief-heading">
         <h2

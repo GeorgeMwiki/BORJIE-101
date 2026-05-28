@@ -229,7 +229,14 @@ export function Hero({ locale }: { readonly locale: Locale }) {
     };
   });
 
-  const [shown, setShown] = useState<boolean[]>(() => turns.map(() => false));
+  // First turn is rendered immediately so the time-aware greeting lands
+  // in the SSR HTML. The remaining two turns follow the choreography
+  // timings below. This also lets crawlers, OG previewers and the smoke
+  // curl in CI see the LitFin-style opening rhythm without waiting for
+  // JS to hydrate.
+  const [shown, setShown] = useState<boolean[]>(() =>
+    turns.map((_, i) => i === 0),
+  );
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {

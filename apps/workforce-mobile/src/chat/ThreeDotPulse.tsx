@@ -84,9 +84,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   },
   dot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: colors.earth500
+    backgroundColor: colors.gold
   }
 })

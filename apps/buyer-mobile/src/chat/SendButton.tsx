@@ -97,15 +97,15 @@ export function SendButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: colors.forest,
-    borderRadius: radius.md,
+    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: 44,
     minWidth: 44,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.forest
+    borderColor: colors.goldSoft
   },
   pressed: {
     opacity: 0.88
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodyStrong,
-    color: colors.bone
+    color: colors.ink,
+    fontWeight: '700'
   }
 })

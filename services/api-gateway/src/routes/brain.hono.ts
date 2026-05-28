@@ -99,12 +99,19 @@ function registry() {
     };
     if (e.ANTHROPIC_BASE_URL !== undefined) anthropic.baseUrl = e.ANTHROPIC_BASE_URL;
     if (e.ANTHROPIC_MODEL_DEFAULT !== undefined) anthropic.defaultModel = e.ANTHROPIC_MODEL_DEFAULT;
-    return createBrain({
+    const brainConfig: Parameters<typeof createBrain>[0] = {
       anthropic,
       threadStoreBackend: backend,
+<<<<<<< Updated upstream
       ...(graphToolkit && { graphToolkit }),
+=======
+>>>>>>> Stashed changes
       extraSkills: getBrainExtraSkills(),
-    });
+    };
+    if (graphToolkit !== undefined) {
+      (brainConfig as unknown as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
+    }
+    return createBrain(brainConfig);
   });
   return registryCache;
 }

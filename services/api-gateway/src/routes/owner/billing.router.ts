@@ -48,8 +48,15 @@ app.use(
 app.get('/subscription', async (c) => {
   const auth = c.get('auth');
   // Prefer the real wire when a platformBilling service is in the registry.
+<<<<<<< Updated upstream
   const services = c.get('services') as any ?? {};
   const billing = services?.platformBilling as any;
+=======
+  const services = c.get('services') as {
+    platformBilling?: { getSubscription: (tenantId: string) => Promise<unknown> };
+  } | undefined;
+  const billing = services?.platformBilling;
+>>>>>>> Stashed changes
   if (billing && typeof billing.getSubscription === 'function') {
     try {
       const sub = await billing.getSubscription(auth.tenantId);

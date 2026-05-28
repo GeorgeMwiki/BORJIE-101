@@ -60,11 +60,11 @@
     }
   },
   "hero": {
-    "kicker": "AI-native OS for Tanzanian mining",
+    "kicker": "AI-native OS for the entire Mining Estate",
     "swahiliFirstBadge": "English-first · Swahili",
     "pill": "Tanzanian-first · AI-native",
-    "headline": "Run your mine on autopilot.",
-    "sub": "AI Mining Managing Director. Drafts your royalty filings, hedges the gold window, supervises your shifts, files your compliance. You sign once.",
+    "headline": "Run your entire Mining Estate on autopilot.",
+    "sub": "Mr. Mwikila is your AI Mining Managing Director. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, retail, real estate, equipment rental), family office, succession, asset register. He drafts, hedges, supervises, files. You sign once.",
     "ctaPilot": "Start the 90-day pilot",
     "ctaDemo": "Watch a 60s demo",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -527,16 +527,16 @@
   "home": {
     "frontierBanner": {
       "kicker": "Frontier release",
-      "title": "Mining infrastructure, rewritten for the operator.",
+      "title": "Mining Estate infrastructure, rewritten for the operator.",
       "titleAccent": "Not the dashboard.",
-      "sub": "Borjie ships the operating system that turns a Tanzanian mining licence into a calm, audited, AI-managed business — bilingual on day one."
+      "sub": "Borjie ships the operating system that turns a Tanzanian mining licence into an entire calm, audited, AI-managed Mining Estate, covering subsidiaries, holdings, family office, succession, asset register and every ancillary business; bilingual on day one."
     },
     "problemSolution": {
-      "kicker": "Why a mining OS",
-      "title": "Mining is at the margin.",
-      "titleAccent": "Borjie closes that gap.",
-      "subOne": "Tanzanian mining still runs on Excel, WhatsApp, and physical compliance binders. The deposit is world-class. The infrastructure around it is not.",
-      "subTwo": "Borjie is the AI-native operating system the sector has been waiting for.",
+      "kicker": "Why a Mining Estate OS",
+      "title": "Mining estates run on the margin.",
+      "titleAccent": "Borjie closes that gap end-to-end.",
+      "subOne": "Tanzanian mining estates still run on Excel, WhatsApp and physical compliance binders across the licence, the royalty book, the workforce, the treasury, the marketplace, the subsidiaries, the family office and every ancillary business. The deposit is world-class. The infrastructure around it is not.",
+      "subTwo": "Borjie is the AI-native Mining Estate operating system the sector has been waiting for.",
       "problem": {
         "title": "Mining at the margin",
         "items": [

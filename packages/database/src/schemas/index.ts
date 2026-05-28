@@ -998,6 +998,7 @@ export * from './workforce-role-tab-configs.schema.js';
 // DO NOTHING idempotent across ticks, restarts, and manual triggers.
 export * from './daily-brief-dispatches.schema.js';
 
+<<<<<<< Updated upstream
 // Wave OPS-WIDE (migration 0093). The four supporting tables for the
 // upstream, downstream, and adjacent layers of mining ops:
 //   - external_parties              eighteen counterparty kinds
@@ -1005,11 +1006,34 @@ export * from './daily-brief-dispatches.schema.js';
 //   - mineral_chain_of_custody      hash-chained pit-to-buyer ledger
 //   - regulatory_filings            calendar of regulator obligations
 // All RLS FORCE.
+=======
+// ---------------------------------------------------------------------------
+// Wave OPS-WIDE — full end-to-end mining operations scope (migration 0093)
+// ---------------------------------------------------------------------------
+//   external_parties              — every counterparty in the operation
+//                                   (upstream licensing offices, downstream
+//                                   processors / smelters / refiners /
+//                                   assayers / exporters / banks / off-
+//                                   takers, adjacent transport / CSR /
+//                                   regulators / legal / insurance /
+//                                   security). FORCE RLS.
+//   external_party_engagements    — timeline of every interaction with a
+//                                   counterparty. Hash-chain-audited.
+//   mineral_chain_of_custody      — append-only pit-to-buyer custody log
+//                                   per ore parcel; sha-256 hash-chain.
+//   regulatory_filings            — calendar + status per regulator
+//                                   (Mining Commission, TRA, NEMC, BoT,
+//                                   BRELA, OSHA, TBS, TCRA, LHRC).
+// Consumed by services/api-gateway/src/routes/ops/*.hono.ts and the
+// owner brain-tools (track_parcel_chain, check_regulatory_deadline,
+// lookup_counterparty, log_engagement).
+>>>>>>> Stashed changes
 export * from './external-parties.schema.js';
 export * from './external-party-engagements.schema.js';
 export * from './mineral-chain-of-custody.schema.js';
 export * from './regulatory-filings.schema.js';
 
+<<<<<<< Updated upstream
 // Wave ESTATE-OS (migration 0094). Family-office layer for the mining-
 // rooted business empire:
 //   - estate_groups              top-level holding registry
@@ -1030,3 +1054,35 @@ export * from './peer-cohort-benchmarks.schema.js';
 // taxonomy tree for cross-scope MD reasoning + per-tenant display label
 // preferences. All RLS FORCE.
 export * from './scope-nodes.schema.js';
+=======
+// Wave ESTATE-OS (migration 0094). Borjie runs the entire MINING
+// ESTATE BUSINESS, not just one mine. The customer is a family-office
+// / holdings structure where the mining licence is one asset among
+// many. Five tenant-scoped tables:
+//   estate_groups            — family-office shell.
+//   estate_entities          — every business under the shell
+//                              (mine, processing plant, transport co,
+//                              fuel station, camp catering,
+//                              retail-at-site, real estate, agri,
+//                              forestry, tourism, JVs, ...);
+//                              parent_entity_id chains support
+//                              N-level subsidiary trees.
+//   estate_capital_movements — intercompany money log (the ESTATE
+//                              VIEW that links ledger entries to
+//                              estate context). Money path STILL
+//                              goes via LedgerService.post().
+//   succession_plans         — multi-generational wealth-transfer
+//                              plan; next_review_due_at drives
+//                              reminders via the reminders worker.
+//   estate_assets            — consolidated asset register across
+//                              the estate.
+// Consumed by services/api-gateway/src/routes/estate/*.hono.ts and
+// the owner brain-tools (estate_net_worth_summary, lookup_entity,
+// intercompany_flow_query, succession_review_needed,
+// asset_register_browse).
+export * from './estate-groups.schema.js';
+export * from './estate-entities.schema.js';
+export * from './estate-capital-movements.schema.js';
+export * from './succession-plans.schema.js';
+export * from './estate-assets.schema.js';
+>>>>>>> Stashed changes

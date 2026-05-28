@@ -47,7 +47,22 @@ export function scrubMessage(err: unknown, fallback = 'Internal server error'): 
 
 export interface SafeErrorOptions {
   readonly code?: string;
-  readonly status?: 500 | 502 | 503;
+  /**
+   * HTTP status for the envelope. Defaults to 500. Accepts the canonical
+   * server-error codes (500/502/503) plus the 4xx codes routers reach for
+   * when an upstream call already classified the error (e.g. 400
+   * VALIDATION_FAILED, 404 NOT_FOUND, 409 CONFLICT, 422 SEMANTIC_ERROR).
+   */
+  readonly status?:
+    | 400
+    | 401
+    | 403
+    | 404
+    | 409
+    | 422
+    | 500
+    | 502
+    | 503;
   readonly fallback?: string;
   readonly logContext?: Record<string, unknown>;
 }

@@ -68,6 +68,7 @@ export function createMigrationRouter(deps: {
     const bundle = migrationExtract(extractParams);
 
     const service = deps.getService(tenantId);
+<<<<<<< Updated upstream
     const run = await service['repo'].createRun({
         tenantId,
         createdBy: actorId,
@@ -77,6 +78,28 @@ export function createMigrationRouter(deps: {
       });
 
     await service['repo'].updateStatus(run.id, tenantId, 'extracted', {
+=======
+    const run = await (service as unknown as {
+      repo: {
+        createRun: (
+          input: { tenantId: string; createdBy: string; uploadFilename: string; uploadMimeType: string; uploadSizeBytes: number },
+        ) => Promise<{ id: string }>;
+        updateStatus: (id: string, tenantId: string, status: string, patch: unknown) => Promise<void>;
+      };
+    }).repo.createRun({
+      tenantId,
+      createdBy: actorId,
+      uploadFilename: file.name,
+      uploadMimeType: file.type,
+      uploadSizeBytes: buf.byteLength,
+    });
+
+    await (service as unknown as {
+      repo: {
+        updateStatus: (id: string, tenantId: string, status: string, patch: unknown) => Promise<void>;
+      };
+    }).repo.updateStatus(run.id, tenantId, 'extracted', {
+>>>>>>> Stashed changes
       bundle,
       extractionSummary: {
         properties: bundle.properties.length,

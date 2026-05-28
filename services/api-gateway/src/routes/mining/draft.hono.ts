@@ -96,13 +96,27 @@ app.get('/', async (c) => {
   }
   const persistence = createDrizzleDraftPersistence(db);
   const drafter = createDocumentDrafter({ persistence });
-  const rows = await drafter.listDrafts({
+  const listInput: Parameters<typeof drafter.listDrafts>[0] = {
     tenantId: auth.tenantId,
     userId: auth.userId,
+<<<<<<< Updated upstream
     ...(parsed.data.status && { status: parsed.data.status }),
     ...(parsed.data.kind && { kind: parsed.data.kind }),
     ...(parsed.data.limit && { limit: parsed.data.limit }),
   });
+=======
+  };
+  if (parsed.data.status !== undefined) {
+    (listInput as { status?: typeof parsed.data.status }).status = parsed.data.status;
+  }
+  if (parsed.data.kind !== undefined) {
+    (listInput as { kind?: typeof parsed.data.kind }).kind = parsed.data.kind;
+  }
+  if (parsed.data.limit !== undefined) {
+    (listInput as { limit?: number }).limit = parsed.data.limit;
+  }
+  const rows = await drafter.listDrafts(listInput);
+>>>>>>> Stashed changes
   return c.json({ success: true, data: rows }, 200);
 });
 
@@ -136,17 +150,27 @@ app.post('/', async (c) => {
   const persistence = createDrizzleDraftPersistence(db);
   const drafter = createDocumentDrafter({ persistence });
   try {
-    const draft = await drafter.composeDraft({
+    const composeInput: Parameters<typeof drafter.composeDraft>[0] = {
       tenantId: auth.tenantId,
       userId: auth.userId,
       kind: parsed.data.kind,
       templateSlug: parsed.data.templateSlug,
       language: parsed.data.language,
       titleSw: parsed.data.titleSw,
+<<<<<<< Updated upstream
       ...(parsed.data.titleEn && { titleEn: parsed.data.titleEn }),
       ...(parsed.data.jurisdiction && { jurisdiction: parsed.data.jurisdiction }),
+=======
+>>>>>>> Stashed changes
       fillVars: parsed.data.fillVars,
-    });
+    };
+    if (parsed.data.titleEn !== undefined) {
+      (composeInput as { titleEn?: string }).titleEn = parsed.data.titleEn;
+    }
+    if (parsed.data.jurisdiction !== undefined) {
+      (composeInput as { jurisdiction?: string }).jurisdiction = parsed.data.jurisdiction;
+    }
+    const draft = await drafter.composeDraft(composeInput);
     return c.json({ success: true, data: draft }, 201);
   } catch (err) {
     return c.json(

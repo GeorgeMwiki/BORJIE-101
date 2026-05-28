@@ -70,6 +70,20 @@ export {
 export { createCalibrationVerifier } from './verifiers/builtins/calibration.js';
 export { createMutationAuthorityVerifier } from './verifiers/builtins/mutation-authority.js';
 
+// ── Intel-domain built-in verifiers (Wave INTEL-SELF-IMPROVE) ─────────
+// Six additional built-ins covering the SOTA-INTEL stack: forecast,
+// stat, graph-db, causal, anomaly, recommendation. See
+// Docs/DESIGN/INTELLIGENCE_SELF_IMPROVE_WIRING_2026.md §5.
+export {
+  createForecastIntervalCoverageVerifier,
+  createStatResultShapeVerifier,
+  createGraphQueryNonEmptyVerifier,
+  createCausalRefutationStableVerifier,
+  createAnomalyPrecisionRecallVerifier,
+  createRecommendationHitRateVerifier,
+  createIntelBuiltinVerifiers,
+} from './verifiers/builtins/intel-builtins.js';
+
 // ── Reward ─────────────────────────────────────────────────────────────
 export {
   shapeReward,

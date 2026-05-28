@@ -88,6 +88,7 @@ function registry() {
   registryCache = new BrainRegistry((tenantId) => {
     const repo = new BrainThreadRepository(db());
     const backend = new PostgresThreadStoreBackend(repo, () => tenantId);
+<<<<<<< Updated upstream
     return createBrain({
       anthropic: {
         apiKey: e.ANTHROPIC_API_KEY,
@@ -96,8 +97,22 @@ function registry() {
       },
       threadStoreBackend: backend,
       ...(graphToolkit && { graphToolkit }),
+=======
+    const anthropic: { apiKey: string; baseUrl?: string; defaultModel?: string } = {
+      apiKey: e.ANTHROPIC_API_KEY,
+    };
+    if (e.ANTHROPIC_BASE_URL !== undefined) anthropic.baseUrl = e.ANTHROPIC_BASE_URL;
+    if (e.ANTHROPIC_MODEL_DEFAULT !== undefined) anthropic.defaultModel = e.ANTHROPIC_MODEL_DEFAULT;
+    const brainConfig: Parameters<typeof createBrain>[0] = {
+      anthropic,
+      threadStoreBackend: backend,
+>>>>>>> Stashed changes
       extraSkills: getBrainExtraSkills(),
-    });
+    };
+    if (graphToolkit !== undefined) {
+      (brainConfig as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
+    }
+    return createBrain(brainConfig);
   });
   return registryCache;
 }
@@ -258,25 +273,34 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
 
   // Ensure a thread exists. The authenticated /api/v1/brain/turn endpoint
   // starts a thread on demand, so we mirror that behaviour here.
+<<<<<<< Updated upstream
   let threadId: string = parsed.data.threadId ?? '';
+=======
+  let threadId: string | undefined = parsed.data.threadId;
+>>>>>>> Stashed changes
   if (!threadId) {
-    const thread = await brain.threads.createThread({
+    const createInput: Parameters<typeof brain.threads.createThread>[0] = {
       id: uuid(),
       tenantId: ctx.tenant.tenantId,
       initiatingUserId: ctx.actor.id,
-      primaryPersonaId: parsed.data.forcePersonaId ?? parsed.data.personaId,
       title: parsed.data.message.slice(0, 80),
       status: 'open',
-    });
+    };
+    const persona = parsed.data.forcePersonaId ?? parsed.data.personaId;
+    if (persona !== undefined) {
+      (createInput as { primaryPersonaId?: string }).primaryPersonaId = persona;
+    }
+    const thread = await brain.threads.createThread(createInput);
     threadId = thread.id;
   }
+  const resolvedThreadId: string = threadId;
 
   return streamSSE(c, async (stream) => {
     const abort = new AbortController();
     stream.onAbort(() => abort.abort());
 
     const iter = streamTurn(brain.orchestrator, {
-      threadId,
+      threadId: resolvedThreadId,
       tenant: ctx.tenant,
       actor: ctx.actor,
       viewer: ctx.viewer,

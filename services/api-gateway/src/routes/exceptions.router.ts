@@ -67,11 +67,20 @@ exceptionsRouter.get('/', zValidator('query', ListQuerySchema), async (c) => {
   }
   const query = c.req.valid('query');
   try {
+<<<<<<< Updated upstream
     const items = await getInbox(c).listOpen(tenantId, {
       ...(query.domain && { domain: query.domain }),
       ...(query.priority && { priority: query.priority }),
       ...(query.limit && { limit: query.limit }),
     });
+=======
+    type ListOpenFilters = Parameters<ExceptionInbox['listOpen']>[1];
+    const filters: { -readonly [K in keyof ListOpenFilters]: ListOpenFilters[K] } = {};
+    if (query.domain !== undefined) filters.domain = query.domain;
+    if (query.priority !== undefined) filters.priority = query.priority;
+    if (query.limit !== undefined) filters.limit = query.limit;
+    const items = await getInbox(c).listOpen(tenantId, filters as ListOpenFilters);
+>>>>>>> Stashed changes
     return c.json({
       success: true,
       data: items,

@@ -20,6 +20,11 @@ import { and, desc, eq } from 'drizzle-orm';
 import { notificationDispatchLog } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { routeCatch } from '../utils/safe-error';
+import { getDbFromServices, getService } from '../utils/services-accessor';
+
+interface FeatureFlagsService {
+  isEnabled(tenantId: string, key: string): Promise<boolean>;
+}
 
 const app = new Hono();
 app.use('*', authMiddleware);
@@ -38,8 +43,12 @@ function notConfigured(c) {
 }
 
 app.get('/', async (c) => {
+<<<<<<< Updated upstream
   const services = c.get('services') as any ?? {};
   const db = services.db as any;
+=======
+  const db = getDbFromServices(c);
+>>>>>>> Stashed changes
   if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const limitParam = c.req.query('limit');
@@ -62,14 +71,22 @@ app.get('/', async (c) => {
 });
 
 app.get('/unread/count', async (c) => {
+<<<<<<< Updated upstream
   const services = c.get('services') as any ?? {};
   const db = services.db as any;
+=======
+  const db = getDbFromServices(c);
+>>>>>>> Stashed changes
   if (!db) return notConfigured(c);
   // Unread is a function of per-user delivery state that isn't tracked in
   // dispatch log directly (there's no `read_at`). The in-app notification
   // inbox schema is not landed yet — return a loud 501 unless the
   // `flag.bff.notifications.unread_count` flag is explicitly on (dev mode).
+<<<<<<< Updated upstream
   const ff = services.featureFlags as any;
+=======
+  const ff = getService<FeatureFlagsService>(c, 'featureFlags');
+>>>>>>> Stashed changes
   const tenantId = c.get('tenantId');
   let flagOn = false;
   if (ff && typeof ff.isEnabled === 'function') {
@@ -97,8 +114,12 @@ app.get('/unread/count', async (c) => {
 });
 
 app.get('/:id', async (c) => {
+<<<<<<< Updated upstream
   const services = c.get('services') as any ?? {};
   const db = services.db as any;
+=======
+  const db = getDbFromServices(c);
+>>>>>>> Stashed changes
   if (!db) return notConfigured(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');

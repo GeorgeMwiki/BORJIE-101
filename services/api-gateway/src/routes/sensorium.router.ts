@@ -39,8 +39,12 @@ import {
   createSensoriumEventLogService,
   SENSORIUM_EVENT_TYPES,
 } from '@borjie/database';
+<<<<<<< Updated upstream
 // @ts-ignore - internal service export
 import type { SensoriumEventInput } from '@borjie/database/services';
+=======
+import type { SensoriumEventInput } from '@borjie/database';
+>>>>>>> Stashed changes
 import { authMiddleware } from '../middleware/hono-auth';
 
 import { withSecurityEvents } from '@borjie/observability';
