@@ -36,6 +36,17 @@ import { GeologyPanel } from './GeologyPanel';
 import { ProcurementPanel } from './ProcurementPanel';
 import { LegalPanel } from './LegalPanel';
 import { ReportsPanel } from './ReportsPanel';
+import { SubsidiariesPanel } from './SubsidiariesPanel';
+import { HoldingsPanel } from './HoldingsPanel';
+import { FamilyOfficePanel } from './FamilyOfficePanel';
+import { SuccessionPanel } from './SuccessionPanel';
+import { AncillaryBusinessesPanel } from './AncillaryBusinessesPanel';
+import { AssetRegisterPanel } from './AssetRegisterPanel';
+// Wave OPS-WIDE — full end-to-end mining operations scope.
+import { CounterpartiesPanel } from './CounterpartiesPanel';
+import { ChainOfCustodyPanel } from './ChainOfCustodyPanel';
+import { RegulatoryFilingsPanel } from './RegulatoryFilingsPanel';
+import { CSRCommunityPanel } from './CSRCommunityPanel';
 
 export type PanelComponent = ComponentType<OwnerOSPanelProps>;
 
@@ -63,6 +74,16 @@ export const PANEL_RENDERERS: Readonly<Record<string, PanelComponent>> = {
   'panel:procurement': ProcurementPanel,
   'panel:legal': LegalPanel,
   'panel:reports': ReportsPanel,
+  'panel:subsidiaries': SubsidiariesPanel,
+  'panel:holdings': HoldingsPanel,
+  'panel:family-office': FamilyOfficePanel,
+  'panel:succession': SuccessionPanel,
+  'panel:ancillary': AncillaryBusinessesPanel,
+  'panel:asset-register': AssetRegisterPanel,
+  'panel:counterparties': CounterpartiesPanel,
+  'panel:chain-of-custody': ChainOfCustodyPanel,
+  'panel:regulatory-filings': RegulatoryFilingsPanel,
+  'panel:csr-community': CSRCommunityPanel,
 };
 
 export {
@@ -84,6 +105,16 @@ export {
   ProcurementPanel,
   LegalPanel,
   ReportsPanel,
+  SubsidiariesPanel,
+  HoldingsPanel,
+  FamilyOfficePanel,
+  SuccessionPanel,
+  AncillaryBusinessesPanel,
+  AssetRegisterPanel,
+  CounterpartiesPanel,
+  ChainOfCustodyPanel,
+  RegulatoryFilingsPanel,
+  CSRCommunityPanel,
 };
 
 export type { OwnerOSPanelProps } from './types';
