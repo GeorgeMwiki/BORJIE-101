@@ -21,6 +21,7 @@ import {
 import { tenants, users } from './tenant.schema.js';
 import { sites } from './sites.schema.js';
 import { companies } from './companies.schema.js';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const shiftReports = pgTable(
   'shift_reports',
@@ -53,6 +54,8 @@ export const shiftReports = pgTable(
     nextShiftPlan: text('next_shift_plan'),
     signedOffAt: timestamp('signed_off_at', { withTimezone: true }),
     signedOffFingerprintEventId: text('signed_off_fingerprint_event_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -219,6 +222,8 @@ export const sales = pgTable(
     paymentStatus: text('payment_status').notNull().default('pending'),
     paymentReceivedAt: timestamp('payment_received_at', { withTimezone: true }),
     ts: timestamp('ts', { withTimezone: true }).notNull().defaultNow(),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantIdx: index('sales_tenant_idx').on(t.tenantId),

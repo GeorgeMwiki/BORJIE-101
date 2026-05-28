@@ -2,6 +2,7 @@
 
 import type { DocumentRecord } from '@/lib/types/documents';
 import { fmtDate } from '@/lib/format';
+import { ProvenancePill } from '@/components/shared/ProvenancePill';
 
 interface DocumentListProps {
   readonly documents: ReadonlyArray<DocumentRecord>;
@@ -58,6 +59,9 @@ export function DocumentList({
                   <span className="font-medium text-foreground">
                     {doc.title}
                   </span>
+                  {doc.provenance ? (
+                    <ProvenancePill provenance={doc.provenance} />
+                  ) : null}
                 </div>
                 <div className="mt-0.5 text-xs text-neutral-500">
                   {doc.mineral} · {doc.pages}p · uploaded {fmtDate(doc.uploadedAt)}

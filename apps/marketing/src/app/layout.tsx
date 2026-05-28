@@ -5,6 +5,7 @@ import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 // Typography stack — LitFin parity:
 //   - Display: Syne (geometric sans, distinctive weight curve)
@@ -140,6 +141,9 @@ export default async function RootLayout({
         {children}
         <CookieConsent locale={locale} />
         <BorjieWidgetMount locale={locale} />
+        {/* PWA — register the cache-first SW after hydration. Silent;
+            skipped in dev. See `public/sw.js` and `public/offline.html`. */}
+        <ServiceWorkerRegister />
         {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
             Disabled in dev — see import block above. */}
         {/* <WebVitalsReporter surface="marketing" /> */}

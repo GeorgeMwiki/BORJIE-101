@@ -17,7 +17,10 @@
  */
 
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import pino from 'pino';
 import { intelligenceCorpusChunks } from '@borjie/database';
+
+const logger = pino({ name: 'chat-corpus-evidence' });
 
 // ─────────────────────────────────────────────────────────────────────
 // Keyword extraction (ILIKE fallback only)
@@ -88,10 +91,7 @@ export async function embedQueryViaOpenAI(
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     if (!warnedNoKey) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'chat-corpus-evidence: semantic search disabled — set OPENAI_API_KEY',
-      );
+      logger.warn('chat-corpus-evidence: semantic search disabled — set OPENAI_API_KEY');
       warnedNoKey = true;
     }
     return null;
@@ -111,8 +111,7 @@ export async function embedQueryViaOpenAI(
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {
-      // eslint-disable-next-line no-console
-      console.warn(
+      logger.warn(
         `chat-corpus-evidence: OpenAI embed failed ${response.status} — falling back to ILIKE`,
       );
       return null;
@@ -122,14 +121,13 @@ export async function embedQueryViaOpenAI(
     };
     const vec = body.data?.[0]?.embedding;
     if (!vec || vec.length !== TARGET_DIMENSIONS) {
-      // eslint-disable-next-line no-console
-      console.warn('chat-corpus-evidence: malformed OpenAI embedding payload');
+      logger.warn('chat-corpus-evidence: malformed OpenAI embedding payload');
       return null;
     }
     return vec;
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(
+    logger.warn(
+      { err },
       `chat-corpus-evidence: OpenAI embed threw — ${err instanceof Error ? err.message : String(err)}`,
     );
     return null;
@@ -239,8 +237,8 @@ async function annSearch(
       url: typeof top.url === 'string' ? top.url : null,
     };
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn(
+    logger.warn(
+      { err },
       `chat-corpus-evidence: ANN query failed — ${err instanceof Error ? err.message : String(err)}`,
     );
     return null;

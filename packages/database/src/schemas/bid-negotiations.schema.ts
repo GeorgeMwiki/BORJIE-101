@@ -23,6 +23,7 @@ import {
 import { tenants, users } from './tenant.schema.js';
 import { fingerprintEvents } from './fingerprint-events.schema.js';
 import { marketplaceBids } from './marketplace-bids.schema.js';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // Negotiation turns hang off the canonical `marketplace_bids` table. A
 // CASCADE on bid deletion drops the entire negotiation thread with it,
@@ -68,6 +69,8 @@ export const bidNegotiations = pgTable(
       () => fingerprintEvents.id,
       { onDelete: 'set null' },
     ),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

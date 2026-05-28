@@ -19,10 +19,13 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import pino from 'pino';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+const logger = pino({ name: 'prompt-rollout' });
 // ─────────────────────────────────────────────────────────────────────
 // Port shape — duck-typed against `KernelPromptRegistryService` so the
 // router does not compile-time-depend on @borjie/database.
@@ -240,7 +243,7 @@ export function createPromptRolloutRouter(
               }),
             );
           } catch (sinkError) {
-            console.error('prompt-rollout: ledger sink failed:', sinkError);
+            logger.error({ err: sinkError }, 'prompt-rollout: ledger sink failed');
           }
         }
 

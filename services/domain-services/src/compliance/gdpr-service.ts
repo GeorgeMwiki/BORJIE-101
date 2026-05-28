@@ -25,8 +25,11 @@
 
 import { randomUUID } from 'crypto';
 import { and, eq } from 'drizzle-orm';
+import pino from 'pino';
 import type { EventBus, DomainEvent } from '../common/events.js';
 import { createEventEnvelope, generateEventId } from '../common/events.js';
+
+const logger = pino({ name: 'gdpr-service' });
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -311,7 +314,7 @@ export function createGdprService(deps: GdprServiceDeps): GdprService {
     } catch (err) {
       // Best-effort event publication — never fail the calling operation.
       // In production this path is observed via the outbox pattern.
-      console.error('gdpr-service: failed to publish event', err);
+      logger.error({ err }, 'gdpr-service: failed to publish event');
     }
   }
 

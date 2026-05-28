@@ -19,6 +19,7 @@
  * audit-trail captures the full physical-world execution path.
  */
 
+import pino from 'pino';
 import type {
   AvailabilityWindow,
   DateRange,
@@ -33,6 +34,8 @@ import type {
 } from './adapter-contract.js';
 import { VendorAdapterError } from './adapter-contract.js';
 import type { VendorAdapterRegistry, VendorRecordLike } from './adapter-registry.js';
+
+const logger = pino({ name: 'vendor-dispatch' });
 
 // ----------------------------------------------------------------------------
 // Narrow port types (kept local so we don't depend on the full domain)
@@ -442,8 +445,7 @@ export class VendorDispatchOrchestrator {
       // Never let an event failure tear down the orchestration call.
       // Observability handles DLQ retries.
       const message = error instanceof Error ? error.message : String(error);
-      // eslint-disable-next-line no-console
-      console.error(`vendor-dispatch: event publish failed (${event.eventType}): ${message}`);
+      logger.error({ err: error, eventType: event.eventType }, `vendor-dispatch: event publish failed: ${message}`);
     }
   }
 }

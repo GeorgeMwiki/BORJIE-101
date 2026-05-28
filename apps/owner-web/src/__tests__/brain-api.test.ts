@@ -62,7 +62,7 @@ describe('brain-api · createThread', () => {
       body: {
         threadId: 'thr_abc',
         finalPersonaId: 'mr-mwikila',
-        responseText: 'Habari! How can I help?',
+        responseText: 'Hello! How can I help?',
         handoffs: [],
         toolCalls: [],
         advisorConsulted: false,

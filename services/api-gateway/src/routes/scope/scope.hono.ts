@@ -11,6 +11,8 @@
  *   DELETE /nodes/:id                soft-delete (active=false)
  *   GET    /taxonomy                 read tenant display-label preferences
  *   PUT    /taxonomy                 upsert display-label preferences
+ *   GET    /recent-entities          recent scope nodes by kind (for
+ *                                    the mobile chat composer @-menu)
  */
 
 import { Hono } from 'hono';
@@ -323,6 +325,70 @@ export function createScopeRouter(): Hono {
       moduleLogger.warn({ err }, 'taxonomy audit append failed');
     }
     return c.json({ success: true });
+  });
+
+  // GET /recent-entities — feed for the mobile chat composer @-menu.
+  // Returns recent scope nodes filtered by kind, keyed for the @-menu
+  // typeahead. Bilingual labels are derived from `name` for now; the
+  // taxonomy preferences upsert provides display labels later.
+  app.get('/recent-entities', async (c: any) => {
+    const auth = c.get('auth') as { tenantId?: string };
+    const db = c.get('db');
+    if (!db || !auth?.tenantId) {
+      return c.json(
+        { success: false, error: { code: 'SCOPE_DB_UNAVAILABLE' } },
+        503,
+      );
+    }
+    const kindParam = c.req.query('kind');
+    const limitParam = c.req.query('limit');
+    const limit = Math.min(
+      Math.max(Number.parseInt(String(limitParam ?? '20'), 10) || 20, 1),
+      50,
+    );
+    const ALLOWED = ['parcel', 'licence', 'employee', 'scope_node'] as const;
+    type Allowed = (typeof ALLOWED)[number];
+    const isAllowed = (k: string): k is Allowed =>
+      (ALLOWED as readonly string[]).includes(k);
+    const requestedKind = typeof kindParam === 'string' && isAllowed(kindParam)
+      ? kindParam
+      : null;
+    // For now we surface scope nodes the user can @-mention; the
+    // taxonomy maps parcel/licence/employee to scope-node kinds.
+    const lookupKind = requestedKind === 'employee'
+      ? 'employee'
+      : requestedKind === 'parcel'
+        ? 'parcel'
+        : requestedKind === 'licence'
+          ? 'licence'
+          : 'site';
+    const whereParts = [
+      eq(scopeNodes.tenantId, auth.tenantId),
+      eq(scopeNodes.active, true),
+    ];
+    // kind-filter only when the schema actually has that enum value;
+    // SCOPE_NODE_KINDS is the source of truth.
+    if ((SCOPE_NODE_KINDS as readonly string[]).includes(lookupKind)) {
+      whereParts.push(eq(scopeNodes.kindCanonical, lookupKind as any));
+    }
+    const rows = await db
+      .select()
+      .from(scopeNodes)
+      .where(and(...whereParts))
+      .orderBy(asc(scopeNodes.name))
+      .limit(limit);
+    return c.json({
+      success: true,
+      data: {
+        entities: rows.map((r: { id: string; name: string; kindCanonical: string }) => ({
+          id: r.id,
+          label: { en: r.name, sw: r.name },
+          kind: r.kindCanonical,
+        })),
+        count: rows.length,
+        requestedKind: requestedKind ?? 'scope_node',
+      },
+    });
   });
 
   return app;

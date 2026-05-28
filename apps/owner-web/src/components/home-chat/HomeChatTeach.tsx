@@ -48,6 +48,7 @@ import {
   type TeachUiBlock,
   type InlineMetric,
 } from './UiBlockRenderer';
+import { InlineBlockRenderer } from './inline-blocks/InlineBlockRenderer';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
@@ -171,29 +172,11 @@ function normaliseInlineMetric(value: unknown): InlineMetric | null {
 }
 
 /**
- * Catalog of inline-first block kinds the brain may emit. We render a
- * labeled placeholder for every kind so the visitor never sees raw XML
- * for a kind we have not built a bespoke renderer for yet. The
- * full-resolution renderers will replace this in a follow-up wave.
+ * Inline block normaliser — accept ANY object with a string `type` so
+ * the dispatcher in `./inline-blocks/InlineBlockRenderer.tsx` can route
+ * it to the bespoke renderer. Unknown kinds surface via the dispatcher's
+ * built-in `[unknown block]` placeholder.
  */
-const INLINE_BLOCK_KIND_LABELS: Readonly<Record<string, string>> = {
-  mini_metric: 'Metric',
-  metric_strip: 'Metrics',
-  data_capture_card: 'Capture',
-  confirmation_card: 'Confirm',
-  file_request_card: 'Upload',
-  micro_action_card: 'Quick action',
-  tab_promotion_chip: 'Open tab',
-  inline_table: 'Table',
-  inline_chart: 'Chart',
-  inline_wizard: 'Wizard',
-  inline_workflow: 'Workflow',
-  inline_comparison: 'Comparison',
-  inline_section: 'Section',
-  inline_dashboard: 'Dashboard',
-  doc_quest: 'Document side quest',
-  level_select: 'Choose level',
-};
 
 function normaliseInlineBlock(value: unknown): InlineBlock | null {
   if (!value || typeof value !== 'object') return null;
@@ -739,28 +722,75 @@ function TeachBubble({
             data-testid="teach-inline-blocks"
             className="m-0 mt-3 flex list-none flex-col gap-2 p-0"
           >
-            {message.inlineBlocks.map((block, i) => {
-              const label =
-                INLINE_BLOCK_KIND_LABELS[block.type] ?? block.type;
-              const title =
-                typeof block.title === 'string' && block.title.trim().length > 0
-                  ? block.title.trim()
-                  : null;
-              return (
-                <li
-                  key={`${block.type}_${i}`}
-                  data-testid={`teach-inline-block-${block.type}`}
-                  className="rounded-xl border border-info/40 bg-info/5 px-3 py-2"
-                >
-                  <p className="text-tiny font-medium uppercase tracking-wide text-info">
-                    {label}
-                  </p>
-                  {title ? (
-                    <p className="mt-0.5 text-sm text-foreground">{title}</p>
-                  ) : null}
-                </li>
-              );
-            })}
+            {message.inlineBlocks.map((block, i) => (
+              <li
+                key={`${block.type}_${i}`}
+                data-testid={`teach-inline-block-${block.type}`}
+                className="m-0 p-0"
+              >
+                <InlineBlockRenderer
+                  block={block as unknown as Record<string, unknown> & {
+                    type?: string;
+                  }}
+                  locale={languagePreference}
+                  sessionId={message.id}
+                  onAction={(event) => {
+                    // Tab promotion → forward through onSpawnTab so the
+                    // owner-os shell handles dedup + augment.
+                    if (
+                      event.action === 'spawn_tab' &&
+                      onSpawnTab &&
+                      event.payload &&
+                      typeof event.payload === 'object'
+                    ) {
+                      const p = event.payload as {
+                        readonly tabType?: string;
+                        readonly context?: Record<string, unknown>;
+                      };
+                      const parsed = ownerOsSpawnBatchSchema.safeParse({
+                        tabs: [
+                          {
+                            type: p.tabType,
+                            context: p.context ?? {},
+                            reason:
+                              languagePreference === 'sw'
+                                ? 'Inline tab promotion'
+                                : 'Inline tab promotion',
+                          },
+                        ],
+                      });
+                      if (parsed.success) {
+                        const first = parsed.data.tabs[0];
+                        if (first) onSpawnTab(first);
+                      }
+                      return;
+                    }
+                    // level_select → reply as the owner's next turn so
+                    // the brain calibrates subsequent responses.
+                    if (event.action === 'level_select') {
+                      const p = event.payload as {
+                        readonly levelId?: string;
+                        readonly label?: string;
+                      };
+                      if (typeof p.label === 'string' && p.label.length > 0) {
+                        onSuggestion(p.label);
+                      }
+                      return;
+                    }
+                    // Other actions (micro_action / wizard submit /
+                    // capture / file upload / etc) — forward as a
+                    // surfaced suggestion so the brain sees the action
+                    // intent in the next turn. The host owns the real
+                    // network dispatch; this keeps the chat continuous
+                    // until the explicit micro-action endpoint is
+                    // wired through.
+                    if (typeof event.action === 'string' && event.action.length > 0) {
+                      onSuggestion(`__inline_action:${event.action}`);
+                    }
+                  }}
+                />
+              </li>
+            ))}
           </ul>
         ) : null}
 

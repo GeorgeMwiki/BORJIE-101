@@ -347,6 +347,9 @@ import { ownerRemindersRouter } from './routes/owner/reminders.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
+// Wave FOUR-EYE-APPROVAL — two-person sign-off on high-stakes owner
+// actions (payment > 5M TZS, regulator filing, contract signature).
+import { fourEyeApprovalsRouter } from './routes/owner/four-eye-approvals.hono';
 import {
   workforceTabConfigOwnerListRouter,
   workforceTabPolicyAdminRouter,
@@ -1294,6 +1297,11 @@ api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
 api.route('/owner/tabs', ownerTabsRouter);
+// Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
+// covers /request, /pending, /approve/:token, /reject/:token under
+// the /owner/four-eye prefix so owner-web modals can target a single
+// path tree without touching the brain.
+api.route('/owner/four-eye', fourEyeApprovalsRouter);
 // Wave ESTATE-OS — family-office holdings layer.
 api.route('/estate/groups', estateGroupsRouter);
 api.route('/estate/entities', estateEntitiesRouter);
@@ -1876,6 +1884,11 @@ if (require.main === module) {
   // `daily_brief_cadence` matches the wall clock; idempotent via
   // UNIQUE constraint on the dispatch ledger.
   dailyBriefCron.start();
+  // Wave WORKFORCE-CERT-EXPIRY — 6h cron that scans
+  // workforce_certifications for any active cert expiring within 30d
+  // and auto-creates reminders at 30d / 14d / 3d (idempotent via
+  // UNIQUE(tenant_id, cert_id, days_before)).
+  icaCertExpiryCron.start();
   // Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
   // and writes rows into both fx_rates + external_benchmarks.
   fxFeedCron.start();

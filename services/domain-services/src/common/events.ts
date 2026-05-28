@@ -1,3 +1,4 @@
+import pino from 'pino';
 import { randomHex } from './id-generator.js';
 
 /**
@@ -15,6 +16,8 @@ import type {
   SessionId,
   ISOTimestamp,
 } from '@borjie/domain-models';
+
+const logger = pino({ name: 'domain-events' });
 
 /** Base domain event */
 export interface DomainEvent {
@@ -251,8 +254,7 @@ export class InMemoryEventBus implements EventBus {
         // Swallow — domain events must never tear down the publishing
         // transaction. A DLQ / outbox retry is the caller's concern.
         const message = error instanceof Error ? error.message : String(error);
-        // eslint-disable-next-line no-console
-        console.error(`Event handler error for ${eventType}:`, message);
+        logger.error({ err: error, eventType }, `Event handler error: ${message}`);
       }
     };
 
@@ -276,8 +278,7 @@ export class InMemoryEventBus implements EventBus {
         await forwarder(envelope);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        // eslint-disable-next-line no-console
-        console.error(`Event forwarder failed for ${eventType}:`, message);
+        logger.error({ err: error, eventType }, `Event forwarder failed: ${message}`);
       }
     }
   }

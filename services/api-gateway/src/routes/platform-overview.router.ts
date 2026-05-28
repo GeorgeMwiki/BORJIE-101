@@ -16,6 +16,7 @@
 
 import { Hono } from 'hono';
 import { and, count, eq, gte, sum, isNull } from 'drizzle-orm';
+import pino from 'pino';
 import {
   tenants,
   users,
@@ -27,6 +28,8 @@ import {
 import { authMiddleware } from '../middleware/hono-auth';
 import { getDb } from '../composition/db-client';
 import { isPlatformAdmin, type UserRole } from '../types/user-role';
+
+const logger = pino({ name: 'platform-overview' });
 
 // any — Drizzle's select-builder generic chain widens through union
 // generics in a way that adds no runtime safety. Rows are narrowed via
@@ -141,7 +144,7 @@ async function sumMonthlyRevenue(
     if (!Number.isFinite(total) || total < 0) return 0;
     return Math.round(total * 100) / 100;
   } catch (error) {
-    console.error('platform-overview: monthly-revenue aggregation failed:', error);
+    logger.error({ err: error }, 'platform-overview: monthly-revenue aggregation failed');
     return null;
   }
 }

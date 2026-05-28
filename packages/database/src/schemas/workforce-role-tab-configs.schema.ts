@@ -32,6 +32,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // ============================================================================
 // workforce_role_tab_configs — owner-set fixed-tab catalog per role+scope
@@ -59,6 +60,8 @@ export const workforceRoleTabConfigs = pgTable(
       .defaultNow(),
     /** Hash-chained audit-trail link. Set on every owner PUT. */
     hashChainId: uuid('hash_chain_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantRoleScopeIdx: uniqueIndex(
@@ -103,6 +106,8 @@ export const workforceTabChangeRequests = pgTable(
     decisionNote: text('decision_note'),
     /** Hash-chained audit-trail link. */
     auditHashId: uuid('audit_hash_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

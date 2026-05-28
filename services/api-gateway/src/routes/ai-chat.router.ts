@@ -24,6 +24,7 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
+import pino from 'pino';
 import {
   BrainRegistry,
   createBrain,
@@ -51,6 +52,9 @@ import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
 import { v4 as uuid } from 'uuid';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+const logger = pino({ name: 'ai-chat' });
+
 // ---------------------------------------------------------------------------
 // Lazy boot — the brain registry is constructed on first request so the
 // gateway continues to boot for unrelated routes when ANTHROPIC_API_KEY is
@@ -80,8 +84,7 @@ function registry() {
       const neo4j = createNeo4jClient();
       return createGraphAgentToolkit(createGraphQueryService(neo4j));
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('ai-chat.router: failed to construct graph toolkit', err);
+      logger.error({ err }, 'ai-chat.router: failed to construct graph toolkit');
       return undefined;
     }
   })();
@@ -244,8 +247,7 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
         );
       }
       // Ledger-lookup failures must not block the chat — log once and proceed.
-      // eslint-disable-next-line no-console
-      console.warn('ai-chat.router: budget pre-flight check failed (non-fatal)', e?.message ?? e);
+      logger.warn({ err: e }, 'ai-chat.router: budget pre-flight check failed (non-fatal)');
     }
   }
 

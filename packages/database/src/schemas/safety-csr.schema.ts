@@ -18,6 +18,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { tenants, users } from './tenant.schema.js';
 import { sites } from './sites.schema.js';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const incidents = pgTable(
   'incidents',
@@ -55,6 +56,8 @@ export const incidents = pgTable(
     closedByUserId: text('closed_by_user_id'),
     /** Free-text closure justification (migration 0082). */
     closureReason: text('closure_reason'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

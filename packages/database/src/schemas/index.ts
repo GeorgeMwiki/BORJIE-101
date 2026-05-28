@@ -1001,6 +1001,10 @@ export * from './owner-contact-prefs.schema.js';
 // state change.
 export * from './four-eye-requests.schema.js';
 
+// Wave WORKFORCE-CERT-EXPIRY (migration 0102). Per-employee mining
+// certifications + dedup ledger for the cert-expiry reminder cron.
+export * from './workforce-certifications.schema.js';
+
 // Wave WORKFORCE-FIXED-TABS (migration 0091). Workers see FIXED tabs only;
 // the owner sets the per-(role,scope) catalog + density via the owner-web
 // configurator and approves / rejects worker change requests. Both tables
@@ -1068,3 +1072,49 @@ export * from './estate-entities.schema.js';
 export * from './estate-capital-movements.schema.js';
 export * from './succession-plans.schema.js';
 export * from './estate-assets.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave WORKFORCE-CLOCK-IN — biometric clock-in events (migration 0103)
+// ---------------------------------------------------------------------------
+//   clock_in_events — one row per (employee, clock-in instant) with
+//                     biometric provider attestation + pass flag,
+//                     optional geo + device. Powers the workforce-mobile
+//                     expo-local-authentication flow and the owner-web
+//                     WebAuthn kiosk. Read by the brain via
+//                     workforce.clock_in_query / attendance_status.
+export * from './clock-in-events.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave PRODUCTION-CAPTURE — supervisor tonnage capture (migration 0104)
+// ---------------------------------------------------------------------------
+//   production_tonnage_events — ore / waste split, strip ratio, source
+//                                attribution, photo evidence, QA sign-off.
+//                                Brain tools: mining.production.log_tonnage,
+//                                daily_summary, qa_backlog.
+export * from './production-tonnage.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave COOPERATIVE-SETTLEMENT — period + member distribution (migration 0105)
+// ---------------------------------------------------------------------------
+//   cooperative_settlement_periods   — per (cooperative, period) totals.
+//   cooperative_member_distributions — per-member share + payout ref.
+// Money path STILL via LedgerService.post() on distribute.
+export * from './cooperative-settlements.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave INSURANCE-BROKER — quotes + policies (migration 0106)
+// ---------------------------------------------------------------------------
+//   insurance_quotes   — ephemeral quote requests from broker port.
+//   insurance_policies — active policies; renewal countdown indexed.
+// Six coverage classes: workforce, plant, environmental, third_party,
+// transit, political_risk.
+export * from './insurance.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave OWNER-MESSAGING — owner-to-owner threads (migration 0107)
+// ---------------------------------------------------------------------------
+//   owner_threads               — subject + status (open / closed / archived).
+//   owner_thread_participants   — M:N owner-thread with role.
+//   owner_messages              — body_md + attachments + read receipts.
+// Brain tools: owner.messaging.send_to, unread_count, thread_list.
+export * from './owner-messaging.schema.js';

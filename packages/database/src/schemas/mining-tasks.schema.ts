@@ -31,6 +31,7 @@ import {
   index,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // ============================================================================
 // mining_tasks — worker task queue + manager assignment substrate
@@ -69,6 +70,8 @@ export const miningTasks = pgTable(
       .defaultNow(),
     /** Pointer into ai_audit_chain for forensic replay (hash-chained audit). */
     hashChainId: uuid('hash_chain_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantAssigneeStatusIdx: index('idx_mining_tasks_tenant_assignee_status').on(

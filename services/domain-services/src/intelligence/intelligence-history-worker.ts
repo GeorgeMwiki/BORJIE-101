@@ -7,8 +7,11 @@
  * only — no LLM calls — so the worker is cheap and reproducible.
  */
 
+import pino from 'pino';
 import type { TenantId, ISOTimestamp } from '@borjie/domain-models';
 import { randomHex } from '../common/id-generator.js';
+
+const logger = pino({ name: 'intelligence-history-worker' });
 
 export interface IntelligenceSnapshot {
   readonly id: string;
@@ -123,9 +126,9 @@ export class IntelligenceHistoryWorker {
           snapshotsWritten += 1;
         } catch (error) {
           errors += 1;
-          console.error(
-            `intelligence-history-worker: failed customer=${c.customerId} tenant=${c.tenantId}`,
-            error,
+          logger.error(
+            { err: error, customerId: c.customerId, tenantId: c.tenantId },
+            'intelligence-history-worker: failed snapshot upsert',
           );
         }
       }

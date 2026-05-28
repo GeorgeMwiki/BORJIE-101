@@ -6,7 +6,10 @@
  * boots green and surfaces a clear "degraded" state via /healthz.
  */
 
+import pino from 'pino';
 import { z } from 'zod';
+
+const logger = pino({ name: 'scheduler' });
 
 const ConfigSchema = z.object({
   DATABASE_URL: z.string().optional(),
@@ -80,9 +83,9 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           const mod = await import('./renewal-scheduler.js');
           // RenewalScheduler needs repo + publisher deps — wire at composition
           // root when real DB pool + event bus are available. For now, log.
-          console.warn('[scheduler] renewal-sweep: real deps wiring pending', Object.keys(mod).length);
+          logger.warn({ modKeys: Object.keys(mod).length }, '[scheduler] renewal-sweep: real deps wiring pending');
         } catch (err) {
-          console.warn('[scheduler] renewal module import failed:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] renewal module import failed');
         }
       }
     : shim('runRenewalSweep', shimmed, 'DATABASE_URL missing');
@@ -93,7 +96,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           '../../../../domain-services/src/cases/sla-worker.js' as string
         ).catch(() => ({ CaseSLAWorker: null }))) as { CaseSLAWorker: unknown };
         if (!CaseSLAWorker) {
-          console.warn('[scheduler] CaseSLAWorker not reachable — shimming');
+          logger.warn('[scheduler] CaseSLAWorker not reachable — shimming');
           return;
         }
         interface SlaWorkerInstance {
@@ -113,7 +116,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           )) as { runVendorRating?: () => Promise<void> };
           if (mod.runVendorRating) await mod.runVendorRating();
         } catch (err) {
-          console.warn('[scheduler] vendor-rating module not reachable:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] vendor-rating module not reachable');
         }
       }
     : shim('runVendorRating', shimmed, 'DATABASE_URL missing');
@@ -126,7 +129,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           )) as { runIntelligenceHistorySnapshot?: () => Promise<void> };
           if (mod.runIntelligenceHistorySnapshot) await mod.runIntelligenceHistorySnapshot();
         } catch (err) {
-          console.warn('[scheduler] intelligence-history unreachable:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] intelligence-history unreachable');
         }
       }
     : shim('runIntelligenceHistory', shimmed, 'DATABASE_URL or ANTHROPIC_API_KEY missing');
@@ -139,7 +142,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           )) as { runFarScheduler?: () => Promise<void> };
           if (mod.runFarScheduler) await mod.runFarScheduler();
         } catch (err) {
-          console.warn('[scheduler] far-scheduler unreachable:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] far-scheduler unreachable');
         }
       }
     : shim('runFarScheduler', shimmed, 'DATABASE_URL or NOTIFICATIONS_SERVICE_URL missing');
@@ -152,7 +155,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           )) as { runWaitlistBackfill?: () => Promise<void> };
           if (mod.runWaitlistBackfill) await mod.runWaitlistBackfill();
         } catch (err) {
-          console.warn('[scheduler] waitlist-backfill unreachable:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] waitlist-backfill unreachable');
         }
       }
     : shim('runWaitlistBackfill', shimmed, 'DATABASE_URL or NOTIFICATIONS_SERVICE_URL missing');
@@ -165,7 +168,7 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
           )) as { refreshAllArrearsProjections?: () => Promise<void> };
           if (mod.refreshAllArrearsProjections) await mod.refreshAllArrearsProjections();
         } catch (err) {
-          console.warn('[scheduler] arrears-refresh unreachable:', (err as Error).message);
+          logger.warn({ err }, '[scheduler] arrears-refresh unreachable');
         }
       }
     : shim('runArrearsRefresh', shimmed, 'DATABASE_URL missing');
@@ -197,7 +200,7 @@ function shim(
 ): () => Promise<void> {
   shimmed.push(name);
   return async () => {
-    console.warn(`[scheduler] ${name} shimmed — ${reason}. Tick was a no-op.`);
+    logger.warn({ name, reason }, `[scheduler] shimmed. Tick was a no-op.`);
   };
 }
 

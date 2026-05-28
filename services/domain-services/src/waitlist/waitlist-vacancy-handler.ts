@@ -14,6 +14,7 @@
  * appends `waitlist_outreach_events` rows for audit.
  */
 
+import pino from 'pino';
 import { prefixedId } from '../common/id-generator.js';
 import type { DomainEvent, EventBus, EventEnvelope } from '../common/events.js';
 import {
@@ -24,6 +25,8 @@ import type {
   TenantId,
   ISOTimestamp,
 } from '@borjie/domain-models';
+
+const logger = pino({ name: 'waitlist-vacancy-handler' });
 
 import {
   asWaitlistOutreachEventId,
@@ -190,12 +193,7 @@ export class WaitlistVacancyHandler {
           errorMessage: message,
         };
         await this.outreachRepo.append(event);
-        console.error(
-          'Waitlist dispatch failed for',
-          entry.id,
-          ':',
-          message
-        );
+        logger.error({ entryId: entry.id }, `Waitlist dispatch failed: ${message}`);
         skipped += 1;
       }
     }

@@ -34,6 +34,11 @@ import { BUYER_TOOLS } from './buyer-tools';
 import { ADMIN_TOOLS } from './admin-tools';
 import { SCOPE_TOOLS } from './scope-tools';
 import { MD_INTELLIGENCE_TOOLS } from './md-intelligence-tools';
+import { WORKFORCE_CLOCK_IN_TOOLS } from './workforce-clock-in-tools';
+import { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
+import { COOPERATIVE_TOOLS } from './cooperative-tools';
+import { INSURANCE_TOOLS } from './insurance-tools';
+import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -71,6 +76,11 @@ export function buildPersonaToolHandlers(
       ADMIN_TOOLS,
       SCOPE_TOOLS,
       MD_INTELLIGENCE_TOOLS,
+      WORKFORCE_CLOCK_IN_TOOLS,
+      MINING_PRODUCTION_TOOLS,
+      COOPERATIVE_TOOLS,
+      INSURANCE_TOOLS,
+      OWNER_MESSAGING_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -109,6 +119,11 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       ADMIN_TOOLS,
       SCOPE_TOOLS,
       MD_INTELLIGENCE_TOOLS,
+      WORKFORCE_CLOCK_IN_TOOLS,
+      MINING_PRODUCTION_TOOLS,
+      COOPERATIVE_TOOLS,
+      INSURANCE_TOOLS,
+      OWNER_MESSAGING_TOOLS,
     ],
     undefined,
   );
@@ -153,3 +168,8 @@ export { BUYER_TOOLS } from './buyer-tools';
 export { ADMIN_TOOLS } from './admin-tools';
 export { SCOPE_TOOLS } from './scope-tools';
 export { MD_INTELLIGENCE_TOOLS } from './md-intelligence-tools';
+export { WORKFORCE_CLOCK_IN_TOOLS } from './workforce-clock-in-tools';
+export { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
+export { COOPERATIVE_TOOLS } from './cooperative-tools';
+export { INSURANCE_TOOLS } from './insurance-tools';
+export { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';

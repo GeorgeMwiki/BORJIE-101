@@ -20,4 +20,22 @@ export interface DocumentRecord {
   readonly uploadedAt: string;
   readonly url: string | null;
   readonly chunks: ReadonlyArray<DocumentChunk>;
+  /**
+   * Chat-as-OS bidirectional parity. Optional for backwards
+   * compatibility — older fixtures land without it; the
+   * ProvenancePill component is null-safe.
+   */
+  readonly provenance?: {
+    readonly via:
+      | 'chat'
+      | 'form'
+      | 'agent_apply'
+      | 'api'
+      | 'legacy'
+      | 'unknown';
+    readonly actorId?: string | null;
+    readonly sessionId?: string | null;
+    readonly turnId?: string | null;
+    readonly requestedAt?: string;
+  };
 }

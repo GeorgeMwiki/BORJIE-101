@@ -17,6 +17,7 @@
  */
 
 import { pgTable, text, timestamp, jsonb, primaryKey } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const ownerTabs = pgTable(
   'owner_tabs',
@@ -29,6 +30,8 @@ export const ownerTabs = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.tenantId, t.userId] }),

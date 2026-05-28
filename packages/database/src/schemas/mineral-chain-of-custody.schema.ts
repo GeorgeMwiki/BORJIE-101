@@ -18,6 +18,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const mineralChainOfCustody = pgTable(
   'mineral_chain_of_custody',
@@ -40,6 +41,8 @@ export const mineralChainOfCustody = pgTable(
     location: text('location'),
     auditHashId: uuid('audit_hash_id').notNull(),
     prevAuditHash: text('prev_audit_hash').notNull().default(''),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

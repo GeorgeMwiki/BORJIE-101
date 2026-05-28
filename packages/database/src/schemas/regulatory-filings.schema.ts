@@ -17,6 +17,7 @@ import {
   numeric,
   index,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const regulatoryFilings = pgTable(
   'regulatory_filings',
@@ -38,6 +39,8 @@ export const regulatoryFilings = pgTable(
       .notNull()
       .default('0'),
     notes: text('notes'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -4,6 +4,7 @@ import { OwnerShell } from '@/components/OwnerShell';
 import { AppProviders } from './providers';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -55,6 +56,9 @@ export default function RootLayout({
               TTFB/FCP via sendBeacon to /api/perf/web-vitals. Pure side
               channel — never blocks render, never gates a fetch. */}
           <WebVitalsReporter surface="owner-web" />
+          {/* PWA — register the cache-first SW after hydration. Silent;
+              skipped in dev. See `public/sw.js` and `public/offline.html`. */}
+          <ServiceWorkerRegister />
         </AppProviders>
       </body>
     </html>

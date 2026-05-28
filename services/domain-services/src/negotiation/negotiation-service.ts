@@ -16,6 +16,7 @@
  * prompt-injected counter below floor is still rejected.
  */
 
+import pino from 'pino';
 import { prefixedId } from '../common/id-generator.js';
 import type { EventBus } from '../common/events.js';
 import {
@@ -29,6 +30,8 @@ import type {
   Result,
 } from '@borjie/domain-models';
 import { ok, err } from '@borjie/domain-models';
+
+const logger = pino({ name: 'negotiation-service' });
 
 import {
   NegotiationServiceError,
@@ -578,7 +581,7 @@ export class NegotiationService {
         lowerBound,
       });
     } catch (error) {
-      console.error('AI counter generator failed:', error);
+      logger.error({ err: error }, 'AI counter generator failed');
       updated = await this.negotiationRepo.updateStatus(
         negotiation.id,
         tenantId,

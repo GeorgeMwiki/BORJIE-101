@@ -6,6 +6,7 @@ import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { AdminShell } from '@/components/AdminShell';
 import { AdminShellGate } from '@/components/admin-shell/AdminShellGate';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 export const metadata: Metadata = {
   title: {
@@ -75,6 +76,10 @@ export default function RootLayout({
                 sensorium + session-replay because Web Vitals is a per-
                 page rendering measurement, not a behavioural signal. */}
             <WebVitalsReporter surface="admin-web" />
+            {/* PWA — register the cache-first SW after hydration.
+                Silent; skipped in dev. See `public/sw.js` and
+                `public/offline.html`. */}
+            <ServiceWorkerRegister />
           </SensoriumProvider>
         </SessionReplayProvider>
       </body>

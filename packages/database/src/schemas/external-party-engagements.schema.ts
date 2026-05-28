@@ -16,6 +16,7 @@ import {
   uuid,
   index,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 export const externalPartyEngagements = pgTable(
   'external_party_engagements',
@@ -37,6 +38,8 @@ export const externalPartyEngagements = pgTable(
     docLinks: jsonb('doc_links').notNull().default([]),
     auditHashId: uuid('audit_hash_id'),
     createdBy: text('created_by'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

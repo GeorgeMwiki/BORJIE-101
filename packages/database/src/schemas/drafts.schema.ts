@@ -23,6 +23,7 @@ import {
   jsonb,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // ============================================================================
 // document_drafts — persisted draft documents
@@ -78,6 +79,8 @@ export const documentDrafts = pgTable(
     parentDraftId: text('parent_draft_id'),
     /** Hash-chained audit-trail link. */
     hashChainId: text('hash_chain_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -152,6 +155,8 @@ export const draftRevisions = pgTable(
       .defaultNow(),
     citations: jsonb('citations').notNull().default('[]'),
     auditHash: text('audit_hash'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantDraftRevIdx: index('idx_draft_revisions_tenant_draft_rev').on(

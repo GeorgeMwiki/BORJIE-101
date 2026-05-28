@@ -36,7 +36,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   documentUploads,
   documentCorpusLinks,
@@ -186,9 +186,31 @@ app.post('/intake', async (c: any) => {
   const category = classifyOwnerDoc(input.fileName, input.mimeType);
   const documentType = mapCategoryToDocumentType(category);
   const id = randomUUID();
-  const monthBucket = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const fileUrl = `tenant-docs/${auth.tenantId}/${monthBucket}/${id}/${encodeURIComponent(input.fileName)}`;
   const now = new Date();
+  // Wave OWNER-OS — REAL Supabase Storage signed-upload URL. Returns
+  // `degraded:true` when the gateway is running without Supabase env,
+  // so local-dev still hands back a path the FE can branch on.
+  const presign = await issueOwnerDocPresign({
+    tenantId: auth.tenantId,
+    documentId: id,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    fileSize: input.fileSize,
+  }).catch((err) => {
+    moduleLogger.warn(
+      'owner-docs presign threw — falling back to placeholder',
+      {
+        tenantId: auth.tenantId,
+        reason: err instanceof Error ? err.message : String(err),
+      },
+    );
+    return null;
+  });
+  const fileUrl = presign
+    ? `${presign.bucket}/${presign.path}`
+    : `tenant-uploads/${auth.tenantId}/${now
+        .toISOString()
+        .slice(0, 7)}/${id}`;
 
   try {
     const [row] = await db
@@ -232,7 +254,70 @@ app.post('/intake', async (c: any) => {
       category,
       mimeType: input.mimeType,
       fileSize: input.fileSize,
+      presignDegraded: presign?.degraded ?? true,
     });
+
+    // Hash-chain audit of the presign issuance so an operator can
+    // trace every URL that left the gateway against an owner request.
+    // Best-effort — a chain gap is logged but does not block delivery.
+    try {
+      await db.execute(
+        sql`
+          WITH prev AS (
+            SELECT this_hash, sequence_id
+              FROM ai_audit_chain
+             WHERE tenant_id = ${auth.tenantId}
+             ORDER BY sequence_id DESC
+             LIMIT 1
+          )
+          INSERT INTO ai_audit_chain
+            (id, tenant_id, sequence_id, turn_id, session_id, action,
+             prev_hash, this_hash, payload_ref, payload, created_at)
+          VALUES (
+            ${randomUUID()},
+            ${auth.tenantId},
+            COALESCE((SELECT sequence_id FROM prev), 0) + 1,
+            ${`owner-docs-presign-${id}`},
+            NULL,
+            ${'owner.docs.presign.issue'},
+            COALESCE((SELECT this_hash FROM prev), ''),
+            encode(sha256(
+              (COALESCE((SELECT this_hash FROM prev), '') ||
+               ${JSON.stringify({
+                 documentId: id,
+                 tenantId: auth.tenantId,
+                 userId: auth.userId,
+                 bucket: presign?.bucket ?? 'tenant-uploads',
+                 path: presign?.path ?? null,
+                 degraded: presign?.degraded ?? true,
+               })}
+              )::bytea
+            ), 'hex'),
+            NULL,
+            ${JSON.stringify({
+              action: 'owner.docs.presign.issue',
+              documentId: id,
+              fileName: input.fileName,
+              mimeType: input.mimeType,
+              fileSize: input.fileSize,
+              category,
+              bucket: presign?.bucket ?? 'tenant-uploads',
+              path: presign?.path ?? null,
+              degraded: presign?.degraded ?? true,
+              expiresAt: presign?.expiresAt ?? null,
+            })}::jsonb,
+            ${now.toISOString()}::timestamptz
+          )
+        `,
+      );
+    } catch (auditErr) {
+      moduleLogger.warn('owner-docs: presign audit-chain append failed', {
+        tenantId: auth.tenantId,
+        documentId: id,
+        reason:
+          auditErr instanceof Error ? auditErr.message : String(auditErr),
+      });
+    }
 
     return c.json(
       ok({
@@ -240,7 +325,20 @@ app.post('/intake', async (c: any) => {
         ingestionStatus: 'queued',
         category,
         documentType,
-        presignedPut: fileUrl,
+        // Legacy shape — kept so existing FE callers keep working.
+        presignedPut: presign?.uploadUrl ?? fileUrl,
+        // New canonical shape — fields the FE PUTs the bytes against.
+        presigned: presign
+          ? {
+              bucket: presign.bucket,
+              path: presign.path,
+              uploadUrl: presign.uploadUrl,
+              token: presign.token,
+              expiresAt: presign.expiresAt,
+              headers: presign.headers,
+              degraded: presign.degraded,
+            }
+          : null,
         document: row,
       }),
       201,

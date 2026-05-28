@@ -26,6 +26,7 @@ import {
   uuid,
   index,
 } from 'drizzle-orm/pg-core';
+import { provenanceColumn } from '../helpers/provenance-column.js';
 
 // ============================================================================
 // mining_escalations — manager-up + worker-up escalation chain
@@ -60,6 +61,8 @@ export const miningEscalations = pgTable(
       .defaultNow(),
     /** Hash-chained audit-trail link (audit-trail package writes this on transition). */
     hashChainId: text('hash_chain_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantStatusCreatedIdx: index('idx_mining_escalations_tenant_status_created').on(
@@ -116,6 +119,8 @@ export const miningApprovalItems = pgTable(
       .notNull()
       .defaultNow(),
     hashChainId: text('hash_chain_id'),
+    /** Chat-as-OS bidirectional parity. See migration 0101. */
+    provenance: provenanceColumn(),
   },
   (t) => ({
     tenantStatusCreatedIdx: index(
