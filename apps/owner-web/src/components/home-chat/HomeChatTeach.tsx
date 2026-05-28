@@ -63,12 +63,28 @@ export interface HomeChatTeachProps {
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
 
+/**
+ * Parsed inline block emitted by the brain as a `<ui_block>` whose
+ * `type` is one of the INLINE-FIRST catalog kinds (mini_metric,
+ * data_capture_card, confirmation_card, file_request_card,
+ * micro_action_card, tab_promotion_chip, inline_table, inline_chart,
+ * inline_wizard, inline_workflow, inline_comparison, inline_section,
+ * inline_dashboard, doc_quest). We render a labeled card per kind so
+ * the visitor sees a clean affordance instead of raw XML.
+ */
+interface InlineBlock {
+  readonly type: string;
+  readonly title?: string;
+  readonly [key: string]: unknown;
+}
+
 interface TeachMessage {
   readonly id: string;
   readonly role: 'user' | 'assistant';
   readonly text: string;
   readonly inlineMetrics: ReadonlyArray<InlineMetric>;
   readonly uiBlock: TeachUiBlock | null;
+  readonly inlineBlocks: ReadonlyArray<InlineBlock>;
   readonly suggestedActions: ReadonlyArray<string>;
   readonly citations: ReadonlyArray<string>;
   readonly streaming: boolean;
@@ -148,6 +164,38 @@ function normaliseInlineMetric(value: unknown): InlineMetric | null {
   return { label: v.label, value: v.value, tone };
 }
 
+/**
+ * Catalog of inline-first block kinds the brain may emit. We render a
+ * labeled placeholder for every kind so the visitor never sees raw XML
+ * for a kind we have not built a bespoke renderer for yet. The
+ * full-resolution renderers will replace this in a follow-up wave.
+ */
+const INLINE_BLOCK_KIND_LABELS: Readonly<Record<string, string>> = {
+  mini_metric: 'Metric',
+  metric_strip: 'Metrics',
+  data_capture_card: 'Capture',
+  confirmation_card: 'Confirm',
+  file_request_card: 'Upload',
+  micro_action_card: 'Quick action',
+  tab_promotion_chip: 'Open tab',
+  inline_table: 'Table',
+  inline_chart: 'Chart',
+  inline_wizard: 'Wizard',
+  inline_workflow: 'Workflow',
+  inline_comparison: 'Comparison',
+  inline_section: 'Section',
+  inline_dashboard: 'Dashboard',
+  doc_quest: 'Document side quest',
+  level_select: 'Choose level',
+};
+
+function normaliseInlineBlock(value: unknown): InlineBlock | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.type !== 'string' || v.type.trim().length === 0) return null;
+  return v as InlineBlock;
+}
+
 export function HomeChatTeach({
   salutation,
   tradingName,
@@ -180,6 +228,7 @@ export function HomeChatTeach({
         text: trimmed,
         inlineMetrics: [],
         uiBlock: null,
+        inlineBlocks: [],
         suggestedActions: [],
         citations: [],
         spawnTabs: [],
@@ -195,6 +244,7 @@ export function HomeChatTeach({
         text: '',
         inlineMetrics: [],
         uiBlock: null,
+        inlineBlocks: [],
         suggestedActions: [],
         citations: [],
         spawnTabs: [],
@@ -312,6 +362,20 @@ export function HomeChatTeach({
                       ? {
                           ...m,
                           inlineMetrics: [...m.inlineMetrics, metric].slice(0, 2),
+                        }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'inline_block') {
+              const block = normaliseInlineBlock(payload.block);
+              if (block) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? {
+                          ...m,
+                          inlineBlocks: [...m.inlineBlocks, block].slice(0, 8),
                         }
                       : m,
                   ),
@@ -655,6 +719,36 @@ function TeachBubble({
 
         {!isOwner && message.uiBlock ? (
           <UiBlockRenderer block={message.uiBlock} />
+        ) : null}
+
+        {!isOwner && message.inlineBlocks.length > 0 ? (
+          <ul
+            data-testid="teach-inline-blocks"
+            className="m-0 mt-3 flex list-none flex-col gap-2 p-0"
+          >
+            {message.inlineBlocks.map((block, i) => {
+              const label =
+                INLINE_BLOCK_KIND_LABELS[block.type] ?? block.type;
+              const title =
+                typeof block.title === 'string' && block.title.trim().length > 0
+                  ? block.title.trim()
+                  : null;
+              return (
+                <li
+                  key={`${block.type}_${i}`}
+                  data-testid={`teach-inline-block-${block.type}`}
+                  className="rounded-md border border-info/40 bg-info/5 px-3 py-2"
+                >
+                  <p className="text-tiny font-medium uppercase tracking-wide text-info">
+                    {label}
+                  </p>
+                  {title ? (
+                    <p className="mt-0.5 text-sm text-foreground">{title}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
         ) : null}
 
         {!isOwner && message.citations.length > 0 ? (
