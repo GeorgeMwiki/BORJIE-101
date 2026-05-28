@@ -36,7 +36,7 @@ const SOURCE_LABELS: Record<string, CitationSource> = {
   nemc: 'NEMC',
   bot: 'BoT',
   tra: 'TRA',
-  tumemadini: 'Tumemadini',
+  tumemadini: 'Mining Commission',
   tmaa: 'TMAA',
 };
 

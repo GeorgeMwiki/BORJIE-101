@@ -33,7 +33,7 @@ export interface Junior {
   readonly status: JuniorStatus;
 }
 
-export type CitationSource = 'Gazette' | 'NEMC' | 'BoT' | 'TMAA' | 'TRA' | 'Tumemadini';
+export type CitationSource = 'Gazette' | 'NEMC' | 'BoT' | 'TMAA' | 'TRA' | 'Mining Commission';
 
 export interface Citation {
   readonly id: string;

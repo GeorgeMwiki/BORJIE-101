@@ -11,7 +11,7 @@ import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 
 const mintSchema = z.object({
   tenantId: z.string().min(1, 'Pick a tenant'),
-  regulator: z.enum(['TMAA', 'NEMC', 'BoT', 'TRA', 'Tumemadini', 'Ministry of Minerals']),
+  regulator: z.enum(['TMAA', 'NEMC', 'BoT', 'TRA', 'Mining Commission', 'Ministry of Minerals']),
   expiresIn: z.enum(['24h', '7d', '30d']),
 });
 
@@ -75,7 +75,7 @@ export function MintPackForm(): JSX.Element {
           <option>NEMC</option>
           <option>BoT</option>
           <option>TRA</option>
-          <option>Tumemadini</option>
+          <option>Mining Commission</option>
           <option>Ministry of Minerals</option>
         </select>
       </label>

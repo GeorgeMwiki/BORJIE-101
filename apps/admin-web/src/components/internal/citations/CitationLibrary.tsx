@@ -6,7 +6,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { useCitationsQuery } from '@/lib/internal/queries/citations';
 import type { Citation, CitationSource } from '@/lib/internal/types';
 
-const SOURCES: ReadonlyArray<CitationSource> = ['Gazette', 'NEMC', 'BoT', 'TMAA', 'TRA', 'Tumemadini'];
+const SOURCES: ReadonlyArray<CitationSource> = ['Gazette', 'NEMC', 'BoT', 'TMAA', 'TRA', 'Mining Commission'];
 
 export function CitationLibrary(): JSX.Element {
   const query = useCitationsQuery();

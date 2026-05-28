@@ -38,7 +38,7 @@ const SOURCE_LABELS: Record<NonNullable<RawRegulatorRow['source']>, CitationSour
   nemc: 'NEMC',
   bot: 'BoT',
   tra: 'TRA',
-  tumemadini: 'Tumemadini',
+  tumemadini: 'Mining Commission',
 };
 
 function ageHoursOf(iso: string | undefined): number {
