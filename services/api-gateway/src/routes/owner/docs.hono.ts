@@ -46,7 +46,7 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
-import { callBrainOnce } from './brain-call';
+import { callBrainOnce } from './brain-call.js';
 
 const moduleLogger = createLogger('owner-docs');
 

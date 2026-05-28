@@ -477,7 +477,7 @@ async function composeAdvisorSlice(slots: {
 }): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
   // Lazy import so the brain-call helper isn't required when this file
   // is bundled for the cron worker (which sets no API keys).
-  const { callBrainOnce } = await import('./brain-call');
+  const { callBrainOnce } = await import('./brain-call.js');
   const summary = JSON.stringify({
     shiftsToday: slots.dailyBrief.shiftsToday,
     openIncidents: slots.dailyBrief.openIncidents,

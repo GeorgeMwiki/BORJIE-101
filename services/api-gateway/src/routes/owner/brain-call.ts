@@ -32,6 +32,7 @@ const moduleLogger = createLogger('owner-brain-call');
 
 /** DeepSeek is OpenAI-shape; reuse the OpenAI adapter with a base URL. */
 class DeepSeekAdapter implements BrainLLMClient {
+  public readonly provider = 'openai' as const;
   private readonly inner: OpenAIAdapter;
   constructor(config: { apiKey: string }) {
     this.inner = new OpenAIAdapter({
@@ -99,15 +100,15 @@ export async function callBrainOnce(input: BrainOnceInput): Promise<BrainOnceRes
   const deepseekModel =
     process.env.BORJIE_OWNER_DEEPSEEK_MODEL?.trim() || 'deepseek-chat';
 
-  const ladder: ReadonlyArray<{
-    name: string;
-    model: string;
-    client: BrainLLMClient;
-  }> = [
-    p.anthropic ? { name: 'anthropic', model: anthropicModel, client: p.anthropic } : null,
-    p.openai ? { name: 'openai', model: openaiModel, client: p.openai } : null,
-    p.deepseek ? { name: 'deepseek', model: deepseekModel, client: p.deepseek } : null,
-  ].filter((x): x is { name: string; model: string; client: BrainLLMClient } => x !== null);
+  type LadderEntry = { name: string; model: string; client: BrainLLMClient };
+  const candidates: ReadonlyArray<LadderEntry | null> = [
+    p.anthropic ? { name: 'anthropic', model: anthropicModel, client: p.anthropic as BrainLLMClient } : null,
+    p.openai ? { name: 'openai', model: openaiModel, client: p.openai as BrainLLMClient } : null,
+    p.deepseek ? { name: 'deepseek', model: deepseekModel, client: p.deepseek as BrainLLMClient } : null,
+  ];
+  const ladder: ReadonlyArray<LadderEntry> = candidates.filter(
+    (x): x is LadderEntry => x !== null,
+  );
 
   if (ladder.length === 0) {
     throw new Error(
@@ -116,7 +117,12 @@ export async function callBrainOnce(input: BrainOnceInput): Promise<BrainOnceRes
   }
 
   const maxTokens = input.maxTokens ?? 600;
-  const messages = [{ role: 'user' as const, content: input.userPrompt }];
+  const messages = [
+    {
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: input.userPrompt }],
+    },
+  ];
   const errors: string[] = [];
 
   for (const entry of ladder) {
