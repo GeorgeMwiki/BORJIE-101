@@ -19,6 +19,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode
@@ -107,15 +108,6 @@ export function HomeChat(): JSX.Element {
   const { lang } = useI18n()
   const role = user?.role ?? 'employee'
   const opener = openerFor(role)
-  const personaSlug = workforcePersonaSpec(role).slug
-
-  const [turns, setTurns] = useState<ReadonlyArray<SettledTurn>>([])
-  const [live, setLive] = useState<LiveTurn | null>(null)
-  const [draft, setDraft] = useState<string>('')
-  const [threadId, setThreadId] = useState<string | null>(null)
-  const scrollRef = useRef<ScrollView | null>(null)
-  const [showSkeleton, setShowSkeleton] = useState(false)
-  const [showSlow, setShowSlow] = useState(false)
   // Wave WORKFORCE-FIXED-TABS — sheet state + current tab snapshot.
   const tabConfig = useWorkforceTabConfig()
   const [tabSheetVisible, setTabSheetVisible] = useState<boolean>(false)
@@ -123,6 +115,38 @@ export function HomeChat(): JSX.Element {
   const workforceRoleId: WorkforceRoleId =
     (tabConfig.config?.role as WorkforceRoleId | undefined) ??
     (role === 'owner' ? 'owner' : role === 'manager' ? 'manager' : 'pit_operator')
+
+  // Persona resolution: prefer the fine-grained tab-config role (8
+  // workforce roles). Falls back through the safe supervisor persona
+  // when the tab-config has not hydrated. The legacy 3-role mapping
+  // remains for the dev-mode role picker.
+  const personaSlug = useMemo(
+    () =>
+      resolveWorkforcePersona({
+        tabConfigRole: tabConfig.config?.role as WorkforceRoleId | undefined,
+        legacyRole: role
+      }),
+    [role, tabConfig.config?.role]
+  )
+  // Keep the legacy 3-role spec around for places that still read it.
+  void workforcePersonaSpec
+
+  const [turns, setTurns] = useState<ReadonlyArray<SettledTurn>>([])
+  const [live, setLive] = useState<LiveTurn | null>(null)
+  const [draft, setDraft] = useState<string>('')
+  const [caret, setCaret] = useState<number>(0)
+  const [threadId, setThreadId] = useState<string | null>(null)
+  const scrollRef = useRef<ScrollView | null>(null)
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const [showSlow, setShowSlow] = useState(false)
+
+  // Composer slash + @ menus — load slash commands per persona once,
+  // fetch @-entities lazily when the trigger opens.
+  const slashCatalog = useMemo<ReadonlyArray<SlashCommandItem>>(
+    () => slashCommandsForPersona(personaSlug, 'workforce'),
+    [personaSlug]
+  )
+  const [atEntities, setAtEntities] = useState<ReadonlyArray<EntityItem>>([])
 
   useEffect(() => {
     let cancelled = false
@@ -294,6 +318,70 @@ export function HomeChat(): JSX.Element {
     [submitTurn]
   )
 
+  // Trigger probe — recomputed each render from draft + caret.
+  const trigger = useMemo(
+    () => parseTrigger(draft, caret),
+    [draft, caret]
+  )
+
+  // Filtered menu rows by locale + persona.
+  const filteredSlashCommands = useMemo<ReadonlyArray<SlashCommandItem>>(
+    () =>
+      trigger.kind === 'slash'
+        ? filterSlashCommands(slashCatalog, trigger.query, {
+            personaSlug,
+            locale: lang
+          })
+        : [],
+    [trigger, slashCatalog, personaSlug, lang]
+  )
+  const filteredEntities = useMemo<ReadonlyArray<EntityItem>>(
+    () =>
+      trigger.kind === 'at'
+        ? filterEntities(atEntities, trigger.query, { locale: lang })
+        : [],
+    [trigger, atEntities, lang]
+  )
+
+  // Lazy fetch entities the first time `@` opens.
+  useEffect(() => {
+    if (trigger.kind !== 'at' || atEntities.length > 0) {
+      return
+    }
+    let cancelled = false
+    void fetchRecentEntities('scope_node', 20).then((rows) => {
+      if (!cancelled) setAtEntities(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [trigger.kind, atEntities.length])
+
+  const onSelectSlash = useCallback(
+    (cmd: SlashCommandItem): void => {
+      const next = applySelection(
+        { text: draft, caret },
+        trigger,
+        { token: `/${cmd.id}` }
+      )
+      setDraft(next.text)
+      setCaret(next.caret)
+    },
+    [caret, draft, trigger]
+  )
+  const onSelectEntity = useCallback(
+    (entity: EntityItem): void => {
+      const next = applySelection(
+        { text: draft, caret },
+        trigger,
+        { token: `@${entity.id}` }
+      )
+      setDraft(next.text)
+      setCaret(next.caret)
+    },
+    [caret, draft, trigger]
+  )
+
   const showGreeting = turns.length === 0 && live === null
   const canSend = draft.trim().length > 0
 
@@ -331,10 +419,16 @@ export function HomeChat(): JSX.Element {
       <Composer
         draft={draft}
         onChangeDraft={setDraft}
+        onSelectionChange={setCaret}
         onSubmit={onSubmitEditing}
         onSendPress={onSendPress}
         canSend={canSend}
         lang={lang}
+        triggerKind={trigger.kind}
+        slashRows={filteredSlashCommands}
+        atRows={filteredEntities}
+        onSelectSlash={onSelectSlash}
+        onSelectEntity={onSelectEntity}
       />
       <RequestTabChangeSheet
         visible={tabSheetVisible}
@@ -594,21 +688,33 @@ function ProposedActionCard({
 interface ComposerProps {
   readonly draft: string
   readonly onChangeDraft: (next: string) => void
+  readonly onSelectionChange: (caret: number) => void
   readonly onSubmit: (
     event: NativeSyntheticEvent<TextInputSubmitEditingEventData>
   ) => void
   readonly onSendPress: () => void
   readonly canSend: boolean
   readonly lang: 'sw' | 'en'
+  readonly triggerKind: 'slash' | 'at' | 'none'
+  readonly slashRows: ReadonlyArray<SlashCommandItem>
+  readonly atRows: ReadonlyArray<EntityItem>
+  readonly onSelectSlash: (cmd: SlashCommandItem) => void
+  readonly onSelectEntity: (entity: EntityItem) => void
 }
 
 function Composer({
   draft,
   onChangeDraft,
+  onSelectionChange,
   onSubmit,
   onSendPress,
   canSend,
-  lang
+  lang,
+  triggerKind,
+  slashRows,
+  atRows,
+  onSelectSlash,
+  onSelectEntity
 }: ComposerProps): JSX.Element {
   const [recording, setRecording] = useState(false)
 
@@ -623,6 +729,12 @@ function Composer({
 
   return (
     <View style={styles.composer} testID="home-chat-composer">
+      {triggerKind === 'slash' ? (
+        <SlashMenu commands={slashRows} locale={lang} onSelect={onSelectSlash} />
+      ) : null}
+      {triggerKind === 'at' ? (
+        <AtMenu entities={atRows} locale={lang} onSelect={onSelectEntity} />
+      ) : null}
       {recording ? (
         <View style={styles.voiceCue} testID="home-chat-voice-cue">
           <Text style={styles.voiceCueText}>
@@ -645,6 +757,9 @@ function Composer({
         <TextInput
           value={draft}
           onChangeText={onChangeDraft}
+          onSelectionChange={(event) =>
+            onSelectionChange(event.nativeEvent.selection.end)
+          }
           placeholder={pickLabel('composerPlaceholder', lang)}
           placeholderTextColor={colors.textMuted}
           style={styles.input}
