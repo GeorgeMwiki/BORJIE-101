@@ -123,7 +123,7 @@ manager).
 supervisor / pit operator / geologist / treasury / safety officer /
 compliance clerk).
 
-**Score:** 8 / 12. **Partial pass — needs follow-up.**
+**Score:** 12 / 12. **Pass.**
 
 ### Shipped today
 - `apps/workforce-mobile/app/(tabs)/ask.tsx` mounts `AskBorjie`
@@ -149,11 +149,19 @@ compliance clerk).
   `worker-tools.ts`).
 - Slash + `@`-reference composer wired.
 
-### Backlog (kept out of this branch to honour the 800-line file cap)
-- Replace `AskBorjie` stub with a real LLM-backed chat surface that
-  talks to `/api/v1/brain/turn` with the worker persona. The tools
-  are wired — only the UI shim is missing.
-- Voice-first UX on mobile.
+### Backlog (closed in this wave)
+- ~~Replace `AskBorjie` stub with a real LLM-backed chat surface~~ —
+  the HomeChat tab now POSTs to `/api/v1/brain/turn` with the role-
+  aware persona (8 mining roles map to 8 persona slugs via
+  `resolveWorkforcePersona`). SSE streaming is the default transport.
+- Slash + `@`-reference composer — wired in
+  `apps/workforce-mobile/src/chat/{ComposerMenu,composer-triggers,
+  recentEntities}.ts`. Slash commands come from
+  `slashCommandsForPersona(slug, 'workforce')`; `@`-references come
+  from `GET /api/v1/scope/recent-entities`.
+- Voice-first UX — long-press voice button on the composer (existing
+  cue), backed by the Web Speech API on rn-web and the standard RN
+  voice picker on iOS / Android.
 
 ---
 
@@ -161,7 +169,7 @@ compliance clerk).
 
 **Persona:** Mr. Mwikila — AI Marketplace Director.
 
-**Score:** 7 / 12. **Partial pass — needs follow-up.**
+**Score:** 12 / 12. **Pass.**
 
 ### Shipped today
 - `apps/buyer-mobile/app/chat/index.tsx` is a **bid-thread chat**
@@ -183,10 +191,15 @@ compliance clerk).
   - `mining.marketplace.accept-offer` — accept a seller counter-offer.
 - Slash + `@`-reference composer wired.
 
-### Backlog
-- Ship a proper buyer AI chat surface (separate from the existing
-  bid-thread chat). The tools and persona DNA are ready; the UI shim
-  is missing.
+### Backlog (closed in this wave)
+- ~~Ship a proper buyer AI chat surface~~ — the HomeChat tab now
+  forces the `T1_buyer_marketplace_director` persona on every turn
+  and streams responses from `/api/v1/brain/turn`. The bid-thread
+  chat remains as a separate per-counterparty messaging surface.
+- Slash + `@`-reference composer — wired in
+  `apps/buyer-mobile/src/chat/{ComposerMenu,composer-triggers,
+  recentEntities}.ts` with the 8-command buyer catalog from
+  `BUYER_SLASH_COMMANDS`.
 
 ---
 
@@ -197,8 +210,8 @@ compliance clerk).
 | marketing       | AI Mining MD (sales)     | 11/12   | Pass              |
 | owner-web       | AI Mining MD (teaching)  | 12/12   | Pass              |
 | admin-web       | AI Platform Director     | 11/12   | Pass              |
-| workforce-mob   | AI Operations Director   | 8/12    | Partial — backlog |
-| buyer-mobile    | AI Marketplace Director  | 7/12    | Partial — backlog |
+| workforce-mob   | AI Operations Director   | 12/12   | Pass              |
+| buyer-mobile    | AI Marketplace Director  | 12/12   | Pass              |
 
 ## Wave goals
 
