@@ -29,7 +29,7 @@ const CLAUSES: ReadonlyArray<Clause> = [
   {
     title: '3. Nature and purpose',
     body:
-      'Borjie processes identification data (NIDA, TIN, licence numbers, fingerprint templates for contract signing), business data (sites, drill-holes, parcels, prices, FX positions), and operational data (chat transcripts, audit events). Processing purposes: run the platform, enforce tenant isolation, generate compliance returns for Tumemadini, NEMC, and BoT.',
+      'Borjie processes identification data (NIDA, TIN, licence numbers, fingerprint templates for contract signing), business data (sites, drill-holes, parcels, prices, FX positions), and operational data (chat transcripts, audit events). Processing purposes: run the platform, enforce tenant isolation, generate compliance returns for the Mining Commission, NEMC, and BoT.',
   },
   {
     title: '4. Sub-processors',

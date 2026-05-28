@@ -8,7 +8,7 @@ import { getMessages } from '@/lib/i18n';
 
 /**
  * /for-regulator , landing page for regulators and ministries
- * (Tumemadini, NEMC, the Ministry of Minerals, BOT).
+ * (Mining Commission, NEMC, the Ministry of Minerals, BOT).
  *
  * Reuses the AudiencePage template (LitFin for-banks parity). Per-
  * audience copy lives in the `audiencePages.regulator` i18n key.

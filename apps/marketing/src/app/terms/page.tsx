@@ -6,7 +6,7 @@ import { getMessages } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — Borjie',
-  description: 'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Tumemadini, NEMC, TRA, FIU).',
+  description: 'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU).',
 };
 
 export default async function TermsPage() {

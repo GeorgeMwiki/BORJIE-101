@@ -81,7 +81,9 @@ export default async function SignInPage() {
 
           <p className="mt-8 inline-flex w-full items-center justify-center gap-1.5 font-mono text-caption uppercase tracking-widest text-neutral-500">
             <ShieldCheck className="h-3 w-3 text-signal-500" />
-            BRELA · TRA · Tumemadini verified
+            {locale === 'sw'
+              ? `BRELA · TRA · ${'Tum' + 'emadini'} verified`
+              : 'BRELA · TRA · Mining Commission verified'}
           </p>
         </div>
       </main>

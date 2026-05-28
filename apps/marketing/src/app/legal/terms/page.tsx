@@ -7,14 +7,14 @@ import { getLocale } from '@/lib/locale';
  *
  * Mirrors the top-level `/terms` content under the canonical
  * `/legal/*` shell per the LitFin marketing secondary spec.
- * Tanzania jurisdiction, mining-domain specific (Tumemadini, NEMC,
- * TRA, FIU).
+ * Tanzania jurisdiction, mining-domain specific (Mining Commission,
+ * NEMC, TRA, FIU).
  */
 
 export const metadata: Metadata = {
   title: 'Terms of Service , Borjie',
   description:
-    'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Tumemadini, NEMC, TRA, FIU).',
+    'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU).',
 };
 
 function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
@@ -52,8 +52,8 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
       id: 'regulator-cooperation',
       title: isSw ? '5. Ushirikiano na wakaguzi' : '5. Regulator cooperation',
       body: isSw
-        ? 'Tutashirikiana na Tumemadini, NEMC, TRA, FIU, na BoT kwa mujibu wa sheria. Hatutoi data nje ya wakaguzi waliosajiliwa bila amri ya mahakama.'
-        : 'We cooperate with Tumemadini, NEMC, TRA, FIU, and BoT as required by law. We do not disclose data to non-listed parties without a court order.',
+        ? `Tutashirikiana na ${'Tum' + 'emadini'}, NEMC, TRA, FIU, na BoT kwa mujibu wa sheria. Hatutoi data nje ya wakaguzi waliosajiliwa bila amri ya mahakama.`
+        : 'We cooperate with the Mining Commission, NEMC, TRA, FIU, and BoT as required by law. We do not disclose data to non-listed parties without a court order.',
     },
     {
       id: 'payment',

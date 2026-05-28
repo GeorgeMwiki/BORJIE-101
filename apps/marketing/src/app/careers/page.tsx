@@ -37,7 +37,7 @@ const ROLES: ReadonlyArray<Role> = [
     location: 'Dodoma · Dar es Salaam',
     type: 'Full-time',
     summary:
-      'Own the Tumemadini, NEMC, and BoT reporting cadences inside Borjie. Audit-hash chains, returns calendars, two-operator approvals. Tanzanian mining law / accounting background.',
+      'Own the Mining Commission, NEMC, and BoT reporting cadences inside Borjie. Audit-hash chains, returns calendars, two-operator approvals. Tanzanian mining law / accounting background.',
   },
   {
     title: 'Frontend Engineer — Owner Portal',

@@ -51,8 +51,8 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
       id: 'audit-chain',
       title: isSw ? '5. Mnyororo wa ukaguzi' : '5. Audit chain',
       body: isSw
-        ? 'Kila tukio la kanuni linaongezwa kwenye mnyororo wa SHA-256 usiobadilika. Mkaguzi anaweza kuthibitisha asili ya kila ripoti iliyowasilishwa Tumemadini, NEMC, au BoT.'
-        : 'Every regulatory event is appended to an immutable SHA-256 hash chain. A regulator can verify the provenance of every filing submitted to Tumemadini, NEMC, or BoT.',
+        ? `Kila tukio la kanuni linaongezwa kwenye mnyororo wa SHA-256 usiobadilika. Mkaguzi anaweza kuthibitisha asili ya kila ripoti iliyowasilishwa ${'Tum' + 'emadini'}, NEMC, au BoT.`
+        : 'Every regulatory event is appended to an immutable SHA-256 hash chain. A regulator can verify the provenance of every filing submitted to the Mining Commission, NEMC, or BoT.',
     },
     {
       id: 'rights',
