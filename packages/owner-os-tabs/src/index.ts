@@ -87,10 +87,15 @@ export {
   type InlineComparison,
   type InlineSection,
   type InlineDashboard,
+  type DraftPreviewBlock,
   type ParseInlineBlocksResult,
   type AutoAuthorized,
   type ExtractAutoAuthorizedResult,
 } from './inline-blocks.js';
+
+export {
+  draftPreviewBlockSchema,
+} from './draft-preview-block.js';
 
 export {
   inlineTableSchema,

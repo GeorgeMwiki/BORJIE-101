@@ -50,6 +50,10 @@ import {
   type InlineSection,
   type InlineDashboard,
 } from './rich-inline-blocks.js';
+import {
+  draftPreviewBlockSchema,
+  type DraftPreviewBlock,
+} from './draft-preview-block.js';
 
 // ─── Bilingual label helper ─────────────────────────────────────────
 
@@ -209,6 +213,7 @@ export const inlineBlockSchema = z.discriminatedUnion('type', [
   inlineComparisonSchema,
   inlineSectionSchema,
   inlineDashboardSchema,
+  draftPreviewBlockSchema,
 ]);
 
 export type InlineBlock = z.infer<typeof inlineBlockSchema>;
@@ -222,6 +227,7 @@ export type {
   InlineComparison,
   InlineSection,
   InlineDashboard,
+  DraftPreviewBlock,
 };
 
 export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
@@ -232,6 +238,7 @@ export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'mini_metric',
   'tab_promotion_chip',
   ...RICH_INLINE_BLOCK_TYPES,
+  'draft_preview',
 ];
 
 // ─── Parser ─────────────────────────────────────────────────────────
