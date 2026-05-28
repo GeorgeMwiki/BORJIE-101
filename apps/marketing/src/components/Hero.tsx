@@ -176,15 +176,58 @@ function MiniWaveform({ reducedMotion }: { readonly reducedMotion: boolean }) {
   );
 }
 
+/**
+ * Pick the warm, time-aware greeting word that fronts TURN 1 of the
+ * choreographed hero conversation. Pinned to Africa/Dar_es_Salaam so a
+ * visitor in Geita sees "Good afternoon" even if the page is hit from a
+ * VPN. Returns the prefix + a comma; the rest of the body is read from
+ * i18n and appended below.
+ */
+function timeAwareGreeting(locale: Locale): string {
+  const tzHour = Number.parseInt(
+    new Date().toLocaleString('en-GB', {
+      timeZone: 'Africa/Dar_es_Salaam',
+      hour: '2-digit',
+      hour12: false,
+    }),
+    10,
+  );
+  if (locale === 'sw') {
+    if (tzHour >= 5 && tzHour < 12) return 'Habari za asubuhi';
+    if (tzHour >= 12 && tzHour < 18) return 'Habari za mchana';
+    return 'Habari za jioni';
+  }
+  if (tzHour >= 5 && tzHour < 12) return 'Good morning';
+  if (tzHour >= 12 && tzHour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export function Hero({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).hero;
   const chat = t.chat;
-  const turns: readonly ChoreoTurn[] = chat.turns.map((turn, i) => ({
-    role: turn.role as 'ai' | 'user',
-    body: turn.body,
-    timestamp: chat.timestamp,
-    delay: DELAYS[i] ?? 400 + i * 1400,
-  }));
+  // Re-derive the first AI turn's body with a runtime time-aware
+  // greeting so the hero feels alive, not canned. Strips any static
+  // "Hi, " / "Habari, " prefix the i18n string ships with.
+  const greeting = timeAwareGreeting(locale);
+  const turns: readonly ChoreoTurn[] = chat.turns.map((turn, i) => {
+    if (i === 0 && turn.role === 'ai') {
+      const stripped = turn.body
+        .replace(/^(Hi|Hello|Habari|Karibu)[,!]\s*/i, '')
+        .trim();
+      return {
+        role: 'ai',
+        body: `${greeting}! ${stripped}`,
+        timestamp: chat.timestamp,
+        delay: DELAYS[i] ?? 400 + i * 1400,
+      };
+    }
+    return {
+      role: turn.role as 'ai' | 'user',
+      body: turn.body,
+      timestamp: chat.timestamp,
+      delay: DELAYS[i] ?? 400 + i * 1400,
+    };
+  });
 
   const [shown, setShown] = useState<boolean[]>(() => turns.map(() => false));
   const [reducedMotion, setReducedMotion] = useState(false);
