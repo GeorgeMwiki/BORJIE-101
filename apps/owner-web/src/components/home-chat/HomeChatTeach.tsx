@@ -51,6 +51,10 @@ import {
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
+import {
+  appendBoardElement,
+  boardElementSchema,
+} from '@/components/blackboard';
 
 export interface HomeChatTeachProps {
   readonly salutation: string;
@@ -383,6 +387,15 @@ export function HomeChatTeach({
                   ),
                 );
               }
+            } else if (frame.event === 'board_element') {
+              // Validate via the FE schema for defence in depth — the
+              // server already validated with the parallel server-side
+              // schema, but the FE re-checks so a wire-format drift
+              // can never crash the blackboard store.
+              const parsed = boardElementSchema.safeParse(payload.element);
+              if (parsed.success) {
+                appendBoardElement(parsed.data, assistantId);
+              }
             } else if (frame.event === 'suggested_actions') {
               const actions = Array.isArray(payload.actions)
                 ? (payload.actions as ReadonlyArray<unknown>).filter(
@@ -492,16 +505,6 @@ export function HomeChatTeach({
     [send],
   );
 
-  const lastAssistantActions = useMemo<ReadonlyArray<string>>(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const m = messages[i];
-      if (m && m.role === 'assistant' && m.suggestedActions.length > 0) {
-        return m.suggestedActions;
-      }
-    }
-    return [];
-  }, [messages]);
-
   // Snippet extraction for the ambient SuggestedTabBanner. Pulls the
   // most recent owner message + the most recent brain reply so the
   // deterministic intent matcher can score the registry without an LLM
@@ -524,11 +527,25 @@ export function HomeChatTeach({
     return { userMessage, brainReply };
   }, [messages]);
 
+  const lastAssistantId = useMemo<string | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m && m.role === 'assistant') return m.id;
+    }
+    return null;
+  }, [messages]);
+
   return (
     <div
       className="flex flex-1 overflow-hidden"
       data-testid="home-chat-teach-root"
     >
+      <StepperBar
+        language={languagePreference}
+        currentStep={lessonStep}
+        className="hidden md:flex"
+      />
+
       <div className="flex flex-1 flex-col gap-4 px-6 py-6 lg:px-8">
         <header className="flex items-start justify-between gap-3">
           <div>
@@ -566,7 +583,7 @@ export function HomeChatTeach({
         ) : null}
 
         <section
-          className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface/40"
+          className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-surface/40"
           aria-label="Borjie Teach transcript"
           data-testid="home-chat-teach-transcript"
         >
@@ -586,10 +603,16 @@ export function HomeChatTeach({
                   key={message.id}
                   message={message}
                   languagePreference={languagePreference}
+                  isLatestAssistant={message.id === lastAssistantId}
+                  onSuggestion={onSuggestion}
+                  composerDisabled={composerDisabled || isStreaming}
                   {...(onSpawnTab ? { onSpawnTab } : {})}
                 />
               ))
             )}
+            {isStreaming && !messages.some((m) => m.streaming) ? (
+              <TypingBubble language={languagePreference} />
+            ) : null}
             {errored && messages.length > 0 ? (
               <div
                 role="alert"
@@ -600,30 +623,6 @@ export function HomeChatTeach({
               </div>
             ) : null}
           </div>
-
-          {lastAssistantActions.length > 0 && !isStreaming ? (
-            <div
-              data-testid="home-chat-teach-actions"
-              className="border-t border-border bg-surface/30 px-4 py-3"
-            >
-              <p className="mb-1.5 text-tiny uppercase tracking-wide text-neutral-500">
-                {languagePreference === 'sw' ? 'Hatua zinazofuata' : 'Next moves'}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {lastAssistantActions.map((action, i) => (
-                  <button
-                    key={`${action}_${i}`}
-                    type="button"
-                    onClick={() => onSuggestion(action)}
-                    disabled={composerDisabled || isStreaming}
-                    className="rounded-full border border-warning/40 bg-warning-subtle/10 px-3 py-1 text-tiny font-medium text-warning hover:bg-warning-subtle/20 disabled:opacity-50"
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {onSpawnTab ? (
             <div className="px-3 pb-2">
@@ -636,9 +635,6 @@ export function HomeChatTeach({
                   brainReply: banner.brainReply,
                 })}
                 onSpawn={(descriptor) => {
-                  // Convert the descriptor into a spawn-intent so the
-                  // shell's onSpawnTab callback can route through the
-                  // registry's spawnOrAugment path uniformly.
                   const validDescriptor = getTab(descriptor.type);
                   if (!validDescriptor) return;
                   onSpawnTab({
@@ -668,29 +664,28 @@ export function HomeChatTeach({
 interface TeachBubbleProps {
   readonly message: TeachMessage;
   readonly languagePreference: 'sw' | 'en';
+  readonly isLatestAssistant: boolean;
+  readonly onSuggestion: (text: string) => void;
+  readonly composerDisabled: boolean;
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
 
 function TeachBubble({
   message,
   languagePreference,
+  isLatestAssistant,
+  onSuggestion,
+  composerDisabled,
   onSpawnTab,
 }: TeachBubbleProps): ReactElement {
   const isOwner = message.role === 'user';
-  return (
-    <div
-      data-testid={`teach-bubble-${message.role}`}
-      data-streaming={message.streaming || undefined}
-      className={`flex flex-col gap-1 ${isOwner ? '' : 'items-end'}`}
-    >
-      <div className="text-badge text-neutral-500">
-        {isOwner ? 'Owner' : 'Borjie Teach'} · {fmtTime(message.createdAt)}
-      </div>
 
+  return (
+    <div className="space-y-2">
       {!isOwner && message.inlineMetrics.length > 0 ? (
         <ul
           data-testid="teach-inline-metric-row"
-          className="m-0 flex max-w-2xl list-none flex-wrap gap-1.5 p-0"
+          className="m-0 flex list-none flex-wrap gap-1.5 p-0 pl-10"
           aria-label="Live metrics"
         >
           {message.inlineMetrics.map((metric, i) => (
@@ -701,26 +696,42 @@ function TeachBubble({
         </ul>
       ) : null}
 
-      <div
-        className={`max-w-2xl rounded-lg px-3 py-2 text-sm leading-relaxed ${
-          isOwner
-            ? 'bg-surface text-foreground'
-            : `border ${message.errored ? 'border-destructive/40 bg-destructive/10' : 'border-warning/40 bg-warning-subtle/20'} text-foreground`
-        }`}
+      <MessageBubble
+        role={message.role}
+        createdAt={message.createdAt}
+        errored={message.errored}
+        streaming={message.streaming}
+        testId={`teach-bubble-${message.role}`}
       >
         <p className="whitespace-pre-wrap">
           {message.text || (message.streaming ? '' : '(no content)')}
-          {message.streaming ? (
-            <span
-              aria-hidden="true"
-              data-testid="teach-stream-cursor"
-              className="ml-1 inline-block h-3 w-1.5 animate-pulse bg-warning align-text-bottom"
-            />
-          ) : null}
         </p>
 
         {!isOwner && message.uiBlock ? (
-          <UiBlockRenderer block={message.uiBlock} />
+          <UiBlockRenderer
+            block={message.uiBlock}
+            language={languagePreference}
+            onDeepDive={({ title, point }) => {
+              const verb =
+                languagePreference === 'sw' ? 'Nichunguzie' : 'Deep dive on';
+              const target = point ? `"${point}"` : `"${title}"`;
+              onSuggestion(`${verb} ${target}`);
+            }}
+            onGoWider={({ title, point }) => {
+              const verb =
+                languagePreference === 'sw' ? 'Panua kuhusu' : 'Go wider on';
+              const target = point ? `"${point}"` : `"${title}"`;
+              onSuggestion(`${verb} ${target}`);
+            }}
+            onRelatedClick={(concept) => {
+              const verb =
+                languagePreference === 'sw'
+                  ? 'Nifundishe kuhusu'
+                  : 'Teach me about';
+              onSuggestion(`${verb} ${concept}`);
+            }}
+            onMicroLessonCta={onSuggestion}
+          />
         ) : null}
 
         {!isOwner && message.inlineBlocks.length > 0 ? (
@@ -739,7 +750,7 @@ function TeachBubble({
                 <li
                   key={`${block.type}_${i}`}
                   data-testid={`teach-inline-block-${block.type}`}
-                  className="rounded-md border border-info/40 bg-info/5 px-3 py-2"
+                  className="rounded-xl border border-info/40 bg-info/5 px-3 py-2"
                 >
                   <p className="text-tiny font-medium uppercase tracking-wide text-info">
                     {label}
@@ -774,15 +785,27 @@ function TeachBubble({
             {message.errorMessage}
           </p>
         ) : null}
-      </div>
+      </MessageBubble>
+
+      {!isOwner && isLatestAssistant && message.suggestedActions.length > 0 ? (
+        <QuickReplyChips
+          replies={message.suggestedActions.map((action) => ({ value: action }))}
+          language={languagePreference}
+          onSelect={onSuggestion}
+          disabled={composerDisabled}
+          eyebrow={languagePreference === 'sw' ? 'Hatua zinazofuata' : 'Next moves'}
+        />
+      ) : null}
 
       {!isOwner && message.spawnTabs.length > 0 && onSpawnTab ? (
         <div
           data-testid="teach-spawn-tabs"
-          className="flex max-w-2xl flex-col gap-1.5 rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5"
+          className="ml-10 flex max-w-2xl flex-col gap-1.5 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2"
         >
           <p className="text-tiny uppercase tracking-wide text-warning">
-            {languagePreference === 'sw' ? 'Tabs zinazopendekezwa' : 'Suggested tabs'}
+            {languagePreference === 'sw'
+              ? 'Tabs zinazopendekezwa'
+              : 'Suggested tabs'}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {message.spawnTabs.map((intent, i) => (

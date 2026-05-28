@@ -102,20 +102,32 @@ function ConceptCard({
 }): ReactElement {
   // Hand off to the full-fidelity chrome renderer (matches the LitFin
   // stepper learning chat ConceptCard pixel-by-pixel — Borjie tokens).
+  // `exactOptionalPropertyTypes` rejects literal `undefined`, so we
+  // only include the keys that are actually present on the incoming
+  // block. This keeps the chrome block schema clean while preserving
+  // every field the brain may have emitted.
   const chromeBlock: ConceptCardChromeBlock = {
     type: 'concept_card',
-    title: block.title,
-    titleSw: block.titleSw,
-    description: block.description,
-    descriptionSw: block.descriptionSw,
-    keyPoints: block.keyPoints,
-    category: block.category,
-    icon: block.icon,
-    bloomLevel: block.bloomLevel,
-    masteryPercent: block.masteryPercent,
-    relatedConcepts: block.relatedConcepts,
-    exploredKeyPoints: block.exploredKeyPoints,
-    conceptId: block.conceptId,
+    ...(block.title !== undefined && { title: block.title }),
+    ...(block.titleSw !== undefined && { titleSw: block.titleSw }),
+    ...(block.description !== undefined && { description: block.description }),
+    ...(block.descriptionSw !== undefined && {
+      descriptionSw: block.descriptionSw,
+    }),
+    ...(block.keyPoints !== undefined && { keyPoints: block.keyPoints }),
+    ...(block.category !== undefined && { category: block.category }),
+    ...(block.icon !== undefined && { icon: block.icon }),
+    ...(block.bloomLevel !== undefined && { bloomLevel: block.bloomLevel }),
+    ...(block.masteryPercent !== undefined && {
+      masteryPercent: block.masteryPercent,
+    }),
+    ...(block.relatedConcepts !== undefined && {
+      relatedConcepts: block.relatedConcepts,
+    }),
+    ...(block.exploredKeyPoints !== undefined && {
+      exploredKeyPoints: block.exploredKeyPoints,
+    }),
+    ...(block.conceptId !== undefined && { conceptId: block.conceptId }),
   };
   return (
     <ConceptCardChrome

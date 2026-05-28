@@ -47,9 +47,6 @@ export default function AdminDashboardPage() {
           <DashboardMetricStrip />
         </Suspense>
 
-<<<<<<< Updated upstream
-        <AdminDailyBriefCard />
-=======
         {/* Wave OWNER-OS DAILY-BRIEF rebuild — fleet view of today's
             daily-brief sends + failures + top alerts across every
             tenant. Sits between the KPI strip and the legacy surface
@@ -57,7 +54,6 @@ export default function AdminDashboardPage() {
         <Suspense fallback={<DailyBriefCardFallback />}>
           <AdminDailyBriefCard />
         </Suspense>
->>>>>>> Stashed changes
 
         <Suspense fallback={<DashboardFallback />}>
           <AdminDashboardSurface />

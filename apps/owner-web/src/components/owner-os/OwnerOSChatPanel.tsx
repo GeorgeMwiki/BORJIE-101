@@ -15,6 +15,7 @@ import { useCallback, useState, type DragEvent, type ReactElement } from 'react'
 import { Upload, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { OwnerOSSpawnIntent } from '@borjie/owner-os-tabs';
 import { HomeChatTeach } from '@/components/home-chat/HomeChatTeach';
+import { Blackboard } from '@/components/blackboard';
 import { apiRequest } from '@/lib/api-client';
 
 const ACCEPT_MIMES = [

@@ -63,9 +63,13 @@ export function ChartElement({ payload, languagePreference }: ChartElementProps)
       </p>
       <div style={{ width: '100%', height }}>
         <ResponsiveContainer>
-          {payload.kind === 'bar' ? <BarChartView payload={payload} /> : null}
-          {payload.kind === 'line' ? <LineChartView payload={payload} /> : null}
-          {payload.kind === 'donut' ? <DonutChartView payload={payload} /> : null}
+          {payload.kind === 'bar' ? (
+            <BarChartView payload={payload} />
+          ) : payload.kind === 'line' ? (
+            <LineChartView payload={payload} />
+          ) : (
+            <DonutChartView payload={payload} />
+          )}
         </ResponsiveContainer>
       </div>
     </article>

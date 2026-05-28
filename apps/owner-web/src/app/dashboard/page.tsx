@@ -107,7 +107,7 @@ export default async function OwnerDashboardPage() {
           {isSw ? 'Muhtasari wa Mr. Mwikila' : "Mr. Mwikila's daily brief"}
         </h2>
         <DailyBriefCard
-          languagePreference={session.languagePreference}
+          isSw={isSw}
           salutation={session.salutation}
         />
       </section>

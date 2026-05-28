@@ -80,6 +80,7 @@ import {
   parseInlineBlocks,
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
+import { parseBoardElements } from './board-element-parser';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -493,13 +494,15 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
 
     // Order of stripping matters: spawn_tabs first (free-form JSON object
     // that may contain commas/braces that confuse later regexes), then
-    // auto_authorized (sibling of confirmation_card), then INLINE blocks
-    // (Flow A — the inline-first catalog), then the legacy primary
-    // ui_block (teaching blocks — Flow A escape hatch), then inline
-    // metrics, then actions+citations.
+    // auto_authorized (sibling of confirmation_card), then board_add
+    // (the blackboard primitives — own free-form JSON), then INLINE
+    // blocks (Flow A — the inline-first catalog), then the legacy
+    // primary ui_block (teaching blocks — Flow A escape hatch), then
+    // inline metrics, then actions+citations.
     const spawnResult = extractSpawnTabs(rawText);
     const autoAuthResult = extractAutoAuthorized(spawnResult.body);
-    const inlineResult = parseInlineBlocks(autoAuthResult.body);
+    const boardResult = parseBoardElements(autoAuthResult.body);
+    const inlineResult = parseInlineBlocks(boardResult.body);
     const uiResult = extractUiBlock(inlineResult.body);
     const metricsResult = extractInlineMetrics(uiResult.body);
     const { clean, ids, actions } = extractCitations(metricsResult.body);
@@ -520,6 +523,17 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         }),
       });
       await new Promise<void>((r) => setTimeout(r, 14));
+    }
+
+    // Blackboard elements — emit each as its own SSE event so the FE
+    // blackboard store can append them. Document-order is preserved so
+    // the owner sees the lesson build in the order Mr. Mwikila chose.
+    for (const element of boardResult.elements) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'board_element',
+        data: JSON.stringify({ element, at: new Date().toISOString() }),
+      });
     }
 
     // Inline metrics — emit each as its own SSE event so the renderer
@@ -612,6 +626,9 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           ? autoAuthResult.autoAuthorized.action
           : null,
         spawn_tabs: spawnResult.batch.tabs.length,
+        board_elements: boardResult.elements.length,
+        board_element_types: boardResult.elements.map((e) => e.type),
+        board_dropped: boardResult.dropped,
       }),
     });
   });
