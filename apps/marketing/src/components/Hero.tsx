@@ -311,7 +311,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
             className="relative w-full overflow-hidden rounded-[28px] border border-border/60 bg-background/92 shadow-[0_28px_80px_oklch(0.16_0.025_260/0.45)] ring-1 ring-border/40 backdrop-blur-2xl"
             style={{ minHeight: '520px' }}
             role="region"
-            aria-label={`${chat.assistant} — ${chat.role}`}
+            aria-label={`${chat.assistant} · ${chat.role}`}
           >
             {/* Header strip — gold gradient with brand mark */}
             <div
@@ -325,13 +325,8 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
                   <BorjieMark size={20} />
                 </span>
-                <span className="flex flex-col leading-tight">
-                  <span className="font-display text-base font-semibold tracking-tight">
-                    {chat.assistant}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-widest opacity-85">
-                    {chat.role}
-                  </span>
+                <span className="font-display text-base font-semibold leading-tight tracking-tight">
+                  {chat.assistant}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">

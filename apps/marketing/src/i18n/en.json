@@ -70,7 +70,7 @@
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
       "assistant": "Mr. Mwikila",
-      "role": "AI Mining Operations Manager",
+      "role": "AI Mining Operations Officer",
       "live": "Live",
       "ask": "Ask Borjie anything…",
       "timestamp": "Just now",
@@ -85,15 +85,15 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Hi. I'm Mr. Mwikila, Borjie's AI Mining Operations Manager. What brings you here today?"
+          "body": "Hi, I'm Mr. Mwikila, Borjie's AI Mining Operations Officer. What brings you here today?"
         },
         {
           "role": "user",
-          "body": "I run a small PML in Geita — 12 workers, gold."
+          "body": "I run a PML in Geita."
         },
         {
           "role": "ai",
-          "body": "Twelve workers on a PML, perfect. Borjie drafts your monthly royalty in the Tumemadini format, hedges your gold window at the LBMA fix, and runs your shift roster from a single mobile app your supervisor unlocks at the pit. Want to see how a real Wednesday at 06:00 looks?"
+          "body": "Eight workers, three hours every month on royalty paperwork. That's the Mining Commission of Tanzania format eating your week. Borjie drafts it in two minutes, cites every line, and you sign once. Want to see how a real Wednesday at 06:00 looks?"
         }
       ]
     },

@@ -70,7 +70,7 @@
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
       "assistant": "Mwl. Mwikila",
-      "role": "Meneja wa Uendeshaji wa Madini wa AI",
+      "role": "Afisa wa AI wa Shughuli za Madini",
       "live": "Hai",
       "ask": "Uliza Borjie chochote…",
       "timestamp": "Sasa hivi",
@@ -85,15 +85,15 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Habari. Mimi ni Mwl. Mwikila, Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Umekuja kwa shida gani leo?"
+          "body": "Habari, mimi ni Mwl. Mwikila, Afisa wa AI wa Shughuli za Madini wa Borjie. Umekuja kwa nini leo?"
         },
         {
           "role": "user",
-          "body": "Nina PML ndogo Geita — wafanyakazi 12, dhahabu."
+          "body": "Nina PML Geita."
         },
         {
           "role": "ai",
-          "body": "Wafanyakazi 12 kwenye PML, vizuri sana. Borjie anaandaa royalty yako ya mwezi kwa muundo wa Tumemadini, anafunga gold-window kwa LBMA fix, na anaendesha ratiba ya zamu kupitia app moja ya simu ambayo supervisor wako anaifungua pit-ni. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
+          "body": "Wafanyakazi wanane, saa tatu kila mwezi kwenye karatasi za mrabaha. Ndio muundo wa Tume ya Madini ya Tanzania unaokula wiki yako. Borjie anaandaa kwa dakika mbili, anataja kila mstari, na unasaini mara moja. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
         }
       ]
     },
