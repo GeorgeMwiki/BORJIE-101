@@ -56,6 +56,12 @@ export * from './mining-workforce-extensions.schema.js';
 // Workforce Invitations — owner/admin invites + worker activation (migration 0086)
 export * from './workforce-invitations.schema.js';
 
+// Insurance broker integration (migration 0106)
+export * from './insurance-policies.schema.js';
+
+// Owner-to-owner messaging (migration 0107)
+export * from './owner-messaging.schema.js';
+
 // ---------------------------------------------------------------------------
 // AI-OS infra (generic)
 // ---------------------------------------------------------------------------
