@@ -93,6 +93,22 @@ import { universalMarketplaceRouter } from './routes/marketplace/index.js';
 import { marketingRouter } from './routes/marketing.hono';
 import { translateRouter } from './routes/translate.hono';
 import { createPilotErrorsRouter } from './routes/pilot-errors.hono';
+import { pilotFeedbackRouter } from './routes/pilot-feedback.hono';
+// Sentry → GitHub Issue webhook. Composition root binds
+// `services.sentryToGithubBridge`; when unbound the route returns 503
+// with a clear "not wired" body.
+import { sentryWebhookRouter } from './routes/sentry-webhook.hono';
+// Piece L brain↔tab loop — module update proposals (CRUD + approval).
+import proposalsRouter from './routes/proposals.hono';
+// Scope segmentation taxonomy + nodes (Wave SCOPE-SEGMENTATION).
+import { scopeRouter } from './routes/scope/index';
+// Workforce invitations (owner-issued; worker self-activation).
+import { workforceInvitesRouter } from './routes/workforce/invites.hono';
+// Piece G — GenUI artifact render endpoints. Uses a not-wired service
+// stub so /types is always live; /:id/render returns 404 until the
+// real Playwright + DB-backed service is bound (issue #33).
+import { createArtifactsRouter } from './routes/artifacts.hono';
+import { createNotWiredArtifactRenderService } from './composition/artifact-render-wiring';
 import { createMigrationRouter } from './routes/migration.router';
 // REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
 import { createNotificationPreferencesRouter } from './routes/notification-preferences.router';
@@ -278,6 +294,11 @@ import { createExecutiveBriefActionRunner } from './workers/executive-brief-acti
 // UNIQUE-constraint idempotency.
 import { createDailyBriefCron } from './workers/daily-brief-cron';
 import { registerDailyBriefCron } from './workers/daily-brief-cron-registry';
+// Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
+// and appends to fx_rates + external_benchmarks. Treasury panels
+// consume fx_rates; brain's compare_baselines tool reads from
+// external_benchmarks. See workers/fx-feed-cron.ts for upstream URLs.
+import { createFxFeedCron } from './workers/fx-feed-cron';
 import {
   registerDomainEventSubscribers,
   type SubscribableBus,
@@ -315,7 +336,25 @@ import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 import {
   workforceTabConfigOwnerListRouter,
   workforceTabPolicyAdminRouter,
-} from './routes/workforce/tab-configs-extras.hono';import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+} from './routes/workforce/tab-configs-extras.hono';
+import {
+  workforceTabConfigOwnerRouter,
+  workforceTabConfigWorkerRouter,
+} from './routes/workforce/tab-configs.hono';
+// Wave ESTATE-OS — family-office holdings layer routers.
+import {
+  estateGroupsRouter,
+  estateEntitiesRouter,
+  estateCapitalMovementsRouter,
+  estateAssetsRouter,
+} from './routes/estate/index';
+import { estateSuccessionPlansRouter } from './routes/estate/succession-plans.hono';
+// Wave OPS-WIDE — end-to-end operations surface.
+import { externalPartiesRouter as opsExternalPartiesRouter } from './routes/ops/external-parties.hono';
+import { engagementsRouter as opsEngagementsRouter } from './routes/ops/engagements.hono';
+import { chainOfCustodyRouter as opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
+import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
+import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
@@ -336,6 +375,10 @@ import {
 import { setBrainExtraSkills } from './composition/brain-extensions';
 import { createDrizzleDraftPersistence } from './services/document-drafter';
 import { buildDocumentDrafterTools } from './services/document-drafter/brain-tools';
+import { createDrizzleRevisionsPersistence } from './services/document-drafter/revisions-persistence';
+import { buildFreeFormDrafterTool } from './services/document-drafter/free-form-brain-tool';
+import { buildMediaGenerationTools } from './services/media-generation/brain-tools';
+import { ownerDraftsRouter } from './routes/owner/drafts.hono';
 // Wave-3-int2 — brain↔tab loop composition (Piece L → Piece B handlers).
 import {
   createDispatchRouterWiring,
@@ -738,11 +781,21 @@ try {
   // isolation at the row level on every call.
   const draftPersistence = createDrizzleDraftPersistence(getDb());
   const draftTools = buildDocumentDrafterTools({ persistence: draftPersistence });
+  const revisionsPersistence = createDrizzleRevisionsPersistence(getDb());
+  const freeFormTool = buildFreeFormDrafterTool({
+    persistence: draftPersistence,
+    revisionsPersistence,
+  });
+  const mediaTools = buildMediaGenerationTools();
 
-  setBrainExtraSkills([orgSkill, ...draftTools]);
+  setBrainExtraSkills([orgSkill, ...draftTools, freeFormTool, ...mediaTools]);
   logger.info(
-    { drafterToolCount: draftTools.length },
-    'brain-extensions: org.query_organization + document-drafter skills wired',
+    {
+      drafterToolCount: draftTools.length,
+      freeFormToolEnabled: true,
+      mediaToolCount: mediaTools.length,
+    },
+    'brain-extensions: org.query_organization + document-drafter + free-form + media-generation skills wired',
   );
 } catch (err) {
   logger.warn(
@@ -926,6 +979,38 @@ api.route('/translate', translateRouter);
 // See `routes/pilot-errors.hono.ts` for the auth gate + Sentry-reader
 // upgrade path.
 api.route('/pilot', createPilotErrorsRouter());
+// Pilot in-app "Niarifu Borjie" feedback widget (Wave PILOT-FEEDBACK).
+// Auth-required; writes to `pilot_feedback` (migration 0077). RLS-scoped.
+api.route('/pilot/feedback', pilotFeedbackRouter);
+// Sentry webhook bridge — POST /api/v1/webhooks/sentry. Composition
+// root binds `services.sentryToGithubBridge`; when unbound the route
+// returns 503 with a clear "not wired" body. HMAC signature verified
+// via SENTRY_WEBHOOK_SECRET env var (see route file).
+api.route('/webhooks/sentry', sentryWebhookRouter);
+// Piece L brain↔tab loop — module update proposals CRUD + audit.
+// Tenant-scoped via the route's auth middleware; RLS belt-and-braces.
+api.route('/proposals', proposalsRouter);
+// Wave SCOPE-SEGMENTATION — hierarchical scope taxonomy + nodes.
+// Powers the brain's scope filtering tools.
+api.route('/scope', scopeRouter);
+// Workforce invitations — owners issue, workers self-activate.
+// `/activate` intentionally bypasses tenant scope (cross-tenant lookup
+// by phone+code); all other routes are RLS-scoped via auth middleware.
+api.route('/workforce/invites', workforceInvitesRouter);
+// Piece G — GenUI artifacts. /types always live, /:id/render gated on
+// real wiring (returns 404 from not-wired stub until composition lands).
+api.route(
+  '/artifacts',
+  createArtifactsRouter({
+    service: createNotWiredArtifactRenderService(),
+    resolveTenantId: (c): string | null => {
+      // Tenant lookup via Supabase JWT-attached header; real auth
+      // middleware lower in the stack writes `x-borjie-tenant`.
+      const v = c.req.header('x-borjie-tenant');
+      return typeof v === 'string' && v.length > 0 ? v : null;
+    },
+  }),
+);
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot
@@ -1178,6 +1263,7 @@ api.route('/owner/brief', ownerBriefRouter);
 api.route('/owner/daily-brief', ownerDailyBriefRouter);
 api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
+api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
 api.route('/owner/tabs', ownerTabsRouter);
 // Wave ESTATE-OS — family-office holdings layer.
@@ -1501,6 +1587,31 @@ const dailyBriefCron = serviceRegistry.db
 // Expose the live handle so the manual-trigger endpoint can call it.
 registerDailyBriefCron(dailyBriefCron);
 
+// Live FX feed cron — see fx-feed-cron.ts. Ticks every 5 min by default;
+// override via BORJIE_FX_FEED_CRON_INTERVAL_MS. Disabled when
+// BORJIE_FX_FEED_CRON_DISABLED=true (e.g. test runs).
+const fxFeedCron = serviceRegistry.db
+  ? createFxFeedCron({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      intervalMs: Number(process.env.BORJIE_FX_FEED_CRON_INTERVAL_MS ?? 5 * 60_000) || 5 * 60_000,
+      enabled:
+        process.env.NODE_ENV !== 'test' &&
+        process.env.BORJIE_FX_FEED_CRON_DISABLED !== 'true',
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return {
+          tickedAt: new Date().toISOString(),
+          bot: { value: null, inserted: false },
+          lbma: { amValue: null, pmValue: null, inserted: false },
+          errors: ['db_unwired'],
+        };
+      },
+    };
+
 // Piece E (issue #41) — executive-brief action runner. Drains
 // `executive_brief_actions WHERE status='approved' AND executed_at IS NULL`
 // every BORJIE_ACTION_RUNNER_INTERVAL_MS (default 10s) and dispatches
@@ -1599,6 +1710,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: daily-brief cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: daily-brief cron stop failed');
+  }
+  try {
+    fxFeedCron.stop();
+    logger.info('shutdown: fx-feed cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: fx-feed cron stop failed');
   }
   try {
     executiveBriefActionRunner.stop();
@@ -1718,6 +1835,9 @@ if (require.main === module) {
   // `daily_brief_cadence` matches the wall clock; idempotent via
   // UNIQUE constraint on the dispatch ledger.
   dailyBriefCron.start();
+  // Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
+  // and writes rows into both fx_rates + external_benchmarks.
+  fxFeedCron.start();
   // Piece E (issue #41) — drain the approved-actions queue every 10s,
   // dispatch to the junior executor, audit each dispatch.
   executiveBriefActionRunner.start();
