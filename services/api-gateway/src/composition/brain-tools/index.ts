@@ -39,6 +39,7 @@ import { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
 import { COOPERATIVE_TOOLS } from './cooperative-tools';
 import { INSURANCE_TOOLS } from './insurance-tools';
 import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
+import { SUPERPOWERS_TOOLS } from './superpowers-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -81,6 +82,7 @@ export function buildPersonaToolHandlers(
       COOPERATIVE_TOOLS,
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
+      SUPERPOWERS_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -124,6 +126,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       COOPERATIVE_TOOLS,
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
+      SUPERPOWERS_TOOLS,
     ],
     undefined,
   );
@@ -173,3 +176,4 @@ export { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
 export { COOPERATIVE_TOOLS } from './cooperative-tools';
 export { INSURANCE_TOOLS } from './insurance-tools';
 export { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
+export { SUPERPOWERS_TOOLS } from './superpowers-tools';
