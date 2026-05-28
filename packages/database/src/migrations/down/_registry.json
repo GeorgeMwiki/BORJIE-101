@@ -104,6 +104,13 @@
       "reverses": "CREATE TABLE outcome_predictions + outcome_observations + outcome_reconciliations + indexes + RLS",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0116_decision_journal.sql",
+      "down": "down/0116_down_decision_journal.sql",
+      "reverses": "CREATE TABLE decisions + decision_outcomes + decision_links + indexes + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }

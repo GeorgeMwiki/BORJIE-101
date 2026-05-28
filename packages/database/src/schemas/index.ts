@@ -1037,6 +1037,18 @@ export * from './pinned-items.schema.js';
 //   - services/api-gateway/src/services/calibration-monitor/
 export * from './outcome-telemetry.schema.js';
 
+// Wave DECISION-LEGIBILITY (migration 0116). Three tables make every
+// decision — owner-made, brain-suggested-and-applied, four-eye
+// approved, or automated-policy enacted — fully legible: chosen value,
+// alternatives considered, rationale, confidence, retrospective grade,
+// and a link graph (supersedes / depends_on / informed_by / reversed_by).
+// Hash-chained per @borjie/audit-hash-chain so auditors can verifyChain().
+// Companions:
+//   - services/api-gateway/src/services/decision-journal/recorder.ts
+//   - services/api-gateway/src/workers/decision-retrospective-worker.ts
+//   - services/api-gateway/src/composition/brain-tools/decision-journal-tools.ts
+export * from './decision-journal.schema.js';
+
 // ---------------------------------------------------------------------------
 // Wave OPS-WIDE — full end-to-end mining operations scope (migration 0093)
 // ---------------------------------------------------------------------------
