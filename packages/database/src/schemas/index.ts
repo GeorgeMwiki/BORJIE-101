@@ -966,3 +966,22 @@ export * from './intel-self-improve.schema.js';
 // Consumed by @borjie/blackboard-sota.
 // See Docs/DESIGN/BLACKBOARD_SOTA_2026.md.
 export * from './blackboard-sota.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave OWNER-OS — owner reminders + dynamic tabs (migration 0089)
+// ---------------------------------------------------------------------------
+//   reminders   — owner-scheduled events. trigger_at + channel + payload;
+//                 the reminders-dispatch worker fires by email (default),
+//                 SMS (africastalking), or Slack (webhook). Idempotency
+//                 key prevents double-fire under retry. RLS-forced.
+//   owner_tabs  — per-(tenant, user) tab strip state for the owner-web
+//                 dashboard. Stored as a single jsonb document so the FE
+//                 zustand store hydrates + persists in one round-trip.
+// Consumed by services/api-gateway/src/routes/owner/{reminders,tabs}.hono.ts
+// and the reminders-dispatch worker.
+export * from './owner-reminders.schema.js';
+export * from './owner-tabs.schema.js';
+// Companion to migration 0079 — already on disk but was missing from the
+// barrel; re-export so brief.hono.ts can pull `ownerBriefSnapshots` from
+// `@borjie/database` like every other tenant schema.
+export * from './owner-brief.schema.js';
