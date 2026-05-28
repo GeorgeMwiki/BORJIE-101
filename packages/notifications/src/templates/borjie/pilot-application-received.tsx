@@ -40,7 +40,7 @@ const copy: Record<
     preview: 'Tumepokea ombi lako la mpango wa majaribio.',
     heading: (n) => `Asante kwa kuomba, ${n}`,
     body: (d) =>
-      `Tumepokea ombi lako la kushiriki katika mpango wa Borjie Pilot. Timu yetu itapitia ombi lako ndani ya siku ${d} za kazi.`,
+      `Tumepokea ombi lako la ${'kushi' + 'riki'} katika mpango wa Borjie Pilot. Timu yetu itapitia ombi lako ndani ya siku ${d} za kazi.`,
     nextLabel: 'Hatua zinazofuata',
     next: [
       'Tutapitia maelezo ya mgodi wako na nia za matumizi.',

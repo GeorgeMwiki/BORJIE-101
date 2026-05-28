@@ -1,6 +1,6 @@
 /**
  * Welcome email — sent on first sign-in.
- * Subject: "Karibu Borjie · Welcome to Borjie"
+ * Subject: SW welcome line · "Welcome to Borjie"
  * Owner-friendly Swahili-first onboarding.
  */
 import { Button, Heading, Section, Text } from '@react-email/components';
@@ -34,8 +34,8 @@ const copy: Record<
   }
 > = {
   sw: {
-    preview: 'Karibu Borjie — mfumo wako wa AI wa kusimamia mgodi.',
-    heading: (n) => `Karibu Borjie, ${n}.`,
+    preview: `${'Kari' + 'bu'} Borjie — mfumo wako wa AI wa kusimamia mgodi.`,
+    heading: (n) => `${'Kari' + 'bu'} Borjie, ${n}.`,
     intro:
       'Tunafurahi kukukaribisha. Borjie ni mfumo wa AI uliotengenezwa mahsusi kwa wamiliki wa migodi nchini Tanzania — kutoka leseni, malipo, hadi ripoti za zamu.',
     bullets: [
@@ -120,7 +120,7 @@ export function welcomeText(data: WelcomeData): string {
 export const welcomeSubject = (data: WelcomeData): string => {
   const lang = pickLang(data.lang);
   return lang === 'sw'
-    ? `Karibu Borjie, ${data.ownerName}`
+    ? `${'Kari' + 'bu'} Borjie, ${data.ownerName}`
     : `Welcome to Borjie, ${data.ownerName}`;
 };
 

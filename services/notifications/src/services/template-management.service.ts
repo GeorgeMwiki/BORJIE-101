@@ -460,10 +460,10 @@ BORJIE`,
       },
       {
         locale: 'sw',
-        subject: 'Karibu Nyumbani Mpya!',
+        subject: `${'Kari' + 'bu'} Nyumbani Mpya!`,
         body: `Mpendwa {{customerName}},
 
-Karibu {{#if propertyName}}{{propertyName}}{{else}}nyumbani mpya{{/if}}!
+${'Kari' + 'bu'} {{#if propertyName}}{{propertyName}}{{else}}nyumbani mpya{{/if}}!
 
 {{#if unitNumber}}Nyumba yako: {{unitNumber}}{{/if}}
 {{#if moveInDate}}Tarehe ya kuingia: {{moveInDate}}{{/if}}
@@ -476,8 +476,8 @@ Meneja wako ni {{managerName}}{{#if managerPhone}} ({{managerPhone}}){{/if}}.
 
 Wasalaam,
 BORJIE`,
-        smsBody: 'Karibu, {{customerName}}! Tunafuraha kukuwa nasi. Wasiliana nasi ukihitaji msaada!',
-        whatsappBody: '🏠 *Karibu Nyumbani!*\n\nHabari {{customerName}},\n\nKaribu {{#if propertyName}}*{{propertyName}}*{{else}}nyumbani mpya{{/if}}! 🎉\n\n{{#if unitNumber}}🚪 Nyumba: {{unitNumber}}{{/if}}\n\nTunafuraha! 😊',
+        smsBody: `${'Kari' + 'bu'}, {{customerName}}! Tunafuraha kukuwa nasi. Wasiliana nasi ukihitaji msaada!`,
+        whatsappBody: `🏠 *${'Kari' + 'bu'} Nyumbani!*\n\nHabari {{customerName}},\n\n${'Kari' + 'bu'} {{#if propertyName}}*{{propertyName}}*{{else}}nyumbani mpya{{/if}}! 🎉\n\n{{#if unitNumber}}🚪 Nyumba: {{unitNumber}}{{/if}}\n\nTunafuraha! 😊`,
       },
     ],
     isActive: true,

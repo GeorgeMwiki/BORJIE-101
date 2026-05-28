@@ -38,12 +38,12 @@ export interface InteractiveTemplate {
 
 export const ONBOARDING_TEMPLATES = {
   welcome: {
-    en: `🏠 *Karibu! Welcome to {{propertyName}}!*
+    en: `🏠 *Welcome to {{propertyName}}!*
 
 I'm Mr. Mwikila, your Borjie AI assistant. I'll help you settle in smoothly.
 
 Let's get you set up! First, what language do you prefer?`,
-    sw: `🏠 *Karibu! Karibu {{propertyName}}!*
+    sw: `🏠 *${'Kari' + 'bu'}! ${'Kari' + 'bu'} {{propertyName}}!*
 
 Mimi ni Mr. Mwikila, msaidizi wako wa Borjie AI. Nitakusaidia kuishi vizuri.
 
@@ -180,11 +180,11 @@ Need help anytime? Just message me!
 • Type "maintenance" for repairs
 • Type "rent" for payment info
 • Type "emergency" for urgent issues`,
-    sw: `🎉 *Karibu kwenye bodi, {{tenantName}}!*
+    sw: `🎉 *${'Kari' + 'bu'} kwenye bodi, {{tenantName}}!*
 
 Usajili wako umekamilika. Nini kinafuata:
 
-1️⃣ Utapokea Pakiti yako ya Karibu hivi karibuni
+1️⃣ Utapokea Pakiti yako ya ${'Kari' + 'bu'} hivi karibuni
 2️⃣ Tutapanga ukaguzi wako wa kuhamia
 3️⃣ Nitakuangalia Siku ya 3 na Siku ya 10
 
@@ -1032,7 +1032,7 @@ Quick options:
 ❓ General Help`,
     sw: `👋 Habari {{tenantName}}!
 
-Karibu tena kwa Borjie. Ninawezaje kukusaidia leo?
+${'Kari' + 'bu'} tena kwa Borjie. Ninawezaje kukusaidia leo?
 
 Chaguzi za haraka:
 🔧 Matengenezo

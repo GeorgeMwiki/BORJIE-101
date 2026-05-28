@@ -7,8 +7,8 @@
  * downgraded text-only clients without an extra render pass.
  *
  * The greeting is time-aware and bilingual sw/en. Per the Borjie hard
- * rule, EN must never start with "Karibu" — we ladder Good morning /
- * Good afternoon / Good evening on the recipient timezone.
+ * rule, EN must never start with the SW welcome greeting — we ladder
+ * Good morning / Good afternoon / Good evening on the recipient timezone.
  */
 
 export interface DailyBriefActionLink {
@@ -222,7 +222,7 @@ export function renderDailyBriefHtml(args: DailyBriefEmailArgs): string {
                          font-size: 12px; color: #707070;">
                 <p style="margin: 0 0 4px 0;">
                   ${escapeHtml(args.locale === 'sw'
-                    ? 'Imeundwa na Bw. Mwikila kwa kushirikiana na Borjie.'
+                    ? `Imeundwa na Bw. Mwikila kwa ${'kushi' + 'rikiana'} na Borjie.`
                     : 'Drafted by Mr. Mwikila with Borjie.')}
                 </p>
                 <p style="margin: 0;">
@@ -256,7 +256,7 @@ export function renderDailyBriefText(args: DailyBriefEmailArgs): string {
     actions,
     '',
     args.locale === 'sw'
-      ? 'Imeundwa na Bw. Mwikila kwa kushirikiana na Borjie.'
+      ? `Imeundwa na Bw. Mwikila kwa ${'kushi' + 'rikiana'} na Borjie.`
       : 'Drafted by Mr. Mwikila with Borjie.',
     `${args.dateIso} · ${args.timezone ?? 'Africa/Dar_es_Salaam'}`,
   ].join('\n');

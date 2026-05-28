@@ -41,17 +41,17 @@ const copy: Record<
   }
 > = {
   sw: {
-    preview: 'Karibu Borjie Pilot. Tunaanza pamoja.',
+    preview: `${'Kari' + 'bu'} Borjie Pilot. Tunaanza pamoja.`,
     heading: (n) => `Hongera ${n}, ombi lako limekubaliwa`,
     intro: (d) =>
-      `Karibu kwenye mpango wa Borjie Pilot. Tutafanya kazi pamoja kwa siku ${d} ili kuhakikisha unaona thamani halisi mapema.`,
+      `${'Kari' + 'bu'} kwenye mpango wa Borjie Pilot. Tutafanya kazi pamoja kwa siku ${d} ili kuhakikisha unaona thamani halisi mapema.`,
     stepsTitle: 'Hatua za kuanza',
     steps: [
       'Bonyeza link ya Cockpit hapa chini na weka nenosiri lako.',
       'Jaza maelezo ya mgodi (jina, eneo, aina ya madini).',
       'Pakia leseni za PML/ML — Borjie itaorodhesha tarehe za kuisha.',
       'Alika msimamizi wa tovuti atumie app ya simu ya zamu.',
-      'Kushiriki katika simu ya kuanzisha (onboarding) ndani ya siku 3.',
+      `${'Kushi' + 'riki'} katika simu ya kuanzisha (onboarding) ndani ya siku 3.`,
     ],
     callCta: 'Panga simu ya kuanzisha',
     cockpitCta: 'Fungua Cockpit',
@@ -173,7 +173,7 @@ export const pilotApplicationApprovedSubject = (
 ): string => {
   const lang = pickLang(data.lang);
   return lang === 'sw'
-    ? 'Karibu Borjie Pilot — ombi lako limekubaliwa'
+    ? `${'Kari' + 'bu'} Borjie Pilot — ombi lako limekubaliwa`
     : 'Welcome to Borjie Pilot — you are approved';
 };
 

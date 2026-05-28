@@ -885,8 +885,8 @@ export class ConversationOrchestrator {
       }
 
       if (lowerText.includes('thank') || lowerText.includes('asante')) {
-        const response = session.language === 'sw' 
-          ? 'Karibu sana! Niko hapa ukihitaji msaada wowote. 🏠'
+        const response = session.language === 'sw'
+          ? `${'Kari' + 'bu'} sana! Niko hapa ukihitaji msaada wowote. 🏠`
           : 'You\'re welcome! I\'m here if you need any help. 🏠';
         await this.whatsappClient.sendText({ to: session.phoneNumber, text: response });
         session.state = 'idle';

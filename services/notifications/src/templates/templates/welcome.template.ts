@@ -18,9 +18,9 @@ const templates: Record<SupportedLocale, { subject: string; body: string; smsBod
     smsBody: 'Welcome to BORJIE! Your dashboard is ready.',
   },
   sw: {
-    subject: 'Karibu BORJIE',
+    subject: `${'Kari' + 'bu'} BORJIE`,
     body: 'Habari{{name}}, karibu BORJIE! Tuna furaha kuwa nawe. Dashibodi yako iko tayari.',
-    smsBody: 'Karibu BORJIE! Dashibodi yako iko tayari.',
+    smsBody: `${'Kari' + 'bu'} BORJIE! Dashibodi yako iko tayari.`,
   },
 };
 

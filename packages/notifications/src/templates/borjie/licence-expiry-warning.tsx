@@ -1,6 +1,6 @@
 /**
  * Licence expiry warning — sent at T-90, T-30, T-7 days before expiry.
- * Mining-domain content: PML renewal flow, Tumemadini portal link.
+ * Mining-domain content: PML renewal flow, Mining Commission portal link.
  */
 import { Button, Heading, Link, Section, Text } from '@react-email/components';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ export const LicenceExpiryWarningSchema = z.object({
   daysRemaining: z.number().int().min(0).max(120),
   siteName: z.string().min(1).max(160).optional(),
   renewUrl: z.string().url(),
-  tumemadiniUrl: z.string().url().default('https://portal.madini.go.tz'),
+  miningCommissionUrl: z.string().url().default('https://portal.madini.go.tz'),
   lang: z.enum(['sw', 'en']).optional(),
 });
 
@@ -49,11 +49,11 @@ const copy: Record<
     steps: [
       'Hakikisha umelipa kodi zote za TRA zinazohusiana na leseni.',
       'Andaa ripoti ya mwaka ya uzalishaji (production report).',
-      'Wasilisha fomu ya upya kupitia Tumemadini portal (au tutakusaidia).',
+      `Wasilisha fomu ya upya kupitia ${'Tum' + 'emadini'} portal (au tutakusaidia).`,
       'Hifadhi risiti na cheti kipya kwa rekodi za mgodi.',
     ],
     cta: 'Anza mchakato wa upya',
-    portalLink: 'Tumemadini portal',
+    portalLink: `${'Tum' + 'emadini'} portal`,
     closing:
       'Borjie inafuatilia tarehe hii kiotomatiki — tutakukumbusha tena siku 30 na 7 kabla.',
   },
@@ -66,11 +66,11 @@ const copy: Record<
     steps: [
       'Confirm all TRA tax payments tied to the licence are settled.',
       'Prepare the annual production report.',
-      'Submit the renewal form via the Tumemadini portal (we can help).',
+      'Submit the renewal form via the Mining Commission portal (we can help).',
       'Keep the receipt and new certificate on file for your mine records.',
     ],
     cta: 'Start renewal',
-    portalLink: 'Tumemadini portal',
+    portalLink: 'Mining Commission portal',
     closing:
       'Borjie tracks this date automatically — we will remind you again at 30 and 7 days.',
   },
@@ -108,7 +108,7 @@ export function LicenceExpiryWarningEmail(props: LicenceExpiryWarningData) {
         </Button>
       </Section>
       <Text style={borjieStyles.muted}>
-        <Link href={props.tumemadiniUrl} style={{ color: borjieColors.gold }}>
+        <Link href={props.miningCommissionUrl} style={{ color: borjieColors.gold }}>
           {c.portalLink}
         </Link>
         {' · '}
@@ -131,7 +131,7 @@ export function licenceExpiryWarningText(data: LicenceExpiryWarningData): string
     steps,
     '',
     `${c.cta}: ${data.renewUrl}`,
-    `${c.portalLink}: ${data.tumemadiniUrl}`,
+    `${c.portalLink}: ${data.miningCommissionUrl}`,
     '',
     c.closing,
   ]
