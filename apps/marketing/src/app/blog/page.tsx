@@ -11,7 +11,7 @@ import { getMessages } from '@/lib/i18n';
  *
  * No MDX posts ship in this wave; the page renders a focused empty
  * state with a hero (kicker / heading / sub) and a single tile that
- * points the reader to docs and to the pilot signup. When editorial
+ * points the reader to docs and to the sign-up page. When editorial
  * adds MDX, the empty state hides and the grid renders.
  *
  * The template DNA mirrors LitFin's blog landing: centered hero,
@@ -86,7 +86,7 @@ export default async function BlogIndexPage() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
-                href="/pilot"
+                href="/signup"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-surface-raised"
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />

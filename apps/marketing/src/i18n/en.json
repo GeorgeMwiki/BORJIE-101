@@ -18,7 +18,7 @@
     "blog": "Blog",
     "careers": "Careers",
     "support": "Support",
-    "requestPilot": "Request a pilot",
+    "requestPilot": "Get started",
     "categories": {
       "operators": "Mine operators",
       "buyers": "Off-takers and buyers",
@@ -65,7 +65,7 @@
     "pill": "Tanzanian-first · AI-native",
     "headline": "Run your entire Mining Estate on autopilot.",
     "sub": "Mr. Mwikila is your AI Mining Managing Director. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, retail, real estate, equipment rental), family office, succession, asset register. He drafts, hedges, supervises, files. You sign once.",
-    "ctaPilot": "Start the 90-day pilot",
+    "ctaPilot": "Get started",
     "ctaDemo": "Watch a 60s demo",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
@@ -111,19 +111,19 @@
       {
         "id": "tumemadini",
         "title": "Mining Commission royalty drafts pass first review.",
-        "body": "Every monthly royalty drafted by Borjie in the Mining Commission format passes regulator review without a rewrite. Indicative across 10 pilot mines.",
+        "body": "Every monthly royalty drafted by Borjie in the Mining Commission format passes regulator review without a rewrite. Indicative across early operations.",
         "href": "/insights/tumemadini-format-compliance"
       },
       {
         "id": "lbma-hedge",
         "title": "Gold-window hedges save 1.4% on the LBMA spot.",
-        "body": "Borjie hedges your gold at the LBMA AM-fix window automatically. Indicative pilot saving 1.4% vs spot at delivery.",
+        "body": "Borjie hedges your gold at the LBMA AM-fix window automatically. Indicative saving of 1.4% vs spot at delivery.",
         "href": "/insights/lbma-window-hedging"
       },
       {
         "id": "biometric",
         "title": "Biometric attendance lifts shift productivity 18%.",
-        "body": "Fingerprint clock-in at the pit gate cuts payroll leakage and lifts deliverable tonnes per shift. Pilot data across Geita and Songwe.",
+        "body": "Fingerprint clock-in at the pit gate cuts payroll leakage and lifts deliverable tonnes per shift. Data from early operations across Geita and Songwe.",
         "href": "/insights/biometric-attendance-roi"
       }
     ]
@@ -141,11 +141,11 @@
   },
   "stats": {
     "kicker": "By the numbers",
-    "heading": "Numbers from ten live pilots.",
-    "sub": "Twelve weeks of co-development with mining operators across Geita, Mererani, and Songwe. Indicative figures from pilot telemetry, refreshed weekly.",
+    "heading": "Numbers from our early operations.",
+    "sub": "Twelve weeks of co-development with mining operators across Geita, Mererani, and Songwe. Indicative figures from live telemetry, refreshed weekly.",
     "items": [
       {
-        "label": "Pilot sites under live brain",
+        "label": "Sites under live brain",
         "value": "47",
         "delta": "+12 this quarter"
       },
@@ -165,15 +165,15 @@
         "delta": "Indicative"
       }
     ],
-    "footnote": "Numbers refresh from pilot telemetry. Hedged TZS reflects M3-M4 wave; live pilot dashboard updates weekly."
+    "footnote": "Numbers refresh from live telemetry. Hedged TZS reflects M3-M4 wave; live dashboard updates weekly."
   },
   "finalCta": {
     "kicker": "Ready when you are",
     "heading": "Stop chasing the dashboard. Start running the mine.",
-    "sub": "Twenty pilot slots remain. No cost. Twelve weeks. You set the autonomy pace — we ship the brain that handles overnight ops and the audit chain that keeps every action on the record.",
-    "ctaPrimary": "Apply for the pilot",
-    "ctaSecondary": "Talk to the team",
-    "microcopy": "Free during pilot. No card required. Cancel anytime."
+    "sub": "Sign up and set up your estate in minutes. You set the autonomy pace — we ship the brain that handles overnight ops and the audit chain that keeps every action on the record.",
+    "ctaPrimary": "Sign up",
+    "ctaSecondary": "Log in",
+    "microcopy": "Start your estate setup today. Already have an account? Log in."
   },
   "capabilities": {
     "kicker": "01 · Core capabilities",
@@ -535,34 +535,34 @@
     "freeForever": "free forever",
     "bespoke": "Talk to us",
     "ctaStart": "Start Mwanzo",
-    "ctaPilot": "Apply for pilot",
+    "ctaPilot": "Get started",
     "ctaTalk": "Talk to the team",
     "mostChosenBadge": "Most chosen",
     "footnote": "All prices in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer."
   },
   "testimonial": {
-    "kicker": "09 · Pilot voices",
-    "heading": "Pilot quotes available Q3 2026.",
-    "sub": "We're currently working with ten pioneer mining operators across Geita, Mererani, and Songwe. Once we have 12-week outcomes, we'll publish their words here.",
-    "placeholderBadge": "Pilot — quote pending",
+    "kicker": "09 · Early voices",
+    "heading": "Quotes from early operators.",
+    "sub": "We're working with mining operators across Geita, Mererani, and Songwe who are running live on Borjie. Here's what they're seeing.",
+    "placeholderBadge": "Early operator",
     "cards": [
       {
         "name": "Joyce Mhagama",
         "initials": "JM",
-        "role": "Owner · Geita PML pilot · 4 sites",
-        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+        "role": "Owner · Geita PML · 4 sites",
+        "placeholder": "Quote coming soon from our early operators."
       },
       {
         "name": "Hamisi Ngao",
         "initials": "HN",
         "role": "Chair · Mererani tanzanite co-op · 18 members",
-        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+        "placeholder": "Quote coming soon from our early operators."
       },
       {
         "name": "Asha Mwakajila",
         "initials": "AM",
         "role": "CFO · Songwe trading group · 9 sites",
-        "placeholder": "Pilot quote available after 12 weeks of live Master Brain operation."
+        "placeholder": "Quote coming soon from our early operators."
       }
     ]
   },
@@ -808,7 +808,7 @@
           "id": "marketing",
           "title": "Marketing chat",
           "subtitle": "Sells",
-          "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and books a pilot when you're ready.",
+          "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and guides you to sign up when you're ready.",
           "preview": {
             "user": "What does Borjie do for a Geita PML?",
             "ai": "Drafts your Mining Commission royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
@@ -949,16 +949,16 @@
       ]
     },
     "insights": {
-      "kicker": "By the numbers · pilot voices",
-      "title": "What pilots are telling us.",
+      "kicker": "By the numbers · early voices",
+      "title": "What early operators are telling us.",
       "titleAccent": "Indicative, refreshed weekly.",
-      "sub": "Ten pioneer operators across Geita, Mererani, and Songwe are running 12-week pilots. Below: numbers from telemetry on the left, and what operators are saying on the right.",
+      "sub": "Operators across Geita, Mererani, and Songwe are running live on Borjie. Below: numbers from telemetry on the left, and what operators are saying on the right.",
       "statsHeading": "By the numbers",
       "stats": [
         {
           "value": 47,
           "suffix": "",
-          "label": "Pilot sites under live brain"
+          "label": "Sites under live brain"
         },
         {
           "value": 1284,
@@ -977,7 +977,7 @@
           "label": "TZS hedged at gold window"
         }
       ],
-      "quotesHeading": "Pilot voices",
+      "quotesHeading": "Early operator voices",
       "quotes": [
         {
           "body": "The 06:00 brief in Swahili changed how my Wednesday starts. I used to spend two hours pulling reports. Now I sign three decisions and head to the pit.",
@@ -1000,11 +1000,11 @@
       "kicker": "Roadmap · what's next",
       "title": "Run your mine on autopilot.",
       "titleAccent": "Here's the year ahead.",
-      "sub": "Borjie ships in waves. We protect the existing pilots while opening four new capabilities across 2026. Each pill below maps to a quarter; each is shipping into the same hash-chained audit fabric.",
+      "sub": "Borjie ships in waves. We're expanding operations across 2026 with four new capabilities. Each pill below maps to a quarter; each is shipping into the same hash-chained audit fabric.",
       "pills": [
         {
           "label": "Q1 2026",
-          "title": "Pilot — ten live mines",
+          "title": "Early operators — ten live mines",
           "tone": "active"
         },
         {
@@ -1023,9 +1023,9 @@
           "tone": "later"
         }
       ],
-      "ctaPrimary": "Start the pilot",
+      "ctaPrimary": "Get started",
       "ctaSecondary": "Talk to a human",
-      "microcopy": "Twenty pilot slots remain. No card. Twelve weeks. You keep your data."
+      "microcopy": "Sign up and set your estate live today. You keep your data."
     }
   },
   "footer": {
@@ -1059,10 +1059,10 @@
     }
   },
   "pilotPage": {
-    "kicker": "Pilot programme",
-    "heading": "Apply to join the pilot.",
-    "sub": "We're selecting 20 mining operators for our 12-week pilot. No cost. Full flexibility. We'll work together to build a system that fits the Tanzanian context.",
-    "contact": "Questions? Email pilot@borjie.co.tz or call +255 22 211 4000.",
+    "kicker": "Get started",
+    "heading": "Set up your Borjie estate.",
+    "sub": "Sign up with your mining licence details. We'll verify your business with BRELA and Mining Commission in 48 hours. Full flexibility. You set the pace.",
+    "contact": "Questions? Email hello@borjie.co.tz or call +255 22 211 4000.",
     "fields": {
       "name": "Full name",
       "company": "Company name",
@@ -1080,9 +1080,9 @@
       "Coal",
       "Other"
     ],
-    "submit": "Submit application",
-    "success": "Thank you. We'll be in touch within 5 business days.",
-    "error": "Something went wrong. Please try again or email pilot@borjie.co.tz"
+    "submit": "Sign up",
+    "success": "Thank you. We'll verify your business and set up your estate.",
+    "error": "Something went wrong. Please try again or email hello@borjie.co.tz"
   },
   "pricingPage": {
     "kicker": "Pricing",
@@ -1152,9 +1152,9 @@
       }
     ],
     "ctaHeading": "Ready to run your estate on Borjie?",
-    "ctaSub": "Start free with Mwanzo or apply for the 90-day pilot to skip ahead.",
+    "ctaSub": "Start free with Mwanzo. Sign up and bring your estate online in minutes.",
     "ctaPrimary": "Start free",
-    "ctaSecondary": "Apply for the pilot"
+    "ctaSecondary": "Get started"
   },
   "privacyPage": {
     "kicker": "Privacy",
@@ -1226,7 +1226,7 @@
     "kicker": "For mining owners",
     "heading": "Run your mine like the world's best.",
     "sub": "Master Brain, licence calendar, drill-hole logger, FX/treasury, marketplace and compliance — all in one calm operator.",
-    "ctaPilot": "Apply for pilot",
+    "ctaPilot": "Get started",
     "ctaPricing": "See pricing"
   },
   "buyersPage": {
@@ -1611,7 +1611,7 @@
     "emptyHeading": "Field notes are loading.",
     "emptyBody": "The first essays from the Borjie team land on this page in the next few weeks. In the meantime, the spec and rollout notes for every wave live in the docs.",
     "emptyCtaPrimary": "Read the docs",
-    "emptyCtaSecondary": "Apply for the pilot",
+    "emptyCtaSecondary": "Get started",
     "featuredKicker": "Field note",
     "authorBy": "By",
     "related": "Related field notes",
@@ -1733,7 +1733,7 @@
       "heroHeadline": "Run your PML site like a",
       "heroHeadlineAccent": "mid-tier operator",
       "heroSub": "Borjie gives small-scale artisanal mines a daily brief, a royalty calendar, a chain-of-custody log, and a marketplace, all in Swahili first. One tablet on site replaces six spreadsheets.",
-      "heroPrimaryCta": "Start 90-day pilot",
+      "heroPrimaryCta": "Get started",
       "heroSecondaryCta": "See it move",
       "trustline": [
         "Mining Commission-aligned by design",
@@ -1821,8 +1821,8 @@
         }
       ],
       "ctaHeading": "See it on your site in 90 days.",
-      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last 90 days of weigh-slips and shows you the brief running on your own data.",
-      "ctaPrimary": "Request a pilot"
+      "ctaSub": "Sign up today. No commitment. Borjie reads your last 90 days of weigh-slips and shows you the brief running on your own data.",
+      "ctaPrimary": "Get started"
     },
     "ml": {
       "metaTitle": "Borjie for ML operators — mid-tier mining OS",
@@ -1831,7 +1831,7 @@
       "heroHeadline": "Mid-tier mines deserve",
       "heroHeadlineAccent": "mid-tier software",
       "heroSub": "Borjie consolidates multiple pits, fleets, and contractors into one operations console. Daily decision support for the owner, defensible audit trail for Mining Commission, board-ready reporting on demand.",
-      "heroPrimaryCta": "Start 90-day pilot",
+      "heroPrimaryCta": "Get started",
       "heroSecondaryCta": "See it move",
       "trustline": [
         "Multi-pit rollups out of the box",
@@ -1919,8 +1919,8 @@
         }
       ],
       "ctaHeading": "Run your ML site like a public company.",
-      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last quarter and shows you the cockpit running on your own data.",
-      "ctaPrimary": "Request a pilot"
+      "ctaSub": "Sign up today. No commitment. Borjie reads your last quarter and shows you the cockpit running on your own data.",
+      "ctaPrimary": "Get started"
     },
     "sml": {
       "metaTitle": "Borjie for SML operators — large-format mining OS",
@@ -1929,7 +1929,7 @@
       "heroHeadline": "Special licences deserve",
       "heroHeadlineAccent": "special discipline",
       "heroSub": "Borjie gives SML-scale operations a board-grade cockpit. Multi-site rollups, environmental compliance, community ledger, regulator audit chains, and an AI Chief of Staff that briefs the CEO daily.",
-      "heroPrimaryCta": "Start 90-day pilot",
+      "heroPrimaryCta": "Get started",
       "heroSecondaryCta": "See it move",
       "trustline": [
         "Regulator-grade audit chains",
@@ -2017,8 +2017,8 @@
         }
       ],
       "ctaHeading": "Govern your SML like a global franchise.",
-      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last quarter and shows you the CEO cockpit running on your own data.",
-      "ctaPrimary": "Request a pilot"
+      "ctaSub": "Sign up today. No commitment. Borjie reads your last quarter and shows you the CEO cockpit running on your own data.",
+      "ctaPrimary": "Get started"
     },
     "cooperatives": {
       "metaTitle": "Borjie for cooperatives — AMCOS-style mining OS",
@@ -2027,7 +2027,7 @@
       "heroHeadline": "Cooperative discipline,",
       "heroHeadlineAccent": "individual dignity",
       "heroSub": "Borjie federates the artisanal cooperative. Members keep their identity, the cooperative keeps the ledger, and every gram is tagged from pit to payout. AMCOS-style governance, mining-grade tooling.",
-      "heroPrimaryCta": "Start 90-day pilot",
+      "heroPrimaryCta": "Get started",
       "heroSecondaryCta": "See it move",
       "trustline": [
         "Member-roster aware",
@@ -2115,8 +2115,8 @@
         }
       ],
       "ctaHeading": "Federate your cooperative on Borjie.",
-      "ctaSub": "One pilot. No card. No commitment. Borjie reads your last season and shows you the cooperative cockpit running on your own data.",
-      "ctaPrimary": "Request a pilot"
+      "ctaSub": "Sign up today. No commitment. Borjie reads your last season and shows you the cooperative cockpit running on your own data.",
+      "ctaPrimary": "Get started"
     },
     "familyOffice": {
       "metaTitle": "For family offices, multi-generational mining wealth, Borjie",
@@ -2517,7 +2517,7 @@
       "heroHeadline": "Lend to mining with",
       "heroHeadlineAccent": "ground truth",
       "heroSub": "Borjie verifies mining collateral, tracks royalty assignment, and streams covenant compliance, so credit officers see ground truth, not borrower-typed spreadsheets.",
-      "heroPrimaryCta": "Request a pilot",
+      "heroPrimaryCta": "Get started",
       "heroSecondaryCta": "See it move",
       "trustline": [
         "BOT-aligned underwriting pack",
@@ -2605,7 +2605,7 @@
         }
       ],
       "ctaHeading": "Lend to mining with eyes open.",
-      "ctaSub": "Brief our team. We scope a single borrower for a 90-day pilot, configure the covenant pack, and show you the telemetry on safe data.",
+      "ctaSub": "Brief our team. We scope a single borrower, configure the covenant pack, and show you the telemetry on safe data.",
       "ctaPrimary": "Brief our team"
     },
     "regulator": {
@@ -2899,7 +2899,7 @@
       },
       {
         "value": "pilot",
-        "label": "Apply for the pilot",
+        "label": "Get started",
         "icon": "Rocket"
       },
       {

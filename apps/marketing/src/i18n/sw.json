@@ -18,7 +18,7 @@
     "blog": "Blogi",
     "careers": "Kazi",
     "support": "Msaada",
-    "requestPilot": "Omba pilot",
+    "requestPilot": "Anza sasa",
     "categories": {
       "operators": "Waendeshaji wa migodi",
       "buyers": "Wanunuzi na off-takers",
@@ -65,7 +65,7 @@
     "pill": "Tanzania-kwanza · Inayoongozwa na AI",
     "headline": "Endesha mali yote ya madini kwa otomatiki.",
     "sub": "Mwl. Mwikila ni Mkurugenzi Mtendaji wa AI wa Madini. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, subsidiaries, biashara za ziada (usafiri, chakula, mafuta, rejareja, ardhi, kukodi vifaa), family office, urithi, daftari la mali. Anaandaa, anafunga, anasimamia, anawasilisha. Wewe unasaini mara moja.",
-    "ctaPilot": "Anzisha pilot ya siku 90",
+    "ctaPilot": "Anza sasa",
     "ctaDemo": "Tazama demo ya sekunde 60",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
@@ -98,7 +98,7 @@
       ]
     },
     "stats": {
-      "pilotRegions": "Mikoa ya pilot",
+      "pilotRegions": "Mikoa inayoendeshwa",
       "bilingual": "Lugha mbili",
       "baseCurrency": "Sarafu ya msingi",
       "masterBrain": "Master Brain"
@@ -111,7 +111,7 @@
       {
         "id": "tumemadini",
         "title": "Royalty drafts za Tumemadini zinapita ukaguzi wa kwanza.",
-        "body": "Kila royalty ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu za mfano kutoka migodi 10 ya pilot.",
+        "body": "Kila royalty ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu kutoka uendeshaji wa mapema.",
         "href": "/insights/tumemadini-format-compliance"
       },
       {
@@ -123,7 +123,7 @@
       {
         "id": "biometric",
         "title": "Mahudhurio ya kidole yanaongeza tija ya zamu 18%.",
-        "body": "Fingerprint clock-in lango la pit inapunguza upotevu wa malipo na kuongeza tani zinazotolewa kwa zamu. Data ya pilot Geita na Songwe.",
+        "body": "Fingerprint clock-in lango la pit inapunguza upotevu wa malipo na kuongeza tani zinazotolewa kwa zamu. Data kutoka uendeshaji Geita na Songwe.",
         "href": "/insights/biometric-attendance-roi"
       }
     ]
@@ -141,11 +141,11 @@
   },
   "stats": {
     "kicker": "Kwa nambari",
-    "heading": "Nambari kutoka kwa pilots kumi za moja kwa moja.",
-    "sub": "Wiki 12 za maendeleo pamoja na waendeshaji wa migodi Geita, Mererani, na Songwe. Takwimu kutoka telemetry ya pilot, zinasasishwa kila wiki.",
+    "heading": "Nambari kutoka uendeshaji wa mapema.",
+    "sub": "Wiki 12 za maendeleo pamoja na waendeshaji wa migodi Geita, Mererani, na Songwe. Takwimu kutoka telemetry hai, zinasasishwa kila wiki.",
     "items": [
       {
-        "label": "Sites za pilot zenye brain hai",
+        "label": "Sites zenye brain hai",
         "value": "47",
         "delta": "+12 robo hii"
       },
@@ -165,15 +165,15 @@
         "delta": "Mfano"
       }
     ],
-    "footnote": "Nambari zinasasishwa kutoka telemetry. TZS iliyofungwa inawakilisha wave M3-M4; dashboard ya pilot inasasishwa kila wiki."
+    "footnote": "Nambari zinasasishwa kutoka telemetry hai. TZS iliyofungwa inawakilisha wave M3-M4; dashboard inasasishwa kila wiki."
   },
   "finalCta": {
     "kicker": "Tayari unapokuwa wewe",
     "heading": "Acha kufuatilia dashboard. Anza kuendesha mgodi.",
-    "sub": "Nafasi 20 za pilot zimebaki. Hakuna gharama. Wiki 12. Wewe unaweka kasi ya autonomy — sisi tunatengeneza brain inayoshughulikia shughuli za usiku na audit chain inayoweka kila kitendo kwenye rekodi.",
-    "ctaPrimary": "Omba pilot",
-    "ctaSecondary": "Ongea na timu",
-    "microcopy": "Bure wakati wa pilot. Hakuna kadi inayohitajika. Sitisha wakati wowote."
+    "sub": "Jisajiri na kuanzisha mali yako katika dakika. Wewe unaweka kasi ya autonomy — sisi tunatengeneza brain inayoshughulikia shughuli za usiku na audit chain inayoweka kila kitendo kwenye rekodi.",
+    "ctaPrimary": "Jisajiri",
+    "ctaSecondary": "Ingia",
+    "microcopy": "Anza kuandaa mali yako leo. Una akaunti tayari? Ingia."
   },
   "capabilities": {
     "kicker": "01 · Uwezo wa msingi",
@@ -535,22 +535,22 @@
     "freeForever": "bure milele",
     "bespoke": "Tuwasiliane",
     "ctaStart": "Anza Mwanzo",
-    "ctaPilot": "Omba pilot",
+    "ctaPilot": "Anza sasa",
     "ctaTalk": "Ongea na timu",
     "mostChosenBadge": "Wengi",
     "footnote": "Bei zote katika TZS. Inaweza kulipwa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer."
   },
   "testimonial": {
-    "kicker": "09 · Sauti za Pilot",
-    "heading": "Quotes za pilot zitapatikana Q3 2026.",
-    "sub": "Sasa hivi tunafanya kazi na waanzilishi kumi wa mgodi katika Geita, Mererani, na Songwe. Tukiwa na matokeo ya wiki 12, tutaweka maoni yao hapa.",
-    "placeholderBadge": "Pilot — quote inakuja",
+    "kicker": "09 · Sauti za Mapema",
+    "heading": "Quotes kutoka waendeshaji wa mapema.",
+    "sub": "Tunafanya kazi na waendeshaji wa mgodi katika Geita, Mererani, na Songwe ambao wanaendeshwa na Borjie. Hapa kile wanachosema.",
+    "placeholderBadge": "Waendeshaji wa mapema",
     "cards": [
       {
         "name": "Joyce Mhagama",
         "initials": "JM",
-        "role": "Mmiliki · Geita PML pilot · sites 4",
-        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+        "role": "Mmiliki · Geita PML · sites 4",
+        "placeholder": "Quote inakuja kutoka waendeshaji wetu wa mapema."
       },
       {
         "name": "Hamisi Ngao",
@@ -808,7 +808,7 @@
           "id": "marketing",
           "title": "Marketing chat",
           "subtitle": "Inauza",
-          "desc": "Chat unayoitumia sasa hivi. Mwl. Mwikila anajibu maswali yako kuhusu bei, mamlaka, na ratiba — na anakuandikisha kwa pilot ukiwa tayari.",
+          "desc": "Chat unayoitumia sasa hivi. Mwl. Mwikila anajibu maswali yako kuhusu bei, mamlaka, na ratiba — na anakuongeza kusajiri ukiwa tayari.",
           "preview": {
             "user": "Borjie inafanya nini kwa PML ya Geita?",
             "ai": "Anaandaa royalty yako ya Tumemadini kwa muundo rasmi, anafunga dhahabu yako kwa LBMA fix, anaendesha shift roster yako kwa simu ya supervisor. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
@@ -931,7 +931,7 @@
         {
           "id": "hedge",
           "title": "LBMA window hedge",
-          "desc": "Borjie inafunga dhahabu yako dhidi ya BoT USD/gold window kwa LBMA AM-fix. Kila hedge inatajwa kwa bei ya fix, akiba ya pilot ya 1.4% dhidi ya spot.",
+          "desc": "Borjie inafunga dhahabu yako dhidi ya BoT USD/gold window kwa LBMA AM-fix. Kila hedge inatajwa kwa bei ya fix, akiba ya 1.4% dhidi ya spot.",
           "badge": "Treasury"
         },
         {
@@ -949,16 +949,16 @@
       ]
     },
     "insights": {
-      "kicker": "Kwa namba · sauti za pilots",
-      "title": "Pilots wanatuambia nini.",
+      "kicker": "Kwa namba · sauti za mapema",
+      "title": "Waendeshaji wa mapema wanatuambia nini.",
       "titleAccent": "Mfano, inarefreshiwa wiki kwa wiki.",
-      "sub": "Waanzilishi kumi katika Geita, Mererani, na Songwe wanaendesha pilots za wiki 12. Chini: namba kutoka telemetry kushoto, na kile waendeshaji wanasema kulia.",
+      "sub": "Waendeshaji katika Geita, Mererani, na Songwe wanaendesha Borjie. Chini: namba kutoka telemetry kushoto, na kile waendeshaji wanasema kulia.",
       "statsHeading": "Kwa namba",
       "stats": [
         {
           "value": 47,
           "suffix": "",
-          "label": "Pilot sites chini ya brain hai"
+          "label": "Sites chini ya brain hai"
         },
         {
           "value": 1284,
@@ -977,7 +977,7 @@
           "label": "TZS zilizofungwa kwa dirisha la dhahabu"
         }
       ],
-      "quotesHeading": "Sauti za pilots",
+      "quotesHeading": "Sauti za waendeshaji wa mapema",
       "quotes": [
         {
           "body": "Brief ya 06:00 kwa Kiswahili imebadilisha jinsi Jumatano yangu inaanza. Nilikuwa natumia masaa mawili kupata reports. Sasa nasaini maamuzi matatu na naelekea pit.",
@@ -1000,11 +1000,11 @@
       "kicker": "Roadmap · kinachofuata",
       "title": "Endesha mgodi wako kwa otomatiki.",
       "titleAccent": "Hapa mwaka unaokuja.",
-      "sub": "Borjie inaleta katika mawimbi. Tunalinda pilots zilizopo huku tukifungua uwezo mpya minne mnamo 2026. Kila pill chini inaonyesha robo; kila moja inakwenda kwenye audit fabric hiyo hiyo ya hash-chained.",
+      "sub": "Borjie inaleta katika mawimbi. Tunalipanua uendeshaji mnamo 2026 ukiwa na uwezo mpya minne. Kila pill chini inaonyesha robo; kila moja inakwenda kwenye audit fabric hiyo hiyo ya hash-chained.",
       "pills": [
         {
           "label": "Q1 2026",
-          "title": "Pilot — migodi kumi hai",
+          "title": "Waendeshaji wa mapema — migodi kumi hai",
           "tone": "active"
         },
         {
@@ -1023,9 +1023,9 @@
           "tone": "later"
         }
       ],
-      "ctaPrimary": "Anzisha pilot",
+      "ctaPrimary": "Anza sasa",
       "ctaSecondary": "Ongea na binadamu",
-      "microcopy": "Pilot slots 20 zinabakia. Hakuna card. Wiki 12. Unabaki na data yako."
+      "microcopy": "Jisajiri na kuanzisha mali yako leo. Unabaki na data yako."
     }
   },
   "footer": {
@@ -1059,10 +1059,10 @@
     }
   },
   "pilotPage": {
-    "kicker": "Programu ya Pilot",
-    "heading": "Omba kushiriki katika pilot.",
-    "sub": "Tunachagua waanzilishi 20 wa mgodi kushiriki katika pilot yetu ya wiki 12. Hakuna gharama. Unyumbufu kamili. Tutafanya kazi pamoja kujenga mfumo unaofaa kwa muktadha wa Tanzania.",
-    "contact": "Maswali? Tuma email kwa pilot@borjie.co.tz au piga +255 22 211 4000.",
+    "kicker": "Anza sasa",
+    "heading": "Andaa mali yako ya Borjie.",
+    "sub": "Jisajiri na taarifa za leseni yako ya madini. Tutatathibitisha biashara yako na Tumemadini na Tume ya Madini ndani ya masaa 48. Unyumbufu kamili. Wewe unaweka kasi.",
+    "contact": "Maswali? Tuma email kwa hello@borjie.co.tz au piga +255 22 211 4000.",
     "fields": {
       "name": "Jina kamili",
       "company": "Jina la kampuni",
@@ -1080,9 +1080,9 @@
       "Ujao",
       "Mengineyo"
     ],
-    "submit": "Tuma maombi",
-    "success": "Asante. Tutawasiliana ndani ya siku 5 za kazi.",
-    "error": "Hitilafu imetokea. Tafadhali jaribu tena au tuma email kwa pilot@borjie.co.tz"
+    "submit": "Jisajiri",
+    "success": "Asante. Tutatathibitisha biashara yako na kuandaa mali yako.",
+    "error": "Hitilafu imetokea. Tafadhali jaribu tena au tuma email kwa hello@borjie.co.tz"
   },
   "pricingPage": {
     "kicker": "Bei",
@@ -1152,9 +1152,9 @@
       }
     ],
     "ctaHeading": "Tayari kuendesha eneo lako kwenye Borjie?",
-    "ctaSub": "Anza bure na Mwanzo au omba pilot ya siku 90 kuruka mbele.",
+    "ctaSub": "Anza bure na Mwanzo. Jisajiri na kuleta eneo lako online ndani ya dakika.",
     "ctaPrimary": "Anza bure",
-    "ctaSecondary": "Omba pilot"
+    "ctaSecondary": "Anza sasa"
   },
   "privacyPage": {
     "kicker": "Faragha",
@@ -1226,7 +1226,7 @@
     "kicker": "Kwa wamiliki wa migodi",
     "heading": "Endesha mgodi wako kama wabora duniani.",
     "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/treasury, soko na compliance — yote kwenye operator mmoja mtulivu.",
-    "ctaPilot": "Omba pilot",
+    "ctaPilot": "Anza sasa",
     "ctaPricing": "Ona bei"
   },
   "buyersPage": {

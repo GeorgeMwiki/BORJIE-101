@@ -38,7 +38,7 @@ import { BorjieLogo, ThemeToggle } from '@borjie/design-system';
  *     mining-audience entries with a lucide icon tile and a one-line
  *     description.
  *   - Always-visible: Pricing, Docs.
- *   - Right-side: Locale toggle, Sign-in, primary CTA "Request a pilot".
+ *   - Right-side: Locale toggle, Sign-in, primary CTA "Get started".
  *   - Mobile drawer with the full audience matrix collapsed.
  *
  * Stays bilingual — every label resolves through `getMessages(locale).nav`.

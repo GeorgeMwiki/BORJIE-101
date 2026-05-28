@@ -30,7 +30,7 @@ import { notFound } from 'next/navigation';
  *   - `max-w-prose` body with prose-mining type ramp
  *   - sticky left share rail on lg+
  *   - related-posts grid (3-up)
- *   - final CTA band routing to /pilot
+ *   - final CTA band routing to /signup
  */
 
 export async function generateMetadata({
@@ -163,7 +163,7 @@ export default async function BlogPostPage({
           </div>
         </section>
 
-        {/* Final CTA band routing to /pilot */}
+        {/* Final CTA band routing to /signup */}
         <section className="border-t border-border px-5 py-16 md:py-20">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
@@ -174,10 +174,10 @@ export default async function BlogPostPage({
             </p>
             <div className="mt-8 inline-flex">
               <Link
-                href="/pilot"
+                href="/signup"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal-500 px-6 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 active:scale-[0.98]"
               >
-                {locale === 'sw' ? 'Omba majaribio' : 'Apply for the pilot'}
+                {locale === 'sw' ? 'Anza sasa' : 'Get started'}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>

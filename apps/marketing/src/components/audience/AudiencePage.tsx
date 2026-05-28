@@ -19,7 +19,7 @@ import { type Locale } from '@/lib/i18n';
  *   3. "How it works" three-step ordered list.
  *   4. Problem / Solution duo (LitFin's "WHY CREDIT BUSINESS" pattern),
  *      red numerical dots on the left, gold check-circles on the right.
- *   5. Closing CTA band re-offering the 90-day pilot.
+ *   5. Closing CTA band with sign-up call-to-action.
  *
  * Everything is presentational. The page that mounts this template is
  * an async RSC that resolves locale once and passes typed copy in.

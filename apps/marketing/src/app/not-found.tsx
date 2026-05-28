@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  *
  * Centered single column on a soft aurora canvas. Tinted icon container,
  * display heading, bilingual sub, and one primary CTA back to home plus
- * a secondary CTA to the pilot signup.
+ * a secondary CTA to sign up.
  *
  * Intentionally minimal — no marketing chrome (Nav/Footer) so the
  * surface reads as a system page, not a navigation dead end.
@@ -55,10 +55,10 @@ export default function NotFoundPage() {
             Back to home
           </Link>
           <Link
-            href="/pilot"
+            href="/signup"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            Apply for the pilot
+            Get started
           </Link>
         </div>
       </div>

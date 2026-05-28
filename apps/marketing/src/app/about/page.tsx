@@ -66,10 +66,10 @@ export default async function AboutPage() {
 
         <div className="mt-16 flex flex-wrap gap-3">
           <Link
-            href="/pilot"
+            href="/signup"
             className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-signal-400"
           >
-            Start a pilot
+            Get started
           </Link>
           <Link
             href="/buyers"

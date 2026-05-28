@@ -201,10 +201,10 @@ export default async function ContactPage() {
                 : "We'll walk your requirements, show a demo, and advise."}
             </p>
             <Link
-              href="/pilot"
+              href="/signup"
               className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-signal-500 px-6 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 active:scale-[0.98]"
             >
-              {isSw ? 'Anza majaribio' : 'Start the pilot'}
+              {isSw ? 'Anza sasa' : 'Get started'}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
