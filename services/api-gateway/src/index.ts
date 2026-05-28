@@ -428,6 +428,12 @@ import {
   type WriteToolIdSet,
 } from './composition/brain-tools/outcome-predictor';
 import { listPersonaToolDescriptors } from './composition/brain-tools';
+// Wave CLOSED-LOOP - calibration monitor (tracker + alerter + brain
+// tool). Lets the owner / brain self-check prediction accuracy.
+import {
+  createCalibrationTracker,
+  buildCalibrationScoreTool,
+} from './services/calibration-monitor';
 import { createDrizzleDraftPersistence } from './services/document-drafter';
 import { buildDocumentDrafterTools } from './services/document-drafter/brain-tools';
 import { createDrizzleRevisionsPersistence } from './services/document-drafter/revisions-persistence';
@@ -860,7 +866,24 @@ try {
   for (const t of mediaTools) personaWriteIds.add(t.name);
   const writeIds: WriteToolIdSet = personaWriteIds;
 
-  const rawSkills = [orgSkill, ...draftTools, freeFormTool, ...mediaTools];
+  // Wave CLOSED-LOOP - bind the calibration tracker and surface its
+  // read-only brain tool so the owner can ask "did your last 5
+  // recommendations work?" and the brain can self-check before
+  // quoting confidence.
+  const calibrationTracker = createCalibrationTracker({
+    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+  });
+  const calibrationScoreTool = buildCalibrationScoreTool({
+    tracker: calibrationTracker,
+  });
+
+  const rawSkills = [
+    orgSkill,
+    ...draftTools,
+    freeFormTool,
+    ...mediaTools,
+    calibrationScoreTool,
+  ];
   const wrappedSkills = wrapWritesWithOutcomePrediction(rawSkills, writeIds, {
     db: (serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> }) ?? null,
     logger,
