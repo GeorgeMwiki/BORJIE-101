@@ -1,16 +1,28 @@
-import { PageShell } from '@/components/migrated/PageShell';
-import { LiveDataRequiredPanel } from '@/components/migrated/LiveDataRequiredPanel';
+import { PageHero } from '@/components/admin-shell/PageHero';
+import { ControlTowerClient } from './ControlTowerClient';
 
-export default function ControlTowerPage() {
+/**
+ * Control Tower — cross-tenant ops console.
+ *
+ * KPI grid at top (active tenants, brain turns/min, error budget,
+ * RLS denies) then the dense platform-controls list. Every control
+ * toggle opens a four-eye confirmation modal because flipping these
+ * affects every tenant simultaneously.
+ */
+export default function ControlTowerPage(): JSX.Element {
   return (
-    <PageShell
-      title="Control Tower"
-      subtitle="Cross-tenant operations console — live ops view across the platform."
-    >
-      <LiveDataRequiredPanel
-        feature="Control Tower"
-        description="Control Tower renders only from the live ops aggregator. The dashboard re-enables once the upstream service is online."
+    <div className="space-y-8">
+      <PageHero
+        eyebrow="Operations - Mnara"
+        title="Control Tower"
+        subtitle="Cross-tenant operations console. Kill-switches, autonomy flags, rate-limit knobs and platform KPIs. Every action requires a four-eye attestation and lands on the hash-chained audit trail."
+        actions={
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest text-warning">
+            Blast radius global
+          </span>
+        }
       />
-    </PageShell>
+      <ControlTowerClient />
+    </div>
   );
 }
