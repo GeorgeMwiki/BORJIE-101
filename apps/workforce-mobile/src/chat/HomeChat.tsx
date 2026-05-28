@@ -212,11 +212,7 @@ export function HomeChat(): JSX.Element {
       // Wave WORKFORCE-FIXED-TABS — intercept tab/access-change intent
       // BEFORE opening a brain stream. Routes the request through the
       // owner-approval sheet instead of letting the brain promise a
-<<<<<<< Updated upstream
-      // change it cannot make.
-=======
       // change it cannot make. The brain prompt has matching guard.
->>>>>>> Stashed changes
       const intent = detectTabChangeIntent(trimmed, lang)
       if (intent) {
         setTabSheetReasonSeed(intent.reasonSeed)
