@@ -1,4 +1,5 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
+import { StubCard } from '@/components/internal/StubCard';
 import { findScreen } from '@/lib/internal/screens';
 
 const SCREEN = findScreen('support')!;
@@ -15,16 +16,11 @@ const SCREEN = findScreen('support')!;
 export default function SupportPage(): JSX.Element {
   return (
     <ScreenShell screen={SCREEN}>
-      <div className="rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
-        <p className="text-sm font-medium text-foreground">
-          Support tickets not yet wired
-        </p>
-        <p className="mt-2 max-w-md mx-auto text-xs text-neutral-400">
-          The api-gateway does not yet expose the support tickets
-          surface. Wire `/api/v1/mining/internal/support/tickets` and
-          the table will populate from the live response.
-        </p>
-      </div>
+      <StubCard
+        title="Support tickets not yet wired"
+        description="The api-gateway does not yet expose the support tickets surface. Wire the endpoint and the table will populate from the live response."
+        hint="GET /api/v1/mining/internal/support/tickets"
+      />
     </ScreenShell>
   );
 }

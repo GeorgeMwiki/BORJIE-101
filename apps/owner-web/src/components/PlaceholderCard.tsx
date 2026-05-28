@@ -10,16 +10,24 @@ interface PlaceholderCardProps {
  *
  * Gives each O-W-NN page real shape — a labeled surface where the
  * production component will land — without faking a screenshot the
- * product team has to retract later. The dashed border + neutral
- * tone signals "not yet wired" to any reviewer.
+ * product team has to retract later.
+ *
+ * LitFin-pattern: hairline border (no dashed border — reads as broken
+ * not in-progress), small mono kicker, body copy in muted-foreground.
+ * The card stays inside the cockpit's section rhythm so an empty page
+ * still feels like a Borjie page, not a blank.
  */
 export function PlaceholderCard({ title, children }: PlaceholderCardProps) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-surface/30 p-6">
-      <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+    <div className="rounded-2xl border border-border bg-surface/40 p-6 transition-colors hover:border-border-strong">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-signal-500">
         {title}
-      </div>
-      <div className="mt-3 text-sm text-neutral-300">{children}</div>
+      </p>
+      {children ? (
+        <div className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

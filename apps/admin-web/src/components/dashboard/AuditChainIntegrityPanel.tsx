@@ -45,15 +45,15 @@ export function AuditChainIntegrityPanel(): JSX.Element {
   if (data.state === 'unconfigured') {
     return (
       <article
-        className="rounded-lg border border-dashed border-border bg-surface p-5 lg:col-span-3"
+        className="rounded-2xl border border-border bg-surface/40 p-5 lg:col-span-3"
         data-testid="admin-dashboard-audit-unconfigured"
       >
-        <h2 className="text-caption uppercase tracking-widest text-neutral-500">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
           Audit chain integrity
         </h2>
-        <p className="mt-3 text-sm text-neutral-400">
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           Audit-trail verifier not configured on this gateway. Set
-          `AUDIT_TRAIL_SIGNING_SECRET` and a pipeline slot to enable
+          AUDIT_TRAIL_SIGNING_SECRET and a pipeline slot to enable
           24h hash-chain checks.
         </p>
       </article>
