@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220" width="240" height="220">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="spine" x1="120" y1="20" x2="120" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="120" y1="32" x2="120" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="120" y1="72" x2="120" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+    <linearGradient id="hi" x1="120" y1="24" x2="120" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF8E6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFF8E6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="120" cy="68" r="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7CC85" stop-opacity="0.32"/>
+      <stop offset="65%" stop-color="#E5B26B" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#E5B26B" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .wm{font-family:'Fraunces','GT Alpina','Source Serif 4',Georgia,serif;font-weight:600;font-size:48px;letter-spacing:-0.018em;fill:#F5EBD8}
+      .dot{fill:#E5B26B}
+    </style>
+  </defs>
+  <g transform="translate(40, 0)">
+    <circle cx="80" cy="68" r="40" fill="url(#bloom)"/>
+    <rect x="44" y="28" width="16" height="80" rx="4" fill="url(#spine)"/>
+    <path d="M60 32 H92 a16 16 0 0 1 16 16 v6 a16 16 0 0 1 -16 16 H60 z" fill="url(#upper)"/>
+    <rect x="60" y="68" width="40" height="2" fill="#E5B26B" opacity="0.9"/>
+    <path d="M60 74 H96 a20 20 0 0 1 20 20 v0 a20 20 0 0 1 -20 20 H60 z" fill="url(#lower)"/>
+    <g stroke="#FFE2B4" stroke-width="1" opacity="0.35">
+      <line x1="64" y1="84" x2="104" y2="84"/>
+      <line x1="64" y1="94" x2="108" y2="94"/>
+      <line x1="64" y1="104" x2="104" y2="104"/>
+    </g>
+    <rect x="44.8" y="28.8" width="14.4" height="12" rx="3.2" fill="url(#hi)"/>
+    <path d="M60 74 H96 a20 20 0 0 1 20 20 v0 a20 20 0 0 1 -20 20 H60" fill="none" stroke="#7A4F1E" stroke-width="1.2" opacity="0.55"/>
+  </g>
+  <text class="wm" x="62" y="184">Bor</text>
+  <circle class="dot" cx="146" cy="166" r="2.6"/>
+  <text class="wm" x="153" y="184">jie</text>
+</svg>

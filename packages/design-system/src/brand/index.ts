@@ -4,7 +4,18 @@
  * Canonical logo + wordmark components + brand tokens exposed as TS
  * constants so non-CSS consumers (emails, PDFs, slide decks) can use
  * the exact same values as the runtime UI.
+ *
+ * `BorjieLogo` is the modern entry point. The legacy `Logomark` /
+ * `Wordmark` exports remain as thin compatibility shims so apps that
+ * still import them keep working while we sweep them out.
  */
+
+export { BorjieLogo, default as BorjieLogoDefault } from './BorjieLogo';
+export type {
+  BorjieLogoProps,
+  BorjieLogoVariant,
+  BorjieLogoTone,
+} from './BorjieLogo';
 
 export { Logomark } from './logos/Logomark';
 export type { LogomarkProps } from './logos/Logomark';

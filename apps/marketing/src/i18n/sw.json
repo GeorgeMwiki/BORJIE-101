@@ -1602,12 +1602,27 @@
     }
   },
   "blog": {
-    "kicker": "Blog",
-    "heading": "Maelezo ya uwanjani kutoka madini ya Tanzania.",
-    "sub": "Maandishi kuhusu leseni, treasury, geology, na ujenzi wa polepole wa mfumo wa uendeshaji wa AI kwa sekta.",
-    "readMore": "Soma article",
+    "kicker": "Blogu",
+    "heading": "Maelezo ya uwanjani kutoka migodi ya Tanzania.",
+    "sub": "Maandishi kuhusu leseni, hazina, jiolojia, na ujenzi wa polepole wa mfumo wa uendeshaji wa AI kwa sekta.",
+    "readMore": "Soma makala",
     "minRead": "dakika za kusoma",
-    "backToBlog": "Rudi kwenye articles zote"
+    "backToBlog": "Rudi kwenye makala zote",
+    "emptyHeading": "Maelezo ya uwanjani yanapakia.",
+    "emptyBody": "Insha za kwanza kutoka kwa timu ya Borjie zinafika kwenye ukurasa huu wiki chache zijazo. Wakati huo huo, vipimo na maelezo ya kila wimbi yapo kwenye nyaraka.",
+    "emptyCtaPrimary": "Soma nyaraka",
+    "emptyCtaSecondary": "Omba pilot",
+    "featuredKicker": "Maelezo ya uwanjani",
+    "authorBy": "Na",
+    "related": "Maelezo yanayohusiana",
+    "shareHeading": "Shiriki",
+    "shareTwitter": "Shiriki Twitter",
+    "shareLinkedin": "Shiriki LinkedIn",
+    "shareCopy": "Nakili kiungo",
+    "subscribeHeading": "Muhtasari wa asubuhi.",
+    "subscribeSub": "Maelezo ya kila wiki kutoka kwa timu ya Borjie. Habari za uwanjani, masuala ya sera, mabadiliko ya hazina, bila ulaghai.",
+    "subscribePlaceholder": "Barua pepe yako",
+    "subscribeCta": "Jiunge"
   },
   "caseStudies": {
     "kicker": "Case studies",
@@ -2789,5 +2804,367 @@
       "ctaSub": "Eleza timu yetu. Tunaonyesha CDA yako, tunaweka reli za utoaji, na tunakuonyesha dashibodi ikifanya kazi kwenye data salama ya demo.",
       "ctaPrimary": "Eleza timu yetu"
     }
+  },
+  "supportPage": {
+    "kicker": "Msaada",
+    "heading": "Tuko ujumbe mmoja mbali.",
+    "sub": "Makala za msaada, masaa ya ofisini, na mistari ya moja kwa moja kwa timu ya Borjie. Lugha mbili sw / en, siku za kazi 06:00 hadi 20:00 EAT.",
+    "searchPlaceholder": "Tafuta makala za msaada, miongozo, na maswali...",
+    "quickLinksHeading": "Tunawezaje kusaidia leo?",
+    "quickLinks": [
+      {
+        "icon": "BookOpen",
+        "title": "Makala za msaada",
+        "body": "Miongozo ya hatua kwa hatua ya kuunganisha site, kuingiza leseni, na kuweka muhtasari wa kila siku.",
+        "href": "/docs",
+        "cta": "Vinjari makala"
+      },
+      {
+        "icon": "GraduationCap",
+        "title": "Kuanza",
+        "body": "Kuanza wewe mwenyewe kwa Mwanzo na Mkulima, au simu ya kuanzisha kwa Mfanyabiashara na juu.",
+        "href": "/sign-up",
+        "cta": "Anza kuanza"
+      },
+      {
+        "icon": "Calendar",
+        "title": "Masaa ya ofisi",
+        "body": "Masaa ya ofisi ya kila wiki Dar es Salaam na Zoom. Leta faili la leseni yako, muhtasari wa hivi karibuni au mpango wa kuhamia.",
+        "href": "/contact?type=office-hours",
+        "cta": "Panga masaa ya ofisi"
+      }
+    ],
+    "faqHeading": "Maswali yanayoulizwa mara kwa mara",
+    "faqs": [
+      {
+        "q": "Naingizaje mgodi wangu?",
+        "a": "Jisajili kwa Mwanzo (bure) au Mkulima. Pakia cheti chako cha PML / ML na risiti ya hivi karibuni ya royalti. Bw. Mwikila anakuongoza kupitia muhtasari wa wiki ya kwanza. Kwa Mfanyabiashara na juu, mhandisi wa Borjie anapanga simu ya kuanza ndani ya siku mbili za kazi."
+      },
+      {
+        "q": "Naweza kuingiza lahajedwali zangu zilizopo?",
+        "a": "Ndio. Kumbukumbu za uzalishaji, mishahara, taarifa za hazina na kalenda za leseni zinaingia kupitia mtiririko unaoongozwa wa CSV / XLSX. Ubongo unathibitisha unapoendelea na unaonyesha safu zinazohitaji mapitio kabla ya kuingia kwenye daftari."
+      },
+      {
+        "q": "Jukwaa linaunga mkono lugha gani?",
+        "a": "Kiswahili na Kiingereza. Mtumiaji anaweza kubadilisha kwa kifaa, na Bw. Mwikila anajibu kwa lugha uliyoandika."
+      },
+      {
+        "q": "Data yangu inahifadhiwa wapi?",
+        "a": "Hifadhi ya msingi ya eneo la Tanzania na chelezo iliyoidhinishwa na mdhibiti. AES-256-GCM wakati wa kupumzika, TLS 1.3 wakati wa kusafirisha. Orodha kamili ya sub-processors kwenye /legal/subprocessors."
+      },
+      {
+        "q": "Nimwasiliane na nani kuhusu swali la bili?",
+        "a": "billing@borjie.co.tz kwa ankara au maswali ya malipo. M-Pesa, Tigo Pesa, Airtel Money, Visa, Mastercard na uhamisho wa benki wa TZS zote zinasaidiwa."
+      },
+      {
+        "q": "Vipi nikihitaji msaada wa haraka?",
+        "a": "WhatsApp +255 757 070 070 wakati wa masaa ya ofisi (06:00 hadi 20:00 EAT, siku za kazi). Kwa matukio ya baada ya masaa na wikendi kwa Kampuni na juu, chaneli yako maalum ya mafanikio inashughulikia 24x7."
+      }
+    ],
+    "contactStripHeading": "Ongea na binadamu.",
+    "contactStrip": [
+      {
+        "icon": "Mail",
+        "label": "Barua pepe",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Ofisi",
+        "value": "Dar es Salaam, Tanzania",
+        "href": "/contact"
+      }
+    ],
+    "ctaHeading": "Unahitaji zaidi ya kujihudumia?",
+    "ctaSub": "Panga muda wa dakika 15 wa masaa ya ofisi. Tunafungua faili pamoja.",
+    "ctaPrimary": "Panga masaa ya ofisi"
+  },
+  "contactPage": {
+    "kicker": "Wasiliana",
+    "heading": "Hebu tuongee.",
+    "sub": "Binadamu halisi husoma kila ujumbe na hujibu ndani ya siku moja ya kazi. Chagua jinsi mazungumzo yanapaswa kuanza.",
+    "inquiryHeading": "Nini kinakuleta leo?",
+    "inquiryTypes": [
+      {
+        "value": "demo",
+        "label": "Omba demo",
+        "icon": "Sparkles"
+      },
+      {
+        "value": "pilot",
+        "label": "Omba pilot",
+        "icon": "Rocket"
+      },
+      {
+        "value": "partnership",
+        "label": "Ushirikiano",
+        "icon": "Users"
+      },
+      {
+        "value": "support",
+        "label": "Msaada wa kiufundi",
+        "icon": "Headphones"
+      },
+      {
+        "value": "press",
+        "label": "Habari na vyombo vya habari",
+        "icon": "Newspaper"
+      }
+    ],
+    "formNameLabel": "Jina lako",
+    "formNamePlaceholder": "Amina Hassan",
+    "formEmailLabel": "Barua pepe",
+    "formEmailPlaceholder": "wewe@kampuni.co.tz",
+    "formOrgLabel": "Shirika",
+    "formOrgPlaceholder": "Jina la mgodi au kampuni",
+    "formMessageLabel": "Ujumbe",
+    "formMessagePlaceholder": "Tueleze kuhusu mgodi wako, timu yako, na unachohitaji.",
+    "formSubmit": "Tuma ujumbe",
+    "formSubmitting": "Inatuma...",
+    "formSuccess": "Asante. Tutajibu ndani ya siku moja ya kazi.",
+    "channelsHeading": "Njia zingine za kutufikia",
+    "channels": [
+      {
+        "icon": "Mail",
+        "label": "Maswali ya jumla",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Mauzo",
+        "value": "sales@borjie.co.tz",
+        "href": "mailto:sales@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Habari",
+        "value": "press@borjie.co.tz",
+        "href": "mailto:press@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Ofisi",
+        "value": "Mlimani City, Dar es Salaam",
+        "href": "#"
+      },
+      {
+        "icon": "Clock",
+        "label": "Masaa ya ofisi",
+        "value": "Jumatatu hadi Ijumaa, 06:00 hadi 20:00 EAT",
+        "href": "#"
+      }
+    ],
+    "ctaHeading": "Unataka kuruka fomu?",
+    "ctaSub": "Panga simu ya dakika 15 katika muda ujao unaopatikana.",
+    "ctaPrimary": "Panga simu"
+  },
+  "securityPage": {
+    "kicker": "Usalama na imani",
+    "heading": "Borjie imejengwa kwa uchunguzi wa mdhibiti.",
+    "sub": "Mfumo wa usalama wa tabaka 5, mfululizo wa hash kwenye kila kitu, na hifadhi ya eneo la Tanzania. Imejengwa kwa BOT, Tumemadini na NEMC, na inalingana na vidhibiti vya ISO 27001.",
+    "pillarsHeading": "Nguzo nne za mfumo wa usalama wa Borjie.",
+    "pillars": [
+      {
+        "icon": "Lock",
+        "title": "Usimbaji kila mahali",
+        "body": "AES-256-GCM wakati wa kupumzika. TLS 1.3 wakati wa kusafirisha. Usimbaji wa bahasha kwenye tabaka la programu kwa sehemu za usikivu wa juu (NIDA, alama za biometric, risiti za royalti)."
+      },
+      {
+        "icon": "Users",
+        "title": "Ufikiaji kwa msingi wa kuhitaji-kujua",
+        "body": "Usalama wa safu umelazimishwa kwenye kila meza ya wateja. Vituo vya sera za macho-manne na enzi kwenye kila hatua ya hatari kubwa. Mkaguzi wa Mwikila anaandika kila kufuta."
+      },
+      {
+        "icon": "ScrollText",
+        "title": "Mfululizo wa ukaguzi usiobadilika",
+        "body": "Kila kitu cha udhibiti (leseni, royalti, ripoti, ripoti ya HSE) ni hash-chained na huongezeka tu. Ubadilishaji unagundulika na kukataliwa wakati wa kuandika."
+      },
+      {
+        "icon": "Globe",
+        "title": "Hifadhi ya eneo la Tanzania",
+        "body": "Hifadhi ya msingi nchini Tanzania, chelezo iliyoidhinishwa na mdhibiti. Sub-processors na maeneo ya hifadhi yameandikwa kwenye /legal/subprocessors."
+      }
+    ],
+    "badgesHeading": "Uzingatiaji na ulinganishaji.",
+    "badges": [
+      {
+        "icon": "Shield",
+        "text": "BOT inalingana"
+      },
+      {
+        "icon": "Shield",
+        "text": "Tumemadini inalingana"
+      },
+      {
+        "icon": "Shield",
+        "text": "NEMC inalingana"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "TZ-PDPA inalingana"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 tayari"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "SOC 2 Type II tayari"
+      }
+    ],
+    "auditHeading": "Kila hatua kwenye mlolongo.",
+    "auditBody": "Borjie inaandika rekodi iliyosainiwa na hash kwa kila hatua inayogusa daftari, kalenda ya leseni, mtiririko wa royalti au mtiririko wa HSE. Mlolongo unaongezeka tu kwenye tabaka la hifadhidata, unaakishiwa kwenye hifadhi baridi kila saa, na unaonyeshwa kwa mdhibiti kusoma tu kwa ombi.",
+    "auditCta": "Soma kadi ya mtindo wa utawala wa data",
+    "ctaHeading": "Ongea na timu yetu ya usalama.",
+    "ctaSub": "Leta orodha yako ya ukaguzi. Tunajibu kila mstari, kwenye karatasi, kwa vidhibiti vilivyotajwa.",
+    "ctaPrimary": "Eleza timu yetu"
+  },
+  "subprocessorsPage": {
+    "kicker": "Sub-processors",
+    "heading": "Kila muuzaji kwenye mlolongo, kwenye orodha moja.",
+    "lastUpdated": "2026-05-25",
+    "sub": "Borjie inaweka orodha kamili, yenye tarehe ya sub-processors wanaogusa data ya wateja. Mabadiliko yanatangazwa siku 30 kabla ya kuanza kazi.",
+    "columns": {
+      "vendor": "Muuzaji",
+      "role": "Jukumu",
+      "region": "Eneo",
+      "contract": "Mkataba"
+    },
+    "rows": [
+      {
+        "vendor": "Supabase",
+        "role": "Postgres / auth / hifadhi",
+        "region": "eu-central-1 (Frankfurt)",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vercel",
+        "role": "Edge hosting / CDN",
+        "region": "Edges za kimataifa, asili EU",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Anthropic",
+        "role": "LLM (familia ya Claude)",
+        "region": "US (hakuna mafunzo kwa data ya mteja)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "OpenAI",
+        "role": "LLM mbadala na embeddings",
+        "region": "US (hakuna mafunzo kwa data ya mteja)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "Stripe",
+        "role": "Usindikaji wa kadi",
+        "region": "US / EU",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vodacom M-Pesa",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Tigo Pesa",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Airtel Money",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Sentry",
+        "role": "Ufuatiliaji wa makosa",
+        "region": "eu-central-1",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Cloudflare",
+        "role": "Edge proxy / WAF",
+        "region": "Edges za kimataifa",
+        "contract": "DPA"
+      }
+    ],
+    "notice": "Tangazo la sub-processor mpya hutua kwenye /legal/subprocessors angalau siku 30 kabla ya kugusa data yako. Pinga kwa barua pepe kwa dpo@borjie.co.tz."
+  },
+  "cookiesPage": {
+    "kicker": "Vidakuzi",
+    "heading": "Kila kidakuzi tunachowekwa, kwenye meza moja.",
+    "lastUpdated": "2026-05-25",
+    "sub": "Tunatumia seti ndogo zaidi ya vidakuzi vinavyohitajika kuendesha tovuti ya uuzaji na jukwaa. Hakuna vidakuzi vya matangazo, hakuna vifuatiliaji vya watu wengine bila idhini.",
+    "columns": {
+      "cookie": "Kidakuzi",
+      "purpose": "Madhumuni",
+      "category": "Kategoria",
+      "lifetime": "Maisha"
+    },
+    "categories": {
+      "essential": "Muhimu",
+      "preferences": "Mapendekezo",
+      "analytics": "Uchambuzi (kuchagua)"
+    },
+    "rows": [
+      {
+        "cookie": "borjie_locale",
+        "purpose": "Kumbuka chaguo lako la lugha (sw / en).",
+        "category": "preferences",
+        "lifetime": "Mwaka 1"
+      },
+      {
+        "cookie": "borjie_session",
+        "purpose": "Kukuweka umesajiliwa.",
+        "category": "essential",
+        "lifetime": "Kikao"
+      },
+      {
+        "cookie": "borjie_csrf",
+        "purpose": "Zuia ughushi wa ombi la tovuti tofauti kwenye fomu.",
+        "category": "essential",
+        "lifetime": "Kikao"
+      },
+      {
+        "cookie": "borjie_consent",
+        "purpose": "Kumbuka chaguzi zako za idhini ya kidakuzi.",
+        "category": "essential",
+        "lifetime": "Miezi 6"
+      },
+      {
+        "cookie": "borjie_anon_metrics",
+        "purpose": "Vipimo vya kutazama ukurasa visivyojulikana, ikiwa unachagua tu.",
+        "category": "analytics",
+        "lifetime": "Miezi 6"
+      }
+    ],
+    "manageHeading": "Simamia vidakuzi",
+    "manageBody": "Rekebisha idhini yako wakati wowote. Vidakuzi muhimu haviwezi kuzimwa bila kuvunja kuingia na uwasilishaji wa fomu.",
+    "manageCta": "Fungua mapendekezo ya kidakuzi"
+  },
+  "offlinePage": {
+    "kicker": "Nje ya mtandao",
+    "heading": "Uko nje ya mtandao.",
+    "sub": "Tovuti ya Borjie inahitaji muunganisho ili kupakia data ya moja kwa moja. Angalia mtandao wako na jaribu tena, au fungua ukurasa uliohifadhiwa kutoka kwa historia yako.",
+    "retry": "Pakia upya",
+    "goHome": "Rudi nyumbani"
   }
 }

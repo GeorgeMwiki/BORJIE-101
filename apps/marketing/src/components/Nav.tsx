@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { LanguageToggle } from './LanguageToggle';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { BorjieLogo } from '@borjie/design-system';
 
 /**
  * Marketing-site top navigation — LitFin MainNav parity, ported to the
@@ -101,16 +102,19 @@ const ALL_AUDIENCE_HREFS = AUDIENCE_CATEGORIES.flatMap((c) =>
 interface WordmarkProps {
   readonly premium?: boolean;
 }
+/**
+ * Local wordmark wrapper — delegates to the canonical `BorjieLogo`
+ * horizontal lockup so the nav stays in sync with every other surface.
+ * The `premium` prop maps to the full-colour tone; non-premium uses
+ * the warm mono-cream tone for the contrast-tight context.
+ */
 function Wordmark({ premium = true }: WordmarkProps) {
-  const tone = premium
-    ? 'bg-gradient-to-r from-[oklch(0.86_0.16_80)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
-    : 'text-foreground';
   return (
-    <span
-      className={`font-display text-lg font-bold tracking-tight ${tone}`}
-    >
-      Borjie
-    </span>
+    <BorjieLogo
+      variant="lockup-horizontal"
+      size={22}
+      tone={premium ? 'full' : 'mono-cream'}
+    />
   );
 }
 

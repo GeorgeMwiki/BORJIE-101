@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { BorjieLogo } from '@borjie/design-system';
 
 /**
  * Hero — Borjie's Live Fabric hero (LitFin IgnitionHero pattern, ported
@@ -40,21 +41,13 @@ interface ChoreoTurn {
 
 const DELAYS: readonly number[] = [400, 1800, 3200];
 
-/* The Borjie brand mark — gold radial gradient orb that anchors the AI
-   bubbles and the chat header. Matches the LitFin LitfinMark slot. */
+/* The Borjie brand mark — canonical `BorjieLogo` mark variant. The
+   marketing hero chat inset uses the small `mark` lockup at 22px in
+   the assistant bubble and 20px in the chat header. Centralised so the
+   Hero stays in lock-step with the rest of the brand surface. */
 function BorjieMark({ size = 22 }: { readonly size?: number }) {
   return (
-    <span
-      aria-hidden="true"
-      className="inline-block rounded-full"
-      style={{
-        width: size,
-        height: size,
-        background:
-          'radial-gradient(circle at 30% 30%, oklch(0.86 0.16 80 / 0.85), oklch(0.58 0.12 65 / 0.45) 60%, transparent 88%)',
-        boxShadow: 'inset 0 0 0 1px oklch(0.78 0.17 78 / 0.35)',
-      }}
-    />
+    <BorjieLogo variant="mark" size={size} tone="full" aria-hidden="true" />
   );
 }
 

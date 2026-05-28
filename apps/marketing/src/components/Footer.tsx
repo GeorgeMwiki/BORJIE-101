@@ -4,21 +4,26 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { BorjieLogo } from '@borjie/design-system';
 
 interface WordmarkProps {
   readonly size?: 'sm' | 'md' | 'lg';
   readonly premium?: boolean;
 }
+/**
+ * Footer wordmark — delegates to the canonical `BorjieLogo` horizontal
+ * lockup. Size variants map to BorjieLogo's pixel sizing so the footer
+ * stays visually in sync with the nav and the rest of the brand
+ * surface.
+ */
 function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
-  const cls =
-    size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
-  const tone = premium
-    ? 'bg-gradient-to-r from-[oklch(0.86_0.16_80)] to-[oklch(0.58_0.12_65)] bg-clip-text text-transparent'
-    : 'text-foreground';
+  const px = size === 'sm' ? 20 : size === 'lg' ? 36 : 26;
   return (
-    <span className={`font-display font-bold tracking-tight ${cls} ${tone}`}>
-      Borjie
-    </span>
+    <BorjieLogo
+      variant="lockup-horizontal"
+      size={px}
+      tone={premium ? 'full' : 'mono-cream'}
+    />
   );
 }
 

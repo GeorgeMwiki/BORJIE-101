@@ -1607,7 +1607,22 @@
     "sub": "Writing on licences, treasury, geology, and the slow build of an AI-native operating system for the sector.",
     "readMore": "Read article",
     "minRead": "min read",
-    "backToBlog": "Back to all articles"
+    "backToBlog": "Back to all articles",
+    "emptyHeading": "Field notes are loading.",
+    "emptyBody": "The first essays from the Borjie team land on this page in the next few weeks. In the meantime, the spec and rollout notes for every wave live in the docs.",
+    "emptyCtaPrimary": "Read the docs",
+    "emptyCtaSecondary": "Apply for the pilot",
+    "featuredKicker": "Field note",
+    "authorBy": "By",
+    "related": "Related field notes",
+    "shareHeading": "Share",
+    "shareTwitter": "Share on Twitter",
+    "shareLinkedin": "Share on LinkedIn",
+    "shareCopy": "Copy link",
+    "subscribeHeading": "The morning brief.",
+    "subscribeSub": "A weekly note from the Borjie team. Field updates, policy reads, treasury swings, no fluff.",
+    "subscribePlaceholder": "Your email",
+    "subscribeCta": "Subscribe"
   },
   "caseStudies": {
     "kicker": "Case studies",
@@ -2789,5 +2804,367 @@
       "ctaSub": "Brief our team. We map your CDA, configure the disbursement rails, and show you the dashboard running on safe demo data.",
       "ctaPrimary": "Brief our team"
     }
+  },
+  "supportPage": {
+    "kicker": "Support",
+    "heading": "We are one message away.",
+    "sub": "Help articles, office-hours, and direct lines to the Borjie team. Bilingual sw / en, weekdays 06:00 to 20:00 EAT.",
+    "searchPlaceholder": "Search help articles, guides, and FAQs...",
+    "quickLinksHeading": "How can we help today?",
+    "quickLinks": [
+      {
+        "icon": "BookOpen",
+        "title": "Help articles",
+        "body": "Step-by-step guides for onboarding a site, importing licences, and configuring the daily brief.",
+        "href": "/docs",
+        "cta": "Browse articles"
+      },
+      {
+        "icon": "GraduationCap",
+        "title": "Onboarding",
+        "body": "Self-serve onboarding for Mwanzo and Mkulima tiers, or a kit-out call for Mfanyabiashara and above.",
+        "href": "/sign-up",
+        "cta": "Start onboarding"
+      },
+      {
+        "icon": "Calendar",
+        "title": "Office hours",
+        "body": "Weekly office-hours in Dar es Salaam and on Zoom. Bring your licence file, your last brief, or your migration plan.",
+        "href": "/contact?type=office-hours",
+        "cta": "Book office hours"
+      }
+    ],
+    "faqHeading": "Frequently asked questions",
+    "faqs": [
+      {
+        "q": "How do I onboard my mine?",
+        "a": "Sign up for Mwanzo (free) or Mkulima. Upload your PML / ML certificate and a recent royalty receipt. Mr. Mwikila takes you through the first-week brief. For Mfanyabiashara and above, a Borjie engineer schedules an onboarding call within two business days."
+      },
+      {
+        "q": "Can I import my existing spreadsheets?",
+        "a": "Yes. Production logs, payroll runs, treasury statements and licence calendars import via a guided CSV / XLSX flow. Master Brain validates as you go and flags any rows that need review before they enter the ledger."
+      },
+      {
+        "q": "What languages does the platform support?",
+        "a": "Swahili and English. The user can switch per device, and Mr. Mwikila replies in whichever language you wrote in."
+      },
+      {
+        "q": "Where is my data stored?",
+        "a": "Tanzania-regional primary storage with regulator-approved failover. AES-256-GCM at rest, TLS 1.3 in transit. Full sub-processor list at /legal/subprocessors."
+      },
+      {
+        "q": "Who do I contact about a billing question?",
+        "a": "billing@borjie.co.tz for invoice or payment questions. M-Pesa, Tigo Pesa, Airtel Money, Visa, Mastercard and TZS bank transfer all supported."
+      },
+      {
+        "q": "What if I need urgent help?",
+        "a": "WhatsApp +255 757 070 070 during office hours (06:00 to 20:00 EAT, weekdays). For after-hours and weekend incidents on Kampuni and above, your dedicated success channel covers 24x7."
+      }
+    ],
+    "contactStripHeading": "Talk to a human.",
+    "contactStrip": [
+      {
+        "icon": "Mail",
+        "label": "Email",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Office",
+        "value": "Dar es Salaam, Tanzania",
+        "href": "/contact"
+      }
+    ],
+    "ctaHeading": "Need more than self-serve?",
+    "ctaSub": "Schedule a 15-minute office-hours slot. We open files together.",
+    "ctaPrimary": "Book office hours"
+  },
+  "contactPage": {
+    "kicker": "Contact",
+    "heading": "Let's talk.",
+    "sub": "A real human reads every message and replies within one business day. Choose how the conversation should begin.",
+    "inquiryHeading": "What brings you here today?",
+    "inquiryTypes": [
+      {
+        "value": "demo",
+        "label": "Request a demo",
+        "icon": "Sparkles"
+      },
+      {
+        "value": "pilot",
+        "label": "Apply for the pilot",
+        "icon": "Rocket"
+      },
+      {
+        "value": "partnership",
+        "label": "Partnership inquiry",
+        "icon": "Users"
+      },
+      {
+        "value": "support",
+        "label": "Technical support",
+        "icon": "Headphones"
+      },
+      {
+        "value": "press",
+        "label": "Press and media",
+        "icon": "Newspaper"
+      }
+    ],
+    "formNameLabel": "Your name",
+    "formNamePlaceholder": "Amina Hassan",
+    "formEmailLabel": "Email",
+    "formEmailPlaceholder": "you@company.co.tz",
+    "formOrgLabel": "Organization",
+    "formOrgPlaceholder": "Mine or company name",
+    "formMessageLabel": "Message",
+    "formMessagePlaceholder": "Tell us about your mine, your team, and what you need.",
+    "formSubmit": "Send message",
+    "formSubmitting": "Sending...",
+    "formSuccess": "Thank you. We will reply within one business day.",
+    "channelsHeading": "Other ways to reach us",
+    "channels": [
+      {
+        "icon": "Mail",
+        "label": "General inquiries",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Sales",
+        "value": "sales@borjie.co.tz",
+        "href": "mailto:sales@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Press",
+        "value": "press@borjie.co.tz",
+        "href": "mailto:press@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Office",
+        "value": "Mlimani City, Dar es Salaam",
+        "href": "#"
+      },
+      {
+        "icon": "Clock",
+        "label": "Office hours",
+        "value": "Mon to Fri, 06:00 to 20:00 EAT",
+        "href": "#"
+      }
+    ],
+    "ctaHeading": "Prefer to skip the form?",
+    "ctaSub": "Book a 15-minute call in the next available slot.",
+    "ctaPrimary": "Book a call"
+  },
+  "securityPage": {
+    "kicker": "Security and trust",
+    "heading": "Borjie is engineered for regulator scrutiny.",
+    "sub": "A 5-layer security model, audit-hash provenance on every artefact, and Tanzania-regional residency. Built for BOT, Tumemadini and NEMC, and aligned with ISO 27001 controls.",
+    "pillarsHeading": "Four pillars of the Borjie security posture.",
+    "pillars": [
+      {
+        "icon": "Lock",
+        "title": "Encryption everywhere",
+        "body": "AES-256-GCM at rest. TLS 1.3 in transit. Application-layer envelope encryption for high-sensitivity fields (NIDA, biometric templates, royalty receipts)."
+      },
+      {
+        "icon": "Users",
+        "title": "Access on a need-to-know basis",
+        "body": "Row-level security forced on every tenant-scoped table. Four-eye and sovereign-policy gates on every high-risk action. Mwikila Auditor logs every override."
+      },
+      {
+        "icon": "ScrollText",
+        "title": "Immutable audit chain",
+        "body": "Every regulatory artefact (licence, royalty, return, HSE report) is hash-chained and append-only. Tampering is detected and refused at write-time."
+      },
+      {
+        "icon": "Globe",
+        "title": "Tanzania-regional residency",
+        "body": "Primary storage in Tanzania, regulator-approved failover. Sub-processors and storage regions documented at /legal/subprocessors."
+      }
+    ],
+    "badgesHeading": "Compliance and alignment.",
+    "badges": [
+      {
+        "icon": "Shield",
+        "text": "BOT aligned"
+      },
+      {
+        "icon": "Shield",
+        "text": "Tumemadini aligned"
+      },
+      {
+        "icon": "Shield",
+        "text": "NEMC aligned"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "TZ-PDPA aligned"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 ready"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "SOC 2 Type II ready"
+      }
+    ],
+    "auditHeading": "Every action on the chain.",
+    "auditBody": "Borjie writes a signed, hash-chained record for every action that touches the ledger, the licence calendar, the royalty pipeline or the HSE feed. The chain is append-only at the database layer, mirrored to cold storage hourly, and exposed read-only to the regulator on request.",
+    "auditCta": "Read the data-governance model card",
+    "ctaHeading": "Talk to our security team.",
+    "ctaSub": "Bring your audit checklist. We answer every line, on paper, with cited controls.",
+    "ctaPrimary": "Brief our team"
+  },
+  "subprocessorsPage": {
+    "kicker": "Subprocessors",
+    "heading": "Every vendor in the loop, on one list.",
+    "lastUpdated": "2026-05-25",
+    "sub": "Borjie keeps a complete, dated list of the sub-processors that touch tenant data. Updates are announced 30 days before they take effect.",
+    "columns": {
+      "vendor": "Vendor",
+      "role": "Role",
+      "region": "Region",
+      "contract": "Agreement"
+    },
+    "rows": [
+      {
+        "vendor": "Supabase",
+        "role": "Postgres / auth / storage",
+        "region": "eu-central-1 (Frankfurt)",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vercel",
+        "role": "Edge hosting / CDN",
+        "region": "Global edges, EU-pinned origins",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Anthropic",
+        "role": "LLM (Claude family)",
+        "region": "US (no training on customer data)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "OpenAI",
+        "role": "Fallback LLM and embeddings",
+        "region": "US (no training on customer data)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "Stripe",
+        "role": "Card processing",
+        "region": "US / EU",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vodacom M-Pesa",
+        "role": "Mobile money rails",
+        "region": "Tanzania",
+        "contract": "BOT-licensed PSP"
+      },
+      {
+        "vendor": "Tigo Pesa",
+        "role": "Mobile money rails",
+        "region": "Tanzania",
+        "contract": "BOT-licensed PSP"
+      },
+      {
+        "vendor": "Airtel Money",
+        "role": "Mobile money rails",
+        "region": "Tanzania",
+        "contract": "BOT-licensed PSP"
+      },
+      {
+        "vendor": "Sentry",
+        "role": "Error monitoring",
+        "region": "eu-central-1",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Cloudflare",
+        "role": "Edge proxy / WAF",
+        "region": "Global edges",
+        "contract": "DPA"
+      }
+    ],
+    "notice": "Notice of a new sub-processor lands at /legal/subprocessors at least 30 days before it touches your data. Object by email to dpo@borjie.co.tz."
+  },
+  "cookiesPage": {
+    "kicker": "Cookies",
+    "heading": "Every cookie we set, in one table.",
+    "lastUpdated": "2026-05-25",
+    "sub": "We use the smallest set of cookies needed to run the marketing site and the platform. No advertising cookies, no third-party trackers without consent.",
+    "columns": {
+      "cookie": "Cookie",
+      "purpose": "Purpose",
+      "category": "Category",
+      "lifetime": "Lifetime"
+    },
+    "categories": {
+      "essential": "Essential",
+      "preferences": "Preferences",
+      "analytics": "Analytics (opt-in)"
+    },
+    "rows": [
+      {
+        "cookie": "borjie_locale",
+        "purpose": "Remember your language choice (sw / en).",
+        "category": "preferences",
+        "lifetime": "1 year"
+      },
+      {
+        "cookie": "borjie_session",
+        "purpose": "Keep you signed in.",
+        "category": "essential",
+        "lifetime": "Session"
+      },
+      {
+        "cookie": "borjie_csrf",
+        "purpose": "Block cross-site request forgery on forms.",
+        "category": "essential",
+        "lifetime": "Session"
+      },
+      {
+        "cookie": "borjie_consent",
+        "purpose": "Remember your cookie-consent choices.",
+        "category": "essential",
+        "lifetime": "6 months"
+      },
+      {
+        "cookie": "borjie_anon_metrics",
+        "purpose": "Anonymous page-view metrics, only if you opt in.",
+        "category": "analytics",
+        "lifetime": "6 months"
+      }
+    ],
+    "manageHeading": "Manage cookies",
+    "manageBody": "Adjust your consent any time. Essential cookies cannot be disabled without breaking sign-in and form submissions.",
+    "manageCta": "Open cookie preferences"
+  },
+  "offlinePage": {
+    "kicker": "Offline",
+    "heading": "You're offline.",
+    "sub": "The Borjie site needs a connection to load the live data. Check your signal and try again, or open a cached page from your history.",
+    "retry": "Reload",
+    "goHome": "Back to home"
   }
 }

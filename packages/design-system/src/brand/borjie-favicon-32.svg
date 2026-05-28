@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>Borjie</title>
+  <defs>
+    <linearGradient id="spine" x1="16" y1="4" x2="16" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE2B4"/>
+      <stop offset="40%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#A26A2A"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="16" y1="7" x2="16" y2="15" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF1CF"/>
+      <stop offset="100%" stop-color="#E5B26B"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="16" y1="17" x2="16" y2="27" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2C27E"/>
+      <stop offset="100%" stop-color="#7A4F1E"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="#17100A"/>
+  <rect x="7" y="6" width="4" height="20" rx="1" fill="url(#spine)"/>
+  <path d="M11 7 H19 a4 4 0 0 1 4 4 v1.5 a4 4 0 0 1 -4 4 H11 z" fill="url(#upper)"/>
+  <rect x="11" y="16" width="10" height="0.5" fill="#E5B26B" opacity="0.9"/>
+  <path d="M11 17.5 H20 a5 5 0 0 1 5 5 v0 a5 5 0 0 1 -5 5 H11 z" fill="url(#lower)"/>
+</svg>

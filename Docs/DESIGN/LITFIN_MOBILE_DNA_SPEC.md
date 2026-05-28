@@ -265,10 +265,17 @@ home, KYC home, buyer home.
 - Buyer surfaces speak in mineral-marketplace framing: "Parcel",
   "Bid", "Provenance", "Off-take", "Settlement", "Chain of custody".
 
-## 5. Shared primitives — packages/design-system/src/native
+## 5. Shared primitives
 
-To prevent duplication, mobile-shared primitives lift to
-`packages/design-system/src/native/`:
+The web `@borjie/design-system` package is tsup-compiled with the
+`"use client"` Next.js boundary baked into the bundle, so it cannot
+import React Native modules. To keep the mobile primitives symmetric
+across both Expo apps without breaking the web build, we duplicate
+the LitFin RN primitives into each app's `src/ui-litfin/` and keep
+the API surface identical. Both apps export the same names with the
+same prop shapes.
+
+Primitives added in this pass (to both apps):
 
 - `LitFinSplash` - animated splash with brand reveal
 - `LitFinBottomSheet` - RN bottom sheet for forms/confirmations
@@ -280,11 +287,10 @@ To prevent duplication, mobile-shared primitives lift to
 - `LitFinField` - input with focus ring, error inline
 - `LitFinFormRow` - form row helper
 
-App-specific copies of `LitFinCard / LitFinButton / LitFinBadge /
-LitFinPageHero / LitFinKpiTile / LitFinChatBubble / LitFinEmptyState /
-LitFinThinkingDots / LitFinSkeleton / LitFinAvatar` stay in
-`apps/<app>/src/ui-litfin/` so each app's colour reads stay bound to
-its own theme module.
+Existing primitives already symmetric across both apps:
+`LitFinCard / LitFinButton / LitFinBadge / LitFinPageHero /
+LitFinKpiTile / LitFinChatBubble / LitFinEmptyState /
+LitFinThinkingDots / LitFinSkeleton / LitFinAvatar`.
 
 ## 6. RN equivalents for LitFin web idioms
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <title>Borjie</title>
+  <style>
+    .wm{font-family:'Fraunces','GT Alpina','Source Serif 4',Georgia,serif;font-weight:600;font-size:64px;letter-spacing:-0.018em;fill:#F5EBD8}
+    .dot{fill:#E5B26B}
+  </style>
+  <text class="wm" x="0" y="60">Bor</text>
+  <circle class="dot" cx="113" cy="40" r="3.6"/>
+  <text class="wm" x="122" y="60">jie</text>
+</svg>
