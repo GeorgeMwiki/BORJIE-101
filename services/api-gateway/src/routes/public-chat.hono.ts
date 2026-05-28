@@ -43,6 +43,11 @@ import type {
   BrainLLMResponse,
   ContentBlock,
 } from '@borjie/brain-llm-router';
+import {
+  extractSpawnTabs,
+  extractAutoAuthorized,
+  parseInlineBlocks,
+} from '@borjie/owner-os-tabs';
 
 const logger = pino({
   name: 'public-chat',
@@ -1388,7 +1393,20 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       return;
     }
 
-    const { clean, ids, actions } = extractCitations(text);
+    // Strip brain-emitted control tags BEFORE chunking so the marketing
+    // widget never displays raw <spawn_tabs>, <auto_authorized>, or
+    // <ui_block> XML to the visitor. The marketing surface has no tab
+    // system to spawn into and no inline-block renderer (BorjieChatPanel
+    // only handles message_chunk + suggested_actions). We extract +
+    // discard the payloads but keep diagnostic counts for the done frame.
+    const spawnResult = extractSpawnTabs(text);
+    const autoAuthResult = extractAutoAuthorized(spawnResult.body);
+    const inlineResult = parseInlineBlocks(autoAuthResult.body);
+    const rawTagsStripped =
+      spawnResult.batch.tabs.length +
+      (autoAuthResult.autoAuthorized ? 1 : 0) +
+      inlineResult.blocks.length;
+    const { clean, ids, actions } = extractCitations(inlineResult.body);
     const chunks = chunkText(clean);
     for (let i = 0; i < chunks.length; i++) {
       if (abort.signal.aborted) break;
@@ -1424,6 +1442,7 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
         latencyMs: Date.now() - startedAt,
         attempts: attempts.length,
         actions_count: actions.length,
+        control_tags_stripped: rawTagsStripped,
       }),
     });
   });
