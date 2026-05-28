@@ -346,8 +346,45 @@ import { securityEventsMiddleware } from '@borjie/observability';
 // See `packages/performance-toolkit/src/cache/` for the implementation.
 import { expressCacheControl } from '@borjie/performance-toolkit/cache';
 
+// Scale-hardening: cover the auth headers + secret families the top-level
+// gateway pino instance touches (pino-http records req/res shapes that
+// include Authorization, Cookie, and any field a handler dumps into a
+// log line). The `@borjie/observability` Logger uses an equivalent
+// default set — this list is the gateway-specific mirror because pino
+// is constructed inline here, not via createLogger.
+const REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.headers["x-api-key"]',
+  'req.headers["x-internal-key"]',
+  'res.headers["set-cookie"]',
+  '*.password',
+  '*.passwordHash',
+  '*.token',
+  '*.tokenHash',
+  '*.refreshToken',
+  '*.jwt',
+  '*.bearer',
+  '*.secret',
+  '*.mfaSecret',
+  '*.apiKey',
+  '*.api_key',
+  '*.webhookSecret',
+  '*.authorization',
+  '*.cookie',
+  '*.creditCard',
+  '*.ssn',
+  '*.bankAccount',
+  '*.iban',
+  '*.nationalId',
+];
+
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
+  redact: {
+    paths: REDACT_PATHS,
+    censor: '[REDACTED]',
+  },
 });
 
 // Dynamic model registry — bind the SSRF-guarded fetch port and Pino

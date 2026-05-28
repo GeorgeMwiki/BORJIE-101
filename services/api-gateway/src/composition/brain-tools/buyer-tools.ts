@@ -337,4 +337,4 @@ export const BUYER_TOOLS: ReadonlyArray<
   buyerCancelBidTool,
   buyerKycStatusTool,
   buyerKycUploadAtomTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

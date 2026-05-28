@@ -38,8 +38,8 @@ import { trace, type Attributes } from '@opentelemetry/api';
 import {
   createSensoriumEventLogService,
   SENSORIUM_EVENT_TYPES,
-  type SensoriumEventInput,
 } from '@borjie/database';
+import type { SensoriumEventInput } from '@borjie/database/schemas';
 import { authMiddleware } from '../middleware/hono-auth';
 
 import { withSecurityEvents } from '@borjie/observability';

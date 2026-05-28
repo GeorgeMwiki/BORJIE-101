@@ -28,6 +28,7 @@ import {
   type LetterPayload,
   TextRenderer,
 } from '@borjie/domain-services';
+import { asTenantId } from '@borjie/domain-models';
 
 import { withSecurityEvents } from '@borjie/observability';
 // ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ function toHttp(status: number, body: unknown) {
   });
 }
 
-function failureStatus(code: string): number {
+function failureStatus(code: string): 400 | 404 | 409 | 422 | 424 | 500 {
   switch (code) {
     case 'LETTER_NOT_FOUND':
       return 404;
@@ -142,7 +143,7 @@ app.post('/', zValidator('json', CreateSchema), withSecurityEvents({ action: 'le
 
 app.post('/:id/draft', zValidator('json', DraftSchema), withSecurityEvents({ action: 'letter.create', resource: 'letter', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const body = c.req.valid('json') as DraftSchema extends z.ZodType<infer T> ? T : never;
+  const body = c.req.valid('json') as z.infer<typeof DraftSchema>;
   const service = buildLetterService();
   const payload = { type: body.type, data: body.data } as unknown as LetterPayload;
   const result = await service.draft(c.req.param('id'), auth.tenantId, payload);
@@ -204,7 +205,7 @@ app.post('/:id/reject', zValidator('json', RejectSchema), withSecurityEvents({ a
 app.get('/:id/download', async (c) => {
   const auth = c.get('auth');
   const service = buildLetterService();
-  const result = await service.download(c.req.param('id'), auth.tenantId);
+  const result = await service.download(c.req.param('id'), asTenantId(auth.tenantId));
   if (!result.ok) {
     return c.json(
       { success: false, error: { code: result.error.code, message: result.error.message } },
@@ -216,7 +217,7 @@ app.get('/:id/download', async (c) => {
 
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
-  const existing = await lettersRepo.findById(c.req.param('id'), auth.tenantId);
+  const existing = await lettersRepo.findById(c.req.param('id'), asTenantId(auth.tenantId));
   if (!existing) {
     return c.json(
       { success: false, error: { code: 'LETTER_NOT_FOUND', message: 'Letter request not found' } },

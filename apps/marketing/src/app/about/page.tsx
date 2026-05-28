@@ -14,7 +14,7 @@ const SECTIONS: ReadonlyArray<{ title: string; body: string }> = [
   {
     title: 'Why Borjie exists',
     body:
-      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach Tumemadini or NEMC on time. Borjie collapses that entire stack into one AI-native operating system — Mr. Mwikila, your AI Managing Director, runs the business end-to-end alongside the owner.",
+      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach Tumemadini or NEMC on time. Borjie collapses that entire stack into one AI-native operating system — Mr. Mwikila, your AI Mining Managing Director, runs the business end-to-end alongside the owner.",
   },
   {
     title: 'Who we serve',

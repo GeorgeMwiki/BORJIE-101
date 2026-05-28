@@ -72,7 +72,7 @@ export function registerPersonaToolHandlers(args: {
   readonly onDuplicate?: (toolId: string) => void;
 }): readonly ToolHandler[] {
   const handlers = buildPersonaToolHandlers(args.gate, {
-    onDuplicate: args.onDuplicate,
+    ...(args.onDuplicate !== undefined && { onDuplicate: args.onDuplicate }),
   });
   if (args.gate.killSwitchOpen) {
     // Fail-closed: empty the extras when the kill-switch is open.

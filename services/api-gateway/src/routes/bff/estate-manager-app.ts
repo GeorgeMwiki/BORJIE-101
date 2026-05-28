@@ -56,6 +56,21 @@ app.use(
   ),
 );
 
+// Local Drizzle escape hatch — BFF reads the db slot from `services` as
+// unknown; per-call .select()/.execute() chains require value-level
+// flexibility that mirrors the runtime contract. Narrowed to the
+// minimum chain surface used by this file.
+type DrizzleLike = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  select: (...args: unknown[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  execute: (...args: unknown[]) => any;
+};
+function getDb(c: { get(k: 'services'): { readonly [k: string]: unknown } | undefined }): DrizzleLike | undefined {
+  const services = c.get('services');
+  return services ? (services as { db?: DrizzleLike }).db : undefined;
+}
+
 function dbUnavailable(c) {
   return c.json(
     {
@@ -174,7 +189,7 @@ async function buildHome(db, tenantId: string, userId: string) {
 }
 
 app.get('/', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const userId = c.get('userId');
@@ -190,7 +205,7 @@ app.get('/', async (c) => {
 });
 
 app.get('/home', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const userId = c.get('userId');
@@ -206,7 +221,7 @@ app.get('/home', async (c) => {
 });
 
 app.get('/work-orders', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -231,7 +246,7 @@ app.get('/work-orders', async (c) => {
 // Hono dispatches in registration order; otherwise the static
 // "queue" string matches the dynamic :id slot.
 app.get('/work-orders/queue', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const userId = c.get('userId');
@@ -285,7 +300,7 @@ app.get('/work-orders/queue', async (c) => {
 });
 
 app.get('/work-orders/:id', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const id = c.req.param('id');
@@ -312,7 +327,7 @@ app.get('/work-orders/:id', async (c) => {
 });
 
 app.get('/inspections', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -334,7 +349,7 @@ app.get('/inspections', async (c) => {
 });
 
 app.get('/vendors', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -355,7 +370,7 @@ app.get('/vendors', async (c) => {
 });
 
 app.get('/occupancy', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   try {
@@ -400,7 +415,7 @@ app.get('/occupancy', async (c) => {
 });
 
 app.get('/collections', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -458,7 +473,7 @@ app.get('/sla', (c) => {
 // ============================================================================
 
 app.get('/inspections/upcoming', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const userId = c.get('userId');
@@ -508,7 +523,7 @@ app.get('/inspections/upcoming', async (c) => {
 });
 
 app.get('/escalations', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));
@@ -517,7 +532,10 @@ app.get('/escalations', async (c) => {
     // when wired, in-memory fallback otherwise). The BFF is a read-roll-up
     // surface, so we proxy via the tenant-scoped exceptions table when
     // available, and emit honest-empty when it isn't.
-    const services = c.get('services') ?? {};
+    const services = (c.get('services') ?? {}) as {
+      autonomy?: { exceptionInbox?: { listOpen?: (tenantId: string, opts: { limit: number }) => Promise<unknown[]> } };
+      exceptionInbox?: { listOpen?: (tenantId: string, opts: { limit: number }) => Promise<unknown[]> };
+    };
     const inbox = services.autonomy?.exceptionInbox ?? services.exceptionInbox;
     if (inbox && typeof inbox.listOpen === 'function') {
       const items = await inbox.listOpen(tenantId, { limit });
@@ -547,7 +565,7 @@ app.get('/escalations', async (c) => {
 });
 
 app.get('/vendors/scorecards', async (c) => {
-  const db = (c.get('services') ?? {}).db;
+  const db = getDb(c);
   if (!db) return dbUnavailable(c);
   const tenantId = c.get('tenantId');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? '50') || 50));

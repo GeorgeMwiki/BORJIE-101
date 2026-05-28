@@ -372,4 +372,4 @@ export const WORKER_TOOLS: ReadonlyArray<
   workerAckToolboxTool,
   workerReportIncidentTool,
   workerSubmitSampleTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

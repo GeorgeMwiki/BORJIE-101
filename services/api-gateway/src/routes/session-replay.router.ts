@@ -40,10 +40,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { trace, type Attributes } from '@opentelemetry/api';
-import {
-  createSessionReplayChunksService,
-  type SessionReplayChunksService,
-} from '@borjie/database';
+import { createSessionReplayChunksService } from '@borjie/database';
+type SessionReplayChunksService = ReturnType<typeof createSessionReplayChunksService>;
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 import type { SessionReplayStoragePort } from '../storage/session-replay-storage';

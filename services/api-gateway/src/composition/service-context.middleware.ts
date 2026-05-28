@@ -31,7 +31,7 @@ import type { ServiceRegistry } from './service-registry.js';
 export function createServiceContextMiddleware(registry: ServiceRegistry) {
   return createMiddleware(async (c, next) => {
     // Primary: a single typed bag of all domain services.
-    c.set('services', registry);
+    c.set('services', registry as unknown as { readonly [slot: string]: unknown });
 
     // ─── Persistent stores — flat accessors ──────────────────────────
     // P36 wiring-gap fix (chain 3): the 5 persistent stores are

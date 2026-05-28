@@ -70,7 +70,7 @@
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
       "assistant": "Mwl. Mwikila",
-      "role": "Mkurugenzi Mtendaji wa AI",
+      "role": "Mkurugenzi Mtendaji wa AI wa Madini",
       "live": "Hai",
       "ask": "Uliza Borjie chochote…",
       "timestamp": "Sasa hivi",
@@ -85,7 +85,7 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Habari, mimi ni Mwl. Mwikila, Mkurugenzi Mtendaji wa AI wa Borjie. Umekuja kwa nini leo?"
+          "body": "Habari, mimi ni Mwl. Mwikila, Mkurugenzi Mtendaji wa AI wa Madini wa Borjie. Umekuja kwa nini leo?"
         },
         {
           "role": "user",

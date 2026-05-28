@@ -174,6 +174,13 @@ const ALLOWED_BLOCK_TYPES = new Set([
   'metric_strip',
   'decision_card',
   'step_progress',
+  // Surface picker emitted on the first turn of a fresh session so the
+  // owner can self-classify their literacy level — see the EN/SW
+  // teaching prompts in public-chat.hono.ts (search for "level_select").
+  'level_select',
+  // Side-quest doc work the professor assigns when the owner is missing
+  // a regulatory document (NEMC EIA, BRELA renewal, etc.).
+  'doc_quest',
 ]);
 
 const ALLOWED_INLINE_TONES = new Set(['positive', 'neutral', 'warning']);

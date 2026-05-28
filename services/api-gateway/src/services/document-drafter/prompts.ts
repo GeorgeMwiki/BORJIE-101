@@ -10,7 +10,7 @@
  * structured fill-vars.
  */
 
-import type { DraftKind, DraftLanguage } from '@borjie/database';
+import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 
 export interface SemanticPrompt {
   /** Placeholder key (without the `semantic:` prefix). */

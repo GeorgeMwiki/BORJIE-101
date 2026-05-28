@@ -16,7 +16,7 @@
 
 import { loadTemplateContent, findTemplate } from './templates/index.js';
 import { SEMANTIC_PROMPTS, buildRevisionPrompt } from './prompts.js';
-import type { DraftKind, DraftLanguage } from '@borjie/database';
+import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 
 const PLACEHOLDER_REGEX = /\{\{([a-zA-Z0-9_.:-]+)\}\}/g;
 

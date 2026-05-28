@@ -17,7 +17,7 @@
  */
 
 import type { ToolHandler } from '@borjie/ai-copilot';
-import type { DraftKind, DraftLanguage } from '@borjie/database';
+import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 import {
   createDocumentDrafter,
   type DraftPersistence,
@@ -56,7 +56,7 @@ export function buildDocumentDrafterTools(
 ): readonly ToolHandler[] {
   const drafter = createDocumentDrafter({
     persistence: deps.persistence,
-    defaultGenerator: deps.defaultGenerator,
+    ...(deps.defaultGenerator !== undefined ? { defaultGenerator: deps.defaultGenerator } : {}),
   });
 
   // ----- shared helpers ----------------------------------------------------
@@ -130,14 +130,8 @@ export function buildDocumentDrafterTools(
           templateSlug: slug,
           language,
           titleSw,
-          titleEn:
-            typeof params['titleEn'] === 'string'
-              ? (params['titleEn'] as string)
-              : undefined,
-          jurisdiction:
-            typeof params['jurisdiction'] === 'string'
-              ? (params['jurisdiction'] as string)
-              : undefined,
+          ...(typeof params['titleEn'] === 'string' ? { titleEn: params['titleEn'] as string } : {}),
+          ...(typeof params['jurisdiction'] === 'string' ? { jurisdiction: params['jurisdiction'] as string } : {}),
           fillVars,
         });
         const data: DraftPreview = {
@@ -207,10 +201,7 @@ export function buildDocumentDrafterTools(
           templateSlug: slug,
           language,
           titleSw,
-          titleEn:
-            typeof params['titleEn'] === 'string'
-              ? (params['titleEn'] as string)
-              : undefined,
+          ...(typeof params['titleEn'] === 'string' ? { titleEn: params['titleEn'] as string } : {}),
           fillVars,
         });
         const data: DraftPreview = {
@@ -275,10 +266,7 @@ export function buildDocumentDrafterTools(
           templateSlug: 'rfp_response.template',
           language,
           titleSw,
-          titleEn:
-            typeof params['titleEn'] === 'string'
-              ? (params['titleEn'] as string)
-              : undefined,
+          ...(typeof params['titleEn'] === 'string' ? { titleEn: params['titleEn'] as string } : {}),
           fillVars,
         });
         const data: DraftPreview = {
@@ -352,10 +340,7 @@ export function buildDocumentDrafterTools(
           templateSlug: slug,
           language,
           titleSw,
-          titleEn:
-            typeof params['titleEn'] === 'string'
-              ? (params['titleEn'] as string)
-              : undefined,
+          ...(typeof params['titleEn'] === 'string' ? { titleEn: params['titleEn'] as string } : {}),
           fillVars,
         });
         const data: DraftPreview = {

@@ -2,7 +2,7 @@
  * Canonical user-facing display identity for Mr. Mwikila — chat-ui mirror.
  *
  * The user always sees ONE string in the chat UI:
- *   "Mr. Mwikila — Borjie's AI Managing Director".
+ *   "Mr. Mwikila — Borjie's AI Mining Managing Director".
  *
  * No specialisation subtitle. No agent_id. Mr. Mwikila is presented as
  * ONE intelligence that knows everything.
@@ -31,10 +31,10 @@ export const MR_MWIKILA_CANONICAL_DISPLAY = {
   /** Just the name. Used when the surface stacks name over title. */
   name: 'Mr. Mwikila',
   /** Just the title. Used when the name is rendered separately. */
-  title: "Borjie's AI Managing Director",
+  title: "Borjie's AI Mining Managing Director",
   /** The full single-string identity. Used everywhere a header
    *  prefers one inline label (chat panel header, intro greeting). */
-  name_full: "Mr. Mwikila — Borjie's AI Managing Director",
+  name_full: "Mr. Mwikila — Borjie's AI Mining Managing Director",
 } as const;
 
 /**

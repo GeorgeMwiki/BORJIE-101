@@ -211,8 +211,8 @@ export function toBrainToolHandler<
           tenantId: context.tenant.tenantId,
           actorId: context.actor.id,
           personaSlug,
-          auditSink: gate.auditSink,
-          httpClient: gate.httpClient,
+          ...(gate.auditSink !== undefined && { auditSink: gate.auditSink }),
+          ...(gate.httpClient !== undefined && { httpClient: gate.httpClient }),
         });
 
         const data = await descriptor.handler(parsed.data, handlerCtx);

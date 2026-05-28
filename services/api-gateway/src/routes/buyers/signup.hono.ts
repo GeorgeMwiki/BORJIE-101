@@ -49,13 +49,15 @@ import {
   BUYER_CURRENCY_CODES,
   BUYER_LANGUAGE_CODES,
   initialKycAtomsFor,
-  type BuyerAccountKind,
-  type BuyerCountryCode,
-  type BuyerCurrencyCode,
-  type BuyerLanguageCode,
-  type BuyerBusinessKind,
-  type BuyerKycAtom,
 } from '@borjie/database';
+import type {
+  BuyerAccountKind,
+  BuyerCountryCode,
+  BuyerCurrencyCode,
+  BuyerLanguageCode,
+  BuyerBusinessKind,
+  BuyerKycAtom,
+} from '@borjie/database/schemas';
 
 // ─── Wire-level constants ────────────────────────────────────────────
 

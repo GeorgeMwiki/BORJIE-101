@@ -20,12 +20,14 @@ import {
   DRAFT_KINDS,
   DRAFT_LANGUAGES,
   DRAFT_STATUSES,
-  type DocumentDraft,
-  type DraftKind,
-  type DraftLanguage,
-  type DraftStatus,
-  type NewDocumentDraft,
 } from '@borjie/database';
+import type {
+  DocumentDraft,
+  DraftKind,
+  DraftLanguage,
+  DraftStatus,
+  NewDocumentDraft,
+} from '@borjie/database/schemas';
 import { compose, reviseContent, type SemanticBlockGenerator } from './composer.js';
 import { findTemplate, listTemplatesByKind } from './templates/index.js';
 
@@ -198,12 +200,13 @@ export function createDocumentDrafter(deps: DraftDrafterDeps): {
         `document-drafter: template "${input.templateSlug}" produces "${def.kind}", not "${input.kind}"`,
       );
     }
+    const generator = input.generator ?? deps.defaultGenerator;
     const composed = await compose({
       kind: input.kind,
       templateSlug: input.templateSlug,
       language: input.language,
       fillVars: input.fillVars,
-      generator: input.generator ?? deps.defaultGenerator,
+      ...(generator !== undefined ? { generator } : {}),
     });
     const row = await persistence.insert({
       tenantId: input.tenantId,
@@ -241,11 +244,12 @@ export function createDocumentDrafter(deps: DraftDrafterDeps): {
         `document-drafter: cannot revise a ${parent.status} draft`,
       );
     }
+    const reviseGenerator = input.generator ?? deps.defaultGenerator;
     const revisedContent = await reviseContent({
       originalContent: parent.contentMd,
       instruction: input.instruction,
       language: parent.language as DraftLanguage,
-      generator: input.generator ?? deps.defaultGenerator,
+      ...(reviseGenerator !== undefined ? { generator: reviseGenerator } : {}),
     });
     const revisionRow = await persistence.insert({
       tenantId: parent.tenantId,
@@ -293,9 +297,9 @@ export function createDocumentDrafter(deps: DraftDrafterDeps): {
     finalizeDraft,
     async listDrafts(input) {
       return persistence.listByCreator(input.tenantId, input.userId, {
-        status: input.status,
-        kind: input.kind,
-        limit: input.limit,
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.kind !== undefined ? { kind: input.kind } : {}),
+        ...(input.limit !== undefined ? { limit: input.limit } : {}),
       });
     },
     async getDraft(input) {

@@ -199,4 +199,4 @@ export const SHARED_TOOLS: ReadonlyArray<
   borjieCiteTool,
   documentsUploadTool,
   documentsSearchTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

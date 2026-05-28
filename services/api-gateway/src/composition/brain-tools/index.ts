@@ -79,7 +79,9 @@ export function buildPersonaToolHandlers(
   }
 
   const handlers = merged.map((descriptor) =>
-    toBrainToolHandler(descriptor, gate, { now: options?.now }),
+    toBrainToolHandler(descriptor, gate, {
+      ...(options?.now !== undefined && { now: options.now }),
+    }),
   );
   return Object.freeze(handlers);
 }

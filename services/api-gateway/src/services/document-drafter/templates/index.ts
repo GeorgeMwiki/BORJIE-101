@@ -14,7 +14,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { DraftKind, DraftLanguage } from '@borjie/database';
+import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';
 
 const TEMPLATE_DIR = dirname(fileURLToPath(import.meta.url));
 

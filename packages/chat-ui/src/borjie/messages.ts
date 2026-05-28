@@ -38,7 +38,7 @@ export const MESSAGES = {
     sw: 'Borjie',
   },
   brandTagline: {
-    en: 'AI Managing Director',
+    en: 'AI Mining Managing Director',
     sw: 'Meneja wa AI wa Shughuli za Mgodi',
   },
 

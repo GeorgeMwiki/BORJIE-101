@@ -257,4 +257,4 @@ export const ADMIN_TOOLS: ReadonlyArray<
   adminPilotErrorsTool,
   adminCorpusIngestsTool,
   adminFeatureFlagsTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

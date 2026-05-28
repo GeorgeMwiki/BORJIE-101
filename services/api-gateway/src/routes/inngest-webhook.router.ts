@@ -152,9 +152,10 @@ app.post('/', withSecurityEvents({ action: 'inngest-webhook.create', resource: '
     );
   }
 
-  let payload: { readonly name?: unknown; readonly data?: unknown; readonly id?: unknown } | null = null;
+  type InngestPayload = { readonly name?: unknown; readonly data?: unknown; readonly id?: unknown };
+  let payload: InngestPayload | null = null;
   try {
-    payload = JSON.parse(rawBody) as typeof payload;
+    payload = JSON.parse(rawBody) as InngestPayload | null;
   } catch {
     return c.json(
       {
@@ -164,7 +165,7 @@ app.post('/', withSecurityEvents({ action: 'inngest-webhook.create', resource: '
       400,
     );
   }
-  if (!payload || typeof payload !== 'object') {
+  if (!payload) {
     return c.json(
       {
         success: false,

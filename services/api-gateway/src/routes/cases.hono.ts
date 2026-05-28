@@ -165,6 +165,9 @@ app.post('/', zValidator('json', CaseCreateSchema), withSecurityEvents({ action:
   `);
   const fetched = await db.execute(sql`SELECT * FROM cases WHERE id = ${id} AND tenant_id = ${auth.tenantId} LIMIT 1`);
   const row = (fetched as unknown as Record<string, unknown>[])[0];
+  if (!row) {
+    return c.json({ success: false, error: { code: 'CASE_CREATE_FAILED', message: 'Case insert returned no row' } }, 500);
+  }
   return c.json({ success: true, data: rowToCase(row) }, 201);
 }));
 
@@ -182,13 +185,14 @@ app.get('/:id', async (c) => {
     SELECT * FROM cases WHERE id = ${id} AND tenant_id = ${auth.tenantId} LIMIT 1
   `);
   const rows = (fetched as unknown as Record<string, unknown>[]) || [];
-  if (rows.length === 0) {
+  const firstRow = rows[0];
+  if (!firstRow) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Case not found' } },
       404,
     );
   }
-  return c.json({ success: true, data: rowToCase(rows[0]) });
+  return c.json({ success: true, data: rowToCase(firstRow) });
 });
 
 /**
@@ -237,13 +241,14 @@ app.get('/:id/full', async (c) => {
     SELECT * FROM cases WHERE id = ${id} AND tenant_id = ${auth.tenantId} LIMIT 1
   `);
   const rows = (fetched as unknown as Record<string, unknown>[]) || [];
-  if (rows.length === 0) {
+  const firstRow = rows[0];
+  if (!firstRow) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Case not found' } },
       404,
     );
   }
-  return c.json({ success: true, data: rowToCase(rows[0]) });
+  return c.json({ success: true, data: rowToCase(firstRow) });
 });
 
 app.post('/:id/resolve', zValidator('json', CaseResolveSchema), withSecurityEvents({ action: 'case.create', resource: 'case', severity: 'info' }, async (c) => {
@@ -270,13 +275,14 @@ app.post('/:id/resolve', zValidator('json', CaseResolveSchema), withSecurityEven
      RETURNING *
   `);
   const rows = (updated as unknown as Record<string, unknown>[]) || [];
-  if (rows.length === 0) {
+  const firstRow = rows[0];
+  if (!firstRow) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Case not found' } },
       404,
     );
   }
-  return c.json({ success: true, data: rowToCase(rows[0]) });
+  return c.json({ success: true, data: rowToCase(firstRow) });
 }));
 
 export const casesRouter = app;

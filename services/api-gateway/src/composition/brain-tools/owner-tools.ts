@@ -417,4 +417,4 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerLicenceHealthTool,
   ownerMarketBidsTool,
   ownerReportsListTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

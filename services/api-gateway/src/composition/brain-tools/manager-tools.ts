@@ -425,4 +425,4 @@ export const MANAGER_TOOLS: ReadonlyArray<
   managerDecideApprovalTool,
   managerEscalateTool,
   managerShiftDraftTool,
-]);
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

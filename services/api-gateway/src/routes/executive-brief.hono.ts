@@ -25,6 +25,7 @@ import { sql } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { getExecutiveBriefService } from '../composition/executive-brief.composition';
+import type { Persona } from '@borjie/persona-runtime';
 
 // ─────────────────────────────────────────────────────────────────────
 // Zod schemas
@@ -181,7 +182,7 @@ briefs.get('/', async (c) => {
 
   const conditions = [sql`tenant_id = ${auth.tenantId}`];
   if (personaId) conditions.push(sql`persona_id = ${personaId}`);
-  if (status && STATUSES.includes(status)) conditions.push(sql`status = ${status}`);
+  if (status && (STATUSES as readonly string[]).includes(status)) conditions.push(sql`status = ${status}`);
   const whereSql = conditions.reduce((acc, c2, i) => (i === 0 ? c2 : sql`${acc} AND ${c2}`));
 
   const res = await db.execute(sql`
@@ -239,7 +240,7 @@ briefs.post('/generate', zValidator('json', GenerateSchema), async (c) => {
   try {
     const result = await service.generate({
       tenantId: auth.tenantId,
-      persona: gate.persona,
+      persona: gate.persona as unknown as Persona,
       modulesInScope: body.modulesInScope,
       periodStart,
       periodEnd,
@@ -397,7 +398,7 @@ subscriptions.patch('/:id', zValidator('json', SubscriptionUpdateSchema), async 
   const db = c.get('db');
   const id = c.req.param('id');
   const body = c.req.valid('json');
-  const sets = [];
+  const sets: ReturnType<typeof sql>[] = [];
   if (body.cadence !== undefined) sets.push(sql`cadence = ${body.cadence}`);
   if (body.localTime !== undefined) sets.push(sql`local_time = ${body.localTime}`);
   if (body.modulesInScope !== undefined) sets.push(sql`modules_in_scope = ${body.modulesInScope}`);
