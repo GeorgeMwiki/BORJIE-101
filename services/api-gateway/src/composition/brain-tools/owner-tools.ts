@@ -572,6 +572,203 @@ export const ownerLogEngagementTool: PersonaToolDescriptor<
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// 13. Compliance full picture — Wave SOTA-DEPTH
+//     NEVER SHALLOW. Surface the full 18-sub-area compliance matrix.
+// ─────────────────────────────────────────────────────────────────────
+
+const ComplianceFullPictureInput = z.object({
+  siteId: z.string().uuid().optional(),
+});
+const ComplianceFullPictureOutput = z.object({
+  domainId: z.literal('compliance'),
+  subAreas: z.array(
+    z.object({
+      id: z.string(),
+      labelEn: z.string(),
+      labelSw: z.string(),
+      regulator: z.string().optional(),
+      cadence: z.string(),
+      status: z.string(),
+      note: z.string().optional(),
+    }),
+  ),
+});
+
+export const ownerComplianceFullPictureTool: PersonaToolDescriptor<
+  typeof ComplianceFullPictureInput,
+  typeof ComplianceFullPictureOutput
+> = {
+  id: 'sota.compliance_full_picture',
+  name: 'Owner — compliance full picture (18 sub-areas)',
+  description:
+    'Return the ENTIRE compliance matrix (≥15 sub-areas: licences, tax, ' +
+    'environmental, banking, trade, labour, workplace safety, workforce ' +
+    'certs, anti-corruption, data protection, AML, standards, customs, ' +
+    'assay, insurance, local content, human rights, telecoms). NEVER ' +
+    'shallow — always surface the whole picture.',
+  personaSlugs: OWNER,
+  inputSchema: ComplianceFullPictureInput,
+  outputSchema: ComplianceFullPictureOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(_input, _ctx) {
+    const { getDomain, awaitingDataResolver } = await import(
+      '../../services/domain-depth/index.js'
+    );
+    const domain = getDomain('compliance');
+    if (!domain) {
+      return { domainId: 'compliance' as const, subAreas: [] };
+    }
+    const subAreas = await Promise.all(
+      domain.subAreas.map(async (sa) => {
+        const st = await awaitingDataResolver({ tenantId: '' });
+        return {
+          id: sa.id,
+          labelEn: sa.label.en,
+          labelSw: sa.label.sw,
+          regulator: sa.regulator,
+          cadence: sa.cadence,
+          status: st.status,
+          note: st.note,
+        };
+      }),
+    );
+    return { domainId: 'compliance' as const, subAreas };
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 14. Domain full picture — generic
+// ─────────────────────────────────────────────────────────────────────
+
+const DomainFullPictureInput = z.object({
+  domainId: z.enum([
+    'compliance',
+    'finance',
+    'operations',
+    'hr',
+    'marketing',
+    'risk',
+    'treasury',
+    'geology',
+    'marketplace',
+    'licences',
+    'holdings',
+    'subsidiaries',
+    'succession',
+    'asset-register',
+  ]),
+});
+const DomainFullPictureOutput = z.object({
+  domainId: z.string(),
+  subAreas: z.array(
+    z.object({
+      id: z.string(),
+      labelEn: z.string(),
+      labelSw: z.string(),
+      cadence: z.string(),
+      status: z.string(),
+      note: z.string().optional(),
+    }),
+  ),
+});
+
+export const ownerDomainFullPictureTool: PersonaToolDescriptor<
+  typeof DomainFullPictureInput,
+  typeof DomainFullPictureOutput
+> = {
+  id: 'sota.domain_full_picture',
+  name: 'Owner — domain full picture',
+  description:
+    'Return the FULL sub-area matrix for any of the 14 owner-os ' +
+    'domains. NEVER shallow.',
+  personaSlugs: OWNER,
+  inputSchema: DomainFullPictureInput,
+  outputSchema: DomainFullPictureOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    const { getDomain, awaitingDataResolver } = await import(
+      '../../services/domain-depth/index.js'
+    );
+    const domain = getDomain(input.domainId);
+    if (!domain) return { domainId: input.domainId, subAreas: [] };
+    const subAreas = await Promise.all(
+      domain.subAreas.map(async (sa) => {
+        const st = await awaitingDataResolver({ tenantId: '' });
+        return {
+          id: sa.id,
+          labelEn: sa.label.en,
+          labelSw: sa.label.sw,
+          cadence: sa.cadence,
+          status: st.status,
+          note: st.note,
+        };
+      }),
+    );
+    return { domainId: input.domainId, subAreas };
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 15. Sub-area drill — single sub-area, full descriptor
+// ─────────────────────────────────────────────────────────────────────
+
+const SubAreaDrillInput = z.object({
+  domainId: z.string(),
+  subAreaId: z.string(),
+});
+const SubAreaDrillOutput = z.object({
+  found: z.boolean(),
+  labelEn: z.string().optional(),
+  labelSw: z.string().optional(),
+  cadence: z.string().optional(),
+  regulator: z.string().optional(),
+  riskEn: z.string().optional(),
+  riskSw: z.string().optional(),
+  status: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export const ownerSubAreaDrillTool: PersonaToolDescriptor<
+  typeof SubAreaDrillInput,
+  typeof SubAreaDrillOutput
+> = {
+  id: 'sota.sub_area_drill',
+  name: 'Owner — sub-area drill',
+  description:
+    'Drill into one sub-area of one domain: label, cadence, regulator, ' +
+    'risk-if-missed, and live status.',
+  personaSlugs: OWNER,
+  inputSchema: SubAreaDrillInput,
+  outputSchema: SubAreaDrillOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, _ctx) {
+    const { getSubArea, awaitingDataResolver } = await import(
+      '../../services/domain-depth/index.js'
+    );
+    const sa = getSubArea(input.domainId as any, input.subAreaId);
+    if (!sa) return { found: false };
+    const status = await awaitingDataResolver({ tenantId: '' });
+    return {
+      found: true,
+      labelEn: sa.label.en,
+      labelSw: sa.label.sw,
+      cadence: sa.cadence,
+      regulator: sa.regulator,
+      riskEn: sa.riskIfMissed.en,
+      riskSw: sa.riskIfMissed.sw,
+      status: status.status,
+      note: status.note,
+    };
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -587,4 +784,7 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerCheckRegulatoryDeadlineTool,
   ownerLookupCounterpartyTool,
   ownerLogEngagementTool,
+  ownerComplianceFullPictureTool,
+  ownerDomainFullPictureTool,
+  ownerSubAreaDrillTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
