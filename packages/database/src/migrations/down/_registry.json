@@ -97,6 +97,13 @@
       "reverses": "CREATE TABLE pinned_items + indexes + RLS",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0114_outcome_telemetry.sql",
+      "down": "down/0114_down_outcome_telemetry.sql",
+      "reverses": "CREATE TABLE outcome_predictions + outcome_observations + outcome_reconciliations + indexes + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }

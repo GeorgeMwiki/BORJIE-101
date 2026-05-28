@@ -1026,6 +1026,17 @@ export * from './share-links.schema.js';
 export * from './undo-journal.schema.js';
 export * from './pinned-items.schema.js';
 
+// Wave CLOSED-LOOP (migration 0114). Three tables back the closed-loop
+// telemetry contract: every action proposed by the brain (or taken by
+// the owner / an agent / an external system) declares a predicted
+// outcome, is reconciled against the observed outcome after N days,
+// and feeds a learning_signal back so future predictions calibrate.
+// Companions:
+//   - services/api-gateway/src/workers/outcome-reconciliation-worker.ts
+//   - services/api-gateway/src/composition/brain-tools/outcome-predictor.ts
+//   - services/api-gateway/src/services/calibration-monitor/
+export * from './outcome-telemetry.schema.js';
+
 // ---------------------------------------------------------------------------
 // Wave OPS-WIDE — full end-to-end mining operations scope (migration 0093)
 // ---------------------------------------------------------------------------
