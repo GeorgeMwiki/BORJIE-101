@@ -3,6 +3,7 @@ import './globals.css';
 import { OwnerShell } from '@/components/OwnerShell';
 import { AppProviders } from './providers';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { OwnerCommandPalette } from '@/components/OwnerCommandPalette';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
@@ -60,6 +61,11 @@ export default function RootLayout({
           <AppProviders>
             <OwnerShell>{children}</OwnerShell>
             <BorjieWidgetMount />
+            {/* Wave SUPERPOWERS - universal Cmd-K palette. Mounted at
+                the root so it works on every owner screen. The owner's
+                language preference is read from the persisted preference
+                stored in localStorage; falls back to English. */}
+            <OwnerCommandPalette languagePreference="en" />
             {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
                 Lazy-loads web-vitals v5 on the client, ships LCP/INP/CLS/
                 TTFB/FCP via sendBeacon to /api/perf/web-vitals. Pure side

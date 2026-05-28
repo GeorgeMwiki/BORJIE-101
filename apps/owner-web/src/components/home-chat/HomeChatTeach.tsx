@@ -56,6 +56,21 @@ import {
   appendBoardElement,
   boardElementSchema,
 } from '@/components/blackboard';
+import {
+  SuperpowerChips,
+  uiNavigateChipSchema,
+  uiPrefillChipSchema,
+  uiHighlightChipSchema,
+  uiShareChipSchema,
+  uiBulkChipSchema,
+  uiBookmarkChipSchema,
+  type UiNavigateChip,
+  type UiPrefillChip,
+  type UiHighlightChip,
+  type UiShareChip,
+  type UiBulkChip,
+  type UiBookmarkChip,
+} from './SuperpowerChips';
 
 export interface HomeChatTeachProps {
   readonly salutation: string;
@@ -100,6 +115,13 @@ interface TeachMessage {
   readonly createdAt: string;
   /** OwnerOS spawn-tab candidates emitted by the brain (max 3). */
   readonly spawnTabs: ReadonlyArray<OwnerOSSpawnIntent>;
+  // Wave SUPERPOWERS - 6 chip families the brain may emit per turn.
+  readonly navigates: ReadonlyArray<UiNavigateChip>;
+  readonly prefills: ReadonlyArray<UiPrefillChip>;
+  readonly highlights: ReadonlyArray<UiHighlightChip>;
+  readonly shares: ReadonlyArray<UiShareChip>;
+  readonly bulks: ReadonlyArray<UiBulkChip>;
+  readonly bookmarks: ReadonlyArray<UiBookmarkChip>;
 }
 
 interface SseFrame {
@@ -221,6 +243,12 @@ export function HomeChatTeach({
         suggestedActions: [],
         citations: [],
         spawnTabs: [],
+        navigates: [],
+        prefills: [],
+        highlights: [],
+        shares: [],
+        bulks: [],
+        bookmarks: [],
         streaming: false,
         errored: false,
         errorMessage: null,
@@ -237,6 +265,12 @@ export function HomeChatTeach({
         suggestedActions: [],
         citations: [],
         spawnTabs: [],
+        navigates: [],
+        prefills: [],
+        highlights: [],
+        shares: [],
+        bulks: [],
+        bookmarks: [],
         streaming: true,
         errored: false,
         errorMessage: null,
@@ -404,6 +438,72 @@ export function HomeChatTeach({
                   prev.map((m) =>
                     m.id === assistantId
                       ? { ...m, spawnTabs: parsed.data.tabs }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_navigate') {
+              const parsed = uiNavigateChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, navigates: [...m.navigates, parsed.data].slice(0, 3) }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_prefill') {
+              const parsed = uiPrefillChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, prefills: [...m.prefills, parsed.data].slice(0, 3) }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_highlight') {
+              const parsed = uiHighlightChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, highlights: [...m.highlights, parsed.data].slice(0, 3) }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_share') {
+              const parsed = uiShareChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, shares: [...m.shares, parsed.data].slice(0, 3) }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_bulk') {
+              const parsed = uiBulkChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, bulks: [...m.bulks, parsed.data].slice(0, 3) }
+                      : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'ui_bookmark') {
+              const parsed = uiBookmarkChipSchema.safeParse(payload.chip);
+              if (parsed.success) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, bookmarks: [...m.bookmarks, parsed.data].slice(0, 3) }
                       : m,
                   ),
                 );
@@ -856,6 +956,18 @@ function TeachBubble({
             ))}
           </div>
         </div>
+      ) : null}
+
+      {!isOwner ? (
+        <SuperpowerChips
+          languagePreference={languagePreference}
+          navigates={message.navigates}
+          prefills={message.prefills}
+          highlights={message.highlights}
+          shares={message.shares}
+          bulks={message.bulks}
+          bookmarks={message.bookmarks}
+        />
       ) : null}
     </div>
   );
