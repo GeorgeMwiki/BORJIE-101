@@ -120,10 +120,11 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
   ): Promise<void> {
     setDecidingId(`${id}::${decision}`);
     try {
+      const trimmedNote = notes[id]?.trim();
       await decideMutation.mutateAsync({
         id,
         decision,
-        note: notes[id]?.trim() || undefined,
+        ...(trimmedNote ? { note: trimmedNote } : {}),
       });
     } finally {
       setDecidingId(null);

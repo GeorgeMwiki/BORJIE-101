@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { QueryProvider } from '@/components/internal/QueryProvider';
 import { AdminDashboardSurface } from '@/components/dashboard/AdminDashboardSurface';
+import { AdminDailyBriefCard } from '@/components/dashboard/AdminDailyBriefCard';
 import { DashboardMetricStrip } from '@/components/dashboard/DashboardMetricStrip';
 
 /**
@@ -45,6 +46,8 @@ export default function AdminDashboardPage() {
         <Suspense fallback={<MetricStripFallback />}>
           <DashboardMetricStrip />
         </Suspense>
+
+        <AdminDailyBriefCard />
 
         <Suspense fallback={<DashboardFallback />}>
           <AdminDashboardSurface />

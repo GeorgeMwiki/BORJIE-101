@@ -114,9 +114,9 @@ export function useEstateEntities(opts?: {
       const suffix = qs.toString();
       return apiRequest<{
         success: boolean;
-        data: opts?.tree extends true
-          ? { tree: ReadonlyArray<EstateEntityTreeNode>; count: number }
-          : { entities: ReadonlyArray<EstateEntityRow>; count: number };
+        data:
+          | { tree: ReadonlyArray<EstateEntityTreeNode>; count: number }
+          | { entities: ReadonlyArray<EstateEntityRow>; count: number };
       }>(`/api/v1/estate/entities${suffix ? `?${suffix}` : ''}`, { signal });
     },
   });

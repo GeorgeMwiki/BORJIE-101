@@ -37,8 +37,8 @@ export function RegulatoryCalendarShell() {
   const [regulator, setRegulator] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const { data, isLoading } = useRegulatoryFilings({
-    regulator: regulator || undefined,
-    status: statusFilter || undefined,
+    ...(regulator ? { regulator } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
   });
   const filings = data?.data?.filings ?? [];
 

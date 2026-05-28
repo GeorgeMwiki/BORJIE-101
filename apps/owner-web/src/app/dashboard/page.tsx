@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
+import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
 import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
 import {
   Card,
@@ -54,6 +55,9 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-10">
+      {/* 0. Mr. Mwikila daily brief card (top of dashboard) */}
+      <DailyBriefCard isSw={isSw} salutation={session.salutation} />
+
       {/* 1. Greeting hero */}
       <header>
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-signal-500">

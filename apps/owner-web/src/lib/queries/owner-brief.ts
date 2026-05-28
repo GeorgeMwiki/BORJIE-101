@@ -86,6 +86,14 @@ export interface LicenceHealthSlot {
   readonly items: ReadonlyArray<LicenceItem>;
 }
 
+export interface AdvisorSlot {
+  readonly insight: string;
+  readonly action: string;
+  readonly generatedAtIso: string;
+  readonly provider: string;
+  readonly latencyMs: number;
+}
+
 export interface OwnerBriefPayload {
   readonly schemaVersion: 1;
   readonly composedAtIso: string;
@@ -96,18 +104,27 @@ export interface OwnerBriefPayload {
   readonly cliffStatus: CliffStatusSlot;
   readonly openHighIncidents: OpenHighIncidentsSlot;
   readonly licenceHealth: LicenceHealthSlot;
+  readonly advisor?: AdvisorSlot | null;
 }
 
 export interface OwnerBriefEnvelope {
   readonly brief: OwnerBriefPayload;
-  readonly source: 'cron' | 'on-demand';
+  readonly source: 'cron' | 'on-demand' | 'daily_cron';
   readonly generatedAt: string;
+  readonly cached: boolean;
+}
+
+export interface OwnerDailyBriefEnvelope {
+  readonly brief: OwnerBriefPayload | null;
+  readonly source: 'cron' | 'on-demand' | 'daily_cron' | null;
+  readonly generatedAt: string | null;
   readonly cached: boolean;
 }
 
 export const ownerBriefKeys = {
   all: ['owner-brief'] as const,
   current: () => [...ownerBriefKeys.all, 'current'] as const,
+  daily: () => [...ownerBriefKeys.all, 'daily'] as const,
 };
 
 /**
@@ -121,6 +138,23 @@ export function useOwnerBrief() {
     queryKey: ownerBriefKeys.current(),
     queryFn: ({ signal }) =>
       apiRequest<OwnerBriefEnvelope>('/api/v1/owner/brief', { signal }),
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+  });
+}
+
+/**
+ * Pulls today's daily-brief snapshot persisted by the daily-brief
+ * cron. Falls through to the on-demand `/owner/brief` composition
+ * when no cron snapshot exists.
+ */
+export function useOwnerDailyBrief() {
+  return useQuery<OwnerDailyBriefEnvelope, ApiError>({
+    queryKey: ownerBriefKeys.daily(),
+    queryFn: ({ signal }) =>
+      apiRequest<OwnerDailyBriefEnvelope>('/api/v1/owner/daily-brief', {
+        signal,
+      }),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });

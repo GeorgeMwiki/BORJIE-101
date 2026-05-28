@@ -40,8 +40,8 @@ export function CounterpartiesShell() {
   const [drawerPartyId, setDrawerPartyId] = useState<string | null>(null);
 
   const list = useCounterparties({
-    partyType: partyType || undefined,
-    search: search || undefined,
+    ...(partyType ? { partyType } : {}),
+    ...(search ? { search } : {}),
   });
   const parties = list.data?.data?.parties ?? [];
 
