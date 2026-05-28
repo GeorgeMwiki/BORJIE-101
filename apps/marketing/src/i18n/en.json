@@ -1212,6 +1212,70 @@
     "alreadyHaveAccount": "Already have an account?",
     "signInLink": "Sign in"
   },
+  "ownerSignInPage": {
+    "metaTitle": "Sign in to Borjie",
+    "metaDescription": "Sign in to your Borjie owner cockpit.",
+    "kicker": "Owner Cockpit",
+    "heading": "Welcome back.",
+    "sub": "Sign in to keep running your mining operation.",
+    "fields": {
+      "email": "Email",
+      "emailEn": "Barua pepe",
+      "password": "Password",
+      "passwordEn": "Nenosiri"
+    },
+    "actions": {
+      "submit": "Sign in",
+      "submitting": "Signing in"
+    },
+    "errors": {
+      "emailRequired": "Enter a valid email address",
+      "passwordRequired": "Password is required",
+      "signInFailed": "Sign in failed. Check your credentials."
+    },
+    "fromSignup": "Account created. Sign in to enter the cockpit.",
+    "noAccountYet": "No account yet?",
+    "signUpLink": "Sign up"
+  },
+  "ownerSignUpPage": {
+    "metaTitle": "Create a Borjie account",
+    "metaDescription": "Stand up your Borjie owner cockpit in under two minutes.",
+    "kicker": "New Borjie account",
+    "heading": "Start with Borjie.",
+    "sub": "Spin up your mining operating system in under two minutes.",
+    "fields": {
+      "orgName": "Mine or company name",
+      "orgNameSub": "Jina la mgodi",
+      "ownerFullName": "Your full name",
+      "ownerFullNameSub": "Jina lako kamili",
+      "email": "Email",
+      "emailSub": "Barua pepe",
+      "password": "Password",
+      "passwordSub": "Nenosiri",
+      "passwordHelp": "At least 8 characters.",
+      "country": "Country of operation"
+    },
+    "countries": {
+      "TZ": "Tanzania",
+      "KE": "Kenya",
+      "UG": "Uganda",
+      "NG": "Nigeria"
+    },
+    "actions": {
+      "submit": "Create my cockpit",
+      "submitting": "Creating"
+    },
+    "errors": {
+      "orgNameRequired": "Mine or company name is required",
+      "ownerFullNameRequired": "Enter your full name",
+      "emailRequired": "Enter a valid email address",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "signUpFailed": "Sign up failed. Try again or contact support."
+    },
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "disclaimer": "We email you a receipt. BRELA and TRA verification happens after sign up; you can drive the cockpit while it runs."
+  },
   "buyerSignInPage": {
     "metaTitle": "Sign in as a buyer — Borjie",
     "metaDescription": "Sign in to your Borjie buyer account.",

@@ -3,14 +3,11 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 const SignInSchema = z.object({
   email: z.string().email('Weka anwani halali ya barua pepe'),
   password: z.string().min(1, 'Nenosiri linahitajika'),
 });
-
-type SignInInput = z.infer<typeof SignInSchema>;
 
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
@@ -18,18 +15,27 @@ interface FormState {
 }
 
 /**
+ * Resolve the api-gateway base URL. The owner-web Next app is served
+ * on a different origin (:3010) from the gateway (:4001) in dev, so an
+ * absolute URL is required for cookies to land in the correct jar.
+ * Production places both behind the same TLS apex via the reverse
+ * proxy and the env var resolves to "" (relative).
+ */
+function gatewayBaseUrl(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
+  return 'http://localhost:4001';
+}
+
+/**
  * Swahili-first email + password sign-in for the owner cockpit.
  *
- * LitFin-pattern single-column card:
- *   - Big gradient wordmark above
- *   - Small mono kicker, declarative heading
- *   - Generous spacing between fields
- *   - Full-width primary CTA in signal gold
- *   - Trust microcopy below
- *
- * Validates with Zod, then calls `supabase.auth.signInWithPassword`.
- * On success, redirects to the `next` query param (or `/`) and lets
- * Next.js middleware re-validate the session.
+ * Posts to `/api/v1/auth/sign-in` (gateway) with `credentials: 'include'`
+ * so the encrypted `borjie-session` HttpOnly cookie lands in the
+ * owner-web jar. The cockpit's middleware reads the session on the
+ * first /dashboard hit and rehydrates a Supabase user from the
+ * cookie's access token — the browser never needs to carry the
+ * Authorization header itself.
  */
 export function SignInForm() {
   const router = useRouter();
@@ -49,13 +55,22 @@ export function SignInForm() {
       return;
     }
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: parsed.data.email,
-        password: parsed.data.password,
-      } satisfies SignInInput);
-      if (error) {
-        setState({ phase: 'error', error: error.message });
+      const res = await fetch(`${gatewayBaseUrl()}/api/v1/auth/sign-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(parsed.data),
+      });
+      const json = (await res.json().catch(() => null)) as
+        | { success: true }
+        | { success: false; error: { code: string; message: string } }
+        | null;
+      if (!res.ok || !json?.success) {
+        const failure = json && !json.success ? json : null;
+        const msg =
+          failure?.error?.message ??
+          'Imeshindwa kuingia. Hakiki taarifa zako.';
+        setState({ phase: 'error', error: msg });
         return;
       }
       router.replace(next);
@@ -66,7 +81,7 @@ export function SignInForm() {
         error:
           err instanceof Error
             ? err.message
-            : 'Imeshindwa kuwasiliana na Supabase Auth',
+            : 'Imeshindwa kuwasiliana na Borjie API.',
       });
     }
   }

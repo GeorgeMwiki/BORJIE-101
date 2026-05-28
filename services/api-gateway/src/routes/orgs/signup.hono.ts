@@ -34,6 +34,11 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
+import {
+  buildSessionCookieHeader,
+  encodeSessionCookie,
+} from '../../auth/public/session-cookie.js';
+
 // ─── Wire-level constants ────────────────────────────────────────────
 
 const COUNTRY_CODES = ['TZ', 'KE', 'UG', 'NG', 'OTHER'] as const;
@@ -85,6 +90,27 @@ export const SignupRequestSchema = z.discriminatedUnion('kind', [
 ]);
 export type SignupRequest = z.infer<typeof SignupRequestSchema>;
 
+/**
+ * Marketing-form schema — the shape the public sign-up page POSTs.
+ * Discriminated-union-free; password is required so we can immediately
+ * issue a Supabase password-grant session and set the `borjie-session`
+ * cookie at the same time as creating the tenant. Adapter at runtime
+ * lifts this onto the canonical discriminated union before calling the
+ * shared writer pipeline.
+ */
+export const MarketingSignupRequestSchema = z.object({
+  orgName: z.string().min(2).max(160),
+  ownerEmail: z.string().email().max(254),
+  ownerPassword: z.string().min(8).max(200),
+  country: z.enum(COUNTRY_CODES).default('TZ'),
+  ownerFullName: z.string().min(2).max(120).optional(),
+  phoneNumber: z.string().min(8).max(20).optional(),
+  marketingConsent: z.boolean().optional(),
+  defaultLanguage: z.enum(LANGUAGE_CODES).optional(),
+  primaryCurrency: z.enum(CURRENCY_CODES).optional(),
+});
+export type MarketingSignupRequest = z.infer<typeof MarketingSignupRequestSchema>;
+
 // ─── DI surface ──────────────────────────────────────────────────────
 
 export interface SupabaseAdminUser {
@@ -97,10 +123,23 @@ export interface SupabaseAdmin {
   /**
    * Creates a Supabase auth user. Returns 409-equivalent if the email
    * or phone is already registered.
+   *
+   * The optional `password` field is set by the marketing-form flow so
+   * the user can immediately receive a session cookie rather than going
+   * through the phone-OTP detour. When unset (the discriminated-union
+   * flow) Supabase generates a random temporary password and the user
+   * must complete OTP / magic-link to obtain credentials.
+   *
+   * `emailConfirm: true` is set only when called from the password-grant
+   * path so a subsequent sign-in succeeds without manual email
+   * verification — the marketing form is the user proving control of
+   * the email (Supabase emails them anyway for receipt + recovery).
    */
   createUser(input: {
     readonly email: string;
     readonly phone: string;
+    readonly password?: string;
+    readonly emailConfirm?: boolean;
     readonly appMetadata: Readonly<Record<string, unknown>>;
     readonly userMetadata: Readonly<Record<string, unknown>>;
   }): Promise<
@@ -113,6 +152,22 @@ export interface SupabaseAdmin {
    * caller surfaces `otpRequired` so the wizard can retry).
    */
   sendPhoneOtp(input: { readonly phone: string }): Promise<{ readonly delivered: boolean }>;
+  /**
+   * Marketing-form flow only — exchanges email+password for a Supabase
+   * session immediately after createUser succeeds. Optional so the
+   * canonical OTP flow can leave this null and the marketing branch
+   * gracefully degrades to "tenant created but not signed in" when
+   * the deps don't bind it.
+   */
+  signInWithPassword?(input: { readonly email: string; readonly password: string }): Promise<
+    | {
+        readonly ok: true;
+        readonly accessToken: string;
+        readonly refreshToken: string;
+        readonly expiresAt: number;
+      }
+    | { readonly ok: false; readonly reason: 'invalid_credentials' | 'provider_unavailable' }
+  >;
 }
 
 export interface CreatedTenant {
@@ -236,6 +291,68 @@ function kycAtomsInitializedFor(kind: 'individual' | 'business'): ReadonlyArray<
 
 // ─── Router factory ──────────────────────────────────────────────────
 
+/**
+ * Detect whether the incoming JSON looks like the marketing-form shape
+ * (orgName + ownerEmail + ownerPassword) vs the canonical discriminated
+ * union shape (`kind: 'individual' | 'business'`). The marketing form
+ * does not set `kind` — its presence is the distinguishing signal.
+ */
+function looksLikeMarketingShape(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.kind === 'string') return false;
+  return (
+    typeof o.orgName === 'string' &&
+    typeof o.ownerEmail === 'string' &&
+    typeof o.ownerPassword === 'string'
+  );
+}
+
+/**
+ * Lift a marketing-form body onto the canonical SignupRequest shape so
+ * the existing writer pipeline runs unchanged. The marketing form
+ * collects fewer fields — we synthesise sensible defaults rather than
+ * forcing every form to ship every field.
+ */
+function liftMarketingToCanonical(
+  body: MarketingSignupRequest,
+): { canonical: SignupRequest; password: string; phoneE164: string } {
+  const fullName = body.ownerFullName ?? body.ownerEmail.split('@')[0] ?? 'Owner';
+  // Marketing form may pass a free-form phone — strip non-digits and
+  // require leading + via the canonical E.164 regex. When the field is
+  // omitted we synthesise a placeholder the operator can replace later
+  // (Supabase phone is optional on createUser).
+  const phoneE164 = body.phoneNumber
+    ? body.phoneNumber.replace(/[^\d+]/g, '')
+    : '+10000000000';
+  const country = body.country;
+  const defaultLanguage = body.defaultLanguage ?? (country === 'TZ' ? 'sw' : 'en');
+  const primaryCurrency =
+    body.primaryCurrency ??
+    (country === 'TZ'
+      ? 'TZS'
+      : country === 'KE'
+        ? 'KES'
+        : country === 'UG'
+          ? 'UGX'
+          : country === 'NG'
+            ? 'NGN'
+            : 'USD');
+  const canonical: SignupRequest = {
+    kind: 'business',
+    country,
+    orgName: body.orgName,
+    businessRegistrationNumber: 'PENDING',
+    taxId: 'PENDING',
+    ownerEmail: body.ownerEmail,
+    ownerFullName: fullName,
+    ownerPhoneE164: phoneE164,
+    defaultLanguage,
+    primaryCurrency,
+  };
+  return { canonical, password: body.ownerPassword, phoneE164 };
+}
+
 export function createSignupRouter(deps: SignupDeps): Hono {
   const app = new Hono();
 
@@ -250,21 +367,45 @@ export function createSignupRouter(deps: SignupDeps): Hono {
       );
     }
 
-    const parsed = SignupRequestSchema.safeParse(raw);
-    if (!parsed.success) {
-      return c.json(
-        {
-          error: 'invalid_body',
-          issues: parsed.error.issues.map((i) => ({
-            path: i.path.join('.'),
-            code: i.code,
-            message: i.message,
-          })),
-        },
-        400,
-      );
+    // Branch: marketing-form shape (orgName + ownerEmail + ownerPassword)
+    // vs canonical discriminated union (kind: individual|business).
+    let body: SignupRequest;
+    let marketingPassword: string | null = null;
+    if (looksLikeMarketingShape(raw)) {
+      const parsedMarketing = MarketingSignupRequestSchema.safeParse(raw);
+      if (!parsedMarketing.success) {
+        return c.json(
+          {
+            error: 'invalid_body',
+            issues: parsedMarketing.error.issues.map((i) => ({
+              path: i.path.join('.'),
+              code: i.code,
+              message: i.message,
+            })),
+          },
+          400,
+        );
+      }
+      const lifted = liftMarketingToCanonical(parsedMarketing.data);
+      body = lifted.canonical;
+      marketingPassword = lifted.password;
+    } else {
+      const parsed = SignupRequestSchema.safeParse(raw);
+      if (!parsed.success) {
+        return c.json(
+          {
+            error: 'invalid_body',
+            issues: parsed.error.issues.map((i) => ({
+              path: i.path.join('.'),
+              code: i.code,
+              message: i.message,
+            })),
+          },
+          400,
+        );
+      }
+      body = parsed.data;
     }
-    const body = parsed.data;
 
     // ── Derived facts ────────────────────────────────────────────────
     const tenantId = deps.newTenantId();
@@ -299,9 +440,18 @@ export function createSignupRouter(deps: SignupDeps): Hono {
       body.kind === 'individual' ? body.nationalIdNumber ?? null : null;
 
     // ── 1. Supabase auth user ────────────────────────────────────────
+    // Marketing flow passes the user-chosen password through so we can
+    // immediately mint a session cookie after the tenant lands. Email
+    // is auto-confirmed in that path because the form IS the proof of
+    // email control; the canonical OTP flow leaves both unset.
+    // `exactOptionalPropertyTypes` requires the password field be
+    // omitted entirely when undefined — spread the optional in.
     const created = await deps.supabaseAdmin.createUser({
       email: ownerEmail,
       phone: ownerPhone,
+      ...(marketingPassword !== null
+        ? { password: marketingPassword, emailConfirm: true }
+        : {}),
       appMetadata: {
         tenant_id: tenantId,
         mining_role: 'owner',
@@ -428,7 +578,89 @@ export function createSignupRouter(deps: SignupDeps): Hono {
       });
     }
 
-    // ── 5. OTP delivery (best-effort) ────────────────────────────────
+    // ── 5. OTP / session establishment ───────────────────────────────
+    // Marketing flow: exchange the just-set password for a Supabase
+    // session and ship the encrypted cookie back so the user lands
+    // already signed-in. We skip the phone-OTP delivery because the
+    // marketing form doesn't collect a verified phone.
+    if (marketingPassword !== null) {
+      const signIn = await deps.supabaseAdmin
+        .signInWithPassword?.({
+          email: ownerEmail,
+          password: marketingPassword,
+        })
+        .catch((err) => {
+          deps.logger.warn('signup.password_grant_failed', {
+            tenantId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        });
+
+      let cookieIssued = false;
+      let sessionPayload: {
+        access_token: string;
+        refresh_token: string;
+        expires_at: number;
+      } | null = null;
+
+      if (signIn?.ok) {
+        sessionPayload = {
+          access_token: signIn.accessToken,
+          refresh_token: signIn.refreshToken,
+          expires_at: signIn.expiresAt,
+        };
+        try {
+          const cookieValue = encodeSessionCookie({
+            accessToken: signIn.accessToken,
+            refreshToken: signIn.refreshToken,
+            expiresAt: signIn.expiresAt,
+            userId: created.user.id,
+            email: ownerEmail,
+            tenantId,
+          });
+          c.header(
+            'Set-Cookie',
+            buildSessionCookieHeader(cookieValue, {
+              maxAgeSeconds: Math.max(
+                60,
+                signIn.expiresAt - Math.floor(Date.now() / 1000),
+              ),
+            }),
+          );
+          cookieIssued = true;
+        } catch (err) {
+          deps.logger.warn('signup.cookie_emit_failed', {
+            tenantId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      deps.logger.info('signup.complete_marketing', {
+        tenantId,
+        accountKind,
+        country,
+        cookieIssued,
+        sessionEstablished: Boolean(sessionPayload),
+      });
+
+      return c.json(
+        {
+          success: true,
+          tenantId,
+          ownerId: ownerUserId,
+          kind: accountKind,
+          signupStatus: sessionPayload ? 'active' : 'pending_sign_in',
+          kycAtomsInitialized,
+          session: sessionPayload,
+        },
+        201,
+      );
+    }
+
+    // Canonical (discriminated-union) flow: best-effort phone OTP +
+    // pending_otp_verification status, unchanged.
     const otp = await deps.supabaseAdmin.sendPhoneOtp({ phone: ownerPhone });
     if (!otp.delivered) {
       deps.logger.warn('signup.otp_not_delivered', { tenantId });

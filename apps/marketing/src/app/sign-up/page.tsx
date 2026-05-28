@@ -1,38 +1,37 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
-import { OwnerSignInForm } from '@/components/auth/OwnerSignInForm';
+import { OwnerSignUpForm } from '@/components/auth/OwnerSignUpForm';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const t = getMessages(locale).ownerSignInPage;
+  const t = getMessages(locale).ownerSignUpPage;
   return {
     title: t.metaTitle,
     description: t.metaDescription,
   };
 }
 
-// `useSearchParams` in the form forces this page to be dynamic.
 export const dynamic = 'force-dynamic';
 
 /**
- * /sign-in — Owner sign-in landing.
+ * /sign-up — Owner self-signup landing on the public marketing surface.
  *
- * LitFin-pattern single-column card on the navy + gold cinematic frame.
- * The form posts to `/api/v1/auth/sign-in` with credentials included,
- * then hard-redirects to the owner cockpit on success. The marketing
- * site never touches Supabase directly — the gateway is the only auth
- * surface, and the borjie-session cookie is the only browser state.
+ * Posts to `/api/v1/orgs/signup` via the marketing-form contract; the
+ * gateway creates the Supabase user + tenant + persona binding + audit
+ * entry inside one flow, then mints a Supabase session and sets the
+ * encrypted `borjie-session` HttpOnly cookie before answering 201. On
+ * success we hard-redirect the visitor to the cockpit (different
+ * origin in dev) which rehydrates from the cookie on first load.
  */
-export default async function SignInPage() {
+export default async function SignUpPage() {
   const locale = await getLocale();
-  const t = getMessages(locale).ownerSignInPage;
+  const t = getMessages(locale).ownerSignUpPage;
 
   return (
     <>
@@ -56,26 +55,15 @@ export default async function SignInPage() {
             </p>
           </header>
 
-          <Suspense
-            fallback={
-              <div
-                data-testid="owner-signin-loading"
-                className="rounded-2xl border border-border bg-surface/40 p-6 text-sm text-foreground/60"
-              >
-                {'...'}
-              </div>
-            }
-          >
-            <OwnerSignInForm locale={locale} />
-          </Suspense>
+          <OwnerSignUpForm locale={locale} />
 
           <p className="mt-6 text-center text-sm text-neutral-400">
-            {t.noAccountYet}{' '}
+            {t.haveAccount}{' '}
             <Link
-              href="/sign-up"
+              href="/sign-in"
               className="font-medium text-signal-500 underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 rounded-sm"
             >
-              {t.signUpLink}
+              {t.signInLink}
             </Link>
           </p>
 

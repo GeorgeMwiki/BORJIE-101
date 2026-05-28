@@ -40,6 +40,12 @@ import { authMfaRouter } from './routes/auth-mfa';
 import { createOrgsRouter } from './routes/orgs/index';
 import { createBuyersRouter } from './routes/buyers/index';
 import { createSignupWiring } from './composition/signup-wiring';
+// Public sign-in / sign-out — Supabase password grant, encrypted HttpOnly
+// `borjie-session` cookie, hash-chained audit, in-memory IP throttle.
+// Mounted BEFORE the legacy /auth router so `/auth/sign-in` and
+// `/auth/sign-out` resolve here without an Authorization header.
+import { createPublicAuthRouter } from './routes/auth/public-auth.hono';
+import { createPublicAuthDeps } from './composition/public-auth-wiring';
 import { tenantsRouter } from './routes/tenants.hono';
 import { usersRouter } from './routes/users.hono';
 import { propertiesRouter } from './routes/properties';
@@ -859,6 +865,12 @@ const signupWiring = createSignupWiring({
 });
 api.route('/orgs', createOrgsRouter(signupWiring.orgs));
 api.route('/buyers', createBuyersRouter(signupWiring.buyers));
+// Public sign-in / sign-out mount — Hono matches first-wins, so this
+// router's `/sign-in` + `/sign-out` claim those subpaths before the
+// legacy authRouter (which would otherwise hit the JWT-verify
+// middleware via `/me`/`/refresh`/`/logout`).
+const publicAuthDeps = createPublicAuthDeps({ db: getDb(), logger });
+api.route('/auth', createPublicAuthRouter(publicAuthDeps));
 api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);
 api.route('/tenants', tenantsRouter);

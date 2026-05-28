@@ -25,6 +25,16 @@ const SUPABASE_JWKS = SUPABASE_JWKS_URL
   ? createRemoteJWKSet(new URL(SUPABASE_JWKS_URL))
   : null;
 
+// Public-session cookie fallback — `/api/v1/auth/sign-in` issues a
+// `borjie-session` HttpOnly cookie that wraps the Supabase
+// access_token. When the browser hits a JWT-protected route without
+// an `Authorization` header we transparently rehydrate the bearer
+// from the cookie so the rest of the auth chain runs unchanged.
+import {
+  decodeSessionCookie,
+  readSessionCookie,
+} from '../auth/public/session-cookie';
+
 export interface AuthContext {
   userId: string;
   tenantId: string;
@@ -61,7 +71,23 @@ declare module 'hono' {
 export const authMiddleware = createMiddleware(async (c, next) => {
   const authHeader = c.req.header('Authorization');
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Resolve the bearer token: prefer the explicit Authorization header
+  // (for service-to-service calls), fall back to the `borjie-session`
+  // cookie issued by the public `/api/v1/auth/sign-in` flow. Browser
+  // clients use the cookie path exclusively so they never need to
+  // marshal the Authorization header themselves.
+  let token: string | undefined;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else {
+    const cookieValue = readSessionCookie(c.req.header('Cookie'));
+    const decoded = cookieValue ? decodeSessionCookie(cookieValue) : null;
+    if (decoded?.accessToken) {
+      token = decoded.accessToken;
+    }
+  }
+
+  if (!token) {
     return c.json(
       {
         success: false,
@@ -73,8 +99,6 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       401
     );
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     // Borjie: detect Supabase ES256 tokens by header alg + iss, verify via JWKS.

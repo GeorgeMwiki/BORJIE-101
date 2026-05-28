@@ -78,6 +78,7 @@ interface SupabaseAdminLike {
       createUser(args: {
         email: string;
         phone?: string;
+        password?: string;
         email_confirm?: boolean;
         phone_confirm?: boolean;
         app_metadata?: Record<string, unknown>;
@@ -135,53 +136,65 @@ function buildSupabaseAdminAdapter(args: {
   readonly client: SupabaseAdminLike | null;
   readonly logger: PinoLogger;
 }): OrgsSupabaseAdmin & SupabaseBuyerAdmin {
-  return {
-    async createUser(input) {
-      if (!args.client) {
-        // No client — surface as provider_unavailable so the route
-        // returns the documented 503.
-        return { ok: false, reason: 'provider_unavailable' as const };
-      }
-      try {
-        const res = await args.client.auth.admin.createUser({
-          email: input.email,
-          phone: input.phone,
-          email_confirm: false,
-          phone_confirm: false,
-          app_metadata: { ...input.appMetadata },
-          user_metadata: { ...input.userMetadata },
-        });
-        if (res.error) {
-          const reason = classifySupabaseError(res.error);
-          if (reason) {
-            return { ok: false, reason };
-          }
-          args.logger.warn(
-            { err: res.error.message, status: res.error.status },
-            'signup-wiring: supabase admin createUser failed',
-          );
-          return { ok: false, reason: 'provider_unavailable' as const };
+  // The createUser implementation must satisfy BOTH the orgs and buyers
+  // contracts. Returning a type-annotated promise prevents TS from
+  // widening `ok` to `boolean` (which breaks the discriminated-union
+  // expected by either branch's caller).
+  type CreateUserReturn = Awaited<ReturnType<OrgsSupabaseAdmin['createUser']>>;
+  const createUser = async (input: Parameters<OrgsSupabaseAdmin['createUser']>[0]): Promise<CreateUserReturn> => {
+    if (!args.client) {
+      // No client — surface as provider_unavailable so the route
+      // returns the documented 503.
+      return { ok: false, reason: 'provider_unavailable' as const };
+    }
+    try {
+      // Only attach `password` when set — `exactOptionalPropertyTypes`
+      // rejects `password: undefined` on a declared-optional field,
+      // and Supabase would interpret an undefined value as "no
+      // change" / fallback to a random password anyway.
+      const res = await args.client.auth.admin.createUser({
+        email: input.email,
+        phone: input.phone,
+        ...(input.password !== undefined ? { password: input.password } : {}),
+        email_confirm: input.emailConfirm ?? false,
+        phone_confirm: false,
+        app_metadata: { ...input.appMetadata },
+        user_metadata: { ...input.userMetadata },
+      });
+      if (res.error) {
+        const reason = classifySupabaseError(res.error);
+        if (reason) {
+          return { ok: false, reason };
         }
-        const user = res.data?.user;
-        if (!user) {
-          return { ok: false, reason: 'provider_unavailable' as const };
-        }
-        return {
-          ok: true,
-          user: {
-            id: user.id,
-            email: user.email ?? input.email,
-            phone: user.phone ?? input.phone,
-          },
-        };
-      } catch (err) {
         args.logger.warn(
-          { err: err instanceof Error ? err.message : String(err) },
-          'signup-wiring: supabase admin createUser threw',
+          { err: res.error.message, status: res.error.status },
+          'signup-wiring: supabase admin createUser failed',
         );
         return { ok: false, reason: 'provider_unavailable' as const };
       }
-    },
+      const user = res.data?.user;
+      if (!user) {
+        return { ok: false, reason: 'provider_unavailable' as const };
+      }
+      return {
+        ok: true,
+        user: {
+          id: user.id,
+          email: user.email ?? input.email,
+          phone: user.phone ?? input.phone,
+        },
+      };
+    } catch (err) {
+      args.logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'signup-wiring: supabase admin createUser threw',
+      );
+      return { ok: false, reason: 'provider_unavailable' as const };
+    }
+  };
+
+  return {
+    createUser,
     async sendPhoneOtp(input) {
       if (!args.client) return { delivered: false };
       try {
@@ -200,6 +213,64 @@ function buildSupabaseAdminAdapter(args: {
           'signup-wiring: supabase OTP send threw',
         );
         return { delivered: false };
+      }
+    },
+    /**
+     * Marketing-flow only — exchange email+password for a session at
+     * the Supabase REST surface. The admin client doesn't expose
+     * `signInWithPassword`, so we hit the public password-grant
+     * endpoint with the anon key. Refusal to bind when the anon key is
+     * absent surfaces as `provider_unavailable` so the caller can
+     * degrade to "pending_sign_in".
+     */
+    async signInWithPassword(input) {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? process.env.SUPABASE_URL?.trim();
+      const anonKey =
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? process.env.SUPABASE_ANON_KEY?.trim();
+      if (!url || !anonKey) {
+        return { ok: false, reason: 'provider_unavailable' as const };
+      }
+      try {
+        const res = await fetch(
+          `${url.replace(/\/+$/, '')}/auth/v1/token?grant_type=password`,
+          {
+            method: 'POST',
+            headers: {
+              apikey: anonKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: input.email, password: input.password }),
+          },
+        );
+        const json = (await res.json().catch(() => null)) as {
+          access_token?: string;
+          refresh_token?: string;
+          expires_in?: number;
+          expires_at?: number;
+        } | null;
+        if (!res.ok || !json?.access_token || !json?.refresh_token) {
+          if (res.status === 400 || res.status === 401) {
+            return { ok: false, reason: 'invalid_credentials' as const };
+          }
+          return { ok: false, reason: 'provider_unavailable' as const };
+        }
+        const nowSec = Math.floor(Date.now() / 1000);
+        const expiresAt =
+          typeof json.expires_at === 'number'
+            ? json.expires_at
+            : nowSec + (json.expires_in ?? 3600);
+        return {
+          ok: true,
+          accessToken: json.access_token,
+          refreshToken: json.refresh_token,
+          expiresAt,
+        };
+      } catch (err) {
+        args.logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'signup-wiring: signInWithPassword threw',
+        );
+        return { ok: false, reason: 'provider_unavailable' as const };
       }
     },
   };

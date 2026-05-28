@@ -1212,6 +1212,70 @@
     "alreadyHaveAccount": "Una akaunti tayari?",
     "signInLink": "Ingia"
   },
+  "ownerSignInPage": {
+    "metaTitle": "Ingia Borjie",
+    "metaDescription": "Ingia kwenye cockpit yako ya mmiliki Borjie.",
+    "kicker": "Cockpit ya Mmiliki",
+    "heading": "Karibu tena.",
+    "sub": "Ingia ili kuendesha mgodi wako.",
+    "fields": {
+      "email": "Barua pepe",
+      "emailEn": "Email",
+      "password": "Nenosiri",
+      "passwordEn": "Password"
+    },
+    "actions": {
+      "submit": "Ingia",
+      "submitting": "Inaingia"
+    },
+    "errors": {
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordRequired": "Nenosiri linahitajika",
+      "signInFailed": "Imeshindwa kuingia. Hakiki taarifa zako."
+    },
+    "fromSignup": "Akaunti imeundwa. Ingia kuanza kazi.",
+    "noAccountYet": "Huna akaunti?",
+    "signUpLink": "Jisajili"
+  },
+  "ownerSignUpPage": {
+    "metaTitle": "Unda akaunti ya Borjie",
+    "metaDescription": "Anzisha cockpit yako ya mmiliki Borjie ndani ya dakika mbili.",
+    "kicker": "Akaunti mpya ya Borjie",
+    "heading": "Anza na Borjie.",
+    "sub": "Anzisha mfumo wako wa uendeshaji wa mgodi ndani ya dakika mbili.",
+    "fields": {
+      "orgName": "Jina la mgodi au kampuni",
+      "orgNameSub": "Mine or company",
+      "ownerFullName": "Jina lako kamili",
+      "ownerFullNameSub": "Full name",
+      "email": "Barua pepe",
+      "emailSub": "Email",
+      "password": "Nenosiri",
+      "passwordSub": "Password",
+      "passwordHelp": "Angalau herufi 8.",
+      "country": "Nchi unayofanyia kazi"
+    },
+    "countries": {
+      "TZ": "Tanzania",
+      "KE": "Kenya",
+      "UG": "Uganda",
+      "NG": "Nigeria"
+    },
+    "actions": {
+      "submit": "Tengeneza cockpit yangu",
+      "submitting": "Inaunda"
+    },
+    "errors": {
+      "orgNameRequired": "Jina la mgodi au kampuni linahitajika",
+      "ownerFullNameRequired": "Weka jina lako kamili",
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordTooShort": "Nenosiri lazima liwe na herufi 8 au zaidi",
+      "signUpFailed": "Usajili umeshindikana. Jaribu tena au wasiliana na msaada."
+    },
+    "haveAccount": "Una akaunti tayari?",
+    "signInLink": "Ingia",
+    "disclaimer": "Tutakupelekea risiti kwa barua pepe. Uthibitisho wa BRELA na TRA unafanyika baada ya usajili; unaweza kutumia cockpit wakati unaendelea."
+  },
   "buyerSignInPage": {
     "metaTitle": "Ingia kama mnunuzi — Borjie",
     "metaDescription": "Ingia kwenye akaunti yako ya mnunuzi wa madini ya Borjie.",

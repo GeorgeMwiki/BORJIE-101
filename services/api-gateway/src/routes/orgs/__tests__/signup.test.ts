@@ -21,7 +21,7 @@
  *   - signupStatus is 'pending_otp_verification' + otpRequired=true
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { Hono } from 'hono';
 import {
   createOrgsRouter,
@@ -471,6 +471,76 @@ describe('POST /api/v1/orgs/signup · 503 provider failures', () => {
     });
     expect(r.status).toBe(503);
     expect(r.body.error).toBe('tenant_write_failed');
+  });
+});
+
+// ─── Marketing-form schema (launch-blocker fix) ─────────────────────
+
+describe('POST /api/v1/orgs/signup · marketing-form schema', () => {
+  beforeAll(() => {
+    process.env.COOKIE_SECRET =
+      'test-cookie-secret-at-least-16-chars-long-1234';
+  });
+
+  it('accepts the marketing form shape (orgName + ownerEmail + ownerPassword) and returns 201', async () => {
+    const stubs = buildStubs();
+    // Wire a stub signInWithPassword onto the supabase admin so the
+    // marketing branch can mint a session cookie.
+    (stubs.deps.supabaseAdmin as any).signInWithPassword = async (input: {
+      email: string;
+      password: string;
+    }) => ({
+      ok: true,
+      accessToken: `at_${input.email}`,
+      refreshToken: `rt_${input.email}`,
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const app = mountApp(stubs.deps);
+    const r = await post(app, {
+      orgName: 'Smoke Mine',
+      ownerEmail: 'smoke+1@borjie.test',
+      ownerPassword: 'SmokeOne2026!',
+      country: 'TZ',
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.success).toBe(true);
+    expect(r.body.tenantId).toBe('tn_test_1');
+    expect(r.body.ownerId).toBe('usr_test_1');
+    expect(r.body.signupStatus).toBe('active');
+    expect(r.body.session.access_token).toBe('at_smoke+1@borjie.test');
+    expect(stubs.tenantWrites).toHaveLength(1);
+    expect(stubs.tenantWrites[0]!.orgName).toBe('Smoke Mine');
+  });
+
+  it('returns 400 when ownerPassword is missing from the marketing shape', async () => {
+    const stubs = buildStubs();
+    const app = mountApp(stubs.deps);
+    const r = await post(app, {
+      orgName: 'Smoke Mine',
+      ownerEmail: 'smoke+2@borjie.test',
+    });
+    // Without ownerPassword the marketing detection fails AND the
+    // canonical kind-discriminator also fails — both branches answer
+    // 400 invalid_body which is the correct gate.
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe('invalid_body');
+  });
+
+  it('degrades to signupStatus=pending_sign_in when signInWithPassword is unbound', async () => {
+    const stubs = buildStubs();
+    // No signInWithPassword attached — marketing flow should still
+    // create the tenant + owner but not mint a session.
+    const app = mountApp(stubs.deps);
+    const r = await post(app, {
+      orgName: 'Pending Mine',
+      ownerEmail: 'pending@borjie.test',
+      ownerPassword: 'PendingPwd1234!',
+      country: 'KE',
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.signupStatus).toBe('pending_sign_in');
+    expect(r.body.session).toBeNull();
+    expect(stubs.tenantWrites).toHaveLength(1);
   });
 });
 
