@@ -27,7 +27,7 @@ describe('HomeShell', () => {
 
   it('renders the full-screen shell with the locked canonical persona header', () => {
     // Display identity is locked — the header always shows
-    // "Mr. Mwikila — Borjie's AI Mining Operations Manager",
+    // "Mr. Mwikila — Borjie's AI Managing Director",
     // regardless of which internal specialisation routed the turn.
     // See CAPABILITIES_UNIFICATION.md "User-facing identity is locked".
     render(<HomeShell {...baseProps()} />);
@@ -35,7 +35,7 @@ describe('HomeShell', () => {
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Operations Manager",
+      "Borjie's AI Managing Director",
     );
   });
 
@@ -79,7 +79,7 @@ describe('HomeShell', () => {
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Operations Manager",
+      "Borjie's AI Managing Director",
     );
     expect(header.textContent ?? '').not.toContain('Safety Officer');
   });
@@ -96,7 +96,7 @@ describe('HomeShell', () => {
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Operations Manager",
+      "Borjie's AI Managing Director",
     );
     expect(header.textContent ?? '').not.toContain('Marketplace Concierge');
   });

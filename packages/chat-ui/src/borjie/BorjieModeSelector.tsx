@@ -64,17 +64,21 @@ export function BorjieModeSelector({
 
   const ariaLabel = language === 'sw' ? 'Chagua hali ya Borjie' : 'Choose Borjie mode';
 
+  // Inline visual mirrors LitFin's header tool buttons — translucent
+  // chip on the gold-gradient header bar. The native <select> chrome is
+  // forced quiet (transparent background, no double border) so it reads
+  // as a header tool, not a free-floating form input.
   return (
     <label
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
-        fontSize: 11,
-        color: '#475569',
+        gap: 0,
+        fontSize: 10,
+        color: 'rgba(23, 16, 10, 0.78)',
       }}
     >
-      <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+      <span style={{ position: 'absolute', left: -9999, top: -9999 }}>
         {language === 'sw' ? 'Hali' : 'Mode'}
       </span>
       <select
@@ -84,18 +88,29 @@ export function BorjieModeSelector({
         onChange={onSelect}
         disabled={disabled}
         style={{
-          background: '#fff',
-          border: '1px solid #cbd5e1',
-          borderRadius: 8,
-          padding: '4px 8px',
-          fontSize: 12,
-          color: '#0f172a',
+          background: 'rgba(255, 255, 255, 0.32)',
+          border: '1px solid rgba(23, 16, 10, 0.20)',
+          borderRadius: 999,
+          padding: '4px 22px 4px 10px',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.02em',
+          color: '#17100A',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
+          appearance: 'none',
+          WebkitAppearance: 'none',
+          MozAppearance: 'none',
+          backgroundImage:
+            'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2317100A\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M6 9l6 6 6-6\'/></svg>")',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 7px center',
+          backgroundSize: '10px 10px',
+          outline: 'none',
         }}
       >
         {MODE_ORDER.map((m) => (
-          <option key={m} value={m}>
+          <option key={m} value={m} style={{ color: '#0F172A', background: '#FFFFFF' }}>
             {MODE_LABELS[m][language]}
           </option>
         ))}

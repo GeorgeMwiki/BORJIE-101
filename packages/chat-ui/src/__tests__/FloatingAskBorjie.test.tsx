@@ -64,7 +64,7 @@ describe('FloatingAskBorjie', () => {
     fireEvent.click(fab);
     const panel = await screen.findByTestId('borjie-chat-panel');
     expect(panel).toBeInTheDocument();
-    expect(panel.textContent ?? '').toMatch(/AI mining operations manager/i);
+    expect(panel.textContent ?? '').toMatch(/AI Managing Director/i);
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/v1/public/chat',

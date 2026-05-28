@@ -536,6 +536,12 @@ function BorjieKeyframes(): JSX.Element {
         0% { transform: translateY(6px); opacity: 0; }
         100% { transform: translateY(0); opacity: 1; }
       }
+      @keyframes borjie-header-gloss {
+        0% { transform: translateX(0); opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { transform: translateX(450%); opacity: 0; }
+      }
     `}</style>
   );
 }

@@ -64,13 +64,13 @@
     "swahiliFirstBadge": "English-first · Swahili",
     "pill": "Tanzanian-first · AI-native",
     "headline": "Run your mine on autopilot.",
-    "sub": "AI Mining Operations Manager. Drafts your royalty filings, hedges the gold window, supervises your shifts, files your compliance. You sign once.",
+    "sub": "AI Managing Director. Drafts your royalty filings, hedges the gold window, supervises your shifts, files your compliance. You sign once.",
     "ctaPilot": "Start the 90-day pilot",
     "ctaDemo": "Watch a 60s demo",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
     "chat": {
       "assistant": "Mr. Mwikila",
-      "role": "AI Mining Operations Officer",
+      "role": "AI Managing Director",
       "live": "Live",
       "ask": "Ask Borjie anything…",
       "timestamp": "Just now",
@@ -85,7 +85,7 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Hi, I'm Mr. Mwikila, Borjie's AI Mining Operations Officer. What brings you here today?"
+          "body": "Hi, I'm Mr. Mwikila, Borjie's AI Managing Director. What brings you here today?"
         },
         {
           "role": "user",
@@ -639,7 +639,7 @@
       "kicker": "Meet Mr. Mwikila",
       "title": "Seven modes, one calm operator.",
       "titleAccent": "Switch tabs to see them work.",
-      "sub": "Mr. Mwikila is Borjie's AI Mining Operations Manager. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, hedging your gold at the LBMA window. Pick a mode to see what he does.",
+      "sub": "Mr. Mwikila is Borjie's AI Managing Director. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, hedging your gold at the LBMA window. Pick a mode to see what he does.",
       "modes": [
         {
           "id": "build",
