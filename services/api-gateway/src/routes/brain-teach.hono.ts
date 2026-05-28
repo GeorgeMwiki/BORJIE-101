@@ -81,6 +81,7 @@ import {
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
 import { parseBoardElements } from './board-element-parser';
+import { parseSuperpowers } from './ui-navigate-parser';
 import {
   isHighStakes,
   runDebate,
@@ -777,7 +778,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     const inlineResult = parseInlineBlocks(boardResult.body);
     const uiResult = extractUiBlock(inlineResult.body);
     const metricsResult = extractInlineMetrics(uiResult.body);
-    const { clean, ids, actions } = extractCitations(metricsResult.body);
+    // Wave SUPERPOWERS - strip the 6 chip families AFTER all other
+    // primitives so an accidental `<ui_share>` inside a teaching
+    // ui_block is left intact.
+    const superpowersResult = parseSuperpowers(metricsResult.body);
+    const { clean, ids, actions } = extractCitations(superpowersResult.body);
 
     // Emit debate metadata BEFORE the message_chunks so the FE renders
     // the "Verified ✓ 3-model debate" badge above the assistant bubble
@@ -894,6 +899,53 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // Wave SUPERPOWERS - emit one SSE event per parsed chip family.
+    // Order: navigates first (cheapest), then prefills, then highlights,
+    // then shares, bulks, bookmarks. The FE renders each as its own
+    // chip beneath the assistant bubble.
+    for (const navigate of superpowersResult.navigates) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_navigate',
+        data: JSON.stringify({ chip: navigate, at: new Date().toISOString() }),
+      });
+    }
+    for (const prefill of superpowersResult.prefills) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_prefill',
+        data: JSON.stringify({ chip: prefill, at: new Date().toISOString() }),
+      });
+    }
+    for (const highlight of superpowersResult.highlights) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_highlight',
+        data: JSON.stringify({ chip: highlight, at: new Date().toISOString() }),
+      });
+    }
+    for (const share of superpowersResult.shares) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_share',
+        data: JSON.stringify({ chip: share, at: new Date().toISOString() }),
+      });
+    }
+    for (const bulk of superpowersResult.bulks) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_bulk',
+        data: JSON.stringify({ chip: bulk, at: new Date().toISOString() }),
+      });
+    }
+    for (const bookmark of superpowersResult.bookmarks) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: 'ui_bookmark',
+        data: JSON.stringify({ chip: bookmark, at: new Date().toISOString() }),
+      });
+    }
+
     // Spawn-tab candidates — the brain emitted one or more <spawn_tabs>
     // intents alongside its primary teaching block. The FE renders these
     // as "Suggested tab" chips under the assistant bubble; clicking
@@ -959,6 +1011,15 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         board_elements: boardResult.elements.length,
         board_element_types: boardResult.elements.map((e) => e.type),
         board_dropped: boardResult.dropped,
+        superpowers: {
+          navigates: superpowersResult.navigates.length,
+          prefills: superpowersResult.prefills.length,
+          highlights: superpowersResult.highlights.length,
+          shares: superpowersResult.shares.length,
+          bulks: superpowersResult.bulks.length,
+          bookmarks: superpowersResult.bookmarks.length,
+          dropped: superpowersResult.dropped,
+        },
         brain_state: {
           degraded: degradedBrain,
           consecutiveFailures: degradedStreak,
