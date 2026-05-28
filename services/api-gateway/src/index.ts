@@ -417,6 +417,17 @@ import {
   createIntelligenceHistorySupervisor,
 } from './composition/background-wiring';
 import { setBrainExtraSkills } from './composition/brain-extensions';
+// Wave CLOSED-LOOP - every WRITE brain tool earns a predicted_outcome
+// row in outcome_predictions BEFORE the handler runs. The reconciler
+// (workers/outcome-reconciliation-worker.ts) closes the loop after the
+// horizon elapses. Wrapper-applied at registration so no descriptor
+// file changes.
+import {
+  wrapWritesWithOutcomePrediction,
+  unmodeledPredictor,
+  type WriteToolIdSet,
+} from './composition/brain-tools/outcome-predictor';
+import { listPersonaToolDescriptors } from './composition/brain-tools';
 import { createDrizzleDraftPersistence } from './services/document-drafter';
 import { buildDocumentDrafterTools } from './services/document-drafter/brain-tools';
 import { createDrizzleRevisionsPersistence } from './services/document-drafter/revisions-persistence';
@@ -832,14 +843,43 @@ try {
   });
   const mediaTools = buildMediaGenerationTools();
 
-  setBrainExtraSkills([orgSkill, ...draftTools, freeFormTool, ...mediaTools]);
+  // Build the WRITE-tool set from the persona descriptor catalog plus
+  // every tool registered here that mutates state (draft_*, free-form
+  // draft, media generation). We use it to know which extras to wrap
+  // with `withOutcomePrediction`. Read-only tools pass through.
+  const personaWriteIds = new Set<string>(
+    listPersonaToolDescriptors()
+      .filter((d) => d.isWrite === true)
+      .map((d) => d.id),
+  );
+  // The drafter / freeform / media tools all mutate state - none of
+  // them are read-only. We add them to the WRITE set by tool name so
+  // the wrapper covers them too.
+  for (const t of draftTools) personaWriteIds.add(t.name);
+  personaWriteIds.add(freeFormTool.name);
+  for (const t of mediaTools) personaWriteIds.add(t.name);
+  const writeIds: WriteToolIdSet = personaWriteIds;
+
+  const rawSkills = [orgSkill, ...draftTools, freeFormTool, ...mediaTools];
+  const wrappedSkills = wrapWritesWithOutcomePrediction(rawSkills, writeIds, {
+    db: (serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> }) ?? null,
+    logger,
+    predictor: unmodeledPredictor,
+    disabled:
+      process.env.NODE_ENV === 'test' ||
+      process.env.BORJIE_OUTCOME_PREDICTOR_DISABLED === 'true',
+  });
+  setBrainExtraSkills(wrappedSkills);
   logger.info(
     {
       drafterToolCount: draftTools.length,
       freeFormToolEnabled: true,
       mediaToolCount: mediaTools.length,
+      writeToolsWrapped: Array.from(writeIds).filter((id) =>
+        rawSkills.some((s) => s.name === id),
+      ).length,
     },
-    'brain-extensions: org.query_organization + document-drafter + free-form + media-generation skills wired',
+    'brain-extensions: org.query_organization + document-drafter + free-form + media-generation skills wired (WRITE tools wrapped with outcome-predictor)',
   );
 } catch (err) {
   logger.warn(
