@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
+import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
 import {
   Card,
   CardContent,
@@ -283,6 +284,28 @@ export default async function OwnerDashboardPage() {
             />
           </CardContent>
         </Card>
+      </section>
+
+      {/* Wave OWNER-OS — owner operating system shell. Tab strip with
+          live chat (drop-zone), Docs, Drafts, Reminders, Insights.
+          Sits BETWEEN the cards above and the static brief below so the
+          owner can drop a file or check a reminder without scrolling. */}
+      <section
+        aria-labelledby="owner-os-heading"
+        className="space-y-3"
+        data-testid="owner-os-section"
+      >
+        <h2
+          id="owner-os-heading"
+          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+        >
+          {isSw ? 'Mr. Mwikila — mfumo wako' : 'Mr. Mwikila — your operating system'}
+        </h2>
+        <OwnerOSShell
+          salutation={session.salutation}
+          tradingName={session.tenant.legalName ?? 'Borjie'}
+          languagePreference={session.languagePreference}
+        />
       </section>
 
       {/* 6. Live BFF surface */}
