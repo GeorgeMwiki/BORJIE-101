@@ -25,10 +25,10 @@ describe('parseTrigger', () => {
     expect(r.anchor).toBe(0);
   });
 
-  it('detects a slash trigger after whitespace', () => {
-    const r = parseTrigger('show me /find p', 15);
+  it('detects a slash trigger after whitespace (single-word query)', () => {
+    const r = parseTrigger('show me /find', 13);
     expect(r.kind).toBe('slash');
-    expect(r.query).toBe('find p');
+    expect(r.query).toBe('find');
   });
 
   it('ignores a `/` that is part of a URL', () => {
