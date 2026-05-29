@@ -341,6 +341,15 @@ import {
   type OutboxRunnerLike,
 } from './workers/outbox-worker';
 import { createCaseSLASupervisor } from './workers/cases-sla-supervisor';
+// Geo SOTA 2026-05-29 — geofencing service + watcher worker. Backed by
+// PostGIS (migration 0130). Watcher ticks every 30s, emits
+// worker_offsite_alert + worker_in_hazard_alert. See
+// Docs/RESEARCH/GEO_SOTA_2026-05-29.md §2.
+import { createGeofencingService } from './services/geofencing/index.js';
+import {
+  createGeofenceWatcher,
+  type GeofenceAlertSink,
+} from './workers/geofence-watcher.js';
 import { createLeaseExpiryAlertCron } from './workers/lease-expiry-alert-cron';
 import type {
   NotificationSender as LeaseExpiryNotificationSender,
@@ -431,6 +440,10 @@ import { externalPartiesRouter as opsExternalPartiesRouter } from './routes/ops/
 import { engagementsRouter as opsEngagementsRouter } from './routes/ops/engagements.hono';
 import { chainOfCustodyRouter as opsChainOfCustodyRouter } from './routes/ops/chain-of-custody.hono';
 import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/ops/regulatory-filings.hono';
+// Geo SOTA 2026-05-29 — Tanzania regulatory zone lookup (PCCB / NEMC /
+// EITI). Tenant-agnostic; reads from regulatory_zones via the
+// geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
+import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 // Wave CLOSED-LOOP - 6h reconciliation worker. Walks outcome_predictions
 // whose horizon has elapsed, resolves the entity's current state, computes
@@ -1722,6 +1735,9 @@ api.route('/ops/external-parties', opsExternalPartiesRouter);
 api.route('/ops/engagements', opsEngagementsRouter);
 api.route('/ops/chain-of-custody', opsChainOfCustodyRouter);
 api.route('/ops/regulatory-filings', opsRegulatoryFilingsRouter);
+// Geo SOTA 2026-05-29 — Tanzania regulatory zone lookup. Auth-required
+// (rate-limit + audit) but tenant-agnostic.
+api.route('/regulatory/zones', regulatoryZonesRouter);
 // Wave WORKFORCE-FIXED-TABS — mount BEFORE wildcard owner mounts so the
 // more specific `/owner/workforce/*` paths win lookup order.
 api.route('/owner/workforce', workforceTabConfigOwnerRouter);
@@ -1974,6 +1990,51 @@ const intelligenceHistorySupervisor = createIntelligenceHistorySupervisor(
 // overdue cases and emitting CaseSLABreached events once the ceiling is
 // hit. No-op in degraded mode.
 const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
+
+// Geo SOTA 2026-05-29 — geofencing service backed by PostGIS (migration
+// 0130). Wraps point-in-polygon / distance / regulatory-zone queries
+// behind one typed surface. The watcher worker (next) reads recent
+// workforce_locations fixes every 30s and emits off-site / in-hazard
+// alerts. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md.
+const geofencingService = serviceRegistry.db
+  ? createGeofencingService({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+    })
+  : null;
+const geofenceWatcherAlertSink: GeofenceAlertSink = {
+  // Pino-friendly placeholder sink — the WhatsApp/SMS dispatcher and
+  // owner cockpit event bus wire-up land in a follow-up. For now we
+  // log the alert with full payload so the audit trail records it.
+  async emit(alert) {
+    logger.info(
+      {
+        alertKind: alert.kind,
+        tenantId: alert.tenantId,
+        employeeId: alert.employeeId,
+        idempotencyKey: alert.idempotencyKey,
+        capturedAt: alert.capturedAt,
+        ...(alert.kind === 'worker_offsite_alert' && {
+          expectedSiteId: alert.expectedSiteId,
+          distanceMeters: alert.distanceMeters,
+        }),
+        ...(alert.kind === 'worker_in_hazard_alert' && {
+          hazardId: alert.hazardId,
+          severity: alert.severity,
+        }),
+      },
+      'geofence-watcher: alert emitted',
+    );
+  },
+};
+const geofenceWatcher =
+  serviceRegistry.db && geofencingService
+    ? createGeofenceWatcher({
+        db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        geofencing: geofencingService,
+        alertSink: geofenceWatcherAlertSink,
+        logger,
+      })
+    : { start() {}, stop() {}, async tickOnce() {} };
 
 // Wave 15 — TRC pilot. Daily scan of `leases.end_date` against the
 // 60/30/7/1-day warning windows. Dispatches via the existing notifications
@@ -2311,6 +2372,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: cases SLA stop failed');
   }
   try {
+    geofenceWatcher.stop();
+    logger.info('shutdown: geofence watcher stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: geofence watcher stop failed');
+  }
+  try {
     leaseExpiryCron.stop();
     logger.info('shutdown: lease-expiry cron stopped');
   } catch (err) {
@@ -2469,6 +2536,9 @@ if (require.main === module) {
   // Wave 26 — start the Cases SLA supervisor alongside the other
   // background workers. Skipped in tests + when disabled by env.
   casesSlaSupervisor.start();
+  // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
+  // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
+  geofenceWatcher.start();
   // Wave 15 — start the lease-expiry alert cron. Ticks daily, scans
   // for leases at 60/30/7/1-day expiry windows, idempotent via
   // notification_dispatch_log.idempotency_key.
