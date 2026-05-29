@@ -43,6 +43,11 @@ export * from './marketplace-bids.schema.js';
 export * from './risks-tasks.schema.js';
 export * from './fingerprint-events.schema.js';
 export * from './intelligence-corpus.schema.js';
+// Wave COMPANY-BRAIN (C-1) — lossless ingestion lineage.
+//   - corpus_doc_uploads:    pending → parsing → chunking → embedded → indexed
+//   - corpus_doc_summaries:  bilingual digest per upload (en + sw)
+// Append-only memory tables; see Docs/OPS/MEMORY_DURABILITY.md.
+export * from './corpus-doc-uploads.schema.js';
 
 // Mining-domain extensions (migration 0005)
 export * from './buyer-extensions.schema.js';

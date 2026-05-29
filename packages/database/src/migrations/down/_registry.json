@@ -146,6 +146,13 @@
       "reverses": "CREATE TABLE device_push_tokens + uniqueness + RLS (push token registry for the bidirectional notification receiver loop)",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0140_corpus_doc_uploads.sql",
+      "down": "down/0140_down_corpus_doc_uploads.sql",
+      "reverses": "CREATE TABLE corpus_doc_uploads + corpus_doc_summaries + RLS (Company-Brain lossless ingestion — Wave COMPANY-BRAIN C-1)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
