@@ -1217,3 +1217,10 @@ export * from './personal-memory.schema.js';
 // attempts, tool-use violations, output-filter blocks, generic signals,
 // and red-team runs.
 export * from './agent-security.schema.js';
+
+// Wave COMPLIANCE-RESTORE — `compliance_exports` (migration 0122).
+// Restored from BossNyumba archive: the Borjie compliance route surface
+// (`/api/v1/compliance` + `/api/v1/compliance/exports`) still depends
+// on it for TZ_TRA / KE_DPA / KE_KRA / TZ_LAND_ACT regulator-facing
+// manifest rows.
+export * from './compliance-exports.schema.js';

@@ -73,6 +73,7 @@ import { SlashMenu, AtMenu } from './ComposerMenu'
 import { fetchRecentEntities } from './recentEntities'
 import {
   R7_TIMINGS,
+  applyAck,
   applyMessageChunk,
   applyStreamError,
   applyToolCall,
@@ -171,6 +172,12 @@ export function HomeChat() {
         }
         if (event.kind === 'accepted' && event.data.type === 'accepted') {
           return applyTurnAccepted(prev, event.data.threadId)
+        }
+        if (event.kind === 'ack' && event.data.type === 'ack') {
+          // Ack-fast: seeds the assistant bubble with the deterministic
+          // Swahili-first placeholder so the user sees a "thinking…"
+          // bubble inside one frame of pressing Send.
+          return applyAck(prev, event.data.text)
         }
         if (event.kind === 'message_chunk' && event.data.type === 'message_chunk') {
           return applyMessageChunk(prev, event.data.delta)
@@ -573,6 +580,8 @@ async function runStream(
       onEvent(optimistic.id, event)
       if (event.kind === 'accepted' && event.data.type === 'accepted') {
         working = applyTurnAccepted(working, event.data.threadId)
+      } else if (event.kind === 'ack' && event.data.type === 'ack') {
+        working = applyAck(working, event.data.text)
       } else if (
         event.kind === 'message_chunk' &&
         event.data.type === 'message_chunk'

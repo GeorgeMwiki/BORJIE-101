@@ -39,6 +39,13 @@ export interface LiveTurn {
   readonly kind: LiveTurnKind
   readonly errorMessage: string | null
   readonly startedAtMs: number
+  /**
+   * True while `text` holds the ack-fast placeholder, false once any
+   * real model token has arrived. Used by `applyMessageChunk` to
+   * overwrite the placeholder with the first real delta, avoiding the
+   * `Karibu, ninafikiri…Salaam,` concatenation glitch.
+   */
+  readonly isAckText?: boolean
 }
 
 export interface SettledTurn {
@@ -81,14 +88,47 @@ export function applyTurnAccepted(turn: LiveTurn, threadId: string): LiveTurn {
   }
 }
 
-export function applyMessageChunk(turn: LiveTurn, delta: string): LiveTurn {
+/**
+ * applyAck — ack-fast Swahili-first placeholder.
+ *
+ * Seeds the assistant bubble with the deterministic "thinking…" text
+ * emitted by the gateway in <100 ms (Docs/RESEARCH/mobile-chat-latency-
+ * ux.md §4.2). Treated as a one-shot replacement of the empty `text`
+ * field — subsequent `message_chunk` deltas overwrite it cleanly by
+ * resetting on first non-empty delta. Idempotent: re-applying the same
+ * ack is a no-op.
+ */
+export function applyAck(turn: LiveTurn, ackText: string): LiveTurn {
   if (turn.kind === 'failed') {
+    return turn
+  }
+  // Only seed if the bubble has no real content yet (text is empty or
+  // exactly the ack text already). Once tokens start streaming we never
+  // overwrite — the real model output takes priority.
+  if (turn.text.length > 0 && turn.text !== ackText) {
     return turn
   }
   return {
     ...turn,
-    text: turn.text + delta,
-    kind: 'streaming'
+    text: ackText,
+    isAckText: true,
+    kind: turn.kind === 'pending' ? 'streaming' : turn.kind
+  }
+}
+
+export function applyMessageChunk(turn: LiveTurn, delta: string): LiveTurn {
+  if (turn.kind === 'failed') {
+    return turn
+  }
+  // When the bubble still holds the ack-fast placeholder, the first
+  // real model chunk REPLACES it rather than concatenating. After that
+  // we accumulate normally.
+  const startingText = turn.isAckText === true ? '' : turn.text
+  return {
+    ...turn,
+    text: startingText + delta,
+    kind: 'streaming',
+    isAckText: false
   }
 }
 

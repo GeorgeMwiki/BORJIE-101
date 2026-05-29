@@ -52,6 +52,7 @@ import {
   type BrainStreamEvent
 } from '../chat/brainTurn'
 import {
+  applyAck,
   applyMessageChunk,
   applyStreamError,
   applyToolCall,
@@ -167,6 +168,31 @@ describe('parseFrame — SSE envelope decoding (buyer)', () => {
     }
   })
 
+  it('decodes an ack-fast frame with sw text + lang (G1 / G4)', () => {
+    const parsed = parseFrame({
+      data: frame({ event: 'ack', text: 'Karibu, ninafikiri…', lang: 'sw' })
+    })
+    expect(parsed?.kind).toBe('ack')
+    if (parsed && parsed.data.type === 'ack') {
+      expect(parsed.data.text).toBe('Karibu, ninafikiri…')
+      expect(parsed.data.lang).toBe('sw')
+    }
+  })
+
+  it('decodes an ack-fast frame in English', () => {
+    const parsed = parseFrame({
+      data: frame({ event: 'ack', text: 'Got it, thinking…', lang: 'en' })
+    })
+    expect(parsed?.kind).toBe('ack')
+    if (parsed && parsed.data.type === 'ack') {
+      expect(parsed.data.lang).toBe('en')
+    }
+  })
+
+  it('returns null for an ack-fast frame with empty text', () => {
+    expect(parseFrame({ data: frame({ event: 'ack', text: '', lang: 'sw' }) })).toBeNull()
+  })
+
   it('decodes a message_chunk frame and exposes the delta', () => {
     const parsed = parseFrame({ data: frame({ event: 'message_chunk', delta: 'Karibu' }) })
     expect(parsed?.kind).toBe('message_chunk')
@@ -224,6 +250,29 @@ describe('chatTurns — buyer reducer state machine', () => {
     const t = applyTurnAccepted(optimisticTurn('hi'), 'thr-9')
     expect(t.kind).toBe('streaming')
     expect(t.threadId).toBe('thr-9')
+  })
+
+  it('applyAck seeds the assistant bubble with the placeholder + flags it', () => {
+    const t = applyAck(optimisticTurn('hi'), 'Karibu, ninafikiri…')
+    expect(t.text).toBe('Karibu, ninafikiri…')
+    expect(t.isAckText).toBe(true)
+    expect(t.kind).toBe('streaming')
+  })
+
+  it('applyMessageChunk REPLACES the ack-fast placeholder on first real delta', () => {
+    const seeded = applyAck(optimisticTurn('hi'), 'Karibu, ninafikiri…')
+    const real = applyMessageChunk(seeded, 'Salaam,')
+    expect(real.text).toBe('Salaam,') // ack was replaced, not concatenated
+    expect(real.isAckText).toBe(false)
+    const more = applyMessageChunk(real, ' rafiki')
+    expect(more.text).toBe('Salaam, rafiki')
+  })
+
+  it('applyAck is a no-op once the bubble already has real text', () => {
+    const seeded = applyAck(optimisticTurn('hi'), 'Karibu, ninafikiri…')
+    const withReal = applyMessageChunk(seeded, 'Real reply text')
+    const reAck = applyAck(withReal, 'Another ack')
+    expect(reAck.text).toBe('Real reply text') // not overwritten
   })
 
   it('applyMessageChunk concatenates deltas immutably', () => {

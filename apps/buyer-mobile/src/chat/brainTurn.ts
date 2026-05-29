@@ -45,6 +45,7 @@ export async function postBrainTurn(input: BrainTurnRequest): Promise<BrainTurnR
 
 export type BrainStreamEventKind =
   | 'accepted'
+  | 'ack'
   | 'message_chunk'
   | 'tool_call'
   | 'done'
@@ -57,6 +58,14 @@ export interface BrainStreamEvent {
 
 export type BrainStreamData =
   | { readonly type: 'accepted'; readonly threadId: string }
+  /**
+   * Ack-fast: deterministic sub-100 ms Swahili-first placeholder emitted
+   * by the gateway before any orchestrator work. The HomeChat surface
+   * renders this as the first assistant-bubble fragment so the user sees
+   * a "thinking…" bubble inside one frame of pressing Send. See
+   * `Docs/RESEARCH/mobile-chat-latency-ux.md` §4.2 / §11 (SHIPPED).
+   */
+  | { readonly type: 'ack'; readonly text: string; readonly lang: 'sw' | 'en' }
   | { readonly type: 'message_chunk'; readonly delta: string }
   | { readonly type: 'tool_call'; readonly toolCall: ToolCall }
   | { readonly type: 'done'; readonly threadId: string; readonly tokensUsed: number }
@@ -274,6 +283,15 @@ function parseTypedFrame(
       return null
     }
     return { kind: 'accepted', data: { type: 'accepted', threadId } }
+  }
+  if (eventType === 'ack') {
+    const text = typeof record['text'] === 'string' ? record['text'] : ''
+    if (text.length === 0) {
+      return null
+    }
+    const langRaw = typeof record['lang'] === 'string' ? record['lang'] : 'sw'
+    const lang: 'sw' | 'en' = langRaw === 'en' ? 'en' : 'sw'
+    return { kind: 'ack', data: { type: 'ack', text, lang } }
   }
   if (eventType === 'message_chunk') {
     const delta = typeof record['delta'] === 'string' ? record['delta'] : ''
