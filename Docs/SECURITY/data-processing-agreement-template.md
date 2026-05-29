@@ -162,8 +162,9 @@ cross-border transfer to the EU.
   (`services/api-gateway/src/__tests__/cross-tenant-isolation.test.ts`).
 
 ### 6.8 Incident response
-- 72-hour PCCB breach notification per PDPA s.51; runbook stub
-  `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md` (final ship with #194).
+- 72-hour PCCB breach notification per PDPA s.51; full operational
+  runbook at `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md` (shipped
+  2026-05-29).
 - On-call rotation; security@borjie.co.tz mailbox; PCCB liaison
   contact.
 

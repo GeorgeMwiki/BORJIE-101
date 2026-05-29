@@ -21,7 +21,7 @@ and `Docs/SECURITY/THREAT_MODEL_2026.md` §7.
 | s.23 | DSR right-to-erasure | `POST /api/v1/gdpr/delete-request` exists (`services/api-gateway/src/routes/gdpr.router.ts`); PCCB-specific `POST /api/v1/me/erase` being shipped by #194 — verify after land | GREEN-pending-#194 |
 | s.27 | DSR right-to-access | `GET /api/v1/gdpr/data-export` exists | GREEN |
 | s.39 | Cross-border transfer | Supabase project hosts data in `eu-central-1` (Frankfurt). PCCB requires recipient-country adequacy paperwork OR EAC residency. **GAP — see §3.** | FLAGGED |
-| s.51 | Breach notify (72h clock) | Runbook stub `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md` (to be shipped with #194); incident-detection wired via cross-org denial recorder + Sentry alerts | GREEN-pending-runbook |
+| s.51 | Breach notify (72h clock) | Runbook `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md` SHIPPED 2026-05-29 (residuals-closure sweep); incident-detection wired via cross-org denial recorder + Sentry alerts | GREEN |
 
 ---
 
@@ -145,7 +145,7 @@ If a future commit shortens `DEFAULT_PII_FIELDS` in
 | DSR right-to-access | GREEN | `/gdpr/data-export` |
 | DSR right-to-erasure | GREEN-pending-#194 | Existing `/gdpr/delete-request`; self-service `/me/erase` from #194 |
 | Cross-border transfer | FLAGGED | Phase-1 SCC paperwork required before launch — owner #194 + #200 |
-| Breach notify (72h) | GREEN-pending-runbook | Runbook stub being shipped with #194 |
+| Breach notify (72h) | GREEN | Runbook shipped 2026-05-29 (`RUNBOOK_BREACH_NOTIFY.md`); #194 retains the `POST /api/v1/me/erase` endpoint scope only |
 | Consent ledger | GREEN | Audit-chain entries on grant / withdraw |
 | Data residency long-term | ROADMAPPED | Phase 2 (Q3) + Phase 3 (Q4) |
 

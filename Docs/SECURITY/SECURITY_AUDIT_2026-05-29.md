@@ -250,8 +250,11 @@ applies the following to every `/(.*)`:
 ### Breach-notification process
 - `Docs/SECURITY/THREAT_MODEL_2026.md` §7 documents the 72-hour PCCB
   notify clock per PDPA s.51.
-- Runbook stub: `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md` (to be shipped
-  with #194).
+- Runbook SHIPPED 2026-05-29 (residuals-closure sweep):
+  `Docs/SECURITY/RUNBOOK_BREACH_NOTIFY.md`. Documents start-pause-stop
+  of the 72h clock, severity matrix, containment 60-min SLO, exact
+  PCCB filing procedure, bilingual sw/en data-subject notification
+  template, and a quarterly tabletop cadence.
 
 ---
 
