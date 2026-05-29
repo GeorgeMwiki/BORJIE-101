@@ -48,8 +48,12 @@ async function probe(label, role, method, path, body) {
     init.body = JSON.stringify(body)
     init.headers['Content-Type'] = 'application/json'
   }
+  // SSE chat probes need a longer ceiling — the upstream LLM can take
+  // 4-6s end-to-end on a cold call. Non-streaming JSON probes stay
+  // tight so a hung handler still surfaces quickly.
+  const timeoutMs = method === 'POST' ? 30_000 : 6_000
   const ac = new AbortController()
-  const timer = setTimeout(() => ac.abort(), 6_000)
+  const timer = setTimeout(() => ac.abort(), timeoutMs)
   init.signal = ac.signal
   try {
     const response = await fetch(url, init)
