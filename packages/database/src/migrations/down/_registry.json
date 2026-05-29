@@ -118,6 +118,13 @@
       "reverses": "CREATE TABLE oauth_agent_tokens + oauth_device_codes + indexes + RLS",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0119_draft_revisions_provenance_catchup.sql",
+      "down": "down/0119_down_draft_revisions_provenance_catchup.sql",
+      "reverses": "ADD COLUMN provenance + draft_revisions_provenance_gin (catch-up for the only 0101 table that didn't exist when 0101 ran)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
