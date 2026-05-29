@@ -214,4 +214,138 @@ into a confirmed pass.
   6. **Pre-cut smoke:** Y1 — run the smoke runner once the gateway is booted; expected GREEN.
 - After all 8 RED blockers clear and the smoke matrix returns GREEN, repeat this verification; only then re-evaluate launch readiness.
 
-— end of report
+— end of original report
+
+---
+
+# Post-Remediation Update — 2026-05-29 (PM)
+
+> Second pass after the 8-blocker fix wave (commits 5ab7f99b → ccba9050).
+> Re-verified the 5 surfaces and tallied which RED blockers cleared, which
+> new RED items emerged, and what remains open.
+
+## 7. Final verdict (post-fix): RED (NO-GO)
+
+**Launch ready:** `false`
+
+**Recommendation:** Hold the launch. The 8 originally-flagged blockers
+all cleared (8/8 FIXED, evidence below), but the re-verify pass
+surfaced 4 *new* RED items that were latent and not visible in the
+first pass:
+
+1. `packages/database` typecheck regression in
+   `src/seeds/borjie-mining-demo.seed.ts` — 12 TS2769 errors in a single
+   file (postgres-js sql`` template overload mismatches).
+2. `apps/owner-web` build still fails — B3 (react-hooks plugin) cleared
+   cleanly, but TWO new ESLint hard-errors surfaced behind it on
+   `apps/owner-web/src/components/TenantRail.tsx`: a CSRF-headers omission
+   at line 75 (`borjie/require-csrf-headers`) and a missing
+   `@next/next/no-img-element` rule definition at line 141.
+3. `packages/agentic-os` trust-calibration tolerance — 2 tests assert
+   `meanSuccessRate > 0.8` / `< 0.2` but get 0.7978 / 0.2022. Hard-coded
+   `observedAt: '2026-05-24'` drifts under 14-day Beta decay as the wall
+   clock advances (today is 2026-05-29; ~5 days elapsed; decay factor
+   ≈ 0.781). Latent — was Y4 before; now firmly RED on re-run.
+4. Endpoint smoke matrix still NOT RUN — api-gateway boot fails on env
+   validation (10 invalid keys in `.env.local`) before any route binds,
+   so `scripts/smoke/full-endpoint-smoke.ts` cannot fetch
+   `/api/v1/openapi.json` to discover the route table.
+
+Cross-tenant isolation is the only surface that flipped to fully GREEN
+with no caveats (43 / 43 across the three suites including the formerly-
+leaking mining/tasks + mining/toolbox routes that B4c closed). All 8
+original fixes are confirmed shipped on origin/main.
+
+## 8. Fix scorecard (per-blocker)
+
+| Blocker | Surface          | Status | Commit       | Notes |
+|---------|------------------|--------|--------------|-------|
+| B1      | workforce-mobile typecheck | FIXED  | `5ab7f99b`   | 8 → 0 TS errors. Button `title` → `label` (3); `colors.textPrimary` → `colors.text` (3); `fontSize.bodySm` → `fontSize.body` (2). |
+| B2      | buyer-mobile typecheck     | FIXED  | `aacc5fe6`   | 6 → 0 TS errors. PrimaryButton gained `busy?` + `testID?`; added `typography.label` + `colors.steel`; narrowed `t()` to `Readonly<Record<string, string \| number>>`. |
+| B3      | owner-web build            | FIXED  | `7841dc55`   | Created `apps/owner-web/eslint.config.mjs` mirroring workforce-mobile's pattern + registered `eslint-plugin-react-hooks` ^7.1.1. Two NEW blockers surfaced behind it (see §10). |
+| B4a     | api-gateway RLS GUC test   | FIXED  | `73a7c821`   | Test now asserts canonical `app.current_tenant_id` GUC. Hard-rule violation closed. |
+| B4b     | api-gateway router orphans | FIXED  | `d2139307`   | Deleted tests for BossNyumba routes removed by #165 (move-out, property-grading). |
+| B4c     | mining/tasks + toolbox leak (SECURITY) | FIXED | `f4785113` | Stub WHERE filter added to both routes. Cross-tenant surface flipped to fully GREEN (43/43 — see §9 surface 4). |
+| B5      | intel-self-improve tests   | FIXED  | `d5cf2ec5`   | 19 → 0 failures. Added per-call measurer signatures alongside cohort ones; verifiers accept canonical + new metadata shapes. |
+| B6      | domain-services tests      | FIXED  | `3c3d85f4`   | 12 → 0 failures. Replaced `undefined as Shape` placeholders with structural stub objects exposing `_table` + id + column accessors. |
+| B7      | database test bootstrap    | FIXED  | `d3fea237`   | Added `uuid ^14.0.0` devDep; brain-thread integration test now loads + skips cleanly when DATABASE_URL absent. |
+| B8      | admin-web ag-ui-client     | FIXED  | `ccba9050`   | Already at HEAD — `@borjie/owner-os-tabs: workspace:*` declared in central-intelligence; ag-ui-client test passes 14/14. |
+
+**Tally:** 8 / 8 originally-listed blockers FIXED. B4 sub-blockers a/b/c
+all closed via 3 distinct commits (B4d not enumerated as a sub-blocker
+in fix scope — sweep covered by B5/B6 work + outstanding api-gateway
+surface that re-verified GREEN in the parallel agent stream).
+
+## 9. Re-verify scorecard (5 surfaces, post-fix)
+
+| # | Surface                           | Verdict | Pass / Fail | Notes |
+|---|-----------------------------------|---------|-------------|-------|
+| 1 | Monorepo typecheck (`pnpm -r typecheck`) | RED     | 205 pkg / 1 pkg | 12 TS2769 errors in `packages/database/src/seeds/borjie-mining-demo.seed.ts` (NEW — postgres-js sql`` overload mismatch). All 14 previously-failing TS errors in workforce-mobile + buyer-mobile cleared. |
+| 2 | Monorepo builds (3 Next + 2 mobile typecheck) | RED | 4 / 1 | `marketing` GREEN, `admin-web` GREEN, `workforce-mobile` GREEN, `buyer-mobile` GREEN. `owner-web` still RED with 2 NEW ESLint hard errors on `TenantRail.tsx` (CSRF omission + missing `@next/next/no-img-element` rule). |
+| 3 | Monorepo tests (`pnpm -r --no-bail test`) | RED | 2 052 / 2 (partial) | Run was interrupted by stop-hook before completion; confirmed failures so far = 2 tests in `packages/agentic-os/trust-calibration.test.ts` (date-drift on hard-coded 2026-05-24 observedAt). All packages a*–c* enumerated passed (78 + others). Full monorepo tally not available — verdict still RED on this partial. |
+| 4 | Cross-tenant isolation              | GREEN   | 43 / 0 | 3 suites: cross-tenant (16/16), mining/tasks (17/17), mining/toolbox (10/10). B4c fix verified — was 503/leaking before, now closed. |
+| 5 | Endpoint smoke matrix (`scripts/smoke/full-endpoint-smoke.ts`) | RED | 0 / 0 | Gateway boot fails on env-validation (10 invalid keys in `.env.local`: JWT_ACCESS_SECRET length, RATE_LIMIT_WINDOW_MS, BORJIE_BG_TASKS_ENABLED, SENTRY_DSN, OCR_PROVIDER='mock', GEPG_CALLBACK_BASE_URL, GEPG_HEALTH_URL, GEPG_PSP_MODE='true', NOTIFICATIONS_SERVICE_URL, DEV_DEFAULT_COUNTRY_CODE). 4 stale gateway pids surgically killed pre-restart; no `killall` used. Smoke runner never invoked because gateway never bound :4001. |
+
+**Tally:** GREEN 1 · YELLOW 0 · RED 4 → final verdict **RED**.
+
+## 10. Remaining blockers (newly-surfaced RED items)
+
+These were not in the original 8 and must be addressed in a follow-up wave.
+
+### N1 — `packages/database` seed typecheck (RED, critical, blocks `pnpm -r typecheck`)
+- **Where:** `packages/database/src/seeds/borjie-mining-demo.seed.ts` — 12 TS2769 at lines 233:11, 261:13, 287:13, 376:15, 421:15, 470:11, 487:11, 519:13, 536:13, 567:13, 601:13, 651:11.
+- **Symptom:** `No overload matches this call` — postgres-js `sql\`\`` template literal rejecting object-literal substitutions (e.g. `{ sector, isDemo }`, `{ annual_fee_tzs, royalty_rate_pct }`, `{ documentLink, royaltyPeriod }`, `{ via, actorId, sessionId, turnId, requestedAt }`, `{ Ct_g_t, recovery_pct }`, `{ source, region, category }`) against `ParameterOrFragment<never>`. Line 376 separately has a `string | undefined` non-null gap.
+- **Fix vector:** Wrap JSON-bound substitutions with `sql.json(obj)` (or `JSON.stringify`) and add either a default or non-null assertion at line 376. Single-file fix.
+
+### N2 — `apps/owner-web` build (RED, high — replaces B3 with TWO new hard errors)
+- **Where:** `apps/owner-web/src/components/TenantRail.tsx`.
+- **Symptoms:**
+  - Line 75:27 — `borjie/require-csrf-headers`: mutating `fetch()` POST without CSRF protection. Either import `getCsrfHeaders` from `@/lib/csrf` and spread into headers, or migrate to the typed client at `@borjie/api-client`.
+  - Line 141:13 — `Definition for rule '@next/next/no-img-element' was not found.` The newly-registered ESLint flat-config at `apps/owner-web/eslint.config.mjs` (from B3) doesn't pull in `@next/eslint-plugin-next`, so the inline directive is unresolvable.
+- **Fix vector:** Add `@next/eslint-plugin-next` to the owner-web ESLint flat-config plugins map AND patch TenantRail's POST to thread CSRF headers. Two-edit fix.
+
+### N3 — `packages/agentic-os` trust-calibration date drift (RED, medium — was Y4, now RED)
+- **Where:** `packages/agentic-os/src/__tests__/trust-calibration.test.ts` — 2 tests ("raises score on success", "lowers score on failure").
+- **Symptom:** `expected meanSuccessRate > 0.8, got 0.7978134155723449` and symmetric `< 0.2 vs 0.20218658507700465`. Hard-coded `observedAt: '2026-05-24T00:00:00Z'` drifts under 14-day Beta(α,β) half-life decay as wall-clock advances (today 2026-05-29 → ~5d elapsed → decay 0.5^(5/14) ≈ 0.781, pulls 10 successes → 7.81 effective → mean ≈ 0.898 close-but-just-under-0.8 boundary depending on starting prior).
+- **Fix vector:** Either (a) `vi.useFakeTimers() + setSystemTime('2026-05-24')` in the test setup, or (b) derive `observedAt` from `new Date().toISOString()` so decay = 0. Implementation in `packages/agentic-os/src/trust-calibration/index.ts` (lines 80-92, `applyDecay`) is correct — the test fixtures are brittle.
+
+### N4 — Endpoint smoke matrix blocked by env-validation (RED, high)
+- **Where:** `.env.local` (10 invalid keys) + `services/api-gateway/src/index.ts` boot.
+- **Symptoms:** `Environment validation failed — gateway cannot boot` (pino level 60):
+  - `JWT_ACCESS_SECRET: String must contain at least 32 character(s)`
+  - `RATE_LIMIT_WINDOW_MS: Number must be greater than 0`
+  - `BORJIE_BG_TASKS_ENABLED: Invalid enum value. Expected 'true' | 'false', received ''`
+  - `SENTRY_DSN: Invalid url`
+  - `OCR_PROVIDER: Invalid enum value. Expected 'aws_textract' | 'google_vision' | 'tesseract' | 'none', received 'mock'`
+  - `GEPG_CALLBACK_BASE_URL: Invalid url`
+  - `GEPG_HEALTH_URL: Invalid url`
+  - `GEPG_PSP_MODE: Invalid enum value. Expected 'client_cert' | 'hmac', received 'true'`
+  - `NOTIFICATIONS_SERVICE_URL: Invalid url`
+  - `DEV_DEFAULT_COUNTRY_CODE: String must contain exactly 2 character(s)`
+- **Fix vector:** Repair `.env.local` per `DEPLOYMENT.md`. Once gateway boots on :4001, re-run `pnpm --filter @borjie/api-gateway exec tsx ../../scripts/smoke/full-endpoint-smoke.ts` to capture the matrix.
+
+## 11. Launch sign-off (final)
+
+- **Final verdict:** RED.
+- **launch_ready:** `false`.
+- **Originally-listed RED blockers cleared:** 8 / 8 (B1–B8).
+- **Newly-surfaced RED items:** 4 (N1–N4).
+- **Cross-tenant isolation:** GREEN (43/43, B4c security fix verified).
+- **Recommendation:** NO-GO for launch on 2026-05-29. A second fix wave
+  is required:
+  1. **Wave 1 (N1):** Single-file fix to `borjie-mining-demo.seed.ts` —
+     wrap object substitutions with `sql.json()` + line-376 default.
+  2. **Wave 2 (N2):** Two-edit patch to owner-web — register
+     `@next/eslint-plugin-next` in the flat config + thread CSRF
+     headers through `TenantRail.tsx`'s POST.
+  3. **Wave 3 (N3):** Tighten the trust-calibration test fixtures
+     (fake timers or dynamic `observedAt`).
+  4. **Wave 4 (N4):** Repair `.env.local` env vars and re-run the
+     smoke matrix once :4001 binds.
+- After all 4 new RED items clear and the smoke matrix returns GREEN,
+  repeat surfaces 1 + 2 + 3 once more (full `pnpm -r --no-bail test` to
+  completion, not stop-hook-interrupted), then re-evaluate launch
+  readiness. Cross-tenant isolation (surface 4) is already GREEN and
+  does not need re-running unless mining-route code changes again.
+
+— end of post-remediation update
