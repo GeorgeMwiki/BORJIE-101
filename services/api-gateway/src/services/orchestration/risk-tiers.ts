@@ -58,6 +58,7 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'buyer.delivery.sign', tier: 'high' },
   { prefix: 'cooperative.draft_settlement', tier: 'high' },
   { prefix: 'insurance.bind_policy', tier: 'high' },
+  { prefix: 'mining.ui.bulk_action', tier: 'high' },
 
   // ── MEDIUM (preview) ─────────────────────────────────────────────
   { prefix: 'mining.production.', tier: 'medium' },
@@ -83,11 +84,16 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'mining.ui.reorder_tab', tier: 'medium' },
   { prefix: 'mining.ui.remove_tab', tier: 'medium' },
   { prefix: 'mining.ui.prefill_form', tier: 'medium' },
-  { prefix: 'mining.ui.bulk_action', tier: 'medium' },
+  // `mining.ui.bulk_action` carries `requiresPolicyRuleLiteral=true`
+  // per superpowers-tools.ts; CE-4 invariant promotes it to high so
+  // the literal policy rule fires and a two-tap confirmation card
+  // surfaces before any bulk write executes.
   { prefix: 'mining.ui.share_view', tier: 'medium' },
   { prefix: 'mining.ui.bookmark', tier: 'medium' },
   { prefix: 'mining.ui.unbookmark', tier: 'medium' },
   { prefix: 'mining.ui.undo_last_action', tier: 'medium' },
+  { prefix: 'undo.last_n', tier: 'medium' },
+  { prefix: 'undo.by_id', tier: 'medium' },
   { prefix: 'owner.drafter.lock', tier: 'medium' },
   { prefix: 'owner.licence.start_renewal', tier: 'medium' },
   { prefix: 'owner.messaging.send_to', tier: 'medium' },

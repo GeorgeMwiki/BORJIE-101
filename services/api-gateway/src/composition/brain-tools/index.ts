@@ -58,6 +58,11 @@ import { GEO_TOOLS } from './geo-tools';
 // Lifts owner-cockpit coverage from 91.8% to 100% of shippable surface
 // (admin / estate / payroll gaps stay sibling-owned).
 import { CHAT_EVERYWHERE_TOOLS } from './chat-everywhere-tools';
+// Undo-chain CE-5 2026-05-29 — undo.last_n + undo.by_id wrap the
+// existing single-action /owner/undo-journal/undo-last endpoint into
+// a multi-action chain. See Docs/research/CHAT_HANDLES_EVERYTHING_
+// SOTA_2026-05-29.md §4.3.
+import { UNDO_CHAIN_TOOLS } from './undo-chain-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -107,6 +112,7 @@ export function buildPersonaToolHandlers(
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
+      UNDO_CHAIN_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -157,6 +163,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
+      UNDO_CHAIN_TOOLS,
     ],
     undefined,
   );
@@ -233,3 +240,9 @@ export {
   uiMarkNotificationReadTool,
   ownerConnectedAgentRevokeTool,
 } from './chat-everywhere-tools';
+// Undo-chain CE-5 2026-05-29 — re-exports.
+export {
+  UNDO_CHAIN_TOOLS,
+  undoLastNTool,
+  undoByIdTool,
+} from './undo-chain-tools';
