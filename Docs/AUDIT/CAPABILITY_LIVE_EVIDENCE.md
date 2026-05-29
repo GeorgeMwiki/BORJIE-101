@@ -39,16 +39,35 @@ independently re-runnable.
 | §10 Closed-loop telemetry            |     1 |    1 |    0 |           0 |
 | §11 Decision journal                 |     1 |    1 |    0 |           0 |
 | §12 Entity index (pgvector)          |     1 |    1 |    0 |           0 |
-| ──── HTTP smoke surface              |   281 |  224 |    0 |  29 (#163)¹ |
+| ──── HTTP smoke surface (post-#165) |   240 |  206 |    0 |  32 (503/501)¹ |
 
-¹ 29 remaining 500s are all in BossNyumba-legacy paths (hr/\*, maintenance/\*,
-owner/financial|invoices|payments|disbursements|messaging|work-orders|documents,
-customer/\*) whose underlying queries reference repositories that were
-removed in the Borjie hard-fork. #163's `utils/safe-error.ts` work has
-already converted ~24 of the previous 500s to structured 503
-`TABLE_NOT_PROVISIONED` / `COLUMN_NOT_PROVISIONED` / `LIVE_DATA_NOT_IMPLEMENTED`
-envelopes; the remaining clusters follow the exact same pattern and
-are tracked under #163. See §13 "DO NOT SHIP" for the explicit list.
+¹ Post #165 — the 29 vestigial BossNyumba-leftover routes that 500'd
+(hr/\*, maintenance/\* (top-level), owner/financial|invoices|payments|
+disbursements|messaging|work-orders|documents, customer/letters|sublease|
+move-out/disputes|marketplace negotiations) were DELETED outright because
+Borjie has canonical equivalents:
+
+- workforce -> /api/v1/workforce + workforce_certifications +
+  workforce_invitations + workforce_role_tab_configs + workforce-mobile
+- maintenance -> /api/v1/mining/maintenance (asset events) +
+  /api/v1/mining/tasks (covers all task types)
+- disbursements -> /api/v1/cooperatives/settlements + estate_capital_movements
+- documents -> /api/v1/mining/docs + document_drafts + draft_revisions
+- financial -> /api/v1/owner/brief + /api/v1/mining/sales +
+  estate_capital_movements + payments-ledger
+- messaging -> /api/v1/owner/messaging (canonical owner_messaging schema)
+- work-orders -> /api/v1/mining/tasks + /api/v1/mining/approvals
+- buyer marketplace negotiation -> /api/v1/mining/marketplace +
+  /api/v1/mining/bids + bid_negotiations + buyer-mobile
+
+See `Docs/AUDIT/POST_FORK_ROUTE_AUDIT.md` for the full per-route
+mapping. Total surface dropped from 281 -> 240 because removing the
+routes also dropped their POST counterparts + path-param variants.
+
+The 32 remaining 5xx are ALL structured `TABLE_NOT_PROVISIONED` /
+`COLUMN_NOT_PROVISIONED` / `LIVE_DATA_NOT_IMPLEMENTED` /
+`NOT_IMPLEMENTED` envelopes from `utils/safe-error.ts` (#163) — not
+crashes. ZERO raw 500s remain on the live api-gateway smoke matrix.
 
 ---
 

@@ -43,3 +43,36 @@ repos, different products. Not in this repo.
   Mr. Mwikila is Borjie-only.
 
 All work in this repo applies to Borjie only.
+
+## Deleted property-mgmt surfaces (post-hard-fork cleanup)
+
+The fork left behind a number of BossNyumba route surfaces whose
+backing repositories had been removed. Issue #165 deleted the
+following route prefixes outright because Borjie has canonical
+mining equivalents — callers must migrate to the Borjie surface:
+
+- `/api/v1/hr/*` (6 routes — departments, teams, employees,
+  assignments, performance) -> `/api/v1/workforce/*` +
+  `workforce_certifications` / `workforce_invitations` /
+  `workforce_role_tab_configs` schemas + the workforce-mobile app.
+- `/api/v1/maintenance/*` (top-level, 5 routes — requests,
+  dispatch-events, completion-proofs/verify) -> `/api/v1/mining/maintenance`
+  (asset events on the `maintenance_events` table) +
+  `/api/v1/mining/tasks` (covers every task type including equipment
+  maintenance) + `/api/v1/mining/shift-reports`.
+- `/api/v1/customer/{letters,sublease,move-out/disputes,marketplace/:unitId/negotiate(s)}`
+  (4 routes) -> `/api/v1/mining/docs` (legal/contract drafting via
+  `document_drafts`), `/api/v1/mining/marketplace` +
+  `/api/v1/mining/bids` (mineral haggling via `bid_negotiations`),
+  and the buyer-mobile app. Sublease + move-out disputes have no
+  Borjie analogue (pure property-management concept).
+- `/api/v1/owner/{work-orders,financial,invoices,payments,reports/export/financial,disbursements,messaging/conversations,documents/{signatures,/:id/sign}}`
+  (14 routes) -> `/api/v1/mining/tasks`, `/api/v1/mining/sales`,
+  `/api/v1/cooperatives/settlements`, `/api/v1/owner/messaging`
+  (canonical owner_messaging schema), `/api/v1/owner/brief`,
+  `/api/v1/mining/docs`, `/api/v1/mining/reports`. Mineral revenue
+  flows through the payments-ledger (Stripe / M-Pesa) — there is no
+  rental invoicing in Borjie.
+
+See `Docs/AUDIT/POST_FORK_ROUTE_AUDIT.md` for the full per-route
+decision matrix.
