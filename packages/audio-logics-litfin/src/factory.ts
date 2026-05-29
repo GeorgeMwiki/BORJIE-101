@@ -16,6 +16,7 @@ import {
   signAudioAsEvidence,
   verifyAudioEvidence,
   DEFAULT_DEV_KEY,
+  loadAudioEvidenceSigningKeyFromEnv,
   type SigningKey,
 } from './evidence-chain/index.js';
 import { analyzeEmotionalState } from './emotion-escalation/index.js';
@@ -85,7 +86,11 @@ export function createAudioLogicsLitfin(
 ): AudioLogicsLitfin {
   const fingerprinting = options.fingerprintAdapter ?? defaultFingerprintAdapter();
   const biometrics = options.biometricsAdapter ?? defaultBiometricsAdapter();
-  const signerKey = options.evidenceSigner ?? DEFAULT_DEV_KEY;
+  // Resolution order: explicit option → env-supplied key → dev-stub fallback.
+  // In production the dev-stub key triggers a refuse-in-prod throw inside
+  // `signAudioAsEvidence` (see signer.ts::refuseDevKeyInProduction).
+  const signerKey =
+    options.evidenceSigner ?? loadAudioEvidenceSigningKeyFromEnv() ?? DEFAULT_DEV_KEY;
   const brain = options.brain;
 
   return Object.freeze({

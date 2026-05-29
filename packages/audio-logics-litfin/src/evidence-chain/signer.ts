@@ -38,10 +38,41 @@ export interface SigningKey {
   readonly secret: string;
 }
 
+/**
+ * Test / dev fixture key. NOT a production secret — `signAudioAsEvidence`
+ * REFUSES this key in production (NODE_ENV === 'production'). The literal
+ * value is reproducible so test snapshots stay stable across CI runs and
+ * machines; operators MUST set `AUDIO_EVIDENCE_SIGNING_KEY_ID` +
+ * `AUDIO_EVIDENCE_SIGNING_KEY_SECRET` (and inject via
+ * `createAudioLogicsLitfin({ evidenceSigner })`) before any prod deploy.
+ */
 export const DEFAULT_DEV_KEY: SigningKey = Object.freeze({
   id: 'audio-evidence-dev-key',
   secret: 'borjie-audio-logics-litfin-dev-stub-secret-DO-NOT-USE-IN-PROD',
 });
+
+/**
+ * Load the audio-evidence signing key from env vars. Returns `null` when
+ * not configured. In production the caller MUST receive a non-null key or
+ * the `refuseDevKeyInProduction` guard in `signAudioAsEvidence` will throw.
+ */
+export function loadAudioEvidenceSigningKeyFromEnv(): SigningKey | null {
+  const id = process.env.AUDIO_EVIDENCE_SIGNING_KEY_ID;
+  const secret = process.env.AUDIO_EVIDENCE_SIGNING_KEY_SECRET;
+  if (!id || !secret) return null;
+  return Object.freeze({ id, secret });
+}
+
+function refuseDevKeyInProduction(key: SigningKey): void {
+  if (key.id === DEFAULT_DEV_KEY.id && process.env.NODE_ENV === 'production') {
+    throw new AudioLogicsLitfinError(
+      'audio-logics-litfin signer refuses to fall back to dev-stub key in production. ' +
+        'Set AUDIO_EVIDENCE_SIGNING_KEY_ID + AUDIO_EVIDENCE_SIGNING_KEY_SECRET, or pass ' +
+        'an explicit SigningKey via createAudioLogicsLitfin({ evidenceSigner }).',
+      'evidence-dev-key-in-prod',
+    );
+  }
+}
 
 export interface SignAudioAsEvidenceArgs {
   readonly audio: AudioSample;
@@ -67,6 +98,7 @@ export function signAudioAsEvidence(args: SignAudioAsEvidenceArgs): AudioEvidenc
     throw new AudioLogicsLitfinError('audio bytes empty', 'evidence-empty-audio');
   }
   const key = args.signerKey ?? DEFAULT_DEV_KEY;
+  refuseDevKeyInProduction(key);
 
   const audioHash = createHash('sha256').update(args.audio.bytes).digest('hex');
   const claims = args.claims ?? [];

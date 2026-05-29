@@ -33,10 +33,34 @@ export interface SignedManifest {
   readonly signedAtIso: string;
 }
 
+/**
+ * Test / dev fixture key. NOT a production secret — the literal value
+ * is irrelevant since `signManifest` REFUSES this key in production
+ * (NODE_ENV === 'production'), and `loadSigningKeyFromEnv()` is the
+ * supported wiring path. The secret string is reproducible (not random)
+ * so test snapshots stay stable across CI runs and machines.
+ *
+ * Operators MUST set `C2PA_SIGNING_KEY_ID` + `C2PA_SIGNING_KEY_SECRET`
+ * before any prod deploy; the production guard below blocks fallback.
+ */
 const DEFAULT_DEV_KEY: SigningKey = Object.freeze({
   id: 'dev-stub-key',
   secret: 'borjie-dev-c2pa-stub-secret-never-use-in-prod',
 });
+
+/**
+ * Throws when this signer would silently use the dev-stub key in
+ * production. Called by `signManifest` before any byte is signed.
+ */
+function refuseDevKeyInProduction(key: SigningKey): void {
+  if (key.id === DEFAULT_DEV_KEY.id && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'C2PA signer refuses to fall back to dev-stub key in production. ' +
+        'Set C2PA_SIGNING_KEY_ID + C2PA_SIGNING_KEY_SECRET, or pass an explicit ' +
+        'SigningKey to signManifest().',
+    );
+  }
+}
 
 /**
  * Sign a manifest. The `claimSignature` field of the manifest is
@@ -48,6 +72,7 @@ export function signManifest(
   key: SigningKey = DEFAULT_DEV_KEY,
   nowIso: string = new Date().toISOString(),
 ): SignedManifest {
+  refuseDevKeyInProduction(key);
   // Sign the canonical form WITH all final fields set EXCEPT claimSignature.
   // Verify will reproduce the same canonical by stripping claimSignature
   // back to '' — so these two forms must match byte-for-byte.
