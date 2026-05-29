@@ -61,3 +61,47 @@ export {
   type JarvisStreamGateVerdict,
   type JarvisStreamUiPart,
 } from './jarvis-stream.js';
+
+// Wave AGENTIC-PLATFORM — typed brain-tool clients + universal SSE
+// helper + typed error hierarchy + exponential-backoff retry. Built
+// on top of `createBorjieClient`, runs everywhere `globalThis.fetch`
+// is available (Node 20+, Bun, Deno, browser).
+export {
+  createBrainTools,
+  type BrainToolClients,
+  type ChatClient,
+  type DraftsClient,
+  type EstateClient,
+  type ComplianceClient,
+  type OpportunitiesClient,
+  type RisksClient,
+  type DecisionsClient,
+  type EntitiesClient,
+  type RemindersClient,
+  type ShareClient,
+  type BulkClient,
+  type UndoClient,
+  type ScopeClient,
+} from './brain-tools.js';
+
+export {
+  consumeSse,
+  type SseFrame,
+  type ConsumeSseOptions,
+} from './sse.js';
+
+export {
+  retry,
+  defaultShouldRetry,
+  type RetryOptions,
+} from './retry.js';
+
+export {
+  BorjieError,
+  AuthError,
+  ValidationError,
+  RateLimitError,
+  ServerError,
+  NetworkError,
+  toBorjieError,
+} from './errors.js';
