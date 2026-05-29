@@ -63,20 +63,142 @@ function snakeToCamel(snake: string): string {
   return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
+interface ExtractedClause {
+  readonly colName: string;
+  readonly operator: '=' | 'in';
+  readonly values: ReadonlyArray<unknown>;
+}
+
+/**
+ * Unwrap drizzle's `Param { value, encoder }` shape so the row-matcher
+ * compares raw scalars. Real `PgUUID` columns route values through Param
+ * (not inline), so a strict `=== ` check against a Param instance would
+ * always reject — re-introducing the cross-tenant row leak that this
+ * helper is here to close.
+ */
+function unwrapParam(v: unknown): unknown {
+  if (v !== null && typeof v === 'object' && 'value' in (v as object)) {
+    const inner = (v as { value: unknown }).value;
+    // Param.value is the raw scalar; StringChunk.value is a string[]. Only
+    // unwrap the scalar case.
+    if (!Array.isArray(inner)) return inner;
+  }
+  return v;
+}
+
+/**
+ * Walk drizzle-orm's `SQL` node and yield the column-name + operator +
+ * value(s) tuples it expresses. The real drizzle shape for `eq(col, val)`
+ * is `queryChunks: [StringChunk(''), Column{name}, StringChunk(' = '),
+ * Param{value, encoder}, StringChunk('')]`; `and(a, b)` nests two such
+ * SQL nodes inside a parenthesised wrapper. We walk recursively, looking
+ * for the literal ` = ` separator (eq), and IN-list patterns emitted as
+ * raw SQL via `sql\`... IN (...)\``.
+ */
+function extractClauses(cond: any): ExtractedClause[] {
+  if (!cond || typeof cond !== 'object') return [];
+  const chunks = (cond as { queryChunks?: ReadonlyArray<unknown> }).queryChunks;
+  if (!Array.isArray(chunks)) return [];
+
+  const out: ExtractedClause[] = [];
+
+  // First, recurse into any nested SQL wrappers so AND/OR trees are walked.
+  for (const chunk of chunks) {
+    if (chunk && typeof chunk === 'object' && 'queryChunks' in (chunk as object)) {
+      out.push(...extractClauses(chunk));
+    }
+  }
+
+  // Then, scan the linear chunk stream for `Column, ' = ', value` triples
+  // which drizzle's `eq()` emits at this level. The `value` slot may be a
+  // bare scalar (legacy test shape) or a `Param` wrapper (real columns).
+  for (let i = 0; i < chunks.length - 2; i++) {
+    const a = chunks[i];
+    const b = chunks[i + 1];
+    const c = chunks[i + 2];
+    // A Column is `{name, ...}` WITHOUT a `value` of its own; a Param has
+    // both `value` and `encoder`. We must disambiguate or a Param slot
+    // gets mis-identified as a Column when it co-incidentally has a
+    // `name` field (PgUUID encoders do).
+    const isColumn =
+      a !== null
+      && typeof a === 'object'
+      && 'name' in (a as object)
+      && !('value' in (a as object))
+      && !('encoder' in (a as object));
+    const colName = isColumn
+      ? ((a as { name?: unknown }).name as string | undefined)
+      : undefined;
+    const sep =
+      b && typeof b === 'object' && 'value' in (b as object) && Array.isArray((b as { value: unknown[] }).value)
+        ? (b as { value: string[] }).value.join('')
+        : '';
+    if (colName && sep === ' = ') {
+      out.push({ colName, operator: '=', values: [unwrapParam(c)] });
+    }
+  }
+
+  // Scan for `Column, ' IN (...)', value-list-or-raw-fragment`. Drizzle's
+  // `inArray()` produces a Param[] whose `.value` is the array; the
+  // router source here uses `sql\`... IN ('pending', ...)\`` literals,
+  // which we treat as a no-op (the test fixtures match the column under
+  // the assumption an in-list always passes — narrowing happens via the
+  // outer status filter the test asserts on).
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const a = chunks[i];
+    const b = chunks[i + 1];
+    const isColumn =
+      a !== null
+      && typeof a === 'object'
+      && 'name' in (a as object)
+      && !('value' in (a as object))
+      && !('encoder' in (a as object));
+    const colName = isColumn
+      ? ((a as { name?: unknown }).name as string | undefined)
+      : undefined;
+    const sepText =
+      b && typeof b === 'object' && 'value' in (b as object) && Array.isArray((b as { value: unknown[] }).value)
+        ? (b as { value: string[] }).value.join('')
+        : '';
+    if (colName && sepText.trim().startsWith('IN')) {
+      // No-op clause: leave it satisfied (in-list semantics not modelled).
+      out.push({ colName, operator: 'in', values: [] });
+    }
+  }
+
+  return out;
+}
+
 function rowMatches(row: Row, cond: any): boolean {
   if (!cond) return true;
   if (Array.isArray(cond)) return cond.every((c) => rowMatches(row, c));
-  // drizzle `and(...)` returns an SQL-builder object; walk `.queries`.
-  if (cond?.queries && Array.isArray(cond.queries)) {
-    return cond.queries.every((q: any) => rowMatches(row, q));
+
+  // Legacy shape (kept for back-compat with hand-rolled fakes): `.left`/`.right`.
+  if (cond?.left && cond?.right !== undefined) {
+    const col = cond.left as { name?: string };
+    if (col?.name) {
+      const candidate = row[col.name] ?? row[snakeToCamel(col.name)];
+      return candidate === unwrapParam(cond.right);
+    }
   }
-  // drizzle `eq(col, val)` exposes `.queryChunks` or shape with .left/.right.
-  const col = cond?.left ?? cond?.column;
-  const value = cond?.right ?? cond?.value;
-  if (col && typeof col === 'object' && 'name' in col) {
-    const colName = (col as any).name as string;
-    const candidate = row[colName] ?? row[snakeToCamel(colName)];
-    return candidate === value;
+
+  // Drizzle-orm shape: walk queryChunks, extract column + value pairs,
+  // and check every `=` clause holds. IN-clauses (raw sql) are not
+  // narrowed by the fixture.
+  const clauses = extractClauses(cond);
+  if (clauses.length === 0) {
+    // No clauses extracted — be conservative: do NOT match. A silent
+    // pass-through here would re-introduce the cross-tenant row leak
+    // because callers rely on the WHERE filter being honoured.
+    return false;
+  }
+  for (const clause of clauses) {
+    if (clause.operator === 'in') continue;
+    const candidate =
+      row[clause.colName] ?? row[snakeToCamel(clause.colName)];
+    if (candidate !== clause.values[0]) {
+      return false;
+    }
   }
   return true;
 }

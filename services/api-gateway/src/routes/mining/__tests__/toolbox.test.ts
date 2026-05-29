@@ -54,18 +54,112 @@ function snakeToCamel(snake: string): string {
   return snake.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
+interface ExtractedClause {
+  readonly colName: string;
+  readonly operator: '=' | 'in';
+  readonly values: ReadonlyArray<unknown>;
+}
+
+/**
+ * Unwrap drizzle's `Param { value, encoder }` shape so the row-matcher
+ * compares raw scalars. Real `PgUUID`/typed columns route values through
+ * Param objects (not inline), so a strict `=== ` check against a Param
+ * instance would always reject — re-introducing the cross-tenant row
+ * leak this helper is here to close.
+ */
+function unwrapParam(v: unknown): unknown {
+  if (v !== null && typeof v === 'object' && 'value' in (v as object)) {
+    const inner = (v as { value: unknown }).value;
+    if (!Array.isArray(inner)) return inner;
+  }
+  return v;
+}
+
+function extractClauses(cond: any): ExtractedClause[] {
+  if (!cond || typeof cond !== 'object') return [];
+  const chunks = (cond as { queryChunks?: ReadonlyArray<unknown> }).queryChunks;
+  if (!Array.isArray(chunks)) return [];
+
+  const out: ExtractedClause[] = [];
+
+  for (const chunk of chunks) {
+    if (chunk && typeof chunk === 'object' && 'queryChunks' in (chunk as object)) {
+      out.push(...extractClauses(chunk));
+    }
+  }
+
+  for (let i = 0; i < chunks.length - 2; i++) {
+    const a = chunks[i];
+    const b = chunks[i + 1];
+    const c = chunks[i + 2];
+    const isColumn =
+      a !== null
+      && typeof a === 'object'
+      && 'name' in (a as object)
+      && !('value' in (a as object))
+      && !('encoder' in (a as object));
+    const colName = isColumn
+      ? ((a as { name?: unknown }).name as string | undefined)
+      : undefined;
+    const sep =
+      b && typeof b === 'object' && 'value' in (b as object) && Array.isArray((b as { value: unknown[] }).value)
+        ? (b as { value: string[] }).value.join('')
+        : '';
+    if (colName && sep === ' = ') {
+      out.push({ colName, operator: '=', values: [unwrapParam(c)] });
+    }
+  }
+
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const a = chunks[i];
+    const b = chunks[i + 1];
+    const isColumn =
+      a !== null
+      && typeof a === 'object'
+      && 'name' in (a as object)
+      && !('value' in (a as object))
+      && !('encoder' in (a as object));
+    const colName = isColumn
+      ? ((a as { name?: unknown }).name as string | undefined)
+      : undefined;
+    const sepText =
+      b && typeof b === 'object' && 'value' in (b as object) && Array.isArray((b as { value: unknown[] }).value)
+        ? (b as { value: string[] }).value.join('')
+        : '';
+    if (colName && sepText.trim().startsWith('IN')) {
+      out.push({ colName, operator: 'in', values: [] });
+    }
+  }
+
+  return out;
+}
+
 function rowMatches(row: Row, cond: any): boolean {
   if (!cond) return true;
   if (Array.isArray(cond)) return cond.every((c) => rowMatches(row, c));
-  if (cond?.queries && Array.isArray(cond.queries)) {
-    return cond.queries.every((q: any) => rowMatches(row, q));
+
+  // Legacy shape kept for back-compat with hand-rolled fakes.
+  if (cond?.left && cond?.right !== undefined) {
+    const col = cond.left as { name?: string };
+    if (col?.name) {
+      const candidate = row[col.name] ?? row[snakeToCamel(col.name)];
+      return candidate === unwrapParam(cond.right);
+    }
   }
-  const col = cond?.left ?? cond?.column;
-  const value = cond?.right ?? cond?.value;
-  if (col && typeof col === 'object' && 'name' in col) {
-    const colName = (col as any).name as string;
-    const candidate = row[colName] ?? row[snakeToCamel(colName)];
-    return candidate === value;
+
+  const clauses = extractClauses(cond);
+  if (clauses.length === 0) {
+    // Fail-closed: a silent pass-through here re-opens the cross-tenant
+    // leak because callers depend on the WHERE filter being honoured.
+    return false;
+  }
+  for (const clause of clauses) {
+    if (clause.operator === 'in') continue;
+    const candidate =
+      row[clause.colName] ?? row[snakeToCamel(clause.colName)];
+    if (candidate !== clause.values[0]) {
+      return false;
+    }
   }
   return true;
 }
