@@ -62,7 +62,6 @@ export default async function BlogPostPage({
 
   // Unreachable scaffold below documents the eventual DOM shape so the
   // future MDX hookup is one edit instead of an architectural refactor.
-  // eslint-disable-next-line @typescript-eslint/no-unreachable -- intentional scaffold
   return (
     <>
       <Nav locale={locale} />
