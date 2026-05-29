@@ -58,6 +58,9 @@ const nextConfig = {
     '@borjie/observability',
     '@borjie/api-sdk',
     '@borjie/performance-toolkit',
+    '@borjie/dynamic-sections',
+    '@borjie/owner-os-tabs',
+    '@borjie/persona-runtime',
   ],
   experimental: {
     optimizePackageImports: [

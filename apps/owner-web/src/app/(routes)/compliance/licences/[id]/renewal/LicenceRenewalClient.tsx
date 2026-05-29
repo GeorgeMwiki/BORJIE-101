@@ -76,7 +76,9 @@ async function gatewayFetch<T>(
       method,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
+      // Conditional spread keeps `body` absent rather than `undefined`
+      // under `exactOptionalPropertyTypes: true` (tsconfig.base.json).
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const json = (await res.json()) as ApiResponse<T>;
     return json;
