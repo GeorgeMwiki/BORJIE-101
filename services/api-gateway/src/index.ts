@@ -1600,6 +1600,11 @@ const migrationRouter = createMigrationRouter({
     }
     return svc;
   },
+  // R20 / KI-013 — bind copilot from the composition root. Null until
+  // ANTHROPIC_API_KEY + ai-copilot deps are wired (OA-003); the router
+  // already falls back to the 501 / dev-flag path when missing.
+  migrationWizardCopilot:
+    serviceRegistry.migrationWizardCopilot ?? undefined,
 });
 // Notification preferences — the real store lives in the notifications
 // service; until the HTTP binding lands we return the posted shape

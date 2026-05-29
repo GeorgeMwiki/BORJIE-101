@@ -620,6 +620,26 @@ export interface ServiceRegistry {
   readonly gamification: ReturnType<typeof createGamificationService> | null;
   readonly migration: MigrationService | null;
 
+  /**
+   * R20 / KI-013 — Migration Wizard Copilot binding.
+   *
+   * Production wiring requires a configured prompt registry + AI
+   * provider registry + review service (all already constructed when
+   * `ANTHROPIC_API_KEY` is present). When the LLM is unavailable, the
+   * slot stays `null` and `POST /api/v1/brain/migration/:runId/ask`
+   * surfaces a typed 501 rather than a silent fabricated ack.
+   */
+  readonly migrationWizardCopilot:
+    | {
+        run(args: {
+          readonly tenantId: string;
+          readonly actorId: string;
+          readonly runId: string;
+          readonly message: string;
+        }): Promise<unknown>;
+      }
+    | null;
+
   /** Wave 8 additions — pure-DB.
    *
    * `maintenanceTaxonomy` was a property-domain slot retired during
@@ -1436,6 +1456,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     riskReport: null,
     gamification: null,
     migration: null,
+    migrationWizardCopilot: null,
     warehouse: null,
     maintenanceTaxonomy: null,
     iot: null,
@@ -2213,6 +2234,11 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     riskReport: riskReportService,
     gamification: gamificationService,
     migration: migrationService,
+    // R20 / KI-013 — null until prompt registry + provider registry +
+    // review service are wired in the composition root (gated on
+    // ANTHROPIC_API_KEY per OA-003). The migration router falls back to
+    // the 501 / dev-flag path when this slot is null.
+    migrationWizardCopilot: null,
     warehouse: warehouseService,
     maintenanceTaxonomy: maintenanceTaxonomyService,
     iot: iotService,

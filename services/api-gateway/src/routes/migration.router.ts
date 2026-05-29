@@ -38,9 +38,34 @@ type Variables = {
   actorId: string;
 };
 
+/**
+ * Minimal copilot shape the migration router needs. Decoupled from the
+ * concrete `MigrationWizardCopilot` class so test seams can pass a stub
+ * without bringing in the full ai-copilot dependency graph.
+ *
+ * R20 — closing KI-013 by exposing this field on the deps so the
+ * composition root can bind a real copilot when prompts / providers are
+ * configured, and a stub when they are not.
+ */
+export interface MigrationWizardCopilotPort {
+  run(args: {
+    readonly tenantId: string;
+    readonly actorId: string;
+    readonly runId: string;
+    readonly message: string;
+  }): Promise<unknown>;
+}
+
 export function createMigrationRouter(deps: {
   getService: (tenantId: string) => MigrationService;
   authMiddleware?: (c: any, next: () => Promise<void>) => Promise<Response | void>;
+  /**
+   * Optional. When bound, `POST /:runId/ask` routes through this copilot
+   * instead of returning the 501/dev-flag path. The binding is wired in
+   * `services/api-gateway/src/index.ts` from
+   * `serviceRegistry.migrationWizardCopilot`.
+   */
+  migrationWizardCopilot?: MigrationWizardCopilotPort;
 }) {
   const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -175,8 +200,7 @@ export function createMigrationRouter(deps: {
     // it. Otherwise: loud-failure 501 unless a per-tenant feature flag
     // is on (dev mode). The previous silent ack hid the gap from
     // observability dashboards.
-    const wizard = (deps as { migrationWizardCopilot?: { run(args: { tenantId: string; actorId: string; runId: string; message: string }): Promise<unknown> } })
-      .migrationWizardCopilot;
+    const wizard = deps.migrationWizardCopilot;
     if (wizard && typeof wizard.run === 'function') {
       try {
         const out = await wizard.run({ tenantId, actorId, runId, message: body.message });
