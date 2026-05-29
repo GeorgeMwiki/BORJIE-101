@@ -110,7 +110,7 @@ export function createCaseSLASupervisor(
     try {
       const res = await (
         registry.db as unknown as { execute(q: unknown): Promise<unknown> }
-      ).execute(sql`SELECT id FROM tenants WHERE is_active = TRUE LIMIT 500`);
+      ).execute(sql`SELECT id FROM tenants WHERE status = 'active' LIMIT 500`);
       const rows = Array.isArray(res)
         ? res
         : ((res as { rows?: Record<string, unknown>[] }).rows ?? []);

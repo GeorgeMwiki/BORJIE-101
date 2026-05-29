@@ -443,7 +443,7 @@ export function createBackgroundSupervisor(
       try {
         const res = await (
           registry.db as unknown as { execute(q: unknown): Promise<unknown> }
-        ).execute(sql`SELECT id FROM tenants WHERE is_active = TRUE`);
+        ).execute(sql`SELECT id FROM tenants WHERE status = 'active'`);
         const rows = Array.isArray(res)
           ? res
           : ((res as { rows?: Record<string, unknown>[] }).rows ?? []);
@@ -1000,7 +1000,7 @@ async function listActiveTenantIds(
   try {
     const res = await (
       registry.db as unknown as { execute(q: unknown): Promise<unknown> }
-    ).execute(sql`SELECT id FROM tenants WHERE is_active = TRUE LIMIT 200`);
+    ).execute(sql`SELECT id FROM tenants WHERE status = 'active' LIMIT 200`);
     const rows = Array.isArray(res)
       ? res
       : ((res as { rows?: Record<string, unknown>[] }).rows ?? []);

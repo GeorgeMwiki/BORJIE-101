@@ -109,7 +109,7 @@ async function defaultListActiveTenantIds(
 ): Promise<ReadonlyArray<string>> {
   try {
     const result = (await db.execute(
-      sql`SELECT id FROM tenants WHERE is_active = TRUE`,
+      sql`SELECT id FROM tenants WHERE status = 'active'`,
     )) as unknown;
     const rows = Array.isArray(result)
       ? (result as ReadonlyArray<{ id?: unknown }>)

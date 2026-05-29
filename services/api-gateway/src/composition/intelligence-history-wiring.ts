@@ -89,7 +89,7 @@ export function createPostgresCustomerCohortProvider(
     async listTenants(): Promise<TenantId[]> {
       try {
         const rows = asRows(
-          await exec(sql`SELECT id FROM tenants WHERE is_active = TRUE`),
+          await exec(sql`SELECT id FROM tenants WHERE status = 'active'`),
         );
         return rows.map((r) => String((r as { id: unknown }).id) as TenantId);
       } catch {
