@@ -1159,3 +1159,13 @@ export * from './insurance.schema.js';
 //   owner_messages              — body_md + attachments + read receipts.
 // Brain tools: owner.messaging.send_to, unread_count, thread_list.
 export * from './owner-messaging.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave AGENTIC-PLATFORM — OAuth2 device flow + agent tokens (migration 0118)
+// ---------------------------------------------------------------------------
+//   oauth_device_codes  — short-lived pending device-flow grants.
+//   oauth_agent_tokens  — per-agent access tokens, hashed at rest, scope-
+//                         narrowed, tenant-scoped (RLS FORCE).
+// Powers the public MCP server / CLI / SDK auth path. See
+// services/api-gateway/src/routes/oauth-device.hono.ts for endpoints.
+export * from './oauth-agent-tokens.schema.js';

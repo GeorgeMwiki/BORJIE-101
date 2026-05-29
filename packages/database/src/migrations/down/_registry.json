@@ -111,6 +111,13 @@
       "reverses": "CREATE TABLE decisions + decision_outcomes + decision_links + indexes + RLS",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0118_oauth_agent_tokens.sql",
+      "down": "down/0118_down_oauth_agent_tokens.sql",
+      "reverses": "CREATE TABLE oauth_agent_tokens + oauth_device_codes + indexes + RLS",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
