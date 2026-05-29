@@ -3,9 +3,12 @@
 Tracks every active `@ts-nocheck` pragma in the BORJIE monorepo, grouped by
 root cause and the upstream fix needed to retire it.
 
-**Current count**: 33 files (down from 91 at end of Wave-14, then 92 at start
-of Wave-14 hardening). Cluster 1 fully retired during scrub-5a (2026-05-27).
-**Target**: ≤ 30 after upstream upgrades unblock.
+**Current count**: 11 files (down from 33 after scrub-5a; down from 91 at
+end of Wave-14, 92 at start of Wave-14 hardening). Cluster 1 retired in
+scrub-5a (2026-05-27); Cluster 1 residuals (middleware + remaining
+routes) retired in scrub-5b (2026-05-29).
+**Target**: ≤ 30 — TARGET MET. Remaining 11 are non-Hono clusters
+(drizzle, port adapters, namespace drift).
 
 The upgrade path (Hono 4.6 → 4.12, drizzle 0.36 → 0.37) was evaluated during
 Wave-14 but **not applied** — both upgrades introduce > 1 hour of drift in a
@@ -23,15 +26,23 @@ practice. They are kept for future hot-path c.json branches.
 
 ---
 
-## ~~Cluster 1 — Hono v4 status-code literal union (29 files)~~ — RETIRED 2026-05-27
+## ~~Cluster 1 — Hono v4 status-code literal union (29 files)~~ — FULLY RETIRED 2026-05-29
 
-**Status**: **RESOLVED** in scrub-5a (commits db50c59, 3630cea, 19d3e40,
-7cc1c2c, d3b767a, 31a2805, 875c4d3, 0ce7244, 4f88b15, 5d2c534, 19e5fbc,
-3679582). All ~111 `@ts-nocheck` pragmas in
-`services/api-gateway/src/routes/**/*.ts` have been removed. `pnpm -F
-api-gateway typecheck` exits 0 across the routes surface. Test baseline
-(38 pre-existing failures, 1482 passes) unchanged before and after the
-scrub.
+**Status**: **RESOLVED** across two scrubs:
+
+- **scrub-5a (2026-05-27)** retired ~111 `@ts-nocheck` pragmas in
+  `services/api-gateway/src/routes/**/*.ts` (12 batches). Commits:
+  db50c59, 3630cea, 19d3e40, 7cc1c2c, d3b767a, 31a2805, 875c4d3,
+  0ce7244, 4f88b15, 5d2c534, 19e5fbc, 3679582.
+- **scrub-5b (2026-05-29)** retired the residual 22 pragmas in
+  `services/api-gateway/src/middleware/`, `auth/`, and the
+  estate / ops / workforce / scope / mining / oauth-device routers.
+  See commits `refactor(api-gateway): retire 13 prophylactic @ts-nocheck
+  in middleware/` and `refactor(api-gateway): retire residual Hono
+  @ts-nocheck across 16 routes + supabase-auth + session-cookie`.
+
+`pnpm -F api-gateway typecheck` exits 0 across the entire surface.
+Test baseline unchanged before and after both scrubs.
 
 **Pragma reason** (was, verbatim, set as file-head comment):
 > Hono v4 MiddlewareHandler status-code literal union: multiple
@@ -196,7 +207,70 @@ Net reduction: 92 → 91.
 4. Test baseline preserved exactly: 38 pre-existing failures (15 files),
    1482 passes — unchanged before and after the scrub.
 
-Net reduction: 91 → 33 (Cluster 1 fully retired).
+Net reduction: 91 → 33 (Cluster 1 router pragmas retired).
+
+## What was cleaned in scrub-5b (2026-05-29)
+
+Closed the remaining 22 Hono-attributable `@ts-nocheck` pragmas (Cluster 1
+residuals) across the middleware + auth + non-router surfaces:
+
+1. **Middleware (10 files):** `auth.middleware`, `authorization`,
+   `capability-gate`, `hono-auth`, `kill-switch.middleware`,
+   `person-context`, `pilot-kill-switch`, `rate-limiter`,
+   `tenant-context.middleware`, `metrics-middleware`. Six were
+   prophylactic and dropped cleanly; the four with real drift were
+   fixed:
+   - `AuthContext` unified across both flavors (added `jti`/`exp`/
+     `email`/`tokenExp`/`tokenIat`/`sessionId` with `| undefined` style
+     to satisfy `exactOptionalPropertyTypes`).
+   - `peekJwtClaims` / `verifyAndProjectSupabaseToken`: conditional
+     spreads for optional props (no behaviour change).
+   - `TokenValidationResult`, `auditAuthResolution`: explicit
+     `| undefined` on optional props.
+   - `Action`: added `'refund'` so the business-hours policy compiles.
+   - `checkApprovalRequired`: defensive empty-thresholds handling.
+   - `authorize`: default action when permission has no `:`.
+   - `ContextVariableMap` modifiers aligned with the canonical
+     declaration in `hono-augmentation.d.ts`.
+   - `rate-limiter`: bounds-checked forwarded-for/content-type splits;
+     `c.text('', 204)` → `c.body(null, 204)` (204 is not a
+     `ContentfulStatusCode`).
+
+2. **Routes (16 files):** `oauth-device.hono.ts`,
+   `auth/public-auth.hono.ts`, `estate/{assets,capital-movements,
+   entities,groups}.hono.ts`,
+   `ops/{chain-of-custody,engagements,external-parties,
+   regulatory-filings}.hono.ts`, `scope/scope.hono.ts`,
+   `workforce/{tab-configs,tab-configs-extras}.hono.ts`,
+   `mining/brain-vision.hono.ts`, `auth/supabase/supabase-auth-routes.ts`.
+   All but `tab-configs.hono.ts` and the proxy `supabase-auth-routes.ts`
+   were prophylactic; the genuine drift surfaced was:
+   - **Logger arg-order drift:** routes had been authored in pino
+     `(meta, message)` style but the project logger only accepted
+     `(message, meta)`. The `@ts-nocheck` was hiding a real call-site
+     bug — meta was being read as the message. Fix: extended
+     `utils/logger.ts` with an overloaded contract that accepts both
+     orderings and normalises at runtime.
+   - **`SessionCookiePayload`:** added explicit `| undefined` on the
+     optional fields so `exactOptionalPropertyTypes` accepts the
+     `encodeSessionCookie` call site.
+   - **`supabase-auth-routes`:** added `asContentfulStatus()` helper
+     that pins the upstream Supabase response status into Hono's
+     union and normalises out-of-range codes to 502.
+   - **`tab-configs.hono.ts`:** cast `WORKFORCE_ROLE_IDS` to the tuple
+     shape required by `z.enum([string, ...string[]])`.
+   - **`chain-of-custody`:** narrowed array-access against
+     `noUncheckedIndexedAccess` in the verification loop.
+
+3. **Stray pragmas:** removed a trailing `// @ts-nocheck` at the bottom
+   of `services/api-gateway/src/schemas/index.ts` (orphan from an
+   earlier sweep — no effect, but a lint nuisance).
+
+Cluster 1 is now 100 % retired. `pnpm -F api-gateway typecheck` exits 0
+with zero `@ts-nocheck` pragmas in the Hono surface.
+
+Net reduction: 33 → 11 (Cluster 1 fully retired — the remaining 11 are
+Clusters 3 + 4 + 5 + 6 from drizzle / namespace / port-adapter drift).
 
 ---
 
@@ -206,15 +280,16 @@ Net reduction: 91 → 33 (Cluster 1 fully retired).
 |---|---|:-:|
 | 14 (done) | Augmentation + stray cleanup | -1 |
 | **scrub-5a (DONE 2026-05-27)** | **Cluster 1: api-gateway routes/ retirement** | **-58 (delivered)** |
-| 15 (planned) | Hono 4.13 upgrade + middleware/ residuals (any remaining) | tbd |
+| **scrub-5b (DONE 2026-05-29)** | **Cluster 1: middleware/ + residual routes** | **-22 (delivered)** |
 | 15 (planned) | drizzle 0.37 upgrade + enum/audit column fixes | -15 |
 | 16 (planned) | BORJIE-42: domain-models namespace→type refactor | -13 |
 | 16 (planned) | authz-policy Policy-type unification | -2 |
 | 17 (planned) | service-registry + composition retype | -5 |
 | 17 (planned) | domain-services residuals | -27 |
 
-Current count (post-scrub-5a): **33 monorepo-wide**. ≤ 30 target now within
-two more cluster retirements.
+Current count (post-scrub-5b): **11 monorepo-wide**. ≤ 30 target met
+(11 ≪ 30). Remaining 11 are non-Hono — drizzle 0.36 ↔ 0.37, namespace
+vs type drift, port adapter shape drift, pagination shape drift.
 
 ---
 
