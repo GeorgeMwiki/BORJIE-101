@@ -25,6 +25,7 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { appendOpsAuditEntry } from './audit-helper';
+import { enqueueRfbFulfillmentNotification } from '../../services/buyer-notifications';
 
 const moduleLogger = createLogger('ops-chain-of-custody');
 
@@ -182,6 +183,74 @@ export function createChainOfCustodyRouter(): Hono {
       auditHashId,
       prevAuditHash: prevHash,
     });
+
+    // Commercial chain L7 — when the CoC step is the FINAL leg of a
+    // buyer fulfilment (action='sell' or 'export') AND the parcel is
+    // linked back to an `mining_tasks` row with parent_rfb_id set, we
+    // enqueue a buyer notification. The link is via
+    // mining_tasks.provenance->>'parcelId' which the worker fulfilment
+    // flow stamps when reporting against an RFB-fulfilment task.
+    if (d.action === 'sell' || d.action === 'export') {
+      try {
+        const linked = await db.execute(sql`
+          SELECT
+            mt.id::text AS task_id,
+            mt.parent_rfb_id::text AS parent_rfb_id,
+            rfb.buyer_id AS buyer_id,
+            rfb.tenant_id::text AS buyer_tenant_id,
+            rfb.mineral_kind AS mineral_kind,
+            (
+              SELECT response_id::text
+                FROM request_for_bid_responses
+               WHERE rfb_id = rfb.id
+                 AND status = 'accepted'
+               LIMIT 1
+            ) AS response_id
+            FROM mining_tasks mt
+            JOIN request_for_bids rfb ON rfb.id = mt.parent_rfb_id
+           WHERE mt.tenant_id = ${auth.tenantId}::uuid
+             AND mt.kind = 'rfb_fulfill'
+             AND mt.parent_rfb_id IS NOT NULL
+             AND mt.provenance->>'parcelId' = ${d.parcelId}
+           LIMIT 1
+        `);
+        const linkRows = Array.isArray(linked)
+          ? linked
+          : (linked as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ?? [];
+        const link = (linkRows as ReadonlyArray<Record<string, unknown>>)[0];
+        if (link && link.buyer_tenant_id && link.buyer_id && link.parent_rfb_id) {
+          const tonnage =
+            d.weightGrams !== undefined ? d.weightGrams / 1_000_000 : null;
+          await enqueueRfbFulfillmentNotification(db, {
+            buyerTenantId: String(link.buyer_tenant_id),
+            buyerUserId: String(link.buyer_id),
+            sellerTenantId: auth.tenantId,
+            rfbId: String(link.parent_rfb_id),
+            responseId: link.response_id ? String(link.response_id) : null,
+            taskId: link.task_id ? String(link.task_id) : null,
+            mineralKind: String(link.mineral_kind ?? 'mineral'),
+            tonnage,
+            parcelId: d.parcelId,
+            extraPayload: { cocStepId: id, action: d.action },
+          });
+          moduleLogger.info(
+            {
+              parcelId: d.parcelId,
+              rfbId: String(link.parent_rfb_id),
+              taskId: link.task_id,
+              action: d.action,
+            },
+            'buyer_fulfillment_notification_enqueued',
+          );
+        }
+      } catch (err) {
+        moduleLogger.warn(
+          { err, parcelId: d.parcelId, action: d.action },
+          'buyer_fulfillment_notification_failed',
+        );
+      }
+    }
+
     return c.json(
       {
         success: true,

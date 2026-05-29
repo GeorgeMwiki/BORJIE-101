@@ -177,6 +177,9 @@ import { universalMarketplaceRouter } from './routes/marketplace/index.js';
 // "I want N tonnes of X at TZS Y by D"; sellers in the geo radius
 // respond with counter-offers. Migration 0127.
 import { rfbRouter } from './routes/marketplace/rfb.hono';
+// Commercial chain L7 — buyer fulfilment notification queue.
+// Migration 0132. RLS-scoped to the buyer's tenant on read.
+import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
 // Public marketing surface — pilot applications + future PR contact
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
@@ -1450,6 +1453,60 @@ api.route('/applications', applicationsRouter);
 // REMOVED (borjie hard-fork): api.route('/arrears', arrearsRouter);
 api.route('/compliance', complianceRouter);
 api.route('/compliance-plugins', compliancePluginsRouter);
+// Issue #194 chain C-A — regulator data-subject-request inbox.
+// Mounts `/api/v1/regulator/requests/*`. The service slot binds the
+// shared Drizzle client + Pino-backed audit sink.
+{
+  const regulatorRequestService = new RegulatorRequestService({
+    db: getDb() as unknown as never,
+    logger,
+    auditSink: createPinoAuditSink(logger) as unknown as never,
+  });
+  api.route(
+    '/regulator',
+    (() => {
+      const sub = new Hono();
+      sub.route(
+        '/requests',
+        createRegulatorRequestsRouter({ service: regulatorRequestService }),
+      );
+      return sub;
+    })(),
+  );
+}
+// Issue #194 chain C-B — licence renewal flow under /api/v1/compliance.
+{
+  const renewalService = new LicenceRenewalService({
+    db: getDb() as unknown as never,
+    logger,
+    auditSink: createPinoAuditSink(logger) as unknown as never,
+  });
+  api.route(
+    '/compliance',
+    createLicenceRenewalRouter({ service: renewalService }),
+  );
+  // Background watcher — opens reminder events on the 90/60/30/14/7/1
+  // ladder so the cockpit pulses without the owner having to poll.
+  const watcher = startLicenceRenewalWatcher({
+    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+    logger,
+  });
+  watcher.start();
+}
+// Issue #194 chain C-C — AI-assisted inspection narratives under
+// /api/v1/compliance. The `loadInspection` resolver is a no-op stub
+// in MVP — a follow-on phase wires it to `pre_shift_inspections`.
+{
+  const narrativeService = new InspectionNarrativeService({
+    db: getDb() as unknown as never,
+    logger,
+    auditSink: createPinoAuditSink(logger) as unknown as never,
+  });
+  api.route(
+    '/compliance',
+    createInspectionNarrativeRouter({ service: narrativeService }),
+  );
+}
 api.route('/doc-chat', docChatRouter);
 api.route('/document-render', documentRenderRouter);
 api.route('/financial-profile', financialProfileRouter);
@@ -1462,6 +1519,8 @@ api.route('/marketplace', marketplaceRouter);
 // the legacy marketplace prefix so client URLs read
 // `/api/v1/marketplace/rfb/*` (matches the buyer-mobile fetch calls).
 api.route('/marketplace/rfb', rfbRouter);
+// Commercial chain L7 — buyer's at-rest notification queue.
+api.route('/buyer/notifications', buyerNotificationsRouter);
 api.route('/marketplace-universal', universalMarketplaceRouter);
 api.route('/marketing', marketingRouter);
 // Borjie locale-toggle re-translation — see routes/translate.hono.ts.
