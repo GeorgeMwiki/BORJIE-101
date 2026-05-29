@@ -53,22 +53,38 @@ interface MockTurn {
   proposedAction?: { verb: string; object: string; riskLevel: string; reviewRequired: boolean; executionHeld?: boolean };
 }
 
-let startThreadImpl: () => Promise<{ success: boolean; data?: { thread: { id: string }; turn: MockTurn }; error?: { code: string; message: string; retryable: boolean } }> = async () => ({
-  success: true,
-  data: {
-    thread: { id: 'thread-mock-1' },
-    turn: {
-      threadId: 'thread-mock-1',
-      finalPersonaId: 'persona.coworker',
-      responseText: 'Hello from mock brain.',
-      toolCalls: [],
-      handoffs: [],
-      tokensUsed: 42,
-      timeMs: 12,
-      advisorConsulted: false,
+/**
+ * Spy capture for the most recent `startThread` invocation. Tests assert
+ * against this to verify the route resolves `teamId` from the body /
+ * viewer / sentinel before delegating to the orchestrator.
+ */
+const startThreadCalls: Array<Record<string, unknown>> = [];
+
+let startThreadImpl: (
+  input?: Record<string, unknown>,
+) => Promise<{
+  success: boolean;
+  data?: { thread: { id: string }; turn: MockTurn };
+  error?: { code: string; message: string; retryable: boolean };
+}> = async (input) => {
+  if (input) startThreadCalls.push(input);
+  return {
+    success: true,
+    data: {
+      thread: { id: 'thread-mock-1' },
+      turn: {
+        threadId: 'thread-mock-1',
+        finalPersonaId: 'persona.coworker',
+        responseText: 'Hello from mock brain.',
+        toolCalls: [],
+        handoffs: [],
+        tokensUsed: 42,
+        timeMs: 12,
+        advisorConsulted: false,
+      },
     },
-  },
-});
+  };
+};
 
 let handleTurnImpl: () => Promise<{ success: boolean; data?: MockTurn; error?: { code: string; message: string; retryable: boolean } }> = async () => ({
   success: true,
@@ -96,7 +112,7 @@ vi.mock('@borjie/ai-copilot', async () => {
     // `principalToBrainContexts`, `BrainRegistry`, etc.
     createBrain: () => ({
       orchestrator: {
-        startThread: (...args: unknown[]) => startThreadImpl(...(args as [])),
+        startThread: (input: Record<string, unknown>) => startThreadImpl(input),
         handleTurn: (...args: unknown[]) => handleTurnImpl(...(args as [])),
       },
       personas: { get: () => null, register: () => undefined, resolveCoworker: () => null },
@@ -302,22 +318,26 @@ beforeAll(() => {
 
 afterEach(() => {
   // Reset to default success impls between tests.
-  startThreadImpl = async () => ({
-    success: true,
-    data: {
-      thread: { id: 'thread-mock-1' },
-      turn: {
-        threadId: 'thread-mock-1',
-        finalPersonaId: 'persona.coworker',
-        responseText: 'Hello from mock brain.',
-        toolCalls: [],
-        handoffs: [],
-        tokensUsed: 42,
-        timeMs: 12,
-        advisorConsulted: false,
+  startThreadCalls.length = 0;
+  startThreadImpl = async (input) => {
+    if (input) startThreadCalls.push(input);
+    return {
+      success: true,
+      data: {
+        thread: { id: 'thread-mock-1' },
+        turn: {
+          threadId: 'thread-mock-1',
+          finalPersonaId: 'persona.coworker',
+          responseText: 'Hello from mock brain.',
+          toolCalls: [],
+          handoffs: [],
+          tokensUsed: 42,
+          timeMs: 12,
+          advisorConsulted: false,
+        },
       },
-    },
-  });
+    };
+  };
   handleTurnImpl = async () => ({
     success: true,
     data: {
@@ -680,5 +700,110 @@ describe('POST /api/v1/brain/turn — gate semantics', () => {
       body: JSON.stringify({ userText: 'hi' }),
     });
     expect(res.status).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. teamId auto-resolution (live-test happy-path regression — issue #170)
+//
+// The live happy-path FAIL 03 surfaced an unhandled 500 when a /turn call
+// arrived without a `teamId`: the deployed `threads.team_id` column was
+// `uuid NOT NULL` in some Borjie regions and rejected the empty string
+// Drizzle wrote. Auth + persona dispatch were already passing — the only
+// gap was that the route did not auto-resolve a teamId before delegating
+// to `orchestrator.startThread`.
+//
+// Resolution rules (locked here so the regression cannot reappear):
+//   1. Explicit `body.teamId` wins.
+//   2. Else first non-empty entry of `viewer.teamIds` (from JWT).
+//   3. Else the well-known `PERSONAL_TEAM_SENTINEL` UUID. NEVER ''.
+// ---------------------------------------------------------------------------
+
+describe('POST /api/v1/brain/turn — teamId auto-resolution (issue #170)', () => {
+  it('returns 200 without an explicit teamId and passes the sentinel UUID to startThread', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ userText: 'no team binding' }),
+    });
+    expect(res.status).toBe(200);
+    expect(startThreadCalls.length).toBeGreaterThan(0);
+    const last = startThreadCalls[startThreadCalls.length - 1] as { teamId?: unknown };
+    expect(typeof last.teamId).toBe('string');
+    // PERSONAL_TEAM_SENTINEL — never empty so uuid columns accept it.
+    expect(last.teamId).toBe('00000000-0000-0000-0000-000000000000');
+  });
+
+  it('passes the explicit body teamId through to startThread when provided', async () => {
+    const app = mount();
+    const explicit = '11111111-2222-3333-4444-555555555555';
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ userText: 'with explicit team', teamId: explicit }),
+    });
+    expect(res.status).toBe(200);
+    const last = startThreadCalls[startThreadCalls.length - 1] as { teamId?: unknown };
+    expect(last.teamId).toBe(explicit);
+  });
+
+  it('falls back to the first viewer.teamIds entry when the body omits teamId', async () => {
+    // Mint a token whose principal carries a primary team binding so
+    // `principalToBrainContexts` projects it onto `viewer.teamIds`.
+    const tokenWithTeam = await new SignJWT({
+      sub: 'user-with-team',
+      email: 'team-user@example.com',
+      app_metadata: {
+        tenant_id: 'tenant-1',
+        tenant_name: 'Test Tenant',
+        roles: ['owner'],
+        team_ids: ['team-alpha-uuid', 'team-beta-uuid'],
+        environment: 'production',
+      },
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .setSubject('user-with-team')
+      .sign(SECRET_BYTES);
+
+    const app = mount();
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenWithTeam}`,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ userText: 'use my viewer team' }),
+    });
+    expect(res.status).toBe(200);
+    const last = startThreadCalls[startThreadCalls.length - 1] as { teamId?: unknown };
+    expect(last.teamId).toBe('team-alpha-uuid');
+  });
+
+  it('returns 400 teamId_must_be_string when client sends a non-string teamId', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ userText: 'bad type', teamId: 42 }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('teamId_must_be_string');
   });
 });
