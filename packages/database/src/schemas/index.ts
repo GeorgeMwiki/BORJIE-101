@@ -1224,3 +1224,9 @@ export * from './agent-security.schema.js';
 // on it for TZ_TRA / KE_DPA / KE_KRA / TZ_LAND_ACT regulator-facing
 // manifest rows.
 export * from './compliance-exports.schema.js';
+
+// Wave R5 closure — `help_requests` (migration 0126). Worker hero card
+// "Naomba msaada" / "Need help" submissions. Surfaced to managers via
+// /api/v1/field/workforce/help-requests; fan-out to the owner cockpit
+// via the workforce.shift_event bus.
+export * from './help-requests.schema.js';
