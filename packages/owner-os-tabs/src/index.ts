@@ -69,6 +69,7 @@ export {
   microActionCardSchema,
   miniMetricSchema,
   tabPromotionChipSchema,
+  draftEditBlockSchema,
   inlineBlockSchema,
   parseInlineBlocks,
   extractAutoAuthorized,
@@ -79,6 +80,7 @@ export {
   type MicroActionCard,
   type MiniMetric,
   type TabPromotionChip,
+  type DraftEditBlock,
   type InlineBlock,
   type InlineTable,
   type InlineChart,
@@ -96,6 +98,11 @@ export {
 export {
   draftPreviewBlockSchema,
 } from './draft-preview-block.js';
+
+export {
+  DRAFT_EDIT_FIELD_KINDS,
+  type DraftEditField,
+} from './draft-edit-block.js';
 
 export {
   inlineTableSchema,

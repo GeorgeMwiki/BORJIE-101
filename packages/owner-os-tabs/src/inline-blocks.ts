@@ -54,6 +54,10 @@ import {
   draftPreviewBlockSchema,
   type DraftPreviewBlock,
 } from './draft-preview-block.js';
+import {
+  draftEditBlockSchema,
+  type DraftEditBlock,
+} from './draft-edit-block.js';
 
 // ─── Bilingual label helper ─────────────────────────────────────────
 
@@ -206,6 +210,7 @@ export const inlineBlockSchema = z.discriminatedUnion('type', [
   microActionCardSchema,
   miniMetricSchema,
   tabPromotionChipSchema,
+  draftEditBlockSchema,
   inlineTableSchema,
   inlineChartSchema,
   inlineWizardSchema,
@@ -228,7 +233,12 @@ export type {
   InlineSection,
   InlineDashboard,
   DraftPreviewBlock,
+  DraftEditBlock,
 };
+
+
+// Re-export draft_edit schema for type safety
+export { draftEditBlockSchema } from './draft-edit-block.js';
 
 export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'data_capture_card',
@@ -237,6 +247,7 @@ export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'micro_action_card',
   'mini_metric',
   'tab_promotion_chip',
+  'draft_edit',
   ...RICH_INLINE_BLOCK_TYPES,
   'draft_preview',
 ];
