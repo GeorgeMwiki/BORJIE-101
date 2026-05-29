@@ -104,6 +104,8 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+import { renderScalePersonaSection } from '../services/brain/scale-persona.js';
+import { lookupTenantScaleTier } from '../services/brain/tenant-scale-lookup.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -549,6 +551,15 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     );
     const memoryDirective = memorySnapshot ? renderMemoryDirective(memorySnapshot) : '';
 
+    // SC-3: scale-aware persona register. Best-effort DB lookup — never
+    // blocks the turn. If the column or row is missing, the helper
+    // returns null and the section coerces to T1 artisanal.
+    const scaleTierRaw = await lookupTenantScaleTier(memoryDb, tenantId);
+    const scaleSection = renderScalePersonaSection({
+      tier: scaleTierRaw,
+      language,
+    });
+
     const systemPromptParts: string[] = [
       `<owner_context>${JSON.stringify(ownerCtx)}</owner_context>`,
       '',
@@ -563,6 +574,8 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       systemPromptParts.push(memoryDirective);
       systemPromptParts.push('');
     }
+    systemPromptParts.push(scaleSection);
+    systemPromptParts.push('');
     systemPromptParts.push(basePrompt);
     const systemPrompt = systemPromptParts.join('\n');
 
