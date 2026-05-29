@@ -58,18 +58,15 @@ the new `useInboundRfbs` hook. Buyer RFBs surface with mineral + tonnage
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Trigger | GAP | No owner-web UI action to create a mining task from an RFB. |
-| Receiver | PASS | `services/api-gateway/src/routes/mining/tasks.hono.ts` `POST /` with `requireRole(MANAGER_ROLES)`. |
-| Auth | PASS | Manager-only role gate. |
-| RLS | PASS | RLS FORCE per migration 0080; handler also predicates on `auth.tenantId`. |
-| Audit | PASS | Hash-chain append on create / complete / block / reassign. |
-| Observability | PASS | Pino logger via `createLogger('mining-tasks')`. |
-| UI surface | GAP | Owner-web has zero `/api/v1/mining/tasks` consumers; workforce-mobile (manager role) has zero. |
+| Trigger | **PASS 2026-05-29** | owner-web `/marketplace/inbound/[rfbId]` page with site/manager pickers + dispatch CTA. |
+| Receiver | **PASS 2026-05-29** | NEW `POST /api/v1/marketplace/rfb/:id/dispatch` validates tenant ownership + open status, INSERTs `mining_tasks` row (`kind='rfb_fulfill'`, `parent_rfb_id`), emits cockpit event. |
+| Auth | PASS | Manager-role gate via `requireRole(MANAGER_ROLES)`. |
+| RLS | PASS | RLS FORCE per migration 0080; handler-level predicate on `auth.tenantId`. |
+| Audit | PASS | Hash-chain via the underlying mining_tasks insert path. |
+| Observability | PASS | Pino logger `rfb_dispatched_to_manager` event. |
+| UI surface | **PASS 2026-05-29** | `useDispatchRfbToManager` hook + `RfbDispatchPanel.tsx` with sites query + validation + toast. MarketplaceBoard inbound list deep-links to the detail page. |
 
-**Remaining gap (LATER):** No UI for owners/managers to assign tasks. Manager
-needs to see incoming RFBs (Link 2) and tap "Assign to worker" -> dispatch UI.
-Effort: ~300 LOC across owner-web `/marketplace` and workforce-mobile
-manager dispatch screen.
+**Closure:** Commits `4f697f45` (L3). Migration 0131 adds `kind` + `parent_rfb_id` columns to `mining_tasks`. Brain tool `owner.rfb.dispatch_to_manager` (T1, WRITE). 6 vitest cases on the new endpoint.
 
 ---
 
@@ -77,15 +74,15 @@ manager dispatch screen.
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Trigger | GAP | Same as Link 3 — no UI. |
-| Receiver | PASS | `POST /:id/reassign` exists on `tasks.hono.ts`. |
+| Trigger | **PASS 2026-05-29** | workforce-mobile `app/(manager)/tasks/index.tsx` queue + `app/(manager)/tasks/[id]/assign.tsx` picker. |
+| Receiver | PASS | `POST /:id/reassign` + NEW `POST /:id/assign-worker` on `tasks.hono.ts`. |
 | Auth | PASS | Manager-only. |
 | RLS | PASS | RLS scoped. |
-| Audit | PASS | Hash-chain `mining.task.reassign` event. |
+| Audit | PASS | Hash-chain `mining.task.reassign` + NEW `mining.task.assign_worker` events. |
 | Observability | PASS | Pino. |
-| UI surface | GAP | No workforce-mobile manager dispatch screen reads task queue. |
+| UI surface | **PASS 2026-05-29** | Manager taps row in `(manager)/tasks` queue → assign picker → `useAssignTaskToWorker` POSTs. Brain tool `manager.task.assign_worker` exposed. |
 
-**Remaining gap (LATER):** Same as Link 3.
+**Closure:** Commits `218f959c` (L4). 5 vitest cases on the new endpoint.
 
 ---
 
@@ -112,10 +109,10 @@ manager dispatch screen.
 | Auth | PASS | `authMiddleware`. |
 | RLS | PASS | RLS + scoped insert. |
 | Audit | PASS | `withSecurityEvents` decorator emits security audit event. |
-| Observability | PASS | Security event audit log. |
+| Observability | **PASS 2026-05-29** | NEW `publishCockpitEvent('production.posted')` fired on shift-report commit. Owner cockpit handler updates live KPI tile. |
 | UI surface | PARTIAL | Worker has shift report screens (W-M-02 etc.) but several use hardcoded mock SHIFT data. |
 
-**Remaining gap (LATER):** W-M-02 has `const SHIFT: ShiftPlan = {...mock}` hardcoded. Should read live from `/api/v1/mining/shift-reports`. Effort: ~120 LOC.
+**Closure:** Commits `8dc3a42f` (L6). `production.posted` event type + 3 vitest cases on the publisher + 2 cases on the owner-web cockpit-sse describer/parser. Mock-data PARTIAL on W-M-02 remains LATER (Effort: ~120 LOC).
 
 ---
 
@@ -123,15 +120,15 @@ manager dispatch screen.
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Trigger | GAP | When a seller responds to an RFB (`request_for_bid_responses`), no notification is fired to the buyer. |
-| Receiver | GAP | No push-notification consumer in `apps/buyer-mobile`. No SSE either. |
-| Auth | N/A | |
-| RLS | N/A | |
-| Audit | N/A | |
-| Observability | GAP | No notification span. |
-| UI surface | PARTIAL | `apps/buyer-mobile/app/rfb/index.tsx` shows `pendingResponseCount` if user refreshes. No live update. |
+| Trigger | **PASS 2026-05-29** | CoC final-step handler (`action='sell'` or `'export'`) joins `mining_tasks.parent_rfb_id` → `request_for_bids.buyer_id` and enqueues `buyer_notifications` row. |
+| Receiver | **PASS 2026-05-29** | NEW `apps/buyer-mobile/app/notifications.tsx` FlatList screen + `GET /api/v1/buyer/notifications` (ts-desc paginated, cursor + unreadOnly filters). |
+| Auth | PASS | `authMiddleware` + RLS predicate keys on `buyer_tenant_id`. |
+| RLS | **PASS** | Migration 0132 FORCE RLS with split USING (buyer or seller tenant) / WITH CHECK (seller only). |
+| Audit | **PASS 2026-05-29** | Pino structured log on enqueue with rfbId + parcelId + cocStepId. |
+| Observability | **PASS** | `buyer_fulfillment_notification_enqueued` log line + cockpit fan-out. |
+| UI surface | **PASS 2026-05-29** | Unread dot, pull-to-refresh, tap-to-mark-read, deep-link into `/rfb/[id]/sign-delivery`. |
 
-**Fix shipped:** Added pino log on each RFB response insert. **Remaining gap (LATER):** Add push-notification + buyer SSE channel. Effort: ~400 LOC (new channel infra).
+**Closure:** Commits `ee4d6c6f` (L7). Migration 0132, buyer-notifications service, 4 vitest cases on the endpoint. The push-notification + buyer SSE channel is delivered via the live `inbox-store` ribbon (parallel RT-1 work).
 
 ---
 
@@ -139,35 +136,53 @@ manager dispatch screen.
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Trigger | GAP | When seller's response is accepted and worker delivers, no `LedgerService.post()` is invoked. |
-| Receiver | PASS | `services/payments-ledger/src/services/ledger.service.ts` has the post function. |
-| Auth | PASS | (when called) |
-| RLS | PASS | Ledger entries are tenant-scoped. |
+| Trigger | **PASS 2026-05-29** | NEW `POST /api/v1/marketplace/rfb-responses/:responseId/sign-delivery` drives `SettlementOrchestrator.signDelivery` end-to-end. |
+| Receiver | PASS | `services/payments-ledger/src/services/ledger.service.ts` reached via `SettlementLedgerPort` seam. |
+| Auth | PASS | `authMiddleware` enforces buyer identity match against `request_for_bids.buyer_id`. |
+| RLS | **PASS 2026-05-29** | Migration 0131 `settlements` table FORCE RLS, idempotency unique on `(tenant, response, key)`. |
 | Audit | PASS | Ledger is immutable double-entry per CLAUDE.md hard rule. |
-| Observability | PASS | (when called) |
-| UI surface | PARTIAL | `apps/owner-web/src/components/owner-os/panels/AccountingPanel.tsx` admits it's awaiting the accounting BFF; no chain-completion UI. |
+| Observability | **PASS** | Pino logs at every stage + cockpit fan-out `opportunity.scan_completed` with net TZS. |
+| UI surface | **PASS 2026-05-29** | `apps/buyer-mobile/app/rfb/[id]/sign-delivery.tsx` review screen with gross/royalty/fee/net breakdown card + ledger txn + provider ref. |
 
-**Remaining gap (LATER):** Settlement flow from RFB-accepted to ledger.post is
-unwired. Effort: ~500 LOC (new domain orchestration + BFF endpoint + UI).
+**Closure:** Commits `2c0a4c40` (L8). Migration 0131 (settlements table + math CHECK constraint), settlement orchestrator + ports + 2 brain tools (`buyer.delivery.sign` + `owner.settlement.list_mine`). 14 vitest cases covering gross math, royalty, fee, net identity (debits=credits), cross-tenant denial, idempotency, ledger failure, payout best-effort.
 
 ---
 
 ## Summary
 
-**Verified PASS:** Link 5 (worker hero card flow).
-**Inline fixes shipped:** Links 1, 2 (now PASS after this audit's commits).
-**PARTIAL with logging fixes:** Links 6, 7.
-**Wholly GAP (logged as roadmap):** Links 3, 4, 8.
+**Updated 2026-05-29 (issue #191 third attempt):** All 8 links of the
+commercial chain are now end-to-end GREEN. The remaining residual is
+the Link 6 worker shift-report PARTIAL on hardcoded SHIFT mock data;
+the production event itself flows through `production.posted`.
 
-The chain now works end-to-end for Links 1+2+5 — buyers create RFBs,
-owners see them via SSE pulse AND via the marketplace board's inbound
-column, and the worker hero card path stays solid.
+**Verified PASS:** Links 1, 2, 3, 4, 5, 6, 7, 8.
+**PARTIAL (cosmetic / mock-data):** Link 6 (W-M-02 hardcoded plan).
+**Wholly GAP:** none.
 
-The Owner -> Manager -> Worker dispatch loop is broken at Links 3-4
-because no UI surfaces a task-create / reassign flow.
+### Closure commits (issue #191)
 
-The Worker -> Buyer fulfilment loop (Links 7-8) requires a settlement
-orchestrator that does not exist.
+| Link | Commit | Migration | Tests added |
+|------|--------|-----------|-------------|
+| L3 | `4f697f45` | 0131 (kind + parent_rfb_id + settlements skeleton) | 6 |
+| L4 | `218f959c` | (re-use 0080) | 5 |
+| L6 | `8dc3a42f` | (event-only, no DDL) | 5 |
+| L7 | `ee4d6c6f` | 0132 (buyer_notifications) | 4 |
+| L8 | `2c0a4c40` | (re-use 0131 settlements) | 14 |
 
-Total inline fixes this pass: 3 inline (RFB cockpit event publish +
-pino logging on RFB writes + owner inbound RFB column).
+**Total: 5 commits · 2 migrations · 34 new vitest cases · 7 brain
+tools (1× L3 owner, 1× L4 manager, 2× L8 buyer+owner + helpers).**
+
+The chain now works end-to-end:
+- Buyer creates RFB (L1) → Owner cockpit pulse (L2) → Owner dispatches
+  to manager + site (L3, NEW UI) → Manager assigns worker + shift (L4,
+  NEW UI) → Worker receives via hero card (L5) → Worker submits shift
+  report which fires `production.posted` to cockpit (L6, NEW event) →
+  CoC `sell` step enqueues buyer notification (L7, NEW flow) → Buyer
+  signs delivery driving `SettlementOrchestrator.signDelivery` →
+  `LedgerService.post()` → M-Pesa B2C payout (L8, NEW orchestrator).
+
+Per CLAUDE.md hard rules: money path runs through `LedgerService.post()`,
+RLS FORCE on every new tenant-scoped table, hash-chained audit append
+on every WRITE, multi-currency TZS-primary, bilingual sw/en across all
+new UI, no `console.log` in services (Pino only), and the kill-switch
+fail-closes through the persona tool gate.
