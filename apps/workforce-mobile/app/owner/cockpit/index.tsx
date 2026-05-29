@@ -256,12 +256,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   bannerText: {
-    color: colors.textPrimary,
+    color: colors.text,
     fontSize: fontSize.body,
   },
   bannerHint: {
     color: colors.textMuted,
-    fontSize: fontSize.bodySm,
+    fontSize: fontSize.body,
     marginTop: spacing.xs,
     fontStyle: 'italic',
   },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   briefHeadline: {
-    color: colors.textPrimary,
+    color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '600',
   },
@@ -294,14 +294,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rowTitle: {
-    color: colors.textPrimary,
+    color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '500',
     flex: 1,
   },
   severity: {
     color: colors.gold,
-    fontSize: fontSize.bodySm,
+    fontSize: fontSize.body,
     fontWeight: '700',
     marginLeft: spacing.sm,
   },

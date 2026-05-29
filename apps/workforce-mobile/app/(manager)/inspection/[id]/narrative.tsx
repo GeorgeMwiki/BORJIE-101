@@ -147,7 +147,7 @@ export default function InspectionNarrativeScreen(): JSX.Element {
             (k) => (
               <Button
                 key={k}
-                title={k}
+                label={k}
                 variant={kind === k ? 'primary' : 'ghost'}
                 onPress={() => setKind(k)}
                 style={styles.kindBtn}
@@ -165,7 +165,7 @@ export default function InspectionNarrativeScreen(): JSX.Element {
           style={styles.textArea}
         />
         <Button
-          title={isSw ? 'Tengeneza rasimu' : 'Generate draft'}
+          label={isSw ? 'Tengeneza rasimu' : 'Generate draft'}
           onPress={() => void generate()}
           disabled={loading}
         />
@@ -204,7 +204,7 @@ export default function InspectionNarrativeScreen(): JSX.Element {
               </Text>
               {row.status === 'draft' ? (
                 <Button
-                  title={isSw ? 'Idhinisha' : 'Approve as manager'}
+                  label={isSw ? 'Idhinisha' : 'Approve as manager'}
                   onPress={() => void approve(row.id)}
                   disabled={loading}
                   style={styles.approveBtn}
