@@ -99,9 +99,10 @@ export function selectInsuranceBrokerProvider(
     case 'britam':
     case 'nic':
     case 'heritage':
-      // TODO(insurance-broker): wire real adapters. Until then we
-      // continue with mock so demo + tests keep flowing; the warning
-      // surface lets on-call see the gap without breaking traffic.
+      // TODO(gh#TBD): wire real britam/nic/heritage broker adapters
+      // for the insurance-broker service. Until then we continue with
+      // the mock so demo + tests keep flowing; the warning surface
+      // lets on-call see the gap without breaking traffic.
       return createMockBrokerProvider();
     default:
       return createMockBrokerProvider();

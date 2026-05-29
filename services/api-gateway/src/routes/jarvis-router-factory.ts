@@ -38,7 +38,18 @@ import type {
   ThoughtRequest,
 } from '@borjie/central-intelligence';
 import { createFeedbackService } from '@borjie/database';
-import type { GroundingViewRole } from '@borjie/database';import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware } from '../middleware/hono-auth';
+
+// Local mirror of `GroundingViewRole` from `@borjie/database`. The
+// barrel re-export is currently misread by the workspace resolver as a
+// namespace (TS 2709); duplicating the literal-union shape here keeps
+// the router type-safe without taking on a brittle cross-package cast.
+type GroundingViewRole =
+  | 'tenant'
+  | 'manager'
+  | 'owner'
+  | 'org-admin'
+  | 'sovereign';
 import { getSovereignBrain } from '../composition/sovereign';
 import { getDb } from '../composition/db-client';
 import { withKernelSpan, type KernelTraceScope } from '../observability/kernel-tracing';

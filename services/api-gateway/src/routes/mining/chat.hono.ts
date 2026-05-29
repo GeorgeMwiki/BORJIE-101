@@ -122,5 +122,5 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
       });
     }
   });
-}) as Parameters<typeof app.openapi<typeof chatTurnRoute>>[1]);
+}) as unknown as Parameters<typeof app.openapi<typeof chatTurnRoute>>[1]);
 export const miningChatRouter = app;

@@ -62,10 +62,9 @@ fx.get('/latest', async (c) => {
     }));
     return c.json({ rates, degraded: false }, 200);
   } catch (err) {
-    moduleLogger.warn(
-      { err: err instanceof Error ? err.message : String(err) },
-      'fx /latest query failed',
-    );
+    moduleLogger.warn('fx /latest query failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
     return c.json({ rates: [], degraded: true }, 200);
   }
 });
@@ -99,10 +98,9 @@ fx.get('/history', async (c: Context) => {
       .reverse();
     return c.json({ pair: allowedPair, points, degraded: false }, 200);
   } catch (err) {
-    moduleLogger.warn(
-      { err: err instanceof Error ? err.message : String(err) },
-      'fx /history query failed',
-    );
+    moduleLogger.warn('fx /history query failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
     return c.json({ pair: allowedPair, points: [], degraded: true }, 200);
   }
 });

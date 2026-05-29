@@ -101,7 +101,7 @@ function registry() {
       threadStoreBackend: backend,      extraSkills: getBrainExtraSkills(),
     };
     if (graphToolkit !== undefined) {
-      (brainConfig as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
+      (brainConfig as unknown as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
     }
     return createBrain(brainConfig);
   });
@@ -278,7 +278,10 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
     const thread = await brain.threads.createThread(createInput);
     threadId = thread.id;
   }
-  const resolvedThreadId: string = threadId;
+  // `threadId` is guaranteed defined: the `if (!threadId)` block above
+  // either assigns from the freshly created thread or the parsed value
+  // was non-empty to begin with.
+  const resolvedThreadId: string = threadId as string;
 
   return streamSSE(c, async (stream) => {
     const abort = new AbortController();

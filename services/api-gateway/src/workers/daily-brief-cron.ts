@@ -545,15 +545,16 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
     (args.recipientPayload as { displayName?: string } | undefined)
       ?.displayName ?? 'Owner';
   const summary3 = summary;
+  // `exactOptionalPropertyTypes`: omit optional fields entirely rather
+  // than assigning `undefined`. Build the base shape then attach the
+  // optional advisor note only when populated.
   const templateArgs: DailyBriefEmailArgs = {
     ownerName,
     dateIso: args.snapshotDate,
     locale: recipientLocale,
     summary3Sentences: summary3,
-    advisorAction: advisor?.action ?? undefined,
-    actionLinks: undefined,
     timezone: args.tenant.localTimezone,
-    tenantTradingName: undefined,
+    ...(advisor?.action ? { advisorAction: advisor.action } : {}),
   };
   const rendered = renderDailyBriefEmail(templateArgs);
   const body = rendered.text;

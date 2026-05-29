@@ -31,9 +31,16 @@ import { and, eq } from 'drizzle-orm';
 import {
   ownerContactPrefs,
   users,
-  type OwnerContactChannel,
-  type OwnerContactLocale,
 } from '@borjie/database';
+
+// Re-declared locally — the `@borjie/database` exports surface these
+// as `type` but the workspace resolver currently misreads them as
+// namespaces (the schema source file is consumed via the package's
+// `exports."."` types path while the .js sibling lacks the same
+// declaration). Mirror the literal-union shape here so the resolver
+// stays type-safe without depending on the upstream barrel.
+type OwnerContactChannel = 'email' | 'sms' | 'slack' | 'whatsapp';
+type OwnerContactLocale = 'sw' | 'en';
 
 export interface ResolvedOwnerContact {
   readonly tenantId: string;

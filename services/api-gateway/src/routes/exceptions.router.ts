@@ -65,7 +65,7 @@ exceptionsRouter.get('/', zValidator('query', ListQuerySchema), async (c) => {
   if (!tenantId) {
     return c.json({ success: false, error: 'tenant context missing' }, 400);
   }
-  const query = c.req.valid('query');
+  const query = c.req.valid('query') as unknown as z.infer<typeof ListQuerySchema>;
   try {
     type ListOpenFilters = Parameters<ExceptionInbox['listOpen']>[1];
     const filters: { -readonly [K in keyof ListOpenFilters]: ListOpenFilters[K] } = {};

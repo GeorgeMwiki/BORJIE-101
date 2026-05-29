@@ -39,7 +39,22 @@ import {
   createSensoriumEventLogService,
   SENSORIUM_EVENT_TYPES,
 } from '@borjie/database';
-import type { SensoriumEventInput } from '@borjie/database';import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware } from '../middleware/hono-auth';
+
+// Local mirror of `SensoriumEventInput` from `@borjie/database`. The
+// barrel re-export is misread by the workspace resolver as a namespace
+// (TS 2709); duplicating the interface here keeps the router type-safe
+// without taking on a brittle cross-package cast.
+interface SensoriumEventInput {
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly sessionId: string;
+  readonly surface: string;
+  readonly route: string;
+  readonly eventType: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly emittedAt: string;
+}
 
 import { withSecurityEvents } from '@borjie/observability';
 // ─────────────────────────────────────────────────────────────────────

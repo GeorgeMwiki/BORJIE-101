@@ -74,7 +74,15 @@ function getAdminClient(): SupabaseClient | null {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
   try {
-    cachedClient = createSupabaseAdminClient({ url, serviceRoleKey: key });
+    // `createSupabaseAdminClient` returns a `SupabaseClient` via the
+    // package's CJS resolution path; the local type-only import here
+    // uses ESM resolution with `exactOptionalPropertyTypes`. The two
+    // shapes are structurally identical — narrow through `unknown` to
+    // bridge the dual-resolution skew without losing call-site safety.
+    cachedClient = createSupabaseAdminClient({
+      url,
+      serviceRoleKey: key,
+    }) as unknown as SupabaseClient;
     return cachedClient;
   } catch (err) {
     moduleLogger.warn('supabase admin client init failed', {

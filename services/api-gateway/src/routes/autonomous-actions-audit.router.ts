@@ -64,7 +64,7 @@ autonomousActionsAuditRouter.get(
     if (!isAdmin(auth?.role)) {
       return c.json({ success: false, error: 'forbidden' }, 403);
     }
-    const q = c.req.valid('query');
+    const q = c.req.valid('query') as unknown as z.infer<typeof ListQuerySchema>;
     const since = q.since ? new Date(q.since) : undefined;
     type ListFilters = Parameters<ReturnType<typeof getAudit>['list']>[1];
     const filters: { -readonly [K in keyof ListFilters]: ListFilters[K] } = {};

@@ -86,7 +86,13 @@ export const nemcEiaDecisionLetterTemplate: UniversalTemplate = {
   variables: vars,
   composeMarkdown(raw, context) {
     const v = vars.parse(raw);
-    const lang = context.language ?? 'en';
+    // `context.language` widens to `'sw' | 'en' | 'bilingual'` for
+    // templates that render side-by-side output; this NEMC letter is a
+    // single-language formal letter — collapse `bilingual` down to
+    // the English template (the EN section carries the canonical
+    // phrasing the regulator accepts).
+    const lang: 'sw' | 'en' =
+      context.language === 'sw' ? 'sw' : 'en';
     const date = v.decisionDate ?? new Date().toISOString().slice(0, 10);
     const decisionText = decisionPhrase(v, lang);
 
