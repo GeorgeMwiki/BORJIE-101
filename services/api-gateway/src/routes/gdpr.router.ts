@@ -14,6 +14,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
+import { routeCatch } from '../utils/safe-error';
 
 import { withSecurityEvents } from '@borjie/observability';
 const DeleteRequestSchema = z.object({
@@ -45,6 +46,15 @@ function notImplemented(c: any) {
     },
     503,
   );
+}
+
+// Borjie hard-fork: the GDPR delete-request tables ship in a migration
+// that hasn't been applied to every dev DB. `handleGdprError` lets a
+// missing-table failure surface as 503 `TABLE_NOT_PROVISIONED` instead
+// of `INTERNAL_ERROR` 500. Domain-specific exceptions still flow through
+// the local code map below.
+function handleGdprError(c: any, e: unknown) {
+  return routeCatch(c, e, { code: 'GDPR_QUERY_FAILED' });
 }
 
 function mapError(e: unknown) {
@@ -86,8 +96,7 @@ app.post(
       const req = await s.requestDeletion(auth.tenantId, body, auth.userId);
       return c.json({ success: true, data: req }, 201);
     } catch (e: unknown) {
-      const { body: errBody, status } = mapError(e);
-      return c.json(errBody, status);
+      return handleGdprError(c, e);
     }
   }),
 );
@@ -100,8 +109,7 @@ app.get('/delete-request/:id', async (c: any) => {
     const req = await s.getStatus(auth.tenantId, c.req.param('id'));
     return c.json({ success: true, data: req });
   } catch (e: unknown) {
-    const { body: errBody, status } = mapError(e);
-    return c.json(errBody, status);
+    return handleGdprError(c, e);
   }
 });
 
@@ -113,8 +121,7 @@ app.get('/delete-requests', async (c: any) => {
     const list = await s.listRequests(auth.tenantId);
     return c.json({ success: true, data: list });
   } catch (e: unknown) {
-    const { body: errBody, status } = mapError(e);
-    return c.json(errBody, status);
+    return handleGdprError(c, e);
   }
 });
 
@@ -160,8 +167,7 @@ app.post(
         },
       });
     } catch (e: unknown) {
-      const { body: errBody, status } = mapError(e);
-      return c.json(errBody, status);
+      return handleGdprError(c, e);
     }
   }),
 );

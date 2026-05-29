@@ -34,7 +34,6 @@ import { streamSSE } from 'hono/streaming';
 import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import {
-  createHttpHandler,
   createSseHandler,
   createInMemorySseRegistry,
   createDispatcher,
@@ -189,26 +188,44 @@ const app = new Hono();
 app.use('*', databaseMiddleware);
 
 // ─── POST /mcp ─────────────────────────────────────────────────────────────
+// We use the dispatcher directly (not createHttpHandler) so the URL
+// rewriting concerns don't apply. Hono mounts us at /mcp; this handler
+// fires for POST /mcp itself.
 app.post('/', async (c) => {
   const db = c.get('db');
-  const handler = createHttpHandler(buildDeps(db));
   const body = await c.req.text();
-  const url = new URL(c.req.url);
-  const fakeReq = {
-    method: 'POST' as const,
-    url: `${url.pathname}${url.search}`,
-    headers: Object.fromEntries(
-      Object.entries(c.req.header()).map(([k, v]) => [k.toLowerCase(), v]),
-    ),
-    body,
-  };
-  // Force the path to /mcp inside the package handler — Hono mounts us
-  // at /mcp so the inner pathname is `/`. The package's handler keys on
-  // /mcp; adapt by rewriting.
-  const adapted = Object.freeze({ ...fakeReq, url: '/mcp' });
-  const res = await handler(adapted);
-  c.header('Content-Type', res.headers['content-type'] ?? 'application/json');
-  return c.body(res.body, res.status as 200 | 400 | 404 | 503);
+  const dispatcher = createDispatcher(buildDeps(db));
+  const bearer = c.req.header('authorization')?.replace(/^Bearer\s+/i, '') ?? null;
+  const idempotencyKey = c.req.header('idempotency-key');
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return c.json(
+      {
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32700, message: 'invalid JSON' },
+      },
+      200,
+    );
+  }
+  if (!parsed || typeof parsed !== 'object' || typeof parsed.method !== 'string') {
+    return c.json(
+      {
+        jsonrpc: '2.0',
+        id: parsed?.id ?? null,
+        error: { code: -32600, message: 'invalid JSON-RPC envelope' },
+      },
+      200,
+    );
+  }
+  const response = await dispatcher.dispatch({
+    request: parsed,
+    bearerToken: bearer,
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+  return c.json(response, 200);
 });
 
 // ─── GET /mcp/healthz ──────────────────────────────────────────────────────

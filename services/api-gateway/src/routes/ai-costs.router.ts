@@ -13,6 +13,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
+import { routeCatch } from '../utils/safe-error';
 
 import { withSecurityEvents } from '@borjie/observability';
 const SetBudgetSchema = z.object({
@@ -39,6 +40,14 @@ function notImplemented(c: any) {
     },
     503,
   );
+}
+
+// Borjie hard-fork: the `ai_cost_*` tables ship in a migration that
+// hasn't been applied to every dev DB. Routing every `catch` through
+// `routeCatch` lets a missing-table failure surface as 503
+// `TABLE_NOT_PROVISIONED` instead of `INTERNAL_ERROR` 500.
+function handleAiCostError(c: any, e: unknown) {
+  return routeCatch(c, e, { code: 'AI_COSTS_QUERY_FAILED' });
 }
 
 function mapError(e: unknown) {
@@ -73,8 +82,7 @@ app.get('/summary', async (c: any) => {
       data: { summary, budget, overBudget },
     });
   } catch (e: unknown) {
-    const { body, status } = mapError(e);
-    return c.json(body, status);
+    return handleAiCostError(c, e);
   }
 });
 
@@ -88,8 +96,7 @@ app.get('/entries', async (c: any) => {
     const entries = await l.listRecentEntries(auth.tenantId, limit);
     return c.json({ success: true, data: entries });
   } catch (e: unknown) {
-    const { body, status } = mapError(e);
-    return c.json(body, status);
+    return handleAiCostError(c, e);
   }
 });
 
@@ -101,8 +108,7 @@ app.get('/budget', async (c: any) => {
     const budget = await l.getBudget(auth.tenantId);
     return c.json({ success: true, data: budget });
   } catch (e: unknown) {
-    const { body, status } = mapError(e);
-    return c.json(body, status);
+    return handleAiCostError(c, e);
   }
 });
 
@@ -126,8 +132,7 @@ app.put(
       });
       return c.json({ success: true, data: saved });
     } catch (e: unknown) {
-      const { body: errBody, status } = mapError(e);
-      return c.json(errBody, status);
+      return handleAiCostError(c, e);
     }
   }),
 );

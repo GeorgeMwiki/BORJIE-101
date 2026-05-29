@@ -126,17 +126,37 @@ export function safeInternalError(
  * See https://www.postgresql.org/docs/current/errcodes-appendix.html
  */
 export interface MappedSqlError {
-  readonly status: 400 | 404 | 409 | 422 | 500;
+  readonly status: 400 | 404 | 409 | 422 | 500 | 503;
   readonly code: string;
   readonly message: string;
 }
 
 export function mapSqlError(err: unknown): MappedSqlError | null {
   if (!err || typeof err !== 'object') return null;
-  const rec = err as { code?: unknown; constraint?: unknown; detail?: unknown };
-  if (typeof rec.code !== 'string') return null;
+  // Walk the `.cause` chain up to 5 deep — `DrizzleQueryError` wraps the
+  // native `PostgresError` on `.cause`, and the SQLSTATE lives there
+  // (not on the wrapper). A flat top-level check would miss every
+  // missing-table / missing-column failure in the smoke matrix.
+  let cursor: unknown = err;
+  let code: string | null = null;
+  const trace: string[] = [];
+  for (let depth = 0; depth < 5 && cursor && typeof cursor === 'object'; depth += 1) {
+    const rec = cursor as { code?: unknown; cause?: unknown };
+    trace.push(`d${depth}:code=${typeof rec.code === 'string' ? rec.code : '<' + typeof rec.code + '>'},cause=${typeof rec.cause}`);
+    if (typeof rec.code === 'string' && /^[0-9A-Z]{5}$/i.test(rec.code)) {
+      code = rec.code;
+      break;
+    }
+    cursor = rec.cause;
+  }
+  // Always log the trace at debug — cheap and the single line per
+  // failed-query helps diagnose smoke-matrix walkers. Local logger
+  // signature is `(message, meta)` not `(meta, message)`. Production
+  // logs at info+ so this single debug line is silenced there.
+  defaultLogger.debug('mapSqlError walk', { mapSqlErrorTrace: trace, foundCode: code });
+  if (!code) return null;
 
-  switch (rec.code) {
+  switch (code) {
     // unique_violation
     case '23505':
       return {
@@ -172,10 +192,24 @@ export function mapSqlError(err: unknown): MappedSqlError | null {
         code: 'INVALID_INPUT_FORMAT',
         message: 'A field was submitted in an invalid format.',
       };
-    // undefined_table / undefined_column (surface as 500 — infra, not user)
+    // undefined_table — the table the query targets has not been
+    // migrated into this database. Surface as 503 so callers can
+    // distinguish "missing infra" from "genuine app bug".
     case '42P01':
+      return {
+        status: 503,
+        code: 'TABLE_NOT_PROVISIONED',
+        message:
+          'The target table is not present in this database — the migration that creates it has not been applied here.',
+      };
+    // undefined_column — same idea for a missing column.
     case '42703':
-      return null;
+      return {
+        status: 503,
+        code: 'COLUMN_NOT_PROVISIONED',
+        message:
+          'The target column is missing — the migration that adds it has not been applied here.',
+      };
     default:
       return null;
   }

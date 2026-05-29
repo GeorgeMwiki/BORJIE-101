@@ -311,8 +311,12 @@ export const databaseMiddleware = createMiddleware(async (c, next) => {
         // request resets it before any read, no cross-tenant leak is possible.
         // Using `set_config` avoids interpolation issues and is safe against
         // SQL injection via the boolean third argument.
+        // Dual-set both GUC names: `app.current_tenant_id` is the canonical
+        // post-0172 name; `app.tenant_id` is the legacy name still in policies
+        // issued before migration 0172. Setting both keeps tenant isolation
+        // intact regardless of which migration set the environment is on.
         await database.execute(
-          sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`
+          sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false), set_config('app.tenant_id', ${tenantId}, false)`
         );
       } catch (error) {
         logger.error({ error, tenantId }, 'Failed to set RLS tenant context');

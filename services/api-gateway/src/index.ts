@@ -639,13 +639,15 @@ app.use(
     maxAge: 86_400,
   })
 );
-// Skip express.json() for /api/v1 paths — those are handled by the
-// Hono sub-app which consumes the raw request body itself. Running
-// express.json() first would drain the body stream and Hono would
-// see an empty request. No Express handler outside /api/v1 reads
-// req.body today, but we keep the parser for potential future use.
+// Skip express.json() for /api/v1 AND /mcp paths — those are handled
+// by Hono sub-apps which consume the raw request body themselves.
+// Running express.json() first would drain the body stream and Hono
+// would see an empty request. No Express handler outside those paths
+// reads req.body today, but we keep the parser for potential future use.
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/v1')) return next();
+  if (req.path.startsWith('/api/v1') || req.path.startsWith('/mcp')) {
+    return next();
+  }
   return express.json({ limit: '2mb' })(req, res, next);
 });
 app.use(pinoHttp({ logger }));
@@ -962,18 +964,9 @@ try {
       configureRiskScannerTools({ db: dbForBrainTools });
       configureDecisionJournalTools({ db: dbForBrainTools });
     }
-    // The `ServiceRegistry` interface does not currently model an
-    // optional kill-switch slot. Some legacy boot paths attached an
-    // `isOpen()` port directly to the registry — keep a defensive
-    // read-through so this site fails-open (kill-switch closed = false)
-    // when the slot is absent. Cast through `unknown` to side-step the
-    // missing-field typecheck without weakening the registry contract.
     const killSwitchOpen =
-      (
-        (serviceRegistry as unknown as {
-          killSwitch?: { isOpen?: () => boolean };
-        }).killSwitch?.isOpen?.()
-      ) === true;
+      (serviceRegistry.killSwitch as { isOpen?: () => boolean } | undefined)
+        ?.isOpen?.() === true;
     const personaGate: PersonaToolGate = {
       killSwitchOpen,
       // The persona slug is resolved from `ToolExecutionContext.actor`
@@ -1084,6 +1077,14 @@ app.get('/api/v1/health/deep', (req, res) => {
 });
 
 const api = new Hono();
+// Endpoint smoke matrix follow-up — register the structured error
+// envelope on the api Hono app so any uncaught throw surfaces as
+// `{ error: { code: 'INTERNAL_ERROR' | 'TABLE_NOT_PROVISIONED' | ..., message } }`.
+// Without this Hono returns its default text/plain `Internal Server
+// Error` body and the smoke runner cannot tell genuine bugs from
+// missing-table 5xx noise.
+import { createHonoErrorHandler as __createHonoErrorHandlerForApi } from './middleware/error-envelope';
+api.onError(__createHonoErrorHandlerForApi(logger));
 // Wave 12 — Metrics middleware runs first so it captures the full
 // latency of every downstream handler + middleware.
 api.use('*', createMetricsMiddleware());

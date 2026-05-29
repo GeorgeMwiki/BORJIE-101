@@ -21,6 +21,11 @@ import type pino from 'pino';
 // client. Routes that NEED raw values (DSAR export) set
 // `c.set('skipScrub', true)`.
 import { scrubIfNotOptedOut } from './classification-scrubber';
+// Endpoint-smoke fix: route uncaught throws through `mapSqlError` so
+// a Drizzle/Postgres failure with SQLSTATE `42P01` (missing table) or
+// `42703` (missing column) becomes a structured 503 envelope instead
+// of an opaque INTERNAL_ERROR 500.
+import { mapSqlError } from '../utils/safe-error';
 
 export interface ErrorEnvelopeBody {
   error: {
@@ -58,6 +63,25 @@ function buildEnvelope(
           message: err.message,
           ...(requestId !== undefined ? { requestId } : {}),
           ...(err.details !== undefined ? { details: err.details } : {}),
+        },
+      },
+    };
+  }
+
+  // SQL-error fast-path: a missing table / column / constraint
+  // violation becomes a 4xx/5xx envelope with a specific code instead
+  // of a generic INTERNAL_ERROR 500. Without this hook every Drizzle
+  // throw against an un-migrated table surfaces as 500 in the smoke
+  // matrix.
+  const mapped = mapSqlError(err);
+  if (mapped) {
+    return {
+      status: mapped.status,
+      body: {
+        error: {
+          code: mapped.code,
+          message: mapped.message,
+          ...(requestId !== undefined ? { requestId } : {}),
         },
       },
     };
