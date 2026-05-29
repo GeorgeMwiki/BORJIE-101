@@ -4,8 +4,13 @@
  * Initializes the database client and injects repositories into request
  * context. The historical `@ts-nocheck` pragma here gated two upstream
  * drifts (TS2709 namespace-vs-type for repos, Hono v4 status-code union
- * widening) that have since been resolved by Wave-14 augmentation and
- * the package-barrel cleanup; the file now type-checks cleanly.
+ * widening) that were resolved by Wave-14 augmentation and the
+ * package-barrel cleanup. The TS2709 drift re-emerges whenever a sibling
+ * package re-declares one of these symbols as an `interface` (eg.
+ * `services/domain-services/src/common/repository.ts` exports
+ * `interface TenantRepository`/`interface UserRepository`), so we now
+ * derive every type via `InstanceType<typeof X>` / factory return types
+ * instead of `import type` — the value imports remain canonical.
  */
 
 import { createMiddleware } from 'hono/factory';
@@ -15,8 +20,6 @@ import {
   UserRepository,
   selectEncryptionPort,
   createFieldEncryptionAuditService,
-  type EncryptionPort,
-  type FieldEncryptionAuditSink,
 } from '@borjie/database';
 import pino from 'pino';
 
@@ -29,6 +32,22 @@ import pino from 'pino';
  * through the `/repositories` subpath.
  */
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
+
+/**
+ * EncryptionPort + FieldEncryptionAuditSink types — derived from the
+ * factory return types. Importing `type EncryptionPort` from
+ * `@borjie/database` would resolve to a namespace under the same TS2709
+ * drift because `services/domain-services` re-declares overlapping
+ * symbols; deriving via `Awaited<ReturnType<typeof selectEncryptionPort>>`
+ * sidesteps the barrel widening. `FieldEncryptionAuditService` is a
+ * superset of `FieldEncryptionAuditSink` (the broader factory return
+ * satisfies the narrower port slot), so the repos still receive the
+ * exact shape they expect.
+ */
+type EncryptionPort = Awaited<ReturnType<typeof selectEncryptionPort>>;
+type FieldEncryptionAuditSink = ReturnType<
+  typeof createFieldEncryptionAuditService
+>;
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -86,10 +105,17 @@ function getDatabase(): DatabaseClient | null {
  * Property-domain repos (PropertyRepository, UnitRepository, etc.) were
  * deleted in the Borjie hard-fork. Applications now use raw Drizzle queries
  * or route-specific service layers.
+ *
+ * The class symbols are imported as values; their instance types are
+ * derived locally so the TS2709 namespace-collision drift (see header
+ * note) doesn't fire at the type-use sites below.
  */
+type TenantRepositoryInstance = InstanceType<typeof TenantRepository>;
+type UserRepositoryInstance = InstanceType<typeof UserRepository>;
+
 export interface Repositories {
-  tenants: TenantRepository;
-  users: UserRepository;
+  tenants: TenantRepositoryInstance;
+  users: UserRepositoryInstance;
 }
 
 // Singleton repositories instance
