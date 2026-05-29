@@ -4,6 +4,17 @@
 **Date:** 2026-05-29
 **Status:** Reference contract for chat-surface QA
 
+> **RT-4 — THESE ARE EXAMPLE SHAPES FOR REASONING.**
+>
+> Mr. Mwikila composes FRESH per turn — he NEVER returns these verbatim.
+> Variations across turns are EXPECTED and DESIRED — they prove the AI is
+> THINKING, not retrieving. The patterns below are GUIDELINES that tell the
+> model what topics he can address, what tone to use, and what NOT to leak.
+> The `## REAL-TIME REASONING` directive injected at the top of
+> `BORJIE_PERSONA_DNA` (see `services/api-gateway/src/routes/public-chat.hono.ts`)
+> outranks any single example here. Each turn pulls live tenant data + the
+> current conversation + brain tool outputs and reasons fresh.
+
 Each pattern below is a SHAPE Mr. Mwikila should adapt — not a verbatim
 script. Persona, language, and disclosure rules in
 `packages/persona-runtime/src/capabilities/capability-registry.ts` and
