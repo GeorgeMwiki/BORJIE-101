@@ -291,6 +291,16 @@ async function appendReconciliationAudit(
     learning: payload.learningSignal,
   });
   try {
+    // Bind tenant GUC so RLS on `ai_audit_chain` accepts the read+write.
+    // Workers run outside the api-gateway middleware chain, so no GUC is
+    // set unless we set it explicitly. Dual-set both the canonical
+    // (`app.current_tenant_id`, post-migration 0172) and legacy
+    // (`app.tenant_id`) names so policies on either generation accept
+    // the call. Mirrors `services/api-gateway/src/middleware/database.ts`.
+    await db.execute(sql`
+      SELECT set_config('app.current_tenant_id', ${payload.tenantId}, false),
+             set_config('app.tenant_id', ${payload.tenantId}, false)
+    `);
     const headRes = await db.execute(sql`
       SELECT COALESCE(MAX(sequence_id), 0)::bigint AS max_seq,
              (SELECT this_hash FROM ai_audit_chain

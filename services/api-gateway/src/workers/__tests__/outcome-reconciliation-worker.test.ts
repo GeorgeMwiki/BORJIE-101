@@ -273,4 +273,55 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     expect(result.claimed).toBe(0);
     expect(result.matched + result.divergent + result.expired).toBe(0);
   });
+
+  it('binds tenant GUC before every ai_audit_chain append', async () => {
+    // Regression: workers run outside the api-gateway middleware so
+    // no `app.tenant_id` GUC is set unless we set it explicitly. Without
+    // this every audit-chain INSERT was being denied by RLS, leaving the
+    // closed-loop with gapped audit history. See
+    // Docs/AUDIT/POWERS_LIVE_VERIFICATION_2026-05-29.md §F.1.
+    const db = makeStubDb([
+      {
+        id: 'p_audit',
+        tenant_id: 't_audit',
+        actor_kind: 'brain',
+        action_kind: 'mining.royalty.file',
+        action_target_entity_type: 'royalty_filing',
+        action_target_entity_id: 'rf_audit',
+        predicted_outcome: { filed: true },
+        predicted_value_tzs: 1_000_000,
+        prediction_confidence: 0.9,
+        rationale: '',
+      },
+    ]);
+    const resolver: ObservationResolver = vi.fn(async () => ({
+      observedOutcome: { filed: true },
+      observedValueTzs: 1_010_000,
+      narrative: 'on-time filing',
+    }));
+    const worker = createOutcomeReconciliationWorker({
+      db,
+      logger: stubLogger,
+      resolvers: { royalty_filing: resolver },
+    });
+    await worker.tickOnce();
+    const setConfigCall = db.calls.find(
+      (c) =>
+        c.sql.includes('set_config') &&
+        c.sql.includes('app.current_tenant_id') &&
+        c.sql.includes('app.tenant_id'),
+    );
+    expect(setConfigCall).toBeDefined();
+    // GUC bound BEFORE the audit-chain head SELECT runs.
+    const auditHeadIdx = db.calls.findIndex((c) =>
+      c.sql.includes('FROM ai_audit_chain'),
+    );
+    const setConfigIdx = db.calls.findIndex(
+      (c) =>
+        c.sql.includes('set_config') &&
+        c.sql.includes('app.current_tenant_id'),
+    );
+    expect(setConfigIdx).toBeGreaterThanOrEqual(0);
+    expect(setConfigIdx).toBeLessThan(auditHeadIdx);
+  });
 });
