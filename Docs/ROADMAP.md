@@ -147,24 +147,34 @@ owned).
 
 ---
 
-## R6 — Owner-cockpit live SSE push channels (effort: M)
+## R6 — Owner-cockpit live SSE push channels (effort: M) — **[SHIPPED 2026-05-29]**
 
 **Source:** `Docs/RESEARCH/owner-status-sota.md` §1.H + §8 (refresh
 tiers)
-**Promise:** `live` tier for safety incidents, cash position,
-kill-switch state, USD-cliff trip, T-90 licence transitions, market
-prices. Pull-to-refresh for KPIs; cron for the brief.
-**Shipped:** Brief endpoint + brief cron exist; pull-to-refresh
-wired. No per-tenant SSE fan-out for the `live` tier.
-**Effort:** ~1 week — needs:
-- Per-tenant SSE fan-out bus (could reuse
-  `cross-portal-subscribe.router.ts` shape)
-- Hooks in incident-create / kill-switch / billing / licence-renew
-  paths
-- Client subscribers on owner-web + workforce-mobile owner branch
-**Suggested wave:** Cockpit liveness wave (post-pilot).
-**Why deferred:** Wave-scale; cockpit baseline is pull-driven and
-acceptable for pilot.
+**Status:** Six event kinds multiplexed onto a single per-tenant
+SSE endpoint at `GET /api/v1/cockpit/stream`:
+`decision.recorded`, `reminder.fired`,
+`opportunity.scan_completed`, `risk.changed`,
+`workforce.shift_event`, `compliance.deadline_approaching`.
+
+Backend:
+- In-process tenant-scoped bus at
+  `services/api-gateway/src/services/cockpit-events/`
+- Six publishers wired at the canonical write sites: decision
+  recorder, reminder dispatch markSent, opportunity-scanner and
+  risk-scanner brain tools, workforce clock-in / out routes, and a
+  new hourly `compliance-deadline-scan` cron worker scanning
+  `regulatory_filings` for 7-day-horizon items.
+- SSE handler at `routes/cockpit-stream.hono.ts` with 25s heartbeat
+  + abort-signal cleanup.
+
+Frontend (owner-web):
+- `useCockpitStream()` React hook at `apps/owner-web/src/lib/
+  cockpit-sse.ts` opens an EventSource + emits typed events.
+- `<CockpitLivePulse>` mounts on the cockpit dashboard page and
+  toasts every incoming push (bilingual sw/en copy).
+
+Tests: 5 bus tests + 9 owner-web parser tests passing.
 
 ---
 
@@ -272,22 +282,32 @@ v1.5 candidate; safe to defer.
 
 ---
 
-## R11 — Buyer-mobile predictive RFB composer (effort: M)
+## R11 — Buyer-mobile predictive RFB composer (effort: M) — **[SHIPPED 2026-05-29]**
 
 **Source:** `Docs/RESEARCH/buyer-marketplace-sota.md` §3 — Metalshub
 three-mode buyer entry
-**Promise:** Buyer-initiated RFB ("I want 3 kg gold 22k, Geita, TZS
-800M, any miner respond") as a first-class buyer flow alongside open-
-marketplace bids and private-tender responses.
-**Shipped:** Bid placement against an existing listing is wired.
-Buyer-initiated RFB is not yet a flow.
-**Effort:** 3–4 days — needs:
-- `buyer_rfbs` schema + migration
-- `POST /v1/mining/buyers/rfbs` endpoint
-- Marketplace UI "Create RFB" CTA + form
-- Brain tool `buyer.rfb.create`
-**Suggested wave:** Buyer-mobile pilot polish.
-**Why deferred:** Wave-scale.
+**Status:** End-to-end buyer-initiated RFB:
+
+Backend:
+- Migration 0127 — `request_for_bids` + `request_for_bid_responses`
+  sidecar, RLS FORCE per CLAUDE.md hard rule.
+- Drizzle schema at `packages/database/src/schemas/
+  request-for-bids.schema.ts`.
+- Five endpoints at `services/api-gateway/src/routes/marketplace/
+  rfb.hono.ts`: create / list-mine / nearby (haversine) / cancel /
+  respond.
+- Three brain tools at `composition/brain-tools/buyer-tools.ts`:
+  `buyer.rfb.create`, `buyer.rfb.list_mine`,
+  `seller.rfb.list_nearby`.
+
+Buyer-mobile:
+- Two new screens at `apps/buyer-mobile/app/rfb/`:
+  `create.tsx` (form) + `index.tsx` (list with pending response
+  count). Bilingual sw/en throughout — 27 new `rfb.*` keys per locale.
+- Typed gateway client at `apps/buyer-mobile/src/api/rfb.ts`.
+
+Tests: 9 gateway endpoint tests + 5 buyer-mobile i18n / catalog
+tests all passing.
 
 ---
 
