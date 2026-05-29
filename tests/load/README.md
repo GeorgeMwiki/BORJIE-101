@@ -90,6 +90,10 @@ global rule).
 | `POST /api/v1/buyers/signup`                            | 1 500 ms | 3 000 ms |
 | `POST /api/v1/workforce/invites/activate`               | 1 000 ms | 2 000 ms |
 | `POST /api/v1/mining/brain/vision-turn`                 | 5 000 ms | 8 000 ms |
+| Owner dashboard compound read (3 GETs)                  |   800 ms | 1 500 ms |
+| `POST /webhooks/mpesa/stk`                              |   400 ms |   800 ms |
+| Brain hot tool call (read tool mix)                     |   600 ms | 1 500 ms |
+| `GET /api/v1/cockpit/stream` (first `connected` frame)  |   250 ms |   600 ms |
 
 Global thresholds (apply to every test):
 
@@ -165,3 +169,7 @@ types via its built-in esbuild step (>= v0.50).
 - `buyer-signup.k6.ts` — `POST /api/v1/buyers/signup`.
 - `workforce-activate.k6.ts` — `POST /api/v1/workforce/invites/activate`.
 - `photo-vision.k6.ts` — `POST /api/v1/mining/brain/vision-turn`.
+- `dashboard-read.k6.ts` — owner home compound (brief + reminders + decisions). (G-FIX-3)
+- `webhook-mpesa-stk.k6.ts` — `POST /webhooks/mpesa/stk` simulator. (G-FIX-3)
+- `brain-tool-call.k6.ts` — five hot brain read tools mix. (G-FIX-3)
+- `cockpit-sse-subscriber.k6.ts` — `GET /api/v1/cockpit/stream` first frame. (G-FIX-3)
