@@ -53,7 +53,20 @@ const config: Config = {
           DEFAULT:           'hsl(var(--destructive))',
           foreground:        'hsl(var(--destructive-foreground))',
         },
-        border:              'hsl(var(--border))',
+        /**
+         * Border ramp — `border` defaults to the neutral hairline used
+         * across cards/surfaces, with `strong` reserved for hover and
+         * focus emphasis. Both back the CSS vars defined in
+         * packages/design-system/src/styles/globals.css.
+         *
+         * Usage: `border-border` (default) or `border-border-strong`
+         * (hover/focus). DEFAULT keeps the legacy `border-border`
+         * call-sites working without code changes.
+         */
+        border: {
+          DEFAULT:           'hsl(var(--border))',
+          strong:            'hsl(var(--border-strong))',
+        },
         input:               'hsl(var(--input))',
         ring:                'hsl(var(--ring))',
 
