@@ -56,6 +56,15 @@ const undoLastSchema = z.object({
   reason: z.string().min(1).max(400).optional(),
 });
 
+// SOTA depth (vs Linear's single-level Cmd-Z): owners can target a
+// specific journal entry from the `/recent` list-view. Mirrors Notion's
+// audit-log rollback UX where any row in the 5-min window can be
+// undone independently.
+const undoByIdSchema = z.object({
+  journalId: z.string().uuid(),
+  reason: z.string().min(1).max(400).optional(),
+});
+
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
@@ -212,6 +221,102 @@ app.post('/undo-last', async (c: any) => {
     .returning();
 
   moduleLogger.info('owner-undo-journal: undone', {
+    tenantId: auth.tenantId,
+    userId: auth.userId,
+    journalId: row.id,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    actionKind: row.actionKind,
+  });
+
+  return c.json({
+    success: true,
+    data: {
+      undone: true,
+      journalId: row.id,
+      actionKind: row.actionKind,
+      entityType: row.entityType,
+      entityId: row.entityId,
+    },
+  });
+});
+
+// POST /undo-by-id - reverse a specific journal entry by id.
+//
+// SOTA-depth equivalent of "right-click any audit-log row → Rollback"
+// in Notion. The 5-minute window still applies (no resurrecting an
+// entry that has already lapsed); RLS + actor-id check guarantee
+// only the journal's owner can undo their own row.
+app.post('/undo-by-id', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'UNDO_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => null);
+  const parsed = undoByIdSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid undo-by-id payload',
+          issues: parsed.error.issues,
+        },
+      },
+      400,
+    );
+  }
+  const input = parsed.data;
+
+  const [candidate] = await db
+    .select()
+    .from(undoJournal)
+    .where(
+      and(
+        eq(undoJournal.id, input.journalId),
+        eq(undoJournal.tenantId, auth.tenantId),
+        eq(undoJournal.actorId, auth.userId),
+      ),
+    )
+    .limit(1);
+
+  if (!candidate) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Journal entry not found' } },
+      404,
+    );
+  }
+  if (candidate.undoneAt) {
+    return c.json(
+      { success: false, error: { code: 'ALREADY_UNDONE', message: 'Already undone' } },
+      409,
+    );
+  }
+  // Window check — performedAt + windowSeconds must be in the future.
+  const windowEnd = new Date(candidate.performedAt).getTime() + candidate.windowSeconds * 1000;
+  if (windowEnd <= Date.now()) {
+    return c.json(
+      { success: false, error: { code: 'WINDOW_LAPSED', message: 'Undo window has lapsed' } },
+      410,
+    );
+  }
+
+  const [row] = await db
+    .update(undoJournal)
+    .set({
+      undoneAt: new Date(),
+      undoneById: auth.userId,
+      ...(input.reason !== undefined && { undoReason: input.reason }),
+    })
+    .where(eq(undoJournal.id, candidate.id))
+    .returning();
+
+  moduleLogger.info('owner-undo-journal: undone-by-id', {
     tenantId: auth.tenantId,
     userId: auth.userId,
     journalId: row.id,
