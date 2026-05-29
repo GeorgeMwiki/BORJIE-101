@@ -527,6 +527,11 @@ import {
 // defensive `if (!client) return { fake }` fallback. See
 // `Docs/AUDIT/REALITY_CHECK_2026-05-29.md` G-A.
 import { createLoopbackHttpClient } from './composition/brain-tools/loopback-http-client';
+// Persona-tool audit sink — closes G-D in REALITY_CHECK_2026-05-29.md.
+// Without this, every WRITE persona-tool call skipped the audit-chain
+// append. The Pino-backed sink emits `tool.persona_audit` events so
+// every brain decision lands in the standard observability pipeline.
+import { createPinoAuditSink } from './composition/brain-tools/audit-sink';
 
 // Wave CLOSED-LOOP - every WRITE brain tool earns a predicted_outcome
 // row in outcome_predictions BEFORE the handler runs. The reconciler
@@ -1107,6 +1112,10 @@ try {
         'persona-tool loopback HTTP client unbound — JWT_SECRET missing or <32 chars; handlers will continue to use defensive fallbacks',
       );
     }
+    // Pino-backed audit sink — emits one structured info per WRITE-tool
+    // call so every brain decision is searchable + alertable in the
+    // standard observability pipeline. Closes G-D in REALITY_CHECK.
+    const personaAuditSink = createPinoAuditSink(logger);
     const personaGate: PersonaToolGate = {
       killSwitchOpen,
       // The persona slug is resolved from `ToolExecutionContext.actor`
@@ -1125,6 +1134,7 @@ try {
           return 'T5_customer_concierge';
         return 'T1_owner_strategist';
       },
+      auditSink: personaAuditSink,
       ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),
     };
     const personaHandlers = buildPersonaToolHandlers(personaGate, {
