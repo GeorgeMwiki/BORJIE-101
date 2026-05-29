@@ -340,11 +340,15 @@ describe('GET /owner/compliance/summary', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 7. GET /owner/tenants/communications — wraps messaging digest
+// 7. GET /owner/tenants/communications — honest-empty post-fork.
+//
+// Pre-fork: reshaped messaging conversations digest. Post Borjie
+// hard-fork: the `conversations` schema is gone. Owner messaging now
+// lives at /api/v1/owner/messaging + /api/v1/owner/messaging/threads.
 // ---------------------------------------------------------------------------
 
 describe('GET /owner/tenants/communications', () => {
-  it('returns honest-empty list when repos/db unavailable', async () => {
+  it('returns honest-empty list with communications note when repos/db unavailable', async () => {
     const app = mountWithContext({ repos: emptyRepos(), db: null });
     const res = await app.request('/owner/tenants/communications', {
       headers: { Authorization: bearer() },
@@ -356,83 +360,16 @@ describe('GET /owner/tenants/communications', () => {
     expect(body.meta?.note).toMatch(/communications/);
   });
 
-  it('reshapes messaging conversations into a flat communications list', async () => {
-    // Build a fully-linked owner scope so getOwnerScope keeps the customer
-    // in-scope (customer → lease → property must all be present). After
-    // the BFF aggregation refactor, getOwnerScope calls findByPropertyIds
-    // on units / leases / customers / invoices / payments — we populate
-    // BOTH legacy `findMany` and the new `findByPropertyIds` so this
-    // test exercises the new code path cleanly.
-    const repos = emptyRepos();
-    repos.properties.findMany = async () => ({
-      items: [{ id: 'prop-1', name: 'Sunrise' }],
-      total: 1,
-    });
-    const unitsRows = {
-      items: [{ id: 'unit-1', propertyId: 'prop-1', unitCode: 'U1' }],
-      total: 1,
-    };
-    repos.units.findMany = async () => unitsRows;
-    repos.units.findByPropertyIds = async () => unitsRows;
-    const leasesRows = {
-      items: [
-        {
-          id: 'lease-1',
-          propertyId: 'prop-1',
-          unitId: 'unit-1',
-          customerId: 'cust-1',
-        },
-      ],
-      total: 1,
-    };
-    repos.leases.findMany = async () => leasesRows;
-    repos.leases.findByPropertyIds = async () => leasesRows;
-    const customersRows = {
-      items: [
-        { id: 'cust-1', firstName: 'Alice', lastName: 'Resident' },
-      ],
-      total: 1,
-    };
-    repos.customers.findMany = async () => customersRows;
-    repos.customers.findByPropertyIds = async () => customersRows;
-    repos.messaging.getMessages = async () => [
-      {
-        id: 'msg-1',
-        content: 'Rent question',
-        createdAt: '2026-04-01T12:00:00Z',
-      },
-    ];
-    const db = {
-      execute: async () => undefined,
-      select: () => ({
-        from: () => ({
-          where: async () => [
-            {
-              id: 'conv-1',
-              tenantId: TEST_TENANT,
-              customerId: 'cust-1',
-              type: 'maintenance',
-              createdAt: '2026-04-01T11:00:00Z',
-              updatedAt: '2026-04-01T12:00:00Z',
-              lastMessageAt: '2026-04-01T12:00:00Z',
-              metadata: { propertyName: 'Sunrise Apartments' },
-            },
-          ],
-        }),
-      }),
-    };
-    const app = mountWithContext({ repos, db });
+  it('always returns honest-empty list (post-fork stub)', async () => {
+    const app = mountWithContext({ repos: emptyRepos(), db: { execute: async () => undefined } });
     const res = await app.request('/owner/tenants/communications', {
       headers: { Authorization: bearer() },
     });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].id).toBe('conv-1');
-    expect(body.data[0].tenantName).toBe('Alice Resident');
-    expect(body.data[0].lastMessage).toBe('Rent question');
-    expect(body.data[0].property).toBe('Sunrise Apartments');
+    expect(body.data).toEqual([]);
+    expect(body.meta?.note).toMatch(/communications/);
   });
 });
 
