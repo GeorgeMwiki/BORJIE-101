@@ -161,3 +161,31 @@ export type {
   ParseStyleSlashResult,
   RenderOutputStyleInput,
 } from './output-style.js';
+
+// ── Capability registry (CSA-1) — disclosure-safe source of truth ────
+// One canonical list of what Mr. Mwikila can do, expressed as USER
+// OUTCOMES (never internal mechanics). Every chat surface reads from
+// this registry when answering "what can you do" / "how does this
+// work" / "are you AI". See packages/persona-runtime/src/capabilities/
+// capability-registry.ts and the system-prompt extensions in
+// services/api-gateway/src/routes/public-chat.hono.ts.
+export {
+  CAPABILITY_REGISTRY,
+  CAPABILITY_COUNT,
+  CAPABILITY_TOPIC,
+  CAPABILITY_VISIBILITY,
+  CapabilityEntrySchema,
+  getCapabilityById,
+  isDisclosable,
+  listCapabilitiesByTopic,
+  listCapabilitiesByVisibility,
+  listDisclosableCapabilities,
+  parseCapabilityEntry,
+} from './capabilities/index.js';
+
+export type {
+  BilingualString,
+  CapabilityEntry,
+  CapabilityTopic,
+  CapabilityVisibility,
+} from './capabilities/index.js';
