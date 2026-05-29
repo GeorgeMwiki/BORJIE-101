@@ -156,6 +156,88 @@ function checkRate(key: string): boolean {
   return sharedRateLimiter.check(`perUser:brain:${key}`, BRAIN_RATE_CONFIG).allowed;
 }
 
+// ─── G2 — brain /turn idempotency cache ─────────────────────────────
+//
+// Closes audit gap G2 from `Docs/AUDIT/ROBUSTNESS_AUDIT_2026-05-29.md`.
+//
+// Clients posting `/api/v1/brain/turn` with an `Idempotency-Key`
+// header get the cached response on a duplicate (5-min TTL). Without
+// the cache a network blip + auto-retry burns a second LLM turn,
+// charges tokens twice, and creates a duplicate thread row.
+//
+// In-process LRU (cap 1000) because:
+//   - the contention window is small (a turn that took 800ms; the
+//     duplicate from the retry arrives within seconds);
+//   - the cache key includes tenant + user so cross-replica collisions
+//     are unlikely on the timescale of a single turn (a retry usually
+//     hits the same replica via sticky session / connection re-use);
+//   - bringing the shared Redis client to brain.hono.ts is out of
+//     scope for this gap — the wiring belongs to a composition-level
+//     follow-up.
+//
+// Key format: `${tenantId}:${userId}:${idempotencyKey}` — defence-in-
+// depth against cross-tenant cache poisoning even if a malicious
+// client supplies a key shaped like another tenant's.
+//
+// Validation: the key must be 1-256 chars of URL-safe alphanumerics
+// (matches the webhook-idempotency regex). Invalid keys are silently
+// ignored — the turn still executes.
+interface BrainTurnCacheEntry {
+  readonly status: number;
+  readonly body: unknown;
+  readonly cachedAt: number;
+}
+
+const BRAIN_IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const BRAIN_IDEMPOTENCY_MAX_ENTRIES = 1000;
+const BRAIN_IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-.]{1,256}$/;
+
+const brainIdempotencyCache = new Map<string, BrainTurnCacheEntry>();
+
+function brainIdempotencyKey(
+  tenantId: string,
+  userId: string,
+  rawKey: string,
+): string {
+  return `${tenantId}:${userId}:${rawKey}`;
+}
+
+function extractBrainIdempotencyKey(c: any): string | null {
+  const raw = c.req.header('idempotency-key');
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  return BRAIN_IDEMPOTENCY_KEY_RE.test(raw) ? raw : null;
+}
+
+function getCachedBrainTurn(key: string): BrainTurnCacheEntry | null {
+  const entry = brainIdempotencyCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > BRAIN_IDEMPOTENCY_TTL_MS) {
+    brainIdempotencyCache.delete(key);
+    return null;
+  }
+  // LRU touch — refresh insertion order so hot keys survive eviction.
+  brainIdempotencyCache.delete(key);
+  brainIdempotencyCache.set(key, entry);
+  return entry;
+}
+
+function setCachedBrainTurn(
+  key: string,
+  entry: BrainTurnCacheEntry,
+): void {
+  if (brainIdempotencyCache.size >= BRAIN_IDEMPOTENCY_MAX_ENTRIES) {
+    // Evict oldest (first inserted) — Map preserves insertion order.
+    const oldestKey = brainIdempotencyCache.keys().next().value;
+    if (oldestKey !== undefined) brainIdempotencyCache.delete(oldestKey);
+  }
+  brainIdempotencyCache.set(key, entry);
+}
+
+/** Test seam — flushes the cache between integration tests. */
+export function __resetBrainIdempotencyCache(): void {
+  brainIdempotencyCache.clear();
+}
+
 const brainRouter = new Hono();
 
 brainRouter.get('/health', async (c) => {
@@ -694,9 +776,58 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   }
   const gate = await gateTurn(c, body);
   if (!gate.ok) return gate.response;
+
+  // G2 — Idempotency-Key cache lookup. Only applies to the JSON path
+  // (SSE streams are not cacheable). When the client sends a valid key
+  // and we have a fresh cached response for `(tenantId, userId, key)`
+  // we replay it and skip the orchestrator entirely — no LLM tokens
+  // burned on the retry. The cache hit sets `Idempotent-Replayed: true`
+  // so live-verify can confirm the gate fired.
   const wantsSse = clientWantsSse(c.req.header('accept'));
-  if (wantsSse) return handleTurnSse(c, body, gate.ctx);
-  return handleTurnJson(c, body, gate.ctx);
+  if (!wantsSse) {
+    const rawKey = extractBrainIdempotencyKey(c);
+    if (rawKey) {
+      const cacheKey = brainIdempotencyKey(
+        gate.ctx.tenant.tenantId,
+        gate.ctx.viewer.userId,
+        rawKey,
+      );
+      const cached = getCachedBrainTurn(cacheKey);
+      if (cached) {
+        c.header('Idempotent-Replayed', 'true');
+        return c.json(cached.body, cached.status as 200);
+      }
+      const response = await handleTurnJson(c, body, gate.ctx);
+      // Cache only successful 2xx — error responses must be retryable.
+      if (response.status >= 200 && response.status < 300) {
+        try {
+          const cloned = response.clone();
+          const text = await cloned.text();
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            parsed = text;
+          }
+          setCachedBrainTurn(cacheKey, {
+            status: response.status,
+            body: parsed,
+            cachedAt: Date.now(),
+          });
+        } catch (err) {
+          // Cache-write failures are non-fatal — the caller already
+          // saw the success response.
+          logger.warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            'brain /turn: failed to cache idempotency response',
+          );
+        }
+      }
+      return response;
+    }
+    return handleTurnJson(c, body, gate.ctx);
+  }
+  return handleTurnSse(c, body, gate.ctx);
 }));
 
 brainRouter.get('/threads', async (c) => {
