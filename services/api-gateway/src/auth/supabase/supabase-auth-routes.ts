@@ -16,16 +16,29 @@
  *   POST /sign-out     {}                       → invalidates refresh token
  *
  * The Hono `c.json(..., status)` pattern uses a literal-status overload
- * that Hono v4 widens across multiple branches — the `@ts-nocheck`
- * pragma at the top mirrors the existing `middleware/auth.middleware.ts`
- * style.
+ * that Hono v4 widens across multiple branches — historically gated by a
+ * `@ts-nocheck` pragma; retired in Cluster 2 scrub (Docs/TYPE_DEBT.md)
+ * after the upstream tsc behaviour now accepts the union.
  */
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union (hono-dev/hono#3891).
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { z } from 'zod';
 import { rotateSession } from './supabase-session.js';
+
+/**
+ * Coerce a raw upstream HTTP status (Supabase returns whatever its own
+ * stack emits) into Hono's `ContentfulStatusCode` union. Anything below
+ * 200 or 5xx-with-no-body shape is normalised to 502 so the wire stays
+ * a known set of codes the client can parser-match on.
+ */
+function asContentfulStatus(status: number): ContentfulStatusCode {
+  if (status >= 200 && status < 600 && status !== 204 && status !== 304) {
+    return status as ContentfulStatusCode;
+  }
+  return 502;
+}
 
 const SignUpSchema = z.object({
   email: z.string().email(),
@@ -127,7 +140,10 @@ export function buildSupabaseAuthRoutes(): Hono {
       data: body.metadata ?? {},
     });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return c.json({ success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json }, res.status);
+    return c.json(
+      { success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json },
+      asContentfulStatus(res.status),
+    );
   });
 
   app.post('/sign-in', zValidator('json', SignInSchema), async (c) => {
@@ -139,7 +155,10 @@ export function buildSupabaseAuthRoutes(): Hono {
       { email: body.email, password: body.password },
     );
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return c.json({ success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json }, res.status);
+    return c.json(
+      { success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json },
+      asContentfulStatus(res.status),
+    );
   });
 
   app.post('/magic-link', zValidator('json', MagicLinkSchema), async (c) => {
@@ -150,7 +169,10 @@ export function buildSupabaseAuthRoutes(): Hono {
       options: body.redirectTo ? { redirectTo: body.redirectTo } : undefined,
     });
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return c.json({ success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json }, res.status);
+    return c.json(
+      { success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json },
+      asContentfulStatus(res.status),
+    );
   });
 
   app.post('/otp', zValidator('json', OtpSchema), async (c) => {
@@ -158,7 +180,10 @@ export function buildSupabaseAuthRoutes(): Hono {
     const body = c.req.valid('json');
     const res = await callSupabase(cfg, '/auth/v1/otp', body);
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return c.json({ success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json }, res.status);
+    return c.json(
+      { success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json },
+      asContentfulStatus(res.status),
+    );
   });
 
   app.post('/verify-otp', zValidator('json', VerifyOtpSchema), async (c) => {
@@ -166,7 +191,10 @@ export function buildSupabaseAuthRoutes(): Hono {
     const body = c.req.valid('json');
     const res = await callSupabase(cfg, '/auth/v1/verify', body);
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    return c.json({ success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json }, res.status);
+    return c.json(
+      { success: res.ok, data: res.ok ? json : undefined, error: res.ok ? undefined : json },
+      asContentfulStatus(res.status),
+    );
   });
 
   app.post('/refresh', zValidator('json', RefreshSchema), async (c) => {
@@ -176,7 +204,7 @@ export function buildSupabaseAuthRoutes(): Hono {
       const session = await rotateSession(body.refresh_token, cfg);
       return c.json({ success: true, data: session }, 200);
     } catch (err) {
-      const status =
+      const rawStatus =
         typeof (err as { status?: number }).status === 'number'
           ? (err as { status: number }).status
           : 401;
@@ -188,7 +216,7 @@ export function buildSupabaseAuthRoutes(): Hono {
             message: err instanceof Error ? err.message : 'refresh failed',
           },
         },
-        status,
+        asContentfulStatus(rawStatus),
       );
     }
   });
@@ -206,7 +234,7 @@ export function buildSupabaseAuthRoutes(): Hono {
     const res = await callSupabase(cfg, '/auth/v1/logout', {}, {
       Authorization: `Bearer ${accessToken}`,
     });
-    return c.json({ success: res.ok }, res.status);
+    return c.json({ success: res.ok }, asContentfulStatus(res.status));
   });
 
   return app;

@@ -51,9 +51,9 @@ export interface SessionCookiePayload {
   /** Supabase auth user id (sub). */
   readonly userId: string;
   /** Optional — email pulled from Supabase user payload. */
-  readonly email?: string;
+  readonly email?: string | undefined;
   /** Optional — tenant id pulled from app_metadata.tenant_id. */
-  readonly tenantId?: string;
+  readonly tenantId?: string | undefined;
 }
 
 const KEY_LENGTH = 32; // bytes — AES-256

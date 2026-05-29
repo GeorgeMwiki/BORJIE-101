@@ -15,11 +15,22 @@ interface LogEntry {
   [key: string]: unknown;
 }
 
+/**
+ * Logger contract — overloaded to accept either the project's canonical
+ * `(message, meta?)` order OR pino's `(meta, message)` order. The pino
+ * order is used by mining/estate route handlers that were authored to
+ * match the pino convention; we accept it for ergonomics and rewrite
+ * to `(message, meta)` at runtime inside the implementation.
+ */
 interface Logger {
   debug(message: string, meta?: Record<string, unknown>): void;
+  debug(meta: Record<string, unknown>, message: string): void;
   info(message: string, meta?: Record<string, unknown>): void;
+  info(meta: Record<string, unknown>, message: string): void;
   warn(message: string, meta?: Record<string, unknown>): void;
+  warn(meta: Record<string, unknown>, message: string): void;
   error(message: string, meta?: Record<string, unknown>): void;
+  error(meta: Record<string, unknown>, message: string): void;
 }
 
 const LOG_LEVELS: Record<LogLevel, number> = {
@@ -126,14 +137,50 @@ function log(level: LogLevel, service: string, message: string, meta?: Record<st
 }
 
 /**
+ * Normalise overloaded logger args. Accepts either:
+ *   - `(message, meta?)` — the project's canonical order, or
+ *   - `(meta, message)` — pino's order (used by routes/estate, etc.)
+ *
+ * The disambiguator is the first argument's type: a string is treated
+ * as the message; an object is treated as the meta bag and the second
+ * arg must be the string message.
+ */
+function normaliseLoggerArgs(
+  first: string | Record<string, unknown>,
+  second?: string | Record<string, unknown>,
+): { message: string; meta?: Record<string, unknown> } {
+  if (typeof first === 'string') {
+    return {
+      message: first,
+      ...(second && typeof second === 'object'
+        ? { meta: second as Record<string, unknown> }
+        : {}),
+    };
+  }
+  // first is the meta bag — second is the message.
+  return {
+    message: typeof second === 'string' ? second : '',
+    meta: first,
+  };
+}
+
+/**
  * Create a logger instance for a specific service/module
  */
 export function createLogger(service: string): Logger {
+  const make = (level: LogLevel) =>
+    ((
+      first: string | Record<string, unknown>,
+      second?: string | Record<string, unknown>,
+    ): void => {
+      const { message, meta } = normaliseLoggerArgs(first, second);
+      log(level, service, message, meta);
+    }) as Logger['debug'];
   return {
-    debug: (message: string, meta?: Record<string, unknown>) => log('debug', service, message, meta),
-    info: (message: string, meta?: Record<string, unknown>) => log('info', service, message, meta),
-    warn: (message: string, meta?: Record<string, unknown>) => log('warn', service, message, meta),
-    error: (message: string, meta?: Record<string, unknown>) => log('error', service, message, meta),
+    debug: make('debug'),
+    info: make('info'),
+    warn: make('warn'),
+    error: make('error'),
   };
 }
 

@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening.
 /**
  * /api/v1/ops/chain-of-custody — hash-chained pit-to-buyer parcel
  * tracking.
@@ -211,6 +210,7 @@ function verifyChain(
   // Step 0: prevAuditHash must be '' or empty.
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+    if (!step) continue;
     if (i === 0) {
       if (step.prevAuditHash && step.prevAuditHash.length > 0) {
         // First step must have empty prev hash.
@@ -219,6 +219,7 @@ function verifyChain(
       continue;
     }
     const prev = steps[i - 1];
+    if (!prev) continue;
     const expected = createHash('sha256')
       .update(prev.prevAuditHash + prev.id)
       .digest('hex');

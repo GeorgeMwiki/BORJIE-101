@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening across many c.json branches.
 /**
  * /api/v1/ops/external-parties — counterparty registry.
  *

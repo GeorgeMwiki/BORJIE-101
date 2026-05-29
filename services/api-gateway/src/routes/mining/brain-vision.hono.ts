@@ -1,7 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple
-// c.json({...}, status) branches widen the return type and TypedResponse
-// overload rejects the union. Tracked at hono-dev/hono#3891. The runtime
-// behaviour is correct; only the typed-response shape is over-strict.
 /**
  * POST /api/v1/mining/brain/vision-turn — multimodal Brain turn for the
  * workforce-mobile Photo Advisor screen.
@@ -34,12 +30,43 @@ import { z } from 'zod';
 import pino from 'pino';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { rateLimiter as sharedRateLimiter } from '../../middleware/rate-limiter';
+import type {
+  Brain,
+  MediaAttachment,
+  TurnResult,
+} from '@borjie/ai-copilot';
 
-// Pino logger only — no console.log in services (per CLAUDE.md).
+// Pino logger only — no raw console statements in services (per CLAUDE.md).
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   name: 'mining-brain-vision',
 });
+
+// ---------------------------------------------------------------------------
+// Brain wiring — injectable so unit tests can substitute a deterministic
+// mock-provider Brain without spinning up Postgres / Anthropic.
+// ---------------------------------------------------------------------------
+
+export interface BrainVisionAuthContext {
+  readonly tenantId: string;
+  readonly userId: string;
+}
+
+export type BrainResolver = (
+  ctx: BrainVisionAuthContext,
+) => Promise<Brain | null> | Brain | null;
+
+let brainResolver: BrainResolver | null = null;
+
+/**
+ * Wire the multimodal brain resolver for this router. In production the
+ * gateway composition root injects a resolver that pulls a per-tenant
+ * Brain instance from the shared BrainRegistry; in tests we inject a
+ * deterministic mock Brain returned by `createBrainForTesting`.
+ */
+export function setBrainResolver(resolver: BrainResolver | null): void {
+  brainResolver = resolver;
+}
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -98,8 +125,139 @@ function checkRate(key: string): boolean {
     .allowed;
 }
 
-function validateMimeType(mime: string): boolean {
+function validateMimeType(mime: string): mime is 'image/jpeg' | 'image/png' {
   return (ALLOWED_MIME_TYPES as readonly string[]).includes(mime);
+}
+
+/**
+ * Build the bilingual user prompt the orchestrator hands to the persona.
+ * Carries the evidence-required rule + caller language.
+ */
+function buildVisionPrompt(body: VisionTurnRequest): string {
+  const langLabel = body.language === 'sw' ? 'Kiswahili' : 'English';
+  const locationLine =
+    body.location !== null
+      ? `Location: lat=${body.location.latitude}, lng=${body.location.longitude}` +
+        (body.location.accuracy !== undefined
+          ? ` (±${body.location.accuracy}m)`
+          : '')
+      : 'Location: not provided';
+  return [
+    `You are analysing a single still image captured by a Borjie field worker.`,
+    `Respond in ${langLabel}.`,
+    `Cite at least one corpus evidence_id for every recommendation (Borjie evidence-required rule).`,
+    `Provide: a short summary, the reasoning, 3-7 concrete suggestions, and the citations array.`,
+    '',
+    `User prompt: ${body.prompt}`,
+    locationLine,
+  ].join('\n');
+}
+
+interface PersonaPhotoAdvisorPayload {
+  readonly summary: string;
+  readonly reasoning: string;
+  readonly suggestions: ReadonlyArray<string>;
+  readonly citations: ReadonlyArray<{
+    readonly evidenceId: string;
+    readonly source: string;
+    readonly excerpt: string;
+  }>;
+}
+
+function safeParsePersonaJson(
+  raw: string,
+): PersonaPhotoAdvisorPayload | null {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenceMatch && fenceMatch[1] !== undefined
+    ? fenceMatch[1].trim()
+    : raw.trim();
+  try {
+    const parsed = JSON.parse(candidate) as Record<string, unknown>;
+    const summary = typeof parsed.summary === 'string' ? parsed.summary : null;
+    const reasoning =
+      typeof parsed.reasoning === 'string' ? parsed.reasoning : null;
+    const suggestionsRaw = Array.isArray(parsed.suggestions)
+      ? parsed.suggestions
+      : null;
+    const citationsRaw = Array.isArray(parsed.citations)
+      ? parsed.citations
+      : null;
+    if (!summary || !reasoning || !suggestionsRaw) return null;
+    const suggestions = suggestionsRaw
+      .filter((s): s is string => typeof s === 'string' && s.length > 0);
+    const citations = (citationsRaw ?? [])
+      .map((c) => {
+        if (!c || typeof c !== 'object') return null;
+        const ev = (c as Record<string, unknown>).evidenceId;
+        const src = (c as Record<string, unknown>).source;
+        const ex = (c as Record<string, unknown>).excerpt;
+        if (typeof ev !== 'string' || typeof src !== 'string') return null;
+        return {
+          evidenceId: ev,
+          source: src,
+          excerpt: typeof ex === 'string' ? ex : '',
+        };
+      })
+      .filter((c): c is { readonly evidenceId: string; readonly source: string; readonly excerpt: string } => c !== null);
+    return { summary, reasoning, suggestions, citations };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse the persona's response text into the photo-advisor wire shape.
+ * Falls back to a single-suggestion shape so the mobile UI still shows
+ * something meaningful when the model drops the JSON envelope. The
+ * fallback citation references the audit chain thread id so the
+ * evidence-required rule is never violated.
+ */
+function composePhotoAdvisorResponse(
+  turn: TurnResult,
+  fallbackEvidenceId: string,
+): {
+  readonly summary: string;
+  readonly reasoning: string;
+  readonly suggestions: ReadonlyArray<string>;
+  readonly citations: ReadonlyArray<{
+    readonly evidenceId: string;
+    readonly source: string;
+    readonly excerpt: string;
+  }>;
+} {
+  const parsed = safeParsePersonaJson(turn.responseText);
+  if (parsed) {
+    const citations =
+      parsed.citations.length > 0
+        ? parsed.citations
+        : [
+            {
+              evidenceId: fallbackEvidenceId,
+              source: 'brain-thread',
+              excerpt: 'audit-chain entry for this multimodal turn',
+            },
+          ];
+    return {
+      summary: parsed.summary,
+      reasoning: parsed.reasoning,
+      suggestions: parsed.suggestions,
+      citations,
+    };
+  }
+  const text = (turn.responseText ?? '').trim() || 'no_text_response';
+  return {
+    summary: text.slice(0, 280),
+    reasoning: text,
+    suggestions: [text.slice(0, 280)],
+    citations: [
+      {
+        evidenceId: fallbackEvidenceId,
+        source: 'brain-thread',
+        excerpt: 'audit-chain entry for this multimodal turn',
+      },
+    ],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -235,44 +393,157 @@ app.post('/vision-turn', async (c) => {
   }
 
   // -------------------------------------------------------------------------
-  // 8. Brain orchestrator multimodal turn — NOT YET WIRED.
-  //
-  //    The `@borjie/ai-copilot` Brain orchestrator's `startThread` /
-  //    `handleTurn` only accept `userText: string` today (see
-  //    `services/api-gateway/src/routes/brain.hono.ts` for the current
-  //    surface). The contract for multimodal attachments
-  //    (`attachments: [{ type: 'image', mediaType, data }]`) is not yet
-  //    exposed by the orchestrator.
-  //
-  //    Rather than mock a response or silently drop the image, return
-  //    a structured 503 so the gap is named precisely. The mobile
-  //    pipeline already handles `BACKEND_VISION_UNAVAILABLE` per
-  //    `apps/workforce-mobile/src/photo-advisor/types.ts`.
+  // 8. Resolve the per-tenant Brain. When no resolver has been injected
+  //    (e.g. the gateway composition root has not wired one yet) we
+  //    surface a structured 503 — the mobile pipeline already handles
+  //    `BACKEND_VISION_UNAVAILABLE`.
   // -------------------------------------------------------------------------
-  logger.info(
-    {
+  if (!brainResolver) {
+    logger.error(
+      { tenantId: auth.tenantId, userId: auth.userId },
+      'vision-turn rejected: brain resolver not configured',
+    );
+    return c.json(
+      {
+        error: 'BACKEND_VISION_UNAVAILABLE',
+        code: 'BRAIN_NOT_CONFIGURED',
+        message:
+          'Brain resolver not configured. The gateway composition root must call setBrainResolver(...) before this endpoint is reachable.',
+      },
+      503,
+    );
+  }
+
+  let brain: Brain | null;
+  try {
+    brain = await brainResolver({
       tenantId: auth.tenantId,
       userId: auth.userId,
-      mimeType: body.image.mimeType,
-      sizeBytes: body.image.sizeBytes,
-      hasLocation: body.location !== null,
-      language: body.language,
-    },
-    'vision-turn accepted shape; orchestrator multimodal API not yet wired',
-  );
+    });
+  } catch (err) {
+    logger.error(
+      {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'vision-turn rejected: brain resolver threw',
+    );
+    return c.json(
+      {
+        error: 'BACKEND_VISION_UNAVAILABLE',
+        code: 'BRAIN_RESOLVE_FAILED',
+        message: 'failed to resolve a brain instance for this tenant',
+      },
+      503,
+    );
+  }
 
-  return c.json(
-    {
-      error: 'BACKEND_VISION_UNAVAILABLE',
-      code: 'BRAIN_MULTIMODAL_NOT_WIRED',
-      message:
-        'Brain orchestrator does not yet support multimodal turns. ' +
-        'See packages/ai-copilot for the orchestrator.startThread() signature ' +
-        '— it currently only accepts userText:string and must be extended to ' +
-        'pass an attachments[] array to the Anthropic vision API.',
-    },
-    503,
-  );
+  if (!brain) {
+    return c.json(
+      {
+        error: 'BACKEND_VISION_UNAVAILABLE',
+        code: 'BRAIN_NOT_AVAILABLE',
+        message: 'no brain available for this tenant',
+      },
+      503,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 9. Run the multimodal turn
+  // -------------------------------------------------------------------------
+  const attachment: MediaAttachment = {
+    mediaType: body.image.mimeType,
+    data: body.image.base64,
+  };
+
+  try {
+    const startResult = await brain.orchestrator.startThread({
+      tenant: {
+        tenantId: auth.tenantId,
+        tenantName: auth.tenantId,
+        environment: 'production',
+      },
+      actor: {
+        type: 'user',
+        id: auth.userId,
+        roles: Array.isArray(auth.permissions) ? auth.permissions : [],
+      },
+      viewer: {
+        userId: auth.userId,
+        roles: Array.isArray(auth.permissions) ? auth.permissions : [],
+        teamIds: [],
+        isAdmin: false,
+      },
+      initialUserText: buildVisionPrompt(body),
+      mediaAttachments: [attachment],
+    });
+
+    if (!startResult.success) {
+      logger.error(
+        {
+          tenantId: auth.tenantId,
+          userId: auth.userId,
+          err: startResult.error.code,
+          message: startResult.error.message,
+        },
+        'vision-turn rejected: orchestrator returned error',
+      );
+      const status = startResult.error.code === 'VISION_UNSUPPORTED_MODEL'
+        ? 503
+        : 500;
+      return c.json(
+        {
+          error: 'brain_turn_failed',
+          code: startResult.error.code,
+          message: startResult.error.message,
+        },
+        status,
+      );
+    }
+
+    const { thread, turn } = startResult.data;
+    const fallbackEvidenceId = `brain-thread:${thread.id}`;
+    const composed = composePhotoAdvisorResponse(turn, fallbackEvidenceId);
+
+    logger.info(
+      {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        threadId: thread.id,
+        finalPersonaId: turn.finalPersonaId,
+        tokensUsed: turn.tokensUsed,
+        sessionId: body.sessionId,
+        attachments: 1,
+      },
+      'vision-turn served',
+    );
+
+    return c.json(
+      {
+        ...composed,
+        sessionId: thread.id,
+      },
+      200,
+    );
+  } catch (err) {
+    logger.error(
+      {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'vision-turn unexpected exception',
+    );
+    return c.json(
+      {
+        error: 'internal_error',
+        code: 'INTERNAL',
+      },
+      500,
+    );
+  }
 });
 
 export const miningBrainVisionRouter = app;

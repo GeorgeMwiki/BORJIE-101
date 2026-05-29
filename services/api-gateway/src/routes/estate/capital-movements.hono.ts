@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening.
 /**
  * /api/v1/estate/capital-movements — view-layer ledger of
  * intercompany flows. The actual money STILL posts through

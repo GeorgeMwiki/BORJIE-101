@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening.
 /**
  * /api/v1/estate/entities — subsidiaries / JVs / standalone holdings.
  *

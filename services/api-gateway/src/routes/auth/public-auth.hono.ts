@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union widens c.json(..., status) branches and rejects the union; tracked at hono-dev/hono#3891.
 /**
  * Public auth endpoints — `/api/v1/auth/sign-in` and `/api/v1/auth/sign-out`.
  *

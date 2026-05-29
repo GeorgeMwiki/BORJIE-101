@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening across many c.json branches.
 /**
  * /api/v1/workforce/tab-config and /api/v1/owner/workforce/* —
  * Wave WORKFORCE-FIXED-TABS.
@@ -146,13 +145,20 @@ async function appendAuditEntry(
 // Zod schemas
 // ---------------------------------------------------------------------------
 
+// `WORKFORCE_ROLE_IDS` is exported as `ReadonlyArray<WorkforceRoleId>`;
+// zod requires the literal `[string, ...string[]]` tuple shape.
+const WORKFORCE_ROLE_IDS_TUPLE = WORKFORCE_ROLE_IDS as unknown as readonly [
+  string,
+  ...string[],
+];
+
 const tabConfigQuerySchema = z.object({
-  role: z.enum(WORKFORCE_ROLE_IDS).optional(),
+  role: z.enum(WORKFORCE_ROLE_IDS_TUPLE).optional(),
   siteId: z.string().uuid().optional(),
 });
 
 const putConfigParamsSchema = z.object({
-  role: z.enum(WORKFORCE_ROLE_IDS),
+  role: z.enum(WORKFORCE_ROLE_IDS_TUPLE),
   siteScope: z.string().min(1).max(64),
 });
 

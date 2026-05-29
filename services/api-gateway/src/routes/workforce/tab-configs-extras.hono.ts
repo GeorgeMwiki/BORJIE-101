@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 TypedResponse widening across c.json branches.
 /**
  * Auxiliary endpoints for the workforce tab-config surface — Wave
  * WORKFORCE-FIXED-TABS.

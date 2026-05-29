@@ -36,11 +36,6 @@
  * hash-chained row to `ai_audit_chain` via `appendOpsAuditEntry`.
  */
 
-// @ts-nocheck — Hono v4 status-literal widening across `c.json(..., N)`
-// branches; same root cause as hono-auth.ts (hono-dev/hono#3891). The
-// route bodies are typed via the zod schemas below — runtime safety is
-// preserved.
-
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { sql, and, eq, isNull } from 'drizzle-orm';
