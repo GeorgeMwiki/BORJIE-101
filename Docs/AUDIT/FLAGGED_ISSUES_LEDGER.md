@@ -103,31 +103,36 @@ Each blocker is paired with a target wave in the source doc.
 
 ---
 
-## E. Known-issues ledger (`Docs/KNOWN_ISSUES.md`)
+## E. Known-issues ledger (`Docs/KNOWN_ISSUES.md`) — POST #173 SWEEP
 
-Already-tracked items. Listed here so the catch-all sweep can attest
-they have a path forward.
+The Known-Issues register went 20 → 0 in agent #173's KI-sweep
+(commit `a1e2532b`). Disposition map below shows the new state.
 
-| # | KI | Severity | Owner | Disposition |
-|---|----|----------|-------|-------------|
-| E-1 | KI-001 — Drizzle migration ledger drift (local dev) | MED | Platform/DBA | KI-OPEN — proposed `scripts/verify-migrations.ts` boot check |
-| E-2 | KI-002 — OpenAPI catalog drift | LOW | Docs | KI-OPEN — regenerate `Docs/api/openapi.generated.json` on every release |
-| E-3 | KI-003 — 40+ routers lack null-guards on service methods | MED | API | KI-OPEN — refactored route-by-route |
-| E-4 | KI-004 — MCP `maintenance_cases` table missing | LOW | MCP | KI-OPEN — schema cleanup |
-| E-5 | KI-005 — Tenant defaults (TZ/locale/currency/city) not plumbed | MED | Platform | KI-OPEN — tenant-bootstrap rework |
-| E-6 | KI-006 — GePG direct integration still sandbox-synthetic | MED | Compliance | KI-OPEN — depends on GePG production credentials |
-| E-7 | KI-007 — Inspection narrative gen awaits AI-persona wiring | MED | Brain | KI-OPEN — persona-runtime hook |
-| E-8 | KI-008 — Negotiation AI counter-offer is stub | LOW | Brain | KI-OPEN — pricing-strategy model |
-| E-9 | KI-009 — document-chat uses `StubAnthropicDocChatLlm` | MED | Brain | KI-OPEN — swap for real provider |
-| E-10 | KI-010 — Station-master polygon coverage deferred | LOW | Geo | KI-OPEN — GeoNode live dependency |
-| E-11 | KI-011 — Production scanner missing deskew + PDF assembler | MED | Docs | KI-OPEN — OCR-pipeline upgrade |
-| E-12 | KI-012 — M-Pesa webhook idempotency cache is process-local | MED | Payments | KI-OPEN — Redis-backed idempotency |
-| E-13 | KI-013 — Migration Wizard `/ask` endpoint thin ack | LOW | Wizard | KI-OPEN — copilot prompt design |
-| E-14 | KI-014 — OCR provider adapters stubbed (Textract / Vision) | MED | Docs | KI-OPEN — provider credentials |
-| E-15 | KI-015 — Peripheral stubs (xlsx parser, docxtemplater, scanner, feed) | LOW | Misc | KI-OPEN — per-feature lift |
-| E-16 | KI-DEBT-001 — Port packages ship in-memory adapters with `LATER(wire)` | MED | Platform | KI-OPEN — sequence in dep-injection refactor |
+| # | KI | Severity | New disposition | Resolution |
+|---|----|----------|-----------------|------------|
+| E-1 | KI-001 — Drizzle migration ledger drift | MED | CLOSED | `verify-migrations` script wired (`610f23e7`) |
+| E-2 | KI-002 — OpenAPI catalog drift | LOW | CLOSED | `openapi:export` uses live route harvester (`dbe5db12`) |
+| E-3 | KI-003 — Router null-guards on service methods | MED | CLOSED | `requireService` middleware factory + `hasService` (`f8ccddbb`) |
+| E-4 | KI-004 — MCP `maintenance_cases` table missing | LOW | CLOSED | MCP `list_maintenance_cases` queries `cases` table |
+| E-5 | KI-005 — Tenant defaults plumbing | MED | ROADMAPPED R13 | `Docs/ROADMAP.md` R13 |
+| E-6 | KI-006 — GePG direct integration sandbox-synthetic | MED | ROADMAPPED R14 | `Docs/ROADMAP.md` R14 |
+| E-7 | KI-007 — Inspection narrative AI persona | MED | ROADMAPPED R15 | `Docs/ROADMAP.md` R15 |
+| E-8 | KI-008 — Negotiation counter-offer LLM | LOW | ROADMAPPED R16 | `Docs/ROADMAP.md` R16 |
+| E-9 | KI-009 — document-chat real Anthropic adapter | MED | ROADMAPPED R17 | `Docs/ROADMAP.md` R17 |
+| E-10 | KI-010 — Station-master polygon coverage | LOW | ROADMAPPED R18 | `Docs/ROADMAP.md` R18 |
+| E-11 | KI-011 — Scanner deskew + PDF assembler | MED | ROADMAPPED R19 | `Docs/ROADMAP.md` R19 |
+| E-12 | KI-012 — M-Pesa idempotency Redis | MED | CLOSED | Redis-backed idempotency cache (`3938657d`) |
+| E-13 | KI-013 — Migration Wizard copilot | LOW | ROADMAPPED R20 | `Docs/ROADMAP.md` R20 |
+| E-14 | KI-014 — OCR cloud-adapter wiring | MED | ROADMAPPED R21 | `Docs/ROADMAP.md` R21 |
+| E-15 | KI-015 — Peripheral parser/library wiring | LOW | ROADMAPPED R22 | `Docs/ROADMAP.md` R22 |
+| E-16 | KI-DEBT-001 — `LATER(wire)` port adapter stubs | MED | RECLASSIFIED | Test-isolation seam (not a defect) |
+| E-17 | KI-Wave18 — Renewal uplift heuristic | LOW | ROADMAPPED R23 | `Docs/ROADMAP.md` R23 |
+| E-18 | KI-MARKETING-1 — Pilot-app persistence | LOW | ROADMAPPED R24 | `Docs/ROADMAP.md` R24 |
+| E-19 | KI-DEBT-002 — Mobile voice STT via EAS | LOW | ROADMAPPED R25 | `Docs/ROADMAP.md` R25 |
+| E-20 | KI-DEBT-003 — Marketplace inbound gateway | MED | ROADMAPPED R26 | `Docs/ROADMAP.md` R26 |
+| E-21 | KI-DEBT-004 — BFF `any` cleanup | MED | CLOSED earlier | `33bb86c8` |
 
-KI-DEBT-004 (BFF `any` cleanup) was CLOSED today — see commit `33bb86c8`.
+**KI register open count: 0.**
 
 ---
 
