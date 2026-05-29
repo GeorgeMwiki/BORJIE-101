@@ -80,6 +80,9 @@ import { cockpitHubRouter } from './routes/owner/cockpit-hub.hono';
 //   GET /me/persons/:personId/cells
 //   GET /brain/personal-kb/search
 import { personalKbRouter } from './routes/personal-kb.hono';
+// Roadmap R9 — smart-compose ghost text endpoint
+// (POST /brain/compose/suggest).
+import { brainComposeRouter } from './routes/brain-compose.hono';
 import { workforceClockInRouter } from './routes/workforce/clock-in.hono';
 import { brainRouter } from './routes/brain.hono';
 // Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
@@ -1186,6 +1189,9 @@ api.route('/owner/cockpit', cockpitHubRouter);
 // path segments inside (/me/* + /brain/personal-kb/search) so mount at
 // root rather than under a prefix.
 api.route('/', personalKbRouter);
+// Roadmap R9 — smart-compose ghost-text suggestions
+// (POST /brain/compose/suggest).
+api.route('/brain', brainComposeRouter);
 api.route('/workforce', workforceClockInRouter);
 api.route('/brain', brainRouter);
 // Sibling /brain mount for the teaching chat — Hono composes both
