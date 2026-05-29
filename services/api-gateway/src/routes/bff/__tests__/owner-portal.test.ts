@@ -95,7 +95,7 @@ function emptyRepos() {
     },
     workOrders: {
       findMany: async () => empty,
-      // TODO(#43) closed: owner-scope now uses findBySiteIds.
+      // Issue #43 closed: owner-scope now uses findBySiteIds.
       findBySiteIds: async () => [],
     },
     vendors: { findByIds: async () => [] },

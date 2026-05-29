@@ -9,9 +9,9 @@
  * intervals. For dev + unit tests we keep a small, deterministic
  * implementation here.
  *
- * TODO(wire): replace `forecastBaseline` with
+ * LATER(wire): replace `forecastBaseline` with
  *   @borjie/forecasting.createHoltWintersForecaster
- *   + @borjie/forecasting.wrapWithConformalIntervals.
+ *   + @borjie/forecasting.wrapWithConformalIntervals. See KI-DEBT-001.
  */
 
 import {

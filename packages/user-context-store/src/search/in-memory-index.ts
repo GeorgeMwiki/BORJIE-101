@@ -6,9 +6,9 @@
  * tenant/user/role visibility before any similarity scoring runs — we
  * never leak across tenant boundaries.
  *
- * TODO(#18): in production, swap for pgvector or a hosted vector DB.
+ * LATER(#18): in production, swap for pgvector or a hosted vector DB.
  * The port shape is intentionally identical (`searchScoped`) so the
- * upgrade is drop-in.
+ * upgrade is drop-in. See KI-DEBT-001.
  */
 import type {
   CorpusItem,

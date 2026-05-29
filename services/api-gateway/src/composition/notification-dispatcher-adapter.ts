@@ -2,7 +2,7 @@
  * Notification dispatcher + recipient resolver adapters (Central
  * Command Phase C — C2).
  *
- * Closes B1 TODOs #3 + #4: the platform `announcement.service.ts`
+ * Closes B1 wires #3 + #4: the platform `announcement.service.ts`
  * factory accepts two optional ports — a `NotificationDispatcherLike`
  * for actual fan-out and a `RecipientResolverLike` for the at-rest
  * recipient count. This module wires both from the composition root's

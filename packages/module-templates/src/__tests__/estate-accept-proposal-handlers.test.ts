@@ -6,7 +6,7 @@
  *   - invokes the underlying pure handler with the right ctx
  *   - returns the dispatcher-compatible `AcceptHandlerResult` shape
  *
- * Closes TODO(#34): the 3 pre-Borjie estate handlers
+ * Closes issue #34 — the 3 pre-Borjie estate handlers
  * (open_maintenance_case, schedule_renewal_negotiation,
  * bulk_mark_for_renewal_prep) were ported to mining-domain equivalents
  * (open_equipment_maintenance, schedule_licence_renewal,

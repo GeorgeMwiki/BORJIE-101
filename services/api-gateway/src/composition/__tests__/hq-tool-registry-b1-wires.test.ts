@@ -1,8 +1,8 @@
 /**
- * Phase C C2 integration — verify the 5 B1 wiring TODOs are threaded
+ * Phase C C2 integration — verify the 5 B1 wiring slots are threaded
  * through `buildHqDepsFromDb` and the C2 helper adapters.
  *
- * Covered TODOs:
+ * Covered B1 wiring slots:
  *   #2  killswitch cross-portal publisher        (createKillswitchFanoutPublisher)
  *   #3  announcement notification dispatcher     (createNotificationDispatcherAdapter)
  *   #4  announcement recipient resolver          (createRecipientResolverAdapter)
@@ -110,8 +110,8 @@ function stubDb(): unknown {
   };
 }
 
-describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () => {
-  it('TODO #2 — killswitch fan-out publisher is threaded into killswitchWrite', async () => {
+describe('hq-tool-registry — Phase C C2 wire integration (B1 wires 2-6)', () => {
+  it('B1 #2 — killswitch fan-out publisher is threaded into killswitchWrite', async () => {
     const bus = createInMemoryCrossPortalBus();
     const received: CrossPortalEventShape[] = [];
     await bus.subscribe(globalTopic(), (e) => received.push(e));
@@ -147,7 +147,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     await bus.close();
   });
 
-  it('TODO #3 — notification dispatcher is threaded into announcements.send', async () => {
+  it('B1 #3 — notification dispatcher is threaded into announcements.send', async () => {
     const bus = createInMemoryCrossPortalBus();
     const dispatcher = createNotificationDispatcherAdapter({
       eventBus: { publish: vi.fn() },
@@ -167,7 +167,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     await bus.close();
   });
 
-  it('TODO #4 — recipient resolver is threaded into announcements', async () => {
+  it('B1 #4 — recipient resolver is threaded into announcements', async () => {
     const bus = createInMemoryCrossPortalBus();
     const resolver = createRecipientResolverAdapter({ db: stubDb() as never });
 
@@ -183,7 +183,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     await bus.close();
   });
 
-  it('TODO #5 — decision-trace recorder adapter is threaded into tracesQuery', async () => {
+  it('B1 #5 — decision-trace recorder adapter is threaded into tracesQuery', async () => {
     const fakeRecorder = {
       getRecentTraces: vi.fn(async () => [
         {
@@ -214,7 +214,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     expect(rows[0]?.stepCount).toBe(3);
   });
 
-  it('TODO #5 — adapter returns [] when the kernel recorder throws', async () => {
+  it('B1 #5 — adapter returns [] when the kernel recorder throws', async () => {
     const throwingRecorder = {
       getRecentTraces: vi.fn(async () => {
         throw new Error('kernel store down');
@@ -227,7 +227,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     expect(rows).toEqual([]);
   });
 
-  it('TODO #6 — consolidation worker adapter is threaded into consolidation slot', async () => {
+  it('B1 #6 — consolidation worker adapter is threaded into consolidation slot', async () => {
     const runner = {
       runForActiveTenants: vi.fn(async () => ({
         tenantsProcessed: 2,
@@ -256,7 +256,7 @@ describe('hq-tool-registry — Phase C C2 wire integration (B1 TODOs 2-6)', () =
     expect(runner.runForActiveTenants).toHaveBeenCalledTimes(1);
   });
 
-  it('TODO #6 — rollbackSnapshot surfaces a structured "not wired" failure', async () => {
+  it('B1 #6 — rollbackSnapshot surfaces a structured "not wired" failure', async () => {
     const runner = {
       runForActiveTenants: vi.fn(async () => ({
         tenantsProcessed: 0,

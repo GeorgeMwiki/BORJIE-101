@@ -24,7 +24,7 @@ interface MarketplaceBoardProps {
  * `/api/v1/mining/marketplace/listings` endpoint via the
  * `useMarketplaceListings` query and surface LBMA grade + match
  * clock for each open parcel. Inbound stays mock-only (no gateway
- * endpoint yet — TODO(#20)).
+ * endpoint yet — LATER(#20), see KI-DEBT-003).
  */
 export function MarketplaceBoard({ locale = 'en' }: MarketplaceBoardProps): JSX.Element {
   const isSw = locale === 'sw';

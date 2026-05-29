@@ -446,3 +446,79 @@ Out of scope for the cleanup wave because it spans a migration + new
 repo + composition wiring + notifications fan-out.
 
 **Owners.** Marketing / Platform.
+
+---
+
+## KI-DEBT-001 — Port packages ship in-memory adapters with `LATER(wire)` markers
+
+**Severity:** LOW (deliberate architectural pattern; production
+composition roots already swap these for real adapters).
+
+**Symptoms.** The following packages export `LATER(wire):` markers
+where in-memory port implementations document the production
+adapter they are meant to be swapped for:
+
+| File                                                                  | Production target                                                |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `packages/market-intelligence/src/ports.ts`                           | LBMA/KITCO price, `@borjie/fx-treasury-advisor`, `@borjie/authz-policy`, `@borjie/proactive-intel`, `@borjie/observability` |
+| `packages/market-intelligence/src/demand-forecaster.ts`               | `@borjie/forecasting.createHoltWintersForecaster` + conformal     |
+| `packages/market-intelligence/src/disruption-detector.ts`             | `@borjie/proactive-intel.compose` + `@borjie/anomaly-detection`   |
+| `packages/market-intelligence/src/sell-signals.ts`                    | `@borjie/causal-inference.fuelPriceImpact` / royalty attribution  |
+| `packages/buyer-marketplace-advisor/src/ports.ts`                     | `@borjie/mining-commodity-intelligence`, `@borjie/compliance-pack`, `@borjie/geo-intelligence` + `@borjie/geo-parcels` |
+| `packages/mining-shift-planner/src/ports.ts`                          | `@borjie/assignment-registry`, `@borjie/regulatory-tz-mining` OSHA-TZ ruleset |
+| `packages/user-context-store/src/search/in-memory-index.ts`           | pgvector or hosted vector DB (issue #18)                          |
+
+**Root cause.** These leaf packages are intentionally deterministic
++ network-free so unit tests stay fast and isolated. Composition
+roots in `services/api-gateway/src/composition/` already wire the
+real adapters; the in-memory fallbacks are only used in tests + CLI
+scaffolds.
+
+**Proposed fix.** None — these are not bugs. As each target package
+matures, swap the in-memory wiring in the composition root and
+delete the `LATER(wire):` marker. The port shapes are intentionally
+identical so the swap is mechanical.
+
+**Owners.** Per-domain squads (Market intelligence, Buyer marketplace,
+Shift planner, RAG / corpus).
+
+---
+
+## KI-DEBT-002 — Mobile voice STT in `O-M-02.tsx` requires EAS dev build
+
+**Severity:** LOW (gracefully degrades — placeholder copy prefills
+the draft and the owner can edit before sending).
+
+**File.** `apps/workforce-mobile/app/owner/O-M-02.tsx:75` — the voice
+button's `onPress` handler emits a placeholder rather than triggering
+the Swahili STT pipeline.
+
+**Root cause.** Live Swahili speech-to-text needs the
+`@borjie/voice-agent` / Spitch native module which is not yet bundled
+into the Expo Go runtime; it requires an EAS dev build (tracked under
+issues #14 + #22).
+
+**Proposed fix.** When the voice phase ships and EAS dev builds are
+available, replace the placeholder prefill with a call into the real
+voice agent + on-device STT pipeline.
+
+**Owners.** Voice phase squad.
+
+---
+
+## KI-DEBT-003 — Marketplace inbound column has no gateway endpoint
+
+**Severity:** LOW (UI surface displays a clearly-labelled mock list
+until the buy-side `/api/v1/mining/marketplace/inbound` lands).
+
+**File.** `apps/owner-web/src/components/marketplace/MarketplaceBoard.tsx:27`.
+
+**Root cause.** Issue #20 — the inbound (buy-side) marketplace
+endpoint is not yet implemented in `services/api-gateway`.
+
+**Proposed fix.** Stand up `routes/mining/marketplace.hono.ts ::
+listInbound`, wire to the buyer-marketplace-advisor read model, and
+swap the mock data path in the renderer for a `useMarketplaceInbound`
+query.
+
+**Owners.** Marketplace + Buyer squads.

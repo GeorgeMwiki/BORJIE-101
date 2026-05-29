@@ -8,8 +8,9 @@
  * normally compose the alert envelopes — we keep the wiring point
  * behind a Port so unit tests stay deterministic.
  *
- * TODO(wire): @borjie/proactive-intel.compose for chat-first delivery
+ * LATER(wire): @borjie/proactive-intel.compose for chat-first delivery
  * + @borjie/anomaly-detection detectors for statistical triggers.
+ * See KI-DEBT-001.
  */
 
 import {

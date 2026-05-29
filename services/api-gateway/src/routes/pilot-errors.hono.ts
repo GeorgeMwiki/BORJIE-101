@@ -16,7 +16,7 @@
  *
  * A future Sentry-GraphQL reader is planned (the `loadFromSentry` hook
  * returns a typed "not yet wired" error so callers can detect the
- * unimplemented path without grep-ing for TODO/FIXME).
+ * unimplemented path without grepping for inline markers).
  *
  * Auth
  * ────

@@ -58,8 +58,9 @@ export interface LogisticsPort {
  * commodity. Composition roots replace this with a Drizzle-backed
  * adapter.
  *
- * TODO(wire): replace with `@borjie/mining-commodity-intelligence`
+ * LATER(wire): replace with `@borjie/mining-commodity-intelligence`
  * adapter that joins LME / KITCO price snapshots with on-chain output.
+ * See KI-DEBT-001.
  */
 export function createInMemoryMineCatalog(
   seed: ReadonlyArray<MineProfile>,
@@ -76,8 +77,8 @@ export function createInMemoryMineCatalog(
 /**
  * In-memory KycSourcePort.
  *
- * TODO(wire): swap for `@borjie/compliance-pack` DSAR + screening read
- * model once Wave-4 lands.
+ * LATER(wire): swap for `@borjie/compliance-pack` DSAR + screening read
+ * model once Wave-4 lands. See KI-DEBT-001.
  */
 export function createInMemoryKycSource(
   seed: ReadonlyArray<KycFact>,
@@ -107,8 +108,8 @@ export interface InMemoryRouteEntry {
 /**
  * In-memory LogisticsPort.
  *
- * TODO(wire): replace with `@borjie/geo-intelligence` route resolver
- * + `@borjie/geo-parcels` border-crossing overlay.
+ * LATER(wire): replace with `@borjie/geo-intelligence` route resolver
+ * + `@borjie/geo-parcels` border-crossing overlay. See KI-DEBT-001.
  */
 export function createInMemoryLogistics(
   seed: ReadonlyArray<InMemoryRouteEntry>,

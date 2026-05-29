@@ -207,7 +207,7 @@ export interface WorkOrderRepository {
    * replacement for the old `findByPropertyIds` (`propertyIds` was
    * pre-Borjie property-domain). Tenant + soft-delete filters are
    * enforced inside the repo so callers cannot bypass them. Closes
-   * TODO(#43): owner-scope leak when work-orders fell back to
+   * issue #43 — owner-scope leak when work-orders fell back to
    * `findMany + JS .filter`.
    */
   findBySiteIds(siteIds: readonly string[], tenantId: TenantId): Promise<WorkOrder[]>;

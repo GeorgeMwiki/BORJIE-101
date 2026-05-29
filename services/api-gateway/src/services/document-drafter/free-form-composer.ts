@@ -14,8 +14,8 @@
  *
  * The composer is intentionally LLM-friendly but degrades gracefully:
  * when the supplied generator is the deterministic placeholder, a
- * skeleton document with clearly-marked TODOs is returned so reviewers
- * can still inspect structure.
+ * skeleton document with clearly-labelled placeholders is returned so
+ * reviewers can still inspect structure.
  */
 
 import type { DraftKind, DraftLanguage } from '@borjie/database/schemas';

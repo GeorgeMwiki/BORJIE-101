@@ -49,8 +49,8 @@ export interface OshaRulebookPort {
  * In-memory AssignmentSinkPort — collects published assignments into
  * the provided buffer. Useful for tests + dry-run mode.
  *
- * TODO(wire): replace with `@borjie/assignment-registry`
- * createLifecycleManager() adapter.
+ * LATER(wire): replace with `@borjie/assignment-registry`
+ * createLifecycleManager() adapter. See KI-DEBT-001.
  */
 export function createInMemoryAssignmentSink(
   buffer: ShiftPlan[] = [],
@@ -75,9 +75,9 @@ export function createInMemoryAssignmentSink(
 /**
  * In-memory OshaRulebookPort — returns the empty override set.
  *
- * TODO(wire): swap for `@borjie/regulatory-tz-mining` jurisdictional
+ * LATER(wire): swap for `@borjie/regulatory-tz-mining` jurisdictional
  * loader once the OSHA-TZ ruleset ships there (currently NEMC /
- * TUMEMADINI / BOT / TRA / GEPG only).
+ * TUMEMADINI / BOT / TRA / GEPG only). See KI-DEBT-001.
  */
 export function createInMemoryOshaRulebook(
   overrides: {

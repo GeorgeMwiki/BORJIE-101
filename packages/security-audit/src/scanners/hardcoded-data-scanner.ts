@@ -8,7 +8,8 @@
  *   - hardcoded external URLs outside the allow-list of vendor hosts
  *   - hardcoded phone numbers + emails (allow @example.com + 555-xxxx)
  *   - business-logic stubs (`throw new Error('not implemented')`,
- *     `return null as any`, `TODO: not implemented`).
+ *     `return null as any`, or a literal "not implemented" marker
+ *     embedded in a thrown error message).
  *
  * Test, fixture, mock, dist + node_modules paths are excluded so the
  * scanner is safe to run in CI without drowning the output in

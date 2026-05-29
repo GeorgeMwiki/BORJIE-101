@@ -31,7 +31,7 @@ export const NOOP_LOGGER: Logger = {
 
 // ─── Price provider ──────────────────────────────────────────────
 // Returns the latest commodity price snapshot. Caller wires:
-//   gold      -> LBMA AM/PM fix adapter (TODO(wire): @borjie/mining-commodity-intelligence.createKitcoAdapter)
+//   gold      -> LBMA AM/PM fix adapter (LATER(wire): @borjie/mining-commodity-intelligence.createKitcoAdapter — see KI-DEBT-001)
 //   copper    -> LME 3-month adapter + regional spread adapter
 //   tanzanite -> Block C/D production-report adapter
 
@@ -44,7 +44,7 @@ export interface PriceProviderPort {
 
 // ─── FX provider ─────────────────────────────────────────────────
 // Resolves USD/TZS for the gold-to-TZS conversion.
-// TODO(wire): @borjie/fx-treasury-advisor.FxRateFeedPort.getRates(['USD/TZS']).
+// LATER(wire): @borjie/fx-treasury-advisor.FxRateFeedPort.getRates(['USD/TZS']) — see KI-DEBT-001.
 
 export interface FxProviderPort {
   /** Returns the multiplier `1 USD = N TZS`. */
@@ -62,7 +62,7 @@ export const STATIC_FX_PROVIDER: FxProviderPort = {
 // ─── Tenant permission ───────────────────────────────────────────
 // Resolves whether a tenant can read market intel. Default policy:
 // allow any non-empty tenantId. In production, swap for an RBAC port
-// (TODO(wire): @borjie/authz-policy).
+// (LATER(wire): @borjie/authz-policy — see KI-DEBT-001).
 
 export interface TenantPermissionPort {
   canAccess(tenantId: string): Promise<boolean>;
@@ -78,7 +78,7 @@ export const ALLOW_ALL_TENANT_PERMISSION: TenantPermissionPort = {
 // Where disruption alerts are emitted. In production this is wired to
 // `@borjie/proactive-intel` recommendation composer + the platform
 // notification adapter (chat → WhatsApp → email digest fallback).
-// TODO(wire): @borjie/proactive-intel.compose + notification adapter.
+// LATER(wire): @borjie/proactive-intel.compose + notification adapter — see KI-DEBT-001.
 
 export interface AlertSinkPort {
   emit(alert: DisruptionAlert): Promise<void>;
@@ -117,8 +117,8 @@ export const EMPTY_DISRUPTION_SOURCE: DisruptionSignalSourcePort = {
 };
 
 // ─── Telemetry ───────────────────────────────────────────────────
-// Optional metrics counter. TODO(wire): @borjie/observability.PlatformMetrics
-// + @borjie/ocsf-emitter.emitEvent for SIEM ingestion.
+// Optional metrics counter. LATER(wire): @borjie/observability.PlatformMetrics
+// + @borjie/ocsf-emitter.emitEvent for SIEM ingestion — see KI-DEBT-001.
 
 export interface TelemetryPort {
   count(name: string, attrs?: Record<string, string | number>): void;

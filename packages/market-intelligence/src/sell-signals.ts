@@ -12,9 +12,9 @@
  *   - p50 forecast trend falls strongly + active high-sev disruption => SELL
  *   - bands wide + mixed signals => HOLD
  *
- * TODO(wire): @borjie/causal-inference.fuelPriceImpact /
+ * LATER(wire): @borjie/causal-inference.fuelPriceImpact /
  *   royaltyRateImpact to attribute causality from the active-disruption
- *   set to forecasted demand moves.
+ *   set to forecasted demand moves. See KI-DEBT-001.
  */
 
 import {

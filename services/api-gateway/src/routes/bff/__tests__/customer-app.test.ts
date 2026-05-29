@@ -294,7 +294,7 @@ describe('GET /customer/move-out/disputes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns an honest empty list with TODO note when damage repo is unwired', async () => {
+  it('returns an honest empty list with a "not yet wired" note when damage repo is unwired', async () => {
     const app = mountWithContext({ services: {} });
     const res = await app.request('/customer/move-out/disputes', {
       headers: { Authorization: bearer() },
