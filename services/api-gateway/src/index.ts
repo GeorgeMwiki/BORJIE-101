@@ -72,6 +72,9 @@ import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
 // /owner/saved-searches; companion worker lives in
 // services/api-gateway/src/workers/saved-search-worker.ts.
 import { savedSearchesRouter } from './routes/owner/saved-searches.hono';
+// Roadmap R7 — owner-mobile cockpit hub aggregator (brief + decisions +
+// opportunities + risks + reminders) under /owner/cockpit/hub.
+import { cockpitHubRouter } from './routes/owner/cockpit-hub.hono';
 import { workforceClockInRouter } from './routes/workforce/clock-in.hono';
 import { brainRouter } from './routes/brain.hono';
 // Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
@@ -1172,6 +1175,8 @@ api.route('/insurance', insuranceRouter);
 api.route('/owner/threads', ownerThreadsRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
+// Roadmap R7 — owner-mobile cockpit hub aggregator.
+api.route('/owner/cockpit', cockpitHubRouter);
 api.route('/workforce', workforceClockInRouter);
 api.route('/brain', brainRouter);
 // Sibling /brain mount for the teaching chat — Hono composes both
