@@ -257,4 +257,236 @@ app.openapi(
   ),
 );
 
+// ---------------------------------------------------------------------------
+// GET /incoming — seller-side: list bids on listings owned by the
+// calling tenant (the owner cockpit "Incoming Offers" card).
+//
+// Filters by tenant only — every marketplace_bids row already carries
+// the seller tenant_id (RLS enforces). Optional `status` filter.
+// ---------------------------------------------------------------------------
+
+app.get('/incoming', async (c: any) => {
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  if (!auth?.tenantId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+  const statusParam = c.req.query('status') as string | undefined;
+  const allowedStatuses = new Set([
+    'pending',
+    'accepted',
+    'rejected',
+    'countered',
+    'withdrawn',
+  ]);
+  const status =
+    statusParam && allowedStatuses.has(statusParam) ? statusParam : undefined;
+
+  const conds = [eq(marketplaceBids.tenantId, auth.tenantId)];
+  if (status) {
+    conds.push(eq(marketplaceBids.status, status));
+  }
+  const rows = await db
+    .select()
+    .from(marketplaceBids)
+    .where(and(...conds))
+    .orderBy(desc(marketplaceBids.createdAt))
+    .limit(200);
+  return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// GET /mine — buyer-side: list MY active bids across listings.
+//
+// Resolves the calling user's KYC'd `buyers` row, then lists every
+// `marketplace_bids` row tied to that buyer. Persona-tool surface for
+// the buyer-mobile "My bids" stack (composition/brain-tools/
+// buyer-tools.ts — buyerMyBidsTool). Optional `status` filter.
+// ---------------------------------------------------------------------------
+
+app.get('/mine', async (c: any) => {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+
+  const statusParam = c.req.query('status') as string | undefined;
+  const allowedStatuses = new Set([
+    'pending',
+    'accepted',
+    'rejected',
+    'countered',
+    'withdrawn',
+    'active',
+  ]);
+  const status =
+    statusParam && allowedStatuses.has(statusParam) ? statusParam : undefined;
+
+  const buyer = await findLinkedBuyer(db, auth.tenantId, auth.userId);
+  if (!buyer) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+
+  const conds = [
+    eq(marketplaceBids.tenantId, auth.tenantId),
+    eq(marketplaceBids.buyerId, buyer.id),
+  ];
+  if (status && status !== 'active') {
+    conds.push(eq(marketplaceBids.status, status));
+  } else if (status === 'active') {
+    conds.push(eq(marketplaceBids.status, 'pending'));
+  }
+  const rows = await db
+    .select()
+    .from(marketplaceBids)
+    .where(and(...conds))
+    .orderBy(desc(marketplaceBids.createdAt))
+    .limit(200);
+  return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// POST /:id/withdraw — buyer-side: withdraw an own pending bid.
+//
+// Refuses unless the calling user owns the bid (via buyers.linked_user_id).
+// Idempotent on already-withdrawn — returns the existing row.
+// Stamps `withdrawnAt` + `withdrawalReason` into attributes.jsonb so the
+// audit-trail captures the why.
+// ---------------------------------------------------------------------------
+
+app.post('/:id/withdraw', async (c: any) => {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'DATABASE_UNAVAILABLE', message: 'Database not configured' },
+      },
+      503,
+    );
+  }
+
+  const bidId = c.req.param('id');
+  if (!bidId || !/^[0-9a-f-]{36}$/i.test(bidId)) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'INVALID_BID_ID', message: 'bid id must be a UUID' },
+      },
+      400,
+    );
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    reason?: string;
+  };
+
+  const buyer = await findLinkedBuyer(db, auth.tenantId, auth.userId);
+  if (!buyer) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'kyc_required',
+          message: 'Complete KYC before withdrawing a bid',
+        },
+      },
+      403,
+    );
+  }
+  const [existing] = await db
+    .select()
+    .from(marketplaceBids)
+    .where(
+      and(
+        eq(marketplaceBids.id, bidId),
+        eq(marketplaceBids.tenantId, auth.tenantId),
+      ),
+    )
+    .limit(1);
+  if (!existing) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Bid not found' },
+      },
+      404,
+    );
+  }
+  if (existing.buyerId !== buyer.id) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'NOT_BID_OWNER',
+          message: 'Only the buyer who placed the bid can withdraw it',
+        },
+      },
+      403,
+    );
+  }
+  if (existing.status === 'withdrawn') {
+    return c.json({ success: true as const, data: existing }, 200);
+  }
+  if (existing.status !== 'pending' && existing.status !== 'countered') {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'BID_TERMINAL',
+          message: `Cannot withdraw a bid in '${existing.status}' state`,
+        },
+      },
+      409,
+    );
+  }
+  const [updated] = await db
+    .update(marketplaceBids)
+    .set({
+      status: 'withdrawn',
+      attributes: {
+        ...((existing.attributes as Record<string, unknown>) ?? {}),
+        withdrawnAt: new Date().toISOString(),
+        withdrawalReason: body.reason ?? null,
+      },
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(marketplaceBids.id, bidId),
+        eq(marketplaceBids.tenantId, auth.tenantId),
+      ),
+    )
+    .returning();
+  return c.json({ success: true as const, data: updated }, 200);
+});
+
 export const miningBidsRouter = app;
