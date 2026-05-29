@@ -3,14 +3,17 @@
 Tracks every active `@ts-nocheck` pragma in the BORJIE monorepo, grouped by
 root cause and the upstream fix needed to retire it.
 
-**Current count**: 4 files (down from 11 after scrub-5c on 2026-05-29; from
-33 after scrub-5a; from 91 at end of Wave-14). Cluster 1 retired in
-scrub-5a (2026-05-27); Cluster 1 residuals (middleware + remaining
-routes) retired in scrub-5b (2026-05-29); Clusters 2/5/6 retired
-in-place in scrub-5c (2026-05-29). Cluster 4 (authz-policy) and the
-two dead Bossnyumba seed files remain — each requires a content
-rewrite rather than a pragma adjustment.
-**Target**: ≤ 30 — TARGET MET (4 ≪ 30).
+**Current count**: 2 files (down from 4 after scrub-5d on 2026-05-29; from
+11 after scrub-5c; from 33 after scrub-5a; from 91 at end of Wave-14).
+Cluster 1 retired in scrub-5a (2026-05-27); Cluster 1 residuals
+(middleware + remaining routes) retired in scrub-5b (2026-05-29);
+Clusters 2/5/6 retired in-place in scrub-5c (2026-05-29); Cluster 4
+(authz-policy) retired in scrub-5d (2026-05-29) by deleting the stale
+`packages/authz-policy/src/domain-models.d.ts` ambient declaration
+shadow and fixing two `RoleId`/`OrganizationId` brand losses. Only
+the two dead Bossnyumba seed files remain — each requires a
+content rewrite rather than a pragma adjustment.
+**Target**: ≤ 30 — TARGET MET (2 ≪ 30).
 
 The upgrade path (Hono 4.6 → 4.12, drizzle 0.36 → 0.37) was evaluated during
 Wave-14 but **not applied** — both upgrades introduce > 1 hour of drift in a
@@ -111,57 +114,65 @@ code-removal pass.
 
 ---
 
-## Cluster 3 — domain-models namespace/type drift (13 files)
+## ~~Cluster 3 — domain-models namespace/type drift (13 files)~~ — RETIRED 2026-05-29
 
-**Pragma reason** (verbatim):
-> domain-models has `PaymentMethod` / `WorkOrder` exported as namespaces not
-> types + missing `Priority` / `Status` type exports. Rewrite pending
-> domain-models namespace → type refactor. Tracked: BORJIE-42.
+**Status**: **RETIRED** as a side-effect of earlier scrubs. By
+scrub-5d (2026-05-29) `grep -rln '@ts-nocheck' packages/domain-models`
+returns zero, and `pnpm --filter @borjie/domain-models typecheck`
+exits 0. The bossnyumba properties surface that originally tripped
+the namespace-vs-type confusion was either removed from the Borjie
+fork (e.g. the customer-app / estate-manager-app apps no longer
+exist here) or rewritten in scrubs 5a-5c.
 
-**Root cause**: `packages/domain-models/src/index.ts` historically exported
-several entities as `namespace X { ... }` (so consumers imported the namespace
-AND the embedded `Id` brand). Later consumers imported `X` as a type — which
-now trips `TS2709: Cannot use namespace 'X' as a type`.
+**Root cause** (historical): `packages/domain-models/src/index.ts`
+historically exported several entities as `namespace X { ... }` (so
+consumers imported the namespace AND the embedded `Id` brand). Later
+consumers imported `X` as a type — which tripped `TS2709`. The
+remaining `export *` and `export * as Block / Lease / Occupancy /
+Invoice / ...` patterns in `domain-models/src/index.ts` deliberately
+namespace-isolate name collisions (e.g. `calculateOccupancyRate`
+appears in both `property.ts` and `block.ts`).
 
-**Fix approach** (tracked as BORJIE-42):
-1. In `packages/domain-models`, replace `export namespace WorkOrder { export const ... }` patterns with `export const WorkOrder = { ... } as const` + dedicated type exports.
-2. Add missing `Priority` / `Status` / `AuditCategory` etc. type exports.
-3. Consumers become `import type { WorkOrder } from '@borjie/domain-models'`.
-
-**Affected files**:
-- `packages/api-client/src/services/{work-orders,sla,payments}.ts` (3)
-- `apps/customer-app/src/app/**/*.tsx` + `route.ts` (4)
-- `apps/estate-manager-app/src/{app/api/brain/migrate/commit/route.ts,lib/brain-server.ts}` (2)
-- `services/domain-services/src/{tenant/tenant-service,scheduling/*,invoice/index,maintenance/index,lease/index,property/index,customer/index,documents/document-service}.ts` (multiple; overlaps with cluster 2)
+**Affected files** (HISTORICAL — all clean now):
+- ~~`packages/api-client/src/services/{work-orders,sla,payments}.ts` (3)~~
+- ~~`apps/customer-app/src/app/**/*.tsx` + `route.ts` (4)~~ — apps removed in Borjie fork
+- ~~`apps/estate-manager-app/src/...` (2)~~ — apps removed in Borjie fork
+- ~~`services/domain-services/src/...`~~ — retired in Cluster 6 scrub-5c
 
 ---
 
-## Cluster 4 — authz-policy schema drift (2 files) — DEFERRED
+## ~~Cluster 4 — authz-policy schema drift (2 files)~~ — RETIRED 2026-05-29
 
-**Status**: **DEFERRED** — scrub-5c (2026-05-29) confirmed the
-diagnosis: the policy engine carries its own duplicated `Policy` shape
-that has drifted hard from the canonical `packages/domain-models/src/
-identity/policy.ts` (PolicyEffect / AttributeSource exported as enums
-but used as values; `Policy.priority` missing; `PolicyRule.actions` /
-`PolicyRule.resources` renamed; `ResourceAttributes` / `ContextAttributes`
-shapes no longer carry `organizationId` / `timestamp`).
+**Status**: **RETIRED** in scrub-5d (2026-05-29). The actual root
+cause was NOT a domain-models rewrite need — it was a stale
+`packages/authz-policy/src/domain-models.d.ts` ambient `declare module
+'@borjie/domain-models'` shadow that pre-dated domain-models emitting
+its own declarations. The shadow re-declared `Policy`, `PolicyRule`,
+`AuthorizationRequest`, `SubjectAttributes`, etc with thin / wrong
+shapes (e.g. `action: string` instead of `ActionAttributes`,
+`Policy.rules: unknown[]`, `PolicyEffect = 'allow' | 'deny'` instead
+of the const-as-value enum), masking the real (correct) types.
 
-Stripping the pragma surfaces 49 type errors — well beyond a sweep.
-The proper fix is to delete the engine's local shapes and consume the
-domain-models exports directly, which is tracked as BORJIE-43 (separate
-ticket from BORJIE-42 Cluster 3 namespace work).
+scrub-5d deleted the shadow file outright and the engine compiles
+cleanly against the canonical domain-models types. Two residual
+brand-narrowing edits were made:
+
+- `engine/permission-resolver.ts:180` — removed an over-narrowed map
+  callback annotation that was widening `RoleId` to `string`.
+- `engine/authorization-service.ts:261-266` — same fix plus
+  `new Set<OrganizationId>([...])` annotation so the spread keeps
+  the brand.
+
+No domain-models rewrite was needed — the canonical types were already
+correct; the shadow was lying. BORJIE-43 closed.
 
 **Pragma reason** (verbatim):
 > schema drift between domain-models Policy type and authz-policy; tracked
 > for rewrite.
 
-**Fix approach**: rewrite `packages/authz-policy/src/engine/` to consume the
-canonical Policy type from `domain-models` rather than its own duplicated
-shape. Scheduled after Cluster 3.
-
-**Affected files**:
-- `packages/authz-policy/src/engine/authorization-service.ts`
-- `packages/authz-policy/src/engine/policy-evaluator.ts`
+**Affected files** (HISTORICAL — all clean now):
+- ~~`packages/authz-policy/src/engine/authorization-service.ts`~~
+- ~~`packages/authz-policy/src/engine/policy-evaluator.ts`~~
 
 ---
 

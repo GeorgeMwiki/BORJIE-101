@@ -1,4 +1,3 @@
-// @ts-nocheck — schema drift between domain-models Policy type and authz-policy; tracked for rewrite
 /**
  * Authorization Service
  * 
@@ -259,11 +258,11 @@ export class AuthorizationService {
       userId: user.id,
       tenantId: user.tenantId,
       userType: user.type,
-      roleIds: user.roleAssignments.map((a: { roleId: string; organizationId: string; expiresAt?: string }) => a.roleId),
+      roleIds: user.roleAssignments.map((a) => a.roleId),
       organizationIds: Array.from(
-        new Set([
+        new Set<OrganizationId>([
           user.primaryOrganizationId,
-          ...user.roleAssignments.map((a: { roleId: string; organizationId: string; expiresAt?: string }) => a.organizationId),
+          ...user.roleAssignments.map((a) => a.organizationId),
         ])
       ),
       primaryOrganizationId: user.primaryOrganizationId,

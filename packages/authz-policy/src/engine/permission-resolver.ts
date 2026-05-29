@@ -177,7 +177,7 @@ export class PermissionResolver {
    * Compute permissions by resolving all roles and their inheritance.
    */
   private async computePermissions(user: User): Promise<ResolvedPermissions> {
-    const roleIds = user.roleAssignments.map((a: { roleId: string; organizationId: string; expiresAt?: string }) => a.roleId);
+    const roleIds = user.roleAssignments.map((a) => a.roleId);
     const roles = await this.roleResolver.getRolesByIds(roleIds, user.tenantId);
     
     // Build a map of roles by ID for quick lookup

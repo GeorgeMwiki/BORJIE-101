@@ -1,4 +1,3 @@
-// @ts-nocheck — schema drift between domain-models Policy type and authz-policy; tracked for rewrite
 /**
  * Policy Evaluator
  * 
