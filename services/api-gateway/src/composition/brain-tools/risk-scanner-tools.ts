@@ -96,7 +96,12 @@ function requireDeps(): RiskScannerDeps {
       'risk-scanner-tools: configureRiskScannerTools(deps) was not called at composition time',
     );
   }
-  return injectedDeps;
+  // Rebuild as a RiskScannerDeps — under `exactOptionalPropertyTypes`,
+  // a `now?: () => Date` slot rejects `undefined`. Omit the key when
+  // unset so the target shape matches exactly.
+  return injectedDeps.now !== undefined
+    ? { db: injectedDeps.db, now: injectedDeps.now }
+    : { db: injectedDeps.db };
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -146,8 +151,10 @@ export const riskScanTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const deps = requireDeps();
+    // `ScanRisksOptions` uses `limit` for the result-cap field — the
+    // brain-tool input is named `maxResults` for user-facing clarity.
     const options: Parameters<typeof scanRisks>[2] = {
-      maxResults: input.maxResults,
+      limit: input.maxResults,
       minSeverity: input.minSeverity,
     };
     if (input.kindFilter && input.kindFilter.length > 0) {
@@ -252,6 +259,13 @@ export const riskListRulesTool: PersonaToolDescriptor<
 // Catalog barrel
 // ─────────────────────────────────────────────────────────────────────
 
+// Cast through `as unknown as` so the array literal of two descriptors
+// with different concrete zod generics collapses to the catalog's
+// covariant `PersonaToolDescriptor<ZodTypeAny, ZodTypeAny>` shape.
+// Same pattern as `SHARED_TOOLS` in `shared-tools.ts`.
 export const RISK_SCANNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
-> = Object.freeze([riskScanTool, riskListRulesTool]);
+> = Object.freeze([
+  riskScanTool,
+  riskListRulesTool,
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

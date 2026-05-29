@@ -214,6 +214,13 @@ export const opportunityListRulesTool: PersonaToolDescriptor<
 // Catalog barrel
 // ─────────────────────────────────────────────────────────────────────
 
+// Cast through `as unknown as` so the array literal of two descriptors
+// with different concrete zod generics collapses to the catalog's
+// covariant `PersonaToolDescriptor<ZodTypeAny, ZodTypeAny>` shape.
+// Same pattern as `SHARED_TOOLS` in `shared-tools.ts`.
 export const OPPORTUNITY_SCANNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
-> = Object.freeze([opportunityScanTool, opportunityListRulesTool]);
+> = Object.freeze([
+  opportunityScanTool,
+  opportunityListRulesTool,
+] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
