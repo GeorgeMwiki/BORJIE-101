@@ -1,5 +1,6 @@
 import { getOwnerSession } from '@/lib/session';
 import { CockpitGrid } from '@/components/cockpit/CockpitGrid';
+import { CockpitLivePulse } from '@/components/cockpit/CockpitLivePulse';
 
 /**
  * O-W-01 — Cockpit dashboard.
@@ -41,6 +42,9 @@ export default async function CockpitPage() {
           {sitesLabel} · {planLabel}: {session.tenant.plan}
         </p>
       </header>
+      {/* R6 — live cockpit SSE pulse. Opens an EventSource against
+          /api/v1/cockpit/stream and toasts every push (6 event kinds). */}
+      <CockpitLivePulse language={isSw ? 'sw' : 'en'} />
       <CockpitGrid />
     </div>
   );
