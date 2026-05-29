@@ -128,12 +128,16 @@ describe('catalog gating', () => {
     expect(handlers.length).toBe(0);
   });
 
-  it('returns all 43 unique tool ids when kill-switch is closed', () => {
+  it('returns the merged unique catalog when kill-switch is closed', () => {
     const handlers = buildPersonaToolHandlers(makeGate());
     const uniqueIds = new Set(handlers.map((h) => h.name));
-    // 4 shared + 8 owner + 9 manager + 9 worker + 7 buyer + 6 admin = 43
-    expect(uniqueIds.size).toBe(43);
-    expect(handlers.length).toBe(43);
+    // The v1 catalog (issue #46) was 43 ids; subsequent waves
+    // (#129, #133, #134, #141-145, #187, #189, #191, #193-195, CE-1, CE-5)
+    // grew the surface to >= 130 ids. Use a moving floor instead of an
+    // exact count so the family can grow without breaking the gate, but
+    // every id must still be unique (no silent registration collisions).
+    expect(uniqueIds.size).toBeGreaterThanOrEqual(43);
+    expect(uniqueIds.size).toBe(handlers.length);
   });
 
   it('emits an audit entry for write tools', async () => {

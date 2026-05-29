@@ -643,10 +643,13 @@ export const managerGenerateNarrativeTool: PersonaToolDescriptor<
     }>(
       `/compliance/inspections/${input.inspectionId}/generate-narrative`,
       {
-        body: {
-          inspectionKind: input.inspectionKind,
-          notes: input.notes,
-        },
+        body: withChatProvenance(
+          {
+            inspectionKind: input.inspectionKind,
+            notes: input.notes,
+          },
+          ctx,
+        ),
       },
     );
     const row = res.data ?? {};

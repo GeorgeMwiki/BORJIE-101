@@ -60,8 +60,11 @@ function ctx() {
 }
 
 describe('admin-tools — surface', () => {
-  it('registers exactly six admin tools', () => {
-    expect(ADMIN_TOOLS).toHaveLength(6);
+  // Original v1 surface had six admin tools. Issue #194 (Compliance +
+  // regulator chain) added adminRegulatorCreateRequestTool which lifts
+  // the count to seven. Raise the floor when more land.
+  it('registers exactly seven admin tools', () => {
+    expect(ADMIN_TOOLS).toHaveLength(7);
   });
 
   it('every admin tool is gated to T2_admin_strategist only', () => {

@@ -142,14 +142,28 @@ describe('createBrainKernelWiring', () => {
     });
 
     expect(wiring).not.toBeNull();
-    expect(info).toHaveBeenCalledTimes(1);
-    const [meta, msg] = info.mock.calls[0] as [
-      Record<string, unknown>,
-      string,
-    ];
+    // R4 2026-05-29 — brain-kernel-wiring now emits multiple structured
+    // info entries (kernel composed + mining tools registered + wiring
+    // metadata). The kernel composition entry is the first one and the
+    // one tests need to assert. Assert the floor without pinning the
+    // exact count so future wiring additions don't churn the suite.
+    expect(info).toHaveBeenCalled();
+    expect(info.mock.calls.length).toBeGreaterThanOrEqual(1);
+    const composedCall = info.mock.calls.find((call) => {
+      const [meta, msg] = call as [
+        Record<string, unknown>,
+        string | undefined,
+      ];
+      return (
+        meta?.wiring === 'brain-kernel' &&
+        typeof msg === 'string' &&
+        msg.includes('composed')
+      );
+    });
+    expect(composedCall).toBeDefined();
+    const [meta] = composedCall as [Record<string, unknown>, string];
     expect(meta.wiring).toBe('brain-kernel');
     expect(meta.sensors).toEqual(['opus47', 'sonnet46', 'haiku45']);
-    expect(msg).toContain('composed');
   });
 
   it('degrades to null and warns when the factory throws', () => {

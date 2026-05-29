@@ -207,19 +207,34 @@ describe('killSwitchGuard — degraded paths', () => {
     expect(audit).not.toHaveBeenCalled();
   });
 
+  // R4 2026-05-29 — the structured logger (utils/logger.ts) routes WARN
+  // through process.stderr.write, NOT console.warn. Earlier spy on
+  // console.warn never fired. Capture stderr.write directly so the
+  // assertion can see the structured payload.
+  function spyStderr(): {
+    readonly captured: string[];
+    restore(): void;
+  } {
+    const captured: string[] = [];
+    const original = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((
+      chunk: string | Uint8Array,
+      ...rest: unknown[]
+    ): boolean => {
+      captured.push(typeof chunk === 'string' ? chunk : String(chunk));
+      return original(chunk as never, ...(rest as never[]));
+    }) as typeof process.stderr.write;
+    return {
+      captured,
+      restore() {
+        process.stderr.write = original;
+      },
+    };
+  }
+
   it('passes through when the flag lookup throws in dev/test (fast local loop) + WARN', async () => {
-    // DA1 update: in dev/test, lookup errors still pass through so a
-    // missing DB doesn't break the local iteration loop. A structured
-    // WARN goes to stderr so the breadcrumb is visible to operators.
-    //
-    // DA1 MEDIUM rework: warn now flows through the project's structured
-    // logger (`utils/logger.ts`), which routes WARN through `console.warn`
-    // with NODE_ENV-dependent formatting:
-    //   - production → single-line JSON entry
-    //   - dev/test   → readable text + pretty-printed JSON meta
-    // Assert against substring fragments to stay robust across formats.
     const originalEnv = process.env.NODE_ENV;
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warn = spyStderr();
     try {
       process.env.NODE_ENV = 'development';
       const app = new Hono();
@@ -241,26 +256,22 @@ describe('killSwitchGuard — degraded paths', () => {
       const res = await app.request('/leases/L1/terminate', { method: 'POST' });
       expect(res.status).toBe(200);
       expect(audit).not.toHaveBeenCalled();
-      // A WARN line must be emitted so SRE can correlate the bypass.
-      expect(warn).toHaveBeenCalled();
-      const warnPayload = String(warn.mock.calls[0][0]);
+      // Combined payload across all captured stderr writes — the dev
+      // formatter prints a header line + a separate pretty-JSON line.
+      const warnPayload = warn.captured.join('\n');
       expect(warnPayload).toContain('kill_switch_flag_lookup_failed');
       expect(warnPayload).toContain('eviction');
       expect(warnPayload).toContain('database connection lost');
-      // Tenant ID must be on the structured payload so SRE can correlate.
       expect(warnPayload).toContain('t1');
     } finally {
       process.env.NODE_ENV = originalEnv;
-      warn.mockRestore();
+      warn.restore();
     }
   });
 
   it('fails CLOSED with 503 KILL_SWITCH_LOOKUP_FAILED when the flag lookup throws in production (DA1 HIGH)', async () => {
-    // DA1 HIGH: prior behaviour silently bypassed the kill-switch on any
-    // DB blip / RLS denial / network hiccup. New contract: production
-    // refuses the irreversible mutation fail-closed.
     const originalEnv = process.env.NODE_ENV;
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warn = spyStderr();
     try {
       process.env.NODE_ENV = 'production';
       const app = new Hono();
@@ -290,13 +301,13 @@ describe('killSwitchGuard — degraded paths', () => {
       expect(body.error.operation).toBe('eviction');
       expect(body.error.flagKey).toBe('killswitch_eviction');
       expect(body.error.message).toMatch(/cannot verify/i);
-      // Lookup failure is structural, not a fired switch — no audit event.
       expect(audit).not.toHaveBeenCalled();
-      // WARN must still fire so SRE sees the underlying cause.
-      expect(warn).toHaveBeenCalled();
+      // WARN must still fire on the structured stderr sink.
+      const warnPayload = warn.captured.join('\n');
+      expect(warnPayload).toContain('kill_switch_flag_lookup_failed');
     } finally {
       process.env.NODE_ENV = originalEnv;
-      warn.mockRestore();
+      warn.restore();
     }
   });
 });

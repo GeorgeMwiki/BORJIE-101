@@ -942,7 +942,10 @@ export const buyerSignDeliveryTool: PersonaToolDescriptor<
       };
     }>(
       `/marketplace/rfb-responses/${encodeURIComponent(input.responseId)}/sign-delivery`,
-      { coCStepChecksum: input.coCStepChecksum },
+      withChatProvenance(
+        { coCStepChecksum: input.coCStepChecksum },
+        ctx,
+      ),
     );
     const data = res.data ?? {};
     return {

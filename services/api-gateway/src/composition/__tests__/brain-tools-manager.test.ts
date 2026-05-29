@@ -66,8 +66,12 @@ function ctx() {
 }
 
 describe('manager-tools — surface', () => {
-  it('registers exactly nine manager tools', () => {
-    expect(MANAGER_TOOLS).toHaveLength(9);
+  // Original v1 surface (issue #46) was 9 manager tools. Issue #193
+  // (Cross-role chain map + HR/payroll/safety chains) added
+  // manager.task.assign_worker and manager.inspection.generate_narrative
+  // for an 11-tool surface. Raise when the family grows.
+  it('registers exactly eleven manager tools', () => {
+    expect(MANAGER_TOOLS).toHaveLength(11);
   });
 
   it('every manager tool is gated to T3_module_manager only', () => {
@@ -76,13 +80,13 @@ describe('manager-tools — surface', () => {
     }
   });
 
-  it('write tools are exactly {assign, decide, escalate}', () => {
+  it('write tools include the original {assign, decide, escalate} set', () => {
     const writeIds = MANAGER_TOOLS.filter((t) => t.isWrite).map((t) => t.id);
-    expect(writeIds.sort()).toEqual([
-      'mining.approvals.decide',
-      'mining.escalations.raise',
-      'mining.tasks.assign',
-    ]);
+    // Regression guard — never silently drop one of the three launch-day
+    // descriptors; new WRITEs (manager.task.assign_worker, …) are allowed.
+    expect(writeIds).toContain('mining.approvals.decide');
+    expect(writeIds).toContain('mining.escalations.raise');
+    expect(writeIds).toContain('mining.tasks.assign');
   });
 });
 

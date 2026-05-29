@@ -63,8 +63,12 @@ function ctx() {
 }
 
 describe('buyer-tools — surface', () => {
-  it('registers exactly ten buyer tools', () => {
-    expect(BUYER_TOOLS).toHaveLength(10);
+  // Original surface (issue #46 BRAIN-Tools) was 10 buyer tools. Tools
+  // #80, #82, R11 (Commercial-chain closure + buyer-RFB family) and the
+  // delivery-sign chain landed four more WRITE descriptors. The new
+  // floor is 14; raise the assertion when the family grows again.
+  it('registers exactly fourteen buyer tools', () => {
+    expect(BUYER_TOOLS).toHaveLength(14);
   });
 
   it('every buyer tool is gated to T5_customer_concierge only', () => {
@@ -73,14 +77,15 @@ describe('buyer-tools — surface', () => {
     }
   });
 
-  it('write tools are exactly {place, cancel, kyc upload-atom, accept-offer}', () => {
+  it('write tools include the original {place, cancel, kyc upload-atom, accept-offer} set', () => {
     const writeIds = BUYER_TOOLS.filter((t) => t.isWrite).map((t) => t.id);
-    expect(writeIds.sort()).toEqual([
-      'mining.bids.cancel',
-      'mining.bids.place',
-      'mining.buyers.kyc.upload-atom',
-      'mining.marketplace.accept-offer',
-    ]);
+    // The original v1 surface — kept as a regression guard so the chain
+    // never silently drops one of the four launch-day descriptors. New
+    // WRITEs (buyer.rfb.create, buyer.delivery.sign, ...) are allowed.
+    expect(writeIds).toContain('mining.bids.place');
+    expect(writeIds).toContain('mining.bids.cancel');
+    expect(writeIds).toContain('mining.buyers.kyc.upload-atom');
+    expect(writeIds).toContain('mining.marketplace.accept-offer');
   });
 
   it('exposes marketplace intel and custody read tools', () => {

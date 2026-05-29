@@ -50,7 +50,14 @@ const SOVEREIGN_SOURCE = readFileSync(
 
 const ANTHROPIC_LOAD_PATTERN = /const\s+anthropicRaw\s*=\s*await\s+loadAnthropicClient\(\)/;
 const ANTHROPIC_WRAP_PATTERN = /const\s+anthropic\s*=\s*anthropicRaw/;
-const COUNTER_MODEL_LINE = /counterModel:\s*createProductionCounterModel\(anthropic\)/g;
+// R4 2026-05-29 — the C1 wire-in now factors the call out to a local
+// `const counterModel = createProductionCounterModel(anthropic)` and
+// then spreads `counterModel: ...` into the executor only when the
+// value is non-null (so the executor input keeps its exactOptionalProperty
+// contract). The regex now matches the factoring step rather than the
+// inline shape.
+const COUNTER_MODEL_FACTORY_LINE =
+  /createProductionCounterModel\s*\(\s*anthropic\s*\)/g;
 const CREATE_EXECUTOR_PATTERN = /agencyKernel\.createExecutor\(\{/g;
 const IMPORT_PATTERN =
   /import\s+\{\s*createProductionCounterModel\s*\}\s+from\s+['"]\.\/critics\/counter-model-wiring\.js['"]/;
@@ -81,8 +88,8 @@ describe('sovereign.ts — counter-model wiring (Phase C C1)', () => {
     }
   });
 
-  it('passes `counterModel: createProductionCounterModel(anthropic)` to BOTH executors', () => {
-    const matches = SOVEREIGN_SOURCE.match(COUNTER_MODEL_LINE);
+  it('calls `createProductionCounterModel(anthropic)` for BOTH executors (factored or inline)', () => {
+    const matches = SOVEREIGN_SOURCE.match(COUNTER_MODEL_FACTORY_LINE);
     expect(matches).not.toBeNull();
     expect(matches?.length).toBe(2);
   });

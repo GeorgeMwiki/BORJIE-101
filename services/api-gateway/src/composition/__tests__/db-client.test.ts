@@ -120,13 +120,28 @@ describe('getDb / getDbReadonly — Z5 HA wire', () => {
     createReadonlyDatabaseClientMock.mockImplementation(() => {
       throw new Error('replica unreachable');
     });
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const readonly = getDbReadonly();
-    const primary = getDb();
-    expect(readonly).toBe(primary);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('read-replica init failed'),
-    );
-    warnSpy.mockRestore();
+    // R4 2026-05-29 — `db-client.ts` now routes its fallback warning
+    // through the project's structured logger, which writes to
+    // `process.stderr.write` (CLAUDE.md "no console.log in services" —
+    // the logger IS the sink, see `utils/logger.ts:127-135`). The
+    // earlier `console.warn` spy never fired. Capture stderr instead.
+    const capturedStderr: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((
+      chunk: string | Uint8Array,
+      ...rest: unknown[]
+    ): boolean => {
+      capturedStderr.push(typeof chunk === 'string' ? chunk : String(chunk));
+      return originalWrite(chunk as never, ...(rest as never[]));
+    }) as typeof process.stderr.write;
+    try {
+      const readonly = getDbReadonly();
+      const primary = getDb();
+      expect(readonly).toBe(primary);
+      const combined = capturedStderr.join('\n');
+      expect(combined).toContain('read-replica init failed');
+    } finally {
+      process.stderr.write = originalWrite;
+    }
   });
 });

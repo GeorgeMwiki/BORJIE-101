@@ -66,8 +66,14 @@ function ctx() {
 }
 
 describe('owner-tools — surface', () => {
-  it('registers exactly eight owner tools', () => {
-    expect(OWNER_TOOLS).toHaveLength(8);
+  // Original v1 surface (issue #46) was 8 owner read-only cockpit tools.
+  // Issues #187 (Mr. Mwikila autonomous MD), #191 (Commercial-chain
+  // closure), #194 (Compliance/regulator chain) and #195
+  // (Knowledge/persona handoff) introduced WRITE descriptors that let
+  // the owner act on behalf of the cockpit (regulator approvals,
+  // licence renewals, settlement signs). The floor is now 18.
+  it('registers exactly eighteen owner tools', () => {
+    expect(OWNER_TOOLS).toHaveLength(18);
   });
 
   it('every owner tool is gated to T1_owner_strategist only', () => {
@@ -76,9 +82,23 @@ describe('owner-tools — surface', () => {
     }
   });
 
-  it('every owner tool is read-only (no WRITE in cockpit)', () => {
+  it('original cockpit-eight remain read-only (regression guard)', () => {
+    // The original v1 cockpit tools must stay read-only — only later
+    // additions (ops.engagements.log, owner.* WRITEs) flipped isWrite=true.
+    const originalReadOnlyIds = new Set([
+      'mining.cockpit.daily-brief',
+      'mining.cockpit.decisions',
+      'mining.cockpit.cash-runway',
+      'mining.cockpit.production',
+      'mining.incidents.high',
+      'mining.licences.health',
+      'mining.marketplace.bids-on-my-parcels',
+      'mining.reports.list',
+    ]);
     for (const t of OWNER_TOOLS) {
-      expect(t.isWrite).toBe(false);
+      if (originalReadOnlyIds.has(t.id)) {
+        expect(t.isWrite).toBe(false);
+      }
     }
   });
 });

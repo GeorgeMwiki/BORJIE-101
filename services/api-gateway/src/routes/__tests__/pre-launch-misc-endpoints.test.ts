@@ -103,6 +103,16 @@ function buildDbStub(rows: any[] = [], updatedRows: any[] = []): any {
         returning: async () => updatedRows,
       }),
     }),
+    // R4 2026-05-29 — the database middleware now invokes
+    // `database.execute(sql\`SELECT set_config(...)\`)` to install the
+    // RLS tenant GUC before any handler runs (services/api-gateway/
+    // src/middleware/database.ts:333). When the stub omitted `execute`
+    // the call threw and the middleware short-circuited every endpoint
+    // with a 500 RLS_CONTEXT_FAILED. Provide a no-op resolver so the
+    // RLS step succeeds for the test stub.
+    async execute(): Promise<unknown> {
+      return { rows: [] };
+    },
   };
   return chain;
 }

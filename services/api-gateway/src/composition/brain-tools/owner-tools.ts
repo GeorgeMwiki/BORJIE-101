@@ -920,9 +920,15 @@ export const ownerRegulatorApproveDisclosureTool: PersonaToolDescriptor<
     }
     const res = await client.post<{
       data?: { id?: string; status?: string };
-    }>(`/regulator/requests/${input.requestId}/approve-disclosure`, {
-      body: { approvedScope: input.approvedScope },
-    });
+    }>(
+      `/regulator/requests/${input.requestId}/approve-disclosure`,
+      {
+        body: withChatProvenance(
+          { approvedScope: input.approvedScope },
+          ctx,
+        ),
+      },
+    );
     const row = res.data ?? {};
     return {
       requestId: String(row.id ?? input.requestId),
@@ -970,9 +976,12 @@ export const ownerLicenceStartRenewalTool: PersonaToolDescriptor<
     }
     const res = await client.post<{
       data?: { id?: string; status?: string };
-    }>(`/compliance/licences/${input.licenceId}/start-renewal`, {
-      body: { summary: input.summary },
-    });
+    }>(
+      `/compliance/licences/${input.licenceId}/start-renewal`,
+      {
+        body: withChatProvenance({ summary: input.summary }, ctx),
+      },
+    );
     const row = res.data ?? {};
     return {
       licenceId: input.licenceId,
@@ -1023,13 +1032,19 @@ export const ownerLicenceSubmitRenewalTool: PersonaToolDescriptor<
     }
     const res = await client.post<{
       data?: { id?: string; status?: string };
-    }>(`/compliance/licences/${input.licenceId}/submit-renewal`, {
-      body: {
-        submissionReference: input.submissionReference,
-        evidenceDocId: input.evidenceDocId,
-        renewalDocUrl: input.renewalDocUrl,
+    }>(
+      `/compliance/licences/${input.licenceId}/submit-renewal`,
+      {
+        body: withChatProvenance(
+          {
+            submissionReference: input.submissionReference,
+            evidenceDocId: input.evidenceDocId,
+            renewalDocUrl: input.renewalDocUrl,
+          },
+          ctx,
+        ),
       },
-    });
+    );
     const row = res.data ?? {};
     return {
       licenceId: input.licenceId,
@@ -1076,7 +1091,12 @@ export const ownerInspectionSignTool: PersonaToolDescriptor<
       data?: { id?: string; status?: string };
     }>(
       `/compliance/inspections/${input.inspectionId}/narratives/${input.narrativeId}/sign-narrative`,
-      { body: { canonicalPdfSha256: input.canonicalPdfSha256 } },
+      {
+        body: withChatProvenance(
+          { canonicalPdfSha256: input.canonicalPdfSha256 },
+          ctx,
+        ),
+      },
     );
     const row = res.data ?? {};
     return {

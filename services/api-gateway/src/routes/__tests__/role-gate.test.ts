@@ -37,7 +37,12 @@ describe('Role gates — mutations rejected for non-staff', () => {
     expect(process.env.JWT_SECRET?.length).toBeGreaterThanOrEqual(32);
   });
 
-  it('customers router is reachable for RESIDENT with rejection (401/403)', async () => {
+  // R4 TODO 2026-05-29 — `routes/customers.ts` was pruned in issue #165
+  // (29 vestigial BossNyumba routes deleted). The role-gate is verified
+  // by the `requireRole middleware — direct assertion` suite below
+  // which exercises the gate without depending on a property-domain
+  // router that no longer exists.
+  it.skip('customers router is reachable for RESIDENT with rejection (401/403)', async () => {
     const { customersRouter } = await import('../customers');
     const app = new Hono();
     app.route('/', customersRouter);
@@ -54,7 +59,8 @@ describe('Role gates — mutations rejected for non-staff', () => {
     expect([401, 403]).toContain(delRes.status);
   });
 
-  it('leases POST is rejected for RESIDENT (403 or 401)', async () => {
+  // R4 TODO 2026-05-29 — `routes/leases.ts` pruned in issue #165.
+  it.skip('leases POST is rejected for RESIDENT (403 or 401)', async () => {
     const mod = await import('../leases');
     const router = (mod as any).leasesRouter ?? (mod as any).default;
     const app = new Hono();
@@ -75,7 +81,8 @@ describe('Role gates — mutations rejected for non-staff', () => {
     expect([401, 403]).toContain(postRes.status);
   });
 
-  it('invoices /:id/send is rejected for RESIDENT (403 or 401)', async () => {
+  // R4 TODO 2026-05-29 — `routes/invoices.ts` pruned in issue #165.
+  it.skip('invoices /:id/send is rejected for RESIDENT (403 or 401)', async () => {
     const mod = await import('../invoices');
     const router = (mod as any).invoicesApp ?? (mod as any).default;
     const app = new Hono();
@@ -101,7 +108,8 @@ describe('Role gates — mutations rejected for non-staff', () => {
     expect([401, 403]).toContain(listRes.status);
   });
 
-  it('properties POST is rejected for RESIDENT', async () => {
+  // R4 TODO 2026-05-29 — `routes/properties.ts` pruned in issue #165.
+  it.skip('properties POST is rejected for RESIDENT', async () => {
     const mod = await import('../properties');
     const app = new Hono();
     app.route('/', mod.propertiesRouter);
@@ -115,7 +123,8 @@ describe('Role gates — mutations rejected for non-staff', () => {
     expect([401, 403]).toContain(postRes.status);
   });
 
-  it('units POST is rejected for RESIDENT', async () => {
+  // R4 TODO 2026-05-29 — `routes/units.ts` pruned in issue #165.
+  it.skip('units POST is rejected for RESIDENT', async () => {
     const mod = await import('../units');
     const app = new Hono();
     app.route('/', mod.unitsRouter);
