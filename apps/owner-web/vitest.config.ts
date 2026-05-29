@@ -40,6 +40,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    setupFiles: [path.resolve(__dirname, 'test-stubs/vitest-setup.ts')],
     include: [
       'src/**/__tests__/**/*.test.{ts,tsx}',
       '__tests__/**/*.test.{ts,tsx}',
