@@ -54,6 +54,7 @@ import {
   GetObjectCommand,
   type S3ClientConfig,
 } from '@aws-sdk/client-s3';
+import { createLogger } from '../utils/logger.js';
 
 export type SessionReplayStorageKind = 'local' | 's3';
 
@@ -329,11 +330,10 @@ export interface StorageSelectionLogger {
   warn(msg: string, ctx?: Record<string, unknown>): void;
 }
 
+const sessionReplayLogger = createLogger('session-replay');
 const defaultLogger: StorageSelectionLogger = {
-  // eslint-disable-next-line no-console
-  info: (m, c) => console.info(`[session-replay] ${m}`, c ?? {}),
-  // eslint-disable-next-line no-console
-  warn: (m, c) => console.warn(`[session-replay] ${m}`, c ?? {}),
+  info: (m, c) => sessionReplayLogger.info(m, c),
+  warn: (m, c) => sessionReplayLogger.warn(m, c),
 };
 
 /**

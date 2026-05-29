@@ -19,6 +19,9 @@ import {
   verifySupabaseJwt,
   SupabaseAuthError,
 } from '@borjie/ai-copilot';
+import { createLogger } from '../utils/logger';
+
+const authAuditLogger = createLogger('auth.audit');
 
 // ============================================================================
 // Configuration
@@ -117,19 +120,19 @@ function auditAuthResolution(args: {
   tenantId?: string;
   reason?: string;
 }): void {
-  const line = JSON.stringify({
+  const meta = {
     event: 'auth_principal_resolved',
     auth_path: args.authPath,
     outcome: args.outcome,
     user_id: args.userId,
     tenant_id: args.tenantId,
     reason: args.reason,
-    ts: new Date().toISOString(),
-  });
-  // eslint-disable-next-line no-console
-  if (args.outcome === 'allow') console.info(line);
-  // eslint-disable-next-line no-console
-  else console.warn(line);
+  } as const;
+  if (args.outcome === 'allow') {
+    authAuditLogger.info('auth principal resolved', meta);
+  } else {
+    authAuditLogger.warn('auth principal rejected', meta);
+  }
 }
 
 // ============================================================================

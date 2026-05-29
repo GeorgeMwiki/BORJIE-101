@@ -46,6 +46,8 @@
  * by replacing only the factory; the API stays the same.
  */
 
+import { createPinoLikeLogger } from '../utils/pino-shim.js';
+
 /**
  * Strict payload shape. The bus validates before publish — invalid
  * payloads throw synchronously so a buggy producer cannot poison
@@ -147,13 +149,7 @@ export interface RedisCrossPortalBusDeps {
 }
 
 function defaultLogger(): CrossPortalBusLogger {
-  /* eslint-disable no-console */
-  return {
-    info: (obj, msg) => console.info('cross-portal-bus:', msg ?? '', obj),
-    warn: (obj, msg) => console.warn('cross-portal-bus:', msg ?? '', obj),
-    error: (obj, msg) => console.error('cross-portal-bus:', msg ?? '', obj),
-  };
-  /* eslint-enable no-console */
+  return createPinoLikeLogger('cross-portal-bus');
 }
 
 /**

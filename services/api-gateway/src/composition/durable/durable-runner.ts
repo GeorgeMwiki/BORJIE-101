@@ -50,6 +50,7 @@
 import { randomUUID } from 'crypto';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { agency as agencyKernel } from '@borjie/central-intelligence';
+import { createPinoLikeLogger } from '../../utils/pino-shim.js';
 import type { StepCheckpointStore, AdvisoryLockDbClient } from './step-checkpoint-store.js';
 import {
   AGENCY_RUN_EVENT,
@@ -179,13 +180,7 @@ const defaultSleep = (ms: number): Promise<void> =>
   });
 
 function defaultLogger(): DurableRunnerLogger {
-  /* eslint-disable no-console */
-  return {
-    info: (obj, msg) => console.info('durable-runner:', msg ?? '', obj),
-    warn: (obj, msg) => console.warn('durable-runner:', msg ?? '', obj),
-    error: (obj, msg) => console.error('durable-runner:', msg ?? '', obj),
-  };
-  /* eslint-enable no-console */
+  return createPinoLikeLogger('durable-runner');
 }
 
 function makeRunId(): string {

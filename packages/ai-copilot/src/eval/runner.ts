@@ -145,7 +145,6 @@ export async function runScenarios(
  * Pretty-print an EvalRunReport to stdout (CI-friendly).
  */
 export function printReport(report: EvalRunReport): void {
-  /* eslint-disable no-console -- SCRUB-5f: rule-disabled because this is the CI-friendly stdout pretty-printer for eval reports */
   logger.info(`Eval: ${report.passed}/${report.total} passed (${report.failed} failed) in ${report.durationMs}ms`);
   logger.info(`Tokens: ${report.tokensTotal} total | Advisor rate: ${(report.advisorRate * 100).toFixed(1)}%`);
   for (const r of report.results) {
@@ -153,8 +152,7 @@ export function printReport(report: EvalRunReport): void {
       logger.info(`  ✓ ${r.scenarioId}`);
     } else {
       logger.info(`  ✗ ${r.scenarioId}`);
-      for (const f of r.failures) console.log(`      - ${f}`);
+      for (const f of r.failures) logger.info(`      - ${f}`);
     }
   }
-  /* eslint-enable no-console */
 }

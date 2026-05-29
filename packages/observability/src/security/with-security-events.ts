@@ -156,8 +156,10 @@ export function resetSecurityEventSink(): void {
 }
 
 function defaultStdoutSink(event: SecurityEvent): void {
-  // eslint-disable-next-line no-console -- SCRUB-5f: rule-disabled because this is the default stdout sink for SecurityEvents picked up by the log aggregator
-  console.log(JSON.stringify({ ...event, source: 'security-events' }));
+  // Direct stdout write — we are the log primitive for SecurityEvents
+  // and the log aggregator scrapes stdout JSON. Avoid `console.log` so
+  // we don't recurse through the project-wide ban rule.
+  process.stdout.write(JSON.stringify({ ...event, source: 'security-events' }) + '\n');
 }
 
 // ---------------------------------------------------------------------------

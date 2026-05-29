@@ -52,7 +52,7 @@ import {
   createBoundWakeReadDeps,
 } from './agency-port-bindings.js';
 import { readSovereignLedgerFailClosedFromEnv } from './service-registry.js';
-import { logger } from '../utils/logger.js';
+import { createPinoLikeLogger } from '../utils/pino-shim.js';
 
 type StallDetectorRunArgs = agencyKernel.StallDetectorRunArgs;
 type StallDetectorRunOutcome = agencyKernel.StallDetectorRunOutcome;
@@ -575,14 +575,7 @@ export async function runFromEnv(): Promise<WakeLoopCronTickResult | null> {
   }
   const supervisor = createWakeLoopCronSupervisor({
     db,
-    logger: {
-      // eslint-disable-next-line no-console
-      info: (obj, msg) => console.info('wake-loop-cron:', msg ?? '', obj),
-      // eslint-disable-next-line no-console
-      warn: (obj, msg) => console.warn('wake-loop-cron:', msg ?? '', obj),
-      // eslint-disable-next-line no-console
-      error: (obj, msg) => console.error('wake-loop-cron:', msg ?? '', obj),
-    },
+    logger: createPinoLikeLogger('wake-loop-cron'),
   });
   return supervisor.tick();
 }

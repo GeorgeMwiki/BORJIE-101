@@ -30,6 +30,7 @@
 
 import { createDatabaseClient } from '@borjie/database';
 import { logger } from '../utils/logger.js';
+import { createPinoLikeLogger } from '../utils/pino-shim.js';
 /**
  * The `DatabaseClient` type alias from `@borjie/database` resolves
  * as a namespace when pulled through the package barrel (TS2709) due
@@ -1465,7 +1466,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     llmBudgetGovernor: createLLMBudgetGovernor({
       store: wireBudgetStore({
         db: null,
-        logger: { warn: (meta, msg) => console.warn('llm-budget:', msg ?? '', meta) },
+        logger: { warn: createPinoLikeLogger('llm-budget').warn },
       }),
     }),
     arrears: {
@@ -1556,7 +1557,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // discovery (slash + sub-agents + skills) keep working.
     agentStack: createAgentStackBundle({
       buildBudgetGuardedAnthropicClient: null,
-      logger: { warn: (meta, msg) => console.warn('agent-stack:', msg ?? '', meta) },
+      logger: { warn: createPinoLikeLogger('agent-stack').warn },
     }),
     // Central Intelligence — no concrete LLM adapter ships here (it
     // lives in a separate service). In degraded mode we still wire the
@@ -2163,10 +2164,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   // shared in-process event bus + the Drizzle client.
   const killswitchFanoutPublisher = createKillswitchFanoutPublisher({
     crossPortalBus: liveCrossPortalBus,
-    logger: {
-      info: (obj, msg) => console.info('killswitch-fanout:', msg ?? '', obj),
-      warn: (obj, msg) => console.warn('killswitch-fanout:', msg ?? '', obj),
-    },
+    logger: createPinoLikeLogger('killswitch-fanout'),
   });
   const notificationDispatcherAdapter = createNotificationDispatcherAdapter({
     db,
@@ -2358,7 +2356,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     agentStack: createAgentStackBundle({
       buildBudgetGuardedAnthropicClient:
         (buildBudgetGuardedAnthropicClient as AgentStackBudgetGuardedAnthropicFactory | null),
-      logger: { warn: (meta, msg) => console.warn('agent-stack:', msg ?? '', meta) },
+      logger: { warn: createPinoLikeLogger('agent-stack').warn },
     }),
     // Central Intelligence — the concrete LLM adapter lives in a
     // separate service. `agent` is only populated when `CI_LLM_URL`
@@ -2592,11 +2590,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // never overlap.
     wakeLoopCron: createWakeLoopCronSupervisor({
       db,
-      logger: {
-        info: (obj, msg) => console.info('wake-loop-cron:', msg ?? '', obj),
-        warn: (obj, msg) => console.warn('wake-loop-cron:', msg ?? '', obj),
-        error: (obj, msg) => console.error('wake-loop-cron:', msg ?? '', obj),
-      },
+      logger: createPinoLikeLogger('wake-loop-cron'),
       // Wave-K Tier-3 follow-up — bind the Drizzle-backed kernel-goals
       // service as the wake-loop's stall-scan repo. The service already
       // exposes `listStallScanTargets` + `markStalled`; the wake-loop's
@@ -2640,10 +2634,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     idleSessionEmitter: createIdleSessionEmitter({
       source: createSensoriumActiveSessionSource(db),
       reflexionWriter: createReflexionBufferService(db),
-      logger: {
-        info: (obj, msg) => console.info('idle-session-emitter:', msg ?? '', obj),
-        warn: (obj, msg) => console.warn('idle-session-emitter:', msg ?? '', obj),
-      },
+      logger: createPinoLikeLogger('idle-session-emitter'),
     }),
     // A2b-2 wires #8 + #9 — bind the AI audit-chain HMAC verifier
     // AND compose the full ai-copilot security suite. The supervisor's
@@ -2667,11 +2658,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         eventBus: eventBus as unknown as NonNullable<
           Parameters<typeof createAuditVerifyCronSupervisor>[0]['eventBus']
         >,
-        logger: {
-          info: (obj, msg) => console.info('audit-verify-cron:', msg ?? '', obj),
-          warn: (obj, msg) => console.warn('audit-verify-cron:', msg ?? '', obj),
-          error: (obj, msg) => console.error('audit-verify-cron:', msg ?? '', obj),
-        },
+        logger: createPinoLikeLogger('audit-verify-cron'),
       });
     })(),
     // Central Command Phase C C4 — session-replay retention purge.

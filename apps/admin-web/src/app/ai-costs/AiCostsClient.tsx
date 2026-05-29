@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Coins, Loader2, DollarSign, AlertTriangle } from 'lucide-react';
+import { Coins, DollarSign, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface ModelBreakdownRow {
@@ -105,8 +105,21 @@ export function AiCostsClient() {
 
   if (loading) {
     return (
-      <div className="text-sm text-neutral-400 flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Loading AI spend metrics"
+        className="space-y-6"
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-24 animate-pulse rounded-lg border border-border bg-surface-raised"
+            />
+          ))}
+        </div>
+        <div className="h-40 animate-pulse rounded-lg border border-border bg-surface-raised" />
       </div>
     );
   }
@@ -115,21 +128,31 @@ export function AiCostsClient() {
     <div className="space-y-6">
       <header className="flex items-center gap-3">
         <Coins className="h-6 w-6 text-amber-500" />
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted-foreground">
           Per-model LLM spend across the platform.
         </p>
       </header>
 
       {error && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-          {error}
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          >
+            Retry
+          </button>
         </div>
       )}
 
       {summary && (
         <>
           {summary.overBudget && (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300 flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertTriangle className="h-4 w-4" /> Monthly budget exceeded.
             </div>
           )}

@@ -36,6 +36,7 @@ import {
 } from './encryption-port.js';
 import { createLibsodiumAdapter } from './libsodium-adapter.js';
 import type { MasterKeySnapshot } from './tenant-key-derivation.js';
+import { logger as dbLogger } from '../../logger.js';
 
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
@@ -74,10 +75,8 @@ interface DecryptResult {
 }
 
 const defaultLogger: KmsLogger = {
-  // eslint-disable-next-line no-console
-  info: (m, c) => console.info(`[encryption.kms] ${m}`, c ?? {}),
-  // eslint-disable-next-line no-console
-  warn: (m, c) => console.warn(`[encryption.kms] ${m}`, c ?? {}),
+  info: (m, c) => dbLogger.info(`[encryption.kms] ${m}`, c),
+  warn: (m, c) => dbLogger.warn(`[encryption.kms] ${m}`, c),
 };
 
 /**

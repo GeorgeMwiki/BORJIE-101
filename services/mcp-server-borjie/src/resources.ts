@@ -60,6 +60,20 @@ export const BORJIE_PUBLIC_MCP_RESOURCES: ReadonlyArray<BorjieMcpResource> =
         'Long-term advisor memory snapshot for cross-session continuity.',
       mimeType: 'application/json',
     }),
+    obj({
+      uri: 'borjie://reminders/upcoming',
+      name: 'Upcoming reminders',
+      description:
+        'Owner s upcoming reminders. Subscribable — server pushes notifications/resources/updated whenever a reminder is created / cancelled / fires.',
+      mimeType: 'application/json',
+    }),
+    obj({
+      uri: 'borjie://workspace/state',
+      name: 'Owner workspace state',
+      description:
+        'Snapshot of the owner s current cockpit state — open tabs, recent reminders, pinned items. Subscribable.',
+      mimeType: 'application/json',
+    }),
   ]);
 
 export function findResource(uri: string): BorjieMcpResource | undefined {

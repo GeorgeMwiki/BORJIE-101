@@ -4,19 +4,38 @@
  * The capability manifest at /.well-known/borjie-capabilities.json
  * references this object via the `mcp.well_known` key so an external
  * discovery agent can fetch one URL and learn the full MCP surface.
+ *
+ * Surfaces all 12 SOTA primitives so any client can pre-check before
+ * connecting:
+ *
+ *   1. transports: stdio | http | sse        (POST /mcp + GET /mcp/sse)
+ *   2. sampling/createMessage
+ *   3. roots/list + notifications/roots/list_changed
+ *   4. logging/setLevel + logging/message notifications
+ *   5. $/progress notifications
+ *   6. resources/subscribe + notifications/resources/updated
+ *   7. $/result_partial streaming
+ *   8. session/resume + session/checkpoint + session/setState
+ *   9. actions/navigate|prefill|share|undo
+ *  10. per-scope rate limit (token bucket)
+ *  11. four-eye approval for kill_switch.* | four_eye.* | sovereign.* | policy_rollout.*
+ *  12. tools/list?capability=… + resources/list?since=… + workspace/state
  */
 
 import { BORJIE_PUBLIC_MCP_TOOLS } from './tool-catalog.js';
 import { BORJIE_PUBLIC_MCP_RESOURCES } from './resources.js';
 import { BORJIE_PUBLIC_MCP_PROMPTS } from './prompts.js';
 import { BORJIE_SCOPE_CATALOG } from './scopes.js';
+import { DEFAULT_RATE_LIMITS } from './rate-limit.js';
+import { FOUR_EYE_PREFIXES } from './four-eye.js';
 
 export interface BorjieMcpManifest {
   readonly name: string;
   readonly version: string;
   readonly protocolVersion: string;
-  readonly transports: ReadonlyArray<'stdio' | 'http'>;
+  readonly transports: ReadonlyArray<'stdio' | 'http' | 'sse'>;
   readonly httpEndpoint: string;
+  readonly sseEndpoint: string;
   readonly stdioCommand: string;
   readonly auth: {
     readonly flow: 'oauth2_device';
@@ -47,11 +66,25 @@ export interface BorjieMcpManifest {
     readonly name: string;
     readonly description: string;
   }>;
-  readonly rateLimits: Readonly<{
-    readonly readPerMinute: number;
-    readonly writePerMinute: number;
-    readonly draftPerHour: number;
-  }>;
+  readonly rateLimits: Readonly<Record<string, {
+    readonly capacity: number;
+    readonly refillPerMinute: number;
+  }>>;
+  readonly primitives: {
+    readonly sse: boolean;
+    readonly sampling: boolean;
+    readonly roots: boolean;
+    readonly logging: boolean;
+    readonly progress: boolean;
+    readonly resultPartial: boolean;
+    readonly subscriptions: boolean;
+    readonly sessions: boolean;
+    readonly actions: ReadonlyArray<'navigate' | 'prefill' | 'share' | 'undo'>;
+    readonly perScopeRateLimit: boolean;
+    readonly fourEye: ReadonlyArray<string>;
+    readonly workspaceMirror: boolean;
+    readonly discoveryFilters: boolean;
+  };
 }
 
 export interface ManifestOptions {
@@ -62,10 +95,11 @@ export function buildManifest(options: ManifestOptions): BorjieMcpManifest {
   const base = options.publicBaseUrl.replace(/\/+$/, '');
   return Object.freeze({
     name: 'borjie-mcp-server',
-    version: '0.1.0',
+    version: '0.2.0',
     protocolVersion: '2024-11-05',
-    transports: Object.freeze(['stdio' as const, 'http' as const]),
+    transports: Object.freeze(['stdio' as const, 'http' as const, 'sse' as const]),
     httpEndpoint: `${base}/mcp`,
+    sseEndpoint: `${base}/mcp/sse`,
     stdioCommand: 'npx -y @borjie/mcp-server-borjie',
     auth: Object.freeze({
       flow: 'oauth2_device' as const,
@@ -96,10 +130,31 @@ export function buildManifest(options: ManifestOptions): BorjieMcpManifest {
       name: p.name,
       description: p.description,
     })),
-    rateLimits: Object.freeze({
-      readPerMinute: 120,
-      writePerMinute: 30,
-      draftPerHour: 50,
+    rateLimits: Object.freeze(
+      Object.fromEntries(
+        Object.entries(DEFAULT_RATE_LIMITS).map(([scope, cfg]) => [
+          scope,
+          Object.freeze({
+            capacity: cfg.capacity,
+            refillPerMinute: cfg.refillPerMinute,
+          }),
+        ]),
+      ),
+    ),
+    primitives: Object.freeze({
+      sse: true,
+      sampling: true,
+      roots: true,
+      logging: true,
+      progress: true,
+      resultPartial: true,
+      subscriptions: true,
+      sessions: true,
+      actions: Object.freeze(['navigate', 'prefill', 'share', 'undo'] as const),
+      perScopeRateLimit: true,
+      fourEye: Object.freeze([...FOUR_EYE_PREFIXES]),
+      workspaceMirror: true,
+      discoveryFilters: true,
     }),
   });
 }

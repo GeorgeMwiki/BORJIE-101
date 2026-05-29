@@ -45,6 +45,29 @@ export const JSON_RPC_INTERNAL_ERROR = -32603;
 export const JSON_RPC_UNAUTHORIZED = -32001;
 export const JSON_RPC_FORBIDDEN = -32002;
 export const JSON_RPC_KILL_SWITCH_OPEN = -32003;
+export const JSON_RPC_SAMPLING_UNSUPPORTED = -32010;
+export const JSON_RPC_APPROVAL_PENDING = -32011;
+export const JSON_RPC_APPROVAL_DENIED = -32012;
+export const JSON_RPC_APPROVAL_EXPIRED = -32013;
+export const JSON_RPC_RATE_LIMIT_EXCEEDED = -32099;
+
+/** Build a JSON-RPC notification envelope (id-less message). */
+export interface JsonRpcNotification {
+  readonly jsonrpc: '2.0';
+  readonly method: string;
+  readonly params?: Readonly<Record<string, unknown>>;
+}
+
+export function buildNotification(
+  method: string,
+  params?: Readonly<Record<string, unknown>>,
+): JsonRpcNotification {
+  return Object.freeze({
+    jsonrpc: '2.0' as const,
+    method,
+    ...(params !== undefined ? { params } : {}),
+  });
+}
 
 export function buildSuccess(
   id: string | number | null,

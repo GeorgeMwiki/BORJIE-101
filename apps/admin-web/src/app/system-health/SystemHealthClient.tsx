@@ -269,9 +269,36 @@ export function SystemHealthClient() {
       </p>
 
       {!derived ? (
-        <div data-testid="system-health-empty" className="text-sm text-neutral-400">
-          Loading…
-        </div>
+        state.status === 'error' ? (
+          <div
+            data-testid="system-health-error"
+            role="alert"
+            className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+          >
+            <span>
+              <span className="font-medium">Metrics endpoint unreachable.</span>
+              <span className="ml-1 text-muted-foreground">{state.error}</span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Auto-retry in {Math.round(POLL_INTERVAL_MS / 1000)} s.
+            </span>
+          </div>
+        ) : (
+          <div
+            data-testid="system-health-empty"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading system health metrics"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-lg border border-border bg-surface-raised"
+              />
+            ))}
+          </div>
+        )
       ) : (
         <>
           <section
