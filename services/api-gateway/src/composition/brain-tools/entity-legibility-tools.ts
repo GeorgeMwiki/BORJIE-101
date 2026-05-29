@@ -84,7 +84,7 @@ export const entityResolveTool: PersonaToolDescriptor<
       return { candidates: [], queriedAt: new Date().toISOString() };
     }
     return client.post<{
-      candidates: ReadonlyArray<{
+      candidates: Array<{
         kind: string;
         id: string;
         displayName: string;

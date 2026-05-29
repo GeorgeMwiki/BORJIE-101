@@ -157,6 +157,15 @@ export const draftRevisions = pgTable(
     auditHash: text('audit_hash'),
     /** Chat-as-OS bidirectional parity. See migration 0101. */
     provenance: provenanceColumn(),
+    /**
+     * Lock-on-confirm columns (migration 0117). Once `lockedAt` is set,
+     * the revision is immutable. App layer (`assertNotLocked` in
+     * revisions-persistence.ts) enforces the invariant; a DB CHECK
+     * keeps `lockedAt` and `lockedByUserId` in sync.
+     */
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    lockedByUserId: text('locked_by_user_id'),
+    lockReason: text('lock_reason'),
   },
   (t) => ({
     tenantDraftRevIdx: index('idx_draft_revisions_tenant_draft_rev').on(
@@ -171,6 +180,11 @@ export const draftRevisions = pgTable(
     uniqueDraftRev: uniqueIndex('draft_revisions_draft_rev_uq').on(
       t.draftId,
       t.revisionNo,
+    ),
+    tenantLockedIdx: index('idx_draft_revisions_tenant_locked').on(
+      t.tenantId,
+      t.draftId,
+      t.lockedAt,
     ),
   }),
 );

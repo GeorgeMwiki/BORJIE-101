@@ -303,14 +303,16 @@ async function bumpFrictionSignals(
   for (const [k, v] of Object.entries(delta)) {
     next[k] = Number(next[k] ?? 0) + Number(v ?? 0);
   }
-  const patch: Partial<Omit<AdvisorPreferences, 'tenantId' | 'updatedAt'>> = {
-    frictionSignals: next,
-  };
-  if (prev) {
-    // Preserve other fields verbatim (the upsert COALESCEs scalars).
-    patch.preferredChannels = prev.preferredChannels;
-    patch.doNotDisturb = prev.doNotDisturb;
-    patch.masteryLevels = prev.masteryLevels;
-  }
+  // Preserve other fields verbatim when prev exists (the upsert COALESCEs
+  // scalars). Build the patch immutably to honour `readonly` invariants.
+  const patch: Partial<Omit<AdvisorPreferences, 'tenantId' | 'updatedAt'>> =
+    prev
+      ? {
+          frictionSignals: next,
+          preferredChannels: prev.preferredChannels,
+          doNotDisturb: prev.doNotDisturb,
+          masteryLevels: prev.masteryLevels,
+        }
+      : { frictionSignals: next };
   await upsertPreferences(db, tenantId, patch);
 }

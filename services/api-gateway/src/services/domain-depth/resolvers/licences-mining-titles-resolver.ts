@@ -58,7 +58,9 @@ export async function resolveLicencesMiningTitles(
               : `${summary.activeCount} active mining-title licence(s)`,
   };
   if (summary.nextExpiryDate) {
-    return { ...status, nextExpiryDate: summary.nextExpiryDate };
+    // Surface the earliest future expiry via the canonical SubAreaStatus
+    // `dueAt` field so the UI's amber/red rendering picks it up uniformly.
+    return { ...status, dueAt: summary.nextExpiryDate };
   }
   return status;
 }
