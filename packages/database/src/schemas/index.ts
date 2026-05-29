@@ -1126,6 +1126,22 @@ export * from './estate-assets.schema.js';
 export * from './clock-in-events.schema.js';
 
 // ---------------------------------------------------------------------------
+// Geo SOTA 2026-05-29 — hazard zones, workforce GPS trail, Tanzania
+// regulatory zones (migration 0130_postgis). Companion docs:
+// Docs/RESEARCH/GEO_SOTA_2026-05-29.md.
+// ---------------------------------------------------------------------------
+//   hazard_zones        — work_zone | caution | forbidden polygons per
+//                          site. Drives the geofence watcher worker.
+//   workforce_locations — ephemeral 24h GPS trail per worker. Read every
+//                          30s by the geofence watcher.
+//   regulatory_zones    — Tanzania PCCB / NEMC / EITI boundaries.
+//                          Tenant-agnostic, same model as
+//                          intelligence_corpus_chunks.
+export * from './hazard-zones.schema.js';
+export * from './workforce-locations.schema.js';
+export * from './regulatory-zones.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave PRODUCTION-CAPTURE — supervisor tonnage capture (migration 0104)
 // ---------------------------------------------------------------------------
 //   production_tonnage_events — ore / waste split, strip ratio, source
