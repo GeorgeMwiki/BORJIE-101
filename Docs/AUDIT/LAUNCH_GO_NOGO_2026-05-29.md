@@ -349,3 +349,218 @@ These were not in the original 8 and must be addressed in a follow-up wave.
   does not need re-running unless mining-route code changes again.
 
 — end of post-remediation update
+
+---
+
+# Round 2 Remediation — 2026-05-29 (late PM)
+
+> Third pass after the N1-N4 fix wave (commits e47e6918, cdb26ca8,
+> 7a326a4f). Re-verified the 5 surfaces and tallied which N-blockers
+> cleared, which new RED items surfaced, and what remains open.
+
+## 12. Final verdict (Round 2): RED (NO-GO)
+
+**Launch ready:** `false`
+
+**Recommendation:** Hold the launch. All 4 N-blockers from §10 are
+confirmed FIXED on origin/main, but the re-verify pass surfaced new
+latent regressions that were masked by the earlier fail-fast and
+stop-hook-interrupted runs:
+
+1. `services/api-gateway` typecheck — 27 NEW TS errors across 12 files
+   (missing exports from `@borjie/central-intelligence`, `exactOptional
+   PropertyTypes` violations in `mwikila-inbox`, namespace-vs-type
+   confusion in `brain-ingestion/persistence` + `types`, missing
+   `@borjie/file-ingest/schema-sniff` module path, missing `override`
+   modifier on `geofencing/types`, `plan-runner` exactOptional
+   regression).
+2. `services/identity` typecheck — 9 NEW TS errors in
+   `src/postgres-invite-code-repository.ts` (the
+   `InviteCodeRepositoryClient` returns `unknown` for its
+   `select/insert/update` chains; consumers cannot chain
+   `.from/.where/.limit` on those unknowns; `attachmentHints` literal
+   needs `exactOptionalPropertyTypes` keying).
+3. `services/junior-evolution-worker` typecheck — 2 NEW TS errors
+   importing `@borjie/agent-platform/junior-spawner` (subpath not
+   exported in `@borjie/agent-platform`'s `package.json` `exports`
+   map or the source path moved).
+4. Test surface — 80 failures across 5 packages (api-gateway: 69,
+   central-intelligence: 5, persona-runtime: 3, owner-web: 2,
+   buyer-mobile: 1). Of note: `persona-runtime`'s
+   `BUILT_IN_PERSONAS` expected 7, got 15 (new personas landed,
+   tests not refreshed); api-gateway has 69 failures spread across
+   brain-tools catalog gating, kill-switch degraded paths, db-client
+   HA fallback, sovereign counter-model, role-gate, manager-app BFF.
+5. Endpoint smoke — gateway still not bound on :4001 (process not
+   started in this environment; N4 env-validation fix is shipped but
+   the gateway was never re-launched between the N4 commit and the
+   smoke re-run).
+
+Cross-tenant isolation surface (4) remains fully GREEN with 54/54
+across the 4 corrected-path test files (`cross-tenant.test.ts` +
+`mining/__tests__/tasks.test.ts` + `mining/__tests__/tasks-suggest
+.test.ts` + `mining/__tests__/toolbox.test.ts`). Build surface flipped
+to fully GREEN (5/5) — all 3 Next builds + 2 mobile typechecks pass.
+
+## 13. N-blocker fix scorecard (per-blocker)
+
+| Blocker | Surface | Status | Commit | Notes |
+|---------|---------|--------|--------|-------|
+| N1      | `packages/database` seed typecheck | FIXED  | `e47e6918`   | 12 → 0 TS2769. `JSON.stringify(...)` wrap on 11 object-literal substitutions + `siteUuidMap as const` + extracted `defaultSiteUuid: string` for line 376 narrowing. `pnpm --filter @borjie/database typecheck` exits 0. |
+| N2      | `apps/owner-web` build             | FIXED  | `cdb26ca8`   | Both ESLint hard errors closed. TenantRail.tsx threads `...getCsrfHeaders()` into POST headers. `@next/eslint-plugin-next ^15.5.15` registered in `apps/owner-web/eslint.config.mjs` as `'@next/next': nextPlugin`. Build exits 0. |
+| N3      | `packages/agentic-os` trust-cal    | FIXED  | `7a326a4f`   | `vi.useFakeTimers + vi.setSystemTime('2026-05-24T00:00:00Z')` in both describe blocks' `beforeEach`. All 9 trust-calibration tests pass; full @borjie/agentic-os 80/80. Long-inactivity decay test preserved (observedAt 2026-05-01 vs frozen 2026-05-24 still gives ~23-day decay). |
+| N4      | api-gateway env validator          | FIXED  | `cdb26ca8`   | (committed alongside N2 due to parallel-agent commit-message collision; diff content verified). `optional()` helper preprocesses empty-string `KEY=` → `undefined`. OCR_PROVIDER accepts `mock`, GEPG_PSP_MODE accepts `true\|false` for dev. 2 regression tests added; all 14 validate-env tests pass. `.env.example` operator-note updated. Gateway boot verified twice; `/health` returns 200 once started. |
+
+**Tally:** 4 / 4 N-blockers FIXED. All commits live on origin/main.
+
+## 14. Re-verify scorecard (5 surfaces, Round 2)
+
+| # | Surface                           | Verdict | Pass / Fail | Notes |
+|---|-----------------------------------|---------|-------------|-------|
+| 1 | Monorepo typecheck (`pnpm -r typecheck`) | RED     | 228 pkg / 3 pkg | 38 NEW TS errors across 3 packages: `services/api-gateway` (27 in 12 files), `services/identity` (9 in 1 file), `services/junior-evolution-worker` (2 in 2 files). N1 fix to `packages/database` confirmed clean. |
+| 2 | Monorepo builds (3 Next + 2 mobile typecheck) | GREEN | 5 / 0 | All 5 build: marketing, owner-web (N2 fix verified), admin-web, workforce-mobile typecheck, buyer-mobile typecheck. Only warnings (metadataBase, edge runtime static gen). |
+| 3 | Monorepo tests (`pnpm -r --no-bail test`) | RED     | 22 836 / 80 | Full run completed (no stop-hook interruption). 5 failing packages: api-gateway (69), central-intelligence (5), persona-runtime (3), owner-web (2), buyer-mobile (1). `persona-runtime` shows new-persona fixture drift (BUILT_IN_PERSONAS 7 → 15). |
+| 4 | Cross-tenant isolation              | GREEN   | 54 / 0 | 4 files: cross-tenant.test.ts (16/16), mining/__tests__/tasks.test.ts + tasks-suggest.test.ts (28/28), mining/__tests__/toolbox.test.ts (10/10). N1-N4 fix wave did not regress tenant boundary. |
+| 5 | Endpoint smoke matrix (`scripts/smoke/full-endpoint-smoke.ts`) | YELLOW  | 0 / 0 | Preflight `curl -fsS http://localhost:4001/health` → exit 7 (port not bound). `lsof -nP -iTCP:4001 -sTCP:LISTEN` empty. Smoke runner not invoked — N4 env-validation fix is shipped but gateway never re-launched in this environment. Smoke script present at `scripts/smoke/full-endpoint-smoke.ts`. |
+
+**Tally:** GREEN 2 · YELLOW 1 · RED 2 → final verdict **RED**.
+
+## 15. Remaining blockers (post Round 2)
+
+### R1 — services/api-gateway typecheck (RED, critical) — 27 errors / 12 files
+
+- `src/routes/brain-teach.hono.ts:84:10` — `TS2305` no exported member
+  `extractTabTags` from `@borjie/central-intelligence`.
+- `src/routes/owner/delegation.hono.ts:88:9` — `TS2783` duplicate
+  `category` key in object literal.
+- `src/routes/owner/mwikila-inbox.hono.ts:112,118` — `TS2379`
+  `exactOptionalPropertyTypes`: `limit?: number` cannot accept
+  `undefined`.
+- `src/services/brain-ingestion/parser.ts:22:38` — `TS2307` missing
+  module path `@borjie/file-ingest/schema-sniff`.
+- `src/services/brain-ingestion/parser.ts:236:13` — `TS2322`
+  `CorpusSourceKind` not assignable to `never`.
+- `src/services/brain-ingestion/persistence.ts:46,55,91,162` — `TS2709`
+  using `CorpusSourceKind` / `CorpusUploadStatus` /
+  `NewCorpusDocUpload` / `NewCorpusDocSummary` as types when they are
+  namespaces.
+- `src/services/brain-ingestion/types.ts:22,93` — `TS2709` same
+  namespace-as-type confusion for `CorpusSourceKind` / `CorpusUpload
+  Status`.
+- `src/services/buyer-notifications/index.ts:80:16` — `TS2869` RHS of
+  `??` unreachable.
+- `src/services/geofencing/types.ts:129:5` — `TS4115` parameter
+  property missing `override` modifier.
+- `src/services/mwikila-autonomy/handlers/shift-scheduler.ts:80–88` —
+  `TS18048` `site` / `m` possibly undefined.
+- `src/services/mwikila-autonomy/inbox-recorder.ts:162:3` — `TS2322`
+  `listRecent` param incompatibility (`category` required vs optional).
+- `src/services/orchestration/plan-runner.ts:212:27` — `TS2412`
+  `exactOptionalPropertyTypes`: `string | undefined` vs `string`.
+- `src/services/tab-crud/process-tags.ts:29–35` — `TS2305 x7` missing
+  exports from `@borjie/central-intelligence`: `isTabProposal`,
+  `isTabRemove`, `isTabSpawn`, `isTabUpdate`, `pickProposalReason`,
+  `pickTagTitle`, `TabTag`.
+
+### R2 — services/identity typecheck (RED, critical) — 9 errors / 1 file
+
+`src/postgres-invite-code-repository.ts` — `InviteCodeRepositoryClient`
+typed `select/insert/update` return `unknown`; consumers cannot chain
+`.from/.where/.limit` (TS2571 x6 at lines 141, 153, 166, 188, 307, 321).
+Plus `rowToRecord` literal needs `attachmentHints` keyed only when
+defined (TS2375 at 95). Plus `tx.execute` possibly undefined (TS2722 +
+TS18048 at 236).
+
+### R3 — services/junior-evolution-worker typecheck (RED, high) — 2 errors / 2 files
+
+`src/decisions/deprecation.ts:17:8` + `src/decisions/promotion.ts:19:8`
+— `TS2307` cannot find module `@borjie/agent-platform/junior-spawner`.
+Either the deep import subpath is missing from `@borjie/agent-
+platform`'s `package.json` `exports` map, or the source path moved.
+
+### R4 — services/api-gateway tests (RED, critical) — 69 failures
+
+Major clusters: arrears-infrastructure, composition/agency-binding,
+brain-tools-{admin,buyer,manager,owner,shared} catalog gating, db-
+client HA fallback, market-surveillance-wiring, predictive-
+interventions-wiring, sovereign counter-model, auth.middleware audit
+log, kill-switch middleware degraded paths, pre-launch-misc-endpoints,
+role-gate, unit-components, provenance-injector, bff/manager-app.
+Full log at `/tmp/borjie-test-full.log` (5 049 lines).
+
+### R5 — packages/central-intelligence tests (RED, medium) — 5 failures
+
+synthesizer-wiring x3, constitutional-critic Claude path, rollout-
+controller registry-throw. Was Y2 in Round 1.
+
+### R6 — packages/persona-runtime tests (RED, medium) — 3 failures
+
+`BUILT_IN_PERSONAS` expected 7, got 15 (new personas landed without
+test refresh). `seedBuiltInTitlesAndPersonas` idempotency 7→15 and 5→13
+partial-rerun count drift. Was Y3 in Round 1.
+
+### R7 — apps/owner-web tests (RED, low) — 2 failures
+
+`OwnerDashboardSurface seven-slots happy path`, `KpiStripPanel five
+tiles`. Was Y5 in Round 1; independent of build blocker.
+
+### R8 — apps/buyer-mobile tests (RED, low) — 1 failure
+
+`home-chat bilingual greeting Sw default/En requested`. Was Y6 in
+Round 1.
+
+### R9 — Endpoint smoke matrix not run (YELLOW, medium)
+
+N4 fix is shipped (gateway can now boot past env-validation), but the
+gateway was not re-launched between the N4 commit (cdb26ca8) and the
+Round 2 smoke probe. `lsof -nP -iTCP:4001 -sTCP:LISTEN` returned
+empty; `curl --max-time 3 http://localhost:4001/health` exited 7.
+Unblock by `pnpm --filter @borjie/api-gateway dev` then re-running
+`scripts/smoke/full-endpoint-smoke.ts`.
+
+## 16. Round 2 launch sign-off (final)
+
+- **Final verdict:** RED.
+- **launch_ready:** `false`.
+- **Originally-listed RED blockers cleared (cumulative):** 8 / 8
+  (B1–B8) + 4 / 4 (N1–N4) = 12 / 12.
+- **Newly-surfaced RED items (Round 2):** 8 (R1 typecheck api-gateway,
+  R2 typecheck identity, R3 typecheck junior-evolution-worker, R4
+  tests api-gateway, R5 tests central-intelligence, R6 tests persona-
+  runtime, R7 tests owner-web, R8 tests buyer-mobile) + 1 YELLOW (R9
+  smoke not run).
+- **Cross-tenant isolation:** GREEN (54/54 across 4 corrected-path
+  files). No tenant-boundary regressions.
+- **Builds:** GREEN (5/5). All 3 Next builds + 2 mobile typechecks
+  pass.
+- **Recommendation:** NO-GO for launch on 2026-05-29. A third fix
+  wave is required:
+  1. **Wave 1 (R1 + R2 + R3 — typecheck cluster):** Restore the
+     missing exports from `@borjie/central-intelligence` (`extract
+     TabTags`, `isTabProposal`, `isTabRemove`, `isTabSpawn`, `isTab
+     Update`, `pickProposalReason`, `pickTagTitle`, `TabTag`).
+     Convert namespace usages in `brain-ingestion/persistence.ts` +
+     `types.ts` to plain interface/type imports. Add the missing
+     `@borjie/file-ingest/schema-sniff` subpath export. Add `over
+     ride` modifier to `geofencing/types.ts:129`. Fix `mwikila-
+     inbox.hono.ts` + `plan-runner.ts` exactOptional issues. Type
+     `InviteCodeRepositoryClient` chain return types (or relax to
+     `any` per repository pattern). Restore `@borjie/agent-platform/
+     junior-spawner` export.
+  2. **Wave 2 (R4 — api-gateway test cluster):** 69 tests across the
+     largest cluster of regressions; needs systematic triage by
+     domain (brain-tools, kill-switch, manager-app BFF, sovereign).
+  3. **Wave 3 (R6 — persona-runtime fixture refresh):** Update
+     `BUILT_IN_PERSONAS` count expectations from 7 → 15 (or revert
+     persona additions if they were unintentional).
+  4. **Wave 4 (R5 + R7 + R8 — smaller test triage):** central-
+     intelligence synthesizer-wiring, owner-web dashboard surface,
+     buyer-mobile bilingual greeting.
+  5. **Pre-cut smoke (R9):** Boot the gateway (now possible post-N4)
+     and run the smoke matrix.
+- After R1–R8 clear and R9 returns GREEN, repeat surfaces 1 + 2 + 3
+  once more. Cross-tenant isolation (surface 4) and builds (surface 2)
+  are already GREEN.
+
+— end of Round 2 remediation
+
