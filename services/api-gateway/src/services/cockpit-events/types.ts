@@ -35,6 +35,15 @@ export const COCKPIT_EVENT_KINDS = [
   'manager.approved',
   'bid.placed',
   'incident.escalated',
+  // ── CT-3/CT-5 (2026-05-29) chat-driven dynamic tab CRUD ─────────
+  // Per-user cockpit bus pulses so multi-device sessions reconcile the
+  // tab strip in <500 ms when the brain spawns / updates / removes a
+  // tab from a different device. Scope is (tenantId, userId) — every
+  // event carries the owning user so subscribers can filter.
+  'cockpit.tab.spawned',
+  'cockpit.tab.updated',
+  'cockpit.tab.removed',
+  'cockpit.tab.proposed',
 ] as const;
 
 export type CockpitEventKind = (typeof COCKPIT_EVENT_KINDS)[number];
@@ -63,7 +72,11 @@ export type CockpitEvent =
   | ChatHandoffEvent
   | ManagerApprovedEvent
   | BidPlacedEvent
-  | IncidentEscalatedEvent;
+  | IncidentEscalatedEvent
+  | CockpitTabSpawnedEvent
+  | CockpitTabUpdatedEvent
+  | CockpitTabRemovedEvent
+  | CockpitTabProposedEvent;
 
 interface BaseEvent {
   readonly tenantId: string;
@@ -310,4 +323,66 @@ export interface IncidentEscalatedEvent extends BaseEvent {
   readonly fromLevel: string;
   readonly toLevel: string;
   readonly escalatedBy: string;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// CT-3 / CT-5 — Chat-driven dynamic tab CRUD (2026-05-29)
+//
+// Every brain-emitted `<tab_spawn>` / `<tab_update>` / `<tab_remove>` /
+// `<tab_proposal>` lands in the per-user cockpit bus. All other devices
+// the owner is signed in on receive the event via the existing SSE
+// channel and reconcile their tab strip in <500 ms.
+// ───────────────────────────────────────────────────────────────────
+
+/** A new tab was spawned (brain or owner click). */
+export interface CockpitTabSpawnedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.spawned';
+  /** Owning user id — receivers filter by `userId === auth.userId`. */
+  readonly userId: string;
+  /** Tab id (deterministic per FE owner-tabs-store). */
+  readonly tabId: string;
+  /** Tab type, e.g. `finance`, `compliance`. */
+  readonly tabType: string;
+  /** Render-ready title (already passes 60-char cap). */
+  readonly title: string;
+  /** Spawn config the FE stores. Capped at 4 KB by the validator. */
+  readonly config: Record<string, unknown>;
+  /** Which device originated the spawn — bus filters echo to self. */
+  readonly originDeviceId: string | null;
+  /** Brain-emitted (vs. owner-clicked) so the FE can show the right toast. */
+  readonly source: 'brain' | 'owner';
+}
+
+/** A tab's config or title was patched. */
+export interface CockpitTabUpdatedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.updated';
+  readonly userId: string;
+  readonly tabId: string;
+  /** Patched fields only — receivers shallow-merge. */
+  readonly patch: { readonly config?: Record<string, unknown>; readonly title?: string };
+  readonly originDeviceId: string | null;
+  readonly source: 'brain' | 'owner';
+}
+
+/** A tab was removed from the strip. */
+export interface CockpitTabRemovedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.removed';
+  readonly userId: string;
+  readonly tabId: string;
+  readonly originDeviceId: string | null;
+  readonly source: 'brain' | 'owner';
+}
+
+/** A proactive proposal landed in the owner's inbox. */
+export interface CockpitTabProposedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.proposed';
+  readonly userId: string;
+  readonly proposalId: string;
+  readonly tabType: string;
+  readonly title: string;
+  readonly reasonEn: string;
+  readonly reasonSw: string | null;
+  /** ≥1 grounded id per the Borjie evidence rule. */
+  readonly evidenceIds: ReadonlyArray<string>;
+  readonly confidence: number | null;
 }

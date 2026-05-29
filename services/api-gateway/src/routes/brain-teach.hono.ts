@@ -80,6 +80,8 @@ import {
   parseInlineBlocks,
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
+import { extractTabTags } from '@borjie/central-intelligence';
+import { processTabTagsForOwner } from '../services/tab-crud/index.js';
 import { parseBoardElements } from './board-element-parser';
 import { parseSuperpowers } from './ui-navigate-parser';
 import {
@@ -767,13 +769,15 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
 
     // Order of stripping matters: spawn_tabs first (free-form JSON object
     // that may contain commas/braces that confuse later regexes), then
+    // CT-1 dynamic tab tags (self-closing XML — quote-safe), then
     // auto_authorized (sibling of confirmation_card), then board_add
     // (the blackboard primitives — own free-form JSON), then INLINE
     // blocks (Flow A — the inline-first catalog), then the legacy
     // primary ui_block (teaching blocks — Flow A escape hatch), then
     // inline metrics, then actions+citations.
     const spawnResult = extractSpawnTabs(rawText);
-    const autoAuthResult = extractAutoAuthorized(spawnResult.body);
+    const tabTagsResult = extractTabTags(spawnResult.body);
+    const autoAuthResult = extractAutoAuthorized(tabTagsResult.body);
     const boardResult = parseBoardElements(autoAuthResult.body);
     const inlineResult = parseInlineBlocks(boardResult.body);
     const uiResult = extractUiBlock(inlineResult.body);
@@ -783,6 +787,19 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // ui_block is left intact.
     const superpowersResult = parseSuperpowers(metricsResult.body);
     const { clean, ids, actions } = extractCitations(superpowersResult.body);
+
+    // CT-3 / CT-4 — pipe parsed tab tags into the persistence layer.
+    // We process them server-side BEFORE streaming so the FE sees the
+    // SSE event AFTER the database row + cockpit-bus broadcast land
+    // (avoids the FE racing the bus reconciliation). Failures are
+    // surfaced as `tab_tag_error` events without halting the reply.
+    const tabActions = await processTabTagsForOwner({
+      tags: tabTagsResult.tags,
+      dropped: tabTagsResult.dropped,
+      tenantId,
+      userId,
+      logger,
+    });
 
     // Emit debate metadata BEFORE the message_chunks so the FE renders
     // the "Verified ✓ 3-model debate" badge above the assistant bubble
@@ -961,6 +978,23 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // CT-3 / CT-5 — dynamic tab CRUD tags. Emit one SSE event per
+    // processed action so the FE chat-side parser can render the
+    // appropriate chip (spawn/update/remove/proposal) AND reconcile
+    // its local tab strip with the server-side persistence we just
+    // wrote in `processTabTagsForOwner`. Errors are surfaced as
+    // `tab_tag_error` events without halting the reply.
+    for (const action of tabActions) {
+      if (abort.signal.aborted) break;
+      await stream.writeSSE({
+        event: action.event,
+        data: JSON.stringify({
+          payload: action.payload,
+          at: new Date().toISOString(),
+        }),
+      });
+    }
+
     // Wave BRAIN-DEPTH: record the observation so the next turn sees
     // the engagement signal, the question kind, and any detected
     // routine / aversion in the persistent advisor memory. Never
@@ -1008,6 +1042,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           ? autoAuthResult.autoAuthorized.action
           : null,
         spawn_tabs: spawnResult.batch.tabs.length,
+        tab_tags: {
+          parsed: tabTagsResult.tags.length,
+          dropped: tabTagsResult.dropped.length,
+          actions: tabActions.length,
+        },
         board_elements: boardResult.elements.length,
         board_element_types: boardResult.elements.map((e) => e.type),
         board_dropped: boardResult.dropped,

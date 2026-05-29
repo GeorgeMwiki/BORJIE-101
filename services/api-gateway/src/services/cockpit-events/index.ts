@@ -29,5 +29,9 @@ export type {
   ManagerApprovedEvent,
   BidPlacedEvent,
   IncidentEscalatedEvent,
+  CockpitTabSpawnedEvent,
+  CockpitTabUpdatedEvent,
+  CockpitTabRemovedEvent,
+  CockpitTabProposedEvent,
 } from './types.js';
 export { COCKPIT_EVENT_KINDS } from './types.js';
