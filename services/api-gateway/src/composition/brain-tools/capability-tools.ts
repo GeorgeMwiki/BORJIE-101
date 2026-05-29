@@ -1,17 +1,28 @@
 /**
  * CSA-3 + CSA-4 — disclosure-safe meta tools.
  *
+ * RT-5 — These tools return REASONING CONTEXT for the LLM, not
+ * pre-composed answer strings. The `summary`, `invitation`, and
+ * `response` fields are HINTS / SHAPES the model uses to ground its
+ * fresh composition — never recited verbatim. The new `compose_guidance`
+ * field is the explicit reasoning directive the model follows for this
+ * turn. The model picks the bilingual register, the actual phrasing,
+ * and the tenant-specific framing using live data.
+ *
  *   1. mwikila.capabilities.what_can_you_do
  *        Owner asks "what can you do" / "tell me about your features" /
- *        Swahili equivalents. Tool returns a SHORT bilingual narrative
- *        and 2-3 concrete examples drawn from the canonical capability
- *        registry. NEVER mentions internal mechanics.
+ *        Swahili equivalents. Tool returns CONTEXT: 2-3 disclosure-safe
+ *        capability shapes drawn from the canonical registry + a
+ *        compose_guidance directive. The model SYNTHESIZES the reply
+ *        using this context plus the current conversation. NEVER mentions
+ *        internal mechanics.
  *
  *   2. mwikila.about
  *        Owner asks "who are you" / "are you AI" / "are you ChatGPT" /
- *        "how do you work". Tool returns a persona-preserving response
- *        that names Mr. Mwikila, never the underlying model, and offers
- *        a concrete next action.
+ *        "how do you work". Tool returns CONTEXT: a persona-preserving
+ *        intent + capability suggestion + compose_guidance directive.
+ *        The model composes the response fresh, naming Mr. Mwikila,
+ *        never the underlying model, and offering a concrete next action.
  *
  * Both tools are:
  *   - LOW stakes, read-only (no audit-chain entry, no money path).
@@ -120,8 +131,27 @@ const WhatCanYouDoOutput = z
       en: z.string().min(1),
       sw: z.string().min(1),
     }),
+    /**
+     * RT-5 — REASONING DIRECTIVE for the LLM.
+     *
+     * Instructs the model how to SYNTHESIZE the answer using the
+     * context above + live tenant data + the current conversation.
+     * This field is INSTRUCTIONAL, not user-facing — the model reads
+     * it before composing the reply. It is NOT meant to be quoted.
+     */
+    compose_guidance: z.string().min(1),
   })
   .strict();
+
+const COMPOSE_GUIDANCE_WHAT_CAN_YOU_DO =
+  'REASON: Use the capability shapes above as GROUNDING for what you can ' +
+  'truthfully claim. Compose a fresh, warm, concise reply in the owner\'s ' +
+  'active language using their actual conversation context (what they have ' +
+  'asked, their scale tier, their jurisdiction). Pick ONE capability to ' +
+  'highlight that matches their immediate need, and end with the invitation ' +
+  'shape rephrased in your own words. NEVER quote the summary / invitation / ' +
+  'description verbatim — they are reference shapes, not scripts. Variation ' +
+  'across turns is expected and desired.';
 
 /**
  * Pure projection: strip every internal field (id, related, visibility,
@@ -235,6 +265,7 @@ export const whatCanYouDoTool: PersonaToolDescriptor<
       capabilities: disclosures,
       summary: composeSummary(disclosures, input.topic),
       invitation: { ...INVITATION },
+      compose_guidance: COMPOSE_GUIDANCE_WHAT_CAN_YOU_DO,
     };
   },
 };
@@ -285,8 +316,23 @@ const AboutOutput = z
         sw: z.string().min(1),
       }),
     }),
+    /**
+     * RT-5 — REASONING DIRECTIVE. The `response` field above is a
+     * SHAPE / GROUNDING for the model; this directive tells the model
+     * how to compose a fresh, persona-preserving answer that varies
+     * by turn. Not user-facing.
+     */
+    compose_guidance: z.string().min(1),
   })
   .strict();
+
+const COMPOSE_GUIDANCE_ABOUT =
+  'REASON: The response field above is ONE valid shape — not the answer. ' +
+  'Compose a fresh persona-preserving reply in the owner\'s active language. ' +
+  'Hold the persona line (Mr. Mwikila, Borjie\'s mining MD AI), never name ' +
+  'the underlying model brand, and end with a CONCRETE next action drawn ' +
+  'from the next_action capability so the conversation moves forward. ' +
+  'Variation across turns is expected — never quote the shape verbatim.';
 
 /**
  * Disclosure-safe response templates. Each one is paired with a
@@ -388,6 +434,7 @@ export const aboutTool: PersonaToolDescriptor<
           capability_name: { ...fallback.public_name },
           example_question: { ...fallback.example_question },
         },
+        compose_guidance: COMPOSE_GUIDANCE_ABOUT,
       };
     }
     return {
@@ -397,6 +444,7 @@ export const aboutTool: PersonaToolDescriptor<
         capability_name: { ...nextEntry.public_name },
         example_question: { ...nextEntry.example_question },
       },
+      compose_guidance: COMPOSE_GUIDANCE_ABOUT,
     };
   },
 };
