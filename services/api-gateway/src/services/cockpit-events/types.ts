@@ -17,6 +17,8 @@ export const COCKPIT_EVENT_KINDS = [
   'risk.changed',
   'workforce.shift_event',
   'compliance.deadline_approaching',
+  'mwikila.acted',
+  'mwikila.proposes',
 ] as const;
 
 export type CockpitEventKind = (typeof COCKPIT_EVENT_KINDS)[number];
@@ -28,7 +30,9 @@ export type CockpitEvent =
   | OpportunityScanCompletedEvent
   | RiskChangedEvent
   | WorkforceShiftEvent
-  | ComplianceDeadlineApproachingEvent;
+  | ComplianceDeadlineApproachingEvent
+  | MwikilaActedEvent
+  | MwikilaProposesEvent;
 
 interface BaseEvent {
   readonly tenantId: string;
@@ -74,4 +78,32 @@ export interface ComplianceDeadlineApproachingEvent extends BaseEvent {
   readonly filingKind: string;
   readonly dueAt: string;
   readonly daysRemaining: number;
+}
+
+/**
+ * Mr. Mwikila acted on the owner's behalf — T2 or T3 execution. The
+ * owner cockpit "Acting on your behalf" inbox renders this with a live
+ * pulse + reversal countdown when the tier was T2.
+ */
+export interface MwikilaActedEvent extends BaseEvent {
+  readonly kind: 'mwikila.acted';
+  readonly actionId: string;
+  readonly actionKind: string;
+  readonly category: string;
+  readonly delegationTier: 'T0' | 'T1' | 'T2' | 'T3';
+  readonly summary: string;
+}
+
+/**
+ * Mr. Mwikila has drafted a proposal awaiting owner approval. Sent on
+ * T0/T1 proposals + on `blocked_by_inviolable` rows so the owner sees
+ * the rail-block too.
+ */
+export interface MwikilaProposesEvent extends BaseEvent {
+  readonly kind: 'mwikila.proposes';
+  readonly actionId: string;
+  readonly actionKind: string;
+  readonly category: string;
+  readonly delegationTier: 'T0' | 'T1' | 'T2' | 'T3';
+  readonly summary: string;
 }

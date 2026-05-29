@@ -12,5 +12,7 @@ export type {
   RiskChangedEvent,
   WorkforceShiftEvent,
   ComplianceDeadlineApproachingEvent,
+  MwikilaActedEvent,
+  MwikilaProposesEvent,
 } from './types.js';
 export { COCKPIT_EVENT_KINDS } from './types.js';
