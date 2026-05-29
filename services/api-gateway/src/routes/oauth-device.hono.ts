@@ -60,6 +60,7 @@ const VERIFICATION_URI = `${DEFAULT_VERIFY_HOST.replace(/\/+$/, '')}/oauth/confi
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
 
 // Unambiguous alphabet: drop 0/O/1/I/L per RFC 8628 §6.1 readability.
+// eslint-disable-next-line no-secrets/no-secrets -- RFC 8628 user-code alphabet, not a secret.
 const USER_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const USER_CODE_LEN = 8;
 

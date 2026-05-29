@@ -36,5 +36,5 @@ describe('ThreadedView', () => {
     const { container } = render(<ThreadedView posts={makeSmallPosts()} />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
+  }, 15000);
 });

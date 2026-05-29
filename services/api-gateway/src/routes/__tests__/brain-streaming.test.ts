@@ -6,8 +6,8 @@
  *   1. SSE happy path — `Accept: text/event-stream` gets
  *      `turn.accepted` → (`tool_call` | `message_chunk`)* → `done`.
  *   2. JSON fallback — anything else (incl. `application/json` and
- *      `*​/*`) keeps the legacy object-shape response so owner-web
- *      continues to work unchanged.
+ *      wildcard accept) keeps the legacy object-shape response so
+ *      owner-web continues to work unchanged.
  *   3. `turn.accepted` lands first and carries `{ at }` so the mobile
  *      "typing" indicator can render in <100ms (TTFT win).
  *   4. Orchestrator hard-error mid-stream → `event: error` frame +

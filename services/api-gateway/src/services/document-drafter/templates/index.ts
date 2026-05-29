@@ -148,16 +148,24 @@ export function loadTemplateContent(
   }
   const swPath = resolve(TEMPLATE_DIR, `${slug}.sw.md`);
   const enPath = resolve(TEMPLATE_DIR, `${slug}.en.md`);
+  // slug is resolved through the in-memory TEMPLATE_REGISTRY via
+  // findTemplate(), so it is constrained to the closed allow-list
+  // above. The fs calls are safe; the eslint rule cannot prove that
+  // statically. See `Docs/SECURITY/SECURE_CODING_STANDARDS.md` §3.4.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(swPath)) {
     throw new Error(`document-drafter: missing Swahili template at ${swPath}`);
   }
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(enPath)) {
     throw new Error(`document-drafter: missing English template at ${enPath}`);
   }
   // language argument is for future per-language gating; for now we
   // always read both so the composer can stitch bilingual output.
   void language;
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const sw = readFileSync(swPath, 'utf8');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const en = readFileSync(enPath, 'utf8');
   return { sw, en };
 }
