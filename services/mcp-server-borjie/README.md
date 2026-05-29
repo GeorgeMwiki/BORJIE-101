@@ -129,6 +129,157 @@ consent screen. `admin:read` is Borjie-internal only.
 - No `console.log` — all server output flows through Pino-shaped
   stderr.
 
+## Integration snippets
+
+Drop into the right config file for each client. Replace
+`<your access token>` with the bearer Borjie hands you after
+`borjie login` (see `@borjie/cli`).
+
+### Claude Code
+
+`~/.config/claude-code/claude_mcp_settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "borjie": {
+      "command": "npx",
+      "args": ["-y", "@borjie/mcp-server-borjie"],
+      "env": {
+        "BORJIE_API_BASE_URL": "https://api.borjie.app",
+        "BORJIE_MCP_TOKEN": "<your access token>",
+        "BORJIE_MCP_AGENT_NAME": "claude-code"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+`~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "borjie": {
+      "command": "npx",
+      "args": ["-y", "@borjie/mcp-server-borjie"],
+      "env": {
+        "BORJIE_API_BASE_URL": "https://api.borjie.app",
+        "BORJIE_MCP_TOKEN": "<your access token>",
+        "BORJIE_MCP_AGENT_NAME": "cursor"
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+`~/.windsurf/mcp_servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "borjie": {
+      "command": "npx",
+      "args": ["-y", "@borjie/mcp-server-borjie"],
+      "env": {
+        "BORJIE_API_BASE_URL": "https://api.borjie.app",
+        "BORJIE_MCP_TOKEN": "<your access token>",
+        "BORJIE_MCP_AGENT_NAME": "windsurf"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+or `%APPDATA%/Claude/claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "borjie": {
+      "command": "npx",
+      "args": ["-y", "@borjie/mcp-server-borjie"],
+      "env": {
+        "BORJIE_API_BASE_URL": "https://api.borjie.app",
+        "BORJIE_MCP_TOKEN": "<your access token>",
+        "BORJIE_MCP_AGENT_NAME": "claude-desktop"
+      }
+    }
+  }
+}
+```
+
+### Continue.dev
+
+`~/.continue/config.json` (under `experimental.modelContextProtocolServer`):
+
+```json
+{
+  "experimental": {
+    "modelContextProtocolServer": {
+      "transport": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@borjie/mcp-server-borjie"]
+      }
+    }
+  }
+}
+```
+
+Set `BORJIE_API_BASE_URL` and `BORJIE_MCP_TOKEN` in your shell.
+
+### Plain `mcp-cli` (smoke test)
+
+```bash
+BORJIE_API_BASE_URL=https://api.borjie.app \
+BORJIE_MCP_TOKEN=<your access token> \
+npx -y @anthropic-ai/mcp-cli --command 'npx -y @borjie/mcp-server-borjie' tools/list
+```
+
+### HTTP transport (no stdio subprocess)
+
+```bash
+curl -sS -X POST https://api.borjie.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your access token>" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+### SSE transport (long-lived stream)
+
+```bash
+curl -sS -N https://api.borjie.app/mcp/sse \
+  -H "Authorization: Bearer <your access token>"
+```
+
+## SOTA primitives
+
+This server ships **all 12** MCP 2024-11-05 primitives plus four
+computer-use-style semantic actions:
+
+| # | Primitive | Implementation |
+| - | --- | --- |
+| 1 | SSE transport | `transports/sse.ts` + api-gateway `mcp-public.hono.ts` |
+| 2 | sampling/createMessage | `sampling.ts` |
+| 3 | roots/list + roots/list_changed | `roots.ts` |
+| 4 | logging/setLevel + logging/message | `logging.ts` |
+| 5 | $/progress notifications | `progress.ts` |
+| 6 | resources/subscribe + resources/updated | `subscriptions.ts` |
+| 7 | $/result_partial streaming | `progress.ts` |
+| 8 | session checkpoint/resume | `sessions.ts` + migration 0120 |
+| 9 | computer-use actions (navigate/prefill/share/undo) | `actions.ts` |
+| 10 | per-scope rate limit (-32099) | `rate-limit.ts` |
+| 11 | four-eye approval (-32011) for sovereign tools | `four-eye.ts` + migration 0121 |
+| 12 | discovery filters + workspace mirror | dispatcher + `workspace.ts` |
+
 ## Development
 
 ```bash

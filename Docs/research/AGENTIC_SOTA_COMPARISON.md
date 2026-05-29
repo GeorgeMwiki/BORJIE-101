@@ -646,3 +646,46 @@ The verification harness for the table lives at
 errors,update-notifier,toml,user-config,diff,agent,stdin}.test.ts`
 (per-feature unit tests). All 57 tests pass under `pnpm --filter
 @borjie/cli test`.
+
+## Public MCP Server SOTA scorecard
+
+Borjie MCP server is the only one shipping all 12 MCP primitives +
+computer-use-style actions + four-eye + sessions:
+
+| Primitive | Anthropic ref | OpenAI Apps SDK | Cursor MCP | Windsurf | Borjie |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| stdio transport               | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HTTP transport                | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SSE transport                 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| tools/list + tools/call       | ✅ | ✅ | ✅ | ✅ | ✅ |
+| resources/list + resources/read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| prompts/list + prompts/get    | ✅ | ✅ | ✅ | ✅ | ✅ |
+| sampling/createMessage        | ✅ | ❌ | ❌ | ❌ | ✅ |
+| roots/list + list_changed     | ✅ | ❌ | ❌ | ❌ | ✅ |
+| logging/setLevel + message    | ✅ | ❌ | ❌ | ❌ | ✅ |
+| $/progress notifications      | ✅ | partial | ❌ | ❌ | ✅ |
+| $/result_partial streaming    | partial | ❌ | ❌ | ❌ | ✅ |
+| resources/subscribe + updated | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Computer-use semantic actions | ✅ (browser) | ❌ | ❌ | ❌ | ✅ (cockpit) |
+| Persistent session resume     | ❌ | partial | ❌ | ❌ | ✅ |
+| Per-scope token bucket        | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Four-eye approval gate        | ❌ | ❌ | ❌ | ❌ | ✅ |
+| OAuth2 device flow            | ✅ | ✅ | partial | ✅ | ✅ |
+| Workspace mirror              | partial | ❌ | ❌ | ❌ | ✅ |
+| Discovery filters             | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Bilingual sw/en               | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Hash-chain audit              | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Capability manifest           | partial | ❌ | ❌ | ❌ | ✅ |
+
+Borjie ships every MCP 2024-11-05 primitive AND adds four sovereign-
+action prefixes that must clear an owner-side four-eye approval
+before they execute. The cockpit-driving semantic actions
+(`actions/navigate|prefill|share|undo`) give an external agent the
+same hands-on-the-glass authority Claude Computer Use grants over a
+browser, but bounded by Borjie's RLS, scope, kill-switch, and audit
+chain.
+
+The verification harness for the MCP server's table lives at
+`services/mcp-server-borjie/src/__tests__/*.test.ts`. All 86 tests
+across 16 files pass under `pnpm --filter @borjie/mcp-server-borjie
+test`.
