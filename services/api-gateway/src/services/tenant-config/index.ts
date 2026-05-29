@@ -44,3 +44,11 @@ export {
   getLanguageEntry,
   type LanguageCatalogueEntry,
 } from './language.js';
+
+// WS-3 — regulator lookup. Queries the tenant-AGNOSTIC
+// `regulator_jurisdictions` catalogue.
+export {
+  createDrizzleRegulatorLookup,
+  type RegulatorAuthority,
+  type RegulatorLookup,
+} from './regulators.js';
