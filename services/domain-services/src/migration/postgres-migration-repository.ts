@@ -18,15 +18,21 @@ import { migrationRuns, employees } from '@borjie/database';
 // tables were retired by `0003_mining_domain.sql`. Migrations are still
 // served against the new mining-domain tables via a per-bundle adapter
 // (see api-gateway/.../migration.hono.ts); these placeholders keep the
-// dependency-resolution graph compiling. They are passed to
-// `insertReturning` which accepts an `unknown` table arg and will throw
-// inside the catch-block at runtime when called (preserving the
-// historical behaviour where these were effectively `any = undefined`).
-const properties: unknown = undefined;
-const units: unknown = undefined;
-const customers: unknown = undefined;
-const departments: unknown = undefined;
-const teams: unknown = undefined;
+// dependency-resolution graph compiling and carry the minimal surface
+// (`id` accessor + unique identity) needed by the in-memory test fake.
+// Production never reaches a real insert through these symbols — callers
+// route through the per-bundle adapter — but a unique object per name
+// keeps the dependency graph + tests honest.
+type PlaceholderTable = { readonly _table: string; readonly id: { name: string } };
+const placeholderTable = (name: string): PlaceholderTable => ({
+  _table: name,
+  id: { name: 'id' },
+});
+const properties: PlaceholderTable = placeholderTable('properties');
+const units: PlaceholderTable = placeholderTable('units');
+const customers: PlaceholderTable = placeholderTable('customers');
+const departments: PlaceholderTable = placeholderTable('departments');
+const teams: PlaceholderTable = placeholderTable('teams');
 import type {
   IMigrationRepository,
   MigrationBundle,

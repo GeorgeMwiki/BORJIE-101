@@ -22,11 +22,15 @@
 import { and, eq, lt, type Column, type SQLWrapper } from 'drizzle-orm';
 // Mining-domain hard-fork drift: the `cases` table was renamed during
 // `0003_mining_domain.sql`. The Wave-3 SLA worker still wires this repo
-// in api-gateway, so we keep the file compiling with a placeholder.
-// Structural shape preserves drizzle column accessors so `eq()/lt()`
-// still type-check; the repo throws at runtime if reached.
+// in api-gateway, so we keep the file compiling with a structural
+// placeholder. Production callers never reach a real `cases` row — the
+// table is gone — but the in-memory fake used by tests dispatches on
+// `_table` and column `.name`, so the placeholder carries both. If the
+// table ever returns under `@borjie/database`, swap this for a real
+// import without touching the call sites.
 type CaseColumn = Column & SQLWrapper;
 interface CasesTableShape {
+  readonly _table: string;
   readonly id: CaseColumn;
   readonly tenantId: CaseColumn;
   readonly caseNumber: CaseColumn;
@@ -34,8 +38,20 @@ interface CasesTableShape {
   readonly assignedTo: CaseColumn;
   readonly propertyId: CaseColumn;
   readonly resolutionDueAt: CaseColumn;
+  readonly status: CaseColumn;
 }
-const casesTable = undefined as unknown as CasesTableShape;
+const col = (name: string) => ({ name }) as unknown as CaseColumn;
+const casesTable: CasesTableShape = {
+  _table: 'cases',
+  id: col('id'),
+  tenantId: col('tenantId'),
+  caseNumber: col('caseNumber'),
+  customerId: col('customerId'),
+  assignedTo: col('assignedTo'),
+  propertyId: col('propertyId'),
+  resolutionDueAt: col('resolutionDueAt'),
+  status: col('status'),
+};
 void and; void eq; void lt;
 import type {
   TenantId,
