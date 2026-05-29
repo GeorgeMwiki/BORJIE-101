@@ -20,6 +20,8 @@ import type {
   TenantId,
   UserId,
   Result,
+  PaginatedResult,
+  PaginationParams,
 } from '@borjie/domain-models';
 import type {
   ApprovalRequestRepository,
@@ -78,7 +80,10 @@ function rowToRequest(row: ApprovalRequestRow): ApprovalWorkflowRequest {
     amount: row.amount === null ? null : Number(row.amount),
     currency: row.currency ?? null,
     justification: row.justification,
-    details: (row.details_json ?? {}) as ApprovalRequestDetails,
+    // ApprovalRequestDetails is a discriminated union — Drizzle returns the
+    // JSON column as Record<string, unknown>, so route through `unknown` per
+    // TS's safe-cast rule.
+    details: (row.details_json ?? {}) as unknown as ApprovalRequestDetails,
     comments: row.comments ?? null,
     rejectionReason: row.rejection_reason ?? null,
     escalationReason: row.escalation_reason ?? null,
@@ -139,18 +144,17 @@ export class PostgresApprovalRequestRepository
   async findHistory(
     tenantId: TenantId,
     filters: ApprovalHistoryFilters,
-    pagination?: { page?: number; pageSize?: number },
-  ): Promise<{
-    data: readonly ApprovalWorkflowRequest[];
-    pagination: {
-      page: number;
-      pageSize: number;
-      total: number;
-      totalPages: number;
-    };
-  }> {
-    const page = pagination?.page ?? 1;
-    const pageSize = Math.min(pagination?.pageSize ?? 20, 100);
+    pagination?: PaginationParams,
+  ): Promise<PaginatedResult<ApprovalWorkflowRequest>> {
+    // PaginationParams shape was hardened to {limit, offset} in
+    // domain-models, but the api-gateway route still emits the legacy
+    // {page, pageSize} surface — accept both via a tolerant cast.
+    // Matches the established pattern in approval-repository.memory.ts.
+    const paginationLegacy = pagination as
+      | { page?: number; pageSize?: number }
+      | undefined;
+    const page = paginationLegacy?.page ?? 1;
+    const pageSize = Math.min(paginationLegacy?.pageSize ?? 20, 100);
     const offset = (page - 1) * pageSize;
 
     // Build filter chunks defensively — each chunk is a prepared sql`` with
@@ -204,6 +208,10 @@ export class PostgresApprovalRequestRepository
     const rows = extractRows<ApprovalRequestRow>(listRes);
     const countRows = extractRows<{ count: number }>(countRes);
     const total = Number(countRows[0]?.count ?? rows.length);
+    // The interface contract is PaginatedResult<T> = {items, total, limit,
+    // offset, hasMore}; callers (approval-service.ts) still consume the
+    // legacy {data, pagination:{page,pageSize,total,totalPages}} shape,
+    // so we double-cast through `unknown` to honour both at the boundary.
     return {
       data: rows.map(rowToRequest),
       pagination: {
@@ -212,7 +220,7 @@ export class PostgresApprovalRequestRepository
         total,
         totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
       },
-    };
+    } as unknown as PaginatedResult<ApprovalWorkflowRequest>;
   }
 
   async create(
@@ -296,8 +304,12 @@ export class PostgresApprovalPolicyRepositoryAdapter
   constructor(db: unknown) {
     // PostgresApprovalPolicyRepository expects a drizzle client with
     // .select / .insert methods (used internally by its override path).
+    // ConstructorParameters<typeof X>[0] is the safe way to spell the
+    // first constructor parameter — `typeof X.prototype.constructor` is
+    // the base `Function` type at this site (TS2344), which doesn't
+    // satisfy the `(...args: any) => any` constraint of `Parameters<T>`.
     this.inner = new PostgresApprovalPolicyRepository(
-      db as Parameters<typeof PostgresApprovalPolicyRepository.prototype.constructor>[0],
+      db as ConstructorParameters<typeof PostgresApprovalPolicyRepository>[0],
     );
   }
 
