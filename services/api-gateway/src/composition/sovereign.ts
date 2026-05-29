@@ -105,6 +105,7 @@ type SovereignRole = 'tenant' | 'manager' | 'owner' | 'org-admin' | 'sovereign';
 import { getDb } from './db-client';
 import { readSovereignLedgerFailClosedFromEnv } from './service-registry';
 import { wrapAnthropicWithCircuitBreaker } from './anthropic-circuit-breaker';
+import { wrapAnthropicWithOtelSpans } from './anthropic-otel-spans';
 import {
   createBoundActionToolDeps,
   createBoundWakeReadDeps,
@@ -228,12 +229,20 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // branch and the realAgencyExecutor branch. Previously this load
   // lived after the agency block, which forced the COORD ZONE notes
   // requesting a reorganisation pass — that pass is this commit.
+  // G-FIX-3 — wrap the breaker output with OTel spans so the LLM
+  // call (the dominant contributor to brain.turn p99) is visible on
+  // the trace. Composition order: raw → breaker → OTel → sensor.
+  // The OTel wrapper sits outermost so its span timing also covers
+  // breaker short-circuits, which is what operators want on a
+  // dashboard ("LLM rejected fast" still counts as a measured event).
   const anthropicRaw = await loadAnthropicClient();
   const anthropic = anthropicRaw
-    ? wrapAnthropicWithCircuitBreaker(anthropicRaw, {
-        failureThreshold: 5,
-        recoveryTimeoutMs: 30_000,
-      })
+    ? wrapAnthropicWithOtelSpans(
+        wrapAnthropicWithCircuitBreaker(anthropicRaw, {
+          failureThreshold: 5,
+          recoveryTimeoutMs: 30_000,
+        }),
+      )
     : null;
 
   // Substrate sinks — Drizzle-backed when DB is up; otherwise the
