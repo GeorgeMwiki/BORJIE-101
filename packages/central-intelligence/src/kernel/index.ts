@@ -513,6 +513,15 @@ export * as introspection from './introspection/index.js';
 export * as agency from './agency/index.js';
 
 /**
+ * Mr. Mwikila autonomous-MD framework — owner-defined delegation
+ * tiers + inviolable safety rails for the autonomous handlers (shift
+ * scheduler, payroll prep, royalty filing prep, license renewal
+ * reminders, marketplace counter-bids). See
+ * `Docs/RESEARCH/AUTONOMOUS_MD_SOTA.md` for SOTA references.
+ */
+export * as autonomy from './autonomy/index.js';
+
+/**
  * Counter-model — second-LLM sanity check on destroy-tier / billing-
  * tier actions BEFORE the four-eye approval gate fires. Central Command
  * Phase B (B5). See `.planning/research/central-command/2025-agentic-
