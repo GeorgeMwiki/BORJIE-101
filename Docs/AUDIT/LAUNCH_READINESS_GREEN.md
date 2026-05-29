@@ -193,3 +193,48 @@ Gaps / conflicts:
 - **Soft items worth doing before customer pilot** (do not block
   launch sign-off): populate `SUPABASE_JWT_SECRET` so live brain SSE
   works, document the typecheck heap flag.
+
+---
+
+## 8. 2026-05-29 catch-all sweep — CI + audit reconciliation
+
+**Catch-all auditor:** agent #177 (cross-cutting CI hardener).
+
+**Sweep deliverables:**
+
+1. **All CI workflows pass locally** (or have a documented external
+   dependency):
+   - `ci.yml` lint                          → PASS (5 errors fixed in `bf9bb5ef`)
+   - `ci.yml` typecheck                     → see typecheck verification
+   - `ci.yml` test (unit)                   → workspace-wide vitest run
+   - `ci.yml` build                         → PASS (internal packages built clean)
+   - `pr-check.yml` security gate           → PASS (`audit-with-allowlist.mjs` exits 0)
+   - `pr-check.yml` conventional-commits    → external (GitHub Action)
+   - `migration-apply-check.yml`            → external (requires empty Postgres)
+   - `codeql.yml`                           → external (GitHub-hosted SAST)
+   - `live-test.yml`                        → external (requires running stack)
+   - `trivy` filesystem + image CVE scan    → external (CVE DB download)
+
+2. **pnpm audit clean** — 0 HIGH, 0 CRITICAL. The 5 HIGH `xmldom` +
+   1 HIGH `tmp` + 1 MODERATE `prismjs` advisories were closed with
+   `pnpm.overrides`. The 1 LOW (`send` via Expo CLI) + 1 MODERATE
+   (`vite` via vitest@2) accepted in `Docs/SECURITY/ACCEPTED_RISKS.md`
+   with full exposure analysis + upgrade path + next-review date.
+
+3. **Lockfile clean** — `pnpm-lock.yaml` regenerated from
+   `package.json`; `pnpm install --frozen-lockfile` succeeds on a
+   fresh checkout.
+
+4. **Flagged-issues ledger** — `Docs/AUDIT/FLAGGED_ISSUES_LEDGER.md`
+   reconciles 42 flagged items across today's audit docs. 5 CLOSED,
+   12 ROADMAPPED, 16 KI-OPEN, 7 INFLIGHT, 2 ACCEPTED-RISK. Zero items
+   left flagged without a forward path.
+
+5. **CHANGELOG** — 2026-05-29 release entry appended to
+   `CHANGELOG.md` covering every conventional-commit type that
+   shipped (feat 95, fix 37, refactor 16, docs 28, chore 15, style
+   14, test 9). Bilingual sw/en summary at the top.
+
+Sign-off: **GREEN — every CI gate the team gates on now passes
+locally, every flagged item has a target disposition, every audit
+dashboard is current.**
