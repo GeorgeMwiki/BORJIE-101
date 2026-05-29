@@ -19,6 +19,11 @@ export {
   type ParseChatHandoffsResult,
 } from './parser.js';
 export {
+  parseContextSet,
+  type ContextCrumbPayload,
+  type ParseContextSetResult,
+} from './context-set-parser.js';
+export {
   createHandoffRecorder,
   type HandoffRecorder,
   type HandoffRecorderDeps,
