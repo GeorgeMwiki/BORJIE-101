@@ -8,6 +8,7 @@ import { colors } from '@/theme/colors'
 import { createQueryClient } from '@/api/queryClient'
 import { ToastProvider } from '@/components/Toast'
 import { ThemeProvider } from '@/theme/ThemeProvider'
+import { EventStreamMount } from '@/lib/notifications/EventStreamMount'
 
 export default function RootLayout() {
   // useMemo guarantees the QueryClient is created once per app lifetime
@@ -21,6 +22,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <ThemeProvider defaultTheme="dark">
           <ToastProvider>
+            <EventStreamMount />
             <StatusBar style="dark" />
             <Stack
               screenOptions={{
