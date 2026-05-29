@@ -139,6 +139,13 @@
       "reverses": "CREATE TABLE oauth_action_approvals + indexes + RLS (four-eye approval gate for sovereign tool prefixes)",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0139_device_push_tokens.sql",
+      "down": "down/0139_down_device_push_tokens.sql",
+      "reverses": "CREATE TABLE device_push_tokens + uniqueness + RLS (push token registry for the bidirectional notification receiver loop)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }

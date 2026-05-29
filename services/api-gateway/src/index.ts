@@ -87,6 +87,10 @@ import { productionRouter } from './routes/production/index';
 import { cooperativesRouter } from './routes/cooperatives/index';
 import { insuranceRouter } from './routes/insurance/index';
 import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
+// Wave KNOWLEDGE-HANDOFF — cross-role @mention handoff (migration 0137).
+// Persists the brain's `<chat_handoff />` SSE tag, fires notifications
+// to the recipient, and bubbles the reply back to the source chat.
+import { ownerHandoffRouter } from './routes/owner/handoff.hono';
 // Roadmap R2 — owner saved-search alerts. New CRUD surface under
 // /owner/saved-searches; companion worker lives in
 // services/api-gateway/src/workers/saved-search-worker.ts.
@@ -117,6 +121,11 @@ import { brainComposeRouter } from './routes/brain-compose.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
+// Bidirectional notification receiver loop — push token registry
+// (GET/POST /me/device-tokens, DELETE /me/device-tokens/:id).
+// Mobile apps call this on successful login so the dispatcher can
+// resolve every active token for a user before fanning out a push.
+import { meDeviceTokensRouter } from './routes/me/device-tokens.hono';
 import { workforceClockInRouter } from './routes/workforce/clock-in.hono';
 // R5 closure — field-workforce hero card data wires
 // (GET /me, /tasks/next, POST /tasks/:id/complete, /help-requests).
@@ -137,6 +146,20 @@ import applicationsRouter from './routes/applications.router';
 // REMOVED (borjie hard-fork): import arrearsRouter from './routes/arrears.router';
 import complianceRouter from './routes/compliance.router';
 import compliancePluginsRouter from './routes/compliance-plugins.router';
+// Issue #194 chain C-A — regulator data-subject-request inbox
+// (`/api/v1/regulator/requests/*`).
+import { createRegulatorRequestsRouter } from './routes/regulator';
+import { RegulatorRequestService } from './services/regulator/request-service';
+// Issue #194 chain C-B — licence renewal full flow
+// (`/api/v1/compliance/licences/:id/renewal/*`).
+import { createLicenceRenewalRouter } from './routes/compliance/licences/renewal.hono';
+import { LicenceRenewalService } from './services/regulator/licence-renewal-service';
+// Issue #194 chain C-C — AI-assisted inspection narratives
+// (`/api/v1/compliance/inspections/:id/narrative/*`).
+import { createInspectionNarrativeRouter } from './routes/compliance/inspections/narrative.hono';
+import { InspectionNarrativeService } from './services/inspection-narrative/generator';
+// Issue #194 chain C-B watcher — fires expiring-licence reminders.
+import { startLicenceRenewalWatcher } from './workers/licence-renewal-watcher';
 import docChatRouter from './routes/doc-chat.router';
 import documentRenderRouter from './routes/document-render.router';
 import financialProfileRouter from './routes/financial-profile.router';
@@ -170,6 +193,10 @@ import proposalsRouter from './routes/proposals.hono';
 import { scopeRouter } from './routes/scope/index';
 // Workforce invitations (owner-issued; worker self-activation).
 import { workforceInvitesRouter } from './routes/workforce/invites.hono';
+// Workforce openings + manager review (issue #193, HR onboarding chain L-A).
+import { workforceOpeningsRouter } from './routes/workforce/openings.hono';
+// Owner payroll runs + commit (issue #193, payroll chain L-B).
+import { ownerPayrollRouter } from './routes/owner/payroll.hono';
 // Piece G — GenUI artifact render endpoints. Uses a not-wired service
 // stub so /types is always live; /:id/render returns 404 until the
 // real Playwright + DB-backed service is bound (issue #33).
@@ -1367,6 +1394,9 @@ api.route('/production', productionRouter);
 api.route('/cooperatives', cooperativesRouter);
 api.route('/insurance', insuranceRouter);
 api.route('/owner/threads', ownerThreadsRouter);
+// Wave KNOWLEDGE-HANDOFF — POST /owner/handoff (create),
+// GET /owner/handoff/inbox, POST /owner/handoff/:id/resolve.
+api.route('/owner/handoff', ownerHandoffRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Mr. Mwikila autonomous-MD inbox + delegation surface.
@@ -1385,6 +1415,8 @@ api.route('/', personalKbRouter);
 api.route('/brain', brainComposeRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
+// Bidirectional notification receiver loop — push token registry.
+api.route('/me/device-tokens', meDeviceTokensRouter);
 api.route('/workforce', workforceClockInRouter);
 // R5 closure — field-workforce hero card surface
 // (apps/workforce-mobile/src/components/WorkerHomeHero.tsx).
@@ -1460,6 +1492,10 @@ api.route('/scope', scopeRouter);
 // `/activate` intentionally bypasses tenant scope (cross-tenant lookup
 // by phone+code); all other routes are RLS-scoped via auth middleware.
 api.route('/workforce/invites', workforceInvitesRouter);
+// HR onboarding chain L-A (issue #193) — owner posts openings + manager reviews.
+api.route('/workforce/openings', workforceOpeningsRouter);
+// Payroll chain L-B (issue #193) — owner runs period payroll + commits via LedgerService.post().
+api.route('/owner/payroll', ownerPayrollRouter);
 // Piece G — GenUI artifacts. /types always live, /:id/render gated on
 // real wiring (returns 404 from not-wired stub until composition lands).
 api.route(
@@ -1876,6 +1912,7 @@ const openApiRouter = createOpenApiRouter({
     { prefix: '/migration', app: migrationRouter as unknown as Hono, defaultTag: 'migration' },
 // REMOVED (borjie hard-fork):     { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
     { prefix: '/me/notification-preferences', app: notificationPreferencesRouter, defaultTag: 'notifications' },
+    { prefix: '/me/device-tokens', app: meDeviceTokensRouter, defaultTag: 'notifications' },
     { prefix: '/notification-webhooks', app: notificationWebhooksRouter, defaultTag: 'notifications' },
 // REMOVED (borjie hard-fork):     { prefix: '/occupancy-timeline', app: occupancyTimelineRouter, defaultTag: 'occupancy-timeline' },
 // REMOVED (borjie hard-fork):     { prefix: '/renewals', app: renewalsRouter, defaultTag: 'renewals' },
