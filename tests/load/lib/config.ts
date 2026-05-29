@@ -154,6 +154,14 @@ export const ENDPOINT_SLO_MS: Readonly<
   'buyers.signup': { p95: 1_500, p99: 3_000 },
   'workforce.activate': { p95: 1_000, p99: 2_000 },
   'mining.vision': { p95: 5_000, p99: 8_000 },
+  // G-FIX-3 — compound dashboard read budget (three serial GETs).
+  'dashboard.read': { p95: 800, p99: 1_500 },
+  // G-FIX-3 — M-Pesa STK callback (signed POST, ledger write).
+  'webhook.mpesa.stk': { p95: 400, p99: 800 },
+  // G-FIX-3 — single brain tool exec (hot read-tool roster).
+  'brain.tool.call': { p95: 600, p99: 1_500 },
+  // G-FIX-3 — cockpit SSE first frame (`event: connected`).
+  'cockpit.sse.subscribe': { p95: 250, p99: 600 },
 };
 
 /**
