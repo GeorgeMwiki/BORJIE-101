@@ -3,6 +3,7 @@ import { getOwnerSession } from '@/lib/session';
 import { OwnerProviders } from './owner-shell/OwnerProviders';
 import { Sidebar } from './owner-shell/Sidebar';
 import { TopBar } from './owner-shell/TopBar';
+import { TenantRail } from './TenantRail';
 
 interface OwnerShellProps {
   readonly children: ReactNode;
@@ -29,6 +30,10 @@ export async function OwnerShell({ children }: OwnerShellProps) {
   return (
     <OwnerProviders>
       <div className="relative flex min-h-screen bg-background text-foreground">
+        {/* Discord-style left rail — auto-hides when the user is linked
+            to ≤ 1 tenant so single-tenant owners see no visual noise.
+            See `Docs/ROADMAP.md` R12 (SHIPPED 2026-05-29). */}
+        <TenantRail />
         <Sidebar
           tenantName={session.tenant.tradingName}
           languagePreference={session.languagePreference}
