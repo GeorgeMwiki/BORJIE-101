@@ -253,6 +253,49 @@ function projectStreamEvent(evt: StreamTurnEvent, threadId: string): PublicSseFr
   }
 }
 
+/**
+ * Borjie-shaped ack-fast SSE event payload. Emitted immediately after
+ * `turn.accepted` and BEFORE any orchestrator work begins so the mobile
+ * chat surface can render a Swahili-first "thinking…" bubble inside
+ * <100 ms of the user hitting Send.
+ *
+ * Closes G1 from `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md` — wires the
+ * `Karibu, ninafikiri…` placeholder researched in
+ * `Docs/RESEARCH/mobile-chat-latency-ux.md` §11.1 and
+ * `Docs/RESEARCH/mobile-onload-intelligence.md` §4.2.
+ *
+ * Language is detected from the `Accept-Language` request header (sw
+ * default per CLAUDE.md hard rule). The text is deterministic — no LLM
+ * call — keeping the cost at a few µs of string format.
+ */
+const ACK_FAST_TEXTS = Object.freeze({
+  sw: 'Karibu, ninafikiri…',
+  en: 'Got it, thinking…',
+} as const);
+
+type AckFastLang = keyof typeof ACK_FAST_TEXTS;
+
+function pickAckFastLang(acceptLanguage: string | null): AckFastLang {
+  if (typeof acceptLanguage !== 'string' || acceptLanguage.length === 0) {
+    return 'sw';
+  }
+  // The Accept-Language header is a comma-separated list of
+  // language-quality pairs (`sw, en;q=0.8`). The first entry wins by
+  // browser convention. We intentionally do not parse `q=` weights —
+  // mobile clients send a single preferred language, not a ranked list.
+  const first = acceptLanguage.split(',')[0]?.trim().toLowerCase() ?? '';
+  if (first.startsWith('en')) return 'en';
+  return 'sw';
+}
+
+export function buildAckFastFrame(acceptLanguage: string | null): {
+  readonly text: string;
+  readonly lang: AckFastLang;
+} {
+  const lang = pickAckFastLang(acceptLanguage);
+  return Object.freeze({ text: ACK_FAST_TEXTS[lang], lang });
+}
+
 interface TurnGateContext {
   readonly tenant: { tenantId: string; tenantName: string; environment: 'production' | 'staging' | 'development' };
   readonly actor: { type: 'user'; id: string; email?: string; roles: string[] };
@@ -452,6 +495,23 @@ async function handleTurnSse(
         'failed to send turn.accepted frame',
       );
       return;
+    }
+    // Ack-fast — Swahili-first thinking placeholder. Emitted before any
+    // orchestrator work so the mobile chat surface paints a bubble in
+    // <100 ms. Detail: Docs/RESEARCH/mobile-chat-latency-ux.md §11.
+    try {
+      const ack = buildAckFastFrame(c.req.header('accept-language') ?? null);
+      await stream.writeSSE({
+        event: 'ack',
+        data: JSON.stringify({ text: ack.text, lang: ack.lang }),
+      });
+    } catch (err) {
+      // Non-fatal: the turn stream is still useful without the ack
+      // pre-paint. Log + continue.
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'failed to send ack frame',
+      );
     }
     let threadId = body.threadId;
     let bootstrap:

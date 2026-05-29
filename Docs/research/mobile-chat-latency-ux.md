@@ -737,3 +737,18 @@ When the proposal above lands, validate against these targets:
 
 **End of research doc.** No code changes have been applied. Ready
 for engineering review.
+
+---
+
+## Shipping log
+
+- **[SHIPPED 2026-05-29]** Ack-fast SSE event (§4.2 / §11) — the brain
+  gateway now emits `event: ack` with `Karibu, ninafikiri…` (sw default)
+  / `Got it, thinking…` (en) immediately after `turn.accepted` and
+  before any orchestrator work. The mobile chat surface paints the
+  ack as the first assistant-bubble fragment, dropping perceived TTFT
+  from ~600 ms to <100 ms on 4G. See
+  `services/api-gateway/src/routes/brain.hono.ts::buildAckFastFrame`
+  and tests `brain-streaming.test.ts` ("emits ack frame in Swahili"
+  + "emits ack frame in English when Accept-Language: en"). Closes G1
+  in `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`.

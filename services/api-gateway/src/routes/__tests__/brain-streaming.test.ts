@@ -409,6 +409,45 @@ describe('POST /api/v1/brain/turn — SSE happy path (Accept: text/event-stream)
     expect(doneData.cacheReadTokens).toBeNull();
   });
 
+  it('emits ack frame in Swahili immediately after turn.accepted (default)', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'text/event-stream',
+        // No Accept-Language → Swahili-first per Borjie hard rule.
+      },
+      body: JSON.stringify({ userText: 'kuongelea' }),
+    });
+    const frames = await readSseFrames(res.body, 4_000);
+    expect(frames[0]?.event).toBe('turn.accepted');
+    expect(frames[1]?.event).toBe('ack');
+    const ack = frames[1]?.data as { text: string; lang: string };
+    expect(ack.text).toBe('Karibu, ninafikiri…');
+    expect(ack.lang).toBe('sw');
+  });
+
+  it('emits ack frame in English when Accept-Language: en', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/turn', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'text/event-stream',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      body: JSON.stringify({ userText: 'speak english' }),
+    });
+    const frames = await readSseFrames(res.body, 4_000);
+    expect(frames[1]?.event).toBe('ack');
+    const ack = frames[1]?.data as { text: string; lang: string };
+    expect(ack.text).toBe('Got it, thinking…');
+    expect(ack.lang).toBe('en');
+  });
+
   it('emits tool_call frames in dispatch order before message_chunk for existing threads', async () => {
     const app = mount();
     const res = await app.request('/api/v1/brain/turn', {
