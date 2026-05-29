@@ -21,7 +21,7 @@ function decisionEvent(): CockpitEvent {
 }
 
 describe('cockpit-sse — kinds catalog', () => {
-  it('lists the six R6 event kinds', () => {
+  it('lists all R6 + L6 cockpit event kinds', () => {
     expect(COCKPIT_EVENT_KINDS).toEqual([
       'decision.recorded',
       'reminder.fired',
@@ -29,6 +29,7 @@ describe('cockpit-sse — kinds catalog', () => {
       'risk.changed',
       'workforce.shift_event',
       'compliance.deadline_approaching',
+      'production.posted',
     ]);
   });
 });
@@ -134,10 +135,58 @@ describe('cockpit-sse — bilingual describer', () => {
         dueAt: '2026-06-05T10:00:00Z',
         daysRemaining: 7,
       },
+      {
+        kind: 'production.posted',
+        tenantId: SAMPLE_TENANT,
+        emittedAt: '2026-05-29T10:00:00Z',
+        shiftReportId: 'sr-1',
+        siteId: 'site-a',
+        shiftDate: '2026-05-29',
+        romTonnes: 120,
+        metresAdvanced: 8,
+        bcmOverburden: 200,
+        fuelLitres: 450,
+      },
     ];
     for (const e of events) {
       expect(() => describeCockpitEvent(e, 'en')).not.toThrow();
       expect(() => describeCockpitEvent(e, 'sw')).not.toThrow();
     }
+  });
+
+  it('renders production.posted with the live ROM tonnes', () => {
+    const event: CockpitEvent = {
+      kind: 'production.posted',
+      tenantId: SAMPLE_TENANT,
+      emittedAt: '2026-05-29T10:00:00Z',
+      shiftReportId: 'sr-9',
+      siteId: 'site-x',
+      shiftDate: '2026-05-29',
+      romTonnes: 75,
+      metresAdvanced: null,
+      bcmOverburden: null,
+      fuelLitres: null,
+    };
+    expect(describeCockpitEvent(event, 'en')).toContain('75t ROM');
+    expect(describeCockpitEvent(event, 'sw')).toContain('Moja kwa moja');
+  });
+
+  it('parses a production.posted event from JSON', () => {
+    const out = parseCockpitEvent(
+      JSON.stringify({
+        kind: 'production.posted',
+        tenantId: SAMPLE_TENANT,
+        emittedAt: '2026-05-29T10:00:00Z',
+        shiftReportId: 'sr-9',
+        siteId: 'site-x',
+        shiftDate: '2026-05-29',
+        romTonnes: 75,
+        metresAdvanced: null,
+        bcmOverburden: null,
+        fuelLitres: null,
+      }),
+    );
+    expect(out).not.toBeNull();
+    expect(out?.kind).toBe('production.posted');
   });
 });

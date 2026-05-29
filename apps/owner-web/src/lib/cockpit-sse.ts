@@ -33,6 +33,7 @@ export const COCKPIT_EVENT_KINDS = [
   'risk.changed',
   'workforce.shift_event',
   'compliance.deadline_approaching',
+  'production.posted',
 ] as const;
 
 export type CockpitEventKind = (typeof COCKPIT_EVENT_KINDS)[number];
@@ -83,13 +84,30 @@ export interface ComplianceDeadlineApproachingEvent extends BaseEvent {
   readonly daysRemaining: number;
 }
 
+/**
+ * Commercial chain L6 — a shift report was just committed. Drives the
+ * owner cockpit's live production KPI tile (ROM tonnes, metres
+ * advanced, BCM overburden) without polling.
+ */
+export interface ProductionPostedEvent extends BaseEvent {
+  readonly kind: 'production.posted';
+  readonly shiftReportId: string;
+  readonly siteId: string;
+  readonly shiftDate: string;
+  readonly romTonnes: number | null;
+  readonly metresAdvanced: number | null;
+  readonly bcmOverburden: number | null;
+  readonly fuelLitres: number | null;
+}
+
 export type CockpitEvent =
   | DecisionRecordedEvent
   | ReminderFiredEvent
   | OpportunityScanCompletedEvent
   | RiskChangedEvent
   | WorkforceShiftEvent
-  | ComplianceDeadlineApproachingEvent;
+  | ComplianceDeadlineApproachingEvent
+  | ProductionPostedEvent;
 
 export interface CockpitStreamState {
   readonly connected: boolean;
@@ -155,6 +173,18 @@ export const COCKPIT_EVENT_COPY: Record<
     sw: (e) => {
       const ev = e as ComplianceDeadlineApproachingEvent;
       return `Faili ${ev.filingKind} inaisha katika siku ${ev.daysRemaining}`;
+    },
+  },
+  'production.posted': {
+    en: (e) => {
+      const ev = e as ProductionPostedEvent;
+      const tonnes = ev.romTonnes != null ? `${ev.romTonnes}t ROM` : 'shift report';
+      return `Live: ${tonnes} posted (${ev.shiftDate})`;
+    },
+    sw: (e) => {
+      const ev = e as ProductionPostedEvent;
+      const tonnes = ev.romTonnes != null ? `${ev.romTonnes}t` : 'ripoti ya zamu';
+      return `Moja kwa moja: ${tonnes} imewekwa (${ev.shiftDate})`;
     },
   },
 };

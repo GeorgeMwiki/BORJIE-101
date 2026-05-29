@@ -15,10 +15,20 @@ import { shiftReports } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
+import { createLogger } from '../../utils/logger';
 import {
   shiftReportsListRoute,
   shiftReportsCreateRoute,
 } from './_openapi/route-defs';
+
+const moduleLogger = createLogger('mining-shift-reports');
+
+function toNumberOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
@@ -84,6 +94,35 @@ app.openapi(
           createdAt: new Date(),
         })
         .returning();
+
+      // Commercial chain L6 — fan out to the cockpit SSE stream so the
+      // owner cockpit's live KPI tile updates without polling. Best-effort
+      // (the row is already persisted; SSE drop must not roll back).
+      try {
+        publishCockpitEvent({
+          kind: 'production.posted',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          shiftReportId: String(row.id),
+          siteId: input.siteId,
+          shiftDate: input.shiftDate,
+          romTonnes: toNumberOrNull(input.romTonnes),
+          metresAdvanced: toNumberOrNull(input.metresAdvanced),
+          bcmOverburden: toNumberOrNull(input.bcmOverburden),
+          fuelLitres: toNumberOrNull(input.fuelLitres),
+        });
+      } catch (err) {
+        moduleLogger.warn(
+          {
+            err,
+            tenantId,
+            shiftReportId: row.id,
+            siteId: input.siteId,
+          },
+          'production_posted_event_publish_failed',
+        );
+      }
+
       return c.json({ success: true as const, data: row }, 201);
     },
   ),
