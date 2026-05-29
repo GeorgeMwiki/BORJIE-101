@@ -14,6 +14,7 @@ import { Pricing } from '@/components/Pricing';
 import { Testimonial } from '@/components/Testimonial';
 import { Footer } from '@/components/Footer';
 import { LazyVisible } from '@/components/LazyVisible';
+import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { StaggerReveal } from '@/components/animations/StaggerReveal';
 import { FrontierBanner } from '@/components/sections/FrontierBanner';
 import { ProblemSolution } from '@/components/sections/ProblemSolution';
@@ -94,7 +95,10 @@ export default async function HomePage() {
         <LazyVisible placeholderClassName="min-h-[520px]">
           <HeadBriefingDemo locale={locale} />
         </LazyVisible>
-        <LazyVisible placeholderClassName="min-h-[560px]">
+        <LazyVisible
+          placeholderClassName="min-h-[560px]"
+          fallback={<SectionSkeleton minHeight={560} cards={3} />}
+        >
           <MwikilaModesSection locale={locale} />
         </LazyVisible>
         <LazyVisible placeholderClassName="min-h-[480px]">
@@ -106,13 +110,19 @@ export default async function HomePage() {
         <LazyVisible placeholderClassName="min-h-[520px]">
           <PlatformShowcaseSection locale={locale} />
         </LazyVisible>
-        <LazyVisible placeholderClassName="min-h-[600px]">
+        <LazyVisible
+          placeholderClassName="min-h-[600px]"
+          fallback={<SectionSkeleton minHeight={600} cards={4} />}
+        >
           <BentoGrid locale={locale} />
         </LazyVisible>
         <LazyVisible placeholderClassName="min-h-[320px]">
           <StatsBand locale={locale} />
         </LazyVisible>
-        <LazyVisible placeholderClassName="min-h-[480px]">
+        <LazyVisible
+          placeholderClassName="min-h-[480px]"
+          fallback={<SectionSkeleton minHeight={480} cards={3} />}
+        >
           <InsightsAndScaleSection locale={locale} />
         </LazyVisible>
         <LazyVisible placeholderClassName="min-h-[480px]">

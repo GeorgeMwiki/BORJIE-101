@@ -16,12 +16,19 @@ export interface LazyVisibleProps {
   readonly children: ReactNode;
   readonly rootMargin?: string;
   readonly placeholderClassName?: string;
+  /**
+   * R34 — optional fallback rendered in place of the plain placeholder
+   * spacer while the section is gated. Pass `<SectionSkeleton />` to
+   * mimic the LitFin shimmer pattern.
+   */
+  readonly fallback?: ReactNode;
 }
 
 export function LazyVisible({
   children,
   rootMargin = '400px',
   placeholderClassName = 'min-h-[480px]',
+  fallback,
 }: LazyVisibleProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
@@ -50,5 +57,12 @@ export function LazyVisible({
   }, [rootMargin, visible]);
 
   if (visible) return <>{children}</>;
+  if (fallback !== undefined) {
+    return (
+      <div ref={ref} aria-hidden="true">
+        {fallback}
+      </div>
+    );
+  }
   return <div ref={ref} aria-hidden="true" className={placeholderClassName} />;
 }

@@ -95,6 +95,15 @@ export {
 } from './grounding/claim-extractor.js';
 
 export {
+  classifySentencesWithLlm,
+  type ClaimLlmClient,
+  type ClaimLlmRequest,
+  type ClaimLlmResponse,
+  type ClaimLogger,
+  type ClassifySentencesWithLlmOptions,
+} from './grounding/claim-extractor-llm.js';
+
+export {
   buildCitationIndex,
   resolveCitations,
   type CitationResolution,
