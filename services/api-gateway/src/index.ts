@@ -962,9 +962,18 @@ try {
       configureRiskScannerTools({ db: dbForBrainTools });
       configureDecisionJournalTools({ db: dbForBrainTools });
     }
+    // The `ServiceRegistry` interface does not currently model an
+    // optional kill-switch slot. Some legacy boot paths attached an
+    // `isOpen()` port directly to the registry — keep a defensive
+    // read-through so this site fails-open (kill-switch closed = false)
+    // when the slot is absent. Cast through `unknown` to side-step the
+    // missing-field typecheck without weakening the registry contract.
     const killSwitchOpen =
-      (serviceRegistry.killSwitch as { isOpen?: () => boolean } | undefined)
-        ?.isOpen?.() === true;
+      (
+        (serviceRegistry as unknown as {
+          killSwitch?: { isOpen?: () => boolean };
+        }).killSwitch?.isOpen?.()
+      ) === true;
     const personaGate: PersonaToolGate = {
       killSwitchOpen,
       // The persona slug is resolved from `ToolExecutionContext.actor`
