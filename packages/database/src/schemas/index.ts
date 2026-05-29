@@ -1230,3 +1230,10 @@ export * from './compliance-exports.schema.js';
 // /api/v1/field/workforce/help-requests; fan-out to the owner cockpit
 // via the workforce.shift_event bus.
 export * from './help-requests.schema.js';
+
+// Roadmap R11 — buyer-initiated marketplace `request_for_bids` +
+// `request_for_bid_responses` sidecar (migration 0127). Buyers post
+// "I want N tonnes of X at TZS Y per unit by D"; sellers within the
+// geo predicate respond. Surfaced via /api/v1/marketplace/rfb on the
+// gateway and the buyer-mobile rfb-create / rfb-list screens.
+export * from './request-for-bids.schema.js';
