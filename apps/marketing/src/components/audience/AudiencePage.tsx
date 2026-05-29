@@ -106,7 +106,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
 
             <h1
               id="audience-hero-headline"
-              className="mt-6 font-display text-5xl font-medium leading-[1.02] tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
+              className="mt-6 font-display text-5xl font-medium leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
             >
               {copy.heroHeadline}{' '}
               <span className="italic text-signal-500">
@@ -282,7 +282,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
                   <li key={item.title} className="flex items-start gap-3">
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-[11px] font-semibold tabular-nums text-destructive"
+                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-badge font-semibold tabular-nums text-destructive"
                     >
                       {i + 1}
                     </span>

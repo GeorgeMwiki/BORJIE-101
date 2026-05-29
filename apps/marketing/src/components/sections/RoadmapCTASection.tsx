@@ -97,7 +97,7 @@ export function RoadmapCTASection({
               className={`relative rounded-lg border p-5 text-left transition-colors ${PILL_TONE_CLASSES[pill.tone]}`}
             >
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-signal-500">
+                <span className="font-mono text-tiny uppercase tracking-widest text-signal-500">
                   {pill.label}
                 </span>
                 {pill.tone === 'active' && (

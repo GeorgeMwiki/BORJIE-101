@@ -176,7 +176,7 @@ export function MwikilaModesSection({
                     <div className="h-2 w-2 rounded-full bg-neutral-500/30" />
                     <div className="h-2 w-2 rounded-full bg-neutral-500/30" />
                   </div>
-                  <span className="ml-1 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+                  <span className="ml-1 font-mono text-tiny uppercase tracking-widest text-neutral-500">
                     mr-mwikila / {active.label}
                   </span>
                 </div>
@@ -222,7 +222,7 @@ const STEPS = ['Import', 'OCR · KYB', 'Knowledge graph', 'Roles'] as const;
 function BuildMock() {
   return (
     <div className="space-y-3">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         Bootstrap · 48 hours
       </div>
       <div className="space-y-2">
@@ -234,11 +234,11 @@ function BuildMock() {
             transition={{ delay: i * 0.12 }}
             className="flex items-center gap-3"
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal-500/15 font-mono text-[10px] font-semibold text-signal-500 tabular-nums">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-signal-500/15 font-mono text-tiny font-semibold text-signal-500 tabular-nums">
               {i + 1}
             </span>
             <span className="text-sm text-foreground">{step}</span>
-            <span className="ml-auto font-mono text-[10px] text-success">
+            <span className="ml-auto font-mono text-tiny text-success">
               OK
             </span>
           </motion.div>
@@ -256,7 +256,7 @@ const SCENARIOS = [
 function StrategyMock() {
   return (
     <div className="space-y-3">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         12-month projection
       </div>
       {SCENARIOS.map((s, i) => (
@@ -286,7 +286,7 @@ const SHIFTS = [
 function OperationsMock() {
   return (
     <div className="space-y-2">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         Overnight · 25 May
       </div>
       {SHIFTS.map((s, i) => (
@@ -320,7 +320,7 @@ function DocumentMock() {
   ];
   return (
     <div className="space-y-2">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         Drafted · awaiting signature
       </div>
       {docs.map((d, i) => (
@@ -342,7 +342,7 @@ function DocumentMock() {
 function FinanceMock() {
   return (
     <div className="space-y-3">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         Treasury · live
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -358,7 +358,7 @@ function FinanceMock() {
             <div className="font-display text-base font-semibold tabular-nums text-foreground">
               {b.v}
             </div>
-            <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+            <div className="font-mono text-spark uppercase tracking-wider text-neutral-500">
               {b.l}
             </div>
           </div>
@@ -381,7 +381,7 @@ const GATES = [
 function RiskMock() {
   return (
     <div className="space-y-2">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         5-gate validator
       </div>
       {GATES.map((g, i) => (
@@ -393,7 +393,7 @@ function RiskMock() {
           className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2"
         >
           <span className="text-xs text-neutral-300">{g}</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-success">
+          <span className="font-mono text-tiny uppercase tracking-widest text-success">
             PASS
           </span>
         </motion.div>
@@ -410,7 +410,7 @@ function ComplianceMock() {
   ];
   return (
     <div className="space-y-2">
-      <div className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <div className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
         Audit chain · last 3 entries
       </div>
       <div className="rounded-md border border-border bg-surface">
@@ -422,13 +422,13 @@ function ComplianceMock() {
             transition={{ delay: i * 0.08 }}
             className="flex items-center justify-between border-b border-border px-3 py-2 last:border-b-0"
           >
-            <span className="font-mono text-[10px] text-neutral-500 tabular-nums">
+            <span className="font-mono text-tiny text-neutral-500 tabular-nums">
               #{e.seq}
             </span>
-            <span className="font-mono text-[10px] text-neutral-300">
+            <span className="font-mono text-tiny text-neutral-300">
               {e.action}
             </span>
-            <span className="font-mono text-[10px] text-signal-500">
+            <span className="font-mono text-tiny text-signal-500">
               {e.hash}
             </span>
           </motion.div>

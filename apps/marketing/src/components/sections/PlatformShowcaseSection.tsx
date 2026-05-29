@@ -85,7 +85,7 @@ export function PlatformShowcaseSection({
                     <div className="h-2 w-2 rounded-full bg-neutral-500/40" />
                     <div className="h-2 w-2 rounded-full bg-neutral-500/40" />
                   </div>
-                  <span className="ml-1 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+                  <span className="ml-1 font-mono text-tiny uppercase tracking-widest text-neutral-500">
                     {tile.title}
                   </span>
                 </div>
@@ -102,7 +102,7 @@ export function PlatformShowcaseSection({
                           <div className="font-display text-lg font-semibold tabular-nums text-signal-500">
                             {k.value}
                           </div>
-                          <div className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+                          <div className="mt-0.5 font-mono text-spark uppercase tracking-wider text-neutral-500">
                             {k.label}
                           </div>
                         </div>
@@ -161,7 +161,7 @@ export function PlatformShowcaseSection({
                 <h3 className="text-sm font-semibold tracking-tight text-foreground">
                   {tile.title}
                 </h3>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-signal-500">
+                <div className="font-mono text-tiny uppercase tracking-widest text-signal-500">
                   {tile.subtitle}
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">

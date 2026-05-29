@@ -49,7 +49,7 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
         <span className="font-mono text-meta uppercase tracking-widest text-neutral-500">
           06:00 Brief
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 text-[10px] font-medium text-signal-500">
+        <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 text-tiny font-medium text-signal-500">
           <span className="h-1 w-1 rounded-full bg-signal-500" aria-hidden="true" />
           Live
         </span>
@@ -71,7 +71,7 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
             <div className="font-display text-xl font-semibold tabular-nums text-foreground">
               {k.value}
             </div>
-            <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+            <div className="font-mono text-spark uppercase tracking-wider text-neutral-500">
               {k.label}
             </div>
           </motion.div>

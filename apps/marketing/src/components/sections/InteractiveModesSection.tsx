@@ -89,7 +89,7 @@ export function InteractiveModesSection({
                       <h3 className="text-lg font-semibold tracking-tight text-foreground">
                         {mode.title}
                       </h3>
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-signal-500">
+                      <span className="font-mono text-tiny uppercase tracking-widest text-signal-500">
                         {mode.subtitle}
                       </span>
                     </div>
@@ -103,12 +103,12 @@ export function InteractiveModesSection({
                 <div className="mt-auto border-t border-border bg-background/60 p-4">
                   <div className="space-y-2">
                     <div className="flex justify-end">
-                      <span className="max-w-[85%] rounded-2xl rounded-br-sm bg-signal-500/20 px-3 py-2 text-xs leading-relaxed text-foreground">
+                      <span className="max-w-bubble rounded-2xl rounded-br-sm bg-signal-500/20 px-3 py-2 text-xs leading-relaxed text-foreground">
                         {mode.preview.user}
                       </span>
                     </div>
                     <div className="flex justify-start">
-                      <span className="max-w-[85%] rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-neutral-300">
+                      <span className="max-w-bubble rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-neutral-300">
                         {mode.preview.ai}
                       </span>
                     </div>

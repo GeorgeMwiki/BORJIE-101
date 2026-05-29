@@ -107,7 +107,7 @@ export function BentoGrid({ locale }: { readonly locale: Locale }) {
                           aria-hidden="true"
                         />
                       </div>
-                      <span className="rounded-full bg-signal-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-signal-500">
+                      <span className="rounded-full bg-signal-500/10 px-2 py-0.5 font-mono text-tiny uppercase tracking-widest text-signal-500">
                         {tile.badge}
                       </span>
                     </div>
@@ -157,7 +157,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
           ].map((e) => (
             <div
               key={e.seq}
-              className="flex items-center justify-between py-1 text-[10px]"
+              className="flex items-center justify-between py-1 text-tiny"
             >
               <span className="font-mono text-neutral-500 tabular-nums">
                 #{e.seq}
@@ -171,7 +171,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
     case 'licence':
       return (
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[10px]">
+          <div className="flex items-center justify-between text-tiny">
             <span className="text-neutral-500">PML 0241/2023</span>
             <span className="font-mono text-signal-500 tabular-nums">
               47 days
@@ -187,7 +187,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
       );
     case 'hedge':
       return (
-        <div className="flex items-center gap-2 rounded-md border border-signal-500/30 bg-signal-500/5 px-3 py-2 text-[10px]">
+        <div className="flex items-center gap-2 rounded-md border border-signal-500/30 bg-signal-500/5 px-3 py-2 text-tiny">
           <span
             className="h-1.5 w-1.5 rounded-full bg-signal-500"
             aria-hidden="true"
@@ -198,7 +198,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
       );
     case 'royalty':
       return (
-        <div className="rounded-md border border-border bg-background/50 px-3 py-2 text-[10px]">
+        <div className="rounded-md border border-border bg-background/50 px-3 py-2 text-tiny">
           <div className="text-neutral-500">April royalty draft</div>
           <div className="font-mono text-base font-semibold tabular-nums text-foreground">
             TZS 18.4M
@@ -211,7 +211,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
           {['M-Pesa', 'Tigo Pesa', 'Airtel'].map((rail) => (
             <div
               key={rail}
-              className="rounded-md border border-border bg-background/50 px-2 py-1.5 text-center text-[10px]"
+              className="rounded-md border border-border bg-background/50 px-2 py-1.5 text-center text-tiny"
             >
               <div className="font-semibold text-foreground">{rail}</div>
               <div className="font-mono text-success">live</div>

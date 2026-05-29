@@ -48,7 +48,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                   : 'border-border bg-surface hover:border-border-strong',
               ].join(' ')}
             >
-              <header className="min-h-[5rem]">
+              <header className="min-h-stat">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-display text-xl font-medium tracking-tight">
                     {tier.name}

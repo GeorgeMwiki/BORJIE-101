@@ -65,7 +65,7 @@ export function MeshGradient({
     >
       {/* Orb 1 — top-left, large gold */}
       <motion.div
-        className="absolute w-[70%] h-[70%] rounded-full blur-[100px]"
+        className="absolute w-skel-70 h-skel-70 rounded-full blur-[100px]"
         style={{
           background: `radial-gradient(circle, ${ORB_COLORS[0]} 0%, transparent 70%)`,
           left: '-15%',
@@ -88,7 +88,7 @@ export function MeshGradient({
 
       {/* Orb 2 — top-right, warm gold */}
       <motion.div
-        className="absolute w-[60%] h-[60%] rounded-full blur-[120px]"
+        className="absolute w-skel-60 h-skel-60 rounded-full blur-[120px]"
         style={{
           background: `radial-gradient(circle, ${ORB_COLORS[1]} 0%, transparent 70%)`,
           right: '-10%',
@@ -111,7 +111,7 @@ export function MeshGradient({
 
       {/* Orb 3 — bottom-center, deeper gold */}
       <motion.div
-        className="absolute w-[50%] h-[50%] rounded-full blur-[80px]"
+        className="absolute w-skel-50 h-skel-50 rounded-full blur-[80px]"
         style={{
           background: `radial-gradient(circle, ${ORB_COLORS[2]} 0%, transparent 70%)`,
           bottom: '-5%',
@@ -134,7 +134,7 @@ export function MeshGradient({
 
       {/* Orb 4 — center, cream highlight */}
       <motion.div
-        className="absolute w-[40%] h-[40%] rounded-full blur-[100px]"
+        className="absolute w-skel-40 h-skel-40 rounded-full blur-[100px]"
         style={{
           background: `radial-gradient(circle, ${ORB_COLORS[3]} 0%, transparent 70%)`,
           top: '30%',

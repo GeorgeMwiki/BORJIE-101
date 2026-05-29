@@ -174,7 +174,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
           : 'border-b border-border/30 bg-background/60 backdrop-blur-xl',
       ].join(' ')}
     >
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-2 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-container items-center justify-between gap-2 px-4 sm:px-6">
         <Link
           href="/"
           aria-label="Borjie home"
@@ -208,12 +208,12 @@ export function Nav({ locale }: { readonly locale: Locale }) {
             {audienceOpen && (
               <div
                 role="menu"
-                className="absolute left-1/2 top-full mt-2 w-[720px] -translate-x-1/2 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-[0_24px_80px_-20px_oklch(0.16_0.025_260/0.7)] backdrop-blur-2xl"
+                className="absolute left-1/2 top-full mt-2 w-cmd -translate-x-1/2 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-lift-medium backdrop-blur-2xl"
               >
                 <div className="grid grid-cols-4 gap-3">
                   {AUDIENCE_CATEGORIES.map((cat) => (
                     <div key={cat.titleKey}>
-                      <div className="mb-2.5 px-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                      <div className="mb-2.5 px-2 font-mono text-tiny font-semibold uppercase tracking-widest text-neutral-500">
                         {cats[cat.titleKey]}
                       </div>
                       <div className="space-y-0.5">
@@ -247,7 +247,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                                 <span className="block text-sm font-medium leading-tight text-foreground">
                                   {items[titleKey]}
                                 </span>
-                                <span className="mt-0.5 block text-[11px] leading-tight text-neutral-400">
+                                <span className="mt-0.5 block text-badge leading-tight text-neutral-400">
                                   {items[descKey]}
                                 </span>
                               </span>
@@ -299,7 +299,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
         {/* Right cluster */}
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hidden items-center rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-neutral-400 xl:inline-flex">
+          <span className="hidden items-center rounded-full border border-border/60 bg-background/60 px-3 py-1 text-tiny font-medium uppercase tracking-widest text-neutral-400 xl:inline-flex">
             Tanzania · TZS-first
           </span>
           <LanguageToggle current={locale} />
@@ -335,11 +335,11 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="max-h-[80vh] overflow-y-auto border-t border-border/60 bg-card/95 backdrop-blur-2xl lg:hidden">
+        <div className="max-h-dialog overflow-y-auto border-t border-border/60 bg-card/95 backdrop-blur-2xl lg:hidden">
           <div className="mx-auto max-w-7xl space-y-4 px-4 py-4">
             {AUDIENCE_CATEGORIES.map((cat) => (
               <div key={cat.titleKey}>
-                <div className="mb-2 px-4 font-mono text-[10px] font-semibold uppercase tracking-widest text-neutral-500">
+                <div className="mb-2 px-4 font-mono text-tiny font-semibold uppercase tracking-widest text-neutral-500">
                   {cats[cat.titleKey]}
                 </div>
                 <div className="grid grid-cols-2 gap-1">

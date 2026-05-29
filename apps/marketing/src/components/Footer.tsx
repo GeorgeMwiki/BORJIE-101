@@ -32,7 +32,7 @@ function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
  * gold palette and the mining audience taxonomy.
  *
  * Composition (top → bottom):
- *   1. Elevated rounded-[32px] container with subtle shadow and inner
+ *   1. Elevated rounded-panel container with subtle shadow and inner
  *      hairline grid (mirrors LitFin's nested brand-card pattern).
  *   2. Brand row: wordmark + tagline on the left, contact chips on the
  *      right (mailto + Dar es Salaam location).
@@ -122,10 +122,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.4 }}
-        className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6"
+        className="mx-auto max-w-container px-4 py-16 sm:px-6"
       >
         {/* Elevated brand-card container — LitFin signature */}
-        <div className="rounded-[32px] border border-border/60 bg-background/70 p-6 shadow-[0_24px_70px_-20px_oklch(0.16_0.025_260/0.6)] backdrop-blur-xl md:p-10">
+        <div className="rounded-panel border border-border/60 bg-background/70 p-6 shadow-lift-soft backdrop-blur-xl md:p-10">
           {/* Brand row */}
           <div className="mb-10 flex flex-col gap-4 border-b border-border/60 pb-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
@@ -156,14 +156,14 @@ export function Footer({ locale }: { readonly locale: Locale }) {
               <div className="rounded-3xl border border-signal-500/25 bg-signal-500/10 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-signal-500" aria-hidden />
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-signal-500">
+                  <span className="font-mono text-tiny font-semibold uppercase tracking-widest text-signal-500">
                     {t.complianceBadge}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-neutral-300">
                   {t.tanzaniaStorage}
                 </p>
-                <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+                <div className="mt-4 font-mono text-tiny uppercase tracking-widest text-neutral-500">
                   {t.regulatorStrip}
                 </div>
               </div>
@@ -206,14 +206,14 @@ export function Footer({ locale }: { readonly locale: Locale }) {
 
       {/* Bottom strip */}
       <div className="border-t border-border/60">
-        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-4 px-4 py-6 sm:flex-row sm:items-center sm:px-6">
+        <div className="mx-auto flex max-w-container flex-col items-start justify-between gap-4 px-4 py-6 sm:flex-row sm:items-center sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-success">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 font-mono text-tiny uppercase tracking-widest text-success">
               <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-success" />
               {t.systemsOperational}
             </span>
           </div>
-          <div className="flex flex-col items-start gap-2 font-mono text-[10px] uppercase tracking-widest text-neutral-400 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-col items-start gap-2 font-mono text-tiny uppercase tracking-widest text-neutral-400 sm:flex-row sm:items-center sm:gap-4">
             <span>© 2026 Borjie. {t.rights}</span>
             <span aria-hidden className="hidden h-3 w-px bg-border/60 sm:inline-block" />
             <span>Tanzania · TZS-first · {t.locale}</span>

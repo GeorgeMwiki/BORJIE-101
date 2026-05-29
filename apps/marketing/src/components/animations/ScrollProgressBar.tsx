@@ -52,7 +52,7 @@ export function ScrollProgressBar() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[2px]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-hairline"
     >
       <div
         className="h-full origin-left"

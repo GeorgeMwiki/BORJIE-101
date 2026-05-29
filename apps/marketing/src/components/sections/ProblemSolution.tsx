@@ -75,7 +75,7 @@ export function ProblemSolution({ locale }: { readonly locale: Locale }) {
                 <li key={item.title} className="flex items-start gap-3">
                   <span
                     aria-hidden="true"
-                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-[11px] font-semibold text-destructive tabular-nums"
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-badge font-semibold text-destructive tabular-nums"
                   >
                     {i + 1}
                   </span>
