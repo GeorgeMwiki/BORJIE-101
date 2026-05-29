@@ -518,3 +518,14 @@ buyers.
   `apps/buyer-mobile/src/marketplace/TrustChipStack.tsx` and tests
   `trust-chip-stack.test.ts`. Closes G2 in
   `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`.
+
+- **[SHIPPED 2026-05-29]** WalletBar (§2.1 + §8) — sticky-top wallet
+  component on the marketplace home with TZS-primary + USD/KES
+  secondary toggle, FX timestamp + stale-after-5-min indicator. Pure
+  `formatWalletAmount` formatter respects Borjie hard rule (currency
+  code is always supplied, never hard-coded). Renders a stub snapshot
+  until the gateway endpoint `/v1/mining/buyers/wallet` ships
+  (sibling-owned). See
+  `apps/buyer-mobile/src/marketplace/WalletBar.tsx`,
+  `walletFormat.ts`, and tests `wallet-format.test.ts`. Closes G3 in
+  `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`.

@@ -74,6 +74,13 @@
       "seller_history": "Historia ya muuzaji"
     }
   },
+  "wallet": {
+    "balance": "Salio lako",
+    "fx_label": "Kiwango cha sasa",
+    "fx_stale": "Sasisha kiwango",
+    "loading": "Inapakia salio…",
+    "toggle_secondary": "Badilisha sarafu"
+  },
   "minerals": {
     "gold_concentrate": "Kifurushi cha dhahabu",
     "tanzanite_rough": "Tanzanite ghafi",

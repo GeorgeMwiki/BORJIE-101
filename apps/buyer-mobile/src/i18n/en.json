@@ -74,6 +74,13 @@
       "seller_history": "Seller history"
     }
   },
+  "wallet": {
+    "balance": "Your balance",
+    "fx_label": "Live rate",
+    "fx_stale": "Refresh rate",
+    "loading": "Loading balance…",
+    "toggle_secondary": "Switch currency"
+  },
   "minerals": {
     "gold_concentrate": "Gold concentrate",
     "tanzanite_rough": "Tanzanite rough",
