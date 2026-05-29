@@ -110,6 +110,11 @@ import { cockpitHubRouter } from './routes/owner/cockpit-hub.hono';
 // risk.changed / workforce.shift_event / compliance.deadline_approaching)
 // onto /api/v1/cockpit/stream, auto-scoped to the auth.tenantId.
 import { cockpitStreamRouter } from './routes/cockpit-stream.hono';
+// RT-3 (2026-05-29) realtime latency telemetry.
+//   POST /api/v1/metrics/realtime-latency — SSE clients post measurements.
+//   GET  /api/v1/observability/realtime    — owner cockpit reads P50/P95/P99.
+import { realtimeLatencyRouter } from './routes/metrics/realtime-latency.hono';
+import { observabilityRealtimeRouter } from './routes/observability/realtime.hono';
 // Roadmap R8 — universal personal-KB UI surfaces. Routes:
 //   GET /me/persons/links
 //   GET /me/persons/:personId/cells
@@ -1409,6 +1414,11 @@ api.route('/owner/delegation', delegationRouter);
 api.route('/owner/cockpit', cockpitHubRouter);
 // Roadmap R6 — cockpit live SSE push.
 api.route('/cockpit', cockpitStreamRouter);
+// RT-3 — realtime latency telemetry. The metrics POST is colocated under
+// /metrics; the aggregate GET sits under /observability so the cockpit
+// widget reads from a "read-only stats" surface, not a write endpoint.
+api.route('/metrics', realtimeLatencyRouter);
+api.route('/observability', observabilityRealtimeRouter);
 // Roadmap R8 — personal-KB UI surfaces. The router carries the full
 // path segments inside (/me/* + /brain/personal-kb/search) so mount at
 // root rather than under a prefix.
