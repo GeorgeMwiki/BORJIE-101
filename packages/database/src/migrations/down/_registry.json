@@ -153,6 +153,20 @@
       "reverses": "CREATE TABLE corpus_doc_uploads + corpus_doc_summaries + RLS (Company-Brain lossless ingestion — Wave COMPANY-BRAIN C-1)",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0148_discovered_jurisdictions.sql",
+      "down": "down/0148_down_discovered_jurisdictions.sql",
+      "reverses": "CREATE TABLE discovered_jurisdictions + RLS (JC-3 discovery cache — Mr. Mwikila on-demand jurisdiction lookup)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0149_lock_tenant_jurisdiction.sql",
+      "down": "down/0149_down_lock_tenant_jurisdiction.sql",
+      "reverses": "DROP COLUMN tenants.jurisdiction_locked_at + jurisdiction_locked_by_user_id + FK (JC-4 lock-at-signup invariant)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
