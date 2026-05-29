@@ -485,6 +485,12 @@ import {
   configureRiskScannerTools,
   type PersonaToolGate,
 } from './composition/brain-tools';
+// Loopback HTTP client — closes the gap where `PersonaToolGate.httpClient`
+// was never bound, leaving every persona-tool handler stuck on its
+// defensive `if (!client) return { fake }` fallback. See
+// `Docs/AUDIT/REALITY_CHECK_2026-05-29.md` G-A.
+import { createLoopbackHttpClient } from './composition/brain-tools/loopback-http-client';
+
 // Wave CLOSED-LOOP - every WRITE brain tool earns a predicted_outcome
 // row in outcome_predictions BEFORE the handler runs. The reconciler
 // (workers/outcome-reconciliation-worker.ts) closes the loop after the
@@ -1013,6 +1019,37 @@ try {
           killSwitch?: { isOpen?: () => boolean };
         }).killSwitch?.isOpen?.()
       ) === true;
+    // Bind a loopback HTTP client onto the gate so persona-tool
+    // handlers that do `ctx.httpClient.get/post(...)` reach the
+    // gateway's own routes through the same auth + RLS + observability
+    // path a browser request would take. Without this binding every
+    // handler falls into its `if (!client) return { fake }` defensive
+    // fallback (see Docs/AUDIT/REALITY_CHECK_2026-05-29.md G-A).
+    //
+    // The client requires `JWT_SECRET` so it can mint a service-bound
+    // HS256 token per call. If the secret is absent we leave
+    // `httpClient` undefined and the handlers continue to use their
+    // fallback — preferable to crashing the boot path.
+    const jwtSecret = process.env.JWT_SECRET ?? '';
+    const gatewayPort = Number(process.env.PORT ?? '4001') || 4001;
+    const personaLoopbackClient =
+      jwtSecret.length >= 32
+        ? createLoopbackHttpClient({
+            origin: `http://127.0.0.1:${gatewayPort}`,
+            apiPrefix: '/api/v1',
+            jwtSecret,
+            logger: {
+              warn: (ctx, msg): void =>
+                logger.warn(ctx as object, msg),
+            },
+          })
+        : undefined;
+    if (!personaLoopbackClient) {
+      logger.warn(
+        { jwtSecretLen: jwtSecret.length },
+        'persona-tool loopback HTTP client unbound — JWT_SECRET missing or <32 chars; handlers will continue to use defensive fallbacks',
+      );
+    }
     const personaGate: PersonaToolGate = {
       killSwitchOpen,
       // The persona slug is resolved from `ToolExecutionContext.actor`
@@ -1031,6 +1068,7 @@ try {
           return 'T5_customer_concierge';
         return 'T1_owner_strategist';
       },
+      ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),
     };
     const personaHandlers = buildPersonaToolHandlers(personaGate, {
       onDuplicate: (toolId) =>

@@ -40,6 +40,8 @@ import type {
 } from '@borjie/ai-copilot';
 import type { ActionTier } from '@borjie/persona-runtime';
 
+import { runWithLoopbackContext } from './loopback-http-client';
+
 /** Persona slugs (from `BUILT_IN_PERSONAS`) that this tool catalog targets. */
 export const PERSONA_SLUGS = [
   'T1_owner_strategist',
@@ -240,7 +242,16 @@ export function toBrainToolHandler<
           ...(chatTurnId && { chatTurnId }),
         });
 
-        const data = await descriptor.handler(parsed.data, handlerCtx);
+        // Bind the loopback identity context so any nested
+        // `ctx.httpClient.*` call mints a service token with the right
+        // tenant + actor. See loopback-http-client.ts.
+        const data = await runWithLoopbackContext(
+          {
+            tenantId: context.tenant.tenantId,
+            actorId: context.actor.id,
+          },
+          () => descriptor.handler(parsed.data, handlerCtx),
+        );
         const validated = descriptor.outputSchema.safeParse(data);
         if (!validated.success) {
           return denial(
