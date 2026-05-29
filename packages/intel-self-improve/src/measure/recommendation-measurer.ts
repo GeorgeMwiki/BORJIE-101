@@ -26,7 +26,10 @@
  * @module @borjie/intel-self-improve/measure/recommendation-measurer
  */
 
-import type { UserFollowthrough } from '@borjie/capability-catalogue';
+import type {
+  ObservedOutcome,
+  UserFollowthrough,
+} from '@borjie/capability-catalogue';
 
 // ---------------------------------------------------------------------------
 // Per-call observation
@@ -130,5 +133,83 @@ export function measureRecommendations(
     nObservations: observations.length,
     hitCount,
     expectedCalibrationError: clamp01(ece),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Per-call top-K hit measurement
+// ---------------------------------------------------------------------------
+
+export interface RecommendationMeasurementInput {
+  readonly recommended: ReadonlyArray<string>;
+  readonly clicked: ReadonlyArray<string>;
+  readonly k: number;
+}
+
+export interface RecommendationMeasurement {
+  readonly hit: boolean;
+  readonly hitRate: number;
+  readonly competence: number;
+  readonly observedOutcome: ObservedOutcome;
+}
+
+/**
+ * Per-call recommendation measurement — was at least one of the
+ * top-K recommended items clicked? Returns the boolean hit, the
+ * per-call hit rate (clicked-in-top-K / K), the competence reward,
+ * and the `ObservedOutcome` enum.
+ *
+ * `recommended` is truncated to the top `k` items; trailing items
+ * beyond `k` are not consulted. Empty `recommended` is treated as
+ * a deterministic miss (hit=false, rate=0).
+ */
+export function measureRecommendation(
+  input: RecommendationMeasurementInput,
+): RecommendationMeasurement {
+  if (!Number.isInteger(input.k) || input.k <= 0) {
+    throw new RangeError('measureRecommendation: k must be a positive integer');
+  }
+  const topK = input.recommended.slice(0, input.k);
+  const clicked = new Set(input.clicked);
+  let hitCount = 0;
+  for (const item of topK) if (clicked.has(item)) hitCount += 1;
+  const hit = hitCount > 0;
+  const rate = topK.length === 0 ? 0 : hitCount / input.k;
+  return Object.freeze({
+    hit,
+    hitRate: rate,
+    competence: hit ? 1 : 0,
+    observedOutcome: hit ? 'confirmed' : 'disconfirmed',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Cohort summary for per-call measurements
+// ---------------------------------------------------------------------------
+
+export interface RecommendationCohortSummary {
+  readonly n: number;
+  readonly hitCount: number;
+  readonly hitFraction: number;
+}
+
+/**
+ * Summarise a cohort of per-call measurements. `hitFraction` is the
+ * share of cohort items that had at least one top-K click.
+ */
+export function summariseRecommendationCohort(
+  measurements: ReadonlyArray<RecommendationMeasurement>,
+): RecommendationCohortSummary {
+  if (measurements.length === 0) {
+    throw new RangeError(
+      'summariseRecommendationCohort: empty measurements cohort',
+    );
+  }
+  let hits = 0;
+  for (const m of measurements) if (m.hit) hits += 1;
+  return Object.freeze({
+    n: measurements.length,
+    hitCount: hits,
+    hitFraction: hits / measurements.length,
   });
 }

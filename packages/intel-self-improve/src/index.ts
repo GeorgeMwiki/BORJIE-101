@@ -63,29 +63,45 @@ export {
   createCausalRefutationStableVerifier,
   createForecastIntervalCoverageVerifier,
   createGraphQueryNonEmptyVerifier,
+  createIntelBuiltinVerifiers,
   createRecommendationHitRateVerifier,
   createStatResultShapeVerifier,
   type AnomalyPrecisionRecallInputs,
   type CausalRefutationInputs,
   type ForecastIntervalCoverageInputs,
+  type ForecastSingleIntervalInputs,
   type GraphQueryNonEmptyInputs,
+  type RecommendationHitCountInputs,
   type RecommendationHitRateInputs,
   type StatResultShapeInputs,
 } from './verifiers/intel-builtins.js';
 
 // ── Measurers ─────────────────────────────────────────────────────────
 export {
+  measureForecast,
   measureForecasts,
+  summariseForecastCohort,
+  type ForecastCohortSummary,
+  type ForecastMeasurement,
+  type ForecastMeasurementInput,
   type ForecastMeasurementResult,
   type ForecastObservation,
 } from './measure/forecast-measurer.js';
 export {
   measureAnomalies,
+  measureAnomaly,
+  type AnomalyMeasurement,
+  type AnomalyMeasurementInput,
   type AnomalyMeasurementResult,
   type AnomalyObservation,
 } from './measure/anomaly-measurer.js';
 export {
+  measureRecommendation,
   measureRecommendations,
+  summariseRecommendationCohort,
+  type RecommendationCohortSummary,
+  type RecommendationMeasurement,
+  type RecommendationMeasurementInput,
   type RecommendationMeasurementResult,
   type RecommendationObservation,
 } from './measure/recommendation-measurer.js';

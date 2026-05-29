@@ -49,6 +49,12 @@ export * from './intelligence-corpus.schema.js';
 // Append-only memory tables; see Docs/OPS/MEMORY_DURABILITY.md.
 export * from './corpus-doc-uploads.schema.js';
 
+// Wave COMPANY-BRAIN (C-5) — Day-1 jumpstart gating state.
+//   - onboarding_state: one row per tenant; gates the celebratory
+//     Day-1 chat block + welcome cockpit-event so it fires once.
+// Append-only memory table (upsert-only at the app layer).
+export * from './onboarding-state.schema.js';
+
 // Mining-domain extensions (migration 0005)
 export * from './buyer-extensions.schema.js';
 export * from './bid-negotiations.schema.js';

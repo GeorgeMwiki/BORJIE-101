@@ -106,3 +106,69 @@ export function measureAnomalies(
     claimedFpr: clamp01(claimedFpr),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Per-call labelled-cohort measurement
+// ---------------------------------------------------------------------------
+
+export interface AnomalyMeasurementInput {
+  readonly predictions: ReadonlyArray<boolean>;
+  readonly labels: ReadonlyArray<boolean>;
+}
+
+export interface AnomalyMeasurement {
+  readonly truePositives: number;
+  readonly falsePositives: number;
+  readonly trueNegatives: number;
+  readonly falseNegatives: number;
+  readonly precision: number;
+  readonly recall: number;
+  readonly f1: number;
+}
+
+/**
+ * Per-call labelled-cohort measurement — given parallel arrays of
+ * detector predictions and ground-truth labels, compute the standard
+ * confusion matrix plus precision / recall / F1.
+ *
+ * Used by the new outcome-observer attach path that operates on a
+ * single batch at a time (one batch per detector run).
+ */
+export function measureAnomaly(
+  input: AnomalyMeasurementInput,
+): AnomalyMeasurement {
+  if (input.predictions.length !== input.labels.length) {
+    throw new RangeError(
+      'measureAnomaly: predictions and labels must have equal length',
+    );
+  }
+  if (input.predictions.length === 0) {
+    throw new RangeError('measureAnomaly: empty cohort');
+  }
+
+  let tp = 0;
+  let fp = 0;
+  let tn = 0;
+  let fn = 0;
+  for (let i = 0; i < input.predictions.length; i += 1) {
+    const pred = input.predictions[i] === true;
+    const label = input.labels[i] === true;
+    if (pred && label) tp += 1;
+    else if (pred && !label) fp += 1;
+    else if (!pred && !label) tn += 1;
+    else fn += 1;
+  }
+  const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
+  const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
+  const f1 =
+    precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
+  return Object.freeze({
+    truePositives: tp,
+    falsePositives: fp,
+    trueNegatives: tn,
+    falseNegatives: fn,
+    precision: clamp01(precision),
+    recall: clamp01(recall),
+    f1: clamp01(f1),
+  });
+}

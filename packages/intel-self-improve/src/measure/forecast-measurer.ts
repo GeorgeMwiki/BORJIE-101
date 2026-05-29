@@ -24,7 +24,10 @@
  * @module @borjie/intel-self-improve/measure/forecast-measurer
  */
 
-import type { UserFollowthrough } from '@borjie/capability-catalogue';
+import type {
+  ObservedOutcome,
+  UserFollowthrough,
+} from '@borjie/capability-catalogue';
 
 // ---------------------------------------------------------------------------
 // Per-call observation — one row per resolved forecast
@@ -35,6 +38,45 @@ export interface ForecastObservation {
   readonly interval80: { readonly lower: number; readonly upper: number };
   readonly interval95: { readonly lower: number; readonly upper: number };
   readonly userFollowthrough: UserFollowthrough;
+}
+
+// ---------------------------------------------------------------------------
+// Per-call simplified input — used by the new per-row measurement path
+// where the caller provides a single interval + the nominal coverage it
+// was sold at (e.g. 0.8 for an 80% PI). Keeps the API ergonomic for
+// the verifier's outcome-observer attach path which only knows about
+// one interval at a time.
+// ---------------------------------------------------------------------------
+
+export interface ForecastMeasurementInput {
+  readonly intervalLower: number;
+  readonly intervalUpper: number;
+  readonly observedValue: number;
+  readonly claimedCoverage: number;
+}
+
+/**
+ * Per-call forecast measurement result. Maps cleanly onto the
+ * outcome-observer's `ObservedOutcome` ("confirmed" when the realised
+ * value falls inside the predicted interval, "disconfirmed" otherwise).
+ */
+export interface ForecastMeasurement {
+  readonly inside: boolean;
+  readonly competence: number;
+  readonly claimedCoverage: number;
+  readonly observedOutcome: ObservedOutcome;
+}
+
+/**
+ * Cohort summary returned by `summariseForecastCohort`. Aggregates the
+ * per-call results into the empirical coverage rate and the same
+ * competence axis the cohort-wide `measureForecasts` exposes.
+ */
+export interface ForecastCohortSummary {
+  readonly n: number;
+  readonly empiricalCoverage: number;
+  readonly competenceRate: number;
+  readonly insideCount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,5 +147,73 @@ export function measureForecasts(
     nObservations: observations.length,
     empirical80,
     empirical95,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Per-call measurement
+// ---------------------------------------------------------------------------
+
+function assertFiniteForecast(input: ForecastMeasurementInput): void {
+  if (!Number.isFinite(input.intervalLower)) {
+    throw new RangeError('measureForecast: intervalLower must be finite');
+  }
+  if (!Number.isFinite(input.intervalUpper)) {
+    throw new RangeError('measureForecast: intervalUpper must be finite');
+  }
+  if (!Number.isFinite(input.observedValue)) {
+    throw new RangeError('measureForecast: observedValue must be finite');
+  }
+  if (!Number.isFinite(input.claimedCoverage)) {
+    throw new RangeError('measureForecast: claimedCoverage must be finite');
+  }
+  if (input.intervalUpper < input.intervalLower) {
+    throw new RangeError(
+      'measureForecast: intervalUpper must be ≥ intervalLower',
+    );
+  }
+}
+
+/**
+ * Measure a single resolved forecast against its claimed interval.
+ * Returns an `inside` flag, the [0, 1] competence reward (1 inside, 0
+ * outside), the claimed nominal coverage, and the
+ * `ObservedOutcome` enum the outcome-observer table expects.
+ */
+export function measureForecast(
+  input: ForecastMeasurementInput,
+): ForecastMeasurement {
+  assertFiniteForecast(input);
+  const inside =
+    input.observedValue >= input.intervalLower &&
+    input.observedValue <= input.intervalUpper;
+  const claimed = Math.min(1, Math.max(0, input.claimedCoverage));
+  return Object.freeze({
+    inside,
+    competence: inside ? 1 : 0,
+    claimedCoverage: claimed,
+    observedOutcome: inside ? 'confirmed' : 'disconfirmed',
+  });
+}
+
+/**
+ * Aggregate per-call forecast measurements into a cohort summary.
+ * Empirical coverage = fraction inside; competence rate is the same
+ * scalar in [0, 1].
+ */
+export function summariseForecastCohort(
+  measurements: ReadonlyArray<ForecastMeasurement>,
+): ForecastCohortSummary {
+  if (measurements.length === 0) {
+    throw new RangeError('summariseForecastCohort: empty measurements cohort');
+  }
+  let insideCount = 0;
+  for (const m of measurements) if (m.inside) insideCount += 1;
+  const empirical = insideCount / measurements.length;
+  return Object.freeze({
+    n: measurements.length,
+    empiricalCoverage: empirical,
+    competenceRate: empirical,
+    insideCount,
   });
 }

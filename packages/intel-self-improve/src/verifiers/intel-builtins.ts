@@ -85,6 +85,18 @@ export interface ForecastIntervalCoverageInputs {
   readonly interval95: { readonly lower: number; readonly upper: number };
 }
 
+/**
+ * Simpler single-interval form — used by the per-call measurer path
+ * and exposed for callers who only have a single confidence interval
+ * with a claimed nominal coverage (e.g. 0.8).
+ */
+export interface ForecastSingleIntervalInputs {
+  readonly observedValue: number;
+  readonly lower: number;
+  readonly upper: number;
+  readonly claimedCoverage: number;
+}
+
 function extractForecastInputs(
   trace: RlvrTrace,
 ): ForecastIntervalCoverageInputs | null {
@@ -111,50 +123,97 @@ function extractForecastInputs(
   });
 }
 
+function extractSingleIntervalForecast(
+  trace: RlvrTrace,
+): ForecastSingleIntervalInputs | null {
+  if (intelKindOf(trace) !== 'forecast') return null;
+  const meta = trace.metadata as Record<string, unknown>;
+  const obs = meta['observed_value'];
+  const lower = meta['interval_lower'];
+  const upper = meta['interval_upper'];
+  if (typeof obs !== 'number' || !Number.isFinite(obs)) return null;
+  if (typeof lower !== 'number' || !Number.isFinite(lower)) return null;
+  if (typeof upper !== 'number' || !Number.isFinite(upper)) return null;
+  const claimedRaw = meta['claimed_coverage'];
+  const claimed =
+    typeof claimedRaw === 'number' && Number.isFinite(claimedRaw)
+      ? clamp01(claimedRaw)
+      : 0.8;
+  return Object.freeze({
+    observedValue: obs,
+    lower,
+    upper,
+    claimedCoverage: claimed,
+  });
+}
+
 export function createForecastIntervalCoverageVerifier(): Verifier {
   return {
     name: 'forecast-interval-coverage',
     version: '1.0.0',
     applies(trace) {
-      return extractForecastInputs(trace) !== null;
+      return (
+        extractForecastInputs(trace) !== null ||
+        extractSingleIntervalForecast(trace) !== null
+      );
     },
     async verify(trace) {
-      const inputs = extractForecastInputs(trace);
-      if (inputs === null) {
+      const dual = extractForecastInputs(trace);
+      if (dual !== null) {
+        const inside80 =
+          dual.observedValue >= dual.interval80.lower &&
+          dual.observedValue <= dual.interval80.upper;
+        const inside95 =
+          dual.observedValue >= dual.interval95.lower &&
+          dual.observedValue <= dual.interval95.upper;
+        const reward = clamp01(
+          0.5 * (inside80 ? 1 : 0) + 0.5 * (inside95 ? 1 : 0),
+        );
+        const verdict: VerificationResult['verdict'] = inside95
+          ? inside80
+            ? 'pass'
+            : 'partial'
+          : 'fail';
         return freezeResult({
           verifierName: 'forecast-interval-coverage',
-          verdict: 'skip',
-          reward: 0,
-          evidence: { reason: SKIP_NO_GROUND_TRUTH },
-          confidence: 0,
+          verdict,
+          reward,
+          evidence: {
+            observedValue: dual.observedValue,
+            interval80: dual.interval80,
+            interval95: dual.interval95,
+            inside80,
+            inside95,
+          },
+          confidence: 1,
         });
       }
-      const inside80 =
-        inputs.observedValue >= inputs.interval80.lower &&
-        inputs.observedValue <= inputs.interval80.upper;
-      const inside95 =
-        inputs.observedValue >= inputs.interval95.lower &&
-        inputs.observedValue <= inputs.interval95.upper;
-      const reward = clamp01(
-        0.5 * (inside80 ? 1 : 0) + 0.5 * (inside95 ? 1 : 0),
-      );
-      const verdict: VerificationResult['verdict'] = inside95
-        ? inside80
-          ? 'pass'
-          : 'partial'
-        : 'fail';
+      const single = extractSingleIntervalForecast(trace);
+      if (single !== null) {
+        const inside =
+          single.observedValue >= single.lower &&
+          single.observedValue <= single.upper;
+        const reward = inside ? clamp01(single.claimedCoverage) : 0;
+        return freezeResult({
+          verifierName: 'forecast-interval-coverage',
+          verdict: inside ? 'pass' : 'fail',
+          reward,
+          evidence: {
+            observedValue: single.observedValue,
+            lower: single.lower,
+            upper: single.upper,
+            claimedCoverage: single.claimedCoverage,
+            inside,
+          },
+          confidence: 1,
+        });
+      }
       return freezeResult({
         verifierName: 'forecast-interval-coverage',
-        verdict,
-        reward,
-        evidence: {
-          observedValue: inputs.observedValue,
-          interval80: inputs.interval80,
-          interval95: inputs.interval95,
-          inside80,
-          inside95,
-        },
-        confidence: 1,
+        verdict: 'skip',
+        reward: 0,
+        evidence: { reason: SKIP_NO_GROUND_TRUTH },
+        confidence: 0,
       });
     },
   };
@@ -200,9 +259,48 @@ export function createStatResultShapeVerifier(): Verifier {
           confidence: 0,
         });
       }
+      const meta = trace.metadata as Record<string, unknown>;
+      const testNameRaw = meta['test_name'];
+      const hasTestName = typeof testNameRaw === 'string' && testNameRaw.length > 0;
       const pInRange = inputs.pValue >= 0 && inputs.pValue <= 1;
-      const nPositive = inputs.nObservations > 0 && Number.isInteger(inputs.nObservations);
-      const ok = pInRange && nPositive && Number.isFinite(inputs.statistic);
+      const nPositive =
+        inputs.nObservations > 0 && Number.isInteger(inputs.nObservations);
+      const statisticOk = Number.isFinite(inputs.statistic);
+
+      // Four-field grading path (when `test_name` is present) — count how
+      // many of the four shape checks pass and grade pass / partial /
+      // fail. This lets callers signal richer expectations without
+      // breaking the binary three-field contract used elsewhere.
+      if (hasTestName) {
+        const checks = [statisticOk, pInRange, nPositive, hasTestName];
+        const passCount = checks.filter(Boolean).length;
+        const total = checks.length;
+        const reward = clamp01(passCount / total);
+        const verdict: VerificationResult['verdict'] =
+          passCount === total
+            ? 'pass'
+            : passCount >= total - 1
+              ? 'partial'
+              : 'fail';
+        return freezeResult({
+          verifierName: 'stat-result-shape',
+          verdict,
+          reward,
+          evidence: {
+            statistic: inputs.statistic,
+            pValue: inputs.pValue,
+            nObservations: inputs.nObservations,
+            testName: testNameRaw,
+            pInRange,
+            nPositive,
+            statisticOk,
+            hasTestName,
+          },
+          confidence: 1,
+        });
+      }
+
+      const ok = pInRange && nPositive && statisticOk;
       return freezeResult({
         verifierName: 'stat-result-shape',
         verdict: ok ? 'pass' : 'fail',
@@ -234,18 +332,39 @@ function extractGraphInputs(trace: RlvrTrace): GraphQueryNonEmptyInputs | null {
   if (intelKindOf(trace) !== 'graph_db') return null;
   const meta = trace.metadata as Record<string, unknown>;
   const count = meta['result_count'];
-  const expected = meta['expected_cardinality'];
-  const schemaMatch = meta['schema_match'];
   if (typeof count !== 'number' || !Number.isFinite(count) || count < 0) {
     return null;
   }
-  if (expected !== 'non_empty' && expected !== 'allow_empty') return null;
-  if (typeof schemaMatch !== 'boolean') return null;
-  return Object.freeze({
-    resultCount: count,
-    expectedCardinality: expected,
-    schemaMatch,
-  });
+
+  // Primary (canonical) shape — `expected_cardinality` + `schema_match`.
+  const expected = meta['expected_cardinality'];
+  const schemaMatch = meta['schema_match'];
+  if (
+    (expected === 'non_empty' || expected === 'allow_empty') &&
+    typeof schemaMatch === 'boolean'
+  ) {
+    return Object.freeze({
+      resultCount: count,
+      expectedCardinality: expected,
+      schemaMatch,
+    });
+  }
+
+  // Alternate shape — `shape_matches` + optional `expected_non_empty`.
+  // The new measurer path emits this terse form; default expectation
+  // is non-empty unless `expected_non_empty` is explicitly false.
+  const shapeMatches = meta['shape_matches'];
+  if (typeof shapeMatches === 'boolean') {
+    const nonEmptyFlag = meta['expected_non_empty'];
+    const cardinality: 'non_empty' | 'allow_empty' =
+      nonEmptyFlag === false ? 'allow_empty' : 'non_empty';
+    return Object.freeze({
+      resultCount: count,
+      expectedCardinality: cardinality,
+      schemaMatch: shapeMatches,
+    });
+  }
+  return null;
 }
 
 export function createGraphQueryNonEmptyVerifier(): Verifier {
@@ -253,7 +372,7 @@ export function createGraphQueryNonEmptyVerifier(): Verifier {
     name: 'graph-query-non-empty',
     version: '1.0.0',
     applies(trace) {
-      return intelKindOf(trace) === 'graph_db';
+      return extractGraphInputs(trace) !== null;
     },
     async verify(trace) {
       const inputs = extractGraphInputs(trace);
@@ -302,18 +421,30 @@ export interface CausalRefutationInputs {
 function extractCausalInputs(trace: RlvrTrace): CausalRefutationInputs | null {
   if (intelKindOf(trace) !== 'causal') return null;
   const meta = trace.metadata as Record<string, unknown>;
-  const point = meta['point_estimate'];
+  const pointRaw = meta['point_estimate'];
+  const estimateRaw = meta['estimate'];
+  const point =
+    typeof pointRaw === 'number' && Number.isFinite(pointRaw)
+      ? pointRaw
+      : typeof estimateRaw === 'number' && Number.isFinite(estimateRaw)
+        ? estimateRaw
+        : null;
+  if (point === null) return null;
   const refs = meta['refutation_estimates'];
-  const tol = meta['tolerance_ratio'];
-  if (typeof point !== 'number' || !Number.isFinite(point)) return null;
   if (!Array.isArray(refs) || refs.length === 0) return null;
   const numeric: Array<number> = [];
   for (const v of refs) {
     if (typeof v !== 'number' || !Number.isFinite(v)) return null;
     numeric.push(v);
   }
+  const tolRatioRaw = meta['tolerance_ratio'];
+  const tolRaw = meta['tolerance'];
   const tolerance =
-    typeof tol === 'number' && Number.isFinite(tol) && tol > 0 ? tol : 0.1;
+    typeof tolRatioRaw === 'number' && Number.isFinite(tolRatioRaw) && tolRatioRaw > 0
+      ? tolRatioRaw
+      : typeof tolRaw === 'number' && Number.isFinite(tolRaw) && tolRaw > 0
+        ? tolRaw
+        : 0.1;
   return Object.freeze({
     pointEstimate: point,
     refutationEstimates: Object.freeze(numeric),
@@ -326,7 +457,7 @@ export function createCausalRefutationStableVerifier(): Verifier {
     name: 'causal-refutation-stable',
     version: '1.0.0',
     applies(trace) {
-      return intelKindOf(trace) === 'causal';
+      return extractCausalInputs(trace) !== null;
     },
     async verify(trace) {
       const inputs = extractCausalInputs(trace);
@@ -454,6 +585,12 @@ export interface RecommendationHitRateInputs {
   readonly clickedItemIds: ReadonlyArray<string>;
 }
 
+/** Alternate aggregate form — pre-summarised counts. */
+export interface RecommendationHitCountInputs {
+  readonly topKClicked: number;
+  readonly k: number;
+}
+
 function extractRecommendationInputs(
   trace: RlvrTrace,
 ): RecommendationHitRateInputs | null {
@@ -471,39 +608,87 @@ function extractRecommendationInputs(
   });
 }
 
+function extractRecommendationCounts(
+  trace: RlvrTrace,
+): RecommendationHitCountInputs | null {
+  if (intelKindOf(trace) !== 'recommendation') return null;
+  const meta = trace.metadata as Record<string, unknown>;
+  const clicked = meta['top_k_clicked'];
+  const k = meta['k'];
+  if (
+    typeof clicked !== 'number' ||
+    !Number.isFinite(clicked) ||
+    clicked < 0 ||
+    !Number.isInteger(clicked)
+  ) {
+    return null;
+  }
+  if (typeof k !== 'number' || !Number.isFinite(k) || k <= 0 || !Number.isInteger(k)) {
+    return null;
+  }
+  return Object.freeze({ topKClicked: clicked, k });
+}
+
+const HIT_RATE_PASS_FLOOR = 0.5;
+
 export function createRecommendationHitRateVerifier(): Verifier {
   return {
     name: 'recommendation-hit-rate',
     version: '1.0.0',
     applies(trace) {
-      return intelKindOf(trace) === 'recommendation';
+      return (
+        extractRecommendationInputs(trace) !== null ||
+        extractRecommendationCounts(trace) !== null
+      );
     },
     async verify(trace) {
-      const inputs = extractRecommendationInputs(trace);
-      if (inputs === null) {
+      const arrays = extractRecommendationInputs(trace);
+      if (arrays !== null) {
+        const topSet = new Set(arrays.topK);
+        const hits = arrays.clickedItemIds.filter((id) => topSet.has(id));
+        const hit = hits.length >= 1;
+        const reward = clamp01(hit ? 1 : 0);
         return freezeResult({
           verifierName: 'recommendation-hit-rate',
-          verdict: 'skip',
-          reward: 0,
-          evidence: { reason: SKIP_NO_GROUND_TRUTH },
-          confidence: 0,
+          verdict: hit ? 'pass' : 'fail',
+          reward,
+          evidence: {
+            topK: arrays.topK,
+            clickedItemIds: arrays.clickedItemIds,
+            hits,
+            hitCount: hits.length,
+          },
+          confidence: 1,
         });
       }
-      const topSet = new Set(inputs.topK);
-      const hits = inputs.clickedItemIds.filter((id) => topSet.has(id));
-      const hit = hits.length >= 1;
-      const reward = clamp01(hit ? 1 : 0);
+      const counts = extractRecommendationCounts(trace);
+      if (counts !== null) {
+        const rate = counts.k === 0 ? 0 : counts.topKClicked / counts.k;
+        const reward = clamp01(rate);
+        const verdict: VerificationResult['verdict'] =
+          rate >= HIT_RATE_PASS_FLOOR
+            ? 'pass'
+            : rate > 0
+              ? 'partial'
+              : 'fail';
+        return freezeResult({
+          verifierName: 'recommendation-hit-rate',
+          verdict,
+          reward,
+          evidence: {
+            topKClicked: counts.topKClicked,
+            k: counts.k,
+            hitRate: rate,
+          },
+          confidence: 1,
+        });
+      }
       return freezeResult({
         verifierName: 'recommendation-hit-rate',
-        verdict: hit ? 'pass' : 'fail',
-        reward,
-        evidence: {
-          topK: inputs.topK,
-          clickedItemIds: inputs.clickedItemIds,
-          hits,
-          hitCount: hits.length,
-        },
-        confidence: 1,
+        verdict: 'skip',
+        reward: 0,
+        evidence: { reason: SKIP_NO_GROUND_TRUTH },
+        confidence: 0,
       });
     },
   };
@@ -522,4 +707,13 @@ export function createAllIntelVerifiers(): ReadonlyArray<Verifier> {
     createAnomalyPrecisionRecallVerifier(),
     createRecommendationHitRateVerifier(),
   ]);
+}
+
+/**
+ * Alias for `createAllIntelVerifiers` — matches the spec wording in
+ * §5 of Docs/DESIGN/INTELLIGENCE_SELF_IMPROVE_WIRING_2026.md and the
+ * imports used by the kernel registration site.
+ */
+export function createIntelBuiltinVerifiers(): ReadonlyArray<Verifier> {
+  return createAllIntelVerifiers();
 }
