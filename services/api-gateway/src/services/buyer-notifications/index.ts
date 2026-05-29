@@ -77,7 +77,7 @@ function adaptRow(r: Record<string, unknown>): BuyerNotificationRow {
     titleEn: String(r.title_en ?? r.titleEn ?? ''),
     bodySw: String(r.body_sw ?? r.bodySw ?? ''),
     bodyEn: String(r.body_en ?? r.bodyEn ?? ''),
-    payload: ((r.payload ?? {}) as Record<string, unknown>) ?? {},
+    payload: (r.payload ?? {}) as Record<string, unknown>,
     readAt: (r.read_at ?? r.readAt ?? null) as string | null,
     createdAt: String(r.created_at ?? r.createdAt ?? ''),
   };

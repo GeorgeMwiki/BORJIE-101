@@ -63,6 +63,7 @@
     "@borjie/enterprise-hardening": "workspace:*",
     "@borjie/fairness-eval": "workspace:*",
     "@borjie/feature-flags-adapter": "workspace:*",
+    "@borjie/file-ingest": "workspace:*",
     "@borjie/forecasting": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/geo-intelligence": "workspace:*",

@@ -126,7 +126,9 @@ export class GeofencingError extends Error {
   constructor(
     code: GeofencingError['code'],
     message: string,
-    public readonly cause?: unknown,
+    // TS4115 — `cause` is declared on the global `Error` class in ES2022+
+    // libs; the parameter-property shorthand needs an `override` marker.
+    public override readonly cause?: unknown,
   ) {
     super(message);
     this.name = 'GeofencingError';

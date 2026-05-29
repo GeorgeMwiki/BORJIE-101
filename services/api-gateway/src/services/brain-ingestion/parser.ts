@@ -19,6 +19,8 @@
  * without touching the route.
  */
 
+// NOTE: Schema-sniff sub-package exported via `exports` map in
+// packages/file-ingest/package.json; resolves to dist/schema-sniff/index.js.
 import { parseCsv, parseExcel } from '@borjie/file-ingest/schema-sniff';
 import type { IncomingDoc, ParsedDoc, ExtractedFact } from './types.js';
 

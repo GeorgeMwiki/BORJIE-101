@@ -108,16 +108,18 @@ mwikilaInboxRouter.get('/', zValidator('query', ListQuerySchema), async (c) => {
   const { status, category, limit } = c.req.valid('query');
   const recorder = createMwikilaInboxRecorder({ db });
   try {
+    // exactOptionalPropertyTypes: only set optional fields when the
+    // caller actually provided them; never pass `undefined` literally.
     const rows = status
       ? await recorder.listRecent({
           tenantId: auth.tenantId,
           status,
-          category,
-          limit,
+          ...(category !== undefined ? { category } : {}),
+          ...(limit !== undefined ? { limit } : {}),
         })
       : await recorder.listPending({
           tenantId: auth.tenantId,
-          limit,
+          ...(limit !== undefined ? { limit } : {}),
         });
     return c.json({ success: true, data: rows });
   } catch (err) {

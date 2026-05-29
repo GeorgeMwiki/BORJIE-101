@@ -12,12 +12,15 @@ import {
   corpusDocSummaries,
   intelligenceCorpusChunks,
 } from '@borjie/database';
+// NOTE: TS6 + tsup CJS+ESM emit + `export * from` barrels mis-classify
+// type-only re-exports as namespaces (TS2709). Import the canonical
+// types directly from the schema module to keep the inference clean.
 import type {
   CorpusSourceKind,
   CorpusUploadStatus,
   NewCorpusDocUpload,
   NewCorpusDocSummary,
-} from '@borjie/database';
+} from '@borjie/database/schemas';
 
 import type { EmbeddedChunk, Summary } from './types.js';
 

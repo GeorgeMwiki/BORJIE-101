@@ -84,9 +84,12 @@ delegationRouter.get('/', async (c) => {
   const store = createMwikilaDelegationStore({ db });
   try {
     const matrix = await Promise.all(
+      // `store.resolve()` already returns a row keyed by `category`; spread
+      // first so the explicit binding is the authoritative one and TS2783
+      // (duplicate property) goes away.
       DELEGATION_CATEGORIES.map(async (category) => ({
-        category,
         ...(await store.resolve({ tenantId: auth.tenantId, category })),
+        category,
       })),
     );
     return c.json({ success: true, data: matrix });

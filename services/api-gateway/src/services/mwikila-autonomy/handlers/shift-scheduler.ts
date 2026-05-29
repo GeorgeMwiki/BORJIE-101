@@ -76,6 +76,9 @@ export function buildShiftScheduleProposal(
     if (available.length === 0) continue;
     for (let s = 0; s < sites.length; s += 1) {
       const site = sites[s];
+      // `noUncheckedIndexedAccess` widens to `T | undefined` — guard the
+      // hot path so TS18048 is satisfied without runtime change.
+      if (!site) continue;
       const want = Math.min(
         site.maxWorkersPerShift,
         Math.max(site.minWorkersPerShift, 1),
@@ -83,6 +86,7 @@ export function buildShiftScheduleProposal(
       const memberIds: string[] = [];
       for (let i = 0; i < want; i += 1) {
         const m = available[(d * sites.length + s + i) % available.length];
+        if (!m) continue;
         memberIds.push(m.id);
       }
       assignments.push({ day: dayIso, siteId: site.siteId, memberIds });

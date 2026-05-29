@@ -315,6 +315,17 @@ export async function processTabTagsForOwner(
         config: validation.config,
       };
       actions.push({ event: 'tab_proposal', payload });
+      // pickTagTitle expects an exact-optional shape — only forward the
+      // locale overrides when the brain actually set them.
+      const titleArg: {
+        readonly title: string;
+        readonly titleEn?: string;
+        readonly titleSw?: string;
+      } = {
+        title: tag.title,
+        ...(tag.titleEn !== undefined ? { titleEn: tag.titleEn } : {}),
+        ...(tag.titleSw !== undefined ? { titleSw: tag.titleSw } : {}),
+      };
       publishCockpitEvent({
         kind: 'cockpit.tab.proposed',
         tenantId,
@@ -322,7 +333,7 @@ export async function processTabTagsForOwner(
         userId,
         proposalId,
         tabType: tag.type,
-        title: pickTagTitle(tag, 'en'),
+        title: pickTagTitle(titleArg, 'en'),
         reasonEn,
         reasonSw,
         evidenceIds: tag.evidenceIds,

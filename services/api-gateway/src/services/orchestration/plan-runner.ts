@@ -202,6 +202,8 @@ function buildSnapshot(
 ): PlanRunSnapshot {
   const steps = ordered.map((s) => {
     const state = states.get(s.id) ?? 'pending';
+    // exactOptionalPropertyTypes: optional fields must NOT be assigned
+    // `undefined` literally — only set them when there's a real value.
     const entry: {
       id: string;
       state: PlanStepState;
@@ -209,7 +211,10 @@ function buildSnapshot(
       error?: string;
     } = { id: s.id, state };
     if (results.has(s.id)) entry.result = results.get(s.id);
-    if (errors.has(s.id)) entry.error = errors.get(s.id);
+    if (errors.has(s.id)) {
+      const err = errors.get(s.id);
+      if (err !== undefined) entry.error = err;
+    }
     return Object.freeze(entry);
   });
   const status = computeStatus(steps);

@@ -11,7 +11,13 @@
  * Pure types. No runtime side-effects.
  */
 
-import type { CorpusSourceKind, CorpusUploadStatus } from '@borjie/database';
+// NOTE: TS6 + tsup CJS+ESM emit + `export * from` barrels mis-classify
+// type-only re-exports as namespaces (TS2709). Import the canonical
+// types directly from the schema module to keep the inference clean.
+import type {
+  CorpusSourceKind,
+  CorpusUploadStatus,
+} from '@borjie/database/schemas';
 
 /** Re-exported so callers don't have to import from two packages. */
 export type { CorpusSourceKind, CorpusUploadStatus };

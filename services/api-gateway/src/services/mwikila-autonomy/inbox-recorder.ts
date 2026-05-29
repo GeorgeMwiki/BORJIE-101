@@ -412,7 +412,20 @@ export function createMwikilaInboxRecorder(
       return rows.map(rowToInbox);
     },
 
-    async listRecent({ tenantId, limit = 100, category, status }) {
+    // Param shape annotated explicitly: with noImplicitAny disabled the
+    // destructured params would otherwise widen to `any`, which causes
+    // the optional `category` to look required to the interface check.
+    async listRecent({
+      tenantId,
+      limit = 100,
+      category,
+      status,
+    }: {
+      readonly tenantId: string;
+      readonly limit?: number;
+      readonly category?: RecordActionInput['category'];
+      readonly status?: ActionStatus;
+    }) {
       const rows = rowsOf(
         await deps.db.execute(sql`
           SELECT * FROM mwikila_actions_inbox
