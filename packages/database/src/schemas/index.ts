@@ -1276,3 +1276,9 @@ export * from './regulator-requests.schema.js';
 // manager_ok → owner_signed → submitted → delivered. C2PA photo
 // references stapled via the upstream inspection_id.
 export * from './inspection-narratives.schema.js';
+
+// Issue #207 — World-scale tenant config (migration 0143). Tenant-
+// agnostic regulator-authority catalogue keyed by country + regulator
+// set. Drives `tenants.regulator_set` join + per-tenant compliance
+// surface. Same model as `regulatory_zones` (tenant_id = NULL).
+export * from './regulator-jurisdictions.schema.js';
