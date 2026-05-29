@@ -42,10 +42,10 @@ describe('shapeRequest', () => {
 });
 
 describe('TOOL_ROUTE_MAP coverage', () => {
-  it('has a route for every public tool', () => {
-    // Imported here to avoid circulars in the dispatcher test.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const cat = require('../tool-catalog.js') as {
+  it('has a route for every public tool', async () => {
+    // Dynamic import (ESM) — avoids a top-level circular with the dispatcher
+    // test which also pulls the catalog transitively.
+    const cat = (await import('../tool-catalog.js')) as {
       BORJIE_PUBLIC_MCP_TOOLS: Array<{ name: string }>;
     };
     for (const t of cat.BORJIE_PUBLIC_MCP_TOOLS) {
