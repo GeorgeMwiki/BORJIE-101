@@ -42,6 +42,13 @@ import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
 import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
+// Wave UNWIRED-LOGIC-SWEEP-2 — opportunity + risk scanner brain tools.
+// Surfaces the existing 33-rule opportunity scanner and 33-rule risk
+// scanner (services/opportunity-scanner/, services/risk-scanner/) into
+// the persona-aware brain tool catalog. Both engines previously shipped
+// complete but no brain tool existed, leaving them dormant.
+import { OPPORTUNITY_SCANNER_TOOLS } from './opportunity-scanner-tools';
+import { RISK_SCANNER_TOOLS } from './risk-scanner-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -87,6 +94,8 @@ export function buildPersonaToolHandlers(
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
+      OPPORTUNITY_SCANNER_TOOLS,
+      RISK_SCANNER_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -133,6 +142,8 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
+      OPPORTUNITY_SCANNER_TOOLS,
+      RISK_SCANNER_TOOLS,
     ],
     undefined,
   );
@@ -188,3 +199,11 @@ export {
   configureDecisionJournalTools,
 } from './decision-journal-tools';
 export { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
+export {
+  OPPORTUNITY_SCANNER_TOOLS,
+  configureOpportunityScannerTools,
+} from './opportunity-scanner-tools';
+export {
+  RISK_SCANNER_TOOLS,
+  configureRiskScannerTools,
+} from './risk-scanner-tools';

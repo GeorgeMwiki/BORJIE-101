@@ -428,7 +428,26 @@ import {
   createAmbientBehaviorObserver,
   createIntelligenceHistorySupervisor,
 } from './composition/background-wiring';
-import { setBrainExtraSkills } from './composition/brain-extensions';
+import {
+  setBrainExtraSkills,
+  appendBrainExtraSkills,
+} from './composition/brain-extensions';
+// Wave UNWIRED-LOGIC-SWEEP-2 — persona-aware brain tool catalog wiring.
+// Surfaces the 50+ persona-aware brain tools (owner, manager, worker,
+// buyer, admin, scope, md-intelligence, workforce, mining-production,
+// cooperative, insurance, owner-messaging, superpowers, decision-journal,
+// entity-legibility, opportunity-scanner, risk-scanner) onto the brain
+// `extraSkills` list so the brain orchestrator can dispatch any of them
+// per persona ceiling. Previously the catalog shipped fully built but
+// no production call site invoked `buildPersonaToolHandlers`, leaving
+// every persona-aware tool dormant.
+import {
+  buildPersonaToolHandlers,
+  configureDecisionJournalTools,
+  configureOpportunityScannerTools,
+  configureRiskScannerTools,
+  type PersonaToolGate,
+} from './composition/brain-tools';
 // Wave CLOSED-LOOP - every WRITE brain tool earns a predicted_outcome
 // row in outcome_predictions BEFORE the handler runs. The reconciler
 // (workers/outcome-reconciliation-worker.ts) closes the loop after the
@@ -924,6 +943,65 @@ try {
     },
     'brain-extensions: org.query_organization + document-drafter + free-form + media-generation skills wired (WRITE tools wrapped with outcome-predictor)',
   );
+
+  // Wave UNWIRED-LOGIC-SWEEP-2 — wire the 50+ persona-aware brain tools.
+  // The brain-tools/* descriptor catalog has shipped fully built for
+  // months but no production call site invoked `buildPersonaToolHandlers`,
+  // leaving every persona-aware tool dormant. Wire it here so the brain
+  // orchestrator can dispatch any of them subject to persona ceiling +
+  // kill-switch + audit.
+  try {
+    const dbForBrainTools = (serviceRegistry.db as unknown as {
+      execute(q: unknown): Promise<unknown>;
+    }) ?? null;
+    if (dbForBrainTools) {
+      // Tools that need a tenant-bound DB client to read state (the
+      // scanners + decision-journal) opt in via their own `configureX`.
+      // Tools that defer to internal HTTP routes do not need this.
+      configureOpportunityScannerTools({ db: dbForBrainTools });
+      configureRiskScannerTools({ db: dbForBrainTools });
+      configureDecisionJournalTools({ db: dbForBrainTools });
+    }
+    const killSwitchOpen =
+      (serviceRegistry.killSwitch as { isOpen?: () => boolean } | undefined)
+        ?.isOpen?.() === true;
+    const personaGate: PersonaToolGate = {
+      killSwitchOpen,
+      // The persona slug is resolved from `ToolExecutionContext.actor`
+      // by the orchestrator at dispatch time. Fallback to T1 owner
+      // strategist when the actor metadata is missing so the brain's
+      // default surface stays usable in degraded mode.
+      resolvePersonaSlug(ctx): string | undefined {
+        const role = (ctx as { actor?: { role?: string } }).actor?.role;
+        if (role === 'OWNER') return 'T1_owner_strategist';
+        if (role === 'TENANT_ADMIN' || role === 'PLATFORM_ADMIN')
+          return 'T2_admin_strategist';
+        if (role === 'MANAGER') return 'T3_module_manager';
+        if (role === 'WORKER' || role === 'EMPLOYEE')
+          return 'T4_field_employee';
+        if (role === 'CUSTOMER' || role === 'BUYER')
+          return 'T5_customer_concierge';
+        return 'T1_owner_strategist';
+      },
+    };
+    const personaHandlers = buildPersonaToolHandlers(personaGate, {
+      onDuplicate: (toolId) =>
+        logger.warn({ toolId }, 'brain-tools: duplicate descriptor ignored'),
+    });
+    appendBrainExtraSkills(personaHandlers);
+    logger.info(
+      {
+        personaToolCount: personaHandlers.length,
+        killSwitchOpen,
+      },
+      'brain-extensions: persona-aware tool catalog wired (owner / manager / worker / buyer / admin / scope / md-intel / workforce / mining-production / cooperative / insurance / messaging / superpowers / decision-journal / entity-legibility / opportunity-scanner / risk-scanner)',
+    );
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain-extensions: persona-aware tool catalog wiring failed (non-fatal)',
+    );
+  }
 } catch (err) {
   logger.warn(
     { err: err instanceof Error ? err.message : String(err) },
@@ -1575,6 +1653,19 @@ app.use('/api/v1', handle(api));
 //   GET /.well-known/borjie-capabilities.json
 //   GET /.well-known/mcp.json
 app.use('/.well-known', handle(wellKnownRouter));
+
+// Wave AGENTIC-PLATFORM — public MCP server (@borjie/mcp-server-borjie).
+// Mounted at the express ROOT so clients connect to the URL the
+// discovery manifest hands out. PUBLIC entry (the dispatcher gates
+// every tools/call on the OAuth2 device-flow bearer token + per-scope
+// rate limit + four-eye approval for sovereign tool prefixes).
+//   POST /mcp           — JSON-RPC 2.0 single request/response
+//   GET  /mcp/sse       — long-lived SSE channel (session, message,
+//                          $/progress, notifications/resources/updated,
+//                          logging/message events)
+//   POST /mcp/messages  — sidecar POST for SSE-connected clients
+import { mcpPublicRouter } from './routes/mcp-public.hono';
+app.use('/mcp', handle(mcpPublicRouter));
 
 // API versioning
 app.get('/api/v1', (_req, res) => {
