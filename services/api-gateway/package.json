@@ -73,6 +73,7 @@
     "@borjie/mcp": "workspace:*",
     "@borjie/mcp-cost-persistence": "workspace:*",
     "@borjie/mcp-server": "workspace:*",
+    "@borjie/mcp-server-borjie": "workspace:*",
     "@borjie/memory-tool-wire-adapter": "workspace:*",
     "@borjie/module-orchestrator": "workspace:*",
     "@borjie/module-spec-engine": "workspace:*",
