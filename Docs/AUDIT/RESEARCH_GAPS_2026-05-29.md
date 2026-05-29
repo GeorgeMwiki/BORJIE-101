@@ -66,17 +66,18 @@ week; XL = wave-scale.
 
 ---
 
-## What this audit closed in pass (top 5 — small-LoC, high-impact)
+## What this audit closed in pass (top 6 — small-LoC, high-impact)
 
 | Gap | Resolution | Commit | Test |
 |---|---|---|---|
-| G1 — ack-fast SSE event | brain.hono.ts `handleTurnSse` emits an `ack` SSE event with sw/en text right after `turn.accepted`, before any orchestrator work begins | feat(brain): ack-fast SSE event for mobile chat | yes |
-| G2 — trust-chip stack on listings | New `TrustChipStack` component renders gov-licensed, lab-assayed, borjie-vetted, seller-history with deep links to evidence | feat(buyer-mobile): trust-chip stack on listing card | yes |
-| G3 — wallet bar (marketplace) | New `WalletBar` component with TZS primary + USD/KES toggle (read-only — fund/withdraw deferred) | feat(buyer-mobile): wallet bar on marketplace home | yes |
-| G4 — ack-fast client wiring | `parseFrame` accepts `event: 'ack'`; HomeChat renders the ack text inside the assistant bubble | feat(buyer-mobile): consume ack-fast SSE event | yes |
-| G5 — boundary-tagger helper | New `packages/cognitive-memory/src/boundary-tagger.ts` + tests — filters memory chunks by `origin` and rejects cross-tenant numeric synthesis | feat(cognitive-memory): boundary tagger for personal-KB cross-tenant filter | yes |
+| G1 — ack-fast SSE event | brain.hono.ts `handleTurnSse` emits an `ack` SSE event with sw/en text right after `turn.accepted`, before any orchestrator work begins | `8363a49d feat(brain): ack-fast SSE event for mobile chat TTFT` | yes (2 new) |
+| G2 — trust-chip stack on listings | New `TrustChipStack` + pure `deriveTrustChips` module renders gov-licensed, lab-assayed, borjie-vetted, chain-of-custody, seller-history with deep links to evidence | `c27a12f7 feat(buyer-mobile): trust-chip stack on listing card` | yes (10) |
+| G3 — wallet bar (marketplace) | New `WalletBar` + pure `formatWalletAmount` with TZS primary + USD/KES toggle | `311b1104 feat(buyer-mobile): wallet bar with multi-currency toggle` | yes (5) |
+| G4 — ack-fast client wiring | `parseFrame` accepts `event: 'ack'`; `applyAck` reducer + first-token replacement; HomeChat renders the ack text inside the assistant bubble | `4bd8876f` (combined w/ compliance — buyer-mobile delta merged into that commit) | yes (6 new) |
+| G5 — boundary-tagger helper | New `packages/cognitive-memory/src/boundary-tagger.ts` + tests — filters memory chunks by `origin`, fails-closed on cross-tenant numeric synthesis, exposes k-anonymised count helper | `e5fe9e55 feat(cognitive-memory): boundary tagger for personal-KB cross-tenant filter` | yes (20) |
+| G6 — bilingual AI suggestion chip | New `deriveAiSuggestionChip` helper in `@borjie/persona-runtime` emits verbatim sw/en copy + confidence-routing thresholds | `b43cded5 feat(persona-runtime): bilingual AI suggestion chip helper` | yes (8) |
 
-Each gap is a single coherent commit. G6 (bilingual AI suggestion copy) is also closed as a tiny utility module reused across managers / dispatch UIs.
+Total: 6 closures, 51 new unit tests, ~1,200 LoC across 7 commits.
 
 ---
 
