@@ -91,6 +91,13 @@ import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
 // /owner/saved-searches; companion worker lives in
 // services/api-gateway/src/workers/saved-search-worker.ts.
 import { savedSearchesRouter } from './routes/owner/saved-searches.hono';
+// Mr. Mwikila autonomous-MD — owner-facing inbox + delegation matrix.
+// Inbox lives at /owner/mwikila-inbox (list/approve/deny/reverse);
+// 12 × 4 delegation tier matrix at /owner/delegation. Companion
+// recorder + handler runtime live in
+// services/api-gateway/src/services/mwikila-autonomy/.
+import { mwikilaInboxRouter } from './routes/owner/mwikila-inbox.hono';
+import { delegationRouter } from './routes/owner/delegation.hono';
 // Roadmap R7 — owner-mobile cockpit hub aggregator (brief + decisions +
 // opportunities + risks + reminders) under /owner/cockpit/hub.
 import { cockpitHubRouter } from './routes/owner/cockpit-hub.hono';
@@ -1352,6 +1359,9 @@ api.route('/insurance', insuranceRouter);
 api.route('/owner/threads', ownerThreadsRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
+// Mr. Mwikila autonomous-MD inbox + delegation surface.
+api.route('/owner/mwikila-inbox', mwikilaInboxRouter);
+api.route('/owner/delegation', delegationRouter);
 // Roadmap R7 — owner-mobile cockpit hub aggregator.
 api.route('/owner/cockpit', cockpitHubRouter);
 // Roadmap R6 — cockpit live SSE push.
