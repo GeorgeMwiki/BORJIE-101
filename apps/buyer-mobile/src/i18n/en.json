@@ -117,6 +117,7 @@
     "signed_at": "Signed on",
     "total": "Total",
     "loading": "Loading contracts",
+    "load_failed": "Could not load contract",
     "sign_success": "Document signed",
     "sign_failed": "Signature failed",
     "biometric_unavailable": "Biometric hardware not available on this device",

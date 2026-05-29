@@ -117,6 +117,7 @@
     "signed_at": "Ilisainiwa",
     "total": "Jumla",
     "loading": "Inapakia mikataba",
+    "load_failed": "Imeshindwa kupakia mkataba",
     "sign_success": "Mkataba umesainiwa",
     "sign_failed": "Saini imeshindikana",
     "biometric_unavailable": "Kifaa hiki hakina kifaa cha alama za kibayolojia",

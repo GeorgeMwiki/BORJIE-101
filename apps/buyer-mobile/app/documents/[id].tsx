@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Card } from '@/components/Card'
@@ -16,7 +16,7 @@ import { fetchDocument, signDocument } from '@/api/documents'
 import { queryKeys } from '@/api/queryKeys'
 import { formatDate, formatTzs } from '@/components/formatters'
 import { colors } from '@/theme/colors'
-import { spacing } from '@/theme/spacing'
+import { spacing, typography } from '@/theme/spacing'
 
 export default function DocumentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -45,9 +45,30 @@ export default function DocumentDetail() {
   if (query.isLoading) {
     return (
       <Screen>
-        <View style={styles.loader}>
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('documents.loading')}
+          style={styles.loader}
+        >
           <ActivityIndicator color={colors.forest} />
         </View>
+      </Screen>
+    )
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={styles.cardTitle}>{t('documents.load_failed')}</Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <PrimaryButton
+              label={t('common.retry')}
+              variant="ghost"
+              onPress={() => void query.refetch()}
+            />
+          </View>
+        </Card>
       </Screen>
     )
   }
@@ -113,5 +134,6 @@ export default function DocumentDetail() {
 }
 
 const styles = StyleSheet.create({
-  loader: { paddingVertical: spacing.xxl, alignItems: 'center' }
+  loader: { paddingVertical: spacing.xxl, alignItems: 'center' },
+  cardTitle: { ...typography.heading, color: colors.ink, marginBottom: spacing.sm }
 })

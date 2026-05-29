@@ -60,9 +60,30 @@ export default function BidDetail() {
   if (query.isLoading) {
     return (
       <Screen>
-        <View style={styles.loader}>
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('bids.loading')}
+          style={styles.loader}
+        >
           <ActivityIndicator color={colors.forest} />
         </View>
+      </Screen>
+    )
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={styles.cardTitle}>{t('bids.load_failed')}</Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <PrimaryButton
+              label={t('common.retry')}
+              variant="ghost"
+              onPress={() => void query.refetch()}
+            />
+          </View>
+        </Card>
       </Screen>
     )
   }
