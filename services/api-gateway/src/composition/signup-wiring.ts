@@ -293,6 +293,12 @@ function buildTenantWriter(args: {
           ? ['national_id_pending', 'address_pending']
           : ['brela_pending', 'tin_pending', 'beneficial_owner_pending'];
       try {
+        // JC-5: jurisdiction is LOCKED at signup. The lock metadata
+        // captures the timestamp + the signup user so the JC-6 brain
+        // tools can refuse self-change ("your account is locked to
+        // <country>; only Borjie support can change this") and the
+        // JC-7 admin override route can verify the original locker
+        // before re-assigning.
         await args.db.execute(
           sql`
             INSERT INTO tenants (
@@ -301,6 +307,7 @@ function buildTenantWriter(args: {
               default_language, mining_licence_number,
               business_registration_number, tax_id, vat_number,
               national_id_number, kyc_status, kyc_atoms_completed,
+              jurisdiction_locked_at, jurisdiction_locked_by_user_id,
               created_at, updated_at
             ) VALUES (
               ${input.tenantId},
@@ -320,6 +327,7 @@ function buildTenantWriter(args: {
               ${input.nationalIdNumber},
               'unverified',
               ${JSON.stringify(kycAtoms)}::jsonb,
+              NOW(), ${input.ownerUserId},
               NOW(), NOW()
             )
           `,
@@ -422,6 +430,11 @@ function buildAuditChainAdapter(args: {
           accountKind: input.accountKind,
           country: input.country,
           kycAtomsInitialized: [...input.kycAtomsInitialized],
+          // JC-5: capture the jurisdiction-lock event in the same
+          // audit envelope. JC-7 admin override comparisons walk the
+          // chain to find this entry as the canonical "first lock".
+          jurisdictionLocked: true,
+          jurisdictionLockedByUserId: input.ownerUserId,
         },
       });
     },
