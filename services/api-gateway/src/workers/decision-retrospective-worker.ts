@@ -321,6 +321,10 @@ export function createDecisionRetrospectiveWorker(
 
   function start(): void {
     if (!enabled || timer !== null) return;
+    logger.info(
+      { worker: 'decision-retrospective', intervalMs },
+      'decision-retrospective: started',
+    );
     timer = setInterval(() => {
       void tickOnce();
     }, intervalMs);
@@ -330,6 +334,10 @@ export function createDecisionRetrospectiveWorker(
     if (timer !== null) {
       clearInterval(timer);
       timer = null;
+      logger.info(
+        { worker: 'decision-retrospective' },
+        'decision-retrospective: stopped',
+      );
     }
   }
 
