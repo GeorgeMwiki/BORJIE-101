@@ -392,6 +392,12 @@ import { createOutcomeReconciliationWorker } from './workers/outcome-reconciliat
 // workforce_certifications for any active cert expiring in <= 30d
 // and auto-creates reminders at 30d / 14d / 3d (idempotent).
 import { createIcaCertExpiryCron } from './workers/ica-cert-expiry-cron';
+// Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
+// references every entity in the system so the brain can resolve any
+// natural-language phrase to a concrete row and traverse the entity
+// graph in one hop. Companion to migration 0115 + the brain tools in
+// composition/brain-tools/entity-legibility-tools.ts.
+import { createEntityIndexerWorker } from './workers/entity-indexer-worker';
 // Wave OWNER-CONTACT-RESOLVER — per-owner email/phone/slack resolver
 // replaces the BORJIE_OWNER_FALLBACK_EMAIL env-var crutch.
 import {
@@ -1731,6 +1737,30 @@ const icaCertExpiryCron = serviceRegistry.db
       },
     };
 
+// Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
+// references every entity in the system so the brain can resolve any
+// natural-language phrase to a concrete row and traverse the entity
+// graph in one hop. Disabled when BORJIE_ENTITY_INDEXER_DISABLED=true
+// (e.g. test runs). Interval is env-tunable via
+// BORJIE_ENTITY_INDEXER_INTERVAL_MS.
+const entityIndexerWorker = serviceRegistry.db
+  ? createEntityIndexerWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return {
+          indexedCount: 0,
+          edgesUpserted: 0,
+          failedRows: 0,
+          perKindCounts: {},
+        };
+      },
+    };
+
 // Live FX feed cron — see fx-feed-cron.ts. Ticks every 5 min by default;
 // override via BORJIE_FX_FEED_CRON_INTERVAL_MS. Disabled when
 // BORJIE_FX_FEED_CRON_DISABLED=true (e.g. test runs).
@@ -1918,6 +1948,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: ica-cert-expiry cron stop failed');
   }
   try {
+    entityIndexerWorker.stop();
+    logger.info('shutdown: entity-indexer worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: entity-indexer worker stop failed');
+  }
+  try {
     fxFeedCron.stop();
     logger.info('shutdown: fx-feed cron stopped');
   } catch (err) {
@@ -2052,6 +2088,10 @@ if (require.main === module) {
   // and auto-creates reminders at 30d / 14d / 3d (idempotent via
   // UNIQUE(tenant_id, cert_id, days_before)).
   icaCertExpiryCron.start();
+  // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
+  // references every entity in the system so the brain can resolve any
+  // natural-language phrase and traverse the graph in one hop.
+  entityIndexerWorker.start();
   // Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
   // and writes rows into both fx_rates + external_benchmarks.
   fxFeedCron.start();

@@ -40,6 +40,8 @@ import { COOPERATIVE_TOOLS } from './cooperative-tools';
 import { INSURANCE_TOOLS } from './insurance-tools';
 import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
+import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
+import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -83,6 +85,8 @@ export function buildPersonaToolHandlers(
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
       SUPERPOWERS_TOOLS,
+      DECISION_JOURNAL_TOOLS,
+      ENTITY_LEGIBILITY_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -127,6 +131,8 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
       SUPERPOWERS_TOOLS,
+      DECISION_JOURNAL_TOOLS,
+      ENTITY_LEGIBILITY_TOOLS,
     ],
     undefined,
   );
@@ -177,3 +183,8 @@ export { COOPERATIVE_TOOLS } from './cooperative-tools';
 export { INSURANCE_TOOLS } from './insurance-tools';
 export { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 export { SUPERPOWERS_TOOLS } from './superpowers-tools';
+export {
+  DECISION_JOURNAL_TOOLS,
+  configureDecisionJournalTools,
+} from './decision-journal-tools';
+export { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
