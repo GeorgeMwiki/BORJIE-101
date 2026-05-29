@@ -18,7 +18,7 @@ Items previously listed as open have been either:
 
 ## Closed entries (trailer)
 
-### KI-001 — Drizzle migration ledger drift in local dev DB — **CLOSED 2026-05-29**
+### KI-001 — Drizzle migration ledger drift in local dev DB — **CLOSED 2026-05-29 — 610f23e7**
 
 **Severity at time of closure:** MEDIUM (local-dev only).
 
@@ -37,7 +37,7 @@ pnpm verify:migrations:json      # JSON for CI ingestion
 29-case unit test suite (`scripts/__tests__/verify-migrations.test.ts`)
 covers regex extractors, drift detection, CLI args, and JSON rendering.
 
-### KI-002 — OpenAPI catalog drift between `export-openapi.mjs` and live routers — **CLOSED 2026-05-29**
+### KI-002 — OpenAPI catalog drift between `export-openapi.mjs` and live routers — **CLOSED 2026-05-29 — dbe5db12**
 
 **Severity at time of closure:** LOW (docs-only).
 
@@ -55,7 +55,7 @@ the CLI: the dev-only `JWT_SECRET` env now satisfies the ≥32 char
 length check so the CLI never fights the auth-middleware import
 chain on first run.
 
-### KI-003 — 40+ routers call service methods without null guards — **CLOSED 2026-05-29**
+### KI-003 — 40+ routers call service methods without null guards — **CLOSED 2026-05-29 — f8ccddbb**
 
 **Severity at time of closure:** LOW in prod, MEDIUM in sandbox demos.
 
@@ -74,7 +74,7 @@ binding, and the `hasService` predicate path. Routers adopt the
 middleware incrementally — the factory is a drop-in `app.use(...)`
 guard; per-route adoption tracked under per-domain backlogs.
 
-### KI-004 — MCP `relation "maintenance_cases" does not exist` — **CLOSED 2026-05-29**
+### KI-004 — MCP `relation "maintenance_cases" does not exist` — **CLOSED 2026-05-29 — a1e2532b** (docs-only; code fix landed in an earlier hard-fork sweep)
 
 **Severity at time of closure:** LOW (hard-fork artifact).
 
@@ -86,7 +86,7 @@ forked `maintenance_cases` table no longer exists and its old MCP
 binding has been replaced. Verified the MCP tool returns structured
 JSON on a clean local DB.
 
-### KI-012 — M-Pesa webhook idempotency cache is process-local — **CLOSED 2026-05-29**
+### KI-012 — M-Pesa webhook idempotency cache is process-local — **CLOSED 2026-05-29 — 3938657d**
 
 **Severity at time of closure:** MEDIUM (multi-replica deploy risk).
 
