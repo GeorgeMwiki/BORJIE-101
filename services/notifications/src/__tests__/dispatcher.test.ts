@@ -146,4 +146,45 @@ describe('enqueueNotification', () => {
     expect(result.deadLettered).toBe(true);
     expect(dlq.length).toBe(1);
   });
+
+  it('cross-tenant denial — tenant-B provider must NOT serve tenant-A notification', async () => {
+    // Round-3 audit H2 guarantees `selectProvider` returns null when no
+    // tenant-matched provider exists, instead of falling back to
+    // providers[0]. Here we register a provider whose `isConfigured` only
+    // recognises tenant-B; a dispatch for tenant-A must dead-letter
+    // instead of routing through B's provider (which would bill B for
+    // A's traffic and leak credentials across tenants).
+    const tenantBProvider: INotificationProvider = {
+      channel: 'sms',
+      name: 'tenant-b-only-twilio',
+      isConfigured: (tid) => (tid as string) === 'tenant-b',
+      async send(): Promise<SendResult> {
+        throw new Error('tenant-B provider should never be reached for tenant-A');
+      },
+    };
+    const dlq: Array<Record<string, unknown>> = [];
+    const result = await enqueueNotification(
+      {
+        ...input,
+        tenantId: 'tenant-a' as TenantId,
+      },
+      {
+        providers: {
+          sms: [tenantBProvider],
+          email: [],
+          push: [],
+          whatsapp: [],
+        },
+        preferences: {
+          checkAllowed: () => ({ allowed: true }),
+        } as unknown as DispatcherDeps['preferences'],
+        deadLetterSink: { push: (r) => { dlq.push(r as Record<string, unknown>); } },
+      },
+    );
+    expect(result.accepted).toBe(false);
+    expect(result.deadLettered).toBe(true);
+    expect(dlq.length).toBe(1);
+    expect(String(dlq[0]?.lastError)).toContain('No provider configured');
+    expect(String(dlq[0]?.lastError)).toContain('tenant-a');
+  });
 });
