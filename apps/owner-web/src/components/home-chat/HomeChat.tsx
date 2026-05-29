@@ -14,6 +14,7 @@ import {
 } from '@/components/ask/AskEmptyState';
 import { PersonaGreeting } from './PersonaGreeting';
 import { ToolCallSidebar } from './ToolCallSidebar';
+import { BorjieDynamicHints } from './BorjieDynamicHints';
 
 /**
  * HomeChat — chat-first surface that becomes the owner's `/` (home).
@@ -242,6 +243,7 @@ export function HomeChat({
             onSubmit={(content) => void send(content)}
           />
         </section>
+        <BorjieDynamicHints language={languagePreference} />
       </div>
       <div className="hidden lg:flex">
         <ToolCallSidebar
