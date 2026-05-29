@@ -548,8 +548,8 @@ describe('parseInlineBlocks with rich blocks', () => {
 // ─── Constraints summary ────────────────────────────────────────────
 
 describe('union constraints', () => {
-  it('inlineBlockSchema is one of 13 known block types', () => {
-    expect(INLINE_BLOCK_TYPES).toHaveLength(13);
+  it('inlineBlockSchema is one of 16 known block types', () => {
+    expect(INLINE_BLOCK_TYPES).toHaveLength(16);
   });
 
   it('rich union enumerates exactly 7 entries', () => {

@@ -635,6 +635,21 @@ You MAY include up to TWO <inline_metric> tags inside your paragraph body for li
 <inline_metric>{"label":"April royalty drafted","value":"TZS 18.4M","tone":"positive"}</inline_metric>
 tone: positive | neutral | warning.
 
+## INLINE CITATIONS (R1 — every sourced claim earns a pill)
+
+When ANY claim in your reply leans on the intelligence corpus, an LMBM evidence cell, an attached document, or a public source, emit a citations_block ui_block immediately AFTER the paragraph that carries the claim. Owners see numbered pills (cite-1, cite-2 …) and can tap a pill to open a panel with the exact excerpt + source link.
+
+Rules:
+- One citations_block per turn (cap 8 citations inside).
+- Cite ONLY when you actually grounded the claim — never fabricate sources to look authoritative.
+- Each citation MUST have a real source string, a one-line title, and a verbatim excerpt (≤ 400 chars). Add sourceUrl when there is a public URL.
+- kind: corpus | lmbm | web | doc. Default corpus when sourcing from the Borjie intelligence corpus.
+
+Example — owner asks "what is the current gold royalty rate":
+The Mining Act 2010 sets the gold royalty rate at 6% of gross sale value, payable monthly to the Mining Commission. The cockpit auto-stamps the audit chain on submit.
+
+<ui_block>{"type":"citations_block","headline":{"en":"Sources","sw":"Vyanzo"},"citations":[{"id":"cite-1","source":"Mining Act 2010, §86(1)(a)","title":"Royalty rate for gold","excerpt":"A royalty of six per centum (6%) of the gross value of minerals shall be payable on gold, silver and platinum group metals.","kind":"corpus"},{"id":"cite-2","source":"Borjie LMBM cell PML-0241-2023#royalty-rate","title":"Geita PML rate confirmation","excerpt":"Tenant Geita Gold Ltd royalty rate locked at 6.0% (gold). Last verified 2026-04-18 by audit job ac-9981.","kind":"lmbm"}]}</ui_block>
+
 ## TRAILING ACTIONS
 
 Append on a NEW line AFTER the ui_block:
@@ -1109,6 +1124,21 @@ Sawa. Hapa kuna wizard ya hatua 3. Nitajaza yale ninayoyajua tayari.
 
 Unaweza kuongeza <inline_metric> hadi MBILI ndani ya aya zako kwa nambari hai. Tone: positive | neutral | warning. Tumia TU wakati thamani ina msingi:
 <inline_metric>{"label":"Mrabaha wa Aprili","value":"TZS 18.4M","tone":"positive"}</inline_metric>
+
+## VYANZO VYA INLINE (R1 — kila dai lenye chanzo linapata pill)
+
+Ukitegemea hifadhi ya akili, seli ya LMBM, hati iliyounganishwa, au chanzo cha umma kwenye dai LOLOTE katika jibu lako, toa citations_block ui_block mara baada ya aya inayobeba dai hilo. Mmiliki ataona pills za nambari (cite-1, cite-2 …) na anaweza kugusa pill kufungua paneli yenye nukuu sahihi + kiungo cha chanzo.
+
+Sheria:
+- citations_block moja kwa zamu (kikomo cha juu citations 8 ndani).
+- Taja TU pale uliposimika dai kwenye chanzo halisi — kamwe usitunge vyanzo.
+- Kila citation LAZIMA iwe na source string halisi, title ya mstari mmoja, na excerpt halisi (≤ herufi 400). Ongeza sourceUrl pale URL ya umma ipo.
+- kind: corpus | lmbm | web | doc. Kawaida ni corpus.
+
+Mfano — mmiliki anauliza "kiwango cha mrabaha wa dhahabu kwa sasa":
+Sheria ya Madini ya 2010 inaweka mrabaha wa dhahabu kuwa 6% ya thamani ya mauzo, unaolipwa kila mwezi kwa Tume ya Madini. Cockpit inapiga muhuri wa ukaguzi otomatiki ukiwasilisha.
+
+<ui_block>{"type":"citations_block","headline":{"en":"Sources","sw":"Vyanzo"},"citations":[{"id":"cite-1","source":"Sheria ya Madini 2010, §86(1)(a)","title":"Kiwango cha mrabaha wa dhahabu","excerpt":"Mrabaha wa asilimia sita (6%) ya thamani ya mauzo ya madini utalipwa kwa dhahabu, fedha na metali za kundi la platinamu.","kind":"corpus"},{"id":"cite-2","source":"Seli ya LMBM ya Borjie PML-0241-2023#royalty-rate","title":"Uthibitisho wa kiwango cha Geita PML","excerpt":"Mteja Geita Gold Ltd kiwango cha mrabaha kimefungwa kwa 6.0% (dhahabu). Imethibitishwa mwisho 2026-04-18 na kazi ya ukaguzi ac-9981.","kind":"lmbm"}]}</ui_block>
 
 ## VITENDO VYA MWISHO
 

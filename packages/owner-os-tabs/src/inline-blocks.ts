@@ -58,6 +58,10 @@ import {
   draftEditBlockSchema,
   type DraftEditBlock,
 } from './draft-edit-block.js';
+import {
+  citationsBlockSchema,
+  type CitationsBlock,
+} from './citations-block.js';
 
 // ─── Bilingual label helper ─────────────────────────────────────────
 
@@ -219,6 +223,7 @@ export const inlineBlockSchema = z.discriminatedUnion('type', [
   inlineSectionSchema,
   inlineDashboardSchema,
   draftPreviewBlockSchema,
+  citationsBlockSchema,
 ]);
 
 export type InlineBlock = z.infer<typeof inlineBlockSchema>;
@@ -234,6 +239,7 @@ export type {
   InlineDashboard,
   DraftPreviewBlock,
   DraftEditBlock,
+  CitationsBlock,
 };
 
 
@@ -250,6 +256,7 @@ export const INLINE_BLOCK_TYPES: ReadonlyArray<InlineBlock['type']> = [
   'draft_edit',
   ...RICH_INLINE_BLOCK_TYPES,
   'draft_preview',
+  'citations_block',
 ];
 
 // ─── Parser ─────────────────────────────────────────────────────────

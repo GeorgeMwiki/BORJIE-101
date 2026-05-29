@@ -98,6 +98,10 @@ import {
   DraftPreviewBlock,
   type DraftPreviewBlockProps,
 } from './DraftPreviewBlock';
+import {
+  CitationsBlock,
+  type CitationsBlock as CitationsBlockShape,
+} from './CitationsBlock';
 
 export type AnyInlineBlock = Record<string, unknown> & { readonly type?: string };
 
@@ -192,6 +196,13 @@ export function InlineBlockRenderer({
           block={block as DraftPreviewBlockProps['block']}
           locale={locale}
           {...(onAction ? { onAction } : {})}
+        />
+      );
+    case 'citations_block':
+      return (
+        <CitationsBlock
+          block={block as CitationsBlockShape}
+          locale={locale}
         />
       );
     case 'inline_table':

@@ -116,3 +116,10 @@ export {
   RICH_INLINE_BLOCK_TYPES,
   type RichInlineBlock,
 } from './rich-inline-blocks.js';
+
+export {
+  citationsBlockSchema,
+  CITATIONS_BLOCK_TYPE,
+  type CitationsBlock,
+  type CitationRef,
+} from './citations-block.js';
