@@ -7,6 +7,7 @@ import { parseSupabaseToken } from './jwtClaims'
 import { setAuthToken } from './session'
 import type { User } from './types'
 import { isRole, type Role } from '../roles/types'
+import { registerPushToken } from '../lib/notifications/push-register'
 
 const STORAGE_KEY = 'borjie.auth.role.v1'
 
@@ -82,6 +83,10 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           if (next) {
             setUser(next)
             await setAuthToken(data.session.access_token)
+            // Fire-and-forget push registration on cold-boot with an
+            // existing session — keeps the device token fresh in
+            // device_push_tokens. Never blocks app boot.
+            void registerPushToken()
           }
         } else {
           // Fallback: dev role picker — keeps Expo Go onboarding working
@@ -112,6 +117,9 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       if (next) {
         setUser(next)
         void setAuthToken(session.access_token)
+        // Sign-in / token-refresh — push the latest device token to the
+        // backend so any new user_id mapping is recorded.
+        void registerPushToken()
       }
     })
 

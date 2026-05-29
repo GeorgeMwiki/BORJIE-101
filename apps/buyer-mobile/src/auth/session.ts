@@ -4,6 +4,7 @@ import { clearAuthToken, setAuthToken } from './token'
 import { getSupabaseClient } from './supabaseClient'
 import { parseSupabaseTokenForBuyer } from './buyerClaims'
 import type { BuyerUser } from '@/types/auth'
+import { registerPushToken } from '@/lib/notifications/push-register'
 
 // Reactive in-memory session store, backed by Supabase phone OTP.
 // The mobile UI consumes `useSession()` — when Supabase emits a session
@@ -68,6 +69,9 @@ async function ensureBootstrapped(): Promise<void> {
       currentUser = next
       if (data.session) {
         await setAuthToken(data.session.access_token)
+        // Fire-and-forget push registration on cold-boot — keeps the
+        // device token fresh in `device_push_tokens`. Never blocks app boot.
+        void registerPushToken()
       }
     }
     supabase.auth.onAuthStateChange((_event, session) => {
@@ -75,6 +79,9 @@ async function ensureBootstrapped(): Promise<void> {
       currentUser = projected
       if (session) {
         void setAuthToken(session.access_token)
+        // Sign-in or token-refresh — push the latest device token so
+        // any new user_id mapping is recorded server-side.
+        void registerPushToken()
       } else {
         void clearAuthToken()
       }
