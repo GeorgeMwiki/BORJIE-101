@@ -61,3 +61,21 @@ export {
 } from './top-flows';
 
 export { resolveRiskTier, summariseRiskTiers } from './risk-tiers';
+
+// CE-6 — inline block kind selector.
+export {
+  type BlockHintContext,
+  type InlineBlockKind,
+  inlineBlockKindSchema,
+  selectInlineBlock,
+} from './block-selector';
+
+// CE-7 — grounding helpers (evidence-required invariant).
+export {
+  type EvidenceChainProblem,
+  type EvidenceClaim,
+  attachEvidenceToPlan,
+  evidenceClaimSchema,
+  summariseEvidenceCoverage,
+  validateEvidenceChain,
+} from './grounding';
