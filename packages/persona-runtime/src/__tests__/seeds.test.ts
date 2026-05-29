@@ -1,7 +1,11 @@
 /**
  * Tests for seeds.ts.
  *
- * Verifies the 7+5 built-in catalogue and the idempotent seed helper.
+ * Verifies the built-in catalogue (5 titles + 7 base personas + 8 mining
+ * role personas = 15 total) and the idempotent seed helper. Counts are
+ * derived dynamically from `BUILT_IN_TITLES` / `BUILT_IN_PERSONAS` so new
+ * additions to the catalogue do not require test edits — only the
+ * coverage assertion below needs updating when a new slug is added.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -20,11 +24,19 @@ describe('Built-in catalogue', () => {
     expect(tiers).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('seeds seven personas covering all five tiers + auditor + vendor', () => {
-    expect(BUILT_IN_PERSONAS.length).toBe(7);
+  it('seeds 7 base personas + 8 mining role personas (15 total)', () => {
+    expect(BUILT_IN_PERSONAS.length).toBe(15);
     const slugs = BUILT_IN_PERSONAS.map((p) => p.slug).sort();
     expect(slugs).toEqual([
+      'T1_buyer_marketplace_director',
+      'T1_compliance_clerk',
+      'T1_geologist',
+      'T1_manager_dispatch',
       'T1_owner_strategist',
+      'T1_pit_operator',
+      'T1_safety_officer',
+      'T1_supervisor_shift',
+      'T1_treasury_clerk',
       'T2_admin_strategist',
       'T3_module_manager',
       'T4_field_employee',
@@ -135,10 +147,10 @@ describe('seedBuiltInTitlesAndPersonas — idempotent', () => {
       tenantId: 't_abc',
       port,
     });
-    expect(out.titlesInserted.length).toBe(5);
-    expect(out.personasInserted.length).toBe(7);
-    expect(port.titles.length).toBe(5);
-    expect(port.personas.length).toBe(7);
+    expect(out.titlesInserted.length).toBe(BUILT_IN_TITLES.length);
+    expect(out.personasInserted.length).toBe(BUILT_IN_PERSONAS.length);
+    expect(port.titles.length).toBe(BUILT_IN_TITLES.length);
+    expect(port.personas.length).toBe(BUILT_IN_PERSONAS.length);
   });
 
   it('inserts nothing on a re-run', async () => {
@@ -155,16 +167,22 @@ describe('seedBuiltInTitlesAndPersonas — idempotent', () => {
   });
 
   it('inserts only the missing rows on a partial re-run', async () => {
+    const existingTitles = ['owner', 'admin'];
+    const existingPersonas = ['T1_owner_strategist', 'T_vendor'];
     const port = makePort({
-      existingTitles: ['owner', 'admin'],
-      existingPersonas: ['T1_owner_strategist', 'T_vendor'],
+      existingTitles,
+      existingPersonas,
     });
     const out = await seedBuiltInTitlesAndPersonas({
       tenantId: 't_abc',
       port,
     });
-    expect(out.titlesInserted.length).toBe(3);
-    expect(out.personasInserted.length).toBe(5);
+    expect(out.titlesInserted.length).toBe(
+      BUILT_IN_TITLES.length - existingTitles.length,
+    );
+    expect(out.personasInserted.length).toBe(
+      BUILT_IN_PERSONAS.length - existingPersonas.length,
+    );
   });
 
   it('seeded rows carry is_built_in = true', async () => {
