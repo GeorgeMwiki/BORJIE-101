@@ -226,6 +226,41 @@ describe('Jurisdiction prompt rendering', () => {
     expect(text).toContain('Currency conversion');
   });
 
+  it('JC-2: the unseeded-country rule routes to discover, never says "I don\'t know"', async () => {
+    const resolver = createJurisdictionResolver({
+      tenantConfig: fakeTenantConfig({ 't-tz-1': TZ_CONFIG }),
+    });
+    const resolved = await resolver.resolve('t-tz-1');
+    const en = renderJurisdictionDisclosureRules(resolved, { language: 'en' });
+    expect(en).toContain('mwikila.jurisdiction.discover');
+    expect(en).toContain('NEVER say "I don\'t know"');
+    expect(en).toContain('Borjie internal admin approval');
+    // Sanity — the old "details wired yet" phrasing must be gone.
+    expect(en).not.toContain("I don't have <that country> regulator details wired yet");
+  });
+
+  it('JC-2/JC-6: rule #2 routes to switch tool and forbids scope:permanent', async () => {
+    const resolver = createJurisdictionResolver({
+      tenantConfig: fakeTenantConfig({ 't-tz-1': TZ_CONFIG }),
+    });
+    const resolved = await resolver.resolve('t-tz-1');
+    const en = renderJurisdictionDisclosureRules(resolved, { language: 'en' });
+    expect(en).toContain("mwikila.jurisdiction.switch{scope:'turn'}");
+    expect(en).toContain("NEVER pass scope:'permanent'");
+    expect(en).toContain('account\'s signup jurisdiction is LOCKED');
+  });
+
+  it('JC-2: Swahili rules also route to discover and respect the lock', async () => {
+    const resolver = createJurisdictionResolver({
+      tenantConfig: fakeTenantConfig({ 't-tz-1': TZ_CONFIG }),
+    });
+    const resolved = await resolver.resolve('t-tz-1');
+    const sw = renderJurisdictionDisclosureRules(resolved, { language: 'sw' });
+    expect(sw).toContain('mwikila.jurisdiction.discover');
+    expect(sw).toContain('KAMWE usiseme');
+    expect(sw).toContain('imefungwa');
+  });
+
   it('renderJurisdictionPromptSection joins both blocks', async () => {
     const resolver = createJurisdictionResolver({
       tenantConfig: fakeTenantConfig({ 't-tz-1': TZ_CONFIG }),

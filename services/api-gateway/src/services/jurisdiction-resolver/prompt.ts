@@ -71,19 +71,21 @@ export function renderJurisdictionDisclosureRules(
     return [
       '## SHERIA ZA KUTOA TAARIFA ZA ENEO LA SHERIA',
       `1. Mtumiaji akiuliza kuhusu kanuni / wadhibiti / leseni / utiifu / sarafu, tumia eneo la sheria la mteja (${resolved.country}).`,
-      `2. Mtumiaji akitaja eneo lingine WAZIWAZI (mfano "in Kenya", "for our Uganda operation"), tumia eneo hilo kwa zamu hii TU.`,
-      `3. Mtumiaji akitaja nchi ambayo hatuna data yake bado, sema "Sina data ya kanuni ya nchi hiyo bado — ungependa nirekodi tafiti, au tuendelee na ${resolved.country}?"`,
+      `2. Mtumiaji akitaja eneo lingine WAZIWAZI (mfano "in Kenya", "for our Uganda operation"), tumia chombo mwikila.jurisdiction.switch{scope:'turn'} kwa swali hili TU. KAMWE usitumie scope:'permanent' — eneo la usajili la akaunti limefungwa.`,
+      `3. Mtumiaji akitaja nchi ambayo hatuna data yake bado (mfano "Peru", "Mongolia", "DRC"), KAMWE usiseme "sijui" au "sina data". Piga chombo mwikila.jurisdiction.discover{country} — kitatafuta wadhibiti halisi mtandaoni + kwenye kumbukumbu zetu. Jibu kwa wasifu uliopatikana + taja vyanzo + toa fursa ya kuusajili kabisa (uthibitisho wa msimamizi wa ndani wa Borjie unahitajika kupanua orodha ya kimataifa).`,
       `4. Ubadilishaji wa sarafu: onyesha ${resolved.currency} kwanza; akitaja sarafu nyingine, onyesha pamoja.`,
       `5. Tarehe / saa: tumia ${resolved.timeZone} kwa "leo", "wiki ijayo", "mwezi huu".`,
+      `6. Mtumiaji akiomba "badilisha kabisa nchi yangu kuwa X" → mwambie kwa lugha mbili (sw/en): "Akaunti yako imefungwa kwa ${resolved.country} kwa ajili ya utiifu. Ni timu ya msaada ya Borjie pekee inayoweza kubadilisha — watathibitisha nawe kwanza. Ungependa niandike ombi?"`,
     ].join('\n');
   }
   return [
     '## JURISDICTION DISCLOSURE RULES',
     `1. When the user asks about regulations / regulators / licences / compliance / currency, default to the tenant's jurisdiction (${resolved.country}).`,
-    `2. When the user EXPLICITLY mentions another jurisdiction (e.g. "in Kenya", "for our Uganda operation", "what if I export to South Africa"), use that jurisdiction context for the answer — for THIS turn only unless the user asks to switch permanently.`,
-    `3. If the user mentions a country we have not seeded (e.g. "Peru"), say "I don't have ${'<that country>'} regulator details wired yet — would you like me to record this as something to research, or shall we continue with ${resolved.country}?"`,
+    `2. When the user EXPLICITLY mentions another jurisdiction (e.g. "in Kenya", "for our Uganda operation", "what if I export to South Africa"), call mwikila.jurisdiction.switch{scope:'turn'} for THIS turn only. NEVER pass scope:'permanent' — the account's signup jurisdiction is LOCKED.`,
+    `3. If the user mentions a country we have not seeded (e.g. "Peru", "Mongolia", "DRC"), NEVER say "I don't know" or "I don't have details wired yet". Call mwikila.jurisdiction.discover({country}) → answer with the discovered profile + cite the returned sources + offer to permanently seed it (which requires Borjie internal admin approval since it expands the global jurisdiction registry).`,
     `4. Currency conversion: always show ${resolved.currency}-primary; if the user mentions a different currency, convert and show side-by-side.`,
     `5. Date / time: respect ${resolved.timeZone} for "today", "next week", "this month".`,
+    `6. If the user asks to "switch my account permanently to X", respond bilingually (sw/en): "Your account is locked to ${resolved.country} for compliance. Only Borjie support can change this — they will verify with you first. Want me to draft the request?"`,
   ].join('\n');
 }
 
