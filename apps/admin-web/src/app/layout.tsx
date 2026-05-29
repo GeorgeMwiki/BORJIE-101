@@ -8,6 +8,7 @@ import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { AdminShell } from '@/components/AdminShell';
 import { AdminShellGate } from '@/components/admin-shell/AdminShellGate';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 
 export const metadata: Metadata = {
@@ -94,6 +95,9 @@ export default function RootLayout({
                   Silent; skipped in dev. See `public/sw.js` and
                   `public/offline.html`. */}
               <ServiceWorkerRegister />
+              {/* Pilot feedback widget — fixed bottom-right pill for the
+                  admin console. POSTs to /api/v1/pilot/feedback. */}
+              <FeedbackButton />
             </SensoriumProvider>
           </SessionReplayProvider>
         </ThemeProvider>

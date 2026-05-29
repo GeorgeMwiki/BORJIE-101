@@ -6,6 +6,7 @@ import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
 import { OwnerCommandPalette } from '@/components/OwnerCommandPalette';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 
 export const metadata: Metadata = {
@@ -74,6 +75,10 @@ export default function RootLayout({
             {/* PWA — register the cache-first SW after hydration. Silent;
                 skipped in dev. See `public/sw.js` and `public/offline.html`. */}
             <ServiceWorkerRegister />
+            {/* Pilot feedback widget — fixed bottom-right pill. Opt-in
+                mount via `FEEDBACK_BUTTON_DISABLE` env to silence in
+                screenshot / load test runs. */}
+            <FeedbackButton />
           </AppProviders>
         </ThemeProvider>
       </body>

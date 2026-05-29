@@ -7,13 +7,15 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '../src/auth/AuthProvider'
 import { createQueryClient } from '../src/api/queryClient'
 import { BackgroundSyncMount } from '../src/sync/BackgroundSyncMount'
+import { PilotErrorBoundary } from '../src/components/PilotErrorBoundary'
 import { colors } from '../src/theme/colors'
 import { ThemeProvider } from '../src/theme/ThemeProvider'
 
 export default function RootLayout(): JSX.Element {
   const queryClient = useMemo(() => createQueryClient(), [])
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.surface }}>
+    <PilotErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.surface }}>
       <SafeAreaProvider>
         <ThemeProvider defaultTheme="dark">
         <QueryClientProvider client={queryClient}>
@@ -56,5 +58,6 @@ export default function RootLayout(): JSX.Element {
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </PilotErrorBoundary>
   )
 }
