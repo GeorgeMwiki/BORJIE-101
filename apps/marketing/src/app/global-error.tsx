@@ -35,29 +35,29 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           margin: 0,
           minHeight: '100vh',
           fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif",
-          background: '#0B0F19',
-          color: '#F5F5F0',
+            "var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif)",
+          background: 'var(--background, #0B0F19)',
+          color: 'var(--foreground, #F5F5F0)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '24px',
+          padding: 'var(--space-eb-pad, 24px)',
         }}
       >
-        <div style={{ maxWidth: '440px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 'var(--space-eb-card-max, 440px)', textAlign: 'center' }}>
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
-              background: 'rgba(225, 75, 75, 0.10)',
-              border: '1px solid rgba(225, 75, 75, 0.30)',
-              color: '#E14B4B',
+              width: 'var(--space-eb-icon, 64px)',
+              height: 'var(--space-eb-icon, 64px)',
+              borderRadius: 'var(--radius-eb-icon, 16px)',
+              background: 'var(--destructive-soft, rgba(225, 75, 75, 0.10))',
+              border: '1px solid var(--destructive-strong, rgba(225, 75, 75, 0.30))',
+              color: 'var(--destructive, #E14B4B)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '28px',
-              marginBottom: '24px',
+              fontSize: 'var(--space-eb-icon-glyph, 28px)',
+              marginBottom: 'var(--space-eb-icon-mb, 24px)',
             }}
             aria-hidden="true"
           >
@@ -65,32 +65,32 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           </div>
           <p
             style={{
-              fontSize: '11px',
-              letterSpacing: '0.22em',
+              fontSize: 'var(--space-eb-eyebrow, 11px)',
+              letterSpacing: 'var(--space-eb-tracking, 0.22em)',
               textTransform: 'uppercase',
-              color: '#E14B4B',
+              color: 'var(--destructive, #E14B4B)',
               margin: 0,
-              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
             }}
           >
             Critical error
           </p>
           <h1
             style={{
-              fontSize: '36px',
+              fontSize: 'var(--space-eb-h1, 36px)',
               fontWeight: 500,
-              letterSpacing: '-0.02em',
-              margin: '16px 0 12px',
+              letterSpacing: 'var(--space-eb-h1-tracking, -0.02em)',
+              margin: 'var(--space-eb-h1-margin, 16px 0 12px)',
             }}
           >
             We couldn't load this page.
           </h1>
           <p
             style={{
-              fontSize: '14px',
-              lineHeight: 1.6,
-              color: '#A0A4B0',
-              margin: '0 0 32px',
+              fontSize: 'var(--space-eb-body, 14px)',
+              lineHeight: 'var(--lh-eb, 1.6)',
+              color: 'var(--muted-foreground, #A0A4B0)',
+              margin: 'var(--space-eb-body-margin, 0 0 32px)',
             }}
           >
             Something failed before we could render anything. Try
@@ -104,15 +104,15 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              borderRadius: '12px',
-              background: '#FFC857',
-              color: '#0B0F19',
-              fontSize: '14px',
+              gap: 'var(--space-eb-btn-gap, 8px)',
+              padding: 'var(--space-eb-btn-pad, 10px 20px)',
+              borderRadius: 'var(--radius-eb-btn, 12px)',
+              background: 'var(--signal-500, #FFC857)',
+              color: 'var(--background, #0B0F19)',
+              fontSize: 'var(--space-eb-body, 14px)',
               fontWeight: 600,
               border: 'none',
-              boxShadow: '0 4px 12px -2px rgba(0,0,0,0.45)',
+              boxShadow: 'var(--shadow-eb-btn, 0 4px 12px -2px rgba(0,0,0,0.45))',
             }}
           >
             Try again
