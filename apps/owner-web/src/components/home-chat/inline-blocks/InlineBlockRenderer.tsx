@@ -85,6 +85,10 @@ import {
   LevelSelectBlock,
   type LevelSelectBlock as LevelSelectBlockShape,
 } from './LevelSelectBlock';
+import {
+  DraftEditBlock,
+  type DraftEditBlockProps,
+} from './DraftEditBlock';
 
 export type AnyInlineBlock = Record<string, unknown> & { readonly type?: string };
 
@@ -161,6 +165,14 @@ export function InlineBlockRenderer({
       return (
         <FileRequestCardBlock
           block={block as FileRequestCardBlockShape}
+          locale={locale}
+          {...(onAction ? { onAction } : {})}
+        />
+      );
+    case 'draft_edit':
+      return (
+        <DraftEditBlock
+          block={block as DraftEditBlockProps['block']}
           locale={locale}
           {...(onAction ? { onAction } : {})}
         />
