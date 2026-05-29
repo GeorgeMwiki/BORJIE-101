@@ -50,10 +50,36 @@ export const managerCrewTool: PersonaToolDescriptor<typeof CrewInput, typeof Cre
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { crew: [] };
-    return client.get<{ crew: Array<{ workerId: string; displayName: string; shift: string; status: 'scheduled' | 'on_site' | 'absent' | 'off_duty' }> }>(
-      '/mining/attendance/crew',
-      { query: { tenantId: ctx.tenantId, siteId: input.siteId, date: input.forDate } },
+    // Retarget: canonical surface is /api/v1/mining/attendance/headcount
+    // which returns per-site headcount aggregates. The brain tool
+    // exposes the aggregate as a single roster row scoped to the site
+    // until a per-worker roster endpoint lands; this keeps the chat
+    // bubble shape stable.
+    const res = await client.get<{
+      data?: {
+        groupBy: 'site';
+        workDate: string;
+        perSite: Array<{ siteId: string; headcount: number }>;
+      };
+    }>('/mining/attendance/headcount', {
+      query: { groupBy: 'site', workDate: input.forDate },
+    });
+    const siteRow = (res.data?.perSite ?? []).find(
+      (r) => r.siteId === input.siteId,
     );
+    const total = siteRow?.headcount ?? 0;
+    return {
+      crew: total > 0
+        ? [
+            {
+              workerId: `headcount:${input.siteId}`,
+              displayName: `${total} on site`,
+              shift: input.forDate ?? new Date().toISOString().slice(0, 10),
+              status: 'on_site' as const,
+            },
+          ]
+        : [],
+    };
   },
 };
 
@@ -127,20 +153,29 @@ export const managerAssignTaskTool: PersonaToolDescriptor<typeof AssignInput, ty
         assignedAt: new Date().toISOString(),
       };
     }
-    return client.post<{ taskId: string; assignee: string; assignedAt: string }>(
-      '/mining/tasks/assign',
+    // Retarget: canonical surface is POST /api/v1/mining/tasks/:id/reassign
+    // (services/api-gateway/src/routes/mining/tasks.hono.ts). The same
+    // route handles initial assignment because the task row starts
+    // with assignedToUserId = NULL; reassign updates the column.
+    const res = await client.post<{ data?: { id?: string; assigned_to_user_id?: string } }>(
+      `/mining/tasks/${encodeURIComponent(input.taskId)}/reassign`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          taskId: input.taskId,
-          workerId: input.workerId,
+          assignedToUserId: input.workerId,
           notesEn: input.notesEn,
           notesSw: input.notesSw,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      taskId: String(row.id ?? input.taskId),
+      assignee: String(row.assigned_to_user_id ?? input.workerId),
+      assignedAt: new Date().toISOString(),
+    };
   },
 };
 
@@ -177,10 +212,32 @@ export const managerSuggestAssigneeTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { suggestions: [] };
-    return client.get<{ suggestions: Array<{ workerId: string; score: number; reason: string; evidenceIds: string[] }> }>(
-      '/mining/tasks/suggest-assignee',
-      { query: { tenantId: ctx.tenantId, taskId: input.taskId, topK: input.topK } },
+    // Retarget: canonical surface is POST /api/v1/mining/tasks/:id/
+    // suggest-assignee (services/api-gateway/src/routes/mining/
+    // tasks-suggest.hono.ts). The route returns the rules-v1 ranking;
+    // we surface the top `topK` to the brain bubble.
+    const res = await client.post<{
+      data?: {
+        suggestions?: Array<{
+          workerId: string;
+          score: number;
+          reason: string;
+          evidenceIds?: string[];
+        }>;
+      };
+    }>(
+      `/mining/tasks/${encodeURIComponent(input.taskId)}/suggest-assignee`,
+      { topK: input.topK },
     );
+    const all = res.data?.suggestions ?? [];
+    return {
+      suggestions: all.slice(0, input.topK).map((s) => ({
+        workerId: s.workerId,
+        score: s.score,
+        reason: s.reason,
+        evidenceIds: s.evidenceIds ?? [],
+      })),
+    };
   },
 };
 
@@ -221,10 +278,30 @@ export const managerExceptionsTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { incidents: [], maintenance: [] };
-    return client.get<{ incidents: Array<{ incidentId: string; title: string; severity: 'low' | 'medium' | 'high' | 'critical'; reportedAt: string }>; maintenance: Array<{ assetId: string; summary: string; raisedAt: string }> }>(
-      '/mining/manager/exceptions',
-      { query: { tenantId: ctx.tenantId, siteId: input.siteId } },
-    );
+    // Retarget: canonical surfaces are /mining/incidents (filter by
+    // status=open) plus /mining/maintenance (no events surface today
+    // returns []). The brain tool composes them into the manager's
+    // single "open exceptions" pane so chat answers stay coherent.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/incidents', {
+      query: {
+        status: 'open',
+        siteId: input.siteId,
+      },
+    });
+    const rows = res.data ?? [];
+    return {
+      incidents: rows.map((r) => ({
+        incidentId: String(r.id ?? ''),
+        title: String(r.description ?? '').slice(0, 200),
+        severity:
+          (String(r.severity) as 'low' | 'medium' | 'high' | 'critical') ??
+          'low',
+        reportedAt: String(r.created_at ?? r.occurred_at ?? new Date().toISOString()),
+      })),
+      maintenance: [],
+    };
   },
 };
 
@@ -302,20 +379,28 @@ export const managerDecideApprovalTool: PersonaToolDescriptor<
         decidedAt: new Date().toISOString(),
       };
     }
-    return client.post<{ approvalId: string; decision: 'approve' | 'reject'; decidedAt: string }>(
-      '/mining/approvals/decide',
+    // Retarget: canonical surface routes by the decision verb:
+    // POST /api/v1/mining/approvals/:id/approve | /reject | /defer
+    // (services/api-gateway/src/routes/mining/approvals.hono.ts).
+    const verb = input.decision === 'approve' ? 'approve' : 'reject';
+    const res = await client.post<{ data?: { id?: string; status?: string; updated_at?: string } }>(
+      `/mining/approvals/${encodeURIComponent(input.approvalId)}/${verb}`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          approvalId: input.approvalId,
-          decision: input.decision,
           reasonEn: input.reasonEn,
           reasonSw: input.reasonSw,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      approvalId: String(row.id ?? input.approvalId),
+      decision: input.decision,
+      decidedAt: String(row.updated_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -411,15 +496,32 @@ export const managerShiftDraftTool: PersonaToolDescriptor<
         rationaleSw: 'rasimu inahitaji httpClient',
       };
     }
-    return client.post<{ draftId: string; lineup: Array<{ workerId: string; role: string; shift: string }>; rationaleEn: string; rationaleSw: string }>(
-      '/mining/shift-reports/draft',
-      {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        siteId: input.siteId,
-        forDate: input.forDate,
-      },
-    );
+    // Retarget: today's surface is GET /api/v1/mining/shift-reports
+    // (services/api-gateway/src/routes/mining/shift-reports.hono.ts).
+    // The brain tool surfaces the most recent shift report for the
+    // site as the seed for the next-shift draft; the manager edits +
+    // confirms via the explicit POST. A future iteration can persist
+    // a true `/draft` row once the schema lands.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/shift-reports', {
+      query: { siteId: input.siteId },
+    });
+    const rows = res.data ?? [];
+    const latest = rows[0];
+    const draftId = latest
+      ? `seed:${String(latest.id)}`
+      : `draft:${ctx.tenantId}:${input.siteId}`;
+    return {
+      draftId,
+      lineup: [],
+      rationaleEn: latest
+        ? `Seeded from shift report ${String(latest.id)} on ${String(latest.shift_date ?? '')}`
+        : 'No prior shift report on file; manager to fill from scratch.',
+      rationaleSw: latest
+        ? `Imechukuliwa kutoka ripoti ya zamu ${String(latest.id)} ya ${String(latest.shift_date ?? '')}`
+        : 'Hakuna ripoti ya zamu iliyopita; msimamizi atajaza.',
+    };
   },
 };
 

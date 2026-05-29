@@ -169,12 +169,25 @@ export const uiPrefillTool: PersonaToolDescriptor<
       },
       ctx,
     );
-    return client.post<{
-      accepted: boolean;
-      formId: string;
-      valueCount: number;
-      emittedAt: string;
-    }>('/internal/superpowers/prefill', body);
+    // Retarget: canonical surface is POST /api/v1/owner/superpowers/prefill
+    // (services/api-gateway/src/routes/owner/superpowers.hono.ts). The
+    // route ack-audits the prefill emission; the actual chip render
+    // lives in brain-teach SSE.
+    const res = await client.post<{
+      data?: {
+        accepted?: boolean;
+        formId?: string;
+        valueCount?: number;
+        emittedAt?: string;
+      };
+    }>('/owner/superpowers/prefill', body);
+    const row = res.data ?? {};
+    return {
+      accepted: Boolean(row.accepted ?? true),
+      formId: String(row.formId ?? input.formId),
+      valueCount: Number(row.valueCount ?? Object.keys(input.values).length),
+      emittedAt: String(row.emittedAt ?? new Date().toISOString()),
+    };
   },
 };
 

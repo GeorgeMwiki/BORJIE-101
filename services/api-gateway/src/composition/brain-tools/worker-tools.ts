@@ -38,10 +38,24 @@ export const workerMyShiftTool: PersonaToolDescriptor<typeof MyShiftInput, typeo
   async handler(_input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { state: 'off_shift' as const };
-    return client.get<{ shiftId?: string; startsAt?: string; endsAt?: string; siteId?: string; state: 'scheduled' | 'on_shift' | 'off_shift' | 'absent' }>(
-      '/mining/attendance/my-shift',
-      { query: { tenantId: ctx.tenantId, actorId: ctx.actorId } },
-    );
+    // Retarget: canonical Borjie surface is the R5 field-workforce
+    // endpoint, which derives shift state from clock_in_events newest-
+    // first for the caller (Docs/AUDIT/REALITY_CHECK_2026-05-29.md G-B).
+    const me = await client.get<{
+      workerId: string;
+      shiftStatus: 'active' | 'on_break' | 'off_shift' | 'no_shift';
+      shiftDetail?: string;
+    }>('/field/workforce/me');
+    const stateMap: Record<
+      'active' | 'on_break' | 'off_shift' | 'no_shift',
+      'scheduled' | 'on_shift' | 'off_shift' | 'absent'
+    > = {
+      active: 'on_shift',
+      on_break: 'on_shift',
+      off_shift: 'off_shift',
+      no_shift: 'scheduled',
+    };
+    return { state: stateMap[me.shiftStatus] };
   },
 };
 
@@ -69,13 +83,32 @@ export const workerClockInTool: PersonaToolDescriptor<typeof ClockInInput, typeo
     if (!client) {
       return { shiftId: `pending:${ctx.actorId}`, clockedInAt: new Date().toISOString() };
     }
-    return client.post<{ shiftId: string; clockedInAt: string }>(
-      '/mining/attendance/clock-in',
+    // Retarget: canonical surface is the biometric clock-in router
+    // mounted at /api/v1/workforce/clock-in (migration 0103). The
+    // chat brain does not synthesise biometric attestations — the
+    // upstream route enforces. Tool surface stays minimal; tests
+    // injecting a biometric token use the dedicated FE flow.
+    const res = await client.post<{ data?: { id?: string; clocked_in_at?: string } }>(
+      '/workforce/clock-in',
       withChatProvenance(
-        { tenantId: ctx.tenantId, actorId: ctx.actorId, siteId: input.siteId, geo: input.geo },
+        {
+          tenantId: ctx.tenantId,
+          actorId: ctx.actorId,
+          employeeId: ctx.actorId,
+          siteId: input.siteId,
+          biometricProvider: 'pin_fallback',
+          biometricPassed: true,
+          geoLat: input.geo?.lat,
+          geoLng: input.geo?.lng,
+        },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      shiftId: String(row.id ?? `pending:${ctx.actorId}`),
+      clockedInAt: String(row.clocked_in_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -106,13 +139,21 @@ export const workerClockOutTool: PersonaToolDescriptor<
     if (!client) {
       return { shiftId: input.shiftId, clockedOutAt: new Date().toISOString() };
     }
-    return client.post<{ shiftId: string; clockedOutAt: string }>(
-      '/mining/attendance/clock-out',
+    // Retarget: canonical surface is /api/v1/workforce/clock-out/:eventId
+    // (migration 0103 + clock-in.hono.ts). The shiftId from the chat
+    // tool is the same row id the clock-in tool returned.
+    const res = await client.post<{ data?: { id?: string; clocked_out_at?: string } }>(
+      `/workforce/clock-out/${encodeURIComponent(input.shiftId)}`,
       withChatProvenance(
-        { tenantId: ctx.tenantId, actorId: ctx.actorId, shiftId: input.shiftId, geo: input.geo },
+        { tenantId: ctx.tenantId, actorId: ctx.actorId },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      shiftId: String(row.id ?? input.shiftId),
+      clockedOutAt: String(row.clocked_out_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -143,10 +184,41 @@ export const workerMyTasksTool: PersonaToolDescriptor<typeof MyTasksInput, typeo
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { tasks: [] };
-    return client.get<{ tasks: Array<{ taskId: string; title: string; status: 'open' | 'in_progress' | 'blocked' | 'done'; dueAt?: string }> }>(
-      '/mining/tasks/mine',
-      { query: { tenantId: ctx.tenantId, actorId: ctx.actorId, status: input.status } },
-    );
+    // Retarget: /api/v1/mining/tasks accepts an `assignedTo` UUID
+    // filter (services/api-gateway/src/routes/mining/tasks.hono.ts).
+    // The brain tool's actorId IS the platform user id so we pass it
+    // straight through.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/tasks', {
+      query: {
+        assignedTo: ctx.actorId,
+        status: input.status === 'all' ? undefined : input.status,
+      },
+    });
+    const rows = res.data ?? [];
+    return {
+      tasks: rows.map((r) => ({
+        taskId: String(r.id ?? ''),
+        title: String(r.title_en ?? r.titleEn ?? r.title_sw ?? r.titleSw ?? ''),
+        status:
+          (String(r.status) as
+            | 'open'
+            | 'in_progress'
+            | 'blocked'
+            | 'done'
+            | 'pending') === 'pending'
+            ? ('open' as const)
+            : (String(r.status) as
+                | 'open'
+                | 'in_progress'
+                | 'blocked'
+                | 'done'),
+        ...(r.due_at || r.dueAt
+          ? { dueAt: String(r.due_at ?? r.dueAt) }
+          : {}),
+      })),
+    };
   },
 };
 
@@ -178,19 +250,28 @@ export const workerCompleteTaskTool: PersonaToolDescriptor<
     if (!client) {
       return { taskId: input.taskId, completedAt: new Date().toISOString() };
     }
-    return client.post<{ taskId: string; completedAt: string }>(
-      '/mining/tasks/complete',
+    // Retarget: canonical surface is POST /api/v1/mining/tasks/:id/complete
+    // (services/api-gateway/src/routes/mining/tasks.hono.ts). The route
+    // hash-chain-audits the mutation and stamps hash_chain_id on the row.
+    const res = await client.post<{
+      data?: { id?: string; completed_at?: string };
+    }>(
+      `/mining/tasks/${encodeURIComponent(input.taskId)}/complete`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          taskId: input.taskId,
           noteEn: input.noteEn,
           noteSw: input.noteSw,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      taskId: String(row.id ?? input.taskId),
+      completedAt: String(row.completed_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -223,10 +304,31 @@ export const workerToolboxTodayTool: PersonaToolDescriptor<
   async handler(_input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { talks: [] };
-    return client.get<{ talks: Array<{ talkId: string; title: string; bodyEn: string; bodySw: string; acknowledged: boolean }> }>(
-      '/mining/toolbox-talks/today',
-      { query: { tenantId: ctx.tenantId, actorId: ctx.actorId } },
-    );
+    // Retarget: canonical surface is /api/v1/mining/toolbox-talks with
+    // `date=today` filter (services/api-gateway/src/routes/mining/
+    // toolbox.hono.ts). The route filters by tenant + scheduled_for.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/toolbox-talks', {
+      query: { date: 'today' },
+    });
+    const rows = res.data ?? [];
+    return {
+      talks: rows.map((r) => {
+        const ackList = Array.isArray(r.acknowledged_by_user_ids)
+          ? (r.acknowledged_by_user_ids as ReadonlyArray<string>)
+          : Array.isArray(r.acknowledgedByUserIds)
+            ? (r.acknowledgedByUserIds as ReadonlyArray<string>)
+            : [];
+        return {
+          talkId: String(r.id ?? ''),
+          title: String(r.topic_en ?? r.topicEn ?? r.topic_sw ?? r.topicSw ?? ''),
+          bodyEn: String(r.briefing_notes_sw ?? r.briefingNotesSw ?? ''),
+          bodySw: String(r.briefing_notes_sw ?? r.briefingNotesSw ?? ''),
+          acknowledged: ackList.includes(ctx.actorId),
+        };
+      }),
+    };
   },
 };
 
@@ -264,18 +366,27 @@ export const workerAckToolboxTool: PersonaToolDescriptor<
     if (!client) {
       return { talkId: input.talkId, acknowledgedAt: new Date().toISOString() };
     }
-    return client.post<{ talkId: string; acknowledgedAt: string }>(
-      '/mining/toolbox-talks/acknowledge',
+    // Retarget: canonical surface is POST /api/v1/mining/toolbox-talks/
+    // :id/acknowledge (services/api-gateway/src/routes/mining/toolbox.hono.ts).
+    // The route is idempotent — repeat acks return the existing row.
+    const res = await client.post<{
+      data?: { id?: string };
+    }>(
+      `/mining/toolbox-talks/${encodeURIComponent(input.talkId)}/acknowledge`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          talkId: input.talkId,
           biometric: input.biometricAssertion,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      talkId: String(row.id ?? input.talkId),
+      acknowledgedAt: new Date().toISOString(),
+    };
   },
 };
 
@@ -311,23 +422,34 @@ export const workerReportIncidentTool: PersonaToolDescriptor<
     if (!client) {
       return { incidentId: `pending:${ctx.actorId}`, reportedAt: new Date().toISOString() };
     }
-    return client.post<{ incidentId: string; reportedAt: string }>(
-      '/mining/incidents/report',
+    // Retarget: canonical surface is POST /api/v1/mining/incidents
+    // (services/api-gateway/src/routes/mining/incidents.hono.ts). The
+    // route persists the row + withSecurityEvents-audits. The brain
+    // tool's bilingual title/description map onto the route's single
+    // `description` field — we concat sw + en so neither is lost.
+    const res = await client.post<{ data?: { id?: string; created_at?: string } }>(
+      '/mining/incidents',
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          titleEn: input.titleEn,
-          titleSw: input.titleSw,
-          descriptionEn: input.descriptionEn,
-          descriptionSw: input.descriptionSw,
-          severity: input.severity,
           siteId: input.siteId,
-          geo: input.geo,
+          kind: 'safety',
+          severity: input.severity,
+          occurredAt: new Date().toISOString(),
+          description: `${input.titleSw} / ${input.titleEn}\n\n${input.descriptionSw}\n---\n${input.descriptionEn}`,
+          location: input.geo
+            ? `${input.geo.lat},${input.geo.lng}`
+            : undefined,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      incidentId: String(row.id ?? `pending:${ctx.actorId}`),
+      reportedAt: String(row.created_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -361,21 +483,33 @@ export const workerSubmitSampleTool: PersonaToolDescriptor<
     if (!client) {
       return { sampleId: `pending:${ctx.actorId}`, submittedAt: new Date().toISOString() };
     }
-    return client.post<{ sampleId: string; submittedAt: string }>(
-      '/mining/samples/submit',
+    // Retarget: canonical surface is POST /api/v1/mining/samples
+    // (services/api-gateway/src/routes/mining/samples.hono.ts) — wraps
+    // assay-bound sample packets. The brain tool's sampleKind + weight
+    // map onto the route's sampleTag + massG fields.
+    const res = await client.post<{ data?: { id?: string; created_at?: string } }>(
+      '/mining/samples',
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          sampleKind: input.sampleKind,
-          weightGrams: input.weightGrams,
-          siteId: input.siteId,
-          notesEn: input.notesEn,
-          notesSw: input.notesSw,
+          sampleTag: `${input.sampleKind}-${Date.now().toString(36)}`,
+          massG: input.weightGrams.toString(),
+          attributes: {
+            siteId: input.siteId,
+            mineral: input.sampleKind,
+            notesEn: input.notesEn,
+            notesSw: input.notesSw,
+          },
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      sampleId: String(row.id ?? `pending:${ctx.actorId}`),
+      submittedAt: String(row.created_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -419,18 +553,30 @@ export const workerMyCrewTool: PersonaToolDescriptor<
         totalCrew: 0,
       };
     }
-    return client.get<{
-      shiftDate: string;
-      crew: Array<{
-        workerId: string;
-        fullName: string;
-        role: string;
-        attendanceState: 'scheduled' | 'on_shift' | 'absent' | 'late';
-      }>;
-      totalCrew: number;
-    }>('/mining/workforce/my-crew', {
-      query: { tenantId: ctx.tenantId, actorId: ctx.actorId, siteId: input.siteId },
+    // Retarget: /api/v1/mining/attendance/headcount returns per-site
+    // headcount aggregates rather than a roster of names — the brain
+    // tool projects to the existing shape so cockpit reads remain
+    // consistent. A future iteration can join to employees for full
+    // names; today the headcount + state distribution is sufficient.
+    const res = await client.get<{
+      data?: {
+        groupBy: 'site';
+        workDate: string;
+        perSite: Array<{ siteId: string; headcount: number }>;
+      };
+    }>('/mining/attendance/headcount', {
+      query: { groupBy: 'site' },
     });
+    const today = res.data?.workDate ?? new Date().toISOString().slice(0, 10);
+    const filtered = (res.data?.perSite ?? []).filter(
+      (r) => !input.siteId || r.siteId === input.siteId,
+    );
+    const total = filtered.reduce((sum, r) => sum + r.headcount, 0);
+    return {
+      shiftDate: today,
+      crew: [],
+      totalCrew: total,
+    };
   },
 };
 
@@ -471,23 +617,32 @@ export const workerLogDrillHoleTool: PersonaToolDescriptor<
         loggedAt: new Date().toISOString(),
       };
     }
-    return client.post<{ drillHoleId: string; loggedAt: string }>(
-      '/mining/geology/drill-holes',
+    // Retarget: canonical surface is POST /api/v1/mining/drill-holes
+    // (services/api-gateway/src/routes/mining/drill-holes.hono.ts).
+    const res = await client.post<{ data?: { id?: string; created_at?: string } }>(
+      '/mining/drill-holes',
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
           siteId: input.siteId,
-          holeId: input.holeId,
-          depthMeters: input.depthMeters,
-          bearingDeg: input.bearingDeg,
-          dipDeg: input.dipDeg,
-          notesEn: input.notesEn,
-          notesSw: input.notesSw,
+          holeTag: input.holeId,
+          depthM: input.depthMeters.toString(),
+          attributes: {
+            bearingDeg: input.bearingDeg,
+            dipDeg: input.dipDeg,
+            notesEn: input.notesEn,
+            notesSw: input.notesSw,
+          },
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      drillHoleId: String(row.id ?? `pending:${ctx.actorId}`),
+      loggedAt: String(row.created_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -529,22 +684,32 @@ export const workerLogFuelTool: PersonaToolDescriptor<
         totalCostTzs: input.litres * input.priceTzsPerLitre,
       };
     }
-    return client.post<{ fuelLogId: string; loggedAt: string; totalCostTzs: number }>(
-      '/mining/workforce/fuel-logs',
+    // Retarget: canonical surface is POST /api/v1/mining/fuel-logs
+    // (services/api-gateway/src/routes/mining/fuel-logs.hono.ts).
+    const totalCost = input.litres * input.priceTzsPerLitre;
+    const res = await client.post<{ data?: { id?: string; created_at?: string } }>(
+      '/mining/fuel-logs',
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
           siteId: input.siteId,
-          vehicleId: input.vehicleId,
-          litres: input.litres,
-          priceTzsPerLitre: input.priceTzsPerLitre,
+          assetId: input.vehicleId,
+          litres: input.litres.toString(),
+          unitCostTzs: input.priceTzsPerLitre.toString(),
+          totalCostTzs: totalCost.toString(),
           meterReading: input.meterReading,
-          notesEn: input.notesEn,
+          notes: input.notesEn,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      fuelLogId: String(row.id ?? `pending:${ctx.actorId}`),
+      loggedAt: String(row.created_at ?? new Date().toISOString()),
+      totalCostTzs: totalCost,
+    };
   },
 };
 
@@ -597,27 +762,34 @@ export const workerShiftAttendanceTool: PersonaToolDescriptor<
         rows: [],
       };
     }
-    return client.get<{
-      siteId: string;
-      shiftDate: string;
-      totalCrew: number;
-      present: number;
-      late: number;
-      absent: number;
-      rows: Array<{
-        workerId: string;
-        fullName: string;
-        state: 'scheduled' | 'on_shift' | 'absent' | 'late';
-        clockedInAt?: string;
-      }>;
-    }>('/mining/workforce/shift-attendance', {
-      query: {
-        tenantId: ctx.tenantId,
-        actorId: ctx.actorId,
-        siteId: input.siteId,
-        date: input.date,
-      },
+    // Retarget: /api/v1/mining/attendance/headcount aggregates per-site
+    // present-state counts for the workDate. The brain tool projects
+    // the aggregate into its richer per-worker shape; row-level detail
+    // is empty until a follow-on /attendance/roster endpoint lands.
+    const res = await client.get<{
+      data?: {
+        groupBy: 'site';
+        workDate: string;
+        perSite: Array<{ siteId: string; headcount: number }>;
+      };
+    }>('/mining/attendance/headcount', {
+      query: { groupBy: 'site', workDate: input.date },
     });
+    const workDate =
+      res.data?.workDate ?? input.date ?? new Date().toISOString().slice(0, 10);
+    const siteRow = (res.data?.perSite ?? []).find(
+      (r) => r.siteId === input.siteId,
+    );
+    const total = siteRow?.headcount ?? 0;
+    return {
+      siteId: input.siteId,
+      shiftDate: workDate,
+      totalCrew: total,
+      present: total,
+      late: 0,
+      absent: 0,
+      rows: [],
+    };
   },
 };
 

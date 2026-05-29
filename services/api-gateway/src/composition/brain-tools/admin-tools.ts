@@ -46,10 +46,23 @@ export const adminTenantsListTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { tenants: [] };
-    return client.get<{ tenants: Array<{ tenantId: string; displayName: string; createdAt: string; status: 'active' | 'suspended' | 'churned' }> }>(
-      '/admin/tenants/recent',
-      { query: { tenantId: ctx.tenantId, limit: input.limit } },
-    );
+    // Retarget: canonical surface is GET /api/v1/mining/internal/tenants
+    // (services/api-gateway/src/routes/mining/internal/tenants.hono.ts).
+    // The internal-tenants router lists every platform tenant scoped to
+    // the SUPER_ADMIN role; the brain tool slices the top `limit` rows.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/internal/tenants', { query: { limit: input.limit } });
+    const rows = res.data ?? [];
+    return {
+      tenants: rows.map((r) => ({
+        tenantId: String(r.id ?? r.tenant_id ?? ''),
+        displayName: String(r.display_name ?? r.name ?? ''),
+        createdAt: String(r.created_at ?? new Date().toISOString()),
+        status:
+          (String(r.status) as 'active' | 'suspended' | 'churned') ?? 'active',
+      })),
+    };
   },
 };
 
@@ -88,17 +101,30 @@ export const adminAuditSearchTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { entries: [], totalEntries: 0 };
-    return client.get<{ entries: Array<{ entryId: string; tenantId: string; actorId: string; action: string; occurredAt: string }>; totalEntries: number }>(
-      '/admin/audit-trail/search',
-      {
-        query: {
-          q: input.query,
-          fromTs: input.fromTs,
-          toTs: input.toTs,
-          limit: input.limit,
-        },
+    // Retarget: canonical surface is GET /api/v1/audit-trail/entries
+    // (services/api-gateway/src/routes/audit-trail.router.ts). The
+    // brain tool surfaces row ids + actor + action + timestamp.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/audit-trail/entries', {
+      query: {
+        q: input.query,
+        fromTs: input.fromTs,
+        toTs: input.toTs,
+        limit: input.limit,
       },
-    );
+    });
+    const rows = res.data ?? [];
+    return {
+      entries: rows.map((r) => ({
+        entryId: String(r.id ?? ''),
+        tenantId: String(r.tenant_id ?? ctx.tenantId),
+        actorId: String(r.actor_id ?? r.user_id ?? ''),
+        action: String(r.action ?? ''),
+        occurredAt: String(r.created_at ?? r.occurred_at ?? new Date().toISOString()),
+      })),
+      totalEntries: rows.length,
+    };
   },
 };
 
@@ -130,10 +156,26 @@ export const adminKillSwitchStatusTool: PersonaToolDescriptor<
     if (!client) {
       return { isOpen: false, lastChangedAt: new Date().toISOString() };
     }
-    return client.get<{ isOpen: boolean; lastChangedAt: string; lastChangedBy?: string; reasonEn?: string }>(
-      '/admin/kill-switch/status',
-      { query: { tenantId: ctx.tenantId } },
-    );
+    // Retarget: canonical surface is GET /api/v1/mining/internal/killswitch
+    // which lists kill-switch state rows for the platform. The brain
+    // tool reads the most recent (newest-first ordering at source) and
+    // surfaces literal {isOpen, lastChangedAt, lastChangedBy, reasonEn}.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/internal/killswitch', { query: { limit: 1 } });
+    const latest = (res.data ?? [])[0] ?? {};
+    return {
+      isOpen: Boolean(latest.is_open ?? latest.isOpen ?? false),
+      lastChangedAt: String(
+        latest.updated_at ?? latest.created_at ?? new Date().toISOString(),
+      ),
+      ...(latest.changed_by_user_id
+        ? { lastChangedBy: String(latest.changed_by_user_id) }
+        : {}),
+      ...(latest.reason
+        ? { reasonEn: String(latest.reason) }
+        : {}),
+    };
   },
 };
 
@@ -168,10 +210,22 @@ export const adminPilotErrorsTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { errors: [] };
-    return client.get<{ errors: Array<{ errorId: string; kind: string; message: string; tenantId?: string; occurredAt: string }> }>(
-      '/admin/pilot-errors',
-      { query: { tenantId: ctx.tenantId, limit: input.limit } },
-    );
+    // Retarget: canonical surface is GET /api/v1/pilot/errors
+    // (services/api-gateway/src/routes/pilot-errors.hono.ts). The
+    // route gates to PILOT_ERROR_READ_ROLES (admin tiers).
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/pilot/errors', { query: { limit: input.limit } });
+    const rows = res.data ?? [];
+    return {
+      errors: rows.map((r) => ({
+        errorId: String(r.id ?? r.event_id ?? ''),
+        kind: String(r.kind ?? r.error_type ?? 'unknown'),
+        message: String(r.message ?? r.title ?? ''),
+        ...(r.tenant_id ? { tenantId: String(r.tenant_id) } : {}),
+        occurredAt: String(r.occurred_at ?? r.created_at ?? new Date().toISOString()),
+      })),
+    };
   },
 };
 
@@ -207,10 +261,22 @@ export const adminCorpusIngestsTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { ingests: [] };
-    return client.get<{ ingests: Array<{ ingestId: string; sourceUri: string; chunks: number; completedAt: string }> }>(
-      '/admin/corpus/ingests',
-      { query: { tenantId: ctx.tenantId, limit: input.limit } },
-    );
+    // Retarget: canonical surface is GET /api/v1/mining/internal/corpus/versions
+    // which lists corpus version rows (one per ingest job) newest-first.
+    // The brain tool slices the top `limit` rows and surfaces source +
+    // chunk count + completion timestamp.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/internal/corpus/versions', { query: { limit: input.limit } });
+    const rows = res.data ?? [];
+    return {
+      ingests: rows.map((r) => ({
+        ingestId: String(r.id ?? r.version_id ?? ''),
+        sourceUri: String(r.source_uri ?? r.source ?? ''),
+        chunks: Number(r.chunk_count ?? r.chunks ?? 0),
+        completedAt: String(r.completed_at ?? r.created_at ?? new Date().toISOString()),
+      })),
+    };
   },
 };
 
@@ -241,10 +307,23 @@ export const adminFeatureFlagsTool: PersonaToolDescriptor<
   async handler(_input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { flags: [] };
-    return client.get<{ flags: Array<{ key: string; value: boolean; rolloutPct?: number }> }>(
-      '/admin/feature-flags',
-      { query: { tenantId: ctx.tenantId } },
-    );
+    // Retarget: canonical surface is GET /api/v1/feature-flags
+    // (services/api-gateway/src/routes/feature-flags.router.ts).
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/feature-flags');
+    const rows = res.data ?? [];
+    return {
+      flags: rows.map((r) => ({
+        key: String(r.key ?? r.flag_key ?? ''),
+        value: Boolean(r.enabled ?? r.value ?? false),
+        ...(typeof r.rollout_pct === 'number'
+          ? { rolloutPct: r.rollout_pct }
+          : typeof r.rolloutPct === 'number'
+            ? { rolloutPct: r.rolloutPct }
+            : {}),
+      })),
+    };
   },
 };
 
