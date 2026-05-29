@@ -2,8 +2,7 @@
 
 **Last updated:** 2026-05-29.
 **Owner:** Platform / Brain wave.
-**Status:** WS-1..WS-7 LANDED on `main`. WS-8 (geo zones) tracks the
-next sprint.
+**Status:** WS-1..WS-8 LANDED on `main`.
 **Companion docs:**
 - [`Docs/SECURITY/DATA_RESIDENCY_PHASE_1.md`](../SECURITY/DATA_RESIDENCY_PHASE_1.md) §8 (multi-region addendum)
 - [`packages/database/src/migrations/0143_regulator_jurisdictions.sql`](../../packages/database/src/migrations/0143_regulator_jurisdictions.sql)
