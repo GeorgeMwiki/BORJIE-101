@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 type AgentToken = {
   readonly id: string;
@@ -19,9 +20,12 @@ type State =
   | { kind: 'error'; message: string };
 
 function gatewayBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
-  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
-  return 'http://localhost:4001';
+  // Production builds throw via requirePublicBaseUrl if the env var is
+  // missing — avoids silent localhost fetches in deployed cockpit.
+  return requirePublicBaseUrl(
+    'NEXT_PUBLIC_API_GATEWAY_URL',
+    'http://localhost:4001',
+  ).replace(/\/$/, '');
 }
 
 function formatRelative(input: string | null): string {

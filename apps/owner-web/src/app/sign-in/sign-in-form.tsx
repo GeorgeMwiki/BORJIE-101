@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 const SignInSchema = z.object({
   email: z.string().email('Weka anwani halali ya barua pepe'),
@@ -20,11 +21,15 @@ interface FormState {
  * absolute URL is required for cookies to land in the correct jar.
  * Production places both behind the same TLS apex via the reverse
  * proxy and the env var resolves to "" (relative).
+ *
+ * In production builds requirePublicBaseUrl throws when the env var is
+ * missing — we want a loud boot failure, not silent localhost fetches.
  */
 function gatewayBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
-  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
-  return 'http://localhost:4001';
+  return requirePublicBaseUrl(
+    'NEXT_PUBLIC_API_GATEWAY_URL',
+    'http://localhost:4001',
+  ).replace(/\/$/, '');
 }
 
 /**

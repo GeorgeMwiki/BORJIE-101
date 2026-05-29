@@ -196,7 +196,9 @@
     "title": "Mazungumzo na muuzaji",
     "placeholder": "Andika ujumbe...",
     "send": "Tuma",
-    "empty": "Anzisha mazungumzo"
+    "empty": "Anzisha mazungumzo",
+    "loading": "Inapakia mazungumzo",
+    "load_failed": "Imeshindwa kupakia mazungumzo"
   },
   "auth": {
     "login_title": "Karibu Borjie Buyers",

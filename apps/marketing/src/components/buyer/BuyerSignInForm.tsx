@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { Field } from './Field';
 import { getMessages, type Locale } from '@/lib/i18n';
 
@@ -59,11 +60,12 @@ export function BuyerSignInForm({
 
   function targetUrl(): string {
     if (redirectTo && redirectTo.length > 0) return redirectTo;
-    const fromEnv = process.env.NEXT_PUBLIC_OWNER_WEB_URL;
-    const base =
-      fromEnv && fromEnv.length > 0
-        ? fromEnv.replace(/\/$/, '')
-        : 'http://localhost:3010';
+    // requirePublicBaseUrl throws in prod when env unset — avoids silent
+    // redirect to localhost from the deployed marketing site.
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_OWNER_WEB_URL',
+      'http://localhost:3010',
+    ).replace(/\/$/, '');
     return `${base}/dashboard?as=buyer`;
   }
 

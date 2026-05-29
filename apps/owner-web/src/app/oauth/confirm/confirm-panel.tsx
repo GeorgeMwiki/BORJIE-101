@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 type DeviceDetails = {
   readonly client_id: string;
@@ -22,9 +23,12 @@ type Phase =
   | { kind: 'error'; message: string };
 
 function gatewayBaseUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
-  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
-  return 'http://localhost:4001';
+  // Production builds throw via requirePublicBaseUrl if the env var is
+  // missing — avoids silent localhost fetches in deployed cockpit.
+  return requirePublicBaseUrl(
+    'NEXT_PUBLIC_API_GATEWAY_URL',
+    'http://localhost:4001',
+  ).replace(/\/$/, '');
 }
 
 const SCOPE_LABELS_EN: Readonly<Record<string, string>> = {

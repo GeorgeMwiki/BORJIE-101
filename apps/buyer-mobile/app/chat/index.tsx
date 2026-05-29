@@ -53,8 +53,31 @@ export default function ChatIndex() {
   if (bidsQuery.isLoading || bidQuery.isLoading) {
     return (
       <Screen>
-        <View style={styles.loader}>
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('chat.loading')}
+          style={styles.loader}
+        >
           <ActivityIndicator color={colors.forest} />
+        </View>
+      </Screen>
+    )
+  }
+
+  if (bidsQuery.isError || bidQuery.isError) {
+    return (
+      <Screen>
+        <SectionHeader title={t('chat.title')} />
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>{t('chat.load_failed')}</Text>
+          <PrimaryButton
+            label={t('common.retry')}
+            variant="ghost"
+            onPress={() => {
+              void bidsQuery.refetch()
+              void bidQuery.refetch()
+            }}
+          />
         </View>
       </Screen>
     )
@@ -136,5 +159,7 @@ const styles = StyleSheet.create({
     ...typography.body
   },
   loader: { paddingVertical: spacing.xxl, alignItems: 'center' },
-  empty: { ...typography.body, color: colors.inkMuted, textAlign: 'center', paddingVertical: spacing.xl }
+  empty: { ...typography.body, color: colors.inkMuted, textAlign: 'center', paddingVertical: spacing.xl },
+  errorBox: { paddingVertical: spacing.xl, alignItems: 'center', gap: spacing.md },
+  errorTitle: { ...typography.heading, color: colors.ink, textAlign: 'center' }
 })

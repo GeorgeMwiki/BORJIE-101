@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { LanguageToggle } from './LanguageToggle';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 import { BorjieLogo, ThemeToggle } from '@borjie/design-system';
 
@@ -155,9 +156,12 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
   // Owner cockpit lives on a different origin (port 3010 in dev). The
   // marketing site never owns auth — Sign In + Pilot CTA both bounce to
-  // owner-web. Env override lets prod point at the live cockpit.
-  const ownerWebUrl =
-    process.env['NEXT_PUBLIC_OWNER_WEB_URL'] ?? 'http://localhost:3010';
+  // owner-web. requirePublicBaseUrl throws in prod when the env var is
+  // unset so the deployed marketing site cannot link to localhost.
+  const ownerWebUrl = requirePublicBaseUrl(
+    'NEXT_PUBLIC_OWNER_WEB_URL',
+    'http://localhost:3010',
+  );
   const signInHref = `${ownerWebUrl}/sign-in`;
   const pilotHref = '/pilot';
 

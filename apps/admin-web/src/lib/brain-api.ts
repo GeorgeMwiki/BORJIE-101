@@ -31,13 +31,19 @@
  */
 
 import { createSupabaseBrowserClient } from './supabase/client';
+import { requirePublicBaseUrl } from './env-guard';
 
 const REQUEST_TIMEOUT_MS = 8_000;
 
-export const API_BASE: string =
-  (typeof process !== 'undefined' &&
-    process.env.NEXT_PUBLIC_API_GATEWAY_URL?.trim()) ||
-  'http://localhost:3001';
+// Resolved at module load time. In production builds, requirePublicBaseUrl
+// throws when NEXT_PUBLIC_API_GATEWAY_URL is unset — we'd rather fail
+// fast at boot than silently fetch from localhost in a deployed admin
+// console. In `next dev`, the localhost:3001 fallback is the same as
+// before this hardening.
+export const API_BASE: string = requirePublicBaseUrl(
+  'NEXT_PUBLIC_API_GATEWAY_URL',
+  'http://localhost:3001',
+);
 
 export class ApiError extends Error {
   readonly status: number;

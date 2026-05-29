@@ -17,8 +17,9 @@
  */
 
 import { createSupabaseBrowserClient } from './supabase/client';
+import { requirePublicBaseUrl } from './env-guard';
 
-const DEFAULT_BASE = 'http://localhost:3001';
+const DEV_FALLBACK_BASE = 'http://localhost:3001';
 const MINING_INTERNAL_PATH = '/api/v1/mining/internal';
 const REQUEST_TIMEOUT_MS = 5_000;
 
@@ -36,11 +37,13 @@ export interface ApiErr {
 export type ApiResult<T> = ApiOk<T> | ApiErr;
 
 export function resolveBase(): string {
-  const configured =
-    typeof process !== 'undefined'
-      ? process.env.NEXT_PUBLIC_API_GATEWAY_URL?.trim()
-      : undefined;
-  const root = configured && configured.length > 0 ? configured.replace(/\/$/, '') : DEFAULT_BASE;
+  // requirePublicBaseUrl throws in production builds when the env var is
+  // missing, so we never silently call localhost from a prod browser. The
+  // dev fallback (next dev only) is the same as before this refactor.
+  const root = requirePublicBaseUrl(
+    'NEXT_PUBLIC_API_GATEWAY_URL',
+    DEV_FALLBACK_BASE,
+  ).replace(/\/$/, '');
   return `${root}${MINING_INTERNAL_PATH}`;
 }
 

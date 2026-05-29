@@ -196,7 +196,9 @@
     "title": "Chat with seller",
     "placeholder": "Type a message...",
     "send": "Send",
-    "empty": "Start the conversation"
+    "empty": "Start the conversation",
+    "loading": "Loading chat",
+    "load_failed": "Could not load chat"
   },
   "auth": {
     "login_title": "Welcome to Borjie Buyers",

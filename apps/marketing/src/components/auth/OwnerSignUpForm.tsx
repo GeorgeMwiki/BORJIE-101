@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
 import { apiBaseUrl } from '@/lib/api';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 
 interface OwnerSignUpFormProps {
@@ -50,11 +51,12 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
   });
 
   function targetUrl(): string {
-    const fromEnv = process.env.NEXT_PUBLIC_OWNER_WEB_ORIGIN;
-    const base =
-      fromEnv && fromEnv.length > 0
-        ? fromEnv.replace(/\/$/, '')
-        : 'http://localhost:3010';
+    // requirePublicBaseUrl throws in prod when env unset — avoids silent
+    // redirect to localhost from the deployed marketing site.
+    const base = requirePublicBaseUrl(
+      'NEXT_PUBLIC_OWNER_WEB_ORIGIN',
+      'http://localhost:3010',
+    ).replace(/\/$/, '');
     return `${base}/dashboard`;
   }
 
