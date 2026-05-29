@@ -8,6 +8,23 @@
 // Auto-load .env FIRST — before any module reads process.env. Look at
 // repo root (cwd/../../.env from services/api-gateway) and the service
 // folder. Tests + prod skip via BORJIE_SKIP_DOTENV=true.
+//
+// Load order matters — dotenv with override=true makes the LAST load
+// win for any duplicated key. We want:
+//   1. .env (repo root)          — committed defaults / non-secret keys.
+//   2. .env (service)            — service-specific overrides (rare).
+//   3. .env.local (repo root)    — canonical dev secrets, highest prio.
+//
+// Why .env.local is loaded HERE in code instead of relying on
+// `tsx watch --env-file=../../.env.local`: tsx-watch caches the env
+// from the parent process at first boot and does not re-read the file
+// on respawn. When a child respawns after a code change, anything that
+// snapshotted process.env in module init (e.g. brain-teach.hono.ts's
+// loadBrainEnv cache) sees an older value and returns 503
+// BRAIN_NOT_CONFIGURED until the parent is killed. Loading .env.local
+// explicitly here makes the load deterministic per process — every
+// respawn re-reads the canonical file before any other module imports
+// run. See Docs/AUDIT/POWERS_LIVE_VERIFICATION_2026-05-29.md §DO NOT SHIP.
 import { config as loadDotenv } from 'dotenv';
 import { resolve as resolvePath } from 'node:path';
 if (!process.env.BORJIE_SKIP_DOTENV) {
@@ -16,6 +33,8 @@ if (!process.env.BORJIE_SKIP_DOTENV) {
   // left in a previous terminal) don't beat the canonical .env values.
   loadDotenv({ path: resolvePath(process.cwd(), '../../.env'), override: true });
   loadDotenv({ path: resolvePath(process.cwd(), '.env'), override: true });
+  // .env.local LAST so its keys win on respawn (e.g. SUPABASE_JWT_SECRET).
+  loadDotenv({ path: resolvePath(process.cwd(), '../../.env.local'), override: true });
 }
 
 // OpenTelemetry bootstrap — must run BEFORE any other module imports
