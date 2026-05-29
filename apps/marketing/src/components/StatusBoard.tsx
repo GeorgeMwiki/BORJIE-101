@@ -110,20 +110,34 @@ export function StatusBoard({
 
   if (!data && !error) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-neutral-400">
-        {copy.loading}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label={copy.loading}
+        className="space-y-3"
+      >
+        <div className="h-12 animate-pulse rounded-lg border border-border bg-surface" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-16 animate-pulse rounded-lg border border-border bg-surface"
+          />
+        ))}
       </div>
     );
   }
 
   if (error && !data) {
     return (
-      <div className="rounded-lg border border-red-500/40 bg-surface p-8 text-center text-sm">
-        <p className="text-red-400">{copy.error}</p>
+      <div
+        role="alert"
+        className="rounded-lg border border-destructive/40 bg-surface p-8 text-center text-sm"
+      >
+        <p className="text-destructive">{copy.error}</p>
         <button
           type="button"
           onClick={() => setTick((t) => t + 1)}
-          className="mt-4 rounded-md border border-border px-4 py-2 text-xs uppercase tracking-widest text-foreground hover:border-signal-500/60"
+          className="mt-4 rounded-md border border-border px-4 py-2 text-xs uppercase tracking-widest text-foreground transition-colors hover:border-signal-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
           {copy.retry}
         </button>
