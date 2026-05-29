@@ -242,7 +242,7 @@ async function main(): Promise<void> {
         ${'105-829-374'},
         'TZ',
         ${'PO Box 12345, Plot 78 Sokoine Drive, Dar es Salaam'},
-        ${{ sector: 'precious_metals_gems', isDemo: true }}::jsonb
+        ${JSON.stringify({ sector: 'precious_metals_gems', isDemo: true })}::jsonb
       )
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
@@ -274,8 +274,8 @@ async function main(): Promise<void> {
           ${expiry.toISOString().slice(0, 10)},
           ${site.licenceKind === 'SML' ? '500.0000' : site.licenceKind === 'PML' ? '10.0000' : '2000.0000'},
           'active',
-          ${{ annual_fee_tzs: 5_000_000, royalty_rate_pct: 6, inspection_pct: 0.3 }}::jsonb,
-          ${{ epp: true, eia: site.licenceKind === 'SML', community_benefit_pct: 1 }}::jsonb,
+          ${JSON.stringify({ annual_fee_tzs: 5_000_000, royalty_rate_pct: 6, inspection_pct: 0.3 })}::jsonb,
+          ${JSON.stringify({ epp: true, eia: site.licenceKind === 'SML', community_benefit_pct: 1 })}::jsonb,
           ${site.id === 'demo-site-kabanga' ? 45 : 5}
         )
         ON CONFLICT (id) DO UPDATE SET
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
           ${managerUserId},
           ${site.phase === 'exploration' ? '0.35' : '0.78'},
           'active',
-          ${{ region: site.id.includes('mwadui') ? 'Shinyanga' : site.id.includes('mererani') ? 'Manyara' : 'Kagera', isDemo: true }}::jsonb
+          ${JSON.stringify({ region: site.id.includes('mwadui') ? 'Shinyanga' : site.id.includes('mererani') ? 'Manyara' : 'Kagera', isDemo: true })}::jsonb
         )
         ON CONFLICT (id) DO UPDATE SET
           phase = EXCLUDED.phase,
@@ -367,11 +367,12 @@ async function main(): Promise<void> {
         },
       ];
       const tenantUuid = tenantId;
-      const siteUuidMap: Record<string, string> = {
+      const siteUuidMap = {
         'demo-site-mwadui': '00000000-0000-0000-0000-000000000501',
         'demo-site-mererani': '00000000-0000-0000-0000-000000000502',
         'demo-site-kabanga': '00000000-0000-0000-0000-000000000503',
-      };
+      } as const;
+      const defaultSiteUuid: string = siteUuidMap['demo-site-mwadui'];
       for (const task of tasks) {
         await sql`
           INSERT INTO mining_tasks (
@@ -380,7 +381,7 @@ async function main(): Promise<void> {
           ) VALUES (
             ${task.id}::uuid,
             ${tenantUuid}::uuid,
-            ${siteUuidMap['demo-site-mwadui']}::uuid,
+            ${defaultSiteUuid}::uuid,
             NULL,
             ${managerUserId && isUuidLike(managerUserId) ? managerUserId : null},
             ${task.titleSw},
@@ -430,9 +431,9 @@ async function main(): Promise<void> {
             ${new Date(Date.now() + r.triggerIn).toISOString()},
             'email',
             'scheduled',
-            ${r.payload}::jsonb,
+            ${JSON.stringify(r.payload)}::jsonb,
             ${r.idempotencyKey},
-            ${SEED_PROVENANCE}::jsonb
+            ${JSON.stringify(SEED_PROVENANCE)}::jsonb
           )
           ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
         `;
@@ -476,10 +477,10 @@ async function main(): Promise<void> {
         ${tenantId},
         ${'demo-site-mererani'},
         '180.500',
-        ${{ Ct_g_t: 14.8, recovery_pct: 62 }}::jsonb,
+        ${JSON.stringify({ Ct_g_t: 14.8, recovery_pct: 62 })}::jsonb,
         'Mererani Block C wash-bay store',
         'sold',
-        ${{ category: 'tanzanite-rough-grade-A', isDemo: true }}::jsonb
+        ${JSON.stringify({ category: 'tanzanite-rough-grade-A', isDemo: true })}::jsonb
       )
       ON CONFLICT (id) DO NOTHING
     `;
@@ -506,7 +507,7 @@ async function main(): Promise<void> {
         '240640000.00',
         'received',
         ${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()},
-        ${SEED_PROVENANCE}::jsonb
+        ${JSON.stringify(SEED_PROVENANCE)}::jsonb
       )
       ON CONFLICT (id) DO NOTHING
     `;
@@ -526,7 +527,7 @@ async function main(): Promise<void> {
           ${'Demo Mererani Wash-bay Store'},
           'TZ',
           'active',
-          ${SEED_PROVENANCE}::jsonb
+          ${JSON.stringify(SEED_PROVENANCE)}::jsonb
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -550,7 +551,7 @@ async function main(): Promise<void> {
           'Mererani Block C pit-mouth',
           ${auditHashId}::uuid,
           ${stepHash},
-          ${SEED_PROVENANCE}::jsonb
+          ${JSON.stringify(SEED_PROVENANCE)}::jsonb
         )
         ON CONFLICT (tenant_id, parcel_id, step_index) DO NOTHING
       `;
@@ -580,7 +581,7 @@ async function main(): Promise<void> {
           '23360000.00',
           '296640000.00',
           'calculated',
-          ${SEED_PROVENANCE}::jsonb
+          ${JSON.stringify(SEED_PROVENANCE)}::jsonb
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -636,7 +637,7 @@ async function main(): Promise<void> {
           ].join('\n')},
           ${'Draft LOI to ABC Off-takers for 2 tonnes of gold concentrate'},
           'confidential',
-          ${SEED_PROVENANCE}::jsonb
+          ${JSON.stringify(SEED_PROVENANCE)}::jsonb
         )
         ON CONFLICT (id) DO UPDATE SET
           status = EXCLUDED.status,
@@ -667,7 +668,7 @@ async function main(): Promise<void> {
         ]},
         'open',
         '0.55',
-        ${{ source: 'demo-seed' }}::jsonb
+        ${JSON.stringify({ source: 'demo-seed' })}::jsonb
       )
       ON CONFLICT (id) DO UPDATE SET
         description = EXCLUDED.description,
