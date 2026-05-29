@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, ArrowRight, Coins, ShieldAlert, TrendingUp } from 'lucide-react';
+import { Sparkles, ArrowRight, Coins, ShieldAlert, TrendingUp, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useOwnerDailyBrief } from '@/lib/queries/owner-brief';
 import { DailyBriefListenButton } from './DailyBriefListenButton';
+import { SuperscriptRenderer } from '@/components/inline-citations/SuperscriptRenderer';
 
 /**
  * Daily brief card — top-of-dashboard hero. Surfaces the brain-composed
@@ -26,6 +27,9 @@ export function DailyBriefCard({
   readonly salutation: string;
 }): JSX.Element | null {
   const { data, isLoading, isError } = useOwnerDailyBrief();
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(
+    null,
+  );
 
   const greeting = useMemo(() => composeTimeAwareGreeting(isSw, salutation), [
     isSw,
@@ -41,6 +45,7 @@ export function DailyBriefCard({
   }
 
   const advisor = brief.advisor ?? null;
+  const advisorEvidenceIds = advisor?.evidenceIds ?? [];
   const summarySentences = composeSummarySentences(brief, isSw);
   const listenText = [
     greeting,
@@ -80,7 +85,16 @@ export function DailyBriefCard({
             key={`sum-${idx}`}
             className="text-sm leading-relaxed text-neutral-200"
           >
-            {sentence}
+            {idx === 0 && advisorEvidenceIds.length > 0 ? (
+              <SuperscriptRenderer
+                text={sentence}
+                evidenceIds={advisorEvidenceIds}
+                onSelectEvidence={setSelectedEvidenceId}
+                testId="dashboard-daily-brief-citations"
+              />
+            ) : (
+              sentence
+            )}
           </p>
         ))}
         {advisor ? (
@@ -88,10 +102,25 @@ export function DailyBriefCard({
             <span className="font-semibold text-signal-300">
               {isSw ? 'Hatua: ' : 'Action: '}
             </span>
-            {advisor.action}
+            {advisorEvidenceIds.length > 0 ? (
+              <SuperscriptRenderer
+                text={advisor.action}
+                evidenceIds={advisorEvidenceIds}
+                onSelectEvidence={setSelectedEvidenceId}
+              />
+            ) : (
+              advisor.action
+            )}
           </p>
         ) : null}
       </div>
+      {selectedEvidenceId ? (
+        <EvidenceSourceModal
+          evidenceId={selectedEvidenceId}
+          onClose={() => setSelectedEvidenceId(null)}
+          isSw={isSw}
+        />
+      ) : null}
 
       <nav className="mt-6 flex flex-wrap gap-2">
         <QuickChip
@@ -111,6 +140,69 @@ export function DailyBriefCard({
         />
       </nav>
     </section>
+  );
+}
+
+/**
+ * R1 — minimal tap-to-source modal opened when the owner clicks a
+ * superscripted ¹²³ chip in the daily brief insight or action.
+ *
+ * For now we render the evidence id and a "Open in Evidence Library"
+ * deep link. The full live-corpus fetch is delegated to the dedicated
+ * `/evidence/:id` page so this card stays light-weight.
+ */
+function EvidenceSourceModal({
+  evidenceId,
+  onClose,
+  isSw,
+}: {
+  readonly evidenceId: string;
+  readonly onClose: () => void;
+  readonly isSw: boolean;
+}): JSX.Element {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={isSw ? 'Chanzo cha ushahidi' : 'Source evidence'}
+      data-testid="dashboard-evidence-source-modal"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6"
+      onClick={onClose}
+    >
+      <div
+        className="max-w-md rounded-2xl border border-border bg-surface p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between">
+          <h3 className="font-display text-lg font-semibold text-foreground">
+            {isSw ? 'Chanzo' : 'Source'}
+          </h3>
+          <button
+            type="button"
+            aria-label={isSw ? 'Funga' : 'Close'}
+            onClick={onClose}
+            className="rounded-md p-1 text-neutral-400 hover:bg-background hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+        <p className="mt-3 text-sm text-neutral-300">
+          {isSw
+            ? 'Kitambulisho cha ushahidi:'
+            : 'Evidence identifier:'}
+        </p>
+        <code className="mt-1 block break-all rounded-md bg-background px-2 py-1 text-xs text-warning">
+          {evidenceId}
+        </code>
+        <Link
+          href={`/evidence/${encodeURIComponent(evidenceId)}`}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400"
+        >
+          {isSw ? 'Fungua katika maktaba' : 'Open in Evidence Library'}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </div>
   );
 }
 

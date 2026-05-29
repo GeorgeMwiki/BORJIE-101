@@ -92,6 +92,13 @@ export interface AdvisorSlot {
   readonly generatedAtIso: string;
   readonly provider: string;
   readonly latencyMs: number;
+  /**
+   * R1 — inline citations. Each `¹²³` superscript glyph inside `insight`
+   * maps to the evidence id at the same 1-based index in this array.
+   * Optional for wire compatibility: older gateway versions emit no
+   * evidence ids, and the renderer falls back to text-only.
+   */
+  readonly evidenceIds?: ReadonlyArray<string>;
 }
 
 export interface OwnerBriefPayload {
