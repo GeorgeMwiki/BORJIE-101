@@ -83,24 +83,157 @@ export function mpesaIpAllowlistMiddleware(logger: {
 }
 
 /**
- * Process-local idempotency cache keyed by
- *   `{tenantId}:{type}:{CheckoutRequestID-or-TransID}`
- * so a replay across tenants (e.g. a shared paybill in staging)
- * cannot collide. 24h TTL matches Safaricom's retry window.
+ * Idempotency store port — a callback deduplicator backend.
  *
- * Pass tenantId=null only for callbacks that arrive before the tenant
- * context is resolved (e.g. an unattributed paybill confirmation);
- * those use a dedicated "global" namespace and must not be used for
- * state-changing writes without a secondary tenant check.
+ * KI-012 closure: the original in-memory store was process-local, which
+ * opened a narrow double-credit window in multi-replica deployments
+ * (two pods could both observe `seenBefore=false` for the same TransID
+ * before either committed the ledger entry).
+ *
+ * Implementations:
+ *   - {@link InMemoryIdempotencyStore} — Map-backed; default; suitable
+ *     for single-replica dev and staging.
+ *   - {@link RedisIdempotencyStore}    — SETNX/EX-backed; atomic across
+ *     replicas; required for production. Wired by composition when
+ *     `REDIS_URL` env is set.
  */
-export class CallbackDeduplicator {
+export interface IdempotencyStore {
+  /**
+   * Atomically check + claim a key.
+   *
+   * Contract: returns `true` if the key was already claimed (callback
+   * is a duplicate; caller should drop it). Returns `false` and records
+   * the key on first sight. The recording side is fire-and-forget — the
+   * store SHOULD persist the key but if persistence fails, the caller
+   * still proceeds (an extra Safaricom retry is preferable to losing
+   * the legitimate first delivery).
+   */
+  seenBefore(key: string): Promise<boolean>;
+}
+
+/**
+ * Process-local Map-backed implementation. Retains the synchronous
+ * `seenBeforeSync` API for legacy callers; the async path simply
+ * delegates to it.
+ */
+export class InMemoryIdempotencyStore implements IdempotencyStore {
   private readonly seen = new Map<string, number>();
   private readonly ttlMs: number;
 
   constructor(ttlMs = 24 * 60 * 60 * 1000) {
     this.ttlMs = ttlMs;
-    // Reap expired entries every hour to keep memory bounded.
     setInterval(() => this.reap(), 60 * 60 * 1000).unref?.();
+  }
+
+  seenBeforeSync(key: string): boolean {
+    const now = Date.now();
+    const existing = this.seen.get(key);
+    if (existing && existing > now) return true;
+    this.seen.set(key, now + this.ttlMs);
+    return false;
+  }
+
+  async seenBefore(key: string): Promise<boolean> {
+    return this.seenBeforeSync(key);
+  }
+
+  private reap(): void {
+    const now = Date.now();
+    for (const [key, expiresAt] of this.seen.entries()) {
+      if (expiresAt <= now) this.seen.delete(key);
+    }
+  }
+}
+
+/**
+ * Minimal Redis client shape used by {@link RedisIdempotencyStore}.
+ * Compatible with ioredis (`set(key, value, 'EX', ttl, 'NX')`) without
+ * dragging the ioredis types into this module.
+ */
+export interface RedisLikeClient {
+  set(
+    key: string,
+    value: string,
+    mode: 'EX',
+    ttlSeconds: number,
+    setNx: 'NX',
+  ): Promise<string | null>;
+}
+
+/**
+ * Redis-backed idempotency store. Uses `SET key val NX EX ttl` so the
+ * claim is atomic across replicas.
+ *
+ * Failure mode: if Redis is unreachable the store falls back to the
+ * provided fallback (in-memory by default) so a Redis outage degrades
+ * to the legacy behaviour rather than losing webhooks entirely.
+ */
+export class RedisIdempotencyStore implements IdempotencyStore {
+  private readonly client: RedisLikeClient;
+  private readonly ttlSeconds: number;
+  private readonly keyPrefix: string;
+  private readonly fallback: IdempotencyStore;
+  private readonly logger:
+    | { warn: (ctx: unknown, msg: string) => void }
+    | undefined;
+
+  constructor(input: {
+    client: RedisLikeClient;
+    ttlSeconds?: number;
+    keyPrefix?: string;
+    fallback?: IdempotencyStore;
+    logger?: { warn: (ctx: unknown, msg: string) => void };
+  }) {
+    this.client = input.client;
+    this.ttlSeconds = input.ttlSeconds ?? 24 * 60 * 60;
+    this.keyPrefix = input.keyPrefix ?? 'mpesa:idem:';
+    this.fallback = input.fallback ?? new InMemoryIdempotencyStore();
+    this.logger = input.logger;
+  }
+
+  async seenBefore(key: string): Promise<boolean> {
+    const fullKey = `${this.keyPrefix}${key}`;
+    try {
+      // SET key value NX EX ttl → returns 'OK' on first sight,
+      // null when the key already exists (duplicate).
+      const result = await this.client.set(
+        fullKey,
+        '1',
+        'EX',
+        this.ttlSeconds,
+        'NX',
+      );
+      // null → key already existed → duplicate.
+      return result === null;
+    } catch (error) {
+      // Redis outage — fall back to in-memory so the webhook does NOT
+      // get rejected with a 500. Visible in logs so an operator can
+      // see the degraded state.
+      this.logger?.warn(
+        { error, key },
+        'Redis idempotency store failed; falling back to in-memory',
+      );
+      return this.fallback.seenBefore(key);
+    }
+  }
+}
+
+/**
+ * Process-local idempotency cache keyed by
+ *   `{tenantId}:{type}:{CheckoutRequestID-or-TransID}`
+ * so a replay across tenants (e.g. a shared paybill in staging)
+ * cannot collide. 24h TTL matches Safaricom's retry window.
+ *
+ * KI-012: this class retains the sync `seenBefore` for legacy callers
+ * but the production path SHOULD use the {@link IdempotencyStore} port
+ * (see {@link createIdempotencyStore}) bound to Redis when `REDIS_URL`
+ * is set.
+ */
+export class CallbackDeduplicator {
+  private readonly inner: InMemoryIdempotencyStore;
+
+  constructor(ttlMs = 24 * 60 * 60 * 1000) {
+    this.inner = new InMemoryIdempotencyStore(ttlMs);
   }
 
   /**
@@ -112,11 +245,7 @@ export class CallbackDeduplicator {
    *   raw TransID to prevent cross-tenant collisions.
    */
   seenBefore(key: string): boolean {
-    const now = Date.now();
-    const existing = this.seen.get(key);
-    if (existing && existing > now) return true;
-    this.seen.set(key, now + this.ttlMs);
-    return false;
+    return this.inner.seenBeforeSync(key);
   }
 
   /**
@@ -131,16 +260,50 @@ export class CallbackDeduplicator {
     const tenant = tenantId ?? 'global';
     return `${tenant}:${type}:${externalId}`;
   }
-
-  private reap(): void {
-    const now = Date.now();
-    for (const [key, expiresAt] of this.seen.entries()) {
-      if (expiresAt <= now) this.seen.delete(key);
-    }
-  }
 }
 
 export const mpesaDeduplicator = new CallbackDeduplicator();
+
+/**
+ * Build the production-grade {@link IdempotencyStore}.
+ *
+ * If `REDIS_URL` env is set, returns a {@link RedisIdempotencyStore}
+ * wired to that client; otherwise returns an {@link InMemoryIdempotencyStore}
+ * (the legacy behaviour). Tests should NEVER call this directly — they
+ * construct {@link InMemoryIdempotencyStore} explicitly.
+ */
+export function createIdempotencyStore(input: {
+  redisUrl?: string;
+  ttlSeconds?: number;
+  keyPrefix?: string;
+  logger?: { warn: (ctx: unknown, msg: string) => void };
+}): IdempotencyStore {
+  if (!input.redisUrl) {
+    return new InMemoryIdempotencyStore(
+      (input.ttlSeconds ?? 24 * 60 * 60) * 1000,
+    );
+  }
+  // Lazy require so dev tooling that doesn't have ioredis installed
+  // can still import this module.
+  const ioredisModule = (
+    eval('require') as (id: string) => unknown
+  )('ioredis') as {
+    default?: new (url: string) => RedisLikeClient;
+  } & { Redis?: new (url: string) => RedisLikeClient } & (new (
+    url: string,
+  ) => RedisLikeClient);
+  // ioredis exports both `Redis` named and as the default export.
+  const Ctor = ioredisModule.default ?? ioredisModule.Redis ?? ioredisModule;
+  const client = new (Ctor as new (url: string) => RedisLikeClient)(
+    input.redisUrl,
+  );
+  return new RedisIdempotencyStore({
+    client,
+    ttlSeconds: input.ttlSeconds,
+    keyPrefix: input.keyPrefix,
+    logger: input.logger,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // CRITICAL-3: HMAC signature verification for Daraja webhooks
