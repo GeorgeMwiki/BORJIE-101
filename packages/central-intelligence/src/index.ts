@@ -101,3 +101,10 @@ export * from './policy-gate/index.js';
 // handoff/index.ts for the full surface (parseChatHandoffs,
 // createHandoffRecorder, HandoffError, HANDOFF_PERSONA_ROLES).
 export * from './handoff/index.js';
+
+// Brain SSE tag protocol — `<tab_spawn>`, `<tab_update>`,
+// `<tab_remove>`, `<tab_proposal>`. CT-1 of the dynamic chat-driven tab
+// CRUD surface. The gateway feeds raw model text through
+// `extractTabTags(...)` and pipes the result to the owner-tabs route
+// for persistence + cockpit bus broadcast. See sse-tags/tab-tags.ts.
+export * from './sse-tags/index.js';

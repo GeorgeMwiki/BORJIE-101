@@ -1416,6 +1416,9 @@ importers:
       '@borjie/graph-sync':
         specifier: workspace:*
         version: link:../graph-sync
+      '@borjie/owner-os-tabs':
+        specifier: workspace:*
+        version: link:../owner-os-tabs
       inngest:
         specifier: '>=4.0.0'
         version: 4.4.0(@opentelemetry/core@2.7.1)(typescript@6.0.3)(zod@3.25.76)
