@@ -74,3 +74,26 @@ declare module 'k6/http' {
   };
   export default _default;
 }
+
+declare module 'k6/crypto' {
+  /**
+   * Compute an HMAC of `data` using `secret` and the named hash
+   * algorithm. `output` selects the encoding of the returned string:
+   * `'hex'` for lowercase hex, `'base64'` for standard base64.
+   *
+   * Used by the M-Pesa webhook simulator to mint the
+   * `X-Mpesa-Signature` header (`<timestamp>.<hex>`) so signed-payload
+   * runs against staging exercise the production verification path.
+   */
+  export function hmac(
+    algorithm: 'sha256' | 'sha512' | 'sha1',
+    secret: string,
+    data: string,
+    output: 'hex' | 'base64',
+  ): string;
+
+  const _default: {
+    hmac: typeof hmac;
+  };
+  export default _default;
+}
