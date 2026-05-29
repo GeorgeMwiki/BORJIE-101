@@ -29,6 +29,7 @@ import { sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import { withSecurityEvents } from '@borjie/observability';
 
 // Four-eye threshold: net distributable above this requires a
@@ -504,6 +505,29 @@ app.post(
                updated_at     = now()
          WHERE id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
       `);
+
+      // RT-1: pulse cooperative-mobile + owner cockpit. Amount is the
+      // sum of distributable rows we just stamped.
+      const amountTotalTzs = ledgerRefs.reduce(
+        (sum, r) => sum + Number(r.amountTzs),
+        0,
+      );
+      setImmediate(() => {
+        try {
+          publishCockpitEvent({
+            kind: 'settlement.initiated',
+            tenantId: auth.tenantId,
+            emittedAt: new Date().toISOString(),
+            settlementId: id,
+            cooperativeId: null,
+            amountTzs: amountTotalTzs,
+            initiatedBy: auth.userId,
+          });
+        } catch {
+          // bus failures must never leak to the request response.
+        }
+      });
+
       return c.json({
         success: true,
         data: {

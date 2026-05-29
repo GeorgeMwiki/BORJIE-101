@@ -24,6 +24,7 @@ import { and, desc, eq, or } from 'drizzle-orm';
 import { miningEscalations } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 
 const ESCALATION_SOURCE_KINDS = [
   'incident',
@@ -132,6 +133,24 @@ app.post('/', async (c) => {
       status: 'open',
     })
     .returning();
+  // RT-1: pulse the addressee surface so it lights up immediately.
+  if (row) {
+    setImmediate(() => {
+      try {
+        publishCockpitEvent({
+          kind: 'incident.escalated',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          incidentId: row.id,
+          fromLevel: 'worker',
+          toLevel: input.toUserId ? 'user' : `role:${input.toRole ?? 'unknown'}`,
+          escalatedBy: userId,
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
+    });
+  }
   return c.json({ success: true, data: row }, 201);
 });
 

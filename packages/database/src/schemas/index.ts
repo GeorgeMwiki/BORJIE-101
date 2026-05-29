@@ -1253,3 +1253,15 @@ export * from './help-requests.schema.js';
 // geo predicate respond. Surfaced via /api/v1/marketplace/rfb on the
 // gateway and the buyer-mobile rfb-create / rfb-list screens.
 export * from './request-for-bids.schema.js';
+
+// Issue #194 — regulator data-subject request (DSR) inbox
+// (migration 0135). One row per regulator-originated request from
+// PCCB / NEMC / EITI / TMAA. State-machine driven; pulses on the
+// owner cockpit; exports redacted PDF + audit chain on approval.
+export * from './regulator-requests.schema.js';
+
+// Issue #194 — inspection narratives (migration 0136). One row per
+// AI-assisted inspection report draft. State machine: draft →
+// manager_ok → owner_signed → submitted → delivered. C2PA photo
+// references stapled via the upstream inspection_id.
+export * from './inspection-narratives.schema.js';

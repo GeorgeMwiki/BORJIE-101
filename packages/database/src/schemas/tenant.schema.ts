@@ -335,6 +335,13 @@ export const users = pgTable(
 
     // Borjie mining-domain role. Drives mobile-app screen routing.
     miningRole: borjieUserRoleEnum('mining_role').notNull().default('owner'),
+    /**
+     * HR onboarding gate (migration 0134, issue #193 chain L-A).
+     * pending | active | rejected | suspended.
+     * Activation flips this to 'pending'; manager approval flips to
+     * 'active' and decrements the source opening's count_needed.
+     */
+    workforceStatus: text('workforce_status').notNull().default('pending'),
     // TZ National Identification Authority ID verified via Smile ID.
     nidaId: text('nida_id'),
     // Irreversible biometric template hash (fingerprint) for non-repudiable sign-off.

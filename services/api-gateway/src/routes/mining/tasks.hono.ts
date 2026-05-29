@@ -33,6 +33,7 @@ import { z } from 'zod';
 import { miningTasks } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import { UserRole } from '../../types/user-role';
 import { createLogger } from '../../utils/logger';
 
@@ -295,6 +296,33 @@ export function createMiningTasksRouter(): Hono {
             hashChainId: null,
           })
           .returning();
+        // RT-1: fire-and-forget cockpit pulse so the assignee's mobile
+        // inbox flips green within <200 ms. setImmediate keeps the
+        // HTTP response path unblocked.
+        if (row && row.assignedToUserId) {
+          setImmediate(() => {
+            try {
+              publishCockpitEvent({
+                kind: 'task.assigned',
+                tenantId,
+                emittedAt: new Date().toISOString(),
+                taskId: row.id,
+                assigneeId: row.assignedToUserId as string,
+                assignedBy: userId,
+                title: row.titleSw ?? row.titleEn ?? '',
+                siteId: row.siteId ?? null,
+                priority:
+                  row.priority === 'urgent' || row.priority === 'high'
+                    ? (row.priority as 'urgent' | 'high')
+                    : row.priority === 'low'
+                      ? 'low'
+                      : 'medium',
+              });
+            } catch {
+              // bus failures must never leak to the request response.
+            }
+          });
+        }
         return c.json({ success: true as const, data: row }, 201);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'create failed';
@@ -633,6 +661,32 @@ export function createMiningTasksRouter(): Hono {
           })
           .where(and(eq(miningTasks.id, id), eq(miningTasks.tenantId, tenantId)))
           .returning();
+
+        // RT-1: cockpit pulse so the worker's mobile inbox lights up.
+        if (row) {
+          setImmediate(() => {
+            try {
+              publishCockpitEvent({
+                kind: 'task.assigned',
+                tenantId,
+                emittedAt: new Date().toISOString(),
+                taskId: row.id,
+                assigneeId: workerId,
+                assignedBy: userId,
+                title: row.titleSw ?? row.titleEn ?? '',
+                siteId: row.siteId ?? null,
+                priority:
+                  row.priority === 'urgent' || row.priority === 'high'
+                    ? (row.priority as 'urgent' | 'high')
+                    : row.priority === 'low'
+                      ? 'low'
+                      : 'medium',
+              });
+            } catch {
+              // bus failures must never leak to the request response.
+            }
+          });
+        }
 
         return c.json({ success: true as const, data: row }, 200);
       } catch (err) {

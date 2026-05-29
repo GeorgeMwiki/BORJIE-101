@@ -56,6 +56,13 @@ export const workforceInvitations = pgTable(
     assignedCertifications: jsonb('assigned_certifications')
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /**
+     * Optional FK back to the `workforce_openings` row this invitation
+     * was drafted from (HR onboarding chain L-A, migration 0134). NULL
+     * for the legacy direct-invite path. When set, manager approval
+     * decrements the opening's count_needed and may flip it to filled.
+     */
+    openingId: uuid('opening_id'),
     /** TTL. */
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     activatedAt: timestamp('activated_at', { withTimezone: true }),

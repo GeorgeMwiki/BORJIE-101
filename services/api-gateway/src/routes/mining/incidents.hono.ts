@@ -22,6 +22,14 @@ import { incidents } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
+import {
+  escalateIncident,
+  canInvestigate,
+  canEscalateToRegulator,
+  type IncidentKind,
+  type IncidentSeverity,
+} from '../../services/safety-incident/escalator';
 import {
   incidentsListRoute,
   incidentsCreateRoute,
@@ -82,7 +90,40 @@ app.openapi(
           createdAt: new Date(),
         })
         .returning();
-      return c.json({ success: true as const, data: row }, 201);
+      // RT-1: pulse the owner cockpit + manager mobile within 200 ms.
+      // Chain L-C (issue #193): drive the GMG-aligned escalation
+      // fan-out — manager always, owner on >= high, admin compliance
+      // + regulator draft on >= critical.
+      if (row) {
+        const escalation = escalateIncident({
+          severity: row.severity as IncidentSeverity,
+          kind: row.kind as IncidentKind,
+        });
+        setImmediate(() => {
+          try {
+            // Owner cockpit pulse only when severity warrants it.
+            if (escalation.emitCockpitPulse) {
+              publishCockpitEvent({
+                kind: 'safety.incident_reported',
+                tenantId,
+                emittedAt: new Date().toISOString(),
+                incidentId: row.id,
+                siteId: row.siteId ?? null,
+                severity: row.severity as 'low' | 'medium' | 'high' | 'critical',
+                reportedBy: userId,
+                summary:
+                  `${escalation.summary.en} ${(row.description ?? '').slice(0, 200)}`.trim(),
+              });
+            }
+          } catch {
+            // bus failures must never leak to the request response.
+          }
+        });
+      }
+      return c.json(
+        { success: true as const, data: row },
+        201,
+      );
     },
   ),
 );
@@ -168,6 +209,231 @@ app.post(
         })
         .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
         .returning();
+
+      return c.json({ success: true as const, data: updated }, 200);
+    },
+  ),
+);
+
+// ---------------------------------------------------------------------------
+// POST /:id/investigate — manager / owner records root_cause +
+// corrective_actions. Chain L-C (issue #193).
+// ---------------------------------------------------------------------------
+
+const investigateBodySchema = z.object({
+  rootCause: z.string().min(1).max(4000),
+  correctiveActions: z
+    .array(
+      z.object({
+        action: z.string().min(1).max(500),
+        owner: z.string().max(200).optional(),
+        dueAt: z.string().datetime().optional(),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
+app.post(
+  '/:id/investigate',
+  withSecurityEvents(
+    {
+      action: 'mining.incident.investigate',
+      resource: 'mining.incident',
+      severity: 'warn',
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (c: any) => {
+      const { tenantId, userId, role } = c.get('auth');
+      if (!canInvestigate(role)) {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'FORBIDDEN',
+              message:
+                'Only managers / owners / admins may investigate incidents',
+            },
+          },
+          403,
+        );
+      }
+      const db = c.get('db');
+      const id = c.req.param('id');
+      const body = await c.req.json().catch(() => null);
+      const parsed = investigateBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'VALIDATION_ERROR',
+              issues: parsed.error.issues,
+            },
+          },
+          400,
+        );
+      }
+
+      const [existing] = await db
+        .select()
+        .from(incidents)
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .limit(1);
+      if (!existing) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Incident not found' },
+          },
+          404,
+        );
+      }
+      if (existing.status === 'closed') {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'INVALID_STATE',
+              message: 'Cannot investigate a closed incident',
+            },
+          },
+          409,
+        );
+      }
+
+      const [updated] = await db
+        .update(incidents)
+        .set({
+          status: 'under_investigation',
+          rootCause: parsed.data.rootCause,
+          correctiveActions: parsed.data.correctiveActions,
+        })
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .returning();
+
+      // Owner cockpit pulse — manager has started the investigation.
+      try {
+        publishCockpitEvent({
+          kind: 'manager.approved',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          approvalId: id,
+          subject: `incident:${id}`,
+          approvedBy: userId,
+          decision: 'approve',
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
+
+      return c.json({ success: true as const, data: updated }, 200);
+    },
+  ),
+);
+
+// ---------------------------------------------------------------------------
+// POST /:id/escalate-regulator — owner / admin escalates a critical
+// incident to a regulator. Stamps status='escalated_to_OSHA' (the
+// existing schema enum) and emits an incident.escalated pulse so the
+// admin compliance officer can pick up the filing draft. Chain L-C.
+// ---------------------------------------------------------------------------
+
+const escalateBodySchema = z.object({
+  regulator: z.enum(['osha-tz', 'nemc', 'pccb', 'mining-commission']),
+  reason: z.string().min(1).max(2000),
+});
+
+app.post(
+  '/:id/escalate-regulator',
+  withSecurityEvents(
+    {
+      action: 'mining.incident.escalate_regulator',
+      resource: 'mining.incident',
+      severity: 'warn',
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (c: any) => {
+      const { tenantId, userId, role } = c.get('auth');
+      if (!canEscalateToRegulator(role)) {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Only owners / admins may escalate to a regulator',
+            },
+          },
+          403,
+        );
+      }
+      const db = c.get('db');
+      const id = c.req.param('id');
+      const body = await c.req.json().catch(() => null);
+      const parsed = escalateBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'VALIDATION_ERROR',
+              issues: parsed.error.issues,
+            },
+          },
+          400,
+        );
+      }
+
+      const [existing] = await db
+        .select()
+        .from(incidents)
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .limit(1);
+      if (!existing) {
+        return c.json(
+          {
+            success: false as const,
+            error: { code: 'NOT_FOUND', message: 'Incident not found' },
+          },
+          404,
+        );
+      }
+      if (existing.status === 'escalated_to_OSHA') {
+        return c.json(
+          { success: true as const, data: existing, meta: { idempotent: true } },
+          200,
+        );
+      }
+
+      const [updated] = await db
+        .update(incidents)
+        .set({
+          status: 'escalated_to_OSHA',
+          attributes: {
+            ...(existing.attributes as Record<string, unknown>),
+            escalatedRegulator: parsed.data.regulator,
+            escalationReason: parsed.data.reason,
+            escalatedByUserId: userId,
+            escalatedAt: new Date().toISOString(),
+          },
+        })
+        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+        .returning();
+
+      // Cockpit + admin compliance pulse.
+      try {
+        publishCockpitEvent({
+          kind: 'incident.escalated',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          incidentId: id,
+          fromLevel: existing.status,
+          toLevel: 'regulator',
+          escalatedBy: userId,
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
 
       return c.json({ success: true as const, data: updated }, 200);
     },

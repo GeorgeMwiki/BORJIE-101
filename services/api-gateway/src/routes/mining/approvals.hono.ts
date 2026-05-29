@@ -23,6 +23,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { miningApprovalItems } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 
 const APPROVAL_STATUSES = [
   'pending',
@@ -189,6 +190,27 @@ app.post('/:id/defer', async (c) => {
     )
     .returning();
 
+  // RT-1: pulse the originating actor's surface.
+  if (updated) {
+    setImmediate(() => {
+      try {
+        publishCockpitEvent({
+          kind: 'manager.approved',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          approvalId: updated.id,
+          subject:
+            (updated as { subjectKind?: string }).subjectKind ??
+            'approval_item',
+          approvedBy: userId,
+          decision: 'defer',
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
+    });
+  }
+
   return c.json({ success: true, data: updated }, 200);
 });
 
@@ -229,6 +251,30 @@ async function transition(
       ),
     )
     .returning();
+
+  // RT-1: pulse the originating actor's surface so they see the
+  // decision flip without polling.
+  if (updated) {
+    const decision: 'approve' | 'reject' =
+      to === 'approved' ? 'approve' : 'reject';
+    setImmediate(() => {
+      try {
+        publishCockpitEvent({
+          kind: 'manager.approved',
+          tenantId,
+          emittedAt: new Date().toISOString(),
+          approvalId: updated.id,
+          subject:
+            (updated as { subjectKind?: string }).subjectKind ??
+            'approval_item',
+          approvedBy: userId,
+          decision,
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
+    });
+  }
   return c.json({ success: true, data: updated }, 200);
 }
 

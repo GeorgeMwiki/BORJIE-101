@@ -27,6 +27,7 @@ import { buyers, marketplaceBids, marketplaceListings } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import {
   bidsPlaceRoute,
   bidsListRoute,
@@ -131,6 +132,24 @@ app.openapi(
           status: 'pending',
         })
         .returning();
+      // RT-1: pulse the seller's cockpit "Incoming Offers" tile.
+      if (bid) {
+        setImmediate(() => {
+          try {
+            publishCockpitEvent({
+              kind: 'bid.placed',
+              tenantId,
+              emittedAt: new Date().toISOString(),
+              bidId: bid.id,
+              parcelId: listing.id,
+              amountTzs: Number(input.bidPriceTzs),
+              bidderId: buyer.id,
+            });
+          } catch {
+            // bus failures must never leak to the request response.
+          }
+        });
+      }
       return c.json({ success: true as const, data: bid }, 201);
     },
   ),

@@ -23,6 +23,7 @@ import { licences, licenceEvents } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import { UserRole } from '../../types/user-role';
 import {
   licencesListRoute,
@@ -128,7 +129,7 @@ app.openapi(
   withSecurityEvents(
     { action: 'mining.licence.renew', resource: 'mining.licence', severity: 'info' },
     async (c) => {
-      const { tenantId } = c.get('auth');
+      const { tenantId, userId } = c.get('auth');
       const db = c.get('db');
       const { id } = c.req.valid('param');
       const input = c.req.valid('json');
@@ -165,6 +166,24 @@ app.openapi(
           closedAt: new Date(),
         })
         .returning();
+
+      // RT-1: pulse the owner cockpit "Compliance" tile within 200 ms.
+      setImmediate(() => {
+        try {
+          publishCockpitEvent({
+            kind: 'licence.renewed',
+            tenantId,
+            emittedAt: new Date().toISOString(),
+            licenceId: id,
+            licenceKind: updated.kind,
+            renewedThrough: String(input.newExpiryDate),
+            renewedBy: userId,
+          });
+        } catch {
+          // bus failures must never leak to the request response.
+        }
+      });
+
       return c.json(
         { success: true as const, data: { licence: updated, event } },
         201,
