@@ -159,3 +159,41 @@ cd services/api-gateway && pnpm exec vitest run src/composition/brain-tools/__te
 ```
 
 Expected: 9 + 11 + 3 = 23 passing tests, 0 failures.
+
+## RT-6 — variation probe (2026-05-29 addendum)
+
+The 15 patterns above probe the **tool layer**. The tool layer is
+DETERMINISTIC by design — it returns the same context shape for the
+same input. Variation happens at the **model layer** when the LLM
+synthesises the user-facing reply using the tool's context, the
+`compose_guidance` directive, and the live conversation.
+
+`services/api-gateway/src/composition/brain-tools/__tests__/capability-tools-variation.test.ts`
+encodes the variation contract:
+
+| # | Assertion | Evidence |
+|---|-----------|----------|
+| 1 | what_can_you_do is deterministic per input | 3 identical calls → identical output |
+| 2 | what_can_you_do.compose_guidance teaches the model to VARY | directive contains "fresh / vary / never quote / grounding" tokens |
+| 3 | about is deterministic per intent | 3 identical calls → identical output |
+| 4 | about.compose_guidance teaches the model to VARY | directive contains "fresh / vary / shape / grounding" tokens |
+| 5 | what_can_you_do reasons about WHICH capabilities to surface | drafting topic ≠ tracking topic capability set |
+| 6 | about routes different intents to different next_actions | data_privacy ≠ what_about_mistakes next-action capability |
+
+6/6 pass. Together with the 23-pattern probe, **29 tests** form the
+always-on regression net for the disclosure + reasoning contract.
+
+```
+cd services/api-gateway && pnpm exec vitest run src/composition/brain-tools/__tests__/capability-tools-variation.test.ts
+```
+
+Expected: 6 passing tests, 0 failures.
+
+### What this proves
+
+The tools return CONTEXT for the LLM, not pre-composed answer strings:
+the `compose_guidance` field explicitly tells the model to compose
+fresh, vary across turns, and never quote the shapes verbatim. Variation
+across turns at the user-facing layer is therefore expected and desired
+— it is the model exercising its real-time reasoning capability against
+the tool-provided scaffolding.
