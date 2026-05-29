@@ -18,6 +18,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { and, desc, eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 
 import {
   successionPlans,
@@ -26,6 +27,7 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+import { appendOpsAuditEntry } from '../ops/audit-helper';
 
 const moduleLogger = createLogger('estate-succession-plans');
 
@@ -182,6 +184,21 @@ app.post('/', async (c: any) => {
       planId: row.id,
       groupId: input.estateGroupId,
     });
+    // Append to the ops audit chain so estate planning actions are
+    // discoverable through the unified audit-trail surface.
+    try {
+      await appendOpsAuditEntry(db, {
+        tenantId: auth.tenantId,
+        userId: auth.userId ?? 'system',
+        turnId: randomUUID(),
+        action: 'estate.succession.create',
+        details: { id: row.id, groupId: input.estateGroupId },
+      });
+    } catch (err) {
+      moduleLogger.warn('estate-succession-plans: audit append failed', {
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
     return c.json({ success: true, data: { plan: row } }, 201);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -267,6 +284,19 @@ app.patch('/:id', async (c: any) => {
     tenantId: auth.tenantId,
     planId: id,
   });
+  try {
+    await appendOpsAuditEntry(db, {
+      tenantId: auth.tenantId,
+      userId: auth.userId ?? 'system',
+      turnId: randomUUID(),
+      action: 'estate.succession.update',
+      details: { id, patch: parsed.data },
+    });
+  } catch (err) {
+    moduleLogger.warn('estate-succession-plans: audit append failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return c.json({ success: true, data: { plan: row } });
 });

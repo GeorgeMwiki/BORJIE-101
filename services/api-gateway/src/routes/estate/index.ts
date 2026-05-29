@@ -16,10 +16,11 @@ export {
   createEstateCapitalMovementsRouter,
   estateCapitalMovementsRouter,
 } from './capital-movements.hono';
-export {
-  createEstateSuccessionRouter,
-  estateSuccessionRouter,
-} from './succession.hono';
+// NOTE: `succession.hono.ts` was a pre-launch duplicate of
+// `succession-plans.hono.ts` (same path, same endpoints). The mounted
+// router is `estateSuccessionPlansRouter` from `succession-plans.hono.ts`;
+// the audit-trail behaviour that lived in the duplicate has been ported
+// there. See `Docs/AUDIT/UNWIRED_LOGIC_REGISTRY.md`.
 export {
   createEstateAssetsRouter,
   estateAssetsRouter,

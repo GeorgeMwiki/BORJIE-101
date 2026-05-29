@@ -1169,3 +1169,51 @@ export * from './owner-messaging.schema.js';
 // Powers the public MCP server / CLI / SDK auth path. See
 // services/api-gateway/src/routes/oauth-device.hono.ts for endpoints.
 export * from './oauth-agent-tokens.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave UNWIRED-LOGIC-SWEEP-2 — schemas previously defined but missing from
+// the barrel. Each schema has a backing migration AND at least one
+// importing module (route, worker, or service). Without these exports
+// the runtime resolution fails at boot.
+// ---------------------------------------------------------------------------
+
+// Wave SCOPE-SEGMENTATION — scope_nodes + scope_taxonomy_preferences
+// (migration 0096). Consumed by /api/v1/scope/* (scope.hono.ts) and the
+// md-intelligence scope-roller service.
+export * from './scope-nodes.schema.js';
+
+// Wave B-WorkerTasks — mining_tasks + mining_toolbox_talks
+// (migration 0080). Consumed by /api/v1/mining/tasks and
+// /api/v1/mining/toolbox-talks plus the workforce-mobile home-screen
+// task queue.
+export * from './mining-tasks.schema.js';
+
+// Wave B-MgrDispatch — mining_escalations + mining_approval_items
+// (migration 0081). Consumed by /api/v1/mining/escalations and
+// /api/v1/mining/approvals.
+export * from './mining-escalations.schema.js';
+
+// Wave MISC-PRE-LAUNCH — mining_sic_pings (migration 0082). Consumed
+// by /api/v1/mining/cockpit (sovereign-intel-cockpit telemetry).
+export * from './mining-sic-pings.schema.js';
+
+// Wave DOC-INTEL — document_intelligence_sessions + document_corpus_links
+// (migration 0083). Consumed by /api/v1/mining/document-intelligence.
+export * from './document-intelligence.schema.js';
+
+// Wave MD-INTELLIGENCE — peer_cohort_aggregates + external_benchmarks
+// (migration 0095). Consumed by the md-intelligence comparison-framework
+// and the fx-feed-cron worker (writes external_benchmarks rows).
+export * from './peer-cohort-benchmarks.schema.js';
+
+// Wave UNIFIED-PERSONAL-KB — persons + person_links + personal_memory_cells
+// (migration 0088). Consumed by the personal-memory recall path used by
+// the brain `lookup_counterparty` tool and the persons.test integration.
+export * from './persons.schema.js';
+export * from './personal-memory.schema.js';
+
+// Wave SEC-4 — agent_security tables (migration 0054). Consumed by
+// `@borjie/agent-security-guard`. Backing tables for prompt-injection
+// attempts, tool-use violations, output-filter blocks, generic signals,
+// and red-team runs.
+export * from './agent-security.schema.js';
