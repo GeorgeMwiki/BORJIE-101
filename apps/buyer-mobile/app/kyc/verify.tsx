@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
-import { StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Card } from '@/components/Card'
@@ -53,6 +53,40 @@ export default function KycVerify() {
     subtitle: stageIndex(s) <= stageIndex(stage) ? '✓' : '—'
   }))
 
+  if (query.isLoading && !query.data) {
+    return (
+      <Screen>
+        <SectionHeader title={t('kyc.verify_title')} subtitle={`${user.companyName} · ${user.countryCode}`} />
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('kyc.verify_loading')}
+          style={styles.center}
+        >
+          <ActivityIndicator color={colors.copper} />
+          <Text style={styles.statusText}>{t('kyc.verify_loading')}</Text>
+        </View>
+      </Screen>
+    )
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <Screen>
+        <SectionHeader title={t('kyc.verify_title')} subtitle={`${user.companyName} · ${user.countryCode}`} />
+        <Card>
+          <Text style={styles.cardTitle}>{t('kyc.verify_error')}</Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <PrimaryButton
+              label={t('kyc.verify_retry')}
+              variant="ghost"
+              onPress={() => void query.refetch()}
+            />
+          </View>
+        </Card>
+      </Screen>
+    )
+  }
+
   return (
     <Screen>
       <SectionHeader title={t('kyc.verify_title')} subtitle={`${user.companyName} · ${user.countryCode}`} />
@@ -92,5 +126,7 @@ function stageIndex(stage: KycStage): number {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   cardTitle: { ...typography.heading, color: colors.ink },
-  body: { ...typography.body, color: colors.inkSoft }
+  body: { ...typography.body, color: colors.inkSoft },
+  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xl, gap: spacing.sm },
+  statusText: { ...typography.body, color: colors.inkSoft, marginTop: spacing.sm }
 })
