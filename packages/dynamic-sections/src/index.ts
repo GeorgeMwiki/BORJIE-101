@@ -81,3 +81,30 @@ export {
   seedSectionKeys,
   createSeedRegistry,
 } from './seed/index.js';
+
+// Adaptive-layout engine (Wave DU-1) — pure-function decideLayout +
+// four shipped policies. Exposing from the barrel so apps can run the
+// engine over their tab strip without reaching into the lib subpath.
+//
+// SOTA refs: Linear "what changed since you last looked" (recency),
+// Raycast useFrecencySorting (recency+frequency), Apple Spotlight
+// Intelligence (on-device ranker), Notion AI intent-pinning.
+export {
+  decideLayout,
+  defaultPolicies,
+  frustrationPolicy,
+  roleMasteryPolicy,
+  recencyPolicy,
+  intentPolicy,
+  ABSTAIN,
+  type SectionId as AdaptiveSectionId,
+  type MasteryLevel as AdaptiveMasteryLevel,
+  type ViewportBreakpoint as AdaptiveViewportBreakpoint,
+  type AffectiveProfile as AdaptiveAffectiveProfile,
+  type UserBehaviorPattern as AdaptiveUserBehaviorPattern,
+  type DetectedIntent as AdaptiveDetectedIntent,
+  type LayoutContext,
+  type LayoutDecision,
+  type LayoutPolicy,
+  type LayoutPreference,
+} from './lib/adaptive-layout/index.js';

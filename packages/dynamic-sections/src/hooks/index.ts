@@ -19,3 +19,7 @@ export {
   type UseSwipeNavResult,
 } from './use-swipe-nav.js';
 export { sectionQueryKeys, type SectionQueryScope } from './query-keys.js';
+export {
+  useAdaptiveLayout,
+  type UseAdaptiveLayoutArgs,
+} from './use-adaptive-layout.js';
