@@ -79,6 +79,8 @@ const config: Config = {
         ...(baseConfig.theme?.extend?.width ?? {}),
         'hairline':  '2px',
         'rail':      '3px',
+        // Status chip / nav-item glyph width (mirrors `height: chip`).
+        'chip':      '18px',
       },
       /**
        * Owner cockpit min-widths — column floors for hot-table grids
@@ -113,10 +115,24 @@ const config: Config = {
       letterSpacing: {
         ...(baseConfig.theme?.extend?.letterSpacing ?? {}),
         'eyebrow':         '0.12em',
+        // Mid step used by the home-chat composer eyebrow + concept-card
+        // section caps (between the standard 0.12em and the editorial
+        // 0.18em — slightly looser legibility on dense numeric rails).
+        'eyebrow-mid':     '0.15em',
         'eyebrow-wide':    '0.18em',
         // Auth / error / 404 caps — widest spacing for the cinematic
         // "Hitilafu · Something went wrong" eyebrow row.
         'eyebrow-x-wide':  '0.22em',
+      },
+      /**
+       * Owner cockpit prose max-widths — editorial line-length floors
+       * for empty-state copy and onboarding narrative blocks. 56ch is
+       * the editorial single-column body floor (per design-system
+       * typography spec).
+       */
+      maxWidth: {
+        ...(baseConfig.theme?.extend?.maxWidth ?? {}),
+        'prose-narrow': '56ch',
       },
     },
   },
