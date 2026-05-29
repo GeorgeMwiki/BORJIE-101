@@ -1,4 +1,3 @@
-// @ts-nocheck — drizzle-orm 0.36: transaction runner tx.execute typed as optional on pg-js vs postgres-js dialect split; known drizzle issue with tx-scoped raw SQL.
 /**
  * Postgres-backed InviteCode Repository
  *

@@ -60,6 +60,23 @@ function rowsOf(result: unknown): ReadonlyArray<ExecRow> {
   return wrapped?.rows ?? [];
 }
 
+/**
+ * Encode a JS string[] as a Postgres array literal text so it can be
+ * passed through drizzle's tagged-template `${arr}` interpolation
+ * without postgres rejecting it as "malformed array literal".
+ *
+ * Without this dance, drizzle binds each array element as a separate
+ * positional parameter, which the text[] column rejects with 22P02 the
+ * instant the array has any entries.
+ */
+function toPgTextArray(values: ReadonlyArray<string>): string {
+  if (values.length === 0) return '{}';
+  const escaped = values.map(
+    (v) => '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"',
+  );
+  return '{' + escaped.join(',') + '}';
+}
+
 // ─── input schemas ──────────────────────────────────────────────────
 
 const AlternativeSchema = z
@@ -282,7 +299,13 @@ export function createDecisionRecorder(
               ${JSON.stringify(value.decidedValue)}::jsonb,
               ${JSON.stringify(alternatives)}::jsonb,
               ${value.rationale}, ${value.confidence ?? null},
-              ${decidedAt}::timestamptz, ${scopeIds as unknown as string[]},
+              ${decidedAt}::timestamptz,
+              -- Encode the JS array as a Postgres array literal text
+              -- and cast — drizzle's tagged-template binds bare arrays
+              -- as comma-separated params instead of a single text[],
+              -- which trips 22P02 "malformed array literal" the moment
+              -- scopeIds has any entries. Belt-and-braces array escape.
+              ${toPgTextArray(scopeIds)}::text[],
               ${value.relatedPredictionId ?? null},
               ${value.relatedActionAuditHash ?? null},
               ${status},
