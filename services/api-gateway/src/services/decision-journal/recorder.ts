@@ -29,6 +29,7 @@ import { z } from 'zod';
 
 import { chainHash, GENESIS_HASH } from '@borjie/audit-hash-chain';
 
+import { publishCockpitEvent } from '../cockpit-events/index.js';
 import { toPgTextArray } from '../../utils/pg-array.js';
 import {
   DECIDED_BY_KINDS,
@@ -46,6 +47,12 @@ import {
   type RecordLinkInput,
   type RecordOutcomeInput,
 } from './types.js';
+
+// Re-export `DecisionRecorderError` so consumers can `import {
+// DecisionRecorderError } from '../recorder'` without reaching into
+// types.ts. Mirrors the established export shape used by tests + the
+// brain-tools wiring.
+export { DecisionRecorderError } from './types.js';
 
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
@@ -222,6 +229,31 @@ export function createDecisionRecorder(
     return rows.length > 0;
   }
 
+  // G3 — robustness 2026-05-29.
+  //
+  // The migration 0125 partial UNIQUE index on `(tenant_id, prev_hash)`
+  // refuses two concurrent writers from chaining off the same head row
+  // — a fork in the hash chain. If the SQL INSERT trips 23505
+  // unique_violation we re-read `lastDecisionHash` and retry once with
+  // the fresh head. A second collision (rare; ~impossible under the
+  // current single-writer-per-tenant invariant) surfaces as
+  // `persistence_failed` so the caller can decide.
+  //
+  // Detection: Postgres tags 23505 as `code` on the error. drizzle-orm
+  // re-throws the underlying postgres-js error with that field; we
+  // fall back to message-substring matching for adapters that scrub
+  // the code.
+  function isUniqueViolation(err: unknown): boolean {
+    const e = err as { code?: string; message?: string };
+    if (e?.code === '23505') return true;
+    const msg = typeof e?.message === 'string' ? e.message : '';
+    return (
+      msg.includes('unique constraint') ||
+      msg.includes('duplicate key value') ||
+      msg.includes('decisions_tenant_prev_hash_unique')
+    );
+  }
+
   return Object.freeze({
     async recordDecision(input) {
       const parsed = RecordDecisionSchema.safeParse(input);
@@ -242,67 +274,93 @@ export function createDecisionRecorder(
       );
       const status = value.status ?? 'committed';
 
-      const prev = await lastDecisionHash(value.tenantId);
-      const payload = {
-        tenant_id: value.tenantId,
-        decided_by_kind: value.decidedByKind,
-        decided_by_actor_id: value.decidedByActorId,
-        decision_subject: value.decisionSubject,
-        decision_subject_entity_kind: value.decisionSubjectEntityKind ?? null,
-        decision_subject_entity_id: value.decisionSubjectEntityId ?? null,
-        decided_value: value.decidedValue,
-        alternatives_considered: alternatives,
-        rationale: value.rationale,
-        confidence: value.confidence ?? null,
-        decided_at: decidedAt,
-        scope_ids: scopeIds,
-        related_prediction_id: value.relatedPredictionId ?? null,
-        related_action_audit_hash: value.relatedActionAuditHash ?? null,
-        status,
-        provenance,
-      };
-      const entryHash = computeHash(prev, payload);
-
+      // G3 retry loop — read head, compute entry_hash off it, INSERT.
+      // On 23505 unique_violation (a concurrent writer landed first)
+      // re-read once and retry. Bounded at 2 attempts because under
+      // the orchestrator's single-writer-per-tenant invariant a
+      // collision is already vanishingly rare; a second collision
+      // signals a deeper failure of that invariant and warrants a
+      // hard error so the caller can investigate.
+      const MAX_ATTEMPTS = 2;
+      let prev: string | null = null;
+      let entryHash = '';
       let rows: ReadonlyArray<ExecRow> = [];
-      try {
-        rows = rowsOf(
-          await deps.db.execute(sql`
-            INSERT INTO decisions (
-              tenant_id, decided_by_kind, decided_by_actor_id,
-              decision_subject, decision_subject_entity_kind,
-              decision_subject_entity_id, decided_value,
-              alternatives_considered, rationale, confidence,
-              decided_at, scope_ids, related_prediction_id,
-              related_action_audit_hash, status, provenance,
-              entry_hash, prev_hash
-            )
-            VALUES (
-              ${value.tenantId}, ${value.decidedByKind}, ${value.decidedByActorId},
-              ${value.decisionSubject}, ${value.decisionSubjectEntityKind ?? null},
-              ${value.decisionSubjectEntityId ?? null},
-              ${JSON.stringify(value.decidedValue)}::jsonb,
-              ${JSON.stringify(alternatives)}::jsonb,
-              ${value.rationale}, ${value.confidence ?? null},
-              ${decidedAt}::timestamptz,
-              -- Encode the JS array as a Postgres array literal text
-              -- and cast — drizzle's tagged-template binds bare arrays
-              -- as comma-separated params instead of a single text[],
-              -- which trips 22P02 "malformed array literal" the moment
-              -- scopeIds has any entries. Belt-and-braces array escape.
-              ${toPgTextArray(scopeIds)}::text[],
-              ${value.relatedPredictionId ?? null},
-              ${value.relatedActionAuditHash ?? null},
-              ${status},
-              ${JSON.stringify(provenance)}::jsonb,
-              ${entryHash}, ${prev}
-            )
-            RETURNING id
-          `),
-        );
-      } catch (err) {
+      let lastErr: unknown = null;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+        prev = await lastDecisionHash(value.tenantId);
+        const payload = {
+          tenant_id: value.tenantId,
+          decided_by_kind: value.decidedByKind,
+          decided_by_actor_id: value.decidedByActorId,
+          decision_subject: value.decisionSubject,
+          decision_subject_entity_kind: value.decisionSubjectEntityKind ?? null,
+          decision_subject_entity_id: value.decisionSubjectEntityId ?? null,
+          decided_value: value.decidedValue,
+          alternatives_considered: alternatives,
+          rationale: value.rationale,
+          confidence: value.confidence ?? null,
+          decided_at: decidedAt,
+          scope_ids: scopeIds,
+          related_prediction_id: value.relatedPredictionId ?? null,
+          related_action_audit_hash: value.relatedActionAuditHash ?? null,
+          status,
+          provenance,
+        };
+        entryHash = computeHash(prev, payload);
+        try {
+          rows = rowsOf(
+            await deps.db.execute(sql`
+              INSERT INTO decisions (
+                tenant_id, decided_by_kind, decided_by_actor_id,
+                decision_subject, decision_subject_entity_kind,
+                decision_subject_entity_id, decided_value,
+                alternatives_considered, rationale, confidence,
+                decided_at, scope_ids, related_prediction_id,
+                related_action_audit_hash, status, provenance,
+                entry_hash, prev_hash
+              )
+              VALUES (
+                ${value.tenantId}, ${value.decidedByKind}, ${value.decidedByActorId},
+                ${value.decisionSubject}, ${value.decisionSubjectEntityKind ?? null},
+                ${value.decisionSubjectEntityId ?? null},
+                ${JSON.stringify(value.decidedValue)}::jsonb,
+                ${JSON.stringify(alternatives)}::jsonb,
+                ${value.rationale}, ${value.confidence ?? null},
+                ${decidedAt}::timestamptz,
+                -- Encode the JS array as a Postgres array literal text
+                -- and cast — drizzle's tagged-template binds bare arrays
+                -- as comma-separated params instead of a single text[],
+                -- which trips 22P02 "malformed array literal" the moment
+                -- scopeIds has any entries. Belt-and-braces array escape.
+                ${toPgTextArray(scopeIds)}::text[],
+                ${value.relatedPredictionId ?? null},
+                ${value.relatedActionAuditHash ?? null},
+                ${status},
+                ${JSON.stringify(provenance)}::jsonb,
+                ${entryHash}, ${prev}
+              )
+              RETURNING id
+            `),
+          );
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (attempt < MAX_ATTEMPTS && isUniqueViolation(err)) {
+            // A concurrent writer chained off the same prev_hash and
+            // landed first. Loop to re-read the head and retry.
+            continue;
+          }
+          throw new DecisionRecorderError(
+            'persistence_failed',
+            `recordDecision insert failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+      if (lastErr !== null) {
         throw new DecisionRecorderError(
           'persistence_failed',
-          `recordDecision insert failed: ${err instanceof Error ? err.message : String(err)}`,
+          `recordDecision insert failed after ${MAX_ATTEMPTS} attempts`,
         );
       }
 
@@ -313,6 +371,26 @@ export function createDecisionRecorder(
           'recordDecision did not return an id',
         );
       }
+
+      // R6 — cockpit SSE notify. The bus is fire-and-forget; a missing
+      // listener is fine. Severity is derived from `provenance.severity`
+      // when present (sovereign / high / medium / low); otherwise we
+      // default to 'medium' so the owner-web toast renders with the
+      // neutral accent.
+      const severityHint = (provenance as { severity?: string }).severity;
+      const severity: 'low' | 'medium' | 'high' | 'sovereign' =
+        severityHint === 'sovereign' || severityHint === 'high' ||
+        severityHint === 'low' || severityHint === 'medium'
+          ? severityHint
+          : 'medium';
+      publishCockpitEvent({
+        kind: 'decision.recorded',
+        tenantId: value.tenantId,
+        emittedAt: now().toISOString(),
+        decisionId: id,
+        subject: value.decisionSubject,
+        severity,
+      });
 
       return Object.freeze({
         id,
