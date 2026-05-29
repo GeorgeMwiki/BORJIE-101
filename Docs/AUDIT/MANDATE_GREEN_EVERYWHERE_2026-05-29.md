@@ -10,12 +10,13 @@ to GREEN inline (under 30 LOC) OR documented with a roadmap entry.
 
 | Track  | Total | GREEN | YELLOW | RED |
 | ------ | ----: | ----: | -----: | --: |
-| Live HTTP probes | 40 | 38 | 0 | 2 |
+| Live HTTP probes | 40 | 40 | 0 | 0 |
 | Static source checks | 18 | 18 | 0 | 0 |
-| **Combined** | **58** | **56** | **0** | **2** |
+| **Combined** | **58** | **58** | **0** | **0** |
 
-**96.5% mandate claims verified GREEN.** Both REDs are downstream of a
-pre-existing, out-of-scope migration drift (see §RED).
+**100% mandate claims verified GREEN.** The two RFB REDs originally
+documented in §RED were closed by migration `0150_fix_tenant_id_text_drift.sql`
+(commit `02a8e0c1`) on 2026-05-29 — see §RED for the audit trail.
 
 ## How to re-run
 
@@ -35,7 +36,7 @@ uses real UUIDs in `sub` so queries against UUID columns succeed.
 
 ---
 
-## §A — Live HTTP probes (40/40 with 2 RED)
+## §A — Live HTTP probes (40/40 GREEN)
 
 Token roles: `OWNER` / `ADMIN` / `WORKER` / `MANAGER` / `BUYER`.
 Tenant: `00000000-0000-0000-0000-000000000001`.
@@ -58,7 +59,7 @@ Tenant: `00000000-0000-0000-0000-000000000001`.
 | 14 | Cockpit SSE gate (unauth) | `GET /api/v1/cockpit/stream` | 401 | 2 | GREEN |
 | 15 | Worker hero-card backend | `GET /api/v1/field/workforce/tasks/next` | 200 | 1216 | GREEN |
 | 16 | Manager task queue | `GET /api/v1/mining/tasks` | 200 | 1629 | GREEN |
-| 17 | Marketplace inbound RFB feed | `GET /api/v1/marketplace/rfb/nearby` | 503 | 1623 | **RED** |
+| 17 | Marketplace inbound RFB feed | `GET /api/v1/marketplace/rfb/nearby` | 200 | 1255 | GREEN |
 | 18 | OpenAPI spec (admin surface) | `GET /api/v1/openapi.json` | 200 | 484 | GREEN |
 | 19 | Audit chain autonomous-actions | `GET /api/v1/audit/autonomous-actions` | 200 | 391 | GREEN |
 | 20 | Audit-trail v2 entries (hash chain) | `GET /api/v1/audit-trail/entries` | 200 | 356 | GREEN |
@@ -78,12 +79,12 @@ Tenant: `00000000-0000-0000-0000-000000000001`.
 | 34 | Real-time p50 latency (<200ms claim) | `GET /health x8` | 200 | 7 | GREEN |
 | 35 | MCP JSON-RPC envelope | `POST /api/v1/mcp initialize` | 200 | 351 | GREEN |
 | 36 | MCP tools/list | `POST /api/v1/mcp tools/list` | 200 | 576 | GREEN |
-| 37 | Buyer RFB list (mine) | `GET /api/v1/marketplace/rfb/mine` | 503 | 1582 | **RED** |
+| 37 | Buyer RFB list (mine) | `GET /api/v1/marketplace/rfb/mine` | 200 | 2743 | GREEN |
 | 38 | Mwikila autonomous actions inbox | `GET /api/v1/owner/actions-inbox` | 403 | 719 | GREEN |
 | 39 | Compliance exports (regulator) | `GET /api/v1/owner/compliance/exports` | 403 | 715 | GREEN |
 | 40 | Mining shift reports | `GET /api/v1/mining/shift-reports` | 200 | 1084 | GREEN |
 
-**Live HTTP totals:** 40 probes — GREEN=38 YELLOW=0 RED=2.
+**Live HTTP totals:** 40 probes — GREEN=40 YELLOW=0 RED=0.
 
 A `GREEN (auth-gated)` row means the surface enforced auth/role/RLS as
 designed (401/403). For example #21–#27 reject the demo OWNER role with
@@ -151,44 +152,67 @@ That **proves** the gate is wired — flipping to ADMIN JWT 200s.
 
 ---
 
-## §RED — both blocked by pre-existing migration 0127
+## §RED — CLOSED 2026-05-29 by migration 0150
+
+**Status: RESOLVED.** Both RED probes (#17 and #37) flip to GREEN on
+re-run after migration `0150_fix_tenant_id_text_drift.sql` lands
+(commit `02a8e0c1`).
+
+### Original RED
 
 Probes #17 (`/api/v1/marketplace/rfb/nearby`) and #37
-(`/api/v1/marketplace/rfb/mine`) return `503 TABLE_NOT_PROVISIONED`
-because the `request_for_bids` table does not exist. Root cause:
-**migration 0127 fails** when run forward against the existing dev DB
-because `tenants.id` is `text` but the migration writes:
+(`/api/v1/marketplace/rfb/mine`) returned `503 TABLE_NOT_PROVISIONED`
+because the `request_for_bids` table did not exist. Root cause:
+**migration 0127 failed silently** when run forward against the
+existing dev DB because `tenants.id` is `text` but the migration
+declared:
 
 ```
 tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE
 ```
 
-Postgres rejects:
+Postgres rejected:
 
 ```
 ERROR  42804  Key columns "tenant_id" and "id" are of incompatible types:
               uuid and text.
 ```
 
-The dev DB is a pre-fork BossNyumba clone where `tenants.id` is text.
-Every later migration that FKs to tenants(id) with `UUID` will fail on
-this env.
+Same drift affected `0128_owner_delegation_prefs.sql` and
+`0129_mwikila_actions_inbox.sql` — four tables total never materialised.
 
-**Out of scope for this pass** because:
-- The migration is shipped + immutable per CLAUDE.md hard rule. We
-  cannot edit it.
-- Fixing the env requires a one-shot `ALTER TABLE tenants ALTER COLUMN
-  id TYPE uuid USING id::uuid` that cascades into every FK-bearing
-  child table — a multi-hour, high-risk DB migration on its own that
-  needs an Owner + an outage window.
-- The RFB tables themselves are part of an unfinished commercial flow
-  the AUDIT corpus already flagged.
+### Fix
 
-**Roadmap entry** (proposed): a new migration `0146_tenants_id_uuid.sql`
-that performs the type lift inside a single `BEGIN; … COMMIT;` block,
-co-ordinated with a staged rollout. This is the documented gap.
+A new migration `0150_fix_tenant_id_text_drift.sql` recreates the four
+tables with `tenant_id text REFERENCES tenants(id) ON DELETE CASCADE`
+to match the canonical `tenants.id text` declaration in
+`packages/database/src/schemas/tenant.schema.ts` and the rest of the
+shipped schema (85 other tenant-scoped tables already use `text`).
 
-The remaining 38 live probes are GREEN.
+Why not lift `tenants.id` to `uuid`?
+- Drizzle canonical schema declares `text('id').primaryKey()`.
+- Live dev DB carries 5 non-UUID tenant IDs by design
+  (`borjie-demo`, `tn_4fa3100a-…`, `bt_b7701457-…`); the `borjie-demo`
+  literal is referenced in seeds, tests, and the `SEED_TEST_TENANT_ID`
+  env. Lifting would break the demo tenant identity contract.
+- Migrations 0130 onwards already declare `tenant_id text`, so 0127–
+  0129 are the only outliers.
+
+CLAUDE.md "migrations are immutable" honoured: 0127/0128/0129 are
+preserved on disk; 0150 is the new authoritative migration. The three
+broken hashes were stamped into `__drizzle_migrations` so the runner
+no longer halts at 0127.
+
+Drizzle schema `packages/database/src/schemas/request-for-bids.schema.ts`
+also flipped from `uuid('tenant_id')` to `text('tenant_id')` to match
+the new column type.
+
+### Verification
+
+Live probe matrix on 2026-05-29 confirms:
+- #17 `/api/v1/marketplace/rfb/nearby` → 200 (1255ms) GREEN
+- #37 `/api/v1/marketplace/rfb/mine` → 200 (2743ms) GREEN
+- 40/40 live probes GREEN; combined 58/58 GREEN.
 
 ---
 
