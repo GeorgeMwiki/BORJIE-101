@@ -879,6 +879,286 @@ export const ownerRfbDispatchToManagerTool: PersonaToolDescriptor<
   },
 };
 
+// ====================================================================
+// Issue #194 chain C-A — owner.regulator.approve_disclosure (WRITE).
+// Maps to POST /api/v1/regulator/requests/:id/approve-disclosure.
+// ====================================================================
+const OwnerRegulatorApproveInput = z.object({
+  requestId: z.string().min(1),
+  approvedScope: z.object({
+    identity: z.boolean().optional(),
+    contact: z.boolean().optional(),
+    employment: z.boolean().optional(),
+    compensation: z.boolean().optional(),
+    geo: z.boolean().optional(),
+  }),
+});
+const OwnerRegulatorApproveOutput = z.object({
+  requestId: z.string(),
+  status: z.string(),
+});
+export const ownerRegulatorApproveDisclosureTool: PersonaToolDescriptor<
+  typeof OwnerRegulatorApproveInput,
+  typeof OwnerRegulatorApproveOutput
+> = {
+  id: 'owner.regulator.approve_disclosure',
+  name: 'Owner — approve regulator disclosure scope',
+  description:
+    'Approve the scope of personal data to release in response to a ' +
+    'regulator data-subject request. The admin then exports the ' +
+    'redacted artifact + audit chain.',
+  personaSlugs: OWNER,
+  inputSchema: OwnerRegulatorApproveInput,
+  outputSchema: OwnerRegulatorApproveOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return { requestId: input.requestId, status: 'unavailable' };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string };
+    }>(`/regulator/requests/${input.requestId}/approve-disclosure`, {
+      body: { approvedScope: input.approvedScope },
+    });
+    const row = res.data ?? {};
+    return {
+      requestId: String(row.id ?? input.requestId),
+      status: String(row.status ?? 'unknown'),
+    };
+  },
+};
+
+// ====================================================================
+// Issue #194 chain C-B — owner.licence.start_renewal (WRITE).
+// ====================================================================
+const OwnerLicenceStartRenewalInput = z.object({
+  licenceId: z.string().min(1),
+  summary: z.string().min(1).max(500).optional(),
+});
+const OwnerLicenceStartRenewalOutput = z.object({
+  licenceId: z.string(),
+  eventId: z.string(),
+  status: z.string(),
+});
+export const ownerLicenceStartRenewalTool: PersonaToolDescriptor<
+  typeof OwnerLicenceStartRenewalInput,
+  typeof OwnerLicenceStartRenewalOutput
+> = {
+  id: 'owner.licence.start_renewal',
+  name: 'Owner — start licence renewal',
+  description:
+    'Open a licence-renewal draft for the given mining title (PL / PML / ' +
+    'ML / SML / DEALER / BROKER). Auto-creates a licence_event with ' +
+    'status=in_progress so the owner cockpit + Mr. Mwikila inbox pulse.',
+  personaSlugs: OWNER,
+  inputSchema: OwnerLicenceStartRenewalInput,
+  outputSchema: OwnerLicenceStartRenewalOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        licenceId: input.licenceId,
+        eventId: 'unavailable',
+        status: 'unavailable',
+      };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string };
+    }>(`/compliance/licences/${input.licenceId}/start-renewal`, {
+      body: { summary: input.summary },
+    });
+    const row = res.data ?? {};
+    return {
+      licenceId: input.licenceId,
+      eventId: String(row.id ?? 'unknown'),
+      status: String(row.status ?? 'in_progress'),
+    };
+  },
+};
+
+// ====================================================================
+// Issue #194 chain C-B — owner.licence.submit_renewal (WRITE).
+// ====================================================================
+const OwnerLicenceSubmitRenewalInput = z.object({
+  licenceId: z.string().min(1),
+  submissionReference: z.string().min(1).max(200),
+  evidenceDocId: z.string().min(1).max(200).optional(),
+  renewalDocUrl: z.string().url().optional(),
+});
+const OwnerLicenceSubmitRenewalOutput = z.object({
+  licenceId: z.string(),
+  eventId: z.string(),
+  status: z.string(),
+});
+export const ownerLicenceSubmitRenewalTool: PersonaToolDescriptor<
+  typeof OwnerLicenceSubmitRenewalInput,
+  typeof OwnerLicenceSubmitRenewalOutput
+> = {
+  id: 'owner.licence.submit_renewal',
+  name: 'Owner — submit licence renewal',
+  description:
+    'Submit the drafted licence renewal to the regulator (NEMC / PCCB / ' +
+    'TMAA). Records the submission reference and stamps the renewal ' +
+    'doc URL onto the licence row.',
+  personaSlugs: OWNER,
+  inputSchema: OwnerLicenceSubmitRenewalInput,
+  outputSchema: OwnerLicenceSubmitRenewalOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        licenceId: input.licenceId,
+        eventId: 'unavailable',
+        status: 'unavailable',
+      };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string };
+    }>(`/compliance/licences/${input.licenceId}/submit-renewal`, {
+      body: {
+        submissionReference: input.submissionReference,
+        evidenceDocId: input.evidenceDocId,
+        renewalDocUrl: input.renewalDocUrl,
+      },
+    });
+    const row = res.data ?? {};
+    return {
+      licenceId: input.licenceId,
+      eventId: String(row.id ?? 'unknown'),
+      status: String(row.status ?? 'submitted'),
+    };
+  },
+};
+
+// ====================================================================
+// Issue #194 chain C-C — owner.inspection.sign (WRITE).
+// ====================================================================
+const OwnerInspectionSignInput = z.object({
+  inspectionId: z.string().min(1),
+  narrativeId: z.string().min(1),
+  canonicalPdfSha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
+const OwnerInspectionSignOutput = z.object({
+  narrativeId: z.string(),
+  status: z.string(),
+});
+export const ownerInspectionSignTool: PersonaToolDescriptor<
+  typeof OwnerInspectionSignInput,
+  typeof OwnerInspectionSignOutput
+> = {
+  id: 'owner.inspection.sign',
+  name: 'Owner — sign inspection narrative',
+  description:
+    'Sign the reviewed inspection narrative (PDF SHA-256 anchor) so ' +
+    'the admin can submit it to the regulator alongside C2PA-signed ' +
+    'photos.',
+  personaSlugs: OWNER,
+  inputSchema: OwnerInspectionSignInput,
+  outputSchema: OwnerInspectionSignOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return { narrativeId: input.narrativeId, status: 'unavailable' };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string };
+    }>(
+      `/compliance/inspections/${input.inspectionId}/narratives/${input.narrativeId}/sign-narrative`,
+      { body: { canonicalPdfSha256: input.canonicalPdfSha256 } },
+    );
+    const row = res.data ?? {};
+    return {
+      narrativeId: String(row.id ?? input.narrativeId),
+      status: String(row.status ?? 'owner_signed'),
+    };
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 14. List my settlements (commercial chain L8)
+// ─────────────────────────────────────────────────────────────────────
+//
+// Read-only listing of the owner's settlement history. Backed by
+// GET /api/v1/marketplace/rfb-responses/settlements/mine. The brain
+// surfaces this in the cockpit so the owner can scan ledger txns +
+// payout providers per RFB at a glance.
+
+const SettlementListMineInput = z.object({
+  limit: z.number().int().positive().max(200).default(50),
+});
+const SettlementListMineOutput = z.object({
+  settlements: z.array(
+    z.object({
+      id: z.string(),
+      rfbId: z.string(),
+      responseId: z.string(),
+      status: z.string(),
+      grossTzs: z.number(),
+      royaltyTzs: z.number(),
+      feeTzs: z.number(),
+      netTzs: z.number(),
+      payoutProvider: z.string().nullable(),
+      payoutProviderRef: z.string().nullable(),
+      createdAt: z.string(),
+    }),
+  ),
+});
+
+export const ownerSettlementListMineTool: PersonaToolDescriptor<
+  typeof SettlementListMineInput,
+  typeof SettlementListMineOutput
+> = {
+  id: 'owner.settlement.list_mine',
+  name: 'Owner — list my settlements',
+  description:
+    'List the owner\'s recent RFB settlements. Read-only — each row carries ' +
+    'gross / royalty / fee / net TZS and the ledger txn id + payout provider ' +
+    'ref so the cockpit can deep-link to the journal.',
+  personaSlugs: OWNER,
+  inputSchema: SettlementListMineInput,
+  outputSchema: SettlementListMineOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { settlements: [] };
+    const res = await client.get<{
+      success: boolean;
+      data?: {
+        settlements?: Array<{
+          id: string;
+          rfbId: string;
+          responseId: string;
+          status: string;
+          grossTzs: number;
+          royaltyTzs: number;
+          feeTzs: number;
+          netTzs: number;
+          payoutProvider: string | null;
+          payoutProviderRef: string | null;
+          createdAt: string;
+        }>;
+      };
+    }>('/marketplace/rfb-responses/settlements/mine', {
+      query: { limit: String(input.limit) },
+    });
+    return { settlements: res.data?.settlements ?? [] };
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -897,4 +1177,11 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerLogEngagementTool,
   // Commercial chain L3 — owner→manager dispatch.
   ownerRfbDispatchToManagerTool,
+  // Commercial chain L8 — owner settlement listing.
+  ownerSettlementListMineTool,
+  // Issue #194 chains C-A/B/C
+  ownerRegulatorApproveDisclosureTool,
+  ownerLicenceStartRenewalTool,
+  ownerLicenceSubmitRenewalTool,
+  ownerInspectionSignTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

@@ -185,6 +185,9 @@ import { rfbRouter } from './routes/marketplace/rfb.hono';
 // Commercial chain L7 — buyer fulfilment notification queue.
 // Migration 0132. RLS-scoped to the buyer's tenant on read.
 import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
+// Commercial chain L8 — settlement orchestrator entry point.
+// Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
+import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
 // Public marketing surface — pilot applications + future PR contact
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
@@ -1531,6 +1534,9 @@ api.route('/marketplace', marketplaceRouter);
 api.route('/marketplace/rfb', rfbRouter);
 // Commercial chain L7 — buyer's at-rest notification queue.
 api.route('/buyer/notifications', buyerNotificationsRouter);
+// Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
+// /api/v1/marketplace/rfb-responses to match the spec.
+api.route('/marketplace/rfb-responses', rfbResponsesRouter);
 api.route('/marketplace-universal', universalMarketplaceRouter);
 api.route('/marketing', marketingRouter);
 // Borjie locale-toggle re-translation — see routes/translate.hono.ts.

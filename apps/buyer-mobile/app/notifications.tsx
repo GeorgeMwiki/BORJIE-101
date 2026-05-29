@@ -67,6 +67,7 @@ export default function NotificationsScreen(): JSX.Element {
   )
 
   const notifications = query.data?.notifications ?? []
+  const inbox = useInbox()
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -79,6 +80,9 @@ export default function NotificationsScreen(): JSX.Element {
               : 'Recent activity on your purchases'
           }
         />
+        {inbox.items.length > 0 ? (
+          <LiveEventsRibbon items={inbox.items} unreadCount={inbox.unreadCount} isSw={isSw} />
+        ) : null}
       </View>
       <FlatList
         data={notifications}
@@ -158,10 +162,100 @@ function NotificationCard({
   )
 }
 
+interface LiveEventsRibbonProps {
+  readonly items: ReadonlyArray<InboxItem>
+  readonly unreadCount: number
+  readonly isSw: boolean
+}
+
+function describeKind(kind: string, isSw: boolean): string {
+  switch (kind) {
+    case 'rfb.dispatched':
+      return isSw ? 'RFB imepelekwa' : 'RFB dispatched'
+    case 'bid.placed':
+      return isSw ? 'Zabuni imewekwa' : 'Bid placed'
+    case 'settlement.initiated':
+      return isSw ? 'Malipo yameanza' : 'Settlement initiated'
+    case 'chat.handoff':
+      return isSw ? 'Mazungumzo yamepelekwa' : 'Chat handed off'
+    case 'reminder.fired':
+      return isSw ? 'Kikumbusho' : 'Reminder'
+    default:
+      return kind
+  }
+}
+
+function LiveEventsRibbon({ items, unreadCount, isSw }: LiveEventsRibbonProps): JSX.Element {
+  const recent = items.slice(0, 5)
+  return (
+    <View style={styles.ribbonWrap}>
+      <View style={styles.ribbonHeader}>
+        <Text style={styles.ribbonTitle}>
+          {isSw ? 'Moja kwa moja' : 'Live'}{unreadCount > 0 ? ` (${unreadCount})` : ''}
+        </Text>
+        {unreadCount > 0 ? (
+          <Pressable onPress={() => markAllLiveRead()}>
+            <Text style={styles.ribbonLink}>{isSw ? 'Soma zote' : 'Mark all read'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {recent.map((item) => (
+        <Pressable
+          key={item.id}
+          accessibilityRole="button"
+          onPress={() => markLiveRead(item.id)}
+        >
+          <View style={styles.ribbonRow}>
+            <Text style={styles.ribbonKind}>{describeKind(item.kind, isSw)}</Text>
+            <Text style={styles.ribbonTime}>
+              {new Date(item.emittedAt).toLocaleTimeString(isSw ? 'sw-TZ' : 'en-US')}
+            </Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: tokens.color.bgBase,
+  },
+  ribbonWrap: {
+    marginTop: tokens.space.md,
+    padding: tokens.space.md,
+    borderRadius: tokens.space.sm,
+    backgroundColor: tokens.color.bgRaised,
+    borderWidth: 1,
+    borderColor: tokens.color.bgMuted,
+  },
+  ribbonHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: tokens.space.xs,
+  },
+  ribbonTitle: {
+    ...tokens.type.bodyStrong,
+    color: tokens.color.gold,
+  },
+  ribbonLink: {
+    ...tokens.type.bodySm,
+    color: tokens.color.gold,
+  },
+  ribbonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: tokens.space.xs,
+  },
+  ribbonKind: {
+    ...tokens.type.body,
+    color: tokens.color.textPrimary,
+  },
+  ribbonTime: {
+    ...tokens.type.bodySm,
+    color: tokens.color.textMuted,
   },
   padded: {
     paddingHorizontal: tokens.space.lg,

@@ -876,6 +876,87 @@ export const sellerRfbNearbyTool: PersonaToolDescriptor<
   },
 };
 
+// Commercial chain L8 — buyer signs delivery, triggering settlement.
+//
+// Hits POST /api/v1/marketplace/rfb-responses/:responseId/sign-delivery
+// which runs the SettlementOrchestrator: idempotency check, math,
+// LedgerService.post(), payout via M-Pesa B2C. The tool surfaces the
+// final settlement id + math so the buyer's chat bubble carries the
+// confirmation without a second round-trip.
+
+const BuyerSignDeliveryInput = z.object({
+  responseId: z.string().min(1).max(64),
+  coCStepChecksum: z.string().min(8).max(256),
+});
+const BuyerSignDeliveryOutput = z.object({
+  settlementId: z.string(),
+  status: z.string(),
+  grossTzs: z.number(),
+  royaltyTzs: z.number(),
+  feeTzs: z.number(),
+  netTzs: z.number(),
+  idempotent: z.boolean(),
+});
+
+export const buyerSignDeliveryTool: PersonaToolDescriptor<
+  typeof BuyerSignDeliveryInput,
+  typeof BuyerSignDeliveryOutput
+> = {
+  id: 'buyer.delivery.sign',
+  name: 'Buyer — sign delivery (settlement)',
+  description:
+    'Sign the final chain-of-custody step on an accepted RFB response. ' +
+    'Drives the settlement orchestrator end-to-end: math, ledger journal ' +
+    'via LedgerService.post(), and M-Pesa B2C payout to the seller. ' +
+    'WRITE — hash-chain audited via the underlying route. Idempotent on ' +
+    '(tenant, response, coCStepChecksum).',
+  personaSlugs: BUYER,
+  inputSchema: BuyerSignDeliveryInput,
+  outputSchema: BuyerSignDeliveryOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        settlementId: '',
+        status: 'unavailable',
+        grossTzs: 0,
+        royaltyTzs: 0,
+        feeTzs: 0,
+        netTzs: 0,
+        idempotent: false,
+      };
+    }
+    const res = await client.post<{
+      success: boolean;
+      data?: {
+        settlementId?: string;
+        status?: string;
+        grossTzs?: number;
+        royaltyTzs?: number;
+        feeTzs?: number;
+        netTzs?: number;
+        idempotent?: boolean;
+      };
+    }>(
+      `/marketplace/rfb-responses/${encodeURIComponent(input.responseId)}/sign-delivery`,
+      { coCStepChecksum: input.coCStepChecksum },
+    );
+    const data = res.data ?? {};
+    return {
+      settlementId: String(data.settlementId ?? ''),
+      status: String(data.status ?? 'pending'),
+      grossTzs: Number(data.grossTzs ?? 0),
+      royaltyTzs: Number(data.royaltyTzs ?? 0),
+      feeTzs: Number(data.feeTzs ?? 0),
+      netTzs: Number(data.netTzs ?? 0),
+      idempotent: Boolean(data.idempotent),
+    };
+  },
+};
+
 export const BUYER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -893,4 +974,6 @@ export const BUYER_TOOLS: ReadonlyArray<
   buyerRfbCreateTool,
   buyerRfbListMineTool,
   sellerRfbNearbyTool,
+  // Commercial chain L8 — buyer signs delivery → ledger + payout.
+  buyerSignDeliveryTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
