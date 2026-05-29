@@ -13,6 +13,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { getCsrfHeaders } from '@/lib/csrf';
+
 interface SavedSearch {
   readonly id: string;
   readonly label: string;
@@ -87,7 +89,7 @@ export function SavedSearchesPanel() {
       const res = await fetch('/api/v1/owner/saved-searches', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         body: JSON.stringify({
           label,
           queryJson: parsedQuery,
@@ -116,6 +118,7 @@ export function SavedSearchesPanel() {
         const res = await fetch(`/api/v1/owner/saved-searches/${id}`, {
           method: 'DELETE',
           credentials: 'include',
+          headers: { ...getCsrfHeaders() },
         });
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
