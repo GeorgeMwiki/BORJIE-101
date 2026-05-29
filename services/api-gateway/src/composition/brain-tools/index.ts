@@ -89,6 +89,13 @@ import { JURISDICTION_DISCOVERY_TOOLS } from './jurisdiction-discovery-tools';
 // context. Companion to JC's `mwikila.jurisdiction.discover` (unseeded
 // path) and `mwikila.jurisdiction.switch` (turn / session override).
 import { JURISDICTION_TOOLS } from './jurisdiction-tools';
+// Real-time reasoning RT-7 — `mwikila.reason.strategize` returns a
+// structured StrategyTrace (current state prompt, constraints,
+// 2-4 strategies with pros/cons/confidence, recommended_index, why,
+// downsides, retrospective grade plan). The chat turn uses it as
+// CONTEXT — the model composes the narrative reply itself. Available
+// to T1 owner / T2 admin / T3 manager.
+import { REASON_STRATEGIZE_TOOLS } from './reason-strategize-tool';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -143,6 +150,7 @@ export function buildPersonaToolHandlers(
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
+      REASON_STRATEGIZE_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -198,6 +206,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
+      REASON_STRATEGIZE_TOOLS,
     ],
     undefined,
   );
@@ -303,3 +312,8 @@ export {
   JURISDICTION_TOOLS,
   jurisdictionShowCurrentTool,
 } from './jurisdiction-tools';
+// RT-7 — re-exports for tests + audit walker.
+export {
+  REASON_STRATEGIZE_TOOLS,
+  reasonStrategizeTool,
+} from './reason-strategize-tool';
