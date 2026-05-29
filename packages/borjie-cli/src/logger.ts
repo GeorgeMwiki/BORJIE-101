@@ -1,5 +1,6 @@
 /**
- * CLI logger — respects --json (machine output) and --no-color.
+ * CLI logger — respects --json (machine output), --no-color, --quiet,
+ * --verbose, and the standard `NO_COLOR` env var.
  *
  * In JSON mode every informational message is suppressed; only the
  * final result payload is printed to stdout (the calling command is
@@ -17,6 +18,7 @@ export interface LoggerOptions {
   readonly json: boolean;
   readonly noColor: boolean;
   readonly verbose: boolean;
+  readonly quiet: boolean;
 }
 
 export interface BorjieLogger {
@@ -27,11 +29,20 @@ export interface BorjieLogger {
   success(...args: unknown[]): void;
   raw(message: string): void;
   json(payload: unknown): void;
+  /** Print `{ok: true, data}` (or `{ok: false, error}`) in JSON mode, raw text otherwise. */
+  envelope(args: { ok: boolean; data?: unknown; error?: unknown; text?: string }): void;
   readonly opts: LoggerOptions;
 }
 
-export function createLogger(opts: LoggerOptions): BorjieLogger {
-  if (opts.noColor) kleur.enabled = false;
+export function createLogger(opts: Partial<LoggerOptions> = {}): BorjieLogger {
+  const noColorEnv = process.env['NO_COLOR'] !== undefined && process.env['NO_COLOR'] !== '';
+  const resolved: LoggerOptions = {
+    json: Boolean(opts.json),
+    noColor: Boolean(opts.noColor) || noColorEnv,
+    verbose: Boolean(opts.verbose),
+    quiet: Boolean(opts.quiet),
+  };
+  if (resolved.noColor) kleur.enabled = false;
   const stdout = (msg: string): void => {
     process.stdout.write(`${msg}\n`);
   };
@@ -42,43 +53,64 @@ export function createLogger(opts: LoggerOptions): BorjieLogger {
   const fmt = (parts: unknown[]): string =>
     parts
       .map((p) =>
-        typeof p === 'string' ? p : (() => {
-          try {
-            return JSON.stringify(p);
-          } catch {
-            return String(p);
-          }
-        })(),
+        typeof p === 'string'
+          ? p
+          : (() => {
+              try {
+                return JSON.stringify(p);
+              } catch {
+                return String(p);
+              }
+            })(),
       )
       .join(' ');
 
   return {
-    opts,
+    opts: resolved,
     info(...args) {
-      if (opts.json) return;
+      if (resolved.json || resolved.quiet) return;
       stdout(fmt(args));
     },
     warn(...args) {
-      if (opts.json) return;
-      stderr(opts.noColor ? `warn: ${fmt(args)}` : kleur.yellow(`warn: ${fmt(args)}`));
+      if (resolved.json) return;
+      stderr(resolved.noColor ? `warn: ${fmt(args)}` : kleur.yellow(`warn: ${fmt(args)}`));
     },
     error(...args) {
-      stderr(opts.noColor ? `error: ${fmt(args)}` : kleur.red(`error: ${fmt(args)}`));
+      stderr(resolved.noColor ? `error: ${fmt(args)}` : kleur.red(`error: ${fmt(args)}`));
     },
     debug(...args) {
-      if (opts.json) return;
-      if (!opts.verbose) return;
-      stderr(opts.noColor ? `debug: ${fmt(args)}` : kleur.gray(`debug: ${fmt(args)}`));
+      if (resolved.json) return;
+      if (!resolved.verbose) return;
+      stderr(resolved.noColor ? `debug: ${fmt(args)}` : kleur.gray(`debug: ${fmt(args)}`));
     },
     success(...args) {
-      if (opts.json) return;
-      stdout(opts.noColor ? fmt(args) : kleur.green(fmt(args)));
+      if (resolved.json || resolved.quiet) return;
+      stdout(resolved.noColor ? fmt(args) : kleur.green(fmt(args)));
     },
     raw(message) {
+      if (resolved.quiet && !resolved.json) {
+        stdout(message);
+        return;
+      }
       stdout(message);
     },
     json(payload) {
-      stdout(JSON.stringify(payload, null, opts.json ? 0 : 2));
+      stdout(JSON.stringify(payload, null, resolved.json ? 0 : 2));
+    },
+    envelope({ ok, data, error, text }) {
+      if (resolved.json) {
+        const payload: Record<string, unknown> = { ok };
+        if (data !== undefined) payload['data'] = data;
+        if (error !== undefined) payload['error'] = error;
+        stdout(JSON.stringify(payload));
+        return;
+      }
+      if (resolved.quiet) {
+        if (text) stdout(text);
+        return;
+      }
+      if (text) stdout(text);
+      else if (data !== undefined) stdout(JSON.stringify(data, null, 2));
     },
   };
 }

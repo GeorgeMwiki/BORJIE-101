@@ -1,8 +1,8 @@
 {
   "name": "@borjie/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
-  "description": "Borjie command-line interface — auth, chat, drafts, reminders, estate, compliance, scope, opportunities, risks, decisions, share. Built for agents.",
+  "description": "Borjie command-line interface — interactive REPL, autonomous agent loop, daemon watch, estate diff, streaming chat, shell completions, plugins, multi-profile. Built for agents.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +18,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "PLUGIN_DEV.md"
   ],
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js",

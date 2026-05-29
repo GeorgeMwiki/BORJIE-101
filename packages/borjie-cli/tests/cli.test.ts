@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { buildProgram } from '../src/cli-program.js';
 import { createLogger } from '../src/logger.js';
 
-const silentLogger = createLogger({ json: true, noColor: true, verbose: false });
+const silentLogger = createLogger({ json: true, noColor: true, verbose: false, quiet: false });
 
 function programNames(): readonly string[] {
   const program = buildProgram({ logger: silentLogger });
@@ -35,6 +35,16 @@ describe('borjie CLI program', () => {
       'risks',
       'decisions',
       'share',
+      // SOTA upgrades
+      'diff',
+      'watch',
+      'agent',
+      'plugin',
+      'profiles',
+      'use',
+      'sessions',
+      'config',
+      'completion',
     ]) {
       expect(names, `missing verb: ${required}`).toContain(required);
     }
@@ -69,11 +79,47 @@ describe('borjie CLI program', () => {
     expect(subs).toEqual(expect.arrayContaining(['ls', 'open']));
   });
 
-  it('exposes global --json / --no-color / --verbose flags', () => {
+  it('exposes global --json / --no-color / --verbose / --quiet / --profile flags', () => {
     const program = buildProgram({ logger: silentLogger });
     const opts = program.options.map((o) => o.long);
     expect(opts).toEqual(
-      expect.arrayContaining(['--json', '--no-color', '--verbose']),
+      expect.arrayContaining(['--json', '--no-color', '--verbose', '--quiet', '--profile']),
     );
+  });
+
+  it('exposes sessions sub-commands', () => {
+    const program = buildProgram({ logger: silentLogger });
+    const s = program.commands.find((c) => c.name() === 'sessions');
+    const subs = (s?.commands ?? []).map((c) => c.name());
+    expect(subs).toEqual(expect.arrayContaining(['ls', 'show', 'resume', 'archive', 'new']));
+  });
+
+  it('exposes plugin sub-commands', () => {
+    const program = buildProgram({ logger: silentLogger });
+    const s = program.commands.find((c) => c.name() === 'plugin');
+    const subs = (s?.commands ?? []).map((c) => c.name());
+    expect(subs).toEqual(expect.arrayContaining(['ls', 'install', 'remove']));
+  });
+
+  it('exposes config sub-commands', () => {
+    const program = buildProgram({ logger: silentLogger });
+    const s = program.commands.find((c) => c.name() === 'config');
+    const subs = (s?.commands ?? []).map((c) => c.name());
+    expect(subs).toEqual(expect.arrayContaining(['show', 'get', 'set', 'path']));
+  });
+
+  it('exposes profiles sub-commands + top-level `use`', () => {
+    const program = buildProgram({ logger: silentLogger });
+    const s = program.commands.find((c) => c.name() === 'profiles');
+    const subs = (s?.commands ?? []).map((c) => c.name());
+    expect(subs).toEqual(expect.arrayContaining(['ls', 'rm']));
+    expect(program.commands.map((c) => c.name())).toContain('use');
+  });
+
+  it('exposes agent run subcommand', () => {
+    const program = buildProgram({ logger: silentLogger });
+    const s = program.commands.find((c) => c.name() === 'agent');
+    const subs = (s?.commands ?? []).map((c) => c.name());
+    expect(subs).toEqual(expect.arrayContaining(['run']));
   });
 });

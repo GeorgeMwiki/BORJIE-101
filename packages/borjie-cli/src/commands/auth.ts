@@ -16,6 +16,9 @@ import {
   saveCredentials,
   type BorjieCredentials,
 } from '../credentials.js';
+import { saveProfile } from '../profiles.js';
+import { loadUserConfig, saveUserConfig } from '../user-config.js';
+import { activeProfileName } from './_session.js';
 import { createHttpClient } from '../http.js';
 import type { BorjieLogger } from '../logger.js';
 
@@ -54,6 +57,7 @@ export async function loginCommand(opts: {
   readonly clientLabel?: string;
   readonly scopes?: readonly string[];
   readonly noBrowser?: boolean;
+  readonly profile?: string;
 }): Promise<void> {
   const { logger } = opts;
   const apiBaseUrl = opts.apiBaseUrl ?? DEFAULT_API_BASE_URL;
@@ -132,6 +136,30 @@ export async function loginCommand(opts: {
         clientLabel,
       };
       saveCredentials(creds);
+      const profileName = opts.profile ?? activeProfileName();
+      saveProfile({
+        version: 1,
+        name: profileName,
+        apiUrl: apiBaseUrl,
+        accessToken: token.access_token,
+        clientId,
+        clientLabel,
+        scopes: creds.scopes,
+        issuedAt: creds.issuedAt,
+      });
+      // If --profile <name> was passed and differs from the current
+      // default, sticky-switch via config.toml so the next command
+      // picks up the right credentials automatically.
+      if (opts.profile) {
+        try {
+          const cfg = loadUserConfig();
+          if (cfg.profile !== opts.profile) {
+            saveUserConfig({ ...cfg, profile: opts.profile });
+          }
+        } catch {
+          /* best effort */
+        }
+      }
       if (logger.opts.json) {
         logger.json({
           stage: 'authenticated',
