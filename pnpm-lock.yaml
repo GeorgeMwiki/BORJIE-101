@@ -182,7 +182,7 @@ importers:
         version: 0.460.0(react@18.3.1)
       next:
         specifier: ^15.5.15
-        version: 15.5.18(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
+        version: 15.5.18(@babel/core@7.29.7)(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
       next-intl:
         specifier: '>=4.9.1'
         version: 4.11.1(next@15.5.18)(react@18.3.1)(typescript@6.0.3)
@@ -391,7 +391,7 @@ importers:
         version: 0.460.0(react@18.3.1)
       next:
         specifier: ^15.5.15
-        version: 15.5.18(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
+        version: 15.5.18(@babel/core@7.29.7)(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
       react:
         specifier: ^18.3.0
         version: 18.3.1
@@ -479,7 +479,7 @@ importers:
         version: 3.24.0
       next:
         specifier: ^15.5.15
-        version: 15.5.18(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
+        version: 15.5.18(@babel/core@7.29.7)(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
       plyr:
         specifier: ^3.7.8
         version: 3.8.4
@@ -523,6 +523,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.17
         version: 10.5.0(postcss@8.5.14)
+      eslint-plugin-react-hooks:
+        specifier: ^7.1.1
+        version: 7.1.1(eslint@10.4.0)
       postcss:
         specifier: '>=8.5.10'
         version: 8.5.14
@@ -1834,6 +1837,9 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      uuid:
+        specifier: '>=14.0.0'
+        version: 14.0.0
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
@@ -28056,7 +28062,7 @@ packages:
       '@swc/core': 1.15.33
       icu-minify: 4.11.1
       negotiator: 1.0.0
-      next: 15.5.18(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
+      next: 15.5.18(@babel/core@7.29.7)(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1)
       next-intl-swc-plugin-extractor: 4.11.1
       po-parser: 2.1.1
       react: 18.3.1
@@ -28066,7 +28072,7 @@ packages:
       - '@swc/helpers'
     dev: false
 
-  /next@15.5.18(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1):
+  /next@15.5.18(@babel/core@7.29.7)(@playwright/test@1.59.1)(react-dom@18.3.1)(react@18.3.1):
     resolution: {integrity: sha512-eKL8zUJkX9Y5lE+RX/2YJoItVdGlIscyVyboeD9wSpp0PaGqjoA4tTpT2qPqz9ax+5IzGESyLSeZ/RCwbSZ2uQ==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
@@ -28096,7 +28102,7 @@ packages:
       postcss: 8.5.14
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      styled-jsx: 5.1.6(react@18.3.1)
+      styled-jsx: 5.1.6(@babel/core@7.29.7)(react@18.3.1)
     optionalDependencies:
       '@next/swc-darwin-arm64': 15.5.18
       '@next/swc-darwin-x64': 15.5.18
@@ -31929,7 +31935,7 @@ packages:
     requiresBuild: true
     dev: false
 
-  /styled-jsx@5.1.6(react@18.3.1):
+  /styled-jsx@5.1.6(@babel/core@7.29.7)(react@18.3.1):
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
@@ -31944,6 +31950,7 @@ packages:
       react:
         optional: true
     dependencies:
+      '@babel/core': 7.29.7
       client-only: 0.0.1
       react: 18.3.1
     dev: false
