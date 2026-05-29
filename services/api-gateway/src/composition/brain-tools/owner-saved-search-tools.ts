@@ -87,6 +87,17 @@ export const ownerSavedSearchCreateTool: PersonaToolDescriptor<
   },
 };
 
+// `PersonaToolDescriptor<TInput, TOutput>` is invariant in its generic
+// parameters because the `handler` callback references `z.infer<TInput>`
+// both as input (contravariant) and as output (covariant); TS therefore
+// refuses to widen the concrete descriptor to the `ZodTypeAny` catalog
+// shape directly. Same `as unknown as` pattern as manager-tools.ts /
+// mining-production-tools.ts / superpowers-tools.ts.
 export const OWNER_SAVED_SEARCH_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
-> = Object.freeze([ownerSavedSearchCreateTool]);
+> = Object.freeze([
+  ownerSavedSearchCreateTool,
+] as unknown as readonly PersonaToolDescriptor<
+  z.ZodTypeAny,
+  z.ZodTypeAny
+>[]);
