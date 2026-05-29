@@ -49,6 +49,7 @@ import {
   workerHeartbeat,
   workerHeartbeatFailure,
 } from './worker-heartbeat';
+import { withWorkerTenantContext } from './with-tenant-context.js';
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 50;
@@ -296,57 +297,57 @@ async function appendReconciliationAudit(
     learning: payload.learningSignal,
   });
   try {
-    // Bind tenant GUC so RLS on `ai_audit_chain` accepts the read+write.
-    // Workers run outside the api-gateway middleware chain, so no GUC is
-    // set unless we set it explicitly. Dual-set both the canonical
-    // (`app.current_tenant_id`, post-migration 0172) and legacy
-    // (`app.tenant_id`) names so policies on either generation accept
-    // the call. Mirrors `services/api-gateway/src/middleware/database.ts`.
-    await db.execute(sql`
-      SELECT set_config('app.current_tenant_id', ${payload.tenantId}, false),
-             set_config('app.tenant_id', ${payload.tenantId}, false)
-    `);
-    const headRes = await db.execute(sql`
-      SELECT COALESCE(MAX(sequence_id), 0)::bigint AS max_seq,
-             (SELECT this_hash FROM ai_audit_chain
-               WHERE tenant_id = ${payload.tenantId}
-               ORDER BY sequence_id DESC LIMIT 1) AS last_hash
-        FROM ai_audit_chain
-       WHERE tenant_id = ${payload.tenantId}
-    `);
-    const rows = asRows(headRes);
-    const head = rows[0] ?? {};
-    const maxSeq = Number((head as Record<string, unknown>).max_seq ?? 0);
-    const lastHashRaw = (head as Record<string, unknown>).last_hash;
-    const lastHash =
-      typeof lastHashRaw === 'string' && lastHashRaw.length > 0
-        ? lastHashRaw
-        : '';
-    const sequenceId = maxSeq + 1;
-    const thisHash = createHash('sha256')
-      .update(lastHash + canonical)
-      .digest('hex');
-    await db.execute(sql`
-      INSERT INTO ai_audit_chain (
-        id, tenant_id, sequence_id, turn_id, action,
-        prev_hash, this_hash, payload, created_at
-      ) VALUES (
-        ${id},
-        ${payload.tenantId},
-        ${sequenceId},
-        ${`reconcile:${payload.predictionId}`},
-        ${'closed_loop.reconcile'},
-        ${lastHash},
-        ${thisHash},
-        ${JSON.stringify({
-          predictionId: payload.predictionId,
-          status: payload.status,
-          driftScore: payload.driftScore,
-          learningSignal: payload.learningSignal,
-        })}::jsonb,
-        ${new Date().toISOString()}
-      )
-    `);
+    // G8 — wrap the GUC bind + SELECT-head + INSERT in BEGIN/COMMIT so
+    // the tenant GUC binding is transaction-local. Without the txn
+    // wrap, the previous `set_config(..., false)` left the GUC on the
+    // pooled connection; if Supabase reaped the connection between
+    // the set_config and the INSERT, the INSERT ran with NULL GUC and
+    // RLS rejected. The helper sets BOTH `app.current_tenant_id` and
+    // legacy `app.tenant_id` via SET LOCAL so policies on either
+    // migration generation accept the call.
+    await withWorkerTenantContext(db, payload.tenantId, async () => {
+      const headRes = await db.execute(sql`
+        SELECT COALESCE(MAX(sequence_id), 0)::bigint AS max_seq,
+               (SELECT this_hash FROM ai_audit_chain
+                 WHERE tenant_id = ${payload.tenantId}
+                 ORDER BY sequence_id DESC LIMIT 1) AS last_hash
+          FROM ai_audit_chain
+         WHERE tenant_id = ${payload.tenantId}
+      `);
+      const rows = asRows(headRes);
+      const head = rows[0] ?? {};
+      const maxSeq = Number((head as Record<string, unknown>).max_seq ?? 0);
+      const lastHashRaw = (head as Record<string, unknown>).last_hash;
+      const lastHash =
+        typeof lastHashRaw === 'string' && lastHashRaw.length > 0
+          ? lastHashRaw
+          : '';
+      const sequenceId = maxSeq + 1;
+      const thisHash = createHash('sha256')
+        .update(lastHash + canonical)
+        .digest('hex');
+      await db.execute(sql`
+        INSERT INTO ai_audit_chain (
+          id, tenant_id, sequence_id, turn_id, action,
+          prev_hash, this_hash, payload, created_at
+        ) VALUES (
+          ${id},
+          ${payload.tenantId},
+          ${sequenceId},
+          ${`reconcile:${payload.predictionId}`},
+          ${'closed_loop.reconcile'},
+          ${lastHash},
+          ${thisHash},
+          ${JSON.stringify({
+            predictionId: payload.predictionId,
+            status: payload.status,
+            driftScore: payload.driftScore,
+            learningSignal: payload.learningSignal,
+          })}::jsonb,
+          ${new Date().toISOString()}
+        )
+      `);
+    });
     return id;
   } catch (err) {
     logger.warn(

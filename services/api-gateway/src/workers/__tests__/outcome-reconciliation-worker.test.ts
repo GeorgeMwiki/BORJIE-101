@@ -324,4 +324,135 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     expect(setConfigIdx).toBeGreaterThanOrEqual(0);
     expect(setConfigIdx).toBeLessThan(auditHeadIdx);
   });
+
+  it('wraps the GUC bind + audit append in BEGIN/COMMIT (G8 closure)', async () => {
+    // G8 from Docs/AUDIT/ROBUSTNESS_AUDIT_2026-05-29.md — the prior
+    // `set_config(..., false)` call left the tenant GUC on the pooled
+    // connection. If Supabase reaped the conn mid-tick the next
+    // INSERT ran with NULL GUC and RLS rejected. The fix wraps the
+    // tenant block in BEGIN; SET LOCAL ...; <body>; COMMIT; so the
+    // binding dies at the txn boundary regardless of connection
+    // lifetime.
+    const db = makeStubDb([
+      {
+        id: 'p_txn',
+        tenant_id: 't_txn',
+        actor_kind: 'brain',
+        action_kind: 'mining.royalty.file',
+        action_target_entity_type: 'royalty_filing',
+        action_target_entity_id: 'rf_txn',
+        predicted_outcome: { filed: true },
+        predicted_value_tzs: 5_000_000,
+        prediction_confidence: 0.85,
+        rationale: '',
+      },
+    ]);
+    const resolver: ObservationResolver = vi.fn(async () => ({
+      observedOutcome: { filed: true },
+      observedValueTzs: 5_050_000,
+      narrative: 'filed Apr 12 with TZS 5.05M',
+    }));
+    const worker = createOutcomeReconciliationWorker({
+      db,
+      logger: stubLogger,
+      resolvers: { royalty_filing: resolver },
+    });
+    await worker.tickOnce();
+
+    // Find indices of BEGIN, set_config, INSERT INTO ai_audit_chain,
+    // and COMMIT. The order MUST be:
+    //    BEGIN < set_config < INSERT INTO ai_audit_chain < COMMIT
+    const beginIdx = db.calls.findIndex((c) => /^\s*BEGIN/.test(c.sql));
+    const setConfigIdx = db.calls.findIndex(
+      (c) =>
+        c.sql.includes('set_config') &&
+        c.sql.includes('app.current_tenant_id'),
+    );
+    const auditInsertIdx = db.calls.findIndex((c) =>
+      c.sql.includes('INSERT INTO ai_audit_chain'),
+    );
+    const commitIdx = db.calls.findIndex((c) => /^\s*COMMIT/.test(c.sql));
+
+    expect(beginIdx).toBeGreaterThanOrEqual(0);
+    expect(commitIdx).toBeGreaterThanOrEqual(0);
+    expect(beginIdx).toBeLessThan(setConfigIdx);
+    expect(setConfigIdx).toBeLessThan(auditInsertIdx);
+    expect(auditInsertIdx).toBeLessThan(commitIdx);
+  });
+
+  it('rolls back the txn when the audit INSERT throws (G8 connection-reap simulation)', async () => {
+    // Simulates Supabase reaping the pooled connection between the
+    // set_config and the INSERT. With the BEGIN/COMMIT wrap, the
+    // helper catches the throw and emits ROLLBACK so the GUC binding
+    // dies with the txn — no leak onto any future pooled conn.
+    const calls: CapturedCall[] = [];
+    let claimReturned = false;
+    let auditInserts = 0;
+    const db = {
+      calls,
+      execute: vi.fn(async (q: unknown) => {
+        const sqlObj = q as {
+          strings?: ReadonlyArray<string>;
+          queryChunks?: ReadonlyArray<{ value?: string }>;
+          values?: unknown[];
+        };
+        const text =
+          sqlObj?.strings?.join(' ') ??
+          sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
+          '';
+        calls.push({ sql: text, values: sqlObj?.values ?? [] });
+        if (text.includes('FROM outcome_predictions') && !claimReturned) {
+          claimReturned = true;
+          return {
+            rows: [
+              {
+                id: 'p_reap',
+                tenant_id: 't_reap',
+                actor_kind: 'brain',
+                action_kind: 'mining.royalty.file',
+                action_target_entity_type: 'royalty_filing',
+                action_target_entity_id: 'rf_reap',
+                predicted_outcome: { filed: true },
+                predicted_value_tzs: 9_000_000,
+                prediction_confidence: 0.8,
+                rationale: '',
+              },
+            ],
+          };
+        }
+        if (text.includes('FROM ai_audit_chain')) {
+          return { rows: [{ max_seq: 0, last_hash: '' }] };
+        }
+        if (text.includes('INSERT INTO ai_audit_chain')) {
+          auditInserts += 1;
+          // First INSERT inside the txn throws — simulates conn reap.
+          throw new Error('connection terminated unexpectedly');
+        }
+        return { rows: [] };
+      }),
+    };
+    const resolver: ObservationResolver = vi.fn(async () => ({
+      observedOutcome: { filed: true },
+      observedValueTzs: 9_050_000,
+      narrative: 'filed but conn dies before audit write',
+    }));
+    const worker = createOutcomeReconciliationWorker({
+      db,
+      logger: stubLogger,
+      resolvers: { royalty_filing: resolver },
+    });
+    // Worker isolates per-row failures and continues, so tickOnce
+    // resolves; the reconciliation row is still written (with
+    // audit_hash_id = null) so we can verify the txn rolled back
+    // without poisoning the batch.
+    const result = await worker.tickOnce();
+    expect(auditInserts).toBe(1);
+    // The helper must emit ROLLBACK after the throw so no committed
+    // txn carries a half-written audit chain.
+    const rollbackIdx = calls.findIndex((c) => /^\s*ROLLBACK/.test(c.sql));
+    expect(rollbackIdx).toBeGreaterThanOrEqual(0);
+    // And the reconciliation outcome still counted — the per-row try/
+    // catch isolates the audit failure so the tick body completes.
+    expect(result.claimed).toBe(1);
+  });
 });

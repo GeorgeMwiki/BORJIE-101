@@ -43,6 +43,7 @@ import {
   workerHeartbeat,
   workerHeartbeatFailure,
 } from './worker-heartbeat';
+import { withWorkerTenantContext } from './with-tenant-context.js';
 
 const DEFAULT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 100;
@@ -279,23 +280,26 @@ export function createDecisionRetrospectiveWorker(
         : `No prediction was attached; graded after ${softWaitDays}-day soft wait.`;
 
     try {
-      // Tenant-scoped: dual-set both GUC names so RLS policies on either
-      // generation (pre-/post-migration 0172) accept the recorder's
-      // writes against decisions / decision_outcomes / decision_links.
-      // Mirrors `services/api-gateway/src/middleware/database.ts`.
-      await options.db.execute(sql`
-        SELECT set_config('app.current_tenant_id', ${pending.tenantId}, false),
-               set_config('app.tenant_id', ${pending.tenantId}, false)
-      `);
-      await options.recorder.recordOutcome({
-        tenantId: pending.tenantId,
-        decisionId: pending.id,
-        outcomeSummary: summary,
-        observedValueTzs: pending.observedValueTzs,
-        observedAt: clock().toISOString(),
-        retrospectiveGrade: grade,
-        learnings,
-        recordedBy: 'reconciler',
+      // G8 — wrap the GUC bind + recorder write in BEGIN/COMMIT so the
+      // tenant GUC is transaction-local and cannot leak onto the
+      // pooled connection. Mirrors the helper used by the
+      // outcome-reconciliation worker; closes audit gap
+      // Docs/AUDIT/ROBUSTNESS_AUDIT_2026-05-29.md G8 — without the
+      // txn wrap a Supabase connection reap between the set_config
+      // and the recorder's INSERT could leave the INSERT running on
+      // a fresh connection with no GUC, which RLS would reject as
+      // permission_denied.
+      await withWorkerTenantContext(options.db, pending.tenantId, async () => {
+        await options.recorder.recordOutcome({
+          tenantId: pending.tenantId,
+          decisionId: pending.id,
+          outcomeSummary: summary,
+          observedValueTzs: pending.observedValueTzs,
+          observedAt: clock().toISOString(),
+          retrospectiveGrade: grade,
+          learnings,
+          recordedBy: 'reconciler',
+        });
       });
       return 'graded';
     } catch (err) {
