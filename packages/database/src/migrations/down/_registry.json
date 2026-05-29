@@ -125,6 +125,20 @@
       "reverses": "ADD COLUMN provenance + draft_revisions_provenance_gin (catch-up for the only 0101 table that didn't exist when 0101 ran)",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0120_mcp_sessions.sql",
+      "down": "down/0120_down_mcp_sessions.sql",
+      "reverses": "CREATE TABLE mcp_sessions + indexes + RLS (public MCP server session resume/checkpoint)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0121_oauth_action_approvals.sql",
+      "down": "down/0121_down_oauth_action_approvals.sql",
+      "reverses": "CREATE TABLE oauth_action_approvals + indexes + RLS (four-eye approval gate for sovereign tool prefixes)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
