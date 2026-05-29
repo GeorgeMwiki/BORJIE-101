@@ -68,6 +68,22 @@ import { UNDO_CHAIN_TOOLS } from './undo-chain-tools';
 // audit-export / tenant-suspend surfaces. Each is sovereign-prefixed
 // and `requiresPolicyRuleLiteral: true` per CLAUDE.md hard rule.
 import { ADMIN_INVIOLABLE_TOOLS } from './admin-inviolable-tools';
+// Capability disclosure CSA-3 + CSA-4 2026-05-29 — two LOW-stakes
+// read-only tools (`mwikila.capabilities.what_can_you_do`,
+// `mwikila.about`) that surface the canonical capability registry from
+// @borjie/persona-runtime as USER-OUTCOME narrative answers. Owner can
+// ask "what can you do" / "are you AI" / "how does this work" without
+// the brain leaking internal architecture. See Docs/AUDIT/
+// CAPABILITY_DISCLOSURE_PATTERNS.md for the 15 vetted dialogue patterns.
+import { CAPABILITY_TOOLS } from './capability-tools';
+// Jurisdiction-discovery JC-1 + JC-6 — Mr. Mwikila NEVER says
+// "I don't know" about a country. `mwikila.jurisdiction.discover`
+// runs the on-demand pipeline (seed → cache → web+corpus probes) and
+// `mwikila.jurisdiction.switch` lets the brain apply a per-turn or
+// per-session override — but NEVER permanent (tenant.jurisdiction is
+// LOCKED at signup; only Borjie internal admin can change it via the
+// JC-7 four-eye route).
+import { JURISDICTION_DISCOVERY_TOOLS } from './jurisdiction-discovery-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -119,6 +135,8 @@ export function buildPersonaToolHandlers(
       CHAT_EVERYWHERE_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
+      CAPABILITY_TOOLS,
+      JURISDICTION_DISCOVERY_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -171,6 +189,8 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       CHAT_EVERYWHERE_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
+      CAPABILITY_TOOLS,
+      JURISDICTION_DISCOVERY_TOOLS,
     ],
     undefined,
   );
@@ -265,3 +285,9 @@ export {
   adminAuditExportTool,
   adminTenantSuspendTool,
 } from './admin-inviolable-tools';
+// Capability disclosure CSA-3 + CSA-4 — re-exports for tests + audit walker.
+export {
+  CAPABILITY_TOOLS,
+  whatCanYouDoTool,
+  aboutTool,
+} from './capability-tools';
