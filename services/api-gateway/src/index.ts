@@ -126,6 +126,9 @@ import { brainComposeRouter } from './routes/brain-compose.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
+// JA-7 — owner-facing jurisdiction snapshot endpoint
+// (GET /me/jurisdiction) backing the settings/jurisdiction page.
+import { meJurisdictionRouter } from './routes/me-jurisdiction.hono';
 // Bidirectional notification receiver loop — push token registry
 // (GET/POST /me/device-tokens, DELETE /me/device-tokens/:id).
 // Mobile apps call this on successful login so the dispatcher can
@@ -1431,6 +1434,8 @@ api.route('/', personalKbRouter);
 api.route('/brain', brainComposeRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
+// JA-7 — owner-facing jurisdiction snapshot endpoint.
+api.route('/me/jurisdiction', meJurisdictionRouter);
 // Bidirectional notification receiver loop — push token registry.
 api.route('/me/device-tokens', meDeviceTokensRouter);
 api.route('/workforce', workforceClockInRouter);
