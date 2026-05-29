@@ -234,6 +234,28 @@ export const tenants = pgTable(
      */
     scaleSignals: jsonb('scale_signals').notNull().default({}),
 
+    // ── R41 / migration 0147 — per-tenant rate-limit + budget override ──
+    /**
+     * Optional override for the default per-minute rate limit. NULL =
+     * fall back to RATE_LIMIT_MAX_REQUESTS env (default 100). Strategic
+     * tenants can be promoted to a higher ceiling without a restart.
+     */
+    rateLimitMaxPerMin: integer('rate_limit_max_per_min'),
+    /**
+     * Optional override for the AI-class per-minute ceiling. NULL =
+     * fall back to RATE_LIMIT_AI_MAX (default 30). Use this for tenants
+     * that legitimately fire heavy chat traffic (eg. a multi-mine
+     * conglomerate with active SOC).
+     */
+    aiRateLimitMaxPerMin: integer('ai_rate_limit_max_per_min'),
+    /**
+     * Advisory token-budget ceiling (hourly), surfaced on telemetry +
+     * cost-ledger reports. The hard cap is still enforced by the
+     * `LLMBudgetGovernor` (per-day + per-month). NULL = no advisory
+     * surface.
+     */
+    tokenBudgetHourly: integer('token_budget_hourly'),
+
     // ── KYC atoms (migration 0085) ──
     /** PML / PL / ML number (TZ mining licence). Voluntary at signup. */
     miningLicenceNumber: text('mining_licence_number'),

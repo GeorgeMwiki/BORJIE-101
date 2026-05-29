@@ -399,3 +399,73 @@ describe('defaultRouteClassifier', () => {
     expect(defaultRouteClassifier(mk('/api/v1/documents/list'))).toBe('default');
   });
 });
+
+// ===========================================================================
+// R41 — per-tenant rate-limit override
+// ===========================================================================
+
+describe('R41 — tenantCeilingResolver per-tenant override', () => {
+  beforeEach(() => {
+    __resetInMemoryStore();
+  });
+
+  it('uses the tenant override.default ceiling for default-class routes', async () => {
+    // env default 100, override raises tenant to 200.
+    const middleware = createRateLimitMiddleware({
+      maxRequests: 100,
+      aiMaxRequests: 30,
+      tenantCeilingResolver: (req) => {
+        const tenantId = req.headers['x-tenant-id'];
+        if (tenantId === 'vip-tenant') return { default: 200, ai: 60 };
+        return null;
+      },
+    });
+    const app = buildApp(middleware);
+
+    const res = await request(app)
+      .get('/api/v1/leases')
+      .set('x-tenant-id', 'vip-tenant');
+    expect(res.status).toBe(200);
+    expect(res.headers['x-ratelimit-limit']).toBe('200');
+  });
+
+  it('uses override.ai for ai-class routes', async () => {
+    const middleware = createRateLimitMiddleware({
+      maxRequests: 100,
+      aiMaxRequests: 30,
+      tenantCeilingResolver: () => ({ default: 200, ai: 60 }),
+    });
+    const app = buildApp(middleware);
+
+    const res = await request(app).get('/api/v1/brain/turn');
+    expect(res.headers['x-ratelimit-limit']).toBe('60');
+    expect(res.headers['x-ratelimit-class']).toBe('ai');
+  });
+
+  it('falls through to env defaults when override field is null', async () => {
+    const middleware = createRateLimitMiddleware({
+      maxRequests: 100,
+      aiMaxRequests: 30,
+      tenantCeilingResolver: () => ({ default: null, ai: 50 }),
+    });
+    const app = buildApp(middleware);
+
+    const defaultRes = await request(app).get('/api/v1/leases');
+    expect(defaultRes.headers['x-ratelimit-limit']).toBe('100');
+
+    const aiRes = await request(app).get('/api/v1/ai/think');
+    expect(aiRes.headers['x-ratelimit-limit']).toBe('50');
+  });
+
+  it('falls through to env defaults when resolver returns null', async () => {
+    const middleware = createRateLimitMiddleware({
+      maxRequests: 100,
+      aiMaxRequests: 30,
+      tenantCeilingResolver: () => null,
+    });
+    const app = buildApp(middleware);
+
+    const res = await request(app).get('/api/v1/leases');
+    expect(res.headers['x-ratelimit-limit']).toBe('100');
+  });
+});

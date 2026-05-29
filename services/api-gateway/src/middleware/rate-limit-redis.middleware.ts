@@ -45,6 +45,24 @@ export type RouteClass = 'ai' | 'default';
 /** Pluggable classifier so callers (and tests) can override the default. */
 export type RouteClassifier = (req: Request) => RouteClass;
 
+/**
+ * R41 — per-tenant override.
+ *
+ * Resolver returns an optional ceiling pair for the request's tenant.
+ * NULL fields fall through to the env-driven cluster defaults. Wired
+ * synchronously to keep the hot path lock-free; the composition root
+ * memoises tenant lookups in-process so the resolver is O(1) on the
+ * critical path.
+ */
+export interface TenantRateLimitOverride {
+  readonly default?: number | null;
+  readonly ai?: number | null;
+}
+
+export type TenantCeilingResolver = (
+  req: Request,
+) => TenantRateLimitOverride | null | undefined;
+
 export interface RateLimitRedisOptions {
   /** Connected ioredis client. When absent, the middleware degrades to in-memory. */
   readonly redis?: IoRedisClient | null;
@@ -61,6 +79,13 @@ export interface RateLimitRedisOptions {
   readonly routeClassifier?: RouteClassifier;
   /** Override key extraction (defaults to tenantId header or IP). */
   readonly keyGenerator?: (req: Request) => string;
+  /**
+   * R41 — Per-tenant ceiling resolver. When present, the returned
+   * override.default / override.ai supersede the env-driven defaults.
+   * NULL fields fall through to the env defaults. NULL / undefined
+   * resolver result also falls through (no override applies).
+   */
+  readonly tenantCeilingResolver?: TenantCeilingResolver;
   /**
    * Optional structured logger — use `logger.warn` when the Redis pipeline
    * raises so operators see the degraded transition exactly once.
@@ -252,6 +277,7 @@ export function createRateLimitMiddleware(options: RateLimitRedisOptions = {}) {
   const redis = options.redis ?? null;
   const logger = options.logger;
   const sentryCapture = options.sentryCapture;
+  const tenantCeilingResolver = options.tenantCeilingResolver;
 
   // G5 — robustness 2026-05-29.
   //
@@ -303,7 +329,12 @@ export function createRateLimitMiddleware(options: RateLimitRedisOptions = {}) {
     next: NextFunction,
   ): Promise<void> {
     const routeClass = classifier(req);
-    const ceiling = routeClass === 'ai' ? aiMax : maxRequests;
+    // R41 — per-tenant override resolution. NULL / undefined falls
+    // through to the env-driven defaults.
+    const override = tenantCeilingResolver?.(req) ?? null;
+    const defaultCeiling = override?.default ?? maxRequests;
+    const aiCeiling = override?.ai ?? aiMax;
+    const ceiling = routeClass === 'ai' ? aiCeiling : defaultCeiling;
     const keyBase = keyGen(req);
     const now = Date.now();
     const windowStart = Math.floor(now / windowMs) * windowMs;

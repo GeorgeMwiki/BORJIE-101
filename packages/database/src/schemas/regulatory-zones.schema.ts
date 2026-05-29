@@ -1,8 +1,12 @@
 /**
- * Regulatory zones — Tanzania PCCB / NEMC / EITI boundaries.
+ * Regulatory zones — TZ PCCB / NEMC / EITI / TMAA boundaries plus,
+ * post issue #207 (migration 0144), KE / UG / NG / ZA / AU / CL / ID
+ * jurisdiction polygons.
  *
  * Companion to:
  *   - packages/database/src/migrations/0130_postgis.sql
+ *   - packages/database/src/migrations/0144_tenant_regulatory_zones.sql
+ *   - packages/database/src/migrations/0143_regulator_jurisdictions.sql
  *   - services/api-gateway/src/services/geofencing/regulatory.ts
  *
  * Tenant-AGNOSTIC by design. Regulators publish the same
@@ -25,7 +29,28 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
-export const REGULATORY_AUTHORITIES = ['pccb', 'nemc', 'eiti'] as const;
+// Issue #207 WS-8 — the authority list is now extensible per
+// jurisdiction. Each row carries the regulator_set + country_code
+// columns; the application layer joins to regulator_jurisdictions
+// for the human-facing labels.
+export const REGULATORY_AUTHORITIES = [
+  'pccb',
+  'nemc',
+  'eiti',
+  'tmaa',
+  // KE
+  'nema-ke',
+  // NG
+  'nesrea-ng',
+  // ZA
+  'dmre-za',
+  // AU
+  'epa-vic-au',
+  // CL
+  'sernageomin-cl',
+  // ID
+  'esdm-id',
+] as const;
 export type RegulatoryAuthority = (typeof REGULATORY_AUTHORITIES)[number];
 
 export const regulatoryZones = pgTable(
@@ -33,6 +58,14 @@ export const regulatoryZones = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     authority: text('authority').notNull(),
+    /**
+     * Regulator-set the polygon belongs to. Default 'TZ-set' so legacy
+     * 0130 rows stay binary-identical. Joins to
+     * regulator_jurisdictions.regulator_set.
+     */
+    regulatorSet: text('regulator_set').notNull().default('TZ-set'),
+    /** ISO-3166-1 alpha-2 (migration 0144 default 'TZ'). */
+    countryCode: text('country_code').notNull().default('TZ'),
     nameSw: text('name_sw').notNull(),
     nameEn: text('name_en').notNull(),
     code: text('code').notNull(),
@@ -49,9 +82,15 @@ export const regulatoryZones = pgTable(
   },
   (t) => ({
     authorityIdx: index('regulatory_zones_authority_idx').on(t.authority),
-    authorityCodeUnique: uniqueIndex(
-      'regulatory_zones_authority_code_unique',
-    ).on(t.authority, t.code),
+    regulatorSetIdx: index('regulatory_zones_regulator_set_idx').on(
+      t.regulatorSet,
+    ),
+    countryCodeIdx: index('regulatory_zones_country_code_idx').on(
+      t.countryCode,
+    ),
+    setAuthorityCodeUnique: uniqueIndex(
+      'regulatory_zones_set_authority_code_unique',
+    ).on(t.regulatorSet, t.authority, t.code),
   }),
 );
 
