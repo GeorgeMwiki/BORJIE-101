@@ -13,15 +13,16 @@
  */
 import { createLogger } from './logger.js';
 
-type LogMeta = Record<string, unknown> | undefined;
-
 /**
  * Pino-style `(meta, message)` logger shape used by various ports.
+ * Accepts any `object` (matches Pino's permissive call site) and a
+ * string message. The shim converts both back into the project's
+ * `(message, meta)` signature.
  */
 export interface PinoLikeLogger {
-  info(meta: LogMeta, message?: string): void;
-  warn(meta: LogMeta, message?: string): void;
-  error(meta: LogMeta, message?: string): void;
+  info(meta: object, message?: string): void;
+  warn(meta: object, message?: string): void;
+  error(meta: object, message?: string): void;
 }
 
 /**
@@ -37,8 +38,8 @@ export function createPinoLikeLogger(service: string): PinoLikeLogger {
   };
 }
 
-function toMeta(meta: LogMeta): Record<string, unknown> | undefined {
+function toMeta(meta: object | undefined): Record<string, unknown> | undefined {
   if (!meta) return undefined;
-  if (typeof meta === 'object') return meta;
-  return { value: meta };
+  if (Array.isArray(meta)) return { value: meta };
+  return meta as Record<string, unknown>;
 }

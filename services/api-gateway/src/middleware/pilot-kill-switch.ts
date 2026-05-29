@@ -25,7 +25,7 @@
  * (env emergency switch > DB flag > env opt-in > default OFF).
  */
 
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import {
   isPilotEnabled,
   PILOT_KILL_SWITCH_RESPONSE,
@@ -45,7 +45,7 @@ export interface PilotKillSwitchOptions {
    * mode the accessor returns null and the predicate falls back to env
    * vars — so degraded boots still behave correctly.
    */
-  readonly resolveFlags?: (c: any) => FeatureFlagsPort | null;
+  readonly resolveFlags?: (c: Context) => FeatureFlagsPort | null;
   /**
    * Override the env source. Tests pass a plain record so they never
    * touch the host `process.env`.
@@ -58,13 +58,17 @@ export interface PilotKillSwitchOptions {
   readonly cohort?: string;
 }
 
-function defaultResolveFlags(c: any): FeatureFlagsPort | null {
-  const services = c.get('services');
+interface ServicesAccessorLike {
+  readonly featureFlags?: { isEnabled?: unknown } & Record<string, unknown>;
+}
+
+function defaultResolveFlags(c: Context): FeatureFlagsPort | null {
+  const services = c.get('services') as ServicesAccessorLike | undefined;
   const ff = services?.featureFlags;
   if (!ff || typeof ff.isEnabled !== 'function') {
     return null;
   }
-  return ff as FeatureFlagsPort;
+  return ff as unknown as FeatureFlagsPort;
 }
 
 /**

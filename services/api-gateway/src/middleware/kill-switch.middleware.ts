@@ -59,7 +59,7 @@
  *   - lookup throws + dev  → pass-through + WARN
  */
 
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import { createLogger } from '../utils/logger.js';
 
 // DA1 MEDIUM: replace ad-hoc `console.warn(JSON.stringify(...))` fallbacks
@@ -143,7 +143,7 @@ export interface KillSwitchGuardOptions {
    * Override the feature-flags accessor. Default: read from
    * `c.get('services').featureFlags`.
    */
-  readonly resolveFlags?: (c: any) => KillSwitchFeatureFlagsLike | null;
+  readonly resolveFlags?: (c: Context) => KillSwitchFeatureFlagsLike | null;
   /**
    * Override the audit emitter. Default: lazy-resolves
    * `getAuditLogger()` from `@borjie/observability`, falls back to a
@@ -158,13 +158,17 @@ export interface KillSwitchGuardOptions {
  * context's `services` bag, which is populated by
  * `createServiceContextMiddleware`.
  */
+interface KillSwitchServicesAccessor {
+  readonly featureFlags?: { isEnabled?: unknown } & Record<string, unknown>;
+}
+
 function defaultResolveFlags(
-  c: any,
+  c: Context,
 ): KillSwitchFeatureFlagsLike | null {
-  const services = c.get('services');
+  const services = c.get('services') as KillSwitchServicesAccessor | undefined;
   const ff = services?.featureFlags;
   if (!ff || typeof ff.isEnabled !== 'function') return null;
-  return ff as KillSwitchFeatureFlagsLike;
+  return ff as unknown as KillSwitchFeatureFlagsLike;
 }
 
 /**

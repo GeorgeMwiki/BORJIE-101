@@ -32,11 +32,13 @@ export function getService<T>(c: Context, slot: string): T | undefined {
 
 /**
  * Convenience: fetch the Drizzle `db` handle from the registry.
- * Typed as `any` because the api-gateway depends on the cross-package
- * Drizzle type which would force a hard import; callers re-narrow
- * locally where needed (most just call `.select()`, `.insert()`, etc).
+ * Returns `any` because the api-gateway intentionally avoids the
+ * cross-package Drizzle type to prevent a hard import cycle; callers
+ * re-narrow locally where useful. This is the single sanctioned
+ * `any`-typed accessor — any new ports should use {@link getService}
+ * with a real generic.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- documented cross-package Drizzle type
 export function getDbFromServices(c: Context): any {
   return getService(c, 'db');
 }

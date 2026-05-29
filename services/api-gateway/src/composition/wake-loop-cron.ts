@@ -52,6 +52,7 @@ import {
   createBoundWakeReadDeps,
 } from './agency-port-bindings.js';
 import { readSovereignLedgerFailClosedFromEnv } from './service-registry.js';
+import { logger } from '../utils/logger.js';
 import { createPinoLikeLogger } from '../utils/pino-shim.js';
 
 type StallDetectorRunArgs = agencyKernel.StallDetectorRunArgs;
