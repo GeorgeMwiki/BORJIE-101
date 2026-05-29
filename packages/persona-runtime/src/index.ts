@@ -144,3 +144,20 @@ export type {
   AiSuggestionChipText,
   AiSuggestionRoute,
 } from './ai-suggestion-chip.js';
+
+// ── Output style (Claude Code parity — CC-6) ─────────────────────────
+export {
+  DEFAULT_OUTPUT_STYLE,
+  OUTPUT_STYLES,
+  OutputStyleSchema,
+  parseStyleSlashCommand,
+  renderOutputStyleFragment,
+  resolveOutputStyle,
+} from './output-style.js';
+
+export type {
+  OutputStyle,
+  OutputStyleResolverInput,
+  ParseStyleSlashResult,
+  RenderOutputStyleInput,
+} from './output-style.js';
