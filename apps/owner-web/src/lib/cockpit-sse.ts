@@ -34,6 +34,11 @@ export const COCKPIT_EVENT_KINDS = [
   'workforce.shift_event',
   'compliance.deadline_approaching',
   'production.posted',
+  // CT-5 — chat-driven dynamic tab CRUD cross-device sync.
+  'cockpit.tab.spawned',
+  'cockpit.tab.updated',
+  'cockpit.tab.removed',
+  'cockpit.tab.proposed',
 ] as const;
 
 export type CockpitEventKind = (typeof COCKPIT_EVENT_KINDS)[number];
@@ -100,6 +105,54 @@ export interface ProductionPostedEvent extends BaseEvent {
   readonly fuelLitres: number | null;
 }
 
+/**
+ * CT-5 — chat-driven dynamic tab CRUD cross-device sync.
+ *
+ * Every brain-emitted `<tab_spawn>` / `<tab_update>` / `<tab_remove>` /
+ * `<tab_proposal>` is broadcast on the cockpit bus so the owner's
+ * OTHER devices reconcile in <500 ms without polling. `userId` lets
+ * receivers filter (same tenant, different user → ignore).
+ */
+export interface CockpitTabSpawnedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.spawned';
+  readonly userId: string;
+  readonly tabId: string;
+  readonly tabType: string;
+  readonly title: string;
+  readonly config: Record<string, unknown>;
+  readonly originDeviceId: string | null;
+  readonly source: 'brain' | 'owner';
+}
+
+export interface CockpitTabUpdatedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.updated';
+  readonly userId: string;
+  readonly tabId: string;
+  readonly patch: { readonly config?: Record<string, unknown>; readonly title?: string };
+  readonly originDeviceId: string | null;
+  readonly source: 'brain' | 'owner';
+}
+
+export interface CockpitTabRemovedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.removed';
+  readonly userId: string;
+  readonly tabId: string;
+  readonly originDeviceId: string | null;
+  readonly source: 'brain' | 'owner';
+}
+
+export interface CockpitTabProposedEvent extends BaseEvent {
+  readonly kind: 'cockpit.tab.proposed';
+  readonly userId: string;
+  readonly proposalId: string;
+  readonly tabType: string;
+  readonly title: string;
+  readonly reasonEn: string;
+  readonly reasonSw: string | null;
+  readonly evidenceIds: ReadonlyArray<string>;
+  readonly confidence: number | null;
+}
+
 export type CockpitEvent =
   | DecisionRecordedEvent
   | ReminderFiredEvent
@@ -107,7 +160,11 @@ export type CockpitEvent =
   | RiskChangedEvent
   | WorkforceShiftEvent
   | ComplianceDeadlineApproachingEvent
-  | ProductionPostedEvent;
+  | ProductionPostedEvent
+  | CockpitTabSpawnedEvent
+  | CockpitTabUpdatedEvent
+  | CockpitTabRemovedEvent
+  | CockpitTabProposedEvent;
 
 export interface CockpitStreamState {
   readonly connected: boolean;
@@ -186,6 +243,24 @@ export const COCKPIT_EVENT_COPY: Record<
       const tonnes = ev.romTonnes != null ? `${ev.romTonnes}t` : 'ripoti ya zamu';
       return `Moja kwa moja: ${tonnes} imewekwa (${ev.shiftDate})`;
     },
+  },
+  'cockpit.tab.spawned': {
+    en: (e) => `Tab spawned: ${(e as CockpitTabSpawnedEvent).title}`,
+    sw: (e) => `Tab imefunguliwa: ${(e as CockpitTabSpawnedEvent).title}`,
+  },
+  'cockpit.tab.updated': {
+    en: (e) => `Tab updated: ${(e as CockpitTabUpdatedEvent).tabId}`,
+    sw: (e) => `Tab imebadilishwa: ${(e as CockpitTabUpdatedEvent).tabId}`,
+  },
+  'cockpit.tab.removed': {
+    en: (e) => `Tab closed: ${(e as CockpitTabRemovedEvent).tabId}`,
+    sw: (e) => `Tab imefungwa: ${(e as CockpitTabRemovedEvent).tabId}`,
+  },
+  'cockpit.tab.proposed': {
+    en: (e) =>
+      `Mr. Mwikila suggests pinning: ${(e as CockpitTabProposedEvent).title}`,
+    sw: (e) =>
+      `Mr. Mwikila anapendekeza kubandika: ${(e as CockpitTabProposedEvent).title}`,
   },
 };
 

@@ -669,5 +669,141 @@ marketing section.
 
 ---
 
+## R35 — `/api/v1/modules` router production wiring (effort: L)
+
+**Source:** `Docs/AUDIT/UNWIRED_LOGIC_REGISTRY.md:122` + sweep
+2026-05-29 residuals-closure pass.
+**Promise:** `routes/modules.hono.ts` is fully wired with a real
+`OrchestratorDeps` (`ModulesStorePort`, `ModuleSpecsStorePort`,
+`ModuleTemplatesStorePort`, `MigrationApplyPort`, `ApprovalPort`,
+`IdGenPort`) so the cross-tenant migration / scaffolding API
+exposed at `/api/v1/modules` is callable in production.
+**Shipped:** Router source ships in tree; production wiring is gated
+behind issue #33 (sibling-owned).
+**Effort:** ~500 LoC just to land a sound stub; ~2 dev-weeks to wire
+all 6 ports against their canonical implementations.
+**Suggested wave:** Module-platform wave (sibling-owned).
+**Why deferred:** Sibling agent #33 owns the production wiring; any
+speculative scaffolding here would conflict.
+
+---
+
+## R36 — Chain C8 insurance claim end-to-end (effort: L)
+
+**Source:** `Docs/AUDIT/CROSS_ROLE_CHAIN_MAP_2026-05-29.md` §C8.
+**Promise:** Severe incident → broker invited → claim filed → payout
+reconciliation. End-to-end commercial chain across owner-web,
+buyer-mobile (broker-as-buyer), and the insurance-broker service.
+**Shipped:** Inviation surface (`services/api-gateway/src/services/
+insurance-broker/*`) exists; tables + downstream UI deferred.
+**Effort:** ~2 dev-weeks — needs `insurance_claims` schema, RLS,
+`POST /api/v1/owner/insurance-claims` endpoint, broker invite
+extension, payout reconciliation against `LedgerService.post()`.
+**Suggested wave:** Insurance vertical wave (post-pilot).
+**Why deferred:** Requires partnered broker contracts before
+implementation; lined up with the first commercial tenant's insurer.
+
+---
+
+## R37 — Chain C9 cross-tenant referral + rebate ledger (effort: M)
+
+**Source:** `Docs/AUDIT/CROSS_ROLE_CHAIN_MAP_2026-05-29.md` §C9.
+**Promise:** Owner-referral link → peer signs up → referrer rebate
+posted via `LedgerService.post()` once peer crosses paid-tier
+threshold.
+**Shipped:** Nothing — no `referrals` table or referral
+attribution path.
+**Effort:** 1 dev-week — migration adding `referrals` +
+`referral_rewards`, attribution middleware on `/api/v1/orgs/signup`
+that reads a `referrer_code` query param, ledger journal post in
+`LedgerService.post()` via a new `RewardJournalSpec`, owner-web
+share-link UI in account settings.
+**Suggested wave:** Growth wave (post-pilot).
+
+---
+
+## R38 — `ComplianceExportService` background worker (effort: M)
+
+**Source:** `Docs/AUDIT/COMPLIANCE_GREEN.md` §2 route table.
+**Promise:** `POST /api/v1/compliance/exports/:id/generate` runs the
+`ComplianceExportService` against storage + data providers and emits
+a regulator-ready PDF / CSV manifest into a signed download.
+**Shipped:** Route surface returns structured `503` until the
+service binds. Migration 0122 schema is restored. Event bus emission
+on schedule is wired.
+**Effort:** ~3 dev-days — author `services/api-gateway/src/services/
+compliance-export/` with `StoragePort` + `DataProviderPort`
+abstractions, wire to S3 + drizzle queries, generate PDF via
+`pdf-lib` + CSV via `papaparse`, sign download URL via existing
+signed-url infra, write final row update + audit-chain entry.
+**Suggested wave:** Regulator-export wave (#194 compliance/regulator
+track sibling-owned).
+**Why deferred:** #194 owns the compliance/regulator surface; this
+sits inside that zone.
+
+---
+
+## R39 — Worker shift-report W-M-02 live data wire (effort: S)
+
+**Source:** `Docs/AUDIT/CHAIN_AUDIT_2026-05-29.md` Link 6 PARTIAL.
+**Promise:** `apps/workforce-mobile/app/worker/W-M-02.tsx` reads
+shift schedule from `/api/v1/field/workforce/shifts/today` instead
+of the hardcoded SHIFT mock fixture.
+**Shipped:** Production event `production.posted` flows on commit;
+endpoint POST works against real DB. Only the LOAD half of the
+screen is mocked.
+**Effort:** ~120 LoC — new gateway endpoint
+`GET /api/v1/field/workforce/shifts/today`, react-query hook
+`useTodayShift`, swap the mock in W-M-02 for the hook, add empty-
+state + error-state + retry.
+**Suggested wave:** Workforce-mobile polish (zone #171 — sibling-
+owned).
+**Why deferred:** Mobile zone is sibling-owned.
+
+---
+
+## R40 — Load-baseline k6 scripts + CI archive automation (effort: S)
+
+**Source:** `Docs/AUDIT/LOAD_BASELINE.md` §"Target SLOs" TODO rows +
+§"Baseline" TODO line.
+**Promise:** Three k6 scripts ship to close the load baseline:
+- `dashboard-read.k6.ts` — BFF dashboards profile (10k → 20k req/min
+  reads).
+- `webhook-stripe.k6.ts` / `webhook-mpesa.k6.ts` /
+  `webhook-inngest.k6.ts` — inbound webhook bursts.
+
+Plus a CI step that archives the load-baseline JSON snapshot to
+`.audit/load-baseline-YYYY-MM-DD.json` on every release-candidate
+green.
+**Shipped:** `brain-streaming.k6.ts`, `org-signup.k6.ts`,
+`workforce-activate.k6.ts` cover smoke + stress for the chat + signup
+paths. Dashboards-read profile relies on the per-tenant rate-limit
+ceiling.
+**Effort:** ~2 dev-days — 4 k6 scripts (~200 LoC each) + 1 GitHub
+Actions workflow step to upload the JSON to the audit log.
+**Suggested wave:** SRE-hardening wave.
+**Why deferred:** k6 is operational tooling; ship after the first
+load incident establishes the actual production traffic mix.
+
+---
+
+## R41 — Per-tenant rate-limit + token-budget override row (effort: M)
+
+**Source:** `Docs/AUDIT/SCALE_RUNBOOK.md` §3 TODO at line 135.
+**Promise:** `tenants` table gains nullable `rateLimitMaxPerMin` +
+`aiRateLimitMaxPerMin` + `tokenBudgetHourly` columns; rate-limit
+middleware reads the override before falling back to env defaults.
+Lets ops promote a strategic tenant to a higher cap without a
+process restart.
+**Shipped:** Env-driven defaults work; no per-tenant override path.
+**Effort:** ~3 dev-days — drizzle migration adding the three
+columns; `rate-limit-redis.middleware.ts` reads override via the
+existing tenant-context middleware; `per-tenant-rate-budget.ts`
+respects the override too; admin-web flips override via a new
+internal endpoint.
+**Suggested wave:** SRE-hardening wave.
+
+---
+
 End of roadmap. Items are listed in approximate order of expected
 delivery, not strict priority — priority is set per wave-plan call.

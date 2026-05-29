@@ -21,7 +21,7 @@ function decisionEvent(): CockpitEvent {
 }
 
 describe('cockpit-sse — kinds catalog', () => {
-  it('lists all R6 + L6 cockpit event kinds', () => {
+  it('lists all R6 + L6 + CT-5 cockpit event kinds', () => {
     expect(COCKPIT_EVENT_KINDS).toEqual([
       'decision.recorded',
       'reminder.fired',
@@ -30,6 +30,10 @@ describe('cockpit-sse — kinds catalog', () => {
       'workforce.shift_event',
       'compliance.deadline_approaching',
       'production.posted',
+      'cockpit.tab.spawned',
+      'cockpit.tab.updated',
+      'cockpit.tab.removed',
+      'cockpit.tab.proposed',
     ]);
   });
 });
