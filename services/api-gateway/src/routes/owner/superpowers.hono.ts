@@ -105,9 +105,15 @@ app.post('/bulk-action', async (c: any) => {
   // reverse the whole batch. Per-row before/after state capture lives
   // in the entity-specific routes (out of scope for this cross-cutting
   // route; the journal entry is enough to surface the Undo chip).
+  //
+  // SOTA depth (vs Notion bulk + audit-log rollback): we return a
+  // per-row failure manifest with REASONS rather than just an
+  // aggregate `failed` count. The FE renders a "Partial success —
+  // tap to see failed rows" expansion below the bulk chip so the
+  // owner never wonders WHICH rows did not land.
   const undoIds: string[] = [];
-  let processed = 0;
-  let failed = 0;
+  const processedIds: string[] = [];
+  const failedRows: Array<{ readonly id: string; readonly reason: string }> = [];
 
   for (const id of input.ids) {
     try {
@@ -127,18 +133,22 @@ app.post('/bulk-action', async (c: any) => {
         })
         .returning();
       undoIds.push(row.id);
-      processed += 1;
+      processedIds.push(id);
     } catch (e) {
-      failed += 1;
+      const reason = e instanceof Error ? e.message : String(e);
+      failedRows.push({ id, reason });
       moduleLogger.warn('owner-superpowers: bulk row failed', {
         tenantId: auth.tenantId,
         entityType: input.entityType,
         action: input.action,
         id,
-        error: e instanceof Error ? e.message : String(e),
+        error: reason,
       });
     }
   }
+
+  const processed = processedIds.length;
+  const failed = failedRows.length;
 
   moduleLogger.info('owner-superpowers: bulk action complete', {
     tenantId: auth.tenantId,
@@ -161,6 +171,8 @@ app.post('/bulk-action', async (c: any) => {
       accepted: true,
       processed,
       failed,
+      processedIds,
+      failedIds: failedRows,
       undoJournalIds: undoIds,
     },
   });
