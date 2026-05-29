@@ -265,9 +265,29 @@ applies the following to every `/(.*)`:
 | S-4 headers + rate + CSRF | 1 (no Next-app headers; covered by S-1 fix) | 1 | 0 | 0 | 1 (SRI when marketing embeds 3p) |
 | S-5 PCCB/PDPA | 0 | 0 | 1 (data residency) | 0 | 1 |
 
-**Net delta:** 2 critical findings closed inline. 1 high (data
-residency) escalated to #194 + #200 with three-phase mitigation. 1
-high-pri P2 backlog (54 log-unscoped, 58 drizzle-unscoped) remains
-under the Wave-2 ESLint-flip roadmap, unchanged by this audit.
+**Net delta:** 1 critical finding (missing Next-app security headers,
+counted once across S-1/S-4) closed inline. 1 high (data residency)
+escalated to #194 + #200 with three-phase mitigation. 1 P2 backlog
+(54 log-unscoped, 58 drizzle-unscoped) remains under the Wave-2
+ESLint-flip roadmap, unchanged by this audit.
+
+## 7. Test inventory shipped this audit
+
+| File | Suite | Test count |
+|------|-------|-----------:|
+| `services/api-gateway/src/__tests__/cross-tenant-isolation.test.ts` | S-2 | 16 |
+| `services/api-gateway/src/__tests__/test-user-isolation.test.ts` | S-3 | 18 |
+| `services/api-gateway/src/__tests__/next-app-security-headers.test.ts` | S-4 | 21 |
+| `services/api-gateway/src/__tests__/pccb-pii-redaction.test.ts` | S-5 | 6 |
+| **Total new security regressions** | — | **61** |
+
+All 61 PASS as of audit completion (2026-05-29).
+
+## 8. Companion docs shipped this audit
+
+- `Docs/SECURITY/SECURITY_AUDIT_2026-05-29.md` — this file.
+- `Docs/SECURITY/CROSS_TENANT_ISOLATION_REPORT.md` — S-2 long-form.
+- `Docs/SECURITY/PCCB_PDPA_AUDIT_2026-05-29.md` — S-5 PCCB/PDPA
+  gap doc + 3-phase residency remediation plan.
 
 **Launch recommendation:** GREEN-with-mitigations. Ship.
