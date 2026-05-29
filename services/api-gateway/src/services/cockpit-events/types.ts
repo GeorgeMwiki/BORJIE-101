@@ -44,6 +44,12 @@ export const COCKPIT_EVENT_KINDS = [
   'cockpit.tab.updated',
   'cockpit.tab.removed',
   'cockpit.tab.proposed',
+  // ── COMPANY-BRAIN Y-D (2026-05-29) Day-1 super-powered demo ─────
+  // Fires exactly once per tenant — right after the first
+  // corpus_doc_uploads.status='indexed' lands and the onboarding
+  // jumpstart prepared the Day-1 insights card. Drives the cockpit's
+  // welcome pulse and the inline jumpstart block in the chat panel.
+  'mining.celebrate',
 ] as const;
 
 export type CockpitEventKind = (typeof COCKPIT_EVENT_KINDS)[number];
@@ -76,7 +82,8 @@ export type CockpitEvent =
   | CockpitTabSpawnedEvent
   | CockpitTabUpdatedEvent
   | CockpitTabRemovedEvent
-  | CockpitTabProposedEvent;
+  | CockpitTabProposedEvent
+  | MiningCelebrateEvent;
 
 interface BaseEvent {
   readonly tenantId: string;
@@ -385,4 +392,28 @@ export interface CockpitTabProposedEvent extends BaseEvent {
   /** ≥1 grounded id per the Borjie evidence rule. */
   readonly evidenceIds: ReadonlyArray<string>;
   readonly confidence: number | null;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// COMPANY-BRAIN Y-D — Day-1 super-powered demo (2026-05-29)
+//
+// Fires exactly once per tenant — after the first
+// corpus_doc_uploads.status='indexed' lands and the onboarding
+// jumpstart prepared the Day-1 insights card. Drives the cockpit's
+// welcome pulse + the inline jumpstart block in the chat panel.
+// ───────────────────────────────────────────────────────────────────
+
+export interface MiningCelebrateEvent extends BaseEvent {
+  readonly kind: 'mining.celebrate';
+  /** Owning user — receivers filter by `userId === auth.userId`. */
+  readonly userId: string;
+  /** Tenant onboarding upload id that crossed the threshold. */
+  readonly uploadId: string;
+  /** Filename — drives the celebratory toast copy. */
+  readonly filename: string;
+  /** Headline copy the cockpit renders (bilingual). */
+  readonly headerEn: string;
+  readonly headerSw: string;
+  /** Total proposals the inferrer surfaced (tabs+reminders+opps+risks). */
+  readonly proposalCount: number;
 }

@@ -75,6 +75,7 @@ import {
   chunkText,
   extractText,
 } from './public-chat.hono';
+import { createAdaptiveStreamController } from '../services/brain/sse-adaptive.js';
 import {
   extractSpawnTabs,
   parseInlineBlocks,
@@ -831,20 +832,48 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
 
     // Stream the cleaned text first so the renderer can paint
     // progressively before the ui_block lands at the end of the bubble.
+    //
+    // Roadmap R10 — adaptive stream rate composition hook. The
+    // controller batches chunks when a slow client falls behind and
+    // micro-streams when it is keeping up. Client signals its last
+    // displayed chunkNo via the `?lastChunk=N` query parameter on
+    // reconnect (the FE today still pulls greedily so the lag stays
+    // 0 and micro mode applies — but the seam is in place so a slow
+    // 3G client batched by the controller will get coarse chunks
+    // without any further server-side change).
     const chunks = chunkText(clean);
-    for (let i = 0; i < chunks.length; i++) {
-      if (abort.signal.aborted) break;
-      const isLast = i === chunks.length - 1;
+    const lastChunkParam = c.req.query('lastChunk');
+    const initialAck =
+      lastChunkParam !== undefined && /^\d+$/.test(lastChunkParam)
+        ? Number.parseInt(lastChunkParam, 10)
+        : 0;
+    const adaptive = createAdaptiveStreamController();
+    if (initialAck > 0) adaptive.ack(initialAck);
+    for (const piece of chunks) {
+      adaptive.push(piece);
+    }
+    let emitted = 0;
+    const total = chunks.length;
+    while (!abort.signal.aborted) {
+      const next = adaptive.pull();
+      if (next === null) break;
+      emitted += 1;
+      const isLast = emitted === total;
       await stream.writeSSE({
         event: 'message_chunk',
         data: JSON.stringify({
-          text: chunks[i] ?? '',
+          text: next.text,
+          chunkNo: next.chunkNo,
+          batched: next.batched,
           evidence_ids: isLast ? ids : [],
           confidence: isLast ? 0.95 : null,
           done: false,
         }),
       });
-      await new Promise<void>((r) => setTimeout(r, 14));
+      const delay = adaptive.recommendedDelayMs();
+      if (delay > 0) {
+        await new Promise<void>((r) => setTimeout(r, delay));
+      }
     }
 
     // Blackboard elements — emit each as its own SSE event so the FE

@@ -33,5 +33,6 @@ export type {
   CockpitTabUpdatedEvent,
   CockpitTabRemovedEvent,
   CockpitTabProposedEvent,
+  MiningCelebrateEvent,
 } from './types.js';
 export { COCKPIT_EVENT_KINDS } from './types.js';
