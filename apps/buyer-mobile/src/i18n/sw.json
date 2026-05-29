@@ -64,7 +64,15 @@
     "min_grade": "Daraja la chini",
     "max_grade": "Daraja la juu",
     "all_minerals": "Madini yote",
-    "all_regions": "Mikoa yote"
+    "all_regions": "Mikoa yote",
+    "trust": {
+      "gov_licensed": "Leseni ya Serikali",
+      "lab_assayed": "Imepimwa maabara",
+      "lab_assayed_stale": "Uchanganuzi wa zamani",
+      "borjie_vetted": "Imethibitishwa na Borjie",
+      "chain_of_custody": "Mlolongo wa uangalizi",
+      "seller_history": "Historia ya muuzaji"
+    }
   },
   "minerals": {
     "gold_concentrate": "Kifurushi cha dhahabu",

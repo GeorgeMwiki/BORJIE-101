@@ -504,3 +504,17 @@ through the existing `packages/central-intelligence/` pipeline
 **Owner:** Borjie buyer-mobile squad.
 **Next review:** when buyer-mobile beta opens to first 10 KYC'd
 buyers.
+
+---
+
+## Shipping log
+
+- **[SHIPPED 2026-05-29]** Trust-chip stack on parcel cards (§7) —
+  new `TrustChipStack` + pure `deriveTrustChips` module wires 5 chips
+  (gov-licensed, lab-assayed w/ 30-day freshness, borjie-vetted,
+  chain-of-custody, seller-history w/ 4.0★ tipping point). Each chip
+  carries an evidence handle for deep-linking. Bilingual sw/en keys
+  added under `marketplace.trust.*`. See
+  `apps/buyer-mobile/src/marketplace/TrustChipStack.tsx` and tests
+  `trust-chip-stack.test.ts`. Closes G2 in
+  `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`.

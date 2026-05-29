@@ -64,7 +64,15 @@
     "min_grade": "Min grade",
     "max_grade": "Max grade",
     "all_minerals": "All minerals",
-    "all_regions": "All regions"
+    "all_regions": "All regions",
+    "trust": {
+      "gov_licensed": "Govt-licensed",
+      "lab_assayed": "Lab-assayed",
+      "lab_assayed_stale": "Assay > 30 days old",
+      "borjie_vetted": "Borjie-vetted",
+      "chain_of_custody": "Chain-of-custody",
+      "seller_history": "Seller history"
+    }
   },
   "minerals": {
     "gold_concentrate": "Gold concentrate",
