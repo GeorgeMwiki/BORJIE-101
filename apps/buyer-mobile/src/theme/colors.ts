@@ -33,6 +33,7 @@ export const colors = {
 
   // Lines + states
   line: '#1E2330',            // hairline rules
+  steel: '#2A3245',           // input/chip border on slate — slightly lighter than line, reads as a soft outline on raised cards
   success: '#2EBD85',         // emerald confirmation
   successSoft: '#1B3D2E',
   warning: '#FFC857',         // gold doubles as warning

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { tokens } from '@/ui-litfin'
 
 export interface PrimaryButtonProps {
@@ -6,6 +6,12 @@ export interface PrimaryButtonProps {
   readonly onPress: () => void
   readonly variant?: 'primary' | 'gold' | 'ghost'
   readonly disabled?: boolean
+  /**
+   * When true the button shows an inline spinner and is non-interactive.
+   * Used by debounced submit flows (RFB create, login) to prevent double-tap.
+   */
+  readonly busy?: boolean
+  readonly testID?: string
 }
 
 /**
@@ -17,24 +23,34 @@ export function PrimaryButton({
   label,
   onPress,
   variant = 'primary',
-  disabled = false
+  disabled = false,
+  busy = false,
+  testID
 }: PrimaryButtonProps) {
   const palette = palettes[variant]
+  const isBlocked = disabled || busy
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isBlocked}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: isBlocked, busy }}
+      testID={testID}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: palette.bg, borderColor: palette.border },
         variant === 'primary' || variant === 'gold' ? tokens.shadow.glow : null,
-        pressed && styles.pressed,
-        disabled && styles.disabled
+        pressed && !isBlocked && styles.pressed,
+        isBlocked && styles.disabled
       ]}
     >
-      <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
+      <View style={styles.inner}>
+        {busy ? (
+          <ActivityIndicator color={palette.fg} style={styles.spinner} />
+        ) : null}
+        <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
+      </View>
     </Pressable>
   )
 }
@@ -53,6 +69,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     minHeight: 48
+  },
+  inner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  spinner: {
+    marginRight: tokens.space.sm
   },
   label: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },

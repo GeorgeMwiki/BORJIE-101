@@ -22,6 +22,9 @@ export const typography = {
   heading: { fontSize: 18, fontWeight: '600' as const },
   body: { fontSize: 15, fontWeight: '400' as const },
   bodyStrong: { fontSize: 15, fontWeight: '600' as const },
+  // Form-field label — small uppercase-friendly metadata above inputs.
+  // Used by RFB form (rfb/create) and other data-entry screens.
+  label: { fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.2 },
   caption: { fontSize: 13, fontWeight: '400' as const },
   micro: { fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.5 }
 } as const

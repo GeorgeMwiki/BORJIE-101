@@ -31,7 +31,7 @@ const TONE_BY_STATUS: Record<RfbStatus, PillTone> = {
 }
 
 function formatPendingResponses(
-  t: (key: string, vars?: Record<string, unknown>) => string,
+  t: (key: string, vars?: Readonly<Record<string, string | number>>) => string,
   count: number
 ): string {
   if (count === 1) return t('rfb.response_count_one', { n: count })
