@@ -199,7 +199,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface/40 p-4">
         <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1 min-w-[240px] max-w-md">
+          <div className="relative flex-1 min-w-column-md max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
             <input
               type="search"
@@ -231,7 +231,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                 }`}
               >
                 {isSw ? STATUS_LABELS[key].sw : STATUS_LABELS[key].en}
-                <span className="rounded-full bg-background/60 px-1.5 text-[10px] text-neutral-500">
+                <span className="rounded-full bg-background/60 px-1.5 text-tiny text-neutral-500">
                   {counts[key]}
                 </span>
               </button>
@@ -241,7 +241,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 md:grid">
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
           <div className="col-span-3">{isSw ? 'Leseni' : 'Licence'}</div>
           <div className="col-span-2">{isSw ? 'Madini' : 'Mineral'}</div>
           <div className="col-span-3">{isSw ? 'Eneo / Mgodi' : 'Site'}</div>
@@ -265,7 +265,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                       {row.kind} {row.number}
                     </div>
                     {row.dormancyScore !== null ? (
-                      <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                      <div className="mt-1 text-tiny font-mono uppercase tracking-widest text-neutral-500">
                         Dormancy{' '}
                         <span
                           className={
@@ -287,7 +287,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                   </div>
                   <div className="col-span-2">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${pill.className}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${pill.className}`}
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${

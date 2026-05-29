@@ -123,7 +123,7 @@ function StepCard({ step }: { readonly step: ChainStep }) {
             {step.gradePct ? ` · ${step.gradePct}%` : ''}
           </p>
         ) : null}
-        <p className="mt-2 inline-flex items-center gap-1 text-[10px] font-mono text-neutral-500">
+        <p className="mt-2 inline-flex items-center gap-1 text-tiny font-mono text-neutral-500">
           <LinkIcon className="h-3 w-3" />
           {step.auditHashId.slice(0, 12)}
         </p>

@@ -85,7 +85,7 @@ export function QuickReplyChips({
             </button>
           );
         })}
-        <span className="inline-flex items-center px-3 py-2 text-[11px] text-muted-foreground/60 italic">
+        <span className="inline-flex items-center px-3 py-2 text-badge text-muted-foreground/60 italic">
           {isSw ? 'au andika lako' : 'or type your own'}
         </span>
       </div>

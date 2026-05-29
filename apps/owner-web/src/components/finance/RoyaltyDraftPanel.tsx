@@ -180,7 +180,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
             <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 md:grid">
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
           <div className="col-span-4">{isSw ? 'Madini / Mgodi' : 'Mineral / site'}</div>
           <div className="col-span-1">{isSw ? 'Kiwango' : 'Rate'}</div>
           <div className="col-span-2 text-right">{isSw ? 'Mauzo' : 'Gross'}</div>
@@ -200,7 +200,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
                   <div className="text-sm font-medium text-foreground">
                     {row.mineral}
                   </div>
-                  <div className="mt-0.5 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                  <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-neutral-500">
                     {isSw ? row.cutOffSw : row.cutOffEn}
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
                 </div>
                 <div className="col-span-3 flex justify-start md:justify-end">
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${tone.pill}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
                   >
                     <Icon className="h-3 w-3" />
                     {isSw ? tone.label.sw : tone.label.en}

@@ -187,7 +187,7 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                     </div>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${tone.pill}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
                   >
                     {isSw ? tone.label.sw : tone.label.en}
                   </span>
@@ -272,7 +272,7 @@ function FuelSparkline({ data }: FuelSparklineProps) {
               className="w-full rounded-sm bg-signal-500/60"
               style={{ height: `${Math.max(height, 8)}%` }}
             />
-            <span className="font-mono text-[9px] text-neutral-500">
+            <span className="font-mono text-spark text-neutral-500">
               {value}
             </span>
           </div>

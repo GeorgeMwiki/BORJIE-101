@@ -37,7 +37,7 @@ export function PageHero({ slug, actions, meta }: PageHeroProps) {
     <header className="border-b border-border pb-6">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-signal-500">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
             <span>{screen.id}</span>
             <span className="text-neutral-700">·</span>
             <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-neutral-400">

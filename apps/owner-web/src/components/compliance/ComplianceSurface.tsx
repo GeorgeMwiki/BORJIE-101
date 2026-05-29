@@ -190,7 +190,7 @@ export function ComplianceSurface({ locale = 'en' }: ComplianceSurfaceProps): JS
             </p>
           </div>
         </header>
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 md:grid">
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
           <div className="col-span-2">{isSw ? 'Mdhibiti' : 'Regulator'}</div>
           <div className="col-span-5">{isSw ? 'Jukumu' : 'Obligation'}</div>
           <div className="col-span-2">{isSw ? 'Mzunguko' : 'Cadence'}</div>
@@ -210,7 +210,7 @@ export function ComplianceSurface({ locale = 'en' }: ComplianceSurfaceProps): JS
                   <div className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground">
                     {row.regulator}
                   </div>
-                  <div className="text-[10px] text-neutral-500">
+                  <div className="text-tiny text-neutral-500">
                     {row.regulatorLong}
                   </div>
                 </div>
@@ -224,7 +224,7 @@ export function ComplianceSurface({ locale = 'en' }: ComplianceSurfaceProps): JS
                 </div>
                 <div className="col-span-3 flex items-center justify-start gap-2 md:justify-end">
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${tone.pill}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
                     {isSw ? row.nextDueSw : row.nextDueEn}

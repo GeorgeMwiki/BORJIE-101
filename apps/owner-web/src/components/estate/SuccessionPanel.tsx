@@ -140,7 +140,7 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
         </div>
         {plan.notes ? (
           <div className="rounded-md border border-border bg-surface/60 px-4 py-3 text-xs text-neutral-300">
-            <div className="mb-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+            <div className="mb-1 inline-flex items-center gap-1 text-tiny font-semibold uppercase tracking-wide text-neutral-500">
               <ShieldCheck className="h-3 w-3" />
               {isSw ? 'Maelezo' : 'Notes'}
             </div>
@@ -155,7 +155,7 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
 function Stat({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-neutral-500">
         {label}
       </div>
       <div className="mt-1 text-sm text-foreground">{value}</div>

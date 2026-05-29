@@ -137,7 +137,7 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-surface/60 text-[10px] uppercase tracking-wider text-neutral-500">
+              <thead className="border-b border-border bg-surface/60 text-tiny uppercase tracking-wider text-neutral-500">
                 <tr>
                   <th className="px-5 py-2 text-left">
                     {isSw ? 'Maelezo' : 'Descriptor'}

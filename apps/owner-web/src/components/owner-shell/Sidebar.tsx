@@ -184,7 +184,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
           <Logomark className="h-8 w-8" />
           <div className="leading-tight">
             <div className="text-sm font-semibold text-foreground">Borjie</div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            <div className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
               Owner Cockpit
             </div>
           </div>
@@ -194,7 +194,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
       {/* Tenant chip */}
       <div className="px-5 pt-4 pb-2">
         <div className="rounded-xl border border-border/60 bg-surface/60 px-3 py-2.5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <div className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
             {isSw ? 'Kampuni' : 'Tenant'}
           </div>
           <div className="mt-0.5 truncate text-sm font-medium text-foreground">
@@ -208,7 +208,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
         {SECTIONS.map((section) => (
           <div key={section.heading} className="mb-4">
             <div className="flex items-center gap-3 px-3 mt-3 mb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+              <span className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
                 {isSw ? section.headingSw : section.heading}
               </span>
               <div className="flex-1 border-t border-dashed border-border/60" />
@@ -232,7 +232,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
                       {active ? (
                         <span
                           aria-hidden
-                          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-signal-500"
+                          className="absolute left-0 top-1/2 h-5 w-rail -translate-y-1/2 rounded-full bg-signal-500"
                         />
                       ) : null}
                       <span
@@ -243,7 +243,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
                           !active && 'group-hover:bg-surface',
                         )}
                       >
-                        <Icon className="h-[18px] w-[18px]" />
+                        <Icon className="h-chip w-chip" />
                       </span>
                       <span className="flex-1 truncate">
                         {isSw ? item.labelSw : item.label}

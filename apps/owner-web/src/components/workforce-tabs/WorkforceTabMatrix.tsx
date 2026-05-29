@@ -271,7 +271,7 @@ export function WorkforceTabMatrix(props: MatrixProps): JSX.Element {
                               aria-label={`${role} · ${scope.label} · ${tab.id}`}
                             />
                             {saving ? (
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-tiny text-muted-foreground">
                                 {copy.saving}
                               </span>
                             ) : null}

@@ -69,7 +69,7 @@ export function MicroLessonCard({
 
         <h3 className="text-sm font-semibold text-foreground leading-snug">{title}</h3>
         {body ? (
-          <p className="text-[13px] text-foreground/75 leading-relaxed whitespace-pre-wrap">
+          <p className="text-data text-foreground/75 leading-relaxed whitespace-pre-wrap">
             {body}
           </p>
         ) : null}

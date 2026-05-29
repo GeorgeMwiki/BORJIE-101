@@ -68,7 +68,7 @@ function Tile({ label, value, sub, icon: Icon, delta, tone = 'default' }: Metric
       className={`flex items-start justify-between gap-4 rounded-2xl border ${borderTone} bg-surface/40 p-5`}
     >
       <div className="min-w-0 space-y-1">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+        <p className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
           {label}
         </p>
         <p className="font-display text-3xl text-foreground">{value}</p>
@@ -99,7 +99,7 @@ function DeltaChip({ value, direction, tone = 'neutral' }: DeltaChipProps) {
         ? 'text-destructive'
         : 'text-neutral-400';
   return (
-    <span className={`mt-2 inline-flex items-center gap-1 text-[11px] font-medium ${cls}`}>
+    <span className={`mt-2 inline-flex items-center gap-1 text-badge font-medium ${cls}`}>
       <Icon className="h-3 w-3" />
       {value}
     </span>

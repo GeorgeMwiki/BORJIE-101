@@ -51,11 +51,11 @@ export function EmptyState({
       <h3 className="font-display text-base font-medium tracking-tight text-foreground">
         {title}
       </h3>
-      <p className="max-w-[56ch] text-sm leading-relaxed text-muted-foreground">
+      <p className="max-w-prose-narrow text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
       {hint ? (
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+        <p className="mt-1 font-mono text-tiny uppercase tracking-eyebrow-wide text-muted-foreground/70">
           {hint.length > 96 ? `${hint.slice(0, 96)}…` : hint}
         </p>
       ) : null}

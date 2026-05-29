@@ -62,7 +62,7 @@ export function DailyBriefCard({
             <Sparkles className="h-5 w-5" aria-hidden />
           </span>
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal-500">
+            <p className="font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
               {isSw ? 'Bw. Mwikila' : 'Mr. Mwikila'} ·{' '}
               {isSw ? 'Mkurugenzi Mtendaji wa AI' : 'AI Managing Director'}
             </p>

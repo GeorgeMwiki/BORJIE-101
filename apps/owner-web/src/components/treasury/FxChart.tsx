@@ -75,7 +75,7 @@ export function FxChart(): JSX.Element {
           Live FX and gold
         </div>
         {rates[0] ? (
-          <span className="text-[10px] text-neutral-400">
+          <span className="text-tiny text-neutral-400">
             updated {new Date(rates[0].ts).toLocaleTimeString()}
           </span>
         ) : null}
@@ -100,13 +100,13 @@ function RateCard({ rate }: { readonly rate: FxLatestRate }): JSX.Element {
       className="rounded-md border border-border bg-background p-3"
       data-testid={`fx-rate-${rate.pair}`}
     >
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-neutral-500">
         {label.en}
       </div>
       <div className="mt-1 font-display text-xl tabular-nums text-foreground">
         {formatRate(rate.rate)}
       </div>
-      <div className="mt-0.5 text-[10px] text-neutral-400">
+      <div className="mt-0.5 text-tiny text-neutral-400">
         {label.unit} · {rate.source}
       </div>
     </div>
@@ -124,7 +124,7 @@ function Sparkline({
   if (points.length === 0 || !path) return null;
   return (
     <div className="mt-4" data-testid="fx-sparkline">
-      <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-neutral-500">
         {label}
       </div>
       <svg

@@ -196,7 +196,7 @@ export function ConceptCard({
       data-testid="home-chat-concept-card"
       className="relative rounded-2xl border border-warning/30 overflow-hidden my-3 shadow-xl shadow-warning/10 bg-surface dark:bg-surface-raised animate-fade-up"
     >
-      <div className="h-[3px] w-full bg-gradient-to-r from-warning via-warning/80 to-warning/60" />
+      <div className="h-rail w-full bg-gradient-to-r from-warning via-warning/80 to-warning/60" />
       <div className="absolute inset-0 bg-gradient-to-br from-warning/[0.08] via-transparent to-warning/[0.04] pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none" />
 
@@ -206,24 +206,24 @@ export function ConceptCard({
             {block.icon ? (
               <span className="text-lg" aria-hidden="true">{block.icon}</span>
             ) : (
-              <BookOpen aria-hidden="true" className="h-[18px] w-[18px] text-primary-foreground" />
+              <BookOpen aria-hidden="true" className="h-chip w-chip text-primary-foreground" />
             )}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h4 className="text-[15px] font-bold tracking-tight leading-snug text-foreground">
+              <h4 className="text-body-md font-bold tracking-tight leading-snug text-foreground">
                 {title}
               </h4>
               {block.category ? (
-                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-warning/10 text-warning font-semibold border border-warning/15 uppercase tracking-wide">
+                <span className="text-tiny px-2.5 py-0.5 rounded-full bg-warning/10 text-warning font-semibold border border-warning/15 uppercase tracking-wide">
                   {block.category}
                 </span>
               ) : null}
               {bloom ? (
                 <span
                   className={cn(
-                    'text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide border',
+                    'text-tiny px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide border',
                     difficultyPill(bloom.index),
                   )}
                 >
@@ -232,7 +232,7 @@ export function ConceptCard({
               ) : null}
             </div>
             {description ? (
-              <p className="text-[13px] text-foreground/70 leading-relaxed line-clamp-3">
+              <p className="text-data text-foreground/70 leading-relaxed line-clamp-3">
                 {description}
               </p>
             ) : null}
@@ -242,10 +242,10 @@ export function ConceptCard({
         {bloom ? (
           <div className="mb-4 p-3 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-widest">
+              <span className="text-tiny text-muted-foreground/70 font-semibold uppercase tracking-widest">
                 {language === 'sw' ? "Daraja la kufikiri" : "Bloom's level"}
               </span>
-              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full ring-1', bloom.meta.chip)}>
+              <span className={cn('text-tiny font-bold px-2 py-0.5 rounded-full ring-1', bloom.meta.chip)}>
                 {language === 'sw' ? bloom.meta.labelSw : bloom.meta.labelEn}
               </span>
             </div>
@@ -267,7 +267,7 @@ export function ConceptCard({
         {masteryPercent !== null ? (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-widest">
+              <span className="text-tiny text-muted-foreground/70 font-semibold uppercase tracking-widest">
                 {language === 'sw' ? 'Umahiri' : 'Mastery'}
               </span>
               <span className="text-xs font-bold tabular-nums text-foreground">
@@ -286,10 +286,10 @@ export function ConceptCard({
         {exploredCount > 0 ? (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-widest">
+              <span className="text-tiny text-muted-foreground/70 font-semibold uppercase tracking-widest">
                 {language === 'sw' ? 'Maendeleo ya uchunguzi' : 'Exploration progress'}
               </span>
-              <span className="text-[10px] font-bold tabular-nums text-warning">
+              <span className="text-tiny font-bold tabular-nums text-warning">
                 {exploredCount}/{totalPoints}
               </span>
             </div>
@@ -315,11 +315,11 @@ export function ConceptCard({
         {keyPoints.length > 0 ? (
           <div className="space-y-2 mb-3">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">
+              <span className="text-tiny text-muted-foreground/70 font-bold uppercase tracking-eyebrow-mid">
                 {language === 'sw' ? 'Maeneo muhimu' : 'Key points'}
               </span>
               {selectedIndex !== null ? (
-                <span className="text-[10px] text-warning font-medium inline-flex items-center gap-1">
+                <span className="text-tiny text-warning font-medium inline-flex items-center gap-1">
                   <Zap aria-hidden="true" className="h-2.5 w-2.5" />
                   {language === 'sw' ? 'Chagua hatua' : 'Choose action'}
                 </span>
@@ -365,7 +365,7 @@ export function ConceptCard({
                   </span>
                   <span
                     className={cn(
-                      'text-[13px] leading-relaxed transition-colors duration-200',
+                      'text-data leading-relaxed transition-colors duration-200',
                       status === 'explored'
                         ? 'text-muted-foreground/60 line-through decoration-emerald-500/30'
                         : status === 'selected'
@@ -385,7 +385,7 @@ export function ConceptCard({
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-1.5 text-[11px] text-warning/80 hover:text-warning font-semibold mb-3 transition-colors duration-200 px-1"
+            className="flex items-center gap-1.5 text-badge text-warning/80 hover:text-warning font-semibold mb-3 transition-colors duration-200 px-1"
           >
             {expanded ? (
               <>
@@ -407,7 +407,7 @@ export function ConceptCard({
               <span className="h-7 w-7 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
               </span>
-              <span className="text-[13px] font-semibold text-emerald-400">
+              <span className="text-data font-semibold text-emerald-400">
                 {language === 'sw' ? 'Maeneo yote yamefunzwa' : 'All points explored'}
               </span>
             </div>
@@ -416,7 +416,7 @@ export function ConceptCard({
 
         {block.relatedConcepts && block.relatedConcepts.length > 0 ? (
           <div className="pt-3.5 mt-2 border-t border-foreground/[0.08]">
-            <span className="text-[10px] text-muted-foreground/70 font-bold uppercase tracking-[0.15em]">
+            <span className="text-tiny text-muted-foreground/70 font-bold uppercase tracking-eyebrow-mid">
               {language === 'sw' ? 'Vinavyohusiana' : 'Related'}
             </span>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -425,7 +425,7 @@ export function ConceptCard({
                   key={concept}
                   type="button"
                   onClick={() => onRelatedClick?.(concept)}
-                  className="text-[11px] px-3 py-1.5 rounded-xl border border-warning/15 text-warning bg-warning/[0.06] hover:bg-warning/10 hover:border-warning/25 transition-all duration-200 font-semibold"
+                  className="text-badge px-3 py-1.5 rounded-xl border border-warning/15 text-warning bg-warning/[0.06] hover:bg-warning/10 hover:border-warning/25 transition-all duration-200 font-semibold"
                 >
                   {concept}
                 </button>
@@ -439,7 +439,7 @@ export function ConceptCard({
             <div className="mb-3 px-3 py-2 rounded-xl bg-warning/[0.08] border border-warning/15 animate-fade-up">
               <div className="flex items-center gap-2">
                 <Zap aria-hidden="true" className="h-3 w-3 text-warning shrink-0" />
-                <span className="text-[11px] text-warning font-semibold truncate">
+                <span className="text-badge text-warning font-semibold truncate">
                   {language === 'sw' ? 'Inachunguzwa' : 'Exploring'}:{' '}
                   <span className="text-warning/80 font-normal">{selectedPointText}</span>
                 </span>
@@ -482,7 +482,7 @@ export function ConceptCard({
             <span className="h-6 w-6 rounded-full bg-gradient-to-br from-warning to-warning/70 flex items-center justify-center shadow-sm shadow-warning/20">
               <GraduationCap aria-hidden="true" className="h-3 w-3 text-primary-foreground" />
             </span>
-            <span className="text-[10px] text-muted-foreground font-medium">
+            <span className="text-tiny text-muted-foreground font-medium">
               {language === 'sw' ? 'Mwalimu Borjie' : 'Borjie Teach'}
             </span>
           </div>

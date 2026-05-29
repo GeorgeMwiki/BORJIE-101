@@ -136,7 +136,7 @@ export function MarketplaceBoard({ locale = 'en' }: MarketplaceBoardProps): JSX.
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
                       <span className="font-mono">{fmtUsd(o.priceUsd)}</span>
-                      <span className="rounded-full border border-border bg-background px-1.5 text-[10px]">
+                      <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                         LBMA
                       </span>
                     </div>
@@ -203,7 +203,7 @@ function StatusChip({ status, isSw }: StatusChipProps) {
   const lower = status.toLowerCase();
   if (lower === 'matched') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-[11px] font-medium text-success">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-badge font-medium text-success">
         <CheckCircle2 className="h-3 w-3" />
         {isSw ? 'Imepatana' : 'Matched'}
       </span>
@@ -211,14 +211,14 @@ function StatusChip({ status, isSw }: StatusChipProps) {
   }
   if (lower === 'counter') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-[11px] font-medium text-warning">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-badge font-medium text-warning">
         <ArrowRight className="h-3 w-3" />
         Counter
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-info/40 bg-info/10 px-2.5 py-0.5 text-[11px] font-medium text-info">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-info/40 bg-info/10 px-2.5 py-0.5 text-badge font-medium text-info">
       <Clock className="h-3 w-3" />
       {isSw ? 'Inasubiri' : 'Open'}
     </span>

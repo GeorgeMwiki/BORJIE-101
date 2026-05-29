@@ -76,7 +76,7 @@ export function CounterpartiesShell() {
       <MetricStrip tiles={tiles} />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-column-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <input
             value={search}
@@ -100,7 +100,7 @@ export function CounterpartiesShell() {
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
         <table className="w-full text-sm">
-          <thead className="bg-surface/60 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+          <thead className="bg-surface/60 text-tiny uppercase tracking-eyebrow-wide text-neutral-500">
             <tr>
               <th className="px-4 py-3 text-left">Name</th>
               <th className="px-4 py-3 text-left">Type</th>
@@ -204,7 +204,7 @@ function CounterpartyDrawer({
       <aside className="flex w-full max-w-md flex-col gap-5 border-l border-border bg-surface px-6 py-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-signal-500">
+            <div className="flex items-center gap-2 text-tiny uppercase tracking-eyebrow-wide text-signal-500">
               <ShieldCheck className="h-3 w-3" />
               Counterparty
             </div>
@@ -225,7 +225,7 @@ function CounterpartyDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <h3 className="mb-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500">
+          <h3 className="mb-3 text-tiny uppercase tracking-eyebrow-wide text-neutral-500">
             Engagement timeline
           </h3>
           {engagements.isLoading ? (
@@ -242,7 +242,7 @@ function CounterpartyDrawer({
                   className="rounded-xl border border-border/60 bg-surface/40 p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-signal-500">
+                    <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
                       {e.kind.replace(/_/g, ' ')}
                     </span>
                     <span
@@ -258,7 +258,7 @@ function CounterpartyDrawer({
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-foreground">{e.summary}</p>
-                  <p className="mt-1 text-[10px] text-neutral-500">
+                  <p className="mt-1 text-tiny text-neutral-500">
                     {new Date(e.openedAt).toLocaleString()}
                     {e.auditHashId
                       ? ` · audit ${e.auditHashId.slice(0, 8)}`

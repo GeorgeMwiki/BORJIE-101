@@ -106,7 +106,7 @@ export function RegulatoryCalendarShell() {
             <div key={key} className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <CalendarClock className="h-4 w-4 text-neutral-500" />
-                <h3 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                <h3 className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
                   {label}
                 </h3>
                 <div className="flex-1 border-t border-dashed border-border/60" />
@@ -134,10 +134,10 @@ function FilingCard({ filing }: { readonly filing: RegulatoryFilingRow }) {
   return (
     <article className={`flex flex-col gap-2 rounded-2xl border p-4 ${tone}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+        <span className="text-tiny font-semibold uppercase tracking-eyebrow-wide">
           {filing.regulator.replace(/_/g, ' ')}
         </span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.12em]">
+        <span className="text-tiny font-medium uppercase tracking-eyebrow">
           {filing.status}
         </span>
       </div>
@@ -151,7 +151,7 @@ function FilingCard({ filing }: { readonly filing: RegulatoryFilingRow }) {
             : `${Math.abs(daysRemaining)} days late`}
       </p>
       {filing.referenceNo ? (
-        <p className="text-[10px] font-mono text-neutral-500">
+        <p className="text-tiny font-mono text-neutral-500">
           ref {filing.referenceNo}
         </p>
       ) : null}

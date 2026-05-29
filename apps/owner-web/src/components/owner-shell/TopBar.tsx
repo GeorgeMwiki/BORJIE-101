@@ -170,7 +170,7 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
         <div className="ml-1 flex items-center gap-2.5">
           <div className="hidden text-right leading-tight sm:block">
             <div className="text-xs font-semibold text-foreground">{fullName}</div>
-            <div className="text-[10px] text-neutral-500">{tenantName}</div>
+            <div className="text-tiny text-neutral-500">{tenantName}</div>
           </div>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-signal-500 to-signal-700 text-xs font-semibold text-background">
             {initials}

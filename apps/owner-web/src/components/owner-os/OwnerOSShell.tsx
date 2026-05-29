@@ -383,7 +383,7 @@ export function OwnerOSShell({
               {(t.pendingUpdates ?? 0) > 0 ? (
                 <span
                   aria-label={`${t.pendingUpdates} pending updates`}
-                  className="rounded-full bg-warning/30 px-1.5 text-[10px] font-semibold text-warning"
+                  className="rounded-full bg-warning/30 px-1.5 text-tiny font-semibold text-warning"
                 >
                   +{t.pendingUpdates}
                 </span>
@@ -422,7 +422,7 @@ export function OwnerOSShell({
         >
           <Plus aria-hidden="true" className="h-3 w-3" />
           {languagePreference === 'sw' ? 'Tab mpya' : 'New tab'}
-          <kbd className="rounded border border-warning/30 px-1 font-mono text-[10px]">
+          <kbd className="rounded border border-warning/30 px-1 font-mono text-tiny">
             ⌘T
           </kbd>
         </button>

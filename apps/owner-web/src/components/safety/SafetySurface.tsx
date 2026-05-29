@@ -202,12 +202,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                           {row.kind}
                         </span>
                         <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest ${tone.border} ${tone.bg} ${tone.text}`}
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-tiny font-medium uppercase tracking-widest ${tone.border} ${tone.bg} ${tone.text}`}
                         >
                           {row.severity}
                         </span>
                         {row.siteId ? (
-                          <span className="font-mono text-[10px] text-neutral-500">
+                          <span className="font-mono text-tiny text-neutral-500">
                             {row.siteId}
                           </span>
                         ) : null}
@@ -281,12 +281,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                   {isSw ? control.sw : control.en}
                 </span>
                 {control.ok ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-tiny font-medium text-success">
                     <CheckCircle2 className="h-3 w-3" />
                     {isSw ? 'Hai' : 'OK'}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning">
                     <AlertTriangle className="h-3 w-3" />
                     {isSw ? 'Mukaguzi' : 'Recert due'}
                   </span>

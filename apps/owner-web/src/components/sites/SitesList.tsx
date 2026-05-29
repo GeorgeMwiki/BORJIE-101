@@ -109,7 +109,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface/40 p-4">
-        <div className="relative w-full max-w-md sm:w-auto sm:min-w-[280px]">
+        <div className="relative w-full max-w-md sm:w-auto sm:min-w-column-xl">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <input
             type="search"
@@ -134,7 +134,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
                 }`}
               >
                 {isSw ? PHASE_LABELS[key].sw : PHASE_LABELS[key].en}
-                <span className="rounded-full bg-background/60 px-1.5 text-[10px] text-neutral-500">
+                <span className="rounded-full bg-background/60 px-1.5 text-tiny text-neutral-500">
                   {counts[key]}
                 </span>
               </button>
@@ -144,7 +144,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 md:grid">
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
           <div className="col-span-4">{isSw ? 'Mgodi' : 'Site'}</div>
           <div className="col-span-2">{isSw ? 'Awamu' : 'Phase'}</div>
           <div className="col-span-2">{isSw ? 'Hali' : 'Status'}</div>
@@ -166,7 +166,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
                       <MapPin className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
                       <span className="truncate">{site.name}</span>
                     </div>
-                    <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+                    <div className="mt-1 font-mono text-tiny uppercase tracking-widest text-neutral-500">
                       ID {site.id}
                     </div>
                   </div>
