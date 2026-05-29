@@ -596,6 +596,68 @@ export const managerAssignWorkerTool: PersonaToolDescriptor<
   },
 };
 
+// ====================================================================
+// Issue #194 chain C-C — manager.inspection.generate_narrative (WRITE).
+// Maps to POST /api/v1/compliance/inspections/:id/generate-narrative.
+// ====================================================================
+const ManagerGenerateNarrativeInput = z.object({
+  inspectionId: z.string().min(1),
+  inspectionKind: z
+    .enum(['environmental', 'safety', 'financial', 'other'])
+    .default('safety'),
+  notes: z.string().max(4000).optional(),
+});
+const ManagerGenerateNarrativeOutput = z.object({
+  inspectionId: z.string(),
+  narrativeId: z.string(),
+  status: z.string(),
+});
+export const managerGenerateNarrativeTool: PersonaToolDescriptor<
+  typeof ManagerGenerateNarrativeInput,
+  typeof ManagerGenerateNarrativeOutput
+> = {
+  id: 'manager.inspection.generate_narrative',
+  name: 'Manager — generate inspection narrative',
+  description:
+    'Ask Mr. Mwikila to draft a bilingual Swahili/English inspection ' +
+    'narrative for the given pre-shift inspection. The draft pulses ' +
+    'on the manager screen for review before owner sign + regulator ' +
+    'submission.',
+  personaSlugs: MANAGER,
+  inputSchema: ManagerGenerateNarrativeInput,
+  outputSchema: ManagerGenerateNarrativeOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        inspectionId: input.inspectionId,
+        narrativeId: 'unavailable',
+        status: 'unavailable',
+      };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string };
+    }>(
+      `/compliance/inspections/${input.inspectionId}/generate-narrative`,
+      {
+        body: {
+          inspectionKind: input.inspectionKind,
+          notes: input.notes,
+        },
+      },
+    );
+    const row = res.data ?? {};
+    return {
+      inspectionId: input.inspectionId,
+      narrativeId: String(row.id ?? 'unknown'),
+      status: String(row.status ?? 'draft'),
+    };
+  },
+};
+
 export const MANAGER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -609,4 +671,6 @@ export const MANAGER_TOOLS: ReadonlyArray<
   managerEscalateTool,
   managerShiftDraftTool,
   managerAssignWorkerTool,
+  // Issue #194 chain C-C
+  managerGenerateNarrativeTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
