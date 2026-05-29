@@ -123,6 +123,7 @@ import { personalKbRouter } from './routes/personal-kb.hono';
 // Roadmap R9 — smart-compose ghost text endpoint
 // (POST /brain/compose/suggest).
 import { brainComposeRouter } from './routes/brain-compose.hono';
+import { pnlTableRouter } from './routes/bff/pnl-table.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
@@ -1432,6 +1433,9 @@ api.route('/', personalKbRouter);
 // Roadmap R9 — smart-compose ghost-text suggestions
 // (POST /brain/compose/suggest).
 api.route('/brain', brainComposeRouter);
+// R-FUTURE-3 — PnL BFF for owner-web finance surface
+// (GET /owner/finance/pnl?month=YYYY-MM).
+api.route('/owner/finance', pnlTableRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
 // JA-7 — owner-facing jurisdiction snapshot endpoint.

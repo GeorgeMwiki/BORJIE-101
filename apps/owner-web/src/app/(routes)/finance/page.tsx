@@ -3,6 +3,7 @@ import { Calculator, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { BreakEvenSlider } from '@/components/finance/BreakEvenSlider';
 import { RoyaltyDraftPanel } from '@/components/finance/RoyaltyDraftPanel';
+import { PnlTableLive } from '@/components/finance/PnlTableLive';
 import { getOwnerSession } from '@/lib/session';
 import { SW } from '@/lib/sw-tokens';
 
@@ -43,6 +44,7 @@ export default async function FinancePage() {
         }
       />
       <RoyaltyDraftPanel locale={session.languagePreference} />
+      <PnlTableLive locale={session.languagePreference} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BreakEvenSlider
           initialGoldUsdOz={2384}
