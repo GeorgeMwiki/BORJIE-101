@@ -123,3 +123,15 @@ export {
   type CitationsBlock,
   type CitationRef,
 } from './citations-block.js';
+
+export {
+  SCALE_TIERS,
+  SCALE_TIER_LABELS,
+  autoDetectScaleTier,
+  coerceScaleTier,
+  defaultTabsFor,
+  scaleTierLabel,
+  type ScaleSignals,
+  type ScaleTier,
+  type ScaleTierLabel,
+} from './scale-defaults.js';

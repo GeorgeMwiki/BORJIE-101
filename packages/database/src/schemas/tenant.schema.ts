@@ -163,8 +163,76 @@ export const tenants = pgTable(
     /**
      * UI language preference at the tenant level. Used to seed every
      * new user invited into this tenant. Swahili-first per CLAUDE.md.
+     * Allowed: sw | en | fr | pt | sw-KE | es | id (migration 0143).
      */
     defaultLanguage: text('default_language').notNull().default('sw'),
+
+    // ── World-scale tenant config (migration 0143, issue #207) ──
+    /**
+     * ISO-3166-1 alpha-2 — canonical country code the tenant-config
+     * service reads. Legacy `country` column is kept untouched for
+     * back-compat; new code reads `country_code`. Default 'TZ' so
+     * existing rows behave identically.
+     */
+    countryCode: text('country_code').notNull().default('TZ'),
+    /**
+     * Active regulator set. Drives the regulator_jurisdictions join,
+     * the compliance route surface and the DSR/inspection narrative
+     * authority allowlist. Default 'TZ-set' (PCCB / NEMC / EITI / TMAA).
+     * Other valid values: KE-set, UG-set, NG-set, ZA-set, AU-set,
+     * CL-set, ID-set, generic.
+     */
+    regulatorSet: text('regulator_set').notNull().default('TZ-set'),
+    /**
+     * Mineral kinds the tenant is licensed to handle — canonical slugs
+     * from the global mineral catalogue (gold, copper, lithium, etc.).
+     * Default = TZ-set list per migration 0143; KE / NG / ZA / AU / CL /
+     * ID tenants override at signup via tenant-config service.
+     */
+    allowedMinerals: jsonb('allowed_minerals')
+      .$type<ReadonlyArray<string>>()
+      .notNull()
+      .default([
+        'gold',
+        'tanzanite',
+        'ruby',
+        'sapphire',
+        'copper',
+        'coal',
+        'iron-ore',
+        'nickel',
+        'lithium',
+        'graphite',
+        'gemstone',
+        'diamond',
+      ]),
+
+    // ── Scale-tier discriminator (migration 0145) ──
+    /**
+     * Owner-org size band — Borjie spans ANY mining scale from a 1-worker
+     * artisanal pit to a 5,000-worker industrial group. The wizard
+     * auto-detects this from (workerCount, siteCount, mineralCount,
+     * crossBorder) at signup; admins may override it later.
+     *
+     *   t1_artisanal     1-5 workers
+     *   t2_cooperative   5-50 workers
+     *   t3_midtier       50-500 workers
+     *   t4_industrial    500-5000 workers
+     *   t5_multi_country multi-tenant cross-border group
+     *
+     * Drives:
+     *   - default tab set (packages/owner-os-tabs/src/scale-defaults)
+     *   - Mr. Mwikila persona register (brain-teach prompts)
+     *   - orchestration flow depth (services/.../orchestration/scale-flows)
+     *   - billing-tier hint (marketing surface — not billing logic)
+     */
+    scaleTier: text('scale_tier').notNull().default('t1_artisanal'),
+    /**
+     * Raw signal tuple the wizard captured — kept so a recomputer can
+     * upgrade the tier later without re-prompting the owner. Shape:
+     *   { workerCount, siteCount, mineralCount, crossBorder, computedAt }
+     */
+    scaleSignals: jsonb('scale_signals').notNull().default({}),
 
     // ── KYC atoms (migration 0085) ──
     /** PML / PL / ML number (TZ mining licence). Voluntary at signup. */
@@ -271,6 +339,7 @@ export const tenants = pgTable(
       table.country,
       table.accountKind,
     ),
+    scaleTierIdx: index('tenants_scale_tier_idx').on(table.scaleTier),
   })
 );
 
