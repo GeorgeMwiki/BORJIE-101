@@ -258,6 +258,17 @@ const config: Config = {
         'shimmer':           'shimmer 2s linear infinite',
         'cursor-blink':      'cursor-blink 1s step-end infinite',
       },
+
+      /**
+       * Viewport-relative max-heights for overlays. Tokens (not arbitrary
+       * Tailwind values) so the brand-locked Layer-3 rule passes — every
+       * popover / drawer / sheet uses the named token instead of `[NNvh]`.
+       */
+      maxHeight: {
+        'palette':           '60vh',
+        'sheet':             '85vh',
+        'drawer':            '90vh',
+      },
     },
   },
   plugins: [],

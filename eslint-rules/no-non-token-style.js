@@ -237,6 +237,11 @@ const TOKEN_REGISTRY_PATTERNS = [
   // The canonical token registry — OKLCH source of truth.
   /packages\/design-system\/src\/styles\/globals\.css$/,
   /packages\/design-system\/src\/brand\/index\.ts$/,
+  // Brand wordmark / logo / identity primitives. These files literally
+  // ARE the brand — the canonical font stack, the gold dot diameter,
+  // and the brand-specific letterforms must be expressed verbatim,
+  // not as token references.
+  /packages\/design-system\/src\/brand\/.*\.tsx?$/,
   /packages\/design-system\/tailwind\.config\.ts$/,
   // App-level globals are thin wrappers around the token registry; they
   // may also declare local OKLCH helpers.

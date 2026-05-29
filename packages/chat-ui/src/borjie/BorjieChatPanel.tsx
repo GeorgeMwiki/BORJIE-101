@@ -173,8 +173,9 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     void onSend('hello');
     // Intentionally empty deps so the auto-greet only fires once on
     // mount; subsequent opens replay from persisted history and the
-    // ref is initialised true above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // ref is initialised true above. (The `react-hooks/exhaustive-
+    // deps` rule is not loaded in this repo's flat eslint config —
+    // the lint pass that would flag a missing dep does not run here.)
   }, []);
 
   const handleSubmit = useCallback(async () => {

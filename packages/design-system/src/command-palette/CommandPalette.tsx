@@ -185,7 +185,7 @@ export function CommandPalette({
               data-testid="borjie-command-palette-input"
             />
           </div>
-          <div className="max-h-[60vh] overflow-y-auto px-1 py-2">
+          <div className="max-h-palette overflow-y-auto px-1 py-2">
             {filtered.length === 0 ? (
               <p className="px-3 py-6 text-center text-xs text-neutral-500">
                 {labels?.empty ?? 'No matches'}
