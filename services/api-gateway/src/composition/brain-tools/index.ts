@@ -49,6 +49,10 @@ import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 // complete but no brain tool existed, leaving them dormant.
 import { OPPORTUNITY_SCANNER_TOOLS } from './opportunity-scanner-tools';
 import { RISK_SCANNER_TOOLS } from './risk-scanner-tools';
+// Geo SOTA 2026-05-29 — 5 geo brain tools surfacing the geofencing
+// service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §6 and
+// services/api-gateway/src/composition/brain-tools/geo-tools.ts.
+import { GEO_TOOLS } from './geo-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -96,6 +100,7 @@ export function buildPersonaToolHandlers(
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
+      GEO_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -144,6 +149,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
+      GEO_TOOLS,
     ],
     undefined,
   );
@@ -207,3 +213,5 @@ export {
   RISK_SCANNER_TOOLS,
   configureRiskScannerTools,
 } from './risk-scanner-tools';
+// Geo SOTA 2026-05-29 — re-export for ergonomic imports.
+export { GEO_TOOLS } from './geo-tools';
