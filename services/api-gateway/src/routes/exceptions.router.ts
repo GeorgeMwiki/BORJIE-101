@@ -65,14 +65,26 @@ exceptionsRouter.get('/', zValidator('query', ListQuerySchema), async (c) => {
   if (!tenantId) {
     return c.json({ success: false, error: 'tenant context missing' }, 400);
   }
-  const query = c.req.valid('query') as unknown as z.infer<typeof ListQuerySchema>;
+  const query: z.infer<typeof ListQuerySchema> = c.req.valid(
+    'query',
+  ) as unknown as z.infer<typeof ListQuerySchema>;
   try {
-    type ListOpenFilters = Parameters<ExceptionInbox['listOpen']>[1];
-    const filters: { -readonly [K in keyof ListOpenFilters]: ListOpenFilters[K] } = {};
+    // Build filters explicitly — `Parameters<...>[1]` collapses to
+    // `never` when the upstream method declares a default arg.
+    type ListOpenFilters = {
+      domain?: typeof query.domain;
+      priority?: typeof query.priority;
+      limit?: typeof query.limit;
+    };
+    const filters: ListOpenFilters = {};
     if (query.domain !== undefined) filters.domain = query.domain;
     if (query.priority !== undefined) filters.priority = query.priority;
     if (query.limit !== undefined) filters.limit = query.limit;
-    const items = await getInbox(c).listOpen(tenantId, filters as ListOpenFilters);    return c.json({
+    const items = await getInbox(c).listOpen(
+      tenantId,
+      filters as unknown as Parameters<ExceptionInbox['listOpen']>[1],
+    );
+    return c.json({
       success: true,
       data: items,
       meta: { total: items.length, page: 1, limit: query.limit ?? items.length },

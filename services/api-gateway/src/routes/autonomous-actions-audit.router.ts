@@ -64,14 +64,27 @@ autonomousActionsAuditRouter.get(
     if (!isAdmin(auth?.role)) {
       return c.json({ success: false, error: 'forbidden' }, 403);
     }
-    const q = c.req.valid('query') as unknown as z.infer<typeof ListQuerySchema>;
+    const q: z.infer<typeof ListQuerySchema> = c.req.valid(
+      'query',
+    ) as unknown as z.infer<typeof ListQuerySchema>;
     const since = q.since ? new Date(q.since) : undefined;
-    type ListFilters = Parameters<ReturnType<typeof getAudit>['list']>[1];
-    const filters: { -readonly [K in keyof ListFilters]: ListFilters[K] } = {};
+    // Build filters explicitly — `Parameters<...>[1]` reads as
+    // `ListAuditFilters | undefined` because `list` has a defaulted
+    // second arg, and `keyof (X | undefined)` collapses to `never`.
+    type ListFilters = {
+      domain?: typeof q.domain;
+      since?: Date;
+      limit?: typeof q.limit;
+    };
+    const filters: ListFilters = {};
     if (q.domain !== undefined) filters.domain = q.domain;
     if (since !== undefined) filters.since = since;
     if (q.limit !== undefined) filters.limit = q.limit;
-    const rows = await getAudit(c).list(tenantId, filters as ListFilters);    return c.json({
+    const rows = await getAudit(c).list(
+      tenantId,
+      filters as unknown as Parameters<ReturnType<typeof getAudit>['list']>[1],
+    );
+    return c.json({
       success: true,
       data: rows,
       meta: { total: rows.length, page: 1, limit: q.limit ?? rows.length },
