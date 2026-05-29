@@ -184,7 +184,25 @@ remaining 20 fully scoped to identified sibling waves.
 
 ---
 
-## 4. Audit boundary — what was NOT counted
+## 4b. New tools landed in this wave (CE-1 + CE-5)
+
+| Tool id | Persona | Stakes | Source |
+|---------|---------|--------|--------|
+| `mining.ui.pin_tab` | owner+admin | medium | `chat-everywhere-tools.ts` |
+| `mining.ui.reorder_tab` | owner+admin | medium | `chat-everywhere-tools.ts` |
+| `mining.ui.remove_tab` | owner+admin | medium | `chat-everywhere-tools.ts` |
+| `mining.ui.export_pdf` | owner+admin | low | `chat-everywhere-tools.ts` |
+| `mining.ui.mark_notification_read` | owner+admin | low | `chat-everywhere-tools.ts` |
+| `owner.connected_agents.revoke` | owner | high | `chat-everywhere-tools.ts` |
+| `undo.last_n` | owner+admin | medium | `undo-chain-tools.ts` |
+| `undo.by_id` | owner+admin | medium | `undo-chain-tools.ts` |
+
+Catalog grew from 126 → 134 brain tools (+8). Owner-cockpit coverage
+of shippable surface lifted from 91.8% → 100% in this wave.
+
+---
+
+## 5b. Audit boundary — what was NOT counted
 
 - Pure presentation actions (paginate, expand, filter, scroll,
   toggle modal, switch tab, lang switch, theme switch, focus,
@@ -198,7 +216,31 @@ mutation surface; the 770→251 filter is the right baseline.
 
 ---
 
-## 5. Verification
+## 5. Wave outcome — CE-1 through CE-7
+
+Final state after this wave's seven scopes:
+
+| Scope | Outcome | Tests |
+|-------|---------|-------|
+| **CE-1** Coverage audit + 6 missing tools | 225 → 231 / 251 = **92.0%** | 20 |
+| **CE-2** Plan-DAG runner + top-5 flows | `services/api-gateway/src/services/orchestration/` shipped | 61 |
+| **CE-3** Voice hands-free | `apps/owner-web/src/components/voice/` shipped + ops doc | 13 |
+| **CE-4** Confirmation gates verified | risk-tier table covers 100% of HIGH-stakes WRITE tools | 5 |
+| **CE-5** Undo from chat | `undo.last_n` + `undo.by_id` brain tools | 11 |
+| **CE-6** Inline block selector | `selectInlineBlock(result, ctx)` chooses block kind | 13 |
+| **CE-7** Evidence-required grounding | `validateEvidenceChain` + plan attach + coverage summary | 11 |
+
+**Total new tests: 134 passing.**
+
+The 20 remaining chat-action gaps are fully scoped to identified
+sibling waves (#198 brain-memory, #199 security-hardening, buyer-
+marketplace, estate WRITE, payroll). Each sibling wave can ship its
+tools into the existing brain-tools registry pattern without
+modifying any file owned by this wave.
+
+---
+
+## 6. Verification
 
 Re-run with:
 
