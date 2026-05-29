@@ -5,6 +5,8 @@ import { apiRequest } from '@/lib/api-client';
 
 export const marketplaceKeys = {
   listings: () => ['marketplace', 'listings'] as const,
+  inboundRfbs: (lat: number, lon: number) =>
+    ['marketplace', 'inbound-rfbs', lat, lon] as const,
 };
 
 /**
@@ -22,6 +24,27 @@ export interface InboundPartner {
   readonly rating: number;
 }
 
+/**
+ * Buyer-initiated RFB visible to the owner's tenant via the geo-nearby
+ * predicate. Surfaces in the marketplace board's inbound column so the
+ * owner can see fresh buyer demand and decide whether to respond.
+ *
+ * Backing endpoint: GET /api/v1/marketplace/rfb/nearby — see
+ * services/api-gateway/src/routes/marketplace/rfb.hono.ts.
+ */
+export interface InboundRfb {
+  readonly id: string;
+  readonly mineralKind: string;
+  readonly tonnageMin: string;
+  readonly tonnageMax: string | null;
+  readonly unitPriceTzs: string;
+  readonly deliveryBy: string;
+  readonly distanceKm: number | null;
+  readonly notes: string | null;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+}
+
 export interface MarketplaceResult {
   readonly outbound: ReadonlyArray<OutboundListing>;
   readonly inbound: ReadonlyArray<InboundPartner>;
@@ -33,6 +56,24 @@ interface RawListing {
   readonly attributes?: Record<string, unknown>;
   readonly price?: { readonly currency?: string; readonly amount?: number };
   readonly status?: string;
+}
+
+interface RawRfbRow {
+  readonly id?: string;
+  readonly mineral_kind?: string;
+  readonly tonnage_min?: string;
+  readonly tonnage_max?: string | null;
+  readonly unit_price_tzs?: string;
+  readonly delivery_by?: string;
+  readonly distance_km?: number | null;
+  readonly notes?: string | null;
+  readonly created_at?: string;
+  readonly expires_at?: string;
+}
+
+interface NearbyRfbsResponse {
+  readonly success: boolean;
+  readonly data?: { readonly rfbs?: ReadonlyArray<RawRfbRow> };
 }
 
 function adaptListings(raw: unknown): MarketplaceResult {
@@ -55,6 +96,24 @@ function adaptListings(raw: unknown): MarketplaceResult {
   return { outbound, inbound: [] };
 }
 
+function adaptInboundRfbs(raw: NearbyRfbsResponse): ReadonlyArray<InboundRfb> {
+  const rows = raw.data?.rfbs ?? [];
+  return rows
+    .filter((r): r is RawRfbRow & { id: string } => typeof r.id === 'string')
+    .map((r) => ({
+      id: r.id,
+      mineralKind: r.mineral_kind ?? 'unknown',
+      tonnageMin: r.tonnage_min ?? '0',
+      tonnageMax: r.tonnage_max ?? null,
+      unitPriceTzs: r.unit_price_tzs ?? '0',
+      deliveryBy: r.delivery_by ?? '',
+      distanceKm: r.distance_km ?? null,
+      notes: r.notes ?? null,
+      createdAt: r.created_at ?? '',
+      expiresAt: r.expires_at ?? '',
+    }));
+}
+
 /**
  * Marketplace listings.
  *
@@ -72,5 +131,32 @@ export function useMarketplaceListings() {
       return adaptListings(raw);
     },
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Buyer-initiated RFBs within the owner's geographic radius. Hits the
+ * cross-tenant RFB nearby endpoint — buyers in any tenant looking for
+ * minerals near the seller's coordinates land here.
+ *
+ * Note: the geo predicate is server-side; the owner's coordinates are
+ * passed as query params. Roadmap: surface a tenant-level default
+ * coordinate from the active site so this hook auto-resolves.
+ */
+export function useInboundRfbs(lat: number, lon: number) {
+  return useQuery({
+    queryKey: marketplaceKeys.inboundRfbs(lat, lon),
+    queryFn: async ({ signal }): Promise<ReadonlyArray<InboundRfb>> => {
+      const raw = await apiRequest<NearbyRfbsResponse>(
+        `/api/v1/marketplace/rfb/nearby?lat=${lat}&lon=${lon}&limit=20`,
+        { signal },
+      );
+      return adaptInboundRfbs(raw);
+    },
+    // Inbound demand changes faster than outbound listings — keep the
+    // cache tight so a new RFB from the cockpit SSE feed re-fetches
+    // promptly on next focus.
+    staleTime: 15_000,
+    enabled: Number.isFinite(lat) && Number.isFinite(lon),
   });
 }

@@ -5,15 +5,37 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Inbox,
   Star,
   TrendingUp,
 } from 'lucide-react';
-import { useMarketplaceListings } from '@/lib/queries/marketplace';
+import {
+  useInboundRfbs,
+  useMarketplaceListings,
+} from '@/lib/queries/marketplace';
 import { fmtUsd } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 
 interface MarketplaceBoardProps {
   readonly locale?: 'sw' | 'en';
+  /**
+   * Owner's site coordinates — RFBs within the seller's geo-radius
+   * land in the inbound column. Defaults to Geita town centroid for
+   * the mock session; the real owner-shell threads the active site's
+   * coordinates here once the session shim is replaced.
+   */
+  readonly siteLat?: number;
+  readonly siteLon?: number;
+}
+
+const GEITA_DEFAULT_LAT = -2.872;
+const GEITA_DEFAULT_LON = 32.158;
+
+function formatTzs(amount: number, isSw: boolean): string {
+  const fmt = new Intl.NumberFormat(isSw ? 'sw-TZ' : 'en-US', {
+    maximumFractionDigits: 0,
+  });
+  return `${fmt.format(amount)} TZS`;
 }
 
 /**
@@ -26,10 +48,16 @@ interface MarketplaceBoardProps {
  * clock for each open parcel. Inbound stays mock-only (no gateway
  * endpoint yet — LATER(#20), see KI-DEBT-003).
  */
-export function MarketplaceBoard({ locale = 'en' }: MarketplaceBoardProps): JSX.Element {
+export function MarketplaceBoard({
+  locale = 'en',
+  siteLat = GEITA_DEFAULT_LAT,
+  siteLon = GEITA_DEFAULT_LON,
+}: MarketplaceBoardProps): JSX.Element {
   const isSw = locale === 'sw';
   const query = useMarketplaceListings();
+  const inboundQuery = useInboundRfbs(siteLat, siteLon);
   const data = query.data;
+  const inboundRfbs = inboundQuery.data ?? [];
 
   const metrics = useMemo<readonly MetricTile[]>(() => {
     if (!data) return [];
@@ -151,41 +179,75 @@ export function MarketplaceBoard({ locale = 'en' }: MarketplaceBoardProps): JSX.
         <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                {isSw ? 'Inbound — huduma' : 'Inbound (buy)'}
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Inbox className="h-4 w-4 text-signal-500" />
+                {isSw ? 'RFB za wanunuzi' : 'Inbound buyer RFBs'}
               </h2>
               <p className="text-xs text-neutral-400">
                 {isSw
-                  ? `${data.inbound.length} watoa huduma waliothibitishwa`
-                  : `${data.inbound.length} verified service providers`}
+                  ? `${inboundRfbs.length} maombi ya wanunuzi karibu nawe`
+                  : `${inboundRfbs.length} buyer requests within radius`}
               </p>
             </div>
           </header>
-          {data.inbound.length === 0 ? (
+          {inboundQuery.isPending ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? 'Hakuna watoa huduma.' : 'No inbound providers.'}
+              {isSw ? 'Inapakia RFB…' : 'Loading RFBs…'}
+            </p>
+          ) : inboundQuery.isError ? (
+            <p className="px-5 py-6 text-sm text-destructive">
+              {isSw
+                ? 'Imeshindwa kupata RFB za wanunuzi.'
+                : 'Failed to load buyer RFBs.'}
+            </p>
+          ) : inboundRfbs.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-neutral-500">
+              {isSw
+                ? 'Hakuna maombi mapya ya wanunuzi sasa hivi.'
+                : 'No new buyer requests right now.'}
             </p>
           ) : (
             <ul className="divide-y divide-border/60">
-              {data.inbound.map((i) => (
-                <li
-                  key={i.partner}
-                  className="flex items-center justify-between gap-3 px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {i.partner}
+              {inboundRfbs.map((rfb) => {
+                const tonnage = Number(rfb.tonnageMin);
+                const unitTzs = Number(rfb.unitPriceTzs);
+                const totalTzs = Number.isFinite(tonnage * unitTzs)
+                  ? tonnage * unitTzs
+                  : 0;
+                const distance =
+                  rfb.distanceKm != null && Number.isFinite(rfb.distanceKm)
+                    ? `${rfb.distanceKm.toFixed(0)} km`
+                    : isSw
+                      ? 'Mbali isiyojulikana'
+                      : 'Distance unknown';
+                return (
+                  <li
+                    key={rfb.id}
+                    className="flex items-start justify-between gap-3 px-5 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {rfb.mineralKind} · {tonnage} t
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
+                        <span className="font-mono">{formatTzs(totalTzs, isSw)}</span>
+                        <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
+                          {distance}
+                        </span>
+                      </div>
+                      {rfb.notes ? (
+                        <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
+                          {rfb.notes}
+                        </p>
+                      ) : null}
                     </div>
-                    <div className="mt-0.5 text-xs text-neutral-400">
-                      {i.service}
-                    </div>
-                  </div>
-                  <div className="inline-flex items-center gap-1 text-xs text-warning">
-                    <Star className="h-3.5 w-3.5 fill-warning" />
-                    {i.rating.toFixed(1)}
-                  </div>
-                </li>
-              ))}
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-badge font-medium text-signal-500">
+                      <Clock className="h-3 w-3" />
+                      {isSw ? 'Mpya' : 'New'}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

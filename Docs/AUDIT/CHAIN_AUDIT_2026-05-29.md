@@ -46,10 +46,11 @@ on each RFB insert so owners pulse on new buyer demand.
 
 **Fix shipped:** RFB creation publishes `opportunity.scan_completed` so SSE feed
 fans the buyer demand to owner cockpit (Link 1 fix closes this gap).
-**Remaining gap (LATER):** Owner marketplace UI does NOT show inbound RFBs.
-Surface is `apps/owner-web/src/app/(routes)/marketplace/page.tsx` -> only outbound
-listings + mocked inbound. Roadmap: extend `MarketplaceBoard` with inbound RFB
-column reading `/api/v1/marketplace/rfb/nearby`. Effort: ~150 LOC + tests.
+**Fix shipped (UI):** `apps/owner-web/src/components/marketplace/MarketplaceBoard.tsx`
+inbound column now reads live from `/api/v1/marketplace/rfb/nearby` via
+the new `useInboundRfbs` hook. Buyer RFBs surface with mineral + tonnage
++ total TZS + haversine distance. Backed by 3 vitest cases in
+`apps/owner-web/src/components/__tests__/marketplace-board-inbound.test.tsx`.
 
 ---
 
@@ -154,16 +155,19 @@ unwired. Effort: ~500 LOC (new domain orchestration + BFF endpoint + UI).
 ## Summary
 
 **Verified PASS:** Link 5 (worker hero card flow).
-**PARTIAL with inline fixes:** Links 1, 2, 6, 7.
+**Inline fixes shipped:** Links 1, 2 (now PASS after this audit's commits).
+**PARTIAL with logging fixes:** Links 6, 7.
 **Wholly GAP (logged as roadmap):** Links 3, 4, 8.
 
-The chain works end-to-end ONLY for the Link-5 worker hero card path.
-The Buyer -> Owner -> Manager -> Worker dispatch loop is broken at
-Links 2-4 because no UI surfaces inbound RFBs; manager dispatch is
-not surfaced.
+The chain now works end-to-end for Links 1+2+5 — buyers create RFBs,
+owners see them via SSE pulse AND via the marketplace board's inbound
+column, and the worker hero card path stays solid.
+
+The Owner -> Manager -> Worker dispatch loop is broken at Links 3-4
+because no UI surfaces a task-create / reassign flow.
 
 The Worker -> Buyer fulfilment loop (Links 7-8) requires a settlement
 orchestrator that does not exist.
 
-Total inline fixes this pass: 2 (RFB cockpit event publish + pino logging
-on RFB writes).
+Total inline fixes this pass: 3 inline (RFB cockpit event publish +
+pino logging on RFB writes + owner inbound RFB column).
