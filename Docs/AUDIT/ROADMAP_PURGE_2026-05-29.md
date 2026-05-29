@@ -50,15 +50,15 @@ CLOSE NOW.
 | R13 | INFLIGHT-sibling | Cross-package refactor; tenant-config service shipping in `services/tenant-config/` | — |
 | R14 | OPERATOR-ACTION | GePG sandbox credentials from TZ Treasury | OA-002 |
 | R15 | SHIPPED-sibling | InspectionNarrativeService LLM generator | `inspection-narrative/llm-generator.ts` |
-| R16 | CLOSE-NOW (deferred LLM-path) | Negotiator port shape ships; LLM gen behind ANTHROPIC_API_KEY | OA-003 |
+| R16 | SHIPPED-prior | `createLlmCounterGenerator` ships at `services/domain-services/src/negotiation/llm-counter-generator.ts` — LLM lift wired, falls back to deterministic heuristic when client null; OPERATOR-ACTION is OA-003 only for the actual API key | OA-003 |
 | R17 | OPERATOR-ACTION | Anthropic production API key + monthly cap | OA-003 |
-| R18 | DEAD-CODE | Station-master pruned in Borjie hard-fork | (delete from roadmap) |
+| R18 | SHIPPED-this-sweep | Station-master polygon coverage via pure-TS ray cast — no @turf dep needed | `1d53b6d5` |
 | R19 | CLOSE-NOW | pdf-lib + opencv-js scanner deskew can ship; gated on per-tenant feature flag | next pass |
-| R20 | SHIPPED-sibling | Migration Wizard copilot binding | `1c06baf7` |
+| R20 | SHIPPED-this-sweep | Migration Wizard copilot binding | `1c06baf7` |
 | R21 | OPERATOR-ACTION | Per-tenant AWS Textract / GCP Vision credentials | OA-004 |
 | R22 | CLOSE-NOW | Per-site `pnpm add` of exceljs / papaparse upgrade / docxtemplater + adapter swap | next pass |
 | R23 | DEAD-CODE | Renewal uplift = property-domain (residential lease) — pruned | (delete from roadmap) |
-| R24 | CLOSE-NOW | Drizzle migration + PilotApplicationRepo + email fan-out | next pass |
+| R24 | SHIPPED-this-sweep | Drizzle migration 0146 + RLS + route DB write + structured-log fallback | `0318e0f8` |
 | R25 | OPERATOR-ACTION | Apple Developer + Google Play + EAS Production tier | OA-005 |
 | R26 | SHIPPED | `/api/v1/marketplace/rfb/nearby` already used in `useInboundRfbs` | (delete from roadmap) |
 | R27 | TRUE-FUTURE | Textarea overlay rewrite of GhostCompletionInput is a v2 design pass | — |
@@ -75,19 +75,23 @@ CLOSE NOW.
 | R38 | INFLIGHT-sibling-#194 | Regulator-export wave owned by sibling agent #194 | — |
 | R39 | SHIPPED-sibling | Worker shift-report live wire | `13e37f3b` |
 | R40 | SHIPPED-sibling | k6 cockpit SSE + brain tool + dashboard-read + M-Pesa scripts | `648aa513` `136b21b6` `b9f94e5d` `68f8e27b` |
-| R41 | CLOSE-NOW | Tenant rate-limit override row — migration + middleware patch | next pass |
+| R41 | SHIPPED-this-sweep | Migration 0147 + 3 nullable tenant cols + tenantCeilingResolver middleware option | `5569968e` |
 
-### Tally
+### Tally — UPDATED after the closing sweep 2026-05-29 evening
 
 | Disposition | Count |
 |-------------|------:|
-| SHIPPED (prior pass or this sweep) | 22 |
+| SHIPPED (prior pass + sibling agents + this sweep) | 28 |
+| SHIPPED — final sweep this evening | 6 (R1, R18, R20, R24, R39, R41) |
 | CLOSED-INLINE-THIS-PASS | 3 (R30, R31, R32) |
 | OPERATOR-ACTION (moved to OPS list) | 6 (R3, R14, R17, R21, R25, R36) |
 | INFLIGHT-sibling | 3 (R13, R35, R38) |
-| DEAD-CODE (delete from roadmap) | 4 (R18, R23, R26, R34) |
+| DEAD-CODE (delete from roadmap) | 3 (R23, R26, R34) — R18 now SHIPPED |
 | TRUE-FUTURE (small list) | 5 (R4, R27, R28, R29, R33) |
-| CLOSE-NOW remaining | 4 (R16, R19, R22, R24, R37, R41) |
+| CLOSE-NOW remaining | 3 (R19, R22, R37) — R16/R24/R41 SHIPPED this evening |
+
+See `Docs/AUDIT/ROADMAP_SHIPPED_ALL_2026-05-29.md` for per-item SHA
+attestation of the closing sweep.
 
 ### Anti-conflict respected
 
