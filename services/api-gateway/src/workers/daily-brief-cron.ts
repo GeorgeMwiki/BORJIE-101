@@ -44,6 +44,7 @@ import {
   workerHeartbeat,
   workerHeartbeatFailure,
 } from './worker-heartbeat';
+import { withWorkerTenantContext } from './with-tenant-context.js';
 import type {
   EmailProvider,
   SmsProvider,
@@ -1083,39 +1084,47 @@ async function appendDispatchAuditEntry(args: {
     status: args.result.status,
     providerMessageId: args.result.providerMessageId ?? null,
   });
-  await args.db.execute(sql`
-    WITH prev AS (
-      SELECT this_hash, sequence_id
-        FROM ai_audit_chain
-       WHERE tenant_id = ${args.tenantId}
-       ORDER BY sequence_id DESC
-       LIMIT 1
-    )
-    INSERT INTO ai_audit_chain
-      (id, tenant_id, sequence_id, turn_id, session_id, action,
-       prev_hash, this_hash, payload_ref, payload, created_at)
-    VALUES (
-      ${id},
-      ${args.tenantId},
-      COALESCE((SELECT sequence_id FROM prev), 0) + 1,
-      ${turnId},
-      NULL,
-      ${`owner.daily_brief.dispatch.${args.result.status}`},
-      COALESCE((SELECT this_hash FROM prev), ''),
-      encode(sha256(
-        (COALESCE((SELECT this_hash FROM prev), '') || ${payload})::bytea
-      ), 'hex'),
-      NULL,
-      ${payload}::jsonb,
-      now()
-    )
-  `);
-  // Link the dispatch row back to its audit entry.
-  await args.db.execute(sql`
-    UPDATE daily_brief_dispatches
-       SET hash_chain_id = ${id}::uuid
-     WHERE id = ${args.dispatchId}::uuid
-  `);
+  // G-FIX-4 / G8 — wrap the GUC bind + WITH-prev SELECT + INSERT in
+  // BEGIN/COMMIT so the tenant GUC binding is transaction-local. The
+  // ai_audit_chain table is RLS-FORCED; without the GUC bind every
+  // INSERT here would be silently rejected and the chain would gap.
+  // Mirrors the helper used by outcome-reconciliation-worker.
+  await withWorkerTenantContext(args.db, args.tenantId, async () => {
+    await args.db.execute(sql`
+      WITH prev AS (
+        SELECT this_hash, sequence_id
+          FROM ai_audit_chain
+         WHERE tenant_id = ${args.tenantId}
+         ORDER BY sequence_id DESC
+         LIMIT 1
+      )
+      INSERT INTO ai_audit_chain
+        (id, tenant_id, sequence_id, turn_id, session_id, action,
+         prev_hash, this_hash, payload_ref, payload, created_at)
+      VALUES (
+        ${id},
+        ${args.tenantId},
+        COALESCE((SELECT sequence_id FROM prev), 0) + 1,
+        ${turnId},
+        NULL,
+        ${`owner.daily_brief.dispatch.${args.result.status}`},
+        COALESCE((SELECT this_hash FROM prev), ''),
+        encode(sha256(
+          (COALESCE((SELECT this_hash FROM prev), '') || ${payload})::bytea
+        ), 'hex'),
+        NULL,
+        ${payload}::jsonb,
+        now()
+      )
+    `);
+    // Link the dispatch row back to its audit entry. Inside the same
+    // txn so a partial chain append cannot leave a dangling pointer.
+    await args.db.execute(sql`
+      UPDATE daily_brief_dispatches
+         SET hash_chain_id = ${id}::uuid
+       WHERE id = ${args.dispatchId}::uuid
+    `);
+  });
 }
 
 async function recordDispatch(args: {

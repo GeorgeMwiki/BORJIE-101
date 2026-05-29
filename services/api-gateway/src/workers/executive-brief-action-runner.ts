@@ -32,6 +32,7 @@ import {
   type ExecuteJuniorsArgs,
   type JuniorExecutionResult,
 } from '@borjie/ai-copilot';
+import { withWorkerTenantContext } from './with-tenant-context.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types
@@ -387,22 +388,28 @@ async function auditDispatch(db: DbLike, args: AuditDispatchArgs): Promise<void>
       error_text: args.errorText ?? null,
       at: args.now.toISOString(),
     });
-    await db.execute(sql`
-      INSERT INTO ai_audit_chain (
-        id, tenant_id, sequence_id, turn_id, action, prev_hash, this_hash, payload
-      ) VALUES (
-        ${id},
-        ${args.tenantId},
-        COALESCE((SELECT MAX(sequence_id) + 1 FROM ai_audit_chain WHERE tenant_id = ${args.tenantId}), 1),
-        ${args.actionId},
-        ${'executive_brief_action:' + args.outcome},
-        COALESCE((SELECT this_hash FROM ai_audit_chain
-                   WHERE tenant_id = ${args.tenantId}
-                ORDER BY sequence_id DESC LIMIT 1), 'genesis'),
-        ${id},
-        ${payload}::jsonb
-      )
-    `);
+    // G-FIX-4 / G8 — wrap the GUC bind + SELECT-head + INSERT in
+    // BEGIN/COMMIT so the tenant GUC binding is transaction-local.
+    // ai_audit_chain is RLS-FORCED; without the GUC bind every INSERT
+    // here would be silently rejected and the chain would gap.
+    await withWorkerTenantContext(db, args.tenantId, async () => {
+      await db.execute(sql`
+        INSERT INTO ai_audit_chain (
+          id, tenant_id, sequence_id, turn_id, action, prev_hash, this_hash, payload
+        ) VALUES (
+          ${id},
+          ${args.tenantId},
+          COALESCE((SELECT MAX(sequence_id) + 1 FROM ai_audit_chain WHERE tenant_id = ${args.tenantId}), 1),
+          ${args.actionId},
+          ${'executive_brief_action:' + args.outcome},
+          COALESCE((SELECT this_hash FROM ai_audit_chain
+                     WHERE tenant_id = ${args.tenantId}
+                  ORDER BY sequence_id DESC LIMIT 1), 'genesis'),
+          ${id},
+          ${payload}::jsonb
+        )
+      `);
+    });
   } catch {
     // Audit is best-effort — never block the queue tick on an audit
     // write failure. The action's outcome row is the source of truth.
