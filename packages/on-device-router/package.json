@@ -1,0 +1,25 @@
+{
+  "name": "@borjie/on-device-router",
+  "version": "0.0.1",
+  "license": "MIT",
+  "description": "Pre-network intent router stub (Roadmap R4). DO NOT BUILD UNTIL Q4 2026 — see Docs/research/ON_DEVICE_MINILM_ROUTER.md.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "files": ["dist"],
+  "devDependencies": {
+    "typescript": "5.4.5",
+    "vitest": "4.1.6"
+  }
+}
