@@ -94,6 +94,11 @@ import { savedSearchesRouter } from './routes/owner/saved-searches.hono';
 // Roadmap R7 — owner-mobile cockpit hub aggregator (brief + decisions +
 // opportunities + risks + reminders) under /owner/cockpit/hub.
 import { cockpitHubRouter } from './routes/owner/cockpit-hub.hono';
+// Roadmap R6 — cockpit live SSE push. Multiplexes six event kinds
+// (decision.recorded / reminder.fired / opportunity.scan_completed /
+// risk.changed / workforce.shift_event / compliance.deadline_approaching)
+// onto /api/v1/cockpit/stream, auto-scoped to the auth.tenantId.
+import { cockpitStreamRouter } from './routes/cockpit-stream.hono';
 // Roadmap R8 — universal personal-KB UI surfaces. Routes:
 //   GET /me/persons/links
 //   GET /me/persons/:personId/cells
@@ -106,6 +111,9 @@ import { brainComposeRouter } from './routes/brain-compose.hono';
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
 import { workforceClockInRouter } from './routes/workforce/clock-in.hono';
+// R5 closure — field-workforce hero card data wires
+// (GET /me, /tasks/next, POST /tasks/:id/complete, /help-requests).
+import { fieldWorkforceRouter } from './routes/field/workforce.hono';
 import { brainRouter } from './routes/brain.hono';
 // Borjie HOME teaching chat — /api/v1/brain/teach. Surpasses LitFin's
 // /api/chat/exploration register with multi-block teaching, 5-step
@@ -435,6 +443,11 @@ import { createDecisionRecorder } from './services/decision-journal/recorder';
 // workforce_certifications for any active cert expiring in <= 30d
 // and auto-creates reminders at 30d / 14d / 3d (idempotent).
 import { createIcaCertExpiryCron } from './workers/ica-cert-expiry-cron';
+// Roadmap R6 — hourly compliance-deadline scanner. Emits a
+// `compliance.deadline_approaching` cockpit event for every
+// regulatory_filings row whose due_at lands inside the 7-day
+// horizon and whose status is open / in_progress.
+import { createComplianceDeadlineScan } from './workers/compliance-deadline-scan.worker';
 // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
 // references every entity in the system so the brain can resolve any
 // natural-language phrase to a concrete row and traverse the entity
@@ -731,6 +744,26 @@ app.use(
         redis: client,
         logger: {
           warn: (meta, msg) => logger.warn(meta as object, msg),
+        },
+        // G5 — robustness 2026-05-29. Every Redis fallback gets
+        // captured to Sentry so on-call sees the degraded mode
+        // light up. The hook resolves the sentry client lazily so
+        // boot order doesn't trip the wire.
+        sentryCapture: (err, ctx) => {
+          try {
+            // Lazy require — sentry init happens later in this boot
+            // sequence so a top-of-file import would resolve before
+            // the DSN is wired.
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const obs = require('@borjie/observability') as {
+              getSentry?: () => {
+                captureException: (err: unknown, ctx?: unknown) => void;
+              };
+            };
+            obs.getSentry?.().captureException(err, ctx);
+          } catch {
+            // Sentry hook bugs must never break the request pipeline.
+          }
         },
       });
     } catch (err) {
@@ -1154,6 +1187,33 @@ const deepHealthHandler = createDeepHealthHandler({
     openaiProbe(process.env.OPENAI_API_KEY),
     elevenLabsProbe(process.env.ELEVENLABS_API_KEY),
     gepgProbe(process.env.GEPG_HEALTH_URL),
+    // G5 — robustness 2026-05-29. Pure introspection probe — reads
+    // the in-process rate-limit Redis status flag (toggled by the
+    // middleware on every fallback) and surfaces it as `degraded`
+    // when the gateway is currently in fallback mode. No live Redis
+    // call; this is the gateway's own view of whether its rate-
+    // limiter is talking to Redis successfully.
+    {
+      name: 'rate-limit-redis',
+      optional: true,
+      timeoutMs: 100,
+      run: async () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const mod = require('./middleware/rate-limit-redis.middleware') as {
+          getRateLimitRedisStatus: () => {
+            status: 'up' | 'down' | 'unknown';
+            fallbackCount: number;
+            lastError: string | null;
+          };
+        };
+        const s = mod.getRateLimitRedisStatus();
+        if (s.status === 'down') {
+          throw new Error(
+            `rate-limit redis fallback in effect — fallbackCount=${s.fallbackCount} lastError=${s.lastError ?? 'n/a'}`,
+          );
+        }
+      },
+    },
   ],
 });
 app.get('/api/v1/health/deep', (req, res) => {
@@ -1245,6 +1305,8 @@ api.route('/owner/threads', ownerThreadsRouter);
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Roadmap R7 — owner-mobile cockpit hub aggregator.
 api.route('/owner/cockpit', cockpitHubRouter);
+// Roadmap R6 — cockpit live SSE push.
+api.route('/cockpit', cockpitStreamRouter);
 // Roadmap R8 — personal-KB UI surfaces. The router carries the full
 // path segments inside (/me/* + /brain/personal-kb/search) so mount at
 // root rather than under a prefix.
@@ -1255,6 +1317,9 @@ api.route('/brain', brainComposeRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
 api.route('/workforce', workforceClockInRouter);
+// R5 closure — field-workforce hero card surface
+// (apps/workforce-mobile/src/components/WorkerHomeHero.tsx).
+api.route('/field/workforce', fieldWorkforceRouter);
 api.route('/brain', brainRouter);
 // Sibling /brain mount for the teaching chat — Hono composes both
 // routers under the same prefix; brainRouter already owns /turn,
@@ -1971,6 +2036,22 @@ const icaCertExpiryCron = serviceRegistry.db
       },
     };
 
+// Roadmap R6 — hourly compliance-deadline scanner. Emits a
+// `compliance.deadline_approaching` cockpit event for every
+// regulatory_filings row whose due_at lands inside the 7-day horizon.
+const complianceDeadlineScan = serviceRegistry.db
+  ? createComplianceDeadlineScan({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return { scanned: 0, emitted: 0 };
+      },
+    };
+
 // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
 // references every entity in the system so the brain can resolve any
 // natural-language phrase to a concrete row and traverse the entity
@@ -2214,6 +2295,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: ica-cert-expiry cron stop failed');
   }
   try {
+    complianceDeadlineScan.stop();
+    logger.info('shutdown: compliance-deadline-scan cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: compliance-deadline-scan cron stop failed');
+  }
+  try {
     entityIndexerWorker.stop();
     logger.info('shutdown: entity-indexer worker stopped');
   } catch (err) {
@@ -2360,6 +2447,10 @@ if (require.main === module) {
   // and auto-creates reminders at 30d / 14d / 3d (idempotent via
   // UNIQUE(tenant_id, cert_id, days_before)).
   icaCertExpiryCron.start();
+  // Roadmap R6 — hourly compliance-deadline scanner. Pushes
+  // `compliance.deadline_approaching` events for filings whose
+  // due_at lands inside the 7-day horizon.
+  complianceDeadlineScan.start();
   // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
   // references every entity in the system so the brain can resolve any
   // natural-language phrase and traverse the graph in one hop.

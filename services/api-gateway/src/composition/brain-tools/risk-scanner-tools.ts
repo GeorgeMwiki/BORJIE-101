@@ -44,6 +44,7 @@ import {
   scanRisks,
   type RiskScannerDeps,
 } from '../../services/risk-scanner';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import type { PersonaToolDescriptor } from './types';
 
 const OWNER_AND_ADMIN: ReadonlyArray<
@@ -169,6 +170,24 @@ export const riskScanTool: PersonaToolDescriptor<
     }
     const risks = await scanRisks(ctx.tenantId, deps, options);
     const nowIso = (deps.now?.() ?? new Date()).toISOString();
+
+    // R6 — cockpit SSE notify. Push only the highest-severity new
+    // risk; the owner-web toast shows the severity badge so a flood
+    // of low-severity items doesn't drown the channel.
+    if (risks.length > 0) {
+      const top = risks[0];
+      if (top) {
+        publishCockpitEvent({
+          kind: 'risk.changed',
+          tenantId: ctx.tenantId,
+          emittedAt: nowIso,
+          riskId: top.id,
+          severity: top.severity,
+          previousSeverity: null,
+        });
+      }
+    }
+
     return {
       generatedAt: nowIso,
       risks: risks.map((r) => ({

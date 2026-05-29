@@ -25,6 +25,7 @@ import { sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import { withSecurityEvents } from '@borjie/observability';
 
 const PRODUCTION_BIOMETRIC_PROVIDERS = [
@@ -155,6 +156,18 @@ app.post(
          LIMIT 1
       `);
       const row = (fetched as unknown as Record<string, unknown>[])[0];
+
+      // R6 — cockpit SSE notify. Shift_start emitted right after
+      // the row landed so the cockpit dot ticks within the same RT
+      // window as the kiosk audit-log.
+      publishCockpitEvent({
+        kind: 'workforce.shift_event',
+        tenantId: auth.tenantId,
+        emittedAt: new Date().toISOString(),
+        workerId: body.employeeId,
+        transition: 'shift_start',
+      });
+
       return c.json({ success: true, data: row }, 201);
     },
   ),
@@ -181,7 +194,7 @@ app.post(
       const closedAt = new Date().toISOString();
 
       const existing = await db.execute(sql`
-        SELECT clocked_out_at FROM clock_in_events
+        SELECT clocked_out_at, employee_id FROM clock_in_events
          WHERE id = ${eventId}::uuid AND tenant_id = ${auth.tenantId}::uuid
          LIMIT 1
       `);
@@ -222,6 +235,22 @@ app.post(
          LIMIT 1
       `);
       const row = (fetched as unknown as Record<string, unknown>[])[0];
+
+      // R6 — cockpit SSE notify. employee_id from the existingRow
+      // read above is the canonical worker for this shift.
+      const workerId = (existingRow as { employee_id?: string }).employee_id
+        ?? (row as { employee_id?: string } | undefined)?.employee_id
+        ?? null;
+      if (workerId) {
+        publishCockpitEvent({
+          kind: 'workforce.shift_event',
+          tenantId: auth.tenantId,
+          emittedAt: closedAt,
+          workerId,
+          transition: 'shift_end',
+        });
+      }
+
       return c.json({ success: true, data: row });
     },
   ),

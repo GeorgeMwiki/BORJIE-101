@@ -36,6 +36,7 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 
+import { publishCockpitEvent } from '../services/cockpit-events';
 import {
   type EmailProvider,
   type SmsProvider,
@@ -186,6 +187,16 @@ export function createRemindersDispatchWorker(
            AND tenant_id = ${r.tenantId}
            AND dispatched_at IS NULL
       `);
+      // R6 — cockpit SSE notify. Emit only AFTER the DB row flipped to
+      // 'sent' so the toast cannot show before the channel acks.
+      publishCockpitEvent({
+        kind: 'reminder.fired',
+        tenantId: r.tenantId,
+        emittedAt: now().toISOString(),
+        reminderId: r.id,
+        title: r.title,
+        channel: r.channel,
+      });
     } catch (err) {
       options.logger.warn(
         { worker: 'reminders-dispatch', reminderId: r.id, err: err instanceof Error ? err.message : String(err) },

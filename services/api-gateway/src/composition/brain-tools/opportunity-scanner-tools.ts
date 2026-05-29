@@ -45,6 +45,7 @@ import {
   scanOpportunities,
   type ScanStateResolverDb,
 } from '../../services/opportunity-scanner';
+import { publishCockpitEvent } from '../../services/cockpit-events';
 import type { PersonaToolDescriptor } from './types';
 
 const OWNER_AND_ADMIN: ReadonlyArray<
@@ -139,6 +140,20 @@ export const opportunityScanTool: PersonaToolDescriptor<
       (options as { scopeIds?: ReadonlyArray<string> }).scopeIds = input.scopeIds;
     }
     const opportunities = scanOpportunities(state, options);
+
+    // R6 — cockpit SSE notify. We push only when at least one
+    // opportunity surfaced so the toast carries actionable signal.
+    if (opportunities.length > 0) {
+      const top = opportunities[0];
+      publishCockpitEvent({
+        kind: 'opportunity.scan_completed',
+        tenantId: ctx.tenantId,
+        emittedAt: state.nowIso,
+        opportunityCount: opportunities.length,
+        topExpectedValueTzs: top?.expectedValueTzs ?? 0,
+      });
+    }
+
     return {
       generatedAt: state.nowIso,
       opportunities: opportunities.map((o) => ({
