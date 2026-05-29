@@ -189,3 +189,13 @@ export type {
   CapabilityTopic,
   CapabilityVisibility,
 } from './capabilities/index.js';
+
+// ── JA-3 — Jurisdiction-aware capability resolution ──────────────────
+export {
+  CAPABILITY_JURISDICTION_OVERRIDES,
+  getCapabilityOverride,
+  hasJurisdictionOverrides,
+  listCapabilitiesWithOverrides,
+  resolveCapabilityForJurisdiction,
+  type CapabilityJurisdictionOverride,
+} from './capabilities/index.js';
