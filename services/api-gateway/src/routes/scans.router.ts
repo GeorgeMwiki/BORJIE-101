@@ -379,6 +379,103 @@ app.post('/bundles/:id/ocr', withSecurityEvents({ action: 'scan.create', resourc
 }));
 
 // ---------------------------------------------------------------------------
+// POST /bundles/:id/assemble — R19 deskew decision + PDF assembly plan.
+//
+// Feature-flagged on `SCAN_PIPELINE_ASSEMBLE_ENABLED`. When the flag is
+// off (default) the endpoint returns 503 with a clear envelope so the
+// scanner UI can fall back to its existing one-page-per-upload flow.
+// ---------------------------------------------------------------------------
+app.post('/bundles/:id/assemble', withSecurityEvents({ action: 'scan.create', resource: 'scan', severity: 'info' }, async (c: any) => {
+  if (process.env.SCAN_PIPELINE_ASSEMBLE_ENABLED !== 'true') {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'FEATURE_DISABLED',
+          message: 'Set SCAN_PIPELINE_ASSEMBLE_ENABLED=true to enable the multi-page assembler.',
+        },
+      },
+      503,
+    );
+  }
+  const services = c.get('services');
+  const db = services?.db;
+  if (!db) return notConfigured(c);
+  const tenantId = c.get('tenantId');
+  const bundleId = c.req.param('id');
+
+  const [bundle] = await db
+    .select()
+    .from(scanBundles)
+    .where(
+      and(eq(scanBundles.id, bundleId), eq(scanBundles.tenantId, tenantId))
+    )
+    .limit(1);
+  if (!bundle) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Bundle not found' } },
+      404
+    );
+  }
+  if (bundle.pageCount === 0) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NO_PAGES', message: 'Bundle has no pages to assemble' },
+      },
+      400
+    );
+  }
+
+  const pages = await db
+    .select()
+    .from(scanBundlePages)
+    .where(
+      and(
+        eq(scanBundlePages.bundleId, bundle.id),
+        eq(scanBundlePages.tenantId, tenantId),
+      ),
+    );
+
+  // Lazy-loaded so the helper module is only imported when the flag is on.
+  const { decideDeskewForPages } = await import(
+    '../services/scan-pipeline/deskew.js'
+  );
+
+  const deskewPlan = decideDeskewForPages(
+    pages.map((p: any) => ({
+      pageNumber: p.pageNumber,
+      quad: p.quad,
+    })),
+  );
+
+  const now = new Date();
+  const processingLog = [
+    ...((bundle.processingLog as any[]) ?? []),
+    {
+      step: 'assemble_planned',
+      at: now.toISOString(),
+      detail: `pages=${pages.length} deskew=${deskewPlan.filter((d) => !d.skipped).length}`,
+    },
+  ];
+  await db
+    .update(scanBundles)
+    .set({ processingLog, updatedAt: now })
+    .where(
+      and(eq(scanBundles.id, bundle.id), eq(scanBundles.tenantId, tenantId))
+    );
+
+  return c.json({
+    success: true,
+    data: {
+      bundleId: bundle.id,
+      pageCount: pages.length,
+      deskewPlan,
+    },
+  });
+}));
+
+// ---------------------------------------------------------------------------
 // POST /bundles/:id/submit — finalize + freeze the bundle.
 // ---------------------------------------------------------------------------
 app.post(
