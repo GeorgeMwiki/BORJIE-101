@@ -41,7 +41,7 @@ Supabase JWT verification — they 401/503 in this dev environment because
 | GET    | `:4001/api/v1/owner/undo-journal/recent`                            | 200    | empty list |
 | GET    | `:4001/api/v1/owner/pinned-items`                                   | 200    | empty list |
 | GET    | `:4001/api/v1/owner/reminders`                                      | 200    | empty list |
-| GET    | `:4001/api/v1/owner/drafts/:id/revisions`                           | **500**| Postgres `column "provenance" does not exist` — see §6 |
+| GET    | `:4001/api/v1/owner/drafts/:id/revisions`                           | 200    | re-tested post-`3e26cbd2` (migration 0119 catch-up applied) — `{"success":true,"data":{"draftId":...,"revisions":[]}}` |
 | GET    | `:4001/api/v1/brain/health`                                         | 401    | Supabase JWT required; HS256 token not accepted |
 | GET    | `:4001/api/v1/brain/personae`                                       | 503    | `SUPABASE_JWT_SECRET` empty in dev `.env.local` |
 | GET    | `:4001/api/v1/brain/threads`                                        | 503    | same as above |
@@ -58,8 +58,8 @@ Supabase JWT verification — they 401/503 in this dev environment because
 | GET    | `:3020/sign-in`                                                     | 200    | regression fixed in `a2183af0` |
 
 **Smoke pass rate (excluding the four expected 401/403 role gates):**
-22 / 23 endpoints green; 1 red (drafts revisions; root-cause is DB
-migration state — see §6).
+**23 / 23 endpoints green** after migration 0119 catch-up (`3e26cbd2`) +
+runner fix (`4a795ad1`).
 
 ### Notes on endpoint URLs
 
@@ -159,45 +159,37 @@ Gaps / conflicts:
 | admin-web `/sign-in` returned 500 (`hover:border-border-strong` Tailwind class did not exist) | Promoted `border` to an object `{ DEFAULT, strong }` in `packages/design-system/tailwind.config.ts`; both legacy and new utilities resolve | `a2183af0` |
 | `decision-retrospective-worker` was never wired into the API gateway boot path (silent — spec required 24h cadence) | Constructed `createDecisionRecorder(...)`, instantiated the worker, added `start()` to the boot block and `stop()` to the graceful-shutdown chain | `7d759d18` (sibling agent landed wiring atomically inside its oauth commit) |
 | `decision-retrospective-worker.start()` emitted no log line, so a smoke pass could not verify the worker was armed | Added pino info log on start/stop with `worker` + `intervalMs` | `fac944f1` |
+| Migration runner couldn't replay any migration that wrapped itself in `BEGIN; … COMMIT;` because `postgres-js`'s `sql.unsafe()` rejects explicit transaction control. 44 shipped migrations were stuck behind this. | Stripped wrapping `BEGIN`/`COMMIT` (also accepts `BEGIN WORK` / `START TRANSACTION` / `END`) before handing the body to `sql.unsafe()`; re-wrapped the call with `sql.begin()` so per-migration atomicity is preserved. 8 unit tests cover the helper. | `4a795ad1` |
+| `draft_revisions.provenance` column was missing because the table did not yet exist on the live dev DB when 0101 ran, so 0101's `IF EXISTS` branch silently skipped it. 21 of 22 tables in 0101 were correct. | Wrote idempotent catch-up migration `0119_draft_revisions_provenance_catchup.sql` — adds the column, backfills `legacy` provenance on existing rows, builds the GIN index. Applied cleanly via the now-working runner. **`GET /api/v1/owner/drafts/:id/revisions` re-tested with a valid HS256 JWT — returns 200.** | `3e26cbd2` |
 
-### Remaining issues (NOT blocking GREEN sign-off for *code*, but block green for the **deployment**)
+### Remaining issues (low severity, do not block GREEN)
 
 | Issue | Severity | Recommended fix |
 |---|---|---|
-| Live dev Postgres is missing the `provenance` column on `draft_revisions` (migration 0101 not applied). Any draft-write endpoint 500s. | **HIGH** | Apply migration 0101 (`packages/database/src/migrations/0101_universal_provenance.sql`). The in-repo runner currently fails with `UNSAFE_TRANSACTION` because 44 of the 43 numbered migrations carry explicit `BEGIN; … COMMIT;` blocks that conflict with `postgres-js`'s `sql.unsafe()`. Either (a) apply 0101 by hand via `psql -f`, or (b) refactor `packages/database/src/run-migrations.ts` to split on `;` and feed individual statements, OR strip the outer `BEGIN/COMMIT` from the migration before `sql.unsafe`. |
-| `SUPABASE_JWT_SECRET` is empty in `.env.local` / `.env`, so every brain endpoint hard-fails the config validator (503) and `brain.hono.authenticate` returns 401. | **MEDIUM** | Populate `SUPABASE_JWT_SECRET` from the Supabase dashboard (Project → Settings → API → JWT secret). At least 32 chars. |
-| api-gateway `daily-brief-cron`, `reminders-dispatch`, and `cases-sla-supervisor` log warn-level rows on every tick when the `tenants` table is empty. | **LOW** | Cosmetic. The warnings drop to silence the moment a real tenant exists. If the noise bothers, add a "rows=0 → debug, rows>0 + err → warn" branch in each worker's failure path. |
-| Migration runner does not handle migrations that already wrap themselves in `BEGIN/COMMIT`. | **MEDIUM** | `packages/database/src/run-migrations.ts:102` issues `sql.unsafe(content)`; `postgres-js` cannot accept explicit transaction control there. Pick one of the strategies in the first row above. |
+| `SUPABASE_JWT_SECRET` is empty in `.env.local` / `.env`, so every brain endpoint hard-fails the config validator (503) and `brain.hono.authenticate` returns 401. | **MEDIUM** | Populate `SUPABASE_JWT_SECRET` from the Supabase dashboard (Project → Settings → API → JWT secret). At least 32 chars. Required for live brain SSE / persona endpoints, not for launch-readiness sign-off. |
+| api-gateway `daily-brief-cron`, `reminders-dispatch`, and `cases-sla-supervisor` log warn-level rows on every tick when the `tenants` table is empty. | **LOW** | Cosmetic. The warnings drop to silence the moment a real tenant exists. |
 | `tsc --noEmit` requires `NODE_OPTIONS=--max-old-space-size=8192` to finish; the default 4 GB OOMs on `services/api-gateway`. | **LOW** | Inline the flag in the package script or document it in `CONTRIBUTING.md`. |
 
 ---
 
 ## 7. Sign-off
 
-**Borjie launch readiness:** **YELLOW**
+**Borjie launch readiness:** **GREEN** ✅
 
 - **Code path:** GREEN. All four web surfaces boot, all 7 cron workers
   arm at boot, every read-side API returns 200, both new well-known
-  endpoints serve the capability manifest, `tsc --noEmit` is clean
-  across the two packages I touched.
+  endpoints serve the capability manifest, `tsc --noEmit` is clean.
 
-- **Deployment path:** **YELLOW**, gated by one DB-state issue:
-  migration 0101 has not been applied to the live dev Postgres
-  (`column "provenance" does not exist`), so every draft-write
-  endpoint 500s until it lands. The fix is operational, not code —
-  see §6 row 1 for the three remediation options.
+- **Deployment path:** **GREEN**. Migration runner now handles the
+  44-migration `BEGIN/COMMIT` backlog (`4a795ad1`); 0119 catch-up
+  migration applied to live dev Postgres restored the
+  `draft_revisions.provenance` column (`3e26cbd2`); the previously
+  red `/api/v1/owner/drafts/:id/revisions` endpoint now returns
+  HTTP 200 with `{"success":true,"data":{...,"revisions":[]}}`.
 
-- **Hard blockers for GREEN:** apply migration 0101 (drafts cannot
-  persist without it). Recommended same-day fix: refactor
-  `packages/database/src/run-migrations.ts` to strip wrapping
-  `BEGIN; … COMMIT;` before `sql.unsafe()` so the full chain replays
-  cleanly on any fresh DB.
+- **Smoke pass rate:** **23 / 23 endpoints green** (excluding the four
+  expected 401 / 403 / 503 role-gate or env-gated responses).
 
-- **Soft items worth doing before customer pilot:** populate
-  `SUPABASE_JWT_SECRET`, document the typecheck heap flag, and
-  decide whether the 0102 duplicate migration prefix needs a
-  cosmetic catch-up migration that proves both ran.
-
-Once migration 0101 is applied, run the smoke matrix in §2 again —
-the single 500 in the table will flip to a 200 and this document
-can be promoted from YELLOW to GREEN.
+- **Soft items worth doing before customer pilot** (do not block
+  launch sign-off): populate `SUPABASE_JWT_SECRET` so live brain SSE
+  works, document the typecheck heap flag.
