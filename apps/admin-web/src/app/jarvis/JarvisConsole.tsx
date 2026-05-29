@@ -24,6 +24,7 @@ import {
 // `(t as any).uiParts` cast becomes a typed read.
 import { AdaptiveRenderer } from '@/lib/genui';
 import type { AgUiUiPart } from '@/lib/genui';
+import { FeedbackThumbs, type FeedbackVerdict } from '@/components/FeedbackThumbs';
 
 // Build-time guard: production deployments MUST set
 // NEXT_PUBLIC_API_GATEWAY_URL. The localhost fallback exists only so a
@@ -174,6 +175,38 @@ export function JarvisConsole(): JSX.Element {
     }
   }
 
+  // R32 — wire FeedbackThumbs.onFeedback to the gateway. The endpoint
+  // is intentionally idempotent at the gateway (same turn + verdict =
+  // overwrite) so a rapid double-tap does not double-count. Failures
+  // surface to the FeedbackThumbs error toast.
+  async function submitFeedback(
+    turnId: string,
+    verdict: FeedbackVerdict,
+    reason?: string,
+  ): Promise<void> {
+    const url = `${DEFAULT_GATEWAY}/api/v1/feedback`;
+    const body = {
+      surface: 'jarvis',
+      threadId,
+      turnId,
+      verdict,
+      ...(reason ? { reason } : {}),
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${readBearerFromCookie()}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(`Feedback POST failed: ${res.status} ${errText}`);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -281,6 +314,14 @@ export function JarvisConsole(): JSX.Element {
                       </li>
                     ))}
                   </ul>
+                ) : null}
+                {t.role === 'assistant' ? (
+                  <FeedbackThumbs
+                    turnId={t.id}
+                    onFeedback={(verdict, reason): Promise<void> =>
+                      submitFeedback(t.id, verdict, reason)
+                    }
+                  />
                 ) : null}
               </div>
             );
