@@ -5,7 +5,13 @@
  * Note: This is a skeleton implementation. Actual M-PESA integration
  * requires registration with Safaricom and access to the Daraja API.
  */
-import { publicEncrypt, constants, createPublicKey } from 'node:crypto';
+import {
+  publicEncrypt,
+  constants,
+  createPublicKey,
+  createHmac,
+  timingSafeEqual,
+} from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import {
   Money,
@@ -495,9 +501,38 @@ export class MpesaPaymentProvider extends BasePaymentProvider {
     signature: string,
     webhookSecret: string
   ): boolean {
-    // M-PESA callbacks include password validation
-    // Actual implementation depends on your callback setup
-    return true; // Simplified - implement proper validation
+    // Robustness fix (Audit 2026-05-29, D6 — security depth):
+    // The previous implementation returned `true` unconditionally so any
+    // future caller wiring this provider into a webhook receiver would
+    // silently bypass authentication. The production M-Pesa receiver
+    // lives in `services/payments-ledger/src/server.ts` and is guarded
+    // by `mpesaSignatureMiddleware` (IP allowlist + HMAC + replay
+    // window), so this method is currently dead code. Fix it to fail
+    // closed so a future direct caller cannot accept an unsigned
+    // payload by accident.
+    //
+    // Verify the same HMAC-SHA256(secret, payload) scheme used by the
+    // express middleware, using timingSafeEqual to defeat timing
+    // side-channels per ~/.claude/rules/security.md.
+    if (!webhookSecret || !signature) {
+      logger.warn('M-PESA verifyWebhookSignature called without secret/signature — refusing');
+      return false;
+    }
+    const raw =
+      typeof payload === 'string'
+        ? payload
+        : Buffer.isBuffer(payload)
+          ? payload.toString('utf8')
+          : '';
+    if (raw.length === 0) return false;
+    try {
+      const expected = createHmac('sha256', webhookSecret).update(raw).digest('hex');
+      const a = Buffer.from(expected, 'hex');
+      const b = Buffer.from(signature, 'hex');
+      return a.length === b.length && timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
 
   parseWebhookEvent(
