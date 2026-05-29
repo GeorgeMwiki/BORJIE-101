@@ -446,7 +446,6 @@ export function useOwnerTabs(): UseOwnerTabsApi {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist + debounced server sync on every change.

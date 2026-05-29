@@ -94,7 +94,6 @@ export function useRecentlySpawnedTabTypes(
     return () => {
       mounted.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   return {

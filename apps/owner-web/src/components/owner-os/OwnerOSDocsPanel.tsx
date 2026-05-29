@@ -67,7 +67,6 @@ export function OwnerOSDocsPanel({
     if (target) {
       void explain(target.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFocusDocumentId, docs]);
 
   async function explain(documentId: string): Promise<void> {

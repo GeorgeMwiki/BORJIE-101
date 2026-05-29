@@ -98,7 +98,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
   }
 
   return (
-    <section className="grid h-[calc(100vh-12rem)] grid-cols-1 gap-4 lg:grid-cols-2">
+    <section className="grid h-viewport-fit grid-cols-1 gap-4 lg:grid-cols-2">
       <aside className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface/40">
         <header className="border-b border-border px-4 py-3">
           <h2 className="truncate text-base font-semibold text-foreground">
@@ -130,7 +130,6 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
               title={`Preview of ${document.fileName}`}
             />
           ) : document.mimeType.startsWith('image/') ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={document.fileUrl}
               alt={document.fileName}

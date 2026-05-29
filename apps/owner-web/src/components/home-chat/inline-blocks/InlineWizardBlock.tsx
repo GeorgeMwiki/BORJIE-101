@@ -111,7 +111,6 @@ export function InlineWizardBlock({
     } catch {
       // ignore
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
   // Persist on change.
