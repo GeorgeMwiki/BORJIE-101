@@ -57,18 +57,31 @@ function extractRegulatorNames(
   texts: ReadonlyArray<string>,
 ): ReadonlyArray<string> {
   const counts = new Map<string, number>();
-  const keywordCluster =
-    /(?:ministry|minister(?:io|y)|department|directorate|authority|commission|bureau|cadastre|agency|institute|service|geological(?:\s+survey)?)/iu;
+  // Broad keyword cluster — covers EN ("Ministry", "Department",
+  // "Authority", "Commission"), ES ("Ministerio", "Secretaria",
+  // "Mineria"), FR ("Code Minier", "Cadastre"), plus generic mining
+  // / geology nouns. Expand carefully — false positives surface in
+  // user-facing copy.
+  //
+  // SOURCE STRING ONLY — every reference must wrap it in non-capturing
+  // parens to keep the outer regex's capture indices stable.
+  const KEYWORD_SOURCE =
+    'ministry|ministerio|minister(?:io|y)?|department|directorate|authority|commission|bureau|cadastre|cadastro|agency|institute|service|geological(?:\\s+survey)?|secretaria|secretariat|mineria|miner[íi]a|minier|mining|mineral|petroleum|industry|infrastructural|committee|code';
   // Capture 1-5 capitalised words ending with the keyword OR preceded
-  // by it.
+  // by it. We accept both English-style title case ("Ministry of
+  // Mines") and Spanish/Latin patterns ("Secretaria de Mineria").
   const patternEnd = new RegExp(
-    `((?:[A-Z][a-zA-Z]{2,}\\s+){0,4}${keywordCluster.source})`,
-    'gu',
+    `((?:[A-Z][a-zA-Zíéá]{2,}\\s+){0,4}(?:${KEYWORD_SOURCE}))`,
+    'giu',
   );
   const patternStart = new RegExp(
-    `(${keywordCluster.source}\\s+(?:of|de|del)?\\s+(?:[A-Z][a-zA-Z]{2,}\\s*){1,5})`,
-    'gu',
+    `((?:${KEYWORD_SOURCE})\\s+(?:of|de|del|para|der|du)?\\s*(?:[A-Z][a-zA-Zíéá]{2,}\\s*){1,5})`,
+    'giu',
   );
+  // ALL-CAPS regulator acronyms (MINEM, MRAM, INGEMMET, ESDM, MIID).
+  // 4+ letters to avoid noise. Must be flanked by whitespace or
+  // punctuation to skip ISO codes.
+  const acronymPattern = /(?<![A-Za-z])([A-Z]{4,8})(?![A-Za-z])/gu;
   for (const text of texts) {
     for (const match of text.matchAll(patternEnd)) {
       const name = match[1]?.trim();
@@ -82,18 +95,43 @@ function extractRegulatorNames(
         counts.set(name, (counts.get(name) ?? 0) + 1);
       }
     }
+    for (const match of text.matchAll(acronymPattern)) {
+      const name = match[1]?.trim();
+      // Skip ISO currency codes / well-known false positives.
+      if (
+        name &&
+        name.length >= 4 &&
+        name.length <= 8 &&
+        !['HTTP', 'HTTPS', 'JSON', 'WWW'].includes(name)
+      ) {
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
   }
   const ranked = [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map((entry) => entry[0]);
-  // Deduplicate sub-strings (favour longest match).
+  // Deduplicate sub-strings (favour longest match) but keep separate
+  // ALL-CAPS acronyms even when contained in a longer name (they read
+  // as the canonical short form).
   const out: string[] = [];
+  const isAcronym = (n: string): boolean => /^[A-Z]{4,8}$/.test(n);
   for (const name of ranked) {
-    if (!out.some((existing) => existing.includes(name) || name.includes(existing))) {
+    if (isAcronym(name)) {
+      if (!out.includes(name)) out.push(name);
+      continue;
+    }
+    if (
+      !out.some(
+        (existing) =>
+          !isAcronym(existing) &&
+          (existing.includes(name) || name.includes(existing)),
+      )
+    ) {
       out.push(name);
     }
   }
-  return Object.freeze(out.slice(0, 4));
+  return Object.freeze(out.slice(0, 5));
 }
 
 /** Currency extractor — ISO-4217 patterns + common labels. */
