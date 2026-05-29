@@ -29,7 +29,13 @@ process.env.OUTBOX_WORKER_DISABLED = 'true';
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'development';
 process.env.ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000';
 if (!process.env.INTERNAL_API_KEY) process.env.INTERNAL_API_KEY = 'dev-cli-export-key';
-if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'dev-cli-export-secret';
+// `getJwtSecret` requires ≥32 chars. Inject a deterministic dev-only
+// secret here so the CLI never fights with the auth middleware import
+// chain. This is NOT a real secret — the script refuses to run with
+// NODE_ENV=production earlier in this file.
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'dev-cli-export-secret-padded-to-min-length-of-32-chars';
+}
 
 // Lazy imports so env defaults above land before module init.
 type RouterModule = { default?: unknown } & Record<string, unknown>;

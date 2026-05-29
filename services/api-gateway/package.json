@@ -18,7 +18,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:watch": "vitest --config vitest.integration.config.ts",
     "test:routes": "vitest run src/__tests__",
-    "openapi:export": "node scripts/export-openapi.mjs",
+    "openapi:export": "tsx src/openapi/export-cli.ts",
+    "openapi:export:legacy": "node scripts/export-openapi.mjs",
     "clean": "rm -rf dist .turbo",
     "load-test": "node scripts/load-test.mjs"
   },
