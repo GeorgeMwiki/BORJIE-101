@@ -36,6 +36,35 @@ function resolveMigrationPath(name: string): string {
   return abs;
 }
 
+/**
+ * Strip a leading `BEGIN;` and trailing `COMMIT;` (or `END;`) from a migration
+ * body, tolerating leading SQL line comments / whitespace and trailing
+ * whitespace. Returns the body unchanged if no wrapping transaction is found.
+ *
+ * Why: postgres-js refuses explicit transaction control inside `sql.unsafe()`.
+ * Our shipped migrations carry their own `BEGIN; … COMMIT;` for psql / Supabase
+ * SQL editor compat; we re-wrap with `sql.begin()` at the call site.
+ *
+ * Exported for unit-test coverage.
+ */
+export function stripWrappingTransaction(content: string): string {
+  // Leading: any mix of whitespace + `-- line comment` lines + `/* block */`
+  // comments, then `BEGIN;` or `BEGIN WORK;` or `START TRANSACTION;`.
+  const leadingNoise = `(?:\\s|--[^\\n]*\\n|/\\*[\\s\\S]*?\\*/)*`;
+  const beginRe = new RegExp(
+    `^(${leadingNoise})(?:BEGIN(?:\\s+WORK)?|START\\s+TRANSACTION)\\s*;\\s*`,
+    'i',
+  );
+  // Trailing: `COMMIT;` or `END;` possibly followed by whitespace / comments
+  const commitRe = /\s*(?:COMMIT(?:\s+WORK)?|END)\s*;?\s*(?:--[^\n]*\n?|\/\*[\s\S]*?\*\/|\s)*$/i;
+  const hasBegin = beginRe.test(content);
+  const hasCommit = commitRe.test(content);
+  if (!hasBegin || !hasCommit) {
+    return content;
+  }
+  return content.replace(beginRe, '$1').replace(commitRe, '');
+}
+
 export interface RunMigrationsOptions {
   databaseUrl?: string;
   logger?: Pick<Console, 'warn' | 'error'>;
@@ -99,11 +128,19 @@ export async function runMigrations(
       const safePath = resolveMigrationPath(file);
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- path validated by resolveMigrationPath()
       const content = await readFile(safePath, 'utf-8');
-      await sql.unsafe(content);
-      await sql`
-        INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
-        VALUES (${name}, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
-      `;
+      // postgres-js's `sql.unsafe()` rejects explicit transaction control
+      // (`BEGIN;` / `COMMIT;`) inside the script. Many of our shipped
+      // migrations wrap themselves in `BEGIN; … COMMIT;` for psql-compat,
+      // so strip the wrapper before handing the body to postgres-js.
+      // Atomicity is preserved by wrapping the call in our own `sql.begin()`.
+      const body = stripWrappingTransaction(content);
+      await sql.begin(async (tx) => {
+        await tx.unsafe(body);
+        await tx`
+          INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+          VALUES (${name}, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
+        `;
+      });
       logger.warn('Applied ' + file);
       applied += 1;
     }

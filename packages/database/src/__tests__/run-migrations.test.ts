@@ -12,6 +12,56 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { stripWrappingTransaction } from '../run-migrations.js';
+
+describe('stripWrappingTransaction', () => {
+  it('strips a simple BEGIN/COMMIT wrapper', () => {
+    const sql = 'BEGIN;\nCREATE TABLE t (id int);\nCOMMIT;\n';
+    expect(stripWrappingTransaction(sql).trim()).toBe('CREATE TABLE t (id int);');
+  });
+
+  it('tolerates leading comments before BEGIN', () => {
+    const sql = '-- migration 0099\n-- author\n/* block */\nBEGIN;\nSELECT 1;\nCOMMIT;';
+    const out = stripWrappingTransaction(sql);
+    expect(out).not.toMatch(/^\s*BEGIN/i);
+    expect(out).not.toMatch(/COMMIT\s*;?\s*$/i);
+    expect(out).toContain('SELECT 1;');
+    // Comments retained
+    expect(out).toContain('-- migration 0099');
+  });
+
+  it('accepts BEGIN WORK and START TRANSACTION variants', () => {
+    expect(stripWrappingTransaction('BEGIN WORK;\nSELECT 1;\nCOMMIT WORK;')).not.toMatch(/BEGIN|COMMIT/i);
+    expect(stripWrappingTransaction('START TRANSACTION;\nSELECT 1;\nEND;')).not.toMatch(/START|END/i);
+  });
+
+  it('returns content unchanged if no wrapping transaction', () => {
+    const sql = 'CREATE TABLE t (id int);\n';
+    expect(stripWrappingTransaction(sql)).toBe(sql);
+  });
+
+  it('returns content unchanged when only BEGIN is present (asymmetric)', () => {
+    const sql = 'BEGIN;\nSELECT 1;';
+    expect(stripWrappingTransaction(sql)).toBe(sql);
+  });
+
+  it('returns content unchanged when only COMMIT is present (asymmetric)', () => {
+    const sql = 'SELECT 1;\nCOMMIT;';
+    expect(stripWrappingTransaction(sql)).toBe(sql);
+  });
+
+  it('is case-insensitive', () => {
+    const sql = 'begin;\nSELECT 1;\ncommit;';
+    expect(stripWrappingTransaction(sql)).not.toMatch(/begin|commit/i);
+  });
+
+  it('handles trailing whitespace + comment after COMMIT', () => {
+    const sql = 'BEGIN;\nSELECT 1;\nCOMMIT;\n-- end of migration\n\n';
+    expect(stripWrappingTransaction(sql)).not.toMatch(/COMMIT/i);
+  });
+});
+
+
 
 describe('run-migrations module', () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
