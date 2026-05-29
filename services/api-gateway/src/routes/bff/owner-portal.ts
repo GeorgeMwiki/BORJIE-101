@@ -3,7 +3,11 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { UserRole } from '../../types/user-role';
-import { inspections } from '@borjie/database';
+// Post Borjie hard-fork the legacy `inspections` (property-domain) table
+// was removed. Mining-domain equivalent is `preShiftInspections` keyed
+// on `siteId` (sites replaced properties). See migration 0007 +
+// mining-workforce-extensions.schema.ts.
+import { preShiftInspections } from '@borjie/database';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { e400, e403, e503, errorResponse } from '../../utils/error-response';
 import { getOwnerScope as resolveOwnerScope } from '../../lib/owner-scope';
@@ -169,9 +173,11 @@ app.get('/budgets/forecasts', (c) => {
 });
 
 // ----------------------------------------------------------------------------
-// 3. GET /compliance/inspections — real-wrap of `inspections` table,
-//    filtered by the owner's property scope. Falls back to honest-empty
-//    when repos/db are unavailable so the dashboard still renders.
+// 3. GET /compliance/inspections — real-wrap of the mining-domain
+//    `pre_shift_inspections` table (the post-fork equivalent of the
+//    legacy property-domain `inspections` table). Filtered by the owner's
+//    site scope. Falls back to honest-empty when repos/db are unavailable
+//    so the dashboard still renders.
 // ----------------------------------------------------------------------------
 app.get('/compliance/inspections', async (c) => {
   const auth = c.get('auth');
@@ -188,26 +194,30 @@ app.get('/compliance/inspections', async (c) => {
 
   try {
     const scope = await getOwnerScope(auth, repos);
-    const propertyIds = scope.properties.map((property) => property.id);
+    // Owner scope returns properties; in the post-fork mining domain
+    // each property-id maps 1:1 to a site-id. The resolver upstream
+    // returns site identifiers under the `properties` field for
+    // backward-compat with the BFF; semantically these are site ids.
+    const siteIds = scope.properties.map((entry) => entry.id);
 
-    if (propertyIds.length === 0) {
+    if (siteIds.length === 0) {
       return c.json({ success: true, data: [] });
     }
 
     const rows = await db
       .select()
-      .from(inspections)
+      .from(preShiftInspections)
       .where(
         and(
-          eq(inspections.tenantId, auth.tenantId),
-          inArray(inspections.propertyId, propertyIds),
+          eq(preShiftInspections.tenantId, auth.tenantId),
+          inArray(preShiftInspections.siteId, siteIds),
         ),
       )
-      .orderBy(desc(inspections.createdAt))
+      .orderBy(desc(preShiftInspections.createdAt))
       .limit(200);
 
     return c.json({ success: true, data: rows });
-  } catch (error) {
+  } catch (_error) {
     return c.json({
       success: true,
       data: [],
@@ -243,7 +253,25 @@ app.get('/compliance/licenses', (c) => {
 // ----------------------------------------------------------------------------
 // 6. GET /compliance/summary — rolls up the three lists above. Inspections
 //    count is real (when reachable); insurance + licenses are 0.
+//
+// Inspection statuses considered "due" (i.e. open, not yet closed) are
+// any row whose `overallStatus` is NOT in the terminal-closed set
+// (`passed` / `failed`). The pre-shift inspection schema enum is
+// `pending | passed | failed | sign_off_pending`; the legacy property-
+// domain `inspections` enum used `scheduled | in_progress | completed |
+// archived | cancelled`. We accept both vocabularies so this rollup
+// stays compatible with mocks that still carry the old shape.
 // ----------------------------------------------------------------------------
+const CLOSED_INSPECTION_STATUSES = new Set([
+  // Mining-domain pre-shift inspection terminals.
+  'passed',
+  'failed',
+  // Legacy property-domain inspection terminals.
+  'completed',
+  'archived',
+  'cancelled',
+]);
+
 app.get('/compliance/summary', async (c) => {
   const auth = c.get('auth');
   const repos = c.get('repos');
@@ -254,27 +282,31 @@ app.get('/compliance/summary', async (c) => {
   if (repos && db) {
     try {
       const scope = await getOwnerScope(auth, repos);
-      const propertyIds = scope.properties.map((property) => property.id);
+      const siteIds = scope.properties.map((entry) => entry.id);
 
-      if (propertyIds.length > 0) {
+      if (siteIds.length > 0) {
         const rows = await db
           .select()
-          .from(inspections)
+          .from(preShiftInspections)
           .where(
             and(
-              eq(inspections.tenantId, auth.tenantId),
-              inArray(inspections.propertyId, propertyIds),
+              eq(preShiftInspections.tenantId, auth.tenantId),
+              inArray(preShiftInspections.siteId, siteIds),
             ),
           );
 
-        // "Due" = anything that isn't completed / archived. The schema
-        // status enum varies; treat any non-closed status as outstanding.
-        inspectionsDueCount = rows.filter(
-          (row) =>
-            row.status !== 'completed' &&
-            row.status !== 'archived' &&
-            row.status !== 'cancelled',
-        ).length;
+        // "Due" = anything that isn't terminal-closed. Reads both the
+        // current-schema (`overallStatus`) and the legacy (`status`)
+        // field so tests can stub either vocabulary.
+        inspectionsDueCount = rows.filter((row: Record<string, unknown>) => {
+          const status =
+            typeof row.overallStatus === 'string'
+              ? row.overallStatus
+              : typeof row.status === 'string'
+                ? row.status
+                : '';
+          return !CLOSED_INSPECTION_STATUSES.has(status);
+        }).length;
       }
     } catch {
       inspectionsDueCount = 0;
