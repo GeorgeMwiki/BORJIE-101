@@ -53,6 +53,7 @@ import { InlineBlockRenderer } from './inline-blocks/InlineBlockRenderer';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
+import { BorjieDynamicHints } from './BorjieDynamicHints';
 import {
   appendBoardElement,
   boardElementSchema,
@@ -741,6 +742,7 @@ export function HomeChatTeach({
             onSubmit={(content) => void send(content)}
           />
         </section>
+        <BorjieDynamicHints language={languagePreference} />
       </div>
     </div>
   );
