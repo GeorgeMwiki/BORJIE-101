@@ -1,7 +1,13 @@
 /**
  * Buyer-initiated Request for Bids — R11.
  *
- * Backing migration: `0127_request_for_bids.sql`.
+ * Backing migrations:
+ *   - `0127_request_for_bids.sql` (original, silently failed against
+ *     the dev DB because it declared `tenant_id uuid REFERENCES
+ *     tenants(id)` while `tenants.id` is `text`)
+ *   - `0150_fix_tenant_id_text_drift.sql` (canonical — creates the
+ *     four R11/Mwikila tables with `tenant_id text` matching the
+ *     `tenants.id text` heritage and the rest of the schema)
  *
  * A buyer posts "I want N tonnes of X at TZS Y per unit by D". The
  * row is visible to sellers within `radius_km` of the buyer's location
@@ -30,7 +36,12 @@ export const requestForBids = pgTable(
   'request_for_bids',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id').notNull(),
+    /**
+     * `text` to match `tenants.id text` (BossNyumba fork heritage; live
+     * dev DB carries seed values like `borjie-demo`, `tn_*`, `bt_*`).
+     * Verified by migration 0150.
+     */
+    tenantId: text('tenant_id').notNull(),
     buyerId: text('buyer_id').notNull(),
     /** Free-text mineral kind; enum is enforced at the zod schema. */
     mineralKind: text('mineral_kind').notNull(),
@@ -76,7 +87,8 @@ export const requestForBidResponses = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     rfbId: uuid('rfb_id').notNull(),
-    tenantId: uuid('tenant_id').notNull(),
+    /** `text` to match `tenants.id text`. See parent table comment. */
+    tenantId: text('tenant_id').notNull(),
     sellerId: text('seller_id').notNull(),
     offeredTonnage: numeric('offered_tonnage', {
       precision: 10,

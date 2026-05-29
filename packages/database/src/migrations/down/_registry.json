@@ -167,6 +167,13 @@
       "reverses": "DROP COLUMN tenants.jurisdiction_locked_at + jurisdiction_locked_by_user_id + FK (JC-4 lock-at-signup invariant)",
       "dataLoss": true,
       "envs": ["dev", "staging"]
+    },
+    {
+      "up": "0150_fix_tenant_id_text_drift.sql",
+      "down": "down/0150_down_fix_tenant_id_text_drift.sql",
+      "reverses": "CREATE TABLE request_for_bids + request_for_bid_responses + owner_delegation_prefs + mwikila_actions_inbox + RLS (text/uuid tenant_id drift repair after 0127/0128/0129 silently failed on dev DB where tenants.id is text)",
+      "dataLoss": true,
+      "envs": ["dev", "staging"]
     }
   ]
 }
