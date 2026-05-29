@@ -32,6 +32,8 @@
     "migrate": "pnpm -C packages/database db:migrate",
     "migration-check": "node scripts/migration-apply-check.mjs --migrations-dir=packages/database/src/migrations --report=.audit/migration-apply.md",
     "migration-safety": "node scripts/validate-migration-safety.mjs --migrations-dir=packages/database/src/migrations --fail-on=fail --report=.audit/migration-safety.md",
+    "verify:migrations": "tsx scripts/verify-migrations.ts",
+    "verify:migrations:json": "tsx scripts/verify-migrations.ts --json",
     "refresh-fx-rates": "pnpm -s exec tsx scripts/refresh-fx-rates.ts",
     "seed:owner-demo": "tsx scripts/seed-owner-demo-data.ts",
     "setup-env": "node scripts/setup-borjie-env.mjs",
