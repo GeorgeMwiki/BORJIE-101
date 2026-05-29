@@ -327,6 +327,67 @@ export const adminFeatureFlagsTool: PersonaToolDescriptor<
   },
 };
 
+// 7. Regulator — create DSR request (issue #194 chain C-A WRITE).
+//    Maps to POST /api/v1/regulator/requests in the gateway. The brain
+//    composes the regulator + subjectKind + subjectRef from the chat
+//    turn; the gateway routes to owner review and starts the SLA clock.
+const RegulatorCreateInput = z.object({
+  regulator: z.enum(['pccb', 'nemc', 'eiti', 'tmaa', 'other']),
+  subjectKind: z.enum([
+    'worker',
+    'site',
+    'licence',
+    'tenant',
+    'company',
+    'shipment',
+  ]),
+  subjectRef: z.string().min(1).max(200),
+  summarySw: z.string().min(1).max(2000).optional(),
+  summaryEn: z.string().min(1).max(2000).optional(),
+  rawRequest: z.string().max(20000).optional(),
+});
+const RegulatorCreateOutput = z.object({
+  requestId: z.string(),
+  status: z.string(),
+  dueAt: z.string(),
+});
+export const adminRegulatorCreateRequestTool: PersonaToolDescriptor<
+  typeof RegulatorCreateInput,
+  typeof RegulatorCreateOutput
+> = {
+  id: 'admin.regulator.create_request',
+  name: 'Admin — capture regulator request',
+  description:
+    'Capture an inbound regulator (PCCB / NEMC / EITI / TMAA) ' +
+    'data-subject or audit request. Routes to owner review and ' +
+    'starts the SLA clock.',
+  personaSlugs: ADMIN,
+  inputSchema: RegulatorCreateInput,
+  outputSchema: RegulatorCreateOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        requestId: 'unavailable',
+        status: 'unavailable',
+        dueAt: new Date().toISOString(),
+      };
+    }
+    const res = await client.post<{
+      data?: { id?: string; status?: string; dueAt?: string };
+    }>('/regulator/requests', { body: input });
+    const row = res.data ?? {};
+    return {
+      requestId: String(row.id ?? 'unknown'),
+      status: String(row.status ?? 'unknown'),
+      dueAt: String(row.dueAt ?? new Date().toISOString()),
+    };
+  },
+};
+
 export const ADMIN_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -336,4 +397,5 @@ export const ADMIN_TOOLS: ReadonlyArray<
   adminPilotErrorsTool,
   adminCorpusIngestsTool,
   adminFeatureFlagsTool,
+  adminRegulatorCreateRequestTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
