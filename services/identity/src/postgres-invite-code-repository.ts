@@ -38,13 +38,19 @@ import {
 } from './postgres-org-membership-repository.js';
 
 export interface InviteCodeRepositoryClient {
-  // The drizzle query-builder chain methods return deeply-generic types
-  // we do not consume structurally here; `unknown` keeps the surface
-  // explicit without escaping the type system via `any`.
-  select: (...args: unknown[]) => unknown;
-  insert: (...args: unknown[]) => unknown;
-  update: (...args: unknown[]) => unknown;
-  execute?: (sql: unknown) => Promise<unknown>;
+  // Drizzle's query-builder chain returns deeply-generic types we do not
+  // consume structurally here. `any` matches the sibling
+  // `OrgMembershipRepositoryClient` pattern in this package and keeps the
+  // chainable surface (`.from(...).where(...).limit(...)`) usable without
+  // each call site forcing a cast. Strict typing still applies to inputs
+  // and to the `rowToRecord` mappers that consume the results.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  select: (...args: unknown[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  insert: (...args: unknown[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  update: (...args: unknown[]) => any;
+  execute: (sql: unknown) => Promise<unknown>;
   transaction: <T>(fn: (tx: InviteCodeRepositoryClient) => Promise<T>) => Promise<T>;
 }
 
@@ -92,7 +98,11 @@ function rowToRecord(row: {
       : row.expiresAt instanceof Date
         ? (row.expiresAt.toISOString() as ISOTimestamp)
         : (row.expiresAt as ISOTimestamp);
-  return {
+  // `attachmentHints` is declared `readonly attachmentHints?: ...` on
+  // `InviteCodeRecord`. With `exactOptionalPropertyTypes: true` the field
+  // cannot be assigned `undefined` — only present-with-value or omitted.
+  // Build the record without the key when the DB returned NULL.
+  const base = {
     code: row.code as unknown as InviteCode,
     organizationId: row.organizationId as unknown as OrganizationId,
     platformTenantId: row.platformTenantId as unknown as TenantId,
@@ -102,10 +112,13 @@ function rowToRecord(row: {
     maxRedemptions: row.maxRedemptions,
     redemptionsUsed: row.redemptionsUsed,
     defaultRoleId: row.defaultRoleId as unknown as RoleId,
-    attachmentHints: (row.attachmentHints ?? undefined) as
-      | InviteAttachmentHints
-      | undefined,
-  };
+  } as const;
+  return row.attachmentHints == null
+    ? base
+    : {
+        ...base,
+        attachmentHints: row.attachmentHints as InviteAttachmentHints,
+      };
 }
 
 /** Hex alphabet for the random suffix — unambiguous and URL-safe. */
