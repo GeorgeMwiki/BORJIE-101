@@ -24,6 +24,8 @@ export {
   CapabilityEntrySchema,
   isDisclosable,
   parseCapabilityEntry,
+  reasoningHint,
+  exampleReasoningTrace,
 } from './types.js';
 
 export type {

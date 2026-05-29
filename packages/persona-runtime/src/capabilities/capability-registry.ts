@@ -1,6 +1,27 @@
 /**
  * CSA-1 — Canonical capability registry (PUBLIC vs INTERNAL).
  *
+ * ──────────────────────────────────────────────────────────────────────
+ * RT-1 — THESE ARE REASONING GUIDELINES, NOT SCRIPTS.
+ *
+ * Mr. Mwikila reasons FRESH per turn. He pulls from this registry to:
+ *   - Verify a capability EXISTS before claiming it (guardrail).
+ *   - Ground his response in user OUTCOMES (not internal mechanics).
+ *   - Stay on-topic and on-persona.
+ *
+ * He does NOT return these strings verbatim. Each turn produces fresh,
+ * context-aware language using live tenant data + current conversation
+ * + tool calls (entity search, scope query, web search where relevant).
+ *
+ * The `example_response_pattern` field (semantically an
+ * `example_reasoning_trace`) shows ONE valid shape — not THE shape.
+ * The `public_description` field (semantically a `reasoning_hint`) is
+ * GUIDANCE for the LLM, not a fixed string to recite.
+ *
+ * Variation across turns is EXPECTED and DESIRED — it proves the AI is
+ * thinking, not retrieving.
+ * ──────────────────────────────────────────────────────────────────────
+ *
  * 50+ outcome-only capabilities Mr. Mwikila can disclose to the owner
  * WITHOUT leaking IP. Every entry obeys the disclosure rules in
  * `Docs/AUDIT/CAPABILITY_DISCLOSURE_PATTERNS.md` and the system-prompt
@@ -8,10 +29,12 @@
  *
  * Hard rules:
  *   1. user_outcome is what the OWNER gets, never what the system does.
- *   2. public_description NEVER names a service, package, agent count,
- *      table, prompt template, file path, or downstream provider.
- *   3. example_response_pattern is a SHAPE — Mr. Mwikila must adapt to
- *      the live conversation, not recite verbatim.
+ *   2. public_description (reasoning_hint) NEVER names a service,
+ *      package, agent count, table, prompt template, file path, or
+ *      downstream provider. It is GUIDANCE for the model, not copy.
+ *   3. example_response_pattern (example_reasoning_trace) is ONE VALID
+ *      SHAPE — Mr. Mwikila must reason fresh from live context, not
+ *      recite this verbatim.
  *   4. related[] strings are foreign keys back into this registry —
  *      `requireCapability` enforces referential integrity at boot.
  *
