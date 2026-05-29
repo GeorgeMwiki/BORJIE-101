@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { MessageBubble } from '@/components/MessageBubble'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
 import { fetchBid, sendBidMessage, updateBidStatus } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { formatKg, formatTzs } from '@/components/formatters'
@@ -97,13 +98,24 @@ export default function BidDetail() {
     )
   }
 
-  function handleSend(): void {
+  function handleSendRaw(): void {
     const text = draft.trim()
     if (!text) {
       return
     }
     messageMutation.mutate({ bidId, body: text })
   }
+  // G4 — robustness 2026-05-29: belt-and-braces double-tap guard.
+  // The mutation's `isPending` already gates the button while in
+  // flight; the debounce window catches a sub-microsecond second tap
+  // before the state flips on flaky mobile networks.
+  const handleSend = useDebouncedSubmit(handleSendRaw)
+  const handleAccept = useDebouncedSubmit(() =>
+    statusMutation.mutate({ bidId, action: 'accept' })
+  )
+  const handleWithdraw = useDebouncedSubmit(() =>
+    statusMutation.mutate({ bidId, action: 'withdraw' })
+  )
 
   return (
     <Screen>
@@ -150,7 +162,7 @@ export default function BidDetail() {
           <PrimaryButton
             label={t('bids.accept_counter')}
             variant="gold"
-            onPress={() => statusMutation.mutate({ bidId, action: 'accept' })}
+            onPress={handleAccept}
             disabled={statusMutation.isPending}
           />
         ) : null}
@@ -159,7 +171,7 @@ export default function BidDetail() {
             <PrimaryButton
               label={t('bids.withdraw_bid')}
               variant="ghost"
-              onPress={() => statusMutation.mutate({ bidId, action: 'withdraw' })}
+              onPress={handleWithdraw}
               disabled={statusMutation.isPending}
             />
           </View>

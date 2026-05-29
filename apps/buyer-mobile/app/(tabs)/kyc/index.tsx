@@ -7,6 +7,7 @@ import { SectionHeader } from '@/components/SectionHeader'
 import { ProgressBar } from '@/components/ProgressBar'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
 import { submitKyc } from '@/api/buyers'
 import { initialKycState, stepOrder, stepTitleKey, type KycStepKey, type KycWizardState } from '@/kyc/state'
 import { PersonalStep } from '@/kyc/steps/PersonalStep'
@@ -35,6 +36,12 @@ export default function KycWizard() {
 
   const currentStep: KycStepKey = stepOrder[stepIndex] ?? 'personal'
   const progress = (stepIndex + 1) / stepOrder.length
+
+  // G4 — robustness 2026-05-29: belt-and-braces double-tap guard on
+  // the KYC submit. `submitMutation.isPending` already disables the
+  // button in flight; the 800ms debounce window catches a flaky-
+  // network second tap before isPending flips.
+  const handleSubmitKyc = useDebouncedSubmit(() => submitMutation.mutate(state))
 
   function goNext(): void {
     setStepIndex((prev) => Math.min(prev + 1, stepOrder.length - 1))
@@ -105,7 +112,7 @@ export default function KycWizard() {
           state={state}
           onBack={goBack}
           submitting={submitMutation.isPending}
-          onSubmit={() => submitMutation.mutate(state)}
+          onSubmit={handleSubmitKyc}
         />
       ) : null}
     </Screen>

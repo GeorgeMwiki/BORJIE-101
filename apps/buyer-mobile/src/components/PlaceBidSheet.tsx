@@ -10,6 +10,7 @@ import { ChipGroup, type ChipOption } from './ChipGroup'
 import { PrimaryButton } from './PrimaryButton'
 import { useToast } from './Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
 import { placeBid, type PaymentTerms } from '@/api/marketplace'
 import { isKycRequiredError } from '@/api/errors'
 import { queryKeys } from '@/api/queryKeys'
@@ -73,7 +74,7 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
     }
   })
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmitRaw = handleSubmit((values) => {
     submitMutation.mutate({
       listingId: listing.id,
       offerTzsPerKg: parseBidPrice(values.bidPrice),
@@ -83,6 +84,12 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
       termsAccepted: true
     })
   })
+  // G4 — robustness 2026-05-29: belt-and-braces double-tap guard.
+  // `submitMutation.isPending` already disables the button while the
+  // request is in flight, but on flaky mobile networks the onPress
+  // path can fire twice in the same microtask BEFORE isPending flips.
+  // The 800ms debounce window catches that sub-microsecond race.
+  const onSubmit = useDebouncedSubmit(onSubmitRaw)
 
   const paymentOptions: readonly ChipOption<PaymentTerms>[] = [
     { value: 'instant', label: t('bids.payment_instant') },
