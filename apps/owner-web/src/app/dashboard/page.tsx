@@ -61,13 +61,13 @@ export default async function OwnerDashboardPage() {
 
       {/* 1. Greeting hero */}
       <header>
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-signal-500">
+        <p className="font-mono text-badge uppercase tracking-eyebrow-wide text-signal-500">
           {isSw ? 'Dashibodi ya leo' : "Today's cockpit"}
         </p>
         <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
           {greeting}
         </h1>
-        <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+        <p className="mt-3 font-mono text-badge uppercase tracking-eyebrow-wide text-neutral-500">
           {subline}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -117,7 +117,7 @@ export default async function OwnerDashboardPage() {
       <section aria-labelledby="todays-brief-heading">
         <h2
           id="todays-brief-heading"
-          className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
           {isSw ? 'Muhtasari wa leo' : "Today's brief"}
         </h2>
@@ -151,7 +151,7 @@ export default async function OwnerDashboardPage() {
       <section aria-labelledby="todays-actions-heading">
         <h2
           id="todays-actions-heading"
-          className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
           {isSw ? 'Hatua za leo' : "Today's actions"}
         </h2>
@@ -209,7 +209,7 @@ export default async function OwnerDashboardPage() {
       <section aria-labelledby="this-week-heading">
         <h2
           id="this-week-heading"
-          className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
           {isSw ? 'Wiki hii' : 'This week'}
         </h2>
@@ -240,7 +240,7 @@ export default async function OwnerDashboardPage() {
         <header className="flex items-center justify-between">
           <h2
             id="brain-stream-heading"
-            className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+            className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
           >
             {isSw ? 'Mtiririko wa Akili Kuu' : 'Brain stream'}
           </h2>
@@ -320,7 +320,7 @@ export default async function OwnerDashboardPage() {
       >
         <h2
           id="owner-os-heading"
-          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+          className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
           {isSw ? 'Mr. Mwikila — mfumo wako' : 'Mr. Mwikila — your operating system'}
         </h2>
@@ -335,7 +335,7 @@ export default async function OwnerDashboardPage() {
       <section aria-labelledby="live-surface-heading" className="space-y-3">
         <h2
           id="live-surface-heading"
-          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400"
+          className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
           {isSw ? 'Mtiririko wa moja kwa moja' : 'Live brief'}
         </h2>
@@ -361,7 +361,7 @@ function MetricTile({ label, value, sub, icon: Icon }: MetricTileProps) {
     <Card variant="default" className="border-border/60">
       <CardContent className="flex items-start justify-between p-6">
         <div className="space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+          <p className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400">
             {label}
           </p>
           <p className="font-display text-3xl text-foreground">{value}</p>
@@ -420,7 +420,7 @@ function EventCard({ title, when, href, tone }: EventCardProps) {
   return (
     <Link
       href={href}
-      className={`group relative block overflow-hidden rounded-lg border border-border/60 bg-surface/60 p-5 hover:bg-surface ${toneRing} before:absolute before:left-0 before:top-0 before:h-full before:w-[3px]`}
+      className={`group relative block overflow-hidden rounded-lg border border-border/60 bg-surface/60 p-5 hover:bg-surface ${toneRing} before:absolute before:left-0 before:top-0 before:h-full before:w-rail`}
     >
       <div className="flex items-center gap-2 text-xs text-neutral-400">
         <Icon className="h-3.5 w-3.5" />

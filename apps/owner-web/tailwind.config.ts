@@ -112,8 +112,11 @@ const config: Config = {
        */
       letterSpacing: {
         ...(baseConfig.theme?.extend?.letterSpacing ?? {}),
-        'eyebrow':       '0.12em',
-        'eyebrow-wide':  '0.18em',
+        'eyebrow':         '0.12em',
+        'eyebrow-wide':    '0.18em',
+        // Auth / error / 404 caps — widest spacing for the cinematic
+        // "Hitilafu · Something went wrong" eyebrow row.
+        'eyebrow-x-wide':  '0.22em',
       },
     },
   },

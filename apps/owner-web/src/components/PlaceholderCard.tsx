@@ -20,7 +20,7 @@ interface PlaceholderCardProps {
 export function PlaceholderCard({ title, children }: PlaceholderCardProps) {
   return (
     <div className="rounded-2xl border border-border bg-surface/40 p-6 transition-colors hover:border-border-strong">
-      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-signal-500">
+      <p className="font-mono text-badge font-semibold uppercase tracking-eyebrow-wide text-signal-500">
         {title}
       </p>
       {children ? (

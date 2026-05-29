@@ -34,7 +34,7 @@ export function ChainOfCustodyShell() {
         }}
         className="flex flex-wrap items-center gap-3"
       >
-        <div className="relative flex-1 min-w-[260px]">
+        <div className="relative flex-1 min-w-column-lg">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <input
             value={input}
@@ -106,7 +106,7 @@ function StepCard({ step }: { readonly step: ChainStep }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-[0.12em] text-signal-500">
+          <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
             {step.action.replace(/_/g, ' ')}
           </span>
           <span className="text-xs text-neutral-500">

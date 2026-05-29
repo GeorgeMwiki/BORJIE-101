@@ -97,7 +97,7 @@ export function Blackboard({ languagePreference, tradingName }: BlackboardProps)
     <aside
       data-testid="blackboard-root"
       data-replaying={state.replaying || undefined}
-      className="flex h-full min-h-[480px] flex-col overflow-hidden rounded-lg border border-border bg-surface/30 print:bg-white"
+      className="flex h-full min-h-panel flex-col overflow-hidden rounded-lg border border-border bg-surface/30 print:bg-white"
       aria-label="Mr. Mwikila teaching canvas"
     >
       <Header
