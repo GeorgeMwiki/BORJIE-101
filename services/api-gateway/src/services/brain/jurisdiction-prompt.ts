@@ -1,9 +1,16 @@
 /**
- * Brain ← jurisdiction prompt injector — JA-2.
+ * Brain ← jurisdiction prompt injector — JA-2 / RT-3.
  *
  * Best-effort helper used by brain-teach.hono.ts + public-chat.hono.ts
  * to render the `## TENANT JURISDICTION` + `## JURISDICTION DISCLOSURE
  * RULES` blocks at the top of every system prompt.
+ *
+ * RT-3 — REASONING-AWARE. The rules block now tells the model to REASON
+ * from the jurisdiction context (not recite from a per-country script).
+ * When the resolver returns an "unseeded" source flag, the model is
+ * directed to call mwikila.jurisdiction.discover and REASON about the
+ * findings — not refuse. See `renderJurisdictionDisclosureRules` in
+ * `../jurisdiction-resolver/prompt.ts` for the rule text.
  *
  * NEVER blocks the turn — when the resolver fails (DB unreachable,
  * tenant row missing, etc.) the function returns an empty string
