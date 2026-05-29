@@ -336,6 +336,38 @@ up when ANTHROPIC primary returns 429.
 
 ---
 
+## OA-016 — On-device MiniLM-L6-v2 ONNX bundle (R-FUTURE-1)
+
+**Who:** Operator (per-device — pilot tester / field engineer)
+**What:** Download the four MiniLM-L6-v2 Q8 ONNX files (~22 MB) into
+`~/.borjie-models/minilm-l6-v2/` so `@borjie/on-device-router` can
+light up the on-device path. Codebase ships the loader + fallback;
+only the binary blob is operator-gated.
+**Where:** https://huggingface.co/Xenova/all-MiniLM-L6-v2 → `onnx/`
+directory. See `packages/on-device-router/README.md` for the exact
+four `curl` commands.
+**Why blocked from auto-fix:** Bundling a 22 MB blob into the
+monorepo violates the artifact-size budget; HF doesn't expose a
+stable SHA for the quantised variant; per-device download keeps
+mobile bundles lean.
+**Why scope-justified:** Saves a server round-trip on ~70 % of mobile
+turns when the routing head is trained. Pilot SLO threshold: revisit
+when p90 mobile router latency > 320 ms.
+**Cost:** Free (HuggingFace community model, MIT license).
+**Time:** 30 sec / device on broadband.
+**Verification:**
+```bash
+ls ~/.borjie-models/minilm-l6-v2/
+# expect: model.onnx tokenizer.json tokenizer_config.json config.json
+pnpm -F @borjie/on-device-router test
+```
+The `isModelOnDisk` helper from
+`packages/on-device-router/src/model-loader.ts` returns `true` and
+`routeOnDeviceAsync()` returns `path: 'on-device'` for confident
+predictions.
+
+---
+
 ## Summary checklist
 
 | OA-# | Title | Cost (USD/mo) | Time | Status |
@@ -355,6 +387,7 @@ up when ANTHROPIC primary returns 429.
 | OA-013 | EITI validation slot | free | 3-week cycle | pending |
 | OA-014 | TMAA portal binding | free | 2-3 weeks | pending |
 | OA-015 | OpenAI fallback key | $50 cap | 10 min | pending |
+| OA-016 | MiniLM on-device bundle | free | 30 sec/device | pending |
 
 **Total monthly cost at full pilot deployment (excluding per-txn):**
 $435 + TZS 50k (~$20) = **~$455 / month**.
