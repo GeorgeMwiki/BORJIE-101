@@ -1,4 +1,3 @@
-// @ts-nocheck — drizzle-orm v0.36 audit-column narrowing: downstream apps use stricter exactOptionalPropertyTypes that rejects our insert/update shapes. Tracked: drizzle-team/drizzle-orm#2876.
 /**
  * BrainThreadRepository — Postgres-backed persistence for the Brain's Thread
  * Store. Implements the shape required by `@borjie/ai-copilot`'s
@@ -226,7 +225,10 @@ export class BrainThreadRepository {
       .from(threadEvents)
       .where(and(...conds))
       .orderBy(threadEvents.createdAt);
-    return rows.map((r) => ({
+    // With `exactOptionalPropertyTypes`, optional fields must either be
+    // omitted or carry a concrete value. Spread the nullable columns
+    // conditionally so we never assign explicit `undefined`.
+    return rows.map((r): BrainThreadEvent => ({
       id: r.id,
       threadId: r.threadId,
       kind: r.kind as BrainThreadEvent['kind'],
@@ -234,11 +236,15 @@ export class BrainThreadRepository {
       visibility: {
         scope: r.visibilityScope as 'private' | 'team' | 'management' | 'public',
         authorActorId: r.visibilityAuthorActorId,
-        initiatingUserId: r.visibilityInitiatingUserId ?? undefined,
-        teamId: r.visibilityTeamId ?? undefined,
-        rationale: r.visibilityRationale ?? undefined,
+        ...(r.visibilityInitiatingUserId != null
+          ? { initiatingUserId: r.visibilityInitiatingUserId }
+          : {}),
+        ...(r.visibilityTeamId != null ? { teamId: r.visibilityTeamId } : {}),
+        ...(r.visibilityRationale != null
+          ? { rationale: r.visibilityRationale }
+          : {}),
       },
-      parentEventId: r.parentEventId ?? undefined,
+      ...(r.parentEventId != null ? { parentEventId: r.parentEventId } : {}),
       createdAt: (r.createdAt instanceof Date
         ? r.createdAt.toISOString()
         : String(r.createdAt)),
@@ -248,13 +254,17 @@ export class BrainThreadRepository {
 }
 
 function rowToThread(r: typeof threads.$inferSelect): BrainThread {
+  // With `exactOptionalPropertyTypes`, an optional property must either be
+  // omitted entirely or carry a concrete value — explicit `undefined` is
+  // rejected. Use conditional spreads so nullable columns either inject the
+  // string or simply omit the key.
   return {
     id: r.id,
     tenantId: r.tenantId,
     initiatingUserId: r.initiatingUserId,
     primaryPersonaId: r.primaryPersonaId,
-    teamId: r.teamId ?? undefined,
-    employeeId: r.employeeId ?? undefined,
+    ...(r.teamId != null ? { teamId: r.teamId } : {}),
+    ...(r.employeeId != null ? { employeeId: r.employeeId } : {}),
     title: r.title,
     status: r.status as BrainThread['status'],
     createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),

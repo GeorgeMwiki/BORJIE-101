@@ -1,5 +1,3 @@
-// @ts-nocheck — drizzle 0.45 jsonb narrowing mirrors trc-test-org-seed.
-
 /**
  * TRC elastic-config seeder (internal test data only).
  *

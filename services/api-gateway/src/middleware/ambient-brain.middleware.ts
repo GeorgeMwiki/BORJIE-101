@@ -1,4 +1,3 @@
-// @ts-nocheck — BehaviorObserver is imported from an ai-copilot subpath.
 /**
  * Ambient-brain middleware.
  *

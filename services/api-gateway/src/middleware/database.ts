@@ -1,24 +1,11 @@
-// @ts-nocheck — Two TypeScript library-interaction issues gated here:
-// (1) TS2709 namespace-vs-type for every `{Name}Repository` pulled through
-//     the `@borjie/database` package barrel (`export *` chain widens
-//     the symbol space). Fix would require `InstanceType<typeof X>` on all
-//     15 repo classes AND restructuring schema re-exports to avoid the
-//     duplicate-symbol namespace wrappers (PaymentPlan / Compliance / Ledger /
-//     AuditEvents / ArrearsLedger).
-// (2) Hono v4 MiddlewareHandler status-code literal union: mixing
-//     `c.json(..., 503)` and `c.json(..., 500)` widens the return type
-//     across the TypedResponse overload's exact-status constraint
-//     (hono-dev/hono#3891). Fix would require unifying all error returns
-//     to a single status literal or declaring the middleware return type
-//     via `as unknown as Response`.
-//
-// This file is NOT a consumer of drizzle schemas directly — it only
-// wires repositories into the Hono context. Schema-drift bugs
-// surface in the composition-root files (service-registry,
-// credit-rating-repository, mcp-wiring) which ARE now pragma-free.
 /**
- * Database middleware for Hono
- * Initializes database client and injects repositories into request context
+ * Database middleware for Hono.
+ *
+ * Initializes the database client and injects repositories into request
+ * context. The historical `@ts-nocheck` pragma here gated two upstream
+ * drifts (TS2709 namespace-vs-type for repos, Hono v4 status-code union
+ * widening) that have since been resolved by Wave-14 augmentation and
+ * the package-barrel cleanup; the file now type-checks cleanly.
  */
 
 import { createMiddleware } from 'hono/factory';

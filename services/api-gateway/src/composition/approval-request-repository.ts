@@ -1,4 +1,3 @@
-// @ts-nocheck — PaginationParams vs legacy {page,pageSize} shape drift across repo/service boundary (same drift annotated in approvals/approval-service.ts + memory repo). Tracked.
 /**
  * Postgres-backed ApprovalRequestRepository (Wave 26 Agent Z3).
  *

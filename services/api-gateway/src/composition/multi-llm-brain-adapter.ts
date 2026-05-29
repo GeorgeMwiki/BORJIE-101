@@ -1,7 +1,3 @@
-// @ts-nocheck — Bridge between the role-aware-advisor `BrainPort` and the
-//   `@borjie/ai-copilot` provider stack. Several adapter shims rely
-//   on the same type-erasure pattern the existing wiring files use.
-//
 /**
  * Multi-LLM brain adapter.
  *

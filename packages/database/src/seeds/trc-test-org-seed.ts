@@ -1,5 +1,3 @@
-// @ts-nocheck — import-assertion syntax replaced in TS 5.3+; drizzle 0.36 pgEnum narrowing mirrors demo-org-seed.
-
 /**
  * TRC Corporation — Canonical Test Organization Seed
  *
