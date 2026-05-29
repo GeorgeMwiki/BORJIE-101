@@ -11,7 +11,11 @@
  *      stationMasterId ASC) — fully deterministic.
  *   3. Return the top row.
  *
- * polygon-kind coverage is skipped — KI-010 tracks wiring once GeoNode is live.
+ * R18 / KI-010 — polygon coverage is now supported via a pure-TS
+ * ray-cast `pointInPolygon` helper (no external dep) so the router
+ * works without GeoNode. Accepts GeoJSON `Polygon` and `MultiPolygon`
+ * geometries. When the application has no lat/long, polygon rows
+ * remain skipped with a clear reason.
  */
 
 import type {
@@ -79,13 +83,105 @@ function matchesLocation(
         ? { matches: true, reason: `region:${coverage.value.regionId}` }
         : { matches: false, reason: 'region mismatch' };
     }
-    case 'polygon':
-      // Follow-up KI-010 (#33): wire real geospatial matching once GeoNode is
-      //   live. See Docs/KNOWN_ISSUES.md#ki-010.
-      return { matches: false, reason: 'polygon matching not yet supported' };
+    case 'polygon': {
+      // R18 / KI-010 — point-in-polygon via pure-TS ray cast (no deps).
+      if (
+        typeof location.latitude !== 'number' ||
+        typeof location.longitude !== 'number'
+      ) {
+        return { matches: false, reason: 'polygon needs lat/long' };
+      }
+      const inside = pointInPolygon(
+        [location.longitude, location.latitude],
+        coverage.value.geoJson,
+      );
+      return inside
+        ? { matches: true, reason: 'polygon contains point' }
+        : { matches: false, reason: 'point outside polygon' };
+    }
     default:
       return { matches: false, reason: 'unknown coverage kind' };
   }
+}
+
+/**
+ * R18 / KI-010 — Ray-cast point-in-polygon test for GeoJSON `Polygon`
+ * (single outer ring + optional holes) and `MultiPolygon`. Returns true
+ * iff the point is in any polygon's exterior ring AND not in any of
+ * that polygon's hole rings.
+ *
+ * Coordinates are `[longitude, latitude]` per GeoJSON convention.
+ *
+ * Pure helper — no external deps. Mirrors the
+ * `@turf/boolean-point-in-polygon` contract closely enough that we can
+ * later swap to it if @turf is added to the bundle.
+ */
+type Ring = ReadonlyArray<readonly [number, number]>;
+type GeoJsonPolygonLike =
+  | { readonly type: 'Polygon'; readonly coordinates: ReadonlyArray<Ring> }
+  | {
+      readonly type: 'MultiPolygon';
+      readonly coordinates: ReadonlyArray<ReadonlyArray<Ring>>;
+    };
+
+export function pointInPolygon(
+  point: readonly [number, number],
+  geoJson: unknown,
+): boolean {
+  if (
+    geoJson === null ||
+    typeof geoJson !== 'object' ||
+    !('type' in geoJson) ||
+    !('coordinates' in geoJson)
+  ) {
+    return false;
+  }
+  const geom = geoJson as GeoJsonPolygonLike;
+  if (geom.type === 'Polygon') {
+    return pointInRingsWithHoles(point, geom.coordinates);
+  }
+  if (geom.type === 'MultiPolygon') {
+    for (const polyRings of geom.coordinates) {
+      if (pointInRingsWithHoles(point, polyRings)) return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+function pointInRingsWithHoles(
+  point: readonly [number, number],
+  rings: ReadonlyArray<Ring>,
+): boolean {
+  if (rings.length === 0) return false;
+  const [outer, ...holes] = rings;
+  if (!outer || !pointInRing(point, outer)) return false;
+  for (const hole of holes) {
+    if (pointInRing(point, hole)) return false;
+  }
+  return true;
+}
+
+function pointInRing(
+  point: readonly [number, number],
+  ring: Ring,
+): boolean {
+  const [x, y] = point;
+  let inside = false;
+  // Walk each edge of the ring; flip `inside` on every ray crossing.
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    const xi = a[0]!;
+    const yi = a[1]!;
+    const xj = b[0]!;
+    const yj = b[1]!;
+    const intersects =
+      yi > y !== yj > y &&
+      x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
 }
 
 function compareRows(

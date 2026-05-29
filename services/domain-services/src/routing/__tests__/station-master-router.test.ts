@@ -160,7 +160,7 @@ describe('StationMasterRouter', () => {
     expect(result.stationMasterId).toBe('sm-b');
   });
 
-  it('skips polygon coverages until GeoNode is operational', async () => {
+  it('skips polygon rows when the application has no lat/long', async () => {
     const rows = [
       row({
         id: 'a',
@@ -179,6 +179,65 @@ describe('StationMasterRouter', () => {
     ).rejects.toMatchObject({
       code: StationMasterRouterError.NO_MATCH,
     });
+  });
+
+  // R18 / KI-010 — polygon coverage now works via pure-TS ray cast.
+  it('matches polygon coverage when application lat/long is inside', async () => {
+    // 10x10 box around (0,0)..(10,10) in lon/lat.
+    const polygon = {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+      ],
+    };
+    const rows = [
+      row({ id: 'a', coverage: { kind: 'polygon', value: { geoJson: polygon } } }),
+    ];
+    const router = new StationMasterRouter({ repository: repo(rows) });
+
+    const result = await router.routeApplication({
+      applicationId: 'app-inside',
+      location: { longitude: 5, latitude: 5 },
+      assetType: 'commercial',
+      tenantId: 't1',
+    });
+    expect(result.coverageKind).toBe('polygon');
+    expect(result.matchReason).toBe('polygon contains point');
+  });
+
+  // Point outside polygon → NO_MATCH.
+  it('rejects polygon coverage when application lat/long is outside', async () => {
+    const polygon = {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+      ],
+    };
+    const rows = [
+      row({ id: 'a', coverage: { kind: 'polygon', value: { geoJson: polygon } } }),
+    ];
+    const router = new StationMasterRouter({ repository: repo(rows) });
+
+    await expect(
+      router.routeApplication({
+        applicationId: 'app-outside',
+        location: { longitude: 50, latitude: 50 },
+        assetType: 'commercial',
+        tenantId: 't1',
+      }),
+    ).rejects.toMatchObject({ code: StationMasterRouterError.NO_MATCH });
   });
 
   it('raises NO_MATCH when nothing covers the location', async () => {
