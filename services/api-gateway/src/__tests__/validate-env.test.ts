@@ -114,4 +114,40 @@ describe('validate-env', () => {
     } as never);
     expect(warnings.some((w) => w.includes('localhost'))).toBe(true);
   });
+
+  // N4 (2026-05-29) regression — `.env.local` ships blank optional keys
+  // (KEY=) as self-documenting placeholders. Previously every blank value
+  // hit `z.coerce.number()` / `z.string().url()` / `z.enum(...)` and
+  // crashed boot. The `optional()` helper now treats `""` as unset.
+  it('treats empty-string optional values as unset (N4)', () => {
+    const { env } = validateEnv({
+      ...VALID_BASE,
+      JWT_ACCESS_SECRET: '',
+      RATE_LIMIT_WINDOW_MS: '',
+      BORJIE_BG_TASKS_ENABLED: '',
+      SENTRY_DSN: '',
+      GEPG_CALLBACK_BASE_URL: '',
+      GEPG_HEALTH_URL: '',
+      NOTIFICATIONS_SERVICE_URL: '',
+      DEV_DEFAULT_COUNTRY_CODE: '',
+    } as never);
+    expect(env.JWT_ACCESS_SECRET).toBeUndefined();
+    expect(env.RATE_LIMIT_WINDOW_MS).toBeUndefined();
+    expect(env.BORJIE_BG_TASKS_ENABLED).toBeUndefined();
+    expect(env.SENTRY_DSN).toBeUndefined();
+    expect(env.GEPG_CALLBACK_BASE_URL).toBeUndefined();
+    expect(env.GEPG_HEALTH_URL).toBeUndefined();
+    expect(env.NOTIFICATIONS_SERVICE_URL).toBeUndefined();
+    expect(env.DEV_DEFAULT_COUNTRY_CODE).toBeUndefined();
+  });
+
+  it('accepts dev sentinels OCR_PROVIDER=mock + GEPG_PSP_MODE=true|false (N4)', () => {
+    const { env } = validateEnv({
+      ...VALID_BASE,
+      OCR_PROVIDER: 'mock',
+      GEPG_PSP_MODE: 'true',
+    } as never);
+    expect(env.OCR_PROVIDER).toBe('mock');
+    expect(env.GEPG_PSP_MODE).toBe('true');
+  });
 });

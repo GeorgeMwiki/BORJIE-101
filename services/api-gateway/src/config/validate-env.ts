@@ -16,6 +16,22 @@
 
 import { z } from 'zod';
 
+/**
+ * `optional()` helper that also treats empty strings (`KEY=`) as unset.
+ *
+ * `.env.local` / `.env.example` follow the operator convention of leaving
+ * unconfigured keys present with an empty value (so the key list documents
+ * itself). Without this preprocess, `z.coerce.number()`, `z.string().url()`,
+ * and `z.enum(...)` all fail on `""` — turning every blank optional key
+ * into a fatal boot error. See N4 (2026-05-29).
+ */
+function optional<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    schema.optional(),
+  );
+}
+
 /** Required env: failure to set these is a boot-time error. */
 const CoreSchema = z.object({
   DATABASE_URL: z
@@ -35,123 +51,132 @@ const CoreSchema = z.object({
 
 /** Optional env — present → validated; absent → warning in non-test envs. */
 const OptionalSchema = z.object({
-  PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
-  APP_VERSION: z.string().default('dev'),
-  GIT_SHA: z.string().optional(),
-  LOG_LEVEL: z
-    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
-    .default('info'),
+  PORT: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.coerce.number().int().min(1).max(65_535).default(4000),
+  ),
+  APP_VERSION: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.string().default('dev'),
+  ),
+  GIT_SHA: optional(z.string()),
+  LOG_LEVEL: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
+  ),
 
   // Auth — additional JWT knobs
-  JWT_ACCESS_SECRET: z.string().min(32).optional(),
-  JWT_REFRESH_SECRET: z.string().min(32).optional(),
+  JWT_ACCESS_SECRET: optional(z.string().min(32)),
+  JWT_REFRESH_SECRET: optional(z.string().min(32)),
   // P84 audit: JWT_ISSUER + JWT_AUDIENCE are validated here (dev/test
   // default ok) but the live auth middleware (auth.middleware.ts) fails
   // fast in production when unset, per BUG-HI-4. Default was
   // 'borjie-client' here but 'borjie-api' in the middleware —
   // aligned to 'borjie-api' so tokens issued under the validated
   // env match the verifier when neither is explicitly configured.
-  JWT_ISSUER: z.string().default('borjie'),
-  JWT_AUDIENCE: z.string().default('borjie-api'),
+  JWT_ISSUER: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.string().default('borjie'),
+  ),
+  JWT_AUDIENCE: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.string().default('borjie-api'),
+  ),
 
   // CORS
-  ALLOWED_ORIGINS: z.string().optional(),
+  ALLOWED_ORIGINS: optional(z.string()),
 
   // Transport
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: optional(z.string().url()),
 
   // Rate limit
-  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().optional(),
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().optional(),
+  RATE_LIMIT_MAX_REQUESTS: optional(z.coerce.number().int().positive()),
+  RATE_LIMIT_WINDOW_MS: optional(z.coerce.number().int().positive()),
 
   // Outbox / background workers
-  OUTBOX_WORKER_DISABLED: z.enum(['true', 'false']).optional(),
-  OUTBOX_INTERVAL_MS: z.coerce.number().int().positive().optional(),
-  OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().optional(),
-  BORJIE_BG_TASKS_ENABLED: z.enum(['true', 'false']).optional(),
+  OUTBOX_WORKER_DISABLED: optional(z.enum(['true', 'false'])),
+  OUTBOX_INTERVAL_MS: optional(z.coerce.number().int().positive()),
+  OUTBOX_BATCH_SIZE: optional(z.coerce.number().int().positive()),
+  BORJIE_BG_TASKS_ENABLED: optional(z.enum(['true', 'false'])),
 
   // Observability
-  SENTRY_DSN: z.string().url().optional(),
-  SENTRY_ENVIRONMENT: z.string().optional(),
-  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
-  POSTHOG_API_KEY: z.string().optional(),
-  POSTHOG_HOST: z.string().url().optional(),
+  SENTRY_DSN: optional(z.string().url()),
+  SENTRY_ENVIRONMENT: optional(z.string()),
+  SENTRY_TRACES_SAMPLE_RATE: optional(z.coerce.number().min(0).max(1)),
+  POSTHOG_API_KEY: optional(z.string()),
+  POSTHOG_HOST: optional(z.string().url()),
 
   // AI providers — be permissive on key formats (vendors change prefixes;
   // only enforce min length when the value is actually present; empty-string
   // env values are common from .env files and must be treated as unset).
-  ANTHROPIC_API_KEY: z.preprocess(
-    (v) => (v === '' || v === undefined ? undefined : v),
-    z.string().min(20).optional()
-  ),
-  OPENAI_API_KEY: z.preprocess(
-    (v) => (v === '' || v === undefined ? undefined : v),
-    z.string().min(20).optional()
-  ),
-  ELEVENLABS_API_KEY: z.preprocess(
-    (v) => (v === '' || v === undefined ? undefined : v),
-    z.string().min(20).optional()
-  ),
-  ELEVENLABS_DEFAULT_VOICE_ID: z.string().optional(),
+  ANTHROPIC_API_KEY: optional(z.string().min(20)),
+  OPENAI_API_KEY: optional(z.string().min(20)),
+  ELEVENLABS_API_KEY: optional(z.string().min(20)),
+  ELEVENLABS_DEFAULT_VOICE_ID: optional(z.string()),
 
-  // Document intelligence
-  OCR_PROVIDER: z.enum(['aws_textract', 'google_vision', 'tesseract', 'none']).optional(),
-  GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
-  AWS_TEXTRACT_REGION: z.string().optional(),
+  // Document intelligence — `mock` is a dev-only sentinel that means
+  // "no real OCR backend wired"; call sites only truthy-check the var
+  // (see services/api-gateway/src/routes/scans.router.ts).
+  OCR_PROVIDER: optional(
+    z.enum(['aws_textract', 'google_vision', 'tesseract', 'none', 'mock']),
+  ),
+  GOOGLE_APPLICATION_CREDENTIALS: optional(z.string()),
+  AWS_TEXTRACT_REGION: optional(z.string()),
 
-  // Payments (TZ)
-  GEPG_ENV: z.enum(['sandbox', 'production']).optional(),
-  GEPG_BASE_URL: z.string().url().optional(),
-  GEPG_CALLBACK_BASE_URL: z.string().url().optional(),
-  GEPG_HMAC_SECRET: z.string().optional(),
-  GEPG_HEALTH_URL: z.string().url().optional(),
-  GEPG_PKCS: z.string().optional(),
-  GEPG_PSP_MODE: z.enum(['client_cert', 'hmac']).optional(),
-  GEPG_PUBLIC_CERT_PEM: z.string().optional(),
-  GEPG_SP: z.string().optional(),
-  GEPG_SP_SYS_ID: z.string().optional(),
+  // Payments (TZ) — `true|false` accepted in dev as a mock-mode toggle
+  // alongside the real `client_cert|hmac` production modes.
+  GEPG_ENV: optional(z.enum(['sandbox', 'production'])),
+  GEPG_BASE_URL: optional(z.string().url()),
+  GEPG_CALLBACK_BASE_URL: optional(z.string().url()),
+  GEPG_HMAC_SECRET: optional(z.string()),
+  GEPG_HEALTH_URL: optional(z.string().url()),
+  GEPG_PKCS: optional(z.string()),
+  GEPG_PSP_MODE: optional(z.enum(['client_cert', 'hmac', 'true', 'false'])),
+  GEPG_PUBLIC_CERT_PEM: optional(z.string()),
+  GEPG_SP: optional(z.string()),
+  GEPG_SP_SYS_ID: optional(z.string()),
 
   // SMS providers
-  AFRICASTALKING_WEBHOOK_SECRET: z.string().optional(),
-  META_APP_SECRET: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
+  AFRICASTALKING_WEBHOOK_SECRET: optional(z.string()),
+  META_APP_SECRET: optional(z.string()),
+  TWILIO_AUTH_TOKEN: optional(z.string()),
 
   // Internal keys
-  API_KEYS: z.string().optional(),
-  API_KEY_REGISTRY: z.string().optional(),
-  INTERNAL_API_KEY: z.string().optional(),
-  AGENT_CERT_SIGNING_SECRET: z.string().optional(),
-  WEBHOOK_DEFAULT_HMAC_SECRET: z.string().optional(),
+  API_KEYS: optional(z.string()),
+  API_KEY_REGISTRY: optional(z.string()),
+  INTERNAL_API_KEY: optional(z.string()),
+  AGENT_CERT_SIGNING_SECRET: optional(z.string()),
+  WEBHOOK_DEFAULT_HMAC_SECRET: optional(z.string()),
 
   // Audit-hash-chain HMAC root (packages/ai-copilot/src/security/audit-hash-chain.ts).
   // When unset the chain degrades to unkeyed SHA-256 which is forge-able by anyone
   // with DB write access. REQUIRED in production. `_PREV` is an optional rotation
   // overlap slot consumed during the 24h soak window (see Docs/SECRETS_ROTATION.md).
-  SESSION_HASH_SECRET: z.preprocess(
-    (v) => (v === '' || v === undefined ? undefined : v),
-    z.string().min(32, 'SESSION_HASH_SECRET must be at least 32 chars').optional(),
+  SESSION_HASH_SECRET: optional(
+    z.string().min(32, 'SESSION_HASH_SECRET must be at least 32 chars'),
   ),
-  SESSION_HASH_SECRET_PREV: z.preprocess(
-    (v) => (v === '' || v === undefined ? undefined : v),
-    z.string().min(32, 'SESSION_HASH_SECRET_PREV must be at least 32 chars').optional(),
+  SESSION_HASH_SECRET_PREV: optional(
+    z.string().min(32, 'SESSION_HASH_SECRET_PREV must be at least 32 chars'),
   ),
 
   // Inter-service
-  API_URL: z.string().url().optional(),
-  NOTIFICATIONS_SERVICE_URL: z.string().url().optional(),
-  TENANT_SERVICE_URL: z.string().url().optional(),
+  API_URL: optional(z.string().url()),
+  NOTIFICATIONS_SERVICE_URL: optional(z.string().url()),
+  TENANT_SERVICE_URL: optional(z.string().url()),
 
   // Defaults for tenant bootstrap
-  DEFAULT_TENANT_CITY: z.string().optional(),
-  DEFAULT_TENANT_COUNTRY: z.string().optional(),
-  DEFAULT_TENANT_CURRENCY: z.string().length(3).optional(),
-  DEV_DEFAULT_COUNTRY_CODE: z.string().length(2).optional(),
+  DEFAULT_TENANT_CITY: optional(z.string()),
+  DEFAULT_TENANT_COUNTRY: optional(z.string()),
+  DEFAULT_TENANT_CURRENCY: optional(z.string().length(3)),
+  DEV_DEFAULT_COUNTRY_CODE: optional(z.string().length(2)),
 
   // Health checks
-  DEEP_HEALTH_CACHE_MS: z.coerce.number().int().nonnegative().optional(),
+  DEEP_HEALTH_CACHE_MS: optional(z.coerce.number().int().nonnegative()),
 
   // Testing / dev
-  USE_MOCK_DATA: z.enum(['true', 'false']).optional(),
+  USE_MOCK_DATA: optional(z.enum(['true', 'false'])),
 });
 
 export const EnvSchema = CoreSchema.merge(OptionalSchema);

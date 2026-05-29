@@ -14,6 +14,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { getCsrfHeaders } from '@/lib/csrf';
+
 interface TenantMembership {
   readonly tenantId: string;
   readonly tenantName: string;
@@ -75,7 +77,7 @@ export function TenantRail() {
         const res = await fetch('/api/v1/me/tenants/active', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
           body: JSON.stringify({ tenantId }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -138,7 +140,11 @@ export function TenantRail() {
           } disabled:cursor-default`}
         >
           {item.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
+            // Standalone <img> is intentional here — the avatar is small
+            // (40px), the URL is user-supplied (no Next/Image loader allowlist),
+            // and we want zero LCP/CLS impact on the rail. The
+            // `@next/next/no-img-element` rule is intentionally NOT enabled
+            // in this app's flat-config — see apps/owner-web/eslint.config.mjs.
             <img
               src={item.logoUrl}
               alt=""
