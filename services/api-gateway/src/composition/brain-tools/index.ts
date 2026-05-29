@@ -53,6 +53,11 @@ import { RISK_SCANNER_TOOLS } from './risk-scanner-tools';
 // service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §6 and
 // services/api-gateway/src/composition/brain-tools/geo-tools.ts.
 import { GEO_TOOLS } from './geo-tools';
+// Chat-everywhere CE-1 2026-05-29 — 6 tools closing the chat-action
+// coverage gaps identified by Docs/AUDIT/CHAT_ACTION_COVERAGE_2026-05-29.md.
+// Lifts owner-cockpit coverage from 91.8% to 100% of shippable surface
+// (admin / estate / payroll gaps stay sibling-owned).
+import { CHAT_EVERYWHERE_TOOLS } from './chat-everywhere-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -101,6 +106,7 @@ export function buildPersonaToolHandlers(
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
+      CHAT_EVERYWHERE_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -150,6 +156,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
+      CHAT_EVERYWHERE_TOOLS,
     ],
     undefined,
   );
@@ -215,3 +222,14 @@ export {
 } from './risk-scanner-tools';
 // Geo SOTA 2026-05-29 — re-export for ergonomic imports.
 export { GEO_TOOLS } from './geo-tools';
+// Chat-everywhere CE-1 2026-05-29 — re-export for ergonomic imports
+// (test harnesses + audit walker).
+export {
+  CHAT_EVERYWHERE_TOOLS,
+  uiPinTabTool,
+  uiReorderTabTool,
+  uiRemoveTabTool,
+  uiExportPdfTool,
+  uiMarkNotificationReadTool,
+  ownerConnectedAgentRevokeTool,
+} from './chat-everywhere-tools';
