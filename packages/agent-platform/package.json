@@ -20,6 +20,10 @@
     "./planning": {
       "types": "./src/planning/index.ts",
       "default": "./dist/planning/index.js"
+    },
+    "./junior-spawner": {
+      "types": "./src/junior-spawner/index.ts",
+      "default": "./dist/junior-spawner/index.js"
     }
   },
   "scripts": {
