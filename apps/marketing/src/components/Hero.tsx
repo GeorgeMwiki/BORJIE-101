@@ -14,6 +14,8 @@ import {
 import { motion } from 'framer-motion';
 import { getMessages, type Locale } from '@/lib/i18n';
 import { BorjieLogo } from '@borjie/design-system';
+import { MeshGradient } from './effects/MeshGradient';
+import { NeonGlow } from './effects/NeonGlow';
 
 /**
  * Hero — Borjie's Live Fabric hero (LitFin IgnitionHero pattern, ported
@@ -287,6 +289,11 @@ export function Hero({ locale }: { readonly locale: Locale }) {
       className="relative isolate overflow-hidden"
       aria-labelledby="hero-headline"
     >
+      {/* R-FUTURE-5 — Stripe-inspired animated mesh background. Sits
+          behind the legacy aurora so the brand pass is purely additive
+          and reverts cleanly by deleting these two lines. */}
+      <MeshGradient speed={0.6} />
+      <NeonGlow tone="gold" size="lg" position="top-right" intensity={0.4} />
       <div className="hero-aurora" aria-hidden="true" />
       <div
         className="absolute inset-0 cinematic-grid opacity-40"
