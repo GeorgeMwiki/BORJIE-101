@@ -388,6 +388,12 @@ import { createRemindersDispatchWorker } from './workers/reminders-dispatch.work
 // drift, writes outcome_observations + outcome_reconciliations, and
 // extends the AI hash-chain on each reconciliation.
 import { createOutcomeReconciliationWorker } from './workers/outcome-reconciliation-worker';
+// Wave DECISION-LEGIBILITY — 24-hour worker that closes the loop on
+// committed decisions: joins them to outcome_reconciliations, grades
+// each one (good / bad / neutral / undetermined), and writes the
+// retrospective row via the hash-chained decision recorder.
+import { createDecisionRetrospectiveWorker } from './workers/decision-retrospective-worker';
+import { createDecisionRecorder } from './services/decision-journal/recorder';
 // Wave WORKFORCE-CERT-EXPIRY — 6-hour cron that scans
 // workforce_certifications for any active cert expiring in <= 30d
 // and auto-creates reminders at 30d / 14d / 3d (idempotent).
@@ -519,6 +525,14 @@ const logger = pino({
 // so the first brain-call doesn't see the baseline fallback path.
 import { wireDynamicModelRegistry } from './composition/dynamic-model-registry-wiring';
 wireDynamicModelRegistry({ logger });
+
+// Wave AGENTIC-PLATFORM — OAuth2 device-flow + capability manifest
+// (migration 0118 + Docs/RESEARCH/AGENTIC_SOTA_COMPARISON.md). Powers
+// the public MCP / CLI / SDK consumers — Claude Code, Cursor,
+// Windsurf, `borjie` CLI, `@borjie/api-sdk`. Mounted at the very end
+// of the route table so existing routes keep their lookup order.
+import { oauthDeviceRouter } from './routes/oauth-device.hono';
+import { wellKnownRouter } from './routes/well-known.hono';
 
 // Fail-fast env validation — throws with a precise error message if required
 // vars (DATABASE_URL, JWT_SECRET) are missing or malformed. Warnings are
@@ -1425,6 +1439,15 @@ api.route('/admin', adminUsersRouter);
 api.route('/units/:id/subdivision', unitSubdivisionRouter);
 api.route('/units/:id/components', unitComponentsRouter);
 
+// Wave AGENTIC-PLATFORM — OAuth2 device-flow + per-agent access tokens.
+// PUBLIC endpoints (no auth): /oauth/device/code, /oauth/device/verify,
+// /oauth/device/details, /oauth/token, /oauth/revoke.
+// OWNER-AUTH endpoints (Supabase JWT / session cookie):
+// /oauth/device/approve, /oauth/device/deny, /oauth/agent-tokens.
+// Backed by migration 0118 (oauth_agent_tokens + oauth_device_codes).
+// Mounted late so it never accidentally shadows existing /api/v1/auth.
+api.route('/oauth', oauthDeviceRouter);
+
 // Wave 12 — Webhook DLQ admin router. Mounted at /api/v1/webhooks via
 // the factory's own prefix. The factory expects a repository + requeue
 // function; we wire Postgres when the registry is live, otherwise the
@@ -1545,6 +1568,13 @@ const openApiRouter = createOpenApiRouter({
 api.route('/', openApiRouter);
 
 app.use('/api/v1', handle(api));
+
+// Wave AGENTIC-PLATFORM — capability manifest + MCP discovery, mounted
+// at the express ROOT under /.well-known/ per the spec. PUBLIC (no auth),
+// CDN-cacheable. Routes:
+//   GET /.well-known/borjie-capabilities.json
+//   GET /.well-known/mcp.json
+app.use('/.well-known', handle(wellKnownRouter));
 
 // API versioning
 app.get('/api/v1', (_req, res) => {
@@ -1836,6 +1866,38 @@ const remindersDispatchWorker = serviceRegistry.db
 // action_target_entity_type values come online. Unresolved entity
 // types land predictions in 'expired' status (auditable) rather than
 // dangling forever.
+// Decision-retrospective recorder — hash-chained, append-only. Lives
+// next to the outcome-reconciliation worker so both share the same db
+// handle and lifecycle.
+const decisionRecorder = serviceRegistry.db
+  ? createDecisionRecorder({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+    })
+  : null;
+
+const decisionRetrospectiveWorker =
+  serviceRegistry.db && decisionRecorder
+    ? createDecisionRetrospectiveWorker({
+        db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        logger,
+        recorder: decisionRecorder,
+        intervalMs:
+          Number(
+            process.env.BORJIE_DECISION_RETROSPECTIVE_INTERVAL_MS ??
+              24 * 60 * 60 * 1000,
+          ) || 24 * 60 * 60 * 1000,
+        enabled:
+          process.env.NODE_ENV !== 'test' &&
+          process.env.BORJIE_DECISION_RETROSPECTIVE_DISABLED !== 'true',
+      })
+    : {
+        start() {},
+        stop() {},
+        async tickOnce() {
+          return { considered: 0, graded: 0, skipped: 0, failed: 0 };
+        },
+      };
+
 const outcomeReconciliationWorker = serviceRegistry.db
   ? createOutcomeReconciliationWorker({
       db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
@@ -1978,6 +2040,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: outcome-reconciliation stop failed');
   }
   try {
+    decisionRetrospectiveWorker.stop();
+    logger.info('shutdown: decision-retrospective worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: decision-retrospective stop failed');
+  }
+  try {
     serviceRegistry.wakeLoopCron?.stop();
     logger.info('shutdown: wake-loop cron stopped');
   } catch (err) {
@@ -2106,6 +2174,12 @@ if (require.main === module) {
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
   outcomeReconciliationWorker.start();
+  // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
+  // committed decision whose prediction horizon has passed, joins
+  // outcome_reconciliations + outcome_observations, grades the
+  // decision (good / bad / neutral / undetermined), and writes the
+  // hash-chained retrospective entry via the decision recorder.
+  decisionRetrospectiveWorker.start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval
