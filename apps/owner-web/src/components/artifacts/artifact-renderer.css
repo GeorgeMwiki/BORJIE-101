@@ -1,0 +1,291 @@
+/* Wave ARTIFACT-RICHNESS — shared chrome for every artifact card
+ * mounted inside the cockpit. Mirrors the server-side renderer styles
+ * (services/api-gateway/src/services/artifact-richness/branded-layout.ts
+ *  -> ARTIFACT_RICHNESS_CSS) so an artifact body rendered from the
+ * API drops into the cockpit without visual divergence.
+ *
+ * Print + dark-mode + reduced-motion safe.
+ */
+
+.borjie-artifact {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #ECE7D6;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-family: 'Inter', Helvetica, Arial, sans-serif;
+  color: #0B0D12;
+  overflow: hidden;
+}
+
+.borjie-artifact-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0B0D12;
+  color: #C8A24B;
+  padding: 12px 20px;
+}
+
+.borjie-artifact-wordmark {
+  font-family: 'Syne', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.4px;
+}
+
+.borjie-artifact-meta {
+  flex: 1;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.borjie-artifact-sep {
+  opacity: 0.6;
+  margin: 0 4px;
+}
+
+.borjie-artifact-classification {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.borjie-artifact-classification--public {
+  background: rgba(255, 255, 255, 0.1);
+  color: #C8A24B;
+}
+
+.borjie-artifact-classification--internal {
+  background: #C8A24B;
+  color: #0B0D12;
+}
+
+.borjie-artifact-classification--confidential {
+  background: #B33A2A;
+  color: #FFFFFF;
+}
+
+.borjie-artifact-body {
+  padding: 24px 28px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.borjie-artifact-body-host h1 {
+  font-family: 'Syne', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0 0 18px;
+}
+
+.borjie-artifact-body-host h2 {
+  font-family: 'Syne', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  margin: 22px 0 10px;
+}
+
+.borjie-artifact-body-host h3 {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 18px 0 8px;
+}
+
+.borjie-artifact-body-host p {
+  margin: 8px 0 12px;
+}
+
+.borjie-artifact-body-host ul,
+.borjie-artifact-body-host ol {
+  padding-left: 22px;
+  margin: 8px 0 14px;
+}
+
+.borjie-artifact-body-host table {
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+
+.borjie-artifact-body-host th,
+.borjie-artifact-body-host td {
+  border: 1px solid #F7F5EE;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.borjie-artifact-body-host th {
+  background: #F7F5EE;
+  font-weight: 600;
+}
+
+.borjie-artifact-toc-host nav.borjie-toc {
+  background: #FBF9F0;
+  border-left: 3px solid #C8A24B;
+  padding: 12px 16px;
+  margin: 0 0 24px;
+  border-radius: 4px;
+}
+
+.borjie-artifact-toc-host nav.borjie-toc h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+.borjie-artifact-toc-host nav.borjie-toc ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.borjie-artifact-toc-host nav.borjie-toc a {
+  color: #0B0D12;
+  text-decoration: none;
+}
+
+.borjie-artifact-footnotes-host section.borjie-footnotes {
+  margin: 28px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid #ECE7D6;
+  font-size: 13px;
+  color: #5C5F66;
+}
+
+.borjie-artifact-footnotes-host section.borjie-footnotes h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+  color: #0B0D12;
+}
+
+.borjie-artifact-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #FBF9F0;
+  color: #5C5F66;
+  font-size: 11px;
+  border-top: 1px solid #ECE7D6;
+}
+
+.borjie-artifact-disclaimer {
+  font-style: italic;
+}
+
+.borjie-artifact-skeleton {
+  padding: 24px 28px;
+}
+
+.borjie-artifact-skeleton-row {
+  background: linear-gradient(90deg, #F7F5EE, #ECE7D6, #F7F5EE);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  height: 14px;
+  margin: 0 0 10px;
+  animation: borjie-artifact-shimmer 1.4s ease-in-out infinite;
+}
+
+.borjie-artifact-skeleton-row--short {
+  width: 55%;
+}
+
+.borjie-artifact-skeleton-row--long {
+  width: 92%;
+}
+
+.borjie-artifact-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.borjie-artifact-empty {
+  padding: 24px 28px;
+  text-align: center;
+}
+
+.borjie-artifact-retry {
+  background: #0B0D12;
+  color: #C8A24B;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.borjie-artifact-retry:hover {
+  background: #20242c;
+}
+
+@keyframes borjie-artifact-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .borjie-artifact-skeleton-row {
+    animation: none;
+  }
+}
+
+@media print {
+  .borjie-artifact {
+    border: 1px solid #0B0D12;
+    box-shadow: none;
+  }
+  .borjie-artifact-header {
+    background: none;
+    color: #0B0D12;
+    border-bottom: 1px solid #0B0D12;
+  }
+  .borjie-artifact-classification {
+    background: none !important;
+    color: #0B0D12 !important;
+    border: 1px solid #0B0D12;
+  }
+  .borjie-artifact-footer {
+    background: none;
+    border-top: 1px solid #0B0D12;
+  }
+  .borjie-artifact-retry {
+    display: none;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .borjie-artifact {
+    background: #14171c;
+    border-color: #2a2f38;
+    color: #f7f5ee;
+  }
+  .borjie-artifact-body-host th {
+    background: #20242c;
+  }
+  .borjie-artifact-toc-host nav.borjie-toc {
+    background: #1d2128;
+    border-left-color: #C8A24B;
+  }
+  .borjie-artifact-toc-host nav.borjie-toc a {
+    color: #f7f5ee;
+  }
+  .borjie-artifact-footnotes-host section.borjie-footnotes {
+    color: #B0B3B8;
+    border-top-color: #2a2f38;
+  }
+  .borjie-artifact-footer {
+    background: #1d2128;
+    border-top-color: #2a2f38;
+    color: #B0B3B8;
+  }
+}
