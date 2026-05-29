@@ -29,6 +29,7 @@ import { z } from 'zod';
 
 import { chainHash, GENESIS_HASH } from '@borjie/audit-hash-chain';
 
+import { toPgTextArray } from '../../utils/pg-array.js';
 import {
   DECIDED_BY_KINDS,
   DECISION_LINK_RELATIONSHIPS,
@@ -58,23 +59,6 @@ function rowsOf(result: unknown): ReadonlyArray<ExecRow> {
   if (Array.isArray(result)) return result as ReadonlyArray<ExecRow>;
   const wrapped = result as { rows?: ReadonlyArray<ExecRow> };
   return wrapped?.rows ?? [];
-}
-
-/**
- * Encode a JS string[] as a Postgres array literal text so it can be
- * passed through drizzle's tagged-template `${arr}` interpolation
- * without postgres rejecting it as "malformed array literal".
- *
- * Without this dance, drizzle binds each array element as a separate
- * positional parameter, which the text[] column rejects with 22P02 the
- * instant the array has any entries.
- */
-function toPgTextArray(values: ReadonlyArray<string>): string {
-  if (values.length === 0) return '{}';
-  const escaped = values.map(
-    (v) => '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"',
-  );
-  return '{' + escaped.join(',') + '}';
 }
 
 // ─── input schemas ──────────────────────────────────────────────────

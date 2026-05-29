@@ -200,6 +200,14 @@ export function createDecisionRetrospectiveWorker(
       clock().getTime() - softWaitDays * 24 * 60 * 60 * 1000,
     ).toISOString();
 
+    // Explicit ::int cast on the LIMIT bind keeps drizzle from passing
+    // the JS number through as an untyped param — the latter trips
+    // postgres' "could not determine data type of parameter $2" the
+    // moment the row planner cannot infer it from context. Sibling
+    // numeric/text casts on every other interpolation harden the path.
+    // (Same root cause family as the recorder text[] bug — see
+    //  services/api-gateway/src/utils/pg-array.ts for the helper used
+    //  on array binds elsewhere in this worker family.)
     const result = await options.db.execute(sql`
       SELECT d.id, d.tenant_id, d.decision_subject, d.related_prediction_id,
              d.decided_at,
@@ -223,7 +231,7 @@ export function createDecisionRetrospectiveWorker(
               r.status IS NOT NULL
            OR (d.related_prediction_id IS NULL AND d.decided_at <= ${softCutoff}::timestamptz)
          )
-       LIMIT ${batchSize}
+       LIMIT ${batchSize}::int
     `);
 
     return asRows(result).map((row) => ({
@@ -266,8 +274,14 @@ export function createDecisionRetrospectiveWorker(
         : `No prediction was attached; graded after ${softWaitDays}-day soft wait.`;
 
     try {
-      // Tenant-scoped: bind RLS GUC for this row.
-      await options.db.execute(sql`SELECT set_config('app.tenant_id', ${pending.tenantId}, true)`);
+      // Tenant-scoped: dual-set both GUC names so RLS policies on either
+      // generation (pre-/post-migration 0172) accept the recorder's
+      // writes against decisions / decision_outcomes / decision_links.
+      // Mirrors `services/api-gateway/src/middleware/database.ts`.
+      await options.db.execute(sql`
+        SELECT set_config('app.current_tenant_id', ${pending.tenantId}, false),
+               set_config('app.tenant_id', ${pending.tenantId}, false)
+      `);
       await options.recorder.recordOutcome({
         tenantId: pending.tenantId,
         decisionId: pending.id,
