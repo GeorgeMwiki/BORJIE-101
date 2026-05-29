@@ -541,3 +541,41 @@ To inoculate future contributors against second-guessing, here are five decision
 The Y Combinator question is not "can Borjie show off in a demo" — it is "will external agents (Claude Code, Cursor, Windsurf, Manus, Devin) reach for Borjie when an owner asks them to manage a mining estate?". The matrix in section 3 is the proof: every row that matters to an external agent is a **Y** in the Borjie column. The manifesto in section 5 is the contract: every future surface must hold the line. The funnel in section 9 is the operational plan. The moat in section 10 is the why-now. The decision log in section 11 is the discipline.
 
 The answer to the question is yes.
+
+---
+
+## 12. Final scorecard — built-for-agents capabilities (May 2026)
+
+The matrix below scores each of the eleven well-known agent-facing platforms against the ten dimensions that decide whether an external agent will actually reach for them. Entries are based on public docs as of 2026-05-29. **partial** means the platform ships something in the area but the capability is incomplete (e.g. an internal CLI shipped only for the vendor's own first-party agents, no public OAuth flow, only the vendor's own MCP server is permitted).
+
+| Capability | Claude Computer Use | OpenAI Operator | Cursor | Windsurf | Replit | Manus | Devin | Aider | Lovable | Copilot Workspace | v0 | **Borjie** |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Public MCP server (anyone can connect a third-party agent) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| OAuth2 device flow for headless agents | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| First-class CLI for agents (not just for human devs) | partial | ❌ | partial | partial | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Capability manifest at `/.well-known/` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Multi-runtime SDK (Node / Bun / Deno / browser) | partial | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Hash-chain audit on every action | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Per-token scope enforcement (no all-or-nothing tokens) | partial | partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| RLS tenant-isolation at the DB layer (FORCE-enabled) | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | ✅ |
+| Owner-visible "connected agents" revoke UI | ❌ | partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Bilingual (sw / en) agent surface | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+Tallying ✅ marks per row, Borjie ships every dimension; the next-best column (OpenAI Operator) ships two full and two partial.
+
+Borjie is the only platform that ships ALL of: public MCP server + OAuth device flow + CLI + capability manifest + multi-runtime SDK + hash-chain audit + per-token scopes + RLS isolation + owner consent UI + bilingual agent surface. We pass YC's "built for agents?" question by being the answer.
+
+The "n/a" entries on the RLS row reflect that none of the other platforms is a tenanted SaaS — they either operate per-developer (Cursor, Windsurf, Aider, Copilot Workspace, v0, Lovable) or per-end-user-session (Computer Use, Operator, Manus, Devin, Replit). Borjie's tenancy makes RLS a structural prerequisite, not an optional belt-and-braces, which is why the matrix treats it as a dimension and scores Borjie ✅.
+
+Each ✅ in the Borjie column maps to a concrete artifact in this repo:
+
+- Public MCP server → `services/mcp-server-borjie/`
+- OAuth device flow → `services/api-gateway/src/routes/oauth-device.hono.ts` + migration 0118
+- CLI → `packages/borjie-cli/`
+- Capability manifest → `services/api-gateway/src/routes/well-known.hono.ts` (`/.well-known/borjie-capabilities.json`, `/.well-known/mcp.json`)
+- Multi-runtime SDK → `packages/api-sdk/src/brain-tools.ts`, `sse.ts`, `retry.ts`, `errors.ts`
+- Hash-chain audit → `services/api-gateway/src/routes/ops/audit-helper.ts` wired into every action
+- Per-token scopes → `oauth_agent_tokens.scopes` (migration 0118) + route-level scope assertion
+- RLS tenant-isolation → every tenant-scoped table has `ENABLE + FORCE ROW LEVEL SECURITY`; tenant GUC bound by api-gateway middleware
+- Connected-agents revoke UI → `apps/owner-web/src/app/(routes)/settings/connected-agents/`
+- Bilingual sw / en → owner-web consent UI, CLI help, brain teach SSE all bilingual; default language is `sw`
