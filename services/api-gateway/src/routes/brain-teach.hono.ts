@@ -106,6 +106,7 @@ import {
 import { getDb } from '../composition/db-client.js';
 import { renderScalePersonaSection } from '../services/brain/scale-persona.js';
 import { lookupTenantScaleTier } from '../services/brain/tenant-scale-lookup.js';
+import { resolveJurisdictionForPrompt } from '../services/brain/jurisdiction-prompt.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -560,10 +561,28 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       language,
     });
 
+    // JA-2: jurisdiction-aware prompt injection. Best-effort — when
+    // the DB or tenant row is unavailable, the helper returns an
+    // empty section and the legacy hardcoded TZ defaults baked into
+    // the base prompt take over. When the user message contains an
+    // explicit jurisdiction mention (e.g. "in Kenya..."), the
+    // detector parses it and the resolver returns the override
+    // snapshot for THIS turn only — the tenant row is NOT mutated.
+    const jurisdictionResult = await resolveJurisdictionForPrompt({
+      db: memoryDb as unknown as { execute(q: unknown): Promise<unknown> } | null,
+      tenantId,
+      userMessage: message,
+      language,
+    });
+
     const systemPromptParts: string[] = [
       `<owner_context>${JSON.stringify(ownerCtx)}</owner_context>`,
       '',
     ];
+    if (jurisdictionResult.section) {
+      systemPromptParts.push(jurisdictionResult.section);
+      systemPromptParts.push('');
+    }
     if (ownerStateDirective) {
       systemPromptParts.push('## OWNER_STATE');
       systemPromptParts.push(ownerStateDirective);
