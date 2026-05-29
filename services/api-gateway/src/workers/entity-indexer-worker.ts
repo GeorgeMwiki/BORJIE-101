@@ -36,6 +36,11 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import { discoverEdges, type DiscovererDb } from '../services/cross-reference-discovery';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 const THIRTY_MIN_MS = 30 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = THIRTY_MIN_MS;
@@ -523,6 +528,11 @@ export function createEntityIndexerWorker(
           'entity-indexer: tick complete',
         );
       }
+      // G6 — heartbeat on the success path.
+      workerHeartbeat('entity-indexer');
+    } catch (err) {
+      workerHeartbeatFailure('entity-indexer', err);
+      throw err;
     } finally {
       running = false;
     }
@@ -539,6 +549,8 @@ export function createEntityIndexerWorker(
         return;
       }
       if (timer) return;
+      // G6 — register before the first tick.
+      registerWorker({ name: 'entity-indexer', intervalMs });
       timer = setInterval(() => {
         tickOnce().catch((err) => {
           options.logger.error(

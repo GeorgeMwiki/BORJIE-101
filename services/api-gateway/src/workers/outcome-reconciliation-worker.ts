@@ -44,6 +44,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 50;
@@ -608,54 +613,62 @@ export function createOutcomeReconciliationWorker(
   }
 
   async function tickOnce(): Promise<ReconciliationTickResult> {
-    const claimed = await claim();
-    let matched = 0;
-    let divergent = 0;
-    let undetermined = 0;
-    let expired = 0;
-    let errored = 0;
-    for (const p of claimed) {
-      try {
-        const verdict = await reconcileOne(p);
-        if (verdict === 'matched') matched += 1;
-        else if (verdict === 'divergent') divergent += 1;
-        else if (verdict === 'undetermined') undetermined += 1;
-        else if (verdict === 'expired') expired += 1;
-        else errored += 1;
-      } catch (err) {
-        errored += 1;
-        options.logger.warn(
+    try {
+      const claimed = await claim();
+      let matched = 0;
+      let divergent = 0;
+      let undetermined = 0;
+      let expired = 0;
+      let errored = 0;
+      for (const p of claimed) {
+        try {
+          const verdict = await reconcileOne(p);
+          if (verdict === 'matched') matched += 1;
+          else if (verdict === 'divergent') divergent += 1;
+          else if (verdict === 'undetermined') undetermined += 1;
+          else if (verdict === 'expired') expired += 1;
+          else errored += 1;
+        } catch (err) {
+          errored += 1;
+          options.logger.warn(
+            {
+              worker: 'outcome-reconciliation',
+              predictionId: p.id,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            'outcome-reconciliation: reconcile threw',
+          );
+        }
+      }
+      if (claimed.length > 0) {
+        options.logger.info(
           {
             worker: 'outcome-reconciliation',
-            predictionId: p.id,
-            err: err instanceof Error ? err.message : String(err),
+            claimed: claimed.length,
+            matched,
+            divergent,
+            undetermined,
+            expired,
+            errored,
           },
-          'outcome-reconciliation: reconcile threw',
+          'outcome-reconciliation: tick done',
         );
       }
+      // G6 — robustness 2026-05-29. Heartbeat AFTER the tick body so
+      // /health/deep can distinguish "ticking but failing" from "stuck".
+      workerHeartbeat('outcome-reconciliation');
+      return {
+        claimed: claimed.length,
+        matched,
+        divergent,
+        undetermined,
+        expired,
+        errored,
+      };
+    } catch (err) {
+      workerHeartbeatFailure('outcome-reconciliation', err);
+      throw err;
     }
-    if (claimed.length > 0) {
-      options.logger.info(
-        {
-          worker: 'outcome-reconciliation',
-          claimed: claimed.length,
-          matched,
-          divergent,
-          undetermined,
-          expired,
-          errored,
-        },
-        'outcome-reconciliation: tick done',
-      );
-    }
-    return {
-      claimed: claimed.length,
-      matched,
-      divergent,
-      undetermined,
-      expired,
-      errored,
-    };
   }
 
   function start(): void {
@@ -667,6 +680,9 @@ export function createOutcomeReconciliationWorker(
       return;
     }
     if (timer) return;
+    // G6 — register before the first tick so /health/deep can flag
+    // "registered but not yet ticked > 2 × interval" as stuck.
+    registerWorker({ name: 'outcome-reconciliation', intervalMs });
     timer = setInterval(() => {
       tickOnce().catch((err) => {
         options.logger.error(

@@ -38,6 +38,11 @@ import type { Logger } from 'pino';
 
 import type { DecisionRecorder } from '../services/decision-journal/index.js';
 import type { RetrospectiveGrade } from '../services/decision-journal/index.js';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 const DEFAULT_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 100;
@@ -324,17 +329,24 @@ export function createDecisionRetrospectiveWorker(
         else if (outcome === 'failed') failed += 1;
         else skipped += 1;
       }
+      // G6 — heartbeat on the success path so /health/deep can flag
+      // a stuck worker (no tick > 2 × interval).
+      workerHeartbeat('decision-retrospective');
     } catch (err) {
       logger.error(
         { err: err instanceof Error ? err.message : String(err) },
         'decision-retrospective-worker: tick failed',
       );
+      workerHeartbeatFailure('decision-retrospective', err);
     }
     return { considered, graded, skipped, failed };
   }
 
   function start(): void {
     if (!enabled || timer !== null) return;
+    // G6 — register before the first tick so /health/deep can flag
+    // "registered but not yet ticked > 2 × interval" as stuck.
+    registerWorker({ name: 'decision-retrospective', intervalMs });
     logger.info(
       { worker: 'decision-retrospective', intervalMs },
       'decision-retrospective: started',

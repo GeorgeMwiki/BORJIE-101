@@ -47,6 +47,11 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 // ─── Public types ───────────────────────────────────────────────────
 
@@ -287,23 +292,32 @@ export function createFxFeedCron(opts: FxFeedCronOptions): FxFeedCron {
     const tickedAt = new Date().toISOString();
     const errors: string[] = [];
 
-    const [botResult, lbmaResult] = await Promise.all([
-      runBot(),
-      runLbma(),
-    ]);
-    if (botResult.error) errors.push(botResult.error);
-    if (lbmaResult.error) errors.push(lbmaResult.error);
+    try {
+      const [botResult, lbmaResult] = await Promise.all([
+        runBot(),
+        runLbma(),
+      ]);
+      if (botResult.error) errors.push(botResult.error);
+      if (lbmaResult.error) errors.push(lbmaResult.error);
 
-    return {
-      tickedAt,
-      bot: { value: botResult.value, inserted: botResult.inserted },
-      lbma: {
-        amValue: lbmaResult.am,
-        pmValue: lbmaResult.pm,
-        inserted: lbmaResult.inserted,
-      },
-      errors,
-    };
+      // G6 — heartbeat on tick completion (even if both feeds errored;
+      // the worker is "running" — operators distinguish "ticking +
+      // failing" from "stuck" via the error fields on /health/deep).
+      workerHeartbeat('fx-feed-cron');
+      return {
+        tickedAt,
+        bot: { value: botResult.value, inserted: botResult.inserted },
+        lbma: {
+          amValue: lbmaResult.am,
+          pmValue: lbmaResult.pm,
+          inserted: lbmaResult.inserted,
+        },
+        errors,
+      };
+    } catch (err) {
+      workerHeartbeatFailure('fx-feed-cron', err);
+      throw err;
+    }
   }
 
   async function runBot(): Promise<{
@@ -407,6 +421,8 @@ export function createFxFeedCron(opts: FxFeedCronOptions): FxFeedCron {
         );
         return;
       }
+      // G6 — register before the first tick.
+      registerWorker({ name: 'fx-feed-cron', intervalMs });
       opts.logger.info(
         { worker: 'fx-feed-cron', intervalMs },
         'fx-feed-cron: started',

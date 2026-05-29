@@ -21,6 +21,11 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = SIX_HOURS_MS;
@@ -324,6 +329,11 @@ export function createIcaCertExpiryCron(
           'ica-cert-expiry-cron: tick complete',
         );
       }
+      // G6 — heartbeat on the success path.
+      workerHeartbeat('ica-cert-expiry-cron');
+    } catch (err) {
+      workerHeartbeatFailure('ica-cert-expiry-cron', err);
+      throw err;
     } finally {
       running = false;
     }
@@ -340,6 +350,8 @@ export function createIcaCertExpiryCron(
         return;
       }
       if (timer) return;
+      // G6 — register before the first tick.
+      registerWorker({ name: 'ica-cert-expiry-cron', intervalMs });
       timer = setInterval(() => {
         tickOnce().catch((err) => {
           options.logger.error(

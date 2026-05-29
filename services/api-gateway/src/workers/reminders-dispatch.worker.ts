@@ -41,6 +41,11 @@ import {
   type EmailProvider,
   type SmsProvider,
 } from '../services/notification-dispatch';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_BATCH = 25;
@@ -330,21 +335,28 @@ export function createRemindersDispatchWorker(
 
   async function tickOnce(): Promise<DispatchTickResult> {
     warnBootOnce();
-    const claimed = await claim();
-    let sent = 0;
-    let failed = 0;
-    for (const r of claimed) {
-      const res = await dispatchOne(r);
-      if (res.sent) sent += 1;
-      else failed += 1;
+    try {
+      const claimed = await claim();
+      let sent = 0;
+      let failed = 0;
+      for (const r of claimed) {
+        const res = await dispatchOne(r);
+        if (res.sent) sent += 1;
+        else failed += 1;
+      }
+      if (claimed.length > 0) {
+        options.logger.info(
+          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed },
+          'reminders-dispatch: tick done',
+        );
+      }
+      // G6 — heartbeat on the success path.
+      workerHeartbeat('reminders-dispatch');
+      return { claimed: claimed.length, sent, failed };
+    } catch (err) {
+      workerHeartbeatFailure('reminders-dispatch', err);
+      throw err;
     }
-    if (claimed.length > 0) {
-      options.logger.info(
-        { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed },
-        'reminders-dispatch: tick done',
-      );
-    }
-    return { claimed: claimed.length, sent, failed };
   }
 
   function start(): void {
@@ -353,6 +365,8 @@ export function createRemindersDispatchWorker(
       return;
     }
     if (timer) return;
+    // G6 — register before the first tick.
+    registerWorker({ name: 'reminders-dispatch', intervalMs });
     timer = setInterval(() => {
       tickOnce().catch((err) => {
         options.logger.error(

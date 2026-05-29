@@ -143,6 +143,10 @@ import { marketplaceRouter } from './routes/marketplace.router';
 // `marketplaceRouter` above which manages listing publishing for
 // portfolio owners.
 import { universalMarketplaceRouter } from './routes/marketplace/index.js';
+// Roadmap R11 — buyer-initiated Request for Bids. Buyers post
+// "I want N tonnes of X at TZS Y by D"; sellers in the geo radius
+// respond with counter-offers. Migration 0127.
+import { rfbRouter } from './routes/marketplace/rfb.hono';
 // Public marketing surface — pilot applications + future PR contact
 // forms. No tenant context; runs outside the auth chain on purpose.
 import { marketingRouter } from './routes/marketing.hono';
@@ -1214,6 +1218,38 @@ const deepHealthHandler = createDeepHealthHandler({
         }
       },
     },
+    // G6 — robustness 2026-05-29. Pure introspection probe — reads
+    // the in-process worker heartbeat registry and surfaces `degraded`
+    // when any worker hasn't ticked in 2× its interval. A stuck cron
+    // is no longer invisible until an operator greps logs.
+    {
+      name: 'workers',
+      optional: false,
+      timeoutMs: 100,
+      run: async () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const mod = require('./workers/worker-heartbeat') as {
+          snapshotWorkers: () => ReadonlyArray<{
+            name: string;
+            stuck: boolean;
+            msSinceLastTick: number | null;
+            intervalMs: number;
+            lastError: string | null;
+          }>;
+        };
+        const snapshot = mod.snapshotWorkers();
+        const stuck = snapshot.filter((w) => w.stuck);
+        if (stuck.length > 0) {
+          const names = stuck
+            .map(
+              (w) =>
+                `${w.name} (msSinceLastTick=${w.msSinceLastTick ?? 'never'}, intervalMs=${w.intervalMs})`,
+            )
+            .join(', ');
+          throw new Error(`stuck workers: ${names}`);
+        }
+      },
+    },
   ],
 });
 app.get('/api/v1/health/deep', (req, res) => {
@@ -1357,6 +1393,10 @@ api.route('/financial-profile', financialProfileRouter);
 api.route('/interactive-reports', interactiveReportsRouter);
 api.route('/letters', lettersRouter);
 api.route('/marketplace', marketplaceRouter);
+// Roadmap R11 — buyer-initiated RFB. Mounted as a sub-router under
+// the legacy marketplace prefix so client URLs read
+// `/api/v1/marketplace/rfb/*` (matches the buyer-mobile fetch calls).
+api.route('/marketplace/rfb', rfbRouter);
 api.route('/marketplace-universal', universalMarketplaceRouter);
 api.route('/marketing', marketingRouter);
 // Borjie locale-toggle re-translation — see routes/translate.hono.ts.

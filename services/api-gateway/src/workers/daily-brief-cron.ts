@@ -39,6 +39,11 @@ import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import { composeOwnerBrief, persistSnapshot } from '../routes/owner/brief.hono';
 import { callBrainOnce } from '../routes/owner/brain-call';
+import {
+  registerWorker,
+  workerHeartbeat,
+  workerHeartbeatFailure,
+} from './worker-heartbeat';
 import type {
   EmailProvider,
   SmsProvider,
@@ -185,6 +190,11 @@ export function createDailyBriefCron(
           'daily-brief-cron: tick complete',
         );
       }
+      // G6 — heartbeat on the success path.
+      workerHeartbeat('daily-brief-cron');
+    } catch (err) {
+      workerHeartbeatFailure('daily-brief-cron', err);
+      throw err;
     } finally {
       running = false;
     }
@@ -207,6 +217,9 @@ export function createDailyBriefCron(
         );
         return;
       }
+      // G6 — register before the first tick so /health/deep can flag
+      // "registered but not yet ticked > 2 × interval" as stuck.
+      registerWorker({ name: 'daily-brief-cron', intervalMs });
       options.logger.info(
         { worker: 'daily-brief-cron', intervalMs },
         'daily-brief-cron: started',
