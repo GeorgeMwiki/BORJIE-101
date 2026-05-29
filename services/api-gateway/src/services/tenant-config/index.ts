@@ -32,3 +32,15 @@ export {
   type TenantConfig,
   type TenantConfigService,
 } from './types.js';
+
+// WS-2 — language helpers. Centralises bilingual sw/en lookup so the
+// rest of the application never re-implements the "what language does
+// this tenant want?" decision.
+export {
+  LANGUAGE_CATALOGUE,
+  bcp47ForTenant,
+  bilingualForTenant,
+  coerceSupportedLanguage,
+  getLanguageEntry,
+  type LanguageCatalogueEntry,
+} from './language.js';
