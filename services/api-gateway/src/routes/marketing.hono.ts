@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { marketingPilotApplications } from '@borjie/database';
 import { createLogger } from '../utils/logger.js';
 
 /**
@@ -10,11 +11,13 @@ import { createLogger } from '../utils/logger.js';
  * middleware — these endpoints are public by design (a prospect
  * cannot have a tenant yet).
  *
- * Persistence (write to `marketing.pilot_applications` + notify
- * pilot@borjie.co.tz) is tracked in `Docs/KNOWN_ISSUES.md` as
- * KI-MARKETING-1; for now we accept, validate, log via the structured
- * logger, and return `{ success: true }` so the marketing site has a
- * functioning end-to-end submission path during pre-launch.
+ * Persistence shipped 2026-05-29 (R24 closure):
+ *   - Writes to `marketing_pilot_applications` (migration 0146) via
+ *     drizzle when a DB binding is available on the context.
+ *   - Falls back to structured-log-only when DB is unavailable so the
+ *     dev / pre-DATABASE_URL bootstrap path still works.
+ *   - The PII-scrubber in the logger masks `email` for the structured
+ *     log fan-out regardless of DB persistence outcome.
  */
 const moduleLogger = createLogger('marketing');
 
@@ -26,6 +29,20 @@ const PilotApplicationSchema = z.object({
   portfolioSize: z.number().int().min(1).max(10_000),
   mineralFocus: z.string().min(2).max(60),
 });
+
+interface DbInsert {
+  readonly insert: (t: unknown) => {
+    readonly values: (v: Record<string, unknown>) => {
+      readonly returning: () => Promise<readonly Record<string, unknown>[]>;
+    };
+  };
+}
+
+function makeApplicationId(): string {
+  return `pa_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
 
 const app = new Hono();
 
@@ -58,18 +75,55 @@ app.post('/pilot-application', async (c) => {
     );
   }
 
-  // Persistence + notification wiring is tracked as KI-MARKETING-1 in
-  // Docs/KNOWN_ISSUES.md. For now we acknowledge via the structured
-  // logger so the marketing surface has a working end-to-end path in
-  // dev/staging. The PII-scrubber in the logger masks `email` for us.
+  const id = makeApplicationId();
+  const sourceIp =
+    c.req.header('cf-connecting-ip') ??
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
+    null;
+  const userAgent = c.req.header('user-agent') ?? null;
+
+  let persisted = false;
+  const db = c.get('db' as never) as unknown as DbInsert | undefined;
+  if (db && typeof db.insert === 'function') {
+    try {
+      await db
+        .insert(marketingPilotApplications)
+        .values({
+          id,
+          name: parsed.data.name,
+          company: parsed.data.company,
+          email: parsed.data.email,
+          phone: parsed.data.phone,
+          portfolioSize: parsed.data.portfolioSize,
+          mineralFocus: parsed.data.mineralFocus,
+          sourceIp,
+          userAgent,
+        })
+        .returning();
+      persisted = true;
+    } catch (err) {
+      // Persistence failure must NOT block the lead — the structured
+      // log path below still gives the founder inbox a notification.
+      moduleLogger.warn('pilot-application persistence failed', {
+        company: parsed.data.company,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   moduleLogger.info('pilot application received', {
+    id,
+    persisted,
     company: parsed.data.company,
     email: parsed.data.email,
     portfolioSize: parsed.data.portfolioSize,
     mineralFocus: parsed.data.mineralFocus,
   });
 
-  return c.json({ success: true, data: { received: true } }, 201);
+  return c.json(
+    { success: true, data: { received: true, id, persisted } },
+    201,
+  );
 });
 
 export { app as marketingRouter };

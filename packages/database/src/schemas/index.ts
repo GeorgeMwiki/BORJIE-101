@@ -1282,3 +1282,8 @@ export * from './inspection-narratives.schema.js';
 // set. Drives `tenants.regulator_set` join + per-tenant compliance
 // surface. Same model as `regulatory_zones` (tenant_id = NULL).
 export * from './regulator-jurisdictions.schema.js';
+
+// R24 — inbound marketing pilot applications (migration 0146).
+// Public-write surface bound to `POST /api/v1/marketing/pilot-application`,
+// SUPER_ADMIN-read via the `pilot_app_select_super_admin` RLS policy.
+export * from './marketing-pilot-applications.schema.js';
