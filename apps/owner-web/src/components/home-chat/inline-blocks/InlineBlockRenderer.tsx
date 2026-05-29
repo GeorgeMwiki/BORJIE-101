@@ -4,9 +4,10 @@
  * InlineBlockRenderer — single-source dispatcher for every inline-first
  * block kind the brain may emit.
  *
- * Wave OWNER-OS-INLINE-FIRST + RICH. The brain emits one of fifteen
- * inline block kinds inside a `<ui_block>{...}</ui_block>` tag; this
- * component routes by `type` to the bespoke renderer in this folder.
+ * Wave OWNER-OS-INLINE-FIRST + RICH + UNIVERSAL-DOC-DRAFTER. The brain
+ * emits one of sixteen inline block kinds inside a `<ui_block>{...}</ui_block>`
+ * tag; this component routes by `type` to the bespoke renderer in this
+ * folder.
  *
  * Layer 1 (small slices):
  *   - mini_metric, data_capture_card, confirmation_card,
@@ -16,6 +17,10 @@
  *   - inline_table, inline_chart, inline_wizard, inline_workflow,
  *     inline_comparison, inline_section (recursive), inline_dashboard
  *     (recursive)
+ *
+ * Draft Authoring (Universal Drafter):
+ *   - draft_edit (editable revision), draft_preview (read-only preview
+ *     with format chips + action buttons)
  *
  * Teaching companions kept here for chat-side completeness:
  *   - doc_quest, level_select
@@ -89,6 +94,10 @@ import {
   DraftEditBlock,
   type DraftEditBlockProps,
 } from './DraftEditBlock';
+import {
+  DraftPreviewBlock,
+  type DraftPreviewBlockProps,
+} from './DraftPreviewBlock';
 
 export type AnyInlineBlock = Record<string, unknown> & { readonly type?: string };
 
@@ -173,6 +182,14 @@ export function InlineBlockRenderer({
       return (
         <DraftEditBlock
           block={block as DraftEditBlockProps['block']}
+          locale={locale}
+          {...(onAction ? { onAction } : {})}
+        />
+      );
+    case 'draft_preview':
+      return (
+        <DraftPreviewBlock
+          block={block as DraftPreviewBlockProps['block']}
           locale={locale}
           {...(onAction ? { onAction } : {})}
         />
