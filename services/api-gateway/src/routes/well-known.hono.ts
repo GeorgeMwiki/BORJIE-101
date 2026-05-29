@@ -160,11 +160,26 @@ interface McpDiscovery {
     readonly verification_uri: string;
     readonly scopes: readonly string[];
   };
+  // Reflects the 12 SOTA primitives the mcp-server-borjie package
+  // implements. Static snapshot mirrors the dispatcher's `initialize`
+  // capabilities so external agents can pre-check before connecting
+  // without needing to open a JSON-RPC session first.
   readonly capabilities: {
     readonly tools: boolean;
     readonly resources: boolean;
     readonly prompts: boolean;
     readonly logging: boolean;
+    readonly sampling: boolean;
+    readonly roots: boolean;
+    readonly progress: boolean;
+    readonly resultPartial: boolean;
+    readonly subscriptions: boolean;
+    readonly sessions: boolean;
+    readonly actions: ReadonlyArray<'navigate' | 'prefill' | 'share' | 'undo'>;
+    readonly perScopeRateLimit: boolean;
+    readonly fourEye: ReadonlyArray<string>;
+    readonly workspaceMirror: boolean;
+    readonly discoveryFilters: boolean;
   };
 }
 
@@ -181,6 +196,10 @@ const MCP_DISCOVERY: McpDiscovery = {
       type: 'http',
       url: `${PUBLIC_API_URL.replace(/\/+$/, '')}/mcp`,
     },
+    {
+      type: 'sse',
+      url: `${PUBLIC_API_URL.replace(/\/+$/, '')}/mcp/sse`,
+    },
   ],
   auth: {
     type: 'oauth2_device',
@@ -190,11 +209,25 @@ const MCP_DISCOVERY: McpDiscovery = {
     verification_uri: `${PUBLIC_OWNER_WEB_URL.replace(/\/+$/, '')}/oauth/confirm`,
     scopes: CAPABILITIES.scopes.map((s) => s.id),
   },
+  // All 12 SOTA primitives the mcp-server-borjie package ships. Boolean
+  // baseline primitives + the four `actions/*` semantic verbs + the
+  // four-eye HIGH-risk prefixes. Mirrors `buildManifest().primitives`.
   capabilities: {
     tools: true,
     resources: true,
     prompts: true,
     logging: true,
+    sampling: true,
+    roots: true,
+    progress: true,
+    resultPartial: true,
+    subscriptions: true,
+    sessions: true,
+    actions: ['navigate', 'prefill', 'share', 'undo'],
+    perScopeRateLimit: true,
+    fourEye: ['kill_switch', 'four_eye', 'sovereign', 'policy_rollout'],
+    workspaceMirror: true,
+    discoveryFilters: true,
   },
 };
 
