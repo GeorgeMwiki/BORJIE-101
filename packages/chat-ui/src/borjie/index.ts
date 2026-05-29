@@ -28,6 +28,16 @@ export {
   modeLabel,
 } from './BorjieModeSelector';
 export { useBorjieChat } from './useBorjieChat';
+
+// Dynamic-UI bilingual catalogue (Wave DU-2/DU-3/DU-4 audit fix).
+// Apps wire ProactiveHint, MasteryGate, LearnedShortcutsPanel with a
+// single import per Borjie's sw-first / bilingual hard rule.
+export {
+  borjieProactiveHints,
+  borjieMasteryGateCopy,
+  borjieLearnedShortcutsHeadline,
+  type BorjieMasteryGateCopy,
+} from './dynamic-ui-hints';
 export type {
   BorjieMode,
   BorjieLanguage,
