@@ -36,6 +36,10 @@ import { sql } from 'drizzle-orm';
 
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { publishCockpitEvent } from '../../services/cockpit-events';
+import { createLogger } from '../../utils/logger';
+
+const moduleLogger = createLogger('marketplace-rfb');
 
 const MINERAL_KINDS = [
   'gold',
@@ -203,6 +207,37 @@ rfbRouter.post('/', zValidator('json', CreateRfbSchema), async (c) => {
       500,
     );
   }
+  // Fan-out to the cockpit SSE stream so the owner sees the buyer
+  // demand without polling. Treated as a one-row opportunity-scan
+  // event — the topExpectedValueTzs is the gross value of the row's
+  // tonnage at the unit price the buyer offered.
+  try {
+    publishCockpitEvent({
+      kind: 'opportunity.scan_completed',
+      tenantId: auth.tenantId,
+      emittedAt: new Date().toISOString(),
+      opportunityCount: 1,
+      topExpectedValueTzs: Math.round(body.tonnageMin * body.unitPriceTzs),
+    });
+  } catch (err) {
+    // The cockpit event is best-effort — surface the failure to logs
+    // but do not roll back the RFB insert.
+    moduleLogger.warn(
+      { err, tenantId: auth.tenantId, rfbId: row.id },
+      'rfb_cockpit_event_failed',
+    );
+  }
+  moduleLogger.info(
+    {
+      rfbId: row.id,
+      tenantId: auth.tenantId,
+      buyerId: auth.userId,
+      mineralKind: body.mineralKind,
+      tonnageMin: body.tonnageMin,
+      unitPriceTzs: body.unitPriceTzs,
+    },
+    'rfb_created',
+  );
   return c.json(
     {
       success: true,
@@ -427,6 +462,17 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
       500,
     );
   }
+  moduleLogger.info(
+    {
+      rfbId: id,
+      responseId: row.id,
+      sellerTenantId: auth.tenantId,
+      buyerTenantId: rfbTenantId,
+      offeredTonnage: body.offeredTonnage,
+      offeredPriceTzs: body.offeredPriceTzs,
+    },
+    'rfb_response_created',
+  );
   return c.json({ success: true, data: row }, 201);
 });
 
