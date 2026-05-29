@@ -795,6 +795,90 @@ export const ownerLogEngagementTool: PersonaToolDescriptor<
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// 13. Dispatch RFB to manager (WRITE — commercial chain L3)
+// ─────────────────────────────────────────────────────────────────────
+//
+// The owner accepts a buyer's RFB from the marketplace inbound column
+// and assigns a manager + site to fulfil. This drives the rest of the
+// commercial chain: the resulting `mining_tasks` row joins back via
+// `parent_rfb_id` so the worker fulfilment flow, buyer notification,
+// and settlement orchestrator can pick the originating RFB up.
+//
+// Hits POST /api/v1/marketplace/rfb/:id/dispatch which:
+//   - Validates RFB belongs to owner's tenant + is `open`.
+//   - INSERTs mining_tasks with kind='rfb_fulfill' + parent_rfb_id.
+//   - Emits a cockpit event so the SSE pulse fires.
+
+const DispatchRfbInput = z.object({
+  rfbId: z.string().min(1).max(64),
+  managerId: z.string().min(1).max(64),
+  siteId: z.string().min(1).max(64),
+  dueAt: z.string().datetime().optional(),
+  titleEn: z.string().max(500).optional(),
+  titleSw: z.string().max(500).optional(),
+});
+const DispatchRfbOutput = z.object({
+  taskId: z.string(),
+  rfbId: z.string(),
+  managerId: z.string(),
+  siteId: z.string(),
+  status: z.enum(['dispatched', 'unavailable']),
+});
+
+export const ownerRfbDispatchToManagerTool: PersonaToolDescriptor<
+  typeof DispatchRfbInput,
+  typeof DispatchRfbOutput
+> = {
+  id: 'owner.rfb.dispatch_to_manager',
+  name: 'Owner — dispatch RFB to manager',
+  description:
+    'Accept an inbound buyer RFB and dispatch it to a manager at a specific ' +
+    'site. Creates a `mining_tasks` row with kind=rfb_fulfill that drives ' +
+    'the fulfilment → notification → settlement chain. WRITE — hash-chain ' +
+    'audited via the underlying route.',
+  personaSlugs: OWNER,
+  inputSchema: DispatchRfbInput,
+  outputSchema: DispatchRfbOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        taskId: '',
+        rfbId: input.rfbId,
+        managerId: input.managerId,
+        siteId: input.siteId,
+        status: 'unavailable' as const,
+      };
+    }
+    const body: Record<string, unknown> = {
+      managerId: input.managerId,
+      siteId: input.siteId,
+    };
+    if (input.dueAt !== undefined) body.dueAt = input.dueAt;
+    if (input.titleEn !== undefined) body.titleEn = input.titleEn;
+    if (input.titleSw !== undefined) body.titleSw = input.titleSw;
+    const res = await client.post<{
+      success: boolean;
+      data?: { taskId?: string; rfbId?: string; managerId?: string; siteId?: string };
+    }>(
+      `/marketplace/rfb/${encodeURIComponent(input.rfbId)}/dispatch`,
+      withChatProvenance(body, ctx),
+    );
+    const data = res.data ?? {};
+    return {
+      taskId: String(data.taskId ?? ''),
+      rfbId: String(data.rfbId ?? input.rfbId),
+      managerId: String(data.managerId ?? input.managerId),
+      siteId: String(data.siteId ?? input.siteId),
+      status: data.taskId ? ('dispatched' as const) : ('unavailable' as const),
+    };
+  },
+};
+
 export const OWNER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -811,4 +895,6 @@ export const OWNER_TOOLS: ReadonlyArray<
   ownerCheckRegulatoryDeadlineTool,
   ownerLookupCounterpartyTool,
   ownerLogEngagementTool,
+  // Commercial chain L3 — owner→manager dispatch.
+  ownerRfbDispatchToManagerTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

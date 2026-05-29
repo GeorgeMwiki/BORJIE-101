@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import {
   ArrowRight,
   CheckCircle2,
@@ -221,30 +222,32 @@ export function MarketplaceBoard({
                       ? 'Mbali isiyojulikana'
                       : 'Distance unknown';
                 return (
-                  <li
-                    key={rfb.id}
-                    className="flex items-start justify-between gap-3 px-5 py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {rfb.mineralKind} · {tonnage} t
+                  <li key={rfb.id}>
+                    <Link
+                      href={`/marketplace/inbound/${rfb.id}`}
+                      className="flex items-start justify-between gap-3 px-5 py-3 transition-colors hover:bg-background/40"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-foreground">
+                          {rfb.mineralKind} · {tonnage} t
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
+                          <span className="font-mono">{formatTzs(totalTzs, isSw)}</span>
+                          <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
+                            {distance}
+                          </span>
+                        </div>
+                        {rfb.notes ? (
+                          <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
+                            {rfb.notes}
+                          </p>
+                        ) : null}
                       </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
-                        <span className="font-mono">{formatTzs(totalTzs, isSw)}</span>
-                        <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
-                          {distance}
-                        </span>
-                      </div>
-                      {rfb.notes ? (
-                        <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
-                          {rfb.notes}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-badge font-medium text-signal-500">
-                      <Clock className="h-3 w-3" />
-                      {isSw ? 'Mpya' : 'New'}
-                    </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-badge font-medium text-signal-500">
+                        <Clock className="h-3 w-3" />
+                        {isSw ? 'Mpya' : 'New'}
+                      </span>
+                    </Link>
                   </li>
                 );
               })}

@@ -72,6 +72,19 @@ export const miningTasks = pgTable(
     hashChainId: uuid('hash_chain_id'),
     /** Chat-as-OS bidirectional parity. See migration 0101. */
     provenance: provenanceColumn(),
+    /**
+     * Task kind. `rfb_fulfill` tasks were dispatched by an owner from a
+     * buyer's RFB; the worker fulfilment flow joins back to the buyer
+     * notification + settlement orchestrator via `parentRfbId`. See
+     * migration 0131.
+     */
+    kind: text('kind').notNull().default('standard'),
+    /**
+     * When `kind='rfb_fulfill'`, points back to the originating
+     * `request_for_bids` row. NULL for standard / inspection /
+     * maintenance kinds.
+     */
+    parentRfbId: uuid('parent_rfb_id'),
   },
   (t) => ({
     tenantAssigneeStatusIdx: index('idx_mining_tasks_tenant_assignee_status').on(

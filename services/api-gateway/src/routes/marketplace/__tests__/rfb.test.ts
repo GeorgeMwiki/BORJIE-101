@@ -7,6 +7,9 @@ vi.mock('../../../middleware/hono-auth', () => ({
   authMiddleware: async (_c: unknown, next: () => Promise<void>) => {
     await next();
   },
+  requireRole: () => async (_c: unknown, next: () => Promise<void>) => {
+    await next();
+  },
 }));
 vi.mock('../../../middleware/database', () => ({
   databaseMiddleware: async (_c: unknown, next: () => Promise<void>) => {
@@ -285,5 +288,137 @@ describe('R11 RFB — POST /:id/respond', () => {
     expect(calls[1]?.fragments.join('')).toContain(
       'INSERT INTO request_for_bid_responses',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// L3 — POST /:id/dispatch (owner → manager)
+// ---------------------------------------------------------------------------
+
+const VALID_UUID = '11111111-2222-3333-4444-555555555555';
+const VALID_SITE_ID = '22222222-3333-4444-5555-666666666666';
+const VALID_MANAGER_ID = '33333333-4444-5555-6666-777777777777';
+
+describe('R11 RFB — POST /:id/dispatch', () => {
+  it('returns 404 when RFB not found in tenant', async () => {
+    // SELECT returns empty — RFB doesn't belong to this tenant.
+    const { db } = makeDb(() => ({ rows: [] }));
+    const app = buildApp({ db });
+    const res = await app.request(`/${VALID_UUID}/dispatch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        managerId: VALID_MANAGER_ID,
+        siteId: VALID_SITE_ID,
+      }),
+    });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe('RFB_NOT_FOUND');
+    expect(body.error.message.sw).toContain('RFB');
+  });
+
+  it('returns 409 when RFB is not open', async () => {
+    const { db } = makeDb(() => ({
+      rows: [
+        {
+          id: VALID_UUID,
+          status: 'filled',
+          mineral_kind: 'gold',
+          tonnage_min: '10',
+        },
+      ],
+    }));
+    const app = buildApp({ db });
+    const res = await app.request(`/${VALID_UUID}/dispatch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        managerId: VALID_MANAGER_ID,
+        siteId: VALID_SITE_ID,
+      }),
+    });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe('RFB_NOT_OPEN');
+  });
+
+  it('creates an rfb_fulfill mining_tasks row and returns the task id', async () => {
+    let call = 0;
+    const { db, calls } = makeDb(() => {
+      call += 1;
+      if (call === 1) {
+        // SELECT — open RFB in the tenant.
+        return {
+          rows: [
+            {
+              id: VALID_UUID,
+              status: 'open',
+              mineral_kind: 'tanzanite',
+              tonnage_min: '8',
+            },
+          ],
+        };
+      }
+      // INSERT — return the new task id.
+      return {
+        rows: [
+          {
+            id: 'task-uuid-aaa',
+            created_at: '2026-05-29T12:00:00Z',
+            kind: 'rfb_fulfill',
+            parent_rfb_id: VALID_UUID,
+          },
+        ],
+      };
+    });
+    const app = buildApp({ db });
+    const res = await app.request(`/${VALID_UUID}/dispatch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        managerId: VALID_MANAGER_ID,
+        siteId: VALID_SITE_ID,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.taskId).toBe('task-uuid-aaa');
+    expect(body.data.rfbId).toBe(VALID_UUID);
+    expect(body.data.managerId).toBe(VALID_MANAGER_ID);
+    expect(body.data.siteId).toBe(VALID_SITE_ID);
+    // Two SQL calls: SELECT then INSERT.
+    expect(calls.length).toBe(2);
+    expect(calls[1]?.fragments.join('')).toContain('INSERT INTO mining_tasks');
+    expect(calls[1]?.fragments.join('')).toContain('rfb_fulfill');
+  });
+
+  it('rejects when managerId is not a UUID', async () => {
+    const { db } = makeDb(() => ({ rows: [] }));
+    const app = buildApp({ db });
+    const res = await app.request(`/${VALID_UUID}/dispatch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        managerId: 'not-a-uuid',
+        siteId: VALID_SITE_ID,
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 503 when no auth context is present', async () => {
+    const { db } = makeDb(() => ({ rows: [] }));
+    const app = buildApp({ authResp: null, db });
+    const res = await app.request(`/${VALID_UUID}/dispatch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        managerId: VALID_MANAGER_ID,
+        siteId: VALID_SITE_ID,
+      }),
+    });
+    expect(res.status).toBe(503);
   });
 });

@@ -1,12 +1,14 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api-client';
 
 export const marketplaceKeys = {
   listings: () => ['marketplace', 'listings'] as const,
   inboundRfbs: (lat: number, lon: number) =>
     ['marketplace', 'inbound-rfbs', lat, lon] as const,
+  rfbDetail: (rfbId: string) => ['marketplace', 'rfb', rfbId] as const,
+  rfbMine: () => ['marketplace', 'rfb', 'mine'] as const,
 };
 
 /**
@@ -158,5 +160,82 @@ export function useInboundRfbs(lat: number, lon: number) {
     // promptly on next focus.
     staleTime: 15_000,
     enabled: Number.isFinite(lat) && Number.isFinite(lon),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Commercial chain L3 — owner dispatches a buyer RFB to a manager.
+// ─────────────────────────────────────────────────────────────────────
+
+export interface DispatchRfbInput {
+  readonly rfbId: string;
+  readonly managerId: string;
+  readonly siteId: string;
+  readonly dueAt?: string | null;
+  readonly titleEn?: string | null;
+  readonly titleSw?: string | null;
+}
+
+export interface DispatchRfbResult {
+  readonly taskId: string;
+  readonly rfbId: string;
+  readonly managerId: string;
+  readonly siteId: string;
+  readonly createdAt: string;
+}
+
+interface DispatchResponse {
+  readonly success: boolean;
+  readonly data?: {
+    readonly taskId?: string;
+    readonly rfbId?: string;
+    readonly managerId?: string;
+    readonly siteId?: string;
+    readonly createdAt?: string;
+  };
+}
+
+/**
+ * Dispatch an inbound buyer RFB to a manager at a site.
+ *
+ * Hits POST /api/v1/marketplace/rfb/:id/dispatch which atomically:
+ *   - re-confirms the RFB belongs to the owner's tenant and is `open`,
+ *   - INSERTs a `mining_tasks` row with kind='rfb_fulfill' +
+ *     parent_rfb_id pointing back at the RFB,
+ *   - emits a cockpit SSE event.
+ *
+ * On success the inbound RFB list is invalidated so the marketplace
+ * board reflects the moved row immediately.
+ */
+export function useDispatchRfbToManager() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: DispatchRfbInput): Promise<DispatchRfbResult> => {
+      const res = await apiRequest<DispatchResponse>(
+        `/api/v1/marketplace/rfb/${encodeURIComponent(input.rfbId)}/dispatch`,
+        {
+          method: 'POST',
+          body: {
+            managerId: input.managerId,
+            siteId: input.siteId,
+            ...(input.dueAt ? { dueAt: input.dueAt } : {}),
+            ...(input.titleEn ? { titleEn: input.titleEn } : {}),
+            ...(input.titleSw ? { titleSw: input.titleSw } : {}),
+          },
+        },
+      );
+      const data = res.data ?? {};
+      return {
+        taskId: String(data.taskId ?? ''),
+        rfbId: String(data.rfbId ?? input.rfbId),
+        managerId: String(data.managerId ?? input.managerId),
+        siteId: String(data.siteId ?? input.siteId),
+        createdAt: String(data.createdAt ?? ''),
+      };
+    },
+    onSuccess: () => {
+      // Refresh the inbound RFB column + marketplace listings.
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
   });
 }

@@ -34,10 +34,11 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { createLogger } from '../../utils/logger';
+import { UserRole } from '../../types/user-role';
 
 const moduleLogger = createLogger('marketplace-rfb');
 
@@ -91,6 +92,26 @@ const RespondSchema = z.object({
 const PatchSchema = z.object({
   status: z.enum(['cancelled']),
 });
+
+const DispatchSchema = z.object({
+  /** Manager (worker user_id) who will own the fulfilment task. */
+  managerId: z.string().uuid(),
+  /** Site at which the fulfilment will run. */
+  siteId: z.string().uuid(),
+  /** Optional due date for the manager task. */
+  dueAt: z.string().datetime().optional().nullable(),
+  /** Optional bilingual title override. */
+  titleEn: z.string().max(500).optional().nullable(),
+  titleSw: z.string().max(500).optional().nullable(),
+  /** Free-form provenance payload from the owner-web action. */
+  payload: z.record(z.string(), z.unknown()).optional(),
+});
+
+const MANAGER_DISPATCH_ROLES = [
+  UserRole.TENANT_ADMIN,
+  UserRole.PROPERTY_MANAGER,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 interface DbExecutor {
   execute(query: unknown): Promise<unknown>;
@@ -475,5 +496,189 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
   );
   return c.json({ success: true, data: row }, 201);
 });
+
+// ---------------------------------------------------------------------------
+// POST /:id/dispatch  — owner dispatches the RFB to a manager (L3)
+// ---------------------------------------------------------------------------
+//
+// Creates a `mining_tasks` row with kind='rfb_fulfill' + parent_rfb_id set,
+// assigned to `managerId` at `siteId`. Emits a cockpit event so the
+// owner cockpit + the manager mobile dispatch screen refresh. The
+// resulting task drives the rest of the commercial chain — the
+// worker fulfilment flow, the buyer notification on CoC final-step,
+// and the settlement orchestrator all join back via `parent_rfb_id`.
+//
+// Role-gated: TENANT_ADMIN | PROPERTY_MANAGER | SUPER_ADMIN only.
+// Tenant-scoped via RLS — the RFB must live in the owner's tenant
+// (we re-confirm the row inside the same query that drives the
+// INSERT so a stale read can't race us).
+// ---------------------------------------------------------------------------
+
+rfbRouter.post(
+  '/:id/dispatch',
+  requireRole(...MANAGER_DISPATCH_ROLES),
+  zValidator('json', DispatchSchema),
+  async (c) => {
+    const auth = c.get('auth') as { tenantId?: string; userId?: string };
+    const db = c.get('db') as DbExecutor | null;
+    if (!db || !auth?.tenantId || !auth?.userId) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RFB_UNAVAILABLE',
+            message: bilingualError(
+              'Marketplace temporarily unavailable',
+              'Soko halipatikani kwa muda',
+            ),
+          },
+        },
+        503,
+      );
+    }
+    const id = c.req.param('id');
+    const body = c.req.valid('json');
+
+    // Look up the RFB within the owner's tenant — RLS + handler-level
+    // filter so a cross-tenant dispatch attempt fails closed.
+    const rfb = rowsOf(
+      await db.execute(sql`
+        SELECT id::text AS id, status, mineral_kind, tonnage_min::text AS tonnage_min
+          FROM request_for_bids
+         WHERE id = ${id}::uuid
+           AND tenant_id = ${auth.tenantId}::uuid
+         LIMIT 1
+      `),
+    )[0];
+    if (!rfb) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RFB_NOT_FOUND',
+            message: bilingualError(
+              'RFB not found in your tenant',
+              'RFB haijapatikana katika muktadha wako',
+            ),
+          },
+        },
+        404,
+      );
+    }
+    if (rfb.status !== 'open') {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RFB_NOT_OPEN',
+            message: bilingualError(
+              'RFB is not open and cannot be dispatched',
+              'RFB haijafunguliwa, haiwezi kupelekwa',
+            ),
+          },
+        },
+        409,
+      );
+    }
+
+    const mineralKind = String(rfb.mineral_kind ?? 'unknown');
+    const tonnage = String(rfb.tonnage_min ?? '?');
+    const titleEn =
+      body.titleEn ?? `Fulfil RFB: ${tonnage}t ${mineralKind}`;
+    const titleSw =
+      body.titleSw ?? `Timiza RFB: ${tonnage}t ${mineralKind}`;
+    const provenance = {
+      via: 'owner_web',
+      action: 'rfb_dispatch',
+      rfbId: id,
+      ...(body.payload ?? {}),
+    };
+
+    const inserted = rowsOf(
+      await db.execute(sql`
+        INSERT INTO mining_tasks (
+          tenant_id, site_id, assigned_to_user_id, assigned_by_user_id,
+          title_sw, title_en, priority, status, kind, parent_rfb_id,
+          due_at, provenance, created_at
+        ) VALUES (
+          ${auth.tenantId}::uuid,
+          ${body.siteId}::uuid,
+          ${body.managerId}::uuid,
+          ${auth.userId}::uuid,
+          ${titleSw},
+          ${titleEn},
+          'high',
+          'pending',
+          'rfb_fulfill',
+          ${id}::uuid,
+          ${body.dueAt ?? null},
+          ${JSON.stringify(provenance)}::jsonb,
+          NOW()
+        )
+        RETURNING id::text AS id, created_at, kind, parent_rfb_id::text AS parent_rfb_id
+      `),
+    )[0];
+
+    if (!inserted) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RFB_DISPATCH_FAILED',
+            message: bilingualError(
+              'Failed to dispatch RFB',
+              'Imeshindwa kupeleka RFB',
+            ),
+          },
+        },
+        500,
+      );
+    }
+
+    // Cockpit fan-out — re-use opportunity.scan_completed so the
+    // existing owner-web SSE handler sees the dispatch as a moved
+    // opportunity. Best-effort; never blocks the response.
+    try {
+      publishCockpitEvent({
+        kind: 'opportunity.scan_completed',
+        tenantId: auth.tenantId,
+        emittedAt: new Date().toISOString(),
+        opportunityCount: 1,
+        topExpectedValueTzs: 0,
+      });
+    } catch (err) {
+      moduleLogger.warn(
+        { err, tenantId: auth.tenantId, rfbId: id },
+        'rfb_dispatch_cockpit_event_failed',
+      );
+    }
+
+    moduleLogger.info(
+      {
+        rfbId: id,
+        taskId: inserted.id,
+        tenantId: auth.tenantId,
+        managerId: body.managerId,
+        siteId: body.siteId,
+        ownerUserId: auth.userId,
+      },
+      'rfb_dispatched_to_manager',
+    );
+
+    return c.json(
+      {
+        success: true,
+        data: {
+          taskId: inserted.id,
+          rfbId: id,
+          managerId: body.managerId,
+          siteId: body.siteId,
+          createdAt: inserted.created_at,
+        },
+      },
+      201,
+    );
+  },
+);
 
 export default rfbRouter;
