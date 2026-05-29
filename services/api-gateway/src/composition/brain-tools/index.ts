@@ -84,6 +84,11 @@ import { CAPABILITY_TOOLS } from './capability-tools';
 // LOCKED at signup; only Borjie internal admin can change it via the
 // JC-7 four-eye route).
 import { JURISDICTION_DISCOVERY_TOOLS } from './jurisdiction-discovery-tools';
+// Jurisdiction JA-4 — `mwikila.jurisdiction.show_current` returns the
+// tenant's current jurisdiction snapshot + bilingual offer to switch
+// context. Companion to JC's `mwikila.jurisdiction.discover` (unseeded
+// path) and `mwikila.jurisdiction.switch` (turn / session override).
+import { JURISDICTION_TOOLS } from './jurisdiction-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -137,6 +142,7 @@ export function buildPersonaToolHandlers(
       ADMIN_INVIOLABLE_TOOLS,
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
+      JURISDICTION_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -191,6 +197,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       ADMIN_INVIOLABLE_TOOLS,
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
+      JURISDICTION_TOOLS,
     ],
     undefined,
   );
@@ -291,3 +298,8 @@ export {
   whatCanYouDoTool,
   aboutTool,
 } from './capability-tools';
+// Jurisdiction JA-4 — re-exports for tests + audit walker.
+export {
+  JURISDICTION_TOOLS,
+  jurisdictionShowCurrentTool,
+} from './jurisdiction-tools';
