@@ -17,6 +17,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 export interface WebAuthnClockInProps {
   readonly employeeId: string;
@@ -61,7 +62,7 @@ async function defaultHttpPost(
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

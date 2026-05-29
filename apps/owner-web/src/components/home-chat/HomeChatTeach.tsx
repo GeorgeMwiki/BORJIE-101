@@ -35,6 +35,7 @@ import {
 } from '@borjie/owner-os-tabs';
 import { SuggestedTabBanner } from '@/components/owner-os/SuggestedTabBanner';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { API_BASE, isBrainConfigured } from '@/lib/brain-api';
 import { AskComposer } from '@/components/ask/AskComposer';
 import {
@@ -295,6 +296,7 @@ export function HomeChatTeach({
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
+        ...getCsrfHeaders(),
       };
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 

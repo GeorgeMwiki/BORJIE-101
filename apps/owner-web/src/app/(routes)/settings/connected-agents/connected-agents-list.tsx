@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 type AgentToken = {
@@ -95,7 +96,7 @@ export function ConnectedAgentsList() {
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         },
       );
       if (!res.ok && res.status !== 404) {

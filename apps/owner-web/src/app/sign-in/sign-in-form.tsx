@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 const SignInSchema = z.object({
@@ -62,7 +63,7 @@ export function SignInForm() {
     try {
       const res = await fetch(`${gatewayBaseUrl()}/api/v1/auth/sign-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify(parsed.data),
       });

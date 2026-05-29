@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getCsrfHeaders } from '@/lib/csrf';
 import type { SignupDraft } from './SignupWizard';
 
 interface OwnerContactStepProps {
@@ -75,7 +76,7 @@ export function OwnerContactStep({
     try {
       const res = await fetch(`${apiBaseUrl()}/api/v1/orgs/signup`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
         body: JSON.stringify(draft),
       });
       const json = (await res.json()) as

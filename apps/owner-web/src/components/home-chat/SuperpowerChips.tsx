@@ -30,6 +30,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { API_BASE } from '@/lib/brain-api';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 // ─── Schemas (mirrors services/api-gateway/src/routes/ui-navigate-parser.ts) ─
@@ -150,7 +151,10 @@ async function getAccessToken(): Promise<string | null> {
 async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   try {
     const token = await getAccessToken();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...getCsrfHeaders(),
+    };
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${API_BASE.replace(/\/+$/, '')}${path}`, {
       method: 'POST',

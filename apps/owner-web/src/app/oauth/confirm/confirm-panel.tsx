@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 type DeviceDetails = {
@@ -128,7 +129,7 @@ export function OAuthConfirmPanel() {
         `${gatewayBaseUrl()}/api/v1/oauth/device/approve`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
           credentials: 'include',
           body: JSON.stringify({ user_code: userCode }),
         },
@@ -169,7 +170,7 @@ export function OAuthConfirmPanel() {
         `${gatewayBaseUrl()}/api/v1/oauth/device/deny`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
           credentials: 'include',
           body: JSON.stringify({ user_code: userCode }),
         },
