@@ -93,3 +93,11 @@ export * from './kernel/sandbox/index.js';
 // the `md:*` action namespace. See policy-gate/index.ts for the full
 // surface (assertTierPolicy, assertApproved, HIGH_RISK_LITERAL_ONLY_PREFIXES).
 export * from './policy-gate/index.js';
+
+// Wave KNOWLEDGE-HANDOFF — cross-role @mention handoff chain. Wires the
+// brain's `<chat_handoff />` SSE tag through a hash-chained recorder so
+// owner ↔ manager ↔ worker ↔ buyer conversations carry context fluidly
+// with persona-aware routing and audit-trail guarantees. See
+// handoff/index.ts for the full surface (parseChatHandoffs,
+// createHandoffRecorder, HandoffError, HANDOFF_PERSONA_ROLES).
+export * from './handoff/index.js';

@@ -30,6 +30,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@borjie/audit-hash-chain": "workspace:*",
     "@borjie/brain-llm-router": "workspace:*",
     "zod": "^3.25.76"
   },
