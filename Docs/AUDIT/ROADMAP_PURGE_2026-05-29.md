@@ -90,6 +90,36 @@ CLOSE NOW.
 | TRUE-FUTURE (small list) | 5 (R4, R27, R28, R29, R33) |
 | CLOSE-NOW remaining | 3 (R19, R22, R37) — R16/R24/R41 SHIPPED this evening |
 
+### FINAL TALLY — closing pass 2026-05-29 EVENING (post-Phase-D ship)
+
+The "TRUE-FUTURE small list" (5 items) and the "CLOSE-NOW remaining"
+(3 items) were ALL shipped in the closing sweep tonight. Roadmap is
+now at ZERO open R-items.
+
+| R# | Verdict | Closing SHA | Locus |
+|----|---------|-------------|-------|
+| R-FUTURE-1 (R4) | SHIPPED-this-sweep | `b1a3d7a3` | `packages/on-device-router/` |
+| R-FUTURE-2 (R27) | SHIPPED-this-sweep | `6e3155d1` | `apps/owner-web/src/components/smart-compose/GhostCompletionTextarea.tsx` |
+| R-FUTURE-3 (R28) | SHIPPED-this-sweep | `9c555229` | `services/api-gateway/src/routes/bff/pnl-table.hono.ts` |
+| R-FUTURE-4 (R29) | SHIPPED-this-sweep | `fd629328` | `apps/owner-web/src/components/EntityTimeline/` |
+| R-FUTURE-5 (R33) | SHIPPED-this-sweep | `b87ab40e` | `apps/marketing/src/components/Hero.tsx` |
+| R19 | SHIPPED-this-sweep | `87981927` | `services/api-gateway/src/services/scan-pipeline/` |
+| R22 | SHIPPED-this-sweep | `ab47a012` | `packages/report-engine/src/renderers/tenant-renderer-registry.ts` |
+| R37 | SHIPPED-this-sweep | `5029a3c0` | `services/api-gateway/src/services/referrals/referral-attribution.ts` |
+
+| Disposition | Count after Phase-D ship |
+|-------------|------:|
+| SHIPPED total | 42 |
+| OPERATOR-ACTION (moved to OPS list, now 16 items inc. OA-016) | 6+1 |
+| INFLIGHT-sibling | 3 |
+| DEAD-CODE | 3 |
+| OPEN R-items in ROADMAP.md | **0** |
+
+OA-016 ("MiniLM on-device bundle") was added to
+`Docs/OPS/OPERATOR_ACTION_LIST.md` tonight as the only physical
+dependency surfaced by the closing sweep — the model files themselves
+are operator-gated; the codebase ships the full router pipeline.
+
 See `Docs/AUDIT/ROADMAP_SHIPPED_ALL_2026-05-29.md` for per-item SHA
 attestation of the closing sweep.
 
@@ -135,13 +165,13 @@ them.
 
 ## Sign-off
 
-| Metric | Before sweep | After sweep |
-|--------|-------------:|------------:|
-| Roadmap entries | 41 | 6 backlog + 5 true-future = 11 |
-| Open KIs | 0 | 0 |
-| Items mis-labelled "wave-scale" | 24 | 0 |
-| Items in OPS list | 0 | 15 |
-| Avg time-to-resolve operator-action | n/a | 15 mins of operator time |
+| Metric | Before sweep | After day-sweep | After evening-sweep |
+|--------|-------------:|------------:|------------:|
+| Roadmap entries | 41 | 11 | **0** |
+| Open KIs | 0 | 0 | 0 |
+| Items mis-labelled "wave-scale" | 24 | 0 | 0 |
+| Items in OPS list | 0 | 15 | 16 (OA-016 added) |
+| Avg time-to-resolve operator-action | n/a | 15 min | 15 min |
 
 **Recommended next steps:**
 
