@@ -133,8 +133,11 @@ describe('chat/toolPayloads — schema gate', () => {
 
 describe('chat/greeting — bilingual persona surface', () => {
   it('returns Swahili greeting by default and English when requested', () => {
-    expect(buyerGreeting('sw')).toMatch(/Karibu, Mnunuzi/)
-    expect(buyerGreeting('en')).toMatch(/Welcome, buyer/)
+    // Marketplace Director persona — Swahili default, English on request.
+    // Match stable persona-role substrings (not the legacy "Karibu, Mnunuzi"
+    // copy that pre-dated the Mr. Mwikila persona).
+    expect(buyerGreeting('sw')).toMatch(/Mkurugenzi wako wa Soko la Borjie/)
+    expect(buyerGreeting('en')).toMatch(/Borjie Marketplace Director/)
   })
 
   it('exposes three buyer-intent suggestion chips per language', () => {
