@@ -528,6 +528,65 @@ ownerApp.post('/device/deny', async (c) => {
   return c.json({ success: true, denied: true }, 200);
 });
 
+// ─── POST /oauth/agent-tokens/:id/revoke ───────────────────────────────────
+// Owner-driven revoke from the connected-agents UI. Distinct from the
+// public POST /oauth/revoke (which requires the cleartext token); this
+// path is gated by Supabase auth + scoped to the caller's own tokens.
+ownerApp.post('/agent-tokens/:id/revoke', async (c) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string } | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json({ error: 'unauthenticated' }, 401);
+  }
+  const id = c.req.param('id');
+  if (!id) {
+    return c.json({ error: 'invalid_request', error_description: 'id required' }, 400);
+  }
+  const db = c.get('db');
+  if (!db) {
+    return c.json({ error: 'server_error' }, 503);
+  }
+  const rows = await db
+    .select({
+      id: oauthAgentTokens.id,
+      userId: oauthAgentTokens.userId,
+      tenantId: oauthAgentTokens.tenantId,
+      clientId: oauthAgentTokens.clientId,
+      revokedAt: oauthAgentTokens.revokedAt,
+    })
+    .from(oauthAgentTokens)
+    .where(eq(oauthAgentTokens.id, id))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+  // Defence in depth — RLS already isolates by tenant. Belt-and-braces
+  // check the userId matches the caller so one user cannot revoke a
+  // peer's token within the same tenant.
+  if (row.userId !== auth.userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+  if (row.revokedAt) {
+    return c.json({ success: true, alreadyRevoked: true }, 200);
+  }
+  await db
+    .update(oauthAgentTokens)
+    .set({ revokedAt: new Date() })
+    .where(eq(oauthAgentTokens.id, id));
+  try {
+    await appendOpsAuditEntry(db, {
+      action: 'oauth.token.revoked',
+      tenantId: row.tenantId,
+      turnId: row.id,
+      userId: row.userId,
+      details: { clientId: row.clientId, source: 'owner-ui' },
+    });
+  } catch (err) {
+    moduleLogger.warn({ err }, 'oauth.token.revoked: audit append failed (owner-ui)');
+  }
+  return c.json({ success: true }, 200);
+});
+
 // ─── GET /oauth/agent-tokens ───────────────────────────────────────────────
 // Lists ACTIVE (non-revoked) tokens for the current authenticated user.
 ownerApp.get('/agent-tokens', async (c) => {
