@@ -98,6 +98,10 @@
       "types": "./src/junior-ai-factory/index.ts",
       "default": "./dist/junior-ai-factory/index.js"
     },
+    "./juniors/executor-registry": {
+      "types": "./src/juniors/executor-registry.ts",
+      "default": "./dist/juniors/executor-registry.js"
+    },
     "./onboarding/new-head": {
       "types": "./src/onboarding/new-head/index.ts",
       "default": "./dist/onboarding/new-head/index.js"

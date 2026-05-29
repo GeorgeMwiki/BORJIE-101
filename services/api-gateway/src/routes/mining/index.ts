@@ -106,6 +106,11 @@ import { miningInternalPromotionsRouter } from './internal/promotions.hono';
 import { miningInternalRegulatorPipelineRouter } from './internal/regulator-pipeline.hono';
 import { miningInternalCitationsRouter } from './internal/citations.hono';
 import { miningInternalComplianceQueueRouter } from './internal/compliance-queue.hono';
+// R31 — admin-web internal-form endpoints (FlagRolloutForm /
+// JuniorActions / TicketAck parent screens previously rendered stubs).
+import { miningInternalFeatureFlagsRouter } from './internal/feature-flags.hono';
+import { miningInternalJuniorsRouter } from './internal/juniors.hono';
+import { miningInternalSupportTicketsRouter } from './internal/support-tickets.hono';
 // Wave OWNER-OS DAILY-BRIEF rebuild — fleet overview for the admin cockpit.
 import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.hono';
 
@@ -181,6 +186,10 @@ mining.route('/internal/promotions', miningInternalPromotionsRouter);
 mining.route('/internal/regulator-pipeline', miningInternalRegulatorPipelineRouter);
 mining.route('/internal/citations', miningInternalCitationsRouter);
 mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
+// R31 — admin-web parent screens stop rendering stubs.
+mining.route('/internal/feature-flags', miningInternalFeatureFlagsRouter);
+mining.route('/internal/juniors', miningInternalJuniorsRouter);
+mining.route('/internal/support/tickets', miningInternalSupportTicketsRouter);
 // Wave OWNER-OS DAILY-BRIEF rebuild — admin fleet overview of today's
 // daily-brief sends + failures + top alerts across every tenant.
 mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);
