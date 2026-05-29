@@ -11,6 +11,18 @@ import { preShiftInspections } from '@borjie/database';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { e400, e403, e503, errorResponse } from '../../utils/error-response';
 import { getOwnerScope as resolveOwnerScope } from '../../lib/owner-scope';
+// KI-DEBT-003: Precise envelope + service-port types so every `c.json(...)`
+// payload + every helper signature is fully typed (no `any` escape hatches).
+import type {
+  CoOwnerRow,
+  InvitationServiceReceipt,
+  InvitationTokenPayload,
+  OwnerAuthContext,
+  OwnerBffContext,
+  OwnerBffRepos,
+  OwnerBffServices,
+  OwnerScopeRepos,
+} from '../../types/bff-enriched';
 
 import { withSecurityEvents } from '@borjie/observability';
 
@@ -29,8 +41,20 @@ import { withSecurityEvents } from '@borjie/observability';
  * try/catch and fall back to honest-empty envelopes so the dashboard
  * stays green.
  */
-async function getOwnerScope(auth: any, repos: any) {
+async function getOwnerScope(auth: OwnerAuthContext, repos: OwnerScopeRepos) {
   return resolveOwnerScope(auth, repos, { limit: 1000, offset: 0 });
+}
+
+/**
+ * Narrow the composition root's opaque `repos` slot to the owner-scope
+ * port the BFF actually calls. The runtime container is the live
+ * `ServiceRegistry` (or a test fake satisfying the same shape); the
+ * Hono context's blanket `{ [k: string]: unknown }` shape forces a
+ * structural narrowing here. We go through `unknown` (not `any`) so
+ * downstream usage is fully typed end-to-end.
+ */
+function asOwnerScopeRepos(repos: unknown): OwnerScopeRepos {
+  return repos as unknown as OwnerScopeRepos;
 }
 
 const app = new Hono();
@@ -83,11 +107,14 @@ app.use('*', async (c, next) => {
 // ----------------------------------------------------------------------------
 app.get('/co-owners', async (c) => {
   const auth = c.get('auth');
-  const repos = c.get('repos') as { userPropertyAccess?: { findCoOwners?: Function } } | undefined;
-  const findCoOwners = repos?.userPropertyAccess?.findCoOwners;
-  if (typeof findCoOwners === 'function') {
+  const repos = c.get('repos') as OwnerBffRepos | undefined;
+  const coOwnersPort = repos?.userPropertyAccess;
+  if (coOwnersPort && typeof coOwnersPort.findCoOwners === 'function') {
     try {
-      const rows = await findCoOwners.call(repos!.userPropertyAccess, auth.tenantId, auth.propertyAccess ?? []);
+      const rows: readonly CoOwnerRow[] = await coOwnersPort.findCoOwners(
+        auth.tenantId,
+        auth.propertyAccess ?? [],
+      );
       return c.json({ success: true, data: rows ?? [] });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'co-owners query failed';
@@ -95,7 +122,7 @@ app.get('/co-owners', async (c) => {
     }
   }
 
-  const services = c.get('services') as { featureFlags?: { isEnabled: Function } } | undefined;
+  const services = c.get('services') as OwnerBffServices | undefined;
   const flagKey = 'flag.bff.owner_portal.co_owners';
   let flagOn = false;
   try {
@@ -139,7 +166,7 @@ const COMMUNICATIONS_NOTE =
 const INVITATIONS_NOTE =
   'invitation pipeline not yet wired — token signed for forward-compat, list reads empty';
 
-function reposUnavailable(c: any) {
+function reposUnavailable(c: OwnerBffContext) {
   return e503(c, 'SERVICE_UNAVAILABLE', 'Owner BFF requires repositories to be wired.');
 }
 
@@ -193,7 +220,7 @@ app.get('/compliance/inspections', async (c) => {
   }
 
   try {
-    const scope = await getOwnerScope(auth, repos);
+    const scope = await getOwnerScope(auth, asOwnerScopeRepos(repos));
     // Owner scope returns properties; in the post-fork mining domain
     // each property-id maps 1:1 to a site-id. The resolver upstream
     // returns site identifiers under the `properties` field for
@@ -281,7 +308,7 @@ app.get('/compliance/summary', async (c) => {
 
   if (repos && db) {
     try {
-      const scope = await getOwnerScope(auth, repos);
+      const scope = await getOwnerScope(auth, asOwnerScopeRepos(repos));
       const siteIds = scope.properties.map((entry) => entry.id);
 
       if (siteIds.length > 0) {
@@ -360,7 +387,7 @@ function getInvitationSecret() {
   );
 }
 
-function signInvitationToken(payload: any) {
+function signInvitationToken(payload: InvitationTokenPayload): string {
   const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
   const sig = createHmac('sha256', getInvitationSecret())
     .update(body)
@@ -370,24 +397,36 @@ function signInvitationToken(payload: any) {
 
 app.post('/invitations/co-owner', withSecurityEvents({ action: 'owner-portal.create', resource: 'owner-portal', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
-  const body = await c.req.json().catch(() => ({}));
+  // Hono yields the parsed JSON as `unknown`; narrow through a typed
+  // shape so downstream reads on `body.email` / `body.role` / etc. are
+  // structurally validated rather than blanket-cast.
+  const rawBody: unknown = await c.req.json().catch(() => ({}));
+  const body: {
+    readonly email?: unknown;
+    readonly role?: unknown;
+    readonly propertyAccess?: unknown;
+  } = (rawBody && typeof rawBody === 'object') ? (rawBody as Record<string, unknown>) : {};
 
   const email = typeof body.email === 'string' ? body.email.trim() : '';
-  const role = typeof body.role === 'string' ? body.role : 'co-owner';
-  const propertyAccess = Array.isArray(body.propertyAccess)
-    ? body.propertyAccess.filter((id) => typeof id === 'string')
+  const rawRole = typeof body.role === 'string' ? body.role : 'co-owner';
+  const propertyAccess: readonly string[] = Array.isArray(body.propertyAccess)
+    ? body.propertyAccess.filter((id): id is string => typeof id === 'string')
     : [];
 
   // Light schema validation: email must look plausible, role must be
   // co-owner. We deliberately don't pull zod here to keep this stub thin.
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  if (!emailValid || role !== 'co-owner') {
+  if (!emailValid || rawRole !== 'co-owner') {
     return e400(c, 'INVALID_INPUT', 'Invitation requires a valid email and role="co-owner".');
   }
+  // `rawRole === 'co-owner'` narrowed by the guard above; widen back to
+  // the InvitationTokenPayload literal so the token signer + downstream
+  // service-port consumer see the canonical type.
+  const role: 'co-owner' = 'co-owner';
 
   const invitationId = randomUUID();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const token = signInvitationToken({
+  const tokenPayload: InvitationTokenPayload = {
     invitationId,
     email,
     role,
@@ -395,27 +434,20 @@ app.post('/invitations/co-owner', withSecurityEvents({ action: 'owner-portal.cre
     invitedBy: auth.userId,
     tenantId: auth.tenantId,
     expiresAt,
-  });
+  };
+  const token = signInvitationToken(tokenPayload);
 
   // OWNER-BFF-002: real wire when an InvitationService is on `services`.
   // Otherwise loud-fail 501 unless `flag.bff.owner_portal.invitations_create`
   // is on — in dev mode we still return the signed token so the FE can
   // exercise the end-to-end flow without persistence.
-  const services = c.get('services') as { invitationService?: { create: Function }; featureFlags?: { isEnabled: Function } } | undefined;
+  const services = c.get('services') as OwnerBffServices | undefined;
   const invitationService = services?.invitationService;
   if (invitationService && typeof invitationService.create === 'function') {
     try {
-      const created = await invitationService.create({
-        invitationId,
-        email,
-        role,
-        propertyAccess,
-        invitedBy: auth.userId,
-        tenantId: auth.tenantId,
-        expiresAt,
-        token,
-      });
-      return c.json({ success: true, data: { ...created, token } });
+      const created = await invitationService.create({ ...tokenPayload, token });
+      const receipt: InvitationServiceReceipt = { ...created, token };
+      return c.json({ success: true, data: receipt });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'invitation create failed';
       return e503(c, 'INVITATION_SERVICE_ERROR', message);
