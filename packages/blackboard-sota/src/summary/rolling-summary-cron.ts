@@ -85,7 +85,6 @@ export function createRollingSummaryCron(
           region.id,
           { ascending: true },
         );
-<<<<<<< Updated upstream
         // First rolling summary: include posts back to and including
         // openedAt (postedAt >= coversFrom). Subsequent rolls: strict
         // greater-than so the same post is not summarised twice.
@@ -94,10 +93,6 @@ export function createRollingSummaryCron(
           isFirstRoll
             ? p.postedAt.getTime() >= coversFrom.getTime()
             : p.postedAt.getTime() > coversFrom.getTime(),
-=======
-        const fresh = posts.filter(
-          (p) => p.postedAt.getTime() > coversFrom.getTime(),
->>>>>>> Stashed changes
         );
         if (fresh.length === 0) {
           skipped += 1;

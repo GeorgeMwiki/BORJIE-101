@@ -3732,8 +3732,8 @@ importers:
   packages/on-device-router:
     devDependencies:
       typescript:
-        specifier: 5.4.5
-        version: 5.4.5
+        specifier: ^6.0.3
+        version: 6.0.3
       vitest:
         specifier: 4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
@@ -10359,7 +10359,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.2.0)
+      react-hook-form: 7.75.0(react@18.3.1)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):
