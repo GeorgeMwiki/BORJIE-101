@@ -517,3 +517,76 @@ describe('POST /api/v1/field/workforce/help-requests', () => {
     expect(db.auditRows.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// R39 — GET /shifts/today
+// ---------------------------------------------------------------------------
+
+describe('GET /api/v1/field/workforce/shifts/today', () => {
+  it('returns 401 without bearer', async () => {
+    const app = mount(createStubDb());
+    const res = await app.request('/api/v1/field/workforce/shifts/today');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 + empty-tasks shape when no employee row + no tasks', async () => {
+    const db = createStubDb();
+    const app = mount(db);
+    const res = await app.request('/api/v1/field/workforce/shifts/today', {
+      headers: {
+        Authorization: bearer(UserRole.PROPERTY_MANAGER, {
+          tenantId: TENANT,
+          userId: USER,
+        }),
+      },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      shiftDate: string;
+      shiftKind: 'day' | 'night';
+      siteName: string;
+      startISO: string;
+      endISO: string;
+      nextBreakISO: string | null;
+      tasks: ReadonlyArray<{ id: string; titleEn: string; titleSw: string }>;
+    };
+    expect(body.shiftKind).toBe('day');
+    expect(body.tasks).toEqual([]);
+    expect(body.startISO.endsWith('06:00:00+03:00')).toBe(true);
+    expect(body.endISO.endsWith('18:00:00+03:00')).toBe(true);
+  });
+
+  it('returns 200 + tasks list when worker has assigned open tasks', async () => {
+    const db = createStubDb();
+    db.store.set('mining_tasks', [
+      {
+        id: VALID_TASK_ID,
+        tenantId: TENANT,
+        assignedToUserId: USER,
+        titleEn: 'Pit 3 sample',
+        titleSw: 'Sampuli ya shimo 3',
+        status: 'pending',
+        priority: 'normal',
+        siteId: null,
+        dueAt: null,
+        createdAt: new Date(),
+      },
+    ]);
+    const app = mount(db);
+    const res = await app.request('/api/v1/field/workforce/shifts/today', {
+      headers: {
+        Authorization: bearer(UserRole.PROPERTY_MANAGER, {
+          tenantId: TENANT,
+          userId: USER,
+        }),
+      },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      tasks: ReadonlyArray<{ id: string; titleEn: string; titleSw: string }>;
+    };
+    expect(body.tasks).toHaveLength(1);
+    expect(body.tasks[0]!.id).toBe(VALID_TASK_ID);
+    expect(body.tasks[0]!.titleSw).toBe('Sampuli ya shimo 3');
+  });
+});

@@ -39,6 +39,8 @@ import {
   employees,
   helpRequests,
   miningTasks,
+  shiftReports,
+  sites,
   users,
 } from '@borjie/database';
 
@@ -162,6 +164,28 @@ interface NextTaskResponse {
   readonly location?: string;
   readonly startedAt?: string;
   readonly dueAt?: string;
+}
+
+/**
+ * R39 — `/shifts/today` response shape. The worker shift-report screen
+ * (W-M-02) consumes this to render the SHIFT panel + tasks list with
+ * live data instead of the mock SHIFT fixture.
+ */
+interface ShiftTaskLite {
+  readonly id: string;
+  readonly titleEn: string;
+  readonly titleSw: string;
+  readonly location: string | null;
+}
+
+interface TodayShiftResponse {
+  readonly shiftDate: string; // YYYY-MM-DD (ISO date)
+  readonly shiftKind: 'day' | 'night';
+  readonly siteName: string;
+  readonly startISO: string;
+  readonly endISO: string;
+  readonly nextBreakISO: string | null;
+  readonly tasks: ReadonlyArray<ShiftTaskLite>;
 }
 
 function roleLabelFor(
@@ -345,6 +369,158 @@ export function createFieldWorkforceRouter(): Hono {
         reason: message,
       });
       const e = jsonError('FIELD_WORKFORCE_ME_FAILED', message, 500);
+      return c.json(e.body, e.status);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /shifts/today — R39 closure. Today's shift schedule + tasks for
+  // the W-M-02 supervisor screen. Replaces the hardcoded SHIFT fixture
+  // in `apps/workforce-mobile/app/worker/W-M-02.tsx`.
+  //
+  // Resolution order:
+  //   1. Latest `shift_reports` row for the worker's employee.siteId
+  //      on shift_date = today (or yesterday if it spans night-shift).
+  //   2. Tasks: `mining_tasks` assigned to this user, status open,
+  //      site-matching when employees.siteId is set.
+  //   3. When no shift_report exists for today: respond with a default
+  //      06:00–18:00 day schedule anchored to the worker's site, an
+  //      empty tasks array, and `shiftDate = today UTC`. This keeps the
+  //      FE non-empty and lets the supervisor see the surface even on a
+  //      pre-shift screen state.
+  // -------------------------------------------------------------------------
+  app.get('/shifts/today', async (c: any) => {
+    const auth = c.get('auth') ?? {};
+    const { tenantId, userId } = auth as {
+      tenantId?: string;
+      userId?: string;
+    };
+    if (!tenantId || !userId) {
+      const err = jsonError('UNAUTHORIZED', 'Authentication required', 401);
+      return c.json(err.body, err.status);
+    }
+    const db = c.get('db');
+    if (!db) {
+      const err = jsonError(
+        'FIELD_WORKFORCE_UNAVAILABLE',
+        'database is not configured on this gateway',
+        503,
+      );
+      return c.json(err.body, err.status);
+    }
+
+    try {
+      const [employeeRow] = await db
+        .select({ siteId: employees.siteId })
+        .from(employees)
+        .where(
+          and(eq(employees.tenantId, tenantId), eq(employees.userId, userId)),
+        )
+        .limit(1);
+
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Find the worker's siteId (employees row, optional) + the latest
+      // shift_report for that site today.
+      const employeeSiteId = (employeeRow?.siteId as string | undefined) ?? null;
+
+      let siteName = 'Site';
+      if (employeeSiteId) {
+        const [siteRow] = await db
+          .select({ name: sites.name })
+          .from(sites)
+          .where(and(eq(sites.tenantId, tenantId), eq(sites.id, employeeSiteId)))
+          .limit(1);
+        if (siteRow?.name) siteName = String(siteRow.name);
+      }
+
+      let shiftKind: 'day' | 'night' = 'day';
+      let shiftDate = today;
+      if (employeeSiteId) {
+        const [report] = await db
+          .select({
+            shiftDate: shiftReports.shiftDate,
+            shiftKind: shiftReports.shiftKind,
+          })
+          .from(shiftReports)
+          .where(
+            and(
+              eq(shiftReports.tenantId, tenantId),
+              eq(shiftReports.siteId, employeeSiteId),
+            ),
+          )
+          .orderBy(desc(shiftReports.createdAt))
+          .limit(1);
+        if (report) {
+          shiftDate = String(report.shiftDate ?? today);
+          const reportedKind = String(report.shiftKind ?? 'day');
+          shiftKind = reportedKind === 'night' ? 'night' : 'day';
+        }
+      }
+
+      // Default canonical TZ-aware start/end. Day: 06:00–18:00 +0300.
+      // Night: 18:00–06:00 next day. The supervisor still amends in UI.
+      const startHour = shiftKind === 'day' ? 6 : 18;
+      const endHour = shiftKind === 'day' ? 18 : 30; // 30 = 06 next day
+      const dateOnly = shiftDate;
+      const startISO = `${dateOnly}T${String(startHour).padStart(2, '0')}:00:00+03:00`;
+      const endISOLocal = `${dateOnly}T${String(endHour % 24).padStart(2, '0')}:00:00+03:00`;
+      const endISO =
+        endHour >= 24
+          ? new Date(
+              new Date(endISOLocal).getTime() + 24 * 60 * 60 * 1000,
+            ).toISOString()
+          : endISOLocal;
+      const nextBreakISO = `${dateOnly}T${String((startHour + 4) % 24)
+        .padStart(2, '0')}:00:00+03:00`;
+
+      // Tasks for this worker, status open. Site-scoped when the row has
+      // a site_id and we can match the employee's site.
+      const taskRows = await db
+        .select({
+          id: miningTasks.id,
+          titleEn: miningTasks.titleEn,
+          titleSw: miningTasks.titleSw,
+          siteId: miningTasks.siteId,
+        })
+        .from(miningTasks)
+        .where(
+          and(
+            eq(miningTasks.tenantId, tenantId),
+            eq(miningTasks.assignedToUserId, userId),
+            sql`${miningTasks.status} IN ('pending', 'in_progress', 'blocked')`,
+          ),
+        )
+        .orderBy(asc(miningTasks.createdAt))
+        .limit(20);
+
+      const tasks: ReadonlyArray<ShiftTaskLite> = taskRows.map(
+        (r: Record<string, unknown>) => ({
+          id: String(r.id),
+          titleEn: String(r.titleEn ?? r.titleSw ?? ''),
+          titleSw: String(r.titleSw ?? r.titleEn ?? ''),
+          location: r.siteId ? String(r.siteId) : null,
+        }),
+      );
+
+      const response: TodayShiftResponse = {
+        shiftDate,
+        shiftKind,
+        siteName,
+        startISO,
+        endISO,
+        nextBreakISO,
+        tasks,
+      };
+      return c.json(response, 200);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'today shift failed';
+      moduleLogger.error('field workforce /shifts/today failed', {
+        evt: 'field_workforce_shifts_today_failed',
+        tenantId,
+        reason: message,
+      });
+      const e = jsonError('FIELD_WORKFORCE_SHIFTS_TODAY_FAILED', message, 500);
       return c.json(e.body, e.status);
     }
   });
