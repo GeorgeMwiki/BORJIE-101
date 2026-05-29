@@ -58,3 +58,12 @@ export {
   dialingCodeForTenant,
   dialingPrefixForTenant,
 } from './phone.js';
+
+// WS-5 — mineral catalogue + per-tenant allowlist gate.
+export {
+  MINERAL_CATALOGUE,
+  getMineral,
+  isMineralAllowedForTenant,
+  labelForMineral,
+  type MineralCatalogueEntry,
+} from './minerals.js';
