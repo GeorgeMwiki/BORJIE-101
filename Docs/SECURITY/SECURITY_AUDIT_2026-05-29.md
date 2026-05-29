@@ -122,8 +122,18 @@ defence-in-depth layers):**
 | 9 | A sends `X-Tenant-ID: ` (null) to bypass RLS | App middleware (`isValidTenantId`) | `cross_tenant_rls_bypass_via_null_header_denies` |
 | 10 | A queries audit chain for B's entries | Audit-chain guard (RLS + filter) | `cross_tenant_audit_chain_denies` |
 
-**Result:** all 10 PASS (deny cross-tenant). No leaks found requiring
-new inline fixes — existing layered guard holds.
+**Result:** all 16 test cases PASS (10 primary vectors + 6 sub-cases:
+auth-bypass via no-JWT, JWT-claim-validated cross-tenant, plus
+allow-cases pinning the matched-tenant happy path). No leaks found
+requiring new inline fixes — existing layered guard holds.
+
+**Key insight from vector 1:** the `extractTenantId` priority order
+(JWT > X-Tenant-ID > subdomain) makes the X-Tenant-ID header a no-op
+when a JWT is present. An attacker who ships JWT-A + header-B silently
+resolves to A — no cross-tenant data ever reaches the handler. This is
+not an unhandled mismatch (no 403); it is correct scoping. The test
+pins this property so a future refactor that flips the priority order
+would fail loudly.
 
 ### Long-form report
 See `Docs/SECURITY/CROSS_TENANT_ISOLATION_REPORT.md`.
