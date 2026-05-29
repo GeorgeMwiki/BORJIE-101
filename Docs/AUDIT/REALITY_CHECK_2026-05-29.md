@@ -169,52 +169,40 @@ as a wave-scale follow-up in the gaps section below.)
 
 ## Gaps requiring follow-up
 
-### G-A — 34 of 51 persona-tool paths point to routes that don't exist
+### G-A — 34 of 51 persona-tool paths point to routes that don't exist — **CLOSED 2026-05-29**
 
-Even with G-A's httpClient binding shipped, dispatching the worker
-brain-tool catalog would 404 on every clock-in / tasks / toolbox /
-samples / incidents / workforce / geology call. The mining router's
-real surface is `/check-in`, `/check-out` (not `/clock-in`,
-`/clock-out`); tasks list at `/tasks` but not `/tasks/mine`,
-`/tasks/complete`, etc.; toolbox topics at `/toolbox-topics` (not
-`/toolbox-talks/today`).
+**Status:** CLOSED — closure commits below.
 
-**Effort:** wave-scale (13 new worker routes + 6 manager routes + ~6
-admin routes + 6 marketplace routes ≈ 30+ new Hono handlers, each
-with its repo wiring, audit-chain emission, OpenAPI doc).
+The retarget sweep recommended in the original entry shipped as agent
+#182:
 
-**Files to revisit:**
-- `services/api-gateway/src/composition/brain-tools/worker-tools.ts`
-- `services/api-gateway/src/composition/brain-tools/manager-tools.ts`
-- `services/api-gateway/src/composition/brain-tools/buyer-tools.ts`
-- `services/api-gateway/src/composition/brain-tools/admin-tools.ts`
-- `services/api-gateway/src/routes/mining/attendance.hono.ts` (rename
-  / alias `/check-in` → `/clock-in` OR add the new mounts; OR rewrite
-  the brain tools to call `/check-in` if domain semantics align)
+- `75f1acd9` feat(brain-tools): retarget 27 persona-tool paths to
+  canonical Borjie routes (worker, manager, admin, owner, superpowers).
+- `e7fb8c89` feat(mining): 5 new endpoints surfaced by persona-tool
+  audit — `/mining/bids/incoming`, `/mining/bids/mine`,
+  `/mining/bids/:id/withdraw`, `/mining/buyers/kyc/me`,
+  `/mining/buyers/kyc/upload-atom`, `/mining/marketplace/market-intel`.
+- `4ecc9e2c` test(mining): smoke tests for 6 new persona-tool retarget
+  routes (18 vitest assertions).
 
-**Recommended path:** rather than ship 30 new routes, retarget the
-brain tools to call the existing canonical mining surface (the names
-the brain tools chose are aspirational — the actual domain endpoints
-are `attendance/check-in`, `attendance/check-out`, `tasks` with
-`?status=mine` filter, etc.). That is a ~50 LoC sweep across the
-four `*-tools.ts` files, no new routes required. **Recommend issuing
-this as agent #182.**
+The catalog now dispatches against routes that genuinely exist; the
+loopback client's structured `Error` will surface real upstream
+behaviour (200 / 4xx / 5xx) instead of the silent 404 fallthrough the
+original audit caught.
 
-### G-B — R5 worker hero card data wires call missing endpoints
+### G-B — R5 worker hero card data wires call missing endpoints — **CLOSED 2026-05-29**
 
-The hero card calls `/api/v1/field/workforce/me`, `tasks/next`,
-`tasks/:id/complete`, `help-requests`. None exist on the gateway.
-The fetch errors are swallowed; the card renders "no shift / no next
-task" silently.
+**Status:** CLOSED — closure commits below.
 
-**Effort:** 4 endpoints, ~150–200 LoC each. Wave-scale.
+- `7bbe7778` feat(db): migration 0126 help_requests table (R5 closure).
+- `3b27d888` feat(field-workforce): /me /tasks/next /tasks/:id/complete
+  /help-requests (R5 wired) — 12 vitest assertions covering auth,
+  validation, audit-chain insertion, and idempotency.
 
-**Recommended path:** add four small routes under
-`services/api-gateway/src/routes/workforce/` mounted as
-`/api/v1/field/workforce/*` (keeping the legacy prefix used by the
-mobile app today). Alternatively retarget the hero card to
-`/api/v1/workforce/clock-in/today` + `/api/v1/mining/tasks` with
-filters.
+The hero card now fetches real worker identity + shift state + next
+task + completion + help-request submission. The silent error swallow
+that masqueraded as "no shift" is gone; pilot probes can now exercise
+the surface end-to-end.
 
 ### G-C — KI-003 `requireService` middleware factory shipped without route adoption
 
