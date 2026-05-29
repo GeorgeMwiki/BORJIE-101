@@ -1379,10 +1379,16 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // the original). Skipped when the step-7 detour debate already ran
       // — the older detour ALREADY produced a multi-voice synthesis, so
       // re-running the 3-agent path would double-spend tokens.
+      //
+      // Also skipped when the caller wired `deps.synthesizer`: that
+      // signals the caller owns multi-agent merging explicitly (turning
+      // it on per turn via `req.requireSynthesis`). Running both paths
+      // would double-spend tokens and contradict the caller's intent.
       if (
         (req.stakes === 'high' || req.stakes === 'critical') &&
         req.estimatedCostUsd === undefined &&
-        debateRoundsCompleted === undefined
+        debateRoundsCompleted === undefined &&
+        deps.synthesizer === undefined
       ) {
         const debateGateStart = clock().getTime();
         try {

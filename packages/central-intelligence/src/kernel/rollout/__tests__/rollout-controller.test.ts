@@ -11,6 +11,7 @@ import {
   type RolloutPromptRow,
   type RolloutRegistryPort,
 } from '../rollout-controller.js';
+import { logger } from '../../../logger.js';
 
 function makeFakeRegistry(initial: ReadonlyArray<RolloutPromptRow> = []): {
   port: RolloutRegistryPort;
@@ -47,10 +48,15 @@ function makeFakeRegistry(initial: ReadonlyArray<RolloutPromptRow> = []): {
 }
 
 describe('createRolloutController', () => {
-  let errorSpy = vi.spyOn(console, 'error');
+  // Pino-based logger is the canonical error sink (per CLAUDE.md "No
+  // console.log in services — Pino only"). The controller calls
+  // `logger.error(...)` on registry failure; the spy intercepts that
+  // call so we can assert it fired without bleeding pino output into
+  // the test stream.
+  let errorSpy = vi.spyOn(logger, 'error');
 
   beforeEach(() => {
-    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
   });
 
   it('returns null when no rows exist for the capability', async () => {

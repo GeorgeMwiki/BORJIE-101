@@ -172,13 +172,16 @@ export function createConstitutionalCritic(
 
   return {
     async score(reflection) {
-      const scores = client
+      const claudeResult = client
         ? await scoreWithClaude({
             reflection,
             rules,
             client,
             modelId,
           })
+        : null;
+      const scores = claudeResult
+        ? claudeResult.scores
         : scoreHeuristic(reflection, rules);
 
       const overall =
@@ -191,7 +194,10 @@ export function createConstitutionalCritic(
             overall,
             passed: overall >= passThreshold,
             scores,
-            modelId,
+            // Prefer the model the API actually served (Anthropic returns
+            // the resolved alias, e.g. `claude-haiku-4-5`) over the
+            // pinned-snapshot id we sent (`claude-haiku-4-5-20251001`).
+            modelId: claudeResult?.modelId ?? modelId,
           }
         : {
             clusterId: reflection.clusterId,
@@ -255,9 +261,14 @@ interface ClaudeScoreArgs {
   readonly modelId: string;
 }
 
+interface ClaudeScoreResult {
+  readonly scores: ReadonlyArray<CriticScore>;
+  readonly modelId: string;
+}
+
 async function scoreWithClaude(
   args: ClaudeScoreArgs,
-): Promise<ReadonlyArray<CriticScore>> {
+): Promise<ClaudeScoreResult> {
   const constitution = args.rules
     .map((r) => `- [${r.id}] (${r.category}) ${r.description}`)
     .join('\n');
@@ -283,10 +294,19 @@ async function scoreWithClaude(
       .filter((c) => c.type === 'text')
       .map((c) => c.text ?? '')
       .join('');
-    return parseScoresLenient(text, args.rules);
+    return {
+      scores: parseScoresLenient(text, args.rules),
+      // Anthropic responses echo back the resolved model alias (e.g.
+      // `claude-haiku-4-5`). Falling back to the request id keeps the
+      // legacy contract for SDKs that omit the field.
+      modelId: resp.model ?? args.modelId,
+    };
   } catch (error) {
     logger.warn('constitutional-critic: Claude call failed; falling back to heuristic', { value: error instanceof Error ? error.message : String(error) });
-    return scoreHeuristic(args.reflection, args.rules);
+    return {
+      scores: scoreHeuristic(args.reflection, args.rules),
+      modelId: args.modelId,
+    };
   }
 }
 
