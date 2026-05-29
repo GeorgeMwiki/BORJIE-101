@@ -66,6 +66,15 @@ export interface RateLimitRedisOptions {
    * raises so operators see the degraded transition exactly once.
    */
   readonly logger?: { warn: (meta: unknown, msg: string) => void };
+  /**
+   * G5 — robustness 2026-05-29.
+   *
+   * Optional Sentry hook called on every Redis fallback so on-call
+   * pages light up when Redis is down. The hook signature mirrors
+   * `@borjie/observability`'s `getSentry().captureException` — pass
+   * either that directly or a wrapper that adds extra tags.
+   */
+  readonly sentryCapture?: (err: unknown, context?: Record<string, unknown>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +200,47 @@ async function checkRedis(
 // Factory — produces an Express middleware.
 // ---------------------------------------------------------------------------
 
+/**
+ * G5 — process-level status flag for the rate-limit Redis client.
+ *
+ * Flipped to `'down'` the moment the Redis pipeline raises and back to
+ * `'up'` the next time it succeeds. Exposed via `getRateLimitRedisStatus`
+ * so the deep-health probe can flag the degraded mode on /health/deep
+ * without each gateway replica having to talk to Redis again.
+ *
+ * `firstFallbackAt` / `lastFallbackAt` give operators a "since when"
+ * timeline; `fallbackCount` is the monotonic counter that the alerting
+ * rule fires on (e.g. >0 in a 1-min window).
+ */
+interface RateLimitRedisStatus {
+  status: 'up' | 'down' | 'unknown';
+  firstFallbackAt: string | null;
+  lastFallbackAt: string | null;
+  fallbackCount: number;
+  lastError: string | null;
+}
+
+const sharedRedisStatus: RateLimitRedisStatus = {
+  status: 'unknown',
+  firstFallbackAt: null,
+  lastFallbackAt: null,
+  fallbackCount: 0,
+  lastError: null,
+};
+
+export function getRateLimitRedisStatus(): Readonly<RateLimitRedisStatus> {
+  return { ...sharedRedisStatus };
+}
+
+/** Test-only: reset the shared status between tests. */
+export function __resetRateLimitRedisStatus(): void {
+  sharedRedisStatus.status = 'unknown';
+  sharedRedisStatus.firstFallbackAt = null;
+  sharedRedisStatus.lastFallbackAt = null;
+  sharedRedisStatus.fallbackCount = 0;
+  sharedRedisStatus.lastError = null;
+}
+
 export function createRateLimitMiddleware(options: RateLimitRedisOptions = {}) {
   const windowMs = options.windowMs ?? parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
   const maxRequests =
@@ -201,17 +251,49 @@ export function createRateLimitMiddleware(options: RateLimitRedisOptions = {}) {
   const keyGen = options.keyGenerator ?? defaultKeyGenerator;
   const redis = options.redis ?? null;
   const logger = options.logger;
+  const sentryCapture = options.sentryCapture;
 
-  // One-shot flag — we only log the "Redis unavailable, using in-memory"
-  // message once per process lifetime instead of on every request.
-  let loggedDegradation = false;
+  // G5 — robustness 2026-05-29.
+  //
+  // Each fallback now:
+  //   1. Bumps the shared `sharedRedisStatus` counter so /health/deep
+  //      can flag the degraded mode cluster-wide.
+  //   2. Emits a Pino `warn` on EVERY fallback (was: once per process).
+  //      A one-shot warn missed sustained outages; on-call needs the
+  //      ongoing signal.
+  //   3. Captures to Sentry on every fallback so alerting rules fire.
+  //      The hook is no-op when not wired.
   const degrade = (err: unknown) => {
-    if (!loggedDegradation) {
-      loggedDegradation = true;
-      logger?.warn(
-        { err: err instanceof Error ? err.message : String(err) },
-        'rate-limit: redis unavailable — falling back to in-memory limiter',
-      );
+    const nowIso = new Date().toISOString();
+    sharedRedisStatus.status = 'down';
+    sharedRedisStatus.lastFallbackAt = nowIso;
+    if (sharedRedisStatus.firstFallbackAt === null) {
+      sharedRedisStatus.firstFallbackAt = nowIso;
+    }
+    sharedRedisStatus.fallbackCount += 1;
+    sharedRedisStatus.lastError = err instanceof Error ? err.message : String(err);
+    logger?.warn(
+      {
+        err: sharedRedisStatus.lastError,
+        fallbackCount: sharedRedisStatus.fallbackCount,
+        firstFallbackAt: sharedRedisStatus.firstFallbackAt,
+      },
+      'rate-limit: redis unavailable — falling back to in-memory limiter',
+    );
+    try {
+      sentryCapture?.(err, {
+        scope: 'rate-limit',
+        fallbackCount: sharedRedisStatus.fallbackCount,
+      });
+    } catch {
+      // Sentry hook bugs must never break the request pipeline.
+    }
+  };
+  // Mark Redis healthy after every successful pipeline call so the
+  // deep-health flag clears once the network recovers.
+  const recover = () => {
+    if (sharedRedisStatus.status !== 'up') {
+      sharedRedisStatus.status = 'up';
     }
   };
 
@@ -235,6 +317,7 @@ export function createRateLimitMiddleware(options: RateLimitRedisOptions = {}) {
         const r = await checkRedis(redis, fullKey, windowMs, windowStart);
         count = r.count;
         resetAt = r.resetAt;
+        recover();
       } catch (err) {
         degrade(err);
         const r = checkInMemory(fullKey, windowMs, ceiling, now);

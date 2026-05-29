@@ -16,6 +16,8 @@ import {
   createRateLimitMiddleware,
   defaultRouteClassifier,
   __resetInMemoryStore,
+  __resetRateLimitRedisStatus,
+  getRateLimitRedisStatus,
 } from '../rate-limit-redis.middleware';
 
 // ---------------------------------------------------------------------------
@@ -274,6 +276,110 @@ describe('createRateLimitMiddleware — Redis-backed', () => {
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
     expect(r3.status).toBe(429);
+  });
+});
+
+describe('G5 — Redis-down alert + status flag (robustness 2026-05-29)', () => {
+  beforeEach(() => {
+    __resetInMemoryStore();
+    __resetRateLimitRedisStatus();
+  });
+
+  it('initial status is "unknown" before any request', () => {
+    expect(getRateLimitRedisStatus().status).toBe('unknown');
+    expect(getRateLimitRedisStatus().fallbackCount).toBe(0);
+  });
+
+  it('records a fallback when Redis raises and flips status to "down"', async () => {
+    const fake = new FakeRedis();
+    const warns: Array<{ meta: unknown; msg: string }> = [];
+    const sentryCalls: Array<{ err: unknown; ctx?: unknown }> = [];
+    const app = buildApp(
+      createRateLimitMiddleware({
+        redis: fake as unknown as import('ioredis').Redis,
+        windowMs: 60_000,
+        maxRequests: 5,
+        logger: { warn: (meta, msg) => warns.push({ meta, msg }) },
+        sentryCapture: (err, ctx) => sentryCalls.push({ err, ctx }),
+      }),
+    );
+    fake.failNext = new Error('simulated redis outage');
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-1');
+
+    const status = getRateLimitRedisStatus();
+    expect(status.status).toBe('down');
+    expect(status.fallbackCount).toBe(1);
+    expect(status.firstFallbackAt).not.toBeNull();
+    expect(status.lastError).toContain('simulated redis outage');
+    expect(warns.length).toBeGreaterThanOrEqual(1);
+    expect(warns[0]!.msg).toMatch(/rate-limit: redis unavailable/);
+    expect(sentryCalls.length).toBe(1);
+  });
+
+  it('emits a warn + Sentry capture on EVERY fallback (not just first)', async () => {
+    // G5 fixed the one-shot warn: on-call needs the ongoing signal,
+    // not a single line at the moment Redis first dies.
+    const warns: Array<{ meta: unknown; msg: string }> = [];
+    const sentryCalls: Array<{ err: unknown; ctx?: unknown }> = [];
+    const fake = new FakeRedis();
+    const app = buildApp(
+      createRateLimitMiddleware({
+        redis: fake as unknown as import('ioredis').Redis,
+        windowMs: 60_000,
+        maxRequests: 5,
+        logger: { warn: (meta, msg) => warns.push({ meta, msg }) },
+        sentryCapture: (err, ctx) => sentryCalls.push({ err, ctx }),
+      }),
+    );
+    fake.failNext = new Error('outage 1');
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-2');
+    fake.failNext = new Error('outage 2');
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-2');
+    fake.failNext = new Error('outage 3');
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-2');
+
+    expect(getRateLimitRedisStatus().fallbackCount).toBe(3);
+    expect(warns.length).toBe(3);
+    expect(sentryCalls.length).toBe(3);
+  });
+
+  it('flips status back to "up" on the next successful Redis call', async () => {
+    const fake = new FakeRedis();
+    const app = buildApp(
+      createRateLimitMiddleware({
+        redis: fake as unknown as import('ioredis').Redis,
+        windowMs: 60_000,
+        maxRequests: 5,
+        logger: { warn: () => undefined },
+      }),
+    );
+    fake.failNext = new Error('outage');
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-3');
+    expect(getRateLimitRedisStatus().status).toBe('down');
+
+    // Next call succeeds — recover path flips back to up.
+    await request(app).get('/x').set('x-tenant-id', 'tenant-G5-3');
+    expect(getRateLimitRedisStatus().status).toBe('up');
+    // The fallbackCount stays — it's a monotonic counter, not a gauge.
+    expect(getRateLimitRedisStatus().fallbackCount).toBe(1);
+  });
+
+  it('sentry hook bug does not break the request pipeline', async () => {
+    const fake = new FakeRedis();
+    const app = buildApp(
+      createRateLimitMiddleware({
+        redis: fake as unknown as import('ioredis').Redis,
+        windowMs: 60_000,
+        maxRequests: 5,
+        logger: { warn: () => undefined },
+        sentryCapture: () => {
+          throw new Error('sentry transport down');
+        },
+      }),
+    );
+    fake.failNext = new Error('outage');
+    const res = await request(app).get('/x').set('x-tenant-id', 'tenant-G5-4');
+    expect(res.status).toBe(200);
   });
 });
 
