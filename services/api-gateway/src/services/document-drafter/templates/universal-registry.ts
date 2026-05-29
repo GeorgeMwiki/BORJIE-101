@@ -1,14 +1,16 @@
 /**
- * Registry of the 18 TS-module mining-estate templates.
+ * Registry of the TS-module mining-estate templates.
  *
  * Wave UNIVERSAL-DOC-DRAFTER. The v1 paired `.sw.md`/`.en.md` templates
- * continue to live in `./index.ts`. The 18 richer templates live here
- * and expose a `composeMarkdown(vars, context)` API that returns the
- * final document body in one call (no separate placeholder pass).
+ * continue to live in `./index.ts`. The richer templates live here and
+ * expose a `composeMarkdown(vars, context)` API that returns the final
+ * document body in one call (no separate placeholder pass).
  *
- * Note: the two sibling-owned templates
- * (`off-taker-master-sale-agreement` and `nemc-eia-decision-letter`)
- * are explicitly NOT included here; they ship from sibling #125.
+ * Wave UNWIRED-LOGIC-SWEEP-2 (audit #155) — added the two previously
+ * orphaned templates:
+ *   - off-taker-master-sale-agreement   (long-form supply contract)
+ *   - nemc-eia-decision-letter          (regulator-format EIA outcome)
+ * Both ship complete TS modules with z.object var schemas + composeMarkdown.
  */
 
 import type { UniversalTemplate } from './types.js';
@@ -32,6 +34,14 @@ import { dismissalLetterTemplate } from './dismissal-letter.template.js';
 import { sopBlastSafetyTemplate } from './sop-blast-safety.template.js';
 import { trainingMaterialTemplate } from './training-material.template.js';
 import { manualOperationsTemplate } from './manual-operations.template.js';
+// Long-form supply agreement (off-taker buyer ↔ miner) with quality
+// specs, lifting cadence, pricing index, force majeure, dispute
+// resolution clauses.
+import { offTakerMasterSaleAgreementTemplate } from './off-taker-master-sale-agreement.template.js';
+// Regulator-format NEMC EIA decision letter — owners pre-draft the
+// letter they expect to receive so the eventual NEMC outcome can be
+// compared against their ESIA scope.
+import { nemcEiaDecisionLetterTemplate } from './nemc-eia-decision-letter.template.js';
 
 export const UNIVERSAL_TEMPLATES: ReadonlyArray<UniversalTemplate> = [
   memoInternalTemplate,
@@ -54,6 +64,8 @@ export const UNIVERSAL_TEMPLATES: ReadonlyArray<UniversalTemplate> = [
   sopBlastSafetyTemplate,
   trainingMaterialTemplate,
   manualOperationsTemplate,
+  offTakerMasterSaleAgreementTemplate,
+  nemcEiaDecisionLetterTemplate,
 ];
 
 const INDEX_BY_ID = new Map<string, UniversalTemplate>(
