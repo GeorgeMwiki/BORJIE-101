@@ -107,16 +107,49 @@ export interface IAccountRepository {
     lastEntryId: string,
     expectedVersion: number
   ): Promise<boolean>;
+
+  /**
+   * G1 — robustness 2026-05-29.
+   *
+   * Atomically apply N balance updates under optimistic concurrency.
+   * Either every update lands (CAS succeeds for all rows) and the
+   * method returns `{ ok: true }`, or NO update lands and it returns
+   * `{ ok: false, conflictAccountId }` for the first row whose CAS
+   * failed.
+   *
+   * Implementations MUST run all CAS UPDATEs inside a single DB
+   * transaction (drizzle: `db.transaction(...)`). The InMemory adapter
+   * pre-checks all expected versions atomically before mutating any
+   * row. This is the multi-row primitive `postJournalEntry` needs to
+   * keep the ledger consistent under concurrent posts.
+   */
+  updateBalancesAtomic(
+    updates: ReadonlyArray<{
+      readonly accountId: AccountId;
+      readonly tenantId: TenantId;
+      readonly newBalanceMinorUnits: number;
+      readonly lastEntryId: string;
+      readonly expectedVersion: number;
+    }>
+  ): Promise<{ ok: true } | { ok: false; conflictAccountId: AccountId }>;
 }
 
 /**
- * In-memory implementation for testing
+ * In-memory implementation for testing.
+ *
+ * Versioning notes (G1 — robustness 2026-05-29):
+ *   The version semantics mirror the Drizzle adapter: `entryCount` IS
+ *   the optimistic-lock version. Every successful `updateBalance` bumps
+ *   it by 1 and the CAS predicate refuses any UPDATE whose caller saw
+ *   a stale count. The `version` book-keeping below is a defensive
+ *   tracker (kept in-step with `entryCount`) so older test code that
+ *   reads `.version` keeps working.
  */
 export class InMemoryAccountRepository implements IAccountRepository {
   private accounts: Map<string, Account & { version: number }> = new Map();
 
   async create(account: Account): Promise<Account> {
-    this.accounts.set(account.id, { ...account, version: 1 });
+    this.accounts.set(account.id, { ...account, version: account.entryCount ?? 0 });
     return account;
   }
 
@@ -132,7 +165,7 @@ export class InMemoryAccountRepository implements IAccountRepository {
   async update(account: Account): Promise<Account> {
     const existing = this.accounts.get(account.id);
     if (existing) {
-      this.accounts.set(account.id, { ...account, version: existing.version + 1 });
+      this.accounts.set(account.id, { ...account, version: account.entryCount ?? existing.version });
     }
     return account;
   }
@@ -263,17 +296,57 @@ export class InMemoryAccountRepository implements IAccountRepository {
     if (!account || account.tenantId !== tenantId) {
       return false;
     }
-    if (account.version !== expectedVersion) {
+    // G1 — version is the row's `entryCount` (same as the Drizzle
+    // adapter). The CAS refuses any UPDATE whose caller saw a stale
+    // count, returning `false` so the LedgerService retry wrapper
+    // re-reads + recomputes off the fresh row.
+    if (account.entryCount !== expectedVersion) {
       return false; // Optimistic lock failure
     }
-    
+
     account.balanceMinorUnits = newBalanceMinorUnits;
     account.lastEntryId = lastEntryId;
     account.lastEntryAt = new Date();
     account.entryCount += 1;
     account.updatedAt = new Date();
-    account.version += 1;
-    
+    account.version = account.entryCount;
+
     return true;
+  }
+
+  async updateBalancesAtomic(
+    updates: ReadonlyArray<{
+      readonly accountId: AccountId;
+      readonly tenantId: TenantId;
+      readonly newBalanceMinorUnits: number;
+      readonly lastEntryId: string;
+      readonly expectedVersion: number;
+    }>
+  ): Promise<{ ok: true } | { ok: false; conflictAccountId: AccountId }> {
+    // Phase 1 — verify every CAS predicate against the in-map state.
+    // No mutation happens until every row has been validated. This
+    // models the all-or-nothing atomicity that a real DB transaction
+    // gives us in production (drizzle: `db.transaction`).
+    for (const u of updates) {
+      const row = this.accounts.get(u.accountId);
+      if (!row || row.tenantId !== u.tenantId) {
+        return { ok: false, conflictAccountId: u.accountId };
+      }
+      if (row.entryCount !== u.expectedVersion) {
+        return { ok: false, conflictAccountId: u.accountId };
+      }
+    }
+    // Phase 2 — commit. Every predicate held, mutate atomically.
+    const now = new Date();
+    for (const u of updates) {
+      const row = this.accounts.get(u.accountId)!;
+      row.balanceMinorUnits = u.newBalanceMinorUnits;
+      row.lastEntryId = u.lastEntryId;
+      row.lastEntryAt = now;
+      row.entryCount += 1;
+      row.updatedAt = now;
+      row.version = row.entryCount;
+    }
+    return { ok: true };
   }
 }

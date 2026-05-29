@@ -413,4 +413,72 @@ export class DrizzleAccountRepository implements IAccountRepository {
 
     return updated.length > 0;
   }
+
+  /**
+   * G1 — robustness 2026-05-29. Atomic multi-row CAS for journal posts.
+   *
+   * Runs every per-account CAS UPDATE inside a single drizzle
+   * transaction. If any predicate fails (no rows affected), the whole
+   * transaction is rolled back via a thrown sentinel and the caller
+   * gets `{ ok: false, conflictAccountId }` so the LedgerService retry
+   * wrapper can re-read + recompute against the fresh row state.
+   *
+   * Why a transaction is required: without it a partial CAS leaves the
+   * ledger in an inconsistent state — e.g. the customer's account
+   * incremented but the matching platform-clearing account did not.
+   * The transaction rolls back EVERY mutation if any fails.
+   */
+  async updateBalancesAtomic(
+    updates: ReadonlyArray<{
+      readonly accountId: AccountId;
+      readonly tenantId: TenantId;
+      readonly newBalanceMinorUnits: number;
+      readonly lastEntryId: string;
+      readonly expectedVersion: number;
+    }>,
+  ): Promise<{ ok: true } | { ok: false; conflictAccountId: AccountId }> {
+    // Sentinel used to roll back the drizzle transaction on a CAS miss
+    // without surfacing the abort as a hard error. We re-throw inside
+    // the transaction callback and catch it on the outside.
+    class CasConflict extends Error {
+      constructor(public readonly conflictAccountId: AccountId) {
+        super(`CAS miss on account ${conflictAccountId}`);
+      }
+    }
+    try {
+      await (this.db as unknown as {
+        transaction: (cb: (tx: unknown) => Promise<void>) => Promise<void>;
+      }).transaction(async (tx) => {
+        const txDb = tx as typeof this.db;
+        for (const u of updates) {
+          const res = await txDb
+            .update(accounts)
+            .set({
+              balanceMinorUnits: u.newBalanceMinorUnits,
+              lastEntryId: u.lastEntryId,
+              lastEntryAt: new Date(),
+              entryCount: sql`${accounts.entryCount} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(accounts.id, u.accountId),
+                eq(accounts.tenantId, u.tenantId),
+                eq(accounts.entryCount, u.expectedVersion),
+              ),
+            )
+            .returning({ id: accounts.id });
+          if (res.length === 0) {
+            throw new CasConflict(u.accountId);
+          }
+        }
+      });
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof CasConflict) {
+        return { ok: false, conflictAccountId: err.conflictAccountId };
+      }
+      throw err;
+    }
+  }
 }

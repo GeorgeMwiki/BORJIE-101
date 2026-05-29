@@ -45,6 +45,28 @@ export interface JournalPostResult {
 }
 
 /**
+ * Thrown internally by `postJournalEntryAttempt` when the optimistic
+ * lock (CAS) on `accountRepository.updateBalancesAtomic` fails — i.e.
+ * another writer mutated the row between our SELECT and our UPDATE.
+ *
+ * The outer `postJournalEntry` catches this sentinel and re-runs the
+ * attempt against the fresh row. Never propagates beyond the retry
+ * loop — exhausted retries surface as a plain `Error` so callers don't
+ * need to import the CAS internals.
+ */
+class StaleAccountVersionError extends Error {
+  constructor(
+    public readonly accountId: AccountId,
+    public readonly tenantId: TenantId,
+  ) {
+    super(
+      `Ledger CAS: stale account version for ${accountId} (tenant ${tenantId})`,
+    );
+    this.name = 'StaleAccountVersionError';
+  }
+}
+
+/**
  * Ledger Service
  * Provides atomic, double-entry bookkeeping operations
  */
@@ -65,6 +87,51 @@ export class LedgerService {
    * Post a journal entry (atomic double-entry operation)
    */
   async postJournalEntry(request: CreateJournalEntryRequest): Promise<JournalPostResult> {
+    // G1 — robustness audit 2026-05-29: retry the whole journal post on
+    // stale-version (optimistic lock failure). Two concurrent posts on
+    // the same account would otherwise read the same balance, both
+    // compute newBalance off the stale read, and the second `update`
+    // would clobber the first. `updateBalancesAtomic` refuses the
+    // stale CAS inside a DB transaction; we then re-read + recompute.
+    //
+    // Bounded retry — `LEDGER_CAS_MAX_ATTEMPTS` (default 16) handles
+    // realistic contention. Each attempt sleeps with jitter to break
+    // lockstep retries between concurrent posters. Hitting the ceiling
+    // surfaces a hard error so the caller knows the serialisation
+    // invariant failed.
+    const MAX_ATTEMPTS = Number(process.env.LEDGER_CAS_MAX_ATTEMPTS ?? '16') || 16;
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.postJournalEntryAttempt(request);
+      } catch (err) {
+        if (err instanceof StaleAccountVersionError) {
+          lastError = err;
+          this.logger.warn('ledger: optimistic lock failure, retrying journal post', {
+            accountId: err.accountId,
+            tenantId: err.tenantId,
+            attempt,
+            maxAttempts: MAX_ATTEMPTS,
+          });
+          // Tiny jittered yield so concurrent retries don't lockstep
+          // and starve each other. Base 0.5ms × attempt; capped at 8ms.
+          const backoffMs = Math.min(8, 0.5 * attempt) + Math.random();
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, backoffMs),
+          );
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error(
+      `Ledger CAS failed after ${MAX_ATTEMPTS} attempts: ${lastError?.message ?? 'unknown contention'}`,
+    );
+  }
+
+  private async postJournalEntryAttempt(
+    request: CreateJournalEntryRequest,
+  ): Promise<JournalPostResult> {
     // Validate that the journal is balanced
     if (!validateJournalBalance(request.lines)) {
       throw new Error('Journal entry is not balanced: debits must equal credits');
@@ -149,16 +216,53 @@ export class LedgerService {
       });
     }
 
-    // Persist entries atomically
+    // G1 — robustness 2026-05-29: drive an atomic multi-row CAS BEFORE
+    // writing any ledger entries. `updateBalancesAtomic` runs every
+    // per-account CAS inside a single DB transaction — either every
+    // row is updated and entries land, or no row is updated and the
+    // wrapper retries off the fresh row state. This ordering means a
+    // stale-version retry never double-writes entries.
+    //
+    // The DrizzleAccountRepository encodes
+    //   UPDATE accounts SET … WHERE id=? AND tenant_id=? AND entry_count=?
+    // per row inside the transaction. `entry_count` doubles as the
+    // optimistic-lock version: every successful balance mutation bumps
+    // it by 1, so the predicate refuses any UPDATE whose caller saw a
+    // stale count. A miss rolls back the WHOLE transaction (no partial
+    // post) and we throw `StaleAccountVersionError` so the outer
+    // wrapper re-reads + recomputes.
+    const casUpdates = Array.from(accountUpdates.entries()).map(
+      ([accountId, update]) => ({
+        accountId,
+        tenantId: request.tenantId,
+        newBalanceMinorUnits: update.newBalance.amountMinorUnits,
+        lastEntryId: update.entryId,
+        expectedVersion: update.account.entryCount ?? 0,
+      }),
+    );
+    const casResult = await this.accountRepository.updateBalancesAtomic(
+      casUpdates,
+    );
+    if (!casResult.ok) {
+      throw new StaleAccountVersionError(
+        casResult.conflictAccountId,
+        request.tenantId,
+      );
+    }
+
+    // Persist entries atomically. CAS already gated the write — this
+    // SQL runs once per successful attempt.
     const savedEntries = await this.ledgerRepository.createEntries(entries);
 
-    // Update account balances
+    // Reflect the successful CAS onto the in-memory aggregates so the
+    // publisher and the returned `updatedAccounts` carry the new
+    // balance and version. We never re-read the DB row — the CAS
+    // guaranteed the write landed atomically.
     const updatedAccounts: Account[] = [];
     for (const [accountId, update] of accountUpdates) {
       const accountAggregate = new AccountAggregate(update.account);
       accountAggregate.updateBalance(update.newBalance, update.entryId);
       const updatedAccount = accountAggregate.toData();
-      await this.accountRepository.update(updatedAccount);
       updatedAccounts.push(updatedAccount);
 
       // Publish balance update event
