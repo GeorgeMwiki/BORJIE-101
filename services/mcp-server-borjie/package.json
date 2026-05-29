@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/mcp-server-borjie",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Public-facing Borjie Model Context Protocol server. Exposes Mr. Mwikila's brain tools (drafts, media, opportunities, risks, calibration, decisions, entities, scope, marketplace, workforce, geology, production, cooperatives, insurance, messaging, compliance, estate) to any external MCP client (Claude Code, Cursor, Windsurf, custom agents) over stdio and HTTP. Auth via OAuth2 device flow + agent-scoped permissions. RLS-scoped per tenant. Hash-chain audit on every action.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "borjie-mcp-server": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
