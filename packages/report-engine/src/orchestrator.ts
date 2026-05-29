@@ -18,6 +18,7 @@
 import { renderReportPdf } from './renderers/pdf.js';
 import { renderReportDocx } from './renderers/docx.js';
 import { renderReportPptx } from './renderers/pptx.js';
+import { resolveRendererStack } from './renderers/tenant-renderer-registry.js';
 import type {
   RenderReportInput,
   RenderReportOutput,
@@ -116,6 +117,15 @@ export class ReportOrchestrator {
     const subtitle =
       brand.displayName + ' • ' + this.formatPeriodSubtitle(input.params);
 
+    // R22 — merge per-tenant renderer overrides with the orchestrator's
+    // explicit `renderers` dep. Explicit deps always win; per-tenant
+    // registry fills any gaps; platform default renderers are the
+    // final fallback inside `renderOne`.
+    const effectiveRenderers = resolveRendererStack(
+      input.tenantId,
+      this.deps.renderers,
+    );
+
     const files = await Promise.all(
       input.outputFormats.map(async (format) =>
         this.renderOne(
@@ -125,6 +135,7 @@ export class ReportOrchestrator {
           brand,
           subtitle,
           generatedAt,
+          effectiveRenderers,
         ),
       ),
     );
@@ -159,6 +170,7 @@ export class ReportOrchestrator {
     brand: TenantBrand,
     subtitle: string,
     generatedAt: Date,
+    effective?: RendererOverrides,
   ): Promise<RenderedReportFile> {
     const renderInput = {
       title: template.displayNameEn,
@@ -167,16 +179,17 @@ export class ReportOrchestrator {
       brand,
       generatedAt,
     };
+    const overrides = effective ?? this.deps.renderers;
     try {
       if (format === 'pdf') {
-        const pdf = this.deps.renderers?.pdf;
+        const pdf = overrides?.pdf;
         return pdf ? await pdf(renderInput) : renderReportPdf(renderInput);
       }
       if (format === 'docx') {
-        const docx = this.deps.renderers?.docx;
+        const docx = overrides?.docx;
         return docx ? await docx(renderInput) : renderReportDocx(renderInput);
       }
-      const pptx = this.deps.renderers?.pptx;
+      const pptx = overrides?.pptx;
       return pptx ? await pptx(renderInput) : renderReportPptx(renderInput);
     } catch (err) {
       if (err instanceof ReportEngineError) throw err;

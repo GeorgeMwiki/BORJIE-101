@@ -80,3 +80,11 @@ export { renderReportDocx, type RenderDocxInput } from './renderers/docx.js';
 export { renderReportPptx, type RenderPptxInput } from './renderers/pptx.js';
 
 export { writeZip, escapeXml, type ZipEntry } from './ooxml-zip.js';
+
+export {
+  registerTenantRenderer,
+  getTenantRenderer,
+  resolveRendererStack,
+  clearTenantRendererRegistry,
+  listTenantsWithCustomRenderers,
+} from './renderers/tenant-renderer-registry.js';
