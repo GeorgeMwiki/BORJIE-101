@@ -146,6 +146,7 @@ export function clearAll(): void {
 
 export interface UseInboxValue {
   readonly items: ReadonlyArray<InboxItem>
+  readonly readIds: ReadonlySet<string>
   readonly unreadCount: number
 }
 
@@ -168,7 +169,7 @@ export function useInbox(): UseInboxValue {
   for (const it of snapshot.items) {
     if (!snapshot.readIds.has(it.id)) unread += 1
   }
-  return { items: snapshot.items, unreadCount: unread }
+  return { items: snapshot.items, readIds: snapshot.readIds, unreadCount: unread }
 }
 
 /** Test helper — wipe in-memory state. */

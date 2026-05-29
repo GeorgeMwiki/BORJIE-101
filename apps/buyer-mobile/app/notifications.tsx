@@ -32,6 +32,12 @@ import {
   type BuyerNotificationRow,
 } from '@/api/notifications'
 import { queryKeys } from '@/api/queryKeys'
+import {
+  useInbox,
+  markRead as markLiveRead,
+  markAllRead as markAllLiveRead,
+  type InboxItem,
+} from '@/lib/notifications/inbox-store'
 
 export default function NotificationsScreen(): JSX.Element {
   const router = useRouter()

@@ -54,6 +54,10 @@ export default function RootLayout(): JSX.Element {
                 name="documents/[id]"
                 options={{ title: 'Hati hai', headerShown: true }}
               />
+              <Stack.Screen
+                name="notifications/index"
+                options={{ title: 'Arifa', headerShown: true }}
+              />
             </Stack>
           </AuthProvider>
         </QueryClientProvider>
