@@ -41,4 +41,45 @@ describe('normalizePhoneForCountry', () => {
       '255712345678'
     );
   });
+
+  // ─── Issue #207 — world-scale tenants (WS-4) ─────────────────────────────
+  it('handles Nigerian numbers with trunk prefix (+234)', () => {
+    expect(normalizePhoneForCountry('08012345678', 'NG')).toBe(
+      '2348012345678',
+    );
+    expect(normalizePhoneForCountry('+234 801 234 5678', 'NG')).toBe(
+      '2348012345678',
+    );
+  });
+
+  it('handles South African numbers with trunk prefix (+27)', () => {
+    expect(normalizePhoneForCountry('0712345678', 'ZA')).toBe('27712345678');
+    expect(normalizePhoneForCountry('+27 71 234 5678', 'ZA')).toBe(
+      '27712345678',
+    );
+  });
+
+  it('handles Australian numbers with trunk prefix (+61)', () => {
+    expect(normalizePhoneForCountry('0412345678', 'AU')).toBe('61412345678');
+    expect(normalizePhoneForCountry('+61 412 345 678', 'AU')).toBe(
+      '61412345678',
+    );
+  });
+
+  it('handles Indonesian numbers with trunk prefix (+62)', () => {
+    expect(normalizePhoneForCountry('081234567890', 'ID')).toBe(
+      '6281234567890',
+    );
+    expect(normalizePhoneForCountry('+62 812 3456 7890', 'ID')).toBe(
+      '6281234567890',
+    );
+  });
+
+  it('handles Chilean numbers (no trunk prefix, +56 only)', () => {
+    expect(normalizePhoneForCountry('+56 9 1234 5678', 'CL')).toBe(
+      '56912345678',
+    );
+    // No leading zero in Chile — bare digits pass through with prefix
+    expect(normalizePhoneForCountry('912345678', 'CL')).toBe('56912345678');
+  });
 });

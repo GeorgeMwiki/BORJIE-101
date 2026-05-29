@@ -10,14 +10,29 @@
  * safer than producing a near-duplicate that later blocks a merge.
  */
 
-/** Known country code -> { dialingCode, trunkPrefix?: string }. */
+/** Known country code -> { dialingCode, trunkPrefix?: string }.
+ *  Issue #207 — world-scale tenants. Adding a row here is the ONLY
+ *  change required to admit a new tenant jurisdiction's phone format;
+ *  callers go through `normalizePhoneForCountry(phone, tenant.country_code)`
+ *  and never hard-code a dialing code. */
 const REGION_TABLE: Readonly<
   Record<string, { readonly dialingCode: string; readonly trunkPrefix?: string }>
 > = {
+  // GTM beachhead.
   TZ: { dialingCode: '255', trunkPrefix: '0' },
+  // East Africa.
   KE: { dialingCode: '254', trunkPrefix: '0' },
   UG: { dialingCode: '256', trunkPrefix: '0' },
   RW: { dialingCode: '250', trunkPrefix: '0' },
+  // West / Southern Africa.
+  NG: { dialingCode: '234', trunkPrefix: '0' },
+  ZA: { dialingCode: '27', trunkPrefix: '0' },
+  // Asia-Pacific.
+  AU: { dialingCode: '61', trunkPrefix: '0' },
+  ID: { dialingCode: '62', trunkPrefix: '0' },
+  // South America.
+  CL: { dialingCode: '56' },
+  // International rails.
   US: { dialingCode: '1' },
   GB: { dialingCode: '44', trunkPrefix: '0' },
 };

@@ -9,3 +9,4 @@
 export * from './types.js';
 export * from './policy-enforcement.js';
 export * from './negotiation-service.js';
+export * from './llm-counter-generator.js';

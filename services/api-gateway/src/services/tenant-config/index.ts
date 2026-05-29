@@ -52,3 +52,9 @@ export {
   type RegulatorAuthority,
   type RegulatorLookup,
 } from './regulators.js';
+
+// WS-4 — phone helpers. Resolves the E.164 dialing code per tenant.
+export {
+  dialingCodeForTenant,
+  dialingPrefixForTenant,
+} from './phone.js';
