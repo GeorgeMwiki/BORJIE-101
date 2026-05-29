@@ -7,7 +7,7 @@
 --
 -- New columns on `draft_revisions`:
 --   locked_at         timestamptz      — NULL = editable; non-NULL = locked
---   locked_by_user_id uuid             — user who locked the revision
+--   locked_by_user_id text             — user who locked the revision (text — users.id is text)
 --   lock_reason       text             — optional rationale (e.g. "finalized")
 --
 -- New CHECK constraint: once locked_at IS NOT NULL, the revision is frozen.
@@ -23,7 +23,7 @@ BEGIN;
 -- Add lock columns to draft_revisions
 ALTER TABLE draft_revisions
   ADD COLUMN IF NOT EXISTS locked_at         timestamptz,
-  ADD COLUMN IF NOT EXISTS locked_by_user_id uuid,
+  ADD COLUMN IF NOT EXISTS locked_by_user_id text,
   ADD COLUMN IF NOT EXISTS lock_reason       text;
 
 -- FK constraint: locked_by_user_id references users(id) if user exists
