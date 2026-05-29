@@ -54,6 +54,20 @@ const positionSchema = z.object({
   position: z.number().int().min(0).max(50),
 });
 
+// SOTA depth (vs Notion nested favourites): owners can group pinned
+// items into named folders. Pass `folderId: null` to ungroup. The
+// folder label is denormalised onto each member row so the strip
+// renders without a second query.
+const folderAssignSchema = z.object({
+  folderId: z.string().uuid().nullable(),
+  folderLabel: z.string().min(1).max(80).nullable().optional(),
+});
+
+const folderRenameSchema = z.object({
+  folderId: z.string().uuid(),
+  folderLabel: z.string().min(1).max(80),
+});
+
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
@@ -256,7 +270,100 @@ app.patch('/:id/position', async (c: any) => {
   return c.json({ success: true, data: { pinnedItem: row } });
 });
 
-// GET / - render the owner strip
+// PATCH /:id/folder - assign or remove a folder from a pinned item
+app.patch('/:id/folder', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  const id = c.req.param('id');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'PIN_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => null);
+  const parsed = folderAssignSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      { success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid folder payload', issues: parsed.error.issues } },
+      400,
+    );
+  }
+  const input = parsed.data;
+  // Null folderId clears the grouping entirely (label must also be null).
+  // Non-null folderId requires a label so the strip can render a header.
+  const folderLabel =
+    input.folderId === null ? null : (input.folderLabel ?? null);
+  const [row] = await db
+    .update(pinnedItems)
+    .set({ folderId: input.folderId, folderLabel })
+    .where(
+      and(
+        eq(pinnedItems.tenantId, auth.tenantId),
+        eq(pinnedItems.ownerId, auth.userId),
+        eq(pinnedItems.id, id),
+      ),
+    )
+    .returning();
+  if (!row) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Pinned item not found' } }, 404);
+  }
+  moduleLogger.info('owner-pinned-items: folder updated', {
+    tenantId: auth.tenantId,
+    pinnedItemId: row.id,
+    folderId: row.folderId,
+  });
+  return c.json({ success: true, data: { pinnedItem: row } });
+});
+
+// POST /folder/rename - rename every member of a folder in one call.
+// SOTA depth (Notion lets you rename a folder by clicking it). We
+// denormalise the label across every member row so the strip renders
+// the new name immediately.
+app.post('/folder/rename', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'PIN_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => null);
+  const parsed = folderRenameSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      { success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid rename payload', issues: parsed.error.issues } },
+      400,
+    );
+  }
+  const input = parsed.data;
+  const rows = await db
+    .update(pinnedItems)
+    .set({ folderLabel: input.folderLabel })
+    .where(
+      and(
+        eq(pinnedItems.tenantId, auth.tenantId),
+        eq(pinnedItems.ownerId, auth.userId),
+        eq(pinnedItems.folderId, input.folderId),
+        isNull(pinnedItems.unpinnedAt),
+      ),
+    )
+    .returning();
+  moduleLogger.info('owner-pinned-items: folder renamed', {
+    tenantId: auth.tenantId,
+    folderId: input.folderId,
+    folderLabel: input.folderLabel,
+    updatedCount: rows.length,
+  });
+  return c.json({
+    success: true,
+    data: { folderId: input.folderId, folderLabel: input.folderLabel, updatedCount: rows.length },
+  });
+});
+
+// GET / - render the owner strip (flat, with folder fields populated
+// so the FE can group client-side).
 app.get('/', async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');

@@ -46,6 +46,17 @@ export const pinnedItems = pgTable(
     entityId: text('entity_id').notNull(),
     label: text('label').notNull(),
     position: integer('position').notNull().default(0),
+    /**
+     * Optional folder grouping (migration 0133). NULL ⇒ ungrouped; renders
+     * at the head of the strip. Members of the same folderId render as a
+     * collapsible section with `folderLabel` as the header.
+     */
+    folderId: uuid('folder_id'),
+    /**
+     * Denormalised folder name so the strip renders the section header
+     * without a second query. Updated whenever the folder is renamed.
+     */
+    folderLabel: text('folder_label'),
     pinnedAt: timestamp('pinned_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -67,6 +78,12 @@ export const pinnedItems = pgTable(
       table.ownerId,
       table.position,
       table.pinnedAt,
+    ),
+    ownerFolderIdx: index('pinned_items_owner_folder_idx').on(
+      table.tenantId,
+      table.ownerId,
+      table.folderId,
+      table.position,
     ),
   }),
 );

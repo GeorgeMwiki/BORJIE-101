@@ -65,6 +65,17 @@ const undoByIdSchema = z.object({
   reason: z.string().min(1).max(400).optional(),
 });
 
+// SOTA depth (vs Linear's missing redo): owners can re-apply an undone
+// action via Cmd-Shift-Z. Implementation re-clears `undoneAt`/`undoneById`
+// on a previously-undone entry. The 5-min reversible window is enforced
+// against the ORIGINAL performedAt so a user cannot resurrect ancient
+// rollbacks. RLS + actor-id check guarantee only the row's own actor can
+// redo their own undo.
+const redoByIdSchema = z.object({
+  journalId: z.string().uuid(),
+  reason: z.string().min(1).max(400).optional(),
+});
+
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
@@ -329,6 +340,132 @@ app.post('/undo-by-id', async (c: any) => {
     success: true,
     data: {
       undone: true,
+      journalId: row.id,
+      actionKind: row.actionKind,
+      entityType: row.entityType,
+      entityId: row.entityId,
+    },
+  });
+});
+
+// POST /redo-by-id - re-apply a previously undone action.
+//
+// SOTA-depth equivalent of Cmd-Shift-Z in Linear / Notion. The original
+// performedAt + windowSeconds gates the redo so a user cannot resurrect
+// rollbacks beyond the reversible window. Provenance keeps an audit
+// trail of every redo: an array of timestamps + reasons appended to
+// `provenance.redoHistory` so the chain is reconstructable.
+app.post('/redo-by-id', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'UNDO_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => null);
+  const parsed = redoByIdSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid redo-by-id payload',
+          issues: parsed.error.issues,
+        },
+      },
+      400,
+    );
+  }
+  const input = parsed.data;
+
+  const [candidate] = await db
+    .select()
+    .from(undoJournal)
+    .where(
+      and(
+        eq(undoJournal.id, input.journalId),
+        eq(undoJournal.tenantId, auth.tenantId),
+        eq(undoJournal.actorId, auth.userId),
+      ),
+    )
+    .limit(1);
+
+  if (!candidate) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Journal entry not found' } },
+      404,
+    );
+  }
+  if (!candidate.undoneAt) {
+    return c.json(
+      { success: false, error: { code: 'NOT_UNDONE', message: 'Entry has not been undone — nothing to redo' } },
+      409,
+    );
+  }
+  // Window check — performedAt + windowSeconds must be in the future.
+  // The redo is bounded by the original action's window so an ancient
+  // undone entry cannot be revived.
+  const windowEnd = new Date(candidate.performedAt).getTime() + candidate.windowSeconds * 1000;
+  if (windowEnd <= Date.now()) {
+    return c.json(
+      { success: false, error: { code: 'WINDOW_LAPSED', message: 'Redo window has lapsed' } },
+      410,
+    );
+  }
+
+  // Preserve a redo history trail in provenance so audits can reconstruct
+  // the toggle chain. The journal row's `undoneAt` is cleared (so the
+  // entry returns to its "active" pre-undo state) and the provenance log
+  // accrues entries.
+  const priorProvenance =
+    (candidate.provenance as Record<string, unknown> | null) ?? {};
+  const priorRedoHistory = Array.isArray(priorProvenance.redoHistory)
+    ? (priorProvenance.redoHistory as ReadonlyArray<Record<string, unknown>>)
+    : [];
+  const nextProvenance = {
+    ...priorProvenance,
+    redoHistory: [
+      ...priorRedoHistory,
+      {
+        redoneAt: new Date().toISOString(),
+        redoneById: auth.userId,
+        priorUndoneAt:
+          candidate.undoneAt instanceof Date
+            ? candidate.undoneAt.toISOString()
+            : String(candidate.undoneAt),
+        priorUndoneById: candidate.undoneById ?? null,
+        ...(input.reason !== undefined && { reason: input.reason }),
+      },
+    ],
+  };
+
+  const [row] = await db
+    .update(undoJournal)
+    .set({
+      undoneAt: null,
+      undoneById: null,
+      undoReason: null,
+      provenance: nextProvenance,
+    })
+    .where(eq(undoJournal.id, candidate.id))
+    .returning();
+
+  moduleLogger.info('owner-undo-journal: redone-by-id', {
+    tenantId: auth.tenantId,
+    userId: auth.userId,
+    journalId: row.id,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    actionKind: row.actionKind,
+  });
+
+  return c.json({
+    success: true,
+    data: {
+      redone: true,
       journalId: row.id,
       actionKind: row.actionKind,
       entityType: row.entityType,

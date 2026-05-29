@@ -70,6 +70,24 @@ const prefillSchema = z.object({
   provenance: z.record(z.string(), z.unknown()).optional().default({}),
 });
 
+// SOTA depth (vs v0's per-field undo): owners can revert a single
+// prefilled field without rolling back the entire prefill. Each field-
+// level undo lands as a `prefill` journal entry keyed by `formId +
+// fieldName` so the FE companion banner can stamp "Undo just N°fields"
+// per-row. The entry carries `{ beforeValue, afterValue }` for replay.
+const prefillUndoFieldSchema = z.object({
+  formId: z.string().min(1).max(120),
+  fieldName: z.string().min(1).max(120),
+  beforeValue: z
+    .union([z.string(), z.number(), z.boolean(), z.null()])
+    .optional(),
+  afterValue: z
+    .union([z.string(), z.number(), z.boolean(), z.null()])
+    .optional(),
+  reason: z.string().min(1).max(400).optional(),
+  provenance: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
@@ -204,6 +222,103 @@ app.post('/prefill', async (c: any) => {
       emittedAt: new Date().toISOString(),
     },
   });
+});
+
+// POST /prefill/undo-field - per-field undo banner ack
+//
+// Records an undo journal entry for a single field within a prefill.
+// The FE companion banner reads `GET /api/v1/owner/undo-journal/recent`
+// to render per-field "Undo this change" chips. Combined with the
+// per-field beforeValue/afterValue captured here, the banner can offer
+// granular rollback without affecting other fields the owner kept.
+app.post('/prefill/undo-field', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'PREFILL_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => null);
+  const parsed = prefillUndoFieldSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid prefill-undo-field payload',
+          issues: parsed.error.issues,
+        },
+      },
+      400,
+    );
+  }
+  const input = parsed.data;
+
+  try {
+    const [row] = await db
+      .insert(undoJournal)
+      .values({
+        tenantId: auth.tenantId,
+        actorId: auth.userId,
+        // entityType convention `prefill_field:<formId>` so the FE can
+        // group per-form per-field journal entries when rendering the
+        // companion banner.
+        entityType: `prefill_field:${input.formId}`,
+        entityId: input.fieldName,
+        actionKind: 'prefill',
+        toolId: 'mining.ui.prefill',
+        beforeState:
+          input.beforeValue !== undefined
+            ? { value: input.beforeValue }
+            : null,
+        afterState:
+          input.afterValue !== undefined
+            ? { value: input.afterValue }
+            : null,
+        windowSeconds: 300,
+        provenance: {
+          ...input.provenance,
+          formId: input.formId,
+          fieldName: input.fieldName,
+          ...(input.reason !== undefined && { reason: input.reason }),
+        },
+      })
+      .returning();
+
+    moduleLogger.info('owner-superpowers: prefill field-undo recorded', {
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      formId: input.formId,
+      fieldName: input.fieldName,
+      journalId: row.id,
+    });
+
+    return c.json(
+      {
+        success: true,
+        data: {
+          journalId: row.id,
+          formId: input.formId,
+          fieldName: input.fieldName,
+          windowSeconds: row.windowSeconds,
+        },
+      },
+      201,
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    moduleLogger.error('owner-superpowers: prefill field-undo insert failed', {
+      tenantId: auth.tenantId,
+      error: message,
+    });
+    return c.json(
+      { success: false, error: { code: 'UNDO_INSERT_FAILED', message } },
+      500,
+    );
+  }
 });
 
 export const ownerSuperpowersRouter = app;

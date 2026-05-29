@@ -399,3 +399,216 @@ describe('§2 undo-by-id — targeted rollback', () => {
     expect(body.data.actionKind).toBe('snooze');
   });
 });
+
+describe('§3 redo-by-id — Cmd-Shift-Z parity', () => {
+  it('returns 404 when the journal id is unknown', async () => {
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildUndoApp(state);
+    const res = await app.request('/owner/undo-journal/redo-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        journalId: '00000000-0000-0000-0000-000000000999',
+      }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 409 NOT_UNDONE when the entry has never been undone', async () => {
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [
+        {
+          id: '44444444-4444-4444-4444-444444444444',
+          tenantId: 'tn_depth_test',
+          actorId: 'usr_depth_test',
+          entityType: 'reminders',
+          entityId: 'r1',
+          actionKind: 'snooze',
+          undoneAt: null,
+          performedAt: new Date(),
+          windowSeconds: 300,
+          provenance: {},
+        },
+      ],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildUndoApp(state);
+    const res = await app.request('/owner/undo-journal/redo-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        journalId: '44444444-4444-4444-4444-444444444444',
+      }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.error.code).toBe('NOT_UNDONE');
+  });
+
+  it('returns 410 Gone when the original window has lapsed', async () => {
+    const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000);
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [
+        {
+          id: '55555555-5555-5555-5555-555555555555',
+          tenantId: 'tn_depth_test',
+          actorId: 'usr_depth_test',
+          entityType: 'reminders',
+          entityId: 'r1',
+          actionKind: 'snooze',
+          undoneAt: new Date(),
+          performedAt: sixMinutesAgo,
+          windowSeconds: 300,
+          provenance: {},
+        },
+      ],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildUndoApp(state);
+    const res = await app.request('/owner/undo-journal/redo-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        journalId: '55555555-5555-5555-5555-555555555555',
+      }),
+    });
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.error.code).toBe('WINDOW_LAPSED');
+  });
+
+  it('redoes a previously-undone fresh entry and returns 200', async () => {
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [
+        {
+          id: '66666666-6666-6666-6666-666666666666',
+          tenantId: 'tn_depth_test',
+          actorId: 'usr_depth_test',
+          entityType: 'reminders',
+          entityId: 'r1',
+          actionKind: 'snooze',
+          undoneAt: new Date(),
+          undoneById: 'usr_depth_test',
+          performedAt: new Date(),
+          windowSeconds: 300,
+          provenance: {},
+        },
+      ],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildUndoApp(state);
+    const res = await app.request('/owner/undo-journal/redo-by-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        journalId: '66666666-6666-6666-6666-666666666666',
+        reason: 'cmd-shift-z',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { redone: boolean; journalId: string; actionKind: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.redone).toBe(true);
+    expect(body.data.actionKind).toBe('snooze');
+    // Provenance trail must record the redo for audit reconstruction.
+    expect(state.updateRows).toHaveLength(1);
+    const updated = state.updateRows[0] as Record<string, unknown>;
+    const provenance = updated.provenance as Record<string, unknown>;
+    const redoHistory = provenance.redoHistory as Array<Record<string, unknown>>;
+    expect(redoHistory).toHaveLength(1);
+    expect(redoHistory[0]?.redoneById).toBe('usr_depth_test');
+    expect(redoHistory[0]?.reason).toBe('cmd-shift-z');
+    // The redo must clear `undoneAt` / `undoneById` so the entry returns
+    // to its pre-undo active state.
+    expect(updated.undoneAt).toBeNull();
+    expect(updated.undoneById).toBeNull();
+  });
+});
+
+describe('§4 prefill/undo-field — per-field undo banner', () => {
+  it('records a journal entry keyed by formId + fieldName', async () => {
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildSuperpowersApp(state);
+    const res = await app.request('/owner/superpowers/prefill/undo-field', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        formId: 'shift-report-create',
+        fieldName: 'tonnage',
+        beforeValue: 12,
+        afterValue: 14,
+        reason: 'wrong-figure',
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { journalId: string; formId: string; fieldName: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.formId).toBe('shift-report-create');
+    expect(body.data.fieldName).toBe('tonnage');
+    // Inserted row encodes per-field state for FE replay.
+    expect(state.insertRows).toHaveLength(1);
+    const row = state.insertRows[0] as Record<string, unknown>;
+    expect(row.entityType).toBe('prefill_field:shift-report-create');
+    expect(row.entityId).toBe('tonnage');
+    expect(row.actionKind).toBe('prefill');
+    expect((row.beforeState as Record<string, unknown>).value).toBe(12);
+    expect((row.afterState as Record<string, unknown>).value).toBe(14);
+  });
+
+  it('rejects an empty formId with 400', async () => {
+    const state: DbState = {
+      insertRows: [],
+      selectRows: [],
+      updateRows: [],
+      insertCalls: 0,
+    };
+    const app = await buildSuperpowersApp(state);
+    const res = await app.request('/owner/superpowers/prefill/undo-field', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        formId: '',
+        fieldName: 'tonnage',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
