@@ -128,8 +128,16 @@ export const defaultGenerateNarrative: GenerateNarrative = async (input) => {
   const failures = input.checklist.filter((c) => c.status === 'fail');
   const passes = input.checklist.filter((c) => c.status === 'pass');
   const nas = input.checklist.filter((c) => c.status === 'na');
+  // Wave ARTIFACT-RICHNESS: emit a `[^cite:<id>]` chip on every
+  // evidence pointer so the artifact-richness pipeline produces a
+  // superscript chip + a regulator-grade footnotes section when the
+  // narrative is rendered to PDF / DOCX / HTML. The list under
+  // `## Evidence` mirrors the same ids for legibility.
+  const evidenceCiteChips = input.evidenceIds
+    .map((id) => `[^cite:${id}]`)
+    .join(' ');
   const evidenceList = input.evidenceIds.length
-    ? input.evidenceIds.map((id) => `- ${id}`).join('\n')
+    ? input.evidenceIds.map((id) => `- ${id} [^cite:${id}]`).join('\n')
     : '- (no evidence attached)';
 
   const frontMatter = [
@@ -155,7 +163,7 @@ export const defaultGenerateNarrative: GenerateNarrative = async (input) => {
     '',
     '## Muhtasari',
     '',
-    `Vipimo ${totalChecks} vilifanyika: ${passes.length} vimepita, ${failures.length} vimekosa, ${nas.length} havikuhusika.`,
+    `Vipimo ${totalChecks} vilifanyika: ${passes.length} vimepita, ${failures.length} vimekosa, ${nas.length} havikuhusika.${evidenceCiteChips ? ' ' + evidenceCiteChips : ''}`,
     input.notes ? `\nMaelezo: ${input.notes}` : '',
     '',
     '## Matokeo',
@@ -192,7 +200,7 @@ export const defaultGenerateNarrative: GenerateNarrative = async (input) => {
     '',
     '## Summary',
     '',
-    `${totalChecks} checks performed: ${passes.length} passed, ${failures.length} failed, ${nas.length} not applicable.`,
+    `${totalChecks} checks performed: ${passes.length} passed, ${failures.length} failed, ${nas.length} not applicable.${evidenceCiteChips ? ' ' + evidenceCiteChips : ''}`,
     input.notes ? `\nNotes: ${input.notes}` : '',
     '',
     '## Findings',
