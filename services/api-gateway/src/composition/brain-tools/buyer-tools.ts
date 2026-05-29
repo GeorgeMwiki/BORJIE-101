@@ -158,19 +158,34 @@ export const buyerPlaceBidTool: PersonaToolDescriptor<
         status: 'rejected' as const,
       };
     }
-    return client.post<{ bidId: string; placedAt: string; status: 'active' | 'rejected' }>(
-      '/mining/marketplace/bids',
+    // Retarget: canonical surface is POST /api/v1/mining/bids
+    // (services/api-gateway/src/routes/mining/bids.hono.ts). The route
+    // resolves the calling user's KYC'd `buyers` row, validates the
+    // listing tenant matches, and persists the row in marketplace_bids.
+    const res = await client.post<{
+      data?: { id?: string; status?: string; created_at?: string };
+    }>(
+      '/mining/bids',
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          parcelId: input.parcelId,
-          amount: input.amount,
-          currency: input.currency,
+          listingId: input.parcelId,
+          bidPriceTzs: input.amount,
+          paymentTerms: 'cash',
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      bidId: String(row.id ?? `pending:${ctx.actorId}`),
+      placedAt: String(row.created_at ?? new Date().toISOString()),
+      status:
+        row.status === 'pending'
+          ? ('active' as const)
+          : ('rejected' as const),
+    };
   },
 };
 
@@ -203,10 +218,32 @@ export const buyerMyBidsTool: PersonaToolDescriptor<typeof MyBidsInput, typeof M
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { bids: [] };
-    return client.get<{ bids: Array<{ bidId: string; parcelId: string; amount: number; currency: string; placedAt: string; status: 'active' | 'won' | 'lost' | 'withdrawn' }> }>(
-      '/mining/marketplace/bids/mine',
-      { query: { tenantId: ctx.tenantId, actorId: ctx.actorId, status: input.status } },
-    );
+    // Retarget: canonical surface is GET /api/v1/mining/bids/mine
+    // (buyer-side projection of marketplace_bids — added in this same
+    // sweep). The route resolves buyers.linked_user_id automatically.
+    const res = await client.get<{
+      data?: Array<Record<string, unknown>>;
+    }>('/mining/bids/mine', {
+      query: { status: input.status === 'all' ? undefined : input.status },
+    });
+    const rows = res.data ?? [];
+    const statusMap: Record<string, 'active' | 'won' | 'lost' | 'withdrawn'> = {
+      pending: 'active',
+      accepted: 'won',
+      rejected: 'lost',
+      withdrawn: 'withdrawn',
+      countered: 'active',
+    };
+    return {
+      bids: rows.map((r) => ({
+        bidId: String(r.id ?? ''),
+        parcelId: String(r.listing_id ?? r.listingId ?? ''),
+        amount: Number(r.bid_price_tzs ?? r.bidPriceTzs ?? 0),
+        currency: 'TZS',
+        placedAt: String(r.created_at ?? r.createdAt ?? new Date().toISOString()),
+        status: statusMap[String(r.status)] ?? ('active' as const),
+      })),
+    };
   },
 };
 
@@ -237,18 +274,25 @@ export const buyerCancelBidTool: PersonaToolDescriptor<
     if (!client) {
       return { bidId: input.bidId, withdrawnAt: new Date().toISOString() };
     }
-    return client.post<{ bidId: string; withdrawnAt: string }>(
-      '/mining/marketplace/bids/cancel',
+    // Retarget: canonical surface is POST /api/v1/mining/bids/:id/withdraw
+    // (buyer-side cancellation — added in this same sweep). The route
+    // refuses unless the calling user owns the bid.
+    const res = await client.post<{ data?: { id?: string; updated_at?: string } }>(
+      `/mining/bids/${encodeURIComponent(input.bidId)}/withdraw`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          bidId: input.bidId,
-          reasonEn: input.reasonEn,
+          reason: input.reasonEn,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      bidId: String(row.id ?? input.bidId),
+      withdrawnAt: String(row.updated_at ?? new Date().toISOString()),
+    };
   },
 };
 
@@ -275,10 +319,32 @@ export const buyerKycStatusTool: PersonaToolDescriptor<
   async handler(_input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { tier: 'unverified' as const, pendingSteps: [] };
-    return client.get<{ tier: 'unverified' | 'tier1' | 'tier2' | 'tier3'; pendingSteps: string[]; approvedAt?: string }>(
-      '/mining/buyers/kyc/status',
-      { query: { tenantId: ctx.tenantId, actorId: ctx.actorId } },
-    );
+    // Retarget: canonical surface is GET /api/v1/mining/buyers/kyc/me
+    // which auto-resolves the buyers row by linked_user_id. Returns
+    // 404 when KYC has not been submitted; the brain tool treats that
+    // as the literal `unverified` tier.
+    try {
+      const res = await client.get<{
+        data?: { kycStatus?: string; attributes?: Record<string, unknown> };
+      }>('/mining/buyers/kyc/me');
+      const status = String(res.data?.kycStatus ?? 'pending');
+      const tierMap: Record<
+        string,
+        'unverified' | 'tier1' | 'tier2' | 'tier3'
+      > = {
+        pending: 'unverified',
+        in_review: 'tier1',
+        verified: 'tier3',
+        rejected: 'unverified',
+      };
+      return {
+        tier: tierMap[status] ?? ('unverified' as const),
+        pendingSteps: status === 'in_review' ? ['nida', 'tin', 'aml'] : [],
+      };
+    } catch {
+      // 404 = no KYC submitted yet — surface as unverified to the brain.
+      return { tier: 'unverified' as const, pendingSteps: ['kyc_submit'] };
+    }
   },
 };
 
@@ -320,7 +386,19 @@ export const buyerKycUploadAtomTool: PersonaToolDescriptor<
         assembled: false,
       };
     }
-    return client.post<{ sessionId: string; chunkIndex: number; acceptedAt: string; assembled: boolean }>(
+    // Canonical surface: POST /api/v1/mining/buyers/kyc/upload-atom
+    // (services/api-gateway/src/routes/mining/buyers-kyc.hono.ts — added
+    // in this same sweep). The route persists the chunk under the
+    // buyer's attributes.kycChunks; the chat brain forwards the chunk
+    // as-is so assembly stays server-side.
+    const res = await client.post<{
+      data?: {
+        sessionId?: string;
+        chunkIndex?: number;
+        acceptedAt?: string;
+        assembled?: boolean;
+      };
+    }>(
       '/mining/buyers/kyc/upload-atom',
       withChatProvenance(
         {
@@ -334,6 +412,13 @@ export const buyerKycUploadAtomTool: PersonaToolDescriptor<
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      sessionId: String(row.sessionId ?? input.sessionId),
+      chunkIndex: Number(row.chunkIndex ?? input.chunkIndex),
+      acceptedAt: String(row.acceptedAt ?? new Date().toISOString()),
+      assembled: Boolean(row.assembled ?? false),
+    };
   },
 };
 
@@ -442,28 +527,66 @@ export const buyerChainOfCustodyTool: PersonaToolDescriptor<
     if (!client) {
       return { parcelId: input.parcelId, timeline: [], totalHops: 0 };
     }
-    return client.get<{
-      parcelId: string;
-      timeline: Array<{
-        hopId: string;
-        stage:
-          | 'pit'
-          | 'assayer'
-          | 'smelter'
-          | 'exporter'
-          | 'buyer'
-          | 'transit'
-          | 'custom';
-        label: string;
-        occurredAt: string;
-        hashChainPrev?: string;
-        hashChainSelf: string;
-      }>;
-      totalHops: number;
-    }>(
-      `/mining/marketplace/listings/${encodeURIComponent(input.parcelId)}/custody`,
-      { query: { tenantId: ctx.tenantId } },
-    );
+    // Retarget: canonical custody surface is GET /api/v1/ops/chain-of-
+    // custody?parcelId= (services/api-gateway/src/routes/...). The
+    // ops router returns the hash-chained pit-to-buyer timeline; the
+    // brain tool maps the step shape into its narrower public schema.
+    const res = await client.get<{
+      data?: {
+        steps?: Array<{
+          stepIndex?: number;
+          action?: string;
+          happenedAt?: string;
+          auditHashId?: string;
+          location?: string;
+        }>;
+        latestHash?: string;
+      };
+    }>('/ops/chain-of-custody', {
+      query: { parcelId: input.parcelId },
+    });
+    const steps = res.data?.steps ?? [];
+    const stages: ReadonlyArray<
+      'pit' | 'assayer' | 'smelter' | 'exporter' | 'buyer' | 'transit' | 'custom'
+    > = [
+      'pit',
+      'assayer',
+      'smelter',
+      'exporter',
+      'buyer',
+      'transit',
+      'custom',
+    ];
+    function stageFromAction(action: string | undefined):
+      | 'pit'
+      | 'assayer'
+      | 'smelter'
+      | 'exporter'
+      | 'buyer'
+      | 'transit'
+      | 'custom' {
+      const lower = String(action ?? '').toLowerCase();
+      for (const s of stages) {
+        if (lower.includes(s)) return s;
+      }
+      return 'custom';
+    }
+    return {
+      parcelId: input.parcelId,
+      timeline: steps.map((s, i) => {
+        const hopId = String(s.auditHashId ?? `hop:${i}`);
+        const prev = i > 0 ? String(steps[i - 1]?.auditHashId ?? '') : undefined;
+        return {
+          hopId,
+          stage: stageFromAction(s.action),
+          label: String(s.action ?? ''),
+          occurredAt: String(s.happenedAt ?? new Date().toISOString()),
+          ...(prev ? { hashChainPrev: prev } : {}),
+          hashChainSelf: hopId,
+        };
+      }),
+      totalHops: steps.length,
+    };
   },
 };
 
@@ -497,22 +620,259 @@ export const buyerAcceptOfferTool: PersonaToolDescriptor<
     if (!client) {
       return { offerId: input.offerId, acceptedAt: new Date().toISOString() };
     }
-    return client.post<{
-      offerId: string;
-      acceptedAt: string;
-      bidId?: string;
+    // Retarget: canonical surface is POST /api/v1/mining/bids/:id/accept
+    // (services/api-gateway/src/routes/mining/bids.hono.ts). In the
+    // Borjie data model, a counter-offer is a `bids` row with status =
+    // 'countered'; accepting it flips status -> 'accepted'. The brain
+    // tool's `offerId` IS the underlying bid id.
+    const res = await client.post<{
+      data?: { id?: string; updated_at?: string };
     }>(
-      '/mining/marketplace/offers/accept',
+      `/mining/bids/${encodeURIComponent(input.offerId)}/accept`,
       withChatProvenance(
         {
           tenantId: ctx.tenantId,
           actorId: ctx.actorId,
-          offerId: input.offerId,
           signedAt: input.signedAt,
         },
         ctx,
       ),
     );
+    const row = res.data ?? {};
+    return {
+      offerId: String(row.id ?? input.offerId),
+      acceptedAt: String(row.updated_at ?? new Date().toISOString()),
+      bidId: String(row.id ?? input.offerId),
+    };
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 11. RFB — buyer.rfb.create (WRITE — LOW)
+// ─────────────────────────────────────────────────────────────────────
+
+const RFB_MINERAL_KINDS = [
+  'gold',
+  'tanzanite',
+  'diamond',
+  'copper',
+  'cobalt',
+  'nickel',
+  'iron',
+  'coal',
+  'silver',
+  'rare_earth',
+  'limestone',
+  'gypsum',
+  'salt',
+  'gemstone_other',
+] as const;
+
+const RfbCreateInput = z.object({
+  mineralKind: z.enum(RFB_MINERAL_KINDS),
+  gradeMin: z.string().max(120).optional(),
+  tonnageMin: z.number().positive(),
+  tonnageMax: z.number().positive().optional(),
+  unitPriceTzs: z.number().positive(),
+  deliveryBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  locationLat: z.number().gte(-90).lte(90).optional(),
+  locationLon: z.number().gte(-180).lte(180).optional(),
+  radiusKm: z.number().int().positive().max(5000).default(200),
+  notes: z.string().max(1500).optional(),
+});
+const RfbCreateOutput = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+});
+
+export const buyerRfbCreateTool: PersonaToolDescriptor<
+  typeof RfbCreateInput,
+  typeof RfbCreateOutput
+> = {
+  id: 'buyer.rfb.create',
+  name: 'Buyer — create Request for Bids',
+  description:
+    'Post a buyer-initiated Request for Bids ("I want N tonnes of mineral X at ' +
+    'TZS Y per unit by date D"). Sellers within radius_km respond with counter ' +
+    'offers. Auto-expires after 14 days unless filled or cancelled.',
+  personaSlugs: BUYER,
+  inputSchema: RfbCreateInput,
+  outputSchema: RfbCreateOutput,
+  stakes: 'LOW',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        id: 'rfb-stub',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+    }
+    const body: Record<string, unknown> = {
+      mineralKind: input.mineralKind,
+      tonnageMin: input.tonnageMin,
+      unitPriceTzs: input.unitPriceTzs,
+      deliveryBy: input.deliveryBy,
+      radiusKm: input.radiusKm,
+    };
+    if (input.gradeMin !== undefined) body.gradeMin = input.gradeMin;
+    if (input.tonnageMax !== undefined) body.tonnageMax = input.tonnageMax;
+    if (input.locationLat !== undefined) body.locationLat = input.locationLat;
+    if (input.locationLon !== undefined) body.locationLon = input.locationLon;
+    if (input.notes !== undefined) body.notes = input.notes;
+    const res = await client.post<{
+      success: boolean;
+      data: { id: string; createdAt: string; expiresAt: string };
+    }>('/marketplace/rfb', withChatProvenance(body, ctx));
+    return res.data;
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 12. RFB — buyer.rfb.list_mine (READ — LOW)
+// ─────────────────────────────────────────────────────────────────────
+
+const RfbListMineInput = z.object({
+  limit: z.number().int().positive().max(100).default(20),
+});
+const RfbListMineOutput = z.object({
+  rfbs: z.array(
+    z.object({
+      id: z.string(),
+      mineralKind: z.string(),
+      tonnageMin: z.string(),
+      unitPriceTzs: z.string(),
+      deliveryBy: z.string(),
+      status: z.string(),
+      pendingResponseCount: z.number().int(),
+    }),
+  ),
+});
+
+export const buyerRfbListMineTool: PersonaToolDescriptor<
+  typeof RfbListMineInput,
+  typeof RfbListMineOutput
+> = {
+  id: 'buyer.rfb.list_mine',
+  name: 'Buyer — list my RFBs',
+  description:
+    'List the buyer\'s own Request-for-Bids with status + pending-response count. ' +
+    'Most-recent first. Read-only.',
+  personaSlugs: BUYER,
+  inputSchema: RfbListMineInput,
+  outputSchema: RfbListMineOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(_input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { rfbs: [] };
+    const res = await client.get<{
+      success: boolean;
+      data: {
+        rfbs: Array<{
+          id: string;
+          mineral_kind: string;
+          tonnage_min: string;
+          unit_price_tzs: string;
+          delivery_by: string;
+          status: string;
+          pending_response_count: number;
+        }>;
+      };
+    }>('/marketplace/rfb/mine');
+    return {
+      rfbs: res.data.rfbs.map((r) => ({
+        id: r.id,
+        mineralKind: r.mineral_kind,
+        tonnageMin: r.tonnage_min,
+        unitPriceTzs: r.unit_price_tzs,
+        deliveryBy: r.delivery_by,
+        status: r.status,
+        pendingResponseCount: r.pending_response_count,
+      })),
+    };
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// 13. RFB — seller.rfb.list_nearby (READ — LOW)
+// ─────────────────────────────────────────────────────────────────────
+//
+// Sellers also use the buyer-persona today (the persona system has
+// not split seller into its own slug yet) so this tool is wired
+// under BUYER. When the seller persona lands the same handler can
+// be moved without changing the route or schema.
+
+const RfbNearbyInput = z.object({
+  mineralKind: z.enum(RFB_MINERAL_KINDS).optional(),
+  lat: z.number().gte(-90).lte(90),
+  lon: z.number().gte(-180).lte(180),
+  limit: z.number().int().positive().max(100).default(20),
+});
+const RfbNearbyOutput = z.object({
+  rfbs: z.array(
+    z.object({
+      id: z.string(),
+      mineralKind: z.string(),
+      tonnageMin: z.string(),
+      unitPriceTzs: z.string(),
+      deliveryBy: z.string(),
+      distanceKm: z.number().nullable(),
+    }),
+  ),
+});
+
+export const sellerRfbNearbyTool: PersonaToolDescriptor<
+  typeof RfbNearbyInput,
+  typeof RfbNearbyOutput
+> = {
+  id: 'seller.rfb.list_nearby',
+  name: 'Seller — list nearby buyer RFBs',
+  description:
+    'Show open buyer-initiated RFBs within the seller\'s search radius, sorted by ' +
+    'distance ascending. Read-only.',
+  personaSlugs: BUYER,
+  inputSchema: RfbNearbyInput,
+  outputSchema: RfbNearbyOutput,
+  stakes: 'LOW',
+  isWrite: false,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) return { rfbs: [] };
+    const query: Record<string, string> = {
+      lat: String(input.lat),
+      lon: String(input.lon),
+      limit: String(input.limit),
+    };
+    if (input.mineralKind) query.mineralKind = input.mineralKind;
+    const res = await client.get<{
+      success: boolean;
+      data: {
+        rfbs: Array<{
+          id: string;
+          mineral_kind: string;
+          tonnage_min: string;
+          unit_price_tzs: string;
+          delivery_by: string;
+          distance_km: number | null;
+        }>;
+      };
+    }>('/marketplace/rfb/nearby', { query });
+    return {
+      rfbs: res.data.rfbs.map((r) => ({
+        id: r.id,
+        mineralKind: r.mineral_kind,
+        tonnageMin: r.tonnage_min,
+        unitPriceTzs: r.unit_price_tzs,
+        deliveryBy: r.delivery_by,
+        distanceKm: r.distance_km,
+      })),
+    };
   },
 };
 
@@ -529,4 +889,8 @@ export const BUYER_TOOLS: ReadonlyArray<
   buyerMarketIntelTool,
   buyerChainOfCustodyTool,
   buyerAcceptOfferTool,
+  // R11 — buyer-initiated RFB.
+  buyerRfbCreateTool,
+  buyerRfbListMineTool,
+  sellerRfbNearbyTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
