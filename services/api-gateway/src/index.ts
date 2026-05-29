@@ -76,8 +76,8 @@ import { brainRouter } from './routes/brain.hono';
 // chain. Sibling mount under /brain so Hono composes it next to the
 // existing /turn route without touching the kernel.
 import { brainTeachRouter } from './routes/brain-teach.hono';
-import { maintenanceRouter } from './routes/maintenance.hono';
-import { hrRouter } from './routes/hr.hono';
+// REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
+// uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
 import { miningRouter } from './routes/mining/index';
 // Wave 1-2 routers (new domain features)
@@ -1173,8 +1173,14 @@ api.route('/brain', brainRouter);
 // /threads, /personae, /migrate so the only path brainTeachRouter
 // claims is /teach. Additive: NEVER touches /turn behaviour.
 api.route('/brain', brainTeachRouter);
-api.route('/maintenance', maintenanceRouter);
-api.route('/hr', hrRouter);
+// REMOVED (borjie hard-fork): api.route('/maintenance', maintenanceRouter);
+//   Replaced by /api/v1/mining/maintenance (asset maintenance events) plus
+//   /api/v1/mining/tasks (covers all mining task types including equipment
+//   maintenance) and /api/v1/mining/shift-reports.
+// REMOVED (borjie hard-fork): api.route('/hr', hrRouter);
+//   Replaced by workforce_certifications + workforce_invitations +
+//   workforce_role_tab_configs schemas plus /api/v1/workforce/* routers
+//   and the workforce-mobile app (47 screens).
 // Borjie mining-domain: aggregates /mining/sites, /licences, /drill-holes,
 // /samples, /shift-reports, /attendance, /fuel-logs, /maintenance,
 // /ore-parcels, /sales, /incidents, /grievances, /cockpit, /chat (SSE),
@@ -1619,8 +1625,8 @@ const openApiRouter = createOpenApiRouter({
     // REMOVED (borjie hard-fork): { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
     { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
-    { prefix: '/maintenance', app: maintenanceRouter, defaultTag: 'maintenance' },
-    { prefix: '/hr', app: hrRouter, defaultTag: 'hr' },
+    // REMOVED (borjie hard-fork): { prefix: '/maintenance', app: maintenanceRouter, ... },
+    // REMOVED (borjie hard-fork): { prefix: '/hr', app: hrRouter, ... },
     { prefix: '/customer', app: customerAppRouter, defaultTag: 'bff-customer' },
     { prefix: '/owner', app: ownerPortalRouter, defaultTag: 'bff-owner' },
     { prefix: '/manager', app: estateManagerAppRouter, defaultTag: 'bff-manager' },

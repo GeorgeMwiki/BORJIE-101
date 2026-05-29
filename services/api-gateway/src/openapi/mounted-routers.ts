@@ -21,8 +21,8 @@ import { feedbackRouter } from '../routes/feedback';
 import { complaintsRouter } from '../routes/complaints';
 import { casesRouter } from '../routes/cases.hono';
 import { brainRouter } from '../routes/brain.hono';
-import { maintenanceRouter } from '../routes/maintenance.hono';
-import { hrRouter } from '../routes/hr.hono';
+// REMOVED (borjie hard-fork): property-mgmt /maintenance + /hr routers.
+// Borjie uses /api/v1/mining/maintenance (asset events) + workforce schemas.
 import applicationsRouter from '../routes/applications.router';
 // REMOVED (borjie hard-fork): import arrearsRouter from '../routes/arrears.router';
 import complianceRouter from '../routes/compliance.router';
@@ -64,8 +64,8 @@ export function buildStaticRouterCatalog(): MountedRouter[] {
     { prefix: '/complaints', app: complaintsRouter, defaultTag: 'complaints' },
     { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
-    { prefix: '/maintenance', app: maintenanceRouter, defaultTag: 'maintenance' },
-    { prefix: '/hr', app: hrRouter, defaultTag: 'hr' },
+    // REMOVED (borjie hard-fork): { prefix: '/maintenance', app: maintenanceRouter, ... },
+    // REMOVED (borjie hard-fork): { prefix: '/hr', app: hrRouter, ... },
     { prefix: '/applications', app: applicationsRouter, defaultTag: 'applications' },
     // REMOVED (borjie hard-fork): { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
     { prefix: '/compliance', app: complianceRouter, defaultTag: 'compliance' },
