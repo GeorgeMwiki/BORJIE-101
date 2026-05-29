@@ -47,6 +47,8 @@ const config: Config = {
         'meta':        ['0.68rem',  { lineHeight: '1rem' }],
         // 10px (0.625rem) — mission-eval numeric column
         'tiny':        ['0.625rem', { lineHeight: '0.9rem' }],
+        // 11px (0.6875rem) — secondary KPI badge / legend entry
+        'mini':        ['0.6875rem',{ lineHeight: '1rem' }],
       },
       /**
        * Admin-console layout widths — fixed-rail thread navigators and
@@ -70,6 +72,7 @@ const config: Config = {
         'meta-rail':     '14rem',  // truncated filename / model chip
         'truncate-sm':   '18ch',   // single-line meta column
         'truncate-md':   '24ch',   // two-column meta cell
+        'prose-tight':   '52ch',   // stub-card / empty-state body
         'prose-md':      '66ch',   // editorial paragraph cap
         'modal-cap':     '90vw',   // mobile-safe modal width cap
       },
@@ -84,7 +87,12 @@ const config: Config = {
       },
       minHeight: {
         ...(baseConfig.theme?.extend?.minHeight ?? {}),
-        'console-pane': '60vh',  // Jarvis console viewport floor
+        'console-pane':  '60vh',                  // Jarvis console viewport floor
+        // Auth shell — viewport minus top admin nav (3rem). Used by
+        // /login and /sign-in centering wrappers.
+        'shell':         'calc(100vh - 3rem)',
+        // Tap-area floor for feedback textarea / comment composer.
+        'tap-area':      '96px',
       },
     },
   },

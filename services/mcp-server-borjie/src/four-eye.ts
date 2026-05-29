@@ -25,8 +25,20 @@ export const FOUR_EYE_PREFIXES: ReadonlyArray<string> = Object.freeze([
 ]);
 
 export function requiresFourEye(toolName: string): boolean {
-  const head = toolName.split(/[._/]/, 1)[0];
-  return FOUR_EYE_PREFIXES.includes(head ?? '');
+  // Match by namespace prefix. The four sovereign prefixes are
+  // delimited from the rest of the tool name by `.` or `/` (the MCP
+  // catalog convention) — `kill_switch.open`, `four_eye/confirm`,
+  // `sovereign.audit`, `policy_rollout.publish`.
+  for (const prefix of FOUR_EYE_PREFIXES) {
+    if (
+      toolName === prefix ||
+      toolName.startsWith(`${prefix}.`) ||
+      toolName.startsWith(`${prefix}/`)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export type ApprovalStatus =
