@@ -43,7 +43,7 @@ export function EnvBadge({ env }: EnvBadgeProps = {}): JSX.Element {
     <span
       role="status"
       aria-label={`Environment ${TONE_LABELS[tone]}`}
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-mono font-semibold tracking-widest ${TONE_STYLES[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-tiny font-mono font-semibold tracking-widest ${TONE_STYLES[tone]}`}
     >
       <span
         aria-hidden="true"

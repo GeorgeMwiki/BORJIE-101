@@ -31,7 +31,7 @@ export default function AdminNotFoundPage() {
         <div className="mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-signal-500 shadow-sm">
           <Compass aria-hidden="true" className="h-7 w-7" />
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-signal-500">
+        <p className="font-mono text-mini uppercase tracking-eyebrow-wide text-signal-500">
           404 · Page not found
         </p>
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">

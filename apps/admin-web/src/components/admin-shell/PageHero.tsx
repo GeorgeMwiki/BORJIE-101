@@ -33,7 +33,7 @@ export function PageHero({
     <header className="border-b border-border pb-6">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 max-w-3xl">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal-500">
+          <p className="font-mono text-tiny uppercase tracking-eyebrow text-signal-500">
             {eyebrow}
           </p>
           <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">

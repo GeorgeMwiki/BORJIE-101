@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquarePlus, Star, X } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 export interface FeedbackButtonProps {
   readonly screenId?: string;
@@ -94,7 +95,7 @@ async function defaultSubmit(input: FeedbackSubmission): Promise<void> {
   const res = await fetch(`${resolveGatewayBase()}/api/v1/pilot/feedback`, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: { 'Content-Type': 'application/json', ...headers, ...getCsrfHeaders() },
     body: JSON.stringify({
       rating: input.rating,
       message: input.message,
@@ -259,12 +260,12 @@ export function FeedbackButton({
               value={message}
               onChange={(e): void => setMessage(e.target.value.slice(0, 1500))}
               placeholder={pick(LABELS.messagePlaceholder, lang)}
-              className="mt-1.5 min-h-[96px] w-full rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/20"
+              className="mt-1.5 min-h-tap-area w-full rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/20"
               maxLength={1500}
               aria-label={pick(LABELS.messagePlaceholder, lang)}
               data-testid="feedback-button-message"
             />
-            <p className="mt-1 text-right font-mono text-[10px] tabular-nums text-muted-foreground/70">
+            <p className="mt-1 text-right font-mono text-tiny tabular-nums text-muted-foreground/70">
               {message.length} / 1500
             </p>
 

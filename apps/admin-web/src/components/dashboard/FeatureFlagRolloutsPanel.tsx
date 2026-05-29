@@ -46,14 +46,14 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
         className="rounded-2xl border border-border bg-surface/40 p-5"
         data-testid="admin-dashboard-flags-unconfigured"
       >
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+        <h2 className="font-mono text-mini font-semibold uppercase tracking-eyebrow text-neutral-500">
           Feature flags
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {data.message ??
             'FeatureFlags service not yet wired into the api-gateway.'}
         </p>
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+        <p className="mt-2 font-mono text-tiny uppercase tracking-eyebrow text-muted-foreground/70">
           NEXT_PUBLIC_API_GATEWAY_URL · service slot pending
         </p>
       </article>

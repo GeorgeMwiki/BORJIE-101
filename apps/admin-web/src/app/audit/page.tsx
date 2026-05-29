@@ -15,7 +15,7 @@ export default function AuditPage(): JSX.Element {
       <div className="space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-signal-500">
+            <p className="font-mono text-tiny uppercase tracking-widest text-signal-500">
               Audit · Ukaguzi
             </p>
             <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
@@ -27,7 +27,7 @@ export default function AuditPage(): JSX.Element {
               export endpoint.
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-info/50 bg-info/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest text-info">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-info/50 bg-info/10 px-2.5 py-1 text-tiny font-mono uppercase tracking-widest text-info">
             Append-only
           </span>
         </header>

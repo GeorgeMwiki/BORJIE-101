@@ -108,7 +108,7 @@ export function ControlTowerClient(): JSX.Element {
             key={kpi.label}
             className="rounded-2xl border border-border bg-surface/40 p-5"
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            <p className="text-tiny font-semibold uppercase tracking-eyebrow text-neutral-500">
               {kpi.label}
             </p>
             <p className="mt-2 font-display text-3xl text-foreground">
@@ -121,10 +121,10 @@ export function ControlTowerClient(): JSX.Element {
 
       <section>
         <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-tiny font-semibold uppercase tracking-eyebrow text-neutral-500">
             Platform controls
           </h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-[10px] font-mono uppercase text-warning">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-tiny font-mono uppercase text-warning">
             <AlertTriangle className="h-3 w-3" />
             4-eye confirm required
           </span>
@@ -143,7 +143,7 @@ export function ControlTowerClient(): JSX.Element {
                       {control.title}
                     </h3>
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest ${
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-tiny font-mono uppercase tracking-widest ${
                         control.category === 'kill'
                           ? 'border-destructive/40 bg-destructive/10 text-destructive'
                           : control.category === 'autonomy'

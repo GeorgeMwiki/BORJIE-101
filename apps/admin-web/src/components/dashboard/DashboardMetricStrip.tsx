@@ -94,10 +94,10 @@ export function DashboardMetricStrip(): JSX.Element {
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
             </div>
-            <div className="mt-3 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+            <div className="mt-3 text-tiny font-mono uppercase tracking-widest text-neutral-500">
               {m.label}
             </div>
-            <div className="text-[11px] text-neutral-500/80">{m.labelSw}</div>
+            <div className="text-mini text-neutral-500/80">{m.labelSw}</div>
             <div className="mt-2 font-display text-3xl tabular-nums text-foreground">
               {m.value}
             </div>

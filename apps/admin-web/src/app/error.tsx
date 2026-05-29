@@ -39,7 +39,7 @@ export default function AdminError({ error, reset }: ErrorPageProps) {
         <div className="mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive shadow-sm">
           <TriangleAlert aria-hidden="true" className="h-7 w-7" />
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-destructive">
+        <p className="font-mono text-mini uppercase tracking-eyebrow-wide text-destructive">
           Something went wrong
         </p>
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
@@ -50,7 +50,7 @@ export default function AdminError({ error, reset }: ErrorPageProps) {
           escalate via the HQ incident channel.
         </p>
         {error.digest && process.env.NODE_ENV !== 'production' ? (
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
+          <p className="mt-3 font-mono text-tiny uppercase tracking-widest text-muted-foreground/70">
             ref: {error.digest}
           </p>
         ) : null}

@@ -64,7 +64,7 @@ export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
         <Logomark size={28} variant="premium" />
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-display text-foreground">Borjie</span>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-signal-500">
+          <span className="text-tiny font-mono uppercase tracking-widest text-signal-500">
             Console
           </span>
         </div>
@@ -95,7 +95,7 @@ export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
               <span className="flex flex-col leading-tight">
                 <span className="font-medium">{item.label}</span>
                 {bilingual ? (
-                  <span className="text-[10px] uppercase tracking-widest text-neutral-500">
+                  <span className="text-tiny uppercase tracking-widest text-neutral-500">
                     {item.labelSw}
                   </span>
                 ) : null}
@@ -105,7 +105,7 @@ export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
         })}
       </nav>
 
-      <div className="border-t border-border px-5 py-4 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+      <div className="border-t border-border px-5 py-4 text-tiny font-mono uppercase tracking-widest text-neutral-500">
         SSO · IP allow-list
       </div>
     </aside>

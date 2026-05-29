@@ -72,7 +72,7 @@ export function LoginForm() {
             B
           </span>
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-signal-500">
+        <p className="font-mono text-mini uppercase tracking-eyebrow-wide text-signal-500">
           Borjie HQ
         </p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
@@ -164,7 +164,7 @@ export function LoginForm() {
           )}
         </button>
 
-        <p className="flex items-center justify-center gap-1.5 pt-1 font-mono text-[11px] uppercase tracking-[0.22em] text-neutral-500">
+        <p className="flex items-center justify-center gap-1.5 pt-1 font-mono text-mini uppercase tracking-eyebrow-wide text-neutral-500">
           <ShieldCheck
             aria-hidden="true"
             className="h-3 w-3 text-signal-500"

@@ -17,7 +17,7 @@ export default function ControlTowerPage(): JSX.Element {
         title="Control Tower"
         subtitle="Cross-tenant operations console. Kill-switches, autonomy flags, rate-limit knobs and platform KPIs. Every action requires a four-eye attestation and lands on the hash-chained audit trail."
         actions={
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest text-warning">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-1 text-tiny font-mono uppercase tracking-widest text-warning">
             Blast radius global
           </span>
         }

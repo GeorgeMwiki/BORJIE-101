@@ -139,7 +139,7 @@ export function WorkforceTabPoliciesClient(): JSX.Element {
                     return (
                       <td key={tab.id} className="px-2 py-2 text-center">
                         <div className="text-neutral-100">{count}</div>
-                        <div className="text-[10px] text-neutral-500">
+                        <div className="text-tiny text-neutral-500">
                           {coveragePercent(count)}
                         </div>
                       </td>

@@ -48,7 +48,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
         className="rounded-2xl border border-border bg-surface/40 p-5 lg:col-span-3"
         data-testid="admin-dashboard-audit-unconfigured"
       >
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+        <h2 className="font-mono text-mini font-semibold uppercase tracking-eyebrow text-neutral-500">
           Audit chain integrity
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

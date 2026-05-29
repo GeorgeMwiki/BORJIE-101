@@ -94,6 +94,17 @@ const config: Config = {
         // Tap-area floor for feedback textarea / comment composer.
         'tap-area':      '96px',
       },
+      /**
+       * Admin eyebrow letter-spacing — editorial micro-cap labels above
+       * page heroes / section titles. Two steps: `eyebrow` (KPI tile and
+       * dashboard sub-labels) and `eyebrow-wide` (error / 404 / auth
+       * shell + login form caption).
+       */
+      letterSpacing: {
+        ...(baseConfig.theme?.extend?.letterSpacing ?? {}),
+        'eyebrow':       '0.18em',
+        'eyebrow-wide':  '0.22em',
+      },
     },
   },
 };

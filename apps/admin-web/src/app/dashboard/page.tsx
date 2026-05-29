@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8" data-testid="admin-cockpit">
       <header className="border-b border-border pb-6">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-signal-500">
+        <p className="font-mono text-tiny uppercase tracking-widest text-signal-500">
           Cockpit · Dashibodi
         </p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">

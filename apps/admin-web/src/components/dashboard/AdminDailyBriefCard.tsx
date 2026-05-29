@@ -45,7 +45,7 @@ export function AdminDailyBriefCard(): JSX.Element {
             Fleet aggregate · {date}
           </p>
         </div>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-signal-500">
+        <span className="font-mono text-mini uppercase tracking-widest text-signal-500">
           {totals.tenantsActive} tenants
         </span>
       </header>
@@ -69,7 +69,7 @@ export function AdminDailyBriefCard(): JSX.Element {
 
       {topAlerts.length > 0 ? (
         <section className="mt-5 space-y-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+          <p className="font-mono text-tiny uppercase tracking-widest text-neutral-500">
             Top alerts
           </p>
           <ul className="space-y-2" data-testid="admin-daily-brief-alerts">
@@ -83,13 +83,13 @@ export function AdminDailyBriefCard(): JSX.Element {
                     {alert.tenantName}
                   </span>
                   <span
-                    className={`text-[10px] font-semibold uppercase tracking-widest ${severityClass(alert.severity)}`}
+                    className={`text-tiny font-semibold uppercase tracking-widest ${severityClass(alert.severity)}`}
                   >
                     {alert.severity}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-neutral-200">{alert.summary}</p>
-                <p className="mt-1 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                <p className="mt-1 text-tiny font-mono uppercase tracking-widest text-neutral-500">
                   {alert.kind}
                 </p>
               </li>
@@ -122,7 +122,7 @@ function Stat({
   return (
     <div className="rounded-xl border border-border bg-background/60 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+        <span className="text-tiny font-mono uppercase tracking-widest text-neutral-500">
           {label}
         </span>
         <Icon className={`h-3.5 w-3.5 ${toneIcon(tone)}`} aria-hidden />

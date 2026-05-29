@@ -27,7 +27,7 @@ export default function LoginPage() {
             'radial-gradient(ellipse 70% 50% at 50% 10%, hsl(var(--signal-500) / 0.12) 0%, transparent 60%)',
         }}
       />
-      <div className="relative flex min-h-[calc(100vh-3rem)] items-center justify-center">
+      <div className="relative flex min-h-shell items-center justify-center">
         <Suspense
           fallback={
             <div className="text-sm text-neutral-500">Loading…</div>
