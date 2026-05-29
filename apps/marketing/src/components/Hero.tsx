@@ -81,7 +81,7 @@ function ChatTurn({
       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`flex gap-2 max-w-[85%] ${
+        className={`flex gap-2 max-w-bubble ${
           isUser ? 'flex-row-reverse' : 'flex-row'
         }`}
       >
@@ -108,7 +108,7 @@ function ChatTurn({
             {!isUser && (
               <span
                 aria-hidden="true"
-                className="absolute inset-x-0 top-0 h-[2px] rounded-t-2xl opacity-70"
+                className="absolute inset-x-0 top-0 h-hairline rounded-t-2xl opacity-70"
                 style={{
                   background:
                     'linear-gradient(90deg, oklch(0.86 0.16 80) 0%, oklch(0.78 0.17 78) 55%, oklch(0.58 0.12 65) 100%)',
@@ -118,7 +118,7 @@ function ChatTurn({
             {body}
           </div>
           <div
-            className={`mt-1 flex items-center gap-1.5 px-1 text-[10px] text-neutral-500 ${
+            className={`mt-1 flex items-center gap-1.5 px-1 text-tiny text-neutral-500 ${
               isUser ? 'justify-end' : 'justify-start'
             }`}
           >
@@ -138,12 +138,12 @@ function ChatTurn({
 function MiniWaveform({ reducedMotion }: { readonly reducedMotion: boolean }) {
   const bars = Array.from({ length: 18 }, (_, i) => i);
   return (
-    <div className="flex h-4 items-center justify-center gap-[2px]">
+    <div className="flex h-4 items-center justify-center gap-hairline">
       {bars.map((i) => (
         <motion.span
           key={i}
           aria-hidden="true"
-          className="w-[2px] rounded-full"
+          className="w-hairline rounded-full"
           style={{ background: 'oklch(0.78 0.17 78 / 0.6)' }}
           animate={
             reducedMotion
@@ -280,7 +280,6 @@ export function Hero({ locale }: { readonly locale: Locale }) {
       timers.forEach(window.clearTimeout);
     };
     // We intentionally restart the choreography when reducedMotion flips.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reducedMotion]);
 
   return (
@@ -294,7 +293,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto grid min-h-[88vh] max-w-7xl grid-cols-1 items-stretch gap-12 px-5 pb-20 pt-16 md:pt-24 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-8">
+      <div className="relative mx-auto grid min-h-hero max-w-7xl grid-cols-1 items-stretch gap-12 px-5 pb-20 pt-16 md:pt-24 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-8">
         {/* LEFT — claim + CTAs */}
         <div className="flex flex-col justify-center">
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-surface/80 px-3 py-1 text-meta font-medium text-neutral-400 backdrop-blur">
@@ -304,7 +303,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
 
           <h1
             id="hero-headline"
-            className="mt-6 font-display text-5xl font-medium leading-[1.02] tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
+            className="mt-6 font-display text-5xl font-medium leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
           >
             {t.headline.split(' ').slice(0, -2).join(' ')}{' '}
             <span className="relative inline-block">
@@ -358,7 +357,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
         {/* RIGHT — live chat inset (Live Fabric) */}
         <div className="relative flex items-center">
           <div
-            className="relative w-full overflow-hidden rounded-[28px] border border-border/60 bg-background/92 shadow-[0_28px_80px_oklch(0.16_0.025_260/0.45)] ring-1 ring-border/40 backdrop-blur-2xl"
+            className="relative w-full overflow-hidden rounded-card-lg border border-border/60 bg-background/92 shadow-lift-hero ring-1 ring-border/40 backdrop-blur-2xl"
             style={{ minHeight: '520px' }}
             role="region"
             aria-label={`${chat.assistant} · ${chat.role}`}
@@ -380,11 +379,11 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide">
                   {chat.languageLabel}
                 </span>
                 <span className="h-3 w-px bg-white/20" aria-hidden="true" />
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide">
                   <span
                     aria-hidden="true"
                     className="h-1 w-1 rounded-full bg-emerald-300"
@@ -431,7 +430,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 className="shrink-0 text-signal-500"
                 aria-hidden="true"
               />
-              <p className="text-[10px] leading-snug tracking-tight text-neutral-400">
+              <p className="text-tiny leading-snug tracking-tight text-neutral-400">
                 {chat.disclaimer}
               </p>
             </div>
@@ -482,13 +481,13 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 </Link>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-[10px] text-neutral-500">
+                <span className="text-tiny text-neutral-500">
                   {chat.languageHint}{' '}
                   <span className="font-medium text-signal-500">
                     {chat.language}
                   </span>
                 </span>
-                <span className="text-[10px] text-neutral-500">
+                <span className="text-tiny text-neutral-500">
                   {chat.micReady}
                 </span>
               </div>
