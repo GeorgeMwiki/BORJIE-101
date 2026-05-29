@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple c.json({...}, status) branches widen return type and TypedResponse overload rejects the union. Same workaround applied in hono-auth.ts and authorization.ts. Tracked at hono-dev/hono#3891.
 /**
  * Capability Gate — Wave 26 Agent Z5.
  *

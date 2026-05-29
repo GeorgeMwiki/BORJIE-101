@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple c.json({...}, status) branches widen return type and TypedResponse overload rejects the union. Tracked at hono-dev/hono#3891.
 /**
  * RBAC + ABAC Authorization Middleware - BORJIE
  * 
@@ -20,7 +19,7 @@ import type { UserRole } from '../types/user-role';
 
 export type Permission = string; // Format: "resource:action" or "resource:action:scope"
 
-export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'execute' | '*';
+export type Action = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'execute' | 'refund' | '*';
 export type Scope = 'own' | 'tenant' | 'property' | 'all' | '*';
 
 export interface PolicyRule {
@@ -540,13 +539,18 @@ class AuthorizationEngine {
       if (threshold.maxAmount !== undefined && amount <= threshold.maxAmount) {
         return {
           required: threshold.requiresApproval,
-          threshold: threshold.requiresApproval ? threshold : undefined,
+          ...(threshold.requiresApproval ? { threshold } : {}),
         };
       }
     }
 
-    // Amount exceeds all thresholds - requires approval from highest level
+    // Amount exceeds all thresholds - requires approval from highest level.
+    // Defensive: if no thresholds matched we still need a sane base for the
+    // returned `threshold` shape.
     const highestThreshold = sortedThresholds[0];
+    if (!highestThreshold) {
+      return { required: true };
+    }
     return {
       required: true,
       threshold: {
@@ -566,7 +570,7 @@ class AuthorizationEngine {
     resource?: ResourceContext
   ): AuthorizationResult {
     // Extract action from permission
-    const [resourceType, action] = permission.split(':');
+    const [, action = ''] = permission.split(':');
     const actionType = action as Action;
 
     // Check basic permission
@@ -584,7 +588,7 @@ class AuthorizationEngine {
 
     // Evaluate ABAC policies
     const policyResult = this.evaluatePolicies(auth, resource, actionType);
-    
+
     if (policyResult.effect === 'deny') {
       return {
         allowed: false,
@@ -739,7 +743,7 @@ export const authorizeResource = (
     }
 
     // Set approval info if needed
-    if (result.requiresApproval) {
+    if (result.requiresApproval && result.approvalDetails) {
       c.set('requiresApproval', true);
       c.set('approvalDetails', result.approvalDetails);
     }
@@ -863,11 +867,14 @@ export function roleHasPermission(role: UserRole, permission: Permission): boole
   return allowedRoles.includes(role as never) || allowedRoles.includes('*' as never);
 }
 
-// Extend Hono context types
+// Extend Hono context types. Modifiers (`?`) must match the canonical
+// declaration in `services/api-gateway/src/types/hono-augmentation.d.ts`,
+// which declares both keys as non-optional with broad value types. We
+// re-declare here only to narrow `approvalDetails` to its richer shape.
 declare module 'hono' {
   interface ContextVariableMap {
-    requiresApproval?: boolean;
-    approvalDetails?: {
+    requiresApproval: boolean;
+    approvalDetails: {
       approverRoles: UserRole[];
       threshold: ApprovalThreshold;
     };
@@ -875,4 +882,3 @@ declare module 'hono' {
 }
 
 export { authorizationEngine };
-// @ts-nocheck

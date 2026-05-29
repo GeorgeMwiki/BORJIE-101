@@ -1,8 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: same
-// workaround used by `capability-gate.ts` and `hono-auth.ts`. The 503 branch
-// widens the response union enough that the TypedResponse overload rejects
-// the unified return type. Tracked at hono-dev/hono#3891.
-
 /**
  * Kill-switch middleware — closes a multi-way valve on the platform's
  * highest-risk irreversible mutations:

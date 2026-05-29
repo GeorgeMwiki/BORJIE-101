@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple c.json({...}, status) branches widen return type and TypedResponse overload rejects the union. Tracked at hono-dev/hono#3891.
 /**
  * Hono-compatible auth middleware
  * Extracts JWT from Authorization header and provides tenant-scoped auth context
@@ -42,13 +41,22 @@ export interface AuthContext {
   permissions: string[];
   propertyAccess: string[];
   /** JWT ID of the current token — needed for /auth/logout revocation. */
-  jti?: string;
+  jti?: string | undefined;
   /** Token expiry epoch seconds — paired with jti for blocklist TTL. */
-  exp?: number;
+  exp?: number | undefined;
   /** Customer-portal accounts carry a denormalised customerId on the auth
    *  context so BFF routes can scope queries without a second join. The
    *  field is optional: only customer-facing JWTs include it. */
-  customerId?: string;
+  customerId?: string | undefined;
+  /** Email projected onto AuthContext in the cross-cutting `auth.middleware.ts`
+   *  flavor; included here for shape compatibility with the shared
+   *  `ContextVariableMap.auth` augmentation. */
+  email?: string | undefined;
+  /** Token expiry epoch seconds — duplicate of `exp` carried by the auth.middleware
+   *  variant under the name `tokenExp`. */
+  tokenExp?: number | undefined;
+  tokenIat?: number | undefined;
+  sessionId?: string | undefined;
 }
 
 export interface JWTPayload {
@@ -57,15 +65,9 @@ export interface JWTPayload {
   role: UserRole;
   permissions: string[];
   propertyAccess: string[];
-  jti?: string;
+  jti?: string | undefined;
   exp: number;
   iat: number;
-}
-
-declare module 'hono' {
-  interface ContextVariableMap {
-    auth: AuthContext;
-  }
 }
 
 export const authMiddleware = createMiddleware(async (c, next) => {

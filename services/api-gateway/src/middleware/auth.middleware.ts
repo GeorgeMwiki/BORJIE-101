@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple c.json({...}, status) branches widen return type and TypedResponse overload rejects the union. Tracked at hono-dev/hono#3891.
 /**
  * JWT Authentication Middleware - BORJIE
  *
@@ -116,9 +115,9 @@ type AuthPath = 'supabase' | 'gateway';
 function auditAuthResolution(args: {
   outcome: 'allow' | 'reject';
   authPath: AuthPath;
-  userId?: string;
-  tenantId?: string;
-  reason?: string;
+  userId?: string | undefined;
+  tenantId?: string | undefined;
+  reason?: string | undefined;
 }): void {
   const meta = {
     event: 'auth_principal_resolved',
@@ -145,12 +144,19 @@ export interface AuthContext {
   role: UserRole;
   permissions: string[];
   propertyAccess: string[];
-  email?: string;
-  sessionId?: string;
-  tokenExp?: number;
-  tokenIat?: number;
+  email?: string | undefined;
+  sessionId?: string | undefined;
+  tokenExp?: number | undefined;
+  tokenIat?: number | undefined;
   /** Optional customerId for customer-portal accounts (BFF scope). */
-  customerId?: string;
+  customerId?: string | undefined;
+  /** JWT ID — set by the `hono-auth.ts` variant when blocklist revocation
+   *  is required. Optional here for shape compatibility across both
+   *  middleware flavors (auth.middleware vs hono-auth). */
+  jti?: string | undefined;
+  /** Token expiry epoch seconds — duplicate of `tokenExp` carried by the
+   *  hono-auth variant under the name `exp`. */
+  exp?: number | undefined;
 }
 
 export interface JWTPayload {
@@ -171,8 +177,8 @@ export interface JWTPayload {
 export interface TokenValidationResult {
   valid: boolean;
   expired: boolean;
-  payload?: JWTPayload;
-  error?: string;
+  payload?: JWTPayload | undefined;
+  error?: string | undefined;
 }
 
 export interface RefreshTokenPayload {
@@ -217,10 +223,12 @@ export function peekJwtClaims(
     const decoded = jwt.decode(token);
     if (!decoded || typeof decoded !== 'object') return null;
     const obj = decoded as Record<string, unknown>;
+    const issValue = typeof obj.iss === 'string' ? obj.iss : undefined;
+    const hasAppMetadata =
+      typeof obj.app_metadata === 'object' && obj.app_metadata !== null;
     return {
-      iss: typeof obj.iss === 'string' ? obj.iss : undefined,
-      hasAppMetadata:
-        typeof obj.app_metadata === 'object' && obj.app_metadata !== null,
+      ...(issValue !== undefined ? { iss: issValue } : {}),
+      hasAppMetadata,
     };
   } catch {
     return null;
@@ -298,7 +306,7 @@ async function verifyAndProjectSupabaseToken(token: string): Promise<{
     const principal = await verifySupabaseJwt(
       token,
       jwksUrl
-        ? { jwksUrl, jwtSecret: secret ?? undefined }
+        ? { jwksUrl, ...(secret ? { jwtSecret: secret } : {}) }
         : { jwtSecret: secret! }
     );
 
@@ -329,18 +337,19 @@ async function verifyAndProjectSupabaseToken(token: string): Promise<{
       };
     }
 
+    const tokenExp =
+      typeof raw.exp === 'number' ? (raw.exp as number) : undefined;
+    const tokenIat =
+      typeof raw.iat === 'number' ? (raw.iat as number) : undefined;
     const context: AuthContext = {
       userId: principal.userId,
       tenantId: appTenant,
       role: mapSupabaseRoleToUserRole(principal.roles),
       permissions: principal.roles,
       propertyAccess: [],
-      email: principal.email,
-      sessionId: undefined,
-      tokenExp:
-        typeof raw.exp === 'number' ? (raw.exp as number) : undefined,
-      tokenIat:
-        typeof raw.iat === 'number' ? (raw.iat as number) : undefined,
+      ...(principal.email !== undefined ? { email: principal.email } : {}),
+      ...(tokenExp !== undefined ? { tokenExp } : {}),
+      ...(tokenIat !== undefined ? { tokenIat } : {}),
     };
     return { valid: true, context };
   } catch (err) {
@@ -396,7 +405,7 @@ export function validateAccessToken(token: string): TokenValidationResult {
       return {
         valid: false,
         expired: true,
-        payload: decoded || undefined,
+        ...(decoded ? { payload: decoded } : {}),
         error: 'Token has expired',
       };
     }
@@ -896,4 +905,3 @@ declare module 'hono' {
 }
 
 export type { UserRole };
-// @ts-nocheck

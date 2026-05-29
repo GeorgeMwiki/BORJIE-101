@@ -1,4 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: multiple c.json({...}, status) branches widen return type and TypedResponse overload rejects the union. Tracked at hono-dev/hono#3891.
 /**
  * Rate Limiting Middleware - BORJIE
  * 
@@ -256,7 +255,8 @@ function getClientIP(c: Context): string {
   // Check common headers for proxied requests
   const forwarded = c.req.header('X-Forwarded-For');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    const first = forwarded.split(',')[0];
+    if (first) return first.trim();
   }
   
   const realIP = c.req.header('X-Real-IP');
@@ -323,8 +323,9 @@ function matchesPattern(path: string, pattern: string): boolean {
   }
   
   for (let i = 0; i < patternParts.length; i++) {
-    if (patternParts[i] === '*') return true;
-    if (patternParts[i] !== pathParts[i] && !patternParts[i].startsWith(':')) {
+    const part = patternParts[i];
+    if (part === '*') return true;
+    if (part !== pathParts[i] && !(part?.startsWith(':') ?? false)) {
       return false;
     }
   }
@@ -554,8 +555,8 @@ export const contentTypeValidator = (...allowedTypes: string[]) => {
         }, 400);
       }
     } else {
-      const type = contentType.split(';')[0].trim();
-      const isAllowed = allowedTypes.some(allowed => 
+      const type = (contentType.split(';')[0] ?? '').trim();
+      const isAllowed = allowedTypes.some(allowed =>
         type === allowed || type.startsWith(allowed)
       );
       
@@ -655,7 +656,7 @@ export const corsMiddleware = (options: {
     
     // Handle preflight requests
     if (c.req.method === 'OPTIONS') {
-      return c.text('', 204);
+      return c.body(null, 204);
     }
     
     await next();

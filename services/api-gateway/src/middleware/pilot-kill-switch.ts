@@ -1,8 +1,3 @@
-// @ts-nocheck — Hono v4 MiddlewareHandler status-code literal union: the 503
-// branch widens the response union enough that the TypedResponse overload
-// rejects the unified return type. Same workaround as `kill-switch.middleware.ts`
-// and `hono-auth.ts`. Tracked at hono-dev/hono#3891.
-
 /**
  * Pilot kill-switch middleware — emergency disable for the pilot cohort.
  *

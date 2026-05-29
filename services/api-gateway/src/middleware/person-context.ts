@@ -28,12 +28,6 @@
  * No raw console statements — pino via the shared logger.
  */
 
-// @ts-nocheck — same Hono v4 status-literal limitation tracked at
-// hono-dev/hono#3891 as the sibling tenant-context middleware. The
-// middleware emits no JSON responses, so the typed-response union
-// never narrows; this pragma is precautionary against the same
-// composition-root drift the other middlewares carry.
-
 import { createMiddleware } from 'hono/factory';
 import { sql } from 'drizzle-orm';
 import { logger } from '../utils/logger.js';
