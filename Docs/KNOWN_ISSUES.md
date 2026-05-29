@@ -522,3 +522,34 @@ swap the mock data path in the renderer for a `useMarketplaceInbound`
 query.
 
 **Owners.** Marketplace + Buyer squads.
+
+---
+
+## KI-DEBT-004 — Owner-portal BFF returned `any`-typed composites — CLOSED (2026-05-29)
+
+**Severity:** RESOLVED.
+
+**File.** `services/api-gateway/src/routes/bff/owner-portal.ts`.
+
+**Root cause.** Every handler in the owner-portal BFF returned
+composite enriched payloads (owner brief + reminders + recent
+decisions + pinned items + scope tree + invitation receipts, etc.)
+typed as `any` because no shared envelope shape existed. Additional
+`Function` shorthands hid service-port contracts. The `c.json(...)`
+boundary was therefore unverified at compile time and accepting any
+payload shape silently broke contract drift detection.
+
+**Fix shipped.** Added `services/api-gateway/src/types/bff-enriched.ts`
+with composable leaf types (`EnrichedReminder`, `EnrichedDecision`,
+`EnrichedDraft`, `EnrichedTab`, `EnrichedOpportunity`, `EnrichedRisk`,
+`EnrichedPinnedItem`, `ScopeNodeWithChildren`), composite envelopes
+(`OwnerBrief`, `OwnerBriefEnriched`, `OwnerDashboardSnapshot`),
+envelope primitives (`ApiSuccess<T>`, `ApiSuccessWithMeta<T>`,
+`PaginatedResponse<T>`, `BffMeta`), domain ports (`CoOwnersPort`,
+`InvitationServicePort`, `FeatureFlagsPort`), and the
+`InvitationTokenPayload` HMAC contract. Threaded the types through
+every handler in `owner-portal.ts`: 0 `: any` / `<any>` / `as any`
+remain in that file (down from 3 explicit + 4 `Function` shorthands)
+and api-gateway typecheck stays at 0 errors. All 20 BFF tests pass.
+
+**Owners.** Platform BFF squad.
