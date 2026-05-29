@@ -131,3 +131,16 @@ export {
 } from './slash-commands.js';
 
 export type { MobileSlashCommand } from './slash-commands.js';
+
+// ── AI suggestion chip (manager-dispatch SOTA §6) ────────────────────
+export {
+  AI_SUGGESTION_MIN_CONFIDENCE,
+  AI_SUGGESTION_PREFILL_CONFIDENCE,
+  deriveAiSuggestionChip,
+} from './ai-suggestion-chip.js';
+
+export type {
+  AiSuggestionChipInput,
+  AiSuggestionChipText,
+  AiSuggestionRoute,
+} from './ai-suggestion-chip.js';

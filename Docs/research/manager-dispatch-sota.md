@@ -430,3 +430,17 @@ Toggle by user language preference.
 ---
 
 **End of research doc.** ~340 lines. Ready to feed into a `/gsd:plan-phase` or `/plan` for implementation.
+
+---
+
+## Shipping log
+
+- **[SHIPPED 2026-05-29]** Bilingual AI suggestion chip (§6) — pure
+  `deriveAiSuggestionChip` helper in `@borjie/persona-runtime` emits
+  the verbatim `Borjie inapendekeza X · N%` / `Borjie suggests X · N%`
+  copy researched in §6, plus confidence-routing
+  (>= 90% → pre-fill, 70-89% → top-three, < 70% → no-suggestion).
+  Reusable across managers / dispatch UIs / future routing surfaces.
+  See `packages/persona-runtime/src/ai-suggestion-chip.ts` and tests
+  `ai-suggestion-chip.test.ts` (8 / 8 passing). Closes G6 in
+  `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`.
