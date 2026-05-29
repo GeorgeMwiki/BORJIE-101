@@ -1,0 +1,29 @@
+name = "borjie-edge-inference"
+main = "src/index.ts"
+compatibility_date = "2026-05-29"
+compatibility_flags = ["nodejs_compat"]
+
+# Smart placement steers requests to the closest region with capacity.
+# For Tanzanian / pan-African owners this prefers af-south-1 → eu-west-3
+# → us-east-1 in that order, per Cloudflare's published priority table.
+[placement]
+mode = "smart"
+
+# Workers AI binding. The model name is a string at runtime so we can
+# swap to a cheaper model (e.g. @cf/meta/llama-3.2-3b-instruct) without
+# re-deploying any code in the api-gateway. Configured at deploy time
+# via `wrangler secret put EDGE_BRAIN_MODEL` if we ever pin it.
+[ai]
+binding = "AI"
+
+# Production env — switched on after the pilot SLO data lands.
+# `wrangler deploy --env staging` lands the staging build first; the
+# api-gateway uses BORJIE_EDGE_BRAIN_URL=<staging-url> for soak tests
+# before the production cap-flip.
+[env.staging]
+name = "borjie-edge-inference-staging"
+vars = { EDGE_BRAIN_DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct" }
+
+[env.production]
+name = "borjie-edge-inference"
+vars = { EDGE_BRAIN_DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct" }
