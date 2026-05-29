@@ -649,3 +649,22 @@ a Chinese-wall-style boundary filter that forbids cross-tenant numeric
 synthesis. This is the design.
 
 **End of document. No code touched.**
+
+---
+
+## Shipping log
+
+- **[SHIPPED 2026-05-29]** Boundary tagger (§3.3 + §5 + §10.6) — the
+  Chinese-wall filter for the person-layer / tenant-layer composition.
+  Pure, no DB / network / logger. Two exports:
+  `filterByActiveContext()` drops chunks whose origin is a non-active
+  tenant (keeping `person.public`, matching `person.role`, and
+  `platform`). `checkCrossTenantNumericSynthesis()` /
+  `assertNoCrossTenantNumeric()` walks every number in candidate LLM
+  output and fails-closed when the number traces back to a foreign
+  tenant chunk. `kAnonymisedCount()` enforces the k ≥ 3 rule for
+  cross-tenant counts. See
+  `packages/cognitive-memory/src/boundary-tagger.ts` and tests
+  `boundary-tagger.test.ts` (20 / 20 passing). Closes G5 in
+  `Docs/AUDIT/RESEARCH_GAPS_2026-05-29.md`. Wiring into the brain
+  reply composer is the follow-up roadmap item.

@@ -125,3 +125,24 @@ export {
   createInMemoryAuditChain,
   appendMemoryAudit,
 } from './audit/audit-chain-link.js';
+
+// ---------------------------------------------------------------------------
+// Boundary tagger — Chinese-wall filter for person-layer / tenant-layer
+// composition. Drops cross-tenant chunks + blocks cross-tenant numeric
+// synthesis at reply-composition time. Spec:
+// Docs/RESEARCH/unified-personal-kb.md §3.3 + §5 + §10.6.
+// ---------------------------------------------------------------------------
+export {
+  type ChunkOrigin,
+  type TaggedChunk,
+  type ActiveContext,
+  type CrossTenantSynthesisCheck,
+  type KAnonymisedCount,
+  filterByActiveContext,
+  extractCandidateNumbers,
+  checkCrossTenantNumericSynthesis,
+  assertNoCrossTenantNumeric,
+  CrossTenantNumericSynthesisError,
+  kAnonymisedCount,
+  DEFAULT_K_ANONYMITY,
+} from './boundary-tagger.js';
