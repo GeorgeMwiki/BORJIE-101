@@ -16,9 +16,24 @@ import {
   BORJIE_WORDMARK_SVG,
 } from '../brand.js';
 import { markdownToHtml } from './markdown-to-html.js';
+import {
+  ARTIFACT_RICHNESS_CSS,
+  applyHtmlOverrides,
+  type ArtifactCitation,
+  type RichnessResult,
+} from '../../artifact-richness/index.js';
 
 export interface HtmlRenderOptions {
   readonly style?: BrandStyle;
+  /** Pre-computed richness result from `prepareRichBody`. When supplied,
+   * the html renderer splices its overrides + toc + footnotes into the
+   * rendered output. Optional — drafter callers that do not opt in
+   * keep the original behaviour. */
+  readonly richness?: RichnessResult;
+  /** Citations for documentation in the footnotes section (used only
+   * when `richness` is absent and the caller wants a footnotes table
+   * without running the full pipeline). */
+  readonly citations?: ReadonlyArray<ArtifactCitation>;
 }
 
 export function renderHtml(
@@ -27,7 +42,12 @@ export function renderHtml(
   opts: HtmlRenderOptions = {},
 ): Buffer {
   const style = opts.style ?? DEFAULT_BRAND_STYLE;
-  const bodyHtml = markdownToHtml(body);
+  let bodyHtml = markdownToHtml(opts.richness?.body ?? body);
+  if (opts.richness) {
+    bodyHtml = applyHtmlOverrides(bodyHtml, opts.richness.htmlOverrides);
+  }
+  const tocHtml = opts.richness?.tocHtml ?? '';
+  const footnotesHtml = opts.richness?.footnotesHtml ?? '';
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,6 +71,7 @@ export function renderHtml(
   .borjie-doc th { background:${style.colorBgSubtle}; font-weight:600; }
   .borjie-doc hr { border:none; border-top:1px solid ${style.colorBgSubtle}; margin:18px 0; }
   .borjie-footer { max-width:760px; margin:0 auto 32px; padding:14px 32px; font-size:12px; color:${style.colorMuted}; text-align:center; }
+${ARTIFACT_RICHNESS_CSS}
 </style>
 </head>
 <body>
@@ -59,7 +80,9 @@ export function renderHtml(
   <span class="meta">${escapeHtml(brandHeaderText(ctx))}</span>
 </div>
 <main class="borjie-doc">
+  ${tocHtml}
   ${bodyHtml}
+  ${footnotesHtml}
 </main>
 <footer class="borjie-footer">${escapeHtml(brandFooterText(ctx))}</footer>
 </body>

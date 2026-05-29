@@ -15,10 +15,15 @@
 
 import type { BrandContext } from '../brand.js';
 import { renderHtml } from './html-renderer.js';
+import type { RichnessResult } from '../../artifact-richness/index.js';
 
 export interface RenderPdfOptions {
   readonly orientation?: 'portrait' | 'landscape';
   readonly format?: 'A4' | 'Letter' | 'Legal';
+}
+
+export interface RenderPdfRichOptions {
+  readonly richness?: RichnessResult;
 }
 
 /**
@@ -30,8 +35,9 @@ export async function renderPdf(
   body: string,
   ctx: BrandContext,
   options: RenderPdfOptions = {},
+  rich: RenderPdfRichOptions = {},
 ): Promise<Buffer> {
-  const html = renderHtml(body, ctx);
+  const html = renderHtml(body, ctx, rich.richness ? { richness: rich.richness } : {});
   try {
     // Dynamic import keeps the cold start path free of Playwright when
     // PDF rendering is never invoked. The module cache means warm calls

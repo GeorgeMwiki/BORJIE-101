@@ -407,17 +407,25 @@ app.get('/:id/pdf', async (c: any) => {
   const auditHash = latest?.auditHash ?? null;
   const tenantName =
     (auth as { tenantName?: string }).tenantName ?? 'Borjie tenant';
-  const result = await renderDraft('pdf' as RenderFormat, body, {
-    tenantName,
-    title: draft.titleEn ?? draft.titleSw,
-    auditHashTail: tailOfHash(auditHash),
-    classification:
-      (draft as unknown as {
-        classification?: 'public' | 'internal' | 'confidential';
-      }).classification ?? 'internal',
-    author: auth.userId,
-    renderedAtUtc: new Date().toISOString(),
-  });
+  const language = (draft.language === 'sw' || draft.language === 'en')
+    ? draft.language
+    : 'en';
+  const result = await renderDraft(
+    'pdf' as RenderFormat,
+    body,
+    {
+      tenantName,
+      title: draft.titleEn ?? draft.titleSw,
+      auditHashTail: tailOfHash(auditHash),
+      classification:
+        (draft as unknown as {
+          classification?: 'public' | 'internal' | 'confidential';
+        }).classification ?? 'internal',
+      author: auth.userId,
+      renderedAtUtc: new Date().toISOString(),
+    },
+    { language },
+  );
   return new Response(result.body as unknown as ArrayBuffer, {
     status: 200,
     headers: {
@@ -449,16 +457,24 @@ app.get('/:id/render', async (c: any) => {
   const auditHash = latest?.auditHash ?? null;
   const tenantName =
     (auth as { tenantName?: string }).tenantName ?? 'Borjie tenant';
-  const result = await renderDraft(format, body, {
-    tenantName,
-    title: draft.titleEn ?? draft.titleSw,
-    auditHashTail: tailOfHash(auditHash),
-    classification:
-      (draft as unknown as { classification?: 'public' | 'internal' | 'confidential' })
-        .classification ?? 'internal',
-    author: auth.userId,
-    renderedAtUtc: new Date().toISOString(),
-  });
+  const language = (draft.language === 'sw' || draft.language === 'en')
+    ? draft.language
+    : 'en';
+  const result = await renderDraft(
+    format,
+    body,
+    {
+      tenantName,
+      title: draft.titleEn ?? draft.titleSw,
+      auditHashTail: tailOfHash(auditHash),
+      classification:
+        (draft as unknown as { classification?: 'public' | 'internal' | 'confidential' })
+          .classification ?? 'internal',
+      author: auth.userId,
+      renderedAtUtc: new Date().toISOString(),
+    },
+    { language },
+  );
   return new Response(result.body as unknown as ArrayBuffer, {
     status: 200,
     headers: {

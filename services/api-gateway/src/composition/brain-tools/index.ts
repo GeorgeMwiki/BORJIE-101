@@ -63,6 +63,11 @@ import { CHAT_EVERYWHERE_TOOLS } from './chat-everywhere-tools';
 // a multi-action chain. See Docs/research/CHAT_HANDLES_EVERYTHING_
 // SOTA_2026-05-29.md §4.3.
 import { UNDO_CHAIN_TOOLS } from './undo-chain-tools';
+// Admin inviolable-rule chat tools G-FIX-5 — 8 HIGH-risk admin-only
+// tools wrapping kill-switch / four-eye / policy / feature-flag /
+// audit-export / tenant-suspend surfaces. Each is sovereign-prefixed
+// and `requiresPolicyRuleLiteral: true` per CLAUDE.md hard rule.
+import { ADMIN_INVIOLABLE_TOOLS } from './admin-inviolable-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -113,6 +118,7 @@ export function buildPersonaToolHandlers(
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
       UNDO_CHAIN_TOOLS,
+      ADMIN_INVIOLABLE_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -164,6 +170,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
       UNDO_CHAIN_TOOLS,
+      ADMIN_INVIOLABLE_TOOLS,
     ],
     undefined,
   );
@@ -246,3 +253,15 @@ export {
   undoLastNTool,
   undoByIdTool,
 } from './undo-chain-tools';
+// Admin inviolable-rule G-FIX-5 — re-exports for tests + audit walker.
+export {
+  ADMIN_INVIOLABLE_TOOLS,
+  adminKillSwitchOpenTool,
+  adminKillSwitchCloseTool,
+  adminFourEyeInitiateTool,
+  adminFourEyeApproveTool,
+  adminPolicyEditRuleTool,
+  adminFeatureFlagSetTool,
+  adminAuditExportTool,
+  adminTenantSuspendTool,
+} from './admin-inviolable-tools';
