@@ -31,7 +31,7 @@ component is enumerated in a known dispatcher (`InlineBlockRenderer`,
 | `apps/owner-web/src/components/OwnerTopBar.tsx` | DELETED | Replaced by `owner-shell/TopBar.tsx`. |
 | `apps/owner-web/src/components/PlaceholderCard.tsx` | DELETED | Legacy — no callers since #155 sweep. |
 | `apps/owner-web/src/components/FeedbackButton.tsx` | WIRED | Mounted in `apps/owner-web/src/app/layout.tsx`. |
-| `apps/owner-web/src/components/TenantRail.tsx` | LATER | Roadmap R12 — needs cross-tenant federation infra (`borjie-active-tenant` cookie + `/api/v1/orgs/me/memberships` not yet exposed). |
+| `apps/owner-web/src/components/TenantRail.tsx` | **WIRED 2026-05-29** | Mounted in `OwnerShell.tsx` (residuals sweep). R12 endpoint + cookie infra already shipped. |
 | `apps/owner-web/src/components/smart-compose/GhostCompletionInput.tsx` | LATER | Roadmap R9 — depends on `useGhostCompletion` hook; needs LLM completion proxy endpoint. |
 | `apps/owner-web/src/components/finance/PnlTable.tsx` | LATER | No callers — finance page renders placeholders. Needs `/api/v1/accounting/pnl` BFF. |
 | `apps/owner-web/src/components/shared/EntityTimeline.tsx` | LATER | Generic timeline component — used by per-entity drawers that are roadmap items (reminders, drafts, parcels, bids). |

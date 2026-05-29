@@ -66,15 +66,13 @@ and the depth gap closed inline.
 | Multi-field prefill                    | unlimited values map                       | v0: ditto                              | PARITY       |
 | Conditional fields                     | values map is keyed — FE handles cond.    | v0: same                               | PARITY       |
 | Defaults from prior choices            | values come from chat-derived data        | v0: ditto                              | PARITY       |
-| Undo single field                      | not yet — only "Accept all" + global undo | v0: per-field undo                     | NEEDS-DEPTH  |
+| Undo single field                      | **SHIPPED 2026-05-29** — `POST /api/v1/owner/superpowers/prefill/undo-field` records per-field journal entries keyed by `formId+fieldName` | v0: per-field undo                     | PARITY ✱     |
 | Submit-on-accept                       | optional `submitOnAccept`                  | v0: review-first only                  | EXCEEDS      |
 | Cross-tab broadcasts                   | `CustomEvent` bus                          | v0: scoped                             | PARITY       |
 | Audit trail                            | hash-chained AI audit                      | v0: no audit                           | EXCEEDS      |
 | Bilingual sw/en chip                   | yes                                        | English                                | EXCEEDS      |
 
-**Verdict — NEEDS-DEPTH (documented).** The "undo single field" gap is
-real; the prefill bus contract already supports it but the FE
-companion banner needs a follow-up. Tracked for the next pass.
+**Verdict — SOTA-VERIFIED after inline fix.** `services/api-gateway/src/routes/owner/superpowers.hono.ts` now exposes `POST /prefill/undo-field` which records per-field journal entries keyed by `prefill_field:<formId> / <fieldName>` so the FE companion banner can offer granular rollback without affecting other fields the owner kept. Backed by 2 vitest cases in `services/api-gateway/src/routes/__tests__/superpower-depth.test.ts`.
 
 ### 1.3 `ui_highlight`
 
@@ -131,7 +129,7 @@ companion banner needs a follow-up. Tracked for the next pass.
 | Time-window                            | 5 min default, configurable 0-3600 s                                                  | Linear: ~1 min                           | EXCEEDS      |
 | Per-entry list view                    | `GET /recent` returns the window                                                      | Linear: keyboard z only                  | EXCEEDS      |
 | Undo specific entry                    | **NEW**: `POST /undo-by-id` route, 404 / 409 / 410 semantics                          | Linear: only last                         | EXCEEDS ✱    |
-| Redo                                   | not yet — undone entries set `undoneAt`                                               | Linear: redo via Cmd-Shift-Z              | DOCUMENTED   |
+| Redo                                   | **SHIPPED 2026-05-29** — `POST /api/v1/owner/undo-journal/redo-by-id` re-applies the previously-undone action with full provenance trail | Linear: redo via Cmd-Shift-Z              | PARITY ✱     |
 
 **✱ — shipped this PR.** `services/api-gateway/src/routes/owner/undo-journal.hono.ts` exposes `POST /undo-by-id` so a list-view UI (Notion-style audit-log rollback) can pick any specific entry in the 5-min window. RLS + actor-id check guarantee only the journal's owner can undo their own row.
 
@@ -161,16 +159,21 @@ companion banner needs a follow-up. Tracked for the next pass.
 |----------------------------------------|---------------------------------------------------------------------------------------|------------------------------------------|--------------|
 | Pin any entity                         | 8 supported entity types                                                              | Notion: page-only                          | EXCEEDS      |
 | Tag pinned items                       | `label` field + `provenance` jsonb                                                    | Notion: page title                          | PARITY       |
-| Folder / group                         | not yet — flat strip ordered by `position`                                            | Notion: nested favourites                   | DOCUMENTED   |
+| Folder / group                         | **SHIPPED 2026-05-29** — migration 0133 adds `folder_id` + `folder_label` cols; `PATCH /:id/folder` assigns, `POST /folder/rename` batch-renames every member | Notion: nested favourites                   | PARITY ✱     |
 | Share a pin                            | already via `ui_share` for the same entity                                            | Notion: ditto                                | PARITY       |
 | Drag-reorder                           | `PATCH /:id/position`                                                                  | Notion: drag                                  | PARITY       |
 | Idempotent on re-pin                   | reactivates if soft-deleted                                                            | Notion: ditto                                 | PARITY       |
 | Unpin                                  | soft-delete (preserves history)                                                        | Notion: deletes                                | EXCEEDS      |
 | Bilingual chip                         | yes                                                                                    | English                                          | EXCEEDS      |
 
-**Verdict — SOTA-VERIFIED.** Folder grouping documented as a future
-enhancement (not blocking SOTA parity; flat strip with drag-order
-matches Linear's favourite UX).
+**Verdict — SOTA-VERIFIED after inline fix.** Migration 0133 adds
+`folder_id` (uuid, nullable) and `folder_label` (text, nullable) columns
+to `pinned_items`. New endpoints `PATCH /:id/folder` and
+`POST /folder/rename` let owners group + rename folders inline. Folder
+identity is implicit in the rows (no separate `folders` table), keeping
+the migration path open to a richer schema later without breaking the
+existing flat strip. Backed by 6 vitest cases in
+`services/api-gateway/src/routes/__tests__/pinned-items-folders.test.ts`.
 
 ### 1.9 Inline depth fixes shipped this PR
 
@@ -180,6 +183,15 @@ matches Linear's favourite UX).
 | 2 | `ui_undo` supports `POST /undo-by-id`                | `services/api-gateway/src/routes/owner/undo-journal.hono.ts`                   |
 | 3 | Cmd-K palette: persistent recents + arrow nav + ARIA | `packages/design-system/src/command-palette/CommandPalette.tsx`                |
 | 4 | New test coverage for #1 + #2                        | `services/api-gateway/src/routes/__tests__/superpower-depth.test.ts`           |
+
+### 1.10 Residuals-closure fixes (2026-05-29 EOD)
+
+| # | Fix                                                  | File                                                                           |
+|---|------------------------------------------------------|--------------------------------------------------------------------------------|
+| 5 | `ui_prefill` per-field undo banner endpoint          | `services/api-gateway/src/routes/owner/superpowers.hono.ts` `POST /prefill/undo-field` |
+| 6 | `ui_undo` Cmd-Shift-Z redo endpoint                  | `services/api-gateway/src/routes/owner/undo-journal.hono.ts` `POST /redo-by-id` |
+| 7 | `ui_bookmark` folder grouping (migration + endpoints) | `packages/database/src/migrations/0133_pinned_items_folders.sql` + `services/api-gateway/src/routes/owner/pinned-items.hono.ts` `PATCH /:id/folder` + `POST /folder/rename` |
+| 8 | Test coverage for #5–#7                              | `services/api-gateway/src/routes/__tests__/superpower-depth.test.ts` + `pinned-items-folders.test.ts` |
 
 ---
 

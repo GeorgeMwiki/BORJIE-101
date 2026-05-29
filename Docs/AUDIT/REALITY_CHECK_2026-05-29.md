@@ -214,14 +214,11 @@ a *factory* but not as a *deployment*.
 `if (!service) return 503 stub` and replace with
 `requireService('xxx')`. ~30 LoC.
 
-### G-D — Persona-tool audit-sink was also never bound
+### G-D — Persona-tool audit-sink was also never bound — **CLOSED 2026-05-29**
 
-Same code site as G-A: `personaGate` has no `auditSink`. Any
-persona-tool WRITE call would skip the audit-chain append. After
-G-A's httpClient fix lands, this becomes the next missing pillar.
+**Status:** CLOSED — `services/api-gateway/src/composition/brain-tools/audit-sink.ts` ships a Pino-backed `PersonaToolAuditSink` that emits one structured `tool.persona_audit` info log per WRITE-tool call with toolId / tenantId / actorId / personaSlug / stakes / inputDigest / outcome / occurredAt. Wired into `services/api-gateway/src/index.ts` at the same site as the loopback HTTP client. 3 vitest cases cover Pino emit shape, multi-outcome accumulation, and the in-memory test seam.
 
-**Effort:** S — instantiate a sink that writes to `ai_audit_chain`
-via the same audit infra the orchestrator uses.
+The structured-log path is intentional: the persona-tool gate sits ABOVE the per-domain audit ledgers (decision-journal, ai_audit_chain, ledger). A direct DB append from the gate would couple the persona-tool kernel to the database.
 
 ### G-E — Live-verify §G MCP "12/12 pass" doesn't actually invoke any tool
 

@@ -551,5 +551,123 @@ the renderer's mock data path for a `useMarketplaceInbound` query.
 
 ---
 
+## R27 — GhostCompletionInput wired into the home-chat composer (effort: S)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md` (TenantRail row was
+mirrored — GhostCompletionInput still orphan).
+**Promise:** `apps/owner-web/src/components/smart-compose/GhostCompletionInput.tsx`
+mounted as the composer surface so chat-bound owners see Tab-to-accept
+prefix completions on real keystrokes.
+**Shipped:** Component + `useGhostCompletion` hook + brain endpoint
+(R9 SHIPPED) + 13 router tests. Mounting is blocked because the current
+home-chat composer is a `<textarea>` not a single-line `<input>` and
+`GhostCompletionInput` is built around `<input>` keyboard handling +
+cursor positioning.
+**Effort:** ~3-4 dev-days — rewrite `GhostCompletionInput` to overlay
+a `<textarea>` (sync scroll + line-wrap + correct cursor coords), or
+create a new `GhostCompletionTextarea` variant and wire it into
+`AskComposer.tsx`.
+**Suggested wave:** Chat polish wave (v2 — same wave as R9 LLM
+fallback).
+**Why deferred:** Textarea overlay is non-trivial — requires
+`offsetTop / scrollHeight` math + IME composition handling that the
+current input-only version skips.
+
+---
+
+## R28 — `PnlTable` finance BFF wire (effort: M)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** `apps/owner-web/src/components/finance/PnlTable.tsx`
+renders live profit-and-loss data from `/api/v1/accounting/pnl`.
+**Shipped:** Component + bilingual headers + tests; no BFF endpoint.
+**Effort:** 5 dev-days — surface `/api/v1/accounting/pnl` from
+`packages/finance-tools` aggregator, wire react-query hook, replace
+placeholder mount in finance page.
+**Suggested wave:** Finance polish wave.
+
+---
+
+## R29 — `EntityTimeline` per-entity drawer wiring (effort: M)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** Generic timeline component used by entity drawers
+(reminders, drafts, parcels, bids).
+**Shipped:** Component + utilities; no drawer hosts it yet.
+**Effort:** ~2 dev-days per drawer × 4 entity drawers (8 dev-days total)
+— assemble entity-specific event composers, mount under the drawer
+template.
+**Suggested wave:** Entity-drawer polish wave.
+
+---
+
+## R30 — `WebAuthnClockIn` kiosk page (effort: M)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** Kiosk widget that lets workers clock in via WebAuthn from
+a shared owner-web terminal.
+**Shipped:** Component + WebAuthn integration; no kiosk host page.
+**Effort:** ~3 dev-days — stand up `/workforce-tabs` host page with
+kiosk-mode auth gate, mount `WebAuthnClockIn`, route credentials at the
+gateway.
+**Suggested wave:** Workforce-kiosk wave.
+
+---
+
+## R31 — Admin-web internal feature-flags / juniors / tickets endpoints (effort: S each)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** Three admin-web internal forms (`FlagRolloutForm`,
+`JuniorActions`, `TicketAck`) backed by:
+- `/api/v1/mining/internal/feature-flags` (list + flip)
+- `/api/v1/mining/internal/juniors` (registry list)
+- `/api/v1/mining/internal/support/tickets` (list + ack)
+**Shipped:** Forms are real (auth-gated, zod-validated). Parent screens
+render stubs because the list endpoints are missing.
+**Effort:** ~1 dev-day per endpoint (3 dev-days total).
+**Suggested wave:** Admin-platform wave.
+
+---
+
+## R32 — `FeedbackThumbs` per-turn Jarvis widget (effort: S)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** Per-turn feedback widget under each assistant bubble in
+the Jarvis admin console.
+**Shipped:** Component + endpoint; not mounted by `JarvisConsole`.
+**Effort:** ~1 dev-day — mount under the assistant-bubble template in
+`apps/admin-web/src/components/jarvis/JarvisConsole.tsx` (or wherever
+the bubble is rendered).
+**Suggested wave:** Admin-platform wave.
+
+---
+
+## R33 — Marketing hero effects (Mesh / NeonGlow / InteractiveBackground / HeroDemoPreview) (effort: M)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** Decorative effects placed on the marketing hero — Stripe-
+style mesh background, neon glow accents, particle effects, KPI mockup
+tile.
+**Shipped:** All four components are real, polished, perf-aware. Hero
+section has not been re-skinned with them yet (design pass pending).
+**Effort:** ~3 dev-days — hero re-skin design pass + perf check (LCP
+must stay green) + responsive placement.
+**Suggested wave:** Marketing redesign wave.
+
+---
+
+## R34 — `SectionSkeleton` marketing-section lazy-load migration (effort: M)
+
+**Source:** `Docs/AUDIT/ORPHAN_AUDIT_2026-05-29.md`
+**Promise:** `apps/marketing/src/components/SectionSkeleton.tsx` used
+as the `next/dynamic` suspense fallback for every below-the-fold
+marketing section.
+**Shipped:** Skeleton component; no sections opted into lazy loading.
+**Effort:** ~2 dev-days — flip each below-fold section to
+`next/dynamic` with skeleton fallback, measure CLS impact.
+**Suggested wave:** Marketing perf wave.
+
+---
+
 End of roadmap. Items are listed in approximate order of expected
 delivery, not strict priority — priority is set per wave-plan call.
