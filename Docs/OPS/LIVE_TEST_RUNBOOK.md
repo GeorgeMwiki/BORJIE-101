@@ -7,7 +7,9 @@ Mwikila end-to-end as each of the 5 seeded test accounts.
 
 This runbook is the source of truth for *interactive* live testing.
 For the *synthetic* equivalent (curl-style, no browser) see
-`scripts/live-test/happy-path.ts`.
+`scripts/live-test/happy-path.ts`. For *deployed-environment* smoke after
+shipping to Vercel see `scripts/live-test/post-deploy-smoke.ts` and the
+companion runbook [`DEPLOY_VERCEL_RUNBOOK.md`](./DEPLOY_VERCEL_RUNBOOK.md).
 
 ---
 
@@ -301,3 +303,54 @@ without rotating the whole project.)
 2. Capture the gateway log line for any failure to `Docs/AUDIT/`.
 3. Update `Docs/AUDIT/LAUNCH_READINESS_GREEN.md` with the date + tally.
 4. Commit any new audit artefacts under `Docs/AUDIT/`.
+
+---
+
+## 8. Live commercial test on Vercel (D-pilot)
+
+When the test moves off localhost and onto real HTTPS for an external
+demo (regulator, family-office, off-taker):
+
+| Step | Where | What |
+|------|-------|------|
+| 1. Deploy marketing | laptop | `./scripts/deploy/marketing.sh production` |
+| 2. Deploy owner-web | laptop | `./scripts/deploy/owner-web.sh production` |
+| 3. Capture URLs    | shell  | `cat .deploy-url-marketing && cat .deploy-url-owner-web` |
+| 4. Smoke           | shell  | `pnpm tsx scripts/live-test/post-deploy-smoke.ts` (env vars in DEPLOY_VERCEL_RUNBOOK.md §3) |
+| 5. Sign-in walk    | browser | use the 5 test users from §2 against the deployed URLs |
+| 6. Capture audit    | `Docs/AUDIT/` | save smoke tally + any FAIL log line |
+| 7. Rollback if FAIL | laptop | `vercel promote <prior-healthy-deploy-url>` per DEPLOY_VERCEL_RUNBOOK.md §5 |
+
+### Deployed URLs (populate after first deploy)
+
+| App        | URL                                                       |
+|------------|-----------------------------------------------------------|
+| marketing  | _populate from `.deploy-url-marketing` after first deploy_ |
+| owner-web  | _populate from `.deploy-url-owner-web` after first deploy_ |
+| api gateway | `https://api.borjie.co.tz` (see infra/, NOT deployed by scripts/deploy/) |
+
+### DNS plan
+
+Until DNS is cut over, use the `*.vercel.app` URLs. Once ready:
+
+- `borjie.co.tz` + `www.borjie.co.tz` → marketing project
+- `owners.borjie.co.tz` → owner-web project
+- `api.borjie.co.tz` → gateway host (separate, not Vercel)
+
+See [`DEPLOY_VERCEL_RUNBOOK.md`](./DEPLOY_VERCEL_RUNBOOK.md) §4 for DNS
+records.
+
+### Test-user credentials in production
+
+The seeder is BLOCKED from running with `NODE_ENV=production`. The five
+demo users must be provisioned BEFORE the live test by re-seeding a
+staging-tier Supabase project (or the prod project once, with the
+`SEED_TEST_USERS_FORCE=true` override and `chmod 600` on the env file).
+Passwords come from `SEED_TEST_*_PASSWORD` env vars; never commit
+populated values.
+
+### On-call hookup
+
+Both Vercel projects emit Sentry when `NEXT_PUBLIC_SENTRY_DSN` is set.
+Configure the alert rule in `borjie-org` Sentry as described in
+[`DEPLOY_VERCEL_RUNBOOK.md`](./DEPLOY_VERCEL_RUNBOOK.md) §6.
