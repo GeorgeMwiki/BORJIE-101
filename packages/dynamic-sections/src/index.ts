@@ -53,6 +53,7 @@ export {
   useViewportBreakpoint,
   useSwipeNav,
   sectionQueryKeys,
+  useAdaptiveLayout,
   type SectionContextLoader,
   type SectionContextProviderProps,
   type SectionProviderConfig,
@@ -62,6 +63,7 @@ export {
   type UseSwipeNavArgs,
   type UseSwipeNavResult,
   type SectionQueryScope,
+  type UseAdaptiveLayoutArgs,
 } from './hooks/index.js';
 
 // Components

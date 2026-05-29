@@ -17,6 +17,7 @@
     "@borjie/api-sdk": "workspace:*",
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
+    "@borjie/dynamic-sections": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/observability": "workspace:^",
     "@borjie/owner-os-tabs": "workspace:*",
