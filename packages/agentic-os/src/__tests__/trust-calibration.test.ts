@@ -1,7 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTrustCalibrator } from '../trust-calibration/index.js';
 
+// All tests pin observedAt to 2026-05-24T00:00:00Z. The decay model in
+// trust-calibration is driven by nowIso() vs lastUpdatedAt, so without
+// fake timers the assertions drift with the real wall clock (every day
+// that elapses pulls Beta-prior outcomes back toward 0.5). Pin time so
+// decay-free assertions are deterministic and decay-aware assertions
+// can opt-in by advancing the clock explicitly.
+const FROZEN_NOW = new Date('2026-05-24T00:00:00Z');
+
 describe('trust-calibration / recordOutcome + getScore', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('starts at the prior (0.5) for a new (agent, capability)', async () => {
     const c = createTrustCalibrator();
     const score = await c.getScore({
@@ -124,6 +141,15 @@ describe('trust-calibration / recordOutcome + getScore', () => {
 });
 
 describe('trust-calibration / suggestedAutonomyLevel', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('caps autonomy at risk-class ceiling', async () => {
     const c = createTrustCalibrator();
     for (let i = 0; i < 30; i++) {
