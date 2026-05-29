@@ -43,6 +43,10 @@ const config: Config = {
         'tiny':    ['0.625rem',  { lineHeight: '0.9rem' }],
         // 11px (0.6875rem) — secondary KPI badge / legend entry
         'badge':   ['0.6875rem', { lineHeight: '1rem' }],
+        // 13px (0.8125rem) — small body / metric secondary label
+        'data':    ['0.8125rem', { lineHeight: '1.15rem' }],
+        // 15px (0.9375rem) — between text-sm (14px) and text-base (16px)
+        'body-md': ['0.9375rem', { lineHeight: '1.45rem' }],
       },
       /**
        * Owner cockpit chart pane heights — fixed viewports for the
@@ -58,6 +62,58 @@ const config: Config = {
         'chart-lg':  '560px',
         'chart-xl':  '600px',
         'chart-2xl': '640px',
+        // Hairline accent rule used in sidebars / tab indicators.
+        'hairline':    '2px',
+        'rail':        '3px',
+        // Status chip / nav-item glyph height.
+        'chip':       '18px',
+        // Document explorer viewport — viewport minus owner-shell chrome
+        // (top bar + footer ~= 12rem).
+        'viewport-fit': 'calc(100vh - 12rem)',
+      },
+      /**
+       * Owner cockpit rail / accent widths — vertical indicator strokes
+       * used in side navs and tab markers.
+       */
+      width: {
+        ...(baseConfig.theme?.extend?.width ?? {}),
+        'hairline':  '2px',
+        'rail':      '3px',
+      },
+      /**
+       * Owner cockpit min-widths — column floors for hot-table grids
+       * (licences, sites, marketplace, treasury) that must not collapse.
+       */
+      minWidth: {
+        ...(baseConfig.theme?.extend?.minWidth ?? {}),
+        'column-sm': '220px',
+        'column-md': '240px',
+        'column-lg': '260px',
+        'column-xl': '280px',
+      },
+      /**
+       * Owner cockpit min-heights — panel floors so layout doesn't
+       * collapse when content is sparse.
+       */
+      minHeight: {
+        ...(baseConfig.theme?.extend?.minHeight ?? {}),
+        // Auth shell — viewport minus top chrome (3rem).
+        'shell':     'calc(100vh - 3rem)',
+        // Tap-area floor for feedback textarea.
+        'tap-area':  '96px',
+        // Panel floor for empty-state surfaces (control tower etc.).
+        'panel':     '480px',
+      },
+      /**
+       * Owner cockpit letter-spacing — editorial micro-cap labels
+       * above section headers / panel eyebrows. `eyebrow` (0.12em) is
+       * the looser of the two — used inside the home-chat composer
+       * subtitle rail where the chip text is already small.
+       */
+      letterSpacing: {
+        ...(baseConfig.theme?.extend?.letterSpacing ?? {}),
+        'eyebrow':       '0.12em',
+        'eyebrow-wide':  '0.18em',
       },
     },
   },
