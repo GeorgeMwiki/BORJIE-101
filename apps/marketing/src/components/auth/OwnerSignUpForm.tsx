@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
 import { apiBaseUrl } from '@/lib/api';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 
@@ -83,7 +84,7 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
     try {
       const res = await fetch(`${apiBaseUrl()}/api/v1/orgs/signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify(parsed.data),
       });

@@ -15,6 +15,7 @@ import type {
   IndividualBuyerDraft,
 } from './types';
 import { apiBaseUrl } from '@/lib/api';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { getMessages, type Locale } from '@/lib/i18n';
 
 interface BuyerSignupWizardProps {
@@ -148,7 +149,7 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
     try {
       const res = await fetch(`${apiBaseUrl()}/api/v1/buyers/signup`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
         body: JSON.stringify(parsed.data),
       });
       const json = (await res.json()) as

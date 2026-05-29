@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 
 import { apiBaseUrl } from '@/lib/api';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 
@@ -77,7 +78,7 @@ export function OwnerSignInForm({ locale }: OwnerSignInFormProps) {
     try {
       const res = await fetch(`${apiBaseUrl()}/api/v1/auth/sign-in`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify(parsed.data),
       });
