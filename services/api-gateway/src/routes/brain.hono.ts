@@ -302,12 +302,79 @@ interface TurnGateContext {
   readonly viewer: { userId: string; roles: string[]; teamIds: string[]; employeeId?: string; isAdmin: boolean; isManagement: boolean };
 }
 
+/**
+ * Personal-team sentinel UUID used when a /turn request does not carry
+ * an explicit `teamId` AND the authenticated viewer is not bound to any
+ * team. The `threads.team_id` column is `uuid` in some deployed schemas
+ * and `NOT NULL` after the 2026-04 owner-thread consolidation, so an
+ * empty string fails the type cast at INSERT.
+ *
+ * Using a stable, well-known UUID keeps every "no team" thread bucketed
+ * under one identifier so audit / per-team analytics can still partition
+ * cleanly. We never persist this UUID to a real `teams` row — it's a
+ * pseudo-team that means "personal / owner-direct".
+ */
+const PERSONAL_TEAM_SENTINEL = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Resolve the `teamId` used to bootstrap a new brain thread.
+ *
+ * Resolution order:
+ *   1. Explicit `bodyTeamId` from the request payload (UUID string).
+ *   2. First entry of the authenticated viewer's `teamIds` (set on JWT
+ *      `app_metadata.team_ids`). This binds the thread to the user's
+ *      primary team for visibility scoping.
+ *   3. `PERSONAL_TEAM_SENTINEL` — never null/empty so the Postgres uuid
+ *      column accepts the row even when the user has no team mapping.
+ *
+ * Logs the resolution path at info so live-verify runs can confirm the
+ * fix is firing.
+ */
+function resolveTeamId(
+  bodyTeamId: string | undefined,
+  viewerTeamIds: readonly string[],
+  ctx: { tenantId: string; userId: string },
+): { teamId: string; source: 'body' | 'viewer' | 'sentinel' } {
+  if (typeof bodyTeamId === 'string' && bodyTeamId.trim().length > 0) {
+    const teamId = bodyTeamId.trim();
+    logger.info(
+      { tenantId: ctx.tenantId, userId: ctx.userId, teamId, source: 'body' },
+      'brain /turn: teamId resolved from request body',
+    );
+    return { teamId, source: 'body' };
+  }
+  const fromViewer = viewerTeamIds.find(
+    (t) => typeof t === 'string' && t.trim().length > 0,
+  );
+  if (fromViewer) {
+    const teamId = fromViewer.trim();
+    logger.info(
+      { tenantId: ctx.tenantId, userId: ctx.userId, teamId, source: 'viewer' },
+      'brain /turn: teamId resolved from viewer teamIds',
+    );
+    return { teamId, source: 'viewer' };
+  }
+  logger.info(
+    {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      teamId: PERSONAL_TEAM_SENTINEL,
+      source: 'sentinel',
+    },
+    'brain /turn: no team binding — using PERSONAL_TEAM_SENTINEL',
+  );
+  return { teamId: PERSONAL_TEAM_SENTINEL, source: 'sentinel' };
+}
+
 async function gateTurn(
   c: any,
-  body: { userText?: unknown; threadId?: unknown; forcePersonaId?: unknown },
+  body: { userText?: unknown; threadId?: unknown; forcePersonaId?: unknown; teamId?: unknown },
 ): Promise<{ ok: true; ctx: TurnGateContext } | { ok: false; response: Response }> {
   if (!body?.userText || typeof body.userText !== 'string') {
     return { ok: false, response: c.json({ error: 'userText_required' }, 400) };
+  }
+  if (body.teamId !== undefined && typeof body.teamId !== 'string') {
+    return { ok: false, response: c.json({ error: 'teamId_must_be_string' }, 400) };
   }
   let ctx: TurnGateContext;
   try {
@@ -348,17 +415,22 @@ async function gateTurn(
 
 async function handleTurnJson(
   c: any,
-  body: { userText: string; threadId?: string; forcePersonaId?: string },
+  body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
   try {
     if (!body.threadId) {
+      const { teamId } = resolveTeamId(body.teamId, ctx.viewer.teamIds, {
+        tenantId: ctx.tenant.tenantId,
+        userId: ctx.viewer.userId,
+      });
       const result = await brain.orchestrator.startThread({
         tenant: ctx.tenant,
         actor: ctx.actor,
         viewer: ctx.viewer,
         initialUserText: body.userText,
+        teamId,
         ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
       });
       if (!result.success) return c.json({ error: result.error.message }, 500);
@@ -474,7 +546,7 @@ async function emitStartedTurnFrames(
 
 async function handleTurnSse(
   c: any,
-  body: { userText: string; threadId?: string; forcePersonaId?: string },
+  body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
@@ -520,11 +592,16 @@ async function handleTurnSse(
       | null = null;
     try {
       if (!threadId) {
+        const { teamId } = resolveTeamId(body.teamId, ctx.viewer.teamIds, {
+          tenantId: ctx.tenant.tenantId,
+          userId: ctx.viewer.userId,
+        });
         const startRes = await brain.orchestrator.startThread({
           tenant: ctx.tenant,
           actor: ctx.actor,
           viewer: ctx.viewer,
           initialUserText: body.userText,
+          teamId,
           ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
         });
         if (!startRes.success) {
