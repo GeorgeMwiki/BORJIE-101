@@ -77,6 +77,18 @@ export interface RevisionsPersistence {
     draftId: string,
     revisionNo: number,
   ): Promise<void>;
+  lockRevision(
+    tenantId: string,
+    draftId: string,
+    revisionNo: number,
+    userId: string,
+    reason?: string,
+  ): Promise<DraftRevision>;
+  assertNotLocked(
+    tenantId: string,
+    draftId: string,
+    revisionNo: number,
+  ): Promise<void>;
 }
 
 export function createDrizzleRevisionsPersistence(
@@ -176,6 +188,37 @@ export function createDrizzleRevisionsPersistence(
             eq(documentDrafts.id, draftId),
           ),
         );
+    },
+    async lockRevision(tenantId, draftId, revisionNo, userId, reason) {
+      const rows = await client
+        .update(draftRevisions)
+        .set({
+          lockedAt: new Date(),
+          lockedByUserId: userId,
+          lockReason: reason ?? null,
+        })
+        .where(
+          and(
+            eq(draftRevisions.tenantId, tenantId),
+            eq(draftRevisions.draftId, draftId),
+            eq(draftRevisions.revisionNo, revisionNo),
+          ),
+        )
+        .returning();
+      if (!rows[0]) {
+        throw new Error('revisions-persistence: lock returned no row');
+      }
+      return rows[0] as DraftRevision;
+    },
+    async assertNotLocked(tenantId, draftId, revisionNo) {
+      const rev = await this.getRevision(tenantId, draftId, revisionNo);
+      if (!rev) {
+        throw new Error('revisions-persistence: revision not found');
+      }
+      const locked = rev as unknown as { lockedAt?: unknown };
+      if (locked.lockedAt !== null && locked.lockedAt !== undefined) {
+        throw new Error('LOCKED_REVISION: Cannot mutate a locked revision. Use POST /:id/revert/:no to copy into a new editable revision.');
+      }
     },
   };
 }

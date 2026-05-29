@@ -284,6 +284,65 @@ app.post('/:id/revise', async (c: any) => {
   });
 });
 
+app.post('/:id/revisions/:revNo/lock', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) return c.json({ success: false, error: { code: 'DRAFTER_DB_UNAVAILABLE', message: 'no db' } }, 503);
+  const id = c.req.param('id');
+  const revNo = Number(c.req.param('revNo'));
+  if (!Number.isFinite(revNo) || revNo < 1) {
+    return c.json({ success: false, error: { code: 'BAD_REVISION_NO' } }, 400);
+  }
+  const raw = await c.req.json().catch(() => ({}));
+  const reason = typeof raw.lockReason === 'string' ? raw.lockReason : undefined;
+  const rp = createDrizzleRevisionsPersistence(db);
+  const existing = await rp.getRevision(auth.tenantId, id, revNo);
+  if (!existing) return c.json({ success: false, error: { code: 'NOT_FOUND' } }, 404);
+  const locked = existing as unknown as { lockedAt?: unknown };
+  if (locked.lockedAt !== null && locked.lockedAt !== undefined) {
+    return c.json(
+      { success: false, error: { code: 'ALREADY_LOCKED', message: 'Revision is already locked' } },
+      409,
+    );
+  }
+  const updated = await rp.lockRevision(auth.tenantId, id, revNo, auth.userId, reason);
+  return c.json({
+    success: true,
+    data: {
+      draftId: id,
+      revisionNo: revNo,
+      lockedAt: updated.lockedAt,
+      lockedBy: updated.lockedByUserId,
+      auditHashTail: tailOfHash(updated.auditHash),
+    },
+  });
+});
+
+app.get('/:id/lock-status', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  if (!db) return c.json({ success: false, error: { code: 'DRAFTER_DB_UNAVAILABLE', message: 'no db' } }, 503);
+  const id = c.req.param('id');
+  const rp = createDrizzleRevisionsPersistence(db);
+  const list = await rp.listRevisions(auth.tenantId, id);
+  const latestNo = list.length === 0 ? 0 : Math.max(...list.map((r) => r.revisionNo));
+  if (latestNo === 0) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND' } }, 404);
+  }
+  const latest = list.find((r) => r.revisionNo === latestNo);
+  const locked = latest as unknown as { lockedAt?: unknown; lockedByUserId?: unknown; lockReason?: unknown };
+  return c.json({
+    success: true,
+    data: {
+      currentRevisionNo: latestNo,
+      isLocked: locked.lockedAt !== null && locked.lockedAt !== undefined,
+      lockedAt: locked.lockedAt ?? null,
+      lockedBy: locked.lockedByUserId ?? null,
+      lockReason: locked.lockReason ?? null,
+    },
+  });
+});
+
 app.post('/:id/revert/:revNo', async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');
