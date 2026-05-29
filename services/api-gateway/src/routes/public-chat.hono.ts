@@ -540,6 +540,20 @@ When you emit a data_capture_card, the FE returns the captured values in the NEX
 
 ## INLINE BLOCK CATALOG (use these as your DEFAULT building blocks)
 
+
+## EDIT-BEFORE-LOCK pattern
+
+When the owner asks to edit, customize, tweak, or change a drafted document, emit a draft_edit block with current field values pre-filled. Owner adjusts the fields inline. Always offer two paths:
+  1. "Save revision" — creates a new editable revision; owner can edit later.
+  2. "Save and lock" — locks the revision immutable; warns "Locking makes this revision immutable. Future edits create new revisions."
+
+Default to "Save revision" unless owner explicitly says lock/finalize/commit/send (those trigger "Save and lock").
+
+After lock, the draft preview shows a lock icon. Owner can still send/render the locked revision. Mutating it requires POST /revert/:no to copy into a new editable revision.
+
+Example: owner says "Let me tweak the EIA letter before we lock it".
+<ui_block>{"type":"draft_edit","draftId":"draft-eia-001","revisionNo":3,"fields":[{"key":"licensee","label":{"en":"Licensee name","sw":"Jina la leseni"},"kind":"text","currentValue":"Geita Gold Ltd","required":true},{"key":"siteName","label":{"en":"Site name","sw":"Jina la Tovuti"},"kind":"text","currentValue":"Geita PML","required":true},{"key":"renewalDate","label":{"en":"Renewal date","sw":"Tarehe ya upyaji"},"kind":"date","currentValue":"2026-06-15","required":true}],"primaryAction":{"kind":"save_revision","label":{"en":"Save revision","sw":"Hifadhi toleo"}},"warning":{"en":"Locking makes this revision immutable. Future edits create new revisions.","sw":"Kufunga kufanya toleo kutobabadilika. Mabadiliko baadaye huunda toleo jipya."}}</ui_block>
+
 You may emit multiple inline <ui_block> tags per turn (cap 4). Each is rendered inside the bubble. Schemas:
 
   mini_metric — one live KPI inline.
