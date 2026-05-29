@@ -525,6 +525,77 @@ export const managerShiftDraftTool: PersonaToolDescriptor<
   },
 };
 
+// 10. Assign-worker (WRITE — commercial chain L4)
+//
+// Explicit "assign this task (RFB-fulfilment OR standard) to this worker
+// in this shift" tool. Uses the dedicated /assign-worker endpoint which
+// always appends a `mining.task.assign_worker` audit-chain entry —
+// distinct from the broader managerAssignTaskTool which retargets to
+// /reassign (the prior contract). Both are kept because the LLM may
+// pick the most specific one available; the audit chain reads cleaner
+// when assign_worker is used.
+
+const AssignWorkerInput = z.object({
+  taskId: z.string().min(1),
+  workerId: z.string().min(1),
+  shiftId: z.string().min(1).optional(),
+  noteSw: z.string().max(2000).optional(),
+  noteEn: z.string().max(2000).optional(),
+});
+const AssignWorkerOutput = z.object({
+  taskId: z.string(),
+  workerId: z.string(),
+  status: z.string(),
+  assignedAt: z.string(),
+});
+
+export const managerAssignWorkerTool: PersonaToolDescriptor<
+  typeof AssignWorkerInput,
+  typeof AssignWorkerOutput
+> = {
+  id: 'manager.task.assign_worker',
+  name: 'Manager — assign worker to task (commercial chain L4)',
+  description:
+    'Assign a specific worker to a task (typically an RFB-fulfilment task). ' +
+    'Always emits a `mining.task.assign_worker` audit-chain entry. The task ' +
+    'transitions out of `blocked` if it was blocked; otherwise status stays.',
+  personaSlugs: MANAGER,
+  inputSchema: AssignWorkerInput,
+  outputSchema: AssignWorkerOutput,
+  stakes: 'MEDIUM',
+  isWrite: true,
+  requiresPolicyRuleLiteral: false,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) {
+      return {
+        taskId: input.taskId,
+        workerId: input.workerId,
+        status: 'unavailable',
+        assignedAt: new Date().toISOString(),
+      };
+    }
+    const body: Record<string, unknown> = { workerId: input.workerId };
+    if (input.shiftId !== undefined) body.shiftId = input.shiftId;
+    if (input.noteSw !== undefined) body.noteSw = input.noteSw;
+    if (input.noteEn !== undefined) body.noteEn = input.noteEn;
+    const res = await client.post<{
+      success: boolean;
+      data?: { id?: string; status?: string; assigned_to_user_id?: string };
+    }>(
+      `/mining/tasks/${encodeURIComponent(input.taskId)}/assign-worker`,
+      withChatProvenance(body, ctx),
+    );
+    const row = res.data ?? {};
+    return {
+      taskId: String(row.id ?? input.taskId),
+      workerId: String(row.assigned_to_user_id ?? input.workerId),
+      status: String(row.status ?? 'pending'),
+      assignedAt: new Date().toISOString(),
+    };
+  },
+};
+
 export const MANAGER_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
@@ -537,4 +608,5 @@ export const MANAGER_TOOLS: ReadonlyArray<
   managerDecideApprovalTool,
   managerEscalateTool,
   managerShiftDraftTool,
+  managerAssignWorkerTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

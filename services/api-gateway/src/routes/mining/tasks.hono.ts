@@ -89,6 +89,13 @@ const ReassignSchema = z.object({
   assignedToUserId: z.string().uuid(),
 });
 
+const AssignWorkerSchema = z.object({
+  workerId: z.string().uuid(),
+  shiftId: z.string().uuid().optional().nullable(),
+  noteSw: z.string().max(2000).optional().nullable(),
+  noteEn: z.string().max(2000).optional().nullable(),
+});
+
 // ---------------------------------------------------------------------------
 // Hash-chain helpers
 // ---------------------------------------------------------------------------
@@ -531,6 +538,113 @@ export function createMiningTasksRouter(): Hono {
           reason: message,
         });
         const e = jsonError('TASK_REASSIGN_FAILED', message, 500);
+        return c.json(e.body, e.status);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // POST /:id/assign-worker — manager assigns the task to a worker (L4)
+  // -------------------------------------------------------------------------
+  //
+  // Distinct from /:id/reassign:
+  //   - Always emits an `mining.task.assign_worker` audit-chain entry.
+  //   - Records the shift id (optional) on the provenance jsonb so the
+  //     downstream shift report can join back without a separate column.
+  //   - Status transitions: pending -> in_progress (or stays in_progress).
+  //   - Bilingual notes propagate to the worker hero card via
+  //     description_sw / description_en append.
+  // -------------------------------------------------------------------------
+  app.post(
+    '/:id/assign-worker',
+    requireRole(...MANAGER_ROLES),
+    zValidator('json', AssignWorkerSchema),
+    async (c: any) => {
+      const { tenantId, userId } = c.get('auth') ?? {};
+      if (!tenantId || !userId) {
+        const err = jsonError('UNAUTHORIZED', 'Authentication required', 401);
+        return c.json(err.body, err.status);
+      }
+      const db = c.get('db');
+      if (!db) {
+        const err = jsonError(
+          'TASKS_UNAVAILABLE',
+          'database is not configured on this gateway',
+          503,
+        );
+        return c.json(err.body, err.status);
+      }
+
+      const id = c.req.param('id');
+      if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+        const err = jsonError('INVALID_TASK_ID', 'task id must be a UUID', 400);
+        return c.json(err.body, err.status);
+      }
+
+      const { workerId, shiftId, noteSw, noteEn } = c.req.valid('json');
+      try {
+        const [existing] = await db
+          .select()
+          .from(miningTasks)
+          .where(and(eq(miningTasks.id, id), eq(miningTasks.tenantId, tenantId)))
+          .limit(1);
+        if (!existing) {
+          const err = jsonError('TASK_NOT_FOUND', 'Task not found', 404);
+          return c.json(err.body, err.status);
+        }
+        if (existing.status === 'done' || existing.status === 'cancelled') {
+          const err = jsonError(
+            'TASK_TERMINAL',
+            `Task already in terminal state '${existing.status}'`,
+            409,
+          );
+          return c.json(err.body, err.status);
+        }
+
+        const chainId = await appendAuditEntry(db, {
+          action: 'mining.task.assign_worker',
+          tenantId,
+          turnId: id,
+          userId,
+          details: {
+            taskId: id,
+            workerId,
+            shiftId: shiftId ?? null,
+            previousAssignee: existing.assignedToUserId ?? null,
+            previousStatus: existing.status,
+            noteSw: noteSw ?? null,
+            noteEn: noteEn ?? null,
+          },
+        });
+
+        // The provenance jsonb carries the assign-worker event details so
+        // the worker hero card can render the shift id and notes from a
+        // single row read.
+        const nextStatus =
+          existing.status === 'blocked' ? 'pending' : existing.status;
+        const [row] = await db
+          .update(miningTasks)
+          .set({
+            assignedToUserId: workerId,
+            status: nextStatus,
+            blockedReason:
+              existing.status === 'blocked' ? null : existing.blockedReason,
+            hashChainId: chainId,
+          })
+          .where(and(eq(miningTasks.id, id), eq(miningTasks.tenantId, tenantId)))
+          .returning();
+
+        return c.json({ success: true as const, data: row }, 200);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'assign-worker failed';
+        moduleLogger.error('mining task assign-worker failed', {
+          evt: 'mining_task_assign_worker_failed',
+          tenantId,
+          taskId: id,
+          reason: message,
+        });
+        const e = jsonError('TASK_ASSIGN_WORKER_FAILED', message, 500);
         return c.json(e.body, e.status);
       }
     },

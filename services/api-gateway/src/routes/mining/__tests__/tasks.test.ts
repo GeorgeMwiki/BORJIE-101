@@ -168,13 +168,21 @@ function createStubDb(): StubDb {
       };
     },
     async execute(query: any) {
-      // Capture audit-chain rows: any execute() with an INSERT INTO ai_audit_chain
-      // strings the table name. We assume the route only execute()s for audit
-      // and for the MAX/last_hash lookup.
-      const text =
-        typeof query === 'object' && 'queryChunks' in query
-          ? String(query.queryChunks ?? '')
-          : String(query);
+      // Capture audit-chain rows: any execute() with an INSERT INTO
+      // ai_audit_chain mentions the table name inside one of the SQL
+      // fragments. `queryChunks` is an array of mixed fragments + param
+      // markers — flatten the .value strings to get the rendered SQL.
+      let text = '';
+      if (query && typeof query === 'object' && 'queryChunks' in query) {
+        const chunks = (query as { queryChunks?: ReadonlyArray<unknown> }).queryChunks ?? [];
+        for (const c of chunks) {
+          if (c && typeof c === 'object' && 'value' in c) {
+            text += String((c as { value: unknown }).value ?? '');
+          }
+        }
+      } else {
+        text = String(query);
+      }
       if (text.includes('INSERT INTO ai_audit_chain')) {
         auditRows.push({ ts: new Date(), text });
         return { rows: [] };
@@ -598,5 +606,142 @@ describe('GET /api/v1/mining/tasks — cross-tenant denial', () => {
     const body = (await res.json()) as { success: boolean; data: Row[] };
     expect(body.success).toBe(true);
     expect(body.data.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12) L4 — assign-worker
+// ---------------------------------------------------------------------------
+
+describe('POST /api/v1/mining/tasks/:id/assign-worker — commercial chain L4', () => {
+  it('returns 403 when a non-manager role attempts to assign', async () => {
+    const db = createStubDb();
+    db.store.set('mining_tasks', [
+      {
+        id: VALID_TASK_ID,
+        tenantId: 'tnt-test',
+        titleSw: 'Kazi RFB',
+        status: 'pending',
+        kind: 'rfb_fulfill',
+      },
+    ]);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/assign-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.RESIDENT),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ workerId: VALID_UUID }),
+      },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when workerId is missing', async () => {
+    const db = createStubDb();
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/assign-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.TENANT_ADMIN),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when task does not exist', async () => {
+    const db = createStubDb();
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/assign-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.TENANT_ADMIN),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ workerId: VALID_UUID }),
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it('assigns the worker, transitions out of blocked, and writes audit', async () => {
+    const db = createStubDb();
+    db.store.set('mining_tasks', [
+      {
+        id: VALID_TASK_ID,
+        tenantId: 'tnt-test',
+        titleSw: 'Kazi RFB',
+        status: 'blocked',
+        blockedReason: 'awaiting equipment',
+        kind: 'rfb_fulfill',
+      },
+    ]);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/assign-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.PROPERTY_MANAGER),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workerId: VALID_UUID,
+          shiftId: VALID_UUID_2,
+          noteSw: 'Anza haraka',
+        }),
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { assignedToUserId: string; status: string; blockedReason: null };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.assignedToUserId).toBe(VALID_UUID);
+    expect(body.data.status).toBe('pending');
+    expect(body.data.blockedReason).toBeNull();
+    expect(db.auditRows.length).toBeGreaterThanOrEqual(1);
+    expect(
+      db.auditRows.some((r) =>
+        String(r.text).includes('INSERT INTO ai_audit_chain'),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns 409 when task is already done', async () => {
+    const db = createStubDb();
+    db.store.set('mining_tasks', [
+      {
+        id: VALID_TASK_ID,
+        tenantId: 'tnt-test',
+        titleSw: 'Kazi RFB',
+        status: 'done',
+        kind: 'standard',
+      },
+    ]);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/assign-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.TENANT_ADMIN),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ workerId: VALID_UUID }),
+      },
+    );
+    expect(res.status).toBe(409);
   });
 });
