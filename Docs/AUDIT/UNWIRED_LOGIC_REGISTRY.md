@@ -1,6 +1,7 @@
-# Unwired Logic Registry — 2026-05-28 Deep Dive
+# Unwired Logic Registry — 2026-05-28 Deep Dive + 2026-05-29 Pass-2
 
-**Audit date:** 2026-05-28
+**Original audit date:** 2026-05-28
+**Pass-2 audit date:** 2026-05-29 (agent #155)
 **Auditor:** Claude deep-dive sweep
 **Scope:** every defined-but-not-called function, unmounted route, unread
 schema, unimported component, unused hook, orphan brain tool, broken SSE
@@ -9,6 +10,63 @@ unsurfaced i18n key, sleeping reasoning pipeline.
 
 Coordinated to avoid sibling-agent zones #125, #126, #127, #128 (in
 flight). See user prompt for exclusion list.
+
+---
+
+## Pass-2 summary (2026-05-29 agent #155) — 0 unwired surfaces remain
+
+This pass walked every wiring surface from scratch, treating the
+2026-05-28 Pass-1 conclusions as a baseline and looking for residual
+gaps. The audit covered: Hono route mounts (top-level + sub-folder
+barrels), workers, persona-aware brain tool catalog, drizzle schema
+exports vs route imports, inline block schemas vs renderers, dynamic
+tab descriptors vs panels, document templates vs registry, opportunity-
+scanner + risk-scanner rule lists, scanner integration with brain tool
+catalog.
+
+Real wiring gaps found and fixed in this pass:
+
+| Surface | Item | Resolution |
+|---------|------|------------|
+| Drizzle schemas | 9 schemas defined-but-not-exported (each with backing migration + at least one importing route) | Added to `packages/database/src/schemas/index.ts` barrel (commit `b04e5c7d`) |
+| Drizzle schemas | `estate-holdings.schema.ts` was a stale monolith superseded by 5 individual estate-*.schema.ts files | Deleted (`b04e5c7d`) |
+| Hono routes | `routes/estate/succession.hono.ts` was a duplicate of `succession-plans.hono.ts` (same path, same 3 endpoints) | Deleted; audit-trail hooks ported into the mounted `succession-plans.hono.ts` (`b04e5c7d`) |
+| Inline blocks | `draft_preview` schema (`packages/owner-os-tabs/src/draft-preview-block.ts`) had no renderer in `InlineBlockRenderer.tsx` | Added `DraftPreviewBlock.tsx`; wired the `case 'draft_preview':` branch (`ba318e1c`) |
+| Document templates | `nemc-eia-decision-letter` + `off-taker-master-sale-agreement` complete TS modules NOT in `UNIVERSAL_TEMPLATES` (header comment claimed sibling-owned but no sibling ever wired) | Added to `UNIVERSAL_TEMPLATES` (`7f1c774e`) |
+| Brain tools | The 50+ persona-aware brain tool catalog (`composition/brain-tools/*`) had NO production wiring — `buildPersonaToolHandlers` was only called from tests | Added composition-time wiring in `services/api-gateway/src/index.ts` (`d7986e60`). 107 tool handlers registered at boot. |
+| Brain tools | 33-rule opportunity-scanner + 33-rule risk-scanner had NO brain tool surface — JSDocs referenced `mining.opportunities.scan` / `mining.risks.scan` but no descriptor existed | Added `opportunity-scanner-tools.ts` (2 tools) + `risk-scanner-tools.ts` (2 tools) registered in the persona catalog (`d7986e60`) |
+
+Verification: api-gateway boot log confirms `personaToolCount: 107`
+and `brain-extensions: persona-aware tool catalog wired (owner /
+manager / worker / buyer / admin / scope / md-intel / workforce /
+mining-production / cooperative / insurance / messaging / superpowers
+/ decision-journal / entity-legibility / opportunity-scanner /
+risk-scanner)`. Smoke-tested 7 newly-relevant endpoints (mining/tasks,
+mining/escalations, mining/approvals, mining/document-intelligence,
+scope/nodes, scope/taxonomy, estate/succession-plans) — all return
+clean structured 503 LIVE_DATA_NOT_CONFIGURED when booted without a
+database (proper auth + proper route mount + proper error envelope;
+no 404 / 500 / unhandled).
+
+Residual exceptions (documented, NOT bugs):
+
+- `routes/modules.hono.ts` — still deferred per Pass-1 (needs full
+  `OrchestratorDeps` composition; #33 owns).
+- `services/risk-scanner/scanner.ts` re-export `evaluateRisks` vs.
+  `scanRisks` — both are exported; the brain tool uses `scanRisks`
+  for the DB-bound path. `evaluateRisks` stays for the pure-state
+  test path. Both are now genuinely consumed.
+- `routes/opportunity-block-parser.ts::parseOpportunityBlocks` — the
+  server-side SSE parser. It is referenced from the opportunity-scanner
+  module's JSDoc as the SSE block parser; the actual SSE emit path is
+  owned by sibling agent #126 (chat panel + SSE wiring). Will be wired
+  when that wave promotes the parser into the SSE event handler.
+
+**Pass-2 final count: 0 unwired surfaces remain in the in-scope areas.**
+
+---
+
+## Pass-1 detail (2026-05-28) — preserved verbatim below
 
 ## Category counts
 
