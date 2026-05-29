@@ -119,12 +119,36 @@ export function ConnectedAgentsList() {
   }
 
   if (state.kind === 'loading') {
-    return <p className="text-sm text-neutral-400">Inapakia… (Loading…)</p>;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Inapakia mawakala / Loading agents"
+        className="space-y-3"
+      >
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-16 animate-pulse rounded-md border border-border bg-surface/60"
+          />
+        ))}
+      </div>
+    );
   }
   if (state.kind === 'error') {
     return (
-      <div className="rounded border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-        {state.message}
+      <div
+        role="alert"
+        className="flex flex-col gap-3 rounded border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+      >
+        <span>{state.message}</span>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+        >
+          Jaribu tena / Retry
+        </button>
       </div>
     );
   }

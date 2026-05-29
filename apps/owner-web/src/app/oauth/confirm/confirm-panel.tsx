@@ -213,7 +213,16 @@ export function OAuthConfirmPanel() {
       )}
 
       {phase.kind === 'loading' && (
-        <p className="text-sm text-neutral-400">Inapakia… (Loading…)</p>
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Inapakia maelezo ya wakala / Loading agent details"
+          className="space-y-3"
+        >
+          <div className="h-6 w-2/3 animate-pulse rounded bg-surface-raised" />
+          <div className="h-24 animate-pulse rounded-lg border border-border bg-surface/60" />
+          <div className="h-10 w-1/2 animate-pulse rounded bg-surface-raised" />
+        </div>
       )}
 
       {phase.kind === 'error' && (
