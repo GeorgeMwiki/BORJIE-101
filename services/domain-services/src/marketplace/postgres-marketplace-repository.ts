@@ -146,11 +146,15 @@ export class PostgresMarketplaceListingRepository
     if (query.maxPrice !== undefined)
       clauses.push(lte(listingsCols.headlinePrice as never, query.maxPrice));
 
+    // Mining-domain hard-fork drift: `publishedAt` was removed. Order
+    // by `createdAt` (always present) so the SQL never emits an empty
+    // `order by` clause. Pre-drift property-domain rows continue to
+    // sort by their original create timestamp.
     const base = this.db
       .select()
       .from(marketplaceListings)
       .where(and(...(clauses as never[])))
-      .orderBy(desc(listingsCols.publishedAt as never));
+      .orderBy(desc(marketplaceListings.createdAt));
 
     const limit = query.limit ?? 20;
     const offset = query.offset ?? 0;
