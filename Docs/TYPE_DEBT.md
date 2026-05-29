@@ -3,12 +3,14 @@
 Tracks every active `@ts-nocheck` pragma in the BORJIE monorepo, grouped by
 root cause and the upstream fix needed to retire it.
 
-**Current count**: 11 files (down from 33 after scrub-5a; down from 91 at
-end of Wave-14, 92 at start of Wave-14 hardening). Cluster 1 retired in
+**Current count**: 4 files (down from 11 after scrub-5c on 2026-05-29; from
+33 after scrub-5a; from 91 at end of Wave-14). Cluster 1 retired in
 scrub-5a (2026-05-27); Cluster 1 residuals (middleware + remaining
-routes) retired in scrub-5b (2026-05-29).
-**Target**: ≤ 30 — TARGET MET. Remaining 11 are non-Hono clusters
-(drizzle, port adapters, namespace drift).
+routes) retired in scrub-5b (2026-05-29); Clusters 2/5/6 retired
+in-place in scrub-5c (2026-05-29). Cluster 4 (authz-policy) and the
+two dead Bossnyumba seed files remain — each requires a content
+rewrite rather than a pragma adjustment.
+**Target**: ≤ 30 — TARGET MET (4 ≪ 30).
 
 The upgrade path (Hono 4.6 → 4.12, drizzle 0.36 → 0.37) was evaluated during
 Wave-14 but **not applied** — both upgrades introduce > 1 hour of drift in a
@@ -68,35 +70,44 @@ during a bulk fix sweep; in practice tsc accepts every router today.
 
 ---
 
-## Cluster 2 — drizzle-orm v0.36 pgEnum + audit-column narrowing (15 files)
+## ~~Cluster 2 — drizzle-orm v0.36 pgEnum + audit-column narrowing (15 files)~~ — MOSTLY RETIRED 2026-05-29
 
-**Pragma reason** (verbatim):
-> drizzle-orm v0.36 pgEnum column narrowing: accepts only literal union in
-> `eq()`; repo params arrive as `string`. Tracked: drizzle-team/drizzle-orm#2389
-> (pgEnum string narrowing). Revisit after drizzle 0.37 lands widened overloads.
->
-> drizzle-orm v0.36 audit-column narrowing: downstream apps use stricter
-> `exactOptionalPropertyTypes` that rejects our insert/update shapes. Tracked:
-> drizzle-team/drizzle-orm#2876.
+**Status**: **RETIRED in-place** in scrub-5c (2026-05-29) for every
+repository + the trc-* seeds (4 files). The original Cluster 2
+diagnosis was over-broad — most files type-checked clean once their
+pragma was stripped. Where genuine drift existed
+(`brain-thread.repository.ts`), the `exactOptionalPropertyTypes`
+violation was fixed in-place by replacing `prop: row.col ?? undefined`
+shapes with conditional spreads
+(`...(row.col != null ? { prop: row.col } : {})`), which the strict
+mode accepts directly without a blanket `@ts-nocheck`.
 
-**Upstream issues**:
+The `repository-ts-nocheck-tracking.test.ts` ratchet
+`MAX_NOCHECK_REPOS` was dropped from 1 → 0.
+
+No drizzle upgrade was needed.
+
+**Residual** (2 files): `packages/database/src/seed.ts` and
+`packages/database/src/seeds/demo-org-seed.ts` retain `@ts-nocheck`
+because they import deleted Bossnyumba schemas (`properties`, `units`,
+`customers`, `leases`, `accounts`, `ledgerEntries`,
+`maintenanceRequests`) that no longer exist in the schema barrel. The
+fix is a dead-code rewrite (delete the legacy Bossnyumba sections,
+keep only the geo-hierarchy + tenant/org/users scaffolding) and is
+out of scope for this type-debt sweep. Tracked for a dedicated dead-
+code-removal pass.
+
+**Upstream issues** (historical):
 - [drizzle-team/drizzle-orm#2389](https://github.com/drizzle-team/drizzle-orm/issues/2389)
 - [drizzle-team/drizzle-orm#2876](https://github.com/drizzle-team/drizzle-orm/issues/2876)
 
-**Fix approach**:
-1. Upgrade drizzle-orm + drizzle-kit to 0.37.x in all three packages
-   (`packages/database`, `services/domain-services`, `services/identity`).
-2. Regenerate migrations if schema-dsl output changes
-   (`pnpm drizzle-kit generate:pg`).
-3. For pgEnum columns used in `eq()`: cast string → enum via
-   `as typeof table.columnName.$type` rather than blanket `@ts-nocheck`.
-4. For audit-column insert/update shapes: add explicit `Partial<InsertModel>`
-   helpers in the repository layer.
-
 **Affected files**:
-- `packages/database/src/repositories/*.repository.ts` (13 files)
-- `packages/database/src/seed.ts`
-- `packages/database/src/seeds/demo-org-seed.ts`
+- ~~`packages/database/src/repositories/brain-thread.repository.ts`~~ — clean
+- ~~`packages/database/src/seeds/trc-elastic-config.ts`~~ — clean
+- ~~`packages/database/src/seeds/trc-questionnaire-baseline.ts`~~ — clean
+- ~~`packages/database/src/seeds/trc-test-org-seed.ts`~~ — clean
+- `packages/database/src/seed.ts` — RESIDUAL (dead Bossnyumba code)
+- `packages/database/src/seeds/demo-org-seed.ts` — RESIDUAL (dead Bossnyumba code)
 
 ---
 
@@ -125,9 +136,22 @@ now trips `TS2709: Cannot use namespace 'X' as a type`.
 
 ---
 
-## Cluster 4 — authz-policy schema drift (2 files)
+## Cluster 4 — authz-policy schema drift (2 files) — DEFERRED
 
-**Pragma reason**:
+**Status**: **DEFERRED** — scrub-5c (2026-05-29) confirmed the
+diagnosis: the policy engine carries its own duplicated `Policy` shape
+that has drifted hard from the canonical `packages/domain-models/src/
+identity/policy.ts` (PolicyEffect / AttributeSource exported as enums
+but used as values; `Policy.priority` missing; `PolicyRule.actions` /
+`PolicyRule.resources` renamed; `ResourceAttributes` / `ContextAttributes`
+shapes no longer carry `organizationId` / `timestamp`).
+
+Stripping the pragma surfaces 49 type errors — well beyond a sweep.
+The proper fix is to delete the engine's local shapes and consume the
+domain-models exports directly, which is tracked as BORJIE-43 (separate
+ticket from BORJIE-42 Cluster 3 namespace work).
+
+**Pragma reason** (verbatim):
 > schema drift between domain-models Policy type and authz-policy; tracked
 > for rewrite.
 
@@ -141,19 +165,33 @@ shape. Scheduled after Cluster 3.
 
 ---
 
-## Cluster 5 — service-registry / composition wiring (5 files)
+## ~~Cluster 5 — service-registry / composition wiring (5 files)~~ — RETIRED 2026-05-29
 
-**Pragma reason**: combinations of clusters 1, 2, 3 — plus `DatabaseClient`
-being exported as namespace vs type.
+**Status**: **RETIRED** in scrub-5c (2026-05-29). The 3 composition
+files that retained pragmas
+(`approval-request-repository.ts`, `multi-llm-brain-adapter.ts`,
+`user-context-data-port-adapter.ts`) type-check cleanly with the
+pragma removed — the prophylactic shielding was unnecessary. The
+other 2 surfaces (`service-registry.ts`, `background-wiring.ts`,
+`classroom-wiring.ts`, `mcp-wiring.ts`, `cost-ledger-repository.ts`)
+had already been cleaned in earlier sweeps and no longer carry
+pragmas.
 
-**Affected files**:
-- `services/api-gateway/src/composition/{service-registry,background-wiring,classroom-wiring,mcp-wiring,cost-ledger-repository}.ts`
-
-These unblock automatically once clusters 1–3 are fixed.
+**Affected files** (HISTORICAL — all clean now):
+- ~~`services/api-gateway/src/composition/approval-request-repository.ts`~~
+- ~~`services/api-gateway/src/composition/multi-llm-brain-adapter.ts`~~
+- ~~`services/api-gateway/src/composition/user-context-data-port-adapter.ts`~~
 
 ---
 
-## Cluster 6 — domain-services miscellaneous (27 files)
+## ~~Cluster 6 — domain-services miscellaneous (27 files)~~ — RETIRED 2026-05-29
+
+**Status**: **RETIRED** in scrub-5c (2026-05-29). The two
+api-gateway middleware files
+(`ambient-brain.middleware.ts`, `database.ts`) that retained pragmas
+type-check cleanly once the head comments are removed. The 27
+domain-services files originally listed had already been cleaned in
+earlier sweeps (Wave-14, scrub-5a/5b) and no longer carry pragmas.
 
 Various intersections of Clusters 2 + 3. Each has a specific comment at file
 head citing the exact drift point (WorkOrder namespace, TenantId brand,
@@ -272,6 +310,47 @@ with zero `@ts-nocheck` pragmas in the Hono surface.
 Net reduction: 33 → 11 (Cluster 1 fully retired — the remaining 11 are
 Clusters 3 + 4 + 5 + 6 from drizzle / namespace / port-adapter drift).
 
+## What was cleaned in scrub-5c (2026-05-29)
+
+Closed Clusters 2, 5, and 6 — 10 files across the database / composition /
+middleware surfaces:
+
+1. **Cluster 2 — drizzle pgEnum / audit-column (4 of 6 files):**
+   - `brain-thread.repository.ts`: replaced `prop: row.col ?? undefined`
+     shapes with conditional spreads
+     (`...(row.col != null ? { prop: row.col } : {})`) so the
+     `exactOptionalPropertyTypes` compiler accepts the result without a
+     blanket pragma. Repo ratchet (`MAX_NOCHECK_REPOS`) dropped 1 → 0.
+   - `trc-elastic-config.ts`, `trc-questionnaire-baseline.ts`,
+     `trc-test-org-seed.ts`: pragmas were prophylactic — the files
+     type-check clean once the head comment is stripped.
+
+2. **Cluster 5 — composition wiring (3 files):**
+   - `approval-request-repository.ts`, `multi-llm-brain-adapter.ts`,
+     `user-context-data-port-adapter.ts`: all three were prophylactic
+     and dropped cleanly.
+
+3. **Cluster 6 — middleware misc (2 files):**
+   - `ambient-brain.middleware.ts`, `database.ts`: prophylactic, dropped.
+
+**Residuals (2 files):**
+- `packages/database/src/seed.ts` and
+  `packages/database/src/seeds/demo-org-seed.ts` import deleted
+  Bossnyumba schemas (`properties`, `units`, `customers`, `leases`,
+  `accounts`, `ledgerEntries`, `maintenanceRequests`). These are
+  not type-fixable via a pragma swap — they need a dead-code rewrite
+  to delete the legacy Bossnyumba sections. Tracked for a dedicated
+  pass.
+- `packages/authz-policy/src/engine/{authorization-service,policy-evaluator}.ts`
+  (Cluster 4): stripping the pragma surfaces 49 type errors —
+  the engine carries its own duplicated `Policy` shape that has
+  drifted hard from `packages/domain-models/src/identity/policy.ts`.
+  Proper fix is to delete the engine's local shapes and consume the
+  domain-models exports directly. Tracked as BORJIE-43.
+
+Net reduction: 11 → 4 (Clusters 2/5/6 retired except for the dead
+Bossnyumba seeds + the authz-policy engine rewrite).
+
 ---
 
 ## Retirement plan
@@ -281,15 +360,15 @@ Clusters 3 + 4 + 5 + 6 from drizzle / namespace / port-adapter drift).
 | 14 (done) | Augmentation + stray cleanup | -1 |
 | **scrub-5a (DONE 2026-05-27)** | **Cluster 1: api-gateway routes/ retirement** | **-58 (delivered)** |
 | **scrub-5b (DONE 2026-05-29)** | **Cluster 1: middleware/ + residual routes** | **-22 (delivered)** |
-| 15 (planned) | drizzle 0.37 upgrade + enum/audit column fixes | -15 |
-| 16 (planned) | BORJIE-42: domain-models namespace→type refactor | -13 |
-| 16 (planned) | authz-policy Policy-type unification | -2 |
-| 17 (planned) | service-registry + composition retype | -5 |
-| 17 (planned) | domain-services residuals | -27 |
+| **scrub-5c (DONE 2026-05-29)** | **Clusters 2/5/6: drizzle + composition + middleware** | **-7 (delivered)** |
+| Next wave (planned) | BORJIE-43: authz-policy `Policy` shape unification | -2 |
+| Next wave (planned) | Dead-code-removal of Bossnyumba seed bodies | -2 |
 
-Current count (post-scrub-5b): **11 monorepo-wide**. ≤ 30 target met
-(11 ≪ 30). Remaining 11 are non-Hono — drizzle 0.36 ↔ 0.37, namespace
-vs type drift, port adapter shape drift, pagination shape drift.
+Current count (post-scrub-5c): **4 monorepo-wide**. ≤ 30 target met
+(4 ≪ 30). The 4 residuals split into two work packages: (a) authz-
+policy engine rewrite to consume canonical `domain-models` shapes, and
+(b) dead-code removal of the legacy Bossnyumba seed bodies in
+`seed.ts` / `demo-org-seed.ts`.
 
 ---
 
