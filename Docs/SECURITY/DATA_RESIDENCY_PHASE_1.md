@@ -221,3 +221,64 @@ it when Phase 1 deliverables (§2.2) are all complete. Without the
 sign-off the first commercial tenant cannot go live.
 
 End of Phase-1 residency posture doc.
+
+---
+
+## 8. World-scale multi-region addendum (issue #207 — WS-6)
+
+**Added:** 2026-05-29.
+**Status:** PLANNING — design landed, infrastructure work tracks
+under Phase 2 (af-south-1 primary) and Phase 4 (multi-region).
+
+Borjie is global from day one (issue #207). Tanzania is the GTM
+beachhead, NOT a hardcode. The Phase 2 af-south-1 primary stays the
+default for any tenant whose `country_code` resolves to a TZ-set /
+KE-set / UG-set / NG-set jurisdiction. Tenants in jurisdictions
+outside East / Southern Africa get their own region per the table
+below:
+
+| Regulator set | Country examples | Supabase region target | Rationale |
+| ------------- | ---------------- | ---------------------- | --------- |
+| TZ-set        | TZ               | `af-south-1` (Cape Town)| PCCB/PDPA EAC preference |
+| KE-set        | KE               | `af-south-1`            | KE DPA — same AU region pool |
+| UG-set        | UG               | `af-south-1`            | EAC alignment |
+| NG-set        | NG               | `af-south-1` (fallback to `eu-west-2` for performance) | NDPR §41 |
+| ZA-set        | ZA               | `af-south-1`            | POPIA §72 (transfers) |
+| AU-set        | AU               | `ap-southeast-2` (Sydney) | Privacy Act 1988 — APP 8.1 |
+| CL-set        | CL               | `sa-east-1` (São Paulo) | Ley 19.628 Art. 4 cross-border |
+| ID-set        | ID               | `ap-southeast-3` (Jakarta) | PDP Law 27/2022 Art. 56 |
+| generic       | other            | `eu-west-1` (Dublin)    | GDPR Article 45 default |
+
+### 8.1 — Routing
+Tenant rows already carry `tenants.region` (default `af-south-1` via
+migration 0158). The tenant-config service (added under issue #207)
+extends this with `tenants.country_code` so the routing layer can
+read `(region, country_code, regulator_set)` to pick the right
+Supabase project + KMS key.
+
+At signup, the wizard:
+1. Resolves the operator's country from the form input.
+2. Looks up `JURISDICTION_DEFAULTS` (services/api-gateway/src/
+   services/tenant-config/jurisdictions.ts) for the jurisdiction's
+   currency / language / timezone / regulator-set / mineral-allowlist.
+3. Picks the Supabase region from the table above.
+4. Writes the tenant row in the regional project; ALL subsequent
+   writes (audit chain, ledger, cockpit events) stay in-region.
+
+Cross-region SELECTs are blocked by app-side composition guards
+inherited from Phase 2 (api-gateway middleware short-circuits when
+`tenant.region != BORJIE_DB_REGION_BIND`).
+
+### 8.2 — Cross-region DSR / regulator path
+Data Subject Requests originating from a non-TZ regulator (NESREA,
+DMRE, SERNAGEOMIN, ESDM, etc.) MUST hit the regional Supabase
+project, not the TZ primary. The `regulator_jurisdictions.dsr_endpoint`
+column (migration 0143) holds the per-authority callback so the DSR
+worker dispatches in-region.
+
+### 8.3 — Timeline
+Multi-region rollout is gated behind Phase 2 (af-south-1 primary) —
+af-south-1 ships first (Q3 2026), then sa-east-1 + ap-southeast-2
++ ap-southeast-3 roll out per onboarding demand (Q4 2026 → Q1 2027).
+
+End of multi-region addendum.
