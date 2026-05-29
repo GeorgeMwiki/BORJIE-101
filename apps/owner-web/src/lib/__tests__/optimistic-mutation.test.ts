@@ -14,6 +14,16 @@ interface AssignBody {
   readonly assigneeId: string;
 }
 
+// TanStack v5 added a second `context: MutationFunctionContext`
+// argument to onMutate / onError / onSettled. Tests only exercise
+// the cache-mutation behaviour so we pass a minimal stub that
+// satisfies the signature without depending on any private fields.
+const fakeContext = {
+  signal: new AbortController().signal,
+  client: undefined,
+  meta: undefined,
+} as unknown as Parameters<NonNullable<ReturnType<typeof buildOptimisticMutation<Task[], AssignBody>>['onMutate']>>[1];
+
 describe('lib/optimistic-mutation', () => {
   let queryClient: QueryClient;
 
@@ -40,7 +50,7 @@ describe('lib/optimistic-mutation', () => {
         ),
     });
 
-    await options.onMutate?.({ taskId: 't1', assigneeId: 'u-99' });
+    await options.onMutate?.({ taskId: 't1', assigneeId: 'u-99' }, fakeContext);
 
     const cached = queryClient.getQueryData<Task[]>(['tasks']);
     expect(cached?.[0]?.assigneeId).toBe('u-99');
@@ -63,10 +73,10 @@ describe('lib/optimistic-mutation', () => {
         ),
     });
 
-    const context = await options.onMutate?.({
-      taskId: 't1',
-      assigneeId: 'u-99',
-    });
+    const context = await options.onMutate?.(
+      { taskId: 't1', assigneeId: 'u-99' },
+      fakeContext,
+    );
 
     // Sanity — optimistic update lands first.
     expect(queryClient.getQueryData<Task[]>(['tasks'])?.[0]?.assigneeId).toBe(
@@ -74,7 +84,12 @@ describe('lib/optimistic-mutation', () => {
     );
 
     // Simulate server reject — onError should rollback.
-    options.onError?.(new Error('boom'), { taskId: 't1', assigneeId: 'u-99' }, context);
+    options.onError?.(
+      new Error('boom'),
+      { taskId: 't1', assigneeId: 'u-99' },
+      context,
+      fakeContext,
+    );
 
     const after = queryClient.getQueryData<Task[]>(['tasks']);
     expect(after?.[0]?.assigneeId).toBe('original');
@@ -95,12 +110,12 @@ describe('lib/optimistic-mutation', () => {
       applyOptimistic: (prev) => prev?.map((t) => ({ ...t, value: 2 })),
     });
 
-    const context = await options.onMutate?.({ id: 't1' });
+    const context = await options.onMutate?.({ id: 't1' }, fakeContext);
     expect(queryClient.getQueryData<Array<{ value: number }>>(['tasks', 'mine'])?.[0]?.value).toBe(
       2,
     );
 
-    options.onError?.(new Error('x'), { id: 't1' }, context);
+    options.onError?.(new Error('x'), { id: 't1' }, context, fakeContext);
     expect(queryClient.getQueryData<Array<{ value: number }>>(['tasks', 'mine'])?.[0]?.value).toBe(
       1,
     );
@@ -116,10 +131,10 @@ describe('lib/optimistic-mutation', () => {
       mutationFn: async () => [],
       applyOptimistic: (prev) => prev, // pass-through
     });
-    const ctx = await options.onMutate?.({
-      taskId: 't1',
-      assigneeId: 'u-99',
-    });
+    const ctx = await options.onMutate?.(
+      { taskId: 't1', assigneeId: 'u-99' },
+      fakeContext,
+    );
     expect(ctx?.previous).toBeUndefined();
   });
 });
