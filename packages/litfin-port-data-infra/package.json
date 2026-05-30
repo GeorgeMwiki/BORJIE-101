@@ -1,0 +1,49 @@
+{
+  "name": "@borjie/litfin-port-data-infra",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "LITFIN-ported data + infra primitives: tenant-guard (AsyncLocalStorage context + Redis/S3 prefixing + Pino log scrubber + audit-chain continuity), append-only event store (in-memory + Postgres) with optimistic concurrency, mining-domain event types (loan -> mining-shift / production / payout / royalty), error codes, community-kernel namespace shells. Verbatim port discipline, brand swapped LitFin -> Borjie. Layered alongside native @borjie/tenant-isolation-guard / @borjie/workflow-engine / payments-ledger service; does NOT replace them.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./tenant-guard": {
+      "types": "./dist/tenant-guard/index.d.ts",
+      "import": "./dist/tenant-guard/index.js",
+      "default": "./dist/tenant-guard/index.js"
+    },
+    "./ledger": {
+      "types": "./dist/ledger/index.d.ts",
+      "import": "./dist/ledger/index.js",
+      "default": "./dist/ledger/index.js"
+    },
+    "./community-kernel": {
+      "types": "./dist/community-kernel/index.d.ts",
+      "import": "./dist/community-kernel/index.js",
+      "default": "./dist/community-kernel/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js",
+      "default": "./dist/errors/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

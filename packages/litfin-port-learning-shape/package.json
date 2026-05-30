@@ -1,0 +1,59 @@
+{
+  "name": "@borjie/litfin-port-learning-shape",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "LITFIN-shape learning primitives ported to Borjie's mining domain: adaptive-learning curve (skill -> mastery progression), micro-learning tiles, outcome-as-a-service / outcomes pricing, funnel intelligence, feedback collection, proactive engagement nudges. Pure-function ergonomics, deterministic. Layered alongside Borjie's native @borjie/meta-learning-conductor / @borjie/outcomes / @borjie/proactive-intel — does not replace them.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./adaptive": {
+      "types": "./dist/adaptive/index.d.ts",
+      "import": "./dist/adaptive/index.js",
+      "default": "./dist/adaptive/index.js"
+    },
+    "./micro-learning": {
+      "types": "./dist/micro-learning/index.d.ts",
+      "import": "./dist/micro-learning/index.js",
+      "default": "./dist/micro-learning/index.js"
+    },
+    "./outcomes": {
+      "types": "./dist/outcomes/index.d.ts",
+      "import": "./dist/outcomes/index.js",
+      "default": "./dist/outcomes/index.js"
+    },
+    "./funnel": {
+      "types": "./dist/funnel/index.d.ts",
+      "import": "./dist/funnel/index.js",
+      "default": "./dist/funnel/index.js"
+    },
+    "./feedback": {
+      "types": "./dist/feedback/index.d.ts",
+      "import": "./dist/feedback/index.js",
+      "default": "./dist/feedback/index.js"
+    },
+    "./proactive": {
+      "types": "./dist/proactive/index.d.ts",
+      "import": "./dist/proactive/index.js",
+      "default": "./dist/proactive/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}
