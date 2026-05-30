@@ -1,54 +1,77 @@
 /**
- * Seed sections for the J1 entity types.
+ * Seed sections — mining-domain (Borjie hard-fork).
  *
- * Nine sections cover the J1 spec:
- *   - employees · customers · properties · leads · deals
- *   - kra-filings · campaigns · recommendations · internal-staff
+ * The original BossNyumba-fork seed shipped property-management /
+ * CRM entity types (employees · customers · properties · leads ·
+ * deals · kra-filings · campaigns · recommendations · internal-staff)
+ * which are wrong for Borjie. This rewrite replaces them with the
+ * eight mining-domain section descriptors that match the actual
+ * owner-cockpit and admin-web surfaces.
  *
- * Visibility rules (the heart of "tabs appear when data exists"):
- *   - All non-staff sections gate behind `has-entities` of their own
- *     entity_type. A first-day tenant sees zero tabs. The moment
- *     the MD's chat-driven kernel creates the first property /
- *     campaign / recommendation, the corresponding tab materialises.
- *   - `internal-staff` ALSO requires the viewer to hold a platform-
- *     ops role — wrapped in an `and` predicate.
- *   - Sections that should always be available to platform staff for
- *     "even an empty tenant" diagnostic visibility are exposed via
- *     an `or` of `has-entities` and `role-allowed: platform_ops`.
- *     This lets internal admins navigate to tabs that would
- *     otherwise be hidden — useful for support triage.
+ * The eight mining sections:
+ *   - pml-licences           — Primary Mining Licence registrations
+ *   - royalty-drafts         — Royalty filing drafts (TMAA / GePG)
+ *   - active-shifts          — Real-time crew shifts in progress
+ *   - ore-parcels            — Ore parcels in inventory
+ *   - nemc-filings           — National Env Mgmt Council filings
+ *   - geology-logs           — Drill / blast / sample log entries
+ *   - compliance-deadlines   — Statutory deadlines ≤ 30 days away
+ *   - cooperative-membership — Co-operative membership module
  *
- * Scopes:
- *   - `owner-customer` portals see the MD-facing sections (the eight
- *     that matter to the tenant).
- *   - `internal-admin` sees all nine PLUS the support-override
- *     visibility on the customer sections.
+ * Visibility rules (`tabs appear when data exists`):
+ *   - Every section gates on a `has-entities` of its own entity_type
+ *     so a first-day tenant sees zero tabs. The instant the kernel
+ *     creates the first record (PML certified, shift opened, ore
+ *     parcel weighed, etc.) the corresponding tab materialises.
+ *
+ *   - For sections that should appear during a regulator-driven
+ *     WINDOW even before data lands (royalty-drafts, nemc-filings)
+ *     we OR the `has-entities` predicate with a `feature-flag` the
+ *     host portal flips ON during the open window:
+ *
+ *       royalty-window-open   — 15 March to 30 April (TMAA window)
+ *       nemc-window-open      — when a NEMC filing reminder is live
+ *
+ *     The portal owns the window calculation (calendar concerns
+ *     live in the gateway / regulatory-calendar service) — this
+ *     package stays library-only.
+ *
+ *   - geology-logs requires viewer permissions (a worker who lacks
+ *     drill-log access must never see the tab). Wrapped in an `and`
+ *     with `role-allowed`.
+ *
+ *   - compliance-deadlines uses a virtual entity_type
+ *     `compliance-deadlines-30d` whose count is populated by the
+ *     host's regulatory-calendar query (the host materialises only
+ *     deadlines within 30 days; the predicate then becomes a simple
+ *     `has-entities`).
+ *
+ *   - cooperative-membership is gated entirely by the
+ *     `cooperative-member` feature flag the platform sets when the
+ *     org joins a co-operative. It is also restricted to the
+ *     `owner-customer` scope (admins do not see this surface).
+ *
+ *   - admin-web (`internal-admin` scope) gets every section's
+ *     customer-side rule OR `role-allowed: platform_ops` so internal
+ *     support operators can navigate to a tab for triage even when
+ *     the tenant is empty.
  */
 
 import type { Section } from '../contracts/section.js';
-
-// "KRA Filings" is a Kenya-specific tax-authority surface (Kenya Revenue
-// Authority — a proper noun). The seed exports this label as the default
-// for the section registry; consumer apps that have i18n wired up are
-// expected to translate the displayed label at render time using their
-// own message catalogue. The seed itself stays English so the
-// dynamic-sections package remains library-only (no i18n dependency).
-const KRA_FILINGS_LABEL = 'KRA Filings';
 import {
-  EmployeesSection,
-  CustomersSection,
-  PropertiesSection,
-  LeadsSection,
-  DealsSection,
-  KraFilingsSection,
-  CampaignsSection,
-  RecommendationsSection,
-  InternalStaffSection,
+  PmlLicencesSection,
+  RoyaltyDraftsSection,
+  ActiveShiftsSection,
+  OreParcelsSection,
+  NemcFilingsSection,
+  GeologyLogsSection,
+  ComplianceDeadlinesSection,
+  CooperativeMembershipSection,
 } from './section-components.js';
 
 /**
  * Build a predicate that's true when EITHER the tenant has entities
- * of the given type OR the viewer is a platform support operator.
+ * of the given type OR the viewer is a Borjie platform operator.
  * Captures the "internal admins can navigate to empty tabs for
  * triage" rule once instead of duplicating the OR everywhere.
  */
@@ -64,104 +87,132 @@ function customerSectionPredicate(entityType: string) {
 
 export const seedSections: readonly Section[] = [
   {
-    key: 'employees',
-    label: 'Employees',
-    icon: 'users',
-    entity_type: 'employees',
+    key: 'pml-licences',
+    label: 'PML Licences',
+    icon: 'badge-check',
+    entity_type: 'pml-licences',
     sort_order: 10,
-    visibility_predicate: customerSectionPredicate('employees'),
+    visibility_predicate: customerSectionPredicate('pml-licences'),
     component_loader: () =>
-      Promise.resolve({ default: EmployeesSection }),
+      Promise.resolve({ default: PmlLicencesSection }),
   },
   {
-    key: 'customers',
-    label: 'Customers',
-    icon: 'user-round',
-    entity_type: 'customers',
+    key: 'royalty-drafts',
+    label: 'Royalty Drafts',
+    icon: 'file-edit',
+    entity_type: 'royalty-drafts',
     sort_order: 20,
-    visibility_predicate: customerSectionPredicate('customers'),
-    component_loader: () =>
-      Promise.resolve({ default: CustomersSection }),
-  },
-  {
-    key: 'properties',
-    label: 'Properties',
-    icon: 'building-2',
-    entity_type: 'properties',
-    sort_order: 30,
-    visibility_predicate: customerSectionPredicate('properties'),
-    component_loader: () =>
-      Promise.resolve({ default: PropertiesSection }),
-  },
-  {
-    key: 'leads',
-    label: 'Leads',
-    icon: 'target',
-    entity_type: 'leads',
-    sort_order: 40,
-    visibility_predicate: customerSectionPredicate('leads'),
-    component_loader: () =>
-      Promise.resolve({ default: LeadsSection }),
-  },
-  {
-    key: 'deals',
-    label: 'Deals',
-    icon: 'handshake',
-    entity_type: 'deals',
-    sort_order: 50,
-    visibility_predicate: customerSectionPredicate('deals'),
-    component_loader: () =>
-      Promise.resolve({ default: DealsSection }),
-  },
-  {
-    key: 'kra-filings',
-    label: KRA_FILINGS_LABEL,
-    icon: 'file-text',
-    entity_type: 'kra-filings',
-    sort_order: 60,
-    visibility_predicate: customerSectionPredicate('kra-filings'),
-    component_loader: () =>
-      Promise.resolve({ default: KraFilingsSection }),
-  },
-  {
-    key: 'campaigns',
-    label: 'Campaigns',
-    icon: 'megaphone',
-    entity_type: 'campaigns',
-    sort_order: 70,
-    visibility_predicate: customerSectionPredicate('campaigns'),
-    component_loader: () =>
-      Promise.resolve({ default: CampaignsSection }),
-  },
-  {
-    key: 'recommendations',
-    label: 'Recommendations',
-    icon: 'sparkles',
-    entity_type: 'recommendations',
-    sort_order: 80,
-    visibility_predicate: customerSectionPredicate('recommendations'),
-    component_loader: () =>
-      Promise.resolve({ default: RecommendationsSection }),
-  },
-  {
-    key: 'internal-staff',
-    label: 'Internal Staff',
-    icon: 'shield',
-    entity_type: 'internal-staff',
-    sort_order: 90,
-    scopes: ['internal-admin'],
-    // Internal staff: visible only to internal-admin scope, and only when
-    // the viewer holds the platform_ops role. Belt-and-braces in case the
-    // section ever leaks into another scope by configuration error.
+    // Royalty filing window (15 March to 30 April) — visible whenever
+    // the regulator-driven window flag is on OR the tenant already
+    // has a draft, OR the viewer is a platform operator.
     visibility_predicate: {
-      kind: 'and',
+      kind: 'or',
       preds: [
-        { kind: 'has-entities', entity_type: 'internal-staff' },
-        { kind: 'role-allowed', roles: ['platform_ops', 'platform_admin'] },
+        { kind: 'has-entities', entity_type: 'royalty-drafts' },
+        { kind: 'feature-flag', flag: 'royalty-window-open' },
+        { kind: 'role-allowed', roles: ['platform_ops'] },
       ],
     },
     component_loader: () =>
-      Promise.resolve({ default: InternalStaffSection }),
+      Promise.resolve({ default: RoyaltyDraftsSection }),
+  },
+  {
+    key: 'active-shifts',
+    label: 'Active Shifts',
+    icon: 'play-circle',
+    entity_type: 'active-shifts',
+    sort_order: 30,
+    visibility_predicate: customerSectionPredicate('active-shifts'),
+    component_loader: () =>
+      Promise.resolve({ default: ActiveShiftsSection }),
+  },
+  {
+    key: 'ore-parcels',
+    label: 'Ore Parcels',
+    icon: 'package',
+    entity_type: 'ore-parcels',
+    sort_order: 40,
+    visibility_predicate: customerSectionPredicate('ore-parcels'),
+    component_loader: () =>
+      Promise.resolve({ default: OreParcelsSection }),
+  },
+  {
+    key: 'nemc-filings',
+    label: 'NEMC Filings',
+    icon: 'leaf',
+    entity_type: 'nemc-filings',
+    sort_order: 50,
+    // NEMC filings — visible during an open environmental filing
+    // window OR when filings already exist OR for platform operators.
+    visibility_predicate: {
+      kind: 'or',
+      preds: [
+        { kind: 'has-entities', entity_type: 'nemc-filings' },
+        { kind: 'feature-flag', flag: 'nemc-window-open' },
+        { kind: 'role-allowed', roles: ['platform_ops'] },
+      ],
+    },
+    component_loader: () =>
+      Promise.resolve({ default: NemcFilingsSection }),
+  },
+  {
+    key: 'geology-logs',
+    label: 'Geology Logs',
+    icon: 'compass',
+    entity_type: 'geology-logs',
+    sort_order: 60,
+    // Geology logs — viewer must hold a drill-log-capable role AND
+    // logs must exist (or the viewer is a platform operator triaging
+    // a tenant). The `role-allowed` enforcement protects against a
+    // labourer-tier worker seeing the tab.
+    visibility_predicate: {
+      kind: 'or',
+      preds: [
+        {
+          kind: 'and',
+          preds: [
+            { kind: 'has-entities', entity_type: 'geology-logs' },
+            {
+              kind: 'role-allowed',
+              roles: ['geologist', 'mine_manager', 'owner', 'platform_ops'],
+            },
+          ],
+        },
+        { kind: 'role-allowed', roles: ['platform_ops'] },
+      ],
+    },
+    component_loader: () =>
+      Promise.resolve({ default: GeologyLogsSection }),
+  },
+  {
+    key: 'compliance-deadlines',
+    label: 'Compliance Deadlines',
+    icon: 'alarm-clock',
+    // Virtual entity-type: the host materialises only deadlines
+    // within 30 days of now and publishes that count. The predicate
+    // therefore stays a simple `has-entities`.
+    entity_type: 'compliance-deadlines-30d',
+    sort_order: 70,
+    visibility_predicate: customerSectionPredicate('compliance-deadlines-30d'),
+    component_loader: () =>
+      Promise.resolve({ default: ComplianceDeadlinesSection }),
+  },
+  {
+    key: 'cooperative-membership',
+    label: 'Cooperative Membership',
+    icon: 'users',
+    entity_type: 'cooperative-membership',
+    sort_order: 80,
+    // Co-operative module is owner-side only and is fully gated by
+    // the platform-managed `cooperative-member` feature flag — set
+    // ON when the org formally joins a registered cooperative.
+    scopes: ['owner-customer'],
+    visibility_predicate: {
+      kind: 'feature-flag',
+      flag: 'cooperative-member',
+    },
+    component_loader: () =>
+      Promise.resolve({ default: CooperativeMembershipSection }),
   },
 ];
 

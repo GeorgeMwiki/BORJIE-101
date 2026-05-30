@@ -1,19 +1,19 @@
 /**
- * Seed section components for the J1 entity types.
+ * Seed section components for the eight Borjie mining-domain entity
+ * types.
  *
  * Each component is a thin stub that:
  *   1. Renders a placeholder ag-ui-shaped surface (so the visual
  *      regression baseline for the host portals is already accurate).
  *   2. Declares the data slice it would fetch in production —
- *      annotated for the backlog so CL-B1's portal wiring follow-up has a
+ *      annotated for the backlog so the portal wiring follow-up has a
  *      clear hook point.
  *
  * Why stubs: this package ships the FRAMEWORK. The portal-side
- * wiring (real data, real navigation) happens in a follow-up after
- * CL-B1's round-3 closure on owner-portal + admin-web
- * lands. The stubs are the contract — same prop shape, same data-
- * testid surface — so the wiring PR can drop in real implementations
- * without churn.
+ * wiring (real data, real navigation) lives in the host apps
+ * (`apps/owner-web/`, `apps/admin-web/`). The stubs are the contract
+ * — same prop shape, same data-testid surface — so a wiring change
+ * can drop in real implementations without churn.
  */
 
 import type { ReactElement } from 'react';
@@ -59,108 +59,106 @@ function SectionStub({
   );
 }
 
-export function EmployeesSection(props: SectionComponentProps): ReactElement {
+export function PmlLicencesSection(
+  props: SectionComponentProps,
+): ReactElement {
   return (
     <SectionStub
       {...props}
-      title="Employees"
-      description="Roster of internal HR records — driven by the kra-resident workforce graph."
+      title="PML Licences"
+      description="Primary Mining Licence registrations issued under the Mining Act 2010 — status, expiry, royalty obligations."
       genUiPartKind="data-table"
     />
   );
 }
 
-export function CustomersSection(props: SectionComponentProps): ReactElement {
+export function RoyaltyDraftsSection(
+  props: SectionComponentProps,
+): ReactElement {
   return (
     <SectionStub
       {...props}
-      title="Customers"
-      description="Tenants, occupants, and individual lessees the MD has onboarded."
-      genUiPartKind="data-table"
-    />
-  );
-}
-
-export function PropertiesSection(props: SectionComponentProps): ReactElement {
-  return (
-    <SectionStub
-      {...props}
-      title="Properties"
-      description="Units, buildings, and the spatial graph the property-management stack operates on."
-      genUiPartKind="map"
-    />
-  );
-}
-
-export function LeadsSection(props: SectionComponentProps): ReactElement {
-  return (
-    <SectionStub
-      {...props}
-      title="Leads"
-      description="Prospective tenants in the top-of-funnel pipeline."
+      title="Royalty Drafts"
+      description="Royalty filing drafts queued for TMAA / GePG submission. Active during the 15-Mar to 30-Apr filing window."
       genUiPartKind="kanban"
     />
   );
 }
 
-export function DealsSection(props: SectionComponentProps): ReactElement {
+export function ActiveShiftsSection(
+  props: SectionComponentProps,
+): ReactElement {
   return (
     <SectionStub
       {...props}
-      title="Deals"
-      description="Active negotiations + active leasing pipelines."
-      genUiPartKind="kanban"
-    />
-  );
-}
-
-// "KRA Filings" is a Kenya-specific tax-authority surface (Kenya Revenue
-// Authority). The literal is the canonical name of the regulator and
-// only renders when the consumer does NOT pass `localisedTitle` — and
-// in that situation it is correct to render the English name (it is a
-// proper noun, like "IRS" in the US).
-const KRA_FILINGS_DEFAULT_TITLE = 'KRA Filings';
-
-export function KraFilingsSection(props: SectionComponentProps): ReactElement {
-  return (
-    <SectionStub
-      {...props}
-      title={KRA_FILINGS_DEFAULT_TITLE}
-      description="Statutory filings + their submission status to the tax authority."
-      genUiPartKind="timeline"
-    />
-  );
-}
-
-export function CampaignsSection(props: SectionComponentProps): ReactElement {
-  return (
-    <SectionStub
-      {...props}
-      title="Campaigns"
-      description="Marketing-brain outreach campaigns + open conversion funnels."
+      title="Active Shifts"
+      description="Real-time crew shifts in progress across every active mining site."
       genUiPartKind="dashboard-grid"
     />
   );
 }
 
-export function RecommendationsSection(props: SectionComponentProps): ReactElement {
+export function OreParcelsSection(
+  props: SectionComponentProps,
+): ReactElement {
   return (
     <SectionStub
       {...props}
-      title="Recommendations"
-      description="AI-generated actions queued for the MD's review."
-      genUiPartKind="evidence-card"
+      title="Ore Parcels"
+      description="Weighed, sampled, and graded ore parcels in inventory awaiting buyer assignment or transport."
+      genUiPartKind="data-table"
     />
   );
 }
 
-export function InternalStaffSection(props: SectionComponentProps): ReactElement {
+export function NemcFilingsSection(
+  props: SectionComponentProps,
+): ReactElement {
   return (
     <SectionStub
       {...props}
-      title="Internal Staff"
-      description="Platform-side operators — visible only to the internal-admin scope."
+      title="NEMC Filings"
+      description="National Environment Management Council statutory filings + monitoring reports."
+      genUiPartKind="timeline"
+    />
+  );
+}
+
+export function GeologyLogsSection(
+  props: SectionComponentProps,
+): ReactElement {
+  return (
+    <SectionStub
+      {...props}
+      title="Geology Logs"
+      description="Drill, blast, and sample logs captured by certified geologists. Role-gated."
       genUiPartKind="data-table"
+    />
+  );
+}
+
+export function ComplianceDeadlinesSection(
+  props: SectionComponentProps,
+): ReactElement {
+  return (
+    <SectionStub
+      {...props}
+      title="Compliance Deadlines"
+      description="Statutory deadlines (TMAA, NEMC, KRA, OSHA) coming due within 30 days."
+      genUiPartKind="timeline"
+    />
+  );
+}
+
+export function CooperativeMembershipSection(
+  props: SectionComponentProps,
+): ReactElement {
+  return (
+    <SectionStub
+      {...props}
+      title="Cooperative Membership"
+      description="Membership, settlement, and dues activity in the registered mining cooperative."
+      genUiPartKind="dashboard-grid"
     />
   );
 }

@@ -1,238 +1,237 @@
 /**
- * Storybook deck — every J1 seed section in three states:
+ * Storybook deck — every Borjie mining-domain seed section in three
+ * states:
  *   - Empty (no data; section is hidden from a real DynamicTabBar)
  *   - Loading (skeleton fallback)
  *   - Populated (the stub component rendered)
  *
- * Each section gets a story rather than a parameterised one so the
- * design QA pass can flip through them quickly + reviewers can
+ * Each section gets its own story rather than a parameterised one so
+ * the design QA pass can flip through them quickly + reviewers can
  * link to a specific section's story in PR comments.
  */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
-  EmployeesSection,
-  CustomersSection,
-  PropertiesSection,
-  LeadsSection,
-  DealsSection,
-  KraFilingsSection,
-  CampaignsSection,
-  RecommendationsSection,
-  InternalStaffSection,
+  PmlLicencesSection,
+  RoyaltyDraftsSection,
+  ActiveShiftsSection,
+  OreParcelsSection,
+  NemcFilingsSection,
+  GeologyLogsSection,
+  ComplianceDeadlinesSection,
+  CooperativeMembershipSection,
 } from '../seed/section-components.js';
 import { SectionSkeleton } from '../components/SectionSkeleton.js';
 
 type Story = StoryObj;
 
 const meta: Meta = {
-  title: 'DynamicSections/J1 Seed Sections',
+  title: 'DynamicSections/Mining Seed Sections',
   tags: ['autodocs'],
 };
 export default meta;
 
 const baseProps = {
   tenantId: 'demo-tenant-tz-01',
-  orgId: 'demo-org-cbd',
+  orgId: 'demo-org-tabora',
   scope: 'owner-customer' as const,
 };
 
-/* ---------------- Employees ---------------- */
+/* ---------------- PML Licences ---------------- */
 
-export const EmployeesEmpty: Story = {
-  name: 'Employees · Empty (no data)',
+export const PmlLicencesEmpty: Story = {
+  name: 'PML Licences · Empty',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      The Employees tab is hidden when the tenant has zero employees.
-      This story documents the implicit empty state — the section is
-      simply not rendered.
+      The PML Licences tab is hidden when the tenant has no registered
+      Primary Mining Licences. This story documents the implicit empty
+      state — the section is simply not rendered.
     </div>
   ),
 };
 
-export const EmployeesLoading: Story = {
-  name: 'Employees · Loading',
-  render: () => <SectionSkeleton sectionLabel="Employees" />,
+export const PmlLicencesLoading: Story = {
+  name: 'PML Licences · Loading',
+  render: () => <SectionSkeleton sectionLabel="PML Licences" />,
 };
 
-export const EmployeesPopulated: Story = {
-  name: 'Employees · Populated',
-  render: () => <EmployeesSection {...baseProps} entityType="employees" />,
+export const PmlLicencesPopulated: Story = {
+  name: 'PML Licences · Populated',
+  render: () => (
+    <PmlLicencesSection {...baseProps} entityType="pml-licences" />
+  ),
 };
 
-/* ---------------- Customers ---------------- */
+/* ---------------- Royalty Drafts ---------------- */
 
-export const CustomersEmpty: Story = {
-  name: 'Customers · Empty (no data)',
+export const RoyaltyDraftsEmpty: Story = {
+  name: 'Royalty Drafts · Empty (window closed)',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Customers tab hidden until the first customer is created.
+      Royalty Drafts tab hidden outside the 15-Mar to 30-Apr TMAA
+      filing window when no drafts exist.
     </div>
   ),
 };
 
-export const CustomersLoading: Story = {
-  name: 'Customers · Loading',
-  render: () => <SectionSkeleton sectionLabel="Customers" />,
+export const RoyaltyDraftsLoading: Story = {
+  name: 'Royalty Drafts · Loading',
+  render: () => <SectionSkeleton sectionLabel="Royalty Drafts" />,
 };
 
-export const CustomersPopulated: Story = {
-  name: 'Customers · Populated',
-  render: () => <CustomersSection {...baseProps} entityType="customers" />,
+export const RoyaltyDraftsPopulated: Story = {
+  name: 'Royalty Drafts · Populated',
+  render: () => (
+    <RoyaltyDraftsSection {...baseProps} entityType="royalty-drafts" />
+  ),
 };
 
-/* ---------------- Properties ---------------- */
+/* ---------------- Active Shifts ---------------- */
 
-export const PropertiesEmpty: Story = {
-  name: 'Properties · Empty',
+export const ActiveShiftsEmpty: Story = {
+  name: 'Active Shifts · Empty',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Properties tab hidden until the first property is registered.
+      Active Shifts tab hidden until a shift is opened on any site.
     </div>
   ),
 };
 
-export const PropertiesLoading: Story = {
-  name: 'Properties · Loading',
-  render: () => <SectionSkeleton sectionLabel="Properties" />,
+export const ActiveShiftsLoading: Story = {
+  name: 'Active Shifts · Loading',
+  render: () => <SectionSkeleton sectionLabel="Active Shifts" />,
 };
 
-export const PropertiesPopulated: Story = {
-  name: 'Properties · Populated',
-  render: () => <PropertiesSection {...baseProps} entityType="properties" />,
+export const ActiveShiftsPopulated: Story = {
+  name: 'Active Shifts · Populated',
+  render: () => (
+    <ActiveShiftsSection {...baseProps} entityType="active-shifts" />
+  ),
 };
 
-/* ---------------- Leads ---------------- */
+/* ---------------- Ore Parcels ---------------- */
 
-export const LeadsEmpty: Story = {
-  name: 'Leads · Empty',
+export const OreParcelsEmpty: Story = {
+  name: 'Ore Parcels · Empty',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Leads tab hidden until top-of-funnel activity arrives.
+      Ore Parcels tab hidden until the first parcel is weighed and
+      added to inventory.
     </div>
   ),
 };
 
-export const LeadsLoading: Story = {
-  name: 'Leads · Loading',
-  render: () => <SectionSkeleton sectionLabel="Leads" />,
+export const OreParcelsLoading: Story = {
+  name: 'Ore Parcels · Loading',
+  render: () => <SectionSkeleton sectionLabel="Ore Parcels" />,
 };
 
-export const LeadsPopulated: Story = {
-  name: 'Leads · Populated',
-  render: () => <LeadsSection {...baseProps} entityType="leads" />,
+export const OreParcelsPopulated: Story = {
+  name: 'Ore Parcels · Populated',
+  render: () => (
+    <OreParcelsSection {...baseProps} entityType="ore-parcels" />
+  ),
 };
 
-/* ---------------- Deals ---------------- */
+/* ---------------- NEMC Filings ---------------- */
 
-export const DealsEmpty: Story = {
-  name: 'Deals · Empty',
+export const NemcFilingsEmpty: Story = {
+  name: 'NEMC Filings · Empty',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Deals tab hidden until an active negotiation exists.
+      NEMC Filings tab hidden outside the open filing window when no
+      historical filings exist for this tenant.
     </div>
   ),
 };
 
-export const DealsLoading: Story = {
-  name: 'Deals · Loading',
-  render: () => <SectionSkeleton sectionLabel="Deals" />,
+export const NemcFilingsLoading: Story = {
+  name: 'NEMC Filings · Loading',
+  render: () => <SectionSkeleton sectionLabel="NEMC Filings" />,
 };
 
-export const DealsPopulated: Story = {
-  name: 'Deals · Populated',
-  render: () => <DealsSection {...baseProps} entityType="deals" />,
+export const NemcFilingsPopulated: Story = {
+  name: 'NEMC Filings · Populated',
+  render: () => (
+    <NemcFilingsSection {...baseProps} entityType="nemc-filings" />
+  ),
 };
 
-/* ---------------- KRA Filings ---------------- */
+/* ---------------- Geology Logs ---------------- */
 
-export const KraFilingsEmpty: Story = {
-  name: 'KRA Filings · Empty',
+export const GeologyLogsEmpty: Story = {
+  name: 'Geology Logs · Empty (role-gated)',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      KRA Filings tab hidden until the first statutory filing is submitted.
+      Geology Logs tab is hidden when the viewer lacks a drill-capable
+      role (geologist / mine_manager / owner / platform_ops).
     </div>
   ),
 };
 
-export const KraFilingsLoading: Story = {
-  name: 'KRA Filings · Loading',
-  render: () => <SectionSkeleton sectionLabel="KRA Filings" />,
+export const GeologyLogsLoading: Story = {
+  name: 'Geology Logs · Loading',
+  render: () => <SectionSkeleton sectionLabel="Geology Logs" />,
 };
 
-export const KraFilingsPopulated: Story = {
-  name: 'KRA Filings · Populated',
-  render: () => <KraFilingsSection {...baseProps} entityType="kra-filings" />,
+export const GeologyLogsPopulated: Story = {
+  name: 'Geology Logs · Populated',
+  render: () => (
+    <GeologyLogsSection {...baseProps} entityType="geology-logs" />
+  ),
 };
 
-/* ---------------- Campaigns ---------------- */
+/* ---------------- Compliance Deadlines ---------------- */
 
-export const CampaignsEmpty: Story = {
-  name: 'Campaigns · Empty',
+export const ComplianceDeadlinesEmpty: Story = {
+  name: 'Compliance Deadlines · Empty (>30 days)',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Campaigns tab hidden until the marketing-brain launches its first.
+      Compliance Deadlines tab hidden until at least one statutory
+      deadline is due within the next 30 days.
     </div>
   ),
 };
 
-export const CampaignsLoading: Story = {
-  name: 'Campaigns · Loading',
-  render: () => <SectionSkeleton sectionLabel="Campaigns" />,
+export const ComplianceDeadlinesLoading: Story = {
+  name: 'Compliance Deadlines · Loading',
+  render: () => <SectionSkeleton sectionLabel="Compliance Deadlines" />,
 };
 
-export const CampaignsPopulated: Story = {
-  name: 'Campaigns · Populated',
-  render: () => <CampaignsSection {...baseProps} entityType="campaigns" />,
+export const ComplianceDeadlinesPopulated: Story = {
+  name: 'Compliance Deadlines · Populated',
+  render: () => (
+    <ComplianceDeadlinesSection
+      {...baseProps}
+      entityType="compliance-deadlines-30d"
+    />
+  ),
 };
 
-/* ---------------- Recommendations ---------------- */
+/* ---------------- Cooperative Membership ---------------- */
 
-export const RecommendationsEmpty: Story = {
-  name: 'Recommendations · Empty',
+export const CooperativeMembershipEmpty: Story = {
+  name: 'Cooperative Membership · Empty (non-member)',
   render: () => (
     <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Recommendations tab hidden until an AI suggestion is queued.
+      Cooperative Membership tab is gated by the
+      `cooperative-member` feature flag — set ON when the org joins
+      a registered cooperative.
     </div>
   ),
 };
 
-export const RecommendationsLoading: Story = {
-  name: 'Recommendations · Loading',
-  render: () => <SectionSkeleton sectionLabel="Recommendations" />,
+export const CooperativeMembershipLoading: Story = {
+  name: 'Cooperative Membership · Loading',
+  render: () => <SectionSkeleton sectionLabel="Cooperative Membership" />,
 };
 
-export const RecommendationsPopulated: Story = {
-  name: 'Recommendations · Populated',
+export const CooperativeMembershipPopulated: Story = {
+  name: 'Cooperative Membership · Populated',
   render: () => (
-    <RecommendationsSection {...baseProps} entityType="recommendations" />
-  ),
-};
-
-/* ---------------- Internal Staff ---------------- */
-
-export const InternalStaffEmpty: Story = {
-  name: 'Internal Staff · Empty (admin-only)',
-  render: () => (
-    <div className="rounded-lg border border-slate-200 p-6 text-sm text-slate-500">
-      Internal Staff tab is restricted to the internal-admin scope AND
-      requires the `platform_ops` role. Hidden by default.
-    </div>
-  ),
-};
-
-export const InternalStaffLoading: Story = {
-  name: 'Internal Staff · Loading',
-  render: () => <SectionSkeleton sectionLabel="Internal Staff" />,
-};
-
-export const InternalStaffPopulated: Story = {
-  name: 'Internal Staff · Populated',
-  render: () => (
-    <InternalStaffSection
-      tenantId="platform-ops-tenant"
-      scope="internal-admin"
-      entityType="internal-staff"
+    <CooperativeMembershipSection
+      {...baseProps}
+      entityType="cooperative-membership"
     />
   ),
 };

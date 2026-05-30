@@ -1,7 +1,6 @@
 /**
- * Seed-registry shape tests — verify the J1 seed covers the spec's
- * nine entity types, scopes are correct, and the convenience
- * `createSeedRegistry` factory works.
+ * Seed-registry shape tests — verify the eight Borjie mining-domain
+ * sections, scope semantics, and the convenience factory.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -24,18 +23,17 @@ function ctx(over: Partial<SectionContext> = {}): SectionContext {
   };
 }
 
-describe('seedSections', () => {
-  it('covers all nine J1 entity types', () => {
+describe('seedSections (Borjie mining domain)', () => {
+  it('covers all eight mining-domain entity types', () => {
     const expected = [
-      'employees',
-      'customers',
-      'properties',
-      'leads',
-      'deals',
-      'kra-filings',
-      'campaigns',
-      'recommendations',
-      'internal-staff',
+      'pml-licences',
+      'royalty-drafts',
+      'active-shifts',
+      'ore-parcels',
+      'nemc-filings',
+      'geology-logs',
+      'compliance-deadlines',
+      'cooperative-membership',
     ].sort();
     expect([...seedSectionKeys].sort()).toEqual(expected);
   });
@@ -53,77 +51,122 @@ describe('seedSections', () => {
     }
   });
 
-  it('owner-customer with zero entities sees zero tabs', () => {
+  it('owner-customer with zero data sees zero tabs', () => {
     const visible = filterSections(seedSections, ctx());
     expect(visible).toEqual([]);
   });
 
-  it('owner-customer with two entity types sees exactly those two tabs', () => {
-    const visible = filterSections(
-      seedSections,
-      ctx({ entityCounts: { customers: 3, properties: 1 } }),
-    );
-    expect(visible.map((s) => s.key)).toEqual(['customers', 'properties']);
-  });
-
-  it('internal-admin with zero entities + platform_ops role sees the customer-section override (all customer sections visible)', () => {
+  it('owner-customer with two mining entity types sees exactly those two tabs', () => {
     const visible = filterSections(
       seedSections,
       ctx({
-        scope: 'internal-admin',
-        roles: ['platform_ops'],
+        entityCounts: { 'pml-licences': 2, 'active-shifts': 1 },
       }),
     );
-    // Eight customer sections + internal-staff requires `has-entities`.
     expect(visible.map((s) => s.key)).toEqual([
-      'employees',
-      'customers',
-      'properties',
-      'leads',
-      'deals',
-      'kra-filings',
-      'campaigns',
-      'recommendations',
+      'pml-licences',
+      'active-shifts',
     ]);
   });
 
-  it('internal-admin with the internal-staff entity + platform_ops role sees the staff tab', () => {
+  it('royalty-drafts appears during the open filing window even without drafts', () => {
+    const visible = filterSections(
+      seedSections,
+      ctx({ featureFlags: ['royalty-window-open'] }),
+    );
+    expect(visible.map((s) => s.key)).toContain('royalty-drafts');
+  });
+
+  it('nemc-filings appears during the open filing window even without filings', () => {
+    const visible = filterSections(
+      seedSections,
+      ctx({ featureFlags: ['nemc-window-open'] }),
+    );
+    expect(visible.map((s) => s.key)).toContain('nemc-filings');
+  });
+
+  it('compliance-deadlines uses the virtual 30-day entity_type', () => {
+    const visibleEmpty = filterSections(
+      seedSections,
+      ctx({ entityCounts: { 'compliance-deadlines': 99 } }),
+    );
+    expect(visibleEmpty.map((s) => s.key)).not.toContain('compliance-deadlines');
+
+    const visibleSoon = filterSections(
+      seedSections,
+      ctx({ entityCounts: { 'compliance-deadlines-30d': 3 } }),
+    );
+    expect(visibleSoon.map((s) => s.key)).toContain('compliance-deadlines');
+  });
+
+  it('cooperative-membership is gated by feature flag only and never appears for internal-admin', () => {
+    const ownerFlagOff = filterSections(
+      seedSections,
+      ctx({ scope: 'owner-customer' }),
+    );
+    expect(ownerFlagOff.map((s) => s.key)).not.toContain('cooperative-membership');
+
+    const ownerFlagOn = filterSections(
+      seedSections,
+      ctx({ scope: 'owner-customer', featureFlags: ['cooperative-member'] }),
+    );
+    expect(ownerFlagOn.map((s) => s.key)).toContain('cooperative-membership');
+
+    const adminFlagOn = filterSections(
+      seedSections,
+      ctx({
+        scope: 'internal-admin',
+        roles: ['platform_ops'],
+        featureFlags: ['cooperative-member'],
+      }),
+    );
+    expect(adminFlagOn.map((s) => s.key)).not.toContain('cooperative-membership');
+  });
+
+  it('geology-logs requires both entity presence AND a drill-capable role for owner-customer', () => {
+    const withoutRole = filterSections(
+      seedSections,
+      ctx({
+        roles: ['labourer'],
+        entityCounts: { 'geology-logs': 5 },
+      }),
+    );
+    expect(withoutRole.map((s) => s.key)).not.toContain('geology-logs');
+
+    const withRole = filterSections(
+      seedSections,
+      ctx({
+        roles: ['geologist'],
+        entityCounts: { 'geology-logs': 5 },
+      }),
+    );
+    expect(withRole.map((s) => s.key)).toContain('geology-logs');
+  });
+
+  it('internal-admin with platform_ops sees every customer section even when empty', () => {
     const visible = filterSections(
       seedSections,
       ctx({
         scope: 'internal-admin',
         roles: ['platform_ops'],
-        entityCounts: { 'internal-staff': 4 },
       }),
     );
-    expect(visible.map((s) => s.key)).toContain('internal-staff');
-  });
-
-  it('owner-customer never sees the internal-staff tab even with entities', () => {
-    const visible = filterSections(
-      seedSections,
-      ctx({
-        scope: 'owner-customer',
-        roles: ['platform_ops'],
-        entityCounts: { 'internal-staff': 4 },
-      }),
+    // Seven customer-side sections visible for platform triage;
+    // cooperative-membership is owner-only by design.
+    expect(visible.map((s) => s.key).sort()).toEqual(
+      [
+        'pml-licences',
+        'royalty-drafts',
+        'active-shifts',
+        'ore-parcels',
+        'nemc-filings',
+        'geology-logs',
+        'compliance-deadlines',
+      ].sort(),
     );
-    expect(visible.map((s) => s.key)).not.toContain('internal-staff');
   });
 
-  it('internal-staff requires platform role, not just data presence', () => {
-    const visible = filterSections(
-      seedSections,
-      ctx({
-        scope: 'internal-admin',
-        roles: ['md'],
-        entityCounts: { 'internal-staff': 4 },
-      }),
-    );
-    expect(visible.map((s) => s.key)).not.toContain('internal-staff');
-  });
-
-  it('createSeedRegistry returns a SectionRegistry with all 9 sections', () => {
+  it('createSeedRegistry returns a SectionRegistry with all eight sections', () => {
     const reg = createSeedRegistry();
     expect(reg.all.map((s) => s.key).sort()).toEqual(
       [...seedSectionKeys].sort(),
