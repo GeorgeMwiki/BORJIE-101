@@ -6,8 +6,8 @@
   "description": "Borjie public marketing site — AI-native operating system for Tanzanian mining. Swahili-first, bilingual sw/en, pilot acquisition.",
   "scripts": {
     "predev": "node -e \"require('node:fs').accessSync('.env.local', require('node:fs').constants.R_OK); console.log('[predev] .env.local OK')\"",
-    "dev": "WATCHPACK_POLLING=true next dev --port 3002",
-    "dev:turbo": "WATCHPACK_POLLING=true next dev --turbo --port 3002",
+    "dev": "bash -c 'set -a && [ -f .env.local ] && source .env.local; set +a; WATCHPACK_POLLING=true next dev --port 3002'",
+    "dev:turbo": "bash -c 'set -a && [ -f .env.local ] && source .env.local; set +a; WATCHPACK_POLLING=true next dev --turbo --port 3002'",
     "dev:clean": "rm -rf .next && pnpm dev",
     "build": "next build",
     "start": "next start --port 3002",
