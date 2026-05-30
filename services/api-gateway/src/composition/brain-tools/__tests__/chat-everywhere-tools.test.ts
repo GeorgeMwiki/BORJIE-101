@@ -120,6 +120,21 @@ describe('uiExportPdfTool', () => {
     expect(uiExportPdfTool.stakes).toBe('LOW');
     expect(uiExportPdfTool.isWrite).toBe(false);
   });
+
+  it('emits one audit-sink entry per chip so SRE can correlate', async () => {
+    const append = vi.fn(async () => {});
+    await uiExportPdfTool.handler(
+      { viewId: 'daily_brief' },
+      { ...OWNER_CTX, auditSink: { append } },
+    );
+    expect(append).toHaveBeenCalledTimes(1);
+    const [entry] = append.mock.calls[0]!;
+    expect(entry).toMatchObject({
+      toolId: 'mining.ui.export_pdf',
+      outcome: 'ok',
+      stakes: 'LOW',
+    });
+  });
 });
 
 describe('uiMarkNotificationReadTool', () => {

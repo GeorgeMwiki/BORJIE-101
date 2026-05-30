@@ -246,27 +246,48 @@ export const uiExportPdfTool: PersonaToolDescriptor<
   typeof ExportPdfOutput
 > = {
   id: 'mining.ui.export_pdf',
-  name: 'Export the active view as a PDF',
+  name: 'Emit a client-side PDF export request',
   description:
-    "Emit a chip that, when accepted by the owner, triggers the " +
-    "cockpit's client-side PDF export for the named view. Use when " +
-    "the owner says 'export', 'download as PDF', 'save a copy', " +
-    "'print', or 'send to my email'. The cockpit FE renders the " +
-    "PDF in-browser (jsPDF / html2canvas) and offers download / " +
-    "share. NEVER claim the PDF has been emailed - the owner must " +
-    "tap Share -> Email after download.",
+    "Emit a chip that the cockpit FE turns into an in-browser PDF " +
+    "render of the named view. Server-side this tool does NOT " +
+    "generate or persist a PDF — the cockpit (PdfPreview.tsx, " +
+    "jsPDF / html2canvas) owns the actual render and offers " +
+    "download / share. Use when the owner says 'export', 'download " +
+    "as PDF', 'save a copy', 'print', or 'send to my email'. NEVER " +
+    "claim the PDF has been emailed — the owner must tap Share -> " +
+    "Email after download. The chip emission is logged to the Pino " +
+    "audit stream (event=tool.persona_audit, outcome=ok) so cockpit " +
+    "observability can correlate the chat turn to the FE render.",
   personaSlugs: OWNER_AND_ADMIN,
   inputSchema: ExportPdfInput,
   outputSchema: ExportPdfOutput,
   stakes: 'LOW',
   isWrite: false,
   requiresPolicyRuleLiteral: false,
-  async handler(input, _ctx) {
+  async handler(input, ctx) {
+    const chipId = `pdf_${input.viewId}_${Date.now().toString(36)}`;
+    const emittedAt = new Date().toISOString();
+    // The chip itself is FE-state and never hits the DB, but we want
+    // the emission to be observable — otherwise the owner can ask
+    // "did you actually try to export?" and SRE has no answer.
+    // Audit-sink is the existing Pino-backed observability channel
+    // (see audit-sink.ts → createPinoAuditSink) so we route through
+    // it directly rather than declare a second logger.
+    await ctx.auditSink?.append({
+      toolId: 'mining.ui.export_pdf',
+      tenantId: ctx.tenantId,
+      actorId: ctx.actorId,
+      personaSlug: ctx.personaSlug,
+      stakes: 'LOW',
+      inputDigest: `viewId:${input.viewId}`,
+      outcome: 'ok',
+      occurredAt: emittedAt,
+    });
     return {
       accepted: true,
-      chipId: `pdf_${input.viewId}_${Date.now().toString(36)}`,
+      chipId,
       viewId: input.viewId,
-      emittedAt: new Date().toISOString(),
+      emittedAt,
     };
   },
 };

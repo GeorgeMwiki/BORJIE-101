@@ -89,6 +89,7 @@ const UnreadCountInput = z.object({});
 const UnreadCountOutput = z.object({
   totalThreads: z.number().int(),
   openThreads: z.number().int(),
+  unreadMessages: z.number().int(),
 });
 export const ownerMessagingUnreadCountTool: PersonaToolDescriptor<
   typeof UnreadCountInput,
@@ -97,8 +98,10 @@ export const ownerMessagingUnreadCountTool: PersonaToolDescriptor<
   id: 'owner.messaging.unread_count',
   name: 'Owner messaging — unread count',
   description:
-    'Aggregate the current owner\'s inbox: total threads + open threads. ' +
-    'Read-only — defers to /owner/threads.',
+    "Aggregate the current owner's inbox: total threads, open " +
+    'threads, and true unread-message count (messages the owner has ' +
+    'not yet marked read and did not send themselves). Read-only — ' +
+    'defers to GET /owner/threads/unread-count.',
   personaSlugs: OWNER,
   inputSchema: UnreadCountInput,
   outputSchema: UnreadCountOutput,
@@ -107,17 +110,20 @@ export const ownerMessagingUnreadCountTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(_input, ctx) {
     const client = ctx.httpClient;
-    if (!client) return { totalThreads: 0, openThreads: 0 };
+    if (!client) return { totalThreads: 0, openThreads: 0, unreadMessages: 0 };
     const response = await client.get<{
       success: boolean;
-      data?: ReadonlyArray<Record<string, unknown>>;
-    }>('/owner/threads', {
-      query: { tenantId: ctx.tenantId },
-    });
-    const rows = response.data ?? [];
+      data?: {
+        totalThreads?: number;
+        openThreads?: number;
+        unreadMessages?: number;
+      };
+    }>('/owner/threads/unread-count');
+    const row = response.data ?? {};
     return {
-      totalThreads: rows.length,
-      openThreads: rows.filter((r) => String(r.status) === 'open').length,
+      totalThreads: Number(row.totalThreads ?? 0),
+      openThreads: Number(row.openThreads ?? 0),
+      unreadMessages: Number(row.unreadMessages ?? 0),
     };
   },
 };
@@ -158,12 +164,13 @@ export const ownerMessagingThreadListTool: PersonaToolDescriptor<
   async handler(input, ctx) {
     const client = ctx.httpClient;
     if (!client) return { threads: [] };
+    // tenantId is bound from the JWT by the route — sending it as a
+    // query param is a no-op and pollutes audit logs, so we omit it.
     const response = await client.get<{
       success: boolean;
       data?: ReadonlyArray<Record<string, unknown>>;
     }>('/owner/threads', {
       query: {
-        tenantId: ctx.tenantId,
         status: input.status,
         limit: input.limit,
       },

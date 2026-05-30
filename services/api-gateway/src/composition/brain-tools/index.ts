@@ -39,6 +39,11 @@ import { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
 import { COOPERATIVE_TOOLS } from './cooperative-tools';
 import { INSURANCE_TOOLS } from './insurance-tools';
 import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
+// Roadmap R2 — `owner.saved_search.create` lifts the saved-search
+// create flow into the brain catalog so the owner can spin up alert
+// rules from chat. Defers to /owner/saved-searches via the loopback
+// HTTP client.
+import { OWNER_SAVED_SEARCH_TOOLS } from './owner-saved-search-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
 import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
@@ -138,6 +143,7 @@ export function buildPersonaToolHandlers(
       COOPERATIVE_TOOLS,
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
+      OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
@@ -194,6 +200,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       COOPERATIVE_TOOLS,
       INSURANCE_TOOLS,
       OWNER_MESSAGING_TOOLS,
+      OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
@@ -256,6 +263,10 @@ export { MINING_PRODUCTION_TOOLS } from './mining-production-tools';
 export { COOPERATIVE_TOOLS } from './cooperative-tools';
 export { INSURANCE_TOOLS } from './insurance-tools';
 export { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
+export {
+  OWNER_SAVED_SEARCH_TOOLS,
+  ownerSavedSearchCreateTool,
+} from './owner-saved-search-tools';
 export { SUPERPOWERS_TOOLS } from './superpowers-tools';
 export {
   DECISION_JOURNAL_TOOLS,

@@ -8,6 +8,7 @@
  * Routes (all tenant-scoped via JWT + RLS):
  *   POST   /                              start a thread (recipient by NIDA / TIN / BRELA)
  *   GET    /                              inbox
+ *   GET    /unread-count                  inbox aggregate (totals + true unread message count)
  *   POST   /:id/messages                  send a message
  *   PATCH  /messages/:msgId/read          mark a message as read
  *
@@ -219,6 +220,47 @@ app.post(
     },
   ),
 );
+
+// ---------------------------------------------------------------------------
+// GET /unread-count - inbox aggregate (totals + true unread message count)
+//
+// Backs the `owner.messaging.unread_count` brain tool. Unread is
+// computed by counting messages the current owner has NOT yet marked
+// read (i.e. their userId is not a key in `owner_messages.read_by` and
+// they are not the sender). MUST be declared before GET / so the path
+// is matched literally before any future `/:id` handler is added.
+// ---------------------------------------------------------------------------
+
+app.get('/unread-count', async (c) => {
+  const auth = c.get('auth');
+  const db = c.get('db');
+  if (!db) return unavailable(c);
+  const rows = await db.execute(sql`
+    SELECT
+      COUNT(DISTINCT t.id)::int AS total_threads,
+      COUNT(DISTINCT t.id) FILTER (WHERE t.status = 'open')::int
+        AS open_threads,
+      COUNT(m.id) FILTER (
+        WHERE m.sender_id <> ${auth.userId}::uuid
+          AND NOT (COALESCE(m.read_by, '{}'::jsonb) ? ${auth.userId}::text)
+      )::int AS unread_messages
+    FROM owner_threads t
+    JOIN owner_thread_participants p
+      ON p.thread_id = t.id AND p.owner_id = ${auth.userId}::uuid
+    LEFT JOIN owner_messages m
+      ON m.thread_id = t.id AND m.tenant_id = ${auth.tenantId}::uuid
+    WHERE t.tenant_id = ${auth.tenantId}::uuid
+  `);
+  const row = (rows as unknown as Record<string, unknown>[])[0] ?? {};
+  return c.json({
+    success: true,
+    data: {
+      totalThreads: Number(row.total_threads ?? 0),
+      openThreads: Number(row.open_threads ?? 0),
+      unreadMessages: Number(row.unread_messages ?? 0),
+    },
+  });
+});
 
 // ---------------------------------------------------------------------------
 // GET / - inbox
