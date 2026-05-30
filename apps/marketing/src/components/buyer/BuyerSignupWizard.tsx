@@ -198,12 +198,12 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
             className={
               state.step === 1
                 ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
-                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-foreground/70'
             }
           >
             1
           </span>
-          <span className={state.step === 1 ? 'text-foreground' : 'text-neutral-500'}>
+          <span className={state.step === 1 ? 'text-foreground' : 'text-foreground/60'}>
             {t.steps.kind}
           </span>
         </li>
@@ -213,12 +213,12 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
             className={
               state.step === 2
                 ? 'flex h-6 w-6 items-center justify-center rounded-full bg-signal-500 text-primary-foreground'
-                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-neutral-400'
+                : 'flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-foreground/70'
             }
           >
             2
           </span>
-          <span className={state.step === 2 ? 'text-foreground' : 'text-neutral-500'}>
+          <span className={state.step === 2 ? 'text-foreground' : 'text-foreground/60'}>
             {t.steps.details}
           </span>
         </li>

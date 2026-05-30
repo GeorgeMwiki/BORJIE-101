@@ -27,7 +27,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-prose-tight text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose-tight text-lg leading-relaxed text-foreground/70">
           {t.sub}
         </p>
       </div>
@@ -60,7 +60,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-neutral-400">{tagline}</p>
+                <p className="mt-2 text-xs leading-relaxed text-foreground/70">{tagline}</p>
               </header>
 
               <div className="mt-6 border-t border-border pt-6">
@@ -68,7 +68,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                   {tier.price === 'TZS 0' ? (
                     <span>
                       TZS 0
-                      <span className="block mt-2 text-sm font-normal text-neutral-400">
+                      <span className="block mt-2 text-sm font-normal text-foreground/70">
                         {t.freeForever}
                       </span>
                     </span>
@@ -78,7 +78,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
                     <span>
                       {tier.price}
                       {showsPerMonth && (
-                        <span className="block mt-2 text-sm font-normal text-neutral-400">
+                        <span className="block mt-2 text-sm font-normal text-foreground/70">
                           /{t.perMonth.split(' ')[1] ?? 'mo'}
                         </span>
                       )}
@@ -112,7 +112,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
         })}
       </div>
 
-      <p className="mt-10 text-center text-sm text-neutral-400">{t.footnote}</p>
+      <p className="mt-10 text-center text-sm text-foreground/70">{t.footnote}</p>
     </section>
   );
 }

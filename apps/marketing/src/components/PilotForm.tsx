@@ -56,7 +56,7 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
       <div className="flex flex-col items-start gap-4 rounded-2xl border border-signal-500/40 bg-signal-500/5 p-8">
         <CheckCircle2 className="h-10 w-10 text-signal-500" aria-hidden="true" />
         <p className="font-display text-2xl font-medium tracking-tight">{t.success}</p>
-        <p className="text-sm text-neutral-400">pilot@borjie.co.tz</p>
+        <p className="text-sm text-foreground/70">pilot@borjie.co.tz</p>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
       <div>
         <label
           htmlFor="mineralFocus"
-          className="font-mono text-meta uppercase tracking-widest text-neutral-400"
+          className="font-mono text-meta uppercase tracking-widest text-foreground/70"
         >
           {t.fields.mineralFocus}
         </label>
@@ -138,7 +138,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="font-mono text-meta uppercase tracking-widest text-neutral-400"
+        className="font-mono text-meta uppercase tracking-widest text-foreground/70"
       >
         {label}
       </label>
@@ -151,7 +151,7 @@ function Field({
         min={min}
         placeholder={placeholder}
         required={required}
-        className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none"
+        className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/60 focus:border-signal-500 focus:outline-none"
       />
     </div>
   );

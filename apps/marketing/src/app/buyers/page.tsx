@@ -62,7 +62,7 @@ export default async function BuyersPage() {
               >
                 {t.heading}
               </h1>
-              <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-neutral-400 sm:text-xl">
+              <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
                 {t.sub}
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -81,7 +81,7 @@ export default async function BuyersPage() {
                 </Link>
                 <Link
                   href="/pricing"
-                  className="inline-flex h-12 items-center justify-center px-3 text-sm font-medium text-neutral-400 transition-colors duration-fast hover:text-foreground"
+                  className="inline-flex h-12 items-center justify-center px-3 text-sm font-medium text-foreground/70 transition-colors duration-fast hover:text-foreground"
                 >
                   {t.ctaPricingFees}
                 </Link>
@@ -108,7 +108,7 @@ export default async function BuyersPage() {
             >
               {t.valueProps.heading}
             </h2>
-            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
               {t.valueProps.sub}
             </p>
           </div>
@@ -126,11 +126,11 @@ export default async function BuyersPage() {
                   <h3 className="font-display text-xl font-medium tracking-tight">
                     {card.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/70">
                     {card.body}
                   </p>
                 </div>
-                <span className="absolute right-5 top-5 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
+                <span className="absolute right-5 top-5 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
                   {String(i + 1).padStart(2, '0')}
                 </span>
               </li>
@@ -153,7 +153,7 @@ export default async function BuyersPage() {
             >
               {t.useCases.heading}
             </h2>
-            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
               {t.useCases.sub}
             </p>
           </div>
@@ -170,11 +170,11 @@ export default async function BuyersPage() {
                 <h3 className="font-display text-xl font-medium tracking-tight">
                   {u.buyer}
                 </h3>
-                <p className="inline-flex items-center gap-1 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
+                <p className="inline-flex items-center gap-1 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
                   <MapPin className="h-3 w-3" />
                   {u.location}
                 </p>
-                <p className="text-sm leading-relaxed text-neutral-400">{u.blurb}</p>
+                <p className="text-sm leading-relaxed text-foreground/70">{u.blurb}</p>
               </li>
             ))}
           </ul>
@@ -197,7 +197,7 @@ export default async function BuyersPage() {
             {regions.map((r) => (
               <li
                 key={r}
-                className="rounded-xl border border-border bg-surface px-4 py-3 text-center font-mono text-caption-lg uppercase tracking-widest text-neutral-400 transition-colors duration-fast hover:border-signal-500/30 hover:text-foreground"
+                className="rounded-xl border border-border bg-surface px-4 py-3 text-center font-mono text-caption-lg uppercase tracking-widest text-foreground/70 transition-colors duration-fast hover:border-signal-500/30 hover:text-foreground"
               >
                 {r}
               </li>
@@ -220,7 +220,7 @@ export default async function BuyersPage() {
             >
               {t.pricing.heading}
             </h2>
-            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
               {t.pricing.sub}
             </p>
           </div>
@@ -233,7 +233,7 @@ export default async function BuyersPage() {
               <p className="mt-3 font-display text-6xl font-medium leading-none tracking-tight tabular-nums">
                 2.5%
               </p>
-              <p className="mt-3 text-sm text-neutral-400">{t.marketplaceFeeBody}</p>
+              <p className="mt-3 text-sm text-foreground/70">{t.marketplaceFeeBody}</p>
             </header>
 
             <ul className="space-y-2 border-t border-border pt-5">
@@ -245,7 +245,7 @@ export default async function BuyersPage() {
               ))}
             </ul>
 
-            <p className="text-xs leading-relaxed text-neutral-500">{t.pricing.footnote}</p>
+            <p className="text-xs leading-relaxed text-foreground/60">{t.pricing.footnote}</p>
           </article>
         </section>
 
@@ -262,7 +262,7 @@ export default async function BuyersPage() {
             >
               {t.downloadCta.heading}
             </h2>
-            <p className="mx-auto mt-6 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-6 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
               {t.downloadCta.sub}
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

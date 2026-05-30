@@ -59,7 +59,7 @@ export function InteractiveModesSection({
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -94,7 +94,7 @@ export function InteractiveModesSection({
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm leading-relaxed text-neutral-400">
+                  <p className="text-sm leading-relaxed text-foreground/70">
                     {mode.desc}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ export function InteractiveModesSection({
                       </span>
                     </div>
                     <div className="flex justify-start">
-                      <span className="max-w-bubble rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-neutral-300">
+                      <span className="max-w-bubble rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-foreground/75">
                         {mode.preview.ai}
                       </span>
                     </div>

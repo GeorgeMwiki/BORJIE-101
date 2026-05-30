@@ -84,7 +84,7 @@ export default async function BlogPostPage({
             <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
               Post title
             </h1>
-            <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-foreground/60">
               <span>{t.authorBy} Borjie team</span>
               <span aria-hidden="true">,</span>
               <span>5 {t.minRead}</span>
@@ -113,7 +113,7 @@ export default async function BlogPostPage({
                 <ShareLink href="#" Icon={Link2} label="Copy link" />
               </div>
             </aside>
-            <article className="prose-mining max-w-prose text-base leading-relaxed text-neutral-300">
+            <article className="prose-mining max-w-prose text-base leading-relaxed text-foreground/75">
               <p>
                 Body type ramp goes here. The MDX loader hydrates this slot
                 with real content.
@@ -153,7 +153,7 @@ export default async function BlogPostPage({
                   <h3 className="mt-2 font-display text-lg font-medium text-foreground">
                     Related post {i}
                   </h3>
-                  <p className="mt-2 text-sm text-neutral-400">{t.sub}</p>
+                  <p className="mt-2 text-sm text-foreground/70">{t.sub}</p>
                 </div>
               ))}
             </div>
@@ -166,7 +166,7 @@ export default async function BlogPostPage({
             <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
               {t.subscribeHeading}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.subscribeSub}
             </p>
             <div className="mt-8 inline-flex">
@@ -203,7 +203,7 @@ function ShareLink({
       target="_blank"
       rel="noreferrer noopener"
       aria-label={label}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-neutral-400 transition-colors hover:border-signal-500 hover:text-signal-400"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground/70 transition-colors hover:border-signal-500 hover:text-signal-400"
     >
       <Icon className="h-4 w-4" />
     </a>

@@ -62,7 +62,7 @@ export function PlatformShowcaseSection({
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -85,7 +85,7 @@ export function PlatformShowcaseSection({
                     <div className="h-2 w-2 rounded-full bg-neutral-500/40" />
                     <div className="h-2 w-2 rounded-full bg-neutral-500/40" />
                   </div>
-                  <span className="ml-1 font-mono text-tiny uppercase tracking-widest text-neutral-500">
+                  <span className="ml-1 font-mono text-tiny uppercase tracking-widest text-foreground/60">
                     {tile.title}
                   </span>
                 </div>
@@ -102,7 +102,7 @@ export function PlatformShowcaseSection({
                           <div className="font-display text-lg font-semibold tabular-nums text-signal-500">
                             {k.value}
                           </div>
-                          <div className="mt-0.5 font-mono text-spark uppercase tracking-wider text-neutral-500">
+                          <div className="mt-0.5 font-mono text-spark uppercase tracking-wider text-foreground/60">
                             {k.label}
                           </div>
                         </div>
@@ -116,7 +116,7 @@ export function PlatformShowcaseSection({
                           key={r.label}
                           className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2"
                         >
-                          <span className="truncate text-xs text-neutral-300">
+                          <span className="truncate text-xs text-foreground/75">
                             {r.label}
                           </span>
                           <span
@@ -139,7 +139,7 @@ export function PlatformShowcaseSection({
                           key={l.label}
                           className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2"
                         >
-                          <span className="flex items-center gap-2 truncate text-xs text-neutral-300">
+                          <span className="flex items-center gap-2 truncate text-xs text-foreground/75">
                             <span
                               className="h-1.5 w-1.5 shrink-0 rounded-full bg-success"
                               aria-hidden="true"
@@ -164,7 +164,7 @@ export function PlatformShowcaseSection({
                 <div className="font-mono text-tiny uppercase tracking-widest text-signal-500">
                   {tile.subtitle}
                 </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                <p className="mt-1.5 text-xs leading-relaxed text-foreground/70">
                   {tile.desc}
                 </p>
               </div>

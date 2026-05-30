@@ -51,7 +51,7 @@ export default async function BlogIndexPage() {
             >
               {t.heading}
             </h1>
-            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-neutral-400 sm:text-xl">
+            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
               {t.sub}
             </p>
           </div>
@@ -72,7 +72,7 @@ export default async function BlogIndexPage() {
             >
               {t.emptyHeading}
             </h2>
-            <p className="mx-auto mt-4 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-4 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.emptyBody}
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -106,7 +106,7 @@ export default async function BlogIndexPage() {
             >
               {t.subscribeHeading}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.subscribeSub}
             </p>
             <form
@@ -123,7 +123,7 @@ export default async function BlogIndexPage() {
                 name="email"
                 required
                 placeholder={t.subscribePlaceholder}
-                className="h-11 flex-1 rounded-md border border-border bg-card px-4 text-sm text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
+                className="h-11 flex-1 rounded-md border border-border bg-card px-4 text-sm text-foreground placeholder:text-foreground/60 focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
               />
               <button
                 type="submit"

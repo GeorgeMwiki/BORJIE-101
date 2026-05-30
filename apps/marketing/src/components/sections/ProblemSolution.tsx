@@ -41,7 +41,7 @@ export function ProblemSolution({ locale }: { readonly locale: Locale }) {
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.subOne}
           </p>
           <p className="mx-auto mt-3 max-w-prose-wide text-lg font-medium text-foreground">
@@ -83,7 +83,7 @@ export function ProblemSolution({ locale }: { readonly locale: Locale }) {
                     <span className="text-sm font-semibold text-foreground">
                       {item.title}
                     </span>
-                    <p className="mt-1 text-sm leading-relaxed text-neutral-400">
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/70">
                       {item.desc}
                     </p>
                   </div>
@@ -124,7 +124,7 @@ export function ProblemSolution({ locale }: { readonly locale: Locale }) {
                     <span className="text-sm font-semibold text-foreground">
                       {item.title}
                     </span>
-                    <p className="mt-1 text-sm leading-relaxed text-neutral-400">
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/70">
                       {item.desc}
                     </p>
                   </div>

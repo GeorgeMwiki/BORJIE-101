@@ -90,7 +90,7 @@ export default async function DocsPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           Build on Borjie.
         </h1>
-        <p className="mt-6 text-lg leading-relaxed text-neutral-300">
+        <p className="mt-6 text-lg leading-relaxed text-foreground/75">
           Borjie exposes a typed REST + SSE API for everything Mr. Mwikila
           and the 27 junior agents can do. Use these references to
           integrate Borjie with your buyer ERP, regulator pipeline, or
@@ -115,11 +115,11 @@ export default async function DocsPage() {
                       >
                         <h3 className="font-display text-base font-semibold">
                           {link.title}{' '}
-                          <span aria-hidden="true" className="text-neutral-500">
+                          <span aria-hidden="true" className="text-foreground/60">
                             ↗
                           </span>
                         </h3>
-                        <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                        <p className="mt-2 text-sm leading-relaxed text-foreground/70">
                           {link.summary}
                         </p>
                       </a>
@@ -131,7 +131,7 @@ export default async function DocsPage() {
                         <h3 className="font-display text-base font-semibold">
                           {link.title}
                         </h3>
-                        <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                        <p className="mt-2 text-sm leading-relaxed text-foreground/70">
                           {link.summary}
                         </p>
                       </Link>

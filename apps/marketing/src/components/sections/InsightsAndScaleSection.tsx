@@ -54,7 +54,7 @@ export function InsightsAndScaleSection({
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -82,7 +82,7 @@ export function InsightsAndScaleSection({
                       decimals={stat.decimals ?? 0}
                     />
                   </div>
-                  <div className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+                  <div className="mt-1.5 text-xs leading-relaxed text-foreground/70">
                     {stat.label}
                   </div>
                 </motion.div>
@@ -110,14 +110,14 @@ export function InsightsAndScaleSection({
                     aria-hidden="true"
                     strokeWidth={1.75}
                   />
-                  <blockquote className="mt-3 text-sm leading-relaxed text-neutral-300">
+                  <blockquote className="mt-3 text-sm leading-relaxed text-foreground/75">
                     {q.body}
                   </blockquote>
                   <figcaption className="mt-3 flex items-baseline gap-2 text-xs">
                     <span className="font-semibold text-foreground">
                       {q.name}
                     </span>
-                    <span className="font-mono text-neutral-500">
+                    <span className="font-mono text-foreground/60">
                       · {q.role}
                     </span>
                   </figcaption>

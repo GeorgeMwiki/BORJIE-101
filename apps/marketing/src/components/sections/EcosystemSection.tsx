@@ -67,7 +67,7 @@ export function EcosystemSection({ locale }: { readonly locale: Locale }) {
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -100,7 +100,7 @@ export function EcosystemSection({ locale }: { readonly locale: Locale }) {
                         <div className="truncate text-sm font-semibold tracking-tight text-foreground">
                           {entry.name}
                         </div>
-                        <div className="mt-0.5 text-xs leading-relaxed text-neutral-400">
+                        <div className="mt-0.5 text-xs leading-relaxed text-foreground/70">
                           {entry.desc}
                         </div>
                       </div>

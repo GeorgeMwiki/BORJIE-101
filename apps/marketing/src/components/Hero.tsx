@@ -120,13 +120,13 @@ function ChatTurn({
             {body}
           </div>
           <div
-            className={`mt-1 flex items-center gap-1.5 px-1 text-tiny text-neutral-500 ${
+            className={`mt-1 flex items-center gap-1.5 px-1 text-tiny text-foreground/60 ${
               isUser ? 'justify-end' : 'justify-start'
             }`}
           >
             <span>{timestamp}</span>
             {!isUser && (
-              <Volume2 size={11} className="text-neutral-500/70" aria-hidden="true" />
+              <Volume2 size={11} className="text-foreground/60/70" aria-hidden="true" />
             )}
           </div>
         </div>
@@ -303,7 +303,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
       <div className="relative mx-auto grid min-h-hero max-w-7xl grid-cols-1 items-stretch gap-12 px-5 pb-20 pt-16 md:pt-24 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-8">
         {/* LEFT — claim + CTAs */}
         <div className="flex flex-col justify-center">
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-surface/80 px-3 py-1 text-meta font-medium text-neutral-400 backdrop-blur">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border/70 bg-surface/80 px-3 py-1 text-meta font-medium text-foreground/70 backdrop-blur">
             <MapPin className="h-3.5 w-3.5 text-signal-500" aria-hidden="true" />
             <span className="tracking-wide uppercase">{t.pill}</span>
           </span>
@@ -334,7 +334,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
             </span>
           </h1>
 
-          <p className="mt-6 max-w-prose-wide text-lg leading-relaxed text-neutral-400 md:text-xl">
+          <p className="mt-6 max-w-prose-wide text-lg leading-relaxed text-foreground/70 md:text-xl">
             {t.sub}
           </p>
 
@@ -355,7 +355,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
             </Link>
           </div>
 
-          <p className="mt-10 flex flex-wrap items-center gap-2 font-mono text-meta uppercase tracking-widest text-neutral-500">
+          <p className="mt-10 flex flex-wrap items-center gap-2 font-mono text-meta uppercase tracking-widest text-foreground/60">
             <MapPin className="h-3 w-3 text-signal-500" aria-hidden="true" />
             <span>{t.trustline}</span>
           </p>
@@ -437,7 +437,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 className="shrink-0 text-signal-500"
                 aria-hidden="true"
               />
-              <p className="text-tiny leading-snug tracking-tight text-neutral-400">
+              <p className="text-tiny leading-snug tracking-tight text-foreground/70">
                 {chat.disclaimer}
               </p>
             </div>
@@ -456,20 +456,20 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 <button
                   type="button"
                   aria-label={chat.voice}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-neutral-400 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
                 >
                   <Mic className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   aria-label={chat.attach}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-neutral-400 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
                 >
                   <Camera className="h-4 w-4" />
                 </button>
                 <Link
                   href="/pilot"
-                  className="group flex flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-neutral-400 transition-colors hover:border-signal-500 focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
+                  className="group flex flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground/70 transition-colors hover:border-signal-500 focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
                 >
                   <span className="flex-1">{chat.ask}</span>
                 </Link>
@@ -488,13 +488,13 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 </Link>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-tiny text-neutral-500">
+                <span className="text-tiny text-foreground/60">
                   {chat.languageHint}{' '}
                   <span className="font-medium text-signal-500">
                     {chat.language}
                   </span>
                 </span>
-                <span className="text-tiny text-neutral-500">
+                <span className="text-tiny text-foreground/60">
                   {chat.micReady}
                 </span>
               </div>

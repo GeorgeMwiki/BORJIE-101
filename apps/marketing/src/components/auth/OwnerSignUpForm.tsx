@@ -155,7 +155,7 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.orgName}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.orgNameSub}
           </span>
         </label>
@@ -183,7 +183,7 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.ownerFullName}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.ownerFullNameSub}
           </span>
         </label>
@@ -211,7 +211,7 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.email}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.emailSub}
           </span>
         </label>
@@ -239,7 +239,7 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.password}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.passwordSub}
           </span>
         </label>

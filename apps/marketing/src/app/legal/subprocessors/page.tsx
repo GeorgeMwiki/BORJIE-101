@@ -86,7 +86,7 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
       body: (
         <div className="-mx-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border/60 text-tiny uppercase tracking-widest text-neutral-500">
+            <thead className="border-b border-border/60 text-tiny uppercase tracking-widest text-foreground/60">
               <tr>
                 <th className="px-3 py-2 font-semibold">
                   {locale === 'sw' ? 'Mchakataji' : 'Vendor'}
@@ -111,10 +111,10 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
                   <td className="px-3 py-2 font-medium text-foreground">
                     {v.vendor}
                   </td>
-                  <td className="px-3 py-2 text-neutral-400">
+                  <td className="px-3 py-2 text-foreground/70">
                     {locale === 'sw' ? v.roleSw : v.roleEn}
                   </td>
-                  <td className="px-3 py-2 font-mono text-tiny text-neutral-400">
+                  <td className="px-3 py-2 font-mono text-tiny text-foreground/70">
                     {v.region}
                   </td>
                   <td className="px-3 py-2">

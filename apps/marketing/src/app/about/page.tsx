@@ -44,14 +44,14 @@ export default async function AboutPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           The AI operating system for Tanzanian mining.
         </h1>
-        <p className="mt-6 text-lg leading-relaxed text-neutral-300">
+        <p className="mt-6 text-lg leading-relaxed text-foreground/75">
           Borjie is built in Dar es Salaam, for the mining sector that pays
           our country's bills. We replace paper licences, broken FX desks,
           and ad-hoc compliance with one Master Brain that runs the
           business with the owner.
         </p>
 
-        <div className="mt-12 space-y-8 text-sm leading-relaxed text-neutral-400">
+        <div className="mt-12 space-y-8 text-sm leading-relaxed text-foreground/70">
           {SECTIONS.map((s) => (
             <section key={s.title}>
               <h2 className="font-display text-xl font-semibold text-foreground">

@@ -84,16 +84,16 @@ export default async function DpaPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           Data Processing Agreement
         </h1>
-        <p className="mt-2 font-mono text-pill uppercase tracking-widest text-neutral-400">
+        <p className="mt-2 font-mono text-pill uppercase tracking-widest text-foreground/70">
           Last updated · 2026-05
         </p>
-        <p className="mt-6 text-sm leading-relaxed text-neutral-300">
+        <p className="mt-6 text-sm leading-relaxed text-foreground/75">
           This DPA forms part of the Borjie Terms of Service and governs
           Borjie&apos;s processing of personal data on behalf of tenants
           under the Tanzania Personal Data Protection Act 2022.
         </p>
 
-        <div className="mt-12 space-y-8 text-sm leading-relaxed text-neutral-400">
+        <div className="mt-12 space-y-8 text-sm leading-relaxed text-foreground/70">
           {CLAUSES.map((c) => (
             <section key={c.title}>
               <h2 className="font-display text-base font-semibold text-foreground">
@@ -119,12 +119,12 @@ export default async function DpaPage() {
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
             <Link
               href="/privacy"
-              className="text-neutral-400 hover:text-foreground"
+              className="text-foreground/70 hover:text-foreground"
             >
               Privacy policy
             </Link>
             <span className="text-neutral-600">·</span>
-            <Link href="/terms" className="text-neutral-400 hover:text-foreground">
+            <Link href="/terms" className="text-foreground/70 hover:text-foreground">
               Terms of service
             </Link>
           </div>

@@ -85,7 +85,7 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
       body: (
         <div className="-mx-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border/60 text-tiny uppercase tracking-widest text-neutral-500">
+            <thead className="border-b border-border/60 text-tiny uppercase tracking-widest text-foreground/60">
               <tr>
                 <th className="px-3 py-2 font-semibold">Cookie</th>
                 <th className="px-3 py-2 font-semibold">
@@ -108,13 +108,13 @@ function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
                   <td className="px-3 py-2 font-mono text-tiny text-foreground">
                     {c.cookie}
                   </td>
-                  <td className="px-3 py-2 text-neutral-400">
+                  <td className="px-3 py-2 text-foreground/70">
                     {locale === 'sw' ? c.purposeSw : c.purposeEn}
                   </td>
-                  <td className="px-3 py-2 text-neutral-400">
+                  <td className="px-3 py-2 text-foreground/70">
                     {CATEGORY_LABEL[c.category][locale]}
                   </td>
-                  <td className="px-3 py-2 font-mono text-tiny text-neutral-400">
+                  <td className="px-3 py-2 font-mono text-tiny text-foreground/70">
                     {c.lifetime}
                   </td>
                 </tr>

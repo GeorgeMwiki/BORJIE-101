@@ -54,7 +54,7 @@ export default async function PricingPage() {
             >
               {t.heading}
             </h1>
-            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-neutral-400 sm:text-xl">
+            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
               {t.sub}
             </p>
           </div>
@@ -67,7 +67,7 @@ export default async function PricingPage() {
           className="mx-auto max-w-4xl px-6 pb-12 pt-4 text-center lg:px-8"
           aria-label="Trust badges"
         >
-          <p className="mx-auto mb-6 max-w-xl font-mono text-xs uppercase tracking-widest text-neutral-500">
+          <p className="mx-auto mb-6 max-w-xl font-mono text-xs uppercase tracking-widest text-foreground/60">
             {t.trustBadgesHeading}
           </p>
           <TrustBadgeStrip items={t.trustBadges} />
@@ -84,7 +84,7 @@ export default async function PricingPage() {
             >
               {t.compareHeading}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.compareSub}
             </p>
           </div>
@@ -93,7 +93,7 @@ export default async function PricingPage() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-raised">
-                  <th className="px-5 py-4 text-left font-mono text-caption uppercase tracking-widest text-neutral-400">
+                  <th className="px-5 py-4 text-left font-mono text-caption uppercase tracking-widest text-foreground/70">
                     {t.featureColumn}
                   </th>
                   {TIERS.map((tier) => (
@@ -117,7 +117,7 @@ export default async function PricingPage() {
                           {has ? (
                             <Check className="mx-auto h-4 w-4 text-signal-500" aria-label="included" />
                           ) : (
-                            <span className="text-neutral-500" aria-label="not included">,</span>
+                            <span className="text-foreground/60" aria-label="not included">,</span>
                           )}
                         </td>
                       );
@@ -144,7 +144,7 @@ export default async function PricingPage() {
             >
               {t.faqHeading}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.faqSub}
             </p>
           </div>
@@ -165,7 +165,7 @@ export default async function PricingPage() {
             >
               {t.ctaHeading}
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-foreground/70">
               {t.ctaSub}
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

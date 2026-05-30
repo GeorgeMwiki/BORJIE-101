@@ -41,11 +41,28 @@ interface BorjieWidgetMountProps {
   readonly locale?: 'en' | 'sw';
 }
 
+/**
+ * Borjie mining-domain compliance copy. Owners of mines are NOT
+ * landlords — the BossNyumba real-estate variant says "landlord". We
+ * pin "mine owner" here so an unrelated edit (or a sibling chat-ui
+ * session targeting the property domain) cannot revert it.
+ */
+const BORJIE_DISCLAIMER_EN =
+  'AI-generated. Not legal advice. Decisions are made by the mine owner.';
+const BORJIE_DISCLAIMER_SW =
+  'AI-iliyotengenezwa . Si ushauri wa kisheria . Maamuzi yanafanywa na mmiliki wa mgodi';
+
 export function BorjieWidgetMount(
   _props: BorjieWidgetMountProps = {},
 ): JSX.Element {
   return (
-    <LitFinAIProvider portalId="public" endpoint="/api/chat" initialRoute="/">
+    <LitFinAIProvider
+      portalId="public"
+      endpoint="/api/chat"
+      initialRoute="/"
+      disclaimerEn={BORJIE_DISCLAIMER_EN}
+      disclaimerSw={BORJIE_DISCLAIMER_SW}
+    >
       <LitFinWidget />
     </LitFinAIProvider>
   );

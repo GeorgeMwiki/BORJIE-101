@@ -130,19 +130,19 @@ export function Footer({ locale }: { readonly locale: Locale }) {
           <div className="mb-10 flex flex-col gap-4 border-b border-border/60 pb-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <Wordmark size="lg" premium />
-              <p className="mt-4 text-sm leading-relaxed text-neutral-400">
+              <p className="mt-4 text-sm leading-relaxed text-foreground/70">
                 {t.tagline}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <a
                 href={`mailto:${t.contactEmail}`}
-                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-neutral-300 transition-colors hover:border-signal-500/40 hover:text-foreground"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-foreground/75 transition-colors hover:border-signal-500/40 hover:text-foreground"
               >
                 <Mail className="h-4 w-4" aria-hidden />
                 {t.contactEmail}
               </a>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-neutral-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 py-2 text-sm text-foreground/75">
                 <MapPin className="h-4 w-4" aria-hidden />
                 {t.contactLocation}
               </div>
@@ -160,10 +160,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
                     {t.complianceBadge}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed text-neutral-300">
+                <p className="text-sm leading-relaxed text-foreground/75">
                   {t.tanzaniaStorage}
                 </p>
-                <div className="mt-4 font-mono text-tiny uppercase tracking-widest text-neutral-500">
+                <div className="mt-4 font-mono text-tiny uppercase tracking-widest text-foreground/60">
                   {t.regulatorStrip}
                 </div>
               </div>
@@ -183,14 +183,14 @@ export function Footer({ locale }: { readonly locale: Locale }) {
                           href={l.href}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-sm text-neutral-400 transition-colors duration-fast hover:text-foreground focus:outline-none focus:text-foreground"
+                          className="text-sm text-foreground/70 transition-colors duration-fast hover:text-foreground focus:outline-none focus:text-foreground"
                         >
                           {l.label}
                         </a>
                       ) : (
                         <Link
                           href={l.href}
-                          className="text-sm text-neutral-400 transition-colors duration-fast hover:text-foreground focus:outline-none focus:text-foreground"
+                          className="text-sm text-foreground/70 transition-colors duration-fast hover:text-foreground focus:outline-none focus:text-foreground"
                         >
                           {l.label}
                         </Link>
@@ -213,7 +213,7 @@ export function Footer({ locale }: { readonly locale: Locale }) {
               {t.systemsOperational}
             </span>
           </div>
-          <div className="flex flex-col items-start gap-2 font-mono text-tiny uppercase tracking-widest text-neutral-400 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-col items-start gap-2 font-mono text-tiny uppercase tracking-widest text-foreground/70 sm:flex-row sm:items-center sm:gap-4">
             <span>© 2026 Borjie. {t.rights}</span>
             <span aria-hidden className="hidden h-3 w-px bg-border/60 sm:inline-block" />
             <span>Tanzania · TZS-first · {t.locale}</span>

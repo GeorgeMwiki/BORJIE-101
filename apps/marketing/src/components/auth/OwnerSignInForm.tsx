@@ -144,7 +144,7 @@ export function OwnerSignInForm({ locale }: OwnerSignInFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.email}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.emailEn}
           </span>
         </label>
@@ -178,7 +178,7 @@ export function OwnerSignInForm({ locale }: OwnerSignInFormProps) {
           className="block text-sm font-medium text-foreground"
         >
           {t.fields.password}
-          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <span className="ml-2 font-mono text-caption uppercase tracking-widest text-foreground/60">
             {t.fields.passwordEn}
           </span>
         </label>
