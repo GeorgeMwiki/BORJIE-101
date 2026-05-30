@@ -138,6 +138,19 @@ const config: Config = {
           900:               'hsl(var(--signal-900))',
           950:               'hsl(var(--signal-950))',
         },
+
+        /* LitFin canonical copper-on-cream named tokens.
+           Use `bg-litfin-copper-mid`, `text-litfin-cream`, etc. so the
+           brand surfaces (wordmark, send button, hero halo) reference
+           the same primitives as LitFin reference build. Light/dark
+           variants flip automatically via the .dark class. */
+        litfin: {
+          'copper-bright':   'hsl(var(--litfin-copper-bright))',
+          'copper-mid':      'hsl(var(--litfin-copper-mid))',
+          'copper-deep':     'hsl(var(--litfin-copper-deep))',
+          cream:             'hsl(var(--litfin-cream))',
+          deep:              'hsl(var(--litfin-deep))',
+        },
       },
 
       borderRadius: {
@@ -156,6 +169,19 @@ const config: Config = {
         md:                  'var(--shadow-md)',
         lg:                  'var(--shadow-lg)',
         xl:                  'var(--shadow-xl)',
+        /* IGNITION copper glow — drop-in for hero CTAs, premium tiles,
+           anywhere a surface should feel like it's emitting light. */
+        glow:                'var(--shadow-glow)',
+        'glow-lg':           'var(--shadow-glow-lg)',
+      },
+
+      backgroundImage: {
+        /* LitFin IGNITION gradients — `bg-gradient-mesh` puts a copper
+           radial wash at the top, `bg-gradient-primary` is the canonical
+           copper-deep gradient for hero CTAs. */
+        'gradient-primary':  'var(--gradient-primary)',
+        'gradient-accent':   'var(--gradient-accent)',
+        'gradient-mesh':     'var(--gradient-mesh)',
       },
 
       fontFamily: {
