@@ -36,7 +36,7 @@ export default async function StatusPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           {c.heading}
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+        <p className="mt-3 text-sm leading-relaxed text-foreground/70">
           {c.sub}
         </p>
 
@@ -44,7 +44,7 @@ export default async function StatusPage() {
           <StatusBoard locale={locale} />
         </div>
 
-        <p className="mt-10 text-xs leading-relaxed text-neutral-500">
+        <p className="mt-10 text-xs leading-relaxed text-foreground/60">
           {c.subscribeNote}
         </p>
       </main>

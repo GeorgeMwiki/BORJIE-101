@@ -49,7 +49,7 @@ export default async function SignInPage() {
             <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
               {t.heading}
             </h1>
-            <p className="mx-auto mt-5 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-5 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.sub}
             </p>
           </header>
@@ -67,7 +67,7 @@ export default async function SignInPage() {
             <OwnerSignInForm locale={locale} />
           </Suspense>
 
-          <p className="mt-6 text-center text-sm text-neutral-400">
+          <p className="mt-6 text-center text-sm text-foreground/70">
             {t.noAccountYet}{' '}
             <Link
               href="/sign-up"
@@ -77,7 +77,7 @@ export default async function SignInPage() {
             </Link>
           </p>
 
-          <p className="mt-8 inline-flex w-full items-center justify-center gap-1.5 font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <p className="mt-8 inline-flex w-full items-center justify-center gap-1.5 font-mono text-caption uppercase tracking-widest text-foreground/60">
             <ShieldCheck className="h-3 w-3 text-signal-500" />
             {locale === 'sw'
               ? `BRELA · TRA · ${'Tum' + 'emadini'} verified`

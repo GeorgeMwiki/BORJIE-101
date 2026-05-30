@@ -130,45 +130,50 @@ export function CookieConsent(props: CookieConsentProps) {
 
   if (!visible) return null;
 
+  // Compact bottom-left toast on desktop (does not eclipse forms / chat),
+  // expands to full bottom sheet on small screens. The dialog used to be a
+  // 768px-wide modal centered above the fold — it visually blocked the hero
+  // and every form CTA across the marketing site. Now it sits in the bottom
+  // corner away from the chat-FAB on the right.
   return (
     <div
       role="dialog"
       aria-modal="false"
       aria-labelledby="cookie-consent-title"
-      className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 sm:px-6 sm:pb-6"
+      className="fixed bottom-4 left-4 z-40 w-[calc(100vw-2rem)] max-w-sm sm:bottom-6 sm:left-6"
     >
-      <div className="mx-auto max-w-3xl rounded-lg border border-border bg-surface/95 p-5 shadow-2xl backdrop-blur-md sm:p-6">
+      <div className="rounded-xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur-md">
         {!showSettings ? (
           <>
             <h2
               id="cookie-consent-title"
-              className="font-display text-base font-semibold text-foreground"
+              className="font-display text-sm font-semibold text-foreground"
             >
               {copy.title}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+            <p className="mt-1.5 text-xs leading-relaxed text-foreground/70">
               {copy.body}
             </p>
-            <p className="mt-2 text-xs text-neutral-500">
+            <p className="mt-1.5 text-[11px]">
               <a
                 href="/privacy"
-                className="text-signal-500 underline-offset-4 hover:underline"
+                className="text-signal-600 underline-offset-2 hover:underline"
               >
                 {copy.learnMore}
               </a>
             </p>
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowSettings(true)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:border-signal-500/60"
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-signal-500/60"
               >
                 {copy.settings}
               </button>
               <button
                 type="button"
                 onClick={handleAccept}
-                className="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-signal-600"
+                className="rounded-md bg-signal-500 px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:bg-signal-600"
               >
                 {copy.accept}
               </button>
@@ -178,40 +183,40 @@ export function CookieConsent(props: CookieConsentProps) {
           <>
             <h2
               id="cookie-consent-title"
-              className="font-display text-base font-semibold text-foreground"
+              className="font-display text-sm font-semibold text-foreground"
             >
               {copy.cookiesHeading}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+            <p className="mt-1.5 text-xs leading-relaxed text-foreground/70">
               {copy.settingsBody}
             </p>
-            <dl className="mt-4 space-y-3 text-sm">
+            <dl className="mt-3 space-y-2 text-xs">
               <div>
                 <dt className="font-medium text-foreground">
                   {copy.sessionLabel}
                 </dt>
-                <dd className="text-neutral-400">{copy.sessionDescription}</dd>
+                <dd className="text-foreground/70">{copy.sessionDescription}</dd>
               </div>
               <div>
                 <dt className="font-medium text-foreground">{copy.langLabel}</dt>
-                <dd className="text-neutral-400">{copy.langDescription}</dd>
+                <dd className="text-foreground/70">{copy.langDescription}</dd>
               </div>
             </dl>
-            <p className="mt-3 text-xs italic text-neutral-500">
+            <p className="mt-2 text-[11px] italic text-foreground/60">
               {copy.noThirdParty}
             </p>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setShowSettings(false)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:border-signal-500/60"
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-signal-500/60"
               >
                 {copy.back}
               </button>
               <button
                 type="button"
                 onClick={handleSaveSettings}
-                className="rounded-md bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-signal-600"
+                className="rounded-md bg-signal-500 px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:bg-signal-600"
               >
                 {copy.close}
               </button>

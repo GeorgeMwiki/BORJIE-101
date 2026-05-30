@@ -37,7 +37,7 @@ export function FrontierBanner({ locale }: { readonly locale: Locale }) {
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </p>
-          <p className="mx-auto mt-2 max-w-prose-wide text-sm text-neutral-400">
+          <p className="mx-auto mt-2 max-w-prose-wide text-sm text-foreground/70">
             {t.sub}
           </p>
         </motion.div>

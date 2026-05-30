@@ -194,7 +194,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                 'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isOnAudiencePage
                   ? 'bg-signal-500/10 text-signal-500'
-                  : 'text-neutral-400 hover:bg-surface-raised hover:text-foreground',
+                  : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
               ].join(' ')}
               aria-expanded={audienceOpen}
               aria-haspopup="true"
@@ -213,7 +213,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                 <div className="grid grid-cols-4 gap-3">
                   {AUDIENCE_CATEGORIES.map((cat) => (
                     <div key={cat.titleKey}>
-                      <div className="mb-2.5 px-2 font-mono text-tiny font-semibold uppercase tracking-widest text-neutral-500">
+                      <div className="mb-2.5 px-2 font-mono text-tiny font-semibold uppercase tracking-widest text-foreground/60">
                         {cats[cat.titleKey]}
                       </div>
                       <div className="space-y-0.5">
@@ -247,7 +247,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                                 <span className="block text-sm font-medium leading-tight text-foreground">
                                   {items[titleKey]}
                                 </span>
-                                <span className="mt-0.5 block text-badge leading-tight text-neutral-400">
+                                <span className="mt-0.5 block text-badge leading-tight text-foreground/70">
                                   {items[descKey]}
                                 </span>
                               </span>
@@ -268,7 +268,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
               'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               pathname === '/pricing'
                 ? 'bg-signal-500/10 text-signal-500'
-                : 'text-neutral-400 hover:bg-surface-raised hover:text-foreground',
+                : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
             ].join(' ')}
           >
             {t.pricing}
@@ -287,7 +287,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                   'flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-signal-500/10 text-signal-500'
-                    : 'text-neutral-400 hover:bg-surface-raised hover:text-foreground',
+                    : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
                 ].join(' ')}
               >
                 <Icon className="h-4 w-4" aria-hidden />
@@ -299,14 +299,14 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
         {/* Right cluster */}
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hidden items-center rounded-full border border-border/60 bg-background/60 px-3 py-1 text-tiny font-medium uppercase tracking-widest text-neutral-400 xl:inline-flex">
+          <span className="hidden items-center rounded-full border border-border/60 bg-background/60 px-3 py-1 text-tiny font-medium uppercase tracking-widest text-foreground/70 xl:inline-flex">
             Tanzania · TZS-first
           </span>
           <LanguageToggle current={locale} />
           <ThemeToggle locale={locale} />
           <a
             href={signInHref}
-            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-neutral-400 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"
+            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"
           >
             {t.signIn}
           </a>
@@ -339,7 +339,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
           <div className="mx-auto max-w-7xl space-y-4 px-4 py-4">
             {AUDIENCE_CATEGORIES.map((cat) => (
               <div key={cat.titleKey}>
-                <div className="mb-2 px-4 font-mono text-tiny font-semibold uppercase tracking-widest text-neutral-500">
+                <div className="mb-2 px-4 font-mono text-tiny font-semibold uppercase tracking-widest text-foreground/60">
                   {cats[cat.titleKey]}
                 </div>
                 <div className="grid grid-cols-2 gap-1">
@@ -351,7 +351,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
                         key={item.id}
                         href={item.href}
                         onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-surface-raised hover:text-foreground"
+                        className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-foreground/75 transition-colors hover:bg-surface-raised hover:text-foreground"
                       >
                         <Icon className="h-4 w-4" aria-hidden />
                         <span>{items[titleKey]}</span>

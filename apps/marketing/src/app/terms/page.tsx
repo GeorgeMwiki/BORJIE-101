@@ -21,11 +21,11 @@ export default async function TermsPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           {t.heading}
         </h1>
-        <p className="mt-2 font-mono text-pill uppercase tracking-widest text-neutral-400">
+        <p className="mt-2 font-mono text-pill uppercase tracking-widest text-foreground/70">
           {t.lastUpdated}
         </p>
 
-        <div className="mt-10 space-y-6 text-sm leading-relaxed text-neutral-400">
+        <div className="mt-10 space-y-6 text-sm leading-relaxed text-foreground/70">
           {t.sections.map((s) => (
             <Section key={s.title} title={s.title}>
               {s.body}

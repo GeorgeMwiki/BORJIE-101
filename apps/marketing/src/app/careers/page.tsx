@@ -59,7 +59,7 @@ export default async function CareersPage() {
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
           Build the AI that runs Tanzanian mining.
         </h1>
-        <p className="mt-6 text-lg leading-relaxed text-neutral-300">
+        <p className="mt-6 text-lg leading-relaxed text-foreground/75">
           Borjie is hiring across engineering, field operations, and
           compliance. Dar es Salaam headquarters, deployments across the
           country. Competitive cash, meaningful equity, and a chance to
@@ -76,14 +76,14 @@ export default async function CareersPage() {
                 <h2 className="font-display text-xl font-semibold">
                   {role.title}
                 </h2>
-                <span className="font-mono text-pill uppercase tracking-widest text-neutral-400">
+                <span className="font-mono text-pill uppercase tracking-widest text-foreground/70">
                   {role.type}
                 </span>
               </div>
               <p className="mt-1 font-mono text-xs uppercase tracking-widest text-signal-500">
                 {role.location}
               </p>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+              <p className="mt-3 text-sm leading-relaxed text-foreground/70">
                 {role.summary}
               </p>
               <a
@@ -115,7 +115,7 @@ export default async function CareersPage() {
         <div className="mt-12">
           <Link
             href="/about"
-            className="text-sm text-neutral-400 hover:text-foreground"
+            className="text-sm text-foreground/70 hover:text-foreground"
           >
             ← About Borjie
           </Link>

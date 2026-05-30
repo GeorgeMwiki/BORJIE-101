@@ -94,7 +94,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-5 max-w-prose text-lg leading-relaxed text-foreground/70">
           {t.sub}
         </p>
       </div>
@@ -113,7 +113,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
                     <h3 className="font-display text-xl font-medium tracking-tight">
                       {c.title}
                     </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/70">
                       {c.blurb}
                     </p>
                   </div>
@@ -124,7 +124,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
                     {t.learnMore}
                     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
-                  <span className="absolute right-5 top-5 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
+                  <span className="absolute right-5 top-5 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                 </div>

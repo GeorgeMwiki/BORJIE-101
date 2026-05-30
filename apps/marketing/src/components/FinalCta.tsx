@@ -33,7 +33,7 @@ export function FinalCta({ locale }: { readonly locale: Locale }) {
         >
           {t.heading}
         </h2>
-        <p className="mx-auto mt-6 max-w-prose-wider text-lg leading-relaxed text-neutral-400">
+        <p className="mx-auto mt-6 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
           {t.sub}
         </p>
 
@@ -53,7 +53,7 @@ export function FinalCta({ locale }: { readonly locale: Locale }) {
           </Link>
         </div>
 
-        <p className="mt-6 font-mono text-caption-lg uppercase tracking-widest text-neutral-500">
+        <p className="mt-6 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
           {t.microcopy}
         </p>
       </div>

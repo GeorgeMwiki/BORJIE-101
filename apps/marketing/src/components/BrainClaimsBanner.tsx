@@ -86,7 +86,7 @@ export function BrainClaimsBanner({ locale }: BannerProps) {
                   <p className="text-base font-semibold leading-snug text-foreground sm:text-lg">
                     {claim.title}
                   </p>
-                  <p className="mt-1 max-w-prose-wider text-sm leading-relaxed text-neutral-400">
+                  <p className="mt-1 max-w-prose-wider text-sm leading-relaxed text-foreground/70">
                     {claim.body}
                   </p>
                 </motion.div>

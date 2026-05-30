@@ -161,7 +161,7 @@ export default async function SupportPage() {
             <h1 className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl">
               {isSw ? 'Tuko hapa kukusaidia.' : "We're here to help."}
             </h1>
-            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-neutral-400 sm:text-xl">
+            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
               {isSw
                 ? 'Pata majibu, fungua tikiti, au panga saa za ofisi.'
                 : 'Find answers, open a ticket, or book office hours.'}
@@ -175,7 +175,7 @@ export default async function SupportPage() {
                     ? 'Tafuta msaada (inakuja)'
                     : 'Search help articles (coming soon)'
                 }
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-neutral-500 focus:outline-none"
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-foreground/60 focus:outline-none"
               />
             </div>
           </div>
@@ -198,7 +198,7 @@ export default async function SupportPage() {
                   <h3 className="mt-4 font-display text-lg font-medium text-foreground">
                     {isSw ? link.titleSw : link.titleEn}
                   </h3>
-                  <p className="mt-2 text-sm text-neutral-400">
+                  <p className="mt-2 text-sm text-foreground/70">
                     {isSw ? link.bodySw : link.bodyEn}
                   </p>
                   <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-signal-500">
@@ -243,7 +243,7 @@ export default async function SupportPage() {
                           <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">
                             {copy.q}
                           </summary>
-                          <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                          <p className="mt-2 text-sm leading-relaxed text-foreground/70">
                             {copy.a}
                           </p>
                         </details>
@@ -286,7 +286,7 @@ export default async function SupportPage() {
             <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
               {isSw ? 'Panga saa za ofisi.' : 'Schedule office hours.'}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {isSw
                 ? 'Saa moja na timu yetu kupanga matumizi yako.'
                 : 'One hour with our team to plan your rollout.'}
@@ -334,7 +334,7 @@ function ContactCard({
       <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-signal-500">
         <Icon className="h-5 w-5" />
       </div>
-      <p className="mt-4 font-mono text-xs uppercase tracking-widest text-neutral-400">
+      <p className="mt-4 font-mono text-xs uppercase tracking-widest text-foreground/70">
         {title}
       </p>
       <p className="mt-1 font-display text-lg font-medium text-foreground">

@@ -78,7 +78,7 @@ export function BentoGrid({ locale }: { readonly locale: Locale }) {
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -119,7 +119,7 @@ export function BentoGrid({ locale }: { readonly locale: Locale }) {
                       {tile.title}
                     </h3>
                     <p
-                      className={`flex-1 leading-relaxed text-neutral-400 ${
+                      className={`flex-1 leading-relaxed text-foreground/70 ${
                         isHero ? 'text-base' : 'text-sm'
                       }`}
                     >
@@ -159,7 +159,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
               key={e.seq}
               className="flex items-center justify-between py-1 text-tiny"
             >
-              <span className="font-mono text-neutral-500 tabular-nums">
+              <span className="font-mono text-foreground/60 tabular-nums">
                 #{e.seq}
               </span>
               <span className="font-mono text-signal-500">{e.hash}</span>
@@ -172,7 +172,7 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
       return (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-tiny">
-            <span className="text-neutral-500">PML 0241/2023</span>
+            <span className="text-foreground/60">PML 0241/2023</span>
             <span className="font-mono text-signal-500 tabular-nums">
               47 days
             </span>
@@ -192,14 +192,14 @@ function BentoFlourish({ tileId }: { readonly tileId: string }) {
             className="h-1.5 w-1.5 rounded-full bg-signal-500"
             aria-hidden="true"
           />
-          <span className="font-mono text-neutral-300">LBMA AM-fix</span>
+          <span className="font-mono text-foreground/75">LBMA AM-fix</span>
           <span className="ml-auto font-mono text-signal-500">+1.4%</span>
         </div>
       );
     case 'royalty':
       return (
         <div className="rounded-md border border-border bg-background/50 px-3 py-2 text-tiny">
-          <div className="text-neutral-500">April royalty draft</div>
+          <div className="text-foreground/60">April royalty draft</div>
           <div className="font-mono text-base font-semibold tabular-nums text-foreground">
             TZS 18.4M
           </div>

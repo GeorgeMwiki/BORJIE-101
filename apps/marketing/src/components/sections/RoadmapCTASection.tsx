@@ -24,7 +24,7 @@ const PILL_TONE_CLASSES: Record<Pill['tone'], string> = {
   active:
     'bg-signal-500/20 border-signal-500 text-foreground shadow-signal-glow',
   next: 'border-signal-500/60 bg-signal-500/5 text-foreground',
-  later: 'border-border bg-surface text-neutral-300',
+  later: 'border-border bg-surface text-foreground/75',
 };
 
 export function RoadmapCTASection({
@@ -80,7 +80,7 @@ export function RoadmapCTASection({
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-neutral-400">
+          <p className="mx-auto mt-5 max-w-prose-wide text-lg text-foreground/70">
             {t.sub}
           </p>
         </motion.div>
@@ -138,7 +138,7 @@ export function RoadmapCTASection({
               {t.ctaSecondary}
             </Link>
           </div>
-          <p className="mt-5 font-mono text-meta uppercase tracking-widest text-neutral-500">
+          <p className="mt-5 font-mono text-meta uppercase tracking-widest text-foreground/60">
             {t.microcopy}
           </p>
         </motion.div>

@@ -43,7 +43,7 @@ export function LanguageToggle({ current }: { readonly current: Locale }) {
               'rounded px-2 py-1 transition-colors duration-fast',
               active
                 ? 'bg-signal-500 text-primary-foreground'
-                : 'text-neutral-400 hover:text-foreground',
+                : 'text-foreground/70 hover:text-foreground',
             ].join(' ')}
           >
             {code.toUpperCase()}

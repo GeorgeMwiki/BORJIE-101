@@ -52,7 +52,7 @@ const STATUS_TEXT: Record<SimpleStatus, string> = {
   ok: 'text-emerald-400',
   degraded: 'text-amber-400',
   outage: 'text-red-400',
-  unknown: 'text-neutral-400',
+  unknown: 'text-foreground/70',
 };
 
 function getApiBase(): string {
@@ -160,7 +160,7 @@ export function StatusBoard({
           </li>
         ))}
       </ul>
-      <p className="text-right text-pill uppercase tracking-widest text-neutral-500">
+      <p className="text-right text-pill uppercase tracking-widest text-foreground/60">
         {copy.windowLabelPrefix}{data.windowDays}{copy.windowLabelSuffix}
       </p>
     </div>
@@ -209,7 +209,7 @@ function ComponentRow(props: {
           <p className="font-mono text-sm text-foreground">
             {c.uptimePct.toFixed(2)}%
           </p>
-          <p className="text-caption-lg uppercase tracking-widest text-neutral-500">
+          <p className="text-caption-lg uppercase tracking-widest text-foreground/60">
             {props.copy.uptimeLabel}
           </p>
         </div>
@@ -224,7 +224,7 @@ function ComponentRow(props: {
         ))}
       </div>
       {c.lastChangedAt && (
-        <p className="mt-3 text-caption-lg uppercase tracking-widest text-neutral-500">
+        <p className="mt-3 text-caption-lg uppercase tracking-widest text-foreground/60">
           {props.copy.lastChangeLabel}: {new Date(c.lastChangedAt).toLocaleString()}
         </p>
       )}

@@ -22,7 +22,7 @@ export function TrustStrip({ locale }: { readonly locale: Locale }) {
       <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
         <p
           id="trust-kicker"
-          className="text-center font-mono text-caption uppercase tracking-widest text-neutral-500"
+          className="text-center font-mono text-caption uppercase tracking-widest text-foreground/60"
         >
           {t.kicker}
         </p>
@@ -33,7 +33,7 @@ export function TrustStrip({ locale }: { readonly locale: Locale }) {
           {t.logos.map((logo) => (
             <li
               key={logo}
-              className="font-mono text-caption-lg uppercase tracking-widest text-neutral-400 transition-colors duration-fast hover:text-foreground"
+              className="font-mono text-caption-lg uppercase tracking-widest text-foreground/70 transition-colors duration-fast hover:text-foreground"
             >
               {logo}
             </li>

@@ -46,7 +46,7 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
       aria-label="Mock KPI tile — gold ounces, TZS hedged, days to licence renewal"
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-meta uppercase tracking-widest text-neutral-500">
+        <span className="font-mono text-meta uppercase tracking-widest text-foreground/60">
           06:00 Brief
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-signal-500/15 px-2 py-0.5 text-tiny font-medium text-signal-500">
@@ -71,7 +71,7 @@ export function HeroDemoPreview({ className = '' }: HeroDemoPreviewProps) {
             <div className="font-display text-xl font-semibold tabular-nums text-foreground">
               {k.value}
             </div>
-            <div className="font-mono text-spark uppercase tracking-wider text-neutral-500">
+            <div className="font-mono text-spark uppercase tracking-wider text-foreground/60">
               {k.label}
             </div>
           </motion.div>

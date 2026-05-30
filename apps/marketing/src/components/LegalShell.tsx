@@ -54,11 +54,11 @@ export function LegalShell({
             <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
               {heading}
             </h1>
-            <p className="mt-3 font-mono text-xs uppercase tracking-widest text-neutral-500">
+            <p className="mt-3 font-mono text-xs uppercase tracking-widest text-foreground/60">
               {lastUpdated}
             </p>
             {intro ? (
-              <p className="mx-auto mt-6 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+              <p className="mx-auto mt-6 max-w-prose-wider text-base leading-relaxed text-foreground/70">
                 {intro}
               </p>
             ) : null}
@@ -79,7 +79,7 @@ export function LegalShell({
                   <li key={s.id}>
                     <Link
                       href={`#${s.id}`}
-                      className="block text-neutral-400 transition-colors hover:text-foreground"
+                      className="block text-foreground/70 transition-colors hover:text-foreground"
                     >
                       {s.title}
                     </Link>
@@ -87,13 +87,13 @@ export function LegalShell({
                 ))}
               </ol>
             </aside>
-            <div className="prose-mining max-w-prose space-y-10 text-base leading-relaxed text-neutral-300">
+            <div className="prose-mining max-w-prose space-y-10 text-base leading-relaxed text-foreground/75">
               {sections.map((s) => (
                 <section key={s.id} id={s.id}>
                   <h2 className="font-display text-2xl font-medium text-foreground">
                     {s.title}
                   </h2>
-                  <div className="mt-3 text-sm leading-relaxed text-neutral-400">
+                  <div className="mt-3 text-sm leading-relaxed text-foreground/70">
                     {s.body}
                   </div>
                 </section>

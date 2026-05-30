@@ -52,7 +52,7 @@ export default async function ContactPage() {
                 ? 'Hebu tuzungumze kuhusu mgodi wako.'
                 : "Let's talk about your operation."}
             </h1>
-            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-neutral-400 sm:text-xl">
+            <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
               {isSw
                 ? 'Tunajibu ndani ya siku moja ya kazi.'
                 : 'We respond within one working day.'}
@@ -167,13 +167,13 @@ export default async function ContactPage() {
                     <MapPin className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="font-mono text-xs uppercase tracking-widest text-neutral-400">
+                    <p className="font-mono text-xs uppercase tracking-widest text-foreground/70">
                       {isSw ? 'Ofisi ya Tanzania' : 'Tanzania office'}
                     </p>
                     <p className="mt-1 font-display text-base font-medium text-foreground">
                       Borjie Ltd
                     </p>
-                    <p className="mt-1 text-sm text-neutral-400">
+                    <p className="mt-1 text-sm text-foreground/70">
                       Plot 123, Bagamoyo Road
                       <br />
                       Dar es Salaam, Tanzania
@@ -193,7 +193,7 @@ export default async function ContactPage() {
                 ? 'Au panga simu ya dakika 15.'
                 : 'Or schedule a 15-minute call.'}
             </h2>
-            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-neutral-400">
+            <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {isSw
                 ? 'Tutapitia mahitaji yako, kuonyesha mfano, na kushauri.'
                 : "We'll walk your requirements, show a demo, and advise."}
@@ -265,7 +265,7 @@ function ChannelCard({
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-neutral-400">
+          <p className="font-mono text-xs uppercase tracking-widest text-foreground/70">
             {title}
           </p>
           <p className="mt-1 font-display text-base font-medium text-foreground">
