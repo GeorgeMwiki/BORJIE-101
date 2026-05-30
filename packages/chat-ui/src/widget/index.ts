@@ -38,3 +38,37 @@ export type {
   WidgetLanguage as WidgetContentLanguage,
   WidgetSuggestionChip,
 } from './widget-content';
+
+// ---------------------------------------------------------------------------
+// LitFin verbatim panel suite — full ChatPanel + MessageBubble +
+// ContextBadge + SegmentHeader + AIMessageText + Provider. Mirrors
+// `feat/litfin-widget-clone-fresh` on BossNyumba — same surface, Borjie
+// branded. Coexists with legacy `ChatPanel`/`MessageBubble` above; new
+// mounts should prefer `LitFinChatPanel` behind `LitFinAIProvider`.
+// ---------------------------------------------------------------------------
+export { LitFinWidget } from './LitFinWidget';
+export { LitFinChatPanel } from './LitFinChatPanel';
+export {
+  LitFinAIProvider,
+  useLitFinAI,
+  useOptionalLitFinAI,
+} from './LitFinAIProvider';
+export type {
+  LitFinAIProviderProps,
+  LitFinPortalId,
+  LitFinPersonaId,
+} from './LitFinAIProvider';
+export { LitFinMessageBubble } from './LitFinMessageBubble';
+export type { LitFinMessage } from './LitFinMessageBubble';
+export { LitFinContextBadge } from './LitFinContextBadge';
+export { LitFinSegmentHeader } from './LitFinSegmentHeader';
+export { AIMessageText } from './AIMessageText';
+export {
+  getWidgetWelcomeMessage as getLitFinWidgetWelcomeMessage,
+  getWidgetSuggestionChips as getLitFinWidgetSuggestionChips,
+} from './litfin-widget-content';
+export type {
+  WidgetLanguage as LitFinWidgetLanguage,
+  WidgetPortalId as LitFinWidgetPortalId,
+  WidgetSuggestionChip as LitFinWidgetSuggestionChip,
+} from './litfin-widget-content';

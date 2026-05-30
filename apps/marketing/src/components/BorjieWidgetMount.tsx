@@ -1,31 +1,39 @@
 'use client';
 /**
  * BorjieWidgetMount — marketing-site (anonymous) wrapper around the
- * Borjie floating Mr. Mwikila chat bubble.
+ * @borjie/chat-ui LitFin-style floating widget.
  *
- * Mounts the LitFin-clone Widget (carbon-copy of LitFinWidget.tsx) wrapped
- * in BorjieAIProvider so the bubble can read route + language context and
- * page-level chat surfaces share the same UnifiedChat conversation.
+ * Renders the floating "Mr. Mwikila — Borjie's AI Estate-Management
+ * Director" bubble across every marketing page. Uses the `public`
+ * portal — talks to /api/chat (a Next route handler that adapts the
+ * widget shape to the Borjie api-gateway's /api/v1/public/chat
+ * endpoint).
  *
- * Persona: "Mr. Mwikila — Borjie's AI Estate-Management Director" (covers
- * both real-estate and mining). The widget talks to /api/v1/public/chat
- * which serves curated Borjie-about-Borjie responses (no tenant data, no
- * auth required).
+ * Persona: "Mr. Mwikila — Borjie's AI Estate-Management Director"
+ * (covers both real-estate and mining).
  *
  * SOTA lazy-load
  * --------------
- * The widget is loaded via `next/dynamic({ ssr: false })` so the entire
- * `@borjie/chat-ui` widget bundle is excluded from the server-render
- * module graph. ChatPanel itself is further lazy-loaded by Widget.tsx
- * (via next/dynamic) so the heavy chat surface never enters the
+ * The widget is loaded via `next/dynamic({ ssr: false })` so the
+ * entire `@borjie/chat-ui` bundle is excluded from the server-render
+ * module graph. ChatPanel itself is further lazy-loaded by LitFinWidget
+ * via next/dynamic so the heavy chat surface never enters the
  * critical-path JS payload.
  */
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
-import { BorjieAIProvider } from '@borjie/chat-ui';
+import type { ReactNode, JSX } from 'react';
 
-const Widget = dynamic(
-  () => import('@borjie/chat-ui').then((m) => ({ default: m.Widget })),
+const LitFinAIProvider = dynamic(
+  () =>
+    import('@borjie/chat-ui').then((m) => ({
+      default: m.LitFinAIProvider,
+    })),
+  { ssr: false },
+);
+
+const LitFinWidget = dynamic(
+  () =>
+    import('@borjie/chat-ui').then((m) => ({ default: m.LitFinWidget })),
   { ssr: false },
 );
 
@@ -33,21 +41,20 @@ interface BorjieWidgetMountProps {
   readonly locale?: 'en' | 'sw';
 }
 
-export function BorjieWidgetMount({
-  locale = 'en',
-}: BorjieWidgetMountProps): JSX.Element {
-  const pathname = usePathname() ?? '/';
-  const endpoint =
-    (process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? '') + '/api/v1/public/chat';
+export function BorjieWidgetMount(
+  _props: BorjieWidgetMountProps = {},
+): JSX.Element {
   return (
-    <BorjieAIProvider
-      portal="public"
-      defaultPersona="public-chat"
-      defaultLanguage={locale}
-      currentPath={pathname}
-      endpoint={endpoint}
-    >
-      <Widget />
-    </BorjieAIProvider>
+    <LitFinAIProvider portalId="public" endpoint="/api/chat" initialRoute="/">
+      <LitFinWidget />
+    </LitFinAIProvider>
   );
+}
+
+export function BorjieWidgetSlot({
+  children,
+}: {
+  readonly children: ReactNode;
+}): JSX.Element {
+  return <>{children}</>;
 }
