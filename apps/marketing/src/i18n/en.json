@@ -839,8 +839,8 @@
           "subtitle": "Hands-free",
           "desc": "In the truck on the haul road. On the wash plant deck. At the pit gate when both hands are dirty. Tap the mic, talk, and Borjie answers in Swahili or English.",
           "preview": {
-            "user": "Mwikila, ni gani limetokea usiku?",
-            "ai": "Zamu B imetoa tani 184 kwa daraja la 3.2 g/t. Gari moja la mafuta limepoteza saa mbili kwa breakdown. Hakuna ajali. Royalty ya Aprili iko tayari kusainiwa."
+            "user": "Mwikila, what happened overnight?",
+            "ai": "Shift B produced 184 tonnes at 3.2 g/t. One fuel truck lost two hours to a breakdown. No incidents. The April royalty filing is ready to sign."
           }
         }
       ]
@@ -1390,23 +1390,23 @@
       "preferredLanguage": "Language",
       "preferredLanguageEn": "Lugha",
       "preferredCurrency": "Currency",
-      "preferredCurrencyEn": "Sarafu",
+      "preferredCurrencyEn": "Preferred currency",
       "nationalId": "National ID (optional)",
-      "nationalIdEn": "Kitambulisho cha NIDA",
+      "nationalIdEn": "NIDA number",
       "orgName": "Company name",
-      "orgNameEn": "Jina la kampuni",
+      "orgNameEn": "Registered legal name",
       "businessKind": "Business type",
-      "businessKindEn": "Aina ya biashara",
+      "businessKindEn": "Category of business",
       "businessRegistrationNumber": "Business registration #",
-      "businessRegistrationNumberEn": "Nambari ya BRELA",
+      "businessRegistrationNumberEn": "BRELA number",
       "taxId": "Tax ID",
-      "taxIdEn": "Nambari ya TIN",
+      "taxIdEn": "TIN number",
       "contactFullName": "Contact full name",
-      "contactFullNameEn": "Jina la mawasiliano",
+      "contactFullNameEn": "Primary contact",
       "contactPhone": "Contact phone (E.164)",
-      "contactPhoneEn": "Simu ya mawasiliano",
+      "contactPhoneEn": "Direct phone",
       "contactEmail": "Contact email",
-      "contactEmailEn": "Barua pepe ya mawasiliano"
+      "contactEmailEn": "Direct email"
     },
     "businessKinds": {
       "refiner": "Refinery",
@@ -1470,13 +1470,13 @@
     "sub": "Spin up your mining operating system in under two minutes.",
     "fields": {
       "orgName": "Mine or company name",
-      "orgNameSub": "Jina la mgodi",
+      "orgNameSub": "Operating entity",
       "ownerFullName": "Your full name",
-      "ownerFullNameSub": "Jina lako kamili",
+      "ownerFullNameSub": "Legal name",
       "email": "Email",
-      "emailSub": "Barua pepe",
+      "emailSub": "Work email",
       "password": "Password",
-      "passwordSub": "Nenosiri",
+      "passwordSub": "Account password",
       "passwordHelp": "At least 8 characters.",
       "country": "Country of operation"
     },
