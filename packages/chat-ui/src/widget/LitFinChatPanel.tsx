@@ -179,7 +179,15 @@ export function LitFinChatPanel({ onClose }: LitFinChatPanelProps): JSX.Element 
           });
         } else {
           const json = (await res.json().catch(() => null)) as
-            | { reply?: string; text?: string; error?: string }
+            | {
+                reply?: string;
+                text?: string;
+                error?: string;
+                blocks?: ReadonlyArray<{
+                  type: string;
+                  [key: string]: unknown;
+                }>;
+              }
             | null;
           const reply =
             json?.reply ??
@@ -189,10 +197,24 @@ export function LitFinChatPanel({ onClose }: LitFinChatPanelProps): JSX.Element 
               : language === 'sw'
                 ? 'Samahani, hakuna jibu kwa sasa.'
                 : 'Sorry, no reply right now.');
+          // Narrow port: AI may include inline learning blocks alongside
+          // the reply. Only `concept_card` and `ui_block` are honored.
+          const blocks = Array.isArray(json?.blocks)
+            ? (json!.blocks.filter(
+                (b) => b?.type === 'concept_card' || b?.type === 'ui_block',
+              ) as unknown as LitFinMessage['blocks'])
+            : undefined;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (!last || last.role !== 'assistant') return prev;
-            return [...prev.slice(0, -1), { ...last, content: reply }];
+            return [
+              ...prev.slice(0, -1),
+              {
+                ...last,
+                content: reply,
+                ...(blocks && blocks.length > 0 ? { blocks } : {}),
+              },
+            ];
           });
         }
       } catch (err) {
