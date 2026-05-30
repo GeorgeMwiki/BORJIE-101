@@ -5,26 +5,24 @@
  *
  * Thin client island wrapper around the Borjie floating chat widget so
  * the marketing layout can stay RSC. The widget itself is already
- * client-side; this slot exists so the layout boundary is a server
- * component (smaller initial bundle, layout shell streams from the
- * server without a hydration boundary).
+ * client-side and lazy-mounts the heavy chat-ui bundle via
+ * `next/dynamic({ ssr: false })` inside BorjieWidgetMount. Wrapping it
+ * here keeps the layout boundary clean and surface-name aligned with
+ * LitFin's MarketingWidgetSlot.
  *
  * Source of pattern: LITFIN_PATH/src/components/marketing/MarketingWidgetSlot.tsx
  * Source of impl:    apps/marketing/src/components/BorjieWidgetMount.tsx
  */
 
-import dynamic from 'next/dynamic';
+import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import type { Locale } from '@/lib/i18n';
 
-const BorjieWidget = dynamic(() =>
-  import('@/components/BorjieWidgetMount').then((m) => ({
-    default: m.BorjieWidgetMount,
-  })),
-);
+export interface MarketingWidgetSlotProps {
+  readonly locale?: Locale;
+}
 
 export function MarketingWidgetSlot({
   locale = 'sw',
-}: {
-  readonly locale?: 'sw' | 'en';
-}): JSX.Element {
-  return <BorjieWidget locale={locale} />;
+}: MarketingWidgetSlotProps): JSX.Element {
+  return <BorjieWidgetMount locale={locale} />;
 }

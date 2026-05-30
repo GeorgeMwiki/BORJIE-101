@@ -11,9 +11,7 @@
  * shell:
  *   1. Opens with the FrontierBanner (above-fold of HomePage — eager).
  *   2. Renders the "Why a Mining OS?" Problem/Solution duo (eager).
- *   3. Lazy-loads the rest via next/dynamic — each section ships as its
- *      own chunk so the initial paint stays slim.
- *   4. Wraps below-fold chunks in `LazyVisible` (IntersectionObserver
+ *   3. Wraps below-fold sections in `LazyVisible` (IntersectionObserver
  *      gate, 400px ahead) so framer-motion-heavy sections never enter
  *      the first-paint payload.
  *
@@ -22,89 +20,31 @@
  *   <BrainClaimsBanner />       // evidence-backed claims band
  *   <CapabilitiesSection />     // six capabilities tilt-grid
  *   <HomePage />                // everything below (this file)
+ *
+ * Note: LitFin's source uses next/dynamic() + Suspense for code-split
+ * chunks. Borjie achieves the same first-paint goal through
+ * IntersectionObserver-gated LazyVisible — chunks load when the
+ * sentinel intersects, framer-motion never parses ahead of need. The
+ * trade-off (less type-safety on dynamic strings vs simpler static
+ * imports) was decided in favour of static imports for build-time TS
+ * cleanliness under nodenext module resolution.
  */
 'use client';
 
-import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
 import type { Locale } from '@/lib/i18n';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { LazyVisible } from '@/components/LazyVisible';
 import { FrontierBanner } from '@/components/sections/FrontierBanner';
 import { ProblemSolution } from '@/components/sections/ProblemSolution';
-
-// PERF: Below-fold sections each ship as their own chunk so the initial
-// HomePage payload only includes the two above-fold sections + the
-// dynamic-import shims. Mirrors LitFin's iter-46 PERF wave.
-
-const EcosystemSection = dynamic(
-  () =>
-    import('@/components/sections/EcosystemSection').then((m) => ({
-      default: m.EcosystemSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={520} cards={3} /> },
-);
-
-const UniversalAccessSection = dynamic(
-  () =>
-    import('@/components/sections/UniversalAccessSection').then((m) => ({
-      default: m.UniversalAccessSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={520} cards={3} /> },
-);
-
-const MwikilaModesSection = dynamic(
-  () =>
-    import('@/components/sections/MwikilaModesSection').then((m) => ({
-      default: m.MwikilaModesSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={560} cards={3} /> },
-);
-
-const InteractiveModesSection = dynamic(
-  () =>
-    import('@/components/sections/InteractiveModesSection').then((m) => ({
-      default: m.InteractiveModesSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={520} cards={3} /> },
-);
-
-const PlatformShowcaseSection = dynamic(
-  () =>
-    import('@/components/sections/PlatformShowcaseSection').then((m) => ({
-      default: m.PlatformShowcaseSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={480} cards={3} /> },
-);
-
-const BentoGrid = dynamic(
-  () =>
-    import('@/components/sections/BentoGrid').then((m) => ({
-      default: m.BentoGrid,
-    })),
-  { loading: () => <SectionSkeleton minHeight={420} cards={4} /> },
-);
-
-const InsightsAndScaleSection = dynamic(
-  () =>
-    import('@/components/sections/InsightsAndScaleSection').then((m) => ({
-      default: m.InsightsAndScaleSection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={520} cards={3} /> },
-);
-
-const RoadmapCTASection = dynamic(
-  () =>
-    import('@/components/sections/RoadmapCTASection').then((m) => ({
-      default: m.RoadmapCTASection,
-    })),
-  { loading: () => <SectionSkeleton minHeight={480} cards={4} /> },
-);
-
-const Pricing = dynamic(
-  () => import('@/components/Pricing').then((m) => ({ default: m.Pricing })),
-  { loading: () => <SectionSkeleton minHeight={520} cards={3} /> },
-);
+import { EcosystemSection } from '@/components/sections/EcosystemSection';
+import { UniversalAccessSection } from '@/components/sections/UniversalAccessSection';
+import { MwikilaModesSection } from '@/components/sections/MwikilaModesSection';
+import { InteractiveModesSection } from '@/components/sections/InteractiveModesSection';
+import { PlatformShowcaseSection } from '@/components/sections/PlatformShowcaseSection';
+import { BentoGrid } from '@/components/sections/BentoGrid';
+import { InsightsAndScaleSection } from '@/components/sections/InsightsAndScaleSection';
+import { RoadmapCTASection } from '@/components/sections/RoadmapCTASection';
+import { Pricing } from '@/components/Pricing';
 
 export interface HomePageProps {
   readonly locale: Locale;
@@ -118,57 +58,72 @@ export function HomePage({ locale }: HomePageProps): JSX.Element {
       <ProblemSolution locale={locale} />
 
       {/* ──────────────────────────────────────────────────────────
-          BELOW-FOLD — each section ships as its own dynamic chunk.
-          Suspense fallbacks preserve streaming so the skeleton
-          appears before the lazy chunk arrives. The deeper sections
-          additionally wait on `LazyVisible` (IntersectionObserver
-          400px ahead) so we don't pay framer-motion parse cost
-          until the user actually scrolls near them.
+          BELOW-FOLD — each section gated by LazyVisible
+          (IntersectionObserver 400px ahead). The skeleton holds
+          a vertical-space placeholder so we don't shift layout
+          before the section enters the viewport.
           ────────────────────────────────────────────────────────── */}
-      <Suspense fallback={<SectionSkeleton minHeight={520} cards={3} />}>
+      <LazyVisible
+        placeholderClassName="min-h-[520px]"
+        fallback={<SectionSkeleton minHeight={520} cards={3} />}
+      >
         <EcosystemSection locale={locale} />
-      </Suspense>
+      </LazyVisible>
 
-      <Suspense fallback={<SectionSkeleton minHeight={520} cards={3} />}>
+      <LazyVisible
+        placeholderClassName="min-h-[520px]"
+        fallback={<SectionSkeleton minHeight={520} cards={3} />}
+      >
         <UniversalAccessSection locale={locale} />
-      </Suspense>
+      </LazyVisible>
 
-      <Suspense fallback={<SectionSkeleton minHeight={560} cards={3} />}>
+      <LazyVisible
+        placeholderClassName="min-h-[560px]"
+        fallback={<SectionSkeleton minHeight={560} cards={3} />}
+      >
         <MwikilaModesSection locale={locale} />
-      </Suspense>
+      </LazyVisible>
 
-      <Suspense fallback={<SectionSkeleton minHeight={520} cards={3} />}>
+      <LazyVisible
+        placeholderClassName="min-h-[520px]"
+        fallback={<SectionSkeleton minHeight={520} cards={3} />}
+      >
         <InteractiveModesSection locale={locale} />
-      </Suspense>
-
-      <LazyVisible placeholderClassName="min-h-[420px]">
-        <Suspense fallback={<SectionSkeleton minHeight={420} cards={4} />}>
-          <BentoGrid locale={locale} />
-        </Suspense>
       </LazyVisible>
 
-      <LazyVisible placeholderClassName="min-h-[480px]">
-        <Suspense fallback={<SectionSkeleton minHeight={480} cards={3} />}>
-          <PlatformShowcaseSection locale={locale} />
-        </Suspense>
+      <LazyVisible
+        placeholderClassName="min-h-[420px]"
+        fallback={<SectionSkeleton minHeight={420} cards={4} />}
+      >
+        <BentoGrid locale={locale} />
       </LazyVisible>
 
-      <LazyVisible placeholderClassName="min-h-[520px]">
-        <Suspense fallback={<SectionSkeleton minHeight={520} cards={3} />}>
-          <InsightsAndScaleSection locale={locale} />
-        </Suspense>
+      <LazyVisible
+        placeholderClassName="min-h-[480px]"
+        fallback={<SectionSkeleton minHeight={480} cards={3} />}
+      >
+        <PlatformShowcaseSection locale={locale} />
       </LazyVisible>
 
-      <LazyVisible placeholderClassName="min-h-[520px]">
-        <Suspense fallback={<SectionSkeleton minHeight={520} cards={3} />}>
-          <Pricing locale={locale} />
-        </Suspense>
+      <LazyVisible
+        placeholderClassName="min-h-[520px]"
+        fallback={<SectionSkeleton minHeight={520} cards={3} />}
+      >
+        <InsightsAndScaleSection locale={locale} />
       </LazyVisible>
 
-      <LazyVisible placeholderClassName="min-h-[480px]">
-        <Suspense fallback={<SectionSkeleton minHeight={480} cards={4} />}>
-          <RoadmapCTASection locale={locale} />
-        </Suspense>
+      <LazyVisible
+        placeholderClassName="min-h-[520px]"
+        fallback={<SectionSkeleton minHeight={520} cards={3} />}
+      >
+        <Pricing locale={locale} />
+      </LazyVisible>
+
+      <LazyVisible
+        placeholderClassName="min-h-[480px]"
+        fallback={<SectionSkeleton minHeight={480} cards={4} />}
+      >
+        <RoadmapCTASection locale={locale} />
       </LazyVisible>
     </div>
   );
