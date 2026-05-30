@@ -53,6 +53,11 @@ import {
   isSeededOverride,
   getAuthoritiesByCountry,
 } from '../services/jurisdiction-resolver/index.js';
+// Learning Amplification (LitFin port) — every Mr. Mwikila marketing
+// reply records a `claim_cited` observation per evidence id so the
+// nightly Bayesian roll-up can correlate citations with downstream
+// user feedback. Fire-and-forget; never blocks the SSE stream.
+import { recordObservation } from '@borjie/learning-amplification';
 
 const logger = pino({
   name: 'public-chat',
@@ -1974,6 +1979,23 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       await stream.writeSSE({
         event: 'suggested_actions',
         data: JSON.stringify({ actions, at: new Date().toISOString() }),
+      });
+    }
+
+    // Learning Amplification (LitFin port) — record one `claim_cited`
+    // observation per evidence id the marketing reply leaned on. The
+    // nightly Bayesian roll-up correlates these with later thumbs-up /
+    // thumbs-down / claim_disputed observations from the same session
+    // (correlationId = sessionId) so the brain measurably improves
+    // user-over-user. Fire-and-forget; never blocks the stream.
+    for (const evidenceId of ids) {
+      void recordObservation({
+        kind: 'claim_cited',
+        subjectKey: evidenceId,
+        correlationId: parsed.sessionId,
+        portalContext: 'public',
+      }).catch(() => {
+        /* never bubble */
       });
     }
 

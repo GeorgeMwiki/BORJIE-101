@@ -71,6 +71,7 @@
     "@borjie/graph-privacy": "workspace:*",
     "@borjie/graph-sync": "workspace:*",
     "@borjie/knowledge-graph": "workspace:*",
+    "@borjie/learning-amplification": "workspace:*",
     "@borjie/marketing-brain": "workspace:*",
     "@borjie/mcp": "workspace:*",
     "@borjie/mcp-cost-persistence": "workspace:*",
