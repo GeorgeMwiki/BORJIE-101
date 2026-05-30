@@ -9,6 +9,7 @@ import { createQueryClient } from '@/api/queryClient'
 import { ToastProvider } from '@/components/Toast'
 import { ThemeProvider } from '@/theme/ThemeProvider'
 import { EventStreamMount } from '@/lib/notifications/EventStreamMount'
+import { SuperpowersBootstrap } from '@/superpowers'
 
 export default function RootLayout() {
   // useMemo guarantees the QueryClient is created once per app lifetime
@@ -23,6 +24,7 @@ export default function RootLayout() {
           <ThemeProvider defaultTheme="dark">
           <ToastProvider>
             <EventStreamMount />
+            <SuperpowersBootstrap />
             <StatusBar style="dark" />
             <Stack
               screenOptions={{
