@@ -25,17 +25,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // LitFin-aligned palette (warm gold on navy-slate). Keep these
+        // LitFin IGNITION palette — copper-on-cream. Keep these
         // synchronised with packages/design-system/src/styles/globals.css —
         // the marketing-local Tailwind config overrides arbitrary-value
         // call-sites, while the design-system HSL CSS vars cascade
-        // everywhere else.
-        background: 'oklch(0.16 0.025 260)',     /* #0B0F19 navy-slate */
-        foreground: 'oklch(0.96 0.005 95)',      /* #F5F5F0 cream off-white */
-        primary:    'oklch(0.78 0.17 78)',       /* #F5B23E gold hover */
-        accent:     'oklch(0.84 0.15 80)',       /* #FFC857 hero gold */
-        border:     'oklch(0.24 0.02 260)',      /* #1E2330 hairline slate */
-        surface:    'oklch(0.19 0.025 260)',     /* #11151F card slate */
+        // everywhere else. Values mirror LitFin reference oklch points.
+        background: 'oklch(0.98 0.012 80)',      /* warm cream (40 40% 98%) */
+        foreground: 'oklch(0.20 0.020 40)',      /* deep warm charcoal (30 14% 12%) */
+        primary:    'oklch(0.60 0.140 45)',      /* IGNITION copper-mid (24 58% 48%) */
+        accent:     'oklch(0.75 0.150 60)',      /* copper-bright (36 86% 64%) */
+        border:     'oklch(0.89 0.012 50)',      /* warm hairline (30 10% 89%) */
+        surface:    'oklch(1 0 0)',              /* pure white card */
       },
       fontFamily: {
         // LitFin parity: Inter for body, Syne for display headings. Both

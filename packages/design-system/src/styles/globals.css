@@ -1,19 +1,18 @@
 /**
- * Borjie — Design Tokens (LitFin-inspired refresh)
+ * Borjie — Design Tokens (LitFin polish — full copper-on-cream palette)
  *
- * Direction: "Midnight Slate Ledger with Warm-Gold Signal."
+ * Direction: "Copper on Cream — IGNITION."
  *
  * Foundation principles:
  *   - Dark-first. Operators live in this 8 hours a day. Light mode is
  *     the guest experience (tenants, owners, marketing, docs) and is
  *     still first-class.
- *   - Background shifts from earth-brown to LitFin's rich navy-slate
- *     (#0B0F19). The Borjie warm-gold wordmark stays — it's now the
- *     ONE signal color on a cool slate foundation, mirroring LitFin's
- *     gold-on-navy contrast.
+ *   - One hero color: warm copper. Cream canvas in light, warm-charcoal
+ *     in dark. Trust-grade + East-African grounded. Reference calibre:
+ *     Stripe (craft), Netflix (wordmark power), Spotify (color ownership).
  *   - Semantic colors are dialled-down so they read institutional,
- *     not alarmist. Emerald success (#2EBD85), warm-red danger
- *     (#E14B4B), bright gold info / warning.
+ *     not alarmist. Muted emerald success, burnt red destructive that
+ *     matches the copper family, copper-family warning, slate info.
  *   - 4px spacing grid, 1.25 type scale (major third), radii pinned to
  *     a 7-step scale, one light-source shadow system.
  *   - Reference feel: LitFin × Stripe × Bloomberg Terminal.
@@ -23,6 +22,11 @@
  * Tokens are HSL space-separated so `hsl(var(--foo))` works in the
  * Tailwind config without change. Hex equivalents are documented inline
  * so colour-pickers can verify against LitFin side-by-side.
+ *
+ * --litfin-* tokens are the canonical copper-on-cream palette hooks
+ * (copper-bright / copper-mid / copper-deep / cream / deep). Every
+ * downstream surface — wordmark, send button, hero halo, header gradient
+ * — pulls from these so the brand stays one unbroken warm wash.
  */
 
 @tailwind base;
@@ -31,90 +35,101 @@
 
 /* ============================================================
    LIGHT MODE — guest surfaces
-   Cool paper-cream background, deep slate-ink text, warm gold as
-   the one signal color. Mirrors LitFin's light treatment.
+   Cream canvas, deep warm charcoal text, copper as the ONE signal
+   color. Verbatim port of LitFin IGNITION light tokens.
    ============================================================ */
 @layer base {
   :root {
-    /* --- Foundation --- */
-    --background:            220 20% 98%;         /* #F7F8FA cool paper */
-    --foreground:            222 36%  10%;        /* #0B0F19 deep slate */
+    /* --- Canonical LitFin copper-on-cream palette (named hooks) ---
+       Every brand surface (wordmark, send button, hero halo, header
+       gradient, mining-overlay accent) pulls from these. Do not edit
+       per-app — change here, downstream surfaces inherit. */
+    --litfin-copper-bright:  36 86% 64%;          /* hover / glow stop, light cap */
+    --litfin-copper-mid:     24 58% 48%;          /* primary copper, oklch(0.60 0.14 45) */
+    --litfin-copper-deep:    14 62% 28%;          /* deep stop for gradient base */
+    --litfin-cream:          40 40% 98%;          /* warm cream canvas (light bg) */
+    --litfin-deep:           30 14% 12%;          /* deep warm charcoal (text/ink) */
+
+    /* --- Foundation (LitFin verbatim) --- */
+    --background:            40 40% 98%;          /* warm cream, not sterile white */
+    --foreground:            30 14% 12%;          /* deep warm charcoal, never pure black */
     --surface:               0 0% 100%;           /* #FFFFFF */
-    --surface-foreground:    222 36%  10%;
-    --surface-raised:        220 20% 96%;
-    --surface-sunken:        220 18% 93%;
+    --surface-foreground:    30 14% 12%;
+    --surface-raised:        35 18% 95%;
+    --surface-sunken:        35 18% 92%;
 
     --popover:               0 0% 100%;
-    --popover-foreground:    222 36% 10%;
+    --popover-foreground:    30 14% 12%;
 
     --card:                  0 0% 100%;
-    --card-foreground:       222 36% 10%;
+    --card-foreground:       30 14% 12%;
 
-    /* --- Neutral ramp (11 steps), cool slate-shifted --- */
-    --neutral-50:            220 20% 98%;
-    --neutral-100:           220 18% 95%;
-    --neutral-200:           222 16% 90%;
-    --neutral-300:           223 14% 82%;
-    --neutral-400:           224 12% 64%;
-    --neutral-500:           225  8% 50%;         /* #A0A4B0-ish muted slate */
-    --neutral-600:           223 14% 38%;
-    --neutral-700:           223 22% 26%;
-    --neutral-800:           223 28% 17%;
-    --neutral-900:           222 32% 12%;
-    --neutral-950:           222 36%  7%;
+    /* --- Neutral ramp (11 steps), warm-shifted to match cream --- */
+    --neutral-50:            40 40% 98%;
+    --neutral-100:           35 18% 95%;
+    --neutral-200:           35 18% 92%;
+    --neutral-300:           30 12% 84%;
+    --neutral-400:           30 10% 66%;
+    --neutral-500:           30 8% 50%;
+    --neutral-600:           30 10% 38%;
+    --neutral-700:           30 12% 26%;
+    --neutral-800:           30 14% 18%;
+    --neutral-900:           30 14% 12%;
+    --neutral-950:           30 14% 7%;
 
-    /* --- Signal — warm gold, the one brand color ---
-       Tuned to LitFin's bright premium #FFC857 family. */
-    --signal-50:             45 100% 96%;
-    --signal-100:            44 95%  90%;
-    --signal-200:            43 95%  82%;
-    --signal-300:            42 95%  74%;
-    --signal-400:            40 92%  62%;         /* #F5B23E hover */
-    --signal-500:            42 100% 67%;         /* #FFC857 hero gold */
-    --signal-600:            38 88%  55%;
-    --signal-700:            34 78%  45%;
-    --signal-800:            28 70%  34%;
-    --signal-900:            24 65%  24%;
-    --signal-950:            22 55%  14%;
+    /* --- Signal — copper, the one brand color ---
+       Tuned to LitFin's copper-on-cream IGNITION family. */
+    --signal-50:             32 60% 96%;
+    --signal-100:            30 55%  90%;
+    --signal-200:            28 50%  82%;
+    --signal-300:            26 55%  70%;
+    --signal-400:            24 60%  58%;
+    --signal-500:            24 58%  48%;         /* hero copper */
+    --signal-600:            22 60%  40%;
+    --signal-700:            18 62%  32%;
+    --signal-800:            14 62%  28%;
+    --signal-900:            12 60%  20%;
+    --signal-950:            10 55%  12%;
 
-    /* --- shadcn compat aliases --- */
-    --primary:               42 100% 67%;         /* #FFC857 */
-    --primary-foreground:    222 38% 8%;          /* near-black slate */
+    /* --- shadcn compat aliases — IGNITION COPPER --- */
+    --primary:               24 58% 48%;          /* LitFin copper-mid */
+    --primary-foreground:    40 40% 98%;          /* cream on copper */
 
-    --secondary:             220 18% 95%;
-    --secondary-foreground:  222 32% 14%;
+    --secondary:             35 18% 95%;
+    --secondary-foreground:  30 14% 12%;
 
-    --muted:                 220 18% 95%;
-    --muted-foreground:      225 8% 42%;
+    --muted:                 35 18% 94%;
+    --muted-foreground:      30 8% 42%;
 
-    --accent:                220 18% 93%;
-    --accent-foreground:     222 32% 14%;
+    --accent:                28 35% 94%;          /* quiet copper tint */
+    --accent-foreground:     24 58% 32%;
 
     /* --- Borders + rings --- */
-    --border:                222 16% 88%;
-    --border-strong:         223 14% 78%;
-    --input:                 222 16% 88%;
-    --ring:                  42 100% 67%;
+    --border:                30 10% 89%;
+    --border-strong:         30 10% 80%;
+    --input:                 30 10% 89%;
+    --ring:                  24 58% 48%;
 
-    /* --- Semantic (institutional, never alarmist) --- */
-    --success:               155 60% 38%;         /* #2EBD85 family, deeper for light bg */
-    --success-foreground:    155 45% 96%;
-    --success-subtle:        155 45% 94%;
+    /* --- Semantic (institutional, never alarmist) ---
+       Darkened to clear WCAG AA 4.5:1 against cream. */
+    --success:               150 42% 28%;         /* muted emerald */
+    --success-foreground:    40 40% 98%;
+    --success-subtle:        150 35% 92%;
 
-    --warning:               42 100% 55%;
-    --warning-foreground:    222 36% 10%;
-    --warning-subtle:        42 95% 95%;
+    --warning:               36 82% 48%;          /* amber inside copper family */
+    --warning-foreground:    30 14% 12%;
+    --warning-subtle:        36 70% 94%;
 
-    --danger:                0 73% 52%;           /* #E14B4B family */
-    --danger-foreground:     0 60% 97%;
-    --danger-subtle:         0 70% 95%;
+    --danger:                10 68% 36%;          /* burnt red matching copper family */
+    --danger-foreground:     40 40% 98%;
+    --danger-subtle:         10 55% 94%;
 
-    --info:                  215 60% 48%;
-    --info-foreground:       215 60% 97%;
-    --info-subtle:           215 60% 95%;
+    --info:                  215 22% 44%;         /* slate, not competing with copper */
+    --info-foreground:       40 40% 98%;
+    --info-subtle:           215 22% 94%;
 
-    --destructive:           0 73% 52%;
-    --destructive-foreground: 0 60% 97%;
+    --destructive:           10 68% 36%;
+    --destructive-foreground: 40 40% 98%;
 
     /* --- Radii (pinned scale) --- */
     --radius-sm:   0.25rem;    /* 4px  chips, tags */
@@ -124,13 +139,23 @@
     --radius-xl:   1.125rem;   /* 18px modals */
     --radius-2xl:  1.5rem;     /* 24px hero panels */
 
-    /* --- Shadows (one light source, slate umbra) --- */
-    --shadow-xs:   0 1px 2px 0 hsl(222 36% 8% / 0.04);
-    --shadow-sm:   0 1px 2px 0 hsl(222 36% 8% / 0.06), 0 1px 1px 0 hsl(222 36% 8% / 0.04);
-    --shadow:      0 4px 8px -2px hsl(222 36% 8% / 0.08), 0 2px 4px -2px hsl(222 36% 8% / 0.04);
-    --shadow-md:   0 8px 16px -4px hsl(222 36% 8% / 0.10), 0 4px 6px -2px hsl(222 36% 8% / 0.05);
-    --shadow-lg:   0 16px 32px -8px hsl(222 36% 8% / 0.12), 0 8px 16px -4px hsl(222 36% 8% / 0.06);
-    --shadow-xl:   0 24px 48px -12px hsl(222 36% 8% / 0.18);
+    /* --- Shadows (one light source, warm-cast umbra) ---
+       Warm shadows match cream canvas — sterile grey would feel cold. */
+    --shadow-xs:   0 1px 2px 0 hsl(30 20% 10% / 0.04);
+    --shadow-sm:   0 1px 2px 0 hsl(30 20% 10% / 0.04);
+    --shadow:      0 4px 8px -2px hsl(30 20% 10% / 0.06), 0 2px 4px -2px hsl(30 20% 10% / 0.04);
+    --shadow-md:   0 4px 8px -2px hsl(30 20% 10% / 0.06), 0 2px 4px -2px hsl(30 20% 10% / 0.04);
+    --shadow-lg:   0 12px 24px -6px hsl(30 20% 10% / 0.08), 0 4px 8px -4px hsl(30 20% 10% / 0.04);
+    --shadow-xl:   0 24px 48px -12px hsl(30 20% 10% / 0.12), 0 8px 16px -8px hsl(30 20% 10% / 0.06);
+
+    /* --- Glow (copper-tinted, matches IGNITION identity) --- */
+    --shadow-glow:    0 0 0 1px hsl(24 58% 48% / 0.08), 0 8px 24px -8px hsl(24 58% 48% / 0.18);
+    --shadow-glow-lg: 0 0 0 1px hsl(24 58% 48% / 0.12), 0 16px 48px -12px hsl(24 58% 48% / 0.22);
+
+    /* --- Gradients — one subtle copper wash. No mesh-orb salad. --- */
+    --gradient-primary: linear-gradient(135deg, hsl(24 58% 48%) 0%, hsl(14 62% 42%) 100%);
+    --gradient-accent:  linear-gradient(180deg, hsl(24 58% 48% / 0.04) 0%, transparent 70%);
+    --gradient-mesh:    radial-gradient(ellipse at top, hsl(24 58% 48% / 0.06) 0%, transparent 60%);
 
     /* --- Typography stack — LitFin parity (2026-05) ---
        Display: Syne — geometric sans with a distinctive weight curve,
@@ -159,90 +184,107 @@
 
   /* ============================================================
      DARK MODE — operator + marketing surfaces
-     LitFin-aligned rich navy-slate foundation (#0B0F19) with the
-     Borjie warm-gold signal as the ONLY brand color. Feels like
-     LitFin × Bloomberg × Anthropic.
+     Warm charcoal canvas, brighter copper accent. Feels like
+     LitFin × Bloomberg × Anthropic. Verbatim port of LitFin
+     IGNITION dark tokens.
      ============================================================ */
   .dark {
-    --background:            222 36%  7%;         /* #0B0F19 LitFin navy-slate */
-    --foreground:            45 25%  95%;         /* #F5F5F0 cream off-white */
-    --surface:               223 28% 10%;         /* #11151F card */
-    --surface-foreground:    45 25%  95%;
-    --surface-raised:        223 25% 12%;         /* #161B27 raised */
-    --surface-sunken:        222 38%  5%;         /* deeper pit */
+    /* --- LitFin named hooks (dark variants — brighter copper for dark) --- */
+    --litfin-copper-bright:  36 86% 64%;
+    --litfin-copper-mid:     24 68% 58%;          /* primary copper, oklch(0.70 0.15 48) */
+    --litfin-copper-deep:    14 64% 48%;
+    --litfin-cream:          35 15% 95%;          /* foreground stop on warm-charcoal */
+    --litfin-deep:           30 12% 7%;           /* warm-charcoal canvas */
 
-    --popover:               223 28% 11%;
-    --popover-foreground:    45 25%  95%;
+    --background:            30 12% 7%;           /* warm-toned near-black, not cold blue-black */
+    --foreground:            35 15% 95%;          /* warm off-white */
+    --surface:               30 10% 10%;          /* cards, sidebar */
+    --surface-foreground:    35 15% 95%;
+    --surface-raised:        28 9% 14%;           /* hover, active */
+    --surface-sunken:        30 12% 5%;           /* deeper pit */
 
-    --card:                  223 28% 10%;         /* #11151F */
-    --card-foreground:       45 25%  95%;
+    --popover:               28 9% 14%;
+    --popover-foreground:    35 15% 95%;
 
-    --neutral-50:            222 36%  7%;
-    --neutral-100:           223 28% 10%;
-    --neutral-200:           223 22% 14%;
-    --neutral-300:           223 18% 20%;
-    --neutral-400:           224 12% 32%;
-    --neutral-500:           225  8% 50%;
-    --neutral-600:           225  8% 66%;         /* #A0A4B0 muted slate text */
-    --neutral-700:           224 14% 78%;
-    --neutral-800:           42 15%  88%;
-    --neutral-900:           45 22%  94%;
-    --neutral-950:           45 25%  97%;
+    --card:                  30 10% 10%;
+    --card-foreground:       35 15% 95%;
 
-    --signal-50:             24 55% 14%;
-    --signal-100:            26 60% 20%;
-    --signal-200:            30 70% 28%;
-    --signal-300:            34 80% 38%;
-    --signal-400:            38 90% 55%;
-    --signal-500:            42 100% 67%;         /* #FFC857 LitFin gold */
-    --signal-600:            40 95%  74%;
-    --signal-700:            40 90%  82%;
-    --signal-800:            42 85%  88%;
-    --signal-900:            44 75%  93%;
-    --signal-950:            45 60%  97%;
+    /* Warm-charcoal neutral ramp (matches LitFin surface-* tiers) */
+    --neutral-50:            30 12% 7%;
+    --neutral-100:           30 10% 10%;
+    --neutral-200:           28 9% 14%;
+    --neutral-300:           28 8% 18%;
+    --neutral-400:           28 8% 22%;
+    --neutral-500:           28 8% 50%;
+    --neutral-600:           30 8% 68%;
+    --neutral-700:           32 10% 80%;
+    --neutral-800:           34 14% 88%;
+    --neutral-900:           35 15% 93%;
+    --neutral-950:           35 15% 97%;
 
-    --primary:               42 100% 67%;         /* #FFC857 */
-    --primary-foreground:    222 38% 8%;          /* near-black slate, AAA on gold */
+    /* Copper signal — brighter on dark canvas to maintain ignition glow */
+    --signal-50:             14 50% 14%;
+    --signal-100:            16 55% 20%;
+    --signal-200:            20 60% 28%;
+    --signal-300:            22 65% 38%;
+    --signal-400:            24 68% 48%;
+    --signal-500:            24 68% 58%;          /* dark-mode copper */
+    --signal-600:            28 72% 64%;
+    --signal-700:            32 78% 72%;
+    --signal-800:            36 86% 80%;
+    --signal-900:            38 90% 88%;
+    --signal-950:            40 95% 95%;
 
-    --secondary:             223 22% 14%;
-    --secondary-foreground:  45 22%  93%;
+    --primary:               24 68% 58%;          /* brighter copper, glows against warm charcoal */
+    --primary-foreground:    30 14% 10%;          /* dark text on copper buttons */
 
-    --muted:                 223 22% 14%;
-    --muted-foreground:      225 8% 66%;          /* #A0A4B0 muted slate */
+    --secondary:             30 8% 16%;
+    --secondary-foreground:  35 15% 95%;
 
-    --accent:                223 22% 16%;
-    --accent-foreground:     45 22% 93%;
+    --muted:                 30 8% 17%;
+    --muted-foreground:      30 8% 68%;
 
-    --border:                223 22% 16%;         /* #1E2330 hairline */
-    --border-strong:         223 20% 24%;         /* #2A3040 stronger */
-    --input:                 223 22% 14%;
-    --ring:                  42 100% 67%;
+    --accent:                24 24% 18%;          /* deep copper tint */
+    --accent-foreground:     24 70% 72%;
 
-    --success:               155 60% 46%;         /* #2EBD85 emerald */
-    --success-foreground:    155 45% 10%;
-    --success-subtle:        155 45% 16%;
+    --border:                28 6% 22%;
+    --border-strong:         28 6% 30%;
+    --input:                 30 8% 16%;
+    --ring:                  24 68% 58%;
 
-    --warning:               42 100% 67%;         /* gold = warning/info */
-    --warning-foreground:    222 38% 10%;
-    --warning-subtle:        42 55% 18%;
+    --success:               150 46% 48%;
+    --success-foreground:    30 14% 10%;
+    --success-subtle:        150 35% 18%;
 
-    --danger:                0 73% 59%;           /* #E14B4B warm red */
-    --danger-foreground:     0 50% 12%;
-    --danger-subtle:         0 55% 20%;
+    --warning:               36 78% 58%;
+    --warning-foreground:    30 14% 10%;
+    --warning-subtle:        36 55% 20%;
 
-    --info:                  42 100% 67%;         /* gold doubles as info */
-    --info-foreground:       222 38% 10%;
-    --info-subtle:           42 50% 18%;
+    --danger:                10 62% 52%;
+    --danger-foreground:     40 40% 98%;
+    --danger-subtle:         10 50% 20%;
 
-    --destructive:           0 73% 59%;
-    --destructive-foreground: 0 50% 12%;
+    --info:                  215 22% 62%;
+    --info-foreground:       30 14% 10%;
+    --info-subtle:           215 25% 20%;
 
-    --shadow-xs:   0 1px 2px 0 hsl(222 50% 2% / 0.30);
-    --shadow-sm:   0 1px 3px 0 hsl(222 50% 2% / 0.40);
-    --shadow:      0 4px 12px -2px hsl(222 50% 2% / 0.45);
-    --shadow-md:   0 10px 20px -4px hsl(222 50% 2% / 0.55);
-    --shadow-lg:   0 20px 40px -8px hsl(222 50% 2% / 0.65);
-    --shadow-xl:   0 32px 64px -16px hsl(222 50% 2% / 0.75);
+    --destructive:           10 62% 52%;
+    --destructive-foreground: 40 40% 98%;
+
+    --shadow-xs:   0 1px 2px 0 hsl(0 0% 0% / 0.35);
+    --shadow-sm:   0 1px 2px 0 hsl(0 0% 0% / 0.35);
+    --shadow:      0 4px 8px -2px hsl(0 0% 0% / 0.40), 0 2px 4px -2px hsl(0 0% 0% / 0.30);
+    --shadow-md:   0 4px 8px -2px hsl(0 0% 0% / 0.40), 0 2px 4px -2px hsl(0 0% 0% / 0.30);
+    --shadow-lg:   0 12px 24px -6px hsl(0 0% 0% / 0.45), 0 4px 8px -4px hsl(0 0% 0% / 0.30);
+    --shadow-xl:   0 24px 48px -12px hsl(0 0% 0% / 0.55), 0 8px 16px -8px hsl(0 0% 0% / 0.40);
+
+    /* Copper glow lifts buttons / chips off the warm-charcoal canvas */
+    --shadow-glow:    0 0 0 1px hsl(24 68% 58% / 0.20), 0 8px 24px -8px hsl(24 68% 58% / 0.30);
+    --shadow-glow-lg: 0 0 0 1px hsl(24 68% 58% / 0.25), 0 16px 48px -12px hsl(24 68% 58% / 0.35);
+
+    --gradient-primary: linear-gradient(135deg, hsl(24 68% 58%) 0%, hsl(14 64% 48%) 100%);
+    --gradient-accent:  linear-gradient(180deg, hsl(24 68% 58% / 0.06) 0%, transparent 70%);
+    --gradient-mesh:    radial-gradient(ellipse at top, hsl(24 68% 58% / 0.08) 0%, transparent 60%);
   }
 }
 
