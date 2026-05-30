@@ -1,0 +1,38 @@
+{
+  "name": "@borjie/learning-amplification",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Continuous-learning amplification — Bayesian feedback loop ported from LitFin. Every observation (claim cited / confirmed / disputed / corrected, cron-verify / cron-change / source-dead) updates claim confidence so user 100 is measurably smarter than user 50. Nightly amplification job rolls up the observation window with exponential decay and adjusts truth_claims confidence + status.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "tsup": "^8.3.5",
+    "@types/node": "^25.8.0"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "peerDependenciesMeta": {
+    "@supabase/supabase-js": { "optional": false }
+  }
+}

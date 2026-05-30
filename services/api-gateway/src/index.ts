@@ -544,6 +544,12 @@ import {
   createAmbientBehaviorObserver,
   createIntelligenceHistorySupervisor,
 } from './composition/background-wiring';
+// Learning Amplification (LitFin port) — Bayesian feedback loop that
+// makes Mr. Mwikila measurably smarter user-over-user. Wiring resolves
+// the Supabase service-role client + configures both the recorder and
+// nightly amplification job; the worker drives the cron tick.
+import { createLearningAmplificationWiring } from './composition/learning-amplification-wiring';
+import { createLearningAmplificationCron } from './workers/learning-amplification-cron';
 import {
   setBrainExtraSkills,
   appendBrainExtraSkills,
@@ -2140,6 +2146,14 @@ const intelligenceHistorySupervisor = createIntelligenceHistorySupervisor(
 // hit. No-op in degraded mode.
 const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
 
+// Learning Amplification (LitFin port) — boot the wiring once so
+// recordObservation()/runAmplification() can resolve the Supabase
+// service-role client, then construct the nightly cron handle. Both
+// degrade to no-ops when env is unset (recorder bumps in-memory
+// dropped counter; job returns a zero summary).
+createLearningAmplificationWiring({ logger });
+const learningAmplificationCron = createLearningAmplificationCron({ logger });
+
 // Geo SOTA 2026-05-29 — geofencing service backed by PostGIS (migration
 // 0130). Wraps point-in-polygon / distance / regulatory-zone queries
 // behind one typed surface. The watcher worker (next) reads recent
@@ -2518,7 +2532,13 @@ async function gracefulShutdown(signal: string): Promise<void> {
     casesSlaSupervisor.stop();
     logger.info('shutdown: cases SLA supervisor stopped');
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: cases SLA stop failed');
+    logger.warn({ err }, 'shutdown: cases SLA supervisor stop failed');
+  }
+  try {
+    learningAmplificationCron.stop();
+    logger.info('shutdown: learning-amplification cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: learning-amplification cron stop failed');
   }
   try {
     geofenceWatcher.stop();
@@ -2685,6 +2705,10 @@ if (require.main === module) {
   // Wave 26 — start the Cases SLA supervisor alongside the other
   // background workers. Skipped in tests + when disabled by env.
   casesSlaSupervisor.start();
+  // Learning Amplification (LitFin port) — nightly Bayesian roll-up of
+  // learning_observations. Interval overridable via
+  // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).
+  learningAmplificationCron.start();
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
   geofenceWatcher.start();

@@ -26,6 +26,14 @@ import { routeCatch } from '../utils/safe-error';
 import { getDbFromServices } from '../utils/services-accessor';
 
 import { withSecurityEvents } from '@borjie/observability';
+// Learning Amplification (LitFin port) — turn-thumbs feedback feeds
+// the Bayesian roll-up. Thumbs-up records `answer_accepted`; thumbs-
+// down with correction text becomes `claim_corrected_by_user`;
+// thumbs-down alone becomes `claim_disputed_by_user`. The high-signal
+// kinds also synchronously pull truth_claims confidence toward 0.3-0.4
+// via observation-recorder's immediate shift, so the next user query
+// is already smarter. Fire-and-forget; never blocks the response.
+import { recordObservation } from '@borjie/learning-amplification';
 // Legacy feedback shape — long-form bug/feature/etc submissions captured
 // from staff/tenant surveys. Persists to `feedback_submissions`.
 const legacyFeedbackSchema = z.object({
@@ -142,6 +150,29 @@ app.post('/', zValidator('json', submitFeedbackSchema), withSecurityEvents({ act
           correctionText: body.correctionText ?? null,
         },
         status: 'submitted',
+      });
+      // Learning Amplification (LitFin port) — record the turn-feedback
+      // as a learning observation so the nightly amplification job can
+      // ratchet claim confidence up (on confirms) or down (on
+      // disputes). userIdHash is auth.userId — the recorder SHA-256s
+      // it before insert (BorjieMark privacy invariant).
+      const kind: 'answer_accepted' | 'claim_corrected_by_user' | 'claim_disputed_by_user' =
+        signal === 'up'
+          ? 'answer_accepted'
+          : body.correctionText && body.correctionText.length > 0
+            ? 'claim_corrected_by_user'
+            : 'claim_disputed_by_user';
+      void recordObservation({
+        kind,
+        subjectKey: body.turnId,
+        userIdHash: auth.userId,
+        tenantId: auth.tenantId,
+        correlationId: body.threadId ?? undefined,
+        evidence: body.correctionText
+          ? { userText: body.correctionText }
+          : undefined,
+      }).catch(() => {
+        /* never bubble */
       });
       return c.json(
         {
