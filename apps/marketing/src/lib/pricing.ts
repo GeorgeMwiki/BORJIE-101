@@ -63,7 +63,7 @@ export const TIERS: ReadonlyArray<PricingTier> = [
         '3 sites',
         '100 nyaraka kwa mwezi',
         'Msaada wa WhatsApp',
-        'Licence calendar + daily brief',
+        'Kalenda ya leseni + muhtasari wa kila siku',
       ],
       en: [
         '3 users',
@@ -88,9 +88,9 @@ export const TIERS: ReadonlyArray<PricingTier> = [
         '10 watumiaji',
         '10 sites',
         'Nyaraka bila kikomo',
-        'Email + WhatsApp support',
-        'Drill-hole logger + FX & treasury',
-        'Marketplace + KYC otomatiki',
+        'Email + Msaada wa WhatsApp',
+        'Logger ya mashimo + FX & hazina',
+        'Soko + KYC otomatiki',
       ],
       en: [
         '10 users',
@@ -115,7 +115,7 @@ export const TIERS: ReadonlyArray<PricingTier> = [
       sw: [
         '50 watumiaji',
         'Sites bila kikomo',
-        'Dedicated success manager',
+        'Dedicated success meneja',
         'Integrations za kawaida',
         'Compliance pack + audit chain export',
       ],
@@ -139,11 +139,11 @@ export const TIERS: ReadonlyArray<PricingTier> = [
     highlighted: false,
     features: {
       sw: [
-        'Multi-company portfolio',
+        'Multi-kampuni portfolio',
         'White-glove migration',
         'SLA iliyoandikwa',
         'On-prem au private cloud',
-        'Named support engineer',
+        'Mhandisi wa msaada aliyetajwa',
       ],
       en: [
         'Multi-company portfolio',

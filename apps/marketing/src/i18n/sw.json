@@ -119,9 +119,9 @@
     "claims": [
       {
         "id": "tumemadini",
-        "title": "Royalty drafts za Tumemadini zinapita ukaguzi wa kwanza.",
-        "body": "Kila royalty ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu kutoka uendeshaji wa mapema.",
-        "href": "/insights/tumemadini-format-compliance"
+        "title": "Mrabaha drafts za Tumemadini zinapita ukaguzi wa kwanza.",
+        "body": "Kila mrabaha ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu kutoka uendeshaji wa mapema.",
+        "href": "/insights/tumemadini-format-utii"
       },
       {
         "id": "lbma-hedge",
@@ -174,7 +174,7 @@
         "delta": "Mfano"
       }
     ],
-    "footnote": "Nambari zinasasishwa kutoka telemetry hai. TZS iliyofungwa inawakilisha wave M3-M4; dashboard inasasishwa kila wiki."
+    "footnote": "Nambari zinasasishwa kutoka telemetry hai. TZS iliyofungwa inawakilisha wave M3-M4; dashibodi inasasishwa kila wiki."
   },
   "finalCta": {
     "kicker": "Tayari pale unapokuwa wewe",
@@ -211,8 +211,8 @@
         "blurb": "Wachimbaji wadogo, traders waliosajiliwa, smelters wenye leseni. KYC kwa kila mshiriki. Mkataba unaweza kuchapishwa."
       },
       "compliance": {
-        "title": "Mfuko wa Compliance",
-        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Tayari kuwasilisha kwa Tumemadini na Mamlaka ya Mapato."
+        "title": "Mfuko wa Utii",
+        "blurb": "NEMC EIA, mrabaha returns, OSHA logs, audit chain. Tayari kuwasilisha kwa Tumemadini na Mamlaka ya Mapato."
       }
     }
   },
@@ -290,7 +290,7 @@
         },
         {
           "time": "03:05",
-          "domain": "Treasury · gold-window",
+          "domain": "Hazina · gold-window",
           "body": "Spot ya LBMA imepanda 1.4% ndani ya saa 6. Hedge proposal ya uncia 60 imeandaliwa.",
           "tone": "good",
           "tag": "TX"
@@ -304,8 +304,8 @@
         },
         {
           "time": "05:42",
-          "domain": "Royalty return · TRA",
-          "body": "Royalty ya Aprili imeandaliwa: TZS 18.4M. Inahitaji saini yako kabla ya kupelekwa.",
+          "domain": "Mrabaha return · TRA",
+          "body": "Mrabaha ya Aprili imeandaliwa: TZS 18.4M. Inahitaji saini yako kabla ya kupelekwa.",
           "tone": "flag",
           "tag": "YOU"
         }
@@ -352,7 +352,7 @@
         "Otomatiki"
       ],
       "redLineKicker": "Mstari mwekundu",
-      "redLineBody": "Master Brain haweti kamwe royalty TRA peke yake, hatumi NEMC EIA peke yake, na hauziwi dhahabu zaidi ya uncia 200 bila idhini ya mtumiaji. Si kwa ngazi yoyote.",
+      "redLineBody": "Master Brain haweti kamwe mrabaha TRA peke yake, hatumi NEMC EIA peke yake, na hauziwi dhahabu zaidi ya uncia 200 bila idhini ya mtumiaji. Si kwa ngazi yoyote.",
       "redLineTag": "Mstari mwekundu · siyo otomatiki",
       "autonomousTag": "Otomatiki kwenye ngazi hii",
       "unlocksAtL": "Inafunguliwa L"
@@ -384,8 +384,8 @@
         "minLevel": 99
       },
       {
-        "id": "royalty",
-        "label": "Wasilisha royalty TRA",
+        "id": "mrabaha",
+        "label": "Wasilisha mrabaha TRA",
         "minLevel": 99
       },
       {
@@ -579,20 +579,20 @@
     "frontierBanner": {
       "kicker": "Toleo la Frontier",
       "title": "Miundombinu ya Mali ya Madini, imeandikwa upya kwa mwendeshaji.",
-      "titleAccent": "Sio dashboard.",
+      "titleAccent": "Sio dashibodi.",
       "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni moja ya madini ya Tanzania kuwa Mali yote ya Madini iliyo tulivu, iliyokaguliwa, inayoongozwa na AI, ikifunika kampuni tanzu, holdings, ofisi ya familia, urithi, daftari la mali na kila biashara ya ziada; kwa lugha mbili tangu siku ya kwanza."
     },
     "problemSolution": {
       "kicker": "Kwa nini mfumo wa Mali ya Madini",
       "title": "Mali za madini zinaendeshwa ukingoni.",
       "titleAccent": "Borjie inafunga pengo hilo mwanzo hadi mwisho.",
-      "subOne": "Mali za madini Tanzania bado zinaendeshwa kwa Excel, WhatsApp na mafaili ya kibinadamu ya compliance, kwenye leseni, kitabu cha mrabaha, wafanyakazi, hazina, soko, subsidiaries, family office na kila biashara ya ziada. Amana ni ya kiwango cha dunia. Miundombinu inayoizunguka sio.",
+      "subOne": "Mali za madini Tanzania bado zinaendeshwa kwa Excel, WhatsApp na mafaili ya kibinadamu ya utii, kwenye leseni, kitabu cha mrabaha, wafanyakazi, hazina, soko, subsidiaries, family office na kila biashara ya ziada. Amana ni ya kiwango cha dunia. Miundombinu inayoizunguka sio.",
       "subTwo": "Borjie ni mfumo wa kwanza duniani wa uendeshaji wa Mali ya Madini unaoongozwa na AI, unaounda kategoria mpya kabisa: jukwaa moja akili linalounganisha waendeshaji, mamlaka, mitaji, na mfumo mzima wa madini kupitia AI inayobadilika.",
       "problem": {
         "title": "Madini ukingoni",
         "items": [
           {
-            "title": "Royalty inawasilishwa kwa mkono",
+            "title": "Mrabaha inawasilishwa kwa mkono",
             "desc": "Wamiliki wanawasilisha returns za Tumemadini kwa Excel na kukosa dirisha la siku 47 la kuongeza muda kwa asilimia 18 ya wakati. Kila dirisha kukosekana huleta ada ya kuwasilisha tena na kuathiri uhusiano na mamlaka."
           },
           {
@@ -600,8 +600,8 @@
             "desc": "Wachimbaji wadogo wanafunga hedge kwa ujumbe wa WhatsApp kwenda madalali Dubai. Wanapoteza 4-6% ya faida kwa spread, muda, na utofauti wa habari kwa kila off-take."
           },
           {
-            "title": "Compliance imegawanyika",
-            "desc": "Tumemadini, NEMC, Benki Kuu ya Tanzania, na TRA wanataka vitu tofauti kwa nyakati tofauti. Mmiliki anakuwa afisa wa compliance wa muda badala ya mchimbaji."
+            "title": "Utii imegawanyika",
+            "desc": "Tumemadini, NEMC, Benki Kuu ya Tanzania, na TRA wanataka vitu tofauti kwa nyakati tofauti. Mmiliki anakuwa afisa wa utii wa muda badala ya mchimbaji."
           },
           {
             "title": "Mtazamo wa wafanyakazi unaishia getini",
@@ -613,19 +613,19 @@
         "title": "Borjie inafanya kazi hiyo",
         "items": [
           {
-            "title": "Royalty kwa muundo wa Tumemadini",
-            "desc": "Mwl. Mwikila anaandaa royalty yako ya kila mwezi kwa muundo rasmi wa Tumemadini siku inayofuata dirisha la parcel ya dhahabu kufungwa. Saini moja, kutajwa kwa mistari yote."
+            "title": "Mrabaha kwa muundo wa Tumemadini",
+            "desc": "Mwl. Mwikila anaandaa mrabaha yako ya kila mwezi kwa muundo rasmi wa Tumemadini siku inayofuata dirisha la parcel ya dhahabu kufungwa. Saini moja, kutajwa kwa mistari yote."
           },
           {
             "title": "Hedge ya dirisha la dhahabu kwa LBMA fix",
-            "desc": "Treasury desk inafunga dirisha la BoT USD/dhahabu kiotomatiki — kila hedge inatajwa kwa LBMA AM-fix. Akiba ya pilot 1.4% dhidi ya spot."
+            "desc": "Hazina desk inafunga dirisha la BoT USD/dhahabu kiotomatiki — kila hedge inatajwa kwa LBMA AM-fix. Akiba ya pilot 1.4% dhidi ya spot."
           },
           {
-            "title": "Compliance pack kwa kila ratiba",
+            "title": "Utii pack kwa kila ratiba",
             "desc": "Borjie inawasilisha Tumemadini, NEMC, BoT, na TRA kwa ratiba ya kila mamlaka. Imekaguliwa na hash-chain ili mamlaka iweze kuthibitisha bila ya kutuamini."
           },
           {
-            "title": "Workforce console kwenye simu ya supervisor",
+            "title": "Wafanyakazi console kwenye simu ya wasimamizi",
             "desc": "Endesha zamu, mahudhurio, fuel logs, na incidents kutoka mfukoni mwa foreman. Biometric clock-in kwenye lango la pit inaongeza tija ya zamu kwa 18% kwa pilot sites."
           }
         ]
@@ -642,7 +642,7 @@
           "items": [
             {
               "name": "Tumemadini",
-              "desc": "Mining commission · royalty returns, mzunguko wa PML/ML/SML"
+              "desc": "Mining commission · mrabaha returns, mzunguko wa PML/ML/SML"
             },
             {
               "name": "NEMC",
@@ -654,7 +654,7 @@
             },
             {
               "name": "TRA",
-              "desc": "Mamlaka ya Mapato · royalty, VAT, PAYE, withholding"
+              "desc": "Mamlaka ya Mapato · mrabaha, VAT, PAYE, withholding"
             },
             {
               "name": "BRELA",
@@ -706,7 +706,7 @@
       "kicker": "Lugha mbili · vifaa vingi · majukumu mengi",
       "title": "Kila artifact kwa Kiswahili kwanza.",
       "titleAccent": "Kiingereza kwa kubofya.",
-      "sub": "Kila supervisor kwenye simu. Kila mmiliki kwenye tablet. Kila mamlaka kwenye desktop. Borjie ndiyo mfumo pekee wa madini unaoletwa katika lugha za kazi za Tanzania kuanzia mstari wa kwanza wa kila skrini.",
+      "sub": "Kila wasimamizi kwenye simu. Kila mmiliki kwenye tablet. Kila mamlaka kwenye desktop. Borjie ndiyo mfumo pekee wa madini unaoletwa katika lugha za kazi za Tanzania kuanzia mstari wa kwanza wa kila skrini.",
       "cards": [
         {
           "title": "Kiswahili-kwanza by default",
@@ -714,7 +714,7 @@
         },
         {
           "title": "Simu kwa pit, tablet kwa ofisi",
-          "body": "Supervisors wanaendesha zamu kutoka simu — biometric clock-in, fuel logs, incident reports. Wamiliki wanapitia kwa tablet — daily brief, treasury, kalenda ya leseni. Data sawa, surface sahihi."
+          "body": "Wasimamizi wanaendesha zamu kutoka simu — biometric clock-in, fuel logs, incident reports. Wamiliki wanapitia kwa tablet — muhtasari wa kila siku, hazina, kalenda ya leseni. Data sawa, surface sahihi."
         },
         {
           "title": "Desktop kwa mamlaka",
@@ -726,7 +726,7 @@
       "kicker": "Kutana na Mwl. Mwikila",
       "title": "Modes saba, mwendeshaji mmoja mtulivu.",
       "titleAccent": "Bofya tabs kuwaona kazini.",
-      "sub": "Mwl. Mwikila ni Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Anabadilika na wakati — anakujengea brief saa 06:00, anaandika royalty mwisho wa mwezi, anafunga dhahabu yako kwa dirisha la LBMA. Chagua mode kuona anavyofanya.",
+      "sub": "Mwl. Mwikila ni Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Anabadilika na wakati — anakujengea brief saa 06:00, anaandika mrabaha mwisho wa mwezi, anafunga dhahabu yako kwa dirisha la LBMA. Chagua mode kuona anavyofanya.",
       "modes": [
         {
           "id": "build",
@@ -736,13 +736,13 @@
             "Anaingiza leseni za PML/ML/SML kwa OCR na anazifuatilia dhidi ya rejista ya Mining Commission",
             "Anaingiza ramani za pit kama GeoJSON au PDF na anaunganisha kila drill-hole na segment",
             "Anajenga rejista za vendor, off-taker, na worker kutoka rekodi za M-Pesa na payroll",
-            "Anatoa kila mwanachama wa timu credential ya jukumu — owner, manager, supervisor, employee"
+            "Anatoa kila mwanachama wa timu credential ya jukumu — owner, meneja, wasimamizi, employee"
           ]
         },
         {
           "id": "strategy",
           "label": "Mkakati",
-          "headline": "Anaona mwelekeo wa muda mrefu — pit, treasury, wafanyakazi, soko",
+          "headline": "Anaona mwelekeo wa muda mrefu — pit, hazina, wafanyakazi, soko",
           "capabilities": [
             "Anasimulia uzalishaji wa miezi 12 dhidi ya hali tatu za bei ya dhahabu",
             "Anakadiria cash runway kutoka burn ya sasa, kitabu cha hedge, na pipeline ya off-take",
@@ -755,7 +755,7 @@
           "label": "Uendeshaji",
           "headline": "Anaendesha siku kutoka lango la pit hadi wash plant",
           "capabilities": [
-            "Anapanga zamu na anafuatilia biometric clock-in kwenye simu ya supervisor",
+            "Anapanga zamu na anafuatilia biometric clock-in kwenye simu ya wasimamizi",
             "Anaweka kila drill-hole, assay, na measurement ya grade-control kwenye chain",
             "Anafuatilia matumizi ya mafuta, lubricants, na explosives dhidi ya pit segments",
             "Anaonyesha matukio ya usiku, near-misses, na downtime ya vifaa ifikapo saa 06:00"
@@ -764,9 +764,9 @@
         {
           "id": "document",
           "label": "Nyaraka",
-          "headline": "Anaandika kila artifact — royalty, NEMC EIA, OSHA log",
+          "headline": "Anaandika kila artifact — mrabaha, NEMC EIA, OSHA log",
           "capabilities": [
-            "Drafts za royalty za Tumemadini kwa muundo rasmi kila mwezi",
+            "Drafts za mrabaha za Tumemadini kwa muundo rasmi kila mwezi",
             "NEMC EIA na taarifa za robo mwaka templates zinazojazwa kutoka telemetry",
             "OSHA shift log, incident report, na corrective-action notes",
             "Off-take contracts na biometric fingerprint signature workflow"
@@ -795,8 +795,8 @@
           ]
         },
         {
-          "id": "compliance",
-          "label": "Compliance",
+          "id": "utii",
+          "label": "Utii",
           "headline": "Hash-chain audited ili mamlaka kamwe haina haja ya kutuamini",
           "capabilities": [
             "Append-only audit chain — SHA-256 prev-hash plus per-entry HMAC",
@@ -820,14 +820,14 @@
           "desc": "Chat unayoitumia sasa hivi. Mwl. Mwikila anajibu maswali yako kuhusu bei, mamlaka, na ratiba — na anakuongeza kusajiri ukiwa tayari.",
           "preview": {
             "user": "Borjie inafanya nini kwa PML ya Geita?",
-            "ai": "Anaandaa royalty yako ya Tumemadini kwa muundo rasmi, anafunga dhahabu yako kwa LBMA fix, anaendesha shift roster yako kwa simu ya supervisor. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
+            "ai": "Anaandaa mrabaha yako ya Tumemadini kwa muundo rasmi, anafunga dhahabu yako kwa LBMA fix, anaendesha shift roster yako kwa simu ya wasimamizi. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
           }
         },
         {
           "id": "home",
           "title": "Home chat",
           "subtitle": "Inafundisha",
-          "desc": "Ukiwa ndani ya Borjie, home chat inakufundisha mfumo. Uliza kuhusu kalenda ya leseni, autonomy dial, au jinsi royalty inavyowasilishwa — anajibu kwa kutaja data yako.",
+          "desc": "Ukiwa ndani ya Borjie, home chat inakufundisha mfumo. Uliza kuhusu kalenda ya leseni, autonomy dial, au jinsi mrabaha inavyowasilishwa — anajibu kwa kutaja data yako.",
           "preview": {
             "user": "Naongeza vipi PML mpya?",
             "ai": "Fungua kalenda ya leseni, bofya +PML, scan cover ya leseni kwa simu yako. OCR itajaza fields za Tumemadini. Nitaalamisha field yoyote isiyolingana na rejista."
@@ -840,7 +840,7 @@
           "desc": "Garini kwenye haul road. Kwenye wash plant deck. Lango la pit ambapo mikono yote miwili ni mchafu. Bofya mic, ongea, na Borjie anajibu kwa Kiswahili au Kiingereza.",
           "preview": {
             "user": "Mwikila, ni gani limetokea usiku?",
-            "ai": "Zamu B imetoa tani 184 kwa daraja la 3.2 g/t. Gari moja la mafuta limepoteza saa mbili kwa breakdown. Hakuna ajali. Royalty ya Aprili iko tayari kusainiwa."
+            "ai": "Zamu B imetoa tani 184 kwa daraja la 3.2 g/t. Gari moja la mafuta limepoteza saa mbili kwa breakdown. Hakuna ajali. Mrabaha ya Aprili iko tayari kusainiwa."
           }
         }
       ]
@@ -849,12 +849,12 @@
       "kicker": "Surfaces tatu za bidhaa, OS moja",
       "title": "Borjie inaishi wapi.",
       "titleAccent": "Kwenye kila skrini mgodi unayohitaji.",
-      "sub": "Owner Cockpit, Workforce Mobile, na Buyer Marketplace ni madirisha matatu kwa fabric moja ya data iliyokaguliwa. Mmiliki anaendesha biashara. Supervisor anaendesha zamu. Mnunuzi anatafuta parcel.",
+      "sub": "Owner Cockpit, Wafanyakazi Mobile, na Buyer Soko ni madirisha matatu kwa fabric moja ya data iliyokaguliwa. Mmiliki anaendesha biashara. Wasimamizi anaendesha zamu. Mnunuzi anatafuta parcel.",
       "tiles": [
         {
           "title": "Owner Cockpit",
           "subtitle": "Tablet · desktop · skrini 22",
-          "desc": "Daily brief, kalenda ya leseni, treasury, drill-hole logger, compliance pack. Surface ya amri ya kistratejia kwa mmiliki wa madini.",
+          "desc": "Muhtasari wa kila siku, kalenda ya leseni, hazina, drill-hole logger, utii pack. Surface ya amri ya kistratejia kwa mmiliki wa madini.",
           "mockType": "kpi",
           "kpis": [
             {
@@ -872,9 +872,9 @@
           ]
         },
         {
-          "title": "Workforce Mobile",
+          "title": "Wafanyakazi Mobile",
           "subtitle": "Simu · skrini 47 · jukumu-lock",
-          "desc": "Biometric clock-in, shift log, fuel ledger, incident report. App ya pit-floor ambayo supervisor anatumia kila zamu.",
+          "desc": "Biometric clock-in, shift log, fuel ledger, incident report. App ya pit-floor ambayo wasimamizi anatumia kila zamu.",
           "mockType": "shift",
           "rows": [
             {
@@ -895,9 +895,9 @@
           ]
         },
         {
-          "title": "Buyer Marketplace",
+          "title": "Buyer Soko",
           "subtitle": "Web · simu · skrini 12",
-          "desc": "Wauzaji wa KYB-verified, LBMA-grade assays, biometric off-take signatures. Marketplace ya wanunuzi wanaotafuta madini ya Tanzania yaliyothibitishwa.",
+          "desc": "Wauzaji wa KYB-verified, LBMA-grade assays, biometric off-take signatures. Soko ya wanunuzi wanaotafuta madini ya Tanzania yaliyothibitishwa.",
           "mockType": "market",
           "listings": [
             {
@@ -932,7 +932,7 @@
           "badge": "Kicryptographically"
         },
         {
-          "id": "licence",
+          "id": "leseni",
           "title": "Radar ya leseni ya siku 47",
           "desc": "PML, ML, SML kwenye kalenda moja na onyo la siku 90, 60, 30, na 14 za kuisha. Tumemadini renewal pack inaandikwa kiotomatiki siku radar inayopinduka njano.",
           "badge": "Hai sasa"
@@ -941,12 +941,12 @@
           "id": "hedge",
           "title": "LBMA window hedge",
           "desc": "Borjie inafunga dhahabu yako dhidi ya BoT USD/gold window kwa LBMA AM-fix. Kila hedge inatajwa kwa bei ya fix, akiba ya 1.4% dhidi ya spot.",
-          "badge": "Treasury"
+          "badge": "Hazina"
         },
         {
-          "id": "royalty",
-          "title": "Tumemadini royalty",
-          "desc": "Royalty ya kila mwezi inaandikwa kwa muundo rasmi wa Tumemadini siku inayofuata dirisha la kila parcel kufungwa. Saini moja, audit chain kamili.",
+          "id": "mrabaha",
+          "title": "Tumemadini mrabaha",
+          "desc": "Mrabaha ya kila mwezi inaandikwa kwa muundo rasmi wa Tumemadini siku inayofuata dirisha la kila parcel kufungwa. Saini moja, audit chain kamili.",
           "badge": "Auto-draft"
         },
         {
@@ -994,12 +994,12 @@
           "role": "Mmiliki · Geita PML · sites 4"
         },
         {
-          "body": "Tumemadini royalty draft haijaandikwa upya na mamlaka hata mara moja. Miezi kumi na miwili ndani. Hiyo ni uthibitisho kwangu.",
+          "body": "Tumemadini mrabaha draft haijaandikwa upya na mamlaka hata mara moja. Miezi kumi na miwili ndani. Hiyo ni uthibitisho kwangu.",
           "name": "Hamisi Ngao",
           "role": "Mwenyekiti · Mererani co-op · wanachama 18"
         },
         {
-          "body": "Biometric clock-in iliua upotevu wetu wa malipo kwa wiki moja. Supervisor hatimaye ana simu inayofanya kazi, sio tu inapiga simu.",
+          "body": "Biometric clock-in iliua upotevu wetu wa malipo kwa wiki moja. Wasimamizi hatimaye ana simu inayofanya kazi, sio tu inapiga simu.",
           "name": "Asha Mwakajila",
           "role": "CFO · Songwe trading group · sites 9"
         }
@@ -1028,7 +1028,7 @@
         },
         {
           "label": "Q4 2026",
-          "title": "Buyer marketplace — public beta",
+          "title": "Buyer soko — public beta",
           "tone": "later"
         }
       ],
@@ -1098,7 +1098,7 @@
     "heading": "Jenga kwa hatua yako.",
     "sub": "Tiers tano. TZS. Mwanzo ni bure milele. Tunalipa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer.",
     "compareHeading": "Linganisha vipengele",
-    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na support.",
+    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na msaada.",
     "featureColumn": "Kipengele",
     "trustBadgesHeading": "Imetengenezwa kwa jinsi migodi ya Tanzania inavyofanya kazi kweli.",
     "trustBadges": [
@@ -1172,7 +1172,7 @@
     "sections": [
       {
         "title": "1. Tunakusanya nini",
-        "body": "Borjie inakusanya data ya biashara yako ya mgodi — leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, royalty returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
+        "body": "Borjie inakusanya data ya biashara yako ya mgodi — leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, mrabaha returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
       },
       {
         "title": "2. Kwa nini",
@@ -1234,7 +1234,7 @@
   "ownersPage": {
     "kicker": "Kwa wamiliki wa migodi",
     "heading": "Endesha mgodi wako kama wabora duniani.",
-    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/treasury, soko na compliance — yote kwenye operator mmoja mtulivu.",
+    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/hazina, soko na utii — yote kwenye operator mmoja mtulivu.",
     "ctaPilot": "Anza sasa",
     "ctaPricing": "Ona bei"
   },
@@ -1368,7 +1368,7 @@
         "Nambari ya NIDA — si lazima"
       ],
       "businessTitle": "Mimi nina kampuni / shirika",
-      "businessTitleEn": "I represent a company",
+      "businessTitleEn": "I represent a kampuni",
       "businessSubtitle": "Refinery, broker, fabricator, au investor.",
       "businessBullets": [
         "Jina la kampuni + nambari ya BRELA",
@@ -1394,7 +1394,7 @@
       "nationalId": "Kitambulisho cha NIDA",
       "nationalIdEn": "National ID (optional)",
       "orgName": "Jina la kampuni",
-      "orgNameEn": "Company name",
+      "orgNameEn": "Kampuni name",
       "businessKind": "Aina ya biashara",
       "businessKindEn": "Business type",
       "businessRegistrationNumber": "Nambari ya BRELA",
@@ -1470,7 +1470,7 @@
     "sub": "Anzisha mfumo wako wa uendeshaji wa mgodi ndani ya dakika mbili.",
     "fields": {
       "orgName": "Jina la mgodi au kampuni",
-      "orgNameSub": "Mine or company",
+      "orgNameSub": "Mine or kampuni",
       "ownerFullName": "Jina lako kamili",
       "ownerFullNameSub": "Full name",
       "email": "Barua pepe",
@@ -1547,10 +1547,10 @@
         },
         "auditPack": {
           "title": "Export ya audit-pack",
-          "blurb": "One-click export ya cryptographic audit chain, leseni, royalty returns, OSHA logs, na bank reconciliations kwa due diligence."
+          "blurb": "One-click export ya cryptographic audit chain, leseni, mrabaha returns, OSHA logs, na bank reconciliations kwa due diligence."
         },
         "treasury": {
-          "title": "Treasury simulation",
+          "title": "Hazina simulation",
           "blurb": "Stress-test ya muda wa off-take, mabadiliko ya bei ya dhahabu, na TZS/USD swings. Ona athari kwenye covenant ratios kabla ya kutokea."
         }
       }
@@ -1587,7 +1587,7 @@
         }
       },
       "bullets": [
-        "Brief ya kila siku saa 06:00 inapelekwa kwenye lender dashboard",
+        "Brief ya kila siku saa 06:00 inapelekwa kwenye lender dashibodi",
         "Cryptographic audit chain kwenye kila uhamisho wa PML",
         "DSCR ya mfano inaprojectwa upya kila asubuhi",
         "USD cliff exposure inafuatiliwa kila wiki"
@@ -1678,7 +1678,7 @@
     "heading": "Mfumo wa uendeshaji uliojengwa kwa na na madini ya Tanzania.",
     "sub": "Borjie ilianzishwa na timu ndogo ya Tanzania na diaspora baada ya kuona kizazi kingine cha operators kikiendesha amana za kiwango cha kimataifa kwenye spreadsheets.",
     "originHeading": "Hadithi ya asili",
-    "originBody": "Tulikutana Geita na Dar es Salaam mwaka 2024, tukibadilishana maelezo kuhusu kwa nini kila ERP ya madini ilihisi imeundwa kwa nchi ya mtu mwingine. Kufikia mwanzo wa 2026 tulikuwa na Master Brain inayofanya kazi na pilot kumi. Lengo lilibaki lilelile: mfumo wa uendeshaji unaoheshimu jinsi madini ya Tanzania yanavyofanya kazi kweli — KYC kwa wachimbaji wadogo, hesabu za royalty ambazo TRA inazitambua, briefings kwa Kiswahili saa 06:00.",
+    "originBody": "Tulikutana Geita na Dar es Salaam mwaka 2024, tukibadilishana maelezo kuhusu kwa nini kila ERP ya madini ilihisi imeundwa kwa nchi ya mtu mwingine. Kufikia mwanzo wa 2026 tulikuwa na Master Brain inayofanya kazi na pilot kumi. Lengo lilibaki lilelile: mfumo wa uendeshaji unaoheshimu jinsi madini ya Tanzania yanavyofanya kazi kweli — KYC kwa wachimbaji wadogo, hesabu za mrabaha ambazo TRA inazitambua, briefings kwa Kiswahili saa 06:00.",
     "teamHeading": "Timu",
     "teamSub": "Tanzania na diaspora. Madini, fintech, AI infrastructure. Hybrid Dar es Salaam.",
     "valuesHeading": "Maadili",
@@ -2917,7 +2917,7 @@
         "icon": "Users"
       },
       {
-        "value": "support",
+        "value": "msaada",
         "label": "Msaada wa kiufundi",
         "icon": "Headphones"
       },
