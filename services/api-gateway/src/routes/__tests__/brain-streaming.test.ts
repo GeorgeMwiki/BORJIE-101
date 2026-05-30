@@ -408,14 +408,20 @@ describe('POST /api/v1/brain/turn — SSE happy path (Accept: text/event-stream)
     const eventNames = frames.map((f) => f.event);
     expect(eventNames[0]).toBe('turn.accepted');
     expect(eventNames).toContain('message_chunk');
-    expect(eventNames[eventNames.length - 1]).toBe('done');
+    // `done` is the orchestrator-terminal frame. The Auditor wires a
+    // SOFT-mode `auditor` frame after it (Wave-AC1) carrying the
+    // evidence-chain verdict — that's the true last frame on success.
+    const doneIdx = eventNames.lastIndexOf('done');
+    expect(doneIdx).toBeGreaterThan(0);
+    expect(eventNames[eventNames.length - 1]).toBe('auditor');
+    expect(doneIdx).toBe(eventNames.length - 2);
     // Concatenated chunks reconstruct the mock's response text.
     const reconstructed = frames
       .filter((f) => f.event === 'message_chunk')
       .map((f) => (f.data as { text?: string }).text ?? '')
       .join('');
     expect(reconstructed).toContain('Hello from mock brain.');
-    const doneData = frames[frames.length - 1]?.data as {
+    const doneData = frames[doneIdx]?.data as {
       threadId: string;
       tokensUsed: number;
       totalMs: number;
@@ -427,6 +433,16 @@ describe('POST /api/v1/brain/turn — SSE happy path (Accept: text/event-stream)
     // cacheReadTokens is intentionally null until the orchestrator
     // threads cacheStats through TurnResult (out-of-scope GAP).
     expect(doneData.cacheReadTokens).toBeNull();
+    // Auditor frame carries the evidence-chain verdict + warning.
+    const auditorFrame = frames[frames.length - 1]?.data as {
+      verdict: string;
+      evidenceCount: number;
+      auditLogId: string;
+      evidenceWarning: 'no_evidence_cited' | null;
+    };
+    expect(['approve', 'reject', 'needs_human']).toContain(auditorFrame.verdict);
+    expect(typeof auditorFrame.evidenceCount).toBe('number');
+    expect(typeof auditorFrame.auditLogId).toBe('string');
   });
 
   it('emits ack frame in Swahili immediately after turn.accepted (default)', async () => {
@@ -513,10 +529,23 @@ describe('POST /api/v1/brain/turn — JSON fallback', () => {
       threadId: string;
       responseText: string;
       tokensUsed: number;
+      audit: {
+        verdict: string;
+        evidenceCount: number;
+        auditLogId: string;
+        evidenceWarning: 'no_evidence_cited' | null;
+      };
     };
     expect(body.threadId).toBe('thread-mock-1');
     expect(body.responseText).toBe('Hello from mock brain.');
     expect(body.tokensUsed).toBe(42);
+    // Wave-AC1: Auditor gate fires on every JSON response (HARD MODE).
+    expect(body.audit).toBeDefined();
+    expect(['approve', 'reject', 'needs_human']).toContain(body.audit.verdict);
+    expect(typeof body.audit.evidenceCount).toBe('number');
+    expect(typeof body.audit.auditLogId).toBe('string');
+    // Mock response has no evidence citations → reject + warning.
+    expect(body.audit.evidenceWarning).toBe('no_evidence_cited');
   });
 
   it('JSON fallback applies for missing Accept header (legacy clients)', async () => {

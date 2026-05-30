@@ -36,6 +36,7 @@ import {
   createGraphAgentToolkit,
 } from '@borjie/graph-sync';
 import { getBrainExtraSkills } from '../composition/brain-extensions';
+import { auditChatResponse } from '../composition/chat-response-gate';
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
 import { withSecurityEvents } from '@borjie/observability';
@@ -517,8 +518,17 @@ async function handleTurnJson(
       });
       if (!result.success) return c.json({ error: result.error.message }, 500);
       const turn = result.data.turn;
+      const newThreadId = result.data.thread.id;
+      const auditVerdict = await auditChatResponse({
+        tenantId: ctx.tenant.tenantId,
+        threadId: newThreadId,
+        userId: ctx.viewer.userId,
+        personaId: turn.finalPersonaId,
+        responseText: turn.responseText,
+        tokensUsed: turn.tokensUsed,
+      });
       return c.json({
-        threadId: result.data.thread.id,
+        threadId: newThreadId,
         finalPersonaId: turn.finalPersonaId,
         responseText: turn.responseText,
         handoffs: turn.handoffs,
@@ -526,6 +536,12 @@ async function handleTurnJson(
         advisorConsulted: turn.advisorConsulted,
         proposedAction: turn.proposedAction,
         tokensUsed: turn.tokensUsed,
+        audit: {
+          verdict: auditVerdict.verdict,
+          evidenceCount: auditVerdict.evidenceCount,
+          auditLogId: auditVerdict.auditLogId,
+          evidenceWarning: auditVerdict.evidenceWarning,
+        },
       });
     }
     const result = await brain.orchestrator.handleTurn({
@@ -537,6 +553,14 @@ async function handleTurnJson(
       ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
     });
     if (!result.success) return c.json({ error: result.error.message }, 500);
+    const auditVerdict = await auditChatResponse({
+      tenantId: ctx.tenant.tenantId,
+      threadId: result.data.threadId,
+      userId: ctx.viewer.userId,
+      personaId: result.data.finalPersonaId,
+      responseText: result.data.responseText,
+      tokensUsed: result.data.tokensUsed,
+    });
     return c.json({
       threadId: result.data.threadId,
       finalPersonaId: result.data.finalPersonaId,
@@ -546,6 +570,12 @@ async function handleTurnJson(
       advisorConsulted: result.data.advisorConsulted,
       proposedAction: result.data.proposedAction,
       tokensUsed: result.data.tokensUsed,
+      audit: {
+        verdict: auditVerdict.verdict,
+        evidenceCount: auditVerdict.evidenceCount,
+        auditLogId: auditVerdict.auditLogId,
+        evidenceWarning: auditVerdict.evidenceWarning,
+      },
     });
   } catch (err) {
     return handleError(c, err);
@@ -568,6 +598,48 @@ interface StartedTurnPayload {
     reviewRequired: boolean;
     executionHeld?: boolean;
   };
+}
+
+interface AuditorContextForStream {
+  readonly tenantId: string;
+  readonly userId: string;
+}
+
+async function emitAuditorFrame(
+  stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
+  auditCtx: AuditorContextForStream,
+  args: {
+    readonly threadId: string;
+    readonly personaId: string;
+    readonly responseText: string;
+    readonly tokensUsed: number;
+  },
+): Promise<void> {
+  try {
+    const verdict = await auditChatResponse({
+      tenantId: auditCtx.tenantId,
+      threadId: args.threadId,
+      userId: auditCtx.userId,
+      personaId: args.personaId,
+      responseText: args.responseText,
+      tokensUsed: args.tokensUsed,
+    });
+    await stream.writeSSE({
+      event: 'auditor',
+      data: JSON.stringify({
+        verdict: verdict.verdict,
+        evidenceCount: verdict.evidenceCount,
+        auditLogId: verdict.auditLogId,
+        evidenceWarning: verdict.evidenceWarning,
+      }),
+    });
+  } catch (err) {
+    // Auditor + SSE write are best-effort; never abort the turn.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'failed to emit auditor frame',
+    );
+  }
 }
 
 async function emitStartedTurnFrames(
@@ -727,6 +799,16 @@ async function handleTurnSse(
     try {
       if (bootstrap.type === 'started') {
         await emitStartedTurnFrames(stream, bootstrap.turn);
+        await emitAuditorFrame(
+          stream,
+          { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
+          {
+            threadId: bootstrap.turn.threadId,
+            personaId: bootstrap.turn.finalPersonaId,
+            responseText: bootstrap.turn.responseText,
+            tokensUsed: bootstrap.turn.tokensUsed,
+          },
+        );
         return;
       }
       const gen = streamTurn(brain.orchestrator, {
@@ -737,15 +819,39 @@ async function handleTurnSse(
         userText: body.userText,
         ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
       });
+      // SOFT MODE — accumulate deltas so the post-stream auditor frame
+      // has the full responseText. The auditor is fired AFTER `done`
+      // so it can never block the user-visible stream.
+      let accumulatedText = '';
+      let lastPersonaId: string | null = null;
+      let lastTokens = 0;
       for await (const evt of gen) {
         const frame = projectStreamEvent(evt, bootstrap.threadId);
         if (!frame) continue;
+        if (frame.event === 'message_chunk') {
+          const data = frame.data as { text?: unknown };
+          if (typeof data.text === 'string') accumulatedText += data.text;
+        } else if (frame.event === 'done') {
+          const data = frame.data as { finalPersonaId?: unknown; tokensUsed?: unknown };
+          if (typeof data.finalPersonaId === 'string') lastPersonaId = data.finalPersonaId;
+          if (typeof data.tokensUsed === 'number') lastTokens = data.tokensUsed;
+        }
         await stream.writeSSE({
           event: frame.event,
           data: JSON.stringify(frame.data),
         });
         if (frame.event === 'error') return;
       }
+      await emitAuditorFrame(
+        stream,
+        { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
+        {
+          threadId: bootstrap.threadId,
+          personaId: lastPersonaId ?? 'unknown',
+          responseText: accumulatedText,
+          tokensUsed: lastTokens,
+        },
+      );
     } catch (err) {
       logger.error(
         {
