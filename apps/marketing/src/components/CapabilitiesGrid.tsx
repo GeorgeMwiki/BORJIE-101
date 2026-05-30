@@ -85,7 +85,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
       aria-labelledby="capabilities-heading"
     >
       <div className="mx-auto max-w-3xl text-center">
-        <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
+        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-signal-500">
           {t.kicker}
         </p>
         <h2

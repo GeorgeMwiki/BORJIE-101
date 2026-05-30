@@ -70,7 +70,7 @@ export function RoadmapCTASection({
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.4 }}
         >
-          <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
+          <span className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
             {t.kicker}
           </span>
           <h2

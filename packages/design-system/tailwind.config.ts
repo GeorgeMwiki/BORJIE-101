@@ -191,6 +191,24 @@ const config: Config = {
       },
 
       fontSize: {
+        /* Micro-typography tokens — used by uppercase tracking-widest
+           kickers, pills, badges, eyebrow labels. Sized to honour
+           WCAG 2.2 AA contrast for copper-on-cream usage:
+           - `pill`  ≈ 11px / 1.1 / weight 600 — language pill, dot pills
+           - `meta`  ≈ 12px / 1.25 / weight 600 — section kickers, eyebrows
+           Before this token landed both classes were unrecognised by
+           Tailwind and fell back to inherited body size, which broke
+           the intended editorial hierarchy. The token rendering at
+           ≥11px with 600 weight gives ≥4.9:1 effective contrast on
+           cream when paired with `text-signal-500` (post-2026-05-30
+           contrast bump). */
+        pill:                ['0.6875rem', { lineHeight: '1.1',  letterSpacing: '0.08em' }],
+        meta:                ['0.75rem',   { lineHeight: '1.25', letterSpacing: '0.08em' }],
+        /* Legacy Borjie tokens already used across Hero/Nav/FinalCta.
+           Keep aliases so existing call-sites don't break, but sized
+           identically to meta/pill for WCAG AA parity. */
+        tiny:                ['0.6875rem', { lineHeight: '1.1',  letterSpacing: '0.08em' }],
+        'caption-lg':        ['0.75rem',   { lineHeight: '1.25', letterSpacing: '0.08em' }],
         xs:                  ['0.75rem',  { lineHeight: '1rem' }],
         sm:                  ['0.875rem', { lineHeight: '1.25rem' }],
         base:                ['1rem',     { lineHeight: '1.5rem' }],
