@@ -3,8 +3,6 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { OwnerSignInForm } from '@/components/auth/OwnerSignInForm';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -36,7 +34,7 @@ export default async function SignInPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main
         id="main-content"
         className="relative min-h-screen overflow-hidden bg-background text-foreground"
@@ -87,7 +85,7 @@ export default async function SignInPage() {
           </p>
         </div>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

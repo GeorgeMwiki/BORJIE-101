@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Check, Sparkles } from 'lucide-react';
-import { Nav } from '@/components/Nav';
 import { Pricing } from '@/components/Pricing';
 import { FinalCta } from '@/components/FinalCta';
-import { Footer } from '@/components/Footer';
 import { FaqAccordion } from '@/components/shared/FaqAccordion';
 import { TrustBadgeStrip } from '@/components/shared/TrustBadgeStrip';
 import { getLocale } from '@/lib/locale';
@@ -38,7 +36,7 @@ export default async function PricingPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <section
           className="relative overflow-hidden"
@@ -191,7 +189,7 @@ export default async function PricingPage() {
 
         <FinalCta locale={locale} />
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { Truck } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -27,11 +25,11 @@ export default async function ForOffTakerPage() {
   const t = getMessages(locale).audiencePages.offTaker;
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <AudiencePage locale={locale} copy={t} kickerIcon={Truck} />
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

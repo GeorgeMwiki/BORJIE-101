@@ -95,3 +95,31 @@ export type {
   AtMenuProps,
   MenuItemLabel,
 } from './composer/index.js';
+// LitFin canonical chat-UI primitives — copper-on-cream gradients +
+// composable header/body/composer shell. Source-of-truth port from
+// LITFIN_PATH/src/components/chat-ui/index.tsx (BorjieMark swapped in
+// for LitfinMark). Every chat surface — marketing widget, owner cockpit
+// chat, admin chat, mobile shims — must consume these primitives so the
+// brand wash stays identical across surfaces.
+export {
+  CHAT_HEADER_GRADIENT,
+  CHAT_USER_BUBBLE,
+  CHAT_AI_BUBBLE,
+  ChatShellHeader,
+  ChatHeaderIconButton,
+  TypingDots,
+  ChatShellEmptyState,
+  ChatShellBody,
+  ChatShellMessageRow,
+  ChatShellComposer,
+  ChatShellDisclaimer,
+  ChatShell,
+} from './litfin-primitives.js';
+export type {
+  ChatShellHeaderProps,
+  ChatShellEmptyStateProps,
+  ChatShellMessageRowProps,
+  ChatShellComposerProps,
+  ChatShellDisclaimerProps,
+  ChatShellProps,
+} from './litfin-primitives.js';

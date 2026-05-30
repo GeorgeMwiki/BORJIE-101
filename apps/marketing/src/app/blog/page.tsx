@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Sparkles } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 
@@ -32,7 +30,7 @@ export default async function BlogIndexPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <section
           className="relative overflow-hidden"
@@ -138,7 +136,7 @@ export default async function BlogIndexPage() {
           </div>
         </section>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

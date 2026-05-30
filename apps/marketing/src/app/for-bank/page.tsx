@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { Building2 } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -27,11 +25,11 @@ export default async function ForBankPage() {
   const t = getMessages(locale).audiencePages.bank;
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <AudiencePage locale={locale} copy={t} kickerIcon={Building2} />
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

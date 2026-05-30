@@ -7,8 +7,6 @@ import {
   Linkedin,
   Link2,
 } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { notFound } from 'next/navigation';
@@ -64,7 +62,7 @@ export default async function BlogPostPage({
   // future MDX hookup is one edit instead of an architectural refactor.
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         {/* Post hero */}
         <section className="relative overflow-hidden border-b border-border/40">
@@ -183,7 +181,7 @@ export default async function BlogPostPage({
           </div>
         </section>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

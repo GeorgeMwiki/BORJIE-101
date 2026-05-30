@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 
 export const metadata: Metadata = {
@@ -53,7 +51,7 @@ export default async function CareersPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content" className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8">
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
           Careers
@@ -123,7 +121,7 @@ export default async function CareersPage() {
           </Link>
         </div>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

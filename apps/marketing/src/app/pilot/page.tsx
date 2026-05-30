@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { PilotForm } from '@/components/PilotForm';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -17,7 +15,7 @@ export default async function PilotPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content" className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8">
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
           {t.kicker}
@@ -37,7 +35,7 @@ export default async function PilotPage() {
           {t.contact}
         </p>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }
