@@ -140,7 +140,7 @@ export function CookieConsent(props: CookieConsentProps) {
       role="dialog"
       aria-modal="false"
       aria-labelledby="cookie-consent-title"
-      className="fixed bottom-4 left-4 z-40 w-[calc(100vw-2rem)] max-w-sm sm:bottom-6 sm:left-6"
+      className="fixed bottom-4 left-4 right-4 z-40 max-w-sm sm:bottom-6 sm:left-6 sm:right-auto"
     >
       <div className="rounded-xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur-md">
         {!showSettings ? (
@@ -154,7 +154,7 @@ export function CookieConsent(props: CookieConsentProps) {
             <p className="mt-1.5 text-xs leading-relaxed text-foreground/70">
               {copy.body}
             </p>
-            <p className="mt-1.5 text-[11px]">
+            <p className="mt-1.5 text-xs">
               <a
                 href="/privacy"
                 className="text-signal-600 underline-offset-2 hover:underline"
@@ -202,7 +202,7 @@ export function CookieConsent(props: CookieConsentProps) {
                 <dd className="text-foreground/70">{copy.langDescription}</dd>
               </div>
             </dl>
-            <p className="mt-2 text-[11px] italic text-foreground/60">
+            <p className="mt-2 text-xs italic text-foreground/60">
               {copy.noThirdParty}
             </p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
