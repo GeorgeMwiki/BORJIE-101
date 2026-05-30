@@ -67,7 +67,7 @@ export function MwikilaModesSection({
           transition={{ duration: 0.4 }}
           className="mx-auto mb-10 max-w-3xl text-center"
         >
-          <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
+          <span className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
             {t.kicker}
           </span>
           <h2
@@ -141,7 +141,7 @@ export function MwikilaModesSection({
                     <h3 className="text-xl font-semibold tracking-tight text-foreground">
                       {active.headline}
                     </h3>
-                    <span className="mt-1 inline-block rounded-sm bg-signal-500/10 px-2 py-0.5 font-mono text-meta uppercase tracking-widest text-signal-500">
+                    <span className="mt-1 inline-block rounded-sm bg-signal-500/10 px-2 py-0.5 font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
                       {active.label}
                     </span>
                   </div>

@@ -69,7 +69,7 @@ export function BrainClaimsBanner({ locale }: BannerProps) {
               <Sparkles className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="font-mono text-meta uppercase tracking-widest text-signal-500">
+              <p className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
                 {t.kicker}
               </p>
               <AnimatePresence mode="wait">

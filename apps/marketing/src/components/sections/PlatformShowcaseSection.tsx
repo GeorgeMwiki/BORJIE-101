@@ -52,7 +52,7 @@ export function PlatformShowcaseSection({
           transition={{ duration: 0.4 }}
           className="mx-auto mb-14 max-w-3xl text-center"
         >
-          <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
+          <span className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
             {t.kicker}
           </span>
           <h2

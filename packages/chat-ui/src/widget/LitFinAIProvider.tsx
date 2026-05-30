@@ -86,9 +86,13 @@ interface LitFinAIContextValue {
    * chat panel. Borjie mounts pass the mining-domain "mine owner"
    * variant; BossNyumba mounts pass the real-estate "landlord"
    * variant. Missing → the panel renders a generic "owner" fallback.
+   *
+   * Typed as `string | undefined` (not optional) so the literal
+   * context object satisfies `exactOptionalPropertyTypes: true` even
+   * when the consumer omits the prop.
    */
-  readonly disclaimerEn?: string;
-  readonly disclaimerSw?: string;
+  readonly disclaimerEn: string | undefined;
+  readonly disclaimerSw: string | undefined;
   readonly toggleWidget: () => void;
   readonly openWidget: () => void;
   readonly closeWidget: () => void;

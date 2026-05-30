@@ -44,7 +44,7 @@ export function InsightsAndScaleSection({
           transition={{ duration: 0.4 }}
           className="mx-auto mb-14 max-w-3xl text-center"
         >
-          <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
+          <span className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
             {t.kicker}
           </span>
           <h2
@@ -62,7 +62,7 @@ export function InsightsAndScaleSection({
         <div className="grid gap-8 md:grid-cols-2">
           {/* LEFT — by the numbers */}
           <div className="rounded-lg border border-border bg-surface p-7">
-            <h3 className="font-mono text-meta uppercase tracking-widest text-signal-500">
+            <h3 className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
               {t.statsHeading}
             </h3>
             <div className="mt-5 grid grid-cols-2 gap-5">
@@ -92,7 +92,7 @@ export function InsightsAndScaleSection({
 
           {/* RIGHT — pilot voices */}
           <div>
-            <h3 className="mb-4 px-1 font-mono text-meta uppercase tracking-widest text-signal-500">
+            <h3 className="mb-4 px-1 font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
               {t.quotesHeading}
             </h3>
             <div className="space-y-4">

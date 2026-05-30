@@ -27,7 +27,7 @@ export function FrontierBanner({ locale }: { readonly locale: Locale }) {
           transition={{ duration: 0.4 }}
           className="text-center"
         >
-          <span className="font-mono text-meta uppercase tracking-widest text-signal-500">
+          <span className="font-mono text-meta font-semibold uppercase tracking-widest text-signal-500">
             {t.kicker}
           </span>
           <p
