@@ -10,8 +10,6 @@ import {
   LifeBuoy,
   Activity,
 } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 
 /**
@@ -151,7 +149,7 @@ export default async function SupportPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/40">
@@ -312,7 +310,7 @@ export default async function SupportPage() {
           </div>
         </section>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

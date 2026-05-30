@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Check, MapPin, ShieldCheck } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { TrustStrip } from '@/components/TrustStrip';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -41,7 +39,7 @@ export default async function BuyersPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content" className="min-h-screen bg-background text-foreground">
         {/* Hero */}
         <section
@@ -285,7 +283,7 @@ export default async function BuyersPage() {
           </div>
         </section>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

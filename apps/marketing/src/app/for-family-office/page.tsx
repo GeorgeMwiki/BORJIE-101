@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { Landmark } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -27,11 +25,11 @@ export default async function ForFamilyOfficePage() {
   const t = getMessages(locale).audiencePages.familyOffice;
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <AudiencePage locale={locale} copy={t} kickerIcon={Landmark} />
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

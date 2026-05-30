@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { Pickaxe } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -28,11 +26,11 @@ export default async function ForPmlPage() {
   const t = getMessages(locale).audiencePages.pml;
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         <AudiencePage locale={locale} copy={t} kickerIcon={Pickaxe} />
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

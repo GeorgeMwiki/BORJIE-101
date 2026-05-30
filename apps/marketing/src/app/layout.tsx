@@ -4,7 +4,9 @@ import './globals.css';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 import { CookieConsent } from '@/components/CookieConsent';
-import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
+import { MainNav } from '@/components/marketing/MainNav';
+import { MarketingFooter } from '@/components/marketing/MarketingFooter';
+import { MarketingWidgetSlot } from '@/components/marketing/MarketingWidgetSlot';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 
@@ -149,15 +151,26 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: BORJIE_THEME_BOOTSTRAP_SCRIPT }}
         />
       </head>
-      <body className="bg-background text-foreground antialiased min-h-screen font-sans pt-16">
+      <body className="bg-background text-foreground antialiased min-h-screen font-sans">
         <ThemeProvider defaultTheme="dark" enableSystem>
+          {/* LITFIN RSC LAYOUT — mirrors LITFIN_PATH/src/app/(marketing)/layout.tsx.
+              Five client islands inside an RSC shell:
+                ScrollProgressBar + MainNav + main + MarketingFooter + MarketingWidgetSlot
+              The marketing-shell wrapper is plain HTML (RSC) so the
+              layout itself never ships as JS — only the islands do. */}
           <ScrollProgressBar />
           <a href="#main-content" className="skip-link">
             {t.skipToContent}
           </a>
-          {children}
+          <div className="marketing-shell">
+            <MainNav locale={locale} />
+            <main id="main-content" tabIndex={-1} className="pt-16">
+              {children}
+            </main>
+            <MarketingFooter locale={locale} />
+          </div>
+          <MarketingWidgetSlot locale={locale} />
           <CookieConsent locale={locale} />
-          <BorjieWidgetMount locale={locale} />
           {/* PWA — register the cache-first SW after hydration. Silent;
               skipped in dev. See `public/sw.js` and `public/offline.html`. */}
           <ServiceWorkerRegister />

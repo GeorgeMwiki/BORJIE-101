@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, ArrowRight, MessageCircle } from 'lucide-react';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { getLocale } from '@/lib/locale';
 
 /**
@@ -40,7 +38,7 @@ export default async function ContactPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main id="main-content">
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/40">
@@ -210,7 +208,7 @@ export default async function ContactPage() {
           </div>
         </section>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

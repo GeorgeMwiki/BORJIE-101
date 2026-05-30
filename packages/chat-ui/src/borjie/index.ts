@@ -21,6 +21,7 @@ export {
   BORJIE_INTRO_SW,
 } from './BorjieChatPanel';
 export { BorjieChatBubble } from './BorjieChatBubble';
+export { BorjieMark, BORJIE_GOLD_GRADIENT, BORJIE_GOLD_DEEP } from './BorjieMark';
 export {
   BorjieModeSelector,
   BORJIE_MODES,

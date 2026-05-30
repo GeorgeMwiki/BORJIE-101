@@ -9,8 +9,6 @@
  * Bilingual sw/en via existing getMessages + Nav/Footer chrome.
  */
 import type { Metadata } from 'next';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import { StatusBoard } from '@/components/StatusBoard';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -27,7 +25,7 @@ export default async function StatusPage() {
 
   return (
     <>
-      <Nav locale={locale} />
+      
       <main
         id="main-content"
         className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8"
@@ -50,7 +48,7 @@ export default async function StatusPage() {
           {c.subscribeNote}
         </p>
       </main>
-      <Footer locale={locale} />
+      
     </>
   );
 }

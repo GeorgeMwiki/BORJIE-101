@@ -94,3 +94,66 @@ html {
 .skip-link:focus {
   left: 0;
 }
+
+/* ============================================================
+   LITFIN REBASE — copper-on-cream palette tokens
+   ============================================================
+   Source: LITFIN_PATH/src/components/chat-ui/index.tsx +
+   LITFIN_PATH/src/styles/globals.css
+
+   These tokens give Borjie's marketing the same warm copper wash
+   LitFin uses across its chat surfaces — copper top-left → ember
+   bottom-right gradient. They are namespaced under `--litfin-`
+   prefixes so they layer cleanly over Borjie's primary navy/gold
+   tokens without breaking the rest of the design system.
+
+   The IgnitionHero hero references `var(--gradient-mesh)` for its
+   ambient copper wash backdrop — that variable is defined here. */
+:root,
+.dark {
+  /* Copper-on-cream stops — the three brand gradient anchors */
+  --litfin-copper-bright: 36 86% 64%;
+  --litfin-copper-mid:    24 72% 50%;
+  --litfin-copper-deep:   14 62% 28%;
+  --litfin-cream:         36 45% 97%;
+  --litfin-cream-deep:    36 30% 92%;
+
+  /* The 135° hero wash that IgnitionHero pulls in via inline style */
+  --gradient-mesh: linear-gradient(
+    135deg,
+    hsl(36 60% 12%) 0%,
+    hsl(24 30% 14%) 45%,
+    hsl(14 28% 10%) 100%
+  );
+}
+
+/* Shimmer headline accent used by the IgnitionHero `text-gradient-shimmer`
+   class. Sweeps left→right through the copper stops. */
+@keyframes litfin-text-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.text-gradient-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--litfin-copper-bright)) 0%,
+    hsl(var(--litfin-copper-mid)) 35%,
+    hsl(var(--litfin-cream)) 50%,
+    hsl(var(--litfin-copper-mid)) 65%,
+    hsl(var(--litfin-copper-deep)) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: litfin-text-shimmer 7s linear infinite;
+}
+
+/* Gentle float animation used by IgnitionHero watermark mark. */
+@keyframes litfin-float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.animate-float-gentle {
+  animation: litfin-float-gentle 8s ease-in-out infinite;
+}
