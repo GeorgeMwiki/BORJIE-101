@@ -11,6 +11,7 @@ import { PilotErrorBoundary } from '../src/components/PilotErrorBoundary'
 import { colors } from '../src/theme/colors'
 import { ThemeProvider } from '../src/theme/ThemeProvider'
 import { EventStreamMount } from '../src/lib/notifications/EventStreamMount'
+import { SuperpowersBootstrap } from '../src/superpowers'
 
 export default function RootLayout(): JSX.Element {
   const queryClient = useMemo(() => createQueryClient(), [])
@@ -23,6 +24,7 @@ export default function RootLayout(): JSX.Element {
           <AuthProvider>
             <BackgroundSyncMount />
             <EventStreamMount />
+            <SuperpowersBootstrap />
             <StatusBar style="light" backgroundColor={colors.earth700} />
             <Stack
               screenOptions={{
