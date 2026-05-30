@@ -14,7 +14,7 @@
  *  - Strunk + White, "The Elements of Style" (1918, 4th ed. 2000).
  *  - Kahneman, Sibony, Sunstein, "Noise" (2021) — confidence calibration.
  *
- * Ported verbatim from LitFin src/core/conversation-feel/types.ts with
+ * Ported verbatim from sibling-port src/core/conversation-feel/types.ts with
  * Borjie portal taxonomy (owner/manager/employee/buyer/admin/marketing).
  */
 
@@ -61,7 +61,7 @@ export interface GuardIntervention {
   readonly session_id: string;
 }
 
-// Borjie portal taxonomy — replaces FinLit's borrower/officer split.
+// Borjie portal taxonomy — replaces sibling-port's borrower/officer split.
 export type BorjiePortal =
   | "owner"
   | "manager"

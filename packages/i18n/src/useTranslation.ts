@@ -8,7 +8,7 @@ import { LanguageContext, type LanguageContextValue } from "./LanguageContext";
  *
  * @returns { t, language, setLanguage, translateText, td }
  *
- * Ported verbatim from LitFin src/core/i18n/useTranslation.ts.
+ * Ported verbatim from sibling-port src/core/i18n/useTranslation.ts.
  */
 export function useTranslation(): LanguageContextValue {
   return useContext(LanguageContext);

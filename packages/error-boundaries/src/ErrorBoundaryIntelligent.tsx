@@ -6,8 +6,8 @@
  *   - Shows user-friendly recovery UI
  *   - Provides "Report this issue" with pre-filled context
  *
- * Ported verbatim from LitFin src/components/ErrorBoundaryIntelligent.tsx
- * with brand swap (litfin_pi_session -> borjie_pi_session).
+ * Ported verbatim from sibling-port src/components/ErrorBoundaryIntelligent.tsx
+ * with session-storage key rebranded to borjie_pi_session.
  */
 
 "use client";

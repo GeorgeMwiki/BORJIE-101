@@ -1,5 +1,5 @@
 /**
- * Borjie i18n — language registry (subset of LitFin's 17-lang set, focused on
+ * Borjie i18n — language registry (subset of sibling-port's 17-lang set, focused on
  * Borjie's pan-African artisanal-to-mid-tier mining audience).
  *
  * Borjie hard rule: Swahili-first. Default user language is `sw`. Owner
@@ -7,7 +7,7 @@
  * core SW/EN pair, French + Portuguese cover francophone West/Central Africa
  * and lusophone Mozambique/Angola for buyer-side off-take expansion.
  *
- * Pattern ported from LitFin src/core/i18n/languages.ts.
+ * Pattern ported from sibling-port src/core/i18n/languages.ts.
  */
 
 export type Language = "sw" | "en" | "fr" | "pt";

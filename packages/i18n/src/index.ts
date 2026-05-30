@@ -1,7 +1,7 @@
 /**
  * @borjie/i18n — Public API
  *
- * Shared i18n shell ported from LitFin src/core/i18n. The kernel pattern
+ * Shared i18n shell ported from sibling-port src/core/i18n. The kernel pattern
  * is identical (LanguageProvider context, useTranslation hook, serverT
  * helper) but the translation trees are HOST-SUPPLIED: Borjie's per-app
  * dictionaries (apps/marketing/src/i18n, apps/workforce-mobile/src/i18n,

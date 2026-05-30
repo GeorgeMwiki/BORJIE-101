@@ -9,7 +9,7 @@
  *  - Haber + Stornetta, "How to time-stamp a digital document" (1991).
  *  - Bitcoin whitepaper (2008) — hash chain pattern.
  *
- * Ported verbatim from LitFin src/core/conversation-feel/audit-log.ts.
+ * Ported verbatim from sibling-port src/core/conversation-feel/audit-log.ts.
  */
 
 import { createHash } from "node:crypto";

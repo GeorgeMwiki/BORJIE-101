@@ -10,7 +10,7 @@
  *
  * Pure constants. No runtime mutation.
  *
- * Ported verbatim from LitFin src/core/emoji/universal-set.ts.
+ * Ported verbatim from sibling-port src/core/emoji/universal-set.ts.
  */
 
 export type EmojiKey =

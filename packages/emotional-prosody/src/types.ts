@@ -2,7 +2,7 @@
 // Emotional Prosody Intelligence — Type Definitions
 // Governs voice warmth, frustration detection, and emotional state tracking
 //
-// Ported verbatim from LitFin src/core/emotional-prosody/types.ts.
+// Ported verbatim from sibling-port src/core/emotional-prosody/types.ts.
 // =============================================================================
 
 // ---------------------------------------------------------------------------

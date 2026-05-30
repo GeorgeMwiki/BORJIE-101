@@ -7,7 +7,7 @@
  * Or use this index for several at once:
  *   import { Emoji, getEmoji, ... } from '@borjie/emoji';
  *
- * Ported verbatim from LitFin src/core/emoji.
+ * Ported verbatim from sibling-port src/core/emoji.
  */
 
 export * from "./universal-set";

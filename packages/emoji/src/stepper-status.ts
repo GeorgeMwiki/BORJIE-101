@@ -7,7 +7,7 @@
  * Used by mini-stepper, application-stepper, and the loan-stepper
  * server-rendered status payloads.
  *
- * Ported verbatim from LitFin src/core/emoji/stepper-status.ts.
+ * Ported verbatim from sibling-port src/core/emoji/stepper-status.ts.
  */
 
 import { emojiLabel, safeEmojiChar, type EmojiKey } from "./universal-set";

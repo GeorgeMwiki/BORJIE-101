@@ -10,8 +10,8 @@
  * string. Never falls back to a synthetic humanized label or a hardcoded
  * default.
  *
- * Ported verbatim from LitFin src/core/i18n/server-t.ts with host-supplied
- * translation tree instead of LitFin's monolithic translations.ts import.
+ * Ported verbatim from sibling-port src/core/i18n/server-t.ts with host-supplied
+ * translation tree instead of sibling-port's monolithic translations.ts import.
  */
 
 import type { Language } from "./languages";

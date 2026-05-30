@@ -10,7 +10,7 @@
  *
  * Pure presentational. No state. No mutation.
  *
- * Ported verbatim from LitFin src/core/emoji/Emoji.tsx.
+ * Ported verbatim from sibling-port src/core/emoji/Emoji.tsx.
  */
 
 import * as React from "react";

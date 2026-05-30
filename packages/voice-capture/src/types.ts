@@ -1,6 +1,6 @@
 /**
  * Voice Capture Types
- * Ported verbatim from LitFin src/core/voice-capture/types.ts with Borjie
+ * Ported verbatim from sibling-port src/core/voice-capture/types.ts with Borjie
  * domain swap (borrower/officer roles -> owner/manager/employee/buyer).
  */
 
@@ -67,7 +67,7 @@ export interface Transcription {
   createdAt: string;
 }
 
-// Borjie role taxonomy (replaces FinLit's borrower / officer / admin)
+// Borjie role taxonomy (replaces sibling-port's borrower / officer / admin)
 export type BorjieVoiceRole =
   | 'owner'
   | 'manager'
@@ -145,7 +145,7 @@ export interface VoiceFieldInput {
   requiresReview: boolean;
 }
 
-// Site visit voice notes (mining-domain analogue of LitFin site visits)
+// Site visit voice notes (mining-domain analogue of sibling-port site visits)
 export interface SiteVisitVoiceNote extends VoiceNote {
   location?: {
     latitude: number;

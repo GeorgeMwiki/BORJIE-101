@@ -53,7 +53,7 @@ export const LanguageContext = createContext<LanguageContextValue>({
  * Look up a dot-notation key in the active translation tree. Returns an
  * empty string if the key is missing.
  *
- * Pattern ported from LitFin src/core/i18n/LanguageContext.tsx; Borjie
+ * Pattern ported from sibling-port src/core/i18n/LanguageContext.tsx; Borjie
  * hosts inject their own translation tree (per-app translations live in
  * apps/marketing/src/i18n, apps/workforce-mobile/src/i18n, etc.) so this
  * shared package stays domain-neutral.
