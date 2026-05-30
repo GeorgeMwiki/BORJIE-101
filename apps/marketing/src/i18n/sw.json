@@ -2,6 +2,15 @@
   "common": {
     "skipToContent": "Ruka kwenye maudhui"
   },
+  "seo": {
+    "title": "Borjie — Mfumo wa kwanza duniani wa AI kwa Mali ya Madini",
+    "description": "Mkurugenzi Mtendaji wa kwanza duniani wa AI anayeendesha mali yako yote ya madini. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, daftari la mali. Wapangaji wengi. Lugha mbili.",
+    "ogTitle": "Borjie — Mfumo wa kwanza duniani wa AI kwa Mali ya Madini",
+    "ogDescription": "Endesha mali yako yote ya madini kwa kujiongoza. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, daftari la mali.",
+    "twitterTitle": "Borjie — Mkurugenzi Mtendaji wa AI wa Madini",
+    "twitterDescription": "Endesha mali yako yote ya madini kwa kujiongoza. Saini moja, kila kazi inaandaliwa, kufungwa bei, kusimamiwa, kuwasilishwa.",
+    "ogAlt": "Borjie — Mfumo wa uendeshaji wa Mali ya Madini unaoongozwa na AI"
+  },
   "nav": {
     "owners": "Wamiliki",
     "buyers": "Wanunuzi",
@@ -62,9 +71,9 @@
   "hero": {
     "kicker": "Mfumo wa AI kwa Mali yote ya Madini",
     "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
-    "pill": "Tanzania-kwanza · Inayoongozwa na AI",
-    "headline": "Endesha mali yote ya madini kwa otomatiki.",
-    "sub": "Mwl. Mwikila ni Mkurugenzi Mtendaji wa AI wa Madini. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, subsidiaries, biashara za ziada (usafiri, chakula, mafuta, rejareja, ardhi, kukodi vifaa), family office, urithi, daftari la mali. Anaandaa, anafunga, anasimamia, anawasilisha. Wewe unasaini mara moja.",
+    "pill": "Tunaanza Tanzania · Tunatanua Afrika Kusini mwa Jangwa · Imejengwa kwa dunia",
+    "headline": "Mkurugenzi Mtendaji wa kwanza duniani wa AI anayeendesha mali yako yote ya madini.",
+    "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaunda kategoria mpya kabisa: jukwaa moja akili inayounganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada (usafiri, chakula, mafuta, rejareja, ardhi, kukodi vifaa), ofisi ya familia, urithi, na daftari kamili la mali kupitia AI inayobadilika. Mwl. Mwikila anaandaa, anafunga bei, anasimamia, anawasilisha. Wewe unasaini mara moja.",
     "ctaPilot": "Anza sasa",
     "ctaDemo": "Tazama demo ya sekunde 60",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -141,8 +150,8 @@
   },
   "stats": {
     "kicker": "Kwa nambari",
-    "heading": "Nambari kutoka uendeshaji wa mapema.",
-    "sub": "Wiki 12 za maendeleo pamoja na waendeshaji wa migodi Geita, Mererani, na Songwe. Takwimu kutoka telemetry hai, zinasasishwa kila wiki.",
+    "heading": "Nambari kutoka uendeshaji wetu wa mwanzo.",
+    "sub": "Wiki kumi na mbili za maendeleo pamoja na waendeshaji migodi Geita, Mererani, na Songwe. Imeundwa kukua kutoka PML moja kwenye simu ya mkononi hadi kampuni inayoshikilia Leseni Maalumu ya Madini yenye wafanyakazi maelfu. Takwimu za mfano kutoka kwa telemetria hai, zinasasishwa kila wiki.",
     "items": [
       {
         "label": "Sites zenye brain hai",
@@ -168,17 +177,17 @@
     "footnote": "Nambari zinasasishwa kutoka telemetry hai. TZS iliyofungwa inawakilisha wave M3-M4; dashboard inasasishwa kila wiki."
   },
   "finalCta": {
-    "kicker": "Tayari unapokuwa wewe",
-    "heading": "Acha kufuatilia dashboard. Anza kuendesha mgodi.",
-    "sub": "Jisajiri na kuanzisha mali yako katika dakika. Wewe unaweka kasi ya autonomy — sisi tunatengeneza brain inayoshughulikia shughuli za usiku na audit chain inayoweka kila kitendo kwenye rekodi.",
-    "ctaPrimary": "Jisajiri",
+    "kicker": "Tayari pale unapokuwa wewe",
+    "heading": "Acha kufuatilia dashibodi. Anza kuendesha mgodi.",
+    "sub": "Jisajili na kuanzisha mali yako ndani ya dakika. Wewe unaweka kasi ya uhuru — sisi tunatengeneza ubongo unaoshughulikia shughuli za usiku na mnyororo wa ukaguzi unaoweka kila kitendo kwenye rekodi.",
+    "ctaPrimary": "Jisajili",
     "ctaSecondary": "Ingia",
     "microcopy": "Anza kuandaa mali yako leo. Una akaunti tayari? Ingia."
   },
   "capabilities": {
-    "kicker": "01 · Uwezo wa msingi",
-    "heading": "Sita kwa moja, kwa uwazi.",
-    "sub": "Kila uwezo umeunganishwa na grafu ya maarifa ya mgodi wako na chain ya audit isiyobadilika.",
+    "kicker": "01 · Borjie ni nini, kwa undani",
+    "heading": "Mfumo wa uendeshaji wa mali ya madini unaoongozwa na AI.",
+    "sub": "Sio dashibodi iliyowekwa juu ya laha-tarakimu. Mifumo sita iliyounganishwa, kila moja inayofanya kazi kwa uzalishaji halisi. Kila uwezo umeunganishwa na grafu ya maarifa ya mgodi wako na mnyororo wa ukaguzi usiobadilika.",
     "learnMore": "Soma zaidi",
     "cards": {
       "licence": {
@@ -482,7 +491,7 @@
         {
           "id": "groundedness",
           "name": "Mlango wa Groundedness",
-          "blurb": "Kila madai ya kweli yanaonyesha EvidenceItem halisi yenye URL au reference ya system-of-record."
+          "blurb": "Kila madai halisi yanaonyesha EvidenceItem hai yenye URL au rejea ya mfumo-rasmi-wa-rekodi."
         },
         {
           "id": "calibration",
@@ -571,14 +580,14 @@
       "kicker": "Toleo la Frontier",
       "title": "Miundombinu ya Mali ya Madini, imeandikwa upya kwa mwendeshaji.",
       "titleAccent": "Sio dashboard.",
-      "sub": "Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni ya madini ya Tanzania kuwa Mali ya Madini yote tulivu, iliyokaguliwa, inayoongozwa na AI, ikifunika subsidiaries, holdings, family office, urithi, daftari la mali na kila biashara ya ziada; kwa lugha mbili tangu siku ya kwanza."
+      "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni moja ya madini ya Tanzania kuwa Mali yote ya Madini iliyo tulivu, iliyokaguliwa, inayoongozwa na AI, ikifunika kampuni tanzu, holdings, ofisi ya familia, urithi, daftari la mali na kila biashara ya ziada; kwa lugha mbili tangu siku ya kwanza."
     },
     "problemSolution": {
       "kicker": "Kwa nini mfumo wa Mali ya Madini",
       "title": "Mali za madini zinaendeshwa ukingoni.",
       "titleAccent": "Borjie inafunga pengo hilo mwanzo hadi mwisho.",
       "subOne": "Mali za madini Tanzania bado zinaendeshwa kwa Excel, WhatsApp na mafaili ya kibinadamu ya compliance, kwenye leseni, kitabu cha mrabaha, wafanyakazi, hazina, soko, subsidiaries, family office na kila biashara ya ziada. Amana ni ya kiwango cha dunia. Miundombinu inayoizunguka sio.",
-      "subTwo": "Borjie ni mfumo wa uendeshaji wa Mali ya Madini wa AI ambao sekta imekuwa ikisubiri.",
+      "subTwo": "Borjie ni mfumo wa kwanza duniani wa uendeshaji wa Mali ya Madini unaoongozwa na AI, unaounda kategoria mpya kabisa: jukwaa moja akili linalounganisha waendeshaji, mamlaka, mitaji, na mfumo mzima wa madini kupitia AI inayobadilika.",
       "problem": {
         "title": "Madini ukingoni",
         "items": [
@@ -640,8 +649,8 @@
               "desc": "Baraza la Mazingira · EIA, taarifa za robo mwaka, audit pack"
             },
             {
-              "name": "Bank of Tanzania",
-              "desc": "Dirisha la USD-cliff, malipo ya dirisha la dhahabu, BoT fix"
+              "name": "Benki Kuu",
+              "desc": "Dirisha la USD-cliff, malipo ya dirisha la dhahabu, viwango vya BoT"
             },
             {
               "name": "TRA",
@@ -2427,7 +2436,7 @@
         "TZS / USD sarafu nyingi"
       ],
       "statsHeading": "Sababu tatu wachukuaji wanaunganisha kwenye Borjie.",
-      "statsSub": "Nambari halisi - vitu vinavyofunga pengo kati ya usambazaji wa wachimba wadogo na Bill of Lading safi.",
+      "statsSub": "Nambari halisi - vitu vinavyofunga pengo kati ya usambazaji wa wachimba wadogo na hati safi ya kusafirisha (Bill ya Lading).",
       "stats": [
         {
           "value": "100+",

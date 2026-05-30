@@ -53,75 +53,83 @@ function resolveSiteUrl(): string {
 
 const SITE_URL = resolveSiteUrl();
 
-export const metadata: Metadata = {
-  title: 'Borjie — AI-native operating system for the entire Mining Estate',
-  description:
-    'Borjie is the AI-native operating system for the entire Tanzanian Mining Estate. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Swahili-first. Multi-tenant. Multi-lingual.',
-  applicationName: 'Borjie',
-  metadataBase: new URL(SITE_URL),
-  // UNIV-4: TZ-launch-beachhead marketing keywords — defer to vertical-profile/jurisdiction-profile marketing manifest when expanding to KE/NG/ZA/etc; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
-  keywords: [
-    'Tanzania mining software',
-    'AI-native mining OS',
-    'PML licence management',
-    'gold-window treasury',
-    'mining compliance Tanzania',
-    'Mining Commission',
-    // SW search keyword (regulator's local short-name) is exposed for
-    // discoverability without putting the literal SW token in EN source.
-    'Tum' + 'emadini',
-    'NEMC',
-    'Master Brain',
-    'Borjie',
-    'mining marketplace Tanzania',
-  ],
-  openGraph: {
-    title: 'Borjie — AI-native operating system for the entire Mining Estate',
-    description:
-      'Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Swahili-first.',
-    type: 'website',
-    siteName: 'Borjie',
-    locale: 'sw_TZ',
-    alternateLocale: ['en_US'],
-    url: SITE_URL,
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'Borjie — AI-native operating system for the entire Mining Estate',
-      },
+/**
+ * Locale-aware metadata. The same page renders in EN or SW depending on
+ * the `borjie_locale` cookie; rendering meta tags in the user's chosen
+ * language keeps the rendered HTML free of cross-language leakage and
+ * also gets the localised title/description into the OG card for
+ * social shares originating from a localised session.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).seo;
+  return {
+    title: t.title,
+    description: t.description,
+    applicationName: 'Borjie',
+    metadataBase: new URL(SITE_URL),
+    // UNIV-4: TZ-launch-beachhead marketing keywords — defer to vertical-profile/jurisdiction-profile marketing manifest when expanding to KE/NG/ZA/etc; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
+    keywords: [
+      'Tanzania mining software',
+      'AI-native mining OS',
+      'PML licence management',
+      'gold-window treasury',
+      'mining compliance Tanzania',
+      'Mining Commission',
+      // SW search keyword (regulator's local short-name) is exposed for
+      // discoverability without putting the literal SW token in EN source.
+      'Tum' + 'emadini',
+      'NEMC',
+      'Master Brain',
+      'Borjie',
+      'mining marketplace Tanzania',
     ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Borjie — AI-native OS for the entire Mining Estate',
-    description:
-      'Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, family office, succession.',
-    creator: '@borjie_tz',
-    images: ['/og-image.png'],
-  },
-  alternates: {
-    canonical: SITE_URL,
-    languages: {
-      sw: SITE_URL,
-      en: `${SITE_URL}?lang=en`,
+    openGraph: {
+      title: t.ogTitle,
+      description: t.ogDescription,
+      type: 'website',
+      siteName: 'Borjie',
+      locale: locale === 'sw' ? 'sw_TZ' : 'en_US',
+      alternateLocale: locale === 'sw' ? ['en_US'] : ['sw_TZ'],
+      url: SITE_URL,
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: t.ogAlt,
+        },
+      ],
     },
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  manifest: '/manifest.webmanifest',
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-    ],
-    shortcut: '/favicon.ico',
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-  },
-};
+    twitter: {
+      card: 'summary_large_image',
+      title: t.twitterTitle,
+      description: t.twitterDescription,
+      creator: '@borjie_tz',
+      images: ['/og-image.png'],
+    },
+    alternates: {
+      canonical: SITE_URL,
+      languages: {
+        sw: SITE_URL,
+        en: `${SITE_URL}?lang=en`,
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+      ],
+      shortcut: '/favicon.ico',
+      apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#17100A',
