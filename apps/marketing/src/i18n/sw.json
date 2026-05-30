@@ -23,10 +23,10 @@
     "whoWeServe": "Tunaowahudumia",
     "about": "Kuhusu",
     "resources": "Rasilimali",
-    "kampuni": "Kampuni",
+    "company": "Kampuni",
     "blog": "Blogi",
     "careers": "Kazi",
-    "msaada": "Msaada",
+    "support": "Msaada",
     "requestPilot": "Anza sasa",
     "categories": {
       "operators": "Waendeshaji wa migodi",
@@ -190,7 +190,7 @@
     "sub": "Sio dashibodi iliyowekwa juu ya laha-tarakimu. Mifumo sita iliyounganishwa, kila moja inayofanya kazi kwa uzalishaji halisi. Kila uwezo umeunganishwa na grafu ya maarifa ya mgodi wako na mnyororo wa ukaguzi usiobadilika.",
     "learnMore": "Soma zaidi",
     "cards": {
-      "leseni": {
+      "licence": {
         "title": "Kalenda ya Leseni",
         "blurb": "PML, ML, na SML zote kwenye kalenda moja. Onyo la siku 90, 60, 30 kabla ya kuisha. Inafahamiana na utaratibu wa Tumemadini."
       },
@@ -202,15 +202,15 @@
         "title": "Daftari la Drill-Hole",
         "blurb": "Logger ya mashimo ya kuchimba na grade-control. Cores zimepigwa picha, kupimwa, kuhusishwa na pit segment, kwenye chain."
       },
-      "hazina": {
+      "treasury": {
         "title": "FX na Hazina",
         "blurb": "TZS · USD · gold ounces. Hedge proposals na live spot kutoka BoT na LBMA. Off-take projections kwa wiki."
       },
-      "soko": {
+      "marketplace": {
         "title": "Soko",
         "blurb": "Wachimbaji wadogo, traders waliosajiliwa, smelters wenye leseni. KYC kwa kila mshiriki. Mkataba unaweza kuchapishwa."
       },
-      "utii": {
+      "compliance": {
         "title": "Mfuko wa Utii",
         "blurb": "NEMC EIA, mrabaha returns, OSHA logs, audit chain. Tayari kuwasilisha kwa Tumemadini na Mamlaka ya Mapato."
       }
@@ -1040,7 +1040,7 @@
   "footer": {
     "tagline": "Mfumo wa uendeshaji wa AI kwa madini ya Tanzania. Master Brain, audit chain, lugha mbili.",
     "product": "Bidhaa",
-    "kampuni": "Kampuni",
+    "company": "Kampuni",
     "resources": "Rasilimali",
     "legal": "Kisheria",
     "audience": "Tunaowahudumia",
@@ -1074,7 +1074,7 @@
     "contact": "Maswali? Tuma email kwa hello@borjie.co.tz au piga +255 22 211 4000.",
     "fields": {
       "name": "Jina kamili",
-      "kampuni": "Jina la kampuni",
+      "company": "Jina la kampuni",
       "email": "Anwani ya barua pepe",
       "phone": "Namba ya simu",
       "portfolioSize": "Idadi ya sites unazomiliki",
@@ -1549,7 +1549,7 @@
           "title": "Export ya audit-pack",
           "blurb": "One-click export ya cryptographic audit chain, leseni, mrabaha returns, OSHA logs, na bank reconciliations kwa due diligence."
         },
-        "hazina": {
+        "treasury": {
           "title": "Hazina simulation",
           "blurb": "Stress-test ya muda wa off-take, mabadiliko ya bei ya dhahabu, na TZS/USD swings. Ona athari kwenye covenant ratios kabla ya kutokea."
         }
