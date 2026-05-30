@@ -547,8 +547,8 @@ export function ChatShellDisclaimer({
 }: ChatShellDisclaimerProps): JSX.Element {
   const text =
     language === 'sw'
-      ? 'Imezalishwa na AI · Si ushauri wa kisheria · Maamuzi yanafanywa na mmiliki'
-      : 'AI-generated · Not legal advice · Decisions are made by the mining owner';
+      ? 'Imezalishwa na AI. Si ushauri wa kisheria/uendeshaji. Maamuzi yanafanywa na mmiliki wa mgodi.'
+      : 'AI-generated. Not legal/operational advice. Decisions are made by the mine owner.';
   return (
     <div
       role="note"
