@@ -2,6 +2,15 @@
   "common": {
     "skipToContent": "Skip to main content"
   },
+  "seo": {
+    "title": "Borjie — The world's first AI-native Mining Estate OS",
+    "description": "The world's first AI Mining Managing Director that runs your entire estate. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Multi-tenant. Multi-lingual.",
+    "ogTitle": "Borjie — The world's first AI-native Mining Estate OS",
+    "ogDescription": "Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register.",
+    "twitterTitle": "Borjie — AI Mining Managing Director",
+    "twitterDescription": "Run your entire Mining Estate on autopilot. One sign-off, every workflow drafted, hedged, supervised, filed.",
+    "ogAlt": "Borjie — AI-native Mining Estate operating system"
+  },
   "nav": {
     "owners": "Owners",
     "buyers": "Buyers",
@@ -62,9 +71,9 @@
   "hero": {
     "kicker": "AI-native OS for the entire Mining Estate",
     "swahiliFirstBadge": "English-first · Swahili",
-    "pill": "Tanzanian-first · AI-native",
-    "headline": "Run your entire Mining Estate on autopilot.",
-    "sub": "Mr. Mwikila is your AI Mining Managing Director. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, retail, real estate, equipment rental), family office, succession, asset register. He drafts, hedges, supervises, files. You sign once.",
+    "pill": "Starting in Tanzania · Expanding across Sub-Saharan Africa · Built for the world",
+    "headline": "The world's first AI Mining Managing Director that runs your entire estate.",
+    "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie is creating an entirely new category: one intelligent platform connecting licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, retail, real estate, equipment rental), family office, succession, and the full asset register through adaptive AI. Mr. Mwikila drafts, hedges, supervises, files. You sign once.",
     "ctaPilot": "Get started",
     "ctaDemo": "Watch a 60s demo",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -142,7 +151,7 @@
   "stats": {
     "kicker": "By the numbers",
     "heading": "Numbers from our early operations.",
-    "sub": "Twelve weeks of co-development with mining operators across Geita, Mererani, and Songwe. Indicative figures from live telemetry, refreshed weekly.",
+    "sub": "Twelve weeks of co-development with mining operators across Geita, Mererani, and Songwe. Built to scale from one PML on a single phone to a Special Mining Licence holding company with thousands of workers. Indicative figures from live telemetry, refreshed weekly.",
     "items": [
       {
         "label": "Sites under live brain",
@@ -170,15 +179,15 @@
   "finalCta": {
     "kicker": "Ready when you are",
     "heading": "Stop chasing the dashboard. Start running the mine.",
-    "sub": "Sign up and set up your estate in minutes. You set the autonomy pace — we ship the brain that handles overnight ops and the audit chain that keeps every action on the record.",
+    "sub": "Sign up and stand up your estate in minutes. You set the autonomy pace, we ship the brain that handles overnight ops and the cryptographic audit chain that keeps every action on the record. Built for a Tanzanian PML on day one, ready for an SML holding company on day one thousand.",
     "ctaPrimary": "Sign up",
     "ctaSecondary": "Log in",
-    "microcopy": "Start your estate setup today. Already have an account? Log in."
+    "microcopy": "Stand up your estate today. Already have an account? Log in."
   },
   "capabilities": {
-    "kicker": "01 · Core capabilities",
-    "heading": "Six capabilities, one calm operator.",
-    "sub": "Each capability ties into your mine's knowledge graph and writes to an immutable audit chain.",
+    "kicker": "01 · What Borjie is, concretely",
+    "heading": "An AI-native mining estate operating system.",
+    "sub": "Not a dashboard bolted onto a spreadsheet. Six interlocking systems, every one shipping in production. Each capability ties into your mine's knowledge graph and writes to an immutable audit chain.",
     "learnMore": "Learn more",
     "cards": {
       "licence": {
@@ -571,14 +580,14 @@
       "kicker": "Frontier release",
       "title": "Mining Estate infrastructure, rewritten for the operator.",
       "titleAccent": "Not the dashboard.",
-      "sub": "Borjie ships the operating system that turns a Tanzanian mining licence into an entire calm, audited, AI-managed Mining Estate, covering subsidiaries, holdings, family office, succession, asset register and every ancillary business; bilingual on day one."
+      "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie ships the operating system that turns a Tanzanian mining licence into an entire calm, audited, AI-managed Mining Estate, covering subsidiaries, holdings, family office, succession, asset register and every ancillary business; bilingual on day one."
     },
     "problemSolution": {
       "kicker": "Why a Mining Estate OS",
       "title": "Mining estates run on the margin.",
       "titleAccent": "Borjie closes that gap end-to-end.",
       "subOne": "Tanzanian mining estates still run on Excel, WhatsApp and physical compliance binders across the licence, the royalty book, the workforce, the treasury, the marketplace, the subsidiaries, the family office and every ancillary business. The deposit is world-class. The infrastructure around it is not.",
-      "subTwo": "Borjie is the AI-native Mining Estate operating system the sector has been waiting for.",
+      "subTwo": "Borjie is the world's first AI-native Mining Estate operating system, creating an entirely new category: one intelligent platform connecting operators, regulators, capital, and the entire mineral ecosystem through adaptive AI.",
       "problem": {
         "title": "Mining at the margin",
         "items": [
