@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`prompt-adapter > snapshot: collaborative, verbose, swahili-leaning bilingual 1`] = `
+"OWNER-STYLE DIRECTIVE:
+- Expand on reasoning. Walk through the why, the trade-offs, and an example.
+- Owner is collaborative: invite their judgement. Offer 2 options and ask which they'd pick before acting.
+- Anza kwa Kiswahili. Mix English where natural. Tafadhali use familiar SMB-Swahili."
+`;
+
+exports[`prompt-adapter > snapshot: conservative + finance-led + email 1`] = `
+"OWNER-STYLE DIRECTIVE:
+- Frame recommendations conservatively. Surface downside scenarios first.
+- Owner is finance-led: lead with cashflow, margin, and unit economics.
+- If the response is long, structure it like a short business email (greeting, two short paragraphs, sign-off)."
+`;
+
+exports[`prompt-adapter > snapshot: high-confidence directive, casual + terse + directive owner 1`] = `
+"OWNER-STYLE DIRECTIVE:
+- Adopt a casual, friendly tone. Short sentences. Plain everyday words.
+- Be terse. One-liners by default. Maximum three sentences unless asked to expand.
+- Owner prefers directive style: state the recommended action first, then the one-line reason. Skip options unless asked."
+`;
