@@ -52,11 +52,26 @@ export function Blackboard({ languagePreference, tradingName }: BlackboardProps)
   }, [state.elements.length, state.replaying]);
 
   // Auto-scroll to the active element whenever the active id changes.
+  // Guard CSS.escape: it's universally available in modern browsers but
+  // jsdom (test env) and very old WebViews omit it. Fall back to a
+  // hand-escaped id lookup so the bridge never tears down the whole
+  // board when the polyfill is missing.
   useEffect(() => {
     if (!state.activeId) return;
-    const el = scrollRef.current?.querySelector<HTMLElement>(
-      `[data-element-id="${CSS.escape(state.activeId)}"]`,
-    );
+    const container = scrollRef.current;
+    if (!container) return;
+    const safeId =
+      typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(state.activeId)
+        : state.activeId.replace(/["\\]/g, '\\$&');
+    let el: HTMLElement | null = null;
+    try {
+      el = container.querySelector<HTMLElement>(
+        `[data-element-id="${safeId}"]`,
+      );
+    } catch {
+      el = null;
+    }
     if (el && 'scrollIntoView' in el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
