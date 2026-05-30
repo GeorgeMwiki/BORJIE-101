@@ -11,6 +11,10 @@ import { motion } from 'framer-motion';
 import { BorjieMark } from '../borjie/BorjieMark';
 import { CHAT_USER_BUBBLE, CHAT_AI_BUBBLE } from '../litfin-primitives';
 import { AIMessageText } from './AIMessageText';
+import {
+  InlineLearningBlocks,
+  type InlineChatBlock,
+} from './InlineLearningBlocks';
 import type { JSX } from 'react';
 
 export interface LitFinMessage {
@@ -19,6 +23,12 @@ export interface LitFinMessage {
   readonly content: string;
   readonly timestamp?: string;
   readonly isStreaming?: boolean;
+  /**
+   * Inline learning-chat blocks. Narrow port of LitFin's chat-message-
+   * level generative-UI pattern (concept_card + ui_block ONLY — NOT the
+   * stepper / classroom / adaptive-layout framework).
+   */
+  readonly blocks?: ReadonlyArray<InlineChatBlock>;
 }
 
 interface LitFinMessageBubbleProps {
@@ -78,6 +88,11 @@ export function LitFinMessageBubble({
                 {isStreamingMsg && (
                   <span className="inline-block w-1.5 h-4 ml-0.5 bg-primary animate-pulse rounded-sm align-text-bottom" />
                 )}
+                {!isStreamingMsg &&
+                  message.blocks &&
+                  message.blocks.length > 0 && (
+                    <InlineLearningBlocks blocks={message.blocks} />
+                  )}
               </div>
             )}
           </div>
