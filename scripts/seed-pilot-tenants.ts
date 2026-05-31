@@ -229,7 +229,7 @@ const PILOT_TENANTS: readonly PilotTenant[] = [
         firstName: 'Pendo',
         lastName: 'Nyerere',
         phone: '+255712000005',
-        role: 'accountant',
+        role: 'admin',
         preferredLang: 'en',
       },
     ],
@@ -284,7 +284,7 @@ const PILOT_TENANTS: readonly PilotTenant[] = [
         firstName: 'Saida',
         lastName: 'Mtui',
         phone: '+255713000004',
-        role: 'accountant',
+        role: 'admin',
         preferredLang: 'en',
       },
       {
@@ -442,7 +442,7 @@ async function seedTenant(
       ${tenant.name},
       ${tenant.slug},
       'active',
-      ${tenant.scale === 'large' ? 'enterprise' : tenant.scale === 'medium' ? 'professional' : 'starter'},
+      ${tenant.scale === 'large' ? 'enterprise' : tenant.scale === 'medium' ? 'growth' : 'starter'},
       'kampuni',
       ${'pilot+' + tenant.slug + '@example.com'},
       'TZ',
@@ -620,9 +620,8 @@ async function seedTenant(
       const id = deterministicUuid(`${tenant.id}:shift:${d}`);
       await sql`
         INSERT INTO shift_reports (
-          id, tenant_id, site_id, shift_date, shift_type,
-          headcount, productive_hours, downtime_hours,
-          tonnes_moved, notes
+          id, tenant_id, site_id, shift_date, shift_kind,
+          workers_present, rom_tonnes, fuel_litres, next_shift_plan
         ) VALUES (
           ${id},
           ${tenant.id},
@@ -630,9 +629,8 @@ async function seedTenant(
           ${day.toISOString().slice(0, 10)},
           ${d % 2 === 0 ? 'day' : 'night'},
           ${Math.max(5, Math.floor(tenant.workforceCount * 0.7))},
-          ${8 + (d % 3)},
-          ${(d % 5) * 0.5},
           ${(50 + (d % 20)).toString()},
+          ${(180 + (d % 40)).toString()},
           ${'Pilot shift report for ' + tenant.name}
         )
         ON CONFLICT (id) DO NOTHING
@@ -650,17 +648,17 @@ async function seedTenant(
       at.setDate(at.getDate() - i * 3);
       await sql`
         INSERT INTO production_tonnage_events (
-          id, tenant_id, site_id, occurred_at, tonnage,
-          grade_g_t, recovered_g, notes
+          id, tenant_id, site_id, recorded_by_id, ore_tonnes,
+          waste_tonnes, captured_at, source
         ) VALUES (
           ${id},
           ${tenant.id},
           ${siteId},
-          ${at.toISOString()},
+          ${ownerUserId ?? tenant.users[0]?.id ?? null},
           ${(120 + i * 3).toString()},
-          ${(3.5 + (i % 4) * 0.5).toString()},
-          ${(400 + i * 10).toString()},
-          'Pilot production event'
+          ${(40 + i * 2).toString()},
+          ${at.toISOString()},
+          'manual_entry'
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -668,30 +666,27 @@ async function seedTenant(
     }
   }
 
-  // 8. Royalty filings — quarterly cadence.
-  if (await hasTable(sql, 'royalty_filings')) {
+  // 8. Royalty filings — quarterly cadence (live table: regulatory_filings).
+  if (await hasTable(sql, 'regulatory_filings')) {
     const filings = tenant.scale === 'small' ? 5 : tenant.scale === 'medium' ? 8 : 12;
     for (let i = 0; i < filings; i++) {
       const id = deterministicUuid(`${tenant.id}:royalty:${i}`);
       const period = new Date();
       period.setMonth(period.getMonth() - i * 3);
       await sql`
-        INSERT INTO royalty_filings (
-          id, tenant_id, licence_id, period_start, period_end,
-          gross_value_tzs, royalty_rate_pct, royalty_due_tzs,
-          inspection_fee_tzs, status, filed_at
+        INSERT INTO regulatory_filings (
+          id, tenant_id, regulator, filing_type, due_at,
+          submitted_at, status, fee_paid_tzs, notes
         ) VALUES (
           ${id},
           ${tenant.id},
-          ${licenceId},
-          ${period.toISOString().slice(0, 10)},
-          ${new Date(period.getTime() + 90 * 24 * 3600 * 1000).toISOString().slice(0, 10)},
-          ${(100_000_000 + i * 10_000_000).toString()},
-          '6.00',
+          'mining_commission',
+          'royalty_return',
+          ${new Date(period.getTime() + 90 * 24 * 3600 * 1000).toISOString()},
+          ${i < 2 ? null : new Date(period.getTime() + 60 * 24 * 3600 * 1000).toISOString()},
+          ${i < 2 ? 'upcoming' : 'submitted'},
           ${(6_000_000 + i * 600_000).toString()},
-          ${(300_000 + i * 30_000).toString()},
-          ${i < 2 ? 'pending' : 'paid'},
-          ${i < 2 ? null : new Date(period.getTime() + 60 * 24 * 3600 * 1000).toISOString()}
+          ${'Pilot quarterly royalty return for ' + tenant.name}
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -725,30 +720,34 @@ async function seedTenant(
     `;
     counts.buyers += 1;
   }
-  // Sales contracts (scale-dependent count).
-  if (await hasTable(sql, 'sales_contracts')) {
+  // Sales (scale-dependent) — live table `sales`; each references an ore_parcel.
+  if ((await hasTable(sql, 'sales')) && (await hasTable(sql, 'ore_parcels'))) {
     const contracts = tenant.scale === 'small' ? 2 : tenant.scale === 'medium' ? 10 : 30;
     for (let i = 0; i < contracts; i++) {
-      const id = deterministicUuid(`${tenant.id}:contract:${i}`);
+      const id = deterministicUuid(`${tenant.id}:sale:${i}`);
+      const parcelId = deterministicUuid(`${tenant.id}:parcel:${i}`);
       const signed = new Date();
       signed.setDate(signed.getDate() - i * 5);
+      const grossTzs = (50 + i * 5) * (5_000_000 + i * 100_000);
       await sql`
-        INSERT INTO sales_contracts (
-          id, tenant_id, buyer_id, mineral, quantity_kg,
-          unit_price_tzs, total_tzs, currency, status,
-          signed_at, delivery_due_at
+        INSERT INTO ore_parcels (id, tenant_id, site_id)
+        VALUES (${parcelId}, ${tenant.id}, ${siteId})
+        ON CONFLICT (id) DO NOTHING
+      `;
+      await sql`
+        INSERT INTO sales (
+          id, tenant_id, parcel_id, buyer_id, route,
+          gross_price_tzs, net_tzs, payment_status, ts
         ) VALUES (
           ${id},
           ${tenant.id},
+          ${parcelId},
           ${buyerId},
-          ${tenant.mineral.split('+')[0] ?? 'Au'},
-          ${(50 + i * 5).toString()},
-          ${(5_000_000 + i * 100_000).toString()},
-          ${((50 + i * 5) * (5_000_000 + i * 100_000)).toString()},
-          'TZS',
-          ${i < 2 ? 'active' : i < 5 ? 'delivered' : 'closed'},
-          ${signed.toISOString()},
-          ${new Date(signed.getTime() + 30 * 24 * 3600 * 1000).toISOString()}
+          'trader',
+          ${grossTzs.toString()},
+          ${Math.round(grossTzs * 0.9).toString()},
+          ${i < 2 ? 'pending' : 'paid'},
+          ${signed.toISOString()}
         )
         ON CONFLICT (id) DO NOTHING
       `;
@@ -756,24 +755,40 @@ async function seedTenant(
     }
   }
 
-  // 10. Marketplace bids — large tenant only.
-  if (tenant.scale === 'large' && (await hasTable(sql, 'marketplace_bids'))) {
+  // 10. Marketplace listings + bids — large tenant only.
+  if (
+    tenant.scale === 'large' &&
+    (await hasTable(sql, 'marketplace_bids')) &&
+    (await hasTable(sql, 'marketplace_listings'))
+  ) {
+    const mineral = tenant.mineral.split('+')[0] ?? 'Au';
+    for (let l = 0; l < 5; l++) {
+      await sql`
+        INSERT INTO marketplace_listings (id, tenant_id, category, title)
+        VALUES (
+          ${deterministicUuid(`${tenant.id}:listing:${l}`)},
+          ${tenant.id},
+          'mineral',
+          ${`${mineral} parcel — lot ${l + 1}`}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
     for (let i = 0; i < 20; i++) {
       const id = deterministicUuid(`${tenant.id}:bid:${i}`);
       const created = new Date();
       created.setDate(created.getDate() - i);
       await sql`
         INSERT INTO marketplace_bids (
-          id, tenant_id, listing_id, bidder_user_id, amount_tzs,
-          currency, status, created_at
+          id, tenant_id, listing_id, buyer_id, bid_price_tzs,
+          status, created_at
         ) VALUES (
           ${id},
           ${tenant.id},
           ${deterministicUuid(`${tenant.id}:listing:${i % 5}`)},
-          ${ownerUserId},
+          ${buyerId},
           ${(20_000_000 + i * 1_000_000).toString()},
-          'TZS',
-          ${i < 3 ? 'open' : i < 10 ? 'accepted' : 'rejected'},
+          ${i < 3 ? 'pending' : i < 10 ? 'accepted' : 'rejected'},
           ${created.toISOString()}
         )
         ON CONFLICT (id) DO NOTHING
@@ -879,16 +894,16 @@ async function seedTenant(
     }
     // Decision journal entry (one per owner)
     if (u.role === 'owner' && (await hasTable(sql, 'decisions'))) {
-      const hasChain = await hasColumn(sql, 'decisions', 'row_hash');
+      const hasChain = await hasColumn(sql, 'decisions', 'entry_hash');
       if (hasChain) {
         const rowHash = createHash('sha256')
           .update(`${tenant.id}:${u.id}:decision:1`)
           .digest('hex');
         await sql`
           INSERT INTO decisions (
-            id, tenant_id, decided_by_kind, decided_by_user_id,
-            decision_kind, chosen_value, alternatives, rationale,
-            confidence, status, prev_hash, row_hash
+            id, tenant_id, decided_by_kind, decided_by_actor_id,
+            decision_subject, decided_value, alternatives_considered, rationale,
+            confidence, status, prev_hash, entry_hash
           ) VALUES (
             ${deterministicUuid(`${tenant.id}:${u.id}:decision:1`)},
             ${tenant.id},
@@ -900,7 +915,7 @@ async function seedTenant(
             'Selected buyer offering highest TZS/kg with verified KYC.',
             '0.82',
             'committed',
-            ${''},
+            ${null},
             ${rowHash}
           )
           ON CONFLICT (id) DO NOTHING
