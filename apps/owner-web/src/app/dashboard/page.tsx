@@ -11,7 +11,10 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
-import { SW } from '@/lib/sw-tokens';
+import { getServerT } from '@/i18n/t.server';
+// NOTE: `isSw` is still derived below purely to drive the DailyBriefCard
+// child, which owns its own (separately-migrated) copy; the page's own
+// chrome now resolves through t().
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
 import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
 import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
@@ -44,15 +47,17 @@ import {
  */
 export default async function OwnerDashboardPage() {
   const session = await getOwnerSession();
+  const t = await getServerT();
   const isSw = session.languagePreference === 'sw';
 
-  const greeting = isSw
-    ? `Karibu tena, ${session.salutation}`
-    : `Welcome back, ${session.salutation}`;
+  const greeting = t('dashboard.greeting', { name: session.salutation });
 
-  const subline = isSw
-    ? `${session.tenant.legalName} - ${session.tenant.region} - migodi ${session.sites.length}, mpango: ${session.tenant.plan}`
-    : `${session.tenant.legalName} - ${session.tenant.region} - ${session.sites.length} sites, plan: ${session.tenant.plan}`;
+  const subline = t('dashboard.subline', {
+    legalName: session.tenant.legalName ?? 'Borjie',
+    region: session.tenant.region ?? '',
+    sites: session.sites.length,
+    plan: session.tenant.plan ?? '',
+  });
 
   return (
     <div className="space-y-10">
@@ -62,7 +67,7 @@ export default async function OwnerDashboardPage() {
       {/* 1. Greeting hero */}
       <header>
         <p className="font-mono text-badge uppercase tracking-eyebrow-wide text-signal-500">
-          {isSw ? 'Dashibodi ya leo' : "Today's cockpit"}
+          {t('dashboard.eyebrow')}
         </p>
         <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
           {greeting}
@@ -76,21 +81,21 @@ export default async function OwnerDashboardPage() {
             className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-5 py-2 text-sm font-semibold text-background hover:bg-signal-400"
           >
             <Sparkles className="h-4 w-4" />
-            {isSw ? 'Uliza Borjie' : 'Ask Borjie'}
+            {t('dashboard.ctaAsk')}
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             href="/cockpit"
             className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground hover:bg-surface"
           >
-            {isSw ? 'Mkurugenzi' : 'Cockpit view'}
+            {t('dashboard.ctaCockpit')}
           </Link>
           <Link
             href="/master-brain"
             className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground hover:bg-surface"
           >
             <Brain className="h-4 w-4" />
-            {isSw ? 'Akili Kuu' : 'Master Brain'}
+            {t('dashboard.ctaMasterBrain')}
           </Link>
         </div>
       </header>
@@ -105,7 +110,7 @@ export default async function OwnerDashboardPage() {
         data-testid="dashboard-daily-brief-section"
       >
         <h2 id="daily-brief-heading" className="sr-only">
-          {isSw ? 'Muhtasari wa Mr. Mwikila' : "Mr. Mwikila's daily brief"}
+          {t('dashboard.briefSrHeading')}
         </h2>
         <DailyBriefCard
           isSw={isSw}
@@ -119,29 +124,25 @@ export default async function OwnerDashboardPage() {
           id="todays-brief-heading"
           className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
-          {isSw ? 'Muhtasari wa leo' : "Today's brief"}
+          {t('dashboard.todaysBrief')}
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <MetricTile
-            label={isSw ? 'Leseni hai' : 'Open licences'}
+            label={t('dashboard.metricOpenLicences')}
             value={`${session.sites.length}`}
-            sub={isSw ? 'PML / PL chini ya kampuni' : 'Active PML / PL holdings'}
+            sub={t('dashboard.metricOpenLicencesSub')}
             icon={FileCheck}
           />
           <MetricTile
-            label={isSw ? `Rasimu ya ${SW.royalty}` : 'Royalty draft status'}
-            value={isSw ? 'Inakaguliwa' : 'In review'}
-            sub={
-              isSw
-                ? 'Inajiandaa kwa makato ya mwezi'
-                : 'Drafting for the month cut-off'
-            }
+            label={t('dashboard.metricRoyaltyStatus')}
+            value={t('dashboard.metricRoyaltyValue')}
+            sub={t('dashboard.metricRoyaltySub')}
             icon={Calculator}
           />
           <MetricTile
-            label={isSw ? 'Wafanyakazi zamu' : 'Workforce on shift'}
+            label={t('dashboard.metricWorkforce')}
             value="48"
-            sub={isSw ? 'Zamu ya asubuhi - migodi 3' : 'Morning shift - 3 sites'}
+            sub={t('dashboard.metricWorkforceSub')}
             icon={Users}
           />
         </div>
@@ -153,53 +154,31 @@ export default async function OwnerDashboardPage() {
           id="todays-actions-heading"
           className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
-          {isSw ? 'Hatua za leo' : "Today's actions"}
+          {t('dashboard.todaysActions')}
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ActionCard
-            title={
-              isSw
-                ? 'Saini taarifa ya uzalishaji'
-                : 'Sign daily production report'
-            }
-            context={
-              isSw
-                ? 'Mkuu wa mgodi amewasilisha ratiba ya leo'
-                : 'Site manager submitted the daily roll-up'
-            }
-            ctaLabel={isSw ? 'Fungua' : 'Open'}
+            title={t('dashboard.actionSignProdTitle')}
+            context={t('dashboard.actionSignProdContext')}
+            ctaLabel={t('dashboard.actionOpen')}
             ctaHref="/site-cockpit"
           />
           <ActionCard
-            title={isSw ? `Kagua malipo ya ${SW.workforce}` : 'Approve workforce advances'}
-            context={
-              isSw
-                ? 'Maombi 3 ya juu ya limit ya kawaida'
-                : '3 requests above the standard limit'
-            }
-            ctaLabel={isSw ? 'Kagua' : 'Review'}
+            title={t('dashboard.actionAdvancesTitle')}
+            context={t('dashboard.actionAdvancesContext')}
+            ctaLabel={t('dashboard.actionReview')}
             ctaHref="/people"
           />
           <ActionCard
-            title={
-              isSw ? 'Idhinisha mauzo ya dhahabu' : 'Confirm gold sale offer'
-            }
-            context={
-              isSw
-                ? 'Wanunuzi 2 wamewasilisha bei ya leo'
-                : '2 buyers have submitted prices for today'
-            }
-            ctaLabel={isSw ? 'Linganisha' : 'Compare'}
+            title={t('dashboard.actionGoldTitle')}
+            context={t('dashboard.actionGoldContext')}
+            ctaLabel={t('dashboard.actionCompare')}
             ctaHref="/marketplace"
           />
           <ActionCard
-            title={isSw ? 'Saini fomu ya NEMC' : 'Sign NEMC submission'}
-            context={
-              isSw
-                ? 'Pakiti ya kila mwezi inahitaji sahihi yako'
-                : 'Monthly packet is pending your signature'
-            }
-            ctaLabel={isSw ? 'Saini' : 'Sign'}
+            title={t('dashboard.actionNemcTitle')}
+            context={t('dashboard.actionNemcContext')}
+            ctaLabel={t('dashboard.actionSign')}
             ctaHref="/compliance"
           />
         </div>
@@ -211,24 +190,24 @@ export default async function OwnerDashboardPage() {
           id="this-week-heading"
           className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
-          {isSw ? 'Wiki hii' : 'This week'}
+          {t('dashboard.thisWeek')}
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <EventCard
-            title={isSw ? 'Mwisho wa leseni' : 'Licence expiry'}
-            when={isSw ? 'Ijumaa - siku 4' : 'Friday - 4 days'}
+            title={t('dashboard.eventLicenceExpiry')}
+            when={t('dashboard.eventLicenceExpiryWhen')}
             href="/licences"
             tone="warning"
           />
           <EventCard
-            title={isSw ? `Makato ya ${SW.royalty}` : 'Royalty cut-off'}
-            when={isSw ? 'Jumatatu - siku 7' : 'Monday - 7 days'}
+            title={t('dashboard.eventRoyaltyCutoff')}
+            when={t('dashboard.eventRoyaltyCutoffWhen')}
             href="/finance"
             tone="signal"
           />
           <EventCard
-            title={isSw ? 'Ukaguzi wa NEMC' : 'NEMC review'}
-            when={isSw ? 'Alhamisi - siku 10' : 'Thursday - 10 days'}
+            title={t('dashboard.eventNemcReview')}
+            when={t('dashboard.eventNemcReviewWhen')}
             href="/compliance"
             tone="neutral"
           />
@@ -242,68 +221,36 @@ export default async function OwnerDashboardPage() {
             id="brain-stream-heading"
             className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
           >
-            {isSw ? 'Mtiririko wa Akili Kuu' : 'Brain stream'}
+            {t('dashboard.brainStream')}
           </h2>
           <Link
             href="/master-brain"
             className="inline-flex items-center gap-1 text-xs font-semibold text-signal-500 hover:underline"
           >
-            {isSw ? 'Onyesha zote' : 'View all'}
+            {t('dashboard.viewAll')}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
         <Card variant="outline" className="border-border/60 bg-surface/40">
           <CardHeader bordered>
-            <CardTitle size="sm">
-              {isSw
-                ? 'Master Brain - maamuzi ya hivi karibuni'
-                : 'Master Brain - recent decisions'}
-            </CardTitle>
-            <CardDescription>
-              {isSw
-                ? 'Maamuzi ya juu yenye uthibitisho wa LMBM na mlolongo wa sababu.'
-                : 'Top decisions with LMBM evidence and rationale.'}
-            </CardDescription>
+            <CardTitle size="sm">{t('dashboard.brainRecentTitle')}</CardTitle>
+            <CardDescription>{t('dashboard.brainRecentDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-4">
             <BrainStreamRow
               tone="signal"
-              title={
-                isSw
-                  ? 'Pendekeza kuhifadhi gramu 400 hadi Ijumaa'
-                  : 'Recommend holding 400g until Friday'
-              }
-              detail={
-                isSw
-                  ? 'Bei ya dhahabu inaonyesha mwelekeo wa juu wa 1.2%'
-                  : 'Gold price trending up 1.2% on the LBMA close'
-              }
+              title={t('dashboard.brainRow1Title')}
+              detail={t('dashboard.brainRow1Detail')}
             />
             <BrainStreamRow
               tone="warning"
-              title={
-                isSw
-                  ? 'Onyo: dormancy ya leseni PML/247'
-                  : 'Warning: dormancy on PML/247'
-              }
-              detail={
-                isSw
-                  ? 'Hakuna shughuli ya wiki 4 - kuruhusu kupoteza kwa siku 28'
-                  : '4-week gap - 28-day forfeiture risk window'
-              }
+              title={t('dashboard.brainRow2Title')}
+              detail={t('dashboard.brainRow2Detail')}
             />
             <BrainStreamRow
               tone="success"
-              title={
-                isSw
-                  ? 'Akili Kuu imeidhinisha pakiti ya NEMC'
-                  : 'Master Brain approved NEMC packet draft'
-              }
-              detail={
-                isSw
-                  ? 'Vidokezo 14 vya uthibitisho vimepatikana'
-                  : '14 citations attached from intelligence corpus'
-              }
+              title={t('dashboard.brainRow3Title')}
+              detail={t('dashboard.brainRow3Detail')}
             />
           </CardContent>
         </Card>
@@ -322,7 +269,7 @@ export default async function OwnerDashboardPage() {
           id="owner-os-heading"
           className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
-          {isSw ? 'Mr. Mwikila — mfumo wako' : 'Mr. Mwikila — your operating system'}
+          {t('dashboard.ownerOsHeading')}
         </h2>
         <OwnerOSShell
           salutation={session.salutation}
@@ -337,7 +284,7 @@ export default async function OwnerDashboardPage() {
           id="live-surface-heading"
           className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
         >
-          {isSw ? 'Mtiririko wa moja kwa moja' : 'Live brief'}
+          {t('dashboard.liveBrief')}
         </h2>
         <OwnerDashboardSurface />
       </section>

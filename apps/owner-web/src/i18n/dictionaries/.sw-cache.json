@@ -95,6 +95,10 @@
     "h": "56f5df7be5c75cc6",
     "sw": "Haikuweza kufikia API ya Borjie."
   },
+  "signup.page.eyebrow": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
+  },
   "signup.page.heading": {
     "h": "be333900d3605aad",
     "sw": "Karibu Borjie."
@@ -415,8 +419,192 @@
     "h": "788011833a5a0f22",
     "sw": "Arifa"
   },
-  "signup.page.eyebrow": {
-    "h": "f9bbd2e991128909",
-    "sw": "Kokpiti ya Mmiliki"
+  "dashboard.eyebrow": {
+    "h": "5a0c2ffb334b12e9",
+    "sw": "Kokpiti ya leo"
+  },
+  "dashboard.greeting": {
+    "h": "112b1022f9403c0a",
+    "sw": "Karibu tena, {name}"
+  },
+  "dashboard.subline": {
+    "h": "40a3d58e1619a9bb",
+    "sw": "{legalName} - {region} - Maeneo {sites}, mpango: {plan}"
+  },
+  "dashboard.ctaAsk": {
+    "h": "56f69ae3d3b7c263",
+    "sw": "Uliza Borjie"
+  },
+  "dashboard.ctaCockpit": {
+    "h": "a1897d0828c406d0",
+    "sw": "Mwonekano wa kokpiti"
+  },
+  "dashboard.ctaMasterBrain": {
+    "h": "445cb87a91cae895",
+    "sw": "Akili Kuu"
+  },
+  "dashboard.briefSrHeading": {
+    "h": "2bdcd903f2eea142",
+    "sw": "Muhtasari wa kila siku wa Bw. Mwikila"
+  },
+  "dashboard.todaysBrief": {
+    "h": "9200f39b192bf855",
+    "sw": "Muhtasari wa leo"
+  },
+  "dashboard.metricOpenLicences": {
+    "h": "cf7cd453e7494999",
+    "sw": "Leseni wazi"
+  },
+  "dashboard.metricOpenLicencesSub": {
+    "h": "ea4a031888853f8d",
+    "sw": "Ushikiliaji wa PML / PL unaofanya kazi"
+  },
+  "dashboard.metricRoyaltyStatus": {
+    "h": "77326fa0c599f607",
+    "sw": "Hali ya rasimu ya ushuru"
+  },
+  "dashboard.metricRoyaltyValue": {
+    "h": "c39059141ced2ea7",
+    "sw": "Inakaguliwa"
+  },
+  "dashboard.metricRoyaltySub": {
+    "h": "80374fa04741a9ed",
+    "sw": "Kuandaa kwa mwisho wa mwezi"
+  },
+  "dashboard.metricWorkforce": {
+    "h": "8cc856d740532a8b",
+    "sw": "Wafanyakazi kwenye zamu"
+  },
+  "dashboard.metricWorkforceSub": {
+    "h": "c7f5b80370596e08",
+    "sw": "Zamu ya asubuhi - maeneo 3"
+  },
+  "dashboard.todaysActions": {
+    "h": "13b8524c89c234ed",
+    "sw": "Vitendo vya leo"
+  },
+  "dashboard.actionSignProdTitle": {
+    "h": "365a4e0fffc9ef8d",
+    "sw": "Saini ripoti ya uzalishaji wa kila siku"
+  },
+  "dashboard.actionSignProdContext": {
+    "h": "9e1ca1e8f5b23d9b",
+    "sw": "Meneja wa eneo amewasilisha muhtasari wa kila siku"
+  },
+  "dashboard.actionOpen": {
+    "h": "ed077f3d8125d60d",
+    "sw": "Fungua"
+  },
+  "dashboard.actionAdvancesTitle": {
+    "h": "88038a283d137d38",
+    "sw": "Idhinisha mkopo wa wafanyakazi"
+  },
+  "dashboard.actionAdvancesContext": {
+    "h": "5a97247be457bf30",
+    "sw": "Maombi 3 zaidi ya kikomo cha kawaida"
+  },
+  "dashboard.actionReview": {
+    "h": "aff0766a5290e117",
+    "sw": "Kagua"
+  },
+  "dashboard.actionGoldTitle": {
+    "h": "0644b7d588cfcbf7",
+    "sw": "Thibitisha toleo la mauzo ya dhahabu"
+  },
+  "dashboard.actionGoldContext": {
+    "h": "2fb2bbab333f8327",
+    "sw": "Wanunuzi 2 wamewasilisha bei za leo"
+  },
+  "dashboard.actionCompare": {
+    "h": "e888155d8c7d2e3c",
+    "sw": "Linganisha"
+  },
+  "dashboard.actionNemcTitle": {
+    "h": "8361dcfdb0384b24",
+    "sw": "Saini uwasilishaji wa NEMC"
+  },
+  "dashboard.actionNemcContext": {
+    "h": "65ed310d621f45b5",
+    "sw": "Pakiti ya kila mwezi inasubiri saini yako"
+  },
+  "dashboard.actionSign": {
+    "h": "0c9618e9849a62c6",
+    "sw": "Saini"
+  },
+  "dashboard.thisWeek": {
+    "h": "8c4eef5ab2532515",
+    "sw": "Wiki hii"
+  },
+  "dashboard.eventLicenceExpiry": {
+    "h": "4987d94cb70a205c",
+    "sw": "Mwisho wa leseni"
+  },
+  "dashboard.eventLicenceExpiryWhen": {
+    "h": "4bec64bb62572d6d",
+    "sw": "Ijumaa - siku 4"
+  },
+  "dashboard.eventRoyaltyCutoff": {
+    "h": "709c4d96194e76a9",
+    "sw": "Mwisho wa ushuru"
+  },
+  "dashboard.eventRoyaltyCutoffWhen": {
+    "h": "84f543dd9ad46767",
+    "sw": "Jumatatu - siku 7"
+  },
+  "dashboard.eventNemcReview": {
+    "h": "8285c461197428ad",
+    "sw": "Ukaguzi wa NEMC"
+  },
+  "dashboard.eventNemcReviewWhen": {
+    "h": "cc2036415976c1e7",
+    "sw": "Alhamisi - siku 10"
+  },
+  "dashboard.brainStream": {
+    "h": "6feeaae9fde916ac",
+    "sw": "Mkondo wa akili"
+  },
+  "dashboard.viewAll": {
+    "h": "30a64216eaeac5d3",
+    "sw": "Tazama zote"
+  },
+  "dashboard.brainRecentTitle": {
+    "h": "4bcd64397b4cf26a",
+    "sw": "Akili Kuu - maamuzi ya hivi karibuni"
+  },
+  "dashboard.brainRecentDesc": {
+    "h": "91cbf58bf71f2732",
+    "sw": "Maamuzi bora yenye ushahidi wa LMBM na mantiki."
+  },
+  "dashboard.brainRow1Title": {
+    "h": "8fc0ffccc23b2629",
+    "sw": "Inapendekeza kushikilia gramu 400 hadi Ijumaa"
+  },
+  "dashboard.brainRow1Detail": {
+    "h": "53bf4bddb9b25e93",
+    "sw": "Bei ya dhahabu inaongezeka 1.2% kwenye kufunga kwa LBMA"
+  },
+  "dashboard.brainRow2Title": {
+    "h": "cc7a9e91788d564a",
+    "sw": "Onyo: utoaji wa PML/247"
+  },
+  "dashboard.brainRow2Detail": {
+    "h": "8a51e9e4b6e37f28",
+    "sw": "Pengo la wiki 4 - dirisha la hatari ya kuondolewa siku 28"
+  },
+  "dashboard.brainRow3Title": {
+    "h": "aa8f671c612817e0",
+    "sw": "Akili Kuu imeidhinisha rasimu ya pakiti ya NEMC"
+  },
+  "dashboard.brainRow3Detail": {
+    "h": "9ceb8c41a58cd488",
+    "sw": "Nukuu 14 zimeambatishwa kutoka kwenye hifadhi ya ujuzi"
+  },
+  "dashboard.ownerOsHeading": {
+    "h": "9a01075f92bd5ca6",
+    "sw": "Bw. Mwikila — mfumo wako wa uendeshaji"
+  },
+  "dashboard.liveBrief": {
+    "h": "b539db28606a1255",
+    "sw": "Muhtasari wa moja kwa moja"
   }
 }

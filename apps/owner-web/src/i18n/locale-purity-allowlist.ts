@@ -7,9 +7,8 @@
  * guard test fails if a listed file no longer leaks (stale entry) or if
  * an unlisted file starts leaking (new mixing). Target: [].
  *
- * Baseline captured 2026-05-31 (116). Entry surfaces (sign-in + signup)
- * migrated to t() — now 109. Do not add new entries to silence the
- * guard — migrate the file instead.
+ * Baseline 2026-05-31 (116). Migrated: sign-in + signup + dashboard page
+ * → 108. Do not add new entries to silence the guard — migrate instead.
  */
 
 export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
@@ -39,7 +38,6 @@ export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
   'app/(routes)/workforce-tabs/kiosk/page.tsx',
   'app/(routes)/workforce-tabs/page.tsx',
   'app/(routes)/workforce/openings/page.tsx',
-  'app/dashboard/page.tsx',
   'app/error.tsx',
   'app/not-found.tsx',
   'app/oauth/confirm/confirm-panel.tsx',
