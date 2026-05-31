@@ -1,15 +1,21 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { ScrollText } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { LicencesList } from '@/components/licences/LicencesList';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const LicencesList = dynamic(
+  () => import('@/components/licences/LicencesList.js').then((m) => m.LicencesList),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const LICENCES_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'licences',

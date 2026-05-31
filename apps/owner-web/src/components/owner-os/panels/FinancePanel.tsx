@@ -1,16 +1,32 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Coins } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { RoyaltyDraftPanel } from '@/components/finance/RoyaltyDraftPanel';
-import { BreakEvenSlider } from '@/components/finance/BreakEvenSlider';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const RoyaltyDraftPanel = dynamic(
+  () =>
+    import('@/components/finance/RoyaltyDraftPanel.js').then(
+      (m) => m.RoyaltyDraftPanel,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
+
+const BreakEvenSlider = dynamic(
+  () =>
+    import('@/components/finance/BreakEvenSlider.js').then(
+      (m) => m.BreakEvenSlider,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'finance',

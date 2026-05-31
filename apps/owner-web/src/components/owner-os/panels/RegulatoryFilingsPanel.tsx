@@ -1,15 +1,24 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Scale } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { RegulatoryCalendarShell } from '@/components/regulatory-calendar/RegulatoryCalendarShell';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const RegulatoryCalendarShell = dynamic(
+  () =>
+    import('@/components/regulatory-calendar/RegulatoryCalendarShell.js').then(
+      (m) => m.RegulatoryCalendarShell,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const REGULATORY_FILINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'regulatory-filings',

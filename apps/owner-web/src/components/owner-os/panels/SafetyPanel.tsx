@@ -1,15 +1,21 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { HardHat } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { SafetySurface } from '@/components/safety/SafetySurface';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const SafetySurface = dynamic(
+  () => import('@/components/safety/SafetySurface.js').then((m) => m.SafetySurface),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const SAFETY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'safety',

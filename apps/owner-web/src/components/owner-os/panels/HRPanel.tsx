@@ -1,15 +1,21 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Users } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { PeopleSurface } from '@/components/people/PeopleSurface';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const PeopleSurface = dynamic(
+  () => import('@/components/people/PeopleSurface.js').then((m) => m.PeopleSurface),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const HR_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'hr',

@@ -1,17 +1,31 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Wallet } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { FxChart } from '@/components/treasury/FxChart';
-import { SellSimulator } from '@/components/treasury/SellSimulator';
-import { CliffBanner } from '@/components/treasury/CliffBanner';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const FxChart = dynamic(
+  () => import('@/components/treasury/FxChart.js').then((m) => m.FxChart),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
+
+const SellSimulator = dynamic(
+  () => import('@/components/treasury/SellSimulator.js').then((m) => m.SellSimulator),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
+
+const CliffBanner = dynamic(
+  () => import('@/components/treasury/CliffBanner.js').then((m) => m.CliffBanner),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const TREASURY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'treasury',

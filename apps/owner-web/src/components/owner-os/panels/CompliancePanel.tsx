@@ -1,15 +1,24 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { ShieldCheck } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { ComplianceSurface } from '@/components/compliance/ComplianceSurface';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const ComplianceSurface = dynamic(
+  () =>
+    import('@/components/compliance/ComplianceSurface.js').then(
+      (m) => m.ComplianceSurface,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const COMPLIANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'compliance',

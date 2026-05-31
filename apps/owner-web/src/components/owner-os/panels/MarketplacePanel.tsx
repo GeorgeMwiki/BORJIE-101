@@ -1,15 +1,24 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Gem } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { MarketplaceBoard } from '@/components/marketplace/MarketplaceBoard';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const MarketplaceBoard = dynamic(
+  () =>
+    import('@/components/marketplace/MarketplaceBoard.js').then(
+      (m) => m.MarketplaceBoard,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const MARKETPLACE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'marketplace',

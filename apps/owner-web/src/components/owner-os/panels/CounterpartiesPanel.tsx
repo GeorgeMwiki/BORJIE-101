@@ -1,15 +1,24 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Building2 } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { CounterpartiesShell } from '@/components/counterparties/CounterpartiesShell';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const CounterpartiesShell = dynamic(
+  () =>
+    import('@/components/counterparties/CounterpartiesShell.js').then(
+      (m) => m.CounterpartiesShell,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const COUNTERPARTIES_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'counterparties',

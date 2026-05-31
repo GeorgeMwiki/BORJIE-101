@@ -1,15 +1,24 @@
 'use client';
 
 import type { ReactElement } from 'react';
+import dynamic from 'next/dynamic';
 import { Link as LinkIcon } from 'lucide-react';
 import {
   ownerOsTabContextSchema,
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
-import { ChainOfCustodyShell } from '@/components/chain-of-custody/ChainOfCustodyShell';
 import { PanelHero } from './PanelHero';
+import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+
+const ChainOfCustodyShell = dynamic(
+  () =>
+    import('@/components/chain-of-custody/ChainOfCustodyShell.js').then(
+      (m) => m.ChainOfCustodyShell,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const CHAIN_OF_CUSTODY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'chain-of-custody',
