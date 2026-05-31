@@ -51,6 +51,8 @@
     "@borjie/connectors": "workspace:*",
     "@borjie/database": "workspace:*",
     "@borjie/email-templates": "workspace:*",
+    "@borjie/translation": "workspace:*",
+    "@borjie/translation-sota": "workspace:*",
     "@borjie/dispatch-router": "workspace:*",
     "@borjie/document-ai": "workspace:*",
     "@borjie/document-quality-guarantor": "workspace:*",

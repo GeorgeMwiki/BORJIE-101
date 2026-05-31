@@ -44,6 +44,26 @@ export {
   type InMemoryCacheStats,
 } from './in-memory-cache.js';
 
+export {
+  createDrizzleTranslationCache,
+  type DrizzleCacheConfig,
+  type DrizzleCacheLogger,
+  type SqlRunner,
+} from './drizzle-cache.js';
+
+export {
+  contentHash,
+  canonicalCacheString,
+} from './hash.js';
+
+export {
+  checkContamination,
+  assertNoContamination,
+  ContaminationError,
+  type ContaminationCheckResult,
+  type ContaminationCheckOptions,
+} from './contamination.js';
+
 export type {
   Locale,
   Register,

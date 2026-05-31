@@ -955,6 +955,15 @@ try {
 }
 
 // ----------------------------------------------------------------------------
+// Translation facade binding — runs once after the service registry is up
+// so every consumer of `translate(...)` in @borjie/translation resolves to
+// the real Claude-backed + Drizzle-cached implementation. Fails open with
+// a logged warning when ANTHROPIC_API_KEY is missing.
+// ----------------------------------------------------------------------------
+import { wireTranslation } from './composition/translation-wiring.js';
+wireTranslation({ db: getDb(), logger });
+
+// ----------------------------------------------------------------------------
 // R8 wiring follow-up — construct the cognitive-memory + persistent-memory
 // bundles so brain-turn handlers can prepend recalled context to the system
 // prompt. The 12-wire cognitive-composition.compose() pipeline is deferred
