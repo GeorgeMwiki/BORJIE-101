@@ -515,6 +515,13 @@ export interface BrainStreamChunk {
   readonly finalPersonaId: string;
   readonly toolCalls: ReadonlyArray<BrainToolCall>;
   readonly done: boolean;
+  /**
+   * Wave SUPERPOWERS — pass-through of the envelope's `proposedAction`
+   * so the chip layer in `useAskBorjie` can map it to a chip emission
+   * for the assistant turn. Null when the brain did not propose a
+   * follow-on UI verb.
+   */
+  readonly proposedAction: BrainProposedAction | null;
 }
 
 interface StreamBrainChatArgs {
@@ -542,6 +549,7 @@ export async function* streamBrainChat(
     threadId: result.threadId,
     finalPersonaId: result.finalPersonaId,
     toolCalls: result.toolCalls,
+    proposedAction: result.proposedAction,
     done: true,
   };
 }

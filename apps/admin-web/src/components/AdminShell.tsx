@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Sidebar } from './admin-shell/Sidebar';
 import { TopBar } from './admin-shell/TopBar';
 import { StaffIdentityStrip } from './StaffIdentityStrip';
+import { AdminSuperpowers } from './superpowers';
 
 /**
  * AdminShell — root chrome for every Borjie internal admin page.
@@ -40,6 +41,10 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
           </div>
         </main>
       </div>
+      {/* Wave SUPERPOWERS — always-on companions: Cmd+Shift+B bulk
+          drawer + highlight-bus overlay. The chip renderer is
+          mounted by chat surfaces individually (per-turn). */}
+      <AdminSuperpowers />
     </div>
   );
 }

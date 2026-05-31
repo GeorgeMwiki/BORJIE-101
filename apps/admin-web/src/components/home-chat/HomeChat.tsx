@@ -17,6 +17,10 @@ import {
   type AskBorjieMessage,
 } from '@/lib/queries/brain';
 import { QueryProvider } from '@/components/internal/QueryProvider';
+import {
+  AdminSuperpowerChips,
+  useAdminChipEmissions,
+} from '@/components/superpowers';
 import { PersonaGreeting } from './PersonaGreeting';
 import { ToolCallSidebar } from './ToolCallSidebar';
 
@@ -218,11 +222,15 @@ function HomeChatInner() {
 
 function Bubble({ message }: { readonly message: AskBorjieMessage }) {
   const isUser = message.role === 'user';
+  // Wave SUPERPOWERS — subscribe to chip emissions keyed by this
+  // assistant turn's message id. User bubbles never carry chips, so
+  // we pass null to short-circuit.
+  const chipBuckets = useAdminChipEmissions(isUser ? null : message.id);
   return (
     <div
       data-testid={`home-chat-bubble-${message.role}`}
       data-streaming={message.streaming || undefined}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
     >
       <div
         className={`max-w-2xl rounded-lg px-4 py-3 text-sm leading-relaxed ${
@@ -281,6 +289,16 @@ function Bubble({ message }: { readonly message: AskBorjieMessage }) {
           </ul>
         ) : null}
       </div>
+      {!isUser ? (
+        <AdminSuperpowerChips
+          navigates={chipBuckets.navigates}
+          prefills={chipBuckets.prefills}
+          highlights={chipBuckets.highlights}
+          shares={chipBuckets.shares}
+          bulks={chipBuckets.bulks}
+          bookmarks={chipBuckets.bookmarks}
+        />
+      ) : null}
     </div>
   );
 }

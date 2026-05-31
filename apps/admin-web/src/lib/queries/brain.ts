@@ -35,6 +35,7 @@ import {
   type BrainToolCall,
   type BrainTurnResult,
 } from '@/lib/brain-api';
+import { mapProposedActionToChip } from '@/components/superpowers';
 
 const ADMIN_PERSONA_ID = 'T2_admin_strategist' as const;
 
@@ -266,6 +267,13 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
           if (chunk.threadId && chunk.threadId !== threadId) {
             setThreadId(chunk.threadId);
             onThreadCreatedRef.current?.(chunk.threadId);
+          }
+          // Wave SUPERPOWERS — when the envelope (or future SSE frame)
+          // carries a chip-eligible `proposedAction`, publish it onto
+          // the chip emission bus keyed by the assistant message id.
+          // The bubble subscribes via `useAdminChipEmissions(assistantId)`.
+          if (chunk.proposedAction) {
+            mapProposedActionToChip(assistantId, chunk.proposedAction);
           }
         }
         setMessages((prev) =>

@@ -470,6 +470,9 @@ import {
 import { ownerUndoJournalRouter } from './routes/owner/undo-journal.hono';
 import { ownerPinnedItemsRouter } from './routes/owner/pinned-items.hono';
 import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
+// Admin-side bulk-action surface — distinct whitelist + 4-eye approval
+// for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
+import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Wave FOUR-EYE-APPROVAL — two-person sign-off on high-stakes owner
@@ -1894,6 +1897,8 @@ api.route('/owner/share-links', ownerShareLinksRouter);
 api.route('/owner/undo-journal', ownerUndoJournalRouter);
 api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
+// Admin counterpart — only the bulk-action verb-set differs.
+api.route('/admin/superpowers', adminSuperpowersRouter);
 api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under

@@ -12,6 +12,7 @@ import type { ReactElement } from 'react';
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CommandPalette, type CommandItem } from '@borjie/design-system';
+import { openAdminBulkDrawer } from './superpowers';
 
 const ADMIN_NAV_ROUTES: ReadonlyArray<{
   readonly route: string;
@@ -46,6 +47,26 @@ export function AdminCommandPalette(): ReactElement {
         onSelect: () => router.push(nav.route),
       });
     }
+
+    // Wave SUPERPOWERS — bulk-action shortcut. Cmd+Shift+B opens the
+    // drawer directly; exposing the verb in the palette lets it land in
+    // fuzzy search + the `recent` bucket once used.
+    out.push({
+      id: 'action_bulk_action',
+      kind: 'action',
+      label: 'Bulk action (Cmd+Shift+B)',
+      hint: 'suspend / reactivate / export-regulator-pack / reindex…',
+      keywords: [
+        'bulk',
+        'suspend',
+        'reactivate',
+        'export',
+        'regulator',
+        'killswitch',
+        'feature flag',
+      ],
+      onSelect: () => openAdminBulkDrawer(),
+    });
 
     out.push({
       id: 'settings_general',
