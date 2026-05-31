@@ -1,0 +1,22 @@
+{
+  "name": "@borjie/translation",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "translate() facade — DB-cached, SOTA-runner-backed, glossary-locked. Wraps @borjie/translation-sota with a translation_cache table so repeated string translations short-circuit before hitting Claude/Gemini/NLLB. Used by every non-chat surface that produces user-facing text: emails, PDFs, push, SMS, audit log render, decision-journal render, webhooks, cron workers.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@borjie/translation-sota": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
