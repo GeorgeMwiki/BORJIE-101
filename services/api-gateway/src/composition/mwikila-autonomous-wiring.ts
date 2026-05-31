@@ -18,13 +18,15 @@
  *   createMwikilaHandlerRuntime   (recorder + delegations + kill-switch port)
  *
  *   Handlers (5): shift-scheduler, royalty-filing-prep, license-renewal,
- *   payroll-prep, marketplace-counter — each requires per-domain ports
- *   that scan domain tables. The first cut wires them with safe-empty
- *   ports so the worker fires per tenant but proposes nothing until the
- *   per-handler domain wiring lands (sibling tickets, behind the same
- *   composition root). The autonomy invariants (kill-switch fail-closed,
- *   four-eye policy, envelope thresholds) ride the inviolable-rail check
- *   in the runtime regardless of whether any handler proposes.
+ *   payroll-prep, marketplace-counter — each wired with REAL Drizzle-
+ *   backed ports (`./mwikila-autonomous-ports.ts`). The ports scan the
+ *   canonical Borjie tables (licences, employees, attendance, sites,
+ *   sales, ore_parcels, regulatory_filings, marketplace_bids,
+ *   marketplace_listings, payroll_runs, mwikila_actions_inbox) and
+ *   feed each handler's `propose()`. The autonomy invariants
+ *   (kill-switch fail-closed, four-eye policy, envelope thresholds)
+ *   ride the inviolable-rail check in the runtime regardless of
+ *   whether any handler proposes.
  *
  * Lifecycle:
  *   - `.start()` arms the interval (default 15 min, bounded [1m, 1h]).
@@ -60,9 +62,15 @@ import {
   createPayrollHandler,
   createRoyaltyFilingHandler,
   createShiftSchedulerHandler,
-  type LicenseRow,
   type MwikilaHandler,
 } from '../services/mwikila-autonomy/index.js';
+import {
+  buildLicenseRenewalPorts,
+  buildMarketplaceCounterPorts,
+  buildPayrollPorts,
+  buildRoyaltyFilingPorts,
+  buildShiftSchedulerPorts,
+} from './mwikila-autonomous-ports.js';
 
 const DEFAULT_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const MIN_INTERVAL_MS = 60 * 1000; // 1 minute floor
@@ -175,50 +183,36 @@ async function listActiveTenantsWithOwner(
 }
 
 /**
- * Build the 5 autonomous handlers with safe-empty ports. Each handler
- * is wired with the minimal port surface the runtime needs to *call*
- * `propose()`; the port implementations return empty/no-op until the
- * per-domain wiring lands (sibling tickets). When the per-domain port
- * lands, the only change is to import its real impl here — no
- * structural rewire is required.
+ * Build the 5 autonomous handlers with REAL Drizzle-backed ports
+ * (see `./mwikila-autonomous-ports.ts`). Each handler's `propose()`
+ * returns `null` when its port surface produces no actionable rows,
+ * so the worker still writes ZERO inbox rows on a cold DB — but as
+ * soon as the operating data exists (licences nearing expiry,
+ * employees with hours, sales for the month, pending buyer bids,
+ * etc.), the worker proposes for the owner to review.
  *
- * Why ship safe-empty ports rather than skip the handler entirely?
- *   - The worker tick exercises the runtime per tenant per handler,
- *     which proves the wiring + audit + kill-switch path on every
- *     tick — flagging composition-time breakage immediately rather
- *     than waiting for the first real port to land.
- *   - Each handler's `propose()` returns `null` for empty inputs, so
- *     no inbox row is written until the per-domain port returns rows.
- *     Zero risk of writing junk.
+ * The runtime ALWAYS enforces the kill-switch fail-closed / four-eye
+ * / envelope / family-relation rails BEFORE any inbox row is
+ * written — these ports only supply the data that drives the
+ * `propose()` decision.
  */
-function buildSafeEmptyHandlers(): ReadonlyArray<MwikilaHandler> {
-  const noLicenses = async (): Promise<ReadonlyArray<LicenseRow>> => [];
-  const licenseRenewal = createLicenseRenewalHandler({
-    listExpiringLicenses: noLicenses,
-    reminderAlreadyFired: async () => false,
-  });
-
-  const shiftScheduler = createShiftSchedulerHandler({
-    listActiveWorkforce: async () => [],
-    listSiteCapacity: async () => [],
-    hasOverlappingSchedule: async () => true, // safe default: skip
-  });
-
-  const royaltyFiling = createRoyaltyFilingHandler({
-    hasExistingDraft: async () => true, // safe default: skip
-    monthlyTotals: async () => null,
-  });
-
-  const payroll = createPayrollHandler({
-    hasExistingBatch: async () => true, // safe default: skip
-    monthlyPayrollRoll: async () => [],
-  });
-
-  const marketplaceCounter = createMarketplaceCounterHandler({
-    listOpenBuyerOffers: async () => [],
-    getSellerTargets: async () => null,
-    hasAlreadyCountered: async () => true, // safe default: skip
-  });
+function buildRealHandlers(
+  db: DbLike,
+  logger: Logger,
+): ReadonlyArray<MwikilaHandler> {
+  const licenseRenewal = createLicenseRenewalHandler(
+    buildLicenseRenewalPorts(db, logger),
+  );
+  const shiftScheduler = createShiftSchedulerHandler(
+    buildShiftSchedulerPorts(db, logger),
+  );
+  const royaltyFiling = createRoyaltyFilingHandler(
+    buildRoyaltyFilingPorts(db, logger),
+  );
+  const payroll = createPayrollHandler(buildPayrollPorts(db, logger));
+  const marketplaceCounter = createMarketplaceCounterHandler(
+    buildMarketplaceCounterPorts(db, logger),
+  );
 
   return Object.freeze([
     licenseRenewal,
@@ -279,7 +273,7 @@ export function createMwikilaAutonomousWiring(
         return listActiveTenantsWithOwner(db, deps.logger);
       },
     },
-    handlers: buildSafeEmptyHandlers(),
+    handlers: buildRealHandlers(db, deps.logger),
     logger: deps.logger,
     intervalMs,
   });
