@@ -81,7 +81,8 @@ function chatClient(client: BorjieClient): ChatClient {
         headers,
         body: {
           prompt: opts.prompt,
-          language: opts.language ?? 'sw',
+          // English default per CLAUDE.md (flipped 2026-05).
+          language: opts.language ?? 'en',
           ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
         },
         ...(opts.signal ? { signal: opts.signal } : {}),

@@ -326,7 +326,11 @@ function liftMarketingToCanonical(
     ? body.phoneNumber.replace(/[^\d+]/g, '')
     : '+10000000000';
   const country = body.country;
-  const defaultLanguage = body.defaultLanguage ?? (country === 'TZ' ? 'sw' : 'en');
+  // English default per CLAUDE.md "English default · bilingual sw/en"
+  // (flipped 2026-05). Tanzanian operators can toggle to `sw` from
+  // the settings panel after signup; toggle is absolute. We no longer
+  // seed `sw` based on the country code.
+  const defaultLanguage = body.defaultLanguage ?? 'en';
   const primaryCurrency =
     body.primaryCurrency ??
     (country === 'TZ'

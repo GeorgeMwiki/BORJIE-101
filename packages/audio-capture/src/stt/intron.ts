@@ -87,7 +87,9 @@ export function createIntronAdapter(
       );
     }
     const json = (await res.json()) as IntronResponse;
-    return mapResponse(json, model, request.language ?? 'sw');
+    // English default per CLAUDE.md (flipped 2026-05 from `sw`).
+    // Callers wanting Swahili STT must pass `language: 'sw'` explicitly.
+    return mapResponse(json, model, request.language ?? 'en');
   };
 
   const streamTranscribe = async function* (
@@ -103,7 +105,8 @@ export function createIntronAdapter(
     if (!template) return;
     const result = await transcribe({
       audio: mergeChunks(collected, template),
-      language: streamOptions?.language ?? 'sw',
+      // English default per CLAUDE.md (flipped 2026-05 from `sw`).
+      language: streamOptions?.language ?? 'en',
       diarize: streamOptions?.diarize ?? false,
       timestamps: true,
       punctuate: true,

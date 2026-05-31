@@ -60,7 +60,9 @@ export function createListenerPipeline(
   deps: ListenerPipelineDeps,
 ): ListenerPipeline {
   const idGen = deps.idGen ?? (() => generateUuidV4Fallback());
-  const language = deps.language ?? 'sw';
+  // English default per CLAUDE.md (flipped 2026-05). Hosts that want
+  // Swahili ambient transcription must pass `language: 'sw'` explicitly.
+  const language = deps.language ?? 'en';
   const metrics = deps.metrics ?? createNoopMetrics();
 
   function silent(reason: SilentDisableReason): PipelineOutcome {

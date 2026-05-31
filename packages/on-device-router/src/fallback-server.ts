@@ -61,7 +61,8 @@ export async function callFallbackServer(
     }
     const body = JSON.stringify({
       prompt: request.prompt,
-      language: request.language ?? 'sw',
+      // English default per CLAUDE.md (flipped 2026-05).
+      language: request.language ?? 'en',
       tenantId: request.tenantId,
       teamId: request.teamId,
       routerHint: request.routerHint,

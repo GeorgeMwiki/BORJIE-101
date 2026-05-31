@@ -21,6 +21,7 @@ import {
   useStartOnboarding,
   type OnboardingStep,
 } from '@/lib/queries/onboarding';
+import { pickByLocale, useLocale } from '@/lib/locale';
 
 const STEPS: ReadonlyArray<StepperStep> = [
   { id: 'kyb', label: 'NIDA + KYB', labelSw: 'NIDA + KYB' },
@@ -47,6 +48,7 @@ const STEP_KIND: ReadonlyArray<OnboardingStep> = [
  */
 export default function OnboardingPage() {
   const router = useRouter();
+  const locale = useLocale();
   const [step, setStep] = useState<number>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [licenceFiles, setLicenceFiles] = useState<ReadonlyArray<File>>([]);
@@ -110,11 +112,21 @@ export default function OnboardingPage() {
     setStepError(null);
     const valid = await validateStep(step);
     if (!valid) {
-      setStepError('Please complete this step before continuing. / Tafadhali kamilisha hatua hii.');
+      setStepError(
+        pickByLocale(locale, {
+          en: 'Please complete this step before continuing.',
+          sw: 'Tafadhali kamilisha hatua hii kabla ya kuendelea.',
+        }),
+      );
       return;
     }
     if (!sessionId) {
-      setStepError('Session not ready. / Kipindi hakijaanza.');
+      setStepError(
+        pickByLocale(locale, {
+          en: 'Session not ready.',
+          sw: 'Kipindi hakijaanza.',
+        }),
+      );
       return;
     }
     const payload = buildPayload(step);
@@ -134,7 +146,16 @@ export default function OnboardingPage() {
     } catch (error) {
       setStepError((error as Error)?.message ?? 'unknown error');
     }
-  }, [advanceMutation, buildPayload, completeMutation, router, sessionId, step, validateStep]);
+  }, [
+    advanceMutation,
+    buildPayload,
+    completeMutation,
+    locale,
+    router,
+    sessionId,
+    step,
+    validateStep,
+  ]);
 
   const goBack = useCallback((): void => {
     setStepError(null);

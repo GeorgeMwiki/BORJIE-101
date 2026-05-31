@@ -13,7 +13,10 @@ import type { Language } from "./languages";
 // ─── Constants ──────────────────────────────────────────────────────
 
 const STORAGE_KEY = "borjie-language";
-const DEFAULT_LANGUAGE: Language = "sw"; // Borjie Swahili-first hard rule
+// English default per the 2026-05 hard-rule flip — see CLAUDE.md
+// "English default · bilingual sw/en". User can toggle to `sw` in
+// settings; toggle is ABSOLUTE (no mixing in any render).
+const DEFAULT_LANGUAGE: Language = "en";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -91,7 +94,7 @@ export interface LanguageProviderProps {
   readonly children: ReactNode;
   /** Per-app translation trees keyed by language code. Host supplies. */
   readonly translations: Readonly<Record<Language, Record<string, unknown>>>;
-  /** Default language. Defaults to `sw` per Borjie Swahili-first rule. */
+  /** Default language. Defaults to `en` per the 2026-05 hard-rule flip. */
   readonly defaultLanguage?: Language;
   /** localStorage key. Defaults to `borjie-language`. */
   readonly storageKey?: string;

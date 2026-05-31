@@ -92,7 +92,8 @@ export async function sessionsNewCommand(opts: {
   readonly language?: 'sw' | 'en';
 }): Promise<string> {
   const profile = activeProfileName();
-  const language = opts.language ?? 'sw';
+  // English default per CLAUDE.md (flipped 2026-05).
+  const language = opts.language ?? 'en';
   const s = newSession({
     profile,
     language,

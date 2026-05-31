@@ -65,7 +65,10 @@ export interface OwnerIdentityResolverDb {
 }
 
 const DEFAULT_PREFERRED_CHANNEL: OwnerContactChannel = 'email';
-const DEFAULT_LOCALE: OwnerContactLocale = 'sw';
+// English default per CLAUDE.md "English default · bilingual sw/en"
+// (flipped 2026-05 from `sw`). Owners can switch to Swahili from
+// the settings panel; toggle is absolute.
+const DEFAULT_LOCALE: OwnerContactLocale = 'en';
 const DEFAULT_TIMEZONE = 'Africa/Dar_es_Salaam';
 
 function emptyResult(

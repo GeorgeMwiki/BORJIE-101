@@ -43,7 +43,9 @@ export async function chatCommand(opts: {
     return;
   }
   const session = requireSession(opts.logger);
-  const language = opts.language ?? 'sw';
+  // English default per CLAUDE.md "English default · bilingual sw/en"
+  // (flipped 2026-05). Pass `--language sw` to switch.
+  const language = opts.language ?? 'en';
   const resolvedSessionId = resolveSessionId(opts);
   const body: Record<string, unknown> = { prompt: promptText, language };
   if (resolvedSessionId) body['sessionId'] = resolvedSessionId;
@@ -130,7 +132,8 @@ function resolveSessionId(opts: {
     // Unknown id — record it locally so subsequent CLI runs see it.
     const fresh = newSession({
       profile: activeProfileName(),
-      language: opts.language ?? 'sw',
+      // English default per CLAUDE.md (flipped 2026-05).
+      language: opts.language ?? 'en',
       title: opts.sessionId,
     });
     return fresh.id;

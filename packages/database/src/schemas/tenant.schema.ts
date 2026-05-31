@@ -162,10 +162,13 @@ export const tenants = pgTable(
     primaryCurrency: text('primary_currency').notNull().default('TZS'),
     /**
      * UI language preference at the tenant level. Used to seed every
-     * new user invited into this tenant. Swahili-first per CLAUDE.md.
-     * Allowed: sw | en | fr | pt | sw-KE | es | id (migration 0143).
+     * new user invited into this tenant. English-default per CLAUDE.md
+     * "English default · bilingual sw/en" (flipped 2026-05 from `sw`).
+     * Per-tenant SW seed remains available via signup form. Allowed:
+     * en | sw | fr | pt | sw-KE | es | id (migration 0143; default
+     * altered in migration 0153).
      */
-    defaultLanguage: text('default_language').notNull().default('sw'),
+    defaultLanguage: text('default_language').notNull().default('en'),
 
     // ── World-scale tenant config (migration 0143, issue #207) ──
     /**
