@@ -57,6 +57,9 @@ importers:
 
   .:
     devDependencies:
+      '@borjie/translation':
+        specifier: workspace:*
+        version: link:packages/translation
       '@eslint/js':
         specifier: ^9.18.0
         version: 9.39.4

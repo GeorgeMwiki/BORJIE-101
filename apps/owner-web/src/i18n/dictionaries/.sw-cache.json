@@ -1,0 +1,226 @@
+{
+  "common.appName": {
+    "h": "4ea2af5c5acaa9c7",
+    "sw": "Borjie"
+  },
+  "common.loading": {
+    "h": "ba3bbbe10d8bef66",
+    "sw": "Inapakia…"
+  },
+  "common.retry": {
+    "h": "942087cc2d41e013",
+    "sw": "Jaribu tena"
+  },
+  "common.cancel": {
+    "h": "19766ed6ccb2f4a3",
+    "sw": "Ghairi"
+  },
+  "common.save": {
+    "h": "1509f561f2416598",
+    "sw": "Hifadhi"
+  },
+  "common.close": {
+    "h": "7d9eb7acb13e2462",
+    "sw": "Funga"
+  },
+  "common.back": {
+    "h": "76900f1bfd16c8d4",
+    "sw": "Rudi"
+  },
+  "common.next": {
+    "h": "1ff57a29d7c9d11b",
+    "sw": "Ifuatayo"
+  },
+  "common.continue": {
+    "h": "31fbef162594de01",
+    "sw": "Endelea"
+  },
+  "common.submit": {
+    "h": "155f816c0407310c",
+    "sw": "Wasilisha"
+  },
+  "common.error": {
+    "h": "0c953ab32c603ec4",
+    "sw": "Kuna hitilafu imetokea."
+  },
+  "auth.signIn.eyebrow": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
+  },
+  "auth.signIn.heading": {
+    "h": "dfdbca16342fc231",
+    "sw": "Karibu tena."
+  },
+  "auth.signIn.subheading": {
+    "h": "3bd56e64b8feba6a",
+    "sw": "Ingia ili kuendelea kwenye kokpiti yako."
+  },
+  "auth.signIn.emailLabel": {
+    "h": "969ccbd3cf6300ec",
+    "sw": "Barua pepe"
+  },
+  "auth.signIn.passwordLabel": {
+    "h": "e7cf3ef4f17c3999",
+    "sw": "Nywila"
+  },
+  "auth.signIn.submit": {
+    "h": "bfd402b2f6f38125",
+    "sw": "Ingia"
+  },
+  "auth.signIn.submitting": {
+    "h": "8b9d3de8ae00c89c",
+    "sw": "Inaingia…"
+  },
+  "auth.signIn.footer": {
+    "h": "7ab4cc3069ad5336",
+    "sw": "Mnyororo wa ukaguzi · lugha mbili · Mkazi wa Tanzania"
+  },
+  "auth.signIn.errorInvalidEmail": {
+    "h": "c20ffba2f53079de",
+    "sw": "Weka anwani sahihi ya barua pepe"
+  },
+  "auth.signIn.errorPasswordRequired": {
+    "h": "7aeae1412484f637",
+    "sw": "Nywila inahitajika"
+  },
+  "auth.signIn.errorInvalidInput": {
+    "h": "f31833b6ef1f91cb",
+    "sw": "Maelezo si sahihi"
+  },
+  "auth.signIn.errorSignInFailed": {
+    "h": "d86671534f3ecd96",
+    "sw": "Kuingia kumeshindikana. Angalia maelezo yako."
+  },
+  "auth.signIn.errorNetwork": {
+    "h": "56f5df7be5c75cc6",
+    "sw": "Haikuweza kufikia API ya Borjie."
+  },
+  "auth.signUp.eyebrow": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
+  },
+  "auth.signUp.heading": {
+    "h": "06c57ace2af525b2",
+    "sw": "Unda mali yako"
+  },
+  "auth.signUp.subheading": {
+    "h": "9f44528f8d225918",
+    "sw": "Leta mali yako ya uchimbaji kwenye Borjie."
+  },
+  "auth.signUp.kindQuestion": {
+    "h": "fb0315d596e95aa9",
+    "sw": "Ni nani anayejisajili?"
+  },
+  "auth.signUp.kindIndividual": {
+    "h": "652f2eeb30429c83",
+    "sw": "Mmiliki binafsi"
+  },
+  "auth.signUp.kindIndividualHint": {
+    "h": "c5b081481890c216",
+    "sw": "Mmiliki wa leseni moja au mfanyakazi wa uchimbaji mdogo."
+  },
+  "auth.signUp.kindBusiness": {
+    "h": "e501ae36bd53d7a6",
+    "sw": "Biashara iliyosajiliwa"
+  },
+  "auth.signUp.kindBusinessHint": {
+    "h": "7493674f64df158e",
+    "sw": "Kampuni, ushirika, au taasisi iliyosajiliwa."
+  },
+  "auth.signUp.contactHeading": {
+    "h": "2252bb21360b4a92",
+    "sw": "Maelezo yako ya mawasiliano"
+  },
+  "auth.signUp.fullNameLabel": {
+    "h": "f13a64ba2fea87ef",
+    "sw": "Jina kamili"
+  },
+  "auth.signUp.emailLabel": {
+    "h": "969ccbd3cf6300ec",
+    "sw": "Barua pepe"
+  },
+  "auth.signUp.phoneLabel": {
+    "h": "306f1bb20677a622",
+    "sw": "Nambari ya simu"
+  },
+  "auth.signUp.businessNameLabel": {
+    "h": "a921756ed1ccfa2a",
+    "sw": "Jina la biashara"
+  },
+  "auth.signUp.registrationNumberLabel": {
+    "h": "5db87da7efd0b9dd",
+    "sw": "Nambari ya usajili"
+  },
+  "auth.signUp.submit": {
+    "h": "2270d69c7c91212d",
+    "sw": "Unda mali"
+  },
+  "auth.signUp.submitting": {
+    "h": "c79ed9492e3c1719",
+    "sw": "Inaunda…"
+  },
+  "auth.signUp.errorRequired": {
+    "h": "6876f12ea673f6b1",
+    "sw": "Sehemu hii inahitajika"
+  },
+  "auth.signUp.errorInvalidEmail": {
+    "h": "c20ffba2f53079de",
+    "sw": "Weka anwani sahihi ya barua pepe"
+  },
+  "dashboard.greetingMorning": {
+    "h": "fd482bb74b459465",
+    "sw": "Habari za asubuhi, {name}"
+  },
+  "dashboard.greetingAfternoon": {
+    "h": "098b14b2b67d02e1",
+    "sw": "Habari za mchana, {name}"
+  },
+  "dashboard.greetingEvening": {
+    "h": "ad0f406d68e68ab2",
+    "sw": "Habari za jioni, {name}"
+  },
+  "dashboard.subtitle": {
+    "h": "3175d5a223d6ed8f",
+    "sw": "Hii hapa ni mali yako kwa muhtasari."
+  },
+  "dashboard.emptyState": {
+    "h": "07d417d868a40276",
+    "sw": "Hakuna cha kuonyesha bado."
+  },
+  "nav.dashboard": {
+    "h": "67b696468610b879",
+    "sw": "Dashibodi"
+  },
+  "nav.cockpit": {
+    "h": "1b67e81f90c79eca",
+    "sw": "Kokpiti"
+  },
+  "nav.finance": {
+    "h": "b696d75511dc16f2",
+    "sw": "Fedha"
+  },
+  "nav.treasury": {
+    "h": "6ae05dcd77b98876",
+    "sw": "Hazina"
+  },
+  "nav.workforce": {
+    "h": "aa3b88196a6407c3",
+    "sw": "Wafanyakazi"
+  },
+  "nav.compliance": {
+    "h": "4a109cc49467be33",
+    "sw": "Uzingatiaji"
+  },
+  "nav.marketplace": {
+    "h": "c608981d8d68fa4f",
+    "sw": "Soko"
+  },
+  "nav.settings": {
+    "h": "74a883a037bc227f",
+    "sw": "Mipangilio"
+  },
+  "nav.notifications": {
+    "h": "788011833a5a0f22",
+    "sw": "Arifa"
+  }
+}
