@@ -1037,6 +1037,13 @@ export * from './share-links.schema.js';
 export * from './undo-journal.schema.js';
 export * from './pinned-items.schema.js';
 
+// H2 deferral closure — server-side hard idempotency uniqueness
+// (migration 0154). Backs services/api-gateway/src/middleware/
+// db-idempotency.middleware.ts: partial unique indexes per tenant
+// nullability variant make INSERT collisions the canonical dedup
+// signal, eliminating the Redis split-brain race.
+export * from './idempotency-keys.schema.js';
+
 // Wave ENTITY-LEGIBILITY (migration 0115). Two tables make every
 // entity in the system fully legible to AI: `entity_index` carries a
 // semantic embedding + faceted tags + summary per entity so the brain

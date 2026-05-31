@@ -13,12 +13,17 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { and, eq, inArray } from 'drizzle-orm';
 
 import { undoJournal } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { createDbIdempotencyMiddleware } from '../../middleware/db-idempotency.middleware';
 import { createLogger } from '../../utils/logger';
+import {
+  dispatch,
+  type BulkAction,
+  type EntityKind,
+} from './superpowers-dispatchers';
 
 const moduleLogger = createLogger('owner-superpowers');
 
@@ -91,15 +96,24 @@ const prefillUndoFieldSchema = z.object({
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
+// Server-side hard idempotency (H2 deferral closure) — scoped to the
+// bulk-action endpoint only (so /prefill etc. keep their own caching
+// strategy). The middleware's INSERT-or-collide pattern guarantees
+// the same Idempotency-Key cannot double-fire dispatchers even under
+// a Redis split-brain.
+app.use(
+  '/bulk-action',
+  createDbIdempotencyMiddleware({ resourceKind: 'owner.bulk-action' }),
+);
 
 // POST /bulk-action - chat-callable bulk operation
 //
 // Records an undo journal entry per processed id so the owner gets a
-// single Undo chip representing the batch. The actual per-row mutation
-// is dispatched per entity type via lightweight inline handlers; bulk
-// surfaces that the per-entity owner has NOT pre-wired return 'failed'
-// so the chat can fall back to a confirmation card asking the owner
-// to authorize a slower per-row path.
+// single Undo chip representing the batch, then invokes the REAL
+// per-entity dispatcher (mining_tasks update / incidents update /
+// marketplace_bids withdrawal / etc.). Per-row outcomes surface in
+// `failedIds[]` with the rejection reason so the FE can render
+// "Partial — tap to see failed rows".
 app.post('/bulk-action', async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');
@@ -129,12 +143,29 @@ app.post('/bulk-action', async (c: any) => {
   // aggregate `failed` count. The FE renders a "Partial success —
   // tap to see failed rows" expansion below the bulk chip so the
   // owner never wonders WHICH rows did not land.
+  // Pick up Idempotency-Key from headers; the db-idempotency middleware
+  // above already enforces server-side hard uniqueness, but we still
+  // fold the key into provenance so the undo-journal carries the same
+  // audit trail.
+  const idempotencyKey = c.req.header('idempotency-key') ?? null;
+  const provenance = {
+    ...input.provenance,
+    ...(idempotencyKey && { idempotencyKey }),
+  };
+
   const undoIds: string[] = [];
   const processedIds: string[] = [];
   const failedRows: Array<{ readonly id: string; readonly reason: string }> = [];
+  const dispatchArtifacts: Array<{
+    readonly id: string;
+    readonly artifactId: string;
+    readonly artifactKind: string;
+  }> = [];
 
   for (const id of input.ids) {
     try {
+      // 1. Append undo-journal row first so the Undo chip lights up
+      //    even if the dispatcher fails (owner can still inspect).
       const [row] = await db
         .insert(undoJournal)
         .values({
@@ -147,15 +178,52 @@ app.post('/bulk-action', async (c: any) => {
           beforeState: null,
           afterState: { action: input.action, payload: input.payload },
           windowSeconds: 300,
-          provenance: input.provenance,
+          provenance,
         })
         .returning();
       undoIds.push(row.id);
-      processedIds.push(id);
+
+      // 2. Invoke the REAL per-entity dispatcher.
+      const outcome = await dispatch(
+        {
+          db,
+          tenantId: auth.tenantId,
+          actorId: auth.userId,
+          idempotencyKey,
+          reason: input.reason,
+        },
+        input.entityType as EntityKind,
+        input.action as BulkAction,
+        id,
+        input.payload,
+      );
+
+      if (outcome.ok) {
+        processedIds.push(id);
+        if (outcome.artifactId && outcome.artifactKind) {
+          dispatchArtifacts.push({
+            id,
+            artifactId: outcome.artifactId,
+            artifactKind: outcome.artifactKind,
+          });
+        }
+      } else {
+        failedRows.push({
+          id,
+          reason: outcome.reason ?? `dispatch failed for ${input.action}`,
+        });
+        moduleLogger.warn('owner-superpowers: dispatcher reported failure', {
+          tenantId: auth.tenantId,
+          entityType: input.entityType,
+          action: input.action,
+          id,
+          reason: outcome.reason,
+        });
+      }
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
       failedRows.push({ id, reason });
-      moduleLogger.warn('owner-superpowers: bulk row failed', {
+      moduleLogger.warn('owner-superpowers: bulk row threw', {
         tenantId: auth.tenantId,
         entityType: input.entityType,
         action: input.action,
@@ -175,13 +243,8 @@ app.post('/bulk-action', async (c: any) => {
     action: input.action,
     processed,
     failed,
+    ...(idempotencyKey && { idempotencyKey }),
   });
-
-  // Suppress the unused-import warning while the per-entity dispatchers
-  // are out of scope - placeholder for the v2 dispatcher.
-  void and;
-  void eq;
-  void inArray;
 
   return c.json({
     success: true,
@@ -192,6 +255,7 @@ app.post('/bulk-action', async (c: any) => {
       processedIds,
       failedIds: failedRows,
       undoJournalIds: undoIds,
+      dispatchArtifacts,
     },
   });
 });

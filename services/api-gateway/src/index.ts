@@ -407,6 +407,11 @@ import {
   type GeofenceAlertSink,
 } from './workers/geofence-watcher.js';
 import { createLeaseExpiryAlertCron } from './workers/lease-expiry-alert-cron';
+// H2 deferral closure — idempotency_keys cron (mig 0154). Deletes
+// rows past `expires_at` hourly so the dedup table doesn't grow
+// forever. The partial unique index keeps duplicate requests dedup'd
+// even between sweeps.
+import { registerIdempotencySweeperCron } from './composition/idempotency-sweeper';
 import type {
   NotificationSender as LeaseExpiryNotificationSender,
 } from './workers/lease-expiry-alert-cron';
@@ -734,6 +739,10 @@ const port = process.env.PORT || 4000;
 // returning 503 the moment a SIGTERM lands. Load balancers see the
 // unhealthy status and drain traffic before in-flight requests finish.
 let isShuttingDown = false;
+
+// H2 deferral closure — hoisted so the shutdown handler can reach the
+// stop handle regardless of cron-registration ordering.
+let idempotencySweeperStop: (() => void) | undefined;
 
 // Middleware
 app.use(helmet());
@@ -2611,6 +2620,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: lease-expiry cron stop failed');
   }
   try {
+    idempotencySweeperStop?.();
+    logger.info('shutdown: idempotency-sweeper cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: idempotency-sweeper cron stop failed');
+  }
+  try {
     executiveBriefCron.stop();
     logger.info('shutdown: executive-brief cron stopped');
   } catch (err) {
@@ -2783,6 +2798,20 @@ if (require.main === module) {
   // for leases at 60/30/7/1-day expiry windows, idempotent via
   // notification_dispatch_log.idempotency_key.
   leaseExpiryCron.start();
+  // H2 deferral closure — idempotency_keys sweeper. Hourly DELETE of
+  // rows past expires_at. Module-scoped `idempotencySweeperStop` is
+  // set here so the gracefulShutdown handler above can stop it.
+  if (process.env.NODE_ENV !== 'test') {
+    const dbForSweeper = (serviceRegistry as unknown as { db?: unknown }).db;
+    if (dbForSweeper) {
+      idempotencySweeperStop = registerIdempotencySweeperCron({
+        db: dbForSweeper as never,
+      });
+      logger.info('idempotency-sweeper cron started');
+    } else {
+      logger.warn('idempotency-sweeper cron skipped — no db in service registry');
+    }
+  }
   // Piece C — executive brief cron. Daily / weekly / monthly subscriptions
   // get briefs generated at their local_time + cadence. ON_DEMAND
   // subscriptions are never auto-fired.
