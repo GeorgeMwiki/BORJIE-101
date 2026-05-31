@@ -81,13 +81,21 @@ upserts every chunk into `intelligence_corpus_chunks` with
   resolver generalisation.
 - **OTel bootstrap runs first** in `services/api-gateway/src/index.ts`
   before any module emits spans.
-- **Multi-currency, TZS-primary.** Every money render uses
+- **Multi-currency, TZS at launch · expandable.** Tanzania is the
+  starting jurisdiction at launch; Kenya / Uganda / Nigeria are
+  planned expansion markets. Every money render uses
   `formatCurrency(amount, currencyCode)`. Domestic non-TZS contracts
   are rejected at the API layer (post 27-Mar-2026 USD-cliff
-  remediation mode). Never hard-code TZS / USD / KES.
-- **Swahili-first.** Default user language is `sw`. Switch on
-  request. Owner personas, junior prompts, and UI copy must be
-  bilingual sw/en.
+  remediation mode) for TZ-jurisdiction tenants only — KE/UG/NG
+  tenants honor their own primary currency. Never hard-code TZS /
+  USD / KES / UGX / NGN in code paths.
+- **English default · bilingual sw/en.** Default user language is
+  `en`. Tanzanian users can toggle to `sw` (Swahili) in settings;
+  toggle is ABSOLUTE — when `en` selected zero Swahili appears
+  anywhere (chat, surfaces, greetings, errors, toasts) and vice
+  versa. Owner personas, junior prompts, and UI copy must have
+  complete EN and SW translations; greetings strictly single-language
+  per active locale (no "Habari! Hello there" mixing — ever).
 - **Evidence-required AI output.** Every junior recommendation cites
   ≥1 `evidence_id` from LMBM or intelligence corpus. The Auditor
   Agent rejects responses with empty evidence chains.
