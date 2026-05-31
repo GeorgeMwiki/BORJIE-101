@@ -38,3 +38,20 @@ variable "engine_version" {
   type        = string
   default     = "7.0"
 }
+
+variable "auth_token" {
+  description = <<-EOT
+    Redis AUTH token (password). Required for password auth on the
+    replication group; must be 16-128 printable chars. Source it from
+    AWS Secrets Manager / a random_password resource, never hardcode.
+    Leave null to enable TLS-in-transit without password auth.
+  EOT
+  type        = string
+  default     = null
+  sensitive   = true
+
+  validation {
+    condition     = var.auth_token == null || length(var.auth_token) >= 16
+    error_message = "Redis auth_token must be at least 16 characters."
+  }
+}

@@ -72,7 +72,7 @@ new data category, purpose, recipient, or retention period.
 | Recipients | AI providers (Anthropic, OpenAI, DeepSeek) — under DPA |
 | Cross-border transfers | Anthropic/OpenAI (US) — under SCC; DeepSeek (CN) — flagged risk, optional |
 | Retention | Per kernel-memory tier: episodic 90 days, semantic 2 years, reflective 5 years |
-| Security measures | Tenant isolation, prompt shield, PII scrubber pre-send, persona-drift detection |
+| Security measures | Tenant isolation (RLS), prompt-injection spotlight-fencing, **reversible PII tokenisation before egress** — national IDs / phone numbers / emails / GPS in user messages + document content are replaced with stable tokens before the prompt leaves Borjie and restored from the model response (`@borjie/document-ai` `pii-tokenise`), so the provider never receives clear PII — persona-drift detection |
 
 ### Activity 5 — KYC & regulatory compliance
 

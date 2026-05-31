@@ -78,7 +78,11 @@ resource "aws_elasticache_replication_group" "main" {
   security_group_ids = [aws_security_group.redis.id]
 
   at_rest_encryption_enabled = true
-  transit_encryption_enabled = false
+  # TLS in-transit is mandatory — a plaintext Redis on a shared VPC is a
+  # well-known exfiltration vector. `auth_token` (password auth) layers on
+  # top when supplied; AWS requires transit encryption for auth tokens.
+  transit_encryption_enabled = true
+  auth_token                 = var.auth_token
 
   automatic_failover_enabled = var.num_cache_clusters > 1
   multi_az_enabled         = var.num_cache_clusters > 1

@@ -1,0 +1,46 @@
+# =============================================================================
+# RuntimeClass — kernel-level isolation for agent code-execution workloads
+# =============================================================================
+# SOTA (2026) for multi-tenant agents that run LLM-generated code is to wrap
+# the executing pods in a hardened container runtime so a kernel exploit in
+# untrusted code cannot escape to the host:
+#
+#   - gvisor (runsc): userspace application kernel; intercepts + validates
+#     every syscall. ~100ms start, no nested-virt requirement. Default choice.
+#   - kata        : lightweight microVM, separate guest kernel; strongest
+#     isolation, needs bare-metal / nested-virt nodes.
+#
+# These objects are INERT until a workload sets `runtimeClassName`. Borjie
+# already runs model-generated JS inside V8 isolates (`isolated-vm`, see
+# packages/central-intelligence/src/kernel/sandbox/js-sandbox.ts) — language
+# level. Adding a RuntimeClass adds the missing KERNEL-level layer, matching
+# the kubernetes-sigs/agent-sandbox pattern.
+#
+# ENABLE (per environment, AFTER provisioning runsc/kata on the node pool):
+#   set `runtimeClassName: gvisor` on the agent-code-executing workloads —
+#   api-gateway, consolidation-worker, document-intelligence,
+#   mcp-process-intel, research-orchestrator, brain-evolution-worker.
+#   Provision: install containerd-shim-runsc-v1 + a `runsc` containerd handler
+#   on the nodes (GKE Sandbox / a runsc DaemonSet), then schedule those
+#   workloads onto the gVisor node pool. Pods referencing an unprovisioned
+#   RuntimeClass stay Pending — so enablement is a deliberate, gated step.
+# =============================================================================
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: gvisor
+handler: runsc
+# Schedule onto nodes labelled for gVisor so an un-provisioned node never
+# silently runs the workload under the default (shared-kernel) runtime.
+scheduling:
+  nodeSelector:
+    sandbox.gke.io/runtime: gvisor
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata
+handler: kata
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"

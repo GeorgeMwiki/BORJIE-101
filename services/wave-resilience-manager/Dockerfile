@@ -45,5 +45,11 @@ ENV NODE_ENV=production
 COPY --from=builder /app/services/wave-resilience-manager/dist ./dist
 COPY --from=builder /app/services/wave-resilience-manager/package.json ./package.json
 COPY --from=deps    /app/node_modules ./node_modules
+# Run as an unprivileged user (CIS Docker 4.1). Was implicitly root — the
+# only Dockerfile in the fleet missing a USER directive.
+RUN addgroup -g 1001 -S nodejs \
+  && adduser -u 1001 -S runner -G nodejs \
+  && chown -R runner:nodejs /app
+USER runner
 EXPOSE 4090
 CMD ["node", "dist/index.js"]

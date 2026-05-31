@@ -102,6 +102,29 @@ the DPIA covers the TIA as one section).
 - Note: NG primary storage is in ZA (af-south-1). ZA POPIA + RICA 2002
   governs that leg. SCC modules cover both hops.
 
+#### TZ/KE/NG → US (AI inference — Anthropic / OpenAI)
+
+- Surveillance law: US FISA §702, EO 12333, CLOUD Act, NSLs (the Schrems II
+  risk vectors). FISC review applies; limited transparency for non-US persons.
+- Transferred data: current-turn conversation + retrieved document chunks +
+  tool inputs, for inference only (provider DPA forbids training on tenant
+  content; ≤30-day retention).
+- **Supplementary measures BORJIE applies (Schrems II §75):**
+  - **Reversible PII tokenisation before egress (primary measure).**
+    National IDs, phone numbers, emails, and GPS coordinates in user
+    messages and document content are replaced with stable tokens
+    (`[NIDA_1]`-style) BEFORE the prompt leaves Borjie; the provider only
+    ever sees placeholders, and the real values are restored from the
+    model's response inside Borjie. Implementation:
+    `@borjie/document-ai` `pii-tokenise` (createPiiTokeniser / restorePii),
+    wired into the brain-teach chat route, document Q&A, and form
+    extraction. Clear PII therefore never crosses the border.
+  - Data minimisation: only the retrieved chunks / current turn are sent.
+  - In-transit TLS 1.3; provider DPA with no-training + retention caps.
+- Residual risk: **LOW** once tokenisation applies — no clear PII is
+  transmitted. DeepSeek (CN) stays optional/flagged and is excluded from
+  PII-bearing flows.
+
 ## Operational obligations
 
 1. **Sub-processor list** — maintained as Annex III of SCC. Update on

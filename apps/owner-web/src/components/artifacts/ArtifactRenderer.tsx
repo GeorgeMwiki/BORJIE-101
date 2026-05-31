@@ -25,7 +25,8 @@
  * response can be augmented client-side without divergence.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import DOMPurify from 'dompurify';
 
 export type ArtifactClassification = 'public' | 'internal' | 'confidential';
 export type ArtifactLanguage = 'sw' | 'en';
@@ -75,6 +76,27 @@ const LOADING_EN = 'Loading…';
 const RETRY_SW = 'Jaribu tena';
 const RETRY_EN = 'Retry';
 
+/**
+ * Client-side defense-in-depth sanitiser. The artifact HTML is already
+ * sanitised server-side by `services/artifact-richness`; DOMPurify is a
+ * second, independent barrier so a pipeline regression can never paint
+ * active content (scripts, event handlers, javascript: URLs, inline
+ * styles) in the owner's browser. Standard document markup (headings,
+ * tables, lists, links, code) is preserved — only XSS vectors are
+ * stripped. Per CLAUDE.md: "No raw HTML interpolation — DOMPurify wraps
+ * required."
+ */
+function sanitizeArtifactHtml(html: string): string {
+  // SSR pass-through: the server pipeline already sanitised it, and
+  // DOMPurify needs a DOM. The client re-sanitises after mount.
+  if (typeof window === 'undefined') return html;
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['target', 'rel'],
+    FORBID_TAGS: ['style'],
+    FORBID_ATTR: ['style'],
+  });
+}
+
 export function ArtifactRenderer(props: ArtifactRendererProps): JSX.Element {
   const classificationLabel = useMemo(
     () =>
@@ -119,7 +141,9 @@ export function ArtifactRenderer(props: ArtifactRendererProps): JSX.Element {
       ) : props.emptyState ? (
         <EmptyState
           message={props.emptyState.message}
-          onRetry={props.emptyState.onRetry}
+          {...(props.emptyState.onRetry
+            ? { onRetry: props.emptyState.onRetry }
+            : {})}
           retryLabel={retryLabel}
         />
       ) : (
@@ -146,22 +170,45 @@ function ArtifactBody(props: {
   readonly tocHtml: string | null;
   readonly footnotesHtml: string | null;
 }): JSX.Element {
+  // Initial render mirrors the server-sanitised HTML so hydration never
+  // mismatches; after mount, DOMPurify re-sanitises client-side as the
+  // second barrier.
+  const [clean, setClean] = useState<{
+    readonly body: string;
+    readonly toc: string | null;
+    readonly footnotes: string | null;
+  }>({
+    body: props.bodyHtml,
+    toc: props.tocHtml,
+    footnotes: props.footnotesHtml,
+  });
+
+  useEffect(() => {
+    setClean({
+      body: sanitizeArtifactHtml(props.bodyHtml),
+      toc: props.tocHtml ? sanitizeArtifactHtml(props.tocHtml) : null,
+      footnotes: props.footnotesHtml
+        ? sanitizeArtifactHtml(props.footnotesHtml)
+        : null,
+    });
+  }, [props.bodyHtml, props.tocHtml, props.footnotesHtml]);
+
   return (
     <main className="borjie-artifact-body">
-      {props.tocHtml ? (
+      {clean.toc ? (
         <div
           className="borjie-artifact-toc-host"
-          dangerouslySetInnerHTML={{ __html: props.tocHtml }}
+          dangerouslySetInnerHTML={{ __html: clean.toc }}
         />
       ) : null}
       <div
         className="borjie-artifact-body-host"
-        dangerouslySetInnerHTML={{ __html: props.bodyHtml }}
+        dangerouslySetInnerHTML={{ __html: clean.body }}
       />
-      {props.footnotesHtml ? (
+      {clean.footnotes ? (
         <div
           className="borjie-artifact-footnotes-host"
-          dangerouslySetInnerHTML={{ __html: props.footnotesHtml }}
+          dangerouslySetInnerHTML={{ __html: clean.footnotes }}
         />
       ) : null}
     </main>
