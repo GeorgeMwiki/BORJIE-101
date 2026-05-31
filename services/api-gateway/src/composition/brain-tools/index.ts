@@ -101,6 +101,11 @@ import { JURISDICTION_TOOLS } from './jurisdiction-tools';
 // CONTEXT — the model composes the narrative reply itself. Available
 // to T1 owner / T2 admin / T3 manager.
 import { REASON_STRATEGIZE_TOOLS } from './reason-strategize-tool';
+// Chat-King followup — closes 2 of the 20 originally-deferred items
+// from Docs/AUDIT/CHAT_ACTION_COVERAGE_2026-05-29.md. Real-DB writes
+// against existing routes (ops/external-parties, buyer/notifications).
+// No mocks, no fallback stubs. See file header for the audit reference.
+import { CHAT_KING_FOLLOWUP_TOOLS } from './chat-king-followup-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -157,6 +162,7 @@ export function buildPersonaToolHandlers(
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
       REASON_STRATEGIZE_TOOLS,
+      CHAT_KING_FOLLOWUP_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -214,6 +220,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
       REASON_STRATEGIZE_TOOLS,
+      CHAT_KING_FOLLOWUP_TOOLS,
     ],
     undefined,
   );
@@ -328,3 +335,9 @@ export {
   REASON_STRATEGIZE_TOOLS,
   reasonStrategizeTool,
 } from './reason-strategize-tool';
+// Chat-King followup — re-exports for tests + audit walker.
+export {
+  CHAT_KING_FOLLOWUP_TOOLS,
+  opsPartiesCreateTool,
+  buyerNotificationsMarkReadTool,
+} from './chat-king-followup-tools';
