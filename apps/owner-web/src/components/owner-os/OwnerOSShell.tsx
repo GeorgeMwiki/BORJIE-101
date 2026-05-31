@@ -55,6 +55,10 @@ import {
   type OwnerTab,
   type OwnerTabKind,
 } from '@/lib/owner-tabs-store';
+import {
+  handleTabSseFrame,
+  spawnPayloadToTab,
+} from '@/lib/tab-sse-parser';
 
 import { OwnerOSChatPanel } from './OwnerOSChatPanel';
 import { OwnerOSDocsPanel } from './OwnerOSDocsPanel';
@@ -95,6 +99,8 @@ export function OwnerOSShell({
     spawnOrAugment,
     close,
     focus,
+    rename,
+    patchState,
   } = useOwnerTabs();
 
   const [spawnMenuOpen, setSpawnMenuOpen] = useState(false);
@@ -162,6 +168,57 @@ export function OwnerOSShell({
       spawnFromDescriptor(descriptor, intent.context);
     },
     [spawnFromDescriptor],
+  );
+
+  /**
+   * Live brain → tab bridge (CT-3 / "tab_spawn sever"). HomeChatTeach
+   * forwards every recognised tab SSE frame UP to this single store
+   * instance. `handleTabSseFrame` parses the envelope and dispatches to
+   * the matching handler below; the handlers mirror the `<spawn_tabs>`
+   * chip path (spawnOrAugment) so dedup + augment + idempotency apply.
+   */
+  const handleBrainTabFrame = useCallback(
+    (eventName: string, rawData: string) =>
+      handleTabSseFrame({
+        eventName,
+        rawData,
+        handlers: {
+          onSpawn: (p) => {
+            const tab = spawnPayloadToTab(p, languagePreference);
+            if (!tab) return;
+            const input: {
+              kind: OwnerTabKind;
+              title: string;
+              context?: Readonly<Record<string, unknown>>;
+            } = {
+              kind: tab.kind,
+              title: tab.title,
+            };
+            if (tab.context && Object.keys(tab.context).length > 0) {
+              input.context = tab.context;
+            }
+            spawnOrAugment(input);
+          },
+          onUpdate: (p) => {
+            if (p.patch.config) patchState(p.tabId, p.patch.config);
+            const title =
+              (languagePreference === 'sw' && p.titleSw) ||
+              (languagePreference === 'en' && p.titleEn) ||
+              p.patch.title;
+            if (title) rename(p.tabId, title);
+          },
+          onRemove: (p) => {
+            close(p.tabId);
+          },
+          onProposal: () => {
+            // TODO(super-powers): surface proposal/error chip in chat
+          },
+          onError: () => {
+            // TODO(super-powers): surface proposal/error chip in chat
+          },
+        },
+      }),
+    [languagePreference, spawnOrAugment, patchState, rename, close],
   );
 
   // ──────────────────────────────────────────────────────────────────
@@ -263,6 +320,7 @@ export function OwnerOSShell({
               languagePreference={languagePreference}
               onSpawnDocTab={onSpawnDocTab}
               onSpawnTab={onSpawnTabFromBrain}
+              onTabSseFrame={handleBrainTabFrame}
             />
           );
         case 'docs':
@@ -316,6 +374,7 @@ export function OwnerOSShell({
       }
     },
     [
+      handleBrainTabFrame,
       languagePreference,
       onSpawnDocTab,
       onSpawnTabFromBrain,

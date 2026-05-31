@@ -43,6 +43,13 @@ export interface OwnerOSChatPanelProps {
   readonly onSpawnDocTab: (documentId: string, label: string) => void;
   /** Called when the brain emits a <spawn_tabs> chip the owner clicks. */
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
+  /**
+   * Called for every recognised tab SSE frame the brain-teach stream
+   * emits (tab_spawn / tab_update / tab_remove / tab_proposal /
+   * tab_tag_error). Forwarded UP to OwnerOSShell so the single
+   * `useOwnerTabs()` store instance applies the action live.
+   */
+  readonly onTabSseFrame?: (eventName: string, rawData: string) => void;
 }
 
 export function OwnerOSChatPanel({
@@ -51,6 +58,7 @@ export function OwnerOSChatPanel({
   languagePreference,
   onSpawnDocTab,
   onSpawnTab,
+  onTabSseFrame,
 }: OwnerOSChatPanelProps): ReactElement {
   const [dropActive, setDropActive] = useState(false);
   const [status, setStatus] = useState<
@@ -166,6 +174,7 @@ export function OwnerOSChatPanel({
           tradingName={tradingName}
           languagePreference={languagePreference}
           {...(onSpawnTab ? { onSpawnTab } : {})}
+          {...(onTabSseFrame ? { onTabSseFrame } : {})}
         />
         <Blackboard
           languagePreference={languagePreference}

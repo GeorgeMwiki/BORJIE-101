@@ -36,6 +36,7 @@ import {
 import { SuggestedTabBanner } from '@/components/owner-os/SuggestedTabBanner';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { isTabSseEvent } from '@/lib/tab-sse-parser';
 import { API_BASE, isBrainConfigured } from '@/lib/brain-api';
 import { AskComposer } from '@/components/ask/AskComposer';
 import {
@@ -85,6 +86,13 @@ export interface HomeChatTeachProps {
    * through `spawnOrAugment` so the registry handles dedup + augment.
    */
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
+  /**
+   * Optional — forwards every recognised tab SSE frame (tab_spawn /
+   * tab_update / tab_remove / tab_proposal / tab_tag_error) up to the
+   * OwnerOSShell so its single `useOwnerTabs()` store applies the brain-
+   * driven tab action live. Receives the raw event name + data string.
+   */
+  readonly onTabSseFrame?: (eventName: string, rawData: string) => void;
 }
 
 /**
@@ -214,6 +222,7 @@ export function HomeChatTeach({
   tradingName,
   languagePreference,
   onSpawnTab,
+  onTabSseFrame,
 }: HomeChatTeachProps): ReactElement {
   const configured = isBrainConfigured();
   const [messages, setMessages] = useState<ReadonlyArray<TeachMessage>>([]);
@@ -511,6 +520,11 @@ export function HomeChatTeach({
                   ),
                 );
               }
+            } else if (isTabSseEvent(frame.event)) {
+              // Brain-driven cockpit tab action — forward the raw frame
+              // UP to OwnerOSShell so its single `useOwnerTabs()` store
+              // spawns / augments / patches / closes the tab live.
+              onTabSseFrame?.(frame.event, frame.data);
             } else if (frame.event === 'error') {
               const msg =
                 typeof payload.message === 'string'
@@ -562,7 +576,7 @@ export function HomeChatTeach({
         abortRef.current = null;
       }
     },
-    [isStreaming, languagePreference, lessonStep, messages],
+    [isStreaming, languagePreference, lessonStep, messages, onTabSseFrame],
   );
 
   const onReset = useCallback(() => {
