@@ -1737,6 +1737,11 @@ api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
 api.route('/public/status', publicStatusRouter);
+// SAFE-LIST tools surface for the unauthenticated marketing widget.
+// READ-ONLY, no tenant data, no auth, bilingual sw/en. See
+// `routes/public-tools.hono.ts` for the security posture (10/min/session
+// rate cap, SAFE-LIST gate, no PII echo, no DB writes).
+api.route('/public/tools', publicToolsRouter);
 // Streaming AI chat — POST /api/v1/ai/chat with SSE response
 api.route('/ai', aiChatRouter);
 // Universal role-aware advisor — POST /api/v1/ask, GET /api/v1/ask/starting-points,
