@@ -43,7 +43,6 @@ const nextConfig = {
   transpilePackages: [
     '@borjie/design-system',
     '@borjie/graph-privacy',
-    '@borjie/forecasting',
     '@borjie/observability',
     '@borjie/performance-toolkit',
   ],
