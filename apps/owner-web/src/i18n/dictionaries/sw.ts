@@ -222,6 +222,25 @@ export const sw = {
     "groupView": "Mwonekano wa kikundi",
     "onboarding": "Uanzishaji",
     "settings": "Mipangilio",
-    "notifications": "Arifa"
+    "notifications": "Arifa",
+    "cooperatives": "Ushirika",
+    "insurance": "Bima",
+    "estate": "Shamba",
+    "inbox": "Kisanduku",
+    "signOut": "Ondoka"
+  },
+  "palette": {
+    "placeholder": "Andika amri au tafuta...",
+    "recent": "Hivi Karibuni",
+    "navigate": "Nenda",
+    "action": "Vitendo",
+    "spawnTab": "Fungua kichupo",
+    "empty": "Hakuna matokeo",
+    "actionRoyaltyDraft": "Andaa faili ya malipo ya haki",
+    "actionCreateReminder": "Unda kikumbusho",
+    "actionUploadDoc": "Pakia hati",
+    "actionCoopSettle": "Malipo ya ushirika",
+    "actionShareLink": "Tengeneza kiungo cha kushiriki",
+    "actionPinnedItems": "Onyesha vitu vilivyobandikwa"
   }
 } as const;

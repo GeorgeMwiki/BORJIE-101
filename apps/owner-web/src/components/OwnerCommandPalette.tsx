@@ -15,42 +15,46 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CommandPalette, type CommandItem } from '@borjie/design-system';
 import { listTabs } from '@borjie/owner-os-tabs';
+import { useLocale } from '@/lib/locale';
+import { useT } from '@/i18n/t.client';
 
 const OWNER_NAV_ROUTES: ReadonlyArray<{
   readonly route: string;
-  readonly labelEn: string;
-  readonly labelSw: string;
+  readonly labelKey: string;
 }> = [
-  { route: '/', labelEn: 'Home', labelSw: 'Nyumbani' },
-  { route: '/dashboard', labelEn: 'Dashboard', labelSw: 'Dashibodi' },
-  { route: '/licences', labelEn: 'Licences', labelSw: 'Leseni' },
-  { route: '/compliance', labelEn: 'Compliance', labelSw: 'Kufuata sheria' },
-  { route: '/finance', labelEn: 'Finance', labelSw: 'Fedha' },
-  { route: '/counterparties', labelEn: 'Counterparties', labelSw: 'Wadau' },
-  { route: '/cooperatives', labelEn: 'Cooperatives', labelSw: 'Vyama vya ushirika' },
-  { route: '/insurance', labelEn: 'Insurance', labelSw: 'Bima' },
-  { route: '/documents', labelEn: 'Documents', labelSw: 'Hati' },
-  { route: '/estate', labelEn: 'Estate', labelSw: 'Mali' },
-  { route: '/chain-of-custody', labelEn: 'Chain of custody', labelSw: 'Mlolongo wa uangalizi' },
-  { route: '/inbox', labelEn: 'Inbox', labelSw: 'Sanduku la barua' },
+  { route: '/', labelKey: 'nav.home' },
+  { route: '/dashboard', labelKey: 'nav.dashboard' },
+  { route: '/licences', labelKey: 'nav.licences' },
+  { route: '/compliance', labelKey: 'nav.compliance' },
+  { route: '/finance', labelKey: 'nav.finance' },
+  { route: '/counterparties', labelKey: 'nav.counterparties' },
+  { route: '/cooperatives', labelKey: 'nav.cooperatives' },
+  { route: '/insurance', labelKey: 'nav.insurance' },
+  { route: '/documents', labelKey: 'nav.documents' },
+  { route: '/estate', labelKey: 'nav.estate' },
+  { route: '/chain-of-custody', labelKey: 'nav.chainOfCustody' },
+  { route: '/inbox', labelKey: 'nav.inbox' },
 ];
 
 const QUICK_ACTIONS: ReadonlyArray<{
   readonly id: string;
-  readonly labelEn: string;
-  readonly labelSw: string;
+  readonly labelKey: string;
   readonly intent: string;
 }> = [
-  { id: 'royalty.draft', labelEn: 'Draft royalty filing', labelSw: 'Andaa malipo ya mrabaha', intent: 'royalty-draft' },
-  { id: 'reminder.create', labelEn: 'Create a reminder', labelSw: 'Tengeneza kikumbusho', intent: 'create-reminder' },
-  { id: 'doc.upload', labelEn: 'Upload a document', labelSw: 'Pakia hati', intent: 'upload-doc' },
-  { id: 'cooperative.settle', labelEn: 'Cooperative settlement', labelSw: 'Tathmini ya ushirika', intent: 'coop-settlement' },
-  { id: 'share.generate', labelEn: 'Generate share link', labelSw: 'Tengeneza kiungo cha kushirikisha', intent: 'share-link' },
-  { id: 'pin.show', labelEn: 'Show my pinned items', labelSw: 'Onyesha vitu vyangu nilivyopanga', intent: 'pinned-items' },
+  { id: 'royalty.draft', labelKey: 'palette.actionRoyaltyDraft', intent: 'royalty-draft' },
+  { id: 'reminder.create', labelKey: 'palette.actionCreateReminder', intent: 'create-reminder' },
+  { id: 'doc.upload', labelKey: 'palette.actionUploadDoc', intent: 'upload-doc' },
+  { id: 'cooperative.settle', labelKey: 'palette.actionCoopSettle', intent: 'coop-settlement' },
+  { id: 'share.generate', labelKey: 'palette.actionShareLink', intent: 'share-link' },
+  { id: 'pin.show', labelKey: 'palette.actionPinnedItems', intent: 'pinned-items' },
 ];
 
 export interface OwnerCommandPaletteProps {
-  readonly languagePreference: 'sw' | 'en';
+  /**
+   * Retained for caller compatibility; the active locale now flows from
+   * the borjie_locale cookie via useT()/useLocale (the single source).
+   */
+  readonly languagePreference?: 'sw' | 'en';
   /** Optional callback so the host can dispatch chat-driven actions. */
   readonly onActionIntent?: (intent: string) => void;
   /** Optional callback to spawn a tab from the registry. */
@@ -60,24 +64,25 @@ export interface OwnerCommandPaletteProps {
 }
 
 export function OwnerCommandPalette({
-  languagePreference,
   onActionIntent,
   onSpawnTab,
   onSignOut,
 }: OwnerCommandPaletteProps): ReactElement {
   const router = useRouter();
-  const sw = languagePreference === 'sw';
+  const t = useT();
+  const locale = useLocale();
 
   const items = useMemo<ReadonlyArray<CommandItem>>(() => {
     const out: CommandItem[] = [];
 
     for (const nav of OWNER_NAV_ROUTES) {
+      const label = t(nav.labelKey);
       out.push({
         id: `nav_${nav.route}`,
         kind: 'navigate',
-        label: sw ? nav.labelSw : nav.labelEn,
+        label,
         hint: nav.route,
-        keywords: [nav.route, nav.labelEn.toLowerCase(), nav.labelSw.toLowerCase()],
+        keywords: [nav.route, label.toLowerCase()],
         onSelect: () => router.push(nav.route),
       });
     }
@@ -86,7 +91,7 @@ export function OwnerCommandPalette({
       out.push({
         id: `act_${action.id}`,
         kind: 'action',
-        label: sw ? action.labelSw : action.labelEn,
+        label: t(action.labelKey),
         keywords: [action.id, action.intent],
         onSelect: () => {
           if (onActionIntent) onActionIntent(action.intent);
@@ -95,10 +100,12 @@ export function OwnerCommandPalette({
     }
 
     for (const tab of listTabs()) {
+      // Tab labels are owner-os-tabs package data (its own sw/en pair).
+      const label = locale === 'sw' ? tab.labelSw : tab.labelEn;
       out.push({
         id: `tab_${tab.type}`,
         kind: 'spawn_tab',
-        label: sw ? tab.labelSw : tab.labelEn,
+        label,
         hint: tab.type,
         keywords: [tab.type, tab.labelEn.toLowerCase()],
         onSelect: () => {
@@ -110,7 +117,7 @@ export function OwnerCommandPalette({
     out.push({
       id: 'settings_general',
       kind: 'settings',
-      label: sw ? 'Mipangilio' : 'Settings',
+      label: t('nav.settings'),
       onSelect: () => router.push('/settings'),
     });
 
@@ -118,28 +125,26 @@ export function OwnerCommandPalette({
       out.push({
         id: 'signout',
         kind: 'signout',
-        label: sw ? 'Toka' : 'Sign out',
+        label: t('nav.signOut'),
         onSelect: () => onSignOut(),
       });
     }
 
     return Object.freeze(out);
-  }, [router, sw, onActionIntent, onSpawnTab, onSignOut]);
+  }, [router, t, locale, onActionIntent, onSpawnTab, onSignOut]);
 
   return (
     <CommandPalette
       items={items}
-      placeholder={
-        sw ? 'Andika amri au tafuta...' : 'Type a command or search...'
-      }
+      placeholder={t('palette.placeholder')}
       labels={{
-        recent: sw ? 'Hivi karibuni' : 'Recent',
-        navigate: sw ? 'Nenda' : 'Navigate',
-        action: sw ? 'Vitendo' : 'Actions',
-        spawn_tab: sw ? 'Fungua kichupo' : 'Spawn tab',
-        settings: sw ? 'Mipangilio' : 'Settings',
-        signout: sw ? 'Toka' : 'Sign out',
-        empty: sw ? 'Hakuna matokeo' : 'No matches',
+        recent: t('palette.recent'),
+        navigate: t('palette.navigate'),
+        action: t('palette.action'),
+        spawn_tab: t('palette.spawnTab'),
+        settings: t('nav.settings'),
+        signout: t('nav.signOut'),
+        empty: t('palette.empty'),
       }}
     />
   );

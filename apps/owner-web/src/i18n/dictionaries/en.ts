@@ -241,6 +241,26 @@ export const en = {
     onboarding: 'Onboarding',
     settings: 'Settings',
     notifications: 'Notifications',
+    cooperatives: 'Cooperatives',
+    insurance: 'Insurance',
+    estate: 'Estate',
+    inbox: 'Inbox',
+    signOut: 'Sign out',
+  },
+
+  palette: {
+    placeholder: 'Type a command or search...',
+    recent: 'Recent',
+    navigate: 'Navigate',
+    action: 'Actions',
+    spawnTab: 'Spawn tab',
+    empty: 'No matches',
+    actionRoyaltyDraft: 'Draft royalty filing',
+    actionCreateReminder: 'Create a reminder',
+    actionUploadDoc: 'Upload a document',
+    actionCoopSettle: 'Cooperative settlement',
+    actionShareLink: 'Generate share link',
+    actionPinnedItems: 'Show my pinned items',
   },
 } as const;
 

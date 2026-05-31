@@ -43,6 +43,14 @@
     "h": "0c953ab32c603ec4",
     "sw": "Kuna hitilafu imetokea."
   },
+  "common.breadcrumb": {
+    "h": "2bd873d6c734e63e",
+    "sw": "Njia ya kurudi"
+  },
+  "common.ownerNavigation": {
+    "h": "ff51992669dc9fd6",
+    "sw": "Urambazaji wa mmiliki"
+  },
   "auth.signIn.eyebrow": {
     "h": "f9bbd2e991128909",
     "sw": "Kokpiti ya Mmiliki"
@@ -739,12 +747,72 @@
     "h": "788011833a5a0f22",
     "sw": "Arifa"
   },
-  "common.breadcrumb": {
-    "h": "2bd873d6c734e63e",
-    "sw": "Njia ya kurudi"
+  "nav.cooperatives": {
+    "h": "012f01c5ad510017",
+    "sw": "Ushirika"
   },
-  "common.ownerNavigation": {
-    "h": "ff51992669dc9fd6",
-    "sw": "Urambazaji wa mmiliki"
+  "nav.insurance": {
+    "h": "4594b737568af7e3",
+    "sw": "Bima"
+  },
+  "nav.estate": {
+    "h": "bd07e6a93feec1a8",
+    "sw": "Shamba"
+  },
+  "nav.inbox": {
+    "h": "94835ea2fcf775cd",
+    "sw": "Kisanduku"
+  },
+  "nav.signOut": {
+    "h": "48f0d3d397d49f13",
+    "sw": "Ondoka"
+  },
+  "palette.placeholder": {
+    "h": "14d048ecc3bd0384",
+    "sw": "Andika amri au tafuta..."
+  },
+  "palette.recent": {
+    "h": "690dbe9dc0993c42",
+    "sw": "Hivi Karibuni"
+  },
+  "palette.navigate": {
+    "h": "5ea5fbe811dbe99a",
+    "sw": "Nenda"
+  },
+  "palette.action": {
+    "h": "ff8059dc6752afdd",
+    "sw": "Vitendo"
+  },
+  "palette.spawnTab": {
+    "h": "3981eaf61495769a",
+    "sw": "Fungua kichupo"
+  },
+  "palette.empty": {
+    "h": "2df01a03ff43400b",
+    "sw": "Hakuna matokeo"
+  },
+  "palette.actionRoyaltyDraft": {
+    "h": "462ffc3833d54f52",
+    "sw": "Andaa faili ya malipo ya haki"
+  },
+  "palette.actionCreateReminder": {
+    "h": "1ee0df0ecf27d016",
+    "sw": "Unda kikumbusho"
+  },
+  "palette.actionUploadDoc": {
+    "h": "01e738db94517ce6",
+    "sw": "Pakia hati"
+  },
+  "palette.actionCoopSettle": {
+    "h": "f68f471930e629df",
+    "sw": "Malipo ya ushirika"
+  },
+  "palette.actionShareLink": {
+    "h": "77bfcb9ba4e6334b",
+    "sw": "Tengeneza kiungo cha kushiriki"
+  },
+  "palette.actionPinnedItems": {
+    "h": "7bea6f240d98749a",
+    "sw": "Onyesha vitu vilivyobandikwa"
   }
 }
