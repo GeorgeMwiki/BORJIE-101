@@ -1,0 +1,52 @@
+name: Borjie Semgrep
+
+# SAST. The repo ships custom rules (`.semgrep/borjie-rules.yml`, e.g.
+# tenant-scoped-repository enforcement) but nothing ran them in CI. This
+# uploads a full-severity SARIF to code-scanning (visibility, non-blocking)
+# AND gates the build on ERROR-severity custom rules only — matching the
+# repo's documented "ERROR = must fix before merge" convention, so the
+# gate never red-floods on advisory warnings.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: borjie-semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan → SARIF (all severities, non-blocking)
+        run: |
+          semgrep scan \
+            --config .semgrep/borjie-rules.yml \
+            --config p/security-audit \
+            --sarif --output semgrep.sarif \
+            --metrics off || true
+
+      - name: Upload SARIF to code-scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Gate on ERROR-severity Borjie rules
+        run: |
+          semgrep scan \
+            --config .semgrep/borjie-rules.yml \
+            --severity ERROR \
+            --metrics off \
+            --error

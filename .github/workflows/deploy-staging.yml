@@ -12,6 +12,12 @@ concurrency:
   group: deploy-staging-${{ github.ref }}
   cancel-in-progress: false
 
+# `id-token: write` enables OIDC assume-role for the Terraform AWS provider
+# (no long-lived AWS keys).
+permissions:
+  contents: read
+  id-token: write
+
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '8'
@@ -98,6 +104,12 @@ jobs:
       - name: Download all app artifacts
         uses: actions/download-artifact@v8
 
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-west-1
+
       - name: Deploy to staging (Terraform)
         run: |
           cd infra/terraform
@@ -106,8 +118,6 @@ jobs:
           terraform plan -var="environment=staging" -out=tfplan
           terraform apply -auto-approve tfplan
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-west-1
         continue-on-error: true
 

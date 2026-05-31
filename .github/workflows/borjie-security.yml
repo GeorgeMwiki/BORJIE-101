@@ -1,0 +1,49 @@
+name: Borjie Security
+
+# Secret-scanning gate. The repo ships a curated `.gitleaks.toml` (with
+# allowlists for test fixtures) but it was never wired into CI — so a real
+# secret could land undetected. This workflow runs gitleaks on every PR and
+# push to main and FAILS the build on any finding.
+#
+# Uses the gitleaks binary directly (no Action) so it needs no
+# GITLEAKS_LICENSE and pins an explicit, reproducible version.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borjie-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for diff scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks (pinned)
+        run: |
+          set -euo pipefail
+          VERSION=8.18.4
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks version
+
+      - name: Scan for secrets (fails on any finding)
+        run: |
+          ./gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --redact \
+            --no-banner \
+            --exit-code 1

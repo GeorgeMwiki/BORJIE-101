@@ -1,0 +1,41 @@
+name: Borjie CodeQL
+
+# Deep static analysis for JavaScript/TypeScript. The repo had a
+# `.github/codeql/queries` dir but no workflow ran CodeQL analysis (only
+# trivy uploaded SARIF). This runs the security-extended query suite and
+# publishes alerts to code-scanning. Non-build-blocking by default — gate
+# it via branch-protection "required" code-scanning once triaged.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1' # weekly Monday 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: borjie-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL (javascript-typescript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      # JS/TS needs no build step — CodeQL extracts directly from source.
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
