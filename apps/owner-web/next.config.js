@@ -65,6 +65,7 @@ const nextConfig = {
     optimizePackageImports: [
       'lucide-react',
       '@borjie/design-system',
+      '@borjie/chat-ui',
     ],
   },
   modularizeImports: {

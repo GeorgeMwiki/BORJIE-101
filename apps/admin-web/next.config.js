@@ -51,6 +51,7 @@ const nextConfig = {
       'lucide-react',
       '@tanstack/react-query',
       '@borjie/design-system',
+      '@borjie/chat-ui',
     ],
   },
   modularizeImports: {
