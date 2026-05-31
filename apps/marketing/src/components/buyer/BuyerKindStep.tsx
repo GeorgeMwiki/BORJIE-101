@@ -23,21 +23,18 @@ export function BuyerKindStep({ locale, onPick }: BuyerKindStepProps) {
   const cards: ReadonlyArray<{
     readonly kind: BuyerAccountKind;
     readonly title: string;
-    readonly titleAlt: string;
     readonly subtitle: string;
     readonly bullets: ReadonlyArray<string>;
   }> = [
     {
       kind: 'individual',
       title: t.individualTitle,
-      titleAlt: t.individualTitleEn,
       subtitle: t.individualSubtitle,
       bullets: t.individualBullets,
     },
     {
       kind: 'business',
       title: t.businessTitle,
-      titleAlt: t.businessTitleEn,
       subtitle: t.businessSubtitle,
       bullets: t.businessBullets,
     },
@@ -49,7 +46,6 @@ export function BuyerKindStep({ locale, onPick }: BuyerKindStepProps) {
         <h2 className="font-display text-xl font-semibold text-foreground">
           {t.heading}
         </h2>
-        <p className="mt-1 text-xs text-foreground/60">{t.subHeading}</p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -65,7 +61,6 @@ export function BuyerKindStep({ locale, onPick }: BuyerKindStepProps) {
               <h3 className="font-display text-base font-medium text-foreground group-hover:text-accent">
                 {card.title}
               </h3>
-              <p className="text-xs text-foreground/60">{card.titleAlt}</p>
             </div>
             <p className="text-sm text-foreground/80">{card.subtitle}</p>
             <ul className="space-y-1 text-xs text-foreground/70">

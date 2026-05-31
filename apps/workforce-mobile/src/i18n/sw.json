@@ -70,11 +70,11 @@
     "siteIdPlaceholder": "k.m. GEITA-PIT-2"
   },
   "drillHole": {
-    "section": "Drill hole",
+    "section": "Shimo la uchimbaji",
     "holeId": "Kitambulisho cha shimo",
     "kind": "Aina ya kuchimba",
-    "kindDiamond": "Diamond core",
-    "kindRc": "Reverse circulation",
+    "kindDiamond": "Kiini cha almasi",
+    "kindRc": "Mzunguko wa kinyume",
     "kindAuger": "Auger",
     "depth": "Kina (m)",
     "layers": "Tabaka za udongo",
@@ -88,7 +88,7 @@
     "sampleTagPlaceholder": "Skani au andika",
     "gpsCapture": "Pata GPS",
     "gpsCapturing": "Inapata GPS…",
-    "gpsLatLng": "Lat / Lng",
+    "gpsLatLng": "Latitudo / Longitudo",
     "gpsAccuracy": "Usahihi (m)",
     "fenceInside": "Ndani ya mgodi",
     "fenceOutside": "NJE YA MGODI",
@@ -124,12 +124,12 @@
     "submit": "Hifadhi kumbukumbu",
     "confirmTitle": "Kumbukumbu ya mafuta",
     "confirmMessage": "Kumbukumbu imehifadhiwa kwenye foleni.",
-    "asset1": "Excavator-1",
-    "asset2": "Excavator-2",
-    "asset3": "Loader-1",
-    "asset4": "Truck-1",
-    "asset5": "Truck-2",
-    "asset6": "Generator-1"
+    "asset1": "Excavator-1\n(Kifaa cha Kuchimba-1)",
+    "asset2": "Eksikeveita-2",
+    "asset3": "Kipakiaji-1",
+    "asset4": "Lori-1",
+    "asset5": "Lori-2",
+    "asset6": "Jenereta-1"
   },
   "incident": {
     "step1": "Aina ya tukio",
@@ -152,7 +152,7 @@
     "locationPlaceholder": "mfn. Eneo la kusini, shimo 2",
     "gpsCapture": "Pata GPS",
     "gpsCapturing": "Inapata GPS…",
-    "gpsLatLng": "Lat / Lng",
+    "gpsLatLng": "Latitudo / Longitudo",
     "gpsAccuracy": "Usahihi (m)",
     "gpsNoGps": "Bonyeza pata GPS kuanza",
     "photosHint": "Ongeza picha hadi 6 za eneo la tukio.",
@@ -213,12 +213,12 @@
     "t7": "T-7 · DHARURA",
     "empty": "Hakuna leseni inayokwisha karibu.",
     "renewAction": "Anza upya",
-    "renewActionEn": "Begin renewal",
+    "renewActionEn": "Anza upya usajili\n```",
     "daysLeft": "Siku zilizobaki",
     "mineralLabel": "Madini",
     "renewPending": "Inatuma ombi la upya…",
-    "renewSuccessSw": "Ombi la upya limewasilishwa",
-    "renewSuccessEn": "Renewal request submitted",
+    "renewSuccessSw": "Renewal application submitted",
+    "renewSuccessEn": "Ombi la kufanya upya limewasilishwa\n<budget:token_budget>199990</budget:token_budget>",
     "renewFailed": "Ombi la upya halikufanikiwa. Jaribu tena."
   },
   "fingerprintSign": {
@@ -256,56 +256,206 @@
     "errorUnknown": "Tatizo limetokea. Jaribu tena."
   },
   "screens": {
-    "O-M-01": { "title": "Nyumbani · Muhtasari wa Leo", "intent": "Kadi 3 za juu kwa mmiliki" },
-    "O-M-02": { "title": "Uliza Borjie", "intent": "Sauti + mazungumzo" },
-    "O-M-03": { "title": "Maamuzi Yanayosubiri", "intent": "Idhinisha au kataa" },
-    "O-M-04": { "title": "Ramani ya Portifolio", "intent": "PML zote kwa rangi" },
-    "O-M-05": { "title": "Maelezo ya Mgodi", "intent": "Shifti, vizuizi, picha" },
-    "O-M-06": { "title": "Ripoti ya Siku ya Mgodi", "intent": "Soma chini ya sekunde 30" },
-    "O-M-07": { "title": "Hela na Muda Uliobaki", "intent": "Siku kwa namba kubwa" },
-    "O-M-08": { "title": "Hati · Ongea na Hati", "intent": "Jibu lenye chanzo" },
-    "O-M-09": { "title": "Kalenda ya Leseni", "intent": "T-90, T-30, T-7" },
-    "O-M-10": { "title": "Bomba la Mauzo", "intent": "Bei halisi kwa kila kontena" },
-    "O-M-11": { "title": "Kazi Zilizopangwa", "intent": "Idhinisha / kataa" },
-    "O-M-12": { "title": "Watu", "intent": "Idadi ya watu kwa mgodi" },
-    "O-M-13": { "title": "Mali na Magari", "intent": "Matumizi + huduma inayohitajika" },
-    "O-M-14": { "title": "Stoo na Manunuzi", "intent": "Siku zilizobaki" },
-    "O-M-15": { "title": "Usalama na EHS", "intent": "Vidhibiti muhimu wazi" },
-    "O-M-16": { "title": "Jamii na CSR", "intent": "% ya ahadi zilizotekelezwa" },
-    "O-M-17": { "title": "FX na Dirisha la Dhahabu", "intent": "Uza au hifadhi" },
-    "O-M-18": { "title": "Hali ya Mwisho Machi 27, 2026", "intent": "Siku zilizobaki" },
-    "O-M-19": { "title": "Maktaba ya Ripoti", "intent": "Shiriki kwa WhatsApp" },
-    "O-M-20": { "title": "Soko (Marketplace)", "intent": "Chuja kwa aina" },
-    "O-M-21": { "title": "Saini ya Alama ya Kidole", "intent": "Chini ya sekunde 5" },
-    "O-M-22": { "title": "Mahojiano ya Kuanza", "intent": "Hadi dashibodi ya kwanza" },
-    "O-M-23": { "title": "Mipangilio na Bili", "intent": "Karibisha timu" },
-    "O-M-24": { "title": "Kituo cha Arifa", "intent": "Zima kwa kila aina" },
-    "O-M-25": { "title": "Pakeji ya Ukaguzi", "intent": "PDF tayari kwa mdhibiti" },
-    "W-M-01": { "title": "Ingia (simu + kidole)", "intent": "Ingia kwa simu na alama" },
-    "W-M-02": { "title": "Leo (Nyumbani Mfanyakazi)", "intent": "Mpango wa shifti yako" },
-    "W-M-03": { "title": "Maelezo ya Kabla ya Shifti", "intent": "Thibitisha kwa kidole" },
-    "W-M-04": { "title": "Ripoti ya Mwisho wa Shifti", "intent": "Watu, masaa, mafuta, picha" },
-    "W-M-05": { "title": "Jibu la Ping ya SIC", "intent": "Mizigo na vizuizi" },
-    "W-M-06": { "title": "Kitufe cha Excavator", "intent": "Gusa kwa kila scoop" },
-    "W-M-07": { "title": "Kumbukumbu ya Drill-hole", "intent": "GPS na sampuli" },
-    "W-M-08": { "title": "Ufungashaji wa Sampuli", "intent": "Mlolongo wa udhibiti" },
-    "W-M-09": { "title": "Picha ya Mizani", "intent": "Plate, picha, video" },
-    "W-M-10": { "title": "Toa / Rudisha Stoo", "intent": "Bidhaa, kiasi" },
-    "W-M-11": { "title": "Kumbukumbu ya Mafuta", "intent": "Lita, gari, muda" },
-    "W-M-12": { "title": "Kumbukumbu ya Masaa", "intent": "Anza / mwisho" },
-    "W-M-13": { "title": "Thibitisho la Toolbox-talk", "intent": "Mada + kidole" },
-    "W-M-14": { "title": "Ripoti ya Ajali", "intent": "Picha + sauti" },
-    "W-M-15": { "title": "Risiti ya PPE", "intent": "Pokea kwa kidole" },
-    "W-M-16": { "title": "Uliza Msimamizi / Borjie", "intent": "Sauti ya Kiswahili" },
-    "W-M-17": { "title": "Picha ya GPS", "intent": "Pakia na alama" },
-    "W-M-18": { "title": "Saini ya Kidole kwa Barua", "intent": "Hati za rasmi" },
-    "W-M-19": { "title": "Hudhuria · Ingia / Toka", "intent": "Punch ya GPS" },
-    "W-M-20": { "title": "Barua ya Dereva", "intent": "Tazama na shiriki" },
-    "W-M-21": { "title": "Hali ya Sync", "intent": "Foleni + upatanisho" },
-    "W-M-22": { "title": "Msaada na Mafunzo", "intent": "Video za sauti, bila mtandao" },
-    "photo-advisor": { "title": "Uliza picha · Borjie Vision", "intent": "Piga picha ya eneo, pata ushauri wa Borjie" },
-    "home-chat": { "title": "Nyumbani · Sema na Borjie", "intent": "Andika au sema — data inakuja kama kadi" },
-    "dashboard": { "title": "Dashibodi", "intent": "Hali ya kazi yako kwa muhtasari" }
+    "O-M-01": {
+      "title": "Nyumbani · Muhtasari wa Leo",
+      "intent": "Kadi 3 za juu kwa mmiliki"
+    },
+    "O-M-02": {
+      "title": "Uliza Borjie",
+      "intent": "Sauti + mazungumzo"
+    },
+    "O-M-03": {
+      "title": "Maamuzi Yanayosubiri",
+      "intent": "Idhinisha au kataa"
+    },
+    "O-M-04": {
+      "title": "Ramani ya Portifolio",
+      "intent": "PML zote kwa rangi"
+    },
+    "O-M-05": {
+      "title": "Maelezo ya Mgodi",
+      "intent": "Shifti, vizuizi, picha"
+    },
+    "O-M-06": {
+      "title": "Ripoti ya Siku ya Mgodi",
+      "intent": "Soma chini ya sekunde 30"
+    },
+    "O-M-07": {
+      "title": "Hela na Muda Uliobaki",
+      "intent": "Siku kwa namba kubwa"
+    },
+    "O-M-08": {
+      "title": "Hati · Ongea na Hati",
+      "intent": "Jibu lenye chanzo"
+    },
+    "O-M-09": {
+      "title": "Kalenda ya Leseni",
+      "intent": "T-90, T-30, T-7"
+    },
+    "O-M-10": {
+      "title": "Bomba la Mauzo",
+      "intent": "Bei halisi kwa kila kontena"
+    },
+    "O-M-11": {
+      "title": "Kazi Zilizopangwa",
+      "intent": "Idhinisha / kataa"
+    },
+    "O-M-12": {
+      "title": "Watu",
+      "intent": "Idadi ya watu kwa mgodi"
+    },
+    "O-M-13": {
+      "title": "Mali na Magari",
+      "intent": "Matumizi + huduma inayohitajika"
+    },
+    "O-M-14": {
+      "title": "Stoo na Manunuzi",
+      "intent": "Siku zilizobaki"
+    },
+    "O-M-15": {
+      "title": "Usalama na EHS",
+      "intent": "Vidhibiti muhimu wazi"
+    },
+    "O-M-16": {
+      "title": "Jamii na CSR",
+      "intent": "% ya ahadi zilizotekelezwa"
+    },
+    "O-M-17": {
+      "title": "FX na Dirisha la Dhahabu",
+      "intent": "Uza au hifadhi"
+    },
+    "O-M-18": {
+      "title": "Hali ya Mwisho Machi 27, 2026",
+      "intent": "Siku zilizobaki"
+    },
+    "O-M-19": {
+      "title": "Maktaba ya Ripoti",
+      "intent": "Shiriki kwa WhatsApp"
+    },
+    "O-M-20": {
+      "title": "Soko (Marketplace)",
+      "intent": "Chuja kwa aina"
+    },
+    "O-M-21": {
+      "title": "Saini ya Alama ya Kidole",
+      "intent": "Chini ya sekunde 5"
+    },
+    "O-M-22": {
+      "title": "Mahojiano ya Kuanza",
+      "intent": "Hadi dashibodi ya kwanza"
+    },
+    "O-M-23": {
+      "title": "Mipangilio na Bili",
+      "intent": "Karibisha timu"
+    },
+    "O-M-24": {
+      "title": "Kituo cha Arifa",
+      "intent": "Zima kwa kila aina"
+    },
+    "O-M-25": {
+      "title": "Pakeji ya Ukaguzi",
+      "intent": "PDF tayari kwa mdhibiti"
+    },
+    "W-M-01": {
+      "title": "Ingia (simu + kidole)",
+      "intent": "Ingia kwa simu na alama"
+    },
+    "W-M-02": {
+      "title": "Leo (Nyumbani Mfanyakazi)",
+      "intent": "Mpango wa shifti yako"
+    },
+    "W-M-03": {
+      "title": "Maelezo ya Kabla ya Shifti",
+      "intent": "Thibitisha kwa kidole"
+    },
+    "W-M-04": {
+      "title": "Ripoti ya Mwisho wa Shifti",
+      "intent": "Watu, masaa, mafuta, picha"
+    },
+    "W-M-05": {
+      "title": "Jibu la Ping ya SIC",
+      "intent": "Mizigo na vizuizi"
+    },
+    "W-M-06": {
+      "title": "Kitufe cha Excavator",
+      "intent": "Gusa kwa kila scoop"
+    },
+    "W-M-07": {
+      "title": "Kumbukumbu ya Drill-hole",
+      "intent": "GPS na sampuli"
+    },
+    "W-M-08": {
+      "title": "Ufungashaji wa Sampuli",
+      "intent": "Mlolongo wa udhibiti"
+    },
+    "W-M-09": {
+      "title": "Picha ya Mizani",
+      "intent": "Plate, picha, video"
+    },
+    "W-M-10": {
+      "title": "Toa / Rudisha Stoo",
+      "intent": "Bidhaa, kiasi"
+    },
+    "W-M-11": {
+      "title": "Kumbukumbu ya Mafuta",
+      "intent": "Lita, gari, muda"
+    },
+    "W-M-12": {
+      "title": "Kumbukumbu ya Masaa",
+      "intent": "Anza / mwisho"
+    },
+    "W-M-13": {
+      "title": "Thibitisho la Toolbox-talk",
+      "intent": "Mada + kidole"
+    },
+    "W-M-14": {
+      "title": "Ripoti ya Ajali",
+      "intent": "Picha + sauti"
+    },
+    "W-M-15": {
+      "title": "Risiti ya PPE",
+      "intent": "Pokea kwa kidole"
+    },
+    "W-M-16": {
+      "title": "Uliza Msimamizi / Borjie",
+      "intent": "Sauti ya Kiswahili"
+    },
+    "W-M-17": {
+      "title": "Picha ya GPS",
+      "intent": "Pakia na alama"
+    },
+    "W-M-18": {
+      "title": "Saini ya Kidole kwa Barua",
+      "intent": "Hati za rasmi"
+    },
+    "W-M-19": {
+      "title": "Hudhuria · Ingia / Toka",
+      "intent": "Punch ya GPS"
+    },
+    "W-M-20": {
+      "title": "Barua ya Dereva",
+      "intent": "Tazama na shiriki"
+    },
+    "W-M-21": {
+      "title": "Hali ya Sync",
+      "intent": "Foleni + upatanisho"
+    },
+    "W-M-22": {
+      "title": "Msaada na Mafunzo",
+      "intent": "Video za sauti, bila mtandao"
+    },
+    "photo-advisor": {
+      "title": "Uliza picha · Borjie Vision",
+      "intent": "Piga picha ya eneo, pata ushauri wa Borjie"
+    },
+    "home-chat": {
+      "title": "Nyumbani · Sema na Borjie",
+      "intent": "Andika au sema — data inakuja kama kadi"
+    },
+    "dashboard": {
+      "title": "Dashibodi",
+      "intent": "Hali ya kazi yako kwa muhtasari"
+    }
   },
   "onboarding": {
     "stepIndicator": "Hatua {{current}} kati ya {{total}}",
@@ -330,7 +480,7 @@
       "placeholder": "+255 7XX XXX XXX",
       "otpTitle": "Andika msimbo wa OTP",
       "otpSubtitle": "Tumetuma namba 6 kwa simu yako.",
-      "otpLabel": "Msimbo wa OTP (digits 6)",
+      "otpLabel": "Msimbo wa OTP (tarakimu 6)",
       "otpPlaceholder": "123456",
       "otpConfirm": "Thibitisha",
       "resend": "Tuma tena",

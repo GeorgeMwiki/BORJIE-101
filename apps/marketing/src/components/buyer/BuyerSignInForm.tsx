@@ -119,7 +119,6 @@ export function BuyerSignInForm({
       <Field
         id="email"
         label={t.fields.email}
-        subLabel={t.fields.emailEn}
         required
       >
         <input
@@ -136,7 +135,6 @@ export function BuyerSignInForm({
       <Field
         id="password"
         label={t.fields.password}
-        subLabel={t.fields.passwordEn}
         required
       >
         <input

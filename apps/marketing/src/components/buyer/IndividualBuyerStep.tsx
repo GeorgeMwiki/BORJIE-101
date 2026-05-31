@@ -95,14 +95,12 @@ export function IndividualBuyerStep({
         <h2 className="font-display text-xl font-semibold text-foreground">
           {t.fields.fullName}
         </h2>
-        <p className="text-xs text-foreground/60">{t.fields.fullNameEn}</p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           id="fullName"
           label={t.fields.fullName}
-          subLabel={t.fields.fullNameEn}
           required
           {...(errors.fullName !== undefined && { error: errors.fullName })}
         >
@@ -119,7 +117,6 @@ export function IndividualBuyerStep({
         <Field
           id="country"
           label={t.fields.country}
-          subLabel={t.fields.countryEn}
           required
         >
           <select
@@ -142,7 +139,6 @@ export function IndividualBuyerStep({
         <Field
           id="phoneE164"
           label={t.fields.phone}
-          subLabel={t.fields.phoneEn}
           required
           {...(errors.phoneE164 !== undefined && { error: errors.phoneE164 })}
         >
@@ -161,7 +157,6 @@ export function IndividualBuyerStep({
         <Field
           id="email"
           label={t.fields.email}
-          subLabel={t.fields.emailEn}
           required
           {...(errors.email !== undefined && { error: errors.email })}
         >
@@ -179,7 +174,6 @@ export function IndividualBuyerStep({
         <Field
           id="preferredLanguage"
           label={t.fields.preferredLanguage}
-          subLabel={t.fields.preferredLanguageEn}
           required
         >
           <select
@@ -205,7 +199,6 @@ export function IndividualBuyerStep({
         <Field
           id="preferredCurrency"
           label={t.fields.preferredCurrency}
-          subLabel={t.fields.preferredCurrencyEn}
           required
         >
           <select
@@ -231,7 +224,6 @@ export function IndividualBuyerStep({
         <Field
           id="nationalIdNumber"
           label={t.fields.nationalId}
-          subLabel={t.fields.nationalIdEn}
         >
           <input
             id="nationalIdNumber"

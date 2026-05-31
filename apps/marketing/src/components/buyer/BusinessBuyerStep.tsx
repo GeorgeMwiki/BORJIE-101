@@ -106,14 +106,12 @@ export function BusinessBuyerStep({
         <h2 className="font-display text-xl font-semibold text-foreground">
           {t.fields.orgName}
         </h2>
-        <p className="text-xs text-foreground/60">{t.fields.orgNameEn}</p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           id="orgName"
           label={t.fields.orgName}
-          subLabel={t.fields.orgNameEn}
           required
           {...(errors.orgName !== undefined && { error: errors.orgName })}
         >
@@ -130,7 +128,6 @@ export function BusinessBuyerStep({
         <Field
           id="country"
           label={t.fields.country}
-          subLabel={t.fields.countryEn}
           required
         >
           <select
@@ -153,7 +150,6 @@ export function BusinessBuyerStep({
         <Field
           id="businessKind"
           label={t.fields.businessKind}
-          subLabel={t.fields.businessKindEn}
           required
           {...(errors.businessKind !== undefined && { error: errors.businessKind })}
         >
@@ -180,7 +176,6 @@ export function BusinessBuyerStep({
         <Field
           id="businessRegistrationNumber"
           label={t.fields.businessRegistrationNumber}
-          subLabel={t.fields.businessRegistrationNumberEn}
           required
           {...(errors.businessRegistrationNumber !== undefined && {
             error: errors.businessRegistrationNumber,
@@ -200,7 +195,6 @@ export function BusinessBuyerStep({
         <Field
           id="taxId"
           label={t.fields.taxId}
-          subLabel={t.fields.taxIdEn}
           required
           {...(errors.taxId !== undefined && { error: errors.taxId })}
         >
@@ -216,7 +210,6 @@ export function BusinessBuyerStep({
         <Field
           id="contactFullName"
           label={t.fields.contactFullName}
-          subLabel={t.fields.contactFullNameEn}
           required
           {...(errors.contactFullName !== undefined && {
             error: errors.contactFullName,
@@ -235,7 +228,6 @@ export function BusinessBuyerStep({
         <Field
           id="contactPhoneE164"
           label={t.fields.contactPhone}
-          subLabel={t.fields.contactPhoneEn}
           required
           {...(errors.contactPhoneE164 !== undefined && {
             error: errors.contactPhoneE164,
@@ -258,7 +250,6 @@ export function BusinessBuyerStep({
         <Field
           id="contactEmail"
           label={t.fields.contactEmail}
-          subLabel={t.fields.contactEmailEn}
           required
           {...(errors.contactEmail !== undefined && { error: errors.contactEmail })}
         >
@@ -276,7 +267,6 @@ export function BusinessBuyerStep({
         <Field
           id="preferredLanguage"
           label={t.fields.preferredLanguage}
-          subLabel={t.fields.preferredLanguageEn}
           required
         >
           <select
@@ -302,7 +292,6 @@ export function BusinessBuyerStep({
         <Field
           id="preferredCurrency"
           label={t.fields.preferredCurrency}
-          subLabel={t.fields.preferredCurrencyEn}
           required
         >
           <select

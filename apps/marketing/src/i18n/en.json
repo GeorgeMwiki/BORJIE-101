@@ -1362,9 +1362,7 @@
     },
     "kindStep": {
       "heading": "How would you like to sign up?",
-      "subHeading": "Unataka kujisajili kama nani?",
       "individualTitle": "I'm an individual buyer",
-      "individualTitleEn": "Mimi ni mtu binafsi",
       "individualSubtitle": "Personal-capacity mineral buyer.",
       "individualBullets": [
         "Full name and phone",
@@ -1372,7 +1370,6 @@
         "National ID (NIDA) — optional"
       ],
       "businessTitle": "I represent a company",
-      "businessTitleEn": "Mimi nina kampuni / shirika",
       "businessSubtitle": "Refinery, broker, fabricator, or investor.",
       "businessBullets": [
         "Company name + BRELA registration",
@@ -1384,33 +1381,19 @@
     },
     "fields": {
       "country": "Country",
-      "countryEn": "Nchi",
       "fullName": "Full name",
-      "fullNameEn": "Jina kamili",
       "phone": "Phone (E.164)",
-      "phoneEn": "Simu",
       "email": "Email",
-      "emailEn": "Barua pepe",
       "preferredLanguage": "Language",
-      "preferredLanguageEn": "Lugha",
       "preferredCurrency": "Currency",
-      "preferredCurrencyEn": "Preferred currency",
       "nationalId": "National ID (optional)",
-      "nationalIdEn": "NIDA number",
       "orgName": "Company name",
-      "orgNameEn": "Registered legal name",
       "businessKind": "Business type",
-      "businessKindEn": "Category of business",
       "businessRegistrationNumber": "Business registration #",
-      "businessRegistrationNumberEn": "BRELA number",
       "taxId": "Tax ID",
-      "taxIdEn": "TIN number",
       "contactFullName": "Contact full name",
-      "contactFullNameEn": "Primary contact",
       "contactPhone": "Contact phone (E.164)",
-      "contactPhoneEn": "Direct phone",
-      "contactEmail": "Contact email",
-      "contactEmailEn": "Direct email"
+      "contactEmail": "Contact email"
     },
     "businessKinds": {
       "refiner": "Refinery",
@@ -1513,9 +1496,7 @@
     "sub": "Sign in to your buyer account to keep sourcing verified minerals.",
     "fields": {
       "email": "Email",
-      "emailEn": "Barua pepe",
-      "password": "Password",
-      "passwordEn": "Nenosiri"
+      "password": "Password"
     },
     "actions": {
       "submit": "Sign in",

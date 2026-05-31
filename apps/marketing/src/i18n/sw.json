@@ -97,7 +97,7 @@
           "body": "Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Umekuja kwa nini leo?"
         },
         {
-          "role": "user",
+          "role": "Mtumiaji",
           "body": "Nina PML Geita."
         },
         {
@@ -110,7 +110,7 @@
       "pilotRegions": "Mikoa inayoendeshwa",
       "bilingual": "Lugha mbili",
       "baseCurrency": "Sarafu ya msingi",
-      "masterBrain": "Master Brain"
+      "masterBrain": "Akili Kuu\n<|end_of_text|>"
     }
   },
   "brainBanner": {
@@ -118,22 +118,22 @@
     "deepDive": "Soma zaidi",
     "claims": [
       {
-        "id": "tumemadini",
+        "id": "Tumemadini\nMfumo wa Uendeshaji wa Shamba la Madini Unaotumia AI",
         "title": "Mrabaha drafts za Tumemadini zinapita ukaguzi wa kwanza.",
         "body": "Kila mrabaha ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu kutoka uendeshaji wa mapema.",
         "href": "/insights/tumemadini-format-utii"
       },
       {
-        "id": "lbma-hedge",
+        "id": "lbma-hedge\n(Nota: Neno hili ni jina maalum la kiufundi linalohusu LBMA - London Bullion Market Association - na linabaki bila kutafsiriwa)",
         "title": "Hedges za gold-window zinaokoa 1.4% kwenye LBMA spot.",
         "body": "Borjie anafunga dhahabu yako kwenye dirisha la LBMA AM-fix kiotomatiki. Akiba ya mfano ya 1.4% dhidi ya spot wakati wa kupokea.",
         "href": "/insights/lbma-window-hedging"
       },
       {
-        "id": "biometric",
+        "id": "biometri",
         "title": "Mahudhurio ya kidole yanaongeza tija ya zamu 18%.",
         "body": "Fingerprint clock-in lango la pit inapunguza upotevu wa malipo na kuongeza tani zinazotolewa kwa zamu. Data kutoka uendeshaji Geita na Songwe.",
-        "href": "/insights/biometric-attendance-roi"
+        "href": "/insights/faida-ya-mahudhurio-ya-biometric"
       }
     ]
   },
@@ -160,7 +160,7 @@
       },
       {
         "label": "Briefings zilizotolewa kabla ya 06:00",
-        "value": "1,284",
+        "value": "1,284\n:::",
         "delta": "99.4% kwa wakati"
       },
       {
@@ -221,7 +221,7 @@
     "heading": "Wiki yako ya kwanza. Hatua tatu.",
     "steps": {
       "one": {
-        "label": "Sign-up + KYB",
+        "label": "Jisajili + KYB\n (Ujuzi wa Biashara Yako)",
         "title": "Jisajili na uthibitishe biashara yako.",
         "body": "Tunaunganisha na BRELA, TRA, na Tumemadini. KYB kamili ndani ya saa 48. Hakuna fomu za karatasi.",
         "bullets": [
@@ -241,7 +241,7 @@
         ]
       },
       "three": {
-        "label": "Master Brain",
+        "label": "Akili Kuu\n<|end_of_text|>",
         "title": "Master Brain anachukua kazi.",
         "body": "Anaanza kwa shadow mode kwa siku 14. Unaona kile angefanya. Halafu unaruhusu, hatua kwa hatua.",
         "bullets": [
@@ -269,44 +269,44 @@
       "lines": [
         {
           "time": "22:14",
-          "domain": "Geita pit · shift B",
+          "domain": "Shimo la Geita · zamu B",
           "body": "Shift B walitoa tani 184. Grade ya 3.2 g/t. Imehifadhiwa kwenye drill-hole log MR-241.",
-          "tone": "good",
+          "tone": "nzuri",
           "tag": "OK"
         },
         {
           "time": "23:47",
-          "domain": "Mererani vendor",
+          "domain": "Muuzaji wa Mererani",
           "body": "Vendor \"Kahama Logistics\" amechelewa malipo ya tani 12. Imepelekwa kwa wewe kwa idhini ya extension.",
-          "tone": "warn",
+          "tone": "onya",
           "tag": "!"
         },
         {
           "time": "01:33",
           "domain": "PML 0241/2023 · Kahama",
           "body": "Leseni inaisha kwa siku 47. Tumemadini renewal form imeandaliwa kwa review yako.",
-          "tone": "warn",
+          "tone": "onya",
           "tag": "!"
         },
         {
           "time": "03:05",
           "domain": "Hazina · gold-window",
           "body": "Spot ya LBMA imepanda 1.4% ndani ya saa 6. Hedge proposal ya uncia 60 imeandaliwa.",
-          "tone": "good",
+          "tone": "nzuri",
           "tag": "TX"
         },
         {
           "time": "04:18",
           "domain": "NEMC EIA · Songwe",
           "body": "Quarterly emissions report imewasilishwa kwa NEMC. Acknowledgement #2604-A.",
-          "tone": "good",
+          "tone": "nzuri",
           "tag": "OK"
         },
         {
           "time": "05:42",
           "domain": "Mrabaha return · TRA",
           "body": "Mrabaha ya Aprili imeandaliwa: TZS 18.4M. Inahitaji saini yako kabla ya kupelekwa.",
-          "tone": "flag",
+          "tone": "bendera",
           "tag": "YOU"
         }
       ]
@@ -334,7 +334,7 @@
     }
   },
   "autonomy": {
-    "kicker": "05 · Autonomy Dial",
+    "kicker": "05 · Kipimo cha Uhuru wa Kufanya Kazi",
     "heading": "Kasi yako, sio yetu.",
     "sub": "Ngazi nne za uhuru. Kila ngazi inaeleweka. Hakuna chochote kinachofanyika bila idhini yako mpaka ukubali.",
     "levels": {
@@ -359,22 +359,22 @@
     },
     "capabilities": [
       {
-        "id": "price",
+        "id": "bei",
         "label": "Andika daily price brief",
         "minLevel": 0
       },
       {
-        "id": "shift",
+        "id": "zamu\n```",
         "label": "Toa shift handover report",
         "minLevel": 1
       },
       {
-        "id": "vendor",
+        "id": "muuzaji",
         "label": "Lipa vendor PO ndogo (< TZS 5M)",
         "minLevel": 2
       },
       {
-        "id": "hedge",
+        "id": "uzio",
         "label": "Funga FX hedge ya wiki",
         "minLevel": 2
       },
@@ -389,12 +389,12 @@
         "minLevel": 99
       },
       {
-        "id": "nemc",
+        "id": "NEMC",
         "label": "Wasilisha NEMC EIA",
         "minLevel": 99
       },
       {
-        "id": "sale",
+        "id": "mauzo\n```",
         "label": "Uza dhahabu > 200 oz",
         "minLevel": 99
       }
@@ -411,9 +411,9 @@
       {
         "seq": 18426,
         "at": "06:02:11",
-        "actor": "user · owner",
+        "actor": "mtumiaji · mmiliki",
         "decision": "imependekezwa",
-        "decisionTone": "signal",
+        "decisionTone": "ishara",
         "action": "mine.user_message · hash sha256:7b3a…e91",
         "prev": "9f…c2",
         "hash": "3a…e91",
@@ -1362,9 +1362,7 @@
     },
     "kindStep": {
       "heading": "Unataka kujisajili kama nani?",
-      "subHeading": "How would you like to sign up?",
       "individualTitle": "Mimi ni mtu binafsi",
-      "individualTitleEn": "I'm an individual buyer",
       "individualSubtitle": "Mnunuzi wa kawaida wa madini.",
       "individualBullets": [
         "Jina kamili na simu",
@@ -1372,7 +1370,6 @@
         "Nambari ya NIDA — si lazima"
       ],
       "businessTitle": "Mimi nina kampuni / shirika",
-      "businessTitleEn": "I represent a kampuni",
       "businessSubtitle": "Refinery, broker, fabricator, au investor.",
       "businessBullets": [
         "Jina la kampuni + nambari ya BRELA",
@@ -1384,33 +1381,19 @@
     },
     "fields": {
       "country": "Nchi",
-      "countryEn": "Country",
       "fullName": "Jina kamili",
-      "fullNameEn": "Full name",
       "phone": "Simu",
-      "phoneEn": "Phone (E.164)",
       "email": "Barua pepe",
-      "emailEn": "Email",
       "preferredLanguage": "Lugha",
-      "preferredLanguageEn": "Language",
       "preferredCurrency": "Sarafu",
-      "preferredCurrencyEn": "Currency",
       "nationalId": "Kitambulisho cha NIDA",
-      "nationalIdEn": "National ID (optional)",
       "orgName": "Jina la kampuni",
-      "orgNameEn": "Kampuni name",
       "businessKind": "Aina ya biashara",
-      "businessKindEn": "Business type",
       "businessRegistrationNumber": "Nambari ya BRELA",
-      "businessRegistrationNumberEn": "Business reg #",
       "taxId": "Nambari ya TIN",
-      "taxIdEn": "Tax ID",
       "contactFullName": "Jina la mawasiliano",
-      "contactFullNameEn": "Contact full name",
       "contactPhone": "Simu ya mawasiliano",
-      "contactPhoneEn": "Contact phone (E.164)",
-      "contactEmail": "Barua pepe ya mawasiliano",
-      "contactEmailEn": "Contact email"
+      "contactEmail": "Barua pepe ya mawasiliano"
     },
     "businessKinds": {
       "refiner": "Refinery",
@@ -1513,9 +1496,7 @@
     "sub": "Ingia kwenye akaunti yako ya mnunuzi ili kuendelea kununua madini yaliyothibitishwa.",
     "fields": {
       "email": "Barua pepe",
-      "emailEn": "Email",
-      "password": "Nenosiri",
-      "passwordEn": "Password"
+      "password": "Nenosiri"
     },
     "actions": {
       "submit": "Ingia",
