@@ -27,15 +27,16 @@ describe('HomeShell', () => {
 
   it('renders the full-screen shell with the locked canonical persona header', () => {
     // Display identity is locked — the header always shows
-    // "Mr. Mwikila — Borjie's AI Mining Managing Director",
-    // regardless of which internal specialisation routed the turn.
+    // "Mr. Mwikila — the brain layer within Borjie, an AI-native mining
+    // estate operating system", regardless of which internal
+    // specialisation routed the turn.
     // See CAPABILITIES_UNIFICATION.md "User-facing identity is locked".
     render(<HomeShell {...baseProps()} />);
     expect(screen.getByTestId('home-shell')).toBeInTheDocument();
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Managing Director",
+      'The brain layer within Borjie — an AI-native mining estate operating system',
     );
   });
 
@@ -79,7 +80,7 @@ describe('HomeShell', () => {
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Managing Director",
+      'The brain layer within Borjie — an AI-native mining estate operating system',
     );
     expect(header.textContent ?? '').not.toContain('Safety Officer');
   });
@@ -96,7 +97,7 @@ describe('HomeShell', () => {
     const header = screen.getByTestId('home-persona-header');
     expect(header.textContent ?? '').toContain('Mr. Mwikila');
     expect(header.textContent ?? '').toContain(
-      "Borjie's AI Mining Managing Director",
+      'The brain layer within Borjie — an AI-native mining estate operating system',
     );
     expect(header.textContent ?? '').not.toContain('Marketplace Concierge');
   });

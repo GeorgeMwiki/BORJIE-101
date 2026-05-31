@@ -71,31 +71,31 @@ const MWIKILA_MARKETING_GREETINGS: Readonly<
   Record<string, Readonly<{ en: string; sw: string }>>
 > = {
   '/pricing': {
-    en: "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director (covers both property and mining). I can help you find the right plan for your estate.",
-    sw: 'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali (mali na migodi). Naweza kukusaidia kupata mpango unaofaa kwa mali yako.',
+    en: "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I can help you find the right plan for your estate.",
+    sw: 'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Naweza kukusaidia kupata mpango unaofaa kwa mali yako.',
   },
   '/for-owners': {
-    en: "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director. I can show you how Borjie runs the whole estate cockpit for mining owners.",
-    sw: 'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali. Naweza kukuonyesha jinsi Borjie inavyoendesha cockpit nzima ya mmiliki wa mgodi.',
+    en: "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I can show you how Borjie runs the whole estate cockpit for mining owners.",
+    sw: 'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Naweza kukuonyesha jinsi Borjie inavyoendesha cockpit nzima ya mmiliki wa mgodi.',
   },
   '/for-buyers': {
-    en: "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director. I can walk you through the mineral marketplace and how off-takers buy directly.",
-    sw: 'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali. Naweza kukueleza soko la madini na jinsi wanunuzi wanavyonunua moja kwa moja.',
+    en: "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I can walk you through the mineral marketplace and how off-takers buy directly.",
+    sw: 'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Naweza kukueleza soko la madini na jinsi wanunuzi wanavyonunua moja kwa moja.',
   },
   '/for-workforce': {
-    en: "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director. I can show you how shift dispatch, safety, and payroll work for crews.",
-    sw: 'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali. Naweza kukuonyesha jinsi ratiba, usalama, na mishahara vinavyofanya kazi kwa makundi.',
+    en: "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I can show you how shift dispatch, safety, and payroll work for crews.",
+    sw: 'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Naweza kukuonyesha jinsi ratiba, usalama, na mishahara vinavyofanya kazi kwa makundi.',
   },
   '/for-government': {
-    en: "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director. I can explain how Borjie supports PCCB, NEMC, TMAA and EITI reporting.",
-    sw: 'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali. Naweza kueleza jinsi Borjie inavyosaidia ripoti za PCCB, NEMC, TMAA na EITI.',
+    en: "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I can explain how Borjie supports PCCB, NEMC, TMAA and EITI reporting.",
+    sw: 'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Naweza kueleza jinsi Borjie inavyosaidia ripoti za PCCB, NEMC, TMAA na EITI.',
   },
 };
 
 const DEFAULT_PUBLIC_GREETING_EN =
-  "Hi, I'm Mr. Mwikila, Borjie's AI Estate-Management Director (covers both property and mining). Ask me anything about Borjie.";
+  "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. Ask me anything about Borjie.";
 const DEFAULT_PUBLIC_GREETING_SW =
-  'Habari, mimi ni Mr. Mwikila, Mkurugenzi wa AI wa Usimamizi wa Mali (mali na migodi). Niulize chochote kuhusu Borjie.';
+  'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Niulize chochote kuhusu Borjie.';
 
 const DEFAULT_PORTAL_GREETING_EN = (portal: PortalId): string => {
   switch (portal) {

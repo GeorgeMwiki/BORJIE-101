@@ -76,17 +76,17 @@ import { BorjieSegmentHeader, segmentLabel } from './BorjieSegmentHeader';
 import { MR_MWIKILA_CANONICAL_DISPLAY } from '../canonical-display.js';
 
 export const BORJIE_BRAND_EN = MR_MWIKILA_CANONICAL_DISPLAY.name_full;
-export const BORJIE_BRAND_SW = 'Borjie · Mkurugenzi Mtendaji wa AI wa Madini';
+export const BORJIE_BRAND_SW =
+  'Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili';
 
 // NOTE: These intro constants stay exported so the canonical-display
 // contract test can assert the name_full is part of the documented
 // greeting surface, but the panel UI no longer renders a canned welcome
 // bubble. Instead the live brain produces the first turn on open via a
 // synthetic "hello" message routed through /api/v1/public/chat.
-export const BORJIE_INTRO_EN =
-  `Hi, I'm ${MR_MWIKILA_CANONICAL_DISPLAY.name_full}. I run your mining business end-to-end. Ask me about your sites, licences, ore parcels, FX exposure, or anything in the mining corpus.`;
+export const BORJIE_INTRO_EN = `Hi, I'm ${MR_MWIKILA_CANONICAL_DISPLAY.name_full}. Ask me about your sites, licences, ore parcels, FX exposure, or anything in the mining corpus.`;
 export const BORJIE_INTRO_SW =
-  'Habari, mimi ni Bw. Mwikila, Mkurugenzi Mtendaji wa AI wa Madini wa Borjie. Ninaendesha biashara yako ya mgodi mwanzo hadi mwisho. Niulize kuhusu migodi yako, leseni, vifurushi vya madini, hatari ya kubadilisha sarafu, au lolote katika kanzi ya uchimbaji madini.';
+  'Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Niulize kuhusu migodi yako, leseni, vifurushi vya madini, hatari ya kubadilisha sarafu, au lolote katika kanzi ya uchimbaji madini.';
 
 // Canonical LitFin parity colours, mapped to the Borjie palette:
 //   LitFin header copper       → Borjie warm-gold
