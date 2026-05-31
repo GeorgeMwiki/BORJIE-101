@@ -40,12 +40,12 @@ export const ONBOARDING_TEMPLATES = {
   welcome: {
     en: `🏠 *Welcome to {{propertyName}}!*
 
-I'm Mr. Mwikila, your Borjie AI assistant. I'll help you settle in smoothly.
+I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. I'll help you settle in smoothly.
 
 Let's get you set up! First, what language do you prefer?`,
     sw: `🏠 *${'Kari' + 'bu'}! ${'Kari' + 'bu'} {{propertyName}}!*
 
-Mimi ni Mr. Mwikila, msaidizi wako wa Borjie AI. Nitakusaidia kuishi vizuri.
+Mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Nitakusaidia kuishi vizuri.
 
 Tufanye usajili! Kwanza, unapendelea lugha gani?`,
   } satisfies MessageTemplate,

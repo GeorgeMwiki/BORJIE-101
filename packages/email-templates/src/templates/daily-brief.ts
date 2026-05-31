@@ -222,8 +222,8 @@ export function renderDailyBriefHtml(args: DailyBriefEmailArgs): string {
                          font-size: 12px; color: #707070;">
                 <p style="margin: 0 0 4px 0;">
                   ${escapeHtml(args.locale === 'sw'
-                    ? `Imeundwa na Bw. Mwikila kwa ${'kushi' + 'rikiana'} na Borjie.`
-                    : 'Drafted by Mr. Mwikila with Borjie.')}
+                    ? `Imeundwa na Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili.`
+                    : 'Drafted by Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system.')}
                 </p>
                 <p style="margin: 0;">
                   ${escapeHtml(args.dateIso)} ·
@@ -256,8 +256,8 @@ export function renderDailyBriefText(args: DailyBriefEmailArgs): string {
     actions,
     '',
     args.locale === 'sw'
-      ? `Imeundwa na Bw. Mwikila kwa ${'kushi' + 'rikiana'} na Borjie.`
-      : 'Drafted by Mr. Mwikila with Borjie.',
+      ? `Imeundwa na Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili.`
+      : 'Drafted by Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system.',
     `${args.dateIso} · ${args.timezone ?? 'Africa/Dar_es_Salaam'}`,
   ].join('\n');
 }
