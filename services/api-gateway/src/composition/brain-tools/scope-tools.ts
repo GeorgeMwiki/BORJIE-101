@@ -44,7 +44,8 @@ const OWNER_AND_ADMIN: ReadonlyArray<
 
 const ResolveLabelInput = z.object({
   kindCanonical: z.string().min(1).max(50),
-  locale: z.enum(['en', 'sw']).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  locale: z.enum(['en', 'sw']).default('en'),
 });
 const ResolveLabelOutput = z.object({
   kindCanonical: z.string(),

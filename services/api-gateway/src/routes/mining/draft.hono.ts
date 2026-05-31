@@ -36,7 +36,8 @@ import {
 const createDraftSchema = z.object({
   kind: z.enum(DRAFT_KINDS),
   templateSlug: z.string().min(1).max(128),
-  language: z.enum(DRAFT_LANGUAGES).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  language: z.enum(DRAFT_LANGUAGES).default('en'),
   titleSw: z.string().min(1).max(512),
   titleEn: z.string().max(512).optional(),
   jurisdiction: z.string().max(8).optional(),

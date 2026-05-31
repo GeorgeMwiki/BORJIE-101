@@ -93,11 +93,13 @@ const createSessionSchema = z.object({
 
 const askSchema = z.object({
   question: z.string().min(1).max(2000),
-  language: z.enum(['sw', 'en']).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  language: z.enum(['sw', 'en']).default('en'),
 });
 
 const summarySchema = z.object({
-  language: z.enum(['sw', 'en']).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  language: z.enum(['sw', 'en']).default('en'),
 });
 
 // ---------------------------------------------------------------------------

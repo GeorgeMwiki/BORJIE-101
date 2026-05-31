@@ -47,7 +47,8 @@ export function useGhostCompletion(
           credentials: 'include',
           body: JSON.stringify({
             text: input,
-            language: options.language ?? 'sw',
+            // English default per CLAUDE.md (flipped 2026-05).
+            language: options.language ?? 'en',
           }),
           signal: controller.signal,
         });

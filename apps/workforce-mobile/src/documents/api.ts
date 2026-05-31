@@ -77,7 +77,8 @@ export interface AskInput {
 export async function askSession(input: AskInput): Promise<AskResponse> {
   const response = await miningApi.post<Envelope<AskResponse>>(
     `/document-intelligence/sessions/${encodeURIComponent(input.sessionId)}/ask`,
-    { question: input.question, language: input.language ?? 'sw' },
+    // English default per CLAUDE.md (flipped 2026-05).
+    { question: input.question, language: input.language ?? 'en' },
   )
   if (!response.success || !response.data) {
     throw new Error(response.error?.message ?? 'Ask failed')
@@ -93,7 +94,8 @@ export interface SummaryInput {
 export async function summariseDocument(input: SummaryInput): Promise<SummaryResponse> {
   const response = await miningApi.post<Envelope<SummaryResponse>>(
     `/document-intelligence/documents/${encodeURIComponent(input.documentId)}/summary`,
-    { language: input.language ?? 'sw' },
+    // English default per CLAUDE.md (flipped 2026-05).
+    { language: input.language ?? 'en' },
   )
   if (!response.success || !response.data) {
     throw new Error(response.error?.message ?? 'Summary failed')

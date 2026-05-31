@@ -84,7 +84,8 @@ function callbackUrl(): string {
 }
 
 export function MagicLinkScreen(props: MagicLinkProps): JSX.Element {
-  const locale: Locale = props.locale ?? 'sw'
+  // English default per CLAUDE.md (flipped 2026-05).
+  const locale: Locale = props.locale ?? 'en'
   const t = COPY[locale]
   const [email, setEmail] = useState('')
   const [pending, setPending] = useState(false)

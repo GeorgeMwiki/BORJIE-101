@@ -129,7 +129,8 @@ const CompleteTaskParamsSchema = z.object({
 
 const HelpRequestBodySchema = z.object({
   taskId: z.string().uuid().nullable().optional(),
-  locale: z.enum(['sw', 'en']).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  locale: z.enum(['sw', 'en']).default('en'),
   message: z.string().trim().max(2000).optional(),
 });
 

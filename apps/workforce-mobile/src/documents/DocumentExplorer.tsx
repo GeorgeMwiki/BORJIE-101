@@ -41,8 +41,9 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
   useEffect(() => {
     // On mount, request a deterministic preview-summary if the doc is ready.
+    // English default per CLAUDE.md (flipped 2026-05).
     if (document.ingestionStatus === 'ready') {
-      summariseDocument({ documentId: document.id, language: 'sw' })
+      summariseDocument({ documentId: document.id, language: 'en' })
         .then((res) => setSummary(res.summary))
         .catch(() => undefined)
     }
@@ -77,10 +78,11 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     setDraft('')
     try {
       const id = await ensureSession()
-      const res = await askSession({ sessionId: id, question, language: 'sw' })
+      // English default per CLAUDE.md (flipped 2026-05).
+      const res = await askSession({ sessionId: id, question, language: 'en' })
       const assistantText =
         res.answer ??
-        `Nimepokea swali. Hati hii ina vipande ${res.evidenceIds.length}. Brain itajibu mara tu wakati wa kuchakatwa.`
+        `Question received. This document has ${res.evidenceIds.length} chunks. The brain will respond once processing finishes.`
       const assistantTurn: ChatTurn = {
         id: `a_${Date.now()}`,
         role: 'assistant',

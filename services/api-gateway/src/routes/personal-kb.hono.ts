@@ -144,7 +144,8 @@ personalKbRouter.get('/me/persons/links', async (c) => {
       linkedAt: String(r.linked_at ?? new Date(0).toISOString()),
       unlinkedAt: r.unlinked_at ? String(r.unlinked_at) : null,
       displayName: String(r.display_name ?? ''),
-      preferredLanguage: String(r.preferred_language ?? 'sw'),
+      // English default per CLAUDE.md (flipped 2026-05).
+      preferredLanguage: String(r.preferred_language ?? 'en'),
       consentGranted: Boolean(
         r.consent_unified_kb_at && !r.consent_unified_kb_revoked_at,
       ),

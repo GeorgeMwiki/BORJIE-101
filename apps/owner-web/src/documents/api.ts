@@ -95,7 +95,8 @@ export async function askSession(input: AskInput): Promise<AskResponse> {
     `${BASE}/sessions/${encodeURIComponent(input.sessionId)}/ask`,
     {
       method: 'POST',
-      body: { question: input.question, language: input.language ?? 'sw' },
+      // English default per CLAUDE.md (flipped 2026-05).
+      body: { question: input.question, language: input.language ?? 'en' },
     },
   );
   return unwrap(data);
@@ -113,7 +114,8 @@ export async function summariseDocument(
     `${BASE}/documents/${encodeURIComponent(input.documentId)}/summary`,
     {
       method: 'POST',
-      body: { language: input.language ?? 'sw' },
+      // English default per CLAUDE.md (flipped 2026-05).
+      body: { language: input.language ?? 'en' },
     },
   );
   return unwrap(data);

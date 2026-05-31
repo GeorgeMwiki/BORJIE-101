@@ -163,7 +163,7 @@ export async function upsertPreferences(
       )
       VALUES (
         ${tenantId},
-        ${patch.language ?? 'sw'},
+        ${patch.language ?? 'en'},
         ${patch.timeZone ?? 'Africa/Dar_es_Salaam'},
         ${patch.defaultBriefCadence ?? 'daily'},
         ${patch.communicationStyle ?? 'concise'},

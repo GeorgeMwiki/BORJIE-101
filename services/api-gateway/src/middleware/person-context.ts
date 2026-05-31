@@ -157,7 +157,8 @@ export async function resolvePersonContext(
     if (!id || !grantedAt) return null;
     return Object.freeze({
       id,
-      preferredLanguage: language ?? 'sw',
+      // English default per CLAUDE.md (flipped 2026-05).
+      preferredLanguage: language ?? 'en',
       consentUnifiedKbAt: grantedAt,
       consentUnifiedKbRevokedAt: pickTimestamp(
         row,

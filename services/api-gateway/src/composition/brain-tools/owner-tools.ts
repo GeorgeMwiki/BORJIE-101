@@ -26,7 +26,8 @@ const OWNER: ReadonlyArray<'T1_owner_strategist'> = ['T1_owner_strategist'];
 
 const DailyBriefInput = z.object({
   asOfDate: z.string().optional(),
-  locale: z.enum(['en', 'sw']).default('sw'),
+  // English default per CLAUDE.md (flipped 2026-05).
+  locale: z.enum(['en', 'sw']).default('en'),
 });
 const DailyBriefOutput = z.object({
   headlineEn: z.string(),

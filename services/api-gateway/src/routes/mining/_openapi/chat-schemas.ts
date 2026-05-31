@@ -30,7 +30,8 @@ export const ChatTurnSchema = z
     message: z.string().min(1).max(8000),
     sessionId: z.string().optional(),
     mode: ChatModeEnum.default('build'),
-    language: ChatLanguageEnum.default('sw'),
+    // English default per CLAUDE.md (flipped 2026-05).
+    language: ChatLanguageEnum.default('en'),
   })
   .openapi('ChatTurnRequest');
 
