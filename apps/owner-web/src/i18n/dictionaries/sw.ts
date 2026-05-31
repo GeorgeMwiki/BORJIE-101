@@ -242,5 +242,13 @@ export const sw = {
     "actionCoopSettle": "Malipo ya ushirika",
     "actionShareLink": "Tengeneza kiungo cha kushiriki",
     "actionPinnedItems": "Onyesha vitu vilivyobandikwa"
+  },
+  "teach": {
+    "trustVerified": "Imethibitishwa · mjadala wa mifano {count}",
+    "trustDebate": "Mjadala wa mifano {count}",
+    "autoAuthorized": "Imeidhinishwa kiotomatiki",
+    "hintHandoff": "Niunganishe na mshauri wa kibinadamu.",
+    "hintSimpler": "Eleza hilo kwa lugha rahisi zaidi.",
+    "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa."
   }
 } as const;

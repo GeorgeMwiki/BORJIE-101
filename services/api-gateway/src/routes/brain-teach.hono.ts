@@ -81,6 +81,7 @@ import {
   parseInlineBlocks,
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
+import { createPiiTokeniser, restorePii } from '@borjie/document-ai';
 import { extractTabTags } from '@borjie/central-intelligence';
 import { processTabTagsForOwner } from '../services/tab-crud/index.js';
 import { parseBoardElements } from './board-element-parser';
@@ -532,6 +533,27 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // Wave SUPERPOWERS (UI-2): forward the live Theory-of-Mind affective
+    // read to the client so <ProactiveHint> can decide whether to offer a
+    // handoff / simpler explanation / safety reassurance / idle teach. The
+    // kernel's AffectiveProfile.state already carries the exact five
+    // unit-interval axes the chat-ui ProactiveHint consumes
+    // (frustration / comprehension / anxiety / trust / urgency) — forward
+    // them verbatim plus the kernel's updatedAt so the client TTL-expires
+    // stale reads. Emitted BEFORE the message chunks so the hint can
+    // surface as soon as the bubble paints.
+    if (affectiveProfile) {
+      await stream.writeSSE({
+        event: 'affective_profile',
+        data: JSON.stringify({
+          ...affectiveProfile.state,
+          lastUpdated: affectiveProfile.updatedAt,
+          turns: affectiveProfile.turns,
+          at: turnAtIso,
+        }),
+      });
+    }
+
     // Inject the owner's tenant context BEFORE the teaching prompt so
     // the model can reference real data ("Your PML 0241/2023 expires in
     // 47 days") instead of LitFin's generic anchors. The actor name
@@ -598,14 +620,24 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     systemPromptParts.push(basePrompt);
     const systemPrompt = systemPromptParts.join('\n');
 
+    // Tokenise PII in the user-supplied message + history before egress to
+    // the LLM provider (cross-border data-residency — national IDs / phones
+    // / emails never leave in clear). The local sensors above keep using the
+    // original `message`; the model's response is restored before any
+    // parsing or streaming (see `restorePii(rawText, …)` below).
+    const piiTokeniser = createPiiTokeniser();
     const messages = [
       ...history.map((h) => ({
         role: h.role,
-        content: [{ type: 'text' as const, text: h.text }],
+        content: [
+          { type: 'text' as const, text: piiTokeniser.tokenise(h.text) },
+        ],
       })),
       {
         role: 'user' as const,
-        content: [{ type: 'text' as const, text: message }],
+        content: [
+          { type: 'text' as const, text: piiTokeniser.tokenise(message) },
+        ],
       },
     ];
 
@@ -808,7 +840,10 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // blocks (Flow A — the inline-first catalog), then the legacy
     // primary ui_block (teaching blocks — Flow A escape hatch), then
     // inline metrics, then actions+citations.
-    const spawnResult = extractSpawnTabs(rawText);
+    // Restore PII tokens in the full model output before any parsing or
+    // streaming — the provider saw only tokens; the owner sees real values.
+    const restoredRawText = restorePii(rawText, piiTokeniser.map);
+    const spawnResult = extractSpawnTabs(restoredRawText);
     const tabTagsResult = extractTabTags(spawnResult.body);
     const autoAuthResult = extractAutoAuthorized(tabTagsResult.body);
     const boardResult = parseBoardElements(autoAuthResult.body);

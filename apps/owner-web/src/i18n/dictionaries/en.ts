@@ -262,6 +262,15 @@ export const en = {
     actionShareLink: 'Generate share link',
     actionPinnedItems: 'Show my pinned items',
   },
+
+  teach: {
+    trustVerified: 'Verified · {count}-model debate',
+    trustDebate: '{count}-model debate',
+    autoAuthorized: 'Auto-authorized',
+    hintHandoff: 'Connect me with a human advisor.',
+    hintSimpler: 'Explain that more simply.',
+    hintCmdk: 'Show me what I can do from here.',
+  },
 } as const;
 
 export type Dictionary = typeof en;

@@ -39,7 +39,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { X, Plus, History } from 'lucide-react';
+import { X, Plus, History, Sparkles, AlertCircle, Check } from 'lucide-react';
+import { useViewportBreakpoint } from '@borjie/dynamic-sections';
 import {
   buildTabId,
   getTab,
@@ -58,9 +59,12 @@ import {
 import {
   handleTabSseFrame,
   spawnPayloadToTab,
+  type TabProposalPayload,
+  type TabTagErrorPayload,
 } from '@/lib/tab-sse-parser';
 
 import { OwnerOSChatPanel } from './OwnerOSChatPanel';
+import { useAdaptiveTabOrder } from './useAdaptiveTabOrder';
 import { OwnerOSDocsPanel } from './OwnerOSDocsPanel';
 import { OwnerOSRemindersPanel } from './OwnerOSRemindersPanel';
 import { OwnerOSDraftsPanel } from './OwnerOSDraftsPanel';
@@ -79,6 +83,15 @@ export interface OwnerOSShellProps {
   readonly salutation: string;
   readonly tradingName: string;
   readonly languagePreference: 'sw' | 'en';
+  /**
+   * Session identity threaded from the dashboard server component. Feeds
+   * the adaptive-layout engine (UI-1) so the tab strip re-ranks the
+   * owner's spawned tabs by real focus-recency. Optional with safe
+   * defaults so the fallback mount + tests stay zero-config.
+   */
+  readonly tenantId?: string;
+  readonly userId?: string;
+  readonly role?: string;
 }
 
 interface RecentClosed {
@@ -90,6 +103,9 @@ export function OwnerOSShell({
   salutation,
   tradingName,
   languagePreference,
+  tenantId = 'owner-web',
+  userId = 'owner',
+  role = 'owner',
 }: OwnerOSShellProps): ReactElement {
   const {
     tabs,
@@ -108,8 +124,42 @@ export function OwnerOSShell({
     [],
   );
 
+  // Wave SUPERPOWERS (CT-3): brain-emitted tab proposals + tag errors.
+  // The chat stream forwards these via `onProposal` / `onError`; we hold
+  // them here and surface accept/dismiss chips in the strip tray below.
+  const [proposals, setProposals] = useState<ReadonlyArray<TabProposalPayload>>(
+    [],
+  );
+  const [tabErrors, setTabErrors] = useState<
+    ReadonlyArray<{ readonly key: string; readonly payload: TabTagErrorPayload }>
+  >([]);
+  const errorKeyRef = useRef(0);
+
   const closedTabsRef = useRef<ReadonlyArray<OwnerTab>>([]);
   closedTabsRef.current = tabs;
+
+  // Wave SUPERPOWERS (UI-1): adaptive tab ordering. Track focus-recency
+  // (most-recent-first) and feed the engine so the owner's spawned tabs
+  // re-rank by real usage. Pinned chrome (chat/docs/…) always stays first.
+  const viewport = useViewportBreakpoint();
+  const [recentTabIds, setRecentTabIds] = useState<ReadonlyArray<string>>([]);
+  useEffect(() => {
+    if (!activeTabId) return;
+    setRecentTabIds((prev) =>
+      prev[0] === activeTabId
+        ? prev
+        : [activeTabId, ...prev.filter((id) => id !== activeTabId)].slice(0, 10),
+    );
+  }, [activeTabId]);
+
+  const { tabs: orderedTabs } = useAdaptiveTabOrder({
+    tabs,
+    tenantId,
+    userId,
+    role,
+    recentActions: recentTabIds,
+    viewport,
+  });
 
   // ──────────────────────────────────────────────────────────────────
   // Spawning — used by the "+" menu, the suggested-tab banner, and the
@@ -210,16 +260,53 @@ export function OwnerOSShell({
           onRemove: (p) => {
             close(p.tabId);
           },
-          onProposal: () => {
-            // TODO(super-powers): surface proposal/error chip in chat
+          onProposal: (p) => {
+            // Brain is unsure — render an accept/dismiss chip rather than
+            // spawning silently. Dedupe by proposalId; cap the tray.
+            setProposals((prev) =>
+              prev.some((x) => x.proposalId === p.proposalId)
+                ? prev
+                : [...prev, p].slice(-4),
+            );
           },
-          onError: () => {
-            // TODO(super-powers): surface proposal/error chip in chat
+          onError: (p) => {
+            // A tab tag didn't apply (unknown type / validation). Surface
+            // a polite, dismissible "that doesn't apply" chip.
+            errorKeyRef.current += 1;
+            const key = `tab-err-${errorKeyRef.current}`;
+            setTabErrors((prev) => [...prev, { key, payload: p }].slice(-4));
           },
         },
       }),
     [languagePreference, spawnOrAugment, patchState, rename, close],
   );
+
+  // Accept a brain proposal → route through the same registry path as a
+  // `<spawn_tabs>` chip so dedup + augment + idempotency apply, then drop
+  // the chip. Unknown tab types are silently dropped (chip removed).
+  const acceptProposal = useCallback(
+    (proposal: TabProposalPayload) => {
+      const descriptor = getTab(proposal.tabType as OwnerOSTabType);
+      if (descriptor) {
+        spawnFromDescriptor(
+          descriptor,
+          (proposal.config as OwnerOSTabContext) ?? {},
+        );
+      }
+      setProposals((prev) =>
+        prev.filter((p) => p.proposalId !== proposal.proposalId),
+      );
+    },
+    [spawnFromDescriptor],
+  );
+
+  const dismissProposal = useCallback((proposalId: string) => {
+    setProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+  }, []);
+
+  const dismissTabError = useCallback((key: string) => {
+    setTabErrors((prev) => prev.filter((e) => e.key !== key));
+  }, []);
 
   // ──────────────────────────────────────────────────────────────────
   // Closing — also record recent-closed for Cmd+Shift+T reopen.
@@ -289,10 +376,10 @@ export function OwnerOSShell({
         }
         return;
       }
-      // Cmd+1..9 → focus tab N
+      // Cmd+1..9 → focus tab N (in the visible, adaptively-ordered strip)
       const n = Number.parseInt(e.key, 10);
       if (Number.isInteger(n) && n >= 1 && n <= 9) {
-        const target = tabs[n - 1];
+        const target = orderedTabs[n - 1];
         if (target) {
           e.preventDefault();
           focus(target.id);
@@ -301,7 +388,14 @@ export function OwnerOSShell({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeTabId, closeAndRemember, focus, recentClosed, reopenRecent, tabs]);
+  }, [
+    activeTabId,
+    closeAndRemember,
+    focus,
+    recentClosed,
+    reopenRecent,
+    orderedTabs,
+  ]);
 
   // ──────────────────────────────────────────────────────────────────
   // Active panel renderer.
@@ -413,7 +507,7 @@ export function OwnerOSShell({
         className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-surface/50 px-3 py-2"
         data-testid="owner-os-tab-strip"
       >
-        {tabs.map((t) => {
+        {orderedTabs.map((t) => {
           const Icon = stripIcon(t.kind);
           const dot = dotFor(t);
           return (
@@ -514,6 +608,92 @@ export function OwnerOSShell({
               {entry.tab.title}
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {proposals.length > 0 || tabErrors.length > 0 ? (
+        <div
+          data-testid="owner-os-proposal-tray"
+          className="flex flex-col gap-2 px-3"
+        >
+          {proposals.map((p) => {
+            const reason =
+              languagePreference === 'sw' && p.reasonSw
+                ? p.reasonSw
+                : p.reasonEn;
+            const title =
+              (languagePreference === 'sw' && p.titleSw) ||
+              (languagePreference === 'en' && p.titleEn) ||
+              p.title;
+            return (
+              <div
+                key={p.proposalId}
+                data-testid={`owner-os-proposal-${p.proposalId}`}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2"
+              >
+                <Sparkles
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5 shrink-0 text-warning"
+                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-semibold text-warning">
+                    {title}
+                  </span>
+                  <span className="truncate text-tiny text-neutral-400">
+                    {reason}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => acceptProposal(p)}
+                  data-testid={`owner-os-proposal-accept-${p.proposalId}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
+                >
+                  <Check aria-hidden="true" className="h-3 w-3" />
+                  {languagePreference === 'sw' ? 'Kubali' : 'Open'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissProposal(p.proposalId)}
+                  aria-label={
+                    languagePreference === 'sw'
+                      ? 'Ondoa pendekezo'
+                      : 'Dismiss proposal'
+                  }
+                  className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+                >
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
+          {tabErrors.map(({ key, payload }) => {
+            const reason =
+              languagePreference === 'sw' ? payload.reasonSw : payload.reasonEn;
+            return (
+              <div
+                key={key}
+                data-testid="owner-os-tab-error"
+                className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2"
+              >
+                <AlertCircle
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5 shrink-0 text-destructive"
+                />
+                <span className="min-w-0 flex-1 truncate text-tiny text-neutral-300">
+                  {reason}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => dismissTabError(key)}
+                  aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                  className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+                >
+                  <X aria-hidden="true" className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 

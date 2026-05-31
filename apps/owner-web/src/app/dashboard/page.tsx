@@ -275,6 +275,9 @@ export default async function OwnerDashboardPage() {
           salutation={session.salutation}
           tradingName={session.tenant.legalName ?? 'Borjie'}
           languagePreference={session.languagePreference}
+          tenantId={session.tenant.id}
+          userId={session.userId}
+          role={session.role}
         />
       </section>
 

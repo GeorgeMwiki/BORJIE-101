@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ShieldCheck, AlertTriangle, Zap } from 'lucide-react';
 import {
   getTab,
   ownerOsSpawnBatchSchema,
@@ -54,7 +54,21 @@ import { InlineBlockRenderer } from './inline-blocks/InlineBlockRenderer';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
-import { BorjieDynamicHints } from './BorjieDynamicHints';
+import {
+  BorjieDynamicHints,
+  type BorjieAffectiveProfile,
+} from './BorjieDynamicHints';
+import {
+  normaliseAffectiveProfile,
+  normaliseDebateBadge,
+  normaliseBrainStateBadge,
+  normaliseAutoAuthorized,
+  type DebateBadge,
+  type BrainStateBadge,
+  type AutoAuthorizedBadge,
+} from './teach-sse-normalisers';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 import {
   appendBoardElement,
   boardElementSchema,
@@ -125,6 +139,10 @@ interface TeachMessage {
   readonly createdAt: string;
   /** OwnerOS spawn-tab candidates emitted by the brain (max 3). */
   readonly spawnTabs: ReadonlyArray<OwnerOSSpawnIntent>;
+  // Wave SUPERPOWERS - trust signals rendered above/under the bubble.
+  readonly debate: DebateBadge | null;
+  readonly brainState: BrainStateBadge | null;
+  readonly autoAuthorized: AutoAuthorizedBadge | null;
   // Wave SUPERPOWERS - 6 chip families the brain may emit per turn.
   readonly navigates: ReadonlyArray<UiNavigateChip>;
   readonly prefills: ReadonlyArray<UiPrefillChip>;
@@ -230,6 +248,12 @@ export function HomeChatTeach({
   const [errored, setErrored] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [lessonStep, setLessonStep] = useState(1);
+  // Wave SUPERPOWERS (UI-2): the live Theory-of-Mind read from the brain
+  // stream. Fed straight into <BorjieDynamicHints> so <ProactiveHint>
+  // can decide whether to surface a handoff / simpler / safety / idle
+  // hint. Null until the first `affective_profile` frame lands.
+  const [affectiveProfile, setAffectiveProfile] =
+    useState<BorjieAffectiveProfile | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -260,6 +284,9 @@ export function HomeChatTeach({
         shares: [],
         bulks: [],
         bookmarks: [],
+        debate: null,
+        brainState: null,
+        autoAuthorized: null,
         streaming: false,
         errored: false,
         errorMessage: null,
@@ -282,6 +309,9 @@ export function HomeChatTeach({
         shares: [],
         bulks: [],
         bookmarks: [],
+        debate: null,
+        brainState: null,
+        autoAuthorized: null,
         streaming: true,
         errored: false,
         errorMessage: null,
@@ -520,6 +550,46 @@ export function HomeChatTeach({
                   ),
                 );
               }
+            } else if (frame.event === 'debate_metadata') {
+              // Wave SUPERPOWERS (trust): a high-stakes turn ran the
+              // multi-model debate. Surface "Verified ✓ N-model" above
+              // the bubble as soon as the first token paints.
+              const badge = normaliseDebateBadge(payload);
+              if (badge) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, debate: badge } : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'brain_state') {
+              // Degraded-brain pill — only when the provider ladder
+              // failed on the last 2+ turns. Healthy turns omit it.
+              const badge = normaliseBrainStateBadge(payload);
+              if (badge) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, brainState: badge } : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'auto_authorized') {
+              // The brain executed a low-risk action without a
+              // confirmation gate; surface the rationale so it is never
+              // invisible to the owner (audit row written server-side).
+              const badge = normaliseAutoAuthorized(payload);
+              if (badge) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, autoAuthorized: badge } : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'affective_profile') {
+              // Wave SUPERPOWERS (UI-2): the live Theory-of-Mind read.
+              // Feeds <BorjieDynamicHints> → <ProactiveHint>.
+              const prof = normaliseAffectiveProfile(payload);
+              if (prof) setAffectiveProfile(prof);
             } else if (isTabSseEvent(frame.event)) {
               // Brain-driven cockpit tab action — forward the raw frame
               // UP to OwnerOSShell so its single `useOwnerTabs()` store
@@ -587,6 +657,7 @@ export function HomeChatTeach({
     setErrored(false);
     setLastError(null);
     setLessonStep(1);
+    setAffectiveProfile(null);
   }, []);
 
   const emptyKind = resolveEmptyKind({
@@ -603,6 +674,30 @@ export function HomeChatTeach({
       void send(text);
     },
     [send],
+  );
+
+  // Locale-resolved translator bound to the SAME source the rest of this
+  // surface uses (the `languagePreference` prop) — so t() strings and the
+  // file's existing copy can never disagree (zero EN/SW mixing).
+  const t = useMemo(
+    () => makeT(dictionaries[languagePreference]),
+    [languagePreference],
+  );
+
+  // Wave SUPERPOWERS (UI-2): translate a ProactiveHint CTA emit into a
+  // follow-up turn so the hint's button is never a dead click. The
+  // canonical Theory-of-Mind emits map to a localised owner message.
+  const handleHintAction = useCallback(
+    (_hintId: string, action: string) => {
+      const keyByAction: Record<string, string> = {
+        'borjie:handoff:human': 'teach.hintHandoff',
+        'borjie:explain:simpler': 'teach.hintSimpler',
+        'borjie:teach:cmdk': 'teach.hintCmdk',
+      };
+      const key = keyByAction[action];
+      if (key) onSuggestion(t(key));
+    },
+    [onSuggestion, t],
   );
 
   // Snippet extraction for the ambient SuggestedTabBanner. Pulls the
@@ -756,7 +851,11 @@ export function HomeChatTeach({
             onSubmit={(content) => void send(content)}
           />
         </section>
-        <BorjieDynamicHints language={languagePreference} />
+        <BorjieDynamicHints
+          language={languagePreference}
+          affectiveProfile={affectiveProfile}
+          onHintAction={handleHintAction}
+        />
       </div>
     </div>
   );
@@ -780,6 +879,10 @@ function TeachBubble({
   onSpawnTab,
 }: TeachBubbleProps): ReactElement {
   const isOwner = message.role === 'user';
+  const t = useMemo(
+    () => makeT(dictionaries[languagePreference]),
+    [languagePreference],
+  );
 
   return (
     <div className="space-y-2">
@@ -795,6 +898,43 @@ function TeachBubble({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {!isOwner && (message.debate || message.brainState) ? (
+        <div
+          data-testid="teach-trust-badges"
+          className="flex flex-wrap items-center gap-1.5 pl-10"
+        >
+          {message.debate ? (
+            <span
+              data-testid="teach-badge-verified"
+              className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-tiny font-medium text-success"
+              {...(message.debate.winnerModel
+                ? {
+                    title: `${message.debate.winnerProvider} · ${message.debate.winnerModel}`,
+                  }
+                : {})}
+            >
+              <ShieldCheck aria-hidden="true" className="h-3 w-3" />
+              {message.debate.verified
+                ? t('teach.trustVerified', {
+                    count: message.debate.contenders,
+                  })
+                : t('teach.trustDebate', {
+                    count: message.debate.contenders,
+                  })}
+            </span>
+          ) : null}
+          {message.brainState ? (
+            <span
+              data-testid="teach-badge-degraded"
+              className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning"
+            >
+              <AlertTriangle aria-hidden="true" className="h-3 w-3" />
+              {message.brainState.label}
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       <MessageBubble
@@ -934,6 +1074,30 @@ function TeachBubble({
           </p>
         ) : null}
       </MessageBubble>
+
+      {!isOwner && message.autoAuthorized ? (
+        <div
+          data-testid="teach-auto-authorized"
+          className="ml-10 flex max-w-2xl items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-3 py-2"
+        >
+          <Zap
+            aria-hidden="true"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-info"
+          />
+          <div className="flex flex-col gap-0.5">
+            <p className="text-tiny font-semibold uppercase tracking-wide text-info">
+              {t('teach.autoAuthorized')}
+              {' · '}
+              {message.autoAuthorized.action}
+            </p>
+            {message.autoAuthorized.rationale ? (
+              <p className="text-tiny text-neutral-300">
+                {message.autoAuthorized.rationale}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {!isOwner && isLatestAssistant && message.suggestedActions.length > 0 ? (
         <QuickReplyChips
