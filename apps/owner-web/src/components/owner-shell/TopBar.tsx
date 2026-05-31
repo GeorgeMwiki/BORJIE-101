@@ -7,6 +7,8 @@ import { useMemo } from 'react';
 import { cn, ThemeToggle } from '@borjie/design-system';
 import { LanguageToggle } from '../LanguageToggle';
 import { SignOutButton } from '../SignOutButton';
+import { useT } from '@/i18n/t.client';
+import type { TFn } from '@/i18n/resolve';
 
 /**
  * TopBar — owner-portal sticky header.
@@ -19,35 +21,37 @@ import { SignOutButton } from '../SignOutButton';
  * widget mount, so any route can open the conversational surface.
  */
 
-const SEGMENT_LABELS: Readonly<Record<string, { en: string; sw: string }>> = {
-  '': { en: 'Home', sw: 'Nyumbani' },
-  dashboard: { en: 'Dashboard', sw: 'Dashibodi' },
-  cockpit: { en: 'Cockpit', sw: 'Mkurugenzi' },
-  'master-brain': { en: 'Master Brain', sw: 'Akili Kuu' },
-  lmbm: { en: 'LMBM', sw: 'Ramani ya Biashara' },
-  ask: { en: 'Ask Borjie', sw: 'Uliza Borjie' },
-  'portfolio-map': { en: 'Portfolio map', sw: 'Ramani ya kampuni' },
-  sites: { en: 'Sites', sw: 'Migodi' },
-  'site-cockpit': { en: 'Site cockpit', sw: 'Kituo cha mgodi' },
-  licences: { en: 'Licences', sw: 'Leseni' },
-  licence: { en: 'Licence', sw: 'Leseni' },
-  documents: { en: 'Documents', sw: 'Hati' },
-  'document-intelligence': { en: 'Document intelligence', sw: 'Akili ya hati' },
-  people: { en: 'People', sw: 'Watu' },
-  fleet: { en: 'Fleet', sw: 'Magari' },
-  inventory: { en: 'Inventory', sw: 'Bidhaa' },
-  geology: { en: 'Geology', sw: 'Jiolojia' },
-  finance: { en: 'Finance', sw: 'Gharama' },
-  sales: { en: 'Sales', sw: 'Mauzo' },
-  treasury: { en: 'Treasury', sw: 'Hazina' },
-  marketplace: { en: 'Marketplace', sw: 'Soko' },
-  compliance: { en: 'Compliance', sw: 'Uzingatiaji' },
-  safety: { en: 'Safety', sw: 'Usalama' },
-  community: { en: 'Community', sw: 'Jamii' },
-  reports: { en: 'Reports', sw: 'Ripoti' },
-  group: { en: 'Group view', sw: 'Kampuni nyingi' },
-  onboarding: { en: 'Onboarding', sw: 'Kuanza' },
-  settings: { en: 'Settings', sw: 'Mipangilio' },
+// Path segment → dictionary key. Segments missing here fall back to a
+// humanised English-ish label (path text, locale-neutral).
+const SEGMENT_KEYS: Readonly<Record<string, string>> = {
+  '': 'nav.home',
+  dashboard: 'nav.dashboard',
+  cockpit: 'nav.cockpit',
+  'master-brain': 'nav.masterBrain',
+  lmbm: 'nav.lmbm',
+  ask: 'nav.ask',
+  'portfolio-map': 'nav.portfolioMap',
+  sites: 'nav.sites',
+  'site-cockpit': 'nav.siteCockpit',
+  licences: 'nav.licences',
+  licence: 'nav.licence',
+  documents: 'nav.documents',
+  'document-intelligence': 'nav.documentIntelligence',
+  people: 'nav.people',
+  fleet: 'nav.fleet',
+  inventory: 'nav.inventory',
+  geology: 'nav.geology',
+  finance: 'nav.finance',
+  sales: 'nav.sales',
+  treasury: 'nav.treasury',
+  marketplace: 'nav.marketplace',
+  compliance: 'nav.compliance',
+  safety: 'nav.safety',
+  community: 'nav.community',
+  reports: 'nav.reports',
+  group: 'nav.groupView',
+  onboarding: 'nav.onboarding',
+  settings: 'nav.settings',
 };
 
 function humanise(segment: string): string {
@@ -57,17 +61,16 @@ function humanise(segment: string): string {
     .join(' ');
 }
 
-function buildCrumbs(pathname: string | null, lang: 'sw' | 'en') {
+function buildCrumbs(pathname: string | null, t: TFn) {
   const segments = (pathname ?? '/').split('/').filter(Boolean);
   if (segments.length === 0) {
-    const root = SEGMENT_LABELS[''];
-    return [{ label: lang === 'sw' ? root!.sw : root!.en, href: '/' }];
+    return [{ label: t('nav.home'), href: '/' }];
   }
   let trail = '';
   return segments.map((segment) => {
     trail += `/${segment}`;
-    const known = SEGMENT_LABELS[segment];
-    const label = known ? (lang === 'sw' ? known.sw : known.en) : humanise(segment);
+    const key = SEGMENT_KEYS[segment];
+    const label = key ? t(key) : humanise(segment);
     return { label, href: trail };
   });
 }
@@ -80,10 +83,8 @@ interface TopBarProps {
 
 export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps) {
   const pathname = usePathname();
-  const crumbs = useMemo(
-    () => buildCrumbs(pathname, languagePreference),
-    [pathname, languagePreference],
-  );
+  const t = useT();
+  const crumbs = useMemo(() => buildCrumbs(pathname, t), [pathname, t]);
   const initials = useMemo(
     () =>
       fullName
@@ -109,7 +110,7 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
       )}
     >
       {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
+      <nav aria-label={t('common.breadcrumb')} className="flex min-w-0 items-center gap-2 text-sm">
         <ol className="flex min-w-0 items-center gap-1.5">
           {crumbs.map((crumb, idx) => {
             const last = idx === crumbs.length - 1;
@@ -150,12 +151,12 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
           )}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          {languagePreference === 'sw' ? 'Uliza Borjie' : 'Ask Borjie'}
+          {t('nav.ask')}
         </button>
 
         <button
           type="button"
-          aria-label="Notifications"
+          aria-label={t('nav.notifications')}
           className="relative rounded-xl p-2 text-neutral-400 hover:bg-surface hover:text-foreground"
         >
           <Bell className="h-4 w-4" />

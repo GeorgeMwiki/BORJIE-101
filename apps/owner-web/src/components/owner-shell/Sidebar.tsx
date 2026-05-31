@@ -33,6 +33,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Logomark } from '@borjie/design-system';
 import { cn } from '@borjie/design-system';
+import { useT } from '@/i18n/t.client';
 
 /**
  * Owner-web sidebar — LitFin borrower-portal pattern adapted to Borjie.
@@ -53,104 +54,80 @@ import { cn } from '@borjie/design-system';
  */
 
 interface NavItem {
-  readonly label: string;
-  readonly labelSw: string;
+  readonly labelKey: string;
   readonly href: string;
   readonly icon: LucideIcon;
 }
 
 interface NavSection {
-  readonly heading: string;
-  readonly headingSw: string;
+  readonly headingKey: string;
   readonly items: ReadonlyArray<NavItem>;
 }
 
 const SECTIONS: ReadonlyArray<NavSection> = [
   {
-    heading: 'Overview',
-    headingSw: 'Muonekano',
+    headingKey: 'nav.sectionOverview',
     items: [
-      { label: 'Home', labelSw: 'Nyumbani', href: '/', icon: Home },
-      { label: 'Dashboard', labelSw: 'Dashibodi', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Cockpit', labelSw: 'Mkurugenzi', href: '/cockpit', icon: BarChart3 },
-      { label: 'Master Brain', labelSw: 'Akili Kuu', href: '/master-brain', icon: Brain },
-      { label: 'LMBM', labelSw: 'Ramani ya Biashara', href: '/lmbm', icon: Network },
-      { label: 'Ask Borjie', labelSw: 'Uliza Borjie', href: '/ask', icon: MessageCircle },
+      { labelKey: 'nav.home', href: '/', icon: Home },
+      { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { labelKey: 'nav.cockpit', href: '/cockpit', icon: BarChart3 },
+      { labelKey: 'nav.masterBrain', href: '/master-brain', icon: Brain },
+      { labelKey: 'nav.lmbm', href: '/lmbm', icon: Network },
+      { labelKey: 'nav.ask', href: '/ask', icon: MessageCircle },
     ],
   },
   {
-    heading: 'Field',
-    headingSw: 'Shambani',
+    headingKey: 'nav.sectionField',
     items: [
-      { label: 'Portfolio map', labelSw: 'Ramani', href: '/portfolio-map', icon: Map },
-      { label: 'Sites', labelSw: 'Migodi', href: '/sites', icon: Mountain },
-      { label: 'Site cockpit', labelSw: 'Kituo cha mgodi', href: '/site-cockpit', icon: Layers },
-      { label: 'Licences', labelSw: 'Leseni', href: '/licences', icon: FileCheck },
-      { label: 'Documents', labelSw: 'Hati', href: '/documents', icon: FileText },
-      { label: 'People', labelSw: 'Watu', href: '/people', icon: Users },
-      { label: 'Workforce tabs', labelSw: `Tabo za ${'wafanya' + 'kazi'}`, href: '/workforce-tabs', icon: Users },
+      { labelKey: 'nav.portfolioMap', href: '/portfolio-map', icon: Map },
+      { labelKey: 'nav.sites', href: '/sites', icon: Mountain },
+      { labelKey: 'nav.siteCockpit', href: '/site-cockpit', icon: Layers },
+      { labelKey: 'nav.licences', href: '/licences', icon: FileCheck },
+      { labelKey: 'nav.documents', href: '/documents', icon: FileText },
+      { labelKey: 'nav.people', href: '/people', icon: Users },
+      { labelKey: 'nav.workforceTabs', href: '/workforce-tabs', icon: Users },
     ],
   },
   {
-    heading: 'Operations',
-    headingSw: 'Uendeshaji',
+    headingKey: 'nav.sectionOperations',
     items: [
-      { label: 'Fleet', labelSw: 'Magari', href: '/fleet', icon: Truck },
-      { label: 'Inventory', labelSw: 'Bidhaa', href: '/inventory', icon: Package },
-      { label: 'Geology', labelSw: 'Jiolojia', href: '/geology', icon: TestTubes },
-      {
-        label: 'Counterparties',
-        labelSw: 'Washirika wa Nje',
-        href: '/counterparties',
-        icon: Building2,
-      },
-      {
-        label: 'Chain of custody',
-        labelSw: 'Mlolongo wa Mali',
-        href: '/chain-of-custody',
-        icon: LinkIcon,
-      },
+      { labelKey: 'nav.fleet', href: '/fleet', icon: Truck },
+      { labelKey: 'nav.inventory', href: '/inventory', icon: Package },
+      { labelKey: 'nav.geology', href: '/geology', icon: TestTubes },
+      { labelKey: 'nav.counterparties', href: '/counterparties', icon: Building2 },
+      { labelKey: 'nav.chainOfCustody', href: '/chain-of-custody', icon: LinkIcon },
     ],
   },
   {
-    heading: 'Money',
-    headingSw: 'Fedha',
+    headingKey: 'nav.sectionMoney',
     items: [
-      { label: 'Finance', labelSw: 'Gharama', href: '/finance', icon: Calculator },
-      { label: 'Sales', labelSw: 'Mauzo', href: '/sales', icon: TrendingUp },
-      { label: 'Treasury', labelSw: 'Hazina', href: '/treasury', icon: TrendingUp },
-      { label: 'Marketplace', labelSw: 'Soko', href: '/marketplace', icon: Store },
+      { labelKey: 'nav.finance', href: '/finance', icon: Calculator },
+      { labelKey: 'nav.sales', href: '/sales', icon: TrendingUp },
+      { labelKey: 'nav.treasury', href: '/treasury', icon: TrendingUp },
+      { labelKey: 'nav.marketplace', href: '/marketplace', icon: Store },
     ],
   },
   {
-    heading: 'Compliance',
-    headingSw: 'Uzingatiaji',
+    headingKey: 'nav.sectionCompliance',
     items: [
-      { label: 'Compliance', labelSw: 'Uzingatiaji', href: '/compliance', icon: ShieldCheck },
-      { label: 'Safety', labelSw: 'Usalama', href: '/safety', icon: HardHat },
-      {
-        label: 'Regulator calendar',
-        labelSw: 'Kalenda ya Wakaguzi',
-        href: '/regulatory-calendar',
-        icon: Scale,
-      },
+      { labelKey: 'nav.compliance', href: '/compliance', icon: ShieldCheck },
+      { labelKey: 'nav.safety', href: '/safety', icon: HardHat },
+      { labelKey: 'nav.regulatorCalendar', href: '/regulatory-calendar', icon: Scale },
     ],
   },
   {
-    heading: 'Community',
-    headingSw: 'Jamii',
+    headingKey: 'nav.sectionCommunity',
     items: [
-      { label: 'Community', labelSw: 'Jamii', href: '/community', icon: HeartHandshake },
+      { labelKey: 'nav.community', href: '/community', icon: HeartHandshake },
     ],
   },
   {
-    heading: 'Settings',
-    headingSw: 'Mipangilio',
+    headingKey: 'nav.sectionSettings',
     items: [
-      { label: 'Reports', labelSw: 'Ripoti', href: '/reports', icon: BarChart3 },
-      { label: 'Group view', labelSw: 'Kampuni nyingi', href: '/group', icon: Layers },
-      { label: 'Onboarding', labelSw: 'Kuanza', href: '/onboarding', icon: Sparkles },
-      { label: 'Settings', labelSw: 'Mipangilio', href: '/settings', icon: Settings },
+      { labelKey: 'nav.reports', href: '/reports', icon: BarChart3 },
+      { labelKey: 'nav.groupView', href: '/group', icon: Layers },
+      { labelKey: 'nav.onboarding', href: '/onboarding', icon: Sparkles },
+      { labelKey: 'nav.settings', href: '/settings', icon: Settings },
     ],
   },
 ];
@@ -163,12 +140,16 @@ function isItemActive(href: string, pathname: string | null): boolean {
 
 interface SidebarProps {
   readonly tenantName: string;
-  readonly languagePreference: 'sw' | 'en';
+  /**
+   * Retained for caller compatibility; the active locale now flows from
+   * the borjie_locale cookie via useT(), the single locale source.
+   */
+  readonly languagePreference?: 'sw' | 'en';
 }
 
-export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
+export function Sidebar({ tenantName }: SidebarProps) {
   const pathname = usePathname();
-  const isSw = languagePreference === 'sw';
+  const t = useT();
 
   return (
     <aside
@@ -185,7 +166,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
           <div className="leading-tight">
             <div className="text-sm font-semibold text-foreground">Borjie</div>
             <div className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
-              Owner Cockpit
+              {t('nav.ownerCockpit')}
             </div>
           </div>
         </Link>
@@ -195,7 +176,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
       <div className="px-5 pt-4 pb-2">
         <div className="rounded-xl border border-border/60 bg-surface/60 px-3 py-2.5">
           <div className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
-            {isSw ? 'Kampuni' : 'Tenant'}
+            {t('nav.tenant')}
           </div>
           <div className="mt-0.5 truncate text-sm font-medium text-foreground">
             {tenantName}
@@ -204,12 +185,12 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
       </div>
 
       {/* Nav scroll area */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label="Owner navigation">
+      <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label={t('common.ownerNavigation')}>
         {SECTIONS.map((section) => (
-          <div key={section.heading} className="mb-4">
+          <div key={section.headingKey} className="mb-4">
             <div className="flex items-center gap-3 px-3 mt-3 mb-2">
               <span className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
-                {isSw ? section.headingSw : section.heading}
+                {t(section.headingKey)}
               </span>
               <div className="flex-1 border-t border-dashed border-border/60" />
             </div>
@@ -245,9 +226,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
                       >
                         <Icon className="h-chip w-chip" />
                       </span>
-                      <span className="flex-1 truncate">
-                        {isSw ? item.labelSw : item.label}
-                      </span>
+                      <span className="flex-1 truncate">{t(item.labelKey)}</span>
                     </Link>
                   </li>
                 );

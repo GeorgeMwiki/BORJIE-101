@@ -47,6 +47,6 @@ describe('locale purity — owner-web hardcoded Swahili guard', () => {
 
   it('has a baseline that only shrinks (documents current debt)', () => {
     // Tripwire on the count so a reviewer sees the ledger size move.
-    expect(SWAHILI_LEAK_ALLOWLIST.length).toBeLessThanOrEqual(108);
+    expect(SWAHILI_LEAK_ALLOWLIST.length).toBeLessThanOrEqual(106);
   });
 });

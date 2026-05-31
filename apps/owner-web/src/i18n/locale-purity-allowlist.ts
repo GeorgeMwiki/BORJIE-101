@@ -7,8 +7,8 @@
  * guard test fails if a listed file no longer leaks (stale entry) or if
  * an unlisted file starts leaking (new mixing). Target: [].
  *
- * Baseline 2026-05-31 (116). Migrated: sign-in + signup + dashboard page
- * → 108. Do not add new entries to silence the guard — migrate instead.
+ * Baseline 2026-05-31 (116). Migrated: entry trio + shell chrome
+ * (Sidebar/TopBar) → 106. Do not add new entries to silence the guard.
  */
 
 export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
@@ -103,8 +103,6 @@ export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
   'components/owner-os/panels/TreasuryPanel.tsx',
   'components/owner-os/panels/WorkforcePanel.tsx',
   'components/owner-os/panels/builtin-descriptors.ts',
-  'components/owner-shell/Sidebar.tsx',
-  'components/owner-shell/TopBar.tsx',
   'components/people/PeopleSurface.tsx',
   'components/reports/strings.ts',
   'components/safety/SafetySurface.tsx',

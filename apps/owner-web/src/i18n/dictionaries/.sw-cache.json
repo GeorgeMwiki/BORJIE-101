@@ -383,42 +383,6 @@
     "h": "07d417d868a40276",
     "sw": "Hakuna cha kuonyesha bado."
   },
-  "nav.dashboard": {
-    "h": "67b696468610b879",
-    "sw": "Dashibodi"
-  },
-  "nav.cockpit": {
-    "h": "1b67e81f90c79eca",
-    "sw": "Kokpiti"
-  },
-  "nav.finance": {
-    "h": "b696d75511dc16f2",
-    "sw": "Fedha"
-  },
-  "nav.treasury": {
-    "h": "6ae05dcd77b98876",
-    "sw": "Hazina"
-  },
-  "nav.workforce": {
-    "h": "aa3b88196a6407c3",
-    "sw": "Wafanyakazi"
-  },
-  "nav.compliance": {
-    "h": "4a109cc49467be33",
-    "sw": "Uzingatiaji"
-  },
-  "nav.marketplace": {
-    "h": "c608981d8d68fa4f",
-    "sw": "Soko"
-  },
-  "nav.settings": {
-    "h": "74a883a037bc227f",
-    "sw": "Mipangilio"
-  },
-  "nav.notifications": {
-    "h": "788011833a5a0f22",
-    "sw": "Arifa"
-  },
   "dashboard.eyebrow": {
     "h": "5a0c2ffb334b12e9",
     "sw": "Kokpiti ya leo"
@@ -606,5 +570,181 @@
   "dashboard.liveBrief": {
     "h": "b539db28606a1255",
     "sw": "Muhtasari wa moja kwa moja"
+  },
+  "nav.tenant": {
+    "h": "e23969d284c3424c",
+    "sw": "Mpangaji"
+  },
+  "nav.ownerCockpit": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
+  },
+  "nav.sectionOverview": {
+    "h": "d4b1ea5708dd5329",
+    "sw": "Muhtasari"
+  },
+  "nav.sectionField": {
+    "h": "f45fc1dfdc96db27",
+    "sw": "Shamba"
+  },
+  "nav.sectionOperations": {
+    "h": "358cc201f87d9dc9",
+    "sw": "Uendeshaji"
+  },
+  "nav.sectionMoney": {
+    "h": "5ccc2e8715d7a17c",
+    "sw": "Fedha"
+  },
+  "nav.sectionCompliance": {
+    "h": "4a109cc49467be33",
+    "sw": "Uzingatiaji"
+  },
+  "nav.sectionCommunity": {
+    "h": "bb501d7877eb7ddb",
+    "sw": "Jamii"
+  },
+  "nav.sectionSettings": {
+    "h": "74a883a037bc227f",
+    "sw": "Mipangilio"
+  },
+  "nav.home": {
+    "h": "3a78695388b38b5c",
+    "sw": "Nyumbani"
+  },
+  "nav.dashboard": {
+    "h": "67b696468610b879",
+    "sw": "Dashibodi"
+  },
+  "nav.cockpit": {
+    "h": "1b67e81f90c79eca",
+    "sw": "Kokpiti"
+  },
+  "nav.masterBrain": {
+    "h": "445cb87a91cae895",
+    "sw": "Akili Kuu"
+  },
+  "nav.lmbm": {
+    "h": "58fb2eea3ddb1202",
+    "sw": "LMBM"
+  },
+  "nav.ask": {
+    "h": "56f69ae3d3b7c263",
+    "sw": "Uliza Borjie"
+  },
+  "nav.portfolioMap": {
+    "h": "ce6c68223de07c7e",
+    "sw": "Ramani ya mkusanyiko"
+  },
+  "nav.sites": {
+    "h": "9d7690937436d9e3",
+    "sw": "Maeneo"
+  },
+  "nav.siteCockpit": {
+    "h": "c7bee31eb4e00bbb",
+    "sw": "Kokpiti ya eneo"
+  },
+  "nav.licences": {
+    "h": "c00fc4b3662701d8",
+    "sw": "Leseni"
+  },
+  "nav.licence": {
+    "h": "f3ec8e880a46c8a6",
+    "sw": "Leseni"
+  },
+  "nav.documents": {
+    "h": "b4e929d8bcfe0418",
+    "sw": "Hati"
+  },
+  "nav.documentIntelligence": {
+    "h": "236e4a090d2f2d9b",
+    "sw": "Akili ya hati"
+  },
+  "nav.people": {
+    "h": "7db20897053bb278",
+    "sw": "Watu"
+  },
+  "nav.workforceTabs": {
+    "h": "280e5e59c057d644",
+    "sw": "Vichupo vya wafanyakazi"
+  },
+  "nav.fleet": {
+    "h": "2bb4f92ced331c66",
+    "sw": "Magari"
+  },
+  "nav.inventory": {
+    "h": "758f487fe8e9fcc5",
+    "sw": "Hesabu ya mali"
+  },
+  "nav.geology": {
+    "h": "54cda0543a402949",
+    "sw": "Jiolojia"
+  },
+  "nav.counterparties": {
+    "h": "19ca7eb217bab90f",
+    "sw": "Washirika"
+  },
+  "nav.chainOfCustody": {
+    "h": "6bdbbca0d11a3eb2",
+    "sw": "Mnyororo wa ulinzi"
+  },
+  "nav.finance": {
+    "h": "b696d75511dc16f2",
+    "sw": "Fedha"
+  },
+  "nav.sales": {
+    "h": "8de4e0ea7370e4e6",
+    "sw": "Mauzo"
+  },
+  "nav.treasury": {
+    "h": "6ae05dcd77b98876",
+    "sw": "Hazina"
+  },
+  "nav.marketplace": {
+    "h": "c608981d8d68fa4f",
+    "sw": "Soko"
+  },
+  "nav.compliance": {
+    "h": "4a109cc49467be33",
+    "sw": "Uzingatiaji"
+  },
+  "nav.safety": {
+    "h": "726d11bd5b230253",
+    "sw": "Usalama"
+  },
+  "nav.regulatorCalendar": {
+    "h": "b4669852e2588924",
+    "sw": "Kalenda ya udhibiti"
+  },
+  "nav.community": {
+    "h": "bb501d7877eb7ddb",
+    "sw": "Jamii"
+  },
+  "nav.reports": {
+    "h": "dacca3cba3f346a4",
+    "sw": "Ripoti"
+  },
+  "nav.groupView": {
+    "h": "38692904a3397171",
+    "sw": "Mwonekano wa kikundi"
+  },
+  "nav.onboarding": {
+    "h": "a2198f472ce2fbee",
+    "sw": "Uanzishaji"
+  },
+  "nav.settings": {
+    "h": "74a883a037bc227f",
+    "sw": "Mipangilio"
+  },
+  "nav.notifications": {
+    "h": "788011833a5a0f22",
+    "sw": "Arifa"
+  },
+  "common.breadcrumb": {
+    "h": "2bd873d6c734e63e",
+    "sw": "Njia ya kurudi"
+  },
+  "common.ownerNavigation": {
+    "h": "ff51992669dc9fd6",
+    "sw": "Urambazaji wa mmiliki"
   }
 }
