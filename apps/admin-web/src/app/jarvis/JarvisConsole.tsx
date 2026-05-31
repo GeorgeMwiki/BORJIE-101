@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { createBorjieClient, createJarvisClient } from '@borjie/api-sdk';
 import {
   MicButton,
@@ -198,6 +199,7 @@ export function JarvisConsole(): JSX.Element {
       headers: {
         'content-type': 'application/json',
         Authorization: `Bearer ${readBearerFromCookie()}`,
+        ...getCsrfHeaders(),
       },
       body: JSON.stringify(body),
     });

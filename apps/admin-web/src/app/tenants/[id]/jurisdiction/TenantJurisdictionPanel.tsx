@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 // ─── Allowed target countries (mirror of JC-7 route enum) ─────────────
 
@@ -73,14 +74,14 @@ async function postPropose(
     {
       method: 'POST',
       credentials: 'include',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
       body: JSON.stringify(body),
     },
   );
   return {
     ok: res.ok,
     status: res.status,
-    message: res.ok ? undefined : await res.text(),
+    ...(res.ok ? {} : { message: await res.text() }),
   };
 }
 
@@ -97,14 +98,14 @@ async function postDecision(
     {
       method: 'POST',
       credentials: 'include',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...getCsrfHeaders() },
       body: JSON.stringify(decisionNote ? { decisionNote } : {}),
     },
   );
   return {
     ok: res.ok,
     status: res.status,
-    message: res.ok ? undefined : await res.text(),
+    ...(res.ok ? {} : { message: await res.text() }),
   };
 }
 

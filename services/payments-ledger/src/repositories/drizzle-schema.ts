@@ -31,6 +31,15 @@
  */
 
 import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import type { PgColumn, PgTableWithColumns } from 'drizzle-orm/pg-core';
+
+// Anchor the drizzle column/table types in this module so the
+// `declaration: true` build names the inferred `pgTable` export types via a
+// portable specifier instead of drizzle's internal `*.cjs` paths — fixes
+// TS2883 ("inferred type cannot be named") on the `statements` /
+// `disbursements` exports. Emit-only; the service does not re-export these.
+type _DrizzleEmitAnchor = PgColumn | PgTableWithColumns<never>;
+export type { _DrizzleEmitAnchor };
 
 // ────────────────────────────────────────────────────────────────────
 // accounts

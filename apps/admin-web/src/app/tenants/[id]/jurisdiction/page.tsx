@@ -19,11 +19,13 @@ import { TenantJurisdictionPanel } from './TenantJurisdictionPanel';
  * EN-only (admin-only surface per the brief). Tenant-facing copy is
  * bilingual sw/en in the brain disclosure prompt + cockpit pulse.
  */
-export default function TenantJurisdictionPage({
+export default async function TenantJurisdictionPage({
   params,
 }: {
-  readonly params: { readonly id: string };
-}): JSX.Element {
+  // Next.js 15: route params are async (a Promise) and must be awaited.
+  readonly params: Promise<{ readonly id: string }>;
+}): Promise<JSX.Element> {
+  const { id } = await params;
   return (
     <QueryProvider>
       <div className="space-y-6">
@@ -44,7 +46,7 @@ export default function TenantJurisdictionPage({
           </div>
         </header>
 
-        <TenantJurisdictionPanel tenantId={params.id} />
+        <TenantJurisdictionPanel tenantId={id} />
       </div>
     </QueryProvider>
   );

@@ -38,6 +38,7 @@ function stripCommentLines(src: string): string {
 }
 
 function listSourceFiles(dir: string, root: string, acc: string[]): void {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- trusted build-time scanner over the repo's own src tree (no user input)
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -61,6 +62,7 @@ export function findSwahiliLeaks(srcRoot: string): string[] {
   const files: string[] = [];
   listSourceFiles(srcRoot, srcRoot, files);
   const leaks = files.filter((rel) => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- trusted build-time scanner over the repo's own src tree (no user input)
     const code = stripCommentLines(readFileSync(join(srcRoot, rel), 'utf8'));
     return SWAHILI_TOKENS.test(code);
   });

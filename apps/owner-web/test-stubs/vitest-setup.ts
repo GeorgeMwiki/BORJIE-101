@@ -21,6 +21,9 @@ class ResizeObserverPolyfill {
 }
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
-  (globalThis as { ResizeObserver: typeof ResizeObserverPolyfill }).ResizeObserver =
-    ResizeObserverPolyfill;
+  // Double-cast through `unknown`: the polyfill is a structural stand-in,
+  // not assignable to the real ResizeObserver signature (jsdom has none).
+  (
+    globalThis as unknown as { ResizeObserver: typeof ResizeObserverPolyfill }
+  ).ResizeObserver = ResizeObserverPolyfill;
 }

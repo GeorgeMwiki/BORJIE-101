@@ -36,7 +36,7 @@ export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanva
     void (async () => {
       try {
         const mod = await import('react-map-gl');
-        await import('./MapboxCss.jsx').catch(() => undefined);
+        await import('./MapboxCss.js').catch(() => undefined);
         if (!cancelled) setMapModule(mod as unknown as typeof import('react-map-gl'));
       } catch {
         if (!cancelled) setMapModule(null);
