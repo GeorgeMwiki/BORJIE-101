@@ -95,77 +95,269 @@
     "h": "56f5df7be5c75cc6",
     "sw": "Haikuweza kufikia API ya Borjie."
   },
-  "auth.signUp.eyebrow": {
-    "h": "f9bbd2e991128909",
-    "sw": "Kokpiti ya Mmiliki"
+  "signup.page.heading": {
+    "h": "be333900d3605aad",
+    "sw": "Karibu Borjie."
   },
-  "auth.signUp.heading": {
-    "h": "06c57ace2af525b2",
-    "sw": "Unda mali yako"
+  "signup.page.subheading": {
+    "h": "cdab2992fd1723cd",
+    "sw": "Jisajili ili kuanza kusimamia shughuli zako za madini."
   },
-  "auth.signUp.subheading": {
-    "h": "9f44528f8d225918",
-    "sw": "Leta mali yako ya uchimbaji kwenye Borjie."
+  "signup.page.title": {
+    "h": "5e2b8e96503d722e",
+    "sw": "Jisajili"
   },
-  "auth.signUp.kindQuestion": {
-    "h": "fb0315d596e95aa9",
-    "sw": "Ni nani anayejisajili?"
+  "signup.wizard.stepsAriaLabel": {
+    "h": "906f29b621d6442f",
+    "sw": "Hatua za usajili"
   },
-  "auth.signUp.kindIndividual": {
-    "h": "652f2eeb30429c83",
-    "sw": "Mmiliki binafsi"
+  "signup.wizard.stepKind": {
+    "h": "baaddf70fb5d432b",
+    "sw": "Aina"
   },
-  "auth.signUp.kindIndividualHint": {
-    "h": "c5b081481890c216",
-    "sw": "Mmiliki wa leseni moja au mfanyakazi wa uchimbaji mdogo."
+  "signup.wizard.stepDetails": {
+    "h": "45989de49fb7f66d",
+    "sw": "Maelezo"
   },
-  "auth.signUp.kindBusiness": {
-    "h": "e501ae36bd53d7a6",
-    "sw": "Biashara iliyosajiliwa"
+  "signup.wizard.stepConfirm": {
+    "h": "eebdd24a77d9ad32",
+    "sw": "Thibitisha"
   },
-  "auth.signUp.kindBusinessHint": {
-    "h": "7493674f64df158e",
-    "sw": "Kampuni, ushirika, au taasisi iliyosajiliwa."
+  "signup.kind.question": {
+    "h": "793c4556f0fd1903",
+    "sw": "Ungependa kujisajili vipi?"
   },
-  "auth.signUp.contactHeading": {
-    "h": "2252bb21360b4a92",
-    "sw": "Maelezo yako ya mawasiliano"
+  "signup.kind.individualTitle": {
+    "h": "38b35d822748a565",
+    "sw": "Mimi ni mchimbaji binafsi"
   },
-  "auth.signUp.fullNameLabel": {
-    "h": "f13a64ba2fea87ef",
-    "sw": "Jina kamili"
+  "signup.kind.individualSubtitle": {
+    "h": "c7f79a92892d2c23",
+    "sw": "Mchimbaji wa ufundi au mmiliki wa PML moja."
   },
-  "auth.signUp.emailLabel": {
+  "signup.kind.individualBullet1": {
+    "h": "adb947e29e9fe089",
+    "sw": "Jina kamili na simu"
+  },
+  "signup.kind.individualBullet2": {
     "h": "969ccbd3cf6300ec",
     "sw": "Barua pepe"
   },
-  "auth.signUp.phoneLabel": {
-    "h": "306f1bb20677a622",
-    "sw": "Nambari ya simu"
+  "signup.kind.individualBullet3": {
+    "h": "482ed5bae064f87e",
+    "sw": "Nambari ya leseni (PML) — si lazima"
   },
-  "auth.signUp.businessNameLabel": {
-    "h": "a921756ed1ccfa2a",
-    "sw": "Jina la biashara"
+  "signup.kind.individualBullet4": {
+    "h": "efee4160b87a5582",
+    "sw": "Kitambulisho cha taifa cha NIDA — si lazima"
   },
-  "auth.signUp.registrationNumberLabel": {
-    "h": "5db87da7efd0b9dd",
-    "sw": "Nambari ya usajili"
+  "signup.kind.businessTitle": {
+    "h": "a90dcf3e497ed87f",
+    "sw": "Nina kampuni iliyosajiliwa"
   },
-  "auth.signUp.submit": {
-    "h": "2270d69c7c91212d",
-    "sw": "Unda mali"
+  "signup.kind.businessSubtitle": {
+    "h": "80fda1f75cc15aff",
+    "sw": "Kampuni iliyosajiliwa na BRELA au mmiliki wa PL/ML."
   },
-  "auth.signUp.submitting": {
-    "h": "c79ed9492e3c1719",
-    "sw": "Inaunda…"
+  "signup.kind.businessBullet1": {
+    "h": "d5e38559eab1af7d",
+    "sw": "Jina la kampuni + nambari ya BRELA"
   },
-  "auth.signUp.errorRequired": {
-    "h": "6876f12ea673f6b1",
-    "sw": "Sehemu hii inahitajika"
+  "signup.kind.businessBullet2": {
+    "h": "c27d4bcb9c6f21e9",
+    "sw": "Nambari ya TIN"
   },
-  "auth.signUp.errorInvalidEmail": {
+  "signup.kind.businessBullet3": {
+    "h": "c5dd79dcf1d27cef",
+    "sw": "Jina la mmiliki, simu, na barua pepe"
+  },
+  "signup.kind.businessBullet4": {
+    "h": "f6d53c86c2321d64",
+    "sw": "Nambari ya leseni (PML/PL/ML) — si lazima"
+  },
+  "signup.individual.heading": {
+    "h": "1a697bf8783bc0a9",
+    "sw": "Maelezo yako binafsi"
+  },
+  "signup.business.heading": {
+    "h": "a23510850386da77",
+    "sw": "Maelezo ya kampuni yako"
+  },
+  "signup.field.fullName": {
+    "h": "f13a64ba2fea87ef",
+    "sw": "Jina kamili"
+  },
+  "signup.field.country": {
+    "h": "701d021d08c54579",
+    "sw": "Nchi"
+  },
+  "signup.field.phone": {
+    "h": "63dceb8800b2dd4a",
+    "sw": "Simu"
+  },
+  "signup.field.email": {
+    "h": "969ccbd3cf6300ec",
+    "sw": "Barua pepe"
+  },
+  "signup.field.language": {
+    "h": "a4fe65264ef7dbb3",
+    "sw": "Lugha"
+  },
+  "signup.field.currency": {
+    "h": "3ac1a9ec4fa7a9fa",
+    "sw": "Sarafu"
+  },
+  "signup.field.miningLicence": {
+    "h": "b9ca4dda7fc20fcc",
+    "sw": "Leseni ya madini (PML)"
+  },
+  "signup.field.miningLicenceBusiness": {
+    "h": "bc99102ebd61425b",
+    "sw": "Leseni ya madini (PML/PL/ML)"
+  },
+  "signup.field.nationalId": {
+    "h": "962a745b99c6a285",
+    "sw": "Kitambulisho cha taifa cha NIDA"
+  },
+  "signup.field.orgName": {
+    "h": "6dfada13d2f4b97e",
+    "sw": "Jina la kampuni"
+  },
+  "signup.field.businessReg": {
+    "h": "ead6e99a3ea2d1e4",
+    "sw": "Nambari ya BRELA"
+  },
+  "signup.field.taxId": {
+    "h": "c27d4bcb9c6f21e9",
+    "sw": "Nambari ya TIN"
+  },
+  "signup.field.ownerName": {
+    "h": "b809f32054ecbeee",
+    "sw": "Jina la mmiliki"
+  },
+  "signup.field.ownerPhone": {
+    "h": "d4518028384dacac",
+    "sw": "Simu ya mmiliki"
+  },
+  "signup.field.ownerEmail": {
+    "h": "0d7a4b35a04732da",
+    "sw": "Barua pepe ya mmiliki"
+  },
+  "signup.field.vat": {
+    "h": "059b86b5341aeb70",
+    "sw": "Nambari ya VAT"
+  },
+  "signup.field.optional": {
+    "h": "0059798b7f7023e4",
+    "sw": "(si lazima)"
+  },
+  "signup.validation.fullNameRequired": {
+    "h": "db2237120629a68c",
+    "sw": "Jina kamili linahitajika"
+  },
+  "signup.validation.orgNameRequired": {
+    "h": "5006e8423f55e15a",
+    "sw": "Jina la kampuni linahitajika"
+  },
+  "signup.validation.brelaRequired": {
+    "h": "a3323bbb024a644e",
+    "sw": "Nambari ya BRELA inahitajika"
+  },
+  "signup.validation.tinRequired": {
+    "h": "53d8593e8b0d3ade",
+    "sw": "Nambari ya TIN inahitajika"
+  },
+  "signup.validation.ownerNameRequired": {
+    "h": "c1f69f50701900fe",
+    "sw": "Jina la mmiliki linahitajika"
+  },
+  "signup.validation.phoneInvalid": {
+    "h": "70a599d86136309b",
+    "sw": "Weka simu halali (mfano +255712345678)"
+  },
+  "signup.validation.emailInvalid": {
     "h": "c20ffba2f53079de",
-    "sw": "Weka anwani sahihi ya barua pepe"
+    "sw": "Weka barua pepe halali"
+  },
+  "signup.nav.back": {
+    "h": "9c47d2b08c231a16",
+    "sw": "‹ Rudi"
+  },
+  "signup.nav.next": {
+    "h": "632e53f128a3b286",
+    "sw": "Endelea ›"
+  },
+  "signup.nav.continue": {
+    "h": "31fbef162594de01",
+    "sw": "Endelea"
+  },
+  "signup.contact.heading": {
+    "h": "49bef24220a3c1ce",
+    "sw": "Thibitisha na hakiki"
+  },
+  "signup.contact.labelType": {
+    "h": "baaddf70fb5d432b",
+    "sw": "Aina"
+  },
+  "signup.contact.labelSummary": {
+    "h": "8e76a94ac8320d51",
+    "sw": "Muhtasari"
+  },
+  "signup.contact.labelOwner": {
+    "h": "4b1b8aa3608a26da",
+    "sw": "Mmiliki"
+  },
+  "signup.contact.labelPhone": {
+    "h": "63dceb8800b2dd4a",
+    "sw": "Simu"
+  },
+  "signup.contact.labelEmail": {
+    "h": "969ccbd3cf6300ec",
+    "sw": "Barua pepe"
+  },
+  "signup.contact.sendOtp": {
+    "h": "49484552dda40c87",
+    "sw": "Tuma OTP kwenye simu yangu"
+  },
+  "signup.contact.submitting": {
+    "h": "b8ed5279e897be5d",
+    "sw": "Inatuma…"
+  },
+  "signup.contact.otpLabel": {
+    "h": "ae746cb14700f7c8",
+    "sw": "OTP imetumwa kwa {phone}"
+  },
+  "signup.contact.verify": {
+    "h": "eea2745e2867a677",
+    "sw": "Hakiki"
+  },
+  "signup.contact.verifying": {
+    "h": "63bbd08c916b4e99",
+    "sw": "Inahakiki…"
+  },
+  "signup.contact.tryAgain": {
+    "h": "d8b8392e2c542950",
+    "sw": "Jaribu tena"
+  },
+  "signup.contact.errorSignupFailed": {
+    "h": "c0a30067d75f0fb7",
+    "sw": "Usajili umeshindwa"
+  },
+  "signup.contact.errorBadResponse": {
+    "h": "19265efd1ad20af6",
+    "sw": "Jibu batili kutoka kwa seva"
+  },
+  "signup.contact.errorNetwork": {
+    "h": "3ecbe36026f46a2f",
+    "sw": "Haikuweza kufikia seva"
+  },
+  "signup.contact.errorOtpInvalid": {
+    "h": "40e7171b12cb415e",
+    "sw": "Weka msimbo halali wa OTP"
+  },
+  "signup.contact.errorOtpVerify": {
+    "h": "3b887f84564c5239",
+    "sw": "Haikuweza kuhakiki OTP"
   },
   "dashboard.greetingMorning": {
     "h": "fd482bb74b459465",
@@ -222,5 +414,9 @@
   "nav.notifications": {
     "h": "788011833a5a0f22",
     "sw": "Arifa"
+  },
+  "signup.page.eyebrow": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
   }
 }

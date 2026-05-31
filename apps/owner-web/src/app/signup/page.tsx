@@ -9,18 +9,22 @@
  * mirrors the marketing surface so the surface reads as one product.
  */
 
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { SignupWizard } from '@/components/signup/SignupWizard';
+import { getServerT } from '@/i18n/t.server';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'Jisajili — Borjie Owner Cockpit',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  return { title: `${t('signup.page.title')} — Borjie Owner Cockpit` };
+}
 
 export default async function SignupPage() {
   const supabase = await createSupabaseServerClient();
+  const t = await getServerT();
   const { data, error } = await supabase.auth.getUser();
   if (!error && data.user) {
     redirect('/');
@@ -46,14 +50,13 @@ export default async function SignupPage() {
             </span>
           </div>
           <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
-            Borjie Owner Cockpit
+            {t('signup.page.eyebrow')}
           </p>
           <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-            Welcome to Borjie.
+            {t('signup.page.heading')}
           </h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-neutral-400">
-            Jisajili ili kuanza kusimamia mgodi wako. Welcome to Borjie — sign
-            up to start managing your mining operation.
+            {t('signup.page.subheading')}
           </p>
         </header>
         <SignupWizard />

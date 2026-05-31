@@ -1,17 +1,22 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { SignInForm } from './sign-in-form';
+import { getServerT } from '@/i18n/t.server';
 
 export const dynamic = 'force-dynamic';
-export const metadata = {
-  title: 'Ingia — Borjie Owner Cockpit',
-};
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT();
+  return { title: `${t('auth.signIn.submit')} — Borjie Owner Cockpit` };
+}
 
 /**
  * Owner cockpit sign-in landing. LitFin-pattern: full-screen centered
  * single-column card with subtle aurora + grid backdrop. The form
  * component owns its own visual rhythm (wordmark, heading, fields).
  */
-export default function SignInPage() {
+export default async function SignInPage() {
+  const t = await getServerT();
   return (
     <main
       className="relative min-h-screen overflow-hidden bg-background p-6"
@@ -28,7 +33,9 @@ export default function SignInPage() {
       <div className="relative flex min-h-shell items-center justify-center">
         <Suspense
           fallback={
-            <div className="text-sm text-neutral-500">Inapakia…</div>
+            <div className="text-sm text-neutral-500">
+              {t('common.loading')}
+            </div>
           }
         >
           <SignInForm />

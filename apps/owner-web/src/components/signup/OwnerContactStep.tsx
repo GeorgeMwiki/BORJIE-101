@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { useT } from '@/i18n/t.client';
 import type { SignupDraft } from './SignupWizard';
 
 interface OwnerContactStepProps {
@@ -66,6 +67,7 @@ export function OwnerContactStep({
   onVerified,
   onBack,
 }: OwnerContactStepProps): JSX.Element {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>(
     tenantId !== null ? { kind: 'awaiting_otp' } : { kind: 'review' },
   );
@@ -92,12 +94,12 @@ export function OwnerContactStep({
         const message =
           'error' in json
             ? `${json.error}${json.message ? ': ' + json.message : ''}`
-            : 'Imeshindwa kujisajili';
+            : t('signup.contact.errorSignupFailed');
         setPhase({ kind: 'error', message });
         return;
       }
       if (!('tenantId' in json)) {
-        setPhase({ kind: 'error', message: 'Jibu lisilo sahihi kutoka kwa seva' });
+        setPhase({ kind: 'error', message: t('signup.contact.errorBadResponse') });
         return;
       }
       onSignupAccepted({ tenantId: json.tenantId, ownerUserId: json.ownerUserId });
@@ -105,7 +107,7 @@ export function OwnerContactStep({
     } catch (err) {
       setPhase({
         kind: 'error',
-        message: err instanceof Error ? err.message : 'Imeshindwa kuwasiliana na seva',
+        message: err instanceof Error ? err.message : t('signup.contact.errorNetwork'),
       });
     }
   }
@@ -113,7 +115,7 @@ export function OwnerContactStep({
   async function verifyOtp(): Promise<void> {
     const code = otp.trim();
     if (code.length < 4) {
-      setPhase({ kind: 'error', message: 'Weka nambari halali ya OTP' });
+      setPhase({ kind: 'error', message: t('signup.contact.errorOtpInvalid') });
       return;
     }
     setPhase({ kind: 'verifying' });
@@ -132,7 +134,7 @@ export function OwnerContactStep({
     } catch (err) {
       setPhase({
         kind: 'error',
-        message: err instanceof Error ? err.message : 'Imeshindwa kuthibitisha OTP',
+        message: err instanceof Error ? err.message : t('signup.contact.errorOtpVerify'),
       });
     }
   }
@@ -141,41 +143,41 @@ export function OwnerContactStep({
     <div data-testid="signup-contact-step" className="space-y-6">
       <header>
         <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
-          Thibitisha
+          {t('signup.wizard.stepConfirm')}
         </h2>
         <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          Confirm and verify
+          {t('signup.contact.heading')}
         </p>
       </header>
 
       <dl className="space-y-2 rounded-xl border border-border bg-surface-raised p-4 text-sm">
         <div className="flex justify-between gap-2">
           <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
-            Aina
+            {t('signup.contact.labelType')}
           </dt>
           <dd className="text-foreground">{draft.kind}</dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
-            Muhtasari
+            {t('signup.contact.labelSummary')}
           </dt>
           <dd className="text-foreground text-right">{summaryLine(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
-            Mmiliki
+            {t('signup.contact.labelOwner')}
           </dt>
           <dd className="text-foreground text-right">{ownerNameFor(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
-            Simu
+            {t('signup.contact.labelPhone')}
           </dt>
           <dd className="text-foreground">{phoneFor(draft)}</dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="font-mono text-caption uppercase tracking-widest text-neutral-500">
-            Barua pepe
+            {t('signup.contact.labelEmail')}
           </dt>
           <dd className="text-foreground">{emailFor(draft)}</dd>
         </div>
@@ -190,7 +192,7 @@ export function OwnerContactStep({
           }}
           className="w-full rounded-md bg-signal-500 px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
-          Tuma OTP kwa simu yangu · Send OTP to my phone
+          {t('signup.contact.sendOtp')}
         </button>
       )}
 
@@ -199,7 +201,7 @@ export function OwnerContactStep({
           className="text-sm text-neutral-400"
           data-testid="signup-contact-submitting"
         >
-          Inatuma…
+          {t('signup.contact.submitting')}
         </p>
       )}
 
@@ -209,10 +211,7 @@ export function OwnerContactStep({
             htmlFor="otp"
             className="block text-xs font-medium text-foreground"
           >
-            OTP iliyotumwa kwa {phoneFor(draft)}
-            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
-              OTP code
-            </span>
+            {t('signup.contact.otpLabel', { phone: phoneFor(draft) })}
           </label>
           <input
             id="otp"
@@ -233,8 +232,8 @@ export function OwnerContactStep({
             className="w-full rounded-md bg-signal-500 px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {phase.kind === 'verifying'
-              ? 'Inathibitisha…'
-              : 'Thibitisha · Verify'}
+              ? t('signup.contact.verifying')
+              : t('signup.contact.verify')}
           </button>
         </div>
       )}
@@ -253,7 +252,7 @@ export function OwnerContactStep({
             onClick={() => setPhase({ kind: 'review' })}
             className="text-xs text-neutral-400 underline-offset-2 hover:text-foreground hover:underline"
           >
-            Jaribu tena · Try again
+            {t('signup.contact.tryAgain')}
           </button>
         </div>
       )}
@@ -264,7 +263,7 @@ export function OwnerContactStep({
         data-testid="signup-contact-back"
         className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
       >
-        ‹ Rudi
+        {t('signup.nav.back')}
       </button>
     </div>
   );

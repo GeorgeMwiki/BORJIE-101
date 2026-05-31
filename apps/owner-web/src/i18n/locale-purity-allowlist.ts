@@ -7,7 +7,8 @@
  * guard test fails if a listed file no longer leaks (stale entry) or if
  * an unlisted file starts leaking (new mixing). Target: [].
  *
- * Baseline captured 2026-05-31. Do not add new entries to silence the
+ * Baseline captured 2026-05-31 (116). Entry surfaces (sign-in + signup)
+ * migrated to t() — now 109. Do not add new entries to silence the
  * guard — migrate the file instead.
  */
 
@@ -42,9 +43,6 @@ export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
   'app/error.tsx',
   'app/not-found.tsx',
   'app/oauth/confirm/confirm-panel.tsx',
-  'app/sign-in/page.tsx',
-  'app/sign-in/sign-in-form.tsx',
-  'app/signup/page.tsx',
   'components/EntityTimeline/EntityTimelineDrawer.tsx',
   'components/EntityTimeline/composers.ts',
   'components/FeedbackButton.tsx',
@@ -112,10 +110,6 @@ export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
   'components/people/PeopleSurface.tsx',
   'components/reports/strings.ts',
   'components/safety/SafetySurface.tsx',
-  'components/signup/BusinessOwnerStep.tsx',
-  'components/signup/IndividualOwnerStep.tsx',
-  'components/signup/OwnerContactStep.tsx',
-  'components/signup/SignupKindStep.tsx',
   'components/sites/SitesList.tsx',
   'components/voice/VoiceMicButton.tsx',
   'components/voice/VoicePlayButton.tsx',

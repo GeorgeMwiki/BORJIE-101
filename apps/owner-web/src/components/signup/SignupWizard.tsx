@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useT } from '@/i18n/t.client';
 import { SignupKindStep } from './SignupKindStep';
 import { IndividualOwnerStep } from './IndividualOwnerStep';
 import { BusinessOwnerStep } from './BusinessOwnerStep';
@@ -118,6 +119,7 @@ function clearPersistedState(): void {
 
 export function SignupWizard(): JSX.Element {
   const router = useRouter();
+  const t = useT();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [hydrated, setHydrated] = useState(false);
 
@@ -209,7 +211,7 @@ export function SignupWizard(): JSX.Element {
         data-testid="signup-wizard-loading"
         className="rounded-2xl border border-border bg-surface p-8"
       >
-        <p className="text-sm text-neutral-400">Inapakia…</p>
+        <p className="text-sm text-neutral-400">{t('common.loading')}</p>
       </div>
     );
   }
@@ -221,7 +223,7 @@ export function SignupWizard(): JSX.Element {
       className="rounded-2xl border border-border bg-surface p-8 shadow-md sm:p-10"
     >
       <ol
-        aria-label="Hatua za kujisajili"
+        aria-label={t('signup.wizard.stepsAriaLabel')}
         className="mb-8 flex items-center justify-center gap-3 font-mono text-caption uppercase tracking-widest"
       >
         <li className="flex items-center gap-2">
@@ -237,7 +239,7 @@ export function SignupWizard(): JSX.Element {
           <span
             className={state.step === 1 ? 'text-foreground' : 'text-neutral-500'}
           >
-            Aina
+            {t('signup.wizard.stepKind')}
           </span>
         </li>
         <li aria-hidden="true" className="h-px w-6 bg-border" />
@@ -254,7 +256,7 @@ export function SignupWizard(): JSX.Element {
           <span
             className={state.step === 2 ? 'text-foreground' : 'text-neutral-500'}
           >
-            Taarifa
+            {t('signup.wizard.stepDetails')}
           </span>
         </li>
         <li aria-hidden="true" className="h-px w-6 bg-border" />
@@ -271,7 +273,7 @@ export function SignupWizard(): JSX.Element {
           <span
             className={state.step === 3 ? 'text-foreground' : 'text-neutral-500'}
           >
-            Thibitisha
+            {t('signup.wizard.stepConfirm')}
           </span>
         </li>
       </ol>

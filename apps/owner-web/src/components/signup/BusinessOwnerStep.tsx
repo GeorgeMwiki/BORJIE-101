@@ -7,9 +7,12 @@
  * with the additional org / BRELA / TIN / owner-contact fields.
  */
 
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useT } from '@/i18n/t.client';
+import type { TFn } from '@/i18n/resolve';
 import type {
   BusinessDraft,
   CountryCode,
@@ -21,23 +24,27 @@ const COUNTRIES = ['TZ', 'KE', 'UG', 'NG', 'OTHER'] as const satisfies ReadonlyA
 const CURRENCIES = ['TZS', 'USD', 'KES', 'UGX', 'NGN'] as const satisfies ReadonlyArray<CurrencyCode>;
 const LANGUAGES = ['sw', 'en'] as const satisfies ReadonlyArray<LanguageCode>;
 
-const BusinessSchema = z.object({
-  country: z.enum(COUNTRIES),
-  orgName: z.string().min(2, 'Jina la kampuni linahitajika'),
-  businessRegistrationNumber: z.string().min(1, 'Nambari ya BRELA inahitajika'),
-  taxId: z.string().min(1, 'Nambari ya TIN inahitajika'),
-  ownerEmail: z.string().email('Weka anwani halali ya barua pepe'),
-  ownerFullName: z.string().min(2, 'Jina la mmiliki linahitajika'),
-  ownerPhoneE164: z
-    .string()
-    .regex(/^\+?[1-9][0-9]{6,19}$/u, 'Weka simu sahihi (mfano +255712345678)'),
-  miningLicenceNumber: z.string().optional(),
-  vatNumber: z.string().optional(),
-  defaultLanguage: z.enum(LANGUAGES),
-  primaryCurrency: z.enum(CURRENCIES),
-});
+function makeBusinessSchema(t: TFn) {
+  return z.object({
+    country: z.enum(COUNTRIES),
+    orgName: z.string().min(2, t('signup.validation.orgNameRequired')),
+    businessRegistrationNumber: z
+      .string()
+      .min(1, t('signup.validation.brelaRequired')),
+    taxId: z.string().min(1, t('signup.validation.tinRequired')),
+    ownerEmail: z.string().email(t('signup.validation.emailInvalid')),
+    ownerFullName: z.string().min(2, t('signup.validation.ownerNameRequired')),
+    ownerPhoneE164: z
+      .string()
+      .regex(/^\+?[1-9][0-9]{6,19}$/u, t('signup.validation.phoneInvalid')),
+    miningLicenceNumber: z.string().optional(),
+    vatNumber: z.string().optional(),
+    defaultLanguage: z.enum(LANGUAGES),
+    primaryCurrency: z.enum(CURRENCIES),
+  });
+}
 
-type FormValues = z.infer<typeof BusinessSchema>;
+type FormValues = z.infer<ReturnType<typeof makeBusinessSchema>>;
 
 interface BusinessOwnerStepProps {
   readonly draft: BusinessDraft;
@@ -52,8 +59,10 @@ export function BusinessOwnerStep({
   onNext,
   onBack,
 }: BusinessOwnerStepProps): JSX.Element {
+  const t = useT();
+  const schema = useMemo(() => makeBusinessSchema(t), [t]);
   const { register, handleSubmit, formState, watch } = useForm<FormValues>({
-    resolver: zodResolver(BusinessSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       country: draft.country,
       orgName: draft.orgName,
@@ -113,18 +122,14 @@ export function BusinessOwnerStep({
     >
       <header>
         <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
-          Taarifa za kampuni yako
+          {t('signup.business.heading')}
         </h2>
-        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          Your company details
-        </p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           id="orgName"
-          label="Jina la kampuni"
-          subLabel="Company name"
+          label={t('signup.field.orgName')}
           required
           {...(formState.errors.orgName?.message !== undefined ? { error: formState.errors.orgName.message } : {})}
         >
@@ -138,8 +143,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="country"
-          label="Nchi"
-          subLabel="Country"
+          label={t('signup.field.country')}
           required
           {...(formState.errors.country?.message !== undefined ? { error: formState.errors.country.message } : {})}
         >
@@ -159,8 +163,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="businessRegistrationNumber"
-          label="Nambari ya BRELA"
-          subLabel="Business reg #"
+          label={t('signup.field.businessReg')}
           required
           {...(formState.errors.businessRegistrationNumber?.message !== undefined ? { error: formState.errors.businessRegistrationNumber.message } : {})}
         >
@@ -174,8 +177,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="taxId"
-          label="Nambari ya TIN"
-          subLabel="Tax ID"
+          label={t('signup.field.taxId')}
           required
           {...(formState.errors.taxId?.message !== undefined ? { error: formState.errors.taxId.message } : {})}
         >
@@ -189,8 +191,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="ownerFullName"
-          label="Jina la mmiliki"
-          subLabel="Owner full name"
+          label={t('signup.field.ownerName')}
           required
           {...(formState.errors.ownerFullName?.message !== undefined ? { error: formState.errors.ownerFullName.message } : {})}
         >
@@ -205,8 +206,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="ownerPhoneE164"
-          label="Simu ya mmiliki"
-          subLabel="Owner phone (E.164)"
+          label={t('signup.field.ownerPhone')}
           required
           {...(formState.errors.ownerPhoneE164?.message !== undefined ? { error: formState.errors.ownerPhoneE164.message } : {})}
         >
@@ -223,8 +223,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="ownerEmail"
-          label="Barua pepe ya mmiliki"
-          subLabel="Owner email"
+          label={t('signup.field.ownerEmail')}
           required
           {...(formState.errors.ownerEmail?.message !== undefined ? { error: formState.errors.ownerEmail.message } : {})}
         >
@@ -240,8 +239,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="defaultLanguage"
-          label="Lugha"
-          subLabel="Language"
+          label={t('signup.field.language')}
           required
           {...(formState.errors.defaultLanguage?.message !== undefined ? { error: formState.errors.defaultLanguage.message } : {})}
         >
@@ -258,8 +256,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="primaryCurrency"
-          label="Sarafu"
-          subLabel="Currency"
+          label={t('signup.field.currency')}
           required
           {...(formState.errors.primaryCurrency?.message !== undefined ? { error: formState.errors.primaryCurrency.message } : {})}
         >
@@ -279,8 +276,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="miningLicenceNumber"
-          label="Leseni ya uchimbaji (PML/PL/ML)"
-          subLabel="Mining licence (optional)"
+          label={`${t('signup.field.miningLicenceBusiness')} ${t('signup.field.optional')}`}
           {...(formState.errors.miningLicenceNumber?.message !== undefined ? { error: formState.errors.miningLicenceNumber.message } : {})}
         >
           <input
@@ -293,8 +289,7 @@ export function BusinessOwnerStep({
 
         <Field
           id="vatNumber"
-          label="Nambari ya VAT"
-          subLabel="VAT (optional)"
+          label={`${t('signup.field.vat')} ${t('signup.field.optional')}`}
           {...(formState.errors.vatNumber?.message !== undefined ? { error: formState.errors.vatNumber.message } : {})}
         >
           <input
@@ -313,7 +308,7 @@ export function BusinessOwnerStep({
           data-testid="signup-business-back"
           className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
         >
-          ‹ Rudi
+          {t('signup.nav.back')}
         </button>
         <button
           type="submit"
@@ -321,7 +316,7 @@ export function BusinessOwnerStep({
           data-testid="signup-business-next"
           className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
-          Endelea ›
+          {t('signup.nav.next')}
         </button>
       </div>
     </form>
@@ -331,7 +326,6 @@ export function BusinessOwnerStep({
 function Field(props: {
   readonly id: string;
   readonly label: string;
-  readonly subLabel: string;
   readonly required?: boolean;
   readonly error?: string;
   readonly children: React.ReactNode;
@@ -344,9 +338,6 @@ function Field(props: {
       >
         {props.label}
         {props.required ? <span className="text-signal-500"> *</span> : null}
-        <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          {props.subLabel}
-        </span>
       </label>
       {props.children}
       {props.error ? (

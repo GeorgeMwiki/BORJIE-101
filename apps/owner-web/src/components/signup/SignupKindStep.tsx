@@ -13,6 +13,7 @@
  */
 
 import { ArrowRight } from 'lucide-react';
+import { useT } from '@/i18n/t.client';
 import type { AccountKind } from './SignupWizard';
 
 interface SignupKindStepProps {
@@ -21,52 +22,44 @@ interface SignupKindStepProps {
 
 interface KindCard {
   readonly kind: AccountKind;
-  readonly titleSw: string;
-  readonly titleEn: string;
-  readonly subtitleSw: string;
-  readonly subtitleEn: string;
-  readonly bulletsSw: ReadonlyArray<string>;
+  readonly titleKey: string;
+  readonly subtitleKey: string;
+  readonly bulletKeys: ReadonlyArray<string>;
 }
 
 const CARDS: ReadonlyArray<KindCard> = [
   {
     kind: 'individual',
-    titleSw: 'Mimi ni mtu binafsi',
-    titleEn: "I'm an individual miner",
-    subtitleSw: 'Mchimbaji wa kawaida au mwenye PML moja.',
-    subtitleEn: 'Artisanal miner or single-PML holder.',
-    bulletsSw: [
-      'Jina kamili na simu',
-      'Barua pepe',
-      'Nambari ya leseni (PML) — si lazima',
-      'Kitambulisho cha NIDA — si lazima',
+    titleKey: 'signup.kind.individualTitle',
+    subtitleKey: 'signup.kind.individualSubtitle',
+    bulletKeys: [
+      'signup.kind.individualBullet1',
+      'signup.kind.individualBullet2',
+      'signup.kind.individualBullet3',
+      'signup.kind.individualBullet4',
     ],
   },
   {
     kind: 'business',
-    titleSw: 'Mimi nina kampuni / shirika',
-    titleEn: 'I have a registered company',
-    subtitleSw: 'Kampuni iliyosajiliwa BRELA au PL / ML holder.',
-    subtitleEn: 'BRELA-registered company or PL/ML holder.',
-    bulletsSw: [
-      'Jina la kampuni + nambari ya BRELA',
-      'Nambari ya TIN',
-      'Jina, simu, na barua pepe ya mmiliki',
-      'Nambari ya leseni (PML/PL/ML) — si lazima',
+    titleKey: 'signup.kind.businessTitle',
+    subtitleKey: 'signup.kind.businessSubtitle',
+    bulletKeys: [
+      'signup.kind.businessBullet1',
+      'signup.kind.businessBullet2',
+      'signup.kind.businessBullet3',
+      'signup.kind.businessBullet4',
     ],
   },
 ] as const;
 
 export function SignupKindStep({ onPick }: SignupKindStepProps): JSX.Element {
+  const t = useT();
   return (
     <div data-testid="signup-kind-step" className="space-y-6">
       <header>
         <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
-          Unataka kujisajili kama nani?
+          {t('signup.kind.question')}
         </h2>
-        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          How would you like to sign up?
-        </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -80,27 +73,24 @@ export function SignupKindStep({ onPick }: SignupKindStepProps): JSX.Element {
           >
             <div>
               <h3 className="font-display text-lg font-medium tracking-tight text-foreground group-hover:text-signal-500">
-                {card.titleSw}
+                {t(card.titleKey)}
               </h3>
-              <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
-                {card.titleEn}
-              </p>
             </div>
             <p className="text-sm leading-relaxed text-neutral-300">
-              {card.subtitleSw}
+              {t(card.subtitleKey)}
             </p>
             <ul className="space-y-1.5 text-xs text-neutral-400">
-              {card.bulletsSw.map((bullet) => (
-                <li key={bullet} className="flex items-start gap-2">
+              {card.bulletKeys.map((bulletKey) => (
+                <li key={bulletKey} className="flex items-start gap-2">
                   <span aria-hidden="true" className="text-signal-500">
                     •
                   </span>
-                  <span>{bullet}</span>
+                  <span>{t(bulletKey)}</span>
                 </li>
               ))}
             </ul>
             <span className="mt-auto inline-flex items-center gap-1 font-mono text-caption uppercase tracking-widest text-signal-500">
-              Endelea
+              {t('signup.nav.continue')}
               <ArrowRight className="h-3 w-3 transition-transform duration-fast group-hover:translate-x-0.5" />
             </span>
           </button>

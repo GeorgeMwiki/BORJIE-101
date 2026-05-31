@@ -8,9 +8,12 @@
  * can write to localStorage and the user can refresh without loss.
  */
 
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useT } from '@/i18n/t.client';
+import type { TFn } from '@/i18n/resolve';
 import type {
   CountryCode,
   CurrencyCode,
@@ -22,20 +25,22 @@ const COUNTRIES = ['TZ', 'KE', 'UG', 'NG', 'OTHER'] as const satisfies ReadonlyA
 const CURRENCIES = ['TZS', 'USD', 'KES', 'UGX', 'NGN'] as const satisfies ReadonlyArray<CurrencyCode>;
 const LANGUAGES = ['sw', 'en'] as const satisfies ReadonlyArray<LanguageCode>;
 
-const IndividualSchema = z.object({
-  country: z.enum(COUNTRIES),
-  fullName: z.string().min(2, 'Jina kamili linahitajika'),
-  phoneE164: z
-    .string()
-    .regex(/^\+?[1-9][0-9]{6,19}$/u, 'Weka simu sahihi (mfano +255712345678)'),
-  email: z.string().email('Weka anwani halali ya barua pepe'),
-  miningLicenceNumber: z.string().optional(),
-  nationalIdNumber: z.string().optional(),
-  defaultLanguage: z.enum(LANGUAGES),
-  primaryCurrency: z.enum(CURRENCIES),
-});
+function makeIndividualSchema(t: TFn) {
+  return z.object({
+    country: z.enum(COUNTRIES),
+    fullName: z.string().min(2, t('signup.validation.fullNameRequired')),
+    phoneE164: z
+      .string()
+      .regex(/^\+?[1-9][0-9]{6,19}$/u, t('signup.validation.phoneInvalid')),
+    email: z.string().email(t('signup.validation.emailInvalid')),
+    miningLicenceNumber: z.string().optional(),
+    nationalIdNumber: z.string().optional(),
+    defaultLanguage: z.enum(LANGUAGES),
+    primaryCurrency: z.enum(CURRENCIES),
+  });
+}
 
-type FormValues = z.infer<typeof IndividualSchema>;
+type FormValues = z.infer<ReturnType<typeof makeIndividualSchema>>;
 
 interface IndividualOwnerStepProps {
   readonly draft: IndividualDraft;
@@ -50,8 +55,10 @@ export function IndividualOwnerStep({
   onNext,
   onBack,
 }: IndividualOwnerStepProps): JSX.Element {
+  const t = useT();
+  const schema = useMemo(() => makeIndividualSchema(t), [t]);
   const { register, handleSubmit, formState, watch } = useForm<FormValues>({
-    resolver: zodResolver(IndividualSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       country: draft.country,
       fullName: draft.fullName,
@@ -103,18 +110,14 @@ export function IndividualOwnerStep({
     >
       <header>
         <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
-          Taarifa zako binafsi
+          {t('signup.individual.heading')}
         </h2>
-        <p className="mt-1 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          Your personal details
-        </p>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field
           id="fullName"
-          label="Jina kamili"
-          subLabel="Full name"
+          label={t('signup.field.fullName')}
           required
           {...(formState.errors.fullName?.message !== undefined ? { error: formState.errors.fullName.message } : {})}
         >
@@ -129,8 +132,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="country"
-          label="Nchi"
-          subLabel="Country"
+          label={t('signup.field.country')}
           required
           {...(formState.errors.country?.message !== undefined ? { error: formState.errors.country.message } : {})}
         >
@@ -150,8 +152,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="phoneE164"
-          label="Simu"
-          subLabel="Phone (E.164)"
+          label={t('signup.field.phone')}
           required
           {...(formState.errors.phoneE164?.message !== undefined ? { error: formState.errors.phoneE164.message } : {})}
         >
@@ -168,8 +169,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="email"
-          label="Barua pepe"
-          subLabel="Email"
+          label={t('signup.field.email')}
           required
           {...(formState.errors.email?.message !== undefined ? { error: formState.errors.email.message } : {})}
         >
@@ -185,8 +185,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="defaultLanguage"
-          label="Lugha"
-          subLabel="Language"
+          label={t('signup.field.language')}
           required
           {...(formState.errors.defaultLanguage?.message !== undefined ? { error: formState.errors.defaultLanguage.message } : {})}
         >
@@ -203,8 +202,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="primaryCurrency"
-          label="Sarafu"
-          subLabel="Currency"
+          label={t('signup.field.currency')}
           required
           {...(formState.errors.primaryCurrency?.message !== undefined ? { error: formState.errors.primaryCurrency.message } : {})}
         >
@@ -224,8 +222,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="miningLicenceNumber"
-          label="Leseni ya uchimbaji (PML)"
-          subLabel="Mining licence (optional)"
+          label={`${t('signup.field.miningLicence')} ${t('signup.field.optional')}`}
           {...(formState.errors.miningLicenceNumber?.message !== undefined ? { error: formState.errors.miningLicenceNumber.message } : {})}
         >
           <input
@@ -238,8 +235,7 @@ export function IndividualOwnerStep({
 
         <Field
           id="nationalIdNumber"
-          label="Kitambulisho cha NIDA"
-          subLabel="National ID (optional)"
+          label={`${t('signup.field.nationalId')} ${t('signup.field.optional')}`}
           {...(formState.errors.nationalIdNumber?.message !== undefined ? { error: formState.errors.nationalIdNumber.message } : {})}
         >
           <input
@@ -258,7 +254,7 @@ export function IndividualOwnerStep({
           className="font-mono text-caption uppercase tracking-widest text-neutral-500 transition-colors duration-fast hover:text-foreground"
           data-testid="signup-individual-back"
         >
-          ‹ Rudi
+          {t('signup.nav.back')}
         </button>
         <button
           type="submit"
@@ -266,7 +262,7 @@ export function IndividualOwnerStep({
           data-testid="signup-individual-next"
           className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
-          Endelea ›
+          {t('signup.nav.next')}
         </button>
       </div>
     </form>
@@ -276,7 +272,6 @@ export function IndividualOwnerStep({
 function Field(props: {
   readonly id: string;
   readonly label: string;
-  readonly subLabel: string;
   readonly required?: boolean;
   readonly error?: string;
   readonly children: React.ReactNode;
@@ -289,9 +284,6 @@ function Field(props: {
       >
         {props.label}
         {props.required ? <span className="text-signal-500"> *</span> : null}
-        <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
-          {props.subLabel}
-        </span>
       </label>
       {props.children}
       {props.error ? (

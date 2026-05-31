@@ -1,15 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
-
-const SignInSchema = z.object({
-  email: z.string().email('Weka anwani halali ya barua pepe'),
-  password: z.string().min(1, 'Nenosiri linahitajika'),
-});
+import { useT } from '@/i18n/t.client';
 
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
@@ -46,17 +42,28 @@ function gatewayBaseUrl(): string {
 export function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useT();
   const next = params.get('next') ?? '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [state, setState] = useState<FormState>({ phase: 'idle' });
 
+  const schema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t('auth.signIn.errorInvalidEmail')),
+        password: z.string().min(1, t('auth.signIn.errorPasswordRequired')),
+      }),
+    [t],
+  );
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setState({ phase: 'submitting' });
-    const parsed = SignInSchema.safeParse({ email, password });
+    const parsed = schema.safeParse({ email, password });
     if (!parsed.success) {
-      const first = parsed.error.issues[0]?.message ?? 'Taarifa zisizo sahihi';
+      const first =
+        parsed.error.issues[0]?.message ?? t('auth.signIn.errorInvalidInput');
       setState({ phase: 'error', error: first });
       return;
     }
@@ -74,8 +81,7 @@ export function SignInForm() {
       if (!res.ok || !json?.success) {
         const failure = json && !json.success ? json : null;
         const msg =
-          failure?.error?.message ??
-          'Imeshindwa kuingia. Hakiki taarifa zako.';
+          failure?.error?.message ?? t('auth.signIn.errorSignInFailed');
         setState({ phase: 'error', error: msg });
         return;
       }
@@ -85,9 +91,7 @@ export function SignInForm() {
       setState({
         phase: 'error',
         error:
-          err instanceof Error
-            ? err.message
-            : 'Imeshindwa kuwasiliana na Borjie API.',
+          err instanceof Error ? err.message : t('auth.signIn.errorNetwork'),
       });
     }
   }
@@ -101,13 +105,13 @@ export function SignInForm() {
           </span>
         </div>
         <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
-          Owner Cockpit
+          {t('auth.signIn.eyebrow')}
         </p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          Welcome back.
+          {t('auth.signIn.heading')}
         </h1>
         <p className="mt-3 text-sm text-neutral-400">
-          Ingia ili kuendelea kwenye cockpit yako.
+          {t('auth.signIn.subheading')}
         </p>
       </header>
 
@@ -121,10 +125,7 @@ export function SignInForm() {
             htmlFor="email"
             className="block text-sm font-medium text-foreground"
           >
-            Barua pepe
-            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
-              Email
-            </span>
+            {t('auth.signIn.emailLabel')}
           </label>
           <input
             id="email"
@@ -142,10 +143,7 @@ export function SignInForm() {
             htmlFor="password"
             className="block text-sm font-medium text-foreground"
           >
-            Nenosiri
-            <span className="ml-2 font-mono text-caption uppercase tracking-widest text-neutral-500">
-              Password
-            </span>
+            {t('auth.signIn.passwordLabel')}
           </label>
           <input
             id="password"
@@ -172,12 +170,14 @@ export function SignInForm() {
           disabled={state.phase === 'submitting'}
           className="w-full rounded-md bg-signal-500 px-4 py-3.5 text-base font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         >
-          {state.phase === 'submitting' ? 'Inaingia…' : 'Ingia'}
+          {state.phase === 'submitting'
+            ? t('auth.signIn.submitting')
+            : t('auth.signIn.submit')}
         </button>
       </form>
 
       <p className="mt-8 text-center font-mono text-caption uppercase tracking-widest text-neutral-500">
-        Audit chain · bilingual · Tanzania-resident
+        {t('auth.signIn.footer')}
       </p>
     </div>
   );

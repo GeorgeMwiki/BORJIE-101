@@ -79,13 +79,18 @@ describe('SignupWizard · Step 1 (kind picker)', () => {
     expect(screen.getByTestId('signup-kind-card-business')).toBeTruthy();
   });
 
-  it('renders the bilingual Swahili-first headline', async () => {
+  it('renders single-locale headlines via t() (default en, no SW mixing)', async () => {
     render(<SignupWizard />);
     await flushHydration();
+    // Default locale is en (no borjie_locale cookie in jsdom) — the kind
+    // cards must show English labels and NEVER leak Swahili. This is the
+    // absolute-toggle guarantee asserted at the component level.
     const indiv = screen.getByTestId('signup-kind-card-individual');
-    expect(indiv.textContent ?? '').toContain('Mimi ni mtu binafsi');
+    expect(indiv.textContent ?? '').toContain("I'm an individual miner");
+    expect(indiv.textContent ?? '').not.toContain('Mimi ni mtu binafsi');
     const biz = screen.getByTestId('signup-kind-card-business');
-    expect(biz.textContent ?? '').toContain('Mimi nina kampuni');
+    expect(biz.textContent ?? '').toContain('I have a registered company');
+    expect(biz.textContent ?? '').not.toContain('Mimi nina kampuni');
   });
 });
 
