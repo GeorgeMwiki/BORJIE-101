@@ -280,6 +280,13 @@ import publicLeadsRouter from './routes/public-leads.router';
 // in the marketing site. Mounted at /api/v1/public/chat (more specific
 // path than the legacy /public mount so the Borjie handler wins).
 import publicChatRouter from './routes/public-chat.hono';
+// Borjie marketing SAFE-LIST tools — replaces the prior HARD FORBID on
+// the public surface with a positive allowlist of public, read-only,
+// no-auth tools (capabilities, jurisdiction, pricing, regulation,
+// commodity price, case study, demo booking, concept cards). Wired at
+// /api/v1/public/tools/:name; the router exports the per-session 10/min
+// rate limit inline so the mount is a single api.route call.
+import publicToolsRouter from './routes/public-tools.hono';
 // Public marketing status page — aggregates 90-day uptime from the
 // service_status_history table (migration 0015). Unauthenticated;
 // 30 s in-process cache. Mounted at /api/v1/public/status.
@@ -499,6 +506,12 @@ import { createRemindersDispatchWorker } from './workers/reminders-dispatch.work
 // drift, writes outcome_observations + outcome_reconciliations, and
 // extends the AI hash-chain on each reconciliation.
 import { createOutcomeReconciliationWorker } from './workers/outcome-reconciliation-worker';
+// Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker composition.
+// Fires per-tenant per-handler at a configurable cadence so the inbox
+// fills via the cron, not only when an inbound HTTP route lands a row.
+// Prior to this import the worker was exported but never instantiated
+// in index.ts — the "Acts on owner's behalf" claim was vacuous.
+import { createMwikilaAutonomousWiring } from './composition/mwikila-autonomous-wiring';
 // Wave DECISION-LEGIBILITY — 24-hour worker that closes the loop on
 // committed decisions: joins them to outcome_reconciliations, grades
 // each one (good / bad / neutral / undetermined), and writes the
@@ -2481,6 +2494,30 @@ const outcomeReconciliationWorker = serviceRegistry.db
       },
     };
 
+// Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Fires
+// every 15 min by default, scans every active tenant, runs all 5
+// handlers (license-renewal, shift-scheduler, royalty-filing, payroll,
+// marketplace-counter) through the runtime which enforces the
+// inviolable rails (kill-switch fail-closed, four-eye policy, envelope
+// thresholds, family-relation guard) before any inbox row is written.
+//
+// The handler ports ship safe-empty here so the worker exercises the
+// runtime + rails on every tick but proposes nothing until per-domain
+// wiring lands behind the same composition root. See
+// composition/mwikila-autonomous-wiring.ts for the full topology.
+const mwikilaAutonomousWorker = createMwikilaAutonomousWiring({
+  db: (serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> }) ?? null,
+  logger,
+  isKillSwitchOpen: () =>
+    Boolean(
+      (
+        serviceRegistry as unknown as {
+          killSwitch?: { isOpen?: () => boolean };
+        }
+      ).killSwitch?.isOpen?.(),
+    ),
+});
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -2605,6 +2642,15 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: outcome-reconciliation worker stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: outcome-reconciliation stop failed');
+  }
+  try {
+    mwikilaAutonomousWorker.stop();
+    logger.info('shutdown: mwikila autonomous worker stopped');
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'shutdown: mwikila autonomous worker stop failed',
+    );
   }
   try {
     decisionRetrospectiveWorker.stop();
@@ -2752,6 +2798,12 @@ if (require.main === module) {
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
   outcomeReconciliationWorker.start();
+  // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Every
+  // 15 min by default, walks every active tenant, runs all 5 handlers
+  // through the runtime (kill-switch + inviolable rails enforced) so
+  // the inbox fills on a cadence rather than only on inbound route
+  // calls. Inert in test mode + when BORJIE_MWIKILA_WORKER_DISABLED=true.
+  mwikilaAutonomousWorker.start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the
