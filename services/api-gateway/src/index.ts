@@ -512,6 +512,13 @@ import { createOutcomeReconciliationWorker } from './workers/outcome-reconciliat
 // Prior to this import the worker was exported but never instantiated
 // in index.ts — the "Acts on owner's behalf" claim was vacuous.
 import { createMwikilaAutonomousWiring } from './composition/mwikila-autonomous-wiring';
+// Wave CLOSED-LOOP-RESOLVERS — real observation resolvers for the
+// outcome-reconciliation worker. Replaces the previous `resolvers: {}`
+// (which forced EVERY prediction to expire with `no_observation_resolver`)
+// with per-entity-type Drizzle queries against production / financial /
+// compliance tables so the closed-loop feedback arm actually receives
+// real signal.
+import { buildOutcomeResolvers } from './composition/outcome-resolvers';
 // Wave DECISION-LEGIBILITY — 24-hour worker that closes the loop on
 // committed decisions: joins them to outcome_reconciliations, grades
 // each one (good / bad / neutral / undetermined), and writes the
@@ -2469,12 +2476,16 @@ const outcomeReconciliationWorker = serviceRegistry.db
   ? createOutcomeReconciliationWorker({
       db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
-      // Resolvers ship empty here on first boot so unwired entity types
-      // close out as 'expired' (with audit) instead of looping. Sibling
-      // agents register concrete resolvers via the map as their domains
-      // come online (licence renewal, royalty filing, supplier switch,
-      // shipment delivery, ...).
-      resolvers: {},
+      // Wave CLOSED-LOOP-RESOLVERS — three real resolver categories:
+      //   1. Production / output (production_tonnage_events)
+      //   2. Financial (ledger_entries — credit/debit/net cash-flow)
+      //   3. Compliance (regulatory_filings — deadlines + statuses)
+      // Entity types not covered still close out as `expired` per the
+      // worker's own contract — no regression for unwired types.
+      resolvers: buildOutcomeResolvers({
+        db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        logger,
+      }),
       intervalMs:
         Number(
           process.env.BORJIE_OUTCOME_RECONCILIATION_INTERVAL_MS ??

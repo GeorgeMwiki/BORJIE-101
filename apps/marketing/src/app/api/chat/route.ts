@@ -271,30 +271,64 @@ export async function POST(req: Request): Promise<Response> {
       { status: upstreamRes.status },
     );
   } catch (err) {
-    // Gateway unreachable: if we have learning blocks AND a direct
-    // Anthropic key, fall back to a self-contained reply so the widget
-    // still gets a useful answer + blocks. Otherwise surface the error.
+    // Gateway unreachable: always fall back to direct-Anthropic so the
+    // widget gets a real Mr. Mwikila reply rather than a 502. Mirrors
+    // BN's dual-mode pattern from #276. If both fail, surface 503 with
+    // a structured error so the widget can render its own degraded UX.
     const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
-    if (blocks.length > 0 && anthropicKey) {
-      const fallbackReply =
-        language === 'sw'
-          ? 'Mr. Mwikila hapa. Mfumo wa kati una tatizo la muda mfupi, lakini nimeongeza maelezo ya kawaida hapa chini ili usonge mbele.'
-          : 'Mr. Mwikila here. The central system is briefly offline, but I have added the standard reference below so you can keep moving.';
-      return NextResponse.json(
-        {
-          reply: fallbackReply,
-          sessionId: parsed.sessionId,
-          blocks,
-        },
-        { status: 200 },
-      );
+    if (anthropicKey) {
+      try {
+        const system =
+          language === 'sw'
+            ? 'Wewe ni Mr. Mwikila, AI Managing Director wa Borjie kwa mgodi wa Tanzania. Jibu kwa Kiswahili, mfupi, mwenye msaada. Wamiliki wa PML/ML/SML wanakuhitaji.'
+            : "You are Mr. Mwikila, Borjie's AI Mining Managing Director for Tanzania. Help PML, ML and SML owners run their mines better. Keep replies concise, warm and useful.";
+        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5-20250929',
+            max_tokens: 600,
+            system,
+            messages: [{ role: 'user', content: parsed.message }],
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (anthropicRes.ok) {
+          const data = (await anthropicRes.json()) as {
+            content?: Array<{ type: string; text?: string }>;
+          };
+          const reply = (data.content ?? [])
+            .filter((b) => b.type === 'text' && typeof b.text === 'string')
+            .map((b) => b.text as string)
+            .join('\n')
+            .trim();
+          return NextResponse.json(
+            {
+              reply: reply || '(no response)',
+              sessionId: parsed.sessionId,
+              ...(blocks.length > 0 ? { blocks } : {}),
+              degraded: { mode: 'direct_anthropic', reason: 'gateway_unreachable' },
+            },
+            { status: 200 },
+          );
+        }
+      } catch {
+        // Fall through to structured 503 below.
+      }
     }
     return NextResponse.json(
       {
-        error: 'upstream_unreachable',
-        detail: err instanceof Error ? err.message : 'unknown',
+        error: 'ai_unavailable',
+        detail:
+          anthropicKey ? 'gateway_down_and_anthropic_failed' : 'ANTHROPIC_API_KEY missing',
+        sessionId: parsed.sessionId,
+        ...(blocks.length > 0 ? { blocks } : {}),
       },
-      { status: 502 },
+      { status: 503 },
     );
   }
 }
