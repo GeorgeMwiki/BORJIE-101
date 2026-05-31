@@ -480,6 +480,10 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
+// Real Holt-Winters forecasts (cash-flow, production, royalty) wired
+// to live Drizzle aggregates over `sales` + `shift_reports`. Returns
+// calibrated point + 95% interval per future day. No stubs.
+import { ownerForecastsRouter } from './routes/owner/forecasts.hono';
 // Wave FOUR-EYE-APPROVAL — two-person sign-off on high-stakes owner
 // actions (payment > 5M TZS, regulator filing, contract signature).
 import { fourEyeApprovalsRouter } from './routes/owner/four-eye-approvals.hono';
@@ -1895,6 +1899,9 @@ api.route('/owner/brief', ownerBriefRouter);
 // a generate-and-dispatch right now (owner-only). Mounted BEFORE the
 // generic /owner/* wildcards so the specific path wins lookup.
 api.route('/owner/daily-brief', ownerDailyBriefRouter);
+// Real Holt-Winters forecasts (cash-flow / production / royalty).
+// Mounted before any /owner/* wildcards so the specific path wins.
+api.route('/owner/forecasts', ownerForecastsRouter);
 api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
