@@ -28,6 +28,7 @@ export const SHARE_PERMISSIONS = ['read', 'comment', 'edit'] as const;
 export type SharePermission = (typeof SHARE_PERMISSIONS)[number];
 
 export const SHARE_ENTITY_TYPES = [
+  // Owner / workforce surfaces
   'draft',
   'document',
   'royalty_filing',
@@ -36,6 +37,13 @@ export const SHARE_ENTITY_TYPES = [
   'reminder',
   'shipment',
   'invoice',
+  // Buyer-mobile surfaces (marketplace + RFB). DB column is liberal
+  // text; this enum widening is backwards-compatible (no migration).
+  'offer',
+  'rfb',
+  'contract',
+  'parcel',
+  'bid',
 ] as const;
 export type ShareEntityType = (typeof SHARE_ENTITY_TYPES)[number];
 

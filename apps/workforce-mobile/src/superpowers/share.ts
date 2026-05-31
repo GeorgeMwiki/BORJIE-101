@@ -1,17 +1,34 @@
 /**
- * Superpower 4 — share.
+ * Superpower 4 — share (workforce persona).
  *
- * Uses RN's built-in `Share` (which surfaces the native iOS share-sheet
- * / Android Intent.ACTION_SEND) so we do not pull in `expo-sharing` as
- * a new dep. Falls back to `expo-linking.openURL` if the share sheet
- * is unavailable (web preview, headless test runs).
+ * Mints a real server-side share link via /api/v1/owner/share-links,
+ * then opens the native share-sheet with the URL. NO hardcoded fallback
+ * deep-link — if the backend fails the caller learns about it and can
+ * surface a useful error in the UI.
+ *
+ * Server route: services/api-gateway/src/routes/owner/share-links.hono.ts
  */
 import { Share, type ShareContent } from 'react-native'
 import * as Linking from 'expo-linking'
-import { miningApi } from '../api/client'
+import { ownerApi } from '../api/client'
+
+/**
+ * Entity types the workforce app can surface to the share API.
+ * Mapped 1:1 to the SHARE_ENTITY_TYPES enum in
+ * packages/database/src/schemas/share-links.schema.ts.
+ */
+export type WorkforceShareEntityType =
+  | 'draft'
+  | 'document'
+  | 'royalty_filing'
+  | 'production_report'
+  | 'compliance_artifact'
+  | 'reminder'
+  | 'shipment'
+  | 'invoice'
 
 export interface ShareEntityRequest {
-  readonly entityType: string
+  readonly entityType: WorkforceShareEntityType
   readonly entityId: string
   readonly title: string
   readonly persona?: 'worker' | 'manager' | 'owner'
@@ -22,39 +39,45 @@ export interface ShareResult {
   readonly url?: string
   readonly cancelled?: boolean
   readonly error?: string
+  readonly code?: string
 }
 
 interface ShareLinkApiResponse {
   readonly success: boolean
-  readonly data?: { readonly url: string }
-}
-
-const FALLBACK_HOST = 'https://borjie.app'
-
-function buildFallbackLink(req: ShareEntityRequest): string {
-  return `${FALLBACK_HOST}/${encodeURIComponent(req.entityType)}/${encodeURIComponent(req.entityId)}`
+  readonly data?: { readonly url?: string; readonly token?: string }
+  readonly error?: { readonly code?: string; readonly message?: string }
 }
 
 /**
- * Mint a server-side share link, then open the native share-sheet
- * with the URL + entity title. Persona is forwarded so the server can
- * scope permission (workforce-mobile defaults to "worker" → read-only).
+ * Mint a server-side share link, then open the native share-sheet with
+ * the URL + entity title. If the backend rejects or is unreachable, the
+ * promise resolves with `ok: false` carrying the underlying error so the
+ * UI can surface it (no silent fake links).
  */
 export async function shareEntity(req: ShareEntityRequest): Promise<ShareResult> {
-  let url = buildFallbackLink(req)
+  let url: string
   try {
-    const res = await miningApi.post<ShareLinkApiResponse>('/superpowers/share-links', {
+    const res = await ownerApi.post<ShareLinkApiResponse>('/share-links', {
       entityType: req.entityType,
       entityId: req.entityId,
-      persona: req.persona ?? 'worker',
       permission: 'read',
-      expiresInHours: 168
+      expiresInHours: 168,
+      provenance: { persona: req.persona ?? 'worker', surface: 'workforce-mobile' }
     })
-    if (res?.success && res.data?.url) {
-      url = res.data.url
+    if (!res?.success || !res.data?.url) {
+      return {
+        ok: false,
+        error: res?.error?.message ?? 'Share link API returned no URL',
+        code: res?.error?.code ?? 'SHARE_LINK_EMPTY'
+      }
     }
-  } catch {
-    // network error → still share the deep-link fallback
+    url = res.data.url
+  } catch (cause) {
+    return {
+      ok: false,
+      error: cause instanceof Error ? cause.message : 'Share link request failed',
+      code: 'SHARE_LINK_NETWORK'
+    }
   }
   try {
     const content: ShareContent = {
@@ -72,7 +95,12 @@ export async function shareEntity(req: ShareEntityRequest): Promise<ShareResult>
       await Linking.openURL(url)
       return { ok: true, url }
     } catch (cause) {
-      return { ok: false, url, error: cause instanceof Error ? cause.message : 'share failed' }
+      return {
+        ok: false,
+        url,
+        error: cause instanceof Error ? cause.message : 'share failed',
+        code: 'SHARE_SHEET_FAILED'
+      }
     }
   }
 }
