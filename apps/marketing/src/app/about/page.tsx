@@ -3,16 +3,16 @@ import Link from 'next/link';
 import { getLocale } from '@/lib/locale';
 
 export const metadata: Metadata = {
-  title: 'About Borjie — built in Tanzania for Tanzanian mining',
+  title: 'About Borjie — AI-native mining estate operating system',
   description:
-    'Borjie is an AI-native operating system for Tanzanian mining. Built in Dar es Salaam, designed for owners, operators, regulators, and buyers — Swahili-first, audit-grade, deployable in days.',
+    'Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Built in Dar es Salaam, designed for owners, operators, regulators, and buyers — Swahili-first, audit-grade, deployable in days.',
 };
 
 const SECTIONS: ReadonlyArray<{ title: string; body: string }> = [
   {
     title: 'Why Borjie exists',
     body:
-      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach the Mining Commission or NEMC on time. Borjie collapses that entire stack into one AI-native operating system — Mr. Mwikila, your AI Mining Managing Director, runs the business end-to-end alongside the owner.",
+      "Tanzanian mining loses millions a year to paper licences, broken FX desks, missing assay records, and compliance letters that never reach the Mining Commission or NEMC on time. Borjie is an AI-native mining estate operating system that collapses that entire stack — and Mr. Mwikila, the brain layer within Borjie, runs the business end-to-end alongside the owner.",
   },
   {
     title: 'Who we serve',

@@ -3,13 +3,13 @@
     "skipToContent": "Ruka kwenye maudhui"
   },
   "seo": {
-    "title": "Borjie — Mfumo wa kwanza duniani wa AI kwa Mali ya Madini",
-    "description": "Mkurugenzi Mtendaji wa kwanza duniani wa AI anayeendesha mali yako yote ya madini. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, daftari la mali. Wapangaji wengi. Lugha mbili.",
-    "ogTitle": "Borjie — Mfumo wa kwanza duniani wa AI kwa Mali ya Madini",
-    "ogDescription": "Endesha mali yako yote ya madini kwa kujiongoza. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, daftari la mali.",
-    "twitterTitle": "Borjie — Mkurugenzi Mtendaji wa AI wa Madini",
-    "twitterDescription": "Endesha mali yako yote ya madini kwa kujiongoza. Saini moja, kila kazi inaandaliwa, kufungwa bei, kusimamiwa, kuwasilishwa.",
-    "ogAlt": "Borjie — Mfumo wa uendeshaji wa Mali ya Madini unaoongozwa na AI"
+    "title": "Borjie — mfumo wa uendeshaji wa madini unaotumia AI asili",
+    "description": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, daftari la mali. Wapangaji wengi. Lugha mbili.",
+    "ogTitle": "Borjie — mfumo wa uendeshaji wa madini unaotumia AI asili",
+    "ogDescription": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Endesha mali yako yote ya madini kwa kujiongoza.",
+    "twitterTitle": "Borjie — mfumo wa uendeshaji wa madini unaotumia AI asili",
+    "twitterDescription": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Saini moja, kila kazi inaandaliwa, kufungwa bei, kusimamiwa, kuwasilishwa.",
+    "ogAlt": "Borjie — mfumo wa uendeshaji wa madini unaotumia AI asili"
   },
   "nav": {
     "owners": "Wamiliki",
@@ -69,11 +69,11 @@
     }
   },
   "hero": {
-    "kicker": "Mfumo wa AI kwa Mali yote ya Madini",
+    "kicker": "Mfumo wa uendeshaji wa madini unaotumia AI asili",
     "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
     "pill": "Tunaanza Tanzania · Tunatanua Afrika Kusini mwa Jangwa · Imejengwa kwa dunia",
-    "headline": "Mkurugenzi Mtendaji wa kwanza duniani wa AI anayeendesha mali yako yote ya madini.",
-    "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaunda kategoria mpya kabisa: jukwaa moja akili inayounganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada (usafiri, chakula, mafuta, rejareja, ardhi, kukodi vifaa), ofisi ya familia, urithi, na daftari kamili la mali kupitia AI inayobadilika. Mwl. Mwikila anaandaa, anafunga bei, anasimamia, anawasilisha. Wewe unasaini mara moja.",
+    "headline": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili.",
+    "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaunganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada (usafiri, chakula, mafuta, kukodi vifaa), ofisi ya familia, urithi, na daftari kamili la mali. Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili — anaandaa, anafunga bei, anasimamia, anawasilisha. Wewe unasaini mara moja.",
     "ctaPilot": "Anza sasa",
     "ctaDemo": "Tazama demo ya sekunde 60",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -94,7 +94,7 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Habari, mimi ni Mwl. Mwikila, Mkurugenzi Mtendaji wa AI wa Madini wa Borjie. Umekuja kwa nini leo?"
+          "body": "Habari, mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Umekuja kwa nini leo?"
         },
         {
           "role": "user",
@@ -1038,7 +1038,7 @@
     }
   },
   "footer": {
-    "tagline": "Mfumo wa uendeshaji wa AI kwa madini ya Tanzania. Master Brain, audit chain, lugha mbili.",
+    "tagline": "Mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili.",
     "product": "Bidhaa",
     "company": "Kampuni",
     "resources": "Rasilimali",
@@ -1127,6 +1127,10 @@
     "faqHeading": "Maswali yanayoulizwa mara kwa mara",
     "faqSub": "Kila kitu unachohitaji kujua kuhusu bei ya Borjie, malipo, na jukwaa linajumuisha nini katika kila kiwango.",
     "faqs": [
+      {
+        "q": "Borjie ni nini?",
+        "a": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Borjie inaunganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, na daftari kamili la mali — vyote vikiongozwa na Mr. Mwikila, safu ya akili ndani ya Borjie."
+      },
       {
         "q": "Mwanzo ni bure kweli?",
         "a": "Ndio. Mwanzo ni bure kabisa, hakuna kadi inayohitajika. Mmiliki mmoja, site moja, nyaraka 10 kwa mwezi, msaada wa jumuiya, na Bw. Mwikila katika hali ya ushauri. Pandisha tu wakati shughuli yako inahitaji reli za ziada."

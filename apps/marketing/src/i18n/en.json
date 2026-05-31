@@ -3,13 +3,13 @@
     "skipToContent": "Skip to main content"
   },
   "seo": {
-    "title": "Borjie — The world's first AI-native Mining Estate OS",
-    "description": "The world's first AI Mining Managing Director that runs your entire estate. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Multi-tenant. Multi-lingual.",
-    "ogTitle": "Borjie — The world's first AI-native Mining Estate OS",
-    "ogDescription": "Run your entire Mining Estate on autopilot. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register.",
-    "twitterTitle": "Borjie — AI Mining Managing Director",
-    "twitterDescription": "Run your entire Mining Estate on autopilot. One sign-off, every workflow drafted, hedged, supervised, filed.",
-    "ogAlt": "Borjie — AI-native Mining Estate operating system"
+    "title": "Borjie — AI-native mining estate operating system",
+    "description": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Multi-tenant. Multi-lingual.",
+    "ogTitle": "Borjie — AI-native mining estate operating system",
+    "ogDescription": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Run your entire mining estate on autopilot.",
+    "twitterTitle": "Borjie — AI-native mining estate operating system",
+    "twitterDescription": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. One sign-off, every workflow drafted, hedged, supervised, filed.",
+    "ogAlt": "Borjie — AI-native mining estate operating system"
   },
   "nav": {
     "owners": "Owners",
@@ -69,11 +69,11 @@
     }
   },
   "hero": {
-    "kicker": "AI-native OS for the entire Mining Estate",
+    "kicker": "AI-native mining estate operating system",
     "swahiliFirstBadge": "English-first · Swahili",
     "pill": "Starting in Tanzania · Expanding across Sub-Saharan Africa · Built for the world",
-    "headline": "The world's first AI Mining Managing Director that runs your entire estate.",
-    "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie is creating an entirely new category: one intelligent platform connecting licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, retail, real estate, equipment rental), family office, succession, and the full asset register through adaptive AI. Mr. Mwikila drafts, hedges, supervises, files. You sign once.",
+    "headline": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer.",
+    "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie connects licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, equipment rental), family office, succession, and the full asset register. Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system — drafts, hedges, supervises, files. You sign once.",
     "ctaPilot": "Get started",
     "ctaDemo": "Watch a 60s demo",
     "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
@@ -94,7 +94,7 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Hi, I'm Mr. Mwikila, Borjie's AI Mining Managing Director. What brings you here today?"
+          "body": "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. What brings you here today?"
         },
         {
           "role": "user",
@@ -1038,7 +1038,7 @@
     }
   },
   "footer": {
-    "tagline": "AI-native operating system for Tanzanian mining. Master Brain, audit chain, bilingual.",
+    "tagline": "An AI-native mining estate operating system. Mr. Mwikila is its brain layer.",
     "product": "Product",
     "company": "Company",
     "resources": "Resources",
@@ -1127,6 +1127,10 @@
     "faqHeading": "Frequently asked questions",
     "faqSub": "Everything you need to know about Borjie pricing, billing, and what the platform includes per tier.",
     "faqs": [
+      {
+        "q": "What is Borjie?",
+        "a": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Borjie connects licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, and the full asset register — orchestrated end-to-end by Mr. Mwikila, the brain layer within Borjie."
+      },
       {
         "q": "Is Mwanzo really free?",
         "a": "Yes. Mwanzo is fully free, no card required. One owner, one site, 10 documents per month, community support, and Mr. Mwikila in advise mode. Upgrade only when your operation needs the extra rails."

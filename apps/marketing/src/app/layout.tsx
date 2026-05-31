@@ -70,8 +70,10 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_URL),
     // UNIV-4: TZ-launch-beachhead marketing keywords — defer to vertical-profile/jurisdiction-profile marketing manifest when expanding to KE/NG/ZA/etc; tracked gh-issue (universal-from-day-one). See Docs/QA/UNIVERSAL_HARDCODE_SCRUB_2026_05_26.md.
     keywords: [
+      'AI-native mining estate operating system',
+      'Borjie',
+      'Mr. Mwikila',
       'Tanzania mining software',
-      'AI-native mining OS',
       'PML licence management',
       'gold-window treasury',
       'mining compliance Tanzania',
@@ -80,8 +82,6 @@ export async function generateMetadata(): Promise<Metadata> {
       // discoverability without putting the literal SW token in EN source.
       'Tum' + 'emadini',
       'NEMC',
-      'Master Brain',
-      'Borjie',
       'mining marketplace Tanzania',
     ],
     openGraph: {
