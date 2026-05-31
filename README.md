@@ -1,7 +1,12 @@
 # Borjie
 
-> Mining estate planning, management, and intelligence — an AI-native operating
-> system for Tanzanian (and pan-African) artisanal-to-mid-tier mining.
+> **Borjie is an AI-native mining estate operating system. Mr. Mwikila
+> is its brain layer.**
+>
+> Purpose-built for Tanzanian (and pan-African) artisanal-to-mid-tier
+> mining — licences, royalty, workforce, treasury, compliance, marketplace,
+> holdings, subsidiaries, ancillary businesses, family office, succession,
+> and the full asset register.
 
 [![CI](https://github.com/GeorgeMwiki/BORJIE-101/actions/workflows/borjie-ci.yml/badge.svg?branch=main)](https://github.com/GeorgeMwiki/BORJIE-101/actions/workflows/borjie-ci.yml)
 [![License: MIT](https://img.shields.io/github/license/GeorgeMwiki/BORJIE-101)](./LICENSE)
@@ -13,6 +18,9 @@
 ---
 
 ## What is Borjie
+
+Borjie is an AI-native mining estate operating system. Mr. Mwikila is its
+brain layer.
 
 Tanzanian artisanal-to-mid-tier mining runs on paper, WhatsApp screenshots, and
 the owner's memory. Shift logs sit in notebooks, licences expire silently,

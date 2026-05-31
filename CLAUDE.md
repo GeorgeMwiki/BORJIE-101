@@ -9,10 +9,15 @@ Read the documents in this order before answering or editing.
 
 ## About Borjie
 
-Borjie is a mining estate planning, management, and intelligence
-operating system for Tanzanian (and pan-African) artisanal-to-mid-tier
-mining. It is a hard-fork of BossNyumba (property-management SaaS) with
-the brain layer kept verbatim and a mining domain bolted on.
+**Borjie is an AI-native mining estate operating system. Mr. Mwikila
+is its brain layer.**
+
+The product is purpose-built for Tanzanian (and pan-African)
+artisanal-to-mid-tier mining — licences, royalty, workforce, treasury,
+compliance, marketplace, holdings, subsidiaries, ancillary businesses,
+family office, succession, and the full asset register, all orchestrated
+end-to-end by Mr. Mwikila — the brain layer within Borjie, an AI-native
+mining estate operating system.
 
 The product surfaces are four:
 - `apps/admin-web` — Borjie team's internal console (port 3020)

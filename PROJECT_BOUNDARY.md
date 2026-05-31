@@ -2,10 +2,17 @@
 
 **This repository is BORJIE only.**
 
-Borjie is the AI-native mining operations OS for Tanzania (and pan-African
-artisanal-to-mid-tier mining). The product evolves independently, with its
-own roadmap, schema, OpenAPI surface, mobile apps, juniors, regulator pack,
-marketing surface, and CI pipeline. Persona: **Mr. Mwikila**.
+**Borjie is an AI-native mining estate operating system. Mr. Mwikila is
+its brain layer.**
+
+Mr. Mwikila is the brain layer within Borjie — an AI-native mining estate
+operating system. He drafts, hedges, supervises, files. The owner signs
+once. The product evolves independently, with its own roadmap, schema,
+OpenAPI surface, mobile apps, juniors, regulator pack, marketing surface,
+and CI pipeline.
+
+Borjie covers Tanzanian (and pan-African) artisanal-to-mid-tier mining
+end-to-end. **Mining domain only — never property / real estate.**
 
 ## Scope
 
