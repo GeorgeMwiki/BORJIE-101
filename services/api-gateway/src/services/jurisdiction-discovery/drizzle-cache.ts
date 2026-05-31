@@ -85,7 +85,8 @@ export function createDrizzleDiscoveryCache(
         `)) as { readonly rows?: ReadonlyArray<DiscoveredRow> } | ReadonlyArray<DiscoveredRow>;
         const rows = Array.isArray(result)
           ? (result as ReadonlyArray<DiscoveredRow>)
-          : (result.rows ?? []);
+          : ((result as { readonly rows?: ReadonlyArray<DiscoveredRow> })
+              .rows ?? []);
         const row = rows[0];
         if (!row) return null;
         return rowToResult(row);

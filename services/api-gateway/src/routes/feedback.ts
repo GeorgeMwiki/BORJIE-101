@@ -167,10 +167,13 @@ app.post('/', zValidator('json', submitFeedbackSchema), withSecurityEvents({ act
         subjectKey: body.turnId,
         userIdHash: auth.userId,
         tenantId: auth.tenantId,
-        correlationId: body.threadId ?? undefined,
-        evidence: body.correctionText
-          ? { userText: body.correctionText }
-          : undefined,
+        // Omit optional keys when absent rather than passing `undefined`
+        // explicitly — Observation declares them `?:` and the gateway runs
+        // with exactOptionalPropertyTypes.
+        ...(body.threadId ? { correlationId: body.threadId } : {}),
+        ...(body.correctionText
+          ? { evidence: { userText: body.correctionText } }
+          : {}),
       }).catch(() => {
         /* never bubble */
       });

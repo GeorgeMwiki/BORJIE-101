@@ -61,7 +61,8 @@ export function createDrizzleCorpusSearch(
         `)) as { readonly rows?: ReadonlyArray<ChunkRow> } | ReadonlyArray<ChunkRow>;
         const rows = Array.isArray(result)
           ? (result as ReadonlyArray<ChunkRow>)
-          : (result.rows ?? []);
+          : ((result as { readonly rows?: ReadonlyArray<ChunkRow> }).rows ??
+            []);
         return rows.map((row) => ({
           evidenceId: row.id,
           title: row.title ?? row.source_file ?? 'corpus chunk',

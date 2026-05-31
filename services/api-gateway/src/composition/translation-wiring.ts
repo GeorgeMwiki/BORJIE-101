@@ -38,8 +38,13 @@ import {
   type ClaudeFetcher,
 } from '@borjie/translation-sota';
 import { sql } from 'drizzle-orm';
-import type { DatabaseClient } from '@borjie/database';
+import { createDatabaseClient } from '@borjie/database';
 import type pino from 'pino';
+
+// `DatabaseClient` collides with a namespace that drizzle-orm/postgres-js's
+// declaration merging pulls in at this consumption site — deriving the type
+// via ReturnType sidesteps it (mirrors composition/db-client.ts).
+type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
 const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
 const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
@@ -174,14 +179,22 @@ export function wireTranslation(
       now: () => Date.now(),
     });
 
-    const sotaLogger = createLogger(
-      {
-        service: 'api-gateway',
-        component: 'translation',
+    // createLogger takes a full TranslationTelemetryConfig (service
+    // identity object + level/sampling knobs), not the flat
+    // {service,component,version} shape this previously passed — and its
+    // second arg is a LogSinks, not a pino logger. Provide a valid config
+    // and let it use the default sink.
+    const sotaLogger = createLogger({
+      service: {
+        name: 'api-gateway',
         version: '0.1.0',
+        environment: 'production',
       },
-      input.logger,
-    );
+      enabled: true,
+      logLevel: 'info',
+      traceSampleRatio: 0,
+      metricsIntervalMs: 60_000,
+    });
 
     const runner = createTranslationRunner({
       providers: [claudeProvider],

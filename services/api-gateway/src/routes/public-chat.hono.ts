@@ -2034,7 +2034,11 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       void recordObservation({
         kind: 'claim_cited',
         subjectKey: evidenceId,
-        correlationId: parsed.sessionId,
+        // `sessionId` (string | null) is the correlation key — omit when
+        // null to satisfy exactOptionalPropertyTypes. (Was `parsed.sessionId`,
+        // an undefined identifier that threw ReferenceError on every cited
+        // marketing reply.)
+        ...(sessionId ? { correlationId: sessionId } : {}),
         portalContext: 'public',
       }).catch(() => {
         /* never bubble */

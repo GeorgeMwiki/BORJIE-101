@@ -141,37 +141,17 @@ export const jurisdictionDiscoverTool: PersonaToolDescriptor<
           'internal admin approval).',
       };
     }
-    return client.post<{
-      countryCode: string;
-      countryName: string;
-      regulators: ReadonlyArray<{
-        name: string;
-        domain:
-          | 'mineral_licensing'
-          | 'environment'
-          | 'transparency'
-          | 'audit'
-          | 'unknown';
-        mandate?: string;
-        url?: string;
-      }>;
-      currency: string;
-      languages: ReadonlyArray<string>;
-      legalFramework?: string;
-      validityScore: number;
-      origin: 'seed' | 'cache' | 'discovered' | 'fallback';
-      lowConfidence: boolean;
-      sources: ReadonlyArray<{
-        kind: 'web_search' | 'corpus' | 'fallback';
-        id: string;
-        title: string;
-        snippet?: string;
-      }>;
-      promotionHint: string;
-    }>('/internal/jurisdiction-discovery/discover', {
-      tenantId: ctx.tenantId,
-      country: input.country,
-    });
+    // Use the output schema as the single source of truth for the wire
+    // shape. The previous hand-written generic used ReadonlyArray<…> which
+    // is not assignable to the mutable arrays `z.infer<DiscoverOutput>`
+    // produces — the descriptor's declared handler return type.
+    return client.post<z.infer<typeof DiscoverOutput>>(
+      '/internal/jurisdiction-discovery/discover',
+      {
+        tenantId: ctx.tenantId,
+        country: input.country,
+      },
+    );
   },
 };
 
