@@ -8,6 +8,7 @@ import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -40,13 +41,18 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Single source of truth for the active language — the `borjie_locale`
+  // cookie (default 'en'). The layout chrome, command palette, session,
+  // and every downstream surface all read from this so the cockpit never
+  // mixes EN and SW on one page.
+  const locale = await readLocaleFromServerCookies();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Inline FOUC defeat — read borjie-theme localStorage and stamp
             the correct class on <html> before React hydrates. */}
@@ -63,10 +69,10 @@ export default function RootLayout({
             <OwnerShell>{children}</OwnerShell>
             <BorjieWidgetMount />
             {/* Wave SUPERPOWERS - universal Cmd-K palette. Mounted at
-                the root so it works on every owner screen. The owner's
-                language preference is read from the persisted preference
-                stored in localStorage; falls back to English. */}
-            <OwnerCommandPalette languagePreference="en" />
+                the root so it works on every owner screen. Language
+                follows the resolved `borjie_locale` (default 'en') — the
+                same source the layout chrome and dashboard read. */}
+            <OwnerCommandPalette languagePreference={locale} />
             {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
                 Lazy-loads web-vitals v5 on the client, ships LCP/INP/CLS/
                 TTFB/FCP via sendBeacon to /api/perf/web-vitals. Pure side

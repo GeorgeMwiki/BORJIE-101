@@ -19,11 +19,10 @@
 
 import { useEffect, useState } from 'react';
 
-export type Locale = 'en' | 'sw';
+import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from './locale-shared';
 
-export const DEFAULT_LOCALE: Locale = 'en';
-
-const LOCALE_COOKIE = 'borjie_locale';
+export type { Locale };
+export { DEFAULT_LOCALE, LOCALE_COOKIE };
 
 /**
  * Read the locale from `document.cookie`. Returns the project default

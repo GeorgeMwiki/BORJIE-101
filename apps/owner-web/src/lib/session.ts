@@ -10,7 +10,14 @@
  * (2) resolve the tenant via @borjie/api-sdk, and (3) hydrate the
  * owner's persona + LMBM summary. This shim mirrors that shape so
  * components can be written against the final contract today.
+ *
+ * `languagePreference` is the one place the cockpit decides which
+ * language to render. It is resolved per-request from the
+ * `borjie_locale` cookie (default 'en') so the dashboard, chat, and
+ * command palette all agree with the layout chrome — no EN/SW mixing.
  */
+
+import { readLocaleFromServerCookies } from './locale.server';
 
 export interface SiteSummary {
   readonly id: string;
@@ -41,7 +48,7 @@ const OWNER_SESSION: OwnerSession = {
   userId: 'usr_owner_001',
   fullName: 'Mzee Mwanaidi Komba',
   salutation: 'Mzee Mwanaidi',
-  languagePreference: 'sw',
+  languagePreference: 'en',
   role: 'owner',
   tenant: {
     id: 'tnt_mawebora',
@@ -77,6 +84,9 @@ const OWNER_SESSION: OwnerSession = {
 };
 
 export async function getOwnerSession(): Promise<OwnerSession> {
-  // Async to match the real implementation's signature.
-  return OWNER_SESSION;
+  // Resolve language per-request from the `borjie_locale` cookie so the
+  // whole cockpit renders one language (default 'en'). Immutable: spread
+  // the frozen base and override only the language field.
+  const languagePreference = await readLocaleFromServerCookies();
+  return { ...OWNER_SESSION, languagePreference };
 }
