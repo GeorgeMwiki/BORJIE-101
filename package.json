@@ -36,6 +36,7 @@
     "verify:migrations:json": "tsx scripts/verify-migrations.ts --json",
     "refresh-fx-rates": "pnpm -s exec tsx scripts/refresh-fx-rates.ts",
     "seed:owner-demo": "tsx scripts/seed-owner-demo-data.ts",
+    "seed:pilot": "tsx scripts/seed-pilot-tenants.ts",
     "setup-env": "node scripts/setup-borjie-env.mjs",
     "gen-secrets": "node scripts/generate-borjie-secrets.mjs",
     "prepare": "husky"

@@ -79,6 +79,9 @@ override.tf.json
 .semgrep/
 .claude/worktrees/
 
+# Pilot credentials — plaintext for demo seeders, never committed
+scripts/pilot-credentials.json
+
 # Borjie additions
 .env
 .env.local
