@@ -306,9 +306,22 @@ export async function POST(req: Request): Promise<Response> {
             .map((b) => b.text as string)
             .join('\n')
             .trim();
+          if (reply.length === 0) {
+            // Empty Anthropic reply — surface as 503 with a structured
+            // error code so the widget renders its own degraded state
+            // instead of showing a hardcoded "(no response)" string.
+            return NextResponse.json(
+              {
+                error: 'ai_empty_reply',
+                detail: 'anthropic_returned_empty_content',
+                sessionId: parsed.sessionId,
+              },
+              { status: 503 },
+            );
+          }
           return NextResponse.json(
             {
-              reply: reply || '(no response)',
+              reply,
               sessionId: parsed.sessionId,
               ...(blocks.length > 0 ? { blocks } : {}),
               degraded: { mode: 'direct_anthropic', reason: 'gateway_unreachable' },
