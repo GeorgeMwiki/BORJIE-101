@@ -13,6 +13,11 @@
  */
 
 import { z } from 'zod';
+import {
+  PROMPT_INJECTION_PREAMBLE,
+  fenceUntrustedContent,
+} from '../prompt-safety.js';
+import { createPiiTokeniser, restorePii } from '../pii-tokenise.js';
 import type {
   BrainPort,
   DocCitation,
@@ -149,16 +154,23 @@ async function extractWithBrain(
     (schema.schema as z.ZodObject<z.ZodRawShape>).shape
   );
 
+  // Tokenise PII before egress to the LLM, then restore it in the
+  // extracted JSON — the provider never sees raw IDs but extraction still
+  // returns the real values (reversible tokenisation, not redaction).
+  const piiTokeniser = createPiiTokeniser();
   const prompt = [
     `You are extracting structured form fields from a ${schema.label}.`,
     'Reply with a single JSON object — no commentary.',
     'Use null for fields you cannot find.',
+    PROMPT_INJECTION_PREAMBLE,
     `FIELDS: ${fieldNames.join(', ')}`,
-    `DOCUMENT:\n${doc.text.slice(0, 12000)}`,
+    `DOCUMENT:\n${fenceUntrustedContent(
+      piiTokeniser.tokenise(doc.text.slice(0, 12000)),
+    )}`,
   ].join('\n');
 
   const result = await brain.complete(prompt, { temperature: 0, maxTokens: 1024 });
-  const json = safeParseJson(result.text);
+  const json = safeParseJson(restorePii(result.text, piiTokeniser.map));
   if (!json || typeof json !== 'object') return [];
 
   const parsed = schema.schema.safeParse(json);

@@ -18,8 +18,13 @@ import type {
   ParsedDocument,
 } from '../types.js';
 import { chunkDocument } from './chunker.js';
+import {
+  PROMPT_INJECTION_PREAMBLE,
+  neutraliseFenceMarkers,
+} from '../prompt-safety.js';
 import { retrieve } from './retriever.js';
 import { parseAnswerWithCitations } from './citations.js';
+import { createPiiTokeniser, restorePii } from '../pii-tokenise.js';
 
 export interface ChatWithDocConfig {
   readonly doc: ParsedDocument;
@@ -47,13 +52,19 @@ export async function chatWithDoc(config: ChatWithDocConfig): Promise<ChatAnswer
     };
   }
 
+  // Tokenise PII in retrieved chunks before they egress to the LLM, then
+  // restore it in the model's output — the provider never sees raw national
+  // IDs / phones / emails, but the answer still returns the real values.
+  // One stateful tokeniser across all chunks → globally-unique tokens.
+  const tokeniser = createPiiTokeniser();
+
   const prompt = buildPrompt({
     docId: config.doc.id,
     question: config.question,
     candidates: candidates.map((c) => ({
       blockIdsCsv: c.chunk.blockIds.join(','),
       pageNumber: c.chunk.pageNumber,
-      text: c.chunk.text,
+      text: tokeniser.tokenise(c.chunk.text),
     })),
     ...(config.history ? { history: config.history } : {}),
   });
@@ -63,7 +74,9 @@ export async function chatWithDoc(config: ChatWithDocConfig): Promise<ChatAnswer
     maxTokens: config.maxAnswerTokens ?? 1024,
   });
 
-  const parsed = parseAnswerWithCitations(result.text);
+  const parsed = parseAnswerWithCitations(
+    restorePii(result.text, tokeniser.map),
+  );
   const confidence = parsed.citations.length > 0 ? 0.85 : 0.5;
   const tokensUsed = result.tokensUsed;
   return {
@@ -92,11 +105,12 @@ function buildPrompt(input: BuildPromptInput): string {
   const contextBlock = input.candidates
     .map((c, idx) => {
       const firstBlock = c.blockIdsCsv.split(',')[0]!;
-      return `[chunk ${idx + 1} | doc:${input.docId} | page ${c.pageNumber} | block ${firstBlock}]\n${c.text}`;
+      return `[chunk ${idx + 1} | doc:${input.docId} | page ${c.pageNumber} | block ${firstBlock}]\n${neutraliseFenceMarkers(c.text)}`;
     })
     .join('\n\n');
   return [
     'You are a document assistant. Answer ONLY from the supplied chunks.',
+    PROMPT_INJECTION_PREAMBLE,
     'Cite every factual claim by appending markers in this format:',
     '  [doc:<docId>#p<page>:<blockId>:"<exact quoted span>"]',
     'If the chunks do not contain the answer, say so explicitly.',

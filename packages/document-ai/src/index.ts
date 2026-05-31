@@ -27,6 +27,8 @@ export * from './form-extraction/index.js';
 export * from './multilingual/index.js';
 export * from './e-signature/index.js';
 export * from './accessibility/index.js';
+export * from './pii-tokenise.js';
+export * from './prompt-safety.js';
 
 export interface CreateDocumentAIConfig {
   readonly ocr?: OCRPort;

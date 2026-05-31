@@ -109,11 +109,28 @@ export function buildTypstApp(opts = {}) {
       const args = ['compile', inputPath, '-'];
       if (inputs && typeof inputs === 'object') {
         for (const [k, v] of Object.entries(inputs)) {
-          args.push('--input', `${k}=${JSON.stringify(v)}`);
+          // Reject non-identifier keys + oversized values — argument
+          // injection / resource-exhaustion defence on `--input`.
+          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) {
+            return res.status(400).type('text/plain').send(`invalid input key: ${k}`);
+          }
+          const serialized = JSON.stringify(v);
+          if (serialized.length > 100_000) {
+            return res
+              .status(400)
+              .type('text/plain')
+              .send(`input value too large: ${k}`);
+          }
+          args.push('--input', `${k}=${serialized}`);
         }
       }
 
-      const child = spawn(TYPST_BIN, args, { cwd: tempDir });
+      // Wall-clock cap so a looping/quadratic Typst source can never pin a
+      // render worker (DoS). SIGTERM after the timeout → non-zero close.
+      const child = spawn(TYPST_BIN, args, {
+        cwd: tempDir,
+        timeout: Number(process.env.TYPST_TIMEOUT_MS ?? 20000),
+      });
       const stdoutChunks = [];
       const stderrChunks = [];
       child.stdout.on('data', (c) => stdoutChunks.push(c));

@@ -11,6 +11,7 @@
 
 import type { LanguageCode, OCRConfig, OCRPort, ParsedDocument, TextBlock } from '../types.js';
 import { buildPage, buildParsedDocument } from './parsed-document-builder.js';
+import { assertSafeOcrEndpoint } from './ssrf-guard.js';
 
 export interface MarkerAdapterConfig {
   readonly endpoint: string;
@@ -33,6 +34,8 @@ interface MarkerResponse {
 }
 
 export function createMarkerAdapter(config: MarkerAdapterConfig): OCRPort {
+  // Fail fast on a metadata/link-local endpoint (SSRF / credential-exfil).
+  assertSafeOcrEndpoint(config.endpoint);
   return {
     id: 'marker',
     async recognize(input: OCRConfig): Promise<ParsedDocument> {

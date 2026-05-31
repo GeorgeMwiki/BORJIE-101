@@ -11,6 +11,7 @@
 import { getModelLatest } from '@borjie/brain-llm-router/dynamic-registry';
 import type { OCRConfig, OCRPort, ParsedDocument, TextBlock } from '../types.js';
 import { buildPage, buildParsedDocument } from './parsed-document-builder.js';
+import { assertSafeOcrEndpoint } from './ssrf-guard.js';
 
 export interface AnthropicVisionAdapterConfig {
   readonly apiKey: string;
@@ -32,6 +33,8 @@ export function createAnthropicVisionAdapter(
   config: AnthropicVisionAdapterConfig
 ): OCRPort {
   const endpoint = config.endpoint ?? 'https://api.anthropic.com/v1/messages';
+  // Fail fast on a metadata/link-local endpoint (SSRF / credential-exfil).
+  assertSafeOcrEndpoint(endpoint);
   const model = config.model ?? getModelLatest('opus');
   const maxTokens = config.maxTokens ?? 4096;
 

@@ -27,6 +27,10 @@ import {
 } from './metrics.js';
 
 const TEMPLATES_DIR = process.env.TEMPLATES_DIR ?? '/app/templates';
+const RENDER_TIMEOUT_MS = Number(process.env.CARBONE_RENDER_TIMEOUT_MS ?? 60000);
+const MAX_OUTPUT_BYTES = Number(
+  process.env.CARBONE_MAX_OUTPUT_BYTES ?? 50 * 1024 * 1024,
+);
 
 /**
  * Build (without binding) the carbone server. Exported separately from
@@ -99,11 +103,33 @@ export function buildCarboneApp(opts = {}) {
         .send(`template not found: ${templateId}`);
     }
     const options = convertTo ? { convertTo } : {};
+    // Carbone has no built-in per-render timeout (unlike puppeteer/typst);
+    // a malicious template/data set could hang the LibreOffice subprocess.
+    // Guard with a wall-clock cap + a one-shot response latch.
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      res.status(504).type('text/plain').send('render timed out');
+    }, RENDER_TIMEOUT_MS);
     carbone.render(templatePath, data, options, (err, result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (err) {
         return res.status(500).type('text/plain').send(String(err));
       }
-      res.status(200).end(result);
+      if (result && result.length > MAX_OUTPUT_BYTES) {
+        return res.status(413).type('text/plain').send('rendered output too large');
+      }
+      res
+        .status(200)
+        .set(
+          'Content-Disposition',
+          `attachment; filename="${path.basename(templateId)}.bin"`,
+        )
+        .set('X-Content-Type-Options', 'nosniff')
+        .end(result);
     });
   });
 
@@ -118,9 +144,13 @@ export function startCarbone(port) {
 }
 
 function resolveTemplate(templateId) {
-  // Reject path traversal — only basename allowed.
-  const safe = path.basename(templateId);
-  const exact = path.join(TEMPLATES_DIR, safe);
+  // Reject path traversal — only basename allowed, AND the resolved path
+  // must stay inside TEMPLATES_DIR (containment defence beyond basename,
+  // covers symlink/edge cases if the volume is ever made writable).
+  const safe = path.basename(String(templateId ?? ''));
+  const baseDir = path.resolve(TEMPLATES_DIR);
+  const exact = path.resolve(baseDir, safe);
+  if (exact !== baseDir && !exact.startsWith(baseDir + path.sep)) return null;
   if (fs.existsSync(exact)) return exact;
   // Also try common suffixes if the caller passed a bare id.
   for (const ext of ['.docx', '.odt', '.xlsx', '.pptx', '.html']) {

@@ -83,6 +83,52 @@ function mermaidFallbackHtml(source: string, language: ArtifactLanguage): string
 </figure>`;
 }
 
+/**
+ * SSRF guard for the headless mermaid renderer — mirror of the
+ * puppeteer-server `isBlockedRenderUrl`. Untrusted mermaid source must
+ * never let the headless browser reach cloud-metadata (169.254.169.254),
+ * loopback, or internal VPC ranges. Returns true when a subresource URL
+ * must be BLOCKED. Public http(s) (incl. the mermaid CDN) + inline schemes
+ * pass.
+ */
+function isBlockedSubresourceUrl(rawUrl: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return true;
+  }
+  const scheme = u.protocol.toLowerCase();
+  if (scheme === 'data:' || scheme === 'about:' || scheme === 'blob:') {
+    return false;
+  }
+  if (scheme !== 'http:' && scheme !== 'https:') return true;
+  const host = u.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0') {
+    return true;
+  }
+  if (
+    host === '::1' ||
+    host.startsWith('fe80') ||
+    host.startsWith('fc') ||
+    host.startsWith('fd')
+  ) {
+    return true;
+  }
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 127) return true;
+    if (a === 10) return true;
+    if (a === 169 && b === 254) return true; // link-local + cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  }
+  return false;
+}
+
 async function tryHeadlessMermaid(source: string): Promise<string | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +143,18 @@ async function tryHeadlessMermaid(source: string): Promise<string | null> {
     try {
       const context = await browser.newContext();
       const page = await context.newPage();
+      // SSRF defence: abort any subresource the diagram tries to pull from
+      // a metadata/loopback/internal host before the request leaves. The
+      // mermaid CDN (public https) is allowed; everything internal is not.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await page.route('**/*', (route: any) => {
+        const url = typeof route.request === 'function' ? route.request().url() : '';
+        if (isBlockedSubresourceUrl(url)) {
+          route.abort('blockedbyclient').catch(() => undefined);
+        } else {
+          route.continue().catch(() => undefined);
+        }
+      });
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body>
 <div class="mermaid">${escapeHtml(source)}</div>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>

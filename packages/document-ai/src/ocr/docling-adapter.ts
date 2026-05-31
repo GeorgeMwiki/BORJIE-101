@@ -11,6 +11,7 @@
 
 import type { LanguageCode, OCRConfig, OCRPort, ParsedDocument, TextBlock, ExtractedTable } from '../types.js';
 import { buildPage, buildParsedDocument } from './parsed-document-builder.js';
+import { assertSafeOcrEndpoint } from './ssrf-guard.js';
 
 export interface DoclingAdapterConfig {
   readonly endpoint: string;
@@ -47,6 +48,8 @@ interface DoclingResponse {
 
 export function createDoclingAdapter(config: DoclingAdapterConfig): OCRPort {
   const id = config.id ?? 'docling';
+  // Fail fast on a metadata/link-local endpoint (SSRF / credential-exfil).
+  assertSafeOcrEndpoint(config.endpoint);
   return {
     id,
     async recognize(input: OCRConfig): Promise<ParsedDocument> {
