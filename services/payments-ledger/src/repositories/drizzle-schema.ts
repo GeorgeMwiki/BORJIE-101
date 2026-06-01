@@ -30,7 +30,7 @@
  * inferred-type leaks (TS2883) across the package boundary.
  */
 
-import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, bigint, jsonb } from 'drizzle-orm/pg-core';
 import type { PgColumn, PgTableWithColumns } from 'drizzle-orm/pg-core';
 
 // Anchor the drizzle column/table types in this module so the
@@ -55,7 +55,12 @@ export const accounts = pgTable('accounts', {
   type: text('type').notNull(),
   status: text('status').notNull(),
   currency: text('currency').notNull(),
-  balanceMinorUnits: integer('balance_minor_units').notNull().default(0),
+  // C2 — overflow safety: money minor-unit columns are BIGINT (mode
+  // 'number' keeps the JS type `number`). entry_count is a row-version
+  // counter, not money, so it stays INTEGER.
+  balanceMinorUnits: bigint('balance_minor_units', { mode: 'number' })
+    .notNull()
+    .default(0),
   lastEntryId: text('last_entry_id'),
   lastEntryAt: timestamp('last_entry_at', { withTimezone: true }),
   entryCount: integer('entry_count').notNull().default(0),
@@ -87,9 +92,13 @@ export const ledgerEntries = pgTable('ledger_entries', {
   journalId: text('journal_id').notNull(),
   type: text('type').notNull(),
   direction: text('direction').notNull(),
-  amountMinorUnits: integer('amount_minor_units').notNull(),
+  // C2 — overflow safety: BIGINT money columns (mode 'number').
+  // sequence_number is an ordering counter, not money → stays INTEGER.
+  amountMinorUnits: bigint('amount_minor_units', { mode: 'number' }).notNull(),
   currency: text('currency').notNull(),
-  balanceAfterMinorUnits: integer('balance_after_minor_units').notNull(),
+  balanceAfterMinorUnits: bigint('balance_after_minor_units', {
+    mode: 'number',
+  }).notNull(),
   sequenceNumber: integer('sequence_number').notNull(),
   effectiveDate: timestamp('effective_date', {
     withTimezone: true,
@@ -124,17 +133,23 @@ export const paymentIntents = pgTable('payment_intents', {
   leaseId: text('lease_id'),
   type: text('type').notNull(),
   status: text('status').notNull(),
-  amountMinorUnits: integer('amount_minor_units').notNull(),
+  // C2 — overflow safety: BIGINT money columns (mode 'number').
+  amountMinorUnits: bigint('amount_minor_units', { mode: 'number' }).notNull(),
   currency: text('currency').notNull(),
-  platformFeeMinorUnits: integer('platform_fee_minor_units'),
-  netAmountMinorUnits: integer('net_amount_minor_units'),
+  platformFeeMinorUnits: bigint('platform_fee_minor_units', {
+    mode: 'number',
+  }),
+  netAmountMinorUnits: bigint('net_amount_minor_units', { mode: 'number' }),
   providerName: text('provider_name'),
   externalId: text('external_id'),
   description: text('description'),
   statementDescriptor: text('statement_descriptor'),
   idempotencyKey: text('idempotency_key'),
   receiptUrl: text('receipt_url'),
-  refundedAmountMinorUnits: integer('refunded_amount_minor_units').default(0),
+  // C2 — overflow safety: BIGINT money column (mode 'number').
+  refundedAmountMinorUnits: bigint('refunded_amount_minor_units', {
+    mode: 'number',
+  }).default(0),
   failureReason: text('failure_reason'),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   refundedAt: timestamp('refunded_at', { withTimezone: true }),
@@ -170,11 +185,22 @@ export const statements = pgTable('statements', {
   periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
   periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
   currency: text('currency').notNull(),
-  openingBalanceMinorUnits: integer('opening_balance_minor_units'),
-  closingBalanceMinorUnits: integer('closing_balance_minor_units'),
-  totalDebitsMinorUnits: integer('total_debits_minor_units'),
-  totalCreditsMinorUnits: integer('total_credits_minor_units'),
-  netChangeMinorUnits: integer('net_change_minor_units'),
+  // C2 — overflow safety: BIGINT money columns (mode 'number'). A
+  // period statement can sum many entries, so it is the most exposed to
+  // INT4 overflow of all the money columns.
+  openingBalanceMinorUnits: bigint('opening_balance_minor_units', {
+    mode: 'number',
+  }),
+  closingBalanceMinorUnits: bigint('closing_balance_minor_units', {
+    mode: 'number',
+  }),
+  totalDebitsMinorUnits: bigint('total_debits_minor_units', {
+    mode: 'number',
+  }),
+  totalCreditsMinorUnits: bigint('total_credits_minor_units', {
+    mode: 'number',
+  }),
+  netChangeMinorUnits: bigint('net_change_minor_units', { mode: 'number' }),
   lineItems: jsonb('line_items').notNull().default([]),
   summaries: jsonb('summaries').notNull().default([]),
   recipientEmail: text('recipient_email'),
@@ -205,7 +231,8 @@ export const disbursements = pgTable('disbursements', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull(),
   ownerId: text('owner_id').notNull(),
-  amountMinorUnits: integer('amount_minor_units').notNull(),
+  // C2 — overflow safety: BIGINT money column (mode 'number').
+  amountMinorUnits: bigint('amount_minor_units', { mode: 'number' }).notNull(),
   currency: text('currency').notNull(),
   status: text('status').notNull(),
   destination: text('destination').notNull(),

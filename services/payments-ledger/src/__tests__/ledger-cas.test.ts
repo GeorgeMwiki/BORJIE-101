@@ -30,7 +30,10 @@ import {
   type CreateJournalEntryRequest,
 } from '@borjie/domain-models';
 import { LedgerService } from '../services/ledger.service';
-import { InMemoryLedgerRepository } from '../repositories/ledger.repository';
+import {
+  InMemoryLedgerRepository,
+  type ILedgerRepository,
+} from '../repositories/ledger.repository';
 import {
   InMemoryAccountRepository,
   type IAccountRepository,
@@ -53,11 +56,26 @@ function silentLogger() {
 
 async function buildService(
   accountRepo: IAccountRepository = new InMemoryAccountRepository(),
+  ledgerRepoOverride?: ILedgerRepository,
 ) {
   const ledgerRepo = new InMemoryLedgerRepository();
+  // Durability defect #1 — the ledger repo folds balance CAS writes into
+  // the same atomic unit as entry inserts, so it needs the account store
+  // (the factory wires this in production). When `accountRepo` exposes
+  // the LedgerTxAccountStore hooks, attach it.
+  if (
+    typeof (accountRepo as unknown as { __snapshotForLedgerTx?: unknown })
+      .__snapshotForLedgerTx === 'function'
+  ) {
+    ledgerRepo.attachAccountStore(
+      accountRepo as unknown as Parameters<
+        typeof ledgerRepo.attachAccountStore
+      >[0],
+    );
+  }
   const eventPublisher = new InMemoryEventPublisher();
   const ledger = new LedgerService({
-    ledgerRepository: ledgerRepo,
+    ledgerRepository: ledgerRepoOverride ?? ledgerRepo,
     accountRepository: accountRepo,
     eventPublisher,
     logger: silentLogger(),
@@ -170,32 +188,29 @@ describe('ledger CAS — disjoint accounts', () => {
 
 describe('ledger CAS — exhausted retries', () => {
   it('throws a clear error after MAX_ATTEMPTS when CAS keeps failing', async () => {
-    // Repo that ALWAYS refuses the optimistic UPDATE — simulates a
-    // pathological neighbour that constantly bumps `entry_count`
-    // before our CAS lands. After the bounded retry the service
-    // surfaces a normal Error so callers know the contract failed.
-    // We cap the retry count via env so the test runs in <50 ms.
+    // Ledger repo whose atomic post ALWAYS reports a stale CAS —
+    // simulates a pathological neighbour that constantly bumps
+    // `entry_count` before our transaction commits. After the bounded
+    // retry the service surfaces a normal Error so callers know the
+    // contract failed. We cap the retry count via env so the test runs
+    // in <50 ms.
     process.env.LEDGER_CAS_MAX_ATTEMPTS = '3';
-    const base = new InMemoryAccountRepository();
-    const blockingRepo: IAccountRepository = {
-      ...base,
-      create: base.create.bind(base),
-      findById: base.findById.bind(base),
-      update: base.update.bind(base),
-      find: base.find.bind(base),
-      findByCustomerAndType: base.findByCustomerAndType.bind(base),
-      findByOwnerAndType: base.findByOwnerAndType.bind(base),
-      findPlatformAccounts: base.findPlatformAccounts.bind(base),
-      findByCustomer: base.findByCustomer.bind(base),
-      findByOwner: base.findByOwner.bind(base),
-      findWithPositiveBalance: base.findWithPositiveBalance.bind(base),
-      updateBalance: async () => false,
-      updateBalancesAtomic: async (updates) => ({
-        ok: false,
-        conflictAccountId: updates[0]!.accountId,
-      }),
-    };
-    const { ledger } = await buildService(blockingRepo);
+    const accountRepo = new InMemoryAccountRepository();
+    const base = new InMemoryLedgerRepository();
+    const blockingLedger: ILedgerRepository = Object.assign(
+      Object.create(InMemoryLedgerRepository.prototype),
+      base,
+      {
+        postJournalAtomic: async (post: {
+          balanceUpdates: ReadonlyArray<{ accountId: AccountId }>;
+        }) => ({
+          status: 'stale' as const,
+          conflictAccountId: post.balanceUpdates[0]!.accountId,
+        }),
+        findJournalIdByIdempotencyKey: async () => null,
+      },
+    );
+    const { ledger } = await buildService(accountRepo, blockingLedger);
     await expect(
       ledger.postJournalEntry(debitCreditRequest(ACCOUNT_A, ACCOUNT_B, 100)),
     ).rejects.toThrow(/Ledger CAS failed after 3 attempts/);

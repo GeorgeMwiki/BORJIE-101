@@ -349,4 +349,68 @@ export class InMemoryAccountRepository implements IAccountRepository {
     }
     return { ok: true };
   }
+
+  // ──────────────────────────────────────────────────────────────────
+  // LedgerTxAccountStore — internal coordination hooks (durability
+  // defect #1: atomicity). The InMemory ledger repo uses these to fold
+  // balance CAS writes into the SAME atomic unit as its entry inserts,
+  // with a snapshot/restore rollback. These mirror the single
+  // `db.transaction` the Drizzle path runs across `accounts` +
+  // `ledger_entries`. NOT part of the public IAccountRepository.
+  // ──────────────────────────────────────────────────────────────────
+
+  /** Deep-enough snapshot of every account row for transactional rollback. */
+  __snapshotForLedgerTx(): Map<string, Account & { version: number }> {
+    const snap = new Map<string, Account & { version: number }>();
+    for (const [id, row] of this.accounts) {
+      snap.set(id, { ...row });
+    }
+    return snap;
+  }
+
+  /** Restore a snapshot, discarding any balance writes since it was taken. */
+  __restoreForLedgerTx(snapshot: unknown): void {
+    const snap = snapshot as Map<string, Account & { version: number }>;
+    this.accounts = new Map();
+    for (const [id, row] of snap) {
+      this.accounts.set(id, { ...row });
+    }
+  }
+
+  /**
+   * Validate-all-then-mutate-all CAS, identical predicate to
+   * `updateBalancesAtomic`. Mutates in place; rollback is the caller's
+   * responsibility via the snapshot (so a later entry-insert failure
+   * can undo these writes — the orphan-balance bug this kills).
+   */
+  __applyBalanceWritesForLedgerTx(
+    updates: ReadonlyArray<{
+      readonly accountId: AccountId;
+      readonly tenantId: TenantId;
+      readonly newBalanceMinorUnits: number;
+      readonly lastEntryId: string;
+      readonly expectedVersion: number;
+    }>,
+  ): { ok: true } | { ok: false; conflictAccountId: AccountId } {
+    for (const u of updates) {
+      const row = this.accounts.get(u.accountId);
+      if (!row || row.tenantId !== u.tenantId) {
+        return { ok: false, conflictAccountId: u.accountId };
+      }
+      if (row.entryCount !== u.expectedVersion) {
+        return { ok: false, conflictAccountId: u.accountId };
+      }
+    }
+    const now = new Date();
+    for (const u of updates) {
+      const row = this.accounts.get(u.accountId)!;
+      row.balanceMinorUnits = u.newBalanceMinorUnits;
+      row.lastEntryId = u.lastEntryId;
+      row.lastEntryAt = now;
+      row.entryCount += 1;
+      row.updatedAt = now;
+      row.version = row.entryCount;
+    }
+    return { ok: true };
+  }
 }

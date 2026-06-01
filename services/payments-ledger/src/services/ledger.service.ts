@@ -27,6 +27,7 @@ import {
 } from '../events/payment-events';
 import { ILogger } from './payment-orchestration.service';
 import { omitUndefined } from '../lib/omit-undefined';
+import { verifyHashChain, type HashChainVerification } from './ledger-hash-chain';
 
 export interface LedgerServiceDeps {
   ledgerRepository: ILedgerRepository;
@@ -42,6 +43,25 @@ export interface JournalPostResult {
   journalId: string;
   entries: LedgerEntry[];
   updatedAccounts: Account[];
+  /**
+   * True when this result was served from a prior post via the
+   * idempotency key (durability defect #2) rather than freshly written.
+   * No second post occurred; balances were not touched again.
+   */
+  idempotentReplay?: boolean;
+}
+
+/**
+ * Optional controls for a journal post.
+ */
+export interface PostJournalOptions {
+  /**
+   * Idempotency key (durability defect #2). When supplied, the post is
+   * recorded under a UNIQUE (tenant_id, idempotency_key) guarantee; a
+   * retry with the same key returns the ORIGINAL journal result instead
+   * of double-posting.
+   */
+  readonly idempotencyKey?: string;
 }
 
 /**
@@ -67,6 +87,60 @@ class StaleAccountVersionError extends Error {
 }
 
 /**
+ * H3 — idempotency replay defense (defense-in-depth). Thrown LOUD when a
+ * post arrives under an idempotency key that already maps to a journal
+ * whose leg amounts/accounts/directions DIFFER from this request's
+ * recomputed legs. Serving the stale journal silently would let a caller
+ * reuse a key for a different transaction and get back the wrong money;
+ * we refuse instead. (The gateway also pins the key to the request body;
+ * this is the engine backstop in case that ever regresses.)
+ */
+export class IdempotencyMismatchError extends Error {
+  readonly code = 'LEDGER_IDEMPOTENCY_MISMATCH';
+  constructor(
+    public readonly idempotencyKey: string,
+    public readonly journalId: string,
+    public readonly tenantId: TenantId,
+  ) {
+    super(
+      `LEDGER_IDEMPOTENCY_MISMATCH: idempotency key '${idempotencyKey}' was already used for journal ` +
+        `${journalId} (tenant ${tenantId}) with different legs. Refusing to serve a stale journal for a ` +
+        `mismatched request.`,
+    );
+    this.name = 'IdempotencyMismatchError';
+  }
+}
+
+/**
+ * H3 — canonical leg signature for idempotency-replay comparison. We
+ * compare the IMMUTABLE financial substance of each leg: account,
+ * direction, type, amount (minor units), and currency. The signature is
+ * a SORTED list (not keyed by account) so it is order-independent AND
+ * correct when two legs touch the SAME account (the H2 fold case) — a
+ * map keyed by account would collapse those and miss a mismatch.
+ *
+ * `balanceAfter` / sequenceNumber / ids are deliberately excluded: they
+ * are derived per-post state, not part of the caller's request intent.
+ */
+function legSignature(
+  legs: ReadonlyArray<{
+    readonly accountId: string;
+    readonly direction: string;
+    readonly type: string;
+    readonly amountMinorUnits: number;
+    readonly currency: string;
+  }>,
+): string {
+  return legs
+    .map(
+      (l) =>
+        `${l.accountId}|${l.direction}|${l.type}|${l.amountMinorUnits}|${l.currency}`,
+    )
+    .sort()
+    .join(';;');
+}
+
+/**
  * Ledger Service
  * Provides atomic, double-entry bookkeeping operations
  */
@@ -81,29 +155,84 @@ export class LedgerService {
     this.accountRepository = deps.accountRepository;
     this.eventPublisher = deps.eventPublisher;
     this.logger = deps.logger;
+
+    // Durability defect #1 — atomicity wiring for the in-memory adapter.
+    // The InMemory ledger repo folds balance CAS writes into the same
+    // atomic unit as its entry inserts, so it needs the same account
+    // store instance this service uses. The Drizzle path uses a single
+    // `db.transaction` and needs no wiring (the factory leaves these
+    // hooks absent). Duck-typed so neither adapter leaks its concrete
+    // type into the service.
+    const ledgerRepo = this.ledgerRepository as unknown as {
+      attachAccountStore?: (store: unknown) => void;
+    };
+    const accountStore = this.accountRepository as unknown as {
+      __snapshotForLedgerTx?: unknown;
+    };
+    if (
+      typeof ledgerRepo.attachAccountStore === 'function' &&
+      typeof accountStore.__snapshotForLedgerTx === 'function'
+    ) {
+      ledgerRepo.attachAccountStore(this.accountRepository);
+    }
   }
 
   /**
-   * Post a journal entry (atomic double-entry operation)
+   * Post a journal entry (atomic double-entry operation).
+   *
+   * Durability guarantees:
+   *   - #1 ATOMICITY: balance writes AND entry inserts commit inside ONE
+   *     transaction via `ledgerRepository.postJournalAtomic`. There is no
+   *     window where balances/entry_count move without matching entries.
+   *   - #2 IDEMPOTENCY: when `options.idempotencyKey` is supplied, a
+   *     retried post returns the ORIGINAL journal (no second post).
+   *   - #3 HASH-CHAIN: each entry is hash-chained inside the transaction.
+   *   - BALANCE: rejected unless debits == credits (integer minor units).
    */
-  async postJournalEntry(request: CreateJournalEntryRequest): Promise<JournalPostResult> {
-    // G1 — robustness audit 2026-05-29: retry the whole journal post on
-    // stale-version (optimistic lock failure). Two concurrent posts on
-    // the same account would otherwise read the same balance, both
-    // compute newBalance off the stale read, and the second `update`
-    // would clobber the first. `updateBalancesAtomic` refuses the
-    // stale CAS inside a DB transaction; we then re-read + recompute.
+  async postJournalEntry(
+    request: CreateJournalEntryRequest,
+    options: PostJournalOptions = {},
+  ): Promise<JournalPostResult> {
+    // Validate that the journal is balanced (hard rule — real money).
+    if (!validateJournalBalance(request.lines)) {
+      throw new Error('Journal entry is not balanced: debits must equal credits');
+    }
+    if (request.lines.length === 0) {
+      throw new Error('Journal entry must have at least one line');
+    }
+
+    // Durability defect #2 — fast-path idempotency check. A prior post
+    // under this key returns its journal without touching balances.
+    if (options.idempotencyKey !== undefined) {
+      const existingJournalId =
+        await this.ledgerRepository.findJournalIdByIdempotencyKey(
+          request.tenantId,
+          options.idempotencyKey,
+        );
+      if (existingJournalId !== null) {
+        // H3 — pass the request so a mismatched replay throws LOUD.
+        return this.loadExistingJournalResult(
+          existingJournalId,
+          request.tenantId,
+          request,
+          options.idempotencyKey,
+        );
+      }
+    }
+
+    // Retry the whole post on stale-version (optimistic lock failure) or
+    // sequence collision. Two concurrent posts on the same account would
+    // otherwise clobber each other; `postJournalAtomic` refuses the
+    // stale CAS inside its single transaction and we re-read + recompute.
     //
     // Bounded retry — `LEDGER_CAS_MAX_ATTEMPTS` (default 16) handles
     // realistic contention. Each attempt sleeps with jitter to break
-    // lockstep retries between concurrent posters. Hitting the ceiling
-    // surfaces a hard error so the caller knows the serialisation
-    // invariant failed.
+    // lockstep retries. Hitting the ceiling surfaces a hard error.
     const MAX_ATTEMPTS = Number(process.env.LEDGER_CAS_MAX_ATTEMPTS ?? '16') || 16;
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.postJournalEntryAttempt(request);
+        return await this.postJournalEntryAttempt(request, options);
       } catch (err) {
         if (err instanceof StaleAccountVersionError) {
           lastError = err;
@@ -129,60 +258,177 @@ export class LedgerService {
     );
   }
 
+  /**
+   * Reconstruct a `JournalPostResult` for a previously-posted journal —
+   * used to serve an idempotent replay (durability defect #2) without
+   * re-posting. Returns the persisted entries and the CURRENT account
+   * snapshots for the touched accounts.
+   *
+   * H3 — when `replayedRequest` is supplied, the persisted journal's legs
+   * are compared to that request's recomputed legs BEFORE serving; a
+   * divergence throws `IdempotencyMismatchError` (LOUD) instead of
+   * returning a stale journal for a mismatched request. The
+   * `idempotencyKey` is threaded only for the error message.
+   */
+  private async loadExistingJournalResult(
+    journalId: string,
+    tenantId: TenantId,
+    replayedRequest?: CreateJournalEntryRequest,
+    idempotencyKey?: string,
+  ): Promise<JournalPostResult> {
+    const entries = await this.ledgerRepository.findByJournalId(
+      journalId,
+      tenantId,
+    );
+
+    // H3 — defense-in-depth replay check. Reuse of one idempotency key
+    // for a DIFFERENT transaction must fail loud, not silently return the
+    // first journal. Compare order-independent leg signatures.
+    if (replayedRequest !== undefined) {
+      const existingSig = legSignature(
+        entries.map((e) => ({
+          accountId: String(e.accountId),
+          direction: e.direction,
+          type: e.type,
+          amountMinorUnits: e.amount.amountMinorUnits,
+          currency: e.amount.currency,
+        })),
+      );
+      const incomingSig = legSignature(
+        replayedRequest.lines.map((l) => ({
+          accountId: String(l.accountId),
+          direction: l.direction,
+          type: l.type,
+          amountMinorUnits: l.amount.amountMinorUnits,
+          currency: l.amount.currency,
+        })),
+      );
+      if (existingSig !== incomingSig) {
+        this.logger.error(
+          'ledger: idempotency-key REPLAY MISMATCH — refusing to serve stale journal',
+          {
+            tenantId,
+            journalId,
+            idempotencyKey,
+          },
+        );
+        throw new IdempotencyMismatchError(
+          idempotencyKey ?? '(unknown)',
+          journalId,
+          tenantId,
+        );
+      }
+    }
+
+    const accountIds = Array.from(new Set(entries.map((e) => e.accountId)));
+    const updatedAccounts: Account[] = [];
+    for (const accountId of accountIds) {
+      const account = await this.accountRepository.findById(accountId, tenantId);
+      if (account) {
+        updatedAccounts.push(account);
+      }
+    }
+    this.logger.info('Journal entry idempotent replay (no re-post)', {
+      journalId,
+      tenantId,
+      entryCount: entries.length,
+    });
+    return {
+      journalId,
+      entries,
+      updatedAccounts,
+      idempotentReplay: true,
+    };
+  }
+
   private async postJournalEntryAttempt(
     request: CreateJournalEntryRequest,
+    options: PostJournalOptions,
   ): Promise<JournalPostResult> {
-    // Validate that the journal is balanced
-    if (!validateJournalBalance(request.lines)) {
-      throw new Error('Journal entry is not balanced: debits must equal credits');
-    }
-
-    if (request.lines.length === 0) {
-      throw new Error('Journal entry must have at least one line');
-    }
-
     const journalId = createJournalId();
     const now = new Date();
     const entries: LedgerEntry[] = [];
-    const accountUpdates: Map<AccountId, { account: Account; newBalance: Money; entryId: LedgerEntryId }> = new Map();
 
-    // Process each line
+    // H2 — same-account fold. A journal may have MORE THAN ONE line on the
+    // same account (e.g. postCorrectionEntry / voidEntry both target
+    // originalEntry.accountId). We must:
+    //   (a) run that account's balance FORWARD through each of its lines
+    //       (each entry's balanceAfter reflects the running balance, not a
+    //       stale snapshot), AND
+    //   (b) allocate a DISTINCT sequence number per line on that account
+    //       (one shared MAX+1 would collide on (account_id,
+    //       sequence_number)), AND
+    //   (c) emit exactly ONE balance CAS per account from the COMPOSED
+    //       final balance + the LAST entry's id.
+    // The old code keyed an `accountUpdates` Map by accountId and did
+    // `.set()` per line, so a second line on the same account OVERWROTE
+    // the first → one CAS survived with one leg's balance → stored balance
+    // != sum(entries). This per-account running state fixes that.
+    interface AccountRunState {
+      readonly account: Account;
+      readonly currency: CurrencyCode;
+      runningBalance: Money;
+      nextSequence: number;
+      lastEntryId: LedgerEntryId;
+    }
+    const runState: Map<AccountId, AccountRunState> = new Map();
+
+    // Process each line in order — validate, advance the account's running
+    // balance + sequence, build the entry (WITHOUT hash fields;
+    // `postJournalAtomic` stamps the hash-chain inside the transaction so
+    // prevHash reflects committed state). Lines on the same account are
+    // processed in request order, preserving the per-account chain order.
     for (const line of request.lines) {
-      // Get account
-      const account = await this.accountRepository.findById(line.accountId, request.tenantId);
-      if (!account) {
-        throw new Error(`Account ${line.accountId} not found`);
+      let state = runState.get(line.accountId);
+      if (state === undefined) {
+        const account = await this.accountRepository.findById(
+          line.accountId,
+          request.tenantId,
+        );
+        if (!account) {
+          throw new Error(`Account ${line.accountId} not found`);
+        }
+
+        const accountAggregate = new AccountAggregate(account);
+        if (!accountAggregate.canTransact()) {
+          throw new Error(`Account ${line.accountId} is not active`);
+        }
+
+        // Seed the per-account running state from the current row: the
+        // first sequence number is MAX+1; subsequent lines on this account
+        // increment from there within this post.
+        const sequenceNumber = await this.ledgerRepository.getNextSequenceNumber(
+          line.accountId,
+          request.tenantId,
+        );
+        state = {
+          account,
+          currency: account.currency,
+          runningBalance: Money.fromMinorUnits(
+            account.balanceMinorUnits,
+            account.currency,
+          ),
+          nextSequence: sequenceNumber,
+          lastEntryId: (account.lastEntryId ?? '') as LedgerEntryId,
+        };
+        runState.set(line.accountId, state);
       }
 
-      const accountAggregate = new AccountAggregate(account);
-      if (!accountAggregate.canTransact()) {
-        throw new Error(`Account ${line.accountId} is not active`);
-      }
-
-      // Currency check
-      if (line.amount.currency !== account.currency) {
+      // Currency check (against the account's currency).
+      if (line.amount.currency !== state.currency) {
         throw new Error(
-          `Currency mismatch: account ${line.accountId} is ${account.currency}, ` +
+          `Currency mismatch: account ${line.accountId} is ${state.currency}, ` +
           `but entry is ${line.amount.currency}`
         );
       }
 
-      // Get next sequence number
-      const sequenceNumber = await this.ledgerRepository.getNextSequenceNumber(
-        line.accountId,
-        request.tenantId
-      );
+      // Advance the running balance through THIS line.
+      const newBalance =
+        line.direction === 'DEBIT'
+          ? state.runningBalance.add(line.amount)
+          : state.runningBalance.subtract(line.amount);
 
-      // Calculate new balance
-      const currentBalance = Money.fromMinorUnits(account.balanceMinorUnits, account.currency);
-      let newBalance: Money;
-      if (line.direction === 'DEBIT') {
-        newBalance = currentBalance.add(line.amount);
-      } else {
-        newBalance = currentBalance.subtract(line.amount);
-      }
-
-      // Create ledger entry
+      const sequenceNumber = state.nextSequence;
       const entryId = createId<LedgerEntryId>(`le_${uuidv4()}`);
       const entry: LedgerEntry = omitUndefined({
         id: entryId,
@@ -209,59 +455,90 @@ export class LedgerService {
       }) as LedgerEntry;
 
       entries.push(entry);
-      accountUpdates.set(line.accountId, {
-        account,
-        newBalance,
-        entryId
-      });
+
+      // Fold: advance the account's running state for any later line on it.
+      state.runningBalance = newBalance;
+      state.nextSequence = sequenceNumber + 1;
+      state.lastEntryId = entryId;
     }
 
-    // G1 — robustness 2026-05-29: drive an atomic multi-row CAS BEFORE
-    // writing any ledger entries. `updateBalancesAtomic` runs every
-    // per-account CAS inside a single DB transaction — either every
-    // row is updated and entries land, or no row is updated and the
-    // wrapper retries off the fresh row state. This ordering means a
-    // stale-version retry never double-writes entries.
+    // Durability defect #1 — ATOMICITY (the core fix). Hand the balance
+    // CAS writes AND the entry inserts to `postJournalAtomic`, which
+    // commits them inside ONE transaction. Previously these were two
+    // separate transactions (`updateBalancesAtomic` then `createEntries`)
+    // — a crash between them left entry_count/balance bumped with NO
+    // matching entries, a permanent balance != sum(entries). Now either
+    // both land or neither does.
     //
-    // The DrizzleAccountRepository encodes
-    //   UPDATE accounts SET … WHERE id=? AND tenant_id=? AND entry_count=?
-    // per row inside the transaction. `entry_count` doubles as the
-    // optimistic-lock version: every successful balance mutation bumps
-    // it by 1, so the predicate refuses any UPDATE whose caller saw a
-    // stale count. A miss rolls back the WHOLE transaction (no partial
-    // post) and we throw `StaleAccountVersionError` so the outer
-    // wrapper re-reads + recomputes.
-    const casUpdates = Array.from(accountUpdates.entries()).map(
-      ([accountId, update]) => ({
+    // `entry_count` doubles as the optimistic-lock version (`expectedVersion`):
+    // every successful balance mutation bumps it by 1, so a stale post
+    // rolls the whole transaction back ⇒ `stale` ⇒ retry off fresh rows.
+    // The documented (account_id, sequence_number) unique-constraint
+    // collision likewise rolls BOTH back.
+    //
+    // H2 — exactly ONE CAS per account, carrying that account's COMPOSED
+    // final running balance (after ALL its lines folded) and its LAST
+    // entry id. `expectedVersion` is the account's entryCount read once at
+    // seed time; the CAS bumps it by 1 regardless of how many lines this
+    // post wrote to the account, matching the per-account row-version
+    // contract (one journal post ⇒ one version bump per touched account).
+    const balanceUpdates = Array.from(runState.entries()).map(
+      ([accountId, state]) => ({
         accountId,
         tenantId: request.tenantId,
-        newBalanceMinorUnits: update.newBalance.amountMinorUnits,
-        lastEntryId: update.entryId,
-        expectedVersion: update.account.entryCount ?? 0,
+        newBalanceMinorUnits: state.runningBalance.amountMinorUnits,
+        lastEntryId: state.lastEntryId,
+        expectedVersion: state.account.entryCount ?? 0,
       }),
     );
-    const casResult = await this.accountRepository.updateBalancesAtomic(
-      casUpdates,
+
+    const atomic = await this.ledgerRepository.postJournalAtomic(
+      omitUndefined({
+        tenantId: request.tenantId,
+        journalId,
+        entries,
+        balanceUpdates,
+        idempotencyKey: options.idempotencyKey,
+      }) as Parameters<typeof this.ledgerRepository.postJournalAtomic>[0],
     );
-    if (!casResult.ok) {
+
+    // Durability defect #2 — a concurrent first-time post under the same
+    // idempotency key won the race; serve its journal instead of ours.
+    // H3 — pass the request so a mismatched concurrent replay throws LOUD
+    // rather than silently serving the winner's (different) journal.
+    if (atomic.status === 'duplicate') {
+      return this.loadExistingJournalResult(
+        atomic.existingJournalId,
+        request.tenantId,
+        request,
+        options.idempotencyKey,
+      );
+    }
+
+    // Stale CAS / sequence collision — nothing was written. Bubble up so
+    // the retry wrapper re-reads + recomputes against the fresh rows.
+    if (atomic.status === 'stale') {
       throw new StaleAccountVersionError(
-        casResult.conflictAccountId,
+        atomic.conflictAccountId,
         request.tenantId,
       );
     }
 
-    // Persist entries atomically. CAS already gated the write — this
-    // SQL runs once per successful attempt.
-    const savedEntries = await this.ledgerRepository.createEntries(entries);
+    const savedEntries = atomic.entries;
 
     // Reflect the successful CAS onto the in-memory aggregates so the
     // publisher and the returned `updatedAccounts` carry the new
-    // balance and version. We never re-read the DB row — the CAS
-    // guaranteed the write landed atomically.
+    // balance and version. We never re-read the DB row — the atomic
+    // commit guaranteed the write landed.
+    //
+    // H2 — iterate `runState` (one entry per TOUCHED account), so an
+    // account written by two lines in this journal still produces exactly
+    // ONE updated-account snapshot and ONE event carrying its COMPOSED
+    // final balance. `previousBalance` is the seed (pre-post) balance.
     const updatedAccounts: Account[] = [];
-    for (const [accountId, update] of accountUpdates) {
-      const accountAggregate = new AccountAggregate(update.account);
-      accountAggregate.updateBalance(update.newBalance, update.entryId);
+    for (const [accountId, state] of runState) {
+      const accountAggregate = new AccountAggregate(state.account);
+      accountAggregate.updateBalance(state.runningBalance, state.lastEntryId);
       const updatedAccount = accountAggregate.toData();
       updatedAccounts.push(updatedAccount);
 
@@ -274,11 +551,11 @@ export class LedgerService {
           request.tenantId,
           {
             previousBalance: Money.fromMinorUnits(
-              update.account.balanceMinorUnits,
-              update.account.currency
+              state.account.balanceMinorUnits,
+              state.currency
             ).toData(),
-            newBalance: update.newBalance.toData(),
-            lastEntryId: update.entryId
+            newBalance: state.runningBalance.toData(),
+            lastEntryId: state.lastEntryId
           }
         )
       );
@@ -408,6 +685,45 @@ export class LedgerService {
     tenantId: TenantId
   ) {
     return this.ledgerRepository.verifyIntegrity(accountId, tenantId);
+  }
+
+  /**
+   * Verify the per-account hash-chain (durability defect #3 —
+   * tamper-evidence). Pulls every entry for the account in ascending
+   * sequence order and recomputes the chain. Returns the first broken
+   * entry (with expected vs actual hash) or `{ ok: true }` when intact.
+   *
+   * Any post-hoc mutation of a posted entry's financial substance
+   * (amount, direction, balanceAfter, sequence, dates, linkage) breaks
+   * the recomputed `thisHash`, and re-stamping that entry breaks the
+   * NEXT entry's `prevHash` — so a tamper is detectable even if the
+   * attacker recomputes the single row they edited.
+   */
+  async verifyHashChainForAccount(
+    accountId: AccountId,
+    tenantId: TenantId,
+  ): Promise<HashChainVerification> {
+    // Pull all entries in ascending sequence (persistence order). This
+    // is a verification path, not a hot read.
+    const result = await this.ledgerRepository.findByAccount(
+      accountId,
+      tenantId,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const ordered = [...result.entries].sort(
+      (a, b) => a.sequenceNumber - b.sequenceNumber,
+    );
+    const verification = verifyHashChain(ordered);
+    if (!verification.ok) {
+      this.logger.warn('ledger: hash-chain verification FAILED', {
+        accountId,
+        tenantId,
+        badEntryId: verification.badEntryId,
+        reason: verification.reason,
+      });
+    }
+    return verification;
   }
 
   /**

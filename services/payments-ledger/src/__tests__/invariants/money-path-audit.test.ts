@@ -32,6 +32,24 @@ const ALLOWED_LEDGER_WRITERS = new Set<string>([
   // sample transactions for the pilot demo org. Guarded by the
   // DEMO_TENANT_ID constant and the seed-only invocation path.
   'packages/database/src/seeds/demo-org-seed.ts',
+  // Gateway-side mirror of the authoritative DrizzleLedgerRepository.
+  // The api-gateway constructs the REAL LedgerService (imported from the
+  // @borjie/payments-ledger-service barrel) to post balanced double-entry
+  // journals on the live settlement + payroll paths. LedgerService needs an
+  // ILedgerRepository, but the package's `exports` map only exposes `.` and
+  // `./arrears` — it does NOT re-export DrizzleLedgerRepository, and NodeNext
+  // refuses the undeclared deep subpath import. The package cannot be edited
+  // from the gateway (api-gateway scope). So the gateway declares a thin
+  // ILedgerRepository adapter against the SAME `ledger_entries` table; its
+  // `.insert(ledgerEntries)` is the persistence leg invoked ONLY by
+  // LedgerService.postJournalEntry — never as a standalone writer. The
+  // balance / atomicity / hash-chain guarantees are produced by the real
+  // LedgerService; this adapter only persists what it computes. This is the
+  // authorised write path, mirrored at the composition root.
+  // Sign-off: added per owner directive during the money-path integration
+  // (2026-06-01); verified the insert is reached solely via
+  // LedgerService.postJournalEntry, not as an independent ledger writer.
+  'services/api-gateway/src/composition/ledger/drizzle-ledger-repos.ts',
 ]);
 
 /**

@@ -39,7 +39,7 @@ import type {
   PropertyId,
   TenantId,
 } from '@borjie/domain-models';
-import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, bigint, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
 
 // Local Drizzle table declaration for the legacy payments-ledger
@@ -61,7 +61,12 @@ const accounts = pgTable('accounts', {
   type: text('type').notNull(),
   status: text('status').notNull(),
   currency: text('currency').notNull(),
-  balanceMinorUnits: integer('balance_minor_units').notNull().default(0),
+  // C2 — overflow safety: BIGINT money column (mode 'number' keeps JS
+  // type `number`). entry_count is the optimistic-lock version, not
+  // money, so it stays INTEGER.
+  balanceMinorUnits: bigint('balance_minor_units', { mode: 'number' })
+    .notNull()
+    .default(0),
   lastEntryId: text('last_entry_id'),
   lastEntryAt: timestamp('last_entry_at', { withTimezone: true }),
   entryCount: integer('entry_count').notNull().default(0),
@@ -445,11 +450,44 @@ export class DrizzleAccountRepository implements IAccountRepository {
         super(`CAS miss on account ${conflictAccountId}`);
       }
     }
+
+    // C1 — RLS context (CRITICAL). Every update in one atomic journal
+    // post belongs to a SINGLE tenant; the GUC is per-transaction so we
+    // must bind exactly one tenant id. Assert that invariant loudly
+    // rather than silently binding the first id and letting a stray
+    // cross-tenant update slip through FORCE RLS.
+    const tenantIds = new Set(updates.map((u) => u.tenantId));
+    if (tenantIds.size > 1) {
+      throw new Error(
+        `updateBalancesAtomic: refusing to post across ${tenantIds.size} tenants in one transaction ` +
+          `(RLS GUC is single-tenant): ${Array.from(tenantIds).join(', ')}`,
+      );
+    }
+    const txTenantId = updates[0]?.tenantId;
+
     try {
       await (this.db as unknown as {
         transaction: (cb: (tx: unknown) => Promise<void>) => Promise<void>;
       }).transaction(async (tx) => {
         const txDb = tx as typeof this.db;
+
+        // C1 — bind `app.current_tenant_id` TRANSACTION-LOCALLY as the
+        // FIRST statement so FORCE RLS on `accounts` evaluates the
+        // tenant predicate against this post's tenant (and never an
+        // empty / stale-pooled GUC). The `true` third arg scopes it to
+        // this tx. Mirrors `@borjie/database`'s withTenantContext, which
+        // this package cannot import (off the exports map, db out of
+        // scope). When `updates` is empty there is nothing to write and
+        // no tenant to bind — skip the bind and the loop is a no-op.
+        if (txTenantId !== undefined) {
+          await txDb.execute(
+            sql`SELECT set_config('app.current_tenant_id', ${txTenantId}, true)`,
+          );
+          await txDb.execute(
+            sql`SELECT set_config('app.tenant_id', ${txTenantId}, true)`,
+          );
+        }
+
         for (const u of updates) {
           const res = await txDb
             .update(accounts)

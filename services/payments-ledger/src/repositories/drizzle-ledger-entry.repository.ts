@@ -43,7 +43,7 @@ import {
   type TenantId,
   type UnitId,
 } from '@borjie/domain-models';
-import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, integer, bigint, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
 
 // Local Drizzle table declaration for the legacy payments-ledger
@@ -61,9 +61,17 @@ const ledgerEntries = pgTable('ledger_entries', {
   journalId: text('journal_id').notNull(),
   type: text('type').notNull(),
   direction: text('direction').notNull(),
-  amountMinorUnits: integer('amount_minor_units').notNull(),
+  // C2 — overflow safety. Money minor-unit columns are BIGINT in the DB
+  // (sibling-owned migration 0161 + @borjie/database schema). `mode:
+  // 'number'` keeps the JS value a `number` (no BigInt refactor;
+  // Number.MAX_SAFE_INTEGER ≈ 9.0e15 dwarfs any realistic TZS minor-unit
+  // total). The (account_id, sequence_number) ordering columns stay
+  // INTEGER — they count entries, never money.
+  amountMinorUnits: bigint('amount_minor_units', { mode: 'number' }).notNull(),
   currency: text('currency').notNull(),
-  balanceAfterMinorUnits: integer('balance_after_minor_units').notNull(),
+  balanceAfterMinorUnits: bigint('balance_after_minor_units', {
+    mode: 'number',
+  }).notNull(),
   sequenceNumber: integer('sequence_number').notNull(),
   effectiveDate: timestamp('effective_date', {
     withTimezone: true,
@@ -78,6 +86,14 @@ const ledgerEntries = pgTable('ledger_entries', {
   invoiceId: text('invoice_id'),
   description: text('description'),
   metadata: jsonb('metadata').notNull().default({}),
+  // Durability defect #3 — hash-chain tamper-evidence. `prev_hash` is
+  // the prior entry's `this_hash` in this (tenant, account) chain (''
+  // at genesis); `this_hash` = sha256(canonicalJson({prev, payload})).
+  // FLAGGED for the database-package sibling: add columns
+  //   prev_hash TEXT,  this_hash TEXT
+  // to `ledger_entries`. Nullable so legacy rows remain valid.
+  prevHash: text('prev_hash'),
+  thisHash: text('this_hash'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -85,12 +101,61 @@ const ledgerEntries = pgTable('ledger_entries', {
 });
 
 type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
+
+// Local Drizzle declaration of the `accounts` table — column-name
+// parity with `drizzle-account.repository.ts`. The ledger repo touches
+// it ONLY inside `postJournalAtomic`, to fold the per-account balance
+// CAS into the SAME transaction as the entry inserts (durability defect
+// #1: atomicity). Read-paths stay in the account repo.
+const accounts = pgTable('accounts', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  // C2 — overflow safety: BIGINT money column (mode 'number'). entryCount
+  // below stays INTEGER (it is the optimistic-lock version, not money).
+  balanceMinorUnits: bigint('balance_minor_units', { mode: 'number' })
+    .notNull()
+    .default(0),
+  lastEntryId: text('last_entry_id'),
+  lastEntryAt: timestamp('last_entry_at', { withTimezone: true }),
+  entryCount: integer('entry_count').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Local Drizzle declaration of the `journal_idempotency` table
+// (durability defect #2). FLAGGED for the database-package sibling:
+// create table
+//   journal_idempotency (
+//     tenant_id        TEXT NOT NULL,
+//     idempotency_key  TEXT NOT NULL,
+//     journal_id       TEXT NOT NULL,
+//     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+//     PRIMARY KEY (tenant_id, idempotency_key)
+//   );
+// The composite PK supplies the UNIQUE (tenant_id, idempotency_key)
+// guarantee the duplicate-detection relies on.
+const journalIdempotency = pgTable('journal_idempotency', {
+  tenantId: text('tenant_id').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  journalId: text('journal_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 import type {
   AccountBalance,
+  AtomicJournalPost,
+  AtomicJournalResult,
   ILedgerRepository,
   LedgerEntryFilters,
   LedgerPaginatedResult,
 } from './ledger.repository';
+import {
+  GENESIS_HASH,
+  computeEntryHash,
+} from '../services/ledger-hash-chain';
+import type { ChainedLedgerEntry } from '../domain-extensions';
 
 // ────────────────────────────────────────────────────────────────────
 // Row ⇄ Domain converters
@@ -102,6 +167,22 @@ function safeMetadata(value: unknown): Record<string, unknown> | undefined {
     return value as Record<string, unknown>;
   }
   return undefined;
+}
+
+/**
+ * Detect a Postgres unique-constraint violation (SQLSTATE 23505).
+ * postgres-js surfaces the SQLSTATE on `error.code`. Used by
+ * `postJournalAtomic` to treat a (tenant_id, idempotency_key) or
+ * (account_id, sequence_number) collision as a retryable outcome
+ * rather than a hard crash.
+ */
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === '23505'
+  );
 }
 
 function rowToLedgerEntry(row: LedgerEntryRow): LedgerEntry {
@@ -135,6 +216,10 @@ function rowToLedgerEntry(row: LedgerEntryRow): LedgerEntry {
     unitId: (row.unitId ?? undefined) as UnitId | undefined,
     description: row.description ?? '',
     metadata: safeMetadata(row.metadata),
+    // Hash-chain tamper-evidence (durability defect #3). Null in legacy
+    // rows; `verifyHashChain` tolerates undefined.
+    prevHash: row.prevHash ?? undefined,
+    thisHash: row.thisHash ?? undefined,
     createdAt: row.createdAt,
     createdBy: row.createdBy ?? '',
     // Audit / tenant-scoped fields the domain demands. Ledger rows
@@ -144,7 +229,7 @@ function rowToLedgerEntry(row: LedgerEntryRow): LedgerEntry {
   } as LedgerEntry;
 }
 
-function entryToInsert(e: LedgerEntry): typeof ledgerEntries.$inferInsert {
+function entryToInsert(e: ChainedLedgerEntry): typeof ledgerEntries.$inferInsert {
   return {
     id: e.id,
     tenantId: e.tenantId,
@@ -165,6 +250,8 @@ function entryToInsert(e: LedgerEntry): typeof ledgerEntries.$inferInsert {
     invoiceId: null,
     description: e.description ?? null,
     metadata: e.metadata ?? {},
+    prevHash: e.prevHash ?? null,
+    thisHash: e.thisHash ?? null,
     createdBy: e.createdBy ?? null,
   };
 }
@@ -190,6 +277,228 @@ export class DrizzleLedgerRepository implements ILedgerRepository {
       );
     }
     return inserted.map(rowToLedgerEntry);
+  }
+
+  async findJournalIdByIdempotencyKey(
+    tenantId: TenantId,
+    idempotencyKey: string,
+  ): Promise<string | null> {
+    const rows = await this.db
+      .select({ journalId: journalIdempotency.journalId })
+      .from(journalIdempotency)
+      .where(
+        and(
+          eq(journalIdempotency.tenantId, tenantId),
+          eq(journalIdempotency.idempotencyKey, idempotencyKey),
+        ),
+      )
+      .limit(1);
+    return rows[0]?.journalId ?? null;
+  }
+
+  /**
+   * Durability defects #1/#2/#3 — the single-transaction journal post.
+   *
+   * ONE `db.transaction` performs, in order:
+   *   1. (defect #2) idempotency pre-check — duplicate key ⇒ abort, no
+   *      write, return `{ status: 'duplicate' }`.
+   *   2. (defect #1) per-account balance CAS UPDATEs. A miss throws the
+   *      `CasConflict` sentinel which rolls the WHOLE tx back ⇒ caller
+   *      gets `{ status: 'stale' }` and retries off fresh rows.
+   *   3. (defect #3) per (tenant, account) hash-chain: read the latest
+   *      existing entry's `this_hash` INSIDE the tx, then fold each new
+   *      entry's prev→this hash forward. Reading inside the tx is what
+   *      makes concurrent posters serialise correctly (the CAS on the
+   *      account row already serialised them).
+   *   4. insert the hash-stamped entries. The `(account_id,
+   *      sequence_number)` unique index rejects a colliding post; the
+   *      violation rolls the tx back (balances included) ⇒ surfaced as
+   *      `stale`.
+   *   5. (defect #2) insert the idempotency row in the SAME tx, so the
+   *      key and the journal are durable together.
+   */
+  async postJournalAtomic(
+    post: AtomicJournalPost,
+  ): Promise<AtomicJournalResult> {
+    // Sentinels — thrown to roll back the tx, caught outside to map to
+    // a structured result instead of a hard error.
+    class CasConflict extends Error {
+      constructor(public readonly conflictAccountId: AccountId) {
+        super(`CAS miss on account ${conflictAccountId}`);
+      }
+    }
+    class DuplicateIdempotencyKey extends Error {
+      constructor(public readonly existingJournalId: string) {
+        super('duplicate idempotency key');
+      }
+    }
+
+    try {
+      const committed = await (
+        this.db as unknown as {
+          transaction: <T>(cb: (tx: unknown) => Promise<T>) => Promise<T>;
+        }
+      ).transaction(async (tx) => {
+        const txDb = tx as typeof this.db;
+
+        // C1 — RLS context (CRITICAL). Bind `app.current_tenant_id`
+        // TRANSACTION-LOCALLY as the FIRST statement, BEFORE any read or
+        // write. FORCE RLS on `accounts` / `ledger_entries` /
+        // `journal_idempotency` evaluates
+        //   tenant_id = current_setting('app.current_tenant_id', true)
+        // so without this bind the GUC is empty and (with FORCE RLS and no
+        // BYPASSRLS role) every statement in this tx fails closed — or, on
+        // a connection that inherited a stale GUC from a pooled request,
+        // would silently scope to the WRONG tenant. The `true` third arg
+        // of set_config scopes the binding to THIS transaction, so it
+        // cannot leak across pooled connections. We mirror the legacy
+        // `app.tenant_id` GUC for the 0146/0156 migration helpers that
+        // still read the older name — same contract as
+        // `@borjie/database`'s withTenantContext (which this package
+        // cannot import: it is not on the package's `exports` map and the
+        // db package is out of scope for this change).
+        await txDb.execute(
+          sql`SELECT set_config('app.current_tenant_id', ${post.tenantId}, true)`,
+        );
+        await txDb.execute(
+          sql`SELECT set_config('app.tenant_id', ${post.tenantId}, true)`,
+        );
+
+        // 1 — idempotency pre-check inside the tx.
+        if (post.idempotencyKey !== undefined) {
+          const existing = await txDb
+            .select({ journalId: journalIdempotency.journalId })
+            .from(journalIdempotency)
+            .where(
+              and(
+                eq(journalIdempotency.tenantId, post.tenantId),
+                eq(
+                  journalIdempotency.idempotencyKey,
+                  post.idempotencyKey,
+                ),
+              ),
+            )
+            .limit(1);
+          if (existing[0]) {
+            throw new DuplicateIdempotencyKey(existing[0].journalId);
+          }
+        }
+
+        // 2 — per-account balance CAS in the same tx.
+        for (const u of post.balanceUpdates) {
+          const res = await txDb
+            .update(accounts)
+            .set({
+              balanceMinorUnits: u.newBalanceMinorUnits,
+              lastEntryId: u.lastEntryId,
+              lastEntryAt: new Date(),
+              entryCount: sql`${accounts.entryCount} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(accounts.id, u.accountId),
+                eq(accounts.tenantId, u.tenantId),
+                eq(accounts.entryCount, u.expectedVersion),
+              ),
+            )
+            .returning({ id: accounts.id });
+          if (res.length === 0) {
+            throw new CasConflict(u.accountId);
+          }
+        }
+
+        // 3 — hash-chain: seed each account's prev-hash from the latest
+        // existing entry, then fold forward over this post's entries
+        // (already ordered by sequenceNumber from the service).
+        const prevHashByAccount = new Map<string, string>();
+        const ordered = [...post.entries].sort(
+          (a, b) => a.sequenceNumber - b.sequenceNumber,
+        );
+        const toInsert: ChainedLedgerEntry[] = [];
+        for (const entry of ordered) {
+          const acctKey = `${entry.tenantId}:${entry.accountId}`;
+          let prev = prevHashByAccount.get(acctKey);
+          if (prev === undefined) {
+            const lastRow = await txDb
+              .select({ thisHash: ledgerEntries.thisHash })
+              .from(ledgerEntries)
+              .where(
+                and(
+                  eq(ledgerEntries.accountId, entry.accountId),
+                  eq(ledgerEntries.tenantId, entry.tenantId),
+                ),
+              )
+              .orderBy(desc(ledgerEntries.sequenceNumber))
+              .limit(1);
+            prev = lastRow[0]?.thisHash ?? GENESIS_HASH;
+          }
+          const thisHash = computeEntryHash(prev, entry);
+          prevHashByAccount.set(acctKey, thisHash);
+          toInsert.push({ ...entry, prevHash: prev, thisHash });
+        }
+
+        // 4 — insert the hash-stamped entries (unique index on
+        // (account_id, sequence_number) guards the sequence race; a
+        // violation aborts the whole tx).
+        const inserted = await txDb
+          .insert(ledgerEntries)
+          .values(toInsert.map(entryToInsert))
+          .returning();
+        if (inserted.length !== toInsert.length) {
+          throw new Error(
+            `postJournalAtomic: expected ${toInsert.length} rows, got ${inserted.length}`,
+          );
+        }
+
+        // 5 — persist the idempotency key in the SAME tx.
+        if (post.idempotencyKey !== undefined) {
+          await txDb.insert(journalIdempotency).values({
+            tenantId: post.tenantId,
+            idempotencyKey: post.idempotencyKey,
+            journalId: post.journalId,
+          });
+        }
+
+        return inserted.map(rowToLedgerEntry);
+      });
+
+      return { status: 'committed', entries: committed };
+    } catch (err) {
+      if (err instanceof CasConflict) {
+        return { status: 'stale', conflictAccountId: err.conflictAccountId };
+      }
+      if (err instanceof DuplicateIdempotencyKey) {
+        return {
+          status: 'duplicate',
+          existingJournalId: err.existingJournalId,
+        };
+      }
+      // A unique-violation on (tenant_id, idempotency_key) racing two
+      // concurrent first-time posts, or on (account_id, sequence_number),
+      // surfaces here. Treat as a retryable stale so the caller re-reads
+      // (the retry then hits the now-present idempotency row and returns
+      // the existing journal, or recomputes a fresh sequence).
+      if (isUniqueViolation(err)) {
+        // Best-effort: if it was the idempotency key, return the
+        // existing journal directly to avoid a needless retry.
+        if (post.idempotencyKey !== undefined) {
+          const existing = await this.findJournalIdByIdempotencyKey(
+            post.tenantId,
+            post.idempotencyKey,
+          );
+          if (existing !== null) {
+            return { status: 'duplicate', existingJournalId: existing };
+          }
+        }
+        return {
+          status: 'stale',
+          conflictAccountId: post.balanceUpdates[0]?.accountId ??
+            (post.entries[0]?.accountId as AccountId),
+        };
+      }
+      throw err;
+    }
   }
 
   async findById(
@@ -352,6 +661,22 @@ export class DrizzleLedgerRepository implements ILedgerRepository {
     // MAX + 1. The race window between this read and the subsequent
     // INSERT is closed by the (account_id, sequence_number) unique
     // index — the INSERT will fail loudly, the caller retries.
+    //
+    // M3 (reviewed, intentionally NOT moved into postJournalAtomic):
+    // the sequence number is an INPUT to the hash-chain payload
+    // (computeEntryHash commits to sequenceNumber) and to each entry's
+    // balanceAfter ordering, both of which the LedgerService computes
+    // while building the immutable entries BEFORE the atomic post. Re-
+    // assigning sequences inside the transaction would force the repo to
+    // either rebuild/re-hash the already-constructed entries (a layering
+    // violation that desyncs from the precomputed balanceUpdates) or
+    // mutate append-only objects in place — both worse than the current
+    // design. Atomicity is NOT at risk today: a sequence collision rolls
+    // the WHOLE tx back (balances + entries + idempotency row together)
+    // and surfaces as `stale`, which the bounded jittered retry resolves;
+    // the per-account balance CAS already serialises concurrent posters
+    // on a hot account, so this read is not the dominant contention
+    // source. Left as-is by design.
     const rows = await this.db
       .select({
         maxSeq: sql<number | null>`MAX(${ledgerEntries.sequenceNumber})`,

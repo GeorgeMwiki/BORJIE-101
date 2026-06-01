@@ -27,7 +27,7 @@
 
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { CurrencyCode, OwnerId, TenantId } from '@borjie/domain-models';
-import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, bigint, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
 
 // Local Drizzle table declaration for the legacy payments-ledger
@@ -42,7 +42,8 @@ const disbursements = pgTable('disbursements', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull(),
   ownerId: text('owner_id').notNull(),
-  amountMinorUnits: integer('amount_minor_units').notNull(),
+  // C2 — overflow safety: BIGINT money column (mode 'number').
+  amountMinorUnits: bigint('amount_minor_units', { mode: 'number' }).notNull(),
   currency: text('currency').notNull(),
   status: text('status').notNull(),
   destination: text('destination').notNull(),

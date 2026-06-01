@@ -131,10 +131,17 @@ export function createRepositories(logger?: FactoryLogger): Repositories {
   const db = buildDatabaseClient(databaseUrl, logger);
 
   if (db === null) {
+    // InMemory path: the ledger repo folds balance CAS writes into the
+    // same atomic unit as its entry inserts (durability defect #1), so
+    // it needs a handle to the account store. The Drizzle path uses a
+    // single `db.transaction` instead and needs no such wiring.
+    const accountRepository = new InMemoryAccountRepository();
+    const ledgerRepository = new InMemoryLedgerRepository();
+    ledgerRepository.attachAccountStore(accountRepository);
     return {
       paymentIntentRepository: new InMemoryPaymentIntentRepository(),
-      accountRepository: new InMemoryAccountRepository(),
-      ledgerRepository: new InMemoryLedgerRepository(),
+      accountRepository,
+      ledgerRepository,
       statementRepository: new InMemoryStatementRepository(),
       disbursementRepository: new InMemoryDisbursementRepository(),
     };

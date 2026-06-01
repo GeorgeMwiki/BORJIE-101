@@ -7,7 +7,7 @@
  * Also augments the Money class with convenience methods used throughout
  * the service layer.
  */
-import { Money, CurrencyCode, TenantId } from '@borjie/domain-models';
+import { Money, CurrencyCode, TenantId, LedgerEntry } from '@borjie/domain-models';
 
 // =============================================================================
 // Missing Branded Types
@@ -85,6 +85,31 @@ declare module '@borjie/domain-models' {
     readonly amountMajorUnits: number;
   }
 }
+
+// =============================================================================
+// LedgerEntry hash-chain extension
+// =============================================================================
+//
+// Tamper-evidence fields for the ledger hash-chain (mirrors the
+// platform-wide `ai_audit_chain` pattern). The canonical
+// `@borjie/domain-models` LedgerEntry is a `type` alias (not an
+// interface), so it cannot be widened via declaration merging. Instead
+// we export a structural extension that the ledger repositories and
+// service use at the hash read/write boundary. Both fields are
+// optional: legacy rows written before the chain landed have them
+// undefined, and `verifyHashChain` tolerates that.
+//
+// Persistence (flagged for the database-package sibling): the
+// `ledger_entries` table needs two nullable text columns —
+// `prev_hash TEXT` and `this_hash TEXT`. The existing index on
+// (account_id, sequence_number) already supports ordered chain reads.
+// See ledger-hash-chain.ts for the digest algorithm.
+export type ChainedLedgerEntry = LedgerEntry & {
+  /** Prior entry's `thisHash` in this (tenant, account) chain, or '' at genesis. */
+  prevHash?: string;
+  /** sha256(canonicalJson({ prev: prevHash, payload })) for this entry. */
+  thisHash?: string;
+};
 
 // --- Runtime prototype patching ---
 const MoneyProto = Money.prototype as unknown as Record<string, unknown>;

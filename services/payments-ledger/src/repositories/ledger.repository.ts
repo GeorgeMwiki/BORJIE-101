@@ -14,6 +14,11 @@ import {
   EntryDirection,
   CurrencyCode
 } from '@borjie/domain-models';
+import {
+  GENESIS_HASH,
+  computeEntryHash,
+} from '../services/ledger-hash-chain';
+import type { ChainedLedgerEntry } from '../domain-extensions';
 
 export interface LedgerEntryFilters {
   tenantId: TenantId;
@@ -44,12 +49,98 @@ export interface AccountBalance {
   lastEntryId: LedgerEntryId;
 }
 
+/**
+ * A single per-account balance write applied as part of an atomic
+ * journal post. `expectedVersion` is the optimistic-lock version the
+ * caller read (the account's `entryCount`); the write only lands when
+ * the row still carries that version, otherwise the whole post rolls
+ * back. Mirrors `IAccountRepository.updateBalancesAtomic`'s update
+ * shape so the two stay in lockstep.
+ */
+export interface AtomicBalanceUpdate {
+  readonly accountId: AccountId;
+  readonly tenantId: TenantId;
+  readonly newBalanceMinorUnits: number;
+  readonly lastEntryId: string;
+  readonly expectedVersion: number;
+}
+
+/**
+ * Input to `postJournalAtomic` — the entries to insert, the balance
+ * writes to apply, and an optional idempotency key. All three commit
+ * inside ONE database transaction (durability defect #1: atomicity).
+ */
+export interface AtomicJournalPost {
+  readonly tenantId: TenantId;
+  readonly journalId: string;
+  readonly entries: LedgerEntry[];
+  readonly balanceUpdates: ReadonlyArray<AtomicBalanceUpdate>;
+  /**
+   * Optional idempotency key (durability defect #2). When present it is
+   * persisted with a UNIQUE (tenant_id, idempotency_key) guarantee; a
+   * duplicate aborts the post so the service can return the prior
+   * journal instead of double-posting.
+   */
+  readonly idempotencyKey?: string;
+}
+
+/**
+ * Outcome of `postJournalAtomic`.
+ *   - `committed`  — the single transaction landed; `entries` are the
+ *                    persisted rows (with hash-chain fields populated).
+ *   - `stale`      — an optimistic-lock (CAS) miss on `conflictAccountId`;
+ *                    the whole transaction rolled back, nothing was
+ *                    written. The caller re-reads + retries.
+ *   - `duplicate`  — the idempotency key already exists for this tenant;
+ *                    nothing was written. The caller returns the
+ *                    pre-existing journal under `existingJournalId`.
+ */
+export type AtomicJournalResult =
+  | { readonly status: 'committed'; readonly entries: LedgerEntry[] }
+  | { readonly status: 'stale'; readonly conflictAccountId: AccountId }
+  | { readonly status: 'duplicate'; readonly existingJournalId: string };
+
 export interface ILedgerRepository {
   /**
    * Create ledger entries (batch insert for journal)
    * MUST be atomic - all entries created or none
    */
   createEntries(entries: LedgerEntry[]): Promise<LedgerEntry[]>;
+
+  /**
+   * Durability defects #1/#2/#3 — post a journal ATOMICALLY.
+   *
+   * Applies the per-account balance CAS updates AND inserts the ledger
+   * entries (with their hash-chain `prevHash`/`thisHash`) inside ONE
+   * database transaction. Either everything commits or everything rolls
+   * back — there is no window where balances/entry_count move without
+   * matching entries (the bug this method exists to kill).
+   *
+   * Sequence-number collisions (the documented unique-constraint race
+   * on `(account_id, sequence_number)`) roll back the WHOLE transaction,
+   * surfacing as a `stale` result so the caller retries off fresh rows.
+   *
+   * When `idempotencyKey` is supplied and already exists for the tenant,
+   * NOTHING is written and `{ status: 'duplicate', existingJournalId }`
+   * is returned.
+   *
+   * The hash-chain `prevHash` for each account's first entry in this
+   * post is read INSIDE the transaction (the latest existing entry's
+   * `thisHash`), so concurrent posters serialise correctly under the
+   * same CAS that guards the balance.
+   */
+  postJournalAtomic(post: AtomicJournalPost): Promise<AtomicJournalResult>;
+
+  /**
+   * Idempotency lookup (durability defect #2). Returns the journalId a
+   * prior post recorded under `(tenantId, idempotencyKey)`, or null if
+   * the key was never used. Used to return the existing journal result
+   * on a retried post.
+   */
+  findJournalIdByIdempotencyKey(
+    tenantId: TenantId,
+    idempotencyKey: string,
+  ): Promise<string | null>;
 
   /**
    * Get ledger entry by ID
@@ -137,11 +228,229 @@ export interface ILedgerRepository {
 }
 
 /**
- * In-memory implementation for testing
+ * Thrown by the InMemory `postJournalAtomic` when two entries would
+ * collide on `(account_id, sequence_number)` — the in-memory model of
+ * the production unique-index violation. Surfaced as a `stale` result
+ * so the caller retries, and rolls the whole transaction back.
+ */
+class SequenceCollisionError extends Error {
+  constructor(
+    public readonly accountId: AccountId,
+    public readonly sequenceNumber: number,
+  ) {
+    super(
+      `Ledger sequence collision on account ${accountId} seq ${sequenceNumber}`,
+    );
+    this.name = 'SequenceCollisionError';
+  }
+}
+
+/**
+ * Minimal transactional account-store surface the InMemory ledger repo
+ * needs to apply balance CAS writes inside the same atomic unit as its
+ * entry inserts. `InMemoryAccountRepository` implements this. The
+ * double-underscore methods are internal coordination hooks, NOT part
+ * of the public `IAccountRepository` contract.
+ */
+export interface LedgerTxAccountStore {
+  __snapshotForLedgerTx(): unknown;
+  __restoreForLedgerTx(snapshot: unknown): void;
+  __applyBalanceWritesForLedgerTx(
+    updates: ReadonlyArray<AtomicBalanceUpdate>,
+  ): { ok: true } | { ok: false; conflictAccountId: AccountId };
+}
+
+/**
+ * In-memory implementation for testing.
+ *
+ * `postJournalAtomic` coordinates with an injected account store so the
+ * balance writes and the entry inserts commit (or roll back) together,
+ * modelling the single DB transaction the Drizzle adapter runs in
+ * production. JavaScript is single-threaded, so the validate-then-apply
+ * sequence has no interleaving-await window; on any failure we restore
+ * a snapshot of BOTH stores (no orphan balance).
  */
 export class InMemoryLedgerRepository implements ILedgerRepository {
   private entries: Map<string, LedgerEntry> = new Map();
   private sequenceCounters: Map<string, number> = new Map();
+  /** Persisted idempotency keys → journalId (durability defect #2). */
+  private idempotencyKeys: Map<string, string> = new Map();
+  /**
+   * Optional fault injected BETWEEN the balance writes and the entry
+   * inserts — exercises the rollback-of-both invariant in tests. When
+   * set and it throws, `postJournalAtomic` must restore the account
+   * snapshot so no orphan balance survives. Test-only.
+   */
+  private faultBetweenBalanceAndEntries: (() => void) | null = null;
+
+  /** Test hook: inject a fault between balance writes and entry inserts. */
+  setFaultBetweenBalanceAndEntries(fault: (() => void) | null): void {
+    this.faultBetweenBalanceAndEntries = fault;
+  }
+
+  private idempotencyMapKey(tenantId: TenantId, key: string): string {
+    return `${tenantId}::${key}`;
+  }
+
+  async findJournalIdByIdempotencyKey(
+    tenantId: TenantId,
+    idempotencyKey: string,
+  ): Promise<string | null> {
+    return (
+      this.idempotencyKeys.get(this.idempotencyMapKey(tenantId, idempotencyKey)) ??
+      null
+    );
+  }
+
+  async postJournalAtomic(
+    post: AtomicJournalPost,
+  ): Promise<AtomicJournalResult> {
+    // Durability defect #2 — idempotency: a duplicate key short-circuits
+    // BEFORE any write. UNIQUE (tenant_id, idempotency_key) in prod.
+    if (post.idempotencyKey !== undefined) {
+      const existing = await this.findJournalIdByIdempotencyKey(
+        post.tenantId,
+        post.idempotencyKey,
+      );
+      if (existing !== null) {
+        return { status: 'duplicate', existingJournalId: existing };
+      }
+    }
+
+    if (this.accountStore === null) {
+      throw new Error(
+        'InMemoryLedgerRepository.postJournalAtomic: account store not attached. ' +
+          'Call attachAccountStore(accountRepo) (the factory does this).',
+      );
+    }
+
+    // Durability defect #1 — atomicity: snapshot BOTH stores so any
+    // failure (CAS miss, sequence collision, injected fault) rolls back
+    // the balance writes AND the entry inserts together.
+    const accountSnapshot = this.accountStore.__snapshotForLedgerTx();
+    const entriesSnapshot = new Map(this.entries);
+    const sequenceSnapshot = new Map(this.sequenceCounters);
+    const idempotencySnapshot = new Map(this.idempotencyKeys);
+
+    try {
+      // 1. Apply per-account CAS balance writes (validate-all then
+      //    mutate-all — no orphan if any predicate fails).
+      const cas = this.accountStore.__applyBalanceWritesForLedgerTx(
+        post.balanceUpdates,
+      );
+      if (!cas.ok) {
+        return { status: 'stale', conflictAccountId: cas.conflictAccountId };
+      }
+
+      // 2. Fault injection point — models a crash AFTER balances move
+      //    but BEFORE entries land. Must roll back balances.
+      if (this.faultBetweenBalanceAndEntries) {
+        this.faultBetweenBalanceAndEntries();
+      }
+
+      // 3. Hash-chain (durability defect #3) + insert + sequence-collision
+      //    guard (models the (account_id, sequence_number) unique index).
+      //    prevHash seeds from the latest existing entry's thisHash per
+      //    account, then folds forward over this post's entries.
+      const created: LedgerEntry[] = [];
+      const prevHashByAccount = new Map<string, string>();
+      const ordered = [...post.entries].sort(
+        (a, b) => a.sequenceNumber - b.sequenceNumber,
+      );
+      for (const entry of ordered) {
+        const acctKey = `${entry.tenantId}:${entry.accountId}`;
+        for (const existing of this.entries.values()) {
+          if (
+            existing.tenantId === entry.tenantId &&
+            existing.accountId === entry.accountId &&
+            existing.sequenceNumber === entry.sequenceNumber
+          ) {
+            throw new SequenceCollisionError(
+              entry.accountId,
+              entry.sequenceNumber,
+            );
+          }
+        }
+
+        let prev = prevHashByAccount.get(acctKey);
+        if (prev === undefined) {
+          prev = this.latestThisHashForAccount(
+            entry.tenantId,
+            entry.accountId,
+          );
+        }
+        const thisHash = computeEntryHash(prev, entry);
+        prevHashByAccount.set(acctKey, thisHash);
+        const chained: ChainedLedgerEntry = {
+          ...entry,
+          prevHash: prev,
+          thisHash,
+        };
+
+        this.entries.set(chained.id, { ...chained });
+        created.push({ ...chained });
+        const current = this.sequenceCounters.get(acctKey) || 0;
+        if (entry.sequenceNumber > current) {
+          this.sequenceCounters.set(acctKey, entry.sequenceNumber);
+        }
+      }
+
+      // 4. Persist the idempotency key in the same atomic unit.
+      if (post.idempotencyKey !== undefined) {
+        this.idempotencyKeys.set(
+          this.idempotencyMapKey(post.tenantId, post.idempotencyKey),
+          post.journalId,
+        );
+      }
+
+      return { status: 'committed', entries: created };
+    } catch (err) {
+      // Roll back EVERYTHING — balance writes included. This is the
+      // invariant the separate-transactions bug violated.
+      this.accountStore.__restoreForLedgerTx(accountSnapshot);
+      this.entries = entriesSnapshot;
+      this.sequenceCounters = sequenceSnapshot;
+      this.idempotencyKeys = idempotencySnapshot;
+      if (err instanceof SequenceCollisionError) {
+        // A collision behaves like a stale-version race: caller retries.
+        return { status: 'stale', conflictAccountId: err.accountId };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Attached account store used by `postJournalAtomic` to apply balance
+   * CAS writes inside the same atomic unit as the entry inserts. Set by
+   * the factory (and tests) via `attachAccountStore`.
+   */
+  private accountStore: LedgerTxAccountStore | null = null;
+
+  attachAccountStore(store: LedgerTxAccountStore): void {
+    this.accountStore = store;
+  }
+
+  /**
+   * The `thisHash` of the highest-sequence entry for an account, or
+   * GENESIS_HASH if the account has no entries yet. Seeds the per-account
+   * hash chain when a journal post touches an account for the first time
+   * within that post.
+   */
+  private latestThisHashForAccount(
+    tenantId: TenantId,
+    accountId: AccountId,
+  ): string {
+    let latest: ChainedLedgerEntry | null = null;
+    for (const entry of this.entries.values()) {
+      if (entry.tenantId === tenantId && entry.accountId === accountId) {
+        const candidate = entry as ChainedLedgerEntry;
+        if (latest === null || candidate.sequenceNumber > latest.sequenceNumber) {
+          latest = candidate;
+        }
+      }
+    }
+    return latest?.thisHash ?? GENESIS_HASH;
+  }
 
   async createEntries(entries: LedgerEntry[]): Promise<LedgerEntry[]> {
     // Atomic insert - all or nothing

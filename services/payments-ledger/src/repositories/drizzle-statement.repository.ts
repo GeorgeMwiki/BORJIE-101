@@ -38,7 +38,7 @@ import {
   type StatementType,
   type TenantId,
 } from '@borjie/domain-models';
-import { pgTable, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, bigint, jsonb } from 'drizzle-orm/pg-core';
 import { type DatabaseClient } from '@borjie/database';
 
 // Local Drizzle table declaration for the legacy payments-ledger
@@ -62,11 +62,21 @@ const statements = pgTable('statements', {
   periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
   periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
   currency: text('currency').notNull(),
-  openingBalanceMinorUnits: integer('opening_balance_minor_units'),
-  closingBalanceMinorUnits: integer('closing_balance_minor_units'),
-  totalDebitsMinorUnits: integer('total_debits_minor_units'),
-  totalCreditsMinorUnits: integer('total_credits_minor_units'),
-  netChangeMinorUnits: integer('net_change_minor_units'),
+  // C2 — overflow safety: BIGINT money columns (mode 'number'). Period
+  // statements sum many entries → most exposed to INT4 overflow.
+  openingBalanceMinorUnits: bigint('opening_balance_minor_units', {
+    mode: 'number',
+  }),
+  closingBalanceMinorUnits: bigint('closing_balance_minor_units', {
+    mode: 'number',
+  }),
+  totalDebitsMinorUnits: bigint('total_debits_minor_units', {
+    mode: 'number',
+  }),
+  totalCreditsMinorUnits: bigint('total_credits_minor_units', {
+    mode: 'number',
+  }),
+  netChangeMinorUnits: bigint('net_change_minor_units', { mode: 'number' }),
   lineItems: jsonb('line_items').notNull().default([]),
   summaries: jsonb('summaries').notNull().default([]),
   recipientEmail: text('recipient_email'),
