@@ -23,6 +23,7 @@
 
 import type { ReactElement } from 'react';
 import { useMemo } from 'react';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 export interface HandoffCardData {
   readonly id: string;
@@ -45,48 +46,22 @@ export interface HandoffCardProps {
   readonly language?: 'en' | 'sw';
 }
 
-const COPY = {
-  en: {
-    sentTo: 'Sent to',
-    pending: 'Awaiting reply',
-    closed: 'Closed without reply',
-    declined: 'Declined',
-    re: 'Re:',
-    site: 'Site:',
-    category: 'Topic:',
-  },
-  sw: {
-    sentTo: 'Imetumwa kwa',
-    pending: 'Inasubiri jibu',
-    closed: 'Imefungwa bila jibu',
-    declined: 'Imekataliwa',
-    re: 'Kuhusu:',
-    site: 'Eneo:',
-    category: 'Mada:',
-  },
-} as const;
+const COPY = S.handoffCard.copy;
 
-const ROLE_LABEL: Record<string, { en: string; sw: string }> = {
-  T1_owner_strategist: { en: 'Owner', sw: 'Mmiliki' },
-  T2_admin_strategist: { en: 'Admin', sw: 'Msimamizi' },
-  T3_module_manager: { en: 'Manager', sw: 'Meneja' },
-  T4_field_employee: { en: 'Worker', sw: 'Mfanyakazi' },
-  T5_customer_concierge: { en: 'Concierge', sw: 'Mhudumu' },
-  T_auditor: { en: 'Auditor', sw: 'Mkaguzi' },
-  T_vendor: { en: 'Vendor', sw: 'Muuzaji' },
-};
+const ROLE_LABEL: Record<string, { en: string; sw: string }> =
+  S.handoffCard.roleLabel;
 
 function relativeTime(iso: string, lang: 'en' | 'sw'): string {
   const then = new Date(iso).getTime();
   const now = Date.now();
   const diffSec = Math.max(0, Math.floor((now - then) / 1000));
-  if (diffSec < 60) return lang === 'sw' ? `${diffSec}s zilizopita` : `${diffSec}s ago`;
+  if (diffSec < 60) return S.handoffCard.relTime.sec(diffSec)[lang];
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return lang === 'sw' ? `${diffMin}m zilizopita` : `${diffMin}m ago`;
+  if (diffMin < 60) return S.handoffCard.relTime.min(diffMin)[lang];
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return lang === 'sw' ? `${diffHr}h zilizopita` : `${diffHr}h ago`;
+  if (diffHr < 24) return S.handoffCard.relTime.hr(diffHr)[lang];
   const diffDay = Math.floor(diffHr / 24);
-  return lang === 'sw' ? `${diffDay}d zilizopita` : `${diffDay}d ago`;
+  return S.handoffCard.relTime.day(diffDay)[lang];
 }
 
 export function HandoffCard({ handoff, language = 'en' }: HandoffCardProps): ReactElement {

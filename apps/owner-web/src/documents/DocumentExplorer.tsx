@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { askSession, createSession, summariseDocument } from './api';
 import type { UploadedDocument } from './types';
 import { ingestionStatusLabel, kindLabel } from './types';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ChatTurn {
   readonly id: string;
@@ -56,7 +57,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     const { sessionId: newId } = await createSession({
       documentIds: [document.id],
       ...(initialPrompt !== undefined ? { initialPrompt } : {}),
-      title: `Soma: ${document.fileName}`,
+      title: `${S.documentExplorer.sessionTitlePrefix.sw}: ${document.fileName}`,
     });
     setSessionId(newId);
     return newId;
@@ -82,7 +83,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       const res = await askSession({ sessionId: id, question, language: 'sw' });
       const assistantText =
         res.answer ??
-        `Nimepokea swali. Hati hii ina vipande ${res.evidenceIds.length}. Brain itajibu mara tu wakati wa kuchakatwa.`;
+        S.documentExplorer.askFallback.sw.replace(
+          '{count}',
+          String(res.evidenceIds.length),
+        );
       const assistantTurn: ChatTurn = {
         id: `a_${Date.now()}`,
         role: 'assistant',
@@ -137,14 +141,14 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-neutral-400">
-              Hakiki haipatikani. Pakua faili kuona kamili.
+              {S.documentExplorer.previewUnavailable.sw}
             </div>
           )}
         </div>
         {summary ? (
           <div className="border-t border-border bg-background/40 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              Muhtasari
+              {S.documentExplorer.summaryLabel.sw}
             </p>
             <p className="mt-1 line-clamp-6 text-sm text-foreground">{summary}</p>
           </div>
@@ -155,7 +159,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
         <ol className="flex-1 space-y-2 overflow-y-auto p-4">
           {turns.length === 0 ? (
             <li className="text-center text-sm text-neutral-400">
-              Anza mazungumzo na hati hii. Niulize lolote.
+              {S.documentExplorer.emptyConversation.sw}
             </li>
           ) : (
             turns.map((turn) => (
@@ -183,13 +187,13 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           className="flex items-end gap-2 border-t border-border bg-background/40 p-3"
         >
           <label htmlFor="document-question" className="sr-only">
-            Andika swali kuhusu hati
+            {S.documentExplorer.questionLabel.sw}
           </label>
           <textarea
             id="document-question"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Andika swali..."
+            placeholder={S.documentExplorer.questionPlaceholder.sw}
             disabled={busy}
             rows={2}
             className="flex-1 resize-none rounded-md border border-border bg-surface p-2 text-sm text-foreground placeholder:text-neutral-500 disabled:opacity-50"
@@ -197,10 +201,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           <button
             type="submit"
             disabled={busy || draft.trim().length === 0}
-            aria-label="Tuma swali"
+            aria-label={S.documentExplorer.sendLabel.sw}
             className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:opacity-50"
           >
-            {busy ? '...' : 'Tuma'}
+            {busy ? '...' : S.documentExplorer.send.sw}
           </button>
         </form>
       </div>

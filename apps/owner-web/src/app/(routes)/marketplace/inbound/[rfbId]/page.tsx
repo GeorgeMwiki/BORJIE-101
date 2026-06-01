@@ -12,6 +12,7 @@
 import { getOwnerSession } from '@/lib/session';
 import { PageHero } from '@/components/shared/PageHero';
 import { RfbDispatchPanel } from '@/components/marketplace/RfbDispatchPanel';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface PageProps {
   readonly params: Promise<{ readonly rfbId: string }>;
@@ -30,15 +31,13 @@ export default async function InboundRfbDetailPage({ params }: PageProps) {
       />
       <header className="space-y-1">
         <p className="text-tiny font-medium uppercase tracking-wide text-neutral-400">
-          {isSw ? 'RFB ya mnunuzi' : 'Inbound buyer RFB'}
+          {isSw ? S.inboundRfb.eyebrow.sw : S.inboundRfb.eyebrow.en}
         </p>
         <h1 className="text-2xl font-semibold text-foreground">
-          {isSw ? 'Tuma kwa msimamizi' : 'Dispatch to a manager'}
+          {isSw ? S.inboundRfb.heading.sw : S.inboundRfb.heading.en}
         </h1>
         <p className="max-w-2xl text-sm text-neutral-400">
-          {isSw
-            ? 'Chagua msimamizi na tovuti ya kushughulikia ombi hili. Hatua hii itaunda kazi ya kazi ya mfanyakazi inayofungamana na RFB hii.'
-            : 'Pick the manager and the site that will fulfil this buyer request. This creates a worker task linked back to the RFB.'}
+          {isSw ? S.inboundRfb.body.sw : S.inboundRfb.body.en}
         </p>
       </header>
 

@@ -4,6 +4,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import { ReportForm } from '@/components/reports/ReportForm';
 import { ReportPlayerPanel } from '@/components/reports/ReportPlayerPanel';
 import { getOwnerSession } from '@/lib/session';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
  * O-W-18 — Reports & exports.
@@ -29,14 +30,14 @@ export default async function ReportsPage() {
               className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
             >
               <FileText className="h-3.5 w-3.5" />
-              {isSw ? 'Maktaba ya ripoti' : 'Report library'}
+              {isSw ? S.reports.reportLibrary.sw : S.reports.reportLibrary.en}
             </Link>
             <Link
               href="/ask?prompt=reports"
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Uliza kuhusu chati' : 'Ask about analytics'}
+              {isSw ? S.reports.askAnalytics.sw : S.reports.askAnalytics.en}
             </Link>
           </>
         }
@@ -49,17 +50,17 @@ export default async function ReportsPage() {
         <div className="lg:col-span-1">
           <div className="rounded-2xl border border-border bg-surface/40 p-5">
             <h3 className="text-sm font-semibold text-foreground">
-              {isSw ? 'Uthibitisho' : 'Provenance'}
+              {isSw ? S.reports.provenance.sw : S.reports.provenance.en}
             </h3>
             <p className="mt-1 text-xs text-neutral-400">
               {isSw
-                ? 'Kila namba inarejea kwa LMBM.'
-                : 'Every figure cites a chunk in the LMBM.'}
+                ? S.reports.provenanceTagline.sw
+                : S.reports.provenanceTagline.en}
             </p>
             <p className="mt-4 text-sm leading-relaxed text-neutral-300">
               {isSw
-                ? 'Ripoti zilizotengenezwa zinajumuisha kiambatisho cha hashi kwa kila takwimu, kuweza kufuatiliwa nyuma kwa ledger ya chanzo au chunk ya hati. Ripoti zinabaki kusomwa hata bila intaneti.'
-                : 'Generated reports include an appendix with a hash anchor for every figure, traceable back to the source ledger or document chunk. Reports stay readable offline; sharing requires explicit access grants.'}
+                ? S.reports.provenanceBody.sw
+                : S.reports.provenanceBody.en}
             </p>
           </div>
         </div>

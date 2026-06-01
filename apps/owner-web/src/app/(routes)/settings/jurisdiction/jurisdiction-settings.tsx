@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 type Regulators = {
   readonly mineral: string;
@@ -74,7 +75,7 @@ export function JurisdictionSettings() {
   if (state.kind === 'loading') {
     return (
       <p className="text-sm text-neutral-400">
-        Loading jurisdiction snapshot… / Inapakia muktadha…
+        {`${S.jurisdictionSettings.loading.en} / ${S.jurisdictionSettings.loading.sw}`}
       </p>
     );
   }
@@ -117,39 +118,39 @@ function CurrentJurisdictionCard({
         Current jurisdiction
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
-        Eneo la sasa la sheria
+        {S.jurisdictionSettings.currentTagline.sw}
       </p>
       <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
-          label="Country / Nchi"
+          label={`${S.jurisdictionSettings.fieldCountry.en} / ${S.jurisdictionSettings.fieldCountry.sw}`}
           value={`${snapshot.countryName} (${snapshot.country})`}
         />
         <Field
-          label="Currency / Sarafu"
+          label={`${S.jurisdictionSettings.fieldCurrency.en} / ${S.jurisdictionSettings.fieldCurrency.sw}`}
           value={snapshot.currency}
         />
         <Field
-          label="Default language / Lugha"
+          label={`${S.jurisdictionSettings.fieldDefaultLanguage.en} / ${S.jurisdictionSettings.fieldDefaultLanguage.sw}`}
           value={`${snapshot.defaultLanguage} (${snapshot.locale})`}
         />
         <Field
-          label="Time zone / Eneo la saa"
+          label={`${S.jurisdictionSettings.fieldTimeZone.en} / ${S.jurisdictionSettings.fieldTimeZone.sw}`}
           value={snapshot.timeZone}
         />
         <Field
-          label="Mineral authority / Mdhibiti wa madini"
+          label={`${S.jurisdictionSettings.fieldMineralAuthority.en} / ${S.jurisdictionSettings.fieldMineralAuthority.sw}`}
           value={snapshot.regulators.mineral}
         />
         <Field
-          label="Environmental authority / Mdhibiti wa mazingira"
+          label={`${S.jurisdictionSettings.fieldEnvironmentalAuthority.en} / ${S.jurisdictionSettings.fieldEnvironmentalAuthority.sw}`}
           value={snapshot.regulators.environmental}
         />
         <Field
-          label="Transparency initiative / Uwazi"
+          label={`${S.jurisdictionSettings.fieldTransparency.en} / ${S.jurisdictionSettings.fieldTransparency.sw}`}
           value={snapshot.regulators.transparency}
         />
         <Field
-          label="Audit authority / Mkaguzi"
+          label={`${S.jurisdictionSettings.fieldAuditAuthority.en} / ${S.jurisdictionSettings.fieldAuditAuthority.sw}`}
           value={snapshot.regulators.audit}
         />
       </dl>
@@ -168,7 +169,7 @@ function LockedNoticeCard({
         Jurisdiction is locked
       </h2>
       <p className="mt-0.5 text-xs italic text-yellow-200/60">
-        Eneo la sheria limefungwa
+        {S.jurisdictionSettings.lockedTagline.sw}
       </p>
       <p className="mt-3 text-sm text-yellow-100/80">
         Your tenant is locked to <strong>{snapshot.country}</strong>{' '}
@@ -177,15 +178,15 @@ function LockedNoticeCard({
         only Borjie support can apply them after a verification call.
       </p>
       <p className="mt-2 text-sm italic text-yellow-100/60">
-        Akaunti yako imefungwa kwa <strong>{snapshot.country}</strong>{' '}
-        kwa ajili ya utiifu. Mabadiliko ya kudumu yanahitaji msaada wa
-        Borjie baada ya simu ya uthibitisho.
+        {S.jurisdictionSettings.lockedBodySwPrefix.sw}{' '}
+        <strong>{snapshot.country}</strong>{' '}
+        {S.jurisdictionSettings.lockedBodySwSuffix.sw}
       </p>
       <a
         href="mailto:support@borjie.app?subject=Jurisdiction%20change%20request"
         className="mt-4 inline-flex items-center rounded border border-yellow-300/40 px-3 py-1.5 text-xs text-yellow-100 hover:bg-yellow-500/10"
       >
-        Request a change / Omba mabadiliko
+        {`${S.jurisdictionSettings.requestChange.en} / ${S.jurisdictionSettings.requestChange.sw}`}
       </a>
     </section>
   );
@@ -203,7 +204,7 @@ function PerTurnOverrideCard({
         Ask about another jurisdiction
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
-        Uliza kuhusu eneo lingine la sheria
+        {S.jurisdictionSettings.overrideTagline.sw}
       </p>
       <p className="mt-3 text-sm text-neutral-300">
         You can ask Mr. Mwikila for a one-turn answer in any other
@@ -214,8 +215,9 @@ function PerTurnOverrideCard({
         jurisdiction on the next message.
       </p>
       <p className="mt-2 text-sm italic text-neutral-400">
-        Unaweza kuomba jibu la zamu moja kwa eneo lingine — sema kwa
-        mfano <em>&quot;in Kenya, ...&quot;</em> au{' '}
+        {S.jurisdictionSettings.overrideBodySw.sw}{' '}
+        <em>&quot;in Kenya, ...&quot;</em>{' '}
+        {S.jurisdictionSettings.overrideBodySwOr.sw}{' '}
         <em>&quot;for our Uganda operation, ...&quot;</em>.
       </p>
       <p className="mt-3 text-xs text-neutral-500">

@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { PnlTable } from './PnlTable';
 import { usePnl, currentMonthYYYYMM } from '@/lib/queries/pnl';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface PnlTableLiveProps {
   readonly locale: 'sw' | 'en';
@@ -33,14 +34,14 @@ export function PnlTableLive({ locale, initialMonth }: PnlTableLiveProps) {
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">
-          {locale === 'sw' ? 'P&L ya mwezi' : 'Monthly P&L'}
+          {locale === 'sw' ? S.pnl.monthlyTitle.sw : S.pnl.monthlyTitle.en}
         </h3>
         <input
           type="month"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
           className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-          aria-label={locale === 'sw' ? 'Chagua mwezi' : 'Select month'}
+          aria-label={locale === 'sw' ? S.pnl.selectMonth.sw : S.pnl.selectMonth.en}
         />
       </div>
       {isLoading && (
@@ -58,15 +59,13 @@ export function PnlTableLive({ locale, initialMonth }: PnlTableLiveProps) {
           className="rounded border border-destructive/60 bg-destructive/10 p-3 text-xs text-destructive"
           data-testid="pnl-error"
         >
-          {locale === 'sw'
-            ? 'Imeshindwa kuchukua P&L. Jaribu tena.'
-            : 'Failed to load P&L. Try again.'}
+          {locale === 'sw' ? S.pnl.loadError.sw : S.pnl.loadError.en}
           <button
             type="button"
             onClick={() => refetch()}
             className="ml-2 underline"
           >
-            {locale === 'sw' ? 'Jaribu tena' : 'Retry'}
+            {locale === 'sw' ? S.pnl.retry.sw : S.pnl.retry.en}
           </button>
         </div>
       )}

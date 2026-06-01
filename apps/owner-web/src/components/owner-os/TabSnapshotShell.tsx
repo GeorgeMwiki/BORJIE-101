@@ -20,6 +20,7 @@
 
 import type { ReactElement } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 import type { TabSnapshotData } from './useTabSnapshot';
 
@@ -50,11 +51,11 @@ function captionFor(
   mode: 'sleeping' | 'waking',
 ): string {
   if (mode === 'waking') {
-    return lang === 'sw' ? 'Inarudisha mtazamo…' : 'Restoring view…';
+    return lang === 'sw' ? S.snapshotShell.waking.sw : S.snapshotShell.waking.en;
   }
   return lang === 'sw'
-    ? 'Imepumzika, data ya nyuma inabaki kwa Bw. Mwikila'
-    : 'Asleep — Mr. Mwikila still tracks this tab in the background';
+    ? S.snapshotShell.sleeping.sw
+    : S.snapshotShell.sleeping.en;
 }
 
 function snapshotLines(

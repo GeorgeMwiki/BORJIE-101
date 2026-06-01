@@ -9,6 +9,7 @@ import {
   useCreateMaintenance,
   type UiMaintenanceKind,
 } from '@/lib/queries/maintenance';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 const schema = z.object({
   assetId: z.string().min(1, 'required'),
@@ -27,15 +28,15 @@ interface NewMaintenanceModalProps {
 }
 
 const KIND_LABEL_SW: Readonly<Record<UiMaintenanceKind, string>> = {
-  preventive: 'Kinga',
-  corrective: 'Marekebisho',
-  inspection: 'Ukaguzi',
+  preventive: S.newMaintKindPreventive.sw,
+  corrective: S.newMaintKindCorrective.sw,
+  inspection: S.newMaintKindInspection.sw,
 };
 
 const KIND_LABEL_EN: Readonly<Record<UiMaintenanceKind, string>> = {
-  preventive: 'Preventive',
-  corrective: 'Corrective',
-  inspection: 'Inspection',
+  preventive: S.newMaintKindPreventive.en,
+  corrective: S.newMaintKindCorrective.en,
+  inspection: S.newMaintKindInspection.en,
 };
 
 /**
@@ -96,16 +97,16 @@ export function NewMaintenanceModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Open new maintenance / Anza matengenezo"
+      aria-label={`${S.newMaintDialogLabel.en} / ${S.newMaintDialogLabel.sw}`}
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4"
     >
       <div className="w-full max-w-md rounded-lg border border-border bg-surface shadow-xl">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              Open new maintenance
+              {S.newMaintTitle.en}
             </h2>
-            <p className="text-xs text-neutral-500">Anza matengenezo mapya</p>
+            <p className="text-xs text-neutral-500">{S.newMaintSubtitle.sw}</p>
           </div>
           <button
             type="button"
@@ -123,13 +124,15 @@ export function NewMaintenanceModal({
         >
           <label className="block text-sm">
             <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              Asset / Mali
+              {S.newMaintFieldAsset.en} / {S.newMaintFieldAsset.sw}
             </span>
             <select
               {...register('assetId')}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-warning"
             >
-              <option value="">— pick / chagua —</option>
+              <option value="">
+                — {S.newMaintPickOption.en} / {S.newMaintPickOption.sw} —
+              </option>
               {assetOptions.map((id) => (
                 <option key={id} value={id}>
                   {id}
@@ -144,7 +147,7 @@ export function NewMaintenanceModal({
           </label>
           <fieldset>
             <legend className="text-xs uppercase tracking-wide text-neutral-500">
-              Kind / Aina
+              {S.newMaintFieldKind.en} / {S.newMaintFieldKind.sw}
             </legend>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {(['preventive', 'corrective', 'inspection'] as const).map((kind) => (
@@ -168,7 +171,7 @@ export function NewMaintenanceModal({
           </fieldset>
           <label className="block text-sm">
             <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              Description / Maelezo
+              {S.newMaintFieldDescription.en} / {S.newMaintFieldDescription.sw}
             </span>
             <textarea
               {...register('description')}
@@ -178,7 +181,7 @@ export function NewMaintenanceModal({
           </label>
           <label className="block text-sm">
             <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              ETA hours / Masaa
+              {S.newMaintFieldEta.en} / {S.newMaintFieldEta.sw}
             </span>
             <input
               {...register('etaHours')}
@@ -199,7 +202,7 @@ export function NewMaintenanceModal({
               onClick={onClose}
               className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground hover:bg-surface"
             >
-              Cancel / Ghairi
+              {S.newMaintCancel.en} / {S.newMaintCancel.sw}
             </button>
             <button
               type="submit"
@@ -207,7 +210,7 @@ export function NewMaintenanceModal({
               className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-xs text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
             >
               {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Open maintenance / Anza
+              {S.newMaintSubmit.en} / {S.newMaintSubmit.sw}
             </button>
           </div>
         </form>

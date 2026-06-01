@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -25,10 +26,10 @@ const PeopleSurface = dynamic(
  */
 const WORKFORCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'workforce',
-  labelEn: 'Workforce',
-  labelSw: 'Wafanyakazi shamba',
-  descriptionEn: 'Shift attendance, biometric clock-in and supervisor coverage.',
-  descriptionSw: 'Mahudhurio ya zamu, kuingia kwa biometriki na uthibitisho wa wasimamizi.',
+  labelEn: S.workforce.label.en,
+  labelSw: S.workforce.label.sw,
+  descriptionEn: S.workforce.description.en,
+  descriptionSw: S.workforce.description.sw,
   iconName: 'Briefcase',
   color: 'cream',
   contextSchema: ownerOsTabContextSchema,
@@ -41,16 +42,15 @@ const WORKFORCE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'supervisor',
       'roster today',
       'on-shift',
-      'mahudhurio',
-      'zamu',
+      ...S.workforce.swKeywords,
     ],
     comboBoost: [{ phrases: ['shift', 'today'], boost: 0.2 }],
   },
   suggestedTools: [
     {
       toolId: 'workforce.open-shift-board',
-      labelEn: 'Open shift board',
-      labelSw: 'Fungua ubao wa zamu',
+      labelEn: S.workforce.toolOpenShiftBoard.en,
+      labelSw: S.workforce.toolOpenShiftBoard.sw,
     },
   ],
   briefSlices: ['workforce'],
@@ -72,10 +72,10 @@ export function WorkforcePanel({
       <PanelHero
         icon={Briefcase}
         color="cream"
-        titleEn="Workforce — shifts & attendance"
-        titleSw={`${'Wafanya' + 'kazi'} shamba — zamu na mahudhurio`}
-        subtitleEn="On-shift headcount, supervisor coverage, biometric clock-in and fuel-log feed."
-        subtitleSw={`Idadi ya ${'wafanya' + 'kazi'} zamuni, uthibitisho wa wasimamizi, kuingia kwa biometriki na orodha ya mafuta.`}
+        titleEn={S.workforce.heroTitle.en}
+        titleSw={S.workforce.heroTitle.sw}
+        subtitleEn={S.workforce.heroSubtitle.en}
+        subtitleSw={S.workforce.heroSubtitle.sw}
         locale={locale}
       />
       <PeopleSurface locale={locale} />

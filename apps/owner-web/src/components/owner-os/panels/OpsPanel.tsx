@@ -9,6 +9,7 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -25,10 +26,10 @@ const SafetySurface = dynamic(
 
 const OPS_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'ops',
-  labelEn: 'Operations',
-  labelSw: 'Shughuli',
-  descriptionEn: 'Pit-to-port ops overview: sites, safety and field exceptions.',
-  descriptionSw: 'Muhtasari wa shughuli toka pit hadi bandari: tovuti, usalama na ubaguzi.',
+  labelEn: S.ops.label.en,
+  labelSw: S.ops.label.sw,
+  descriptionEn: S.ops.description.en,
+  descriptionSw: S.ops.description.sw,
   iconName: 'Activity',
   color: 'signal',
   contextSchema: ownerOsTabContextSchema,
@@ -44,21 +45,20 @@ const OPS_DESCRIPTOR: OwnerOSTabDescriptor = {
       'haul',
       'extraction',
       'reconciliation',
-      'shughuli',
-      'utendaji',
+      ...S.ops.swKeywords,
     ],
     comboBoost: [{ phrases: ['ops', 'today'], boost: 0.15 }],
   },
   suggestedTools: [
     {
       toolId: 'ops.open-site-cockpit',
-      labelEn: 'Open site cockpit',
-      labelSw: 'Fungua kituo cha tovuti',
+      labelEn: S.ops.toolOpenSiteCockpit.en,
+      labelSw: S.ops.toolOpenSiteCockpit.sw,
     },
     {
       toolId: 'ops.run-shift-recon',
-      labelEn: 'Run shift reconciliation',
-      labelSw: 'Endesha ulinganishaji wa zamu',
+      labelEn: S.ops.toolRunShiftRecon.en,
+      labelSw: S.ops.toolRunShiftRecon.sw,
     },
   ],
   briefSlices: ['sites', 'incidents', 'workforce'],
@@ -74,23 +74,23 @@ export function OpsPanel({ locale }: OwnerOSPanelProps): ReactElement {
   // Operating snapshot tiles — bridge live KPIs above the dense surfaces.
   const tiles: ReadonlyArray<MetricTile> = [
     {
-      label: isSw ? 'Tovuti zinazozalisha' : 'Producing sites',
+      label: isSw ? S.ops.tileProducingSites.sw : S.ops.tileProducingSites.en,
       value: '4 / 6',
-      sub: isSw ? '2 katika maendeleo' : '2 in development',
+      sub: isSw ? S.ops.tileProducingSitesSub.sw : S.ops.tileProducingSitesSub.en,
       icon: Mountain,
       tone: 'success',
     },
     {
-      label: isSw ? 'Matukio yanayoendelea' : 'Open incidents',
+      label: isSw ? S.ops.tileOpenIncidents.sw : S.ops.tileOpenIncidents.en,
       value: '3',
-      sub: isSw ? '1 muhimu' : '1 critical',
+      sub: isSw ? S.ops.tileOpenIncidentsSub.sw : S.ops.tileOpenIncidentsSub.en,
       icon: AlertTriangle,
       tone: 'warning',
     },
     {
-      label: isSw ? 'Wafanyakazi zamuni' : 'Workforce on-shift',
+      label: isSw ? S.ops.tileOnShift.sw : S.ops.tileOnShift.en,
       value: '42',
-      sub: isSw ? '−3 dhidi ya jana' : '−3 vs yesterday',
+      sub: isSw ? S.ops.tileOnShiftSub.sw : S.ops.tileOnShiftSub.en,
       icon: HardHat,
       tone: 'default',
     },
@@ -103,23 +103,23 @@ export function OpsPanel({ locale }: OwnerOSPanelProps): ReactElement {
       <PanelHero
         icon={Activity}
         color="signal"
-        titleEn="Operations — pit to port"
-        titleSw="Shughuli — toka pit hadi bandari"
-        subtitleEn="Live operating snapshot across sites, safety and field exceptions."
-        subtitleSw="Muhtasari wa moja kwa moja wa shughuli kwenye tovuti, usalama na ubaguzi wa shamba."
+        titleEn={S.ops.heroTitle.en}
+        titleSw={S.ops.heroTitle.sw}
+        subtitleEn={S.ops.heroSubtitle.en}
+        subtitleSw={S.ops.heroSubtitle.sw}
         locale={locale}
       />
       <MetricStrip tiles={tiles} cols={3} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div>
           <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {isSw ? 'Tovuti' : 'Sites'}
+            {isSw ? S.ops.headingSites.sw : S.ops.headingSites.en}
           </h3>
           <SitesList locale={locale} />
         </div>
         <div>
           <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {isSw ? 'Usalama' : 'Safety'}
+            {isSw ? S.ops.headingSafety.sw : S.ops.headingSafety.en}
           </h3>
           <SafetySurface locale={locale} />
         </div>

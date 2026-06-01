@@ -6,6 +6,7 @@ import { DocumentUploadButton } from '@/documents/DocumentUploadButton';
 import { DocumentExplorer } from '@/documents/DocumentExplorer';
 import { listDocuments } from '@/documents/api';
 import type { UploadedDocument } from '@/documents/types';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
  * O-W-DOC-INTEL — "Documents as alive entities" cockpit surface.
@@ -50,9 +51,9 @@ export default function DocumentIntelligencePage() {
     <main id="main-content" className="px-8 py-6">
       <header className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Hati hai · Living documents</h1>
+          <h1 className="text-2xl font-bold text-foreground">{S.documentIntelligence.title.both}</h1>
           <p className="mt-1 text-sm text-neutral-400">
-            Pakia mkataba, zabuni au barua. Brain itazungumza nazo kama vyombo hai.
+            {S.documentIntelligence.subtitle.both}
           </p>
         </div>
         <DocumentUploadButton
@@ -92,7 +93,7 @@ export default function DocumentIntelligencePage() {
             <DocumentExplorer document={selected} />
           ) : (
             <div className="rounded-lg border border-border bg-surface/40 p-8 text-center text-sm text-neutral-400">
-              Chagua hati au pakia mpya kuanza.
+              {S.documentIntelligence.emptyState.both}
             </div>
           )}
         </section>

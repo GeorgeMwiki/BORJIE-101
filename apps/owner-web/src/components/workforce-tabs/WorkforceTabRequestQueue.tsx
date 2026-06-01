@@ -14,6 +14,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ChangeRequestRow {
   readonly id: string;
@@ -34,42 +35,44 @@ interface QueueProps {
   readonly isSw: boolean;
 }
 
+const Q = S.workforceTabRequestQueue;
+
 const COPY = {
   en: {
-    title: 'Pending tab-change requests',
-    empty: 'No pending requests.',
-    requester: 'Requester',
-    role: 'Role',
-    site: 'Site',
-    reason: 'Reason',
-    diff: 'Proposed changes',
-    add: 'Add',
-    remove: 'Remove',
-    density: 'Density',
-    approve: 'Approve',
-    reject: 'Reject',
-    note: 'Note (optional)',
-    deciding: 'Saving…',
-    error: 'Decision failed',
-    global: 'Global',
+    title: Q.title.en,
+    empty: Q.empty.en,
+    requester: Q.requester.en,
+    role: Q.role.en,
+    site: Q.site.en,
+    reason: Q.reason.en,
+    diff: Q.diff.en,
+    add: Q.add.en,
+    remove: Q.remove.en,
+    density: Q.density.en,
+    approve: Q.approve.en,
+    reject: Q.reject.en,
+    note: Q.note.en,
+    deciding: Q.deciding.en,
+    error: Q.error.en,
+    global: Q.global.en,
   },
   sw: {
-    title: 'Maombi ya tabo yanayosubiri',
-    empty: 'Hakuna maombi yanayosubiri.',
-    requester: 'Mtumaji',
-    role: 'Jukumu',
-    site: 'Eneo',
-    reason: 'Sababu',
-    diff: 'Mabadiliko yaliyopendekezwa',
-    add: 'Ongeza',
-    remove: 'Ondoa',
-    density: 'Mpangilio',
-    approve: 'Idhinisha',
-    reject: 'Kataa',
-    note: 'Maelezo (hiari)',
-    deciding: 'Inahifadhi…',
-    error: 'Maamuzi hayakufaulu',
-    global: 'Kote',
+    title: Q.title.sw,
+    empty: Q.empty.sw,
+    requester: Q.requester.sw,
+    role: Q.role.sw,
+    site: Q.site.sw,
+    reason: Q.reason.sw,
+    diff: Q.diff.sw,
+    add: Q.add.sw,
+    remove: Q.remove.sw,
+    density: Q.density.sw,
+    approve: Q.approve.sw,
+    reject: Q.reject.sw,
+    note: Q.note.sw,
+    deciding: Q.deciding.sw,
+    error: Q.error.sw,
+    global: Q.global.sw,
   },
 } as const;
 

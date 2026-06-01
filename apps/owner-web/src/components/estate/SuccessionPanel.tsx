@@ -7,6 +7,7 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface SuccessionPanelProps {
   readonly locale: 'sw' | 'en';
@@ -26,16 +27,14 @@ export function SuccessionPanel({ locale }: SuccessionPanelProps) {
   if (query.isLoading) {
     return (
       <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? 'Inapakia mipango ya urithi...' : 'Loading succession plans...'}
+        {isSw ? S.succession.loading.sw : S.succession.loading.en}
       </div>
     );
   }
   if (query.isError) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia mipango ya urithi.'
-          : 'Could not load succession plans.'}
+        {isSw ? S.succession.loadError.sw : S.succession.loadError.en}
       </div>
     );
   }
@@ -44,17 +43,15 @@ export function SuccessionPanel({ locale }: SuccessionPanelProps) {
   if (plans.length === 0) {
     return (
       <SectionCard
-        title={isSw ? 'Hakuna mpango wa urithi bado' : 'No succession plan yet'}
+        title={isSw ? S.succession.noPlanTitle.sw : S.succession.noPlanTitle.en}
         subtitle={
           isSw
-            ? 'Tengeneza mpango wa kwanza kupitia /api/v1/estate/succession-plans.'
-            : 'Create a plan via /api/v1/estate/succession-plans to start.'
+            ? S.succession.noPlanSubtitle.sw
+            : S.succession.noPlanSubtitle.en
         }
       >
         <div className="px-5 py-8 text-sm text-neutral-500">
-          {isSw
-            ? 'Mwambie Mr. Mwikila aanze kwa "tengeneza mpango wa urithi".'
-            : 'Ask Mr. Mwikila to "draft a succession plan" to begin.'}
+          {isSw ? S.succession.noPlanBody.sw : S.succession.noPlanBody.en}
         </div>
       </SectionCard>
     );
@@ -80,22 +77,20 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
   const days = Math.round((due - Date.now()) / DAY_MS);
   const tone: 'green' | 'amber' | 'red' | 'neutral' =
     days < 0 ? 'red' : days <= 30 ? 'amber' : 'green';
+  const lang = isSw ? 'sw' : 'en';
   const chipLabel =
     days < 0
-      ? isSw
-        ? `Imepitwa siku ${Math.abs(days)}`
-        : `${Math.abs(days)}d overdue`
-      : isSw
-        ? `Mapitio baada ya siku ${days}`
-        : `Review in ${days}d`;
+      ? S.succession.overdue(Math.abs(days))[lang]
+      : S.succession.reviewIn(days)[lang];
 
   return (
     <SectionCard
       title={plan.currentPrincipalName}
       subtitle={
-        isSw
-          ? `Mrithi aliyeteuliwa: ${plan.designatedSuccessorName} (${plan.designatedSuccessorRelation})`
-          : `Designated successor: ${plan.designatedSuccessorName} (${plan.designatedSuccessorRelation})`
+        S.succession.subtitle(
+          plan.designatedSuccessorName,
+          plan.designatedSuccessorRelation,
+        )[lang]
       }
       actions={
         <button
@@ -103,7 +98,7 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
           className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface/80"
         >
           <Scroll className="h-3.5 w-3.5" />
-          {isSw ? 'Tengeneza rasimu ya wosia' : 'Generate draft will'}
+          {isSw ? S.succession.generateDraftWill.sw : S.succession.generateDraftWill.en}
         </button>
       }
     >
@@ -114,26 +109,22 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
         </div>
         <div className="grid gap-4 text-sm sm:grid-cols-2">
           <Stat
-            label={isSw ? 'Mapitio ya mwisho' : 'Last review'}
+            label={isSw ? S.succession.lastReview.sw : S.succession.lastReview.en}
             value={new Date(plan.lastReviewAt).toISOString().slice(0, 10)}
           />
           <Stat
-            label={isSw ? 'Mapitio yanayofuata' : 'Next review due'}
+            label={isSw ? S.succession.nextReview.sw : S.succession.nextReview.en}
             value={new Date(plan.nextReviewDueAt).toISOString().slice(0, 10)}
           />
           {plan.contingencySuccessorName ? (
             <Stat
-              label={isSw ? 'Mrithi wa pili' : 'Contingency successor'}
+              label={isSw ? S.succession.contingency.sw : S.succession.contingency.en}
               value={plan.contingencySuccessorName}
             />
           ) : null}
           {plan.designatedSuccessorNida ? (
             <Stat
-              label={
-                isSw
-                  ? 'NIDA ya mrithi aliyeteuliwa'
-                  : 'Designated successor NIDA'
-              }
+              label={isSw ? S.succession.designatedNida.sw : S.succession.designatedNida.en}
               value={plan.designatedSuccessorNida}
             />
           ) : null}
@@ -142,7 +133,7 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
           <div className="rounded-md border border-border bg-surface/60 px-4 py-3 text-xs text-neutral-300">
             <div className="mb-1 inline-flex items-center gap-1 text-tiny font-semibold uppercase tracking-wide text-neutral-500">
               <ShieldCheck className="h-3 w-3" />
-              {isSw ? 'Maelezo' : 'Notes'}
+              {isSw ? S.succession.notes.sw : S.succession.notes.en}
             </div>
             {plan.notes}
           </div>

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useLicencesList } from '@/lib/queries/licence';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface RawLicence {
   readonly id?: string;
@@ -26,11 +27,11 @@ interface RawLicence {
 type StatusFilter = 'all' | 'active' | 'pending' | 'expiring' | 'expired';
 
 const STATUS_LABELS: Record<StatusFilter, { readonly en: string; readonly sw: string }> = {
-  all: { en: 'All', sw: 'Zote' },
-  active: { en: 'Active', sw: 'Hai' },
-  pending: { en: 'Pending', sw: 'Inasubiri' },
-  expiring: { en: 'Expiring', sw: 'Inakaribia' },
-  expired: { en: 'Expired', sw: 'Imekwisha' },
+  all: S.licenceFilterAll,
+  active: S.licenceFilterActive,
+  pending: S.licenceFilterPending,
+  expiring: S.licenceFilterExpiring,
+  expired: S.licenceFilterExpired,
 };
 
 interface LicenceRow {
@@ -104,14 +105,22 @@ function statusPill(status: StatusFilter): { readonly className: string; readonl
 }
 
 function countdownLabel(days: number | null, isSw: boolean): string {
-  if (days === null) return isSw ? 'Bila tarehe' : 'No expiry set';
-  if (days < 0) {
-    return isSw
-      ? `Imekwisha siku ${Math.abs(days)} zilizopita`
-      : `Expired ${Math.abs(days)} days ago`;
+  if (days === null) {
+    return isSw ? S.licenceCountdownNone.sw : S.licenceCountdownNone.en;
   }
-  if (days === 0) return isSw ? 'Inaisha leo' : 'Expires today';
-  return isSw ? `Siku ${days} zimebaki` : `${days} days remaining`;
+  if (days < 0) {
+    const tpl = isSw
+      ? S.licenceCountdownExpiredAgo.sw
+      : S.licenceCountdownExpiredAgo.en;
+    return tpl.replace('{n}', String(Math.abs(days)));
+  }
+  if (days === 0) {
+    return isSw ? S.licenceCountdownToday.sw : S.licenceCountdownToday.en;
+  }
+  const tpl = isSw
+    ? S.licenceCountdownRemaining.sw
+    : S.licenceCountdownRemaining.en;
+  return tpl.replace('{n}', String(days));
 }
 
 interface LicencesListProps {
@@ -164,9 +173,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
   if (query.isError) {
     return (
       <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia leseni. Geuza kuingia tena au angalia muunganisho.'
-          : 'Failed to load licences. Reauthenticate or retry the gateway.'}
+        {isSw ? S.licenceLoadError.sw : S.licenceLoadError.en}
       </div>
     );
   }
@@ -176,12 +183,10 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
       <div className="rounded-xl border border-border bg-surface/40 p-10 text-center">
         <FileCheck className="mx-auto h-8 w-8 text-neutral-500" />
         <h3 className="mt-4 font-display text-xl text-foreground">
-          {isSw ? 'Hakuna leseni bado' : 'No licences yet'}
+          {isSw ? S.licenceEmptyTitle.sw : S.licenceEmptyTitle.en}
         </h3>
         <p className="mt-2 text-sm text-neutral-400">
-          {isSw
-            ? 'Sajili leseni yako ya kwanza kupitia onboarding ya Akili Kuu.'
-            : 'Register the first licence via the Master Brain onboarding flow.'}
+          {isSw ? S.licenceEmptyBody.sw : S.licenceEmptyBody.en}
         </p>
       </div>
     );
@@ -206,7 +211,9 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={
-                isSw ? 'Tafuta nambari, madini, eneo' : 'Search number, mineral, site'
+                isSw
+                  ? S.licenceSearchPlaceholder.sw
+                  : S.licenceSearchPlaceholder.en
               }
               className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
             />
@@ -242,12 +249,20 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
         <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-          <div className="col-span-3">{isSw ? 'Leseni' : 'Licence'}</div>
-          <div className="col-span-2">{isSw ? 'Madini' : 'Mineral'}</div>
-          <div className="col-span-3">{isSw ? 'Eneo / Mgodi' : 'Site'}</div>
-          <div className="col-span-2">{isSw ? 'Hali' : 'Status'}</div>
+          <div className="col-span-3">
+            {isSw ? S.licenceColLicence.sw : S.licenceColLicence.en}
+          </div>
+          <div className="col-span-2">
+            {isSw ? S.licenceColMineral.sw : S.licenceColMineral.en}
+          </div>
+          <div className="col-span-3">
+            {isSw ? S.licenceColSite.sw : S.licenceColSite.en}
+          </div>
+          <div className="col-span-2">
+            {isSw ? S.licenceColStatus.sw : S.licenceColStatus.en}
+          </div>
           <div className="col-span-2 text-right">
-            {isSw ? 'Hatua inayofuata' : 'Next action'}
+            {isSw ? S.licenceColNextAction.sw : S.licenceColNextAction.en}
           </div>
         </div>
         <ul className="divide-y divide-border/60">
@@ -283,7 +298,8 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                     {row.mineral}
                   </div>
                   <div className="col-span-3 min-w-0 truncate text-sm text-neutral-300">
-                    {row.siteName ?? (isSw ? 'Hakitajwa' : 'Not assigned')}
+                    {row.siteName ??
+                      (isSw ? S.licenceSiteUnassigned.sw : S.licenceSiteUnassigned.en)}
                   </div>
                   <div className="col-span-2">
                     <span
@@ -317,9 +333,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
         </ul>
         {filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-neutral-500">
-            {isSw
-              ? 'Hakuna leseni inayolingana na vichungi vyako vya sasa.'
-              : 'No licences match the current filters.'}
+            {isSw ? S.licenceNoMatch.sw : S.licenceNoMatch.en}
           </div>
         ) : null}
       </div>
@@ -327,9 +341,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
       <div className="flex items-start gap-3 rounded-2xl border border-signal-500/30 bg-signal-500/5 p-4 text-xs text-neutral-300">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-signal-500" />
         <p className="leading-relaxed">
-          {isSw
-            ? 'Akili Kuu inaangalia kila leseni kwa hatari ya kuanguka kwa dormancy na inafanya rasimu ya pakiti ya kuongeza muda siku 60 kabla ya tarehe ya mwisho.'
-            : 'Master Brain monitors every licence for dormancy-forfeiture risk and drafts the renewal pack 60 days before the expiry cliff.'}
+          {isSw ? S.licenceBrainNote.sw : S.licenceBrainNote.en}
         </p>
       </div>
     </div>

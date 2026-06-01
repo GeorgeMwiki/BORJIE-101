@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { StatusPill } from '@/components/shared/StatusPill';
 import type { MaintenanceEvent } from '@/lib/queries/maintenance';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface MaintenanceTableProps {
   readonly events: ReadonlyArray<MaintenanceEvent>;
@@ -65,8 +66,18 @@ function predictive(event: MaintenanceEvent): PredictiveFlag {
   const nextDue = new Date(completedAt).getTime() + SERVICE_INTERVAL_DAYS * 86_400_000;
   const now = Date.now();
   const days = (nextDue - now) / 86_400_000;
-  if (days < 0) return { tone: 'red', label: 'overdue / imechelewa' };
-  if (days < DUE_SOON_DAYS) return { tone: 'amber', label: 'due soon / hivi karibuni' };
+  if (days < 0) {
+    return {
+      tone: 'red',
+      label: `${S.maintFlagOverdue.en} / ${S.maintFlagOverdue.sw}`,
+    };
+  }
+  if (days < DUE_SOON_DAYS) {
+    return {
+      tone: 'amber',
+      label: `${S.maintFlagDueSoon.en} / ${S.maintFlagDueSoon.sw}`,
+    };
+  }
   return { tone: 'neutral', label: '—' };
 }
 
@@ -76,7 +87,7 @@ export function MaintenanceTable({ events }: MaintenanceTableProps) {
   if (groups.length === 0) {
     return (
       <p className="px-5 py-6 text-center text-xs text-neutral-500">
-        No maintenance events in the last 30 days. / Hakuna matengenezo siku 30 zilizopita.
+        {S.maintEmpty.en} / {S.maintEmpty.sw}
       </p>
     );
   }
@@ -86,11 +97,21 @@ export function MaintenanceTable({ events }: MaintenanceTableProps) {
       <table className="w-full border-collapse text-xs">
         <thead className="bg-surface/60 text-left text-neutral-400">
           <tr>
-            <th className="px-3 py-2 font-medium">Asset / Mali</th>
-            <th className="px-3 py-2 font-medium">Kind / Aina</th>
-            <th className="px-3 py-2 font-medium">Started / Imeanza</th>
-            <th className="px-3 py-2 font-medium">Duration / Muda</th>
-            <th className="px-3 py-2 font-medium">Status / Hali</th>
+            <th className="px-3 py-2 font-medium">
+              {S.maintColAsset.en} / {S.maintColAsset.sw}
+            </th>
+            <th className="px-3 py-2 font-medium">
+              {S.maintColKind.en} / {S.maintColKind.sw}
+            </th>
+            <th className="px-3 py-2 font-medium">
+              {S.maintColStarted.en} / {S.maintColStarted.sw}
+            </th>
+            <th className="px-3 py-2 font-medium">
+              {S.maintColDuration.en} / {S.maintColDuration.sw}
+            </th>
+            <th className="px-3 py-2 font-medium">
+              {S.maintColStatus.en} / {S.maintColStatus.sw}
+            </th>
             <th className="px-3 py-2 font-medium">Cost (TZS)</th>
             <th className="px-3 py-2 font-medium">Predictive</th>
           </tr>

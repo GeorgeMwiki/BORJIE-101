@@ -3,6 +3,7 @@
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum } from '@/lib/format';
 import type { ProductionSlot } from '@/lib/queries/owner-brief';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface ProductionVsTargetTableProps {
   readonly production: ProductionSlot;
@@ -33,7 +34,7 @@ export function ProductionVsTargetTable({
         <div>
           <h2 className="cockpit-card-title">Production vs target</h2>
           <p className="text-xs italic text-neutral-500">
-            Uzalishaji kwa migodi · {production.window}
+            {S.productionVsTarget.subtitleSw.sw} · {production.window}
           </p>
         </div>
         <span className="pill border-border text-neutral-400">

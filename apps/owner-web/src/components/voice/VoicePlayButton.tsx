@@ -16,6 +16,7 @@ import {
   type SpeechSynthesisState,
 } from './use-speech-synthesis';
 import type { SpeechLang } from './use-speech-recognition';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface VoicePlayButtonProps {
   readonly text: string;
@@ -27,9 +28,11 @@ function toLocale(pref: 'sw' | 'en'): SpeechLang {
   return pref === 'sw' ? 'sw-TZ' : 'en-TZ';
 }
 
+const P = S.voicePlayButton;
+
 const LABELS = {
-  sw: { play: 'Cheza kwa sauti', stop: 'Acha sauti', unsupported: 'Sauti haijatumika' },
-  en: { play: 'Play aloud', stop: 'Stop voice', unsupported: 'Voice not supported' },
+  sw: { play: P.play.sw, stop: P.stop.sw, unsupported: P.unsupported.sw },
+  en: { play: P.play.en, stop: P.stop.en, unsupported: P.unsupported.en },
 } as const;
 
 function isActive(state: SpeechSynthesisState): boolean {

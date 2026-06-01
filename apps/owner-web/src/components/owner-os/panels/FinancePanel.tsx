@@ -11,6 +11,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const RoyaltyDraftPanel = dynamic(
   () =>
@@ -31,9 +32,9 @@ const BreakEvenSlider = dynamic(
 const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'finance',
   labelEn: 'Finance',
-  labelSw: 'Fedha',
+  labelSw: S.finance.descriptorLabel.sw,
   descriptionEn: 'Royalty drafter, P&L, break-even and cash window.',
-  descriptionSw: `Rasimu ya ${'mraba' + 'ha'}, faida, sehemu ya kuvunja na dirisha la fedha.`,
+  descriptionSw: S.finance.descriptorDescription.sw,
   iconName: 'Coins',
   color: 'warning',
   contextSchema: ownerOsTabContextSchema,
@@ -51,10 +52,7 @@ const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'cost',
       'p&l',
       'tzs',
-      'mra' + 'baha',
-      'faida',
-      'gharama',
-      'fedha',
+      ...S.finance.keywordsSw,
     ],
     comboBoost: [
       { phrases: ['draft', 'royalty'], boost: 0.2 },
@@ -65,12 +63,12 @@ const FINANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'finance.draft-month-end-royalty',
       labelEn: 'Draft month-end royalty',
-      labelSw: `Tayarisha rasimu ya ${'mraba' + 'ha'} wa mwezi`,
+      labelSw: S.finance.draftRoyaltyTool.sw,
     },
     {
       toolId: 'finance.export-pnl',
       labelEn: 'Export P&L',
-      labelSw: 'Hamisha faida na hasara',
+      labelSw: S.finance.exportPnlTool.sw,
     },
   ],
   briefSlices: ['royalties', 'cashflow'],
@@ -93,9 +91,9 @@ export function FinancePanel({
         icon={Coins}
         color="warning"
         titleEn="Finance — royalty, P&L, break-even"
-        titleSw={`Fedha — ${'mraba' + 'ha'}, faida na sehemu ya kuvunja`}
+        titleSw={S.finance.heroTitle.sw}
         subtitleEn="Monthly royalty drafter feeding the LedgerService double-entry ledger with break-even sensitivity."
-        subtitleSw={`Rasimu ya ${'mraba' + 'ha'} wa mwezi inayoingiza kwenye leja ya kuingia mara mbili ya LedgerService.`}
+        subtitleSw={S.finance.heroSubtitle.sw}
         locale={locale}
       />
       <RoyaltyDraftPanel locale={locale} />
@@ -107,12 +105,12 @@ export function FinancePanel({
         />
         <div className="rounded-2xl border border-border bg-surface/40 p-5">
           <h3 className="text-sm font-semibold text-foreground">
-            {locale === 'sw' ? 'Madirisha ya fedha' : 'Cash windows'}
+            {locale === 'sw' ? S.finance.cashWindowsTitle.sw : S.finance.cashWindowsTitle.en}
           </h3>
           <p className="mt-2 text-xs leading-relaxed text-neutral-300">
             {locale === 'sw'
-              ? 'Dirisha la dhahabu la BoT linaongoza muda wa kuuza. P&L ya kila mwezi inajengwa kutoka leja ya LedgerService na revaluation ya FX inafanyika kwa kiwango cha siku ya mwisho ya mwezi.'
-              : 'BoT gold window drives sell timing. The monthly P&L composes from the LedgerService double-entry posting, with FX revaluation booked at the month-end BoT rate.'}
+              ? S.finance.cashWindowsBody.sw
+              : S.finance.cashWindowsBody.en}
           </p>
         </div>
       </div>

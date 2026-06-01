@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -19,10 +20,10 @@ const LicencesList = dynamic(
 
 const LICENCES_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'licences',
-  labelEn: 'Licences',
-  labelSw: 'Leseni',
-  descriptionEn: 'PML, ML, SML calendar with Mining Commission renewal pack.',
-  descriptionSw: 'Kalenda ya PML, ML, SML pamoja na pakiti ya upyaji wa Tume ya Madini.',
+  labelEn: S.licences.label.en,
+  labelSw: S.licences.label.sw,
+  descriptionEn: S.licences.description.en,
+  descriptionSw: S.licences.description.sw,
   iconName: 'ScrollText',
   color: 'navy',
   contextSchema: ownerOsTabContextSchema,
@@ -38,9 +39,7 @@ const LICENCES_DESCRIPTOR: OwnerOSTabDescriptor = {
       'brela',
       'permit',
       'expiry',
-      'leseni',
-      'upyaji',
-      'kibali',
+      ...S.licences.swKeywords,
     ],
     comboBoost: [
       { phrases: ['pml', 'renewal'], boost: 0.25 },
@@ -50,13 +49,13 @@ const LICENCES_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'licences.draft-renewal-pack',
-      labelEn: 'Draft renewal pack',
-      labelSw: 'Tayarisha pakiti ya upyaji',
+      labelEn: S.licences.toolDraftRenewal.en,
+      labelSw: S.licences.toolDraftRenewal.sw,
     },
     {
       toolId: 'licences.view-history',
-      labelEn: 'View licence history',
-      labelSw: 'Onyesha historia',
+      labelEn: S.licences.toolViewHistory.en,
+      labelSw: S.licences.toolViewHistory.sw,
     },
   ],
   briefSlices: ['licences'],
@@ -78,10 +77,10 @@ export function LicencesPanel({
       <PanelHero
         icon={ScrollText}
         color="navy"
-        titleEn="Licences"
-        titleSw="Leseni"
-        subtitleEn="Day-precise expiry calendar across every PML, ML and SML in the portfolio."
-        subtitleSw="Kalenda ya siku-precise ya muda wa kuisha kwa kila PML, ML na SML kwenye kampuni."
+        titleEn={S.licences.heroTitle.en}
+        titleSw={S.licences.heroTitle.sw}
+        subtitleEn={S.licences.heroSubtitle.en}
+        subtitleSw={S.licences.heroSubtitle.sw}
         locale={locale}
       />
       <LicencesList locale={locale} />

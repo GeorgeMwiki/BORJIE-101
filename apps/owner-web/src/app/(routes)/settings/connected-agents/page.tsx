@@ -1,8 +1,9 @@
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { ConnectedAgentsList } from './connected-agents-list';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Wakala walioongezwa — Borjie',
+  title: `${S.connectedAgentsPage.metaTitle.sw} — ${S.connectedAgentsPage.metaTitle.en}`,
 };
 
 /**
@@ -28,7 +29,7 @@ export default function ConnectedAgentsPage() {
           Connected agents
         </h1>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          Wakala walioongezwa
+          {S.connectedAgentsPage.rosterTagline.sw}
         </p>
         <p className="mt-3 max-w-3xl text-sm text-neutral-300">
           External agents (Claude Code, Cursor, Windsurf, custom MCP /
@@ -37,8 +38,7 @@ export default function ConnectedAgentsPage() {
           immediate.
         </p>
         <p className="mt-1 max-w-3xl text-sm italic text-neutral-500">
-          Wakala wa nje wenye ruhusa hai kwa akaunti yako. Unaweza
-          kuondoa idhini wakati wowote.
+          {S.connectedAgentsPage.rosterRevokeNote.sw}
         </p>
       </header>
       <div className="px-8 py-6">

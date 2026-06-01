@@ -10,13 +10,14 @@ import {
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const FAMILY_OFFICE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'family-office',
   labelEn: 'Family office',
-  labelSw: 'Ofisi ya Familia',
+  labelSw: S.familyOffice.descriptorLabel.sw,
   descriptionEn: 'Principals, beneficiaries, and family governance.',
-  descriptionSw: 'Wasimamizi, wakaidi, na utawala wa familia.',
+  descriptionSw: S.familyOffice.descriptorDescription.sw,
   iconName: 'Users',
   color: 'gold',
   contextSchema: ownerOsTabContextSchema,
@@ -29,10 +30,7 @@ const FAMILY_OFFICE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'family meeting',
       'family governance',
       'trustees',
-      'wakaidi',
-      'wasimamizi',
-      'familia',
-      'ofisi',
+      ...S.familyOffice.keywordsSw,
     ],
     comboBoost: [
       { phrases: ['family', 'office'], boost: 0.2 },
@@ -43,7 +41,7 @@ const FAMILY_OFFICE_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'estate.view_principals',
       labelEn: 'View family principals',
-      labelSw: 'Angalia wasimamizi wa familia',
+      labelSw: S.familyOffice.viewPrincipalsTool.sw,
     },
   ],
   briefSlices: [],
@@ -64,18 +62,18 @@ export function FamilyOfficePanel({
         icon={Users}
         color="gold"
         titleEn="Family office — principals and beneficiaries"
-        titleSw="Ofisi ya Familia — wasimamizi na wakaidi"
+        titleSw={S.familyOffice.heroTitle.sw}
         subtitleEn="Manage family principals, trustees, beneficiaries, and governance structure."
-        subtitleSw="Simamia wasimamizi wa familia, watumishi, wakaidi, na muundo wa utawala."
+        subtitleSw={S.familyOffice.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         titleEn="No family office yet"
-        titleSw="Hakuna ofisi ya familia bado"
+        titleSw={S.familyOffice.emptyTitle.sw}
         descriptionEn="Add family principals and governance information to get started."
-        descriptionSw="Ongeza wasimamizi wa familia na habari ya utawala kuanza."
+        descriptionSw={S.familyOffice.emptyDescription.sw}
         ctaEn="Set up family office"
-        ctaSw="Weka ofisi ya familia"
+        ctaSw={S.familyOffice.emptyCta.sw}
         locale={locale}
       />
     </section>

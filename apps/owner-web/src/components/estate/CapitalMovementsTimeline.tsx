@@ -9,6 +9,7 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { MetricStrip } from '@/components/shared/MetricStrip';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface CapitalMovementsTimelineProps {
   readonly locale: 'sw' | 'en';
@@ -29,14 +30,14 @@ export function CapitalMovementsTimeline({
   if (movementsQuery.isLoading || entitiesQuery.isLoading) {
     return (
       <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? 'Inapakia mtiririko...' : 'Loading capital flows...'}
+        {isSw ? S.capitalMovements.loading.sw : S.capitalMovements.loading.en}
       </div>
     );
   }
   if (movementsQuery.isError) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? 'Imeshindwa kupakia mtiririko.' : 'Could not load capital flows.'}
+        {isSw ? S.capitalMovements.loadError.sw : S.capitalMovements.loadError.en}
       </div>
     );
   }
@@ -66,43 +67,35 @@ export function CapitalMovementsTimeline({
         cols={3}
         tiles={[
           {
-            label: isSw ? 'Mtiririko ndani (siku 30)' : 'Inflow (30d)',
+            label: isSw ? S.capitalMovements.inflowLabel.sw : S.capitalMovements.inflowLabel.en,
             value: `TZS ${formatTzs(inflow)}`,
-            sub: isSw
-              ? 'Fedha zilizoingia kwenye kampuni za miliki'
-              : 'Money received by estate entities',
+            sub: isSw ? S.capitalMovements.inflowSub.sw : S.capitalMovements.inflowSub.en,
             tone: 'success',
           },
           {
-            label: isSw ? 'Mtiririko nje (siku 30)' : 'Outflow (30d)',
+            label: isSw ? S.capitalMovements.outflowLabel.sw : S.capitalMovements.outflowLabel.en,
             value: `TZS ${formatTzs(outflow)}`,
-            sub: isSw
-              ? 'Fedha zilizotoka kwenye kampuni za miliki'
-              : 'Money paid out by estate entities',
+            sub: isSw ? S.capitalMovements.outflowSub.sw : S.capitalMovements.outflowSub.en,
             tone: 'warning',
           },
           {
-            label: isSw ? 'Salio (siku 30)' : 'Net (30d)',
+            label: isSw ? S.capitalMovements.netLabel.sw : S.capitalMovements.netLabel.en,
             value: `TZS ${formatTzs(inflow - outflow)}`,
-            sub: isSw
-              ? 'Mwendelezo wa miliki kwa siku 30'
-              : '30-day estate liquidity drift',
+            sub: isSw ? S.capitalMovements.netSub.sw : S.capitalMovements.netSub.en,
           },
         ]}
       />
       <SectionCard
-        title={isSw ? 'Ratiba ya mtiririko' : 'Flow timeline'}
+        title={isSw ? S.capitalMovements.timelineTitle.sw : S.capitalMovements.timelineTitle.en}
         subtitle={
           isSw
-            ? `Jumla ya tukio ${movements.length} katika kumbukumbu.`
-            : `${movements.length} events on record.`
+            ? S.capitalMovements.timelineSubtitle(movements.length).sw
+            : S.capitalMovements.timelineSubtitle(movements.length).en
         }
       >
         {movements.length === 0 ? (
           <div className="px-5 py-8 text-sm text-neutral-500">
-            {isSw
-              ? 'Hakuna mtiririko bado. Mtiririko wa kwanza utatengenezwa wakati LedgerService.post() inapozaa kumbukumbu ya kwanza ya kampuni-kati.'
-              : 'No flows yet. First entry appears when LedgerService.post() records an intercompany ledger row.'}
+            {isSw ? S.capitalMovements.empty.sw : S.capitalMovements.empty.en}
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -140,7 +133,7 @@ function FlowRow({ movement, nameById, locale }: FlowRowProps) {
         <ArrowRightLeft className="mt-1 h-4 w-4 shrink-0 text-neutral-500" />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-foreground">
-            {fromName} {locale === 'sw' ? 'kwenda' : 'to'} {toName}
+            {fromName} {locale === 'sw' ? S.capitalMovements.to.sw : S.capitalMovements.to.en} {toName}
           </div>
           <div className="text-xs text-neutral-500">
             {movement.kind} · {new Date(movement.happenedAt).toISOString().slice(0, 10)}

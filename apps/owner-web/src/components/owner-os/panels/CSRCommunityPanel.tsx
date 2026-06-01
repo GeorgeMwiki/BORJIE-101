@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 /**
  * CSR community panel — Wave OPS-WIDE.
@@ -22,11 +23,10 @@ import type { OwnerOSPanelProps } from './types';
 const CSR_COMMUNITY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'csr-community',
   labelEn: 'CSR communities',
-  labelSw: 'Jamii za CSR',
+  labelSw: S.csrCommunity.descriptorLabel.sw,
   descriptionEn:
     'Community pledges, grievance log, environment commitments per village.',
-  descriptionSw:
-    'Ahadi za jamii, daftari la malalamiko, ahadi za mazingira kwa kila kijiji.',
+  descriptionSw: S.csrCommunity.descriptorDescription.sw,
   iconName: 'Sprout',
   color: 'success',
   contextSchema: ownerOsTabContextSchema,
@@ -37,10 +37,7 @@ const CSR_COMMUNITY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'village',
       'grievance',
       'pledge',
-      'jamii',
-      'kijiji',
-      'malalamiko',
-      'ahadi',
+      ...S.csrCommunity.keywordsSw,
     ],
     comboBoost: [{ phrases: ['csr', 'pledge'], boost: 0.2 }],
   },
@@ -48,7 +45,7 @@ const CSR_COMMUNITY_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'ops.engagements.log',
       labelEn: 'Log CSR pledge',
-      labelSw: 'Andika ahadi ya CSR',
+      labelSw: S.csrCommunity.logPledgeTool.sw,
     },
   ],
   briefSlices: ['community'],
@@ -71,17 +68,17 @@ export function CSRCommunityPanel({
         icon={Sprout}
         color="success"
         titleEn="CSR communities"
-        titleSw="Jamii za CSR"
+        titleSw={S.csrCommunity.heroTitle.sw}
         subtitleEn="Village-level pledges, grievances and environment commitments stored as external parties."
-        subtitleSw="Ahadi za kiwango cha kijiji, malalamiko na ahadi za mazingira zimehifadhiwa kama washirika wa nje."
+        subtitleSw={S.csrCommunity.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         icon={Sprout}
         titleEn="CSR aggregator landing soon"
-        titleSw="Mfumo wa CSR unakuja hivi karibuni"
+        titleSw={S.csrCommunity.emptyTitle.sw}
         bodyEn="Pledges already land in external_party_engagements with kind=csr_pledge. The dedicated CSR aggregator (village-level rollup + grievance map) is the next milestone."
-        bodySw="Ahadi tayari zinaingia katika external_party_engagements zikiwa kind=csr_pledge. Mfumo wa CSR (jamia kwa kiwango cha kijiji na ramani ya malalamiko) ni hatua inayofuata."
+        bodySw={S.csrCommunity.emptyBody.sw}
         contractEn="GET /api/v1/ops/external-parties?partyType=csr_community"
         contractSw="GET /api/v1/ops/external-parties?partyType=csr_community"
         locale={locale}

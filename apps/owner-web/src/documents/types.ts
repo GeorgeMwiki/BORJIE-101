@@ -8,6 +8,8 @@
  * package boundaries per the modular-monolith hard rule.
  */
 
+import { tailStrings as S } from '@/i18n/strings/tail';
+
 export type DocumentKind = 'contract' | 'rfp' | 'letter' | 'report' | 'other';
 
 export type IngestionStatus = 'queued' | 'processing' | 'ready' | 'failed';
@@ -105,55 +107,31 @@ export function ingestionStatusLabel(
   status: IngestionStatus,
   lang: 'sw' | 'en' = 'sw',
 ): string {
-  if (lang === 'en') {
-    switch (status) {
-      case 'queued':
-        return 'Queued';
-      case 'processing':
-        return 'Processing';
-      case 'ready':
-        return 'Ready';
-      case 'failed':
-        return 'Failed';
-    }
-  }
+  const t = S.documentTypes;
   switch (status) {
     case 'queued':
-      return 'Imewekwa kwenye foleni';
+      return t.statusQueued[lang];
     case 'processing':
-      return 'Inachakatwa';
+      return t.statusProcessing[lang];
     case 'ready':
-      return 'Tayari';
+      return t.statusReady[lang];
     case 'failed':
-      return 'Imeshindikana';
+      return t.statusFailed[lang];
   }
 }
 
 export function kindLabel(kind: DocumentKind, lang: 'sw' | 'en' = 'sw'): string {
-  if (lang === 'en') {
-    switch (kind) {
-      case 'contract':
-        return 'Contract';
-      case 'rfp':
-        return 'RFP / Tender';
-      case 'letter':
-        return 'Letter';
-      case 'report':
-        return 'Report';
-      case 'other':
-        return 'Other';
-    }
-  }
+  const t = S.documentTypes;
   switch (kind) {
     case 'contract':
-      return 'Mkataba';
+      return t.kindContract[lang];
     case 'rfp':
-      return 'Zabuni';
+      return t.kindRfp[lang];
     case 'letter':
-      return 'Barua';
+      return t.kindLetter[lang];
     case 'report':
-      return 'Ripoti';
+      return t.kindReport[lang];
     case 'other':
-      return 'Nyingine';
+      return t.kindOther[lang];
   }
 }

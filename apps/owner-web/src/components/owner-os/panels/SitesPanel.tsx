@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -19,10 +20,10 @@ const SitesList = dynamic(
 
 const SITES_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'sites',
-  labelEn: 'Sites',
-  labelSw: 'Tovuti',
-  descriptionEn: 'Mining sites, phase, geology and production reconciliation.',
-  descriptionSw: 'Tovuti za uchimbaji, awamu, jiolojia na ulinganishaji wa uzalishaji.',
+  labelEn: S.sites.label.en,
+  labelSw: S.sites.label.sw,
+  descriptionEn: S.sites.description.en,
+  descriptionSw: S.sites.description.sw,
   iconName: 'Mountain',
   color: 'cream',
   contextSchema: ownerOsTabContextSchema,
@@ -36,17 +37,15 @@ const SITES_DESCRIPTOR: OwnerOSTabDescriptor = {
       'block',
       'production',
       'reconcile',
-      'tovuti',
-      'mgodi',
-      'uzalishaji',
+      ...S.sites.swKeywords,
     ],
     comboBoost: [{ phrases: ['site', 'production'], boost: 0.15 }],
   },
   suggestedTools: [
     {
       toolId: 'sites.open-cockpit',
-      labelEn: 'Open site cockpit',
-      labelSw: 'Fungua kituo cha tovuti',
+      labelEn: S.sites.toolOpenCockpit.en,
+      labelSw: S.sites.toolOpenCockpit.sw,
     },
   ],
   briefSlices: ['sites'],
@@ -68,10 +67,10 @@ export function SitesPanel({
       <PanelHero
         icon={Mountain}
         color="cream"
-        titleEn="Sites"
-        titleSw="Tovuti"
-        subtitleEn="Every mining site across the portfolio: phase, geology score and production gauge."
-        subtitleSw="Kila tovuti ya uchimbaji: awamu, alama ya jiolojia na kifaa cha uzalishaji."
+        titleEn={S.sites.heroTitle.en}
+        titleSw={S.sites.heroTitle.sw}
+        subtitleEn={S.sites.heroSubtitle.en}
+        subtitleSw={S.sites.heroSubtitle.sw}
         locale={locale}
       />
       <SitesList locale={locale} />

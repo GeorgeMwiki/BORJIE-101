@@ -16,6 +16,7 @@ import {
 } from '@/lib/queries/marketplace';
 import { fmtUsd } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface MarketplaceBoardProps {
   readonly locale?: 'sw' | 'en';
@@ -72,30 +73,30 @@ export function MarketplaceBoard({
         : 0;
     return [
       {
-        label: isSw ? 'Parcel zilizo wazi' : 'Open parcels',
+        label: isSw ? S.mktMetricOpenLabel.sw : S.mktMetricOpenLabel.en,
         value: String(open),
-        sub: isSw ? 'Zinatangaziwa kwenye soko' : 'Live on the board',
+        sub: isSw ? S.mktMetricOpenSub.sw : S.mktMetricOpenSub.en,
         icon: TrendingUp,
         tone: 'default' as const,
       },
       {
-        label: isSw ? 'Imepatikana mnunuzi' : 'Matched buyers',
+        label: isSw ? S.mktMetricMatchedLabel.sw : S.mktMetricMatchedLabel.en,
         value: String(matched),
-        sub: isSw ? 'Tayari kwa malipo' : 'Ready for settlement',
+        sub: isSw ? S.mktMetricMatchedSub.sw : S.mktMetricMatchedSub.en,
         icon: CheckCircle2,
         tone: matched > 0 ? ('success' as const) : ('default' as const),
       },
       {
-        label: isSw ? 'Counter zinasubiri' : 'Counter offers',
+        label: isSw ? S.mktMetricCounterLabel.sw : S.mktMetricCounterLabel.en,
         value: String(counters),
-        sub: isSw ? 'Zinahitaji uamuzi wako' : 'Need your call',
+        sub: isSw ? S.mktMetricCounterSub.sw : S.mktMetricCounterSub.en,
         icon: Clock,
         tone: counters > 0 ? ('warning' as const) : ('default' as const),
       },
       {
-        label: isSw ? 'Wastani wa bei' : 'Average offer',
+        label: isSw ? S.mktMetricAvgLabel.sw : S.mktMetricAvgLabel.en,
         value: fmtUsd(avgUsd),
-        sub: isSw ? 'Per parcel ya leo' : 'Per parcel today',
+        sub: isSw ? S.mktMetricAvgSub.sw : S.mktMetricAvgSub.en,
         icon: Star,
       },
     ];
@@ -123,9 +124,7 @@ export function MarketplaceBoard({
   if (query.isError || !data) {
     return (
       <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia orodha za soko. Geuza muunganisho au jaribu tena.'
-          : 'Failed to load marketplace listings. Check the gateway and retry.'}
+        {isSw ? S.mktLoadError.sw : S.mktLoadError.en}
       </div>
     );
   }
@@ -139,18 +138,17 @@ export function MarketplaceBoard({
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                {isSw ? 'Outbound — uuzaji' : 'Outbound (sell)'}
+                {isSw ? S.mktOutboundTitle.sw : S.mktOutboundTitle.en}
               </h2>
               <p className="text-xs text-neutral-400">
-                {isSw
-                  ? `${data.outbound.length} parcel zinazoangaliwa na wanunuzi`
-                  : `${data.outbound.length} parcels visible to buyers`}
+                {data.outbound.length}{' '}
+                {isSw ? S.mktOutboundSubtitle.sw : S.mktOutboundSubtitle.en}
               </p>
             </div>
           </header>
           {data.outbound.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? 'Hakuna parcel iliyowekwa.' : 'No active outbound listings.'}
+              {isSw ? S.mktOutboundEmpty.sw : S.mktOutboundEmpty.en}
             </p>
           ) : (
             <ul className="divide-y divide-border/60">
@@ -182,30 +180,25 @@ export function MarketplaceBoard({
             <div>
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Inbox className="h-4 w-4 text-signal-500" />
-                {isSw ? 'RFB za wanunuzi' : 'Inbound buyer RFBs'}
+                {isSw ? S.mktInboundTitle.sw : S.mktInboundTitle.en}
               </h2>
               <p className="text-xs text-neutral-400">
-                {isSw
-                  ? `${inboundRfbs.length} maombi ya wanunuzi karibu nawe`
-                  : `${inboundRfbs.length} buyer requests within radius`}
+                {inboundRfbs.length}{' '}
+                {isSw ? S.mktInboundSubtitle.sw : S.mktInboundSubtitle.en}
               </p>
             </div>
           </header>
           {inboundQuery.isPending ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? 'Inapakia RFB…' : 'Loading RFBs…'}
+              {isSw ? S.mktInboundLoading.sw : S.mktInboundLoading.en}
             </p>
           ) : inboundQuery.isError ? (
             <p className="px-5 py-6 text-sm text-destructive">
-              {isSw
-                ? 'Imeshindwa kupata RFB za wanunuzi.'
-                : 'Failed to load buyer RFBs.'}
+              {isSw ? S.mktInboundError.sw : S.mktInboundError.en}
             </p>
           ) : inboundRfbs.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw
-                ? 'Hakuna maombi mapya ya wanunuzi sasa hivi.'
-                : 'No new buyer requests right now.'}
+              {isSw ? S.mktInboundEmpty.sw : S.mktInboundEmpty.en}
             </p>
           ) : (
             <ul className="divide-y divide-border/60">
@@ -219,8 +212,8 @@ export function MarketplaceBoard({
                   rfb.distanceKm != null && Number.isFinite(rfb.distanceKm)
                     ? `${rfb.distanceKm.toFixed(0)} km`
                     : isSw
-                      ? 'Mbali isiyojulikana'
-                      : 'Distance unknown';
+                      ? S.mktDistanceUnknown.sw
+                      : S.mktDistanceUnknown.en;
                 return (
                   <li key={rfb.id}>
                     <Link
@@ -245,7 +238,7 @@ export function MarketplaceBoard({
                       </div>
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-badge font-medium text-signal-500">
                         <Clock className="h-3 w-3" />
-                        {isSw ? 'Mpya' : 'New'}
+                        {isSw ? S.mktChipNew.sw : S.mktChipNew.en}
                       </span>
                     </Link>
                   </li>
@@ -270,7 +263,7 @@ function StatusChip({ status, isSw }: StatusChipProps) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-badge font-medium text-success">
         <CheckCircle2 className="h-3 w-3" />
-        {isSw ? 'Imepatana' : 'Matched'}
+        {isSw ? S.mktChipMatched.sw : S.mktChipMatched.en}
       </span>
     );
   }
@@ -285,7 +278,7 @@ function StatusChip({ status, isSw }: StatusChipProps) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-info/40 bg-info/10 px-2.5 py-0.5 text-badge font-medium text-info">
       <Clock className="h-3 w-3" />
-      {isSw ? 'Inasubiri' : 'Open'}
+      {isSw ? S.mktChipOpen.sw : S.mktChipOpen.en}
     </span>
   );
 }

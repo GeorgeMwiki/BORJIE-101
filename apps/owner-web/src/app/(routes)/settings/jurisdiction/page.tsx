@@ -1,8 +1,9 @@
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { JurisdictionSettings } from './jurisdiction-settings';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
-  title: 'Eneo la sheria — Borjie',
+  title: `${S.jurisdictionPage.metaTitle.sw} — ${S.jurisdictionPage.metaTitle.en}`,
 };
 
 /**
@@ -34,7 +35,7 @@ export default function JurisdictionSettingsPage() {
           Jurisdiction
         </h1>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          Eneo la sheria
+          {S.jurisdictionPage.headerTagline.sw}
         </p>
         <p className="mt-3 max-w-3xl text-sm text-neutral-300">
           Your account's country, regulators, currency, and time zone
@@ -44,10 +45,7 @@ export default function JurisdictionSettingsPage() {
           for a single turn.
         </p>
         <p className="mt-1 max-w-3xl text-sm italic text-neutral-500">
-          Nchi ya akaunti yako, wadhibiti, sarafu, na eneo la saa
-          huongoza kila rasimu ya mrabaha, kumbukumbu ya leseni, na
-          ufaili wa utiifu. Eneo la sheria limefungwa wakati wa usajili;
-          uliza katika mazungumzo kujibu kwa nchi nyingine kwa zamu moja.
+          {S.jurisdictionPage.headerBodySw.sw}
         </p>
       </header>
       <div className="px-8 py-6">

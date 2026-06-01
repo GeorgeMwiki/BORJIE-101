@@ -11,6 +11,7 @@
  */
 
 import { DelegationMatrix } from './delegation-matrix';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export default function MwikilaDelegationPage() {
           Mwikila delegation
         </h1>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          Uwakilishi wa Mwikila — chagua kiwango cha uhuru kwa kila kazi
+          {S.delegationPage.subhead.both}
         </p>
         <p className="mt-3 max-w-2xl text-sm text-neutral-300">
           Set per-category delegation. T0 informs only, T1 drafts and

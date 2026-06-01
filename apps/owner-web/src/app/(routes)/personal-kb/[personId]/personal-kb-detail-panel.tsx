@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface MemoryCell {
   readonly id: string;
@@ -35,11 +36,11 @@ type FetchState =
   | { kind: 'error'; message: string };
 
 const KIND_LABEL_SW: Record<string, string> = {
-  preference: 'Mapendekezo',
-  context: 'Mazingira ya sasa',
-  'recurring-fact': 'Ukweli wa maisha',
-  calibration: 'Marekebisho',
-  sentiment: 'Hisia za hivi karibuni',
+  preference: S.personalKbDetail.kindPreference.both,
+  context: S.personalKbDetail.kindContext.both,
+  'recurring-fact': S.personalKbDetail.kindRecurringFact.both,
+  calibration: S.personalKbDetail.kindCalibration.both,
+  sentiment: S.personalKbDetail.kindSentiment.both,
 };
 
 export function PersonalKbDetailPanel({
@@ -88,7 +89,9 @@ export function PersonalKbDetailPanel({
 
   if (state.kind === 'loading') {
     return (
-      <p className="mt-6 text-sm text-neutral-400">Loading… / Inapakia…</p>
+      <p className="mt-6 text-sm text-neutral-400">
+        {S.personalKbDetail.loading.both}
+      </p>
     );
   }
   if (state.kind === 'error') {
@@ -101,8 +104,7 @@ export function PersonalKbDetailPanel({
   if (state.kind === 'forbidden') {
     return (
       <p className="mt-6 text-sm text-destructive">
-        You can only read your own personal-KB. /
-        Unaweza tu kusoma maktaba yako mwenyewe.
+        {S.personalKbDetail.forbidden.both}
       </p>
     );
   }
@@ -112,14 +114,17 @@ export function PersonalKbDetailPanel({
         <h2 className="font-display text-xl text-foreground">
           Consent required
         </h2>
-        <p className="text-xs italic text-amber-200">Idhini inahitajika</p>
+        <p className="text-xs italic text-amber-200">
+          {S.personalKbDetail.consentRequiredGloss.both}
+        </p>
         <p className="mt-3 text-sm text-neutral-200">
           To read your personal memory cells we need your affirmative
           consent. Open <strong>Settings → Share consent</strong> to opt in.
         </p>
         <p className="mt-2 text-sm text-neutral-300">
-          Ili kusoma kumbukumbu zako za kibinafsi tunahitaji idhini yako.
-          Fungua <strong>Mipangilio → Idhini</strong> kuruhusu.
+          {S.personalKbDetail.consentBodySwBefore.both}
+          <strong>{S.personalKbDetail.consentBodySwStrong.both}</strong>
+          {S.personalKbDetail.consentBodySwAfter.both}
         </p>
       </div>
     );
@@ -129,7 +134,7 @@ export function PersonalKbDetailPanel({
   if (cells.length === 0) {
     return (
       <p className="mt-6 text-sm text-neutral-400">
-        No cells yet. / Hakuna kumbukumbu bado.
+        {S.personalKbDetail.noCells.both}
       </p>
     );
   }

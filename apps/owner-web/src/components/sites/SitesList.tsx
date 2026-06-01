@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ArrowRight, MapPin, Mountain, Search } from 'lucide-react';
 import { useSitesList, type MiningSite } from '@/lib/queries/sites';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface SitesListProps {
   readonly locale?: 'sw' | 'en';
@@ -12,11 +13,11 @@ interface SitesListProps {
 type PhaseFilter = 'all' | 'production' | 'development' | 'exploration' | 'standby';
 
 const PHASE_LABELS: Record<PhaseFilter, { readonly sw: string; readonly en: string }> = {
-  all: { sw: 'Zote', en: 'All' },
-  production: { sw: 'Uzalishaji', en: 'Production' },
-  development: { sw: 'Maendeleo', en: 'Development' },
-  exploration: { sw: 'Uchunguzi', en: 'Exploration' },
-  standby: { sw: 'Pumzika', en: 'Standby' },
+  all: S.sitesList.phaseAll,
+  production: S.sitesList.phaseProduction,
+  development: S.sitesList.phaseDevelopment,
+  exploration: S.sitesList.phaseExploration,
+  standby: S.sitesList.phaseStandby,
 };
 
 function phaseOf(phase: string | undefined): PhaseFilter {
@@ -75,9 +76,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
   if (query.isError) {
     return (
       <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia migodi. Geuza kuingia tena au jaribu tena.'
-          : 'Failed to load sites. Reauthenticate or retry the gateway.'}
+        {isSw ? S.sitesList.loadError.sw : S.sitesList.loadError.en}
       </div>
     );
   }
@@ -87,12 +86,10 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
       <div className="rounded-xl border border-border bg-surface/40 p-10 text-center">
         <Mountain className="mx-auto h-8 w-8 text-neutral-500" />
         <h3 className="mt-4 font-display text-xl text-foreground">
-          {isSw ? 'Hakuna migodi bado' : 'No sites registered yet'}
+          {isSw ? S.sitesList.emptyTitle.sw : S.sitesList.emptyTitle.en}
         </h3>
         <p className="mt-2 text-sm text-neutral-400">
-          {isSw
-            ? 'Ongeza mgodi kupitia ramani ya leseni au onboarding ya Akili Kuu.'
-            : 'Add a site via the licence map or the Master Brain onboarding flow.'}
+          {isSw ? S.sitesList.emptyBody.sw : S.sitesList.emptyBody.en}
         </p>
       </div>
     );
@@ -115,7 +112,11 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={isSw ? 'Tafuta jina, leseni, awamu' : 'Search name, licence, phase'}
+            placeholder={
+              isSw
+                ? S.sitesList.searchPlaceholder.sw
+                : S.sitesList.searchPlaceholder.en
+            }
             className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
           />
         </div>
@@ -145,11 +146,11 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
         <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-          <div className="col-span-4">{isSw ? 'Mgodi' : 'Site'}</div>
-          <div className="col-span-2">{isSw ? 'Awamu' : 'Phase'}</div>
-          <div className="col-span-2">{isSw ? 'Hali' : 'Status'}</div>
-          <div className="col-span-3">{isSw ? 'Leseni husika' : 'Linked licence'}</div>
-          <div className="col-span-1 text-right">{isSw ? 'Fungua' : 'Open'}</div>
+          <div className="col-span-4">{isSw ? S.sitesList.colSite.sw : S.sitesList.colSite.en}</div>
+          <div className="col-span-2">{isSw ? S.sitesList.colPhase.sw : S.sitesList.colPhase.en}</div>
+          <div className="col-span-2">{isSw ? S.sitesList.colStatus.sw : S.sitesList.colStatus.en}</div>
+          <div className="col-span-3">{isSw ? S.sitesList.colLicence.sw : S.sitesList.colLicence.en}</div>
+          <div className="col-span-1 text-right">{isSw ? S.sitesList.colOpen.sw : S.sitesList.colOpen.en}</div>
         </div>
         <ul className="divide-y divide-border/60">
           {filtered.map((site) => {
@@ -173,7 +174,10 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
                   <div className="col-span-2">
                     <span className={`inline-flex items-center gap-1.5 text-xs ${tone.text}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-                      {site.phase ?? (isSw ? 'Haijabainishwa' : 'Unspecified')}
+                      {site.phase ??
+                        (isSw
+                          ? S.sitesList.phaseUnspecified.sw
+                          : S.sitesList.phaseUnspecified.en)}
                     </span>
                   </div>
                   <div className="col-span-2 text-xs capitalize text-neutral-300">
@@ -192,9 +196,7 @@ export function SitesList({ locale = 'en' }: SitesListProps): JSX.Element {
         </ul>
         {filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-neutral-500">
-            {isSw
-              ? 'Hakuna mgodi unaolingana na vichungi vya sasa.'
-              : 'No sites match the current filters.'}
+            {isSw ? S.sitesList.noMatch.sw : S.sitesList.noMatch.en}
           </div>
         ) : null}
       </div>

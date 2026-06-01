@@ -16,6 +16,7 @@
 
 import { useCallback, useState } from 'react';
 import { WebAuthnClockIn } from '@/components/workforce/WebAuthnClockIn';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface SiteOption {
   readonly id: string;
@@ -54,7 +55,7 @@ export function KioskClockInSurface({
             htmlFor="kiosk-site"
             className="block text-xs uppercase tracking-wide text-neutral-500"
           >
-            {isSw ? 'Tovuti' : 'Site'}
+            {isSw ? S.kioskSurface.site.sw : S.kioskSurface.site.en}
           </label>
           <select
             id="kiosk-site"
@@ -74,7 +75,7 @@ export function KioskClockInSurface({
             htmlFor="kiosk-employee"
             className="block text-xs uppercase tracking-wide text-neutral-500"
           >
-            {isSw ? 'Namba ya mfanyikazi' : 'Employee ID'}
+            {isSw ? S.kioskSurface.employeeId.sw : S.kioskSurface.employeeId.en}
           </label>
           <input
             id="kiosk-employee"
@@ -85,7 +86,11 @@ export function KioskClockInSurface({
             onChange={(e): void =>
               setEmployeeId(e.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64))
             }
-            placeholder={isSw ? 'kwa mfano: EMP-001' : 'e.g. EMP-001'}
+            placeholder={
+              isSw
+                ? S.kioskSurface.employeePlaceholder.sw
+                : S.kioskSurface.employeePlaceholder.en
+            }
             className="mt-2 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
         </div>
@@ -101,8 +106,8 @@ export function KioskClockInSurface({
         ) : (
           <p className="text-sm text-muted-foreground">
             {isSw
-              ? 'Chagua tovuti na andika namba ya mfanyikazi kuanza.'
-              : 'Select a site and enter the worker badge ID to enable the passkey button.'}
+              ? S.kioskSurface.selectPrompt.sw
+              : S.kioskSurface.selectPrompt.en}
           </p>
         )}
       </div>
@@ -110,7 +115,7 @@ export function KioskClockInSurface({
       {recent.length > 0 ? (
         <div className="mt-6 border-t border-border pt-4">
           <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
-            {isSw ? 'Imeingia hivi karibuni' : 'Recent check-ins'}
+            {isSw ? S.kioskSurface.recentCheckIns.sw : S.kioskSurface.recentCheckIns.en}
           </h2>
           <ul className="space-y-1 font-mono text-xs text-foreground">
             {recent.map((line, idx) => (

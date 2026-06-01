@@ -14,6 +14,7 @@
 
 import type { ReactElement } from 'react';
 import { Scroll, Calendar, Flag } from 'lucide-react';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 type Priority = 'low' | 'medium' | 'high';
 
@@ -55,8 +56,8 @@ export function DocQuestBlock({
     typeof block.title === 'string'
       ? block.title
       : locale === 'sw'
-        ? 'Kazi ya hati'
-        : 'Document quest';
+        ? S.docQuestTitleFallback.sw
+        : S.docQuestTitleFallback.en;
   const steps = Array.isArray(block.steps)
     ? block.steps.filter((s): s is QuestStep => Boolean(s)).slice(0, 12)
     : [];
@@ -77,7 +78,7 @@ export function DocQuestBlock({
       <div className="flex items-center gap-2">
         <Scroll className="h-4 w-4" aria-hidden="true" />
         <p className="text-tiny font-semibold uppercase tracking-wide">
-          {locale === 'sw' ? 'Kazi ya hati' : 'Document side quest'}
+          {locale === 'sw' ? S.docQuestEyebrow.sw : S.docQuestEyebrow.en}
         </p>
       </div>
       <h3 className="mt-1 text-sm font-semibold text-foreground">{title}</h3>
@@ -128,7 +129,7 @@ export function DocQuestBlock({
         }
         className="mt-3 inline-flex items-center justify-center rounded-md bg-foreground/10 px-3 py-1.5 text-tiny font-semibold text-foreground transition-colors hover:bg-foreground/15"
       >
-        {locale === 'sw' ? 'Anza kazi' : 'Start quest'}
+        {locale === 'sw' ? S.docQuestStart.sw : S.docQuestStart.en}
       </button>
     </div>
   );

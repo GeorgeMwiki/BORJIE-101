@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
 import { NewMaintenanceModal } from '@/components/fleet/NewMaintenanceModal';
 import { useMaintenanceList } from '@/lib/queries/maintenance';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
  * Fleet maintenance — last 30 days of maintenance events grouped by
@@ -39,14 +40,12 @@ export default function FleetMaintenancePage() {
               Fleet maintenance
             </h1>
             <p className="mt-0.5 text-xs italic text-neutral-500">
-              Matengenezo ya Magari
+              {S.fleetMaintenance.subhead.both}
             </p>
             <p className="mt-3 max-w-3xl text-sm text-neutral-300">
               Last 30 days of maintenance events grouped by asset. Predictive
               flags surface due-soon and overdue services. /{' '}
-              <span className="italic">
-                Matengenezo ya siku 30 zilizopita kwa kila gari.
-              </span>
+              <span className="italic">{S.fleetMaintenance.intro.both}</span>
             </p>
           </div>
           <button
@@ -55,14 +54,14 @@ export default function FleetMaintenancePage() {
             className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-xs text-warning hover:bg-warning-subtle/50"
           >
             <Plus className="h-4 w-4" />
-            Open new maintenance / Anza matengenezo
+            {S.fleetMaintenance.newMaintenanceCta.both}
           </button>
         </div>
       </header>
       <div className="px-8 py-6">
         <SectionCard
           title="Recent events"
-          subtitle="Matukio ya hivi karibuni"
+          subtitle={S.fleetMaintenance.recentEventsSubtitle.both}
           actions={
             <button
               type="button"
@@ -76,7 +75,7 @@ export default function FleetMaintenancePage() {
         >
           {events.isLoading ? (
             <p className="px-2 py-6 text-center text-xs text-neutral-500">
-              Loading… / Inapakia…
+              {S.fleetMaintenance.loading.both}
             </p>
           ) : events.isError ? (
             <EmptyState

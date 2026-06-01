@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { LicenceRenewalClient } from './LicenceRenewalClient';
 import { getOwnerSession } from '@/lib/session';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface RouteProps {
   readonly params: Promise<{ readonly id: string }>;
@@ -27,19 +28,17 @@ export default async function LicenceRenewalPage({ params }: RouteProps) {
         className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-100"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        {isSw ? 'Rudi kwa compliance' : 'Back to compliance'}
+        {isSw ? S.renewalPage.backToCompliance.sw : S.renewalPage.backToCompliance.en}
       </Link>
       <header>
         <p className="text-xs uppercase tracking-wide text-signal-400">
-          {isSw ? 'Upyaji wa leseni' : 'Licence renewal'}
+          {isSw ? S.renewalPage.eyebrow.sw : S.renewalPage.eyebrow.en}
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-slate-50">
-          {isSw ? 'Mchakato wa upyaji' : 'Renewal workflow'}
+          {isSw ? S.renewalPage.heading.sw : S.renewalPage.heading.en}
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          {isSw
-            ? 'Anzisha rasimu, kagua, na uwasilishe kwa NEMC / PCCB / TMAA. Mr. Mwikila atatuma vikumbusho vya 90 / 60 / 30 / 14 / 7 / 1 siku.'
-            : 'Start the draft, review, and submit to NEMC / PCCB / TMAA. Mr. Mwikila pulses reminders at 90 / 60 / 30 / 14 / 7 / 1 days.'}
+          {isSw ? S.renewalPage.body.sw : S.renewalPage.body.en}
         </p>
       </header>
       <LicenceRenewalClient licenceId={id} isSwahili={isSw} />

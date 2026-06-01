@@ -10,13 +10,14 @@ import {
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ACCOUNTING_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'accounting',
   labelEn: 'Accounting',
-  labelSw: 'Uhasibu',
+  labelSw: S.accounting.descriptorLabel.sw,
   descriptionEn: 'Accounts payable, receivable and journal entries.',
-  descriptionSw: 'Hesabu za kulipa, kupokea na maandiko ya leja.',
+  descriptionSw: S.accounting.descriptorDescription.sw,
   iconName: 'Calculator',
   color: 'navy',
   contextSchema: ownerOsTabContextSchema,
@@ -31,8 +32,7 @@ const ACCOUNTING_DESCRIPTOR: OwnerOSTabDescriptor = {
       'ap',
       'ar',
       'reconcile',
-      'uhasibu',
-      'leja',
+      ...S.accounting.keywordsSw,
     ],
     comboBoost: [
       { phrases: ['accounts', 'payable'], boost: 0.2 },
@@ -43,7 +43,7 @@ const ACCOUNTING_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'accounting.open-journal',
       labelEn: 'Open journal',
-      labelSw: 'Fungua leja',
+      labelSw: S.accounting.openJournalTool.sw,
     },
   ],
   briefSlices: ['cashflow', 'audit-trail'],
@@ -66,17 +66,17 @@ export function AccountingPanel({
         icon={Calculator}
         color="navy"
         titleEn="Accounting"
-        titleSw="Uhasibu"
+        titleSw={S.accounting.heroTitle.sw}
         subtitleEn="Live journal feed off the LedgerService double-entry ledger; AP / AR ageing buckets."
-        subtitleSw="Mlolongo wa moja kwa moja wa leja toka LedgerService; vipindi vya AP / AR vya umri."
+        subtitleSw={S.accounting.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         icon={Calculator}
         titleEn="Accounting workspace landing soon"
-        titleSw="Eneo la uhasibu linakuja hivi karibuni"
+        titleSw={S.accounting.emptyTitle.sw}
         bodyEn="Account ageing, journal browser and reconciliation queue will surface here once the /api/v1/accounting BFF is exposed. The LedgerService entries already exist; this panel is the surface contract."
-        bodySw="Vipindi vya hesabu, kivinjari cha leja na orodha ya ulinganishaji vitaonekana hapa mara tu BFF ya /api/v1/accounting itakapozinduliwa. Maandiko ya LedgerService tayari yapo; paneli hii ni mkataba wa muonekano."
+        bodySw={S.accounting.emptyBody.sw}
         contractEn="GET /api/v1/accounting/ledger?range=30d"
         contractSw="GET /api/v1/accounting/ledger?range=30d"
         locale={locale}

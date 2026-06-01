@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -19,10 +20,10 @@ const PeopleSurface = dynamic(
 
 const HR_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'hr',
-  labelEn: 'HR',
-  labelSw: 'Wa' + 'fanyakazi',
-  descriptionEn: 'Workforce roster, headcount, supervisors, fuel and shifts.',
-  descriptionSw: `Orodha ya ${'wafanya' + 'kazi'}, idadi, wasimamizi, mafuta na zamu.`,
+  labelEn: S.hr.label.en,
+  labelSw: S.hr.label.sw,
+  descriptionEn: S.hr.description.en,
+  descriptionSw: S.hr.description.sw,
   iconName: 'Users',
   color: 'info',
   contextSchema: ownerOsTabContextSchema,
@@ -41,11 +42,7 @@ const HR_DESCRIPTOR: OwnerOSTabDescriptor = {
       'workforce',
       'roster',
       'onboarding',
-      'wafanya' + 'kazi',
-      'mfanyakazi',
-      'mshahara',
-      'zamu',
-      'mahudhurio',
+      ...S.hr.swKeywords,
     ],
     comboBoost: [
       { phrases: ['hire', 'geologist'], boost: 0.15 },
@@ -55,13 +52,13 @@ const HR_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'hr.open-roster',
-      labelEn: 'Open roster',
-      labelSw: 'Fungua ratiba',
+      labelEn: S.hr.toolOpenRoster.en,
+      labelSw: S.hr.toolOpenRoster.sw,
     },
     {
       toolId: 'hr.draft-offer-letter',
-      labelEn: 'Draft offer letter',
-      labelSw: 'Tayarisha barua ya ajira',
+      labelEn: S.hr.toolDraftOffer.en,
+      labelSw: S.hr.toolDraftOffer.sw,
     },
   ],
   briefSlices: ['workforce', 'incidents'],
@@ -76,8 +73,8 @@ export function HRPanel({ context, locale }: OwnerOSPanelProps): ReactElement {
   const meta = context.siteId
     ? [
         {
-          labelEn: `Scoped to ${context.siteId}`,
-          labelSw: `Imepangwa kwa ${context.siteId}`,
+          labelEn: S.hr.scopedTo(context.siteId).en,
+          labelSw: S.hr.scopedTo(context.siteId).sw,
           tone: 'neutral' as const,
         },
       ]
@@ -90,10 +87,10 @@ export function HRPanel({ context, locale }: OwnerOSPanelProps): ReactElement {
       <PanelHero
         icon={Users}
         color="info"
-        titleEn="HR — workforce & people"
-        titleSw="Wafanyakazi na rasilimali watu"
-        subtitleEn="Roster, supervisors, attendance, fuel logs and incident feed across every site."
-        subtitleSw="Ratiba, wasimamizi, mahudhurio, kumbukumbu za mafuta na orodha ya matukio kwa kila tovuti."
+        titleEn={S.hr.heroTitle.en}
+        titleSw={S.hr.heroTitle.sw}
+        subtitleEn={S.hr.heroSubtitle.en}
+        subtitleSw={S.hr.heroSubtitle.sw}
         locale={locale}
         {...(meta ? { metaChips: meta } : {})}
       />

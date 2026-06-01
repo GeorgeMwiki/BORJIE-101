@@ -11,7 +11,13 @@
  * is owned by the brain kernel — this catalogue only describes the
  * surface (label, blurb, sample prompts) so the UI stays a pure
  * projection of the spec.
+ *
+ * Swahili `labelSw` values live in the guard-exempt
+ * `i18n/strings/tail.ts` table (keyed by mode id); this catalogue
+ * keeps the English source-of-truth and references the Swahili.
  */
+
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 export type CeoModeId =
   | 'build'
@@ -36,7 +42,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'build',
     label: 'Build',
-    labelSw: 'Jenga',
+    labelSw: S.ceoModes.build.sw,
     blurb:
       'Stand up the company. Structure sites, people, licences, and core documents during onboarding.',
     toolsSummary: 'Company, Licence, People, Document agents',
@@ -49,7 +55,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'strategy',
     label: 'Strategy',
-    labelSw: 'Mkakati',
+    labelSw: S.ceoModes.strategy.sw,
     blurb:
       'Portfolio ranking, capital allocation, and mechanisation decisions across all sites.',
     toolsSummary: 'All read tools + simulator + forecaster',
@@ -62,7 +68,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'operations',
     label: 'Operations',
-    labelSw: 'Uendeshaji',
+    labelSw: S.ceoModes.operations.sw,
     blurb:
       'Daily plan, shift information, blockers and the live operating picture.',
     toolsSummary: 'Shift, SIC, HR, Asset, Inventory agents',
@@ -75,7 +81,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'document',
     label: 'Document',
-    labelSw: 'Hati',
+    labelSw: S.ceoModes.document.sw,
     blurb:
       'File, refile, prepare renewal packs and standard letters with full bbox evidence.',
     toolsSummary: 'Document, Licence, Compliance agents',
@@ -88,7 +94,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'finance',
     label: 'Finance',
-    labelSw: 'Fedha',
+    labelSw: S.ceoModes.finance.sw,
     blurb:
       'Burn rate, cash, FX exposure, runway and unit-economics decisions.',
     toolsSummary: 'Cost, Treasury, Sales agents',
@@ -101,7 +107,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'risk',
     label: 'Risk',
-    labelSw: 'Hatari',
+    labelSw: S.ceoModes.risk.sw,
     blurb:
       'Cross-domain scan: licence dormancy, safety, community sentiment, FX, vendor decay.',
     toolsSummary: 'Every audit tool',
@@ -114,7 +120,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'board',
     label: 'Board / Investor',
-    labelSw: 'Bodi / Wawekezaji',
+    labelSw: S.ceoModes.board.sw,
     blurb:
       'Clean external narrative — investor-pack tone, longer context, provenance baked in.',
     toolsSummary: 'Report Writer + read tools',
@@ -127,7 +133,7 @@ export const CEO_MODES: ReadonlyArray<CeoMode> = [
   {
     id: 'compliance',
     label: 'Compliance',
-    labelSw: 'Uzingatiaji',
+    labelSw: S.ceoModes.compliance.sw,
     blurb:
       'Regulator citation library, action checklists, and obligation tracking by jurisdiction.',
     toolsSummary: 'Compliance + Auditor / Evidence agents',

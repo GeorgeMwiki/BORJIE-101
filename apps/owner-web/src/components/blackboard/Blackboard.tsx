@@ -30,6 +30,7 @@ import {
   useBlackboardStore,
 } from './use-blackboard-store';
 import type { BoardElementEnvelope } from './types';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 const REPLAY_STAGGER_MS = 600;
 
@@ -168,12 +169,10 @@ function Header({
   readonly onClear: () => void;
   readonly replaying: boolean;
 }): ReactElement {
-  const label =
-    languagePreference === 'sw' ? 'Ubao wa kufundishia' : 'Teaching board';
-  const subtitle =
-    languagePreference === 'sw'
-      ? `${elementCount} vipengele${replaying ? ' · inacheza tena' : ''}`
-      : `${elementCount} element${elementCount === 1 ? '' : 's'}${replaying ? ' · replaying' : ''}`;
+  const isSw = languagePreference === 'sw';
+  const label = isSw ? S.blackboard.title.sw : S.blackboard.title.en;
+  const subtitleCopy = S.blackboard.subtitle(elementCount, replaying);
+  const subtitle = isSw ? subtitleCopy.sw : subtitleCopy.en;
   return (
     <header className="flex items-center justify-between gap-2 border-b border-border bg-surface/50 px-4 py-2 print:hidden">
       <div className="flex items-center gap-2">
@@ -188,8 +187,8 @@ function Header({
           type="button"
           onClick={onReplay}
           disabled={elementCount === 0 || replaying}
-          aria-label={languagePreference === 'sw' ? 'Cheza tena' : 'Replay'}
-          title={languagePreference === 'sw' ? 'Cheza tena' : 'Replay'}
+          aria-label={isSw ? S.blackboard.replay.sw : S.blackboard.replay.en}
+          title={isSw ? S.blackboard.replay.sw : S.blackboard.replay.en}
           data-testid="blackboard-replay"
           className="rounded-md p-1.5 text-neutral-300 hover:bg-surface/60 disabled:cursor-not-allowed disabled:opacity-30"
         >
@@ -199,8 +198,8 @@ function Header({
           type="button"
           onClick={onExportPdf}
           disabled={elementCount === 0}
-          aria-label={languagePreference === 'sw' ? 'Hamisha PDF' : 'Export PDF'}
-          title={languagePreference === 'sw' ? 'Hamisha PDF' : 'Export PDF'}
+          aria-label={isSw ? S.blackboard.exportPdf.sw : S.blackboard.exportPdf.en}
+          title={isSw ? S.blackboard.exportPdf.sw : S.blackboard.exportPdf.en}
           data-testid="blackboard-export-pdf"
           className="rounded-md p-1.5 text-neutral-300 hover:bg-surface/60 disabled:cursor-not-allowed disabled:opacity-30"
         >
@@ -210,8 +209,8 @@ function Header({
           type="button"
           onClick={onClear}
           disabled={elementCount === 0}
-          aria-label={languagePreference === 'sw' ? 'Futa ubao' : 'Clear board'}
-          title={languagePreference === 'sw' ? 'Futa ubao' : 'Clear board'}
+          aria-label={isSw ? S.blackboard.clear.sw : S.blackboard.clear.en}
+          title={isSw ? S.blackboard.clear.sw : S.blackboard.clear.en}
           data-testid="blackboard-clear"
           className="rounded-md p-1.5 text-neutral-300 hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-30"
         >
@@ -229,36 +228,21 @@ function EmptyState({
   readonly languagePreference: 'sw' | 'en';
   readonly tradingName?: string | undefined;
 }): ReactElement {
-  const company = tradingName ?? (languagePreference === 'sw' ? 'mgodi wako' : 'your operation');
-  if (languagePreference === 'sw') {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-8 text-center">
-        <p className="text-tiny font-semibold uppercase tracking-wide text-warning">
-          Ubao mtupu
-        </p>
-        <p className="text-sm text-neutral-300">
-          Niulize kuhusu {'mraba' + 'ha'}, leseni, mlolongo wa malipo, au utii wa NEMC kwa
-          {' '}
-          {company}. Nitachora kwenye ubao huu kadri tunavyozungumza.
-        </p>
-        <p className="text-tiny text-neutral-500">
-          Mfano: &quot;Nielezee jinsi {'mraba' + 'ha'} unahesabiwa&quot;
-        </p>
-      </div>
-    );
-  }
+  const isSw = languagePreference === 'sw';
+  const company =
+    tradingName ?? (isSw ? S.blackboard.defaultCompany.sw : S.blackboard.defaultCompany.en);
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-8 text-center">
       <p className="text-tiny font-semibold uppercase tracking-wide text-warning">
-        Empty board
+        {isSw ? S.blackboard.emptyEyebrow.sw : S.blackboard.emptyEyebrow.en}
       </p>
       <p className="text-sm text-neutral-300">
-        Ask about royalty, licences, chain of custody, or NEMC compliance for
+        {isSw ? S.blackboard.emptyBodyLead.sw : S.blackboard.emptyBodyLead.en}
         {' '}
-        {company}. I will draw on this board as we talk.
+        {company}. {isSw ? S.blackboard.emptyBodyTail.sw : S.blackboard.emptyBodyTail.en}
       </p>
       <p className="text-tiny text-neutral-500">
-        Example: &quot;Teach me how royalty is calculated&quot;
+        {isSw ? S.blackboard.emptyExample.sw : S.blackboard.emptyExample.en}
       </p>
     </div>
   );

@@ -10,6 +10,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { Sparkles, Clock } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 interface BriefShape {
   readonly advisor: {
@@ -46,7 +47,7 @@ export function OwnerOSInsightsPanel({
     <div className="flex flex-col gap-3" data-testid="owner-os-insights-panel">
       <header className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-warning">
-          {languagePreference === 'sw' ? 'Ushauri wa leo' : "Today's advisor note"}
+          {languagePreference === 'sw' ? S.insightsPanel.heading.sw : S.insightsPanel.heading.en}
         </h2>
       </header>
       {error ? (
@@ -71,8 +72,8 @@ export function OwnerOSInsightsPanel({
       ) : brief ? (
         <p className="text-tiny text-neutral-500">
           {languagePreference === 'sw'
-            ? 'Akili haijapatikana sasa. Jaribu tena baadaye.'
-            : 'Brain ladder unavailable right now. Try again shortly.'}
+            ? S.insightsPanel.unavailable.sw
+            : S.insightsPanel.unavailable.en}
         </p>
       ) : (
         <p className="text-tiny text-neutral-500">Loading…</p>

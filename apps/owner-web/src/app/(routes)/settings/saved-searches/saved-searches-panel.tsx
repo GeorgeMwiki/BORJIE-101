@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getCsrfHeaders } from '@/lib/csrf';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface SavedSearch {
   readonly id: string;
@@ -27,15 +28,15 @@ interface SavedSearch {
 }
 
 const FREQUENCY_LABELS_SW: Record<SavedSearch['frequency'], string> = {
-  hourly: 'Kila saa',
-  daily: 'Kila siku',
-  weekly: 'Kila wiki',
+  hourly: S.savedSearches.frequencyHourly.sw,
+  daily: S.savedSearches.frequencyDaily.sw,
+  weekly: S.savedSearches.frequencyWeekly.sw,
 };
 
 const SOURCE_LABELS_SW: Record<SavedSearch['source'], string> = {
-  marketplace: 'Soko',
-  opportunities: 'Fursa',
-  regulatory: 'Kanuni',
+  marketplace: S.savedSearches.sourceMarketplace.sw,
+  opportunities: S.savedSearches.sourceOpportunities.sw,
+  regulatory: S.savedSearches.sourceRegulatory.sw,
 };
 
 export function SavedSearchesPanel() {
@@ -144,10 +145,12 @@ export function SavedSearchesPanel() {
           New saved search
         </h2>
         <p className="text-xs italic text-neutral-500">
-          Utafutaji mpya — toa jina, andika maswali yako, chagua mzunguko
+          {S.savedSearches.newSearchTagline.sw}
         </p>
         <label className="block text-sm">
-          <span className="text-neutral-300">Label / Jina</span>
+          <span className="text-neutral-300">
+            {`${S.savedSearches.labelField.en} / ${S.savedSearches.labelField.sw}`}
+          </span>
           <input
             className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
             value={label}
@@ -158,7 +161,9 @@ export function SavedSearchesPanel() {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-neutral-300">Query JSON / Maswali (JSON)</span>
+          <span className="text-neutral-300">
+            {`${S.savedSearches.queryField.en} / ${S.savedSearches.queryField.sw}`}
+          </span>
           <textarea
             className="mt-1 h-24 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground"
             value={queryText}
@@ -168,7 +173,9 @@ export function SavedSearchesPanel() {
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-neutral-300">Frequency / Mzunguko</span>
+            <span className="text-neutral-300">
+              {`${S.savedSearches.frequencyField.en} / ${S.savedSearches.frequencyField.sw}`}
+            </span>
             <select
               className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
               value={frequency}
@@ -176,13 +183,21 @@ export function SavedSearchesPanel() {
                 setFrequency(e.target.value as SavedSearch['frequency'])
               }
             >
-              <option value="hourly">Hourly / Kila saa</option>
-              <option value="daily">Daily / Kila siku</option>
-              <option value="weekly">Weekly / Kila wiki</option>
+              <option value="hourly">
+                {`${S.savedSearches.frequencyHourly.en} / ${S.savedSearches.frequencyHourly.sw}`}
+              </option>
+              <option value="daily">
+                {`${S.savedSearches.frequencyDaily.en} / ${S.savedSearches.frequencyDaily.sw}`}
+              </option>
+              <option value="weekly">
+                {`${S.savedSearches.frequencyWeekly.en} / ${S.savedSearches.frequencyWeekly.sw}`}
+              </option>
             </select>
           </label>
           <label className="block text-sm">
-            <span className="text-neutral-300">Source / Chanzo</span>
+            <span className="text-neutral-300">
+              {`${S.savedSearches.sourceField.en} / ${S.savedSearches.sourceField.sw}`}
+            </span>
             <select
               className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
               value={source}
@@ -190,9 +205,15 @@ export function SavedSearchesPanel() {
                 setSource(e.target.value as SavedSearch['source'])
               }
             >
-              <option value="marketplace">Marketplace / Soko</option>
-              <option value="opportunities">Opportunities / Fursa</option>
-              <option value="regulatory">Regulatory / Kanuni</option>
+              <option value="marketplace">
+                {`${S.savedSearches.sourceMarketplace.en} / ${S.savedSearches.sourceMarketplace.sw}`}
+              </option>
+              <option value="opportunities">
+                {`${S.savedSearches.sourceOpportunities.en} / ${S.savedSearches.sourceOpportunities.sw}`}
+              </option>
+              <option value="regulatory">
+                {`${S.savedSearches.sourceRegulatory.en} / ${S.savedSearches.sourceRegulatory.sw}`}
+              </option>
             </select>
           </label>
         </div>
@@ -201,7 +222,9 @@ export function SavedSearchesPanel() {
           disabled={creating || !label.trim()}
           className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
         >
-          {creating ? 'Saving…' : 'Save / Hifadhi'}
+          {creating
+            ? 'Saving…'
+            : `${S.savedSearches.save.en} / ${S.savedSearches.save.sw}`}
         </button>
         {error ? (
           <p className="text-sm text-destructive">Error: {error}</p>
@@ -213,13 +236,13 @@ export function SavedSearchesPanel() {
           Your saved searches
         </h2>
         <p className="text-xs italic text-neutral-500">
-          Utafutaji wako uliohifadhiwa
+          {S.savedSearches.savedListTagline.sw}
         </p>
         {loading ? (
           <p className="mt-4 text-sm text-neutral-400">Loading…</p>
         ) : items.length === 0 ? (
           <p className="mt-4 text-sm text-neutral-400">
-            No saved searches yet. / Hakuna utafutaji uliohifadhiwa.
+            {`${S.savedSearches.emptyList.en} / ${S.savedSearches.emptyList.sw}`}
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
@@ -248,7 +271,7 @@ export function SavedSearchesPanel() {
                   onClick={() => void remove(item.id)}
                   className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:text-destructive"
                 >
-                  Delete / Futa
+                  {`${S.savedSearches.delete.en} / ${S.savedSearches.delete.sw}`}
                 </button>
               </li>
             ))}

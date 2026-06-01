@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-react';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface ErrorPageProps {
   readonly error: Error & { readonly digest?: string };
@@ -40,14 +41,13 @@ export default function OwnerError({ error, reset }: ErrorPageProps) {
           <TriangleAlert aria-hidden="true" className="h-7 w-7" />
         </div>
         <p className="font-mono text-badge uppercase tracking-eyebrow-x-wide text-destructive">
-          Hitilafu · Something went wrong
+          {`${S.error.eyebrow.sw} · ${S.error.eyebrow.en}`}
         </p>
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
           That didn't load.
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Tumepokea ripoti. Jaribu tena — kama itaendelea kutokea, timu
-          yetu inaangalia tayari.
+          {S.error.body.sw}
         </p>
         {error.digest && process.env.NODE_ENV !== 'production' ? (
           <p className="mt-3 font-mono text-tiny uppercase tracking-widest text-muted-foreground/70">
@@ -61,14 +61,14 @@ export default function OwnerError({ error, reset }: ErrorPageProps) {
             className="inline-flex items-center gap-2 rounded-xl bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <RefreshCw aria-hidden="true" className="h-4 w-4" />
-            Jaribu tena
+            {S.error.retry.sw}
           </button>
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Rudi kwenye cockpit
+            {S.error.backToCockpit.sw}
           </Link>
         </div>
       </div>

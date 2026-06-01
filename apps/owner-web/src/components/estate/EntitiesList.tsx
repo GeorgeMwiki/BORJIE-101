@@ -4,6 +4,7 @@ import { Building2 } from 'lucide-react';
 import { useEstateEntities, type EstateEntityRow } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface EntitiesListProps {
   readonly locale: 'sw' | 'en';
@@ -21,14 +22,14 @@ export function EntitiesList({ locale }: EntitiesListProps) {
   if (query.isLoading) {
     return (
       <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? 'Inapakia kampuni...' : 'Loading entities...'}
+        {isSw ? S.entitiesList.loading.sw : S.entitiesList.loading.en}
       </div>
     );
   }
   if (query.isError) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? 'Imeshindwa kupakia kampuni.' : 'Could not load entities.'}
+        {isSw ? S.entitiesList.loadError.sw : S.entitiesList.loadError.en}
       </div>
     );
   }
@@ -39,18 +40,16 @@ export function EntitiesList({ locale }: EntitiesListProps) {
 
   return (
     <SectionCard
-      title={isSw ? 'Kampuni zote' : 'All entities'}
+      title={isSw ? S.entitiesList.title.sw : S.entitiesList.title.en}
       subtitle={
         isSw
-          ? `Jumla: ${rows.length} kampuni hai chini ya miliki.`
-          : `Total: ${rows.length} entities under the estate.`
+          ? S.entitiesList.subtitle(rows.length).sw
+          : S.entitiesList.subtitle(rows.length).en
       }
     >
       {rows.length === 0 ? (
         <div className="px-5 py-8 text-sm text-neutral-500">
-          {isSw
-            ? 'Hakuna kampuni iliyosajiliwa bado. Anza kwa kuunda kikundi cha familia.'
-            : 'No entities registered yet. Start by creating a family-office group.'}
+          {isSw ? S.entitiesList.empty.sw : S.entitiesList.empty.en}
         </div>
       ) : (
         <ul className="divide-y divide-border">
@@ -86,7 +85,7 @@ function EntityListRow({ entity, locale }: EntityListRowProps) {
             {entity.name}
           </div>
           <div className="text-xs text-neutral-500">
-            {locale === 'sw' ? 'Aina: ' : 'Kind: '}
+            {locale === 'sw' ? S.entitiesList.kindPrefix.sw : S.entitiesList.kindPrefix.en}
             {entity.kind} · {Number(entity.ownershipPct).toFixed(1)}%
             {entity.brelaNo ? ` · BRELA ${entity.brelaNo}` : ''}
           </div>

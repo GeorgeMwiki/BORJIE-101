@@ -1,6 +1,7 @@
 'use client';
 
 import { MessageSquare } from 'lucide-react';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 /**
  * Persona-aware greeting card rendered above the chat surface when the
@@ -30,18 +31,9 @@ interface Suggestion {
 }
 
 const SUGGESTIONS: ReadonlyArray<Suggestion> = [
-  {
-    sw: 'Onyesha muhtasari wa portfolio',
-    en: 'Show portfolio overview',
-  },
-  {
-    sw: 'Hali ya hela na siku zilizobaki',
-    en: 'Cash position and runway days',
-  },
-  {
-    sw: 'Maamuzi yanayosubiri',
-    en: 'Decisions awaiting my attention',
-  },
+  S.greetSuggestionPortfolio,
+  S.greetSuggestionCash,
+  S.greetSuggestionDecisions,
 ];
 
 interface Copy {
@@ -57,15 +49,15 @@ function copyForLang(args: {
 }): Copy {
   if (args.lang === 'sw') {
     return {
-      headline: `${'Kari' + 'bu'}, ${args.salutation}.`,
-      subline: `${args.tradingName} · niko hapa kukusaidia. Uliza chochote kuhusu mgodi wako.`,
-      chipsLabel: 'Anza na moja ya hizi',
+      headline: `${S.stepperGreetingWord.sw}, ${args.salutation}.`,
+      subline: `${args.tradingName} · ${S.greetSubline.sw}`,
+      chipsLabel: S.greetChipsLabel.sw,
     };
   }
   return {
-    headline: `Welcome back, ${args.salutation}.`,
-    subline: `${args.tradingName} · ask me anything about your operation.`,
-    chipsLabel: 'Start with one of these',
+    headline: `${S.stepperGreetingWord.en} back, ${args.salutation}.`,
+    subline: `${args.tradingName} · ${S.greetSubline.en}`,
+    chipsLabel: S.greetChipsLabel.en,
   };
 }
 

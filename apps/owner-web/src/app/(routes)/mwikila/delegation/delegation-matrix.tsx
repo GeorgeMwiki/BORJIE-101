@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getCsrfHeaders } from '@/lib/csrf';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface MatrixEntry {
   readonly category: string;
@@ -27,38 +28,21 @@ const CATEGORIES_DISPLAY: ReadonlyArray<{
   readonly en: string;
   readonly sw: string;
 }> = [
-  { key: 'shifts', en: 'Shifts', sw: 'Zamu' },
-  { key: 'payroll-prep', en: 'Payroll prep', sw: 'Maandalizi ya mishahara' },
-  { key: 'royalty-filing', en: 'Royalty filing', sw: 'Ufungaji wa mrabaha' },
+  { key: 'shifts', ...S.delegationMatrix.catShifts },
+  { key: 'payroll-prep', ...S.delegationMatrix.catPayrollPrep },
+  { key: 'royalty-filing', ...S.delegationMatrix.catRoyaltyFiling },
   {
     key: 'license-renewal-reminders',
-    en: 'License renewal reminders',
-    sw: 'Vikumbusho vya leseni',
+    ...S.delegationMatrix.catLicenceRenewalReminders,
   },
-  {
-    key: 'contract-followups',
-    en: 'Contract followups',
-    sw: 'Ufuatiliaji wa mikataba',
-  },
-  { key: 'worker-hires', en: 'Worker hires', sw: 'Kuajiri wafanyakazi' },
-  {
-    key: 'worker-discipline',
-    en: 'Worker discipline',
-    sw: 'Hatua za kinidhamu',
-  },
-  { key: 'capex', en: 'Capex', sw: 'Matumizi makubwa' },
-  { key: 'inventory-orders', en: 'Inventory orders', sw: 'Maagizo ya bidhaa' },
-  {
-    key: 'compliance-filings',
-    en: 'Compliance filings',
-    sw: 'Ripoti za kanuni',
-  },
-  { key: 'marketplace-bids', en: 'Marketplace bids', sw: 'Zabuni za soko' },
-  {
-    key: 'marketplace-counters',
-    en: 'Marketplace counters',
-    sw: 'Rejea za bei',
-  },
+  { key: 'contract-followups', ...S.delegationMatrix.catContractFollowups },
+  { key: 'worker-hires', ...S.delegationMatrix.catWorkerHires },
+  { key: 'worker-discipline', ...S.delegationMatrix.catWorkerDiscipline },
+  { key: 'capex', ...S.delegationMatrix.catCapex },
+  { key: 'inventory-orders', ...S.delegationMatrix.catInventoryOrders },
+  { key: 'compliance-filings', ...S.delegationMatrix.catComplianceFilings },
+  { key: 'marketplace-bids', ...S.delegationMatrix.catMarketplaceBids },
+  { key: 'marketplace-counters', ...S.delegationMatrix.catMarketplaceCounters },
 ];
 
 const TIERS: ReadonlyArray<'T0' | 'T1' | 'T2' | 'T3'> = [
@@ -144,13 +128,17 @@ export function DelegationMatrix() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-neutral-400">Loading… / Inapakia…</p>
+        <p className="text-sm text-neutral-400">
+          {S.delegationMatrix.loading.both}
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs uppercase text-neutral-400">
-                <th className="px-4 py-3">Category / Kazi</th>
+                <th className="px-4 py-3">
+                  {S.delegationMatrix.categoryHeader.both}
+                </th>
                 {TIERS.map((t) => (
                   <th key={t} className="px-3 py-3 text-center">
                     {t}

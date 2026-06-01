@@ -10,13 +10,14 @@ import {
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ANCILLARY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'ancillary',
   labelEn: 'Ancillary',
-  labelSw: 'Biashara Saidizi',
+  labelSw: S.ancillary.descriptorLabel.sw,
   descriptionEn: 'Side businesses: transport, catering, retail, and more.',
-  descriptionSw: 'Biashara za upande: usambazaji, chakula, muuzaji wa rejareja, na zingine.',
+  descriptionSw: S.ancillary.descriptorDescription.sw,
   iconName: 'Boxes',
   color: 'cream',
   contextSchema: ownerOsTabContextSchema,
@@ -37,9 +38,7 @@ const ANCILLARY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'insurance',
       'consulting',
       'training',
-      'biashara',
-      'upande',
-      'saidizi',
+      ...S.ancillary.keywordsSw,
     ],
     patterns: [/transport\s+co/i, /catering\s+service/i, /equipment\s+rental/i],
     comboBoost: [
@@ -51,7 +50,7 @@ const ANCILLARY_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'estate.lookup_ancillary',
       labelEn: 'View ancillary businesses',
-      labelSw: 'Angalia biashara saidizi',
+      labelSw: S.ancillary.lookupTool.sw,
     },
   ],
   briefSlices: [],
@@ -72,18 +71,18 @@ export function AncillaryBusinessesPanel({
         icon={Boxes}
         color="cream"
         titleEn="Ancillary — side businesses and ventures"
-        titleSw="Biashara Saidizi — biashara za upande na miradi"
+        titleSw={S.ancillary.heroTitle.sw}
         subtitleEn="Manage non-core businesses: transport, catering, retail, and more."
-        subtitleSw="Simamia biashara zisizo za msingi: usambazaji, chakula, muuzaji wa rejareja, na zingine."
+        subtitleSw={S.ancillary.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         titleEn="No ancillary businesses yet"
-        titleSw="Hakuna biashara saidizi bado"
+        titleSw={S.ancillary.emptyTitle.sw}
         descriptionEn="Add your side businesses to track revenue and intercompany flows."
-        descriptionSw="Ongeza biashara za upande kubaini mapato na flux za kati ya kampuni."
+        descriptionSw={S.ancillary.emptyDescription.sw}
         ctaEn="Add business"
-        ctaSw="Ongeza biashara"
+        ctaSw={S.ancillary.emptyCta.sw}
         locale={locale}
       />
     </section>

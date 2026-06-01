@@ -3,6 +3,19 @@
 import { useEffect, useState } from 'react';
 
 import { API_BASE } from './api-client';
+import { tailStrings as S } from '@/i18n/strings/tail';
+
+/** Fill `{token}` placeholders in a tailStrings template. */
+function fill(
+  template: string,
+  vars: Readonly<Record<string, string | number>>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.prototype.hasOwnProperty.call(vars, name)
+      ? String(vars[name])
+      : match,
+  );
+}
 
 /**
  * Cockpit live SSE hook (Roadmap R6).
@@ -188,79 +201,135 @@ export const COCKPIT_EVENT_COPY: Record<
 > = {
   'decision.recorded': {
     en: (e) =>
-      `New ${(e as DecisionRecordedEvent).severity} decision: ${
-        (e as DecisionRecordedEvent).subject
-      }`,
+      fill(S.cockpitSse.decisionRecorded.en, {
+        severity: (e as DecisionRecordedEvent).severity,
+        subject: (e as DecisionRecordedEvent).subject,
+      }),
     sw: (e) =>
-      `Uamuzi mpya (${(e as DecisionRecordedEvent).severity}): ${
-        (e as DecisionRecordedEvent).subject
-      }`,
+      fill(S.cockpitSse.decisionRecorded.sw, {
+        severity: (e as DecisionRecordedEvent).severity,
+        subject: (e as DecisionRecordedEvent).subject,
+      }),
   },
   'reminder.fired': {
-    en: (e) => `Reminder sent: ${(e as ReminderFiredEvent).title}`,
-    sw: (e) => `Kikumbusho kimetumwa: ${(e as ReminderFiredEvent).title}`,
+    en: (e) =>
+      fill(S.cockpitSse.reminderFired.en, {
+        title: (e as ReminderFiredEvent).title,
+      }),
+    sw: (e) =>
+      fill(S.cockpitSse.reminderFired.sw, {
+        title: (e as ReminderFiredEvent).title,
+      }),
   },
   'opportunity.scan_completed': {
     en: (e) =>
-      `${(e as OpportunityScanCompletedEvent).opportunityCount} new opportunity(ies) found`,
+      fill(S.cockpitSse.opportunityScan.en, {
+        count: (e as OpportunityScanCompletedEvent).opportunityCount,
+      }),
     sw: (e) =>
-      `Fursa ${(e as OpportunityScanCompletedEvent).opportunityCount} mpya zimepatikana`,
+      fill(S.cockpitSse.opportunityScan.sw, {
+        count: (e as OpportunityScanCompletedEvent).opportunityCount,
+      }),
   },
   'risk.changed': {
     en: (e) =>
-      `Risk severity changed to ${(e as RiskChangedEvent).severity}`,
+      fill(S.cockpitSse.riskChanged.en, {
+        severity: (e as RiskChangedEvent).severity,
+      }),
     sw: (e) =>
-      `Hatari imebadilika kuwa ${(e as RiskChangedEvent).severity}`,
+      fill(S.cockpitSse.riskChanged.sw, {
+        severity: (e as RiskChangedEvent).severity,
+      }),
   },
   'workforce.shift_event': {
     en: (e) =>
       (e as WorkforceShiftEvent).transition === 'shift_start'
-        ? 'Worker started shift'
-        : 'Worker ended shift',
+        ? S.cockpitSse.shiftStart.en
+        : S.cockpitSse.shiftEnd.en,
     sw: (e) =>
       (e as WorkforceShiftEvent).transition === 'shift_start'
-        ? 'Mfanyakazi ameanza zamu'
-        : 'Mfanyakazi amemaliza zamu',
+        ? S.cockpitSse.shiftStart.sw
+        : S.cockpitSse.shiftEnd.sw,
   },
   'compliance.deadline_approaching': {
     en: (e) => {
       const ev = e as ComplianceDeadlineApproachingEvent;
-      return `Filing ${ev.filingKind} due in ${ev.daysRemaining} day(s)`;
+      return fill(S.cockpitSse.complianceDeadline.en, {
+        filingKind: ev.filingKind,
+        days: ev.daysRemaining,
+      });
     },
     sw: (e) => {
       const ev = e as ComplianceDeadlineApproachingEvent;
-      return `Faili ${ev.filingKind} inaisha katika siku ${ev.daysRemaining}`;
+      return fill(S.cockpitSse.complianceDeadline.sw, {
+        filingKind: ev.filingKind,
+        days: ev.daysRemaining,
+      });
     },
   },
   'production.posted': {
     en: (e) => {
       const ev = e as ProductionPostedEvent;
-      const tonnes = ev.romTonnes != null ? `${ev.romTonnes}t ROM` : 'shift report';
-      return `Live: ${tonnes} posted (${ev.shiftDate})`;
+      const tonnes =
+        ev.romTonnes != null
+          ? `${ev.romTonnes}t ROM`
+          : S.cockpitSse.productionShiftReport.en;
+      return fill(S.cockpitSse.productionPosted.en, {
+        tonnes,
+        date: ev.shiftDate,
+      });
     },
     sw: (e) => {
       const ev = e as ProductionPostedEvent;
-      const tonnes = ev.romTonnes != null ? `${ev.romTonnes}t` : 'ripoti ya zamu';
-      return `Moja kwa moja: ${tonnes} imewekwa (${ev.shiftDate})`;
+      const tonnes =
+        ev.romTonnes != null
+          ? `${ev.romTonnes}t`
+          : S.cockpitSse.productionShiftReport.sw;
+      return fill(S.cockpitSse.productionPosted.sw, {
+        tonnes,
+        date: ev.shiftDate,
+      });
     },
   },
   'cockpit.tab.spawned': {
-    en: (e) => `Tab spawned: ${(e as CockpitTabSpawnedEvent).title}`,
-    sw: (e) => `Tab imefunguliwa: ${(e as CockpitTabSpawnedEvent).title}`,
+    en: (e) =>
+      fill(S.cockpitSse.tabSpawned.en, {
+        title: (e as CockpitTabSpawnedEvent).title,
+      }),
+    sw: (e) =>
+      fill(S.cockpitSse.tabSpawned.sw, {
+        title: (e as CockpitTabSpawnedEvent).title,
+      }),
   },
   'cockpit.tab.updated': {
-    en: (e) => `Tab updated: ${(e as CockpitTabUpdatedEvent).tabId}`,
-    sw: (e) => `Tab imebadilishwa: ${(e as CockpitTabUpdatedEvent).tabId}`,
+    en: (e) =>
+      fill(S.cockpitSse.tabUpdated.en, {
+        tabId: (e as CockpitTabUpdatedEvent).tabId,
+      }),
+    sw: (e) =>
+      fill(S.cockpitSse.tabUpdated.sw, {
+        tabId: (e as CockpitTabUpdatedEvent).tabId,
+      }),
   },
   'cockpit.tab.removed': {
-    en: (e) => `Tab closed: ${(e as CockpitTabRemovedEvent).tabId}`,
-    sw: (e) => `Tab imefungwa: ${(e as CockpitTabRemovedEvent).tabId}`,
+    en: (e) =>
+      fill(S.cockpitSse.tabRemoved.en, {
+        tabId: (e as CockpitTabRemovedEvent).tabId,
+      }),
+    sw: (e) =>
+      fill(S.cockpitSse.tabRemoved.sw, {
+        tabId: (e as CockpitTabRemovedEvent).tabId,
+      }),
   },
   'cockpit.tab.proposed': {
     en: (e) =>
-      `Mr. Mwikila suggests pinning: ${(e as CockpitTabProposedEvent).title}`,
+      fill(S.cockpitSse.tabProposed.en, {
+        title: (e as CockpitTabProposedEvent).title,
+      }),
     sw: (e) =>
-      `Mr. Mwikila anapendekeza kubandika: ${(e as CockpitTabProposedEvent).title}`,
+      fill(S.cockpitSse.tabProposed.sw, {
+        title: (e as CockpitTabProposedEvent).title,
+      }),
   },
 };
 

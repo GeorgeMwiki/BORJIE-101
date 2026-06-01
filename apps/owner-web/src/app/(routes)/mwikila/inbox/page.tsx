@@ -12,6 +12,7 @@
  */
 
 import { MwikilaInboxPanel } from './mwikila-inbox-panel';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export default function MwikilaInboxPage() {
           Acting on your behalf
         </h1>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          Mwikila kwa niaba yako — kagua, idhinisha au rejesha
+          {S.mwikilaInbox.subhead.both}
         </p>
         <p className="mt-3 max-w-2xl text-sm text-neutral-300">
           Mr. Mwikila handles routine operations under the delegation

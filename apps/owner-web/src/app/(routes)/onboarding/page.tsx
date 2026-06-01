@@ -22,13 +22,30 @@ import {
   type OnboardingStep,
 } from '@/lib/queries/onboarding';
 import { pickByLocale, useLocale } from '@/lib/locale';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 const STEPS: ReadonlyArray<StepperStep> = [
   { id: 'kyb', label: 'NIDA + KYB', labelSw: 'NIDA + KYB' },
-  { id: 'licences', label: 'Licence import', labelSw: 'Pakia leseni' },
-  { id: 'sites', label: 'Site geometry', labelSw: 'Mipaka ya tovuti' },
-  { id: 'drill_holes', label: 'Drill-hole batch', labelSw: 'Mashimo ya kuchimba' },
-  { id: 'cockpit_seed', label: 'Cockpit seed', labelSw: 'Anza dashibodi' },
+  {
+    id: 'licences',
+    label: 'Licence import',
+    labelSw: S.onboarding.stepLicencesSw.sw,
+  },
+  {
+    id: 'sites',
+    label: 'Site geometry',
+    labelSw: S.onboarding.stepSitesSw.sw,
+  },
+  {
+    id: 'drill_holes',
+    label: 'Drill-hole batch',
+    labelSw: S.onboarding.stepDrillHolesSw.sw,
+  },
+  {
+    id: 'cockpit_seed',
+    label: 'Cockpit seed',
+    labelSw: S.onboarding.stepCockpitSeedSw.sw,
+  },
 ];
 
 const STEP_KIND: ReadonlyArray<OnboardingStep> = [
@@ -112,21 +129,11 @@ export default function OnboardingPage() {
     setStepError(null);
     const valid = await validateStep(step);
     if (!valid) {
-      setStepError(
-        pickByLocale(locale, {
-          en: 'Please complete this step before continuing.',
-          sw: 'Tafadhali kamilisha hatua hii kabla ya kuendelea.',
-        }),
-      );
+      setStepError(pickByLocale(locale, S.onboarding.completeStepFirst));
       return;
     }
     if (!sessionId) {
-      setStepError(
-        pickByLocale(locale, {
-          en: 'Session not ready.',
-          sw: 'Kipindi hakijaanza.',
-        }),
-      );
+      setStepError(pickByLocale(locale, S.onboarding.sessionNotReady));
       return;
     }
     const payload = buildPayload(step);
@@ -169,7 +176,7 @@ export default function OnboardingPage() {
     <>
       <ScreenHeader slug="onboarding" />
       <div className="space-y-4 px-8 py-6">
-        <SectionCard title="Progress" subtitle="Maendeleo">
+        <SectionCard title="Progress" subtitle={S.onboarding.progressSubtitle.both}>
           <Stepper steps={STEPS} current={step} />
         </SectionCard>
         <SectionCard
@@ -181,7 +188,7 @@ export default function OnboardingPage() {
             <FileUploadStep
               accept=".pdf"
               hintEn="Drop PML/PL/SML/ML PDFs here"
-              hintSw="Tia PML/PL/SML/ML hapa"
+              hintSw={S.onboarding.hintLicencesSw.sw}
               files={licenceFiles}
               onChange={setLicenceFiles}
             />
@@ -190,7 +197,7 @@ export default function OnboardingPage() {
             <FileUploadStep
               accept=".geojson,.json"
               hintEn="Drop a GeoJSON polygon for each site"
-              hintSw="Tia GeoJSON ya kila tovuti"
+              hintSw={S.onboarding.hintSitesSw.sw}
               files={siteFiles}
               onChange={setSiteFiles}
             />
@@ -199,7 +206,7 @@ export default function OnboardingPage() {
             <FileUploadStep
               accept=".csv"
               hintEn="Drop the first drill-hole CSV batch"
-              hintSw="Tia CSV ya mashimo ya kwanza"
+              hintSw={S.onboarding.hintDrillSw.sw}
               files={drillFiles}
               onChange={setDrillFiles}
             />
@@ -215,7 +222,7 @@ export default function OnboardingPage() {
               disabled={step === 0 || submitting}
               className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground hover:bg-surface disabled:opacity-40"
             >
-              Back / Rudi
+              {S.onboarding.backButton.both}
             </button>
             <button
               type="button"
@@ -224,7 +231,9 @@ export default function OnboardingPage() {
               className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-xs text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
             >
               {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {isFinal ? 'Finish / Maliza' : 'Next / Endelea'}
+              {isFinal
+                ? S.onboarding.finishButton.both
+                : S.onboarding.nextButton.both}
             </button>
           </div>
         </SectionCard>

@@ -43,6 +43,7 @@ import {
   useRecentlySpawnedTabTypes,
   type RecentTabType,
 } from './useRecentlySpawnedTabTypes';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 export interface SpawnTabMenuProps {
   readonly languagePreference: 'sw' | 'en';
@@ -64,43 +65,23 @@ interface MenuRow {
 }
 
 function copy(lang: 'sw' | 'en') {
-  if (lang === 'sw') {
-    return {
-      placeholder: 'Tafuta tab… (mfano: utii, hatari, hazina)',
-      recent: 'Hivi karibuni',
-      showAll: 'Onyesha zote',
-      hideAll: 'Onyesha za hivi karibuni tu',
-      allHelp: 'Aina zote 14 za tab',
-      emptyTitle: 'Bado hujafungua tab yoyote',
-      emptyHelp:
-        'Mwambie Bw. Mwikila unahitaji nini, na atafungua tab sahihi.',
-      askPlaceholder: 'mfano: onyesha NEMC ya Geita',
-      askSend: 'Tuma kwa Bw. Mwikila',
-      navigate: 'sogea',
-      open: 'fungua',
-      close: 'funga',
-      shortcut: 'Bonyeza Cmd+T kufungua haraka',
-      noMatch: 'Hakuna tab inayolingana',
-      footerHelp: 'Aina zote zinaonekana kwa "Onyesha zote".',
-    } as const;
-  }
+  const m = S.spawnMenu;
   return {
-    placeholder: 'Search a tab… (e.g. compliance, risk, treasury)',
-    recent: 'Recent',
-    showAll: 'Show all',
-    hideAll: 'Show recent only',
-    allHelp: 'All 14 tab types',
-    emptyTitle: 'No tabs spawned yet',
-    emptyHelp:
-      "Tell Mr. Mwikila what you need and he will open the right tab for you.",
-    askPlaceholder: 'e.g. show me NEMC for Geita',
-    askSend: 'Send to Mr. Mwikila',
-    navigate: 'navigate',
-    open: 'open',
-    close: 'close',
-    shortcut: 'Press Cmd+T to open quickly',
-    noMatch: 'No matching tab',
-    footerHelp: 'Full set is one click away under "Show all".',
+    placeholder: m.placeholder[lang],
+    recent: m.recent[lang],
+    showAll: m.showAll[lang],
+    hideAll: m.hideAll[lang],
+    allHelp: m.allHelp[lang],
+    emptyTitle: m.emptyTitle[lang],
+    emptyHelp: m.emptyHelp[lang],
+    askPlaceholder: m.askPlaceholder[lang],
+    askSend: m.askSend[lang],
+    navigate: m.navigate[lang],
+    open: m.open[lang],
+    close: m.close[lang],
+    shortcut: m.shortcut[lang],
+    noMatch: m.noMatch[lang],
+    footerHelp: m.footerHelp[lang],
   } as const;
 }
 
@@ -233,7 +214,9 @@ export function SpawnTabMenu({
       role="dialog"
       aria-modal="true"
       aria-label={
-        languagePreference === 'sw' ? 'Menyu ya kufungua tab' : 'Spawn tab menu'
+        languagePreference === 'sw'
+          ? S.spawnMenu.dialogLabel.sw
+          : S.spawnMenu.dialogLabel.en
       }
       onKeyDown={onKeyDown}
       data-testid="owner-os-spawn-menu"
@@ -241,7 +224,11 @@ export function SpawnTabMenu({
     >
       <button
         type="button"
-        aria-label={languagePreference === 'sw' ? 'Funga' : 'Close'}
+        aria-label={
+          languagePreference === 'sw'
+            ? S.spawnMenu.closeAria.sw
+            : S.spawnMenu.closeAria.en
+        }
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
@@ -263,7 +250,11 @@ export function SpawnTabMenu({
           <button
             type="button"
             onClick={onClose}
-            aria-label={languagePreference === 'sw' ? 'Funga' : 'Close'}
+            aria-label={
+              languagePreference === 'sw'
+                ? S.spawnMenu.closeAria.sw
+                : S.spawnMenu.closeAria.en
+            }
             className="rounded p-1 text-neutral-500 hover:bg-surface/60 hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
@@ -308,8 +299,8 @@ export function SpawnTabMenu({
           role="listbox"
           aria-label={
             languagePreference === 'sw'
-              ? 'Tabs zinazoweza kufunguliwa'
-              : 'Spawnable tabs'
+              ? S.spawnMenu.listboxLabel.sw
+              : S.spawnMenu.listboxLabel.en
           }
           className="m-0 max-h-96 overflow-y-auto p-2"
           data-testid={

@@ -16,6 +16,7 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { EntityTimeline, type TimelineEvent } from '../shared/EntityTimeline';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 export type DrawerEntityKind = 'reminder' | 'draft' | 'parcel' | 'bid';
 
@@ -30,12 +31,8 @@ interface EntityTimelineDrawerProps {
   readonly hideLegacy?: boolean;
 }
 
-const TITLE_BY_KIND: Record<DrawerEntityKind, { sw: string; en: string }> = {
-  reminder: { sw: 'Historia ya kumbukumbu', en: 'Reminder history' },
-  draft: { sw: 'Historia ya rasimu', en: 'Draft history' },
-  parcel: { sw: 'Historia ya parcel', en: 'Parcel history' },
-  bid: { sw: 'Historia ya zabuni', en: 'Bid history' },
-};
+const TITLE_BY_KIND: Record<DrawerEntityKind, { sw: string; en: string }> =
+  S.entityTimelineDrawer.titleByKind;
 
 export function EntityTimelineDrawer({
   open,
@@ -59,7 +56,7 @@ export function EntityTimelineDrawer({
   if (!open) return null;
 
   const title = TITLE_BY_KIND[entityKind][locale];
-  const closeLabel = locale === 'sw' ? 'Funga' : 'Close';
+  const closeLabel = locale === 'sw' ? S.entityTimelineDrawer.close.sw : S.entityTimelineDrawer.close.en;
 
   return (
     <div
@@ -98,7 +95,7 @@ export function EntityTimelineDrawer({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <EntityTimeline
             events={events}
-            title={locale === 'sw' ? 'Matukio' : 'Events'}
+            title={locale === 'sw' ? S.entityTimelineDrawer.events.sw : S.entityTimelineDrawer.events.en}
             hideLegacy={hideLegacy}
           />
         </div>

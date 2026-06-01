@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -29,10 +30,10 @@ const CliffBanner = dynamic(
 
 const TREASURY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'treasury',
-  labelEn: 'Treasury',
-  labelSw: 'Hazina',
-  descriptionEn: 'FX, gold window, hedging, BoT exposure and sell timing.',
-  descriptionSw: 'FX, dirisha la dhahabu, hedging, BoT na muda wa kuuza.',
+  labelEn: S.treasury.label.en,
+  labelSw: S.treasury.label.sw,
+  descriptionEn: S.treasury.description.en,
+  descriptionSw: S.treasury.description.sw,
   iconName: 'Wallet',
   color: 'gold',
   contextSchema: ownerOsTabContextSchema,
@@ -49,10 +50,7 @@ const TREASURY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'exposure',
       'sell order',
       'bot',
-      'hazina',
-      'kuuza',
-      'dhahabu',
-      'fedha',
+      ...S.treasury.swKeywords,
     ],
     comboBoost: [
       { phrases: ['fx', 'exposure'], boost: 0.2 },
@@ -62,13 +60,13 @@ const TREASURY_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'treasury.place-sell-order',
-      labelEn: 'Place sell order',
-      labelSw: 'Tengeneza order ya kuuza',
+      labelEn: S.treasury.toolPlaceSellOrder.en,
+      labelSw: S.treasury.toolPlaceSellOrder.sw,
     },
     {
       toolId: 'treasury.hedge-window',
-      labelEn: 'Hedge today window',
-      labelSw: 'Linda dirisha la leo',
+      labelEn: S.treasury.toolHedgeWindow.en,
+      labelSw: S.treasury.toolHedgeWindow.sw,
     },
   ],
   briefSlices: ['fx', 'cashflow'],
@@ -90,10 +88,10 @@ export function TreasuryPanel({
       <PanelHero
         icon={Wallet}
         color="gold"
-        titleEn="Treasury — FX & gold window"
-        titleSw="Hazina — FX na dirisha la dhahabu"
-        subtitleEn="Live FX sparkline, sell-vs-stockpile simulator, and the persistent USD-cliff tracker."
-        subtitleSw="Mkondo wa moja kwa moja wa FX, msimulator wa kuuza dhidi ya kuhifadhi, na mfumo wa USD-cliff."
+        titleEn={S.treasury.heroTitle.en}
+        titleSw={S.treasury.heroTitle.sw}
+        subtitleEn={S.treasury.heroSubtitle.en}
+        subtitleSw={S.treasury.heroSubtitle.sw}
         locale={locale}
       />
       <CliffBanner />

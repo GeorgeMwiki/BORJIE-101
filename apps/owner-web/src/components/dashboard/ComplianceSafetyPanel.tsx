@@ -2,6 +2,7 @@ import type {
   LicenceHealthSlot,
   OpenHighIncidentsSlot,
 } from '@/lib/queries/owner-brief';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface ComplianceSafetyPanelProps {
   readonly licenceHealth: LicenceHealthSlot;
@@ -28,7 +29,9 @@ export function ComplianceSafetyPanel({
       <article className="cockpit-card flex flex-col gap-3">
         <header>
           <h2 className="cockpit-card-title">Licence health</h2>
-          <p className="text-xs italic text-neutral-500">Afya ya leseni</p>
+          <p className="text-xs italic text-neutral-500">
+            {S.complianceSafetyPanel.licenceHealthSw.sw}
+          </p>
         </header>
         <div className="flex items-baseline gap-3">
           <span className="font-display text-3xl text-foreground">
@@ -88,7 +91,9 @@ export function ComplianceSafetyPanel({
       <article className="cockpit-card flex flex-col gap-3">
         <header>
           <h2 className="cockpit-card-title">High-severity incidents</h2>
-          <p className="text-xs italic text-neutral-500">Matukio mazito</p>
+          <p className="text-xs italic text-neutral-500">
+            {S.complianceSafetyPanel.incidentsSw.sw}
+          </p>
         </header>
         <div className="flex items-baseline gap-3">
           <span className="font-display text-3xl text-foreground">

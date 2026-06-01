@@ -10,13 +10,14 @@ import {
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'asset-register',
   labelEn: 'Asset register',
-  labelSw: 'Daftari ya Mali',
+  labelSw: S.assetRegister.descriptorLabel.sw,
   descriptionEn: 'Inventory, valuation, insurance, and encumbrances.',
-  descriptionSw: 'Orodha, thamini, bima, na mzigo wa mali.',
+  descriptionSw: S.assetRegister.descriptorDescription.sw,
   iconName: 'Database',
   color: 'success',
   contextSchema: ownerOsTabContextSchema,
@@ -31,10 +32,7 @@ const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
       'collateral',
       'property register',
       'asset list',
-      'daftari',
-      'mali',
-      'thamini',
-      'bima',
+      ...S.assetRegister.keywordsSw,
     ],
     patterns: [/asset\s+register|net\s+worth|asset\s+inventory/i],
     comboBoost: [
@@ -47,12 +45,12 @@ const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'estate.browse_assets',
       labelEn: 'Browse asset register',
-      labelSw: 'Karamu daftari ya mali',
+      labelSw: S.assetRegister.browseTool.sw,
     },
     {
       toolId: 'estate.net_worth_summary',
       labelEn: 'View net worth summary',
-      labelSw: 'Angalia muhtasari wa thamini halisi',
+      labelSw: S.assetRegister.netWorthTool.sw,
     },
   ],
   briefSlices: [],
@@ -73,18 +71,18 @@ export function AssetRegisterPanel({
         icon={Database}
         color="success"
         titleEn="Asset register — inventory and valuation"
-        titleSw="Daftari ya Mali — orodha na thamini"
+        titleSw={S.assetRegister.heroTitle.sw}
         subtitleEn="Maintain a complete register of assets, valuations, insurance, and encumbrances."
-        subtitleSw="Simamia daftari kamili ya mali, thamini, bima, na mzigo wa mali."
+        subtitleSw={S.assetRegister.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         titleEn="No assets registered yet"
-        titleSw="Hakuna mali iliyosajiliwa bado"
+        titleSw={S.assetRegister.emptyTitle.sw}
         descriptionEn="Add your assets to create a complete register and calculate net worth."
-        descriptionSw="Ongeza mali yako kutengeneza daftari kamili na kukamatia thamini halisi."
+        descriptionSw={S.assetRegister.emptyDescription.sw}
         ctaEn="Add asset"
-        ctaSw="Ongeza mali"
+        ctaSw={S.assetRegister.emptyCta.sw}
         locale={locale}
       />
     </section>

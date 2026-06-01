@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 type AgentToken = {
   readonly id: string;
@@ -29,18 +30,37 @@ function gatewayBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
+function bilingual(sw: string, en: string): string {
+  return `${sw} / ${en}`;
+}
+
 function formatRelative(input: string | null): string {
   if (!input) return '—';
   const then = new Date(input).getTime();
   if (Number.isNaN(then)) return input;
   const diff = Date.now() - then;
   const min = Math.round(diff / 60_000);
-  if (min < 1) return 'sasa hivi / just now';
-  if (min < 60) return `dakika ${min} zilizopita / ${min}m ago`;
+  if (min < 1) {
+    return bilingual(S.connectedAgentsList.relNow.sw, S.connectedAgentsList.relNow.en);
+  }
+  if (min < 60) {
+    return bilingual(
+      S.connectedAgentsList.relMinutesAgo.sw.replace('{n}', String(min)),
+      S.connectedAgentsList.relMinutesAgo.en.replace('{n}', String(min)),
+    );
+  }
   const hr = Math.round(min / 60);
-  if (hr < 24) return `saa ${hr} zilizopita / ${hr}h ago`;
+  if (hr < 24) {
+    return bilingual(
+      S.connectedAgentsList.relHoursAgo.sw.replace('{n}', String(hr)),
+      S.connectedAgentsList.relHoursAgo.en.replace('{n}', String(hr)),
+    );
+  }
   const day = Math.round(hr / 24);
-  return `siku ${day} zilizopita / ${day}d ago`;
+  return bilingual(
+    S.connectedAgentsList.relDaysAgo.sw.replace('{n}', String(day)),
+    S.connectedAgentsList.relDaysAgo.en.replace('{n}', String(day)),
+  );
 }
 
 export function ConnectedAgentsList() {
@@ -61,7 +81,10 @@ export function ConnectedAgentsList() {
       if (!res.ok || !json || !('success' in json) || !json.success) {
         const message =
           (json && 'error' in json && json.error?.message) ||
-          `Tatizo (HTTP ${res.status})`;
+          S.connectedAgentsList.httpProblem.sw.replace(
+            '{status}',
+            String(res.status),
+          );
         setState({ kind: 'error', message });
         return;
       }
@@ -71,7 +94,9 @@ export function ConnectedAgentsList() {
       setState({
         kind: 'error',
         message:
-          err instanceof Error ? err.message : 'Tatizo la mtandao',
+          err instanceof Error
+            ? err.message
+            : S.connectedAgentsList.networkError.sw,
       });
     }
   }, []);
@@ -81,9 +106,16 @@ export function ConnectedAgentsList() {
   }, [load]);
 
   async function handleRevoke(token: AgentToken) {
-    const ok = window.confirm(
-      `Ondoa idhini ya wakala "${token.clientLabel ?? token.clientId}"? Hatua hii haiwezi kutenduliwa.\n\nRevoke agent "${token.clientLabel ?? token.clientId}"? This cannot be undone.`,
+    const label = token.clientLabel ?? token.clientId;
+    const swConfirm = S.connectedAgentsList.revokeConfirm.sw.replace(
+      '{label}',
+      label,
     );
+    const enConfirm = S.connectedAgentsList.revokeConfirm.en.replace(
+      '{label}',
+      label,
+    );
+    const ok = window.confirm(`${swConfirm}\n\n${enConfirm}`);
     if (!ok) return;
     setRevoking(token.id);
     try {
@@ -101,9 +133,16 @@ export function ConnectedAgentsList() {
       );
       if (!res.ok && res.status !== 404) {
         const text = await res.text().catch(() => '');
-        window.alert(
-          `Tatizo: ${text || `HTTP ${res.status}`}. Jaribu tena. / Failed: ${text || `HTTP ${res.status}`}. Try again.`,
+        const detail = text || `HTTP ${res.status}`;
+        const swFail = S.connectedAgentsList.revokeFailed.sw.replace(
+          '{detail}',
+          detail,
         );
+        const enFail = S.connectedAgentsList.revokeFailed.en.replace(
+          '{detail}',
+          detail,
+        );
+        window.alert(`${swFail} / ${enFail}`);
         setRevoking(null);
         return;
       }
@@ -112,7 +151,10 @@ export function ConnectedAgentsList() {
       window.alert(
         err instanceof Error
           ? err.message
-          : 'Tatizo la mtandao / network error',
+          : bilingual(
+              S.connectedAgentsList.networkError.sw,
+              S.connectedAgentsList.networkError.en,
+            ),
       );
     } finally {
       setRevoking(null);
@@ -124,7 +166,7 @@ export function ConnectedAgentsList() {
       <div
         role="status"
         aria-live="polite"
-        aria-label="Inapakia mawakala / Loading agents"
+        aria-label={`${S.connectedAgentsList.loadingAria.sw} / ${S.connectedAgentsList.loadingAria.en}`}
         className="space-y-3"
       >
         {Array.from({ length: 3 }).map((_, i) => (
@@ -148,7 +190,7 @@ export function ConnectedAgentsList() {
           onClick={() => void load()}
           className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         >
-          Jaribu tena / Retry
+          {`${S.connectedAgentsList.retry.sw} / ${S.connectedAgentsList.retry.en}`}
         </button>
       </div>
     );
@@ -157,12 +199,12 @@ export function ConnectedAgentsList() {
     return (
       <div className="rounded border border-border bg-surface p-6 text-sm">
         <p className="text-foreground">
-          Hakuna wakala wa nje walioongezwa bado.
+          {S.connectedAgentsList.emptyTitle.sw}
         </p>
         <p className="mt-1 italic text-neutral-400">
-          No external agents are connected yet. When you authorize an
-          agent via <code className="text-foreground">/oauth/confirm</code>,
-          it will appear here.
+          {S.connectedAgentsList.emptyBody.en}{' '}
+          <code className="text-foreground">/oauth/confirm</code>, it will
+          appear here.
         </p>
       </div>
     );
@@ -193,15 +235,15 @@ export function ConnectedAgentsList() {
                 ))}
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-400">
-                <dt>Iliongezwa / Issued</dt>
+                <dt>{`${S.connectedAgentsList.issued.sw} / ${S.connectedAgentsList.issued.en}`}</dt>
                 <dd className="text-neutral-300">{formatRelative(token.issuedAt)}</dd>
-                <dt>Imetumika mwisho / Last used</dt>
+                <dt>{`${S.connectedAgentsList.lastUsed.sw} / ${S.connectedAgentsList.lastUsed.en}`}</dt>
                 <dd className="text-neutral-300">
                   {formatRelative(token.lastUsedAt)}
                 </dd>
                 {token.expiresAt && (
                   <>
-                    <dt>Inaisha / Expires</dt>
+                    <dt>{`${S.connectedAgentsList.expires.sw} / ${S.connectedAgentsList.expires.en}`}</dt>
                     <dd className="text-neutral-300">
                       {new Date(token.expiresAt).toLocaleString()}
                     </dd>
@@ -215,7 +257,9 @@ export function ConnectedAgentsList() {
               disabled={revoking === token.id}
               className="rounded border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
             >
-              {revoking === token.id ? 'Inaondoa…' : 'Ondoa / Revoke'}
+              {revoking === token.id
+                ? S.connectedAgentsList.revoking.sw
+                : `${S.connectedAgentsList.revoke.sw} / ${S.connectedAgentsList.revoke.en}`}
             </button>
           </div>
         </li>

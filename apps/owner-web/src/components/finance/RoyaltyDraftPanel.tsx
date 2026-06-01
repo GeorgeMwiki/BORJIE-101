@@ -11,10 +11,13 @@ import {
 import Link from 'next/link';
 import { fmtTzs } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface RoyaltyDraftPanelProps {
   readonly locale?: 'sw' | 'en';
 }
+
+type CutOffKey = 'royaltyCutOff7d' | 'royaltySignedYesterday';
 
 interface DraftRow {
   readonly id: string;
@@ -23,8 +26,7 @@ interface DraftRow {
   readonly grossTzs: number;
   readonly royaltyTzs: number;
   readonly status: 'draft' | 'reviewing' | 'signed' | 'submitted';
-  readonly cutOffEn: string;
-  readonly cutOffSw: string;
+  readonly cutOff: CutOffKey;
 }
 
 // Curated April-26 draft until the live `/royalties/draft` endpoint
@@ -37,8 +39,7 @@ const APRIL_DRAFTS: ReadonlyArray<DraftRow> = [
     grossTzs: 412_000_000,
     royaltyTzs: 24_720_000,
     status: 'draft',
-    cutOffEn: 'Cut-off in 7 days',
-    cutOffSw: 'Siku 7 zimebaki',
+    cutOff: 'royaltyCutOff7d',
   },
   {
     id: 'gold-kakola',
@@ -47,8 +48,7 @@ const APRIL_DRAFTS: ReadonlyArray<DraftRow> = [
     grossTzs: 198_000_000,
     royaltyTzs: 11_880_000,
     status: 'reviewing',
-    cutOffEn: 'Cut-off in 7 days',
-    cutOffSw: 'Siku 7 zimebaki',
+    cutOff: 'royaltyCutOff7d',
   },
   {
     id: 'coltan-mbeya',
@@ -57,8 +57,7 @@ const APRIL_DRAFTS: ReadonlyArray<DraftRow> = [
     grossTzs: 64_500_000,
     royaltyTzs: 1_935_000,
     status: 'draft',
-    cutOffEn: 'Cut-off in 7 days',
-    cutOffSw: 'Siku 7 zimebaki',
+    cutOff: 'royaltyCutOff7d',
   },
   {
     id: 'gemstones-arusha',
@@ -67,8 +66,7 @@ const APRIL_DRAFTS: ReadonlyArray<DraftRow> = [
     grossTzs: 18_400_000,
     royaltyTzs: 552_000,
     status: 'signed',
-    cutOffEn: 'Signed yesterday',
-    cutOffSw: 'Saini jana',
+    cutOff: 'royaltySignedYesterday',
   },
 ];
 
@@ -76,27 +74,27 @@ function statusTone(status: DraftRow['status']) {
   if (status === 'submitted') {
     return {
       pill: 'border-success/40 bg-success/10 text-success',
-      label: { en: 'Submitted', sw: 'Imepelekwa' },
+      label: S.royaltyStatusSubmitted,
       icon: CheckCircle2,
     };
   }
   if (status === 'signed') {
     return {
       pill: 'border-info/40 bg-info/10 text-info',
-      label: { en: 'Signed', sw: 'Imesainiwa' },
+      label: S.royaltyStatusSigned,
       icon: PenLine,
     };
   }
   if (status === 'reviewing') {
     return {
       pill: 'border-warning/40 bg-warning/10 text-warning',
-      label: { en: 'In review', sw: 'Inakaguliwa' },
+      label: S.royaltyStatusReviewing,
       icon: Clock,
     };
   }
   return {
     pill: 'border-border bg-surface text-neutral-300',
-    label: { en: 'Draft', sw: 'Rasimu' },
+    label: S.royaltyStatusDraft,
     icon: PenLine,
   };
 }
@@ -128,29 +126,35 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
 
   const metrics: readonly MetricTile[] = [
     {
-      label: isSw ? 'Mauzo ya April' : 'April gross sales',
+      label: isSw ? S.royaltyMetricGrossLabel.sw : S.royaltyMetricGrossLabel.en,
       value: fmtTzs(totals.gross),
-      sub: isSw ? `Kabla ya ${'mraba' + 'ha'}` : 'Pre-royalty top line',
+      sub: isSw ? S.royaltyMetricGrossSub.sw : S.royaltyMetricGrossSub.en,
       icon: Calculator,
     },
     {
-      label: isSw ? 'Mrabaha wa April' : 'April royalty draft',
+      label: isSw
+        ? S.royaltyMetricRoyaltyLabel.sw
+        : S.royaltyMetricRoyaltyLabel.en,
       value: fmtTzs(totals.royalty),
-      sub: isSw ? 'Itapelekwa Mining Commission' : 'Owed to Mining Commission',
+      sub: isSw ? S.royaltyMetricRoyaltySub.sw : S.royaltyMetricRoyaltySub.en,
       icon: ArrowRight,
       tone: 'warning',
     },
     {
-      label: isSw ? 'Rasimu zinasubiri' : 'Drafts pending',
+      label: isSw
+        ? S.royaltyMetricDraftsLabel.sw
+        : S.royaltyMetricDraftsLabel.en,
       value: String(drafts),
-      sub: isSw ? 'Zinahitaji saini' : 'Need signature',
+      sub: isSw ? S.royaltyMetricDraftsSub.sw : S.royaltyMetricDraftsSub.en,
       icon: PenLine,
       tone: drafts > 0 ? 'warning' : 'success',
     },
     {
-      label: isSw ? 'Zilizosainiwa' : 'Signed',
+      label: isSw
+        ? S.royaltyMetricSignedLabel.sw
+        : S.royaltyMetricSignedLabel.en,
       value: String(signed),
-      sub: isSw ? 'Tayari kwa kutuma' : 'Ready to submit',
+      sub: isSw ? S.royaltyMetricSignedSub.sw : S.royaltyMetricSignedSub.en,
       icon: CheckCircle2,
       tone: 'success',
     },
@@ -164,28 +168,36 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              {isSw ? `Rasimu ya ${'mraba' + 'ha'} - April 2026` : 'Royalty draft - April 2026'}
+              {isSw ? S.royaltyPanelTitle.sw : S.royaltyPanelTitle.en}
             </h2>
             <p className="text-xs text-neutral-400">
-              {isSw
-                ? 'Kila madini kwa kiwango chake cha kisheria'
-                : 'Each mineral at its statutory rate'}
+              {isSw ? S.royaltyPanelSubtitle.sw : S.royaltyPanelSubtitle.en}
             </p>
           </div>
           <Link
             href="/finance/royalties/sign"
             className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-3 py-1.5 text-xs font-semibold text-background hover:bg-signal-400"
           >
-            {isSw ? 'Saini batch' : 'Sign the batch'}
+            {isSw ? S.royaltySignBatch.sw : S.royaltySignBatch.en}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
         <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-          <div className="col-span-4">{isSw ? 'Madini / Mgodi' : 'Mineral / site'}</div>
-          <div className="col-span-1">{isSw ? 'Kiwango' : 'Rate'}</div>
-          <div className="col-span-2 text-right">{isSw ? 'Mauzo' : 'Gross'}</div>
-          <div className="col-span-2 text-right">{isSw ? 'Mrabaha' : 'Royalty'}</div>
-          <div className="col-span-3 text-right">{isSw ? 'Hali' : 'Status'}</div>
+          <div className="col-span-4">
+            {isSw ? S.royaltyColMineral.sw : S.royaltyColMineral.en}
+          </div>
+          <div className="col-span-1">
+            {isSw ? S.royaltyColRate.sw : S.royaltyColRate.en}
+          </div>
+          <div className="col-span-2 text-right">
+            {isSw ? S.royaltyColGross.sw : S.royaltyColGross.en}
+          </div>
+          <div className="col-span-2 text-right">
+            {isSw ? S.royaltyColRoyalty.sw : S.royaltyColRoyalty.en}
+          </div>
+          <div className="col-span-3 text-right">
+            {isSw ? S.royaltyColStatus.sw : S.royaltyColStatus.en}
+          </div>
         </div>
         <ul className="divide-y divide-border/60">
           {APRIL_DRAFTS.map((row) => {
@@ -201,7 +213,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
                     {row.mineral}
                   </div>
                   <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-neutral-500">
-                    {isSw ? row.cutOffSw : row.cutOffEn}
+                    {isSw ? S[row.cutOff].sw : S[row.cutOff].en}
                   </div>
                 </div>
                 <div className="col-span-1 text-xs text-neutral-300">

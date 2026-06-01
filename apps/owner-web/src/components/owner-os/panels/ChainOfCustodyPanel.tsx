@@ -11,6 +11,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ChainOfCustodyShell = dynamic(
   () =>
@@ -23,11 +24,10 @@ const ChainOfCustodyShell = dynamic(
 const CHAIN_OF_CUSTODY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'chain-of-custody',
   labelEn: 'Chain of custody',
-  labelSw: 'Mlolongo wa Mali',
+  labelSw: S.chainOfCustody.descriptorLabel.sw,
   descriptionEn:
     'Pit-to-buyer custody trail per ore parcel, hash-chain-audited so the regulator can verify it.',
-  descriptionSw:
-    'Mlolongo wa kifurushi kutoka shimo hadi mnunuzi, wenye ukaguzi wa hash-chain.',
+  descriptionSw: S.chainOfCustody.descriptorDescription.sw,
   iconName: 'LinkIcon',
   color: 'success',
   contextSchema: ownerOsTabContextSchema,
@@ -39,8 +39,7 @@ const CHAIN_OF_CUSTODY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'pit to buyer',
       'shipment trail',
       'audit trail',
-      'mlolongo',
-      'kifurushi',
+      ...S.chainOfCustody.keywordsSw,
     ],
     comboBoost: [{ phrases: ['parcel', 'where'], boost: 0.25 }],
   },
@@ -48,7 +47,7 @@ const CHAIN_OF_CUSTODY_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'ops.chain_of_custody.track',
       labelEn: 'Track parcel',
-      labelSw: 'Fuatilia kifurushi',
+      labelSw: S.chainOfCustody.trackTool.sw,
     },
   ],
   briefSlices: ['audit-trail', 'marketplace'],
@@ -71,9 +70,9 @@ export function ChainOfCustodyPanel({
         icon={LinkIcon}
         color="success"
         titleEn="Chain of custody"
-        titleSw="Mlolongo wa Mali"
+        titleSw={S.chainOfCustody.heroTitle.sw}
         subtitleEn="Every step of a parcel from pit-stockpile to exporter, sealed by sha-256 hash."
-        subtitleSw="Kila hatua ya kifurushi kutoka shimo hadi mnunuzi, imesalishwa kwa sha-256."
+        subtitleSw={S.chainOfCustody.heroSubtitle.sw}
         locale={locale}
       />
       <ChainOfCustodyShell />

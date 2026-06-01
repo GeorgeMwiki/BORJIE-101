@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 type DeviceDetails = {
   readonly client_id: string;
@@ -33,26 +34,21 @@ function gatewayBaseUrl(): string {
 }
 
 const SCOPE_LABELS_EN: Readonly<Record<string, string>> = {
-  'owner:read':
-    'Read cockpit data (drafts, reminders, decisions, entities)',
-  'owner:write': 'Create or update owner data (excluding money)',
-  'owner:draft': 'Create, edit, and lock document drafts',
-  'owner:reminders': 'Schedule reminders for you',
-  'owner:share': 'Generate share links to your data',
-  'admin:read': 'Read internal admin data (Borjie team only)',
+  'owner:read': S.oauthConfirm.scopeOwnerRead.en,
+  'owner:write': S.oauthConfirm.scopeOwnerWrite.en,
+  'owner:draft': S.oauthConfirm.scopeOwnerDraft.en,
+  'owner:reminders': S.oauthConfirm.scopeOwnerReminders.en,
+  'owner:share': S.oauthConfirm.scopeOwnerShare.en,
+  'admin:read': S.oauthConfirm.scopeAdminRead.en,
 };
 
 const SCOPE_LABELS_SW: Readonly<Record<string, string>> = {
-  'owner:read':
-    'Soma data ya cockpit (rasimu, vikumbusho, maamuzi, vitu)',
-  'owner:write':
-    'Tengeneza au sasisha data ya mmiliki (bila kuhusisha pesa)',
-  'owner:draft': 'Tengeneza, hariri, na funga rasimu za nyaraka',
-  'owner:reminders': 'Panga vikumbusho kwa ajili yako',
-  'owner:share':
-    'Tengeneza viungo vya kushiriki data yako',
-  'admin:read':
-    'Soma data ya msimamizi wa ndani (Borjie team only)',
+  'owner:read': S.oauthConfirm.scopeOwnerRead.sw,
+  'owner:write': S.oauthConfirm.scopeOwnerWrite.sw,
+  'owner:draft': S.oauthConfirm.scopeOwnerDraft.sw,
+  'owner:reminders': S.oauthConfirm.scopeOwnerReminders.sw,
+  'owner:share': S.oauthConfirm.scopeOwnerShare.sw,
+  'admin:read': S.oauthConfirm.scopeAdminRead.sw,
 };
 
 export function OAuthConfirmPanel() {
@@ -82,7 +78,7 @@ export function OAuthConfirmPanel() {
           const message =
             (json && 'error_description' in json && json.error_description) ||
             (json && 'error' in json && json.error) ||
-            `Tatizo la mawasiliano (HTTP ${res.status})`;
+            S.oauthConfirm.commProblem.sw.replace('{status}', String(res.status));
           setPhase({ kind: 'error', message });
           return;
         }
@@ -94,7 +90,7 @@ export function OAuthConfirmPanel() {
           message:
             err instanceof Error
               ? err.message
-              : 'Tatizo la mtandao — jaribu tena',
+              : S.oauthConfirm.networkRetry.sw,
         });
       }
     })();
@@ -148,7 +144,7 @@ export function OAuthConfirmPanel() {
         const message =
           (json && 'error_description' in json && json.error_description) ||
           (json && 'error' in json && json.error) ||
-          `Tatizo (HTTP ${res.status})`;
+          S.oauthConfirm.httpProblem.sw.replace('{status}', String(res.status));
         setPhase({ kind: 'error', message });
         return;
       }
@@ -157,7 +153,7 @@ export function OAuthConfirmPanel() {
       setPhase({
         kind: 'error',
         message:
-          err instanceof Error ? err.message : 'Tatizo la mtandao',
+          err instanceof Error ? err.message : S.oauthConfirm.networkError.sw,
       });
     }
   }
@@ -188,7 +184,7 @@ export function OAuthConfirmPanel() {
       setPhase({
         kind: 'error',
         message:
-          err instanceof Error ? err.message : 'Tatizo la mtandao',
+          err instanceof Error ? err.message : S.oauthConfirm.networkError.sw,
       });
     }
   }
@@ -201,15 +197,13 @@ export function OAuthConfirmPanel() {
           Authorize external agent
         </h1>
         <p className="mt-0.5 text-sm italic text-neutral-500">
-          Idhinisha wakala wa nje
+          {S.oauthConfirm.headerTagline.sw}
         </p>
       </header>
 
       {phase.kind === 'missing-code' && (
         <p className="text-sm text-destructive">
-          Hakuna msimbo wa mtumiaji. Hakikisha umetumia kiunganisho
-          alichokupa wakala. (No user code provided — make sure you used
-          the link the agent gave you.)
+          {`${S.oauthConfirm.missingCode.sw} (${S.oauthConfirm.missingCode.en})`}
         </p>
       )}
 
@@ -217,7 +211,7 @@ export function OAuthConfirmPanel() {
         <div
           role="status"
           aria-live="polite"
-          aria-label="Inapakia maelezo ya wakala / Loading agent details"
+          aria-label={`${S.oauthConfirm.loadingAria.sw} / ${S.oauthConfirm.loadingAria.en}`}
           className="space-y-3"
         >
           <div className="h-6 w-2/3 animate-pulse rounded bg-surface-raised" />
@@ -249,22 +243,25 @@ export function OAuthConfirmPanel() {
       {phase.kind === 'approved' && (
         <div className="rounded border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm">
           <p className="text-foreground">
-            Imeidhinishwa. Wakala anaweza kufanya kazi sasa.
+            {S.oauthConfirm.approvedTitle.sw}
           </p>
           <p className="mt-1 italic text-neutral-400">
-            Approved. The agent can now act on your behalf.
+            {S.oauthConfirm.approvedBody.en}
           </p>
           <p className="mt-2 text-xs text-neutral-500">
-            Inaelekeza kwenye orodha ya wakala katika sekunde {Math.max(0, phase.countdown)} …
+            {S.oauthConfirm.approvedRedirect.sw.replace(
+              '{n}',
+              String(Math.max(0, phase.countdown)),
+            )}
           </p>
         </div>
       )}
 
       {phase.kind === 'denied' && (
         <div className="rounded border border-border bg-background p-4 text-sm">
-          <p className="text-foreground">Umekataa ombi.</p>
+          <p className="text-foreground">{S.oauthConfirm.deniedTitle.sw}</p>
           <p className="mt-1 italic text-neutral-400">
-            You denied the request. The device will not receive a token.
+            {S.oauthConfirm.deniedBody.en}
           </p>
         </div>
       )}
@@ -284,7 +281,9 @@ function ConsentBody(props: {
   return (
     <div className="space-y-5">
       <section className="rounded border border-border bg-background p-4">
-        <div className="text-xs text-neutral-500">Wakala / Agent</div>
+        <div className="text-xs text-neutral-500">
+          {`${S.oauthConfirm.agentLabel.sw} / ${S.oauthConfirm.agentLabel.en}`}
+        </div>
         <div className="mt-0.5 font-display text-lg text-foreground">
           {details.client_label || details.client_id || 'Agent'}
         </div>
@@ -292,19 +291,19 @@ function ConsentBody(props: {
           client_id: {details.client_id}
         </div>
         <div className="mt-2 text-xs text-neutral-500">
-          Msimbo / Code:{' '}
+          {`${S.oauthConfirm.codeLabel.sw} / ${S.oauthConfirm.codeLabel.en}`}:{' '}
           <span className="font-mono text-foreground">{userCode}</span>
         </div>
       </section>
 
       <section>
         <div className="text-xs text-neutral-500">
-          Anaomba ruhusa zifuatazo / Requests the following permissions
+          {`${S.oauthConfirm.requestsPermissions.sw} / ${S.oauthConfirm.requestsPermissions.en}`}
         </div>
         <ul className="mt-2 space-y-2">
           {scopes.length === 0 && (
             <li className="text-sm text-neutral-400">
-              Hakuna ruhusa maalum (no specific scopes requested)
+              {`${S.oauthConfirm.noScopes.sw} (${S.oauthConfirm.noScopes.en})`}
             </li>
           )}
           {scopes.map((s) => (
@@ -325,9 +324,9 @@ function ConsentBody(props: {
       </section>
 
       <p className="text-xs text-neutral-500">
-        Unaweza kuondoa idhini wakati wowote kutoka{' '}
-        <code className="text-foreground">/settings/connected-agents</code>.
-        You can revoke this at any time from Settings → Connected agents.
+        {S.oauthConfirm.revokeNoteSwPrefix.sw}{' '}
+        <code className="text-foreground">/settings/connected-agents</code>.{' '}
+        {S.oauthConfirm.revokeNoteEn.en}
       </p>
 
       <div className="flex gap-3">
@@ -337,7 +336,7 @@ function ConsentBody(props: {
           disabled={busy}
           className="flex-1 rounded bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
         >
-          Idhinisha / Approve
+          {`${S.oauthConfirm.approve.sw} / ${S.oauthConfirm.approve.en}`}
         </button>
         <button
           type="button"
@@ -345,7 +344,7 @@ function ConsentBody(props: {
           disabled={busy}
           className="flex-1 rounded border border-border bg-background px-4 py-2 text-sm text-foreground hover:bg-surface disabled:opacity-50"
         >
-          Kataa / Deny
+          {`${S.oauthConfirm.deny.sw} / ${S.oauthConfirm.deny.en}`}
         </button>
       </div>
     </div>

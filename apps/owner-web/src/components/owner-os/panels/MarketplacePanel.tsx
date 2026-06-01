@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -22,10 +23,10 @@ const MarketplaceBoard = dynamic(
 
 const MARKETPLACE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'marketplace',
-  labelEn: 'Marketplace',
-  labelSw: 'Soko',
-  descriptionEn: 'Ore parcels, vetted buyers, LBMA grading and bid matching.',
-  descriptionSw: 'Mizigo ya madini, wanunuzi waliokaguliwa, daraja la LBMA na ulinganishaji.',
+  labelEn: S.marketplace.label.en,
+  labelSw: S.marketplace.label.sw,
+  descriptionEn: S.marketplace.description.en,
+  descriptionSw: S.marketplace.description.sw,
   iconName: 'Gem',
   color: 'navy',
   contextSchema: ownerOsTabContextSchema,
@@ -41,9 +42,7 @@ const MARKETPLACE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'grade',
       'lbma',
       'ica',
-      'soko',
-      'mzigo',
-      'mnunuzi',
+      ...S.marketplace.swKeywords,
     ],
     comboBoost: [
       { phrases: ['list', 'parcel'], boost: 0.2 },
@@ -53,13 +52,13 @@ const MARKETPLACE_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'marketplace.list-parcel',
-      labelEn: 'List new ore parcel',
-      labelSw: 'Tangaza mzigo mpya',
+      labelEn: S.marketplace.toolListParcel.en,
+      labelSw: S.marketplace.toolListParcel.sw,
     },
     {
       toolId: 'marketplace.compare-prices',
-      labelEn: 'Compare prices',
-      labelSw: 'Linganisha bei',
+      labelEn: S.marketplace.toolComparePrices.en,
+      labelSw: S.marketplace.toolComparePrices.sw,
     },
   ],
   briefSlices: ['marketplace', 'inventory'],
@@ -81,10 +80,10 @@ export function MarketplacePanel({
       <PanelHero
         icon={Gem}
         color="navy"
-        titleEn="Marketplace"
-        titleSw="Soko"
-        subtitleEn="Live ore-parcel board with vetted buyers, LBMA-graded gold parcels and ICA-graded gemstones."
-        subtitleSw="Ubao wa moja kwa moja wa mizigo ya madini wenye wanunuzi waliokaguliwa, dhahabu ya LBMA na vito vya ICA."
+        titleEn={S.marketplace.heroTitle.en}
+        titleSw={S.marketplace.heroTitle.sw}
+        subtitleEn={S.marketplace.heroSubtitle.en}
+        subtitleSw={S.marketplace.heroSubtitle.sw}
         locale={locale}
       />
       <MarketplaceBoard locale={locale} />

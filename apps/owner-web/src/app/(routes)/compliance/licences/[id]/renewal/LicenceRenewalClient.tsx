@@ -14,6 +14,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import {
+  routesAStrings as S,
+  renewalStartSummary,
+} from '@/i18n/strings/routes-a';
 
 interface LicenceRenewalView {
   readonly licence: {
@@ -44,20 +48,20 @@ interface LicenceRenewalView {
 }
 
 const STAGE_LABEL_SW: Readonly<Record<LicenceRenewalView['stage'], string>> = {
-  no_action: 'Hakuna hatua',
-  reminder: 'Kukumbushwa',
-  drafting: 'Rasimu inaandikwa',
-  awaiting_owner: 'Inasubiri mmiliki',
-  submitted: 'Imewasilishwa',
-  renewed: 'Imeshapyishwa',
+  no_action: S.renewalClient.stageNoAction.sw,
+  reminder: S.renewalClient.stageReminder.sw,
+  drafting: S.renewalClient.stageDrafting.sw,
+  awaiting_owner: S.renewalClient.stageAwaitingOwner.sw,
+  submitted: S.renewalClient.stageSubmitted.sw,
+  renewed: S.renewalClient.stageRenewed.sw,
 };
 const STAGE_LABEL_EN: Readonly<Record<LicenceRenewalView['stage'], string>> = {
-  no_action: 'No action',
-  reminder: 'Reminder',
-  drafting: 'Drafting',
-  awaiting_owner: 'Awaiting owner',
-  submitted: 'Submitted',
-  renewed: 'Renewed',
+  no_action: S.renewalClient.stageNoAction.en,
+  reminder: S.renewalClient.stageReminder.en,
+  drafting: S.renewalClient.stageDrafting.en,
+  awaiting_owner: S.renewalClient.stageAwaitingOwner.en,
+  submitted: S.renewalClient.stageSubmitted.en,
+  renewed: S.renewalClient.stageRenewed.en,
 };
 
 interface ApiResponse<T> {
@@ -130,14 +134,12 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       'POST',
       `/compliance/licences/${licenceId}/start-renewal`,
       {
-        summary: isSwahili
-          ? `Upyaji wa leseni ${view?.licence.number ?? ''} umeanza`
-          : `Renewal for ${view?.licence.number ?? 'licence'} started`,
+        summary: renewalStartSummary(isSwahili, view?.licence.number ?? ''),
       },
     );
     setLoading(false);
     if (res.success) {
-      setMessage(isSwahili ? 'Rasimu imefunguliwa' : 'Draft opened');
+      setMessage(isSwahili ? S.renewalClient.draftOpened.sw : S.renewalClient.draftOpened.en);
       await load();
     } else {
       setError(res.error ?? 'Failed to start renewal');
@@ -148,8 +150,8 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
     if (!submissionRef.trim()) {
       setError(
         isSwahili
-          ? 'Tafadhali ingiza kumbukumbu ya uwasilishaji'
-          : 'Submission reference required',
+          ? S.renewalClient.submissionRefRequired.sw
+          : S.renewalClient.submissionRefRequired.en,
       );
       return;
     }
@@ -168,7 +170,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
     setLoading(false);
     if (res.success) {
       setMessage(
-        isSwahili ? 'Upyaji umewasilishwa' : 'Renewal submitted to regulator',
+        isSwahili
+          ? S.renewalClient.renewalSubmitted.sw
+          : S.renewalClient.renewalSubmitted.en,
       );
       setSubmissionRef('');
       setRenewalDocUrl('');
@@ -183,7 +187,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
   if (loading && !view) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
-        {isSwahili ? 'Inapakia…' : 'Loading…'}
+        {isSwahili ? S.renewalClient.loading.sw : S.renewalClient.loading.en}
       </div>
     );
   }
@@ -191,7 +195,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
     return (
       <div className="rounded-2xl border border-rose-700/40 bg-rose-950/30 p-6 text-sm text-rose-200">
         {error ??
-          (isSwahili ? 'Leseni haijapatikana' : 'Licence not found')}
+          (isSwahili
+            ? S.renewalClient.licenceNotFound.sw
+            : S.renewalClient.licenceNotFound.en)}
       </div>
     );
   }
@@ -201,7 +207,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:grid-cols-3">
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Aina' : 'Kind'}
+            {isSwahili ? S.renewalClient.kind.sw : S.renewalClient.kind.en}
           </p>
           <p className="text-lg font-semibold text-slate-100">
             {view.licence.kind}
@@ -209,7 +215,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Namba' : 'Number'}
+            {isSwahili ? S.renewalClient.number.sw : S.renewalClient.number.en}
           </p>
           <p className="text-lg font-semibold text-slate-100">
             {view.licence.number}
@@ -217,7 +223,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Madini' : 'Mineral'}
+            {isSwahili ? S.renewalClient.mineral.sw : S.renewalClient.mineral.en}
           </p>
           <p className="text-lg font-semibold text-slate-100">
             {view.licence.mineral}
@@ -225,7 +231,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Tarehe ya kumalizika' : 'Expiry'}
+            {isSwahili ? S.renewalClient.expiry.sw : S.renewalClient.expiry.en}
           </p>
           <p className="text-base font-medium text-slate-100">
             {view.licence.expiryDate ?? '—'}
@@ -233,7 +239,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Siku zilizobaki' : 'Days remaining'}
+            {isSwahili
+              ? S.renewalClient.daysRemaining.sw
+              : S.renewalClient.daysRemaining.en}
           </p>
           <p className="text-base font-medium text-slate-100">
             {view.daysUntilExpiry ?? '—'}
@@ -241,7 +249,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
         <div>
           <p className="text-xs uppercase text-slate-500">
-            {isSwahili ? 'Hatua' : 'Stage'}
+            {isSwahili ? S.renewalClient.stage.sw : S.renewalClient.stage.en}
           </p>
           <p className="text-base font-medium text-signal-300">
             {stageLabel[view.stage]}
@@ -263,19 +271,23 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       {(view.stage === 'no_action' || view.stage === 'reminder') && (
         <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
           <h2 className="text-base font-semibold text-slate-100">
-            {isSwahili ? 'Anzisha rasimu' : 'Start the renewal draft'}
+            {isSwahili
+              ? S.renewalClient.startDraftHeading.sw
+              : S.renewalClient.startDraftHeading.en}
           </h2>
           <p className="mt-1 text-sm text-slate-400">
             {isSwahili
-              ? 'Mr. Mwikila ataandaa rasimu ya hati za upyaji kulingana na maelezo ya leseni.'
-              : "Mr. Mwikila will assemble the renewal docs from the licence's profile."}
+              ? S.renewalClient.startDraftBody.sw
+              : S.renewalClient.startDraftBody.en}
           </p>
           <button
             onClick={() => void start()}
             disabled={loading}
             className="mt-4 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
           >
-            {isSwahili ? 'Anzisha upyaji' : 'Start renewal'}
+            {isSwahili
+              ? S.renewalClient.startRenewalCta.sw
+              : S.renewalClient.startRenewalCta.en}
           </button>
         </section>
       )}
@@ -284,17 +296,19 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
           <h2 className="text-base font-semibold text-slate-100">
             {isSwahili
-              ? 'Wasilisha kwa msimamizi'
-              : 'Submit to the regulator'}
+              ? S.renewalClient.submitToRegulatorHeading.sw
+              : S.renewalClient.submitToRegulatorHeading.en}
           </h2>
           <p className="mt-1 text-sm text-slate-400">
             {isSwahili
-              ? 'Andika nambari ya kumbukumbu ya msimamizi na (hiari) URL ya hati ya upyaji.'
-              : 'Enter the regulator reference and (optional) the renewal document URL.'}
+              ? S.renewalClient.submitToRegulatorBody.sw
+              : S.renewalClient.submitToRegulatorBody.en}
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <label className="text-sm text-slate-300">
-              {isSwahili ? 'Kumbukumbu' : 'Submission reference'}
+              {isSwahili
+                ? S.renewalClient.submissionReferenceLabel.sw
+                : S.renewalClient.submissionReferenceLabel.en}
               <input
                 value={submissionRef}
                 onChange={(e) => setSubmissionRef(e.target.value)}
@@ -303,7 +317,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
               />
             </label>
             <label className="text-sm text-slate-300">
-              {isSwahili ? 'URL ya hati' : 'Renewal doc URL'}
+              {isSwahili
+                ? S.renewalClient.renewalDocUrlLabel.sw
+                : S.renewalClient.renewalDocUrlLabel.en}
               <input
                 value={renewalDocUrl}
                 onChange={(e) => setRenewalDocUrl(e.target.value)}
@@ -318,7 +334,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
               disabled={loading}
               className="rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
             >
-              {isSwahili ? 'Wasilisha' : 'Submit renewal'}
+              {isSwahili
+                ? S.renewalClient.submitRenewalCta.sw
+                : S.renewalClient.submitRenewalCta.en}
             </button>
           </div>
         </section>
@@ -327,8 +345,8 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       {(view.stage === 'submitted' || view.stage === 'renewed') && (
         <section className="rounded-2xl border border-emerald-800 bg-emerald-950/30 p-6 text-sm text-emerald-200">
           {isSwahili
-            ? 'Upyaji umekamilika. Hati imewekwa kwenye `licences.fees.renewal_doc_url`.'
-            : 'Renewal complete. Document stamped onto `licences.fees.renewal_doc_url`.'}
+            ? S.renewalClient.renewalComplete.sw
+            : S.renewalClient.renewalComplete.en}
         </section>
       )}
     </div>

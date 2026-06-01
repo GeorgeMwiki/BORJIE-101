@@ -1,120 +1,17 @@
 /**
  * BASELINE allowlist for the locale-purity guard.
  *
- * Every entry is an owner-web source file that STILL hardcodes Swahili
- * and has not yet been migrated to `t()`. This list is a debt ledger:
- * it may only SHRINK. When you migrate a file, delete its line here; the
- * guard test fails if a listed file no longer leaks (stale entry) or if
- * an unlisted file starts leaking (new mixing). Target: [].
+ * Every entry WAS an owner-web source file that hardcoded Swahili and
+ * had not yet been migrated. This list is a debt ledger: it may only
+ * SHRINK. The guard test fails if a listed file no longer leaks (stale
+ * entry) or if an unlisted file starts leaking (new mixing).
  *
- * Baseline 2026-05-31 (116). Migrated: entry trio + shell + command
- * palette → 105. Chrome leak sweep: FeedbackButton + SignOutButton +
- * OwnerOSRemindersPanel → 103. Do not add new entries to silence the
- * guard.
+ * Baseline 2026-05-31 (116) → chrome sweep (103) → full migration: 0.
+ * Every owner-web Swahili literal now lives under `src/i18n/` (the dict
+ * or `src/i18n/strings/*` modules), which the guard exempts.
+ *
+ * KEEP THIS AT []. Do NOT add entries to silence the guard — route any
+ * new bilingual copy through the i18n dictionaries / strings modules.
  */
 
-export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
-  'app/(routes)/cockpit/page.tsx',
-  'app/(routes)/compliance/licences/[id]/renewal/LicenceRenewalClient.tsx',
-  'app/(routes)/compliance/licences/[id]/renewal/page.tsx',
-  'app/(routes)/document-intelligence/page.tsx',
-  'app/(routes)/estate/page.tsx',
-  'app/(routes)/finance/page.tsx',
-  'app/(routes)/fleet/maintenance/page.tsx',
-  'app/(routes)/marketplace/inbound/[rfbId]/page.tsx',
-  'app/(routes)/mwikila/delegation/delegation-matrix.tsx',
-  'app/(routes)/mwikila/delegation/page.tsx',
-  'app/(routes)/mwikila/inbox/page.tsx',
-  'app/(routes)/onboarding/page.tsx',
-  'app/(routes)/payroll/page.tsx',
-  'app/(routes)/personal-kb/[personId]/personal-kb-detail-panel.tsx',
-  'app/(routes)/personal-kb/personal-kb-panel.tsx',
-  'app/(routes)/reports/page.tsx',
-  'app/(routes)/settings/connected-agents/connected-agents-list.tsx',
-  'app/(routes)/settings/connected-agents/page.tsx',
-  'app/(routes)/settings/jurisdiction/jurisdiction-settings.tsx',
-  'app/(routes)/settings/jurisdiction/page.tsx',
-  'app/(routes)/settings/saved-searches/saved-searches-panel.tsx',
-  'app/(routes)/site-cockpit/page.tsx',
-  'app/(routes)/workforce-tabs/kiosk/KioskClockInSurface.tsx',
-  'app/(routes)/workforce-tabs/kiosk/page.tsx',
-  'app/(routes)/workforce-tabs/page.tsx',
-  'app/(routes)/workforce/openings/page.tsx',
-  'app/error.tsx',
-  'app/not-found.tsx',
-  'app/oauth/confirm/confirm-panel.tsx',
-  'components/EntityTimeline/EntityTimelineDrawer.tsx',
-  'components/EntityTimeline/composers.ts',
-  'components/artifacts/ArtifactRenderer.tsx',
-  'components/blackboard/Blackboard.tsx',
-  'components/chat/HandoffCard.tsx',
-  'components/compliance/ComplianceSurface.tsx',
-  'components/dashboard/ComplianceSafetyPanel.tsx',
-  'components/dashboard/DailyBriefCard.tsx',
-  'components/dashboard/KpiStripPanel.tsx',
-  'components/dashboard/ProductionVsTargetTable.tsx',
-  'components/estate/AssetsRegister.tsx',
-  'components/estate/CapitalMovementsTimeline.tsx',
-  'components/estate/EntitiesList.tsx',
-  'components/estate/EstateOverview.tsx',
-  'components/estate/SuccessionPanel.tsx',
-  'components/finance/PnlTableLive.tsx',
-  'components/finance/RoyaltyDraftPanel.tsx',
-  'components/fleet/MaintenanceTable.tsx',
-  'components/fleet/NewMaintenanceModal.tsx',
-  'components/home-chat/PersonaGreeting.tsx',
-  'components/home-chat/StepperBar.tsx',
-  'components/home-chat/inline-blocks/CitationsBlock.tsx',
-  'components/home-chat/inline-blocks/DocQuestBlock.tsx',
-  'components/home-chat/inline-blocks/FileRequestCardBlock.tsx',
-  'components/home-chat/inline-blocks/InlineDashboardBlock.tsx',
-  'components/licences/LicencesList.tsx',
-  'components/marketplace/MarketplaceBoard.tsx',
-  'components/marketplace/RfbDispatchPanel.tsx',
-  'components/onboarding/steps.tsx',
-  'components/owner-os/OwnerOSChatPanel.tsx',
-  'components/owner-os/OwnerOSDocsPanel.tsx',
-  'components/owner-os/OwnerOSInsightsPanel.tsx',
-  'components/owner-os/SpawnTabMenu.tsx',
-  'components/owner-os/TabSnapshotShell.tsx',
-  'components/owner-os/panels/AccountingPanel.tsx',
-  'components/owner-os/panels/AncillaryBusinessesPanel.tsx',
-  'components/owner-os/panels/AssetRegisterPanel.tsx',
-  'components/owner-os/panels/AuditPanel.tsx',
-  'components/owner-os/panels/CSRCommunityPanel.tsx',
-  'components/owner-os/panels/ChainOfCustodyPanel.tsx',
-  'components/owner-os/panels/CompliancePanel.tsx',
-  'components/owner-os/panels/ESGPanel.tsx',
-  'components/owner-os/panels/FamilyOfficePanel.tsx',
-  'components/owner-os/panels/FinancePanel.tsx',
-  'components/owner-os/panels/GeologyPanel.tsx',
-  'components/owner-os/panels/HRPanel.tsx',
-  'components/owner-os/panels/HoldingsPanel.tsx',
-  'components/owner-os/panels/LicencesPanel.tsx',
-  'components/owner-os/panels/MarketplacePanel.tsx',
-  'components/owner-os/panels/OpsPanel.tsx',
-  'components/owner-os/panels/RegulatoryFilingsPanel.tsx',
-  'components/owner-os/panels/ReportsPanel.tsx',
-  'components/owner-os/panels/RiskPanel.tsx',
-  'components/owner-os/panels/SafetyPanel.tsx',
-  'components/owner-os/panels/SitesPanel.tsx',
-  'components/owner-os/panels/SuccessionPanel.tsx',
-  'components/owner-os/panels/TreasuryPanel.tsx',
-  'components/owner-os/panels/WorkforcePanel.tsx',
-  'components/owner-os/panels/builtin-descriptors.ts',
-  'components/people/PeopleSurface.tsx',
-  'components/reports/strings.ts',
-  'components/safety/SafetySurface.tsx',
-  'components/sites/SitesList.tsx',
-  'components/voice/VoiceMicButton.tsx',
-  'components/voice/VoicePlayButton.tsx',
-  'components/workforce-tabs/WorkforceTabMatrix.tsx',
-  'components/workforce-tabs/WorkforceTabRequestQueue.tsx',
-  'documents/DocumentExplorer.tsx',
-  'documents/DocumentList.tsx',
-  'documents/DocumentUploadButton.tsx',
-  'documents/types.ts',
-  'lib/ceo-modes.ts',
-  'lib/cockpit-sse.ts',
-  'lib/screens.ts',
-];
+export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [];

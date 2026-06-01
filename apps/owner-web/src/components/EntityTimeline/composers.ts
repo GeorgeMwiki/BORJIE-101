@@ -16,6 +16,7 @@
 
 import type { TimelineEvent } from '../shared/EntityTimeline';
 import type { ProvenanceEnvelope } from '../shared/ProvenancePill';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 // ──────────────────────────────────────────────────────────────────
 // Shared shapes — every entity carries provenance + revision history
@@ -113,49 +114,13 @@ interface ComposerCopy {
   readonly stateChange: (state: string) => { sw: string; en: string };
 }
 
-const REMINDER_COPY: ComposerCopy = {
-  created: {
-    sw: 'Kumbukumbu imeundwa',
-    en: 'Reminder created',
-  },
-  stateChange: (state) => ({
-    sw: `Hali imebadilika kuwa: ${state}`,
-    en: `State changed to: ${state}`,
-  }),
-};
+const REMINDER_COPY: ComposerCopy = S.composers.reminder;
 
-const DRAFT_COPY: ComposerCopy = {
-  created: {
-    sw: 'Rasimu imeandaliwa',
-    en: 'Draft prepared',
-  },
-  stateChange: (state) => ({
-    sw: `Hali ya rasimu: ${state}`,
-    en: `Draft status: ${state}`,
-  }),
-};
+const DRAFT_COPY: ComposerCopy = S.composers.draft;
 
-const PARCEL_COPY: ComposerCopy = {
-  created: {
-    sw: 'Parcel imerekodi',
-    en: 'Parcel logged',
-  },
-  stateChange: (state) => ({
-    sw: `Hali ya parcel: ${state}`,
-    en: `Parcel state: ${state}`,
-  }),
-};
+const PARCEL_COPY: ComposerCopy = S.composers.parcel;
 
-const BID_COPY: ComposerCopy = {
-  created: {
-    sw: 'Zabuni imewekwa',
-    en: 'Bid placed',
-  },
-  stateChange: (state) => ({
-    sw: `Hali ya zabuni: ${state}`,
-    en: `Bid state: ${state}`,
-  }),
-};
+const BID_COPY: ComposerCopy = S.composers.bid;
 
 export interface DomainEntity {
   readonly state?: string;

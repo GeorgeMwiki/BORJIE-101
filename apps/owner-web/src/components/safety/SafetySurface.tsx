@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useIncidents, type IncidentRow } from '@/lib/queries/safety';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface SafetySurfaceProps {
   readonly locale?: 'sw' | 'en';
@@ -55,17 +56,23 @@ function severityTone(severity: string): ToneTokens {
   return SEVERITY_TONE[severity.toLowerCase()] ?? LOW_TONE;
 }
 
+/** Fill the `{n}` token in a relative-time template. */
+function fillN(template: string, n: number): string {
+  return template.replace('{n}', String(n));
+}
+
 function formatRelative(iso: string | null, isSw: boolean): string {
-  if (!iso) return isSw ? 'Bila tarehe' : 'No timestamp';
+  const c = S.safetySurface;
+  if (!iso) return isSw ? c.noTimestamp.sw : c.noTimestamp.en;
   const ms = Date.now() - Date.parse(iso);
   if (Number.isNaN(ms)) return iso;
   const minutes = Math.floor(ms / 60_000);
-  if (minutes < 1) return isSw ? 'sasa hivi' : 'just now';
-  if (minutes < 60) return isSw ? `dakika ${minutes} zilizopita` : `${minutes}m ago`;
+  if (minutes < 1) return isSw ? c.justNow.sw : c.justNow.en;
+  if (minutes < 60) return fillN(isSw ? c.minutesAgo.sw : c.minutesAgo.en, minutes);
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return isSw ? `saa ${hours} zilizopita` : `${hours}h ago`;
+  if (hours < 24) return fillN(isSw ? c.hoursAgo.sw : c.hoursAgo.en, hours);
   const days = Math.floor(hours / 24);
-  return isSw ? `siku ${days} zilizopita` : `${days}d ago`;
+  return fillN(isSw ? c.daysAgo.sw : c.daysAgo.en, days);
 }
 
 /**
@@ -101,30 +108,40 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
     }).length;
     return [
       {
-        label: isSw ? 'Matukio yaliyo wazi' : 'Open incidents',
+        label: isSw
+          ? S.safetySurface.openIncidentsLabel.sw
+          : S.safetySurface.openIncidentsLabel.en,
         value: String(rows.length),
-        sub: isSw ? 'Yanahitaji uchunguzi' : 'Pending investigation',
+        sub: isSw
+          ? S.safetySurface.openIncidentsSub.sw
+          : S.safetySurface.openIncidentsSub.en,
         icon: AlertTriangle,
         tone: rows.length > 5 ? ('warning' as const) : ('default' as const),
       },
       {
-        label: isSw ? 'Kiwango cha juu kabisa' : 'Critical severity',
+        label: isSw
+          ? S.safetySurface.criticalLabel.sw
+          : S.safetySurface.criticalLabel.en,
         value: String(critical),
-        sub: isSw ? 'Hatari ya papo hapo' : 'Imminent risk',
+        sub: isSw ? S.safetySurface.criticalSub.sw : S.safetySurface.criticalSub.en,
         icon: AlertTriangle,
         tone: critical > 0 ? ('danger' as const) : ('success' as const),
       },
       {
-        label: isSw ? 'Kiwango cha juu' : 'High severity',
+        label: isSw ? S.safetySurface.highLabel.sw : S.safetySurface.highLabel.en,
         value: String(high),
-        sub: isSw ? 'Hatua ya haraka' : 'Urgent action',
+        sub: isSw ? S.safetySurface.highSub.sw : S.safetySurface.highSub.en,
         icon: HardHat,
         tone: high > 0 ? ('warning' as const) : ('default' as const),
       },
       {
-        label: isSw ? 'Yaliyofungwa siku 30' : 'Closed 30d',
+        label: isSw
+          ? S.safetySurface.closed30dLabel.sw
+          : S.safetySurface.closed30dLabel.en,
         value: String(closed30d),
-        sub: isSw ? 'Mzunguko wa ufungaji' : 'Closure throughput',
+        sub: isSw
+          ? S.safetySurface.closed30dSub.sw
+          : S.safetySurface.closed30dSub.en,
         icon: CheckCircle2,
         tone: 'success' as const,
       },
@@ -150,9 +167,7 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
   if (openQuery.isError) {
     return (
       <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia matukio. Geuza muunganisho na ujaribu tena.'
-          : 'Failed to load incidents. Check the gateway and retry.'}
+        {isSw ? S.safetySurface.loadError.sw : S.safetySurface.loadError.en}
       </div>
     );
   }
@@ -166,12 +181,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                {isSw ? 'Foleni ya matukio' : 'Incident queue'}
+                {isSw ? S.safetySurface.incidentQueue.sw : S.safetySurface.incidentQueue.en}
               </h2>
               <p className="text-xs text-neutral-400">
                 {isSw
-                  ? `${rows.length} matukio yamefunguliwa`
-                  : `${rows.length} open across the portfolio`}
+                  ? `${rows.length} ${S.safetySurface.openCountSuffix.sw}`
+                  : `${rows.length} ${S.safetySurface.openCountSuffix.en}`}
               </p>
             </div>
           </header>
@@ -179,12 +194,10 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
             <div className="px-5 py-10 text-center text-sm text-neutral-400">
               <ShieldCheck className="mx-auto h-8 w-8 text-success" />
               <p className="mt-3 font-medium text-foreground">
-                {isSw ? 'Hakuna tukio lililo wazi.' : 'Zero open incidents.'}
+                {isSw ? S.safetySurface.zeroOpen.sw : S.safetySurface.zeroOpen.en}
               </p>
               <p className="mt-1 text-xs text-neutral-500">
-                {isSw
-                  ? 'Vipigo vya mafanikio kwa tarehe ya leo.'
-                  : 'Clean safety record for today.'}
+                {isSw ? S.safetySurface.cleanRecord.sw : S.safetySurface.cleanRecord.en}
               </p>
             </div>
           ) : (
@@ -232,44 +245,42 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
         <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
           <header className="border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold text-foreground">
-              {isSw ? 'Vidhibiti vya ICA' : 'ICA critical controls'}
+              {isSw ? S.safetySurface.icaHeading.sw : S.safetySurface.icaHeading.en}
             </h2>
             <p className="text-xs text-neutral-400">
-              {isSw
-                ? 'Hali ya vifaa muhimu na uthibitisho'
-                : 'Equipment certification + status'}
+              {isSw ? S.safetySurface.icaCaption.sw : S.safetySurface.icaCaption.en}
             </p>
           </header>
           <ul className="divide-y divide-border/60">
             {[
               {
                 key: 'fall-protection',
-                en: 'Fall protection harnesses',
-                sw: 'Mikanda ya kuzuia kuanguka',
+                en: S.safetySurface.fallProtection.en,
+                sw: S.safetySurface.fallProtection.sw,
                 ok: true,
               },
               {
                 key: 'ground-control',
-                en: 'Underground ground control',
-                sw: 'Udhibiti wa ardhi chini ya ardhi',
+                en: S.safetySurface.groundControl.en,
+                sw: S.safetySurface.groundControl.sw,
                 ok: true,
               },
               {
                 key: 'gas-detection',
-                en: 'Portable gas detection',
-                sw: 'Vifaa vya kugundua gesi',
+                en: S.safetySurface.gasDetection.en,
+                sw: S.safetySurface.gasDetection.sw,
                 ok: false,
               },
               {
                 key: 'lockout',
-                en: 'Equipment lockout / tagout',
-                sw: 'Kufunga vifaa wakati wa matengenezo',
+                en: S.safetySurface.lockout.en,
+                sw: S.safetySurface.lockout.sw,
                 ok: true,
               },
               {
                 key: 'evacuation',
-                en: 'Emergency evacuation drill',
-                sw: 'Mazoezi ya kutoroka',
+                en: S.safetySurface.evacuation.en,
+                sw: S.safetySurface.evacuation.sw,
                 ok: true,
               },
             ].map((control) => (
@@ -283,12 +294,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                 {control.ok ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-tiny font-medium text-success">
                     <CheckCircle2 className="h-3 w-3" />
-                    {isSw ? 'Hai' : 'OK'}
+                    {isSw ? S.safetySurface.controlOk.sw : S.safetySurface.controlOk.en}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning">
                     <AlertTriangle className="h-3 w-3" />
-                    {isSw ? 'Mukaguzi' : 'Recert due'}
+                    {isSw ? S.safetySurface.controlRecert.sw : S.safetySurface.controlRecert.en}
                   </span>
                 )}
               </li>

@@ -17,6 +17,7 @@ import type { OwnerOSSpawnIntent } from '@borjie/owner-os-tabs';
 import { HomeChatTeach } from '@/components/home-chat/HomeChatTeach';
 import { Blackboard } from '@/components/blackboard';
 import { apiRequest } from '@/lib/api-client';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ACCEPT_MIMES = [
   'application/pdf',
@@ -138,8 +139,8 @@ export function OwnerOSChatPanel({
         <Upload aria-hidden="true" className="h-5 w-5 text-warning" />
         <p className="text-sm">
           {languagePreference === 'sw'
-            ? 'Vuta hati hapa — Mr. Mwikila atazisoma, kuziainisha, na kuzifungua kwa mazungumzo'
-            : 'Drop documents here — Mr. Mwikila reads, files, and opens them for conversation'}
+            ? S.chatPanel.dropHint.sw
+            : S.chatPanel.dropHint.en}
         </p>
         <p className="text-tiny text-neutral-500">PDF · DOCX · XLSX · JPG · PNG · TXT (≤25 MB)</p>
         {status.kind === 'uploading' ? (
@@ -153,8 +154,8 @@ export function OwnerOSChatPanel({
           <p className="inline-flex items-center gap-1 text-tiny text-success">
             <CheckCircle aria-hidden="true" className="h-3.5 w-3.5" />
             {languagePreference === 'sw'
-              ? `Hati ${status.results.length} zimewasilishwa`
-              : `Filed ${status.results.length} document${status.results.length === 1 ? '' : 's'}`}
+              ? `${S.chatPanel.filedDonePrefix.sw}${status.results.length}${S.chatPanel.filedDoneSuffix.sw}`
+              : `${S.chatPanel.filedDonePrefix.en}${status.results.length} document${status.results.length === 1 ? '' : 's'}`}
           </p>
         ) : null}
         {status.kind === 'error' ? (

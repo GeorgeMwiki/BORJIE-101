@@ -1,6 +1,7 @@
 import { getOwnerSession } from '@/lib/session';
 import { CockpitGrid } from '@/components/cockpit/CockpitGrid';
 import { CockpitLivePulse } from '@/components/cockpit/CockpitLivePulse';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
  * O-W-01 — Cockpit dashboard.
@@ -14,23 +15,19 @@ export default async function CockpitPage() {
   const session = await getOwnerSession();
   const isSw = session.languagePreference === 'sw';
   const hour = new Date().getHours();
-  const greeting = isSw
-    ? hour < 12
-      ? 'Habari za asubuhi'
+  const greet =
+    hour < 12
+      ? S.cockpit.greetMorning
       : hour < 17
-        ? 'Habari za mchana'
-        : 'Habari za jioni'
-    : hour < 12
-      ? 'Good morning'
-      : hour < 17
-        ? 'Good afternoon'
-        : 'Good evening';
+        ? S.cockpit.greetAfternoon
+        : S.cockpit.greetEvening;
+  const greeting = isSw ? greet.sw : greet.en;
   const sitesLabel = isSw
     ? session.sites.length === 1
-      ? 'mgodi 1'
-      : `migodi ${session.sites.length}`
+      ? S.cockpit.siteOne.sw
+      : `${S.cockpit.sitesPluralNoun.sw} ${session.sites.length}`
     : `${session.sites.length} sites`;
-  const planLabel = isSw ? 'mpango' : 'plan';
+  const planLabel = isSw ? S.cockpit.plan.sw : S.cockpit.plan.en;
   return (
     <div className="px-8 py-8">
       <header className="mb-8">

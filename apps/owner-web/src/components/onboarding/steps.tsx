@@ -4,6 +4,7 @@ import { useCallback, useState, type ChangeEvent } from 'react';
 import { Upload } from 'lucide-react';
 import type { UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 export const kybSchema = z.object({
   companyName: z.string().min(1, 'required'),
@@ -24,12 +25,12 @@ export function KybStep({ form }: KybStepProps) {
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <TextField
-        label="Company name / Jina la kampuni"
+        label={`${S.onbCompanyName.en} / ${S.onbCompanyName.sw}`}
         register={register('companyName')}
         error={formState.errors.companyName?.message}
       />
       <TextField
-        label="Registration no. / Namba ya usajili"
+        label={`${S.onbRegistrationNo.en} / ${S.onbRegistrationNo.sw}`}
         register={register('registrationNo')}
         error={formState.errors.registrationNo?.message}
       />
@@ -39,17 +40,17 @@ export function KybStep({ form }: KybStepProps) {
         error={formState.errors.tin?.message}
       />
       <TextField
-        label="Registered address / Anwani"
+        label={`${S.onbRegisteredAddress.en} / ${S.onbRegisteredAddress.sw}`}
         register={register('registeredAddress')}
         error={formState.errors.registeredAddress?.message}
       />
       <TextField
-        label="Director full name / Jina la mkurugenzi"
+        label={`${S.onbDirectorName.en} / ${S.onbDirectorName.sw}`}
         register={register('directorFullName')}
         error={formState.errors.directorFullName?.message}
       />
       <TextField
-        label="Director NIDA / Kitambulisho cha NIDA"
+        label={`${S.onbDirectorNida.en} / ${S.onbDirectorNida.sw}`}
         register={register('directorNidaId')}
         error={formState.errors.directorNidaId?.message}
       />
@@ -106,7 +107,7 @@ export function FileUploadStep({
         <p className="mt-2 text-sm">{hintEn}</p>
         <p className="text-xs italic text-neutral-500">{hintSw}</p>
         <label className="mt-2 cursor-pointer text-xs text-warning underline">
-          or choose files / au chagua faili
+          {S.onbChooseFiles.en} / {S.onbChooseFiles.sw}
           <input
             type="file"
             multiple
@@ -139,12 +140,10 @@ export function CockpitSeedStep({ headline, onChange }: CockpitSeedStepProps) {
         Pick a one-line headline for your first daily brief. We'll seed your
         cockpit so it's ready when you finish onboarding.
       </p>
-      <p className="text-xs italic text-neutral-500">
-        Chagua kichwa kifupi kwa muhtasari wako wa kwanza wa siku.
-      </p>
+      <p className="text-xs italic text-neutral-500">{S.onbSeedHintSw.sw}</p>
       <label className="block text-sm">
         <span className="block text-xs uppercase tracking-wide text-neutral-500">
-          Headline / Kichwa
+          {S.onbHeadline.en} / {S.onbHeadline.sw}
         </span>
         <input
           type="text"

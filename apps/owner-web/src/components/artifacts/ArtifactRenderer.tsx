@@ -27,6 +27,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 export type ArtifactClassification = 'public' | 'internal' | 'confidential';
 export type ArtifactLanguage = 'sw' | 'en';
@@ -56,25 +57,25 @@ export interface ArtifactRendererProps {
 }
 
 const CLASSIFICATION_LABEL_EN: Record<ArtifactClassification, string> = {
-  public: 'Public',
-  internal: 'Internal',
-  confidential: 'Confidential',
+  public: S.artifactRenderer.classification.public.en,
+  internal: S.artifactRenderer.classification.internal.en,
+  confidential: S.artifactRenderer.classification.confidential.en,
 };
 
 const CLASSIFICATION_LABEL_SW: Record<ArtifactClassification, string> = {
-  public: 'Hadharani',
-  internal: 'Ndani ya Kampuni',
-  confidential: 'Siri',
+  public: S.artifactRenderer.classification.public.sw,
+  internal: S.artifactRenderer.classification.internal.sw,
+  confidential: S.artifactRenderer.classification.confidential.sw,
 };
 
-const DISCLAIMER_EN = 'AI-generated. Decisions are yours.';
-const DISCLAIMER_SW = 'Imeundwa na akili-bandia. Maamuzi ni yako.';
+const DISCLAIMER_EN = S.artifactRenderer.disclaimer.en;
+const DISCLAIMER_SW = S.artifactRenderer.disclaimer.sw;
 
-const LOADING_SW = 'Inapakia…';
-const LOADING_EN = 'Loading…';
+const LOADING_SW = S.artifactRenderer.loading.sw;
+const LOADING_EN = S.artifactRenderer.loading.en;
 
-const RETRY_SW = 'Jaribu tena';
-const RETRY_EN = 'Retry';
+const RETRY_SW = S.artifactRenderer.retry.sw;
+const RETRY_EN = S.artifactRenderer.retry.en;
 
 /**
  * Client-side defense-in-depth sanitiser. The artifact HTML is already

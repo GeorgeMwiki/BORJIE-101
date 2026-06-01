@@ -2,6 +2,7 @@ import { WorkforceTabMatrix } from '@/components/workforce-tabs/WorkforceTabMatr
 import { WorkforceTabRequestQueue } from '@/components/workforce-tabs/WorkforceTabRequestQueue';
 import { getOwnerSession } from '@/lib/session';
 import { SW } from '@/lib/sw-tokens';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
  * O-W-WORKFORCE-TABS — Workforce → Tab access configurator.
@@ -18,7 +19,10 @@ export default async function WorkforceTabsPage() {
   const isSw = session.languagePreference === 'sw';
 
   const siteScopes: ReadonlyArray<{ readonly id: string; readonly label: string }> = [
-    { id: 'global', label: isSw ? 'Kote' : 'Global' },
+    {
+      id: 'global',
+      label: isSw ? S.workforceTabs.scopeGlobal.sw : S.workforceTabs.scopeGlobal.en,
+    },
     ...session.sites.map((site) => ({ id: site.id, label: site.name })),
   ];
 
@@ -27,12 +31,14 @@ export default async function WorkforceTabsPage() {
       <header className="space-y-2">
         <p className="font-mono text-xs text-neutral-500">O-W-WORKFORCE-TABS</p>
         <h1 className="font-display text-2xl text-foreground">
-          {isSw ? `Tabo za ${SW.workforce}` : 'Workforce tab access'}
+          {isSw
+            ? S.workforceTabs.title.sw.replace('{workforce}', SW.workforce)
+            : S.workforceTabs.title.en}
         </h1>
         <p className="text-sm text-muted-foreground">
           {isSw
-            ? `Weka ni tabo zipi kila jukumu litazione kwenye programu ya ${SW.workforce}. Mabadiliko yanasajiliwa kwa msururu wa heshi.`
-            : 'Set which tabs each role sees in the workforce mobile app. Every change is recorded on the hash-chained audit trail.'}
+            ? S.workforceTabs.body.sw.replace('{workforce}', SW.workforce)
+            : S.workforceTabs.body.en}
         </p>
       </header>
 

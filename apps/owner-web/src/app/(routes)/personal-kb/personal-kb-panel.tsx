@@ -13,6 +13,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface PersonLink {
   readonly id: string;
@@ -38,11 +39,11 @@ interface MemoryCell {
 }
 
 const ROLE_LABELS_SW: Record<string, string> = {
-  owner: 'Mmiliki',
-  manager: 'Meneja',
-  employee: 'Mfanyakazi',
-  buyer: 'Mnunuzi',
-  admin: 'Msimamizi',
+  owner: S.personalKbPanel.roleOwner.both,
+  manager: S.personalKbPanel.roleManager.both,
+  employee: S.personalKbPanel.roleEmployee.both,
+  buyer: S.personalKbPanel.roleBuyer.both,
+  admin: S.personalKbPanel.roleAdmin.both,
 };
 
 export function PersonalKbPanel() {
@@ -121,7 +122,7 @@ export function PersonalKbPanel() {
           Search my knowledge base
         </h2>
         <p className="text-xs italic text-neutral-500">
-          Tafuta kwenye maktaba yangu
+          {S.personalKbPanel.searchGloss.both}
         </p>
         <div className="flex gap-2">
           <input
@@ -137,7 +138,7 @@ export function PersonalKbPanel() {
             disabled={searching || !query.trim()}
             className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
           >
-            {searching ? 'Searching…' : 'Search / Tafuta'}
+            {searching ? 'Searching…' : S.personalKbPanel.searchButton.both}
           </button>
         </div>
         {searchError ? (
@@ -150,10 +151,12 @@ export function PersonalKbPanel() {
           <h2 className="font-display text-xl text-foreground">
             Search results ({searchResults.length})
           </h2>
-          <p className="text-xs italic text-neutral-500">Matokeo ya utafutaji</p>
+          <p className="text-xs italic text-neutral-500">
+            {S.personalKbPanel.resultsGloss.both}
+          </p>
           {searchResults.length === 0 ? (
             <p className="mt-4 text-sm text-neutral-400">
-              No matches yet. / Hakuna matokeo bado.
+              {S.personalKbPanel.noMatches.both}
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -170,7 +173,7 @@ export function PersonalKbPanel() {
           Your hats ({links.length})
         </h2>
         <p className="text-xs italic text-neutral-500">
-          Kofia zako — mahali pote unapotumia Borjie
+          {S.personalKbPanel.hatsGloss.both}
         </p>
         {loadingLinks ? (
           <p className="mt-4 text-sm text-neutral-400">Loading…</p>
@@ -178,7 +181,7 @@ export function PersonalKbPanel() {
           <p className="mt-4 text-sm text-destructive">Error: {linkError}</p>
         ) : links.length === 0 ? (
           <p className="mt-4 text-sm text-neutral-400">
-            No hats yet. / Hauna kofia bado.
+            {S.personalKbPanel.noHats.both}
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
@@ -210,7 +213,7 @@ export function PersonalKbPanel() {
                     href={`/personal-kb/${link.personId}`}
                     className="rounded border border-border px-3 py-1 text-xs text-neutral-200 hover:text-foreground"
                   >
-                    Open / Fungua
+                    {S.personalKbPanel.openButton.both}
                   </Link>
                 </div>
               </li>

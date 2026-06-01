@@ -3,6 +3,7 @@ import { MapPin, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { SiteCockpitSurface } from '@/components/site-cockpit/SiteCockpitSurface';
 import { getOwnerSession } from '@/lib/session';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
  * O-W-06 — Site cockpit.
@@ -27,14 +28,14 @@ export default async function SiteCockpitPage() {
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <MapPin className="h-3.5 w-3.5" />
-              {isSw ? 'Badilisha mgodi' : 'Switch site'}
+              {isSw ? S.siteCockpit.switchSite.sw : S.siteCockpit.switchSite.en}
             </Link>
             <Link
               href="/ask?prompt=site-cockpit"
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Uliza kuhusu mgodi' : 'Ask about this site'}
+              {isSw ? S.siteCockpit.askAboutSite.sw : S.siteCockpit.askAboutSite.en}
             </Link>
           </>
         }
@@ -42,7 +43,7 @@ export default async function SiteCockpitPage() {
           activeSite ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface/40 px-4 py-3 text-xs">
               <span className="text-neutral-500">
-                {isSw ? 'Mgodi unaonyeshwa' : 'Active site'}
+                {isSw ? S.siteCockpit.activeSite.sw : S.siteCockpit.activeSite.en}
               </span>
               <span className="font-medium text-foreground">
                 {activeSite.name}

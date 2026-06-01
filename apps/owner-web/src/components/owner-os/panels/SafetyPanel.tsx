@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -19,10 +20,10 @@ const SafetySurface = dynamic(
 
 const SAFETY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'safety',
-  labelEn: 'Safety',
-  labelSw: 'Usalama',
-  descriptionEn: 'Incident feed, ICA certifications and toolbox briefings.',
-  descriptionSw: 'Orodha ya matukio, vyeti vya ICA na maelezo ya toolbox.',
+  labelEn: S.safety.label.en,
+  labelSw: S.safety.label.sw,
+  descriptionEn: S.safety.description.en,
+  descriptionSw: S.safety.description.sw,
   iconName: 'HardHat',
   color: 'warning',
   contextSchema: ownerOsTabContextSchema,
@@ -36,17 +37,15 @@ const SAFETY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'blast',
       'toolbox',
       'osha',
-      'usalama',
-      'tukio',
-      'ajali',
+      ...S.safety.swKeywords,
     ],
     comboBoost: [{ phrases: ['near', 'miss'], boost: 0.2 }],
   },
   suggestedTools: [
     {
       toolId: 'safety.log-incident',
-      labelEn: 'Log new incident',
-      labelSw: 'Sajili tukio jipya',
+      labelEn: S.safety.toolLogIncident.en,
+      labelSw: S.safety.toolLogIncident.sw,
     },
   ],
   briefSlices: ['incidents'],
@@ -68,10 +67,10 @@ export function SafetyPanel({
       <PanelHero
         icon={HardHat}
         color="warning"
-        titleEn="Safety & EHS"
-        titleSw="Usalama na EHS"
-        subtitleEn="Open incidents, critical-equipment certifications and the field toolbox queue."
-        subtitleSw="Matukio yanayoendelea, vyeti vya vifaa muhimu na orodha ya toolbox shamba."
+        titleEn={S.safety.heroTitle.en}
+        titleSw={S.safety.heroTitle.sw}
+        subtitleEn={S.safety.heroSubtitle.en}
+        subtitleSw={S.safety.heroSubtitle.sw}
         locale={locale}
       />
       <SafetySurface locale={locale} />

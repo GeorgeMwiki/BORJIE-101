@@ -21,6 +21,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { cn } from '@borjie/design-system';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 import { MasteryDial } from './MasteryDial';
 
 export type StepperLanguage = 'sw' | 'en';
@@ -53,8 +54,8 @@ export interface StepperBarProps {
 const DEFAULT_STEPS: ReadonlyArray<StepperStep> = [
   {
     id: 'ORIENT',
-    titleSw: 'Tambua mali',
-    titleEn: 'Orient your estate',
+    titleSw: S.stepperOrientTitle.sw,
+    titleEn: S.stepperOrientTitle.en,
     estimateMin: 6,
     mastery: 0,
     isComplete: false,
@@ -62,8 +63,8 @@ const DEFAULT_STEPS: ReadonlyArray<StepperStep> = [
   },
   {
     id: 'LICENCE',
-    titleSw: 'Leseni & EIA',
-    titleEn: 'Licence and EIA',
+    titleSw: S.stepperLicenceTitle.sw,
+    titleEn: S.stepperLicenceTitle.en,
     estimateMin: 8,
     mastery: 0,
     isComplete: false,
@@ -71,8 +72,8 @@ const DEFAULT_STEPS: ReadonlyArray<StepperStep> = [
   },
   {
     id: 'ROYALTY',
-    titleSw: 'Mrabaha & Forodha',
-    titleEn: 'Royalty and clearance',
+    titleSw: S.stepperRoyaltyTitle.sw,
+    titleEn: S.stepperRoyaltyTitle.en,
     estimateMin: 10,
     mastery: 0,
     isComplete: false,
@@ -80,8 +81,8 @@ const DEFAULT_STEPS: ReadonlyArray<StepperStep> = [
   },
   {
     id: 'WORKFORCE',
-    titleSw: 'Wafanyakazi & Mafunzo',
-    titleEn: 'Workforce and training',
+    titleSw: S.stepperWorkforceTitle.sw,
+    titleEn: S.stepperWorkforceTitle.en,
     estimateMin: 7,
     mastery: 0,
     isComplete: false,
@@ -89,8 +90,8 @@ const DEFAULT_STEPS: ReadonlyArray<StepperStep> = [
   },
   {
     id: 'MARKETPLACE',
-    titleSw: 'Soko & Mauzo',
-    titleEn: 'Marketplace and sales',
+    titleSw: S.stepperMarketplaceTitle.sw,
+    titleEn: S.stepperMarketplaceTitle.en,
     estimateMin: 9,
     mastery: 0,
     isComplete: false,
@@ -117,12 +118,12 @@ function CollapsedRow({
   const title = language === 'sw' ? step.titleSw : step.titleEn;
   const stateSuffix = step.isComplete
     ? language === 'sw'
-      ? ' (imekamilika)'
-      : ' (complete)'
+      ? S.stepperStateComplete.sw
+      : S.stepperStateComplete.en
     : step.isLocked
       ? language === 'sw'
-        ? ' (imefungwa)'
-        : ' (locked)'
+        ? S.stepperStateLocked.sw
+        : S.stepperStateLocked.en
       : '';
   return (
     <button
@@ -237,13 +238,13 @@ export function StepperBar({
   );
 
   const overallLabel =
-    language === 'sw' ? 'Maendeleo' : 'Progress';
+    language === 'sw' ? S.stepperProgress.sw : S.stepperProgress.en;
   const overallPercent = total > 0 ? (completedCount / total) * 100 : 0;
 
   if (collapsed) {
     return (
       <aside
-        aria-label={language === 'sw' ? 'Hatua za mafunzo' : 'Learning steps'}
+        aria-label={language === 'sw' ? S.stepperAriaSteps.sw : S.stepperAriaSteps.en}
         className={cn(
           'flex flex-col items-center py-4 px-1 border-r border-white/[0.06] bg-surface/80',
           className,
@@ -254,7 +255,7 @@ export function StepperBar({
           type="button"
           onClick={() => setCollapsed(false)}
           className="p-1.5 rounded-md transition-colors hover:bg-white/10 text-neutral-400"
-          aria-label={language === 'sw' ? 'Panua' : 'Expand'}
+          aria-label={language === 'sw' ? S.stepperExpand.sw : S.stepperExpand.en}
         >
           <ChevronRight aria-hidden="true" className="w-4 h-4" />
         </button>
@@ -276,7 +277,7 @@ export function StepperBar({
 
   return (
     <aside
-      aria-label={language === 'sw' ? 'Hatua za mafunzo' : 'Learning steps'}
+      aria-label={language === 'sw' ? S.stepperAriaSteps.sw : S.stepperAriaSteps.en}
       className={cn(
         'w-64 flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-surface/80 overflow-hidden',
         className,
@@ -287,14 +288,14 @@ export function StepperBar({
         <div className="flex items-center gap-2 min-w-0">
           <BookOpen aria-hidden="true" className="w-4 h-4 flex-shrink-0 text-warning" />
           <h2 className="text-sm font-semibold truncate text-foreground">
-            {language === 'sw' ? 'Mafunzo ya umiliki' : 'Estate literacy'}
+            {language === 'sw' ? S.stepperHeading.sw : S.stepperHeading.en}
           </h2>
         </div>
         <button
           type="button"
           onClick={() => setCollapsed(true)}
           className="p-1 rounded-md transition-colors hover:bg-white/10 text-neutral-400"
-          aria-label={language === 'sw' ? 'Funga' : 'Collapse'}
+          aria-label={language === 'sw' ? S.stepperCollapse.sw : S.stepperCollapse.en}
         >
           <ChevronLeft aria-hidden="true" className="w-4 h-4" />
         </button>

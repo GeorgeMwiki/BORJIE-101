@@ -8,6 +8,7 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface EstateOverviewProps {
   readonly locale: 'sw' | 'en';
@@ -29,7 +30,7 @@ export function EstateOverview({ locale }: EstateOverviewProps) {
   if (groupsQuery.isLoading || entitiesQuery.isLoading) {
     return (
       <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? 'Inapakia miliki...' : 'Loading estate...'}
+        {isSw ? S.estateOverview.loading.sw : S.estateOverview.loading.en}
       </div>
     );
   }
@@ -37,9 +38,7 @@ export function EstateOverview({ locale }: EstateOverviewProps) {
   if (groupsQuery.isError || entitiesQuery.isError) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia data ya miliki.'
-          : 'Could not load estate data.'}
+        {isSw ? S.estateOverview.loadError.sw : S.estateOverview.loadError.en}
       </div>
     );
   }
@@ -53,17 +52,15 @@ export function EstateOverview({ locale }: EstateOverviewProps) {
   if (groups.length === 0) {
     return (
       <SectionCard
-        title={isSw ? 'Hakuna miliki bado' : 'No estate registered yet'}
+        title={isSw ? S.estateOverview.noEstateTitle.sw : S.estateOverview.noEstateTitle.en}
         subtitle={
           isSw
-            ? 'Sajili kikundi cha familia chini ya /api/v1/estate/groups ili kuanza.'
-            : 'Register a family-office group via /api/v1/estate/groups to begin.'
+            ? S.estateOverview.noEstateSubtitle.sw
+            : S.estateOverview.noEstateSubtitle.en
         }
       >
         <div className="px-5 py-6 text-sm text-neutral-400">
-          {isSw
-            ? 'Mwambie Mr. Mwikila aanze kwa "tengeneza family office".'
-            : 'Ask Mr. Mwikila to "create a family office" to begin.'}
+          {isSw ? S.estateOverview.noEstateBody.sw : S.estateOverview.noEstateBody.en}
         </div>
       </SectionCard>
     );
@@ -96,7 +93,7 @@ function EntityTreeList({ nodes, locale, depth = 0 }: EntityTreeListProps) {
   if (nodes.length === 0) {
     return (
       <div className="text-sm text-neutral-500">
-        {locale === 'sw' ? 'Hakuna kampuni.' : 'No entities yet.'}
+        {locale === 'sw' ? S.estateOverview.noEntities.sw : S.estateOverview.noEntities.en}
       </div>
     );
   }

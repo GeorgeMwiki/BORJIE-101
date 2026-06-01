@@ -11,6 +11,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { FileText, MessageSquare, Sparkles } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 interface DocRow {
   readonly id: string;
@@ -96,12 +97,12 @@ export function OwnerOSDocsPanel({
     <div className="flex flex-col gap-3" data-testid="owner-os-docs-panel">
       <header className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-warning">
-          {languagePreference === 'sw' ? 'Hati zako' : 'Your documents'}
+          {languagePreference === 'sw' ? S.docsPanel.heading.sw : S.docsPanel.heading.en}
         </h2>
         <span className="text-tiny text-neutral-500">
           {languagePreference === 'sw'
-            ? 'Drag-and-drop kwenye Chat ili kuongeza'
-            : 'Drag-and-drop on Chat to add'}
+            ? S.docsPanel.addHint.sw
+            : S.docsPanel.addHint.en}
         </span>
       </header>
 
@@ -119,8 +120,8 @@ export function OwnerOSDocsPanel({
       ) : docs.length === 0 ? (
         <p className="text-tiny text-neutral-500">
           {languagePreference === 'sw'
-            ? 'Hakuna hati bado. Vuta moja kwenye Chat tab.'
-            : 'No documents yet. Drop one in the Chat tab.'}
+            ? S.docsPanel.empty.sw
+            : S.docsPanel.empty.en}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -147,7 +148,7 @@ export function OwnerOSDocsPanel({
                     className="inline-flex items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-tiny hover:border-warning"
                   >
                     <MessageSquare aria-hidden="true" className="h-3 w-3" />
-                    {languagePreference === 'sw' ? 'Uliza' : 'Ask'}
+                    {languagePreference === 'sw' ? S.docsPanel.ask.sw : S.docsPanel.ask.en}
                   </button>
                   <button
                     type="button"
@@ -158,11 +159,11 @@ export function OwnerOSDocsPanel({
                     <Sparkles aria-hidden="true" className="h-3 w-3" />
                     {explaining === d.id
                       ? languagePreference === 'sw'
-                        ? 'Inafikiria…'
-                        : 'Thinking…'
+                        ? S.docsPanel.thinking.sw
+                        : S.docsPanel.thinking.en
                       : languagePreference === 'sw'
-                        ? 'Eleza'
-                        : 'Explain'}
+                        ? S.docsPanel.explain.sw
+                        : S.docsPanel.explain.en}
                   </button>
                 </div>
               </div>

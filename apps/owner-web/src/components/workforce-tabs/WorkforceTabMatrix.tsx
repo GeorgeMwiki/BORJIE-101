@@ -24,6 +24,7 @@ import {
   type WorkforceRoleId,
 } from '@borjie/persona-runtime';
 import { apiRequest } from '@/lib/api-client';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ConfigRow {
   readonly id: string;
@@ -39,36 +40,36 @@ interface MatrixProps {
   readonly isSw: boolean;
 }
 
+const M = S.workforceTabMatrix;
+
 const COPY = {
   en: {
-    title: 'Workforce tab matrix',
-    description:
-      'Each row is a role for a given site scope. Check the tabs the role should see; uncheck to hide. The Mr. Mwikila chat tab and the Profile tab are always visible.',
-    role: 'Role',
-    scope: 'Scope',
-    density: 'Density',
-    densityComfortable: 'Comfortable',
-    densityCompact: 'Compact',
-    saving: 'Saving…',
-    saved: 'Saved',
-    error: 'Save failed',
-    locked: 'Locked',
-    notAllowedForRole: 'n/a',
+    title: M.title.en,
+    description: M.description.en,
+    role: M.role.en,
+    scope: M.scope.en,
+    density: M.density.en,
+    densityComfortable: M.densityComfortable.en,
+    densityCompact: M.densityCompact.en,
+    saving: M.saving.en,
+    saved: M.saved.en,
+    error: M.error.en,
+    locked: M.locked.en,
+    notAllowedForRole: M.notAllowedForRole.en,
   },
   sw: {
-    title: `Matriki ya tabo za ${'wafanya' + 'kazi'}`,
-    description:
-      'Kila safu ni jukumu kwa eneo. Chagua tabo ambazo jukumu linapaswa kuona; ondoa alama kuficha. Tabo ya Bw. Mwikila na Wasifu daima zinaonekana.',
-    role: 'Jukumu',
-    scope: 'Eneo',
-    density: 'Mpangilio',
-    densityComfortable: 'Wazi',
-    densityCompact: 'Bana',
-    saving: 'Inahifadhi…',
-    saved: 'Imehifadhiwa',
-    error: 'Imeshindikana kuhifadhi',
-    locked: 'Imefungwa',
-    notAllowedForRole: 'haifai',
+    title: M.title.sw,
+    description: M.description.sw,
+    role: M.role.sw,
+    scope: M.scope.sw,
+    density: M.density.sw,
+    densityComfortable: M.densityComfortable.sw,
+    densityCompact: M.densityCompact.sw,
+    saving: M.saving.sw,
+    saved: M.saved.sw,
+    error: M.error.sw,
+    locked: M.locked.sw,
+    notAllowedForRole: M.notAllowedForRole.sw,
   },
 } as const;
 

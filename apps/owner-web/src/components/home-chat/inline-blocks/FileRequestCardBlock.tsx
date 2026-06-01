@@ -12,6 +12,7 @@
 
 import { useRef, useState, type ReactElement } from 'react';
 import { Upload, ExternalLink } from 'lucide-react';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 export interface FileRequestCardBlock {
   readonly type: 'file_request_card';
@@ -71,15 +72,15 @@ export function FileRequestCardBlock({
       className="rounded-xl border border-info/40 bg-info/[0.05] px-3 py-3"
     >
       <p className="text-tiny font-medium uppercase tracking-wide text-info">
-        {locale === 'sw' ? 'Hati inahitajika' : 'Document needed'}
+        {locale === 'sw' ? S.fileReqEyebrow.sw : S.fileReqEyebrow.en}
       </p>
       {whatFor ? (
         <p className="mt-1 text-sm text-foreground">{whatFor}</p>
       ) : null}
       <p className="mt-1 text-tiny text-foreground/60">
         {locale === 'sw'
-          ? `Aina: ${acceptedKinds.join(', ') || 'PDF / picha'} · upeo ${maxSizeMb}MB`
-          : `Accepted: ${acceptedKinds.join(', ') || 'PDF / image'} · max ${maxSizeMb}MB`}
+          ? `${S.fileReqAcceptedLabel.sw}: ${acceptedKinds.join(', ') || S.fileReqAcceptedFallback.sw} · ${S.fileReqMax.sw} ${maxSizeMb}MB`
+          : `${S.fileReqAcceptedLabel.en}: ${acceptedKinds.join(', ') || S.fileReqAcceptedFallback.en} · ${S.fileReqMax.en} ${maxSizeMb}MB`}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -96,7 +97,7 @@ export function FileRequestCardBlock({
           className="inline-flex items-center gap-1.5 rounded-lg border border-info/40 bg-info/[0.08] px-3 py-1.5 text-sm font-semibold text-info transition-colors hover:bg-info/[0.15]"
         >
           <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-          {locale === 'sw' ? 'Pakia hati' : 'Upload document'}
+          {locale === 'sw' ? S.fileReqUpload.sw : S.fileReqUpload.en}
         </button>
         {jumpToTab ? (
           <button
@@ -110,13 +111,13 @@ export function FileRequestCardBlock({
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-tiny font-semibold text-foreground/80 transition-colors hover:bg-surface/80"
           >
             <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            {locale === 'sw' ? 'Fungua docs' : 'Open docs tab'}
+            {locale === 'sw' ? S.fileReqOpenDocs.sw : S.fileReqOpenDocs.en}
           </button>
         ) : null}
       </div>
       {selected.length > 0 ? (
         <p className="mt-2 text-tiny text-foreground/70">
-          {locale === 'sw' ? 'Imechaguliwa:' : 'Selected:'}{' '}
+          {locale === 'sw' ? S.fileReqSelected.sw : S.fileReqSelected.en}{' '}
           {selected.join(', ')}
         </p>
       ) : null}

@@ -7,16 +7,17 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
 
 const SUCCESSION_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'succession',
-  labelEn: 'Succession',
-  labelSw: 'Urithi',
-  descriptionEn: 'Will, inheritance plan, and next-generation readiness.',
-  descriptionSw: 'Wosia, mpango wa urithi, na ufanisi wa kizazi kijacho.',
+  labelEn: S.succession.label.en,
+  labelSw: S.succession.label.sw,
+  descriptionEn: S.succession.description.en,
+  descriptionSw: S.succession.description.sw,
   iconName: 'Scroll',
   color: 'warning',
   contextSchema: ownerOsTabContextSchema,
@@ -32,10 +33,7 @@ const SUCCESSION_DESCRIPTOR: OwnerOSTabDescriptor = {
       'daughter',
       'heir',
       'succession plan',
-      'urithi',
-      'wosia',
-      'kizazi',
-      'baadaye',
+      ...S.succession.swKeywords,
     ],
     patterns: [/successor|inheritance|will|legacy/i],
     comboBoost: [
@@ -46,8 +44,8 @@ const SUCCESSION_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'estate.succession_review',
-      labelEn: 'Review succession plan',
-      labelSw: 'Pigia tathmini mpango wa urithi',
+      labelEn: S.succession.toolReviewPlan.en,
+      labelSw: S.succession.toolReviewPlan.sw,
     },
   ],
   briefSlices: [],
@@ -67,19 +65,19 @@ export function SuccessionPanel({
       <PanelHero
         icon={Scroll}
         color="warning"
-        titleEn="Succession — will and inheritance"
-        titleSw="Urithi — wosia na mpango wa urithi"
-        subtitleEn="Plan for the next generation and ensure family continuity."
-        subtitleSw="Andaa kizazi kijacho na uhakikishe kuendelea kwa familia."
+        titleEn={S.succession.heroTitle.en}
+        titleSw={S.succession.heroTitle.sw}
+        subtitleEn={S.succession.heroSubtitle.en}
+        subtitleSw={S.succession.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
-        titleEn="No succession plan yet"
-        titleSw="Hakuna mpango wa urithi bado"
-        descriptionEn="Create a succession plan to protect your legacy and ensure family continuity."
-        descriptionSw="Tengeneza mpango wa urithi kulinda urithi wako na uhakikishe kuendelea kwa familia."
-        ctaEn="Create succession plan"
-        ctaSw="Tengeneza mpango wa urithi"
+        titleEn={S.succession.emptyTitle.en}
+        titleSw={S.succession.emptyTitle.sw}
+        descriptionEn={S.succession.emptyDescription.en}
+        descriptionSw={S.succession.emptyDescription.sw}
+        ctaEn={S.succession.emptyCta.en}
+        ctaSw={S.succession.emptyCta.sw}
         locale={locale}
       />
     </section>

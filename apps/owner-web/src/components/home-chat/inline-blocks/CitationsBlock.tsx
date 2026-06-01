@@ -16,6 +16,7 @@
 
 import { useState, type ReactElement } from 'react';
 import { BookOpen, ExternalLink, FileText, Globe, X } from 'lucide-react';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 export interface CitationRefBlock {
   readonly id?: string;
@@ -59,10 +60,10 @@ const KIND_LABEL_EN: Readonly<
 const KIND_LABEL_SW: Readonly<
   Record<NonNullable<CitationRefBlock['kind']>, string>
 > = {
-  corpus: 'Hifadhi',
+  corpus: S.citationKindCorpus.sw,
   lmbm: 'LMBM',
-  web: 'Tovuti',
-  doc: 'Hati',
+  web: S.citationKindWeb.sw,
+  doc: S.citationKindDoc.sw,
 };
 
 function safeKind(
@@ -82,11 +83,12 @@ export function CitationsBlock({
 
   const headline =
     locale === 'sw'
-      ? (block.headline?.sw ?? 'Vyanzo')
-      : (block.headline?.en ?? 'Sources');
+      ? (block.headline?.sw ?? S.citationHeadlineFallback.sw)
+      : (block.headline?.en ?? S.citationHeadlineFallback.en);
 
-  const closeLabel = locale === 'sw' ? 'Funga' : 'Close';
-  const openLabel = locale === 'sw' ? 'Fungua chanzo' : 'Open source';
+  const closeLabel = locale === 'sw' ? S.citationClose.sw : S.citationClose.en;
+  const openLabel =
+    locale === 'sw' ? S.citationOpenSource.sw : S.citationOpenSource.en;
   const active = activeIndex !== null ? citations[activeIndex] : null;
   const activeKind = active ? safeKind(active.kind) : 'corpus';
   const ActiveIcon = KIND_ICON[activeKind];

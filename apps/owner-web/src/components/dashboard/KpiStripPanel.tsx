@@ -3,6 +3,7 @@
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum, fmtTzsM } from '@/lib/format';
 import type { OwnerBriefPayload } from '@/lib/queries/owner-brief';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface KpiStripPanelProps {
   readonly brief: OwnerBriefPayload;
@@ -38,7 +39,7 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
     >
       <KpiTile
         label="Production · 30d"
-        labelSw="Uzalishaji · siku 30"
+        labelSw={S.kpiStrip.production.sw}
         value={`${fmtNum(productionTotal)} t`}
         meta={`${brief.productionVsTarget.perSite.length} sites`}
         sparkData={productionSpark}
@@ -47,7 +48,7 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
       />
       <KpiTile
         label="Cash · days"
-        labelSw="Hela · siku zilizobaki"
+        labelSw={S.kpiStrip.cash.sw}
         value={cashDays === null ? '—' : `${cashDays} d`}
         meta={fmtTzsM(brief.cashRunway.ninetyDayNetTzs / 1_000_000)}
         tone={
@@ -63,7 +64,7 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
       />
       <KpiTile
         label="Safety · open critical"
-        labelSw="Usalama · matukio mazito"
+        labelSw={S.kpiStrip.safety.sw}
         value={fmtNum(safetyCount)}
         meta={`${brief.dailyBrief.criticalIncidents} critical today`}
         tone={safetyCount === 0 ? 'green' : safetyCount < 3 ? 'amber' : 'red'}
@@ -71,7 +72,7 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
       />
       <KpiTile
         label="Licences · at risk"
-        labelSw="Leseni · zenye hatari"
+        labelSw={S.kpiStrip.licences.sw}
         value={`${licenceAtRiskPct.toFixed(0)}%`}
         meta={`${brief.licenceHealth.atRiskCount} of ${brief.licenceHealth.totalCount}`}
         tone={
@@ -85,7 +86,7 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
       />
       <KpiTile
         label="USD cliff"
-        labelSw="Tarehe ya USD"
+        labelSw={S.kpiStrip.usdCliff.sw}
         value={cliffDays === null ? '—' : `${cliffDays} d`}
         meta={
           brief.cliffStatus.remediationComplete

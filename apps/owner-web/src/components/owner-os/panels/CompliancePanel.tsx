@@ -11,6 +11,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ComplianceSurface = dynamic(
   () =>
@@ -23,11 +24,10 @@ const ComplianceSurface = dynamic(
 const COMPLIANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'compliance',
   labelEn: 'Compliance',
-  labelSw: 'Utii',
+  labelSw: S.compliance.descriptorLabel.sw,
   descriptionEn:
     'NEMC, BoT, Mining Commission and TRA cadence with regulator filings.',
-  descriptionSw:
-    'Ratiba ya NEMC, BoT, Tume ya Madini na TRA pamoja na mafaili ya udhibiti.',
+  descriptionSw: S.compliance.descriptorDescription.sw,
   iconName: 'ShieldCheck',
   color: 'success',
   contextSchema: ownerOsTabContextSchema,
@@ -42,10 +42,7 @@ const COMPLIANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
       'permit',
       'eia',
       'environmental',
-      'utii',
-      'leseni',
-      'udhibiti',
-      'mazingira',
+      ...S.compliance.keywordsSw,
     ],
     comboBoost: [
       { phrases: ['compliance', 'nemc'], boost: 0.25 },
@@ -57,17 +54,17 @@ const COMPLIANCE_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'compliance.draft-nemc-letter',
       labelEn: 'Draft NEMC letter',
-      labelSw: 'Tayarisha barua ya NEMC',
+      labelSw: S.compliance.draftLetterTool.sw,
     },
     {
       toolId: 'compliance.schedule-nemc-reminder',
       labelEn: 'Schedule NEMC reminder',
-      labelSw: 'Panga ukumbusho wa NEMC',
+      labelSw: S.compliance.scheduleReminderTool.sw,
     },
     {
       toolId: 'compliance.view-licence-history',
       labelEn: 'View licence history',
-      labelSw: 'Onyesha historia ya leseni',
+      labelSw: S.compliance.licenceHistoryTool.sw,
     },
   ],
   briefSlices: ['compliance', 'licences', 'audit-trail'],
@@ -85,8 +82,8 @@ export function CompliancePanel({
   const meta = context.focus
     ? [
         {
-          labelEn: `Focus: ${context.focus}`,
-          labelSw: `Mada: ${context.focus}`,
+          labelEn: `${S.compliance.focusPrefix.en}${context.focus}`,
+          labelSw: `${S.compliance.focusPrefix.sw}${context.focus}`,
           tone: 'warning' as const,
         },
       ]
@@ -100,9 +97,9 @@ export function CompliancePanel({
         icon={ShieldCheck}
         color="success"
         titleEn="Compliance centre"
-        titleSw="Kituo cha utii"
+        titleSw={S.compliance.heroTitle.sw}
         subtitleEn="NEMC, BoT, TRA and Mining Commission cadence tracker with green / amber / red status."
-        subtitleSw="Mfumo wa ratiba ya NEMC, BoT, TRA na Tume ya Madini wenye hali ya kijani / njano / nyekundu."
+        subtitleSw={S.compliance.heroSubtitle.sw}
         locale={locale}
         {...(meta ? { metaChips: meta } : {})}
       />

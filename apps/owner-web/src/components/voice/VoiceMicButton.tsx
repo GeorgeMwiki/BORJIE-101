@@ -25,6 +25,7 @@ import {
   useSpeechRecognition,
   type SpeechLang,
 } from './use-speech-recognition';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface VoiceMicButtonProps {
   readonly languagePreference: 'sw' | 'en';
@@ -47,20 +48,22 @@ function toLocale(pref: 'sw' | 'en'): SpeechLang {
   return pref === 'sw' ? 'sw-TZ' : 'en-TZ';
 }
 
+const M = S.voiceMicButton;
+
 const LABELS = {
   sw: {
-    start: 'Anza kusikiliza',
-    stop: 'Acha kusikiliza',
-    listening: 'Inasikiliza…',
-    unsupported: 'Sauti haijatumika kwenye kivinjari hiki.',
-    error: 'Tatizo la sauti',
+    start: M.start.sw,
+    stop: M.stop.sw,
+    listening: M.listening.sw,
+    unsupported: M.unsupported.sw,
+    error: M.error.sw,
   },
   en: {
-    start: 'Start listening',
-    stop: 'Stop listening',
-    listening: 'Listening…',
-    unsupported: 'Voice input not supported in this browser.',
-    error: 'Voice error',
+    start: M.start.en,
+    stop: M.stop.en,
+    listening: M.listening.en,
+    unsupported: M.unsupported.en,
+    error: M.error.en,
   },
 } as const;
 

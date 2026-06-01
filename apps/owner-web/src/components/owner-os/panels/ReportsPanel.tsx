@@ -7,16 +7,17 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
 
 const REPORTS_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'reports',
-  labelEn: 'Reports',
-  labelSw: 'Ripoti',
-  descriptionEn: 'Quarterly briefs, monthly packs and audio reports.',
-  descriptionSw: 'Ripoti za robo mwaka, pakiti za mwezi na ripoti za sauti.',
+  labelEn: S.reports.label.en,
+  labelSw: S.reports.label.sw,
+  descriptionEn: S.reports.description.en,
+  descriptionSw: S.reports.description.sw,
   iconName: 'ScrollText',
   color: 'info',
   contextSchema: ownerOsTabContextSchema,
@@ -29,16 +30,15 @@ const REPORTS_DESCRIPTOR: OwnerOSTabDescriptor = {
       'quarter',
       'audio',
       'podcast',
-      'ripoti',
-      'muhtasari',
+      ...S.reports.swKeywords,
     ],
     comboBoost: [{ phrases: ['monthly', 'report'], boost: 0.2 }],
   },
   suggestedTools: [
     {
       toolId: 'reports.generate-monthly-pack',
-      labelEn: 'Generate monthly pack',
-      labelSw: 'Tengeneza pakiti ya mwezi',
+      labelEn: S.reports.toolGenerateMonthly.en,
+      labelSw: S.reports.toolGenerateMonthly.sw,
     },
   ],
   briefSlices: ['royalties', 'compliance', 'workforce'],
@@ -60,18 +60,18 @@ export function ReportsPanel({
       <PanelHero
         icon={ScrollText}
         color="info"
-        titleEn="Reports"
-        titleSw="Ripoti"
-        subtitleEn="Monthly board pack, quarterly brief and the audio-report library Mr. Mwikila narrates."
-        subtitleSw="Pakiti ya bodi ya mwezi, muhtasari wa robo mwaka na maktaba ya ripoti za sauti za Bw. Mwikila."
+        titleEn={S.reports.heroTitle.en}
+        titleSw={S.reports.heroTitle.sw}
+        subtitleEn={S.reports.heroSubtitle.en}
+        subtitleSw={S.reports.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         icon={ScrollText}
-        titleEn="Reports library landing soon"
-        titleSw="Maktaba ya ripoti inakuja hivi karibuni"
-        bodyEn="The report-engine package already produces monthly packs. This panel will surface the library + Mr. Mwikila's audio narration once /api/v1/reports is exposed inside the cockpit tab loop."
-        bodySw="Pakiti ya report-engine tayari inazalisha pakiti za mwezi. Paneli hii itaonyesha maktaba pamoja na sauti ya Bw. Mwikila mara tu /api/v1/reports itakapozinduliwa."
+        titleEn={S.reports.emptyTitle.en}
+        titleSw={S.reports.emptyTitle.sw}
+        bodyEn={S.reports.emptyBody.en}
+        bodySw={S.reports.emptyBody.sw}
         contractEn="GET /api/v1/reports?range=...&kind=monthly"
         contractSw="GET /api/v1/reports?range=...&kind=monthly"
         locale={locale}

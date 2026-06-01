@@ -8,6 +8,8 @@
  * port 1:1 into the eventual messages.json.
  */
 
+import { tailStrings as S } from '@/i18n/strings/tail';
+
 export type Lang = 'sw' | 'en';
 
 export interface ReportPlayerStrings {
@@ -25,33 +27,26 @@ export interface ReportPlayerStrings {
   readonly defaultShareCopy: string;
 }
 
+/** Project the bilingual `tailStrings.reportPlayer` table onto one locale. */
+function reportPlayerFor(lang: Lang): ReportPlayerStrings {
+  const r = S.reportPlayer;
+  return {
+    play: r.play[lang],
+    pause: r.pause[lang],
+    download: r.download[lang],
+    shareWhatsapp: r.shareWhatsapp[lang],
+    speed: r.speed[lang],
+    chapters: r.chapters[lang],
+    transcript: r.transcript[lang],
+    previousChapter: r.previousChapter[lang],
+    nextChapter: r.nextChapter[lang],
+    noAudio: r.noAudio[lang],
+    loading: r.loading[lang],
+    defaultShareCopy: r.defaultShareCopy[lang],
+  };
+}
+
 export const REPORT_PLAYER_STRINGS: Readonly<Record<Lang, ReportPlayerStrings>> = {
-  sw: {
-    play: 'Cheza',
-    pause: 'Simamisha',
-    download: 'Pakua',
-    shareWhatsapp: 'Tuma kwa WhatsApp',
-    speed: 'Mwendo',
-    chapters: 'Sura',
-    transcript: 'Maandishi',
-    previousChapter: 'Sura iliyotangulia',
-    nextChapter: 'Sura inayofuata',
-    noAudio: 'Hakuna sauti kwa ripoti hii.',
-    loading: 'Inapakia ripoti…',
-    defaultShareCopy: 'Sikiliza muhtasari wa mmiliki wa Borjie',
-  },
-  en: {
-    play: 'Play',
-    pause: 'Pause',
-    download: 'Download',
-    shareWhatsapp: 'Share on WhatsApp',
-    speed: 'Speed',
-    chapters: 'Chapters',
-    transcript: 'Transcript',
-    previousChapter: 'Previous chapter',
-    nextChapter: 'Next chapter',
-    noAudio: 'No audio for this report.',
-    loading: 'Loading report…',
-    defaultShareCopy: 'Listen to your Borjie owner brief',
-  },
+  sw: reportPlayerFor('sw'),
+  en: reportPlayerFor('en'),
 };

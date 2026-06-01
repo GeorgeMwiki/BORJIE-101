@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { registerUpload } from './api';
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentUploadButtonProps {
   /** Surface label override; defaults to bilingual "Pakia hati / Upload". */
@@ -74,7 +75,7 @@ export function DocumentUploadButton({
   }
 
   const accept = ALLOWED_MIMES.join(',');
-  const resolvedLabel = label ?? 'Pakia hati · Upload document';
+  const resolvedLabel = label ?? S.documentUploadButton.defaultLabel.sw;
 
   if (variant === 'paperclip') {
     return (

@@ -7,16 +7,17 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
 
 const GEOLOGY_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'geology',
-  labelEn: 'Geology',
-  labelSw: 'Jiolojia',
-  descriptionEn: 'Drill-hole log, assay results and orebody confidence.',
-  descriptionSw: 'Kumbukumbu za visima, matokeo ya assay na imani ya orebody.',
+  labelEn: S.geology.label.en,
+  labelSw: S.geology.label.sw,
+  descriptionEn: S.geology.description.en,
+  descriptionSw: S.geology.description.sw,
   iconName: 'Microscope',
   color: 'navy',
   contextSchema: ownerOsTabContextSchema,
@@ -30,8 +31,7 @@ const GEOLOGY_DESCRIPTOR: OwnerOSTabDescriptor = {
       'core',
       'sample',
       'reef',
-      'jiolojia',
-      'sampuli',
+      ...S.geology.swKeywords,
     ],
     comboBoost: [
       { phrases: ['drill', 'hole'], boost: 0.25 },
@@ -41,8 +41,8 @@ const GEOLOGY_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'geology.upload-assay',
-      labelEn: 'Upload assay results',
-      labelSw: 'Pakia matokeo ya assay',
+      labelEn: S.geology.toolUploadAssay.en,
+      labelSw: S.geology.toolUploadAssay.sw,
     },
   ],
   briefSlices: ['sites', 'inventory'],
@@ -64,18 +64,18 @@ export function GeologyPanel({
       <PanelHero
         icon={Microscope}
         color="navy"
-        titleEn="Geology"
-        titleSw="Jiolojia"
-        subtitleEn="Drill-hole log, assay queue and orebody-confidence sparkline per site."
-        subtitleSw="Kumbukumbu za visima, foleni ya assay na mkondo wa imani ya orebody kwa tovuti."
+        titleEn={S.geology.heroTitle.en}
+        titleSw={S.geology.heroTitle.sw}
+        subtitleEn={S.geology.heroSubtitle.en}
+        subtitleSw={S.geology.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
         icon={Pickaxe}
-        titleEn="Geology surface landing soon"
-        titleSw="Eneo la jiolojia linakuja hivi karibuni"
-        bodyEn="The drill-hole log already exists in the geology service. This panel will surface a per-site assay queue and orebody-confidence chart once /api/v1/geology/drillholes is exposed."
-        bodySw="Kumbukumbu za visima tayari zipo kwenye huduma ya jiolojia. Paneli hii itaonyesha foleni ya assay kwa tovuti na chati ya imani ya orebody mara tu /api/v1/geology/drillholes itakapozinduliwa."
+        titleEn={S.geology.emptyTitle.en}
+        titleSw={S.geology.emptyTitle.sw}
+        bodyEn={S.geology.emptyBody.en}
+        bodySw={S.geology.emptyBody.sw}
         contractEn="GET /api/v1/geology/drillholes?siteId=..."
         contractSw="GET /api/v1/geology/drillholes?siteId=..."
         locale={locale}

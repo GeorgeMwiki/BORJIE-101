@@ -8,6 +8,7 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -22,12 +23,10 @@ const RegulatoryCalendarShell = dynamic(
 
 const REGULATORY_FILINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'regulatory-filings',
-  labelEn: 'Regulator filings',
-  labelSw: 'Mafaili ya Wakaguzi',
-  descriptionEn:
-    'Mining Commission, TRA, NEMC, BoT, BRELA, OSHA, TBS, TCRA, LHRC filings on one calendar.',
-  descriptionSw:
-    'Mafaili ya Tume ya Madini, TRA, NEMC, BoT, BRELA, OSHA, TBS, TCRA, LHRC katika kalenda moja.',
+  labelEn: S.regulatoryFilings.label.en,
+  labelSw: S.regulatoryFilings.label.sw,
+  descriptionEn: S.regulatoryFilings.description.en,
+  descriptionSw: S.regulatoryFilings.description.sw,
   iconName: 'Scale',
   color: 'warning',
   contextSchema: ownerOsTabContextSchema,
@@ -45,8 +44,7 @@ const REGULATORY_FILINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
       'lhrc',
       'mining commission',
       'royalty filing',
-      'wakaguzi',
-      'mafaili',
+      ...S.regulatoryFilings.swKeywords,
     ],
     comboBoost: [
       { phrases: ['nemc', 'eia'], boost: 0.25 },
@@ -56,8 +54,8 @@ const REGULATORY_FILINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'ops.regulatory_filings.next_due',
-      labelEn: 'Check next deadline',
-      labelSw: 'Angalia mwisho ujao',
+      labelEn: S.regulatoryFilings.toolNextDeadline.en,
+      labelSw: S.regulatoryFilings.toolNextDeadline.sw,
     },
   ],
   briefSlices: ['compliance', 'royalties'],
@@ -79,10 +77,10 @@ export function RegulatoryFilingsPanel({
       <PanelHero
         icon={Scale}
         color="warning"
-        titleEn="Regulator filings"
-        titleSw="Mafaili ya Wakaguzi"
-        subtitleEn="Every government filing on one calendar so nothing slips past its due date."
-        subtitleSw="Kila faili ya serikali kwenye kalenda moja ili hakuna inayopita tarehe yake."
+        titleEn={S.regulatoryFilings.heroTitle.en}
+        titleSw={S.regulatoryFilings.heroTitle.sw}
+        subtitleEn={S.regulatoryFilings.heroSubtitle.en}
+        subtitleSw={S.regulatoryFilings.heroSubtitle.sw}
         locale={locale}
       />
       <RegulatoryCalendarShell />

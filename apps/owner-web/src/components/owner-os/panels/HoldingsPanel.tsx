@@ -7,16 +7,17 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
 import type { OwnerOSPanelProps } from './types';
 
 const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'holdings',
-  labelEn: 'Holdings',
-  labelSw: 'Mali za Familia',
-  descriptionEn: 'Family structure, shareholding tiers, and group composition.',
-  descriptionSw: 'Muundo wa familia, ngazi za kumiliki, na muundo wa kundi.',
+  labelEn: S.holdings.label.en,
+  labelSw: S.holdings.label.sw,
+  descriptionEn: S.holdings.description.en,
+  descriptionSw: S.holdings.description.sw,
   iconName: 'Briefcase',
   color: 'gold',
   contextSchema: ownerOsTabContextSchema,
@@ -32,9 +33,7 @@ const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
       'ownership',
       'stake',
       'equity',
-      'mali',
-      'muundo',
-      'kumiliki',
+      ...S.holdings.swKeywords,
     ],
     comboBoost: [
       { phrases: ['family', 'structure'], boost: 0.15 },
@@ -44,8 +43,8 @@ const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'estate.lookup_holdings',
-      labelEn: 'View holdings structure',
-      labelSw: 'Angalia muundo wa mali',
+      labelEn: S.holdings.toolViewStructure.en,
+      labelSw: S.holdings.toolViewStructure.sw,
     },
   ],
   briefSlices: [],
@@ -65,19 +64,19 @@ export function HoldingsPanel({
       <PanelHero
         icon={Briefcase}
         color="gold"
-        titleEn="Holdings — family structure and ownership"
-        titleSw="Mali za Familia — muundo wa familia na kumiliki"
-        subtitleEn="View your family's shareholding tiers and group composition at a glance."
-        subtitleSw="Angalia ngazi za kumiliki wa familia na muundo wa kundi kwa haraka."
+        titleEn={S.holdings.heroTitle.en}
+        titleSw={S.holdings.heroTitle.sw}
+        subtitleEn={S.holdings.heroSubtitle.en}
+        subtitleSw={S.holdings.heroSubtitle.sw}
         locale={locale}
       />
       <EmptyPanelBody
-        titleEn="No holdings data yet"
-        titleSw="Hakuna data ya mali bado"
-        descriptionEn="Add your family structure and shareholding information to get started."
-        descriptionSw="Ongeza muundo wa familia na habari ya kumiliki kuanza."
-        ctaEn="Add holdings"
-        ctaSw="Ongeza mali"
+        titleEn={S.holdings.emptyTitle.en}
+        titleSw={S.holdings.emptyTitle.sw}
+        descriptionEn={S.holdings.emptyDescription.en}
+        descriptionSw={S.holdings.emptyDescription.sw}
+        ctaEn={S.holdings.emptyCta.en}
+        ctaSw={S.holdings.emptyCta.sw}
         locale={locale}
       />
     </section>

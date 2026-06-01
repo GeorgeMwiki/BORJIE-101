@@ -10,6 +10,7 @@
  */
 
 import type { ReactElement } from 'react';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 type Layout = 'grid_2x2' | 'grid_3x2' | 'strip_horizontal';
 
@@ -56,7 +57,7 @@ export function InlineDashboardBlock({
   const title = localised(
     block.title,
     locale,
-    locale === 'sw' ? 'Dashibodi' : 'Dashboard',
+    locale === 'sw' ? S.inlineDashFallbackTitle.sw : S.inlineDashFallbackTitle.en,
   );
   const layout: Layout = block.layout ?? 'grid_2x2';
   const cells = Array.isArray(block.cells) ? block.cells.slice(0, 8) : [];
@@ -74,9 +75,7 @@ export function InlineDashboardBlock({
       <div className={`mt-3 ${layoutCls}`}>
         {nextDepth > 3 ? (
           <p className="text-tiny text-foreground/60">
-            {locale === 'sw'
-              ? 'Kina cha juu zaidi cha 3 kimefikiwa.'
-              : 'Max nesting depth (3) reached.'}
+            {locale === 'sw' ? S.inlineDashMaxDepth.sw : S.inlineDashMaxDepth.en}
           </p>
         ) : (
           cells.map((cell, i) => (

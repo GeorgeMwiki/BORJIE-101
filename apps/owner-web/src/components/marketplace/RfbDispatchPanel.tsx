@@ -20,6 +20,7 @@ import {
   type DispatchRfbResult,
 } from '@/lib/queries/marketplace';
 import { Toast } from '@/components/shared/Toast';
+import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface RfbDispatchPanelProps {
   readonly rfbId: string;
@@ -61,11 +62,7 @@ export function RfbDispatchPanel({
     e.preventDefault();
     setErrorMsg(null);
     if (!selectedSite?.managerUserId) {
-      setErrorMsg(
-        isSw
-          ? 'Tovuti hii haina msimamizi aliyepangwa.'
-          : 'This site has no manager assigned.',
-      );
+      setErrorMsg(isSw ? S.rfbNoManager.sw : S.rfbNoManager.en);
       return;
     }
     try {
@@ -86,7 +83,7 @@ export function RfbDispatchPanel({
     return (
       <div className="rounded-2xl border border-border bg-surface/40 p-6">
         <p className="text-sm text-neutral-400">
-          {isSw ? 'Inapakia tovuti…' : 'Loading sites…'}
+          {isSw ? S.rfbLoadingSites.sw : S.rfbLoadingSites.en}
         </p>
       </div>
     );
@@ -95,9 +92,7 @@ export function RfbDispatchPanel({
   if (sitesQuery.isError) {
     return (
       <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-        {isSw
-          ? 'Imeshindwa kupakia tovuti.'
-          : 'Failed to load sites.'}
+        {isSw ? S.rfbSitesError.sw : S.rfbSitesError.en}
       </div>
     );
   }
@@ -105,9 +100,7 @@ export function RfbDispatchPanel({
   if (dispatchableSites.length === 0) {
     return (
       <div className="rounded-2xl border border-warning/40 bg-warning/5 p-6 text-sm text-warning">
-        {isSw
-          ? 'Hakuna tovuti yenye msimamizi aliyepangwa. Mwongezee msimamizi tovuti kabla ya kupeleka RFB.'
-          : 'No sites with an assigned manager. Assign a manager to a site before dispatching an RFB.'}
+        {isSw ? S.rfbNoDispatchable.sw : S.rfbNoDispatchable.en}
       </div>
     );
   }
@@ -123,7 +116,7 @@ export function RfbDispatchPanel({
             htmlFor="rfb-dispatch-site"
             className="block text-sm font-medium text-foreground"
           >
-            {isSw ? 'Chagua tovuti' : 'Pick a site'}
+            {isSw ? S.rfbPickSite.sw : S.rfbPickSite.en}
           </label>
           <select
             id="rfb-dispatch-site"
@@ -132,7 +125,7 @@ export function RfbDispatchPanel({
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
           >
             <option value="">
-              {isSw ? '— Chagua tovuti —' : '— Select a site —'}
+              {isSw ? S.rfbSelectSiteOption.sw : S.rfbSelectSiteOption.en}
             </option>
             {dispatchableSites.map((s) => (
               <option key={s.id} value={s.id}>
@@ -141,9 +134,7 @@ export function RfbDispatchPanel({
             ))}
           </select>
           <p className="text-xs text-neutral-500">
-            {isSw
-              ? 'Msimamizi wa tovuti uliyochagua atapata kazi hii moja kwa moja.'
-              : 'The selected site\'s manager will receive this task.'}
+            {isSw ? S.rfbManagerHint.sw : S.rfbManagerHint.en}
           </p>
         </div>
 
@@ -152,7 +143,7 @@ export function RfbDispatchPanel({
             htmlFor="rfb-dispatch-due"
             className="block text-sm font-medium text-foreground"
           >
-            {isSw ? 'Tarehe ya mwisho (hiari)' : 'Due date (optional)'}
+            {isSw ? S.rfbDueLabel.sw : S.rfbDueLabel.en}
           </label>
           <input
             id="rfb-dispatch-due"
@@ -167,13 +158,13 @@ export function RfbDispatchPanel({
           <div className="rounded-md border border-border bg-background/40 p-3 text-xs text-neutral-400">
             <div>
               <span className="font-medium text-foreground">
-                {isSw ? 'Tovuti:' : 'Site:'}
+                {isSw ? S.rfbSiteLabel.sw : S.rfbSiteLabel.en}
               </span>{' '}
               {selectedSite.name}
             </div>
             <div className="mt-0.5">
               <span className="font-medium text-foreground">
-                {isSw ? 'Msimamizi:' : 'Manager:'}
+                {isSw ? S.rfbManagerLabel.sw : S.rfbManagerLabel.en}
               </span>{' '}
               <span className="font-mono">{selectedSite.managerUserId}</span>
             </div>
@@ -195,11 +186,11 @@ export function RfbDispatchPanel({
             <Send className="h-3.5 w-3.5" />
             {dispatch.isPending
               ? isSw
-                ? 'Inatumwa…'
-                : 'Dispatching…'
+                ? S.rfbDispatching.sw
+                : S.rfbDispatching.en
               : isSw
-                ? 'Tuma kwa msimamizi'
-                : 'Dispatch to manager'}
+                ? S.rfbDispatch.sw
+                : S.rfbDispatch.en}
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
           <button
@@ -207,17 +198,13 @@ export function RfbDispatchPanel({
             onClick={() => router.push('/marketplace')}
             className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface"
           >
-            {isSw ? 'Ghairi' : 'Cancel'}
+            {isSw ? S.rfbCancel.sw : S.rfbCancel.en}
           </button>
         </div>
       </form>
       {toast ? (
         <Toast
-          message={
-            isSw
-              ? `Imetumwa kwa msimamizi. Task: ${toast.taskId}`
-              : `Dispatched to manager. Task: ${toast.taskId}`
-          }
+          message={`${isSw ? S.rfbToast.sw : S.rfbToast.en} ${toast.taskId}`}
           onDismiss={() => {
             setToast(null);
             router.push('/marketplace');

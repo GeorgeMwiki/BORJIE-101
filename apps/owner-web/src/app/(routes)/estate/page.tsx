@@ -3,6 +3,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import { MetricStrip } from '@/components/shared/MetricStrip';
 import { EstateOverview } from '@/components/estate/EstateOverview';
 import { getOwnerSession } from '@/lib/session';
+import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
  * O-W-27 — Estate overview.
@@ -28,32 +29,36 @@ export default async function EstateOverviewPage(): Promise<JSX.Element> {
         cols={4}
         tiles={[
           {
-            label: isSw ? 'Kampuni' : 'Entities',
+            label: isSw ? S.estate.entitiesLabel.sw : S.estate.entitiesLabel.en,
             value: '—',
             icon: Building2,
-            sub: isSw
-              ? 'Jumla ya kampuni hai kwenye miliki'
-              : 'Active entities under the estate',
+            sub: isSw ? S.estate.entitiesSub.sw : S.estate.entitiesSub.en,
           },
           {
-            label: isSw ? 'Thamani ya mali' : 'Asset value',
+            label: isSw
+              ? S.estate.assetValueLabel.sw
+              : S.estate.assetValueLabel.en,
             value: '—',
             icon: Briefcase,
-            sub: isSw ? 'TZS, jumla ya mali' : 'TZS, total estate assets',
+            sub: isSw ? S.estate.assetValueSub.sw : S.estate.assetValueSub.en,
           },
           {
-            label: isSw ? 'Mtiririko (siku 30)' : 'Capital flows (30d)',
+            label: isSw
+              ? S.estate.capitalFlowsLabel.sw
+              : S.estate.capitalFlowsLabel.en,
             value: '—',
             icon: Coins,
-            sub: isSw ? 'TZS, mtiririko wa siku 30' : 'TZS, last 30 days',
+            sub: isSw
+              ? S.estate.capitalFlowsSub.sw
+              : S.estate.capitalFlowsSub.en,
           },
           {
-            label: isSw ? 'Hali ya urithi' : 'Succession status',
+            label: isSw
+              ? S.estate.successionLabel.sw
+              : S.estate.successionLabel.en,
             value: '—',
             icon: Scroll,
-            sub: isSw
-              ? 'Hatua za mapitio yanayohitajika'
-              : 'Plans pending review',
+            sub: isSw ? S.estate.successionSub.sw : S.estate.successionSub.en,
           },
         ]}
       />

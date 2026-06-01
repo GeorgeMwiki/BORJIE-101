@@ -8,6 +8,7 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { MetricStrip } from '@/components/shared/MetricStrip';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface AssetsRegisterProps {
   readonly locale: 'sw' | 'en';
@@ -18,26 +19,62 @@ const CLASS_OPTIONS: ReadonlyArray<{
   readonly labelEn: string;
   readonly labelSw: string;
 }> = [
-  { value: '', labelEn: 'All', labelSw: 'Zote' },
-  { value: 'mining_licence', labelEn: 'Mining licence', labelSw: 'Leseni ya mgodi' },
-  { value: 'land_parcel', labelEn: 'Land parcel', labelSw: 'Kiwanja' },
-  { value: 'building', labelEn: 'Building', labelSw: 'Jengo' },
-  { value: 'plant_equipment', labelEn: 'Plant / equipment', labelSw: 'Vifaa' },
-  { value: 'vehicle', labelEn: 'Vehicle', labelSw: 'Gari' },
-  { value: 'inventory', labelEn: 'Inventory', labelSw: 'Bidhaa' },
+  { value: '', labelEn: S.assets.classOptions.all.en, labelSw: S.assets.classOptions.all.sw },
+  {
+    value: 'mining_licence',
+    labelEn: S.assets.classOptions.miningLicence.en,
+    labelSw: S.assets.classOptions.miningLicence.sw,
+  },
+  {
+    value: 'land_parcel',
+    labelEn: S.assets.classOptions.landParcel.en,
+    labelSw: S.assets.classOptions.landParcel.sw,
+  },
+  {
+    value: 'building',
+    labelEn: S.assets.classOptions.building.en,
+    labelSw: S.assets.classOptions.building.sw,
+  },
+  {
+    value: 'plant_equipment',
+    labelEn: S.assets.classOptions.plantEquipment.en,
+    labelSw: S.assets.classOptions.plantEquipment.sw,
+  },
+  {
+    value: 'vehicle',
+    labelEn: S.assets.classOptions.vehicle.en,
+    labelSw: S.assets.classOptions.vehicle.sw,
+  },
+  {
+    value: 'inventory',
+    labelEn: S.assets.classOptions.inventory.en,
+    labelSw: S.assets.classOptions.inventory.sw,
+  },
   {
     value: 'financial_instrument',
-    labelEn: 'Financial instrument',
-    labelSw: 'Chombo cha fedha',
+    labelEn: S.assets.classOptions.financialInstrument.en,
+    labelSw: S.assets.classOptions.financialInstrument.sw,
   },
   {
     value: 'intellectual_property',
-    labelEn: 'IP',
-    labelSw: 'Haki miliki',
+    labelEn: S.assets.classOptions.intellectualProperty.en,
+    labelSw: S.assets.classOptions.intellectualProperty.sw,
   },
-  { value: 'goodwill', labelEn: 'Goodwill', labelSw: 'Sifa njema' },
-  { value: 'crypto', labelEn: 'Crypto', labelSw: 'Sarafu za dijiti' },
-  { value: 'other', labelEn: 'Other', labelSw: 'Nyingine' },
+  {
+    value: 'goodwill',
+    labelEn: S.assets.classOptions.goodwill.en,
+    labelSw: S.assets.classOptions.goodwill.sw,
+  },
+  {
+    value: 'crypto',
+    labelEn: S.assets.classOptions.crypto.en,
+    labelSw: S.assets.classOptions.crypto.sw,
+  },
+  {
+    value: 'other',
+    labelEn: S.assets.classOptions.other.en,
+    labelSw: S.assets.classOptions.other.sw,
+  },
 ];
 
 /**
@@ -66,14 +103,14 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
   if (query.isLoading) {
     return (
       <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? 'Inapakia daftari la mali...' : 'Loading asset register...'}
+        {isSw ? S.assets.loading.sw : S.assets.loading.en}
       </div>
     );
   }
   if (query.isError) {
     return (
       <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? 'Imeshindwa kupakia mali.' : 'Could not load asset register.'}
+        {isSw ? S.assets.loadError.sw : S.assets.loadError.en}
       </div>
     );
   }
@@ -84,20 +121,20 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         cols={3}
         tiles={[
           {
-            label: isSw ? 'Jumla ya thamani' : 'Total value',
+            label: isSw ? S.assets.totalValueLabel.sw : S.assets.totalValueLabel.en,
             value: `TZS ${formatTzs(totalValue)}`,
-            sub: isSw
-              ? `Hai katika kichujio cha sasa`
-              : `Active in current filter`,
+            sub: isSw ? S.assets.totalValueSub.sw : S.assets.totalValueSub.en,
             icon: Boxes,
           },
           {
-            label: isSw ? 'Idadi ya mali' : 'Asset count',
+            label: isSw ? S.assets.assetCountLabel.sw : S.assets.assetCountLabel.en,
             value: rows.length.toFixed(0),
-            sub: isSw ? `Madarasa ${countByClass.size}` : `${countByClass.size} classes`,
+            sub: isSw
+              ? S.assets.assetCountSub(countByClass.size).sw
+              : S.assets.assetCountSub(countByClass.size).en,
           },
           {
-            label: isSw ? 'Thamani wastani' : 'Average value',
+            label: isSw ? S.assets.averageValueLabel.sw : S.assets.averageValueLabel.en,
             value: rows.length
               ? `TZS ${formatTzs(totalValue / rows.length)}`
               : 'TZS 0',
@@ -105,11 +142,9 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         ]}
       />
       <SectionCard
-        title={isSw ? 'Daftari la mali' : 'Asset register'}
+        title={isSw ? S.assets.registerTitle.sw : S.assets.registerTitle.en}
         subtitle={
-          isSw
-            ? 'Chuja kwa darasa la mali, fungua safu kuona historia ya thamani.'
-            : 'Filter by asset class, open a row for valuation history.'
+          isSw ? S.assets.registerSubtitle.sw : S.assets.registerSubtitle.en
         }
         actions={
           <div className="inline-flex items-center gap-2">
@@ -130,9 +165,7 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
       >
         {rows.length === 0 ? (
           <div className="px-5 py-8 text-sm text-neutral-500">
-            {isSw
-              ? 'Hakuna mali kwenye kichujio cha sasa.'
-              : 'No assets match the current filter.'}
+            {isSw ? S.assets.emptyFilter.sw : S.assets.emptyFilter.en}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -140,19 +173,19 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
               <thead className="border-b border-border bg-surface/60 text-tiny uppercase tracking-wider text-neutral-500">
                 <tr>
                   <th className="px-5 py-2 text-left">
-                    {isSw ? 'Maelezo' : 'Descriptor'}
+                    {isSw ? S.assets.colDescriptor.sw : S.assets.colDescriptor.en}
                   </th>
                   <th className="px-5 py-2 text-left">
-                    {isSw ? 'Darasa' : 'Class'}
+                    {isSw ? S.assets.colClass.sw : S.assets.colClass.en}
                   </th>
                   <th className="px-5 py-2 text-right">
-                    {isSw ? 'Thamani (TZS)' : 'Value (TZS)'}
+                    {isSw ? S.assets.colValue.sw : S.assets.colValue.en}
                   </th>
                   <th className="px-5 py-2 text-left">
-                    {isSw ? 'Mbinu' : 'Method'}
+                    {isSw ? S.assets.colMethod.sw : S.assets.colMethod.en}
                   </th>
                   <th className="px-5 py-2 text-left">
-                    {isSw ? 'Tathmini ya' : 'Valued at'}
+                    {isSw ? S.assets.colValuedAt.sw : S.assets.colValuedAt.en}
                   </th>
                 </tr>
               </thead>

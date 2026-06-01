@@ -8,15 +8,16 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
 import { PanelHero } from './PanelHero';
 import type { OwnerOSPanelProps } from './types';
 
 const RISK_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'risk',
-  labelEn: 'Risk',
-  labelSw: 'Hatari',
-  descriptionEn: 'FX exposure, critical controls, kill-switch state and fraud signals.',
-  descriptionSw: 'FX, hatua za udhibiti, hali ya kill-switch na ishara za udanganyifu.',
+  labelEn: S.risk.label.en,
+  labelSw: S.risk.label.sw,
+  descriptionEn: S.risk.description.en,
+  descriptionSw: S.risk.description.sw,
   iconName: 'ShieldAlert',
   color: 'destructive',
   contextSchema: ownerOsTabContextSchema,
@@ -31,8 +32,7 @@ const RISK_DESCRIPTOR: OwnerOSTabDescriptor = {
       'control',
       'critical control',
       'breach',
-      'hatari',
-      'udanganyifu',
+      ...S.risk.swKeywords,
     ],
     comboBoost: [
       { phrases: ['fx', 'exposure'], boost: 0.2 },
@@ -42,13 +42,13 @@ const RISK_DESCRIPTOR: OwnerOSTabDescriptor = {
   suggestedTools: [
     {
       toolId: 'risk.view-killswitch',
-      labelEn: 'Kill-switch state',
-      labelSw: 'Hali ya kill-switch',
+      labelEn: S.risk.toolKillSwitch.en,
+      labelSw: S.risk.toolKillSwitch.sw,
     },
     {
       toolId: 'risk.run-exposure-snapshot',
-      labelEn: 'Run exposure snapshot',
-      labelSw: 'Endesha picha ya exposure',
+      labelEn: S.risk.toolExposureSnapshot.en,
+      labelSw: S.risk.toolExposureSnapshot.sw,
     },
   ],
   briefSlices: ['fx', 'incidents', 'audit-trail'],
@@ -66,23 +66,23 @@ export function RiskPanel({
   const isSw = locale === 'sw';
   const tiles: ReadonlyArray<MetricTile> = [
     {
-      label: isSw ? 'FX exposure ya leo' : 'Today FX exposure',
+      label: isSw ? S.risk.tileFxExposure.sw : S.risk.tileFxExposure.en,
       value: 'USD 184.2K',
-      sub: isSw ? 'Dirisha la dhahabu wazi' : 'Gold window open',
+      sub: isSw ? S.risk.tileFxExposureSub.sw : S.risk.tileFxExposureSub.en,
       icon: AlertOctagon,
       tone: 'warning',
     },
     {
-      label: isSw ? 'Kill-switch' : 'Kill-switch',
-      value: isSw ? 'ARMED' : 'ARMED',
-      sub: isSw ? 'fail-closed imewashwa' : 'fail-closed armed',
+      label: isSw ? S.risk.tileKillSwitch.sw : S.risk.tileKillSwitch.en,
+      value: isSw ? S.risk.tileKillSwitchValue.sw : S.risk.tileKillSwitchValue.en,
+      sub: isSw ? S.risk.tileKillSwitchSub.sw : S.risk.tileKillSwitchSub.en,
       icon: ShieldAlert,
       tone: 'success',
     },
     {
-      label: isSw ? 'Vidhibiti muhimu' : 'Critical controls',
+      label: isSw ? S.risk.tileCriticalControls.sw : S.risk.tileCriticalControls.en,
       value: '11 / 12',
-      sub: isSw ? '1 mwezini' : '1 due this month',
+      sub: isSw ? S.risk.tileCriticalControlsSub.sw : S.risk.tileCriticalControlsSub.en,
       icon: AlertTriangle,
       tone: 'warning',
     },
@@ -90,8 +90,8 @@ export function RiskPanel({
   const focusChip = context.focus
     ? [
         {
-          labelEn: `Focus: ${context.focus}`,
-          labelSw: `Mada: ${context.focus}`,
+          labelEn: S.risk.focus(context.focus).en,
+          labelSw: S.risk.focus(context.focus).sw,
           tone: 'urgent' as const,
         },
       ]
@@ -104,22 +104,20 @@ export function RiskPanel({
       <PanelHero
         icon={ShieldAlert}
         color="destructive"
-        titleEn="Risk — exposure, controls, kill-switch"
-        titleSw="Hatari — exposure, vidhibiti, kill-switch"
-        subtitleEn="Live risk surface: FX exposure ladder, critical-controls health and the kill-switch arm state."
-        subtitleSw="Eneo la moja kwa moja la hatari: ngazi ya FX exposure, afya ya vidhibiti muhimu na hali ya kill-switch."
+        titleEn={S.risk.heroTitle.en}
+        titleSw={S.risk.heroTitle.sw}
+        subtitleEn={S.risk.heroSubtitle.en}
+        subtitleSw={S.risk.heroSubtitle.sw}
         locale={locale}
         {...(focusChip ? { metaChips: focusChip } : {})}
       />
       <MetricStrip tiles={tiles} cols={3} />
       <div className="rounded-2xl border border-border bg-surface/40 p-5">
         <h3 className="text-sm font-semibold text-foreground">
-          {isSw ? 'Ishara za udanganyifu' : 'Fraud signals'}
+          {isSw ? S.risk.fraudHeading.sw : S.risk.fraudHeading.en}
         </h3>
         <p className="mt-2 text-xs leading-relaxed text-neutral-300">
-          {isSw
-            ? 'Hakuna ishara za udanganyifu zilizoinuliwa katika saa 24 zilizopita. Kichanganuzi cha graph-RAG kinaendesha kila saa na kinarekodi tofauti kwenye hash-chain isiyoweza kubadilishwa.'
-            : 'No fraud signals raised in the last 24 hours. The graph-RAG anomaly scanner runs hourly and records deviations on the immutable hash-chain audit log.'}
+          {isSw ? S.risk.fraudBody.sw : S.risk.fraudBody.en}
         </p>
       </div>
     </section>

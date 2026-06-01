@@ -1,6 +1,7 @@
 'use client';
 
 import { ingestionStatusLabel, kindLabel, type UploadedDocument } from './types';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentListProps {
   readonly documents: ReadonlyArray<UploadedDocument>;
@@ -11,9 +12,11 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
   if (documents.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface/40 p-8 text-center">
-        <p className="text-base font-semibold text-foreground">Hakuna hati bado</p>
+        <p className="text-base font-semibold text-foreground">
+          {S.documentList.emptyTitle.sw}
+        </p>
         <p className="mt-1 text-sm text-neutral-400">
-          Pakia mkataba, zabuni au barua kuanza mazungumzo na hati hizo.
+          {S.documentList.emptyBody.sw}
         </p>
       </div>
     );

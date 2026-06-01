@@ -12,6 +12,7 @@ import {
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useHeadcount } from '@/lib/queries/people';
 import { useIncidents } from '@/lib/queries/safety';
+import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface PeopleSurfaceProps {
   readonly locale?: 'sw' | 'en';
@@ -36,7 +37,7 @@ const SUPERVISORS: ReadonlyArray<SupervisorRow> = [
     siteEn: 'Nyakabale Reef Block',
     siteSw: 'Nyakabale Reef Block',
     roleEn: 'Underground supervisor',
-    roleSw: 'Msimamizi wa chini ya ardhi',
+    roleSw: S.peopleSurface.supRole1.sw,
     status: 'on-shift',
   },
   {
@@ -46,7 +47,7 @@ const SUPERVISORS: ReadonlyArray<SupervisorRow> = [
     siteEn: 'Kakola Alluvial Terraces',
     siteSw: 'Kakola Alluvial Terraces',
     roleEn: 'Processing line lead',
-    roleSw: 'Mkuu wa mstari wa kuchakata',
+    roleSw: S.peopleSurface.supRole2.sw,
     status: 'on-shift',
   },
   {
@@ -56,7 +57,7 @@ const SUPERVISORS: ReadonlyArray<SupervisorRow> = [
     siteEn: 'Mbeya Ridge Pit 2',
     siteSw: 'Mbeya Ridge Pit 2',
     roleEn: 'Equipment supervisor',
-    roleSw: 'Msimamizi wa vifaa',
+    roleSw: S.peopleSurface.supRole3.sw,
     status: 'off-shift',
   },
   {
@@ -66,7 +67,7 @@ const SUPERVISORS: ReadonlyArray<SupervisorRow> = [
     siteEn: 'Nyakabale Reef Block',
     siteSw: 'Nyakabale Reef Block',
     roleEn: 'Geology supervisor',
-    roleSw: 'Msimamizi wa jiolojia',
+    roleSw: S.peopleSurface.supRole4.sw,
     status: 'on-shift',
   },
 ];
@@ -77,18 +78,18 @@ function statusTone(status: SupervisorRow['status']) {
   if (status === 'on-shift') {
     return {
       pill: 'border-success/40 bg-success/10 text-success',
-      label: { en: 'On shift', sw: 'Kazini' },
+      label: S.peopleSurface.onShiftStatus,
     };
   }
   if (status === 'leave') {
     return {
       pill: 'border-info/40 bg-info/10 text-info',
-      label: { en: 'Leave', sw: 'Likizo' },
+      label: S.peopleSurface.leaveStatus,
     };
   }
   return {
     pill: 'border-border bg-surface text-neutral-300',
-    label: { en: 'Off shift', sw: 'Pumzika' },
+    label: S.peopleSurface.offShiftStatus,
   };
 }
 
@@ -119,31 +120,39 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
   const metrics = useMemo<readonly MetricTile[]>(
     () => [
       {
-        label: isSw ? 'Wafanyakazi zamu ya leo' : 'Workforce on shift',
+        label: isSw ? S.peopleSurface.onShiftLabel.sw : S.peopleSurface.onShiftLabel.en,
         value: String(onShift),
-        sub: isSw ? 'Walioingia kwa GPS' : 'GPS-fenced check-ins',
+        sub: isSw ? S.peopleSurface.onShiftSub.sw : S.peopleSurface.onShiftSub.en,
         icon: Users,
         tone: 'default' as const,
       },
       {
-        label: isSw ? 'Wasimamizi kazini' : 'Supervisors on shift',
+        label: isSw
+          ? S.peopleSurface.supervisorsLabel.sw
+          : S.peopleSurface.supervisorsLabel.en,
         value: String(SUPERVISORS.filter((s) => s.status === 'on-shift').length),
-        sub: isSw ? 'Wamesalia kwa kushuhudia' : 'Leadership coverage',
+        sub: isSw
+          ? S.peopleSurface.supervisorsSub.sw
+          : S.peopleSurface.supervisorsSub.en,
         icon: HardHat,
       },
       {
-        label: isSw ? 'Matukio wazi' : 'Open incidents',
+        label: isSw
+          ? S.peopleSurface.openIncidentsLabel.sw
+          : S.peopleSurface.openIncidentsLabel.en,
         value: String(openIncidents),
-        sub: isSw ? 'Yanahitaji ufuatiliaji' : 'Need follow-through',
+        sub: isSw
+          ? S.peopleSurface.openIncidentsSub.sw
+          : S.peopleSurface.openIncidentsSub.en,
         icon: AlertOctagon,
         tone: openIncidents > 0 ? ('warning' as const) : ('success' as const),
       },
       {
-        label: isSw ? 'Mafuta - siku 7' : 'Fuel - 7d avg',
+        label: isSw ? S.peopleSurface.fuelLabel.sw : S.peopleSurface.fuelLabel.en,
         value: `${Math.round(
           FUEL_SPARK.reduce((a, b) => a + b, 0) / FUEL_SPARK.length,
         )} L`,
-        sub: isSw ? 'Mwelekeo wa matumizi' : 'Consumption trend',
+        sub: isSw ? S.peopleSurface.fuelSub.sw : S.peopleSurface.fuelSub.en,
         icon: Fuel,
       },
     ],
@@ -159,12 +168,14 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
           <header className="border-b border-border px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Briefcase className="h-4 w-4 text-signal-500" />
-              {isSw ? 'Wasimamizi wakuu' : 'Supervisors'}
+              {isSw
+                ? S.peopleSurface.supervisorsHeading.sw
+                : S.peopleSurface.supervisorsHeading.en}
             </h2>
             <p className="mt-0.5 text-xs text-neutral-400">
               {isSw
-                ? 'Kiwango cha juu cha utawala kwa kila mgodi'
-                : 'Leadership coverage by site'}
+                ? S.peopleSurface.supervisorsCaption.sw
+                : S.peopleSurface.supervisorsCaption.en}
             </p>
           </header>
           <ul className="divide-y divide-border/60">
@@ -189,7 +200,7 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
                   >
-                    {isSw ? tone.label.sw : tone.label.en}
+                    {isSw ? tone.label.sw : tone.label.en /* from tailStrings */}
                   </span>
                 </li>
               );
@@ -202,16 +213,18 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
             <header className="border-b border-border px-5 py-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <AlertOctagon className="h-4 w-4 text-warning" />
-                {isSw ? 'Foleni ya matukio' : 'Incident feed'}
+                {isSw
+                  ? S.peopleSurface.incidentFeedHeading.sw
+                  : S.peopleSurface.incidentFeedHeading.en}
               </h2>
             </header>
             {incidents.isPending ? (
               <div className="px-5 py-6 text-xs text-neutral-500">
-                {isSw ? 'Inapakia...' : 'Loading...'}
+                {isSw ? S.peopleSurface.loading.sw : S.peopleSurface.loading.en}
               </div>
             ) : (incidents.data ?? []).length === 0 ? (
               <div className="px-5 py-6 text-xs text-neutral-500">
-                {isSw ? 'Hakuna tukio.' : 'No recent incidents.'}
+                {isSw ? S.peopleSurface.noIncidents.sw : S.peopleSurface.noIncidents.en}
               </div>
             ) : (
               <ul className="divide-y divide-border/60">
@@ -226,7 +239,10 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                       </span>
                     </div>
                     <div className="mt-1 text-neutral-500">
-                      {row.siteId ?? (isSw ? 'Hakitajwa' : 'Unassigned')}
+                      {row.siteId ??
+                        (isSw
+                          ? S.peopleSurface.unassigned.sw
+                          : S.peopleSurface.unassigned.en)}
                     </div>
                   </li>
                 ))}
@@ -238,10 +254,10 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
             <header className="border-b border-border px-5 py-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Activity className="h-4 w-4 text-signal-500" />
-                {isSw ? 'Matumizi ya mafuta' : 'Fuel consumption'}
+                {isSw ? S.peopleSurface.fuelHeading.sw : S.peopleSurface.fuelHeading.en}
               </h2>
               <p className="mt-0.5 text-xs text-neutral-400">
-                {isSw ? 'Lita kwa siku - wiki iliyopita' : 'Litres / day - last week'}
+                {isSw ? S.peopleSurface.fuelCaption.sw : S.peopleSurface.fuelCaption.en}
               </p>
             </header>
             <div className="px-5 py-5">

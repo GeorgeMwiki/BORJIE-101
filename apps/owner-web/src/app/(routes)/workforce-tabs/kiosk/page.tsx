@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getOwnerSession } from '@/lib/session';
 import { SW } from '@/lib/sw-tokens';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { KioskClockInSurface } from './KioskClockInSurface';
 
 /**
@@ -37,12 +38,12 @@ export default async function WorkforceKioskPage(): Promise<JSX.Element> {
       <header className="space-y-2">
         <p className="font-mono text-xs text-neutral-500">O-W-WORKFORCE-KIOSK</p>
         <h1 className="font-display text-2xl text-foreground">
-          {isSw ? `Kiosk ya ${SW.workforce}` : 'Workforce kiosk'}
+          {isSw
+            ? S.kioskPage.title.sw.replace('{workforce}', SW.workforce)
+            : S.kioskPage.title.en}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {isSw
-            ? 'Mfanyikazi anaweza kuingia/kutoka kazini kupitia Touch ID au Windows Hello kwenye kompyuta ya msingi.'
-            : 'Workers clock in/out from this shared terminal using Touch ID or Windows Hello — no phone required.'}
+          {isSw ? S.kioskPage.body.sw : S.kioskPage.body.en}
         </p>
       </header>
 
