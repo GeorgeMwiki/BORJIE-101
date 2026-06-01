@@ -27,7 +27,7 @@ import { join } from 'node:path';
  * longer, which is the safe direction.
  */
 const SWAHILI_TOKENS =
-  /\b(kwa|ili|kwenye|yako|tena|wafanyakazi|mfanyakazi|madini|leseni|mgodi|migodi|nyumbani|dashibodi|mkurugenzi|mmiliki|ingia|nenosiri|nywila|tafadhali|samahani|kuendelea|kuthibitisha|hazina|gharama|mauzo|wasifu|zabuni|biashara|inahitajika|hakiki|imeshindwa|maelezo|karibu|habari|asante|fedha|mipangilio|wateja|ripoti|uzingatiaji|hati|mali)\b/i;
+  /\b(kwa|ili|kwenye|yako|tena|wafanyakazi|mfanyakazi|madini|leseni|mgodi|migodi|nyumbani|dashibodi|mkurugenzi|mmiliki|ingia|nenosiri|nywila|tafadhali|samahani|kuendelea|kuthibitisha|hazina|gharama|mauzo|wasifu|zabuni|biashara|inahitajika|hakiki|imeshindwa|maelezo|karibu|habari|asante|fedha|mipangilio|wateja|ripoti|uzingatiaji|hati|mali|niarifu|toka|inatoka|tueleze|ujumbe)\b/i;
 
 /** Strip whole-line comments so Swahili in doc-comments is ignored. */
 function stripCommentLines(src: string): string {

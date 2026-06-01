@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { refreshSupabaseSession } from './lib/supabase/middleware';
+import { requirePublicBaseUrl } from './lib/env-guard';
 
 /**
  * Gate every route on a valid Supabase session.
@@ -16,11 +17,42 @@ import { refreshSupabaseSession } from './lib/supabase/middleware';
  * Public paths (no session required):
  *   - `/sign-in` — the sign-in form itself
  *   - static Next assets — excluded via `config.matcher` below
+ *
+ * Outward dedupe redirect (handled before any session work so it never
+ * touches the owner shell's auth gate):
+ *   - `/signup` — owner self-serve sign-up is deduped to the canonical
+ *     marketing `/sign-up` (the known-working, end-to-end path).
+ *     Mirrors how marketing `/sign-in` redirects to owner-web
+ *     `/sign-in`. Done here in middleware — not in the page — because
+ *     the root layout's `OwnerShell` resolves the owner session on
+ *     every render and would otherwise bounce an unauthenticated
+ *     visitor to `/sign-in` before the page's own redirect runs.
  */
+const PUBLIC_PATHS: readonly string[] = ['/sign-in'];
+
+/**
+ * Resolve the canonical marketing origin for the `/signup` dedupe
+ * redirect. `requirePublicBaseUrl` throws in production when
+ * `NEXT_PUBLIC_MARKETING_ORIGIN` is unset (so the deployed cockpit can
+ * never silently bounce to localhost); in dev it falls back to
+ * http://localhost:3002.
+ */
+function marketingSignUpUrl(): string {
+  const origin = requirePublicBaseUrl(
+    'NEXT_PUBLIC_MARKETING_ORIGIN',
+    'http://localhost:3002',
+  ).replace(/\/$/, '');
+  return `${origin}/sign-up`;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  const isPublicPath = pathname === '/sign-in';
+  if (pathname === '/signup') {
+    return NextResponse.redirect(marketingSignUpUrl());
+  }
+
+  const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
   const { response, hasSession } = await refreshSupabaseSession(request);
 

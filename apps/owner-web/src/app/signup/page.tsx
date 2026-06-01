@@ -1,66 +1,32 @@
-/**
- * /signup — Owner self-signup landing.
- *
- * Server Component. Redirects to `/` if the visitor already has a
- * Supabase session; otherwise renders the SignupWizard client island.
- *
- * LitFin-pattern editorial frame: small kicker, declarative heading,
- * one-sentence sub, wizard in generous card. Aurora + grid backdrop
- * mirrors the marketing surface so the surface reads as one product.
- */
-
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { SignupWizard } from '@/components/signup/SignupWizard';
-import { getServerT } from '@/i18n/t.server';
 
+import { requirePublicBaseUrl } from '@/lib/env-guard';
+
+// Pure redirect — no UI to render and no static cache to keep.
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getServerT();
-  return { title: `${t('signup.page.title')} — Borjie Owner Cockpit` };
-}
-
-export default async function SignupPage() {
-  const supabase = await createSupabaseServerClient();
-  const t = await getServerT();
-  const { data, error } = await supabase.auth.getUser();
-  if (!error && data.user) {
-    redirect('/');
-  }
-  return (
-    <main
-      id="main-content"
-      className="relative min-h-screen overflow-hidden bg-background px-6 py-12 sm:py-20"
-    >
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 50% at 50% 0%, hsl(var(--signal-500) / 0.10) 0%, transparent 60%)',
-        }}
-      />
-      <div className="relative mx-auto w-full max-w-2xl">
-        <header className="mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-signal-500 to-signal-700 shadow-md">
-            <span className="font-display text-xl font-bold tracking-tight text-neutral-950">
-              B
-            </span>
-          </div>
-          <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
-            {t('signup.page.eyebrow')}
-          </p>
-          <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-            {t('signup.page.heading')}
-          </h1>
-          <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-neutral-400">
-            {t('signup.page.subheading')}
-          </p>
-        </header>
-        <SignupWizard />
-      </div>
-    </main>
-  );
+/**
+ * /signup — canonical owner self-serve sign-up lives on the marketing
+ * site, not here.
+ *
+ * Owner sign-up was duplicated (marketing /sign-up AND owner-web
+ * /signup). The marketing /sign-up form is the known-working,
+ * end-to-end path (creates user + tenant + persona + audit + session,
+ * then lands in the cockpit). To keep one source of truth we redirect
+ * every hit to the marketing site's `/sign-up` on its own origin
+ * (port 3002 in dev) — mirroring how marketing /sign-in redirects to
+ * owner-web /sign-in.
+ *
+ * `requirePublicBaseUrl` throws in production when
+ * NEXT_PUBLIC_MARKETING_ORIGIN is unset, so the deployed cockpit can
+ * never silently bounce a visitor to localhost; in dev it falls back
+ * to http://localhost:3002. The now-unused SignupWizard components are
+ * left in place.
+ */
+export default function SignupPage(): never {
+  const marketingOrigin = requirePublicBaseUrl(
+    'NEXT_PUBLIC_MARKETING_ORIGIN',
+    'http://localhost:3002',
+  ).replace(/\/$/, '');
+  redirect(`${marketingOrigin}/sign-up`);
 }

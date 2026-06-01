@@ -19,6 +19,48 @@
 @tailwind utilities;
 
 @layer components {
+  /* @borjie/app-shell — suite-wide top bar + portal switcher.
+   * The shell is headless: it emits the class hooks below and we style
+   * them with the cockpit's own tokens so the switcher reads as native
+   * chrome (no foreign palette, no layout break). */
+  .borjie-app-top-bar__brand {
+    @apply flex min-w-0 flex-1 items-center;
+  }
+  .borjie-app-top-bar__center {
+    @apply flex shrink-0 items-center justify-center;
+  }
+  .borjie-app-top-bar__actions {
+    @apply flex shrink-0 items-center justify-end;
+  }
+
+  .borjie-portal-switcher {
+    @apply relative;
+  }
+  .borjie-portal-switcher__trigger {
+    @apply inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full
+      border border-border bg-surface px-3 py-1.5 text-xs font-semibold
+      text-foreground transition-colors hover:bg-surface/60;
+  }
+  /* Hide the native <summary> disclosure triangle (we render our own). */
+  .borjie-portal-switcher__trigger::-webkit-details-marker {
+    display: none;
+  }
+  .borjie-portal-switcher__chevron {
+    @apply text-neutral-500;
+  }
+  .borjie-portal-switcher__menu {
+    @apply absolute left-1/2 top-[calc(100%+0.5rem)] z-40 flex min-w-[12rem]
+      -translate-x-1/2 flex-col gap-0.5 rounded-xl border border-border
+      bg-surface p-1 shadow-lg;
+  }
+  .borjie-portal-switcher__item {
+    @apply block rounded-lg px-3 py-2 text-sm text-neutral-300 no-underline
+      transition-colors hover:bg-background hover:text-foreground;
+  }
+  .borjie-portal-switcher__item--current {
+    @apply cursor-default font-semibold text-foreground;
+  }
+
   .cockpit-card {
     @apply rounded-lg border border-border bg-surface shadow-sm p-5;
   }

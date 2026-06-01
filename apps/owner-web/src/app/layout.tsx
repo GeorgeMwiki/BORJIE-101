@@ -83,8 +83,10 @@ export default async function RootLayout({
             <ServiceWorkerRegister />
             {/* Pilot feedback widget — fixed bottom-right pill. Opt-in
                 mount via `FEEDBACK_BUTTON_DISABLE` env to silence in
-                screenshot / load test runs. */}
-            <FeedbackButton />
+                screenshot / load test runs. Language follows the resolved
+                `borjie_locale` (default 'en') — same source as the chrome
+                so the pill never leaks the inactive language. */}
+            <FeedbackButton lang={locale} />
           </AppProviders>
         </ThemeProvider>
       </body>

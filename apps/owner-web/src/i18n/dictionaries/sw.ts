@@ -250,5 +250,37 @@ export const sw = {
     "hintHandoff": "Niunganishe na mshauri wa kibinadamu.",
     "hintSimpler": "Eleza hilo kwa lugha rahisi zaidi.",
     "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa."
+  },
+  "portal": {
+    "owner": "Kokpiti ya Mmiliki",
+    "admin": "Konsoli ya Borjie",
+    "switch": "Badilisha mlango"
+  },
+  "feedback": {
+    "open": "Niarifu Borjie",
+    "title": "Tueleze uzoefu wako",
+    "ratingPrompt": "Ulipenda kiasi gani?",
+    "noteLabel": "Ujumbe wako",
+    "messagePlaceholder": "Andika kwa Kiswahili au Kiingereza...",
+    "cancel": "Funga",
+    "send": "Niarifu Borjie",
+    "error": "Hatukuweza kutuma — tafadhali jaribu tena"
+  },
+  "signOut": {
+    "action": "Toka",
+    "pending": "Inatoka…",
+    "error": "Imeshindwa kutoka"
+  },
+  "reminders": {
+    "heading": "Vikumbusho",
+    "channelHint": "Email default · SMS / Slack zinapatikana",
+    "title": "Kichwa",
+    "body": "Ujumbe",
+    "triggerAt": "Tarehe",
+    "channel": "Njia",
+    "saving": "Inahifadhi…",
+    "schedule": "Hifadhi kikumbusho",
+    "empty": "Hakuna vikumbusho.",
+    "cancelItem": "Futa"
   }
 } as const;

@@ -1,22 +1,30 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 /**
  * Sign-out button for the Borjie Owner Cockpit top bar.
  *
  * Calls `supabase.auth.signOut()` then forces a router refresh so
  * the middleware re-runs and the user gets bounced to `/sign-in`.
+ *
+ * Always-on chrome: the label, the pending state, and the catch-all
+ * error all resolve off the ACTIVE locale passed in via `lang` (default
+ * 'en'), so the control never leaks the inactive language.
  */
 export function SignOutButton(props: {
   readonly className?: string;
   readonly label?: string;
+  readonly lang?: 'sw' | 'en';
 }): JSX.Element {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const t = useMemo(() => makeT(dictionaries[props.lang ?? 'en']), [props.lang]);
 
   function handleClick() {
     setError(null);
@@ -31,9 +39,7 @@ export function SignOutButton(props: {
         router.replace('/sign-in');
         router.refresh();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Imeshindwa kutoka',
-        );
+        setError(err instanceof Error ? err.message : t('signOut.error'));
       }
     });
   }
@@ -54,7 +60,7 @@ export function SignOutButton(props: {
           'inline-flex items-center gap-1.5 rounded-md border border-border bg-card/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60'
         }
       >
-        {pending ? 'Inatoka…' : (props.label ?? 'Toka')}
+        {pending ? t('signOut.pending') : (props.label ?? t('signOut.action'))}
       </button>
     </div>
   );

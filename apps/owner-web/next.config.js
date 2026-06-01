@@ -54,6 +54,7 @@ const nextConfig = {
   transpilePackages: [
     '@borjie/design-system',
     '@borjie/chat-ui',
+    '@borjie/app-shell',
     '@borjie/observability',
     '@borjie/api-sdk',
     '@borjie/performance-toolkit',

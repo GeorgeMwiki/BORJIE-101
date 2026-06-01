@@ -9,9 +9,17 @@
  * dispatcher.
  */
 
-import { useEffect, useState, type ReactElement, type FormEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+  type FormEvent,
+} from 'react';
 import { Bell, Mail, MessageCircle, Trash2 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 interface Reminder {
   readonly id: string;
@@ -44,6 +52,10 @@ export function OwnerOSRemindersPanel({
   const [triggerAt, setTriggerAt] = useState(inOneHour());
   const [channel, setChannel] = useState<'email' | 'sms' | 'slack'>('email');
   const [creating, setCreating] = useState(false);
+  const t = useMemo(
+    () => makeT(dictionaries[languagePreference]),
+    [languagePreference],
+  );
 
   async function reload(): Promise<void> {
     try {
@@ -103,13 +115,11 @@ export function OwnerOSRemindersPanel({
     <div className="flex flex-col gap-4" data-testid="owner-os-reminders-panel">
       <header className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-warning">
-          {languagePreference === 'sw' ? 'Vikumbusho' : 'Reminders'}
+          {t('reminders.heading')}
         </h2>
         <span className="inline-flex items-center gap-1 text-tiny text-neutral-500">
           <Bell aria-hidden="true" className="h-3 w-3" />
-          {languagePreference === 'sw'
-            ? 'Email default · SMS / Slack zinapatikana'
-            : 'Email default · SMS / Slack available'}
+          {t('reminders.channelHint')}
         </span>
       </header>
 
@@ -118,7 +128,7 @@ export function OwnerOSRemindersPanel({
         className="grid grid-cols-1 gap-2 rounded border border-border bg-surface/30 p-3 md:grid-cols-2"
       >
         <label className="flex flex-col gap-1 text-xs md:col-span-2">
-          {languagePreference === 'sw' ? 'Kichwa' : 'Title'}
+          {t('reminders.title')}
           <input
             type="text"
             value={title}
@@ -129,7 +139,7 @@ export function OwnerOSRemindersPanel({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs md:col-span-2">
-          {languagePreference === 'sw' ? 'Ujumbe' : 'Body'}
+          {t('reminders.body')}
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -139,7 +149,7 @@ export function OwnerOSRemindersPanel({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs">
-          {languagePreference === 'sw' ? 'Tarehe' : 'Trigger at'}
+          {t('reminders.triggerAt')}
           <input
             type="datetime-local"
             value={triggerAt}
@@ -149,7 +159,7 @@ export function OwnerOSRemindersPanel({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs">
-          {languagePreference === 'sw' ? 'Njia' : 'Channel'}
+          {t('reminders.channel')}
           <select
             value={channel}
             onChange={(e) => setChannel(e.target.value as 'email' | 'sms' | 'slack')}
@@ -166,13 +176,7 @@ export function OwnerOSRemindersPanel({
             disabled={creating}
             className="rounded border border-warning bg-warning/10 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/20 disabled:opacity-50"
           >
-            {creating
-              ? languagePreference === 'sw'
-                ? 'Inahifadhi…'
-                : 'Saving…'
-              : languagePreference === 'sw'
-                ? 'Hifadhi kikumbusho'
-                : 'Schedule reminder'}
+            {creating ? t('reminders.saving') : t('reminders.schedule')}
           </button>
         </div>
       </form>
@@ -186,9 +190,7 @@ export function OwnerOSRemindersPanel({
       {items === null ? (
         <p className="text-tiny text-neutral-500">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="text-tiny text-neutral-500">
-          {languagePreference === 'sw' ? 'Hakuna vikumbusho.' : 'No reminders yet.'}
-        </p>
+        <p className="text-tiny text-neutral-500">{t('reminders.empty')}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((r) => (
@@ -218,7 +220,7 @@ export function OwnerOSRemindersPanel({
                   className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-tiny hover:border-destructive hover:text-destructive"
                 >
                   <Trash2 aria-hidden="true" className="h-3 w-3" />
-                  {languagePreference === 'sw' ? 'Futa' : 'Cancel'}
+                  {t('reminders.cancelItem')}
                 </button>
               ) : null}
             </li>

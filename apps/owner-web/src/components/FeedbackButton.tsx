@@ -19,12 +19,17 @@
  * standard `bg-card border-border` panel with the same rounded-xl
  * inputs as the auth surfaces. Stars become tinted icon buttons.
  *
- * Bilingual: Swahili-first labels per CLAUDE.md.
+ * Bilingual: every label flows through the owner-web i18n dictionaries
+ * keyed off the ACTIVE locale passed in via `lang` (default 'en'). The
+ * widget is always-on chrome, so it must never default to Swahili — that
+ * would leak SW onto an EN cockpit (and vice-versa).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquarePlus, Star, X } from 'lucide-react';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 export interface FeedbackButtonProps {
   readonly screenId?: string;
@@ -42,27 +47,6 @@ export interface FeedbackSubmission {
 }
 
 const RATINGS = [1, 2, 3, 4, 5] as const;
-
-const LABELS = {
-  open: { sw: 'Niarifu Borjie', en: 'Tell Borjie' },
-  title: { sw: 'Tueleze uzoefu wako', en: 'Share your experience' },
-  ratingPrompt: { sw: 'Ulipenda kiasi gani?', en: 'How was it?' },
-  noteLabel: { sw: 'Ujumbe wako', en: 'Your note' },
-  messagePlaceholder: {
-    sw: 'Andika kwa Kiswahili au Kiingereza...',
-    en: 'Write in Swahili or English...',
-  },
-  cancel: { sw: 'Funga', en: 'Close' },
-  send: { sw: 'Niarifu Borjie', en: 'Send' },
-  error: {
-    sw: 'Hatukuweza kutuma — tafadhali jaribu tena',
-    en: 'Could not send — please try again',
-  },
-} as const;
-
-function pick(label: { sw: string; en: string }, lang: 'sw' | 'en'): string {
-  return lang === 'en' ? label.en : label.sw;
-}
 
 async function defaultSubmit(input: FeedbackSubmission): Promise<void> {
   await apiRequest<{ id: string | null }>(
@@ -82,7 +66,7 @@ async function defaultSubmit(input: FeedbackSubmission): Promise<void> {
 export function FeedbackButton({
   screenId,
   sessionContext,
-  lang = 'sw',
+  lang = 'en',
   onSubmit,
 }: FeedbackButtonProps): JSX.Element {
   const [open, setOpen] = useState(false);
@@ -91,6 +75,10 @@ export function FeedbackButton({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Resolve labels off the ACTIVE locale the mount passed in (default
+  // 'en'), never the cookie — the prop is the single source so EN/SW
+  // never mix and tests can drive either locale deterministically.
+  const t = useMemo(() => makeT(dictionaries[lang]), [lang]);
   const submitter = useMemo(() => onSubmit ?? defaultSubmit, [onSubmit]);
 
   const reset = useCallback((): void => {
@@ -117,7 +105,7 @@ export function FeedbackButton({
     if (submitting) return;
     const trimmed = message.trim();
     if (rating < 1 || rating > 5 || trimmed.length === 0) {
-      setError(pick(LABELS.error, lang));
+      setError(t('feedback.error'));
       return;
     }
     const submission: FeedbackSubmission = {
@@ -139,13 +127,13 @@ export function FeedbackButton({
           ? cause.message
           : cause instanceof Error
             ? cause.message
-            : pick(LABELS.error, lang);
+            : t('feedback.error');
       setError(msg);
       setOpen(true);
     } finally {
       setSubmitting(false);
     }
-  }, [rating, message, screenId, sessionContext, submitting, submitter, lang, reset]);
+  }, [rating, message, screenId, sessionContext, submitting, submitter, t, reset]);
 
   return (
     <>
@@ -153,11 +141,11 @@ export function FeedbackButton({
         type="button"
         onClick={(): void => setOpen(true)}
         className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:bg-signal-400 hover:shadow-xl active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        aria-label={pick(LABELS.open, lang)}
+        aria-label={t('feedback.open')}
         data-testid="feedback-button-open"
       >
         <MessageSquarePlus aria-hidden="true" className="h-4 w-4" />
-        {pick(LABELS.open, lang)}
+        {t('feedback.open')}
       </button>
 
       {open ? (
@@ -177,7 +165,7 @@ export function FeedbackButton({
               type="button"
               onClick={close}
               className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40"
-              aria-label={pick(LABELS.cancel, lang)}
+              aria-label={t('feedback.cancel')}
             >
               <X aria-hidden="true" className="h-4 w-4" />
             </button>
@@ -185,16 +173,16 @@ export function FeedbackButton({
               id="owner-feedback-title"
               className="font-display text-xl font-medium tracking-tight text-foreground"
             >
-              {pick(LABELS.title, lang)}
+              {t('feedback.title')}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {pick(LABELS.ratingPrompt, lang)}
+              {t('feedback.ratingPrompt')}
             </p>
 
             <div
               className="mt-4 flex gap-2"
               role="radiogroup"
-              aria-label={pick(LABELS.ratingPrompt, lang)}
+              aria-label={t('feedback.ratingPrompt')}
             >
               {RATINGS.map((star) => {
                 const active = rating >= star;
@@ -227,16 +215,16 @@ export function FeedbackButton({
               htmlFor="owner-feedback-message"
               className="mt-5 block text-sm font-medium text-foreground"
             >
-              {pick(LABELS.noteLabel, lang)}
+              {t('feedback.noteLabel')}
             </label>
             <textarea
               id="owner-feedback-message"
               value={message}
               onChange={(e): void => setMessage(e.target.value.slice(0, 1500))}
-              placeholder={pick(LABELS.messagePlaceholder, lang)}
+              placeholder={t('feedback.messagePlaceholder')}
               className="mt-1.5 min-h-tap-area w-full rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/20"
               maxLength={1500}
-              aria-label={pick(LABELS.messagePlaceholder, lang)}
+              aria-label={t('feedback.messagePlaceholder')}
               data-testid="feedback-button-message"
             />
             <p className="mt-1 text-right font-mono text-tiny tabular-nums text-muted-foreground/70">
@@ -260,7 +248,7 @@ export function FeedbackButton({
                 className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40"
                 data-testid="feedback-button-cancel"
               >
-                {pick(LABELS.cancel, lang)}
+                {t('feedback.cancel')}
               </button>
               <button
                 type="button"
@@ -271,7 +259,7 @@ export function FeedbackButton({
                 className="rounded-xl bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 data-testid="feedback-button-send"
               >
-                {pick(LABELS.send, lang)}
+                {t('feedback.send')}
               </button>
             </div>
           </div>

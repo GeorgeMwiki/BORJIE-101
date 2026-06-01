@@ -271,6 +271,50 @@ export const en = {
     hintSimpler: 'Explain that more simply.',
     hintCmdk: 'Show me what I can do from here.',
   },
+
+  // Suite-wide portal switcher (the @borjie/app-shell <AppTopBar>). These
+  // labels are injected into the headless shell so EN/SW never mix —
+  // the shell itself hard-codes nothing.
+  portal: {
+    owner: 'Owner Cockpit',
+    admin: 'Borjie Console',
+    switch: 'Switch portal',
+  },
+
+  // Pilot in-app feedback widget (the fixed bottom-right pill + modal).
+  // Always-on chrome, so every label flows through the dictionary to keep
+  // EN/SW from mixing regardless of the active locale.
+  feedback: {
+    open: 'Tell Borjie',
+    title: 'Share your experience',
+    ratingPrompt: 'How was it?',
+    noteLabel: 'Your note',
+    messagePlaceholder: 'Write in Swahili or English...',
+    cancel: 'Close',
+    send: 'Send',
+    error: 'Could not send — please try again',
+  },
+
+  // Top-bar sign-out control. Always-on chrome.
+  signOut: {
+    action: 'Sign out',
+    pending: 'Signing out…',
+    error: 'Could not sign out',
+  },
+
+  // Owner-OS reminders panel (list + create).
+  reminders: {
+    heading: 'Reminders',
+    channelHint: 'Email default · SMS / Slack available',
+    title: 'Title',
+    body: 'Body',
+    triggerAt: 'Trigger at',
+    channel: 'Channel',
+    saving: 'Saving…',
+    schedule: 'Schedule reminder',
+    empty: 'No reminders yet.',
+    cancelItem: 'Cancel',
+  },
 } as const;
 
 export type Dictionary = typeof en;

@@ -8,7 +8,9 @@
  * an unlisted file starts leaking (new mixing). Target: [].
  *
  * Baseline 2026-05-31 (116). Migrated: entry trio + shell + command
- * palette → 105. Do not add new entries to silence the guard.
+ * palette → 105. Chrome leak sweep: FeedbackButton + SignOutButton +
+ * OwnerOSRemindersPanel → 103. Do not add new entries to silence the
+ * guard.
  */
 
 export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
@@ -43,8 +45,6 @@ export const SWAHILI_LEAK_ALLOWLIST: readonly string[] = [
   'app/oauth/confirm/confirm-panel.tsx',
   'components/EntityTimeline/EntityTimelineDrawer.tsx',
   'components/EntityTimeline/composers.ts',
-  'components/FeedbackButton.tsx',
-  'components/SignOutButton.tsx',
   'components/artifacts/ArtifactRenderer.tsx',
   'components/blackboard/Blackboard.tsx',
   'components/chat/HandoffCard.tsx',

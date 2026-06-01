@@ -58,6 +58,7 @@ import {
   BorjieDynamicHints,
   type BorjieAffectiveProfile,
 } from './BorjieDynamicHints';
+import { useMyMastery, useMyShortcuts } from '@/lib/queries/me-progression';
 import {
   normaliseAffectiveProfile,
   normaliseDebateBadge,
@@ -254,6 +255,12 @@ export function HomeChatTeach({
   // hint. Null until the first `affective_profile` frame lands.
   const [affectiveProfile, setAffectiveProfile] =
     useState<BorjieAffectiveProfile | null>(null);
+  // Wave SUPERPOWERS (UI-3 / UI-5): live progressive-disclosure reads.
+  // `useMyMastery` feeds <MasteryGate>; `useMyShortcuts` feeds
+  // <LearnedShortcutsPanel>. Both degrade to null / [] when empty or
+  // unauthenticated, so the gate + panel simply stay hidden.
+  const masteryQuery = useMyMastery();
+  const shortcutsQuery = useMyShortcuts();
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -854,6 +861,8 @@ export function HomeChatTeach({
         <BorjieDynamicHints
           language={languagePreference}
           affectiveProfile={affectiveProfile}
+          masteryScore={masteryQuery.data ?? null}
+          learnedShortcuts={shortcutsQuery.data ?? []}
           onHintAction={handleHintAction}
         />
       </div>
