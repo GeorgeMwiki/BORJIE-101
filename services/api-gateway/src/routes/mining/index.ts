@@ -65,6 +65,19 @@ import { miningBuyersKycRouter } from './buyers-kyc.hono';
 import { miningCsrPlansRouter } from './csr-plans.hono';
 import { miningDocsRouter } from './docs.hono';
 
+// Wave OWNER-OS PANELS-WIRE (final 5) — the last CTA-only owner-os panels
+// land on real, RLS-scoped read surfaces:
+//   /esg          → village_meetings (community engagement; real rows)
+//   /procurement  → procurement_recommendations (real rows)
+//   /accounting   → empty contract (accounting-journal table still needed)
+//   /legal        → empty contract (contracts-library table still needed)
+//   /ancillary    → empty contract (ancillary-business table still needed)
+import { miningEsgRouter } from './esg.hono';
+import { miningProcurementRouter } from './procurement.hono';
+import { miningAccountingRouter } from './accounting.hono';
+import { miningLegalRouter } from './legal.hono';
+import { miningAncillaryRouter } from './ancillary.hono';
+
 // Document Drafter (B-DocDrafter) — drafts of contracts / RFPs /
 // letters / notices / memos. Bilingual (sw + en) templates;
 // migration 0084.
@@ -146,6 +159,16 @@ mining.route('/buyers', miningBuyersKycRouter);
 // /csr-plans — Corporate Social Responsibility commitments + delivered_pct
 // (migration 0082).
 mining.route('/csr-plans', miningCsrPlansRouter);
+
+// Owner-os panel BFFs (PANELS-WIRE final 5). `/esg` + `/procurement`
+// return real tenant rows; `/accounting`, `/legal`, `/ancillary` return a
+// real empty list (200, []) until their domain tables are modelled, so
+// every panel renders a proper "no records yet" state instead of a stub.
+mining.route('/esg', miningEsgRouter);
+mining.route('/procurement', miningProcurementRouter);
+mining.route('/accounting', miningAccountingRouter);
+mining.route('/legal', miningLegalRouter);
+mining.route('/ancillary', miningAncillaryRouter);
 
 // Document drafter (B-DocDrafter).
 mining.route('/drafts', miningDraftsRouter);

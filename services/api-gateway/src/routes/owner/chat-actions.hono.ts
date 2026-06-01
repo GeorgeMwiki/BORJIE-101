@@ -10,12 +10,14 @@
  *   POST /micro-action   { verb, params }                  — a chip the
  *       chat surfaced (e.g. an `auto_authorized` follow-up the user taps).
  *       AUTO-SAFE surface: it REFUSES confirm-required verbs (create_site
- *       / add_employee / create_licence / log_production) with
- *       `reason:'confirmation_required'`.
+ *       / add_employee / create_licence / log_production / draft_payroll_run)
+ *       with `reason:'confirmation_required'`.
  *   POST /confirm-action { verb, params } | { actionId }   — an action
  *       the user EXPLICITLY confirmed via a `confirmation_card`. This is
  *       the ONLY path that runs confirm-required domain verbs (sites +
- *       employees + licences + production records → real persisted rows).
+ *       employees + licences + production records → real persisted rows,
+ *       plus draft_payroll_run → a non-binding `payroll_runs` DRAFT header
+ *       the owner approves elsewhere; it NEVER moves money / posts a ledger).
  *
  * Both run, in order:
  *   1. authMiddleware  — Supabase JWT (canonical auth).
@@ -30,10 +32,12 @@
  *   6. On a real execution, append a hash-chained `decision:'executed'`
  *      audit row (append-only) BEFORE returning.
  *
- * HARD RULES (CLAUDE.md): money never written here (no money verbs in the
- * SAFE set); RLS never disabled / double-filtered; audit chain
- * append-only; gate FAILS CLOSED (on any gate error it returns
- * authorized:false → we do not execute).
+ * HARD RULES (CLAUDE.md): money never MOVED here. No verb posts a ledger or
+ * commits wages — the one money-ADJACENT verb (draft_payroll_run) creates
+ * ONLY a non-binding `payroll_runs` DRAFT header (status='draft', no wage
+ * figures, no LedgerService) that the owner approves on a separate four-eye
+ * flow. RLS never disabled / double-filtered; audit chain append-only; gate
+ * FAILS CLOSED (on any gate error it returns authorized:false → no execute).
  */
 
 import { Hono } from 'hono';
@@ -151,10 +155,11 @@ async function gateExecuteAudit(args: {
   //    the chat surfaced the chip and the user tapped it without an
   //    explicit confirmation dialog. A confirm-required verb (create_site /
   //    add_employee / create_licence / log_production creates a durable
-  //    domain row) MUST NOT run there: we refuse it up front, BEFORE the
-  //    gate, so an auto-safe tap can never persist a site/employee/licence/
-  //    production record. Such verbs run ONLY via `/confirm-action`, where
-  //    the owner explicitly confirmed the action.
+  //    domain row; draft_payroll_run creates a non-binding payroll DRAFT)
+  //    MUST NOT run there: we refuse it up front, BEFORE the gate, so an
+  //    auto-safe tap can never persist a site/employee/licence/production
+  //    record or a payroll draft. Such verbs run ONLY via `/confirm-action`,
+  //    where the owner explicitly confirmed the action.
   if (source === 'micro_action' && requiresConfirmation(verb)) {
     moduleLogger.info('chat-actions: confirm-required verb refused on micro-action', {
       verb,

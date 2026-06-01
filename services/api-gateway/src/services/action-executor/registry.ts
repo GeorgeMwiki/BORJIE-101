@@ -15,17 +15,26 @@
  *                    these; the auto-safe paths refuse them.
  *
  * Registered verbs:
- *   set_reminder    — insert an owner reminder         (autoSafe:true)
- *   snooze_reminder — push a reminder forward           (autoSafe:true)
- *   create_site     — insert a physical mining site     (autoSafe:false)
- *   add_employee    — insert a workforce HR record      (autoSafe:false)
- *   create_licence  — insert a mining licence/title     (autoSafe:false)
- *   log_production  — insert a production output record (autoSafe:false)
+ *   set_reminder      — insert an owner reminder           (autoSafe:true)
+ *   snooze_reminder   — push a reminder forward             (autoSafe:true)
+ *   create_site       — insert a physical mining site       (autoSafe:false)
+ *   add_employee      — insert a workforce HR record        (autoSafe:false)
+ *   create_licence    — insert a mining licence/title       (autoSafe:false)
+ *   log_production    — insert a production output record   (autoSafe:false)
+ *   draft_payroll_run — insert a `payroll_runs` DRAFT header (autoSafe:false)
  *
- * Money / ledger / royalty / payroll / sovereign verbs are intentionally
+ * Money-MOVING verbs (post the ledger / commit wages) are intentionally
  * NOT here — they MUST go through `LedgerService.post()` (CLAUDE.md hard
  * rule) and need four-eye flows; they land in a later wave. See the
  * DEFERRED MONEY VERBS block below for the precise list + rationale.
+ *
+ * `draft_payroll_run` is the ONE money-ADJACENT verb here, and it is a
+ * non-binding DRAFT, NOT a money move: it creates only the `payroll_runs`
+ * header row in its initial `status='draft'` state (no wage figures, no
+ * line items, total_tzs/worker_count left at their DB defaults). The owner
+ * approves it elsewhere; only a SEPARATE preview→commit endpoint calls
+ * LedgerService.post(). It imports NO LedgerService and writes NO ledger
+ * row (see handlers/payroll-draft.ts).
  *
  * The confirm-required domain verbs above are NON-MONEY by construction:
  *   - sites carry no money column.
@@ -35,23 +44,46 @@
  *     fee/royalty figure is written (see handlers/licences.ts).
  *   - production_records carry NO money column at all (mass/grade only —
  *     see handlers/production.ts).
- * So all four use their domain repos directly (no LedgerService).
+ *   - payroll_runs (DRAFT) DO carry money columns (`total_tzs`,
+ *     `worker_count`), but draft_payroll_run leaves BOTH at their DB
+ *     defaults ('0' / 0), creates NO `payroll_line_items` (the wage rows),
+ *     and stops at `status='draft'` — the pre-money state. The wage figures
+ *     are computed by a SEPARATE preview step and posted ONLY by a SEPARATE
+ *     commit step via LedgerService.post() (see handlers/payroll-draft.ts).
+ * So all of these use their domain repos directly (no LedgerService).
  *
- * ─── DEFERRED MONEY VERBS (NOT registered — do NOT add here) ───────────
+ * ─── DEFERRED MONEY-MOVING VERBS (NOT registered — do NOT add here) ─────
  * The following verbs were explicitly considered and DEFERRED. They each
- * write the money path and therefore MUST be routed through
- * `LedgerService.post()` in `services/payments-ledger/` (the immutable
- * double-entry invariant — CLAUDE.md hard rule), behind the relevant
- * four-eye / policy flow. Registering them here as plain domain inserts
- * would bypass the ledger and is FORBIDDEN. They will land in a dedicated
- * money-actions wave that calls LedgerService — not in this registry.
+ * MOVE money (post the ledger / commit wages) and therefore MUST be routed
+ * through `LedgerService.post()` in `services/payments-ledger/` (the
+ * immutable double-entry invariant — CLAUDE.md hard rule), behind the
+ * relevant four-eye / policy flow. Registering them here as plain domain
+ * inserts would bypass the ledger and is FORBIDDEN. They will land in a
+ * dedicated money-actions wave that calls LedgerService — not here.
  *
- *   file_royalty  — posts a royalty liability/payment → MUST debit/credit
- *                   the ledger (royalty is a money obligation, not a note).
- *   set_payroll   — sets/commits payroll figures → wage money path; goes
- *                   through payroll-runs + LedgerService, never a raw insert.
+ *   file_royalty  — POSTS a royalty liability/payment → MUST debit/credit
+ *                   the ledger (royalty money obligation, not a note).
+ *                   NOTE: distinct from `draft_royalty_return` (FLAG below).
+ *   set_payroll   — sets/COMMITS payroll figures → wage money path; goes
+ *                   through payroll-runs commit + LedgerService, never a raw
+ *                   insert. NOTE: distinct from `draft_payroll_run`, which
+ *                   is the registered non-money DRAFT (header-only) verb.
  *   post_ledger   — by definition a ledger posting → the ONLY legal path is
  *                   LedgerService.post(); never a direct write from chat.
+ *
+ * ─── FLAGGED: draft_royalty_return (NOT registered — NO backing table) ──
+ * A `draft_royalty_return` DRAFT verb was requested (sibling to
+ * draft_payroll_run): create a non-binding `status='draft'`/`pending_approval`
+ * royalty-return row the owner approves elsewhere. It is NOT implemented
+ * because there is NO royalty-return / royalty-draft table in the schema to
+ * write to. The owner-web `RoyaltyDraftPanel`
+ * (apps/owner-web/src/components/finance/RoyaltyDraftPanel.tsx) is backed by
+ * a HARDCODED in-component fixture (`APRIL_DRAFTS`), and its own comment
+ * says it "Plugs into `/api/v1/mining/royalties/draft` once the endpoint
+ * lands" — neither the endpoint nor the table exists today. Per the wave
+ * constraint we do NOT create money infrastructure (a royalty table +
+ * migration) from the chat-bridge wave; this verb is FLAGGED for a
+ * dedicated royalty-draft wave that first lands the table + RLS + route.
  * ───────────────────────────────────────────────────────────────────────
  *
  * How auto-execution of a confirm-required verb is prevented (defence in
@@ -78,6 +110,7 @@ import { createSiteHandler } from './handlers/sites.js';
 import { addEmployeeHandler } from './handlers/workforce.js';
 import { createLicenceHandler } from './handlers/licences.js';
 import { logProductionHandler } from './handlers/production.js';
+import { draftPayrollRunHandler } from './handlers/payroll-draft.js';
 import { bumpActionMastery } from './mastery-tracker.js';
 import type {
   ActionHandler,
@@ -99,6 +132,9 @@ const REGISTRY: Readonly<Record<string, RegistryEntry>> = Object.freeze({
   add_employee: { handler: addEmployeeHandler, autoSafe: false },
   create_licence: { handler: createLicenceHandler, autoSafe: false },
   log_production: { handler: logProductionHandler, autoSafe: false },
+  // CONFIRM-REQUIRED non-money DRAFT verb — creates only a `payroll_runs`
+  // header in `status='draft'` (no wage money, no ledger). Never auto-safe.
+  draft_payroll_run: { handler: draftPayrollRunHandler, autoSafe: false },
 });
 
 /** Normalise a model / FE verb token for registry lookup. */

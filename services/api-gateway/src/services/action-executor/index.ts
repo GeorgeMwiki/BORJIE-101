@@ -9,14 +9,18 @@
  *     brain-teach auto-execute path gates on (reminders only).
  *   - isKnownVerb(verb) / knownVerbs() — full registry membership.
  *   - requiresConfirmation(verb) — TRUE for a known CONFIRM-REQUIRED verb
- *     (create_site / add_employee / create_licence / log_production); the
- *     `/micro-action` endpoint uses it to refuse those up front.
+ *     (create_site / add_employee / create_licence / log_production /
+ *     draft_payroll_run); the `/micro-action` endpoint uses it to refuse
+ *     those up front.
  *   - types — ExecContext / ExecResult / DispatchResult / RegistryEntry.
  *
  * See ./registry.ts for the verb set + trust classes and the hard-rule
- * rationale (money / ledger / royalty / payroll verbs are excluded and
- * DEFERRED to a LedgerService-backed wave; sites + employees + licences +
- * production records are confirm-required NON-money rows, never auto-safe).
+ * rationale. Money-MOVING verbs (ledger posts / wage commits) are excluded
+ * and DEFERRED to a LedgerService-backed wave. sites + employees + licences
+ * + production records are confirm-required NON-money rows; draft_payroll_run
+ * is a confirm-required NON-money DRAFT (a `payroll_runs` header in
+ * `status='draft'` — no wage figures, no ledger). A draft_royalty_return
+ * sibling is FLAGGED (no royalty-draft table exists yet) — see registry.ts.
  */
 
 export {

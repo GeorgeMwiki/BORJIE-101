@@ -5415,6 +5415,9 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+      ws:
+        specifier: '>=8.20.1'
+        version: 8.20.1
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -5434,6 +5437,9 @@ importers:
       '@types/supertest':
         specifier: ^7.2.0
         version: 7.2.0
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
       autocannon:
         specifier: ^8.0.0
         version: 8.0.0
@@ -19699,6 +19705,12 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /@types/ws@8.18.1:
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+    dependencies:
+      '@types/node': 22.19.19
+    dev: true
 
   /@types/yargs-parser@21.0.3:
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}

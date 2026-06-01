@@ -39,18 +39,18 @@
  *    accountant trial-balance export. Documents that still match none fall
  *    through to a GENERIC `Label: value` extractor.
  *
- *  - Mining doc routing WITHOUT a migration. The `document_type` pgEnum
- *    (`packages/database/src/schemas/documents.schema.ts`) has NO
- *    mining-specific value — the closest existing values are `notice` and
- *    `other`, which are far too generic to key a schema off. Rather than
- *    add an enum value (a migration is owned by a parallel reconcile
- *    agent — see the FOLLOW-UP note on `selectSchemaForDocument`), mining
- *    docs are routed via TWO non-enum signals already available at the
- *    call site: (1) the lightweight classifier `kind` string — exactly the
- *    same loose metadata channel the existing `kind === 'invoice'` rule
- *    uses — and (2) a content sniff over the text sample. Neither path
- *    changes the `runFormExtraction` / `buildOcrExtractionInsert`
- *    signatures the async-OCR worker imports.
+ *  - Mining doc routing. The `document_type` pgEnum
+ *    (`packages/database/src/schemas/documents.schema.ts`) now carries
+ *    first-class `mining_licence` / `royalty_return` / `accountant_export`
+ *    values (migration 0158_document_type_mining_values), so a precisely
+ *    typed upload is keyed straight off `document_type` — the primary
+ *    signal. For the common case where a mining doc still arrives stamped
+ *    generic (`notice` / `other`), routing falls back to TWO non-enum
+ *    signals available at the call site: (1) the lightweight classifier
+ *    `kind` string — the same loose metadata channel the existing
+ *    `kind === 'invoice'` rule uses — and (2) a content sniff over the
+ *    text sample. None of these paths changes the `runFormExtraction` /
+ *    `buildOcrExtractionInsert` signatures the async-OCR worker imports.
  *
  *  - Accountant export is TABULAR. Its account-level debit/credit/balance
  *    rows live in an `ExtractedTable`, not in `Label: value` lines, so the
@@ -152,14 +152,16 @@ const MINING_CONTENT_SNIFFERS: ReadonlyArray<{
  * off `documentType` because it is the most specific signal, then fall to
  * `kind`, then to a content sniff.
  *
- * FOLLOW-UP (flagged for the migration-reconcile agent): the cleanest fix
- * is to add `'mining_licence'`, `'royalty_return'` (and optionally
- * `'accountant_export'`) to the `document_type` pgEnum and switch on them
- * directly, the way `lease_agreement` etc. are handled below. That needs a
- * forward-only migration with the correct sequential number, which is
- * owned by a parallel agent — a number collision here would break it. Once
- * that migration lands, replace the `kind`/content branches for these
- * three with proper `case` arms on `documentType`.
+ * Mining enum values: `'mining_licence'`, `'royalty_return'` and
+ * `'accountant_export'` are now first-class `document_type` values
+ * (migration 0158_document_type_mining_values), so they are matched
+ * directly in the primary `documentType` switch below, the way
+ * `lease_agreement` etc. are. The looser `kind` and content-sniff branches
+ * are RETAINED as fallbacks for the common case where a mining doc still
+ * arrives stamped with a generic `notice` / `other` enum type (e.g. the
+ * upload classifier has not yet been taught the new values, or the async
+ * worker re-classifies after the fact) — they remain the only routing path
+ * for those docs.
  */
 export function selectSchemaForDocument(input: {
   readonly documentType: string;
@@ -179,6 +181,16 @@ export function selectSchemaForDocument(input: {
       return receiptSchema;
     case 'utility_bill':
       return utilityBillSchema;
+    // Tanzanian mining-domain enum values (migration 0158). Now first-class
+    // `document_type` values, so we key off them directly — the most
+    // specific signal wins. The `kind` / content-sniff branches below stay
+    // as fallbacks for docs that arrive as a generic `notice` / `other`.
+    case 'mining_licence':
+      return miningLicenceSchema;
+    case 'royalty_return':
+      return royaltyReturnSchema;
+    case 'accountant_export':
+      return accountantExportSchema;
     default:
       break;
   }

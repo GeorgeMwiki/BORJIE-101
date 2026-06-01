@@ -68,6 +68,17 @@ function makeShim(opts: {
   selectRows?: Array<Record<string, unknown>>;
   selectRowsByTable?: Record<string, Array<Record<string, unknown>>>;
   insertReturn?: Record<string, unknown>;
+  /**
+   * Seeds rows for `db.execute(sql`…`)` calls (used by the raw-SQL
+   * draft_payroll_run handler + the audit helper). Each rule's `match`
+   * substring is tested against the serialized SQL text; the FIRST matching
+   * rule's `rows` are returned. Non-matching executes return `{ rows: [] }`
+   * (the default), so this is fully backward-compatible.
+   */
+  executeRows?: Array<{
+    match: string;
+    rows: Array<Record<string, unknown>>;
+  }>;
 } = {}) {
   const inserts: InsertCall[] = [];
   const updates: UpdateCall[] = [];
@@ -78,6 +89,13 @@ function makeShim(opts: {
       return opts.selectRowsByTable[tableName]!;
     }
     return opts.selectRows ?? [];
+  }
+
+  function executeRowsFor(sqlText: string): Array<Record<string, unknown>> {
+    for (const rule of opts.executeRows ?? []) {
+      if (sqlText.includes(rule.match)) return rule.rows;
+    }
+    return [];
   }
 
   const client = {
@@ -136,9 +154,12 @@ function makeShim(opts: {
         },
       };
     },
-    // The mastery tracker uses db.execute(sql`...`). Drizzle's sql
-    // template object stringifies via its `.queryChunks`; for the shim we
-    // just record that an execute happened (and a coarse text marker).
+    // The mastery tracker + audit helper + the raw-SQL draft handler use
+    // db.execute(sql`...`). Drizzle's sql template object stringifies via
+    // its `.queryChunks` (which includes the bound param VALUES), so the
+    // recorded sqlText is exact enough to assert table/column/param shape.
+    // Seeded rows (executeRows) are returned for matching statements; all
+    // others return `{ rows: [] }` (the default).
     execute(q: unknown): Promise<unknown> {
       let sqlText = 'sql';
       try {
@@ -147,7 +168,7 @@ function makeShim(opts: {
         sqlText = String(q);
       }
       executes.push({ sqlText });
-      return Promise.resolve({ rows: [] });
+      return Promise.resolve({ rows: executeRowsFor(sqlText) });
     },
   };
 
@@ -190,11 +211,12 @@ describe('action-executor registry', () => {
     expect([...safeVerbs()].sort()).toEqual(['set_reminder', 'snooze_reminder']);
   });
 
-  it('KNOWN set includes the confirm-required domain verbs', () => {
+  it('KNOWN set includes the confirm-required domain verbs + the draft verb', () => {
     expect([...knownVerbs()].sort()).toEqual([
       'add_employee',
       'create_licence',
       'create_site',
+      'draft_payroll_run',
       'log_production',
       'set_reminder',
       'snooze_reminder',
@@ -232,10 +254,31 @@ describe('action-executor registry', () => {
     expect(requiresConfirmation('create_licence')).toBe(true);
     expect(requiresConfirmation('log_production')).toBe(true);
     expect(requiresConfirmation('LOG_PRODUCTION')).toBe(true);
+    // The non-money DRAFT verb is confirm-required (never auto-safe).
+    expect(requiresConfirmation('draft_payroll_run')).toBe(true);
+    expect(requiresConfirmation('DRAFT_PAYROLL_RUN')).toBe(true);
     // Auto-safe verbs are not confirm-required.
     expect(requiresConfirmation('set_reminder')).toBe(false);
     // An unknown verb is "unknown", not "confirm-required".
     expect(requiresConfirmation('teleport_owner')).toBe(false);
+  });
+
+  it('draft_payroll_run is KNOWN + confirm-required but NEVER auto-safe', () => {
+    expect(isKnownVerb('draft_payroll_run')).toBe(true);
+    expect(isKnownVerb('DRAFT_PAYROLL_RUN')).toBe(true);
+    expect(isSafeVerb('draft_payroll_run')).toBe(false);
+    // It must NOT leak into the auto-safe set, or brain-teach could
+    // auto-create a payroll draft without an explicit confirmation.
+    expect([...safeVerbs()]).not.toContain('draft_payroll_run');
+  });
+
+  it('FLAGGED draft_royalty_return is NOT registered (no royalty-draft table)', () => {
+    // No royalty-return / royalty-draft table exists to write to, so the
+    // verb is intentionally absent (see registry.ts FLAG). It is therefore
+    // "unknown" — NOT confirm-required, NOT auto-safe.
+    expect(isKnownVerb('draft_royalty_return')).toBe(false);
+    expect(isSafeVerb('draft_royalty_return')).toBe(false);
+    expect(requiresConfirmation('draft_royalty_return')).toBe(false);
   });
 
   it('the DEFERRED money verbs are NOT registered (must go via LedgerService)', () => {
@@ -692,6 +735,308 @@ describe('log_production → confirm path executes (insert + audit + mastery)', 
   });
 });
 
+// ─── draft_payroll_run: confirm-required NON-MONEY DRAFT verb ─────────
+//
+// This verb creates ONLY the `payroll_runs` header in `status='draft'`
+// (the pre-money state). It MUST NOT move money: no wage figures, no
+// `payroll_line_items`, no LedgerService, no ledger/journal write. The
+// owner approves the draft elsewhere; a SEPARATE commit step posts the
+// ledger. These tests pin that money boundary by construction.
+
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve as resolvePath } from 'node:path';
+
+/**
+ * The draft_payroll_run handler writes via raw `db.execute(sql`…`)` (the
+ * `payrollRuns` Drizzle table is not re-exported from the @borjie/database
+ * barrel — a packaging gap OUT OF SCOPE for this wave), so we assert on the
+ * recorded SQL `executes`. Drizzle's `sql` template serializes the literal
+ * SQL fragments AND the bound param VALUES into `queryChunks`, so the
+ * captured text is exact enough to assert table / column / param shape.
+ */
+const DRAFT_HANDLER_PATH = '../handlers/payroll-draft.ts';
+
+/** The payroll_runs INSERT(s) — the only DOMAIN write the handler performs.
+ *  Scoped to payroll_runs so the mastery (`user_action_tracker`) and audit
+ *  (`ai_audit_chain`) upserts — which are also `INSERT INTO …` — are not
+ *  conflated with a duplicate-draft write. */
+function payrollInsertExecutes(
+  executes: Array<{ sqlText: string }>,
+): Array<{ sqlText: string }> {
+  return executes.filter((e) => /INSERT INTO payroll_runs/i.test(e.sqlText));
+}
+
+/** Strip line + block comments so a doc-comment MENTION of a forbidden token
+ *  (the handler's own "imports NO LedgerService" note) can't false-trip a
+ *  source assertion that targets actual CODE. */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
+    .replace(/^[\t ]*\/\/.*$/gm, ' '); // line comments
+}
+
+/** Every money/amount column on payroll_runs + payroll_line_items. NONE of
+ *  these may ever appear in the draft verb's INSERT (no wages from chat). */
+const PAYROLL_MONEY_COLUMNS = [
+  'total_tzs',
+  'worker_count',
+  'hourly_rate_tzs',
+  'base_tzs',
+  'overtime_tzs',
+  'bonus_tzs',
+  'deduction_tzs',
+  'net_tzs',
+  'ledger_txn_id',
+] as const;
+
+/** The payroll_runs INSERT must name NONE of the money columns. */
+function assertPayrollInsertHasNoMoneyColumns(sqlText: string): void {
+  // Only inspect the column list (before VALUES) so a param value that
+  // incidentally contains a token can't false-trip the column assertion.
+  const columnList = sqlText.split(/VALUES/i)[0] ?? sqlText;
+  for (const col of PAYROLL_MONEY_COLUMNS) {
+    expect(columnList).not.toContain(col);
+  }
+}
+
+/**
+ * Assert that NOWHERE in the recorded executes is there a write (INSERT /
+ * UPDATE) against a ledger / journal / payroll_line_items table. We scope to
+ * write-statements-against-tables so the audit row — which legitimately
+ * NAMES the boundary in its payload (`ledgerPosted:false`) — does not
+ * false-positive.
+ */
+function assertNoLedgerOrWageWrite(executes: Array<{ sqlText: string }>): void {
+  for (const e of executes) {
+    expect(e.sqlText).not.toMatch(/(INSERT INTO|UPDATE)\s+\\?"?\w*(ledger|journal)/i);
+    expect(e.sqlText).not.toMatch(/payroll_line_items/i);
+  }
+}
+
+describe('draft_payroll_run → confirm path creates a DRAFT (NO money moved)', () => {
+  it('gate authorizes a benign draft_payroll_run verb', () => {
+    const decision = decideAutoAuthorization(
+      'draft_payroll_run',
+      'Owner asked to start a draft payroll run for May for owner review.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+  });
+
+  it('writes a payroll_runs DRAFT (status=draft), audits, bumps mastery — NO money', async () => {
+    // No existing run for the period (idempotent SELECT → []) → fresh
+    // INSERT. The INSERT RETURNING yields the new row. The header is the
+    // ONLY write; NO payroll_line_items (the wage rows) are created.
+    const shim = makeShim({
+      executeRows: [
+        { match: 'INSERT INTO payroll_runs', rows: [{ id: 'run-new', status: 'draft' }] },
+      ],
+    });
+
+    // Endpoint contract: authorize FIRST, only dispatch when ok.
+    const decision = decideAutoAuthorization(
+      'draft_payroll_run',
+      'Start the May payroll draft for review.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { period: '2026-05' },
+      makeCtx(shim.client),
+    );
+
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.kind).toBe('payroll_run_draft');
+      expect(out.result.id).toBe('run-new');
+      expect(out.result.data?.status).toBe('draft');
+      expect(out.result.data?.periodStart).toBe('2026-05-01');
+      expect(out.result.data?.periodEnd).toBe('2026-05-31');
+    }
+
+    // It uses raw SQL (not the Drizzle .insert() builder) → no `inserts`.
+    expect(shim.inserts).toHaveLength(0);
+
+    // Exactly ONE INSERT statement — into payroll_runs, status 'draft',
+    // tenant-bound. The serialized chunks carry the param values too.
+    const writes = payrollInsertExecutes(shim.executes);
+    expect(writes).toHaveLength(1);
+    const insertSql = writes[0]!.sqlText;
+    expect(insertSql).toContain('INSERT INTO payroll_runs');
+    expect(insertSql).toContain("'draft'"); // the pre-money state literal
+    expect(insertSql).toContain('t-1'); // bound tenant param (RLS belt+braces)
+    expect(insertSql).toContain('u-1'); // bound created_by_user_id param
+    expect(insertSql).toContain('2026-05-01'); // derived period_start
+    expect(insertSql).toContain('2026-05-31'); // derived period_end
+
+    // MONEY BOUNDARY: the INSERT column list names NONE of the money columns
+    // (total_tzs / worker_count / *_tzs / ledger_txn_id) — left at DB default.
+    assertPayrollInsertHasNoMoneyColumns(insertSql);
+
+    // NO write to any ledger / journal / payroll_line_items table anywhere.
+    assertNoLedgerOrWageWrite(shim.executes);
+
+    // Audit-chain appended (head SELECT + INSERT into ai_audit_chain) AND
+    // mastery bumped once. (Audit chain is NOT a ledger/journal table.)
+    expect(auditExecutes(shim.executes)).toBeGreaterThanOrEqual(1);
+    expect(masteryExecutes(shim.executes)).toBe(1);
+  });
+
+  it('PROOF: the handler CODE imports NO LedgerService and writes no ledger/wages', () => {
+    // Static guarantee: the draft handler can never even reach the money
+    // path. Scan the COMMENT-STRIPPED source (so the handler's own
+    // "imports NO LedgerService" doc note doesn't false-trip) and assert
+    // the CODE has no LedgerService import / ledger-port / payments-ledger
+    // reference, no `.post(` call, and never names the wage rows table or
+    // any wage/total money column.
+    const here = dirname(fileURLToPath(import.meta.url));
+    const handlerCode = stripComments(
+      readFileSync(resolvePath(here, DRAFT_HANDLER_PATH), 'utf8'),
+    );
+    expect(handlerCode).not.toMatch(/LedgerService/);
+    expect(handlerCode).not.toMatch(/payments-ledger/);
+    expect(handlerCode).not.toMatch(/ledger-port/);
+    expect(handlerCode).not.toMatch(/\bledger\b/i);
+    expect(handlerCode).not.toMatch(/\.post\(/);
+    expect(handlerCode).not.toMatch(/payroll_line_items/);
+    expect(handlerCode).not.toMatch(/payrollLineItems/);
+    // The handler CODE must never name a wage/total money column in any SQL.
+    for (const col of PAYROLL_MONEY_COLUMNS) {
+      expect(handlerCode).not.toContain(col);
+    }
+  });
+
+  it('accepts explicit periodStart/periodEnd bounds (parity with owner route)', async () => {
+    const shim = makeShim({
+      executeRows: [
+        { match: 'INSERT INTO payroll_runs', rows: [{ id: 'run-2', status: 'draft' }] },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { periodStart: '2026-05-01', periodEnd: '2026-05-15' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    const insertSql = payrollInsertExecutes(shim.executes)[0]!.sqlText;
+    expect(insertSql).toContain('2026-05-01');
+    expect(insertSql).toContain('2026-05-15');
+    assertPayrollInsertHasNoMoneyColumns(insertSql);
+    assertNoLedgerOrWageWrite(shim.executes);
+  });
+
+  it('verifies an optional target site and records it in notes (no site_id col, no money)', async () => {
+    const shim = makeShim({
+      executeRows: [
+        // The site-verification SELECT returns the tenant-owned site…
+        { match: 'SELECT id FROM sites', rows: [{ id: 'site-7' }] },
+        // …and the INSERT RETURNING yields the new draft row.
+        { match: 'INSERT INTO payroll_runs', rows: [{ id: 'run-3', status: 'draft' }] },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { period: '2026-05', siteId: 'site-7' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    // payroll_runs has NO site_id column — the verified site is recorded in
+    // the free-text `notes` provenance param, never as a money figure.
+    const insertSql = payrollInsertExecutes(shim.executes)[0]!.sqlText;
+    expect(insertSql).toContain('site-7'); // in the notes JSON param
+    expect(insertSql).toContain('draft_payroll_run'); // notes intent marker
+    // The site id rides in `notes`, NOT as a `site_id` column.
+    const columnList = insertSql.split(/VALUES/i)[0] ?? '';
+    expect(columnList).not.toContain('site_id');
+    assertPayrollInsertHasNoMoneyColumns(insertSql);
+    assertNoLedgerOrWageWrite(shim.executes);
+  });
+
+  it('is idempotent on (tenant, period) — returns the existing draft, NO INSERT', async () => {
+    // The idempotent SELECT returns an existing run → return it, never
+    // INSERT a duplicate (and certainly no money write).
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'SELECT id, status FROM payroll_runs',
+          rows: [{ id: 'run-existing', status: 'draft' }],
+        },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { period: '2026-05' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.id).toBe('run-existing');
+      expect(out.result.data?.idempotent).toBe(true);
+    }
+    // No INSERT at all (idempotent hit) → no write, no mastery bump path even
+    // reaches the audit/insert. (mastery still bumps post-success dispatch.)
+    expect(payrollInsertExecutes(shim.executes)).toHaveLength(0);
+    assertNoLedgerOrWageWrite(shim.executes);
+  });
+
+  it('fails gracefully when an explicit site is not the tenant’s (no write, no mastery)', async () => {
+    // The site-verification SELECT returns [] → resolver throws → graceful.
+    const shim = makeShim({
+      executeRows: [{ match: 'SELECT id FROM sites', rows: [] }],
+    });
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { period: '2026-05', siteId: 'site-OTHER' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    if (!out.executed) {
+      expect(out.reason).toBe('draft_payroll_run_site_not_found:site-OTHER');
+    }
+    expect(payrollInsertExecutes(shim.executes)).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+
+  it('rejects invalid params gracefully (no period, no bounds → no write)', async () => {
+    const shim = makeShim();
+    const out = await dispatchAction(
+      'draft_payroll_run',
+      { siteId: 'site-1' }, // neither `period` nor explicit bounds
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    expect(payrollInsertExecutes(shim.executes)).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+
+  it('a DENIED gate decision means the draft verb never dispatches (no write, no money)', async () => {
+    // Defence-in-depth: the draft verb is still gated. A HIGH-risk-laden
+    // rationale that the gate blocks must mean NO dispatch → NO payroll write.
+    const shim = makeShim({
+      executeRows: [
+        { match: 'INSERT INTO payroll_runs', rows: [{ id: 'run-x', status: 'draft' }] },
+      ],
+    });
+    const decision = decideAutoAuthorization(
+      'sovereign:transfer', // a guaranteed-denied HIGH-risk verb
+      'Move wages to an offshore account.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(false);
+
+    let dispatched = false;
+    if (decision.authorized) {
+      await dispatchAction('draft_payroll_run', { period: '2026-05' }, makeCtx(shim.client));
+      dispatched = true;
+    }
+    expect(dispatched).toBe(false);
+    expect(shim.executes).toHaveLength(0);
+  });
+});
+
 // ─── Auto-execute / micro-action REFUSE confirm-required verbs ────────
 
 describe('confirm-required verbs never auto-execute', () => {
@@ -702,6 +1047,8 @@ describe('confirm-required verbs never auto-execute', () => {
     expect(isSafeVerb('add_employee')).toBe(false);
     expect(isSafeVerb('create_licence')).toBe(false);
     expect(isSafeVerb('log_production')).toBe(false);
+    // The non-money DRAFT verb is likewise refused on the auto-execute path.
+    expect(isSafeVerb('draft_payroll_run')).toBe(false);
   });
 
   it('/micro-action contract refuses every confirm-required verb up front', () => {
@@ -714,6 +1061,8 @@ describe('confirm-required verbs never auto-execute', () => {
     expect(microActionRefuses('add_employee')).toBe(true);
     expect(microActionRefuses('create_licence')).toBe(true);
     expect(microActionRefuses('log_production')).toBe(true);
+    // The non-money DRAFT verb is also refused on the auto-safe surface.
+    expect(microActionRefuses('draft_payroll_run')).toBe(true);
     // A reminder verb is allowed through the micro-action surface.
     expect(microActionRefuses('set_reminder')).toBe(false);
   });

@@ -158,7 +158,11 @@ import { brainTeachRouter } from './routes/brain-teach.hono';
 // Hono route). The attach NO-OPS with a Pino warning until a WS-upgrade
 // transport (`ws` / `@hono/node-ws`) is wired — see the route file's
 // §RUNTIME-FLAGS. Does not affect gateway boot when inactive.
-import { attachBrainVoiceWebSocket } from './routes/brain-voice.hono';
+import {
+  attachBrainVoiceWebSocket,
+  type WebSocketServerLike,
+  type ClientSocketLike,
+} from './routes/brain-voice.hono';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
 // uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
@@ -2789,6 +2793,69 @@ async function gracefulShutdown(signal: string): Promise<void> {
   process.exit(0);
 }
 
+/**
+ * Build the `ws`-backed WS-upgrade transport for the brain-voice endpoint,
+ * conforming to the `WebSocketServerLike` contract in brain-voice.hono.ts.
+ *
+ * Uses a `noServer`-mode `WebSocketServer` hooked onto the Express HTTP
+ * server's `'upgrade'` event, gated to the exact voice pathname (other paths
+ * are left untouched so any future WS routes coexist). Each accepted `ws`
+ * socket is adapted to `ClientSocketLike` (the `ws` API already matches
+ * `send` / `close` / `on('message'|'close'|'error')` shapes).
+ *
+ * Returns `undefined` (so attach no-ops + warns, boot stays clean) when `ws`
+ * cannot be loaded — e.g. install-pending — rather than throwing.
+ */
+function buildVoiceWebSocketServerFactory(): WebSocketServerLike | undefined {
+  let WebSocketServerCtor: typeof import('ws').WebSocketServer;
+  try {
+    // Lazy require (mirrors the inline-require pattern used elsewhere in this
+    // bootstrap) so a missing/broken `ws` module can never crash module load.
+    WebSocketServerCtor = (require('ws') as typeof import('ws')).WebSocketServer;
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain-voice: `ws` module unavailable — voice WS transport not built (endpoint inactive)',
+    );
+    return undefined;
+  }
+
+  return ({ server: httpServer, path, onConnection }) => {
+    const wss = new WebSocketServerCtor({ noServer: true });
+
+    httpServer.on('upgrade', (request, socket, head) => {
+      let pathname: string;
+      try {
+        pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+      } catch {
+        return; // malformed upgrade target — leave for other handlers
+      }
+      if (pathname !== path) return; // not ours — do not touch the socket
+
+      wss.handleUpgrade(request, socket, head, (rawSocket) => {
+        const query = (() => {
+          try {
+            return new URL(request.url ?? '/', 'http://localhost').searchParams;
+          } catch {
+            return new URLSearchParams();
+          }
+        })();
+        // `ws.WebSocket` already satisfies the ClientSocketLike surface
+        // (send/close/on). Cast through the shared type so the conformance
+        // is explicit and checked at the boundary.
+        onConnection(rawSocket as unknown as ClientSocketLike, query);
+      });
+    });
+
+    wss.on('error', (err: Error) => {
+      logger.warn(
+        { err: err.message, path },
+        'brain-voice: WebSocketServer error (voice transport degraded)',
+      );
+    });
+  };
+}
+
 let server: ReturnType<typeof app.listen> | null = null;
 
 // Start server
@@ -2822,12 +2889,20 @@ if (require.main === module) {
   });
 
   // SOTA realtime-voice BACKEND — attach the brain-voice WS endpoint to the
-  // HTTP server now that it is listening. Currently INACTIVE (no-op + warn)
-  // because no WS-upgrade transport (`ws` / `@hono/node-ws`) is installed;
-  // pass `webSocketServerFactory` here once it is. Wrapped so a wiring bug in
-  // the voice channel can never crash gateway boot.
+  // HTTP server now that it is listening. We build the `ws`-backed upgrade
+  // transport (noServer mode, filtered to the voice path) and pass it as
+  // `webSocketServerFactory`; if `ws` is unavailable or the build fails the
+  // factory is undefined and attach falls back to its safe no-op + warn.
+  // Wrapped so a wiring bug in the voice channel can never crash gateway boot.
   try {
-    attachBrainVoiceWebSocket({ server });
+    const voiceWsFactory = buildVoiceWebSocketServerFactory();
+    attachBrainVoiceWebSocket({
+      server,
+      // Conditional spread honours exactOptionalPropertyTypes: omit the key
+      // entirely (rather than passing `undefined`) so attach takes its safe
+      // no-op + warn path when `ws` is unavailable.
+      ...(voiceWsFactory ? { webSocketServerFactory: voiceWsFactory } : {}),
+    });
   } catch (err) {
     logger.warn(
       { err: err instanceof Error ? err.message : String(err) },

@@ -52,6 +52,8 @@ import {
   intelligenceCorpusChunks,
   ocrExtractions,
 } from '@borjie/database';
+import { createSupabaseAdminClient } from '@borjie/supabase-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
@@ -152,6 +154,206 @@ function kindToDocumentType(kind: DocumentKind): string {
     case 'other':
     default:
       return 'other';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Object-storage presign — REAL Supabase Storage signed-upload URL.
+//
+// Wave DOC-INTEL. Previously `POST /upload` stored a SYNTHETIC `s3://…`
+// `file_url`, so the async OCR worker
+// (`consolidation-worker/src/tasks/ocr-extraction-task.ts`) always got a
+// `storage_miss` — the binary was never written to a bucket it could read.
+//
+// We now mint a real signed PUT into the shared `tenant-uploads` bucket and
+// store the CANONICAL in-bucket path as `file_url`. Path scheme:
+//
+//   tenant-uploads/<tenantId>/<documentId>/<fileName>
+//
+// The worker's storage adapter (`document-ocr-extraction-wiring.ts`
+// `candidatePaths`) strips the `tenant-uploads/` prefix from the stored
+// `file_url` and downloads the remainder verbatim — so this exact path is a
+// DETERMINISTIC hit (no month-guessing fallback, unlike the dated owner-docs
+// scheme). The leading `<tenantId>` segment is what Storage RLS policies of
+// the shape `(storage.foldername(name))[1] = current_setting('app.tenant_id')`
+// key off, so a non-service-role caller cannot cross-tenant read/write.
+//
+// Mirrors the sibling `owner-docs-storage/presign.ts` pattern
+// (createSupabaseAdminClient + ensureBucketExists + createSignedUploadUrl)
+// but with the doc-intelligence path convention. Degrades to a non-signed
+// canonical path (`degraded:true`) when Supabase env is unwired so local-dev
+// gateways stay boot-safe; reads env in-handler scope (never module-init),
+// matching the sibling services.
+// ---------------------------------------------------------------------------
+
+const STORAGE_BUCKET = 'tenant-uploads';
+const PRESIGN_TTL_SECONDS = 5 * 60;
+
+interface UploadPresign {
+  readonly bucket: string;
+  /** Canonical in-bucket object path — stored as `file_url`'s tail. */
+  readonly path: string;
+  /** Absolute URL the FE PUTs the bytes to (signed) or the bare path. */
+  readonly uploadUrl: string;
+  /** Bearer token Supabase requires on the signed PUT (empty when degraded). */
+  readonly token: string;
+  /** Headers the FE must send on the PUT. */
+  readonly headers: Record<string, string>;
+  /** Wall-clock ISO of when the signature expires. */
+  readonly expiresAt: string;
+  /** True when Supabase env is unwired and we returned a bare path. */
+  readonly degraded: boolean;
+}
+
+let cachedStorageClient: SupabaseClient | null = null;
+let cachedBucketChecked = false;
+
+function getStorageAdminClient(): SupabaseClient | null {
+  if (cachedStorageClient) return cachedStorageClient;
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ??
+    process.env.SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) return null;
+  try {
+    // `createSupabaseAdminClient` resolves via the package's CJS path; the
+    // type-only `SupabaseClient` import resolves via ESM under
+    // `exactOptionalPropertyTypes`. The shapes are structurally identical —
+    // bridge the dual-resolution skew through `unknown` (same as the sibling
+    // presign + ocr-wiring services).
+    cachedStorageClient = createSupabaseAdminClient({
+      url,
+      serviceRoleKey: key,
+    }) as unknown as SupabaseClient;
+    return cachedStorageClient;
+  } catch (err) {
+    logger.warn('document-intelligence: supabase admin init failed', {
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+async function ensureStorageBucketExists(
+  supabase: SupabaseClient,
+): Promise<void> {
+  if (cachedBucketChecked) return;
+  try {
+    const { data, error } = await supabase.storage.getBucket(STORAGE_BUCKET);
+    if (!error && data) {
+      cachedBucketChecked = true;
+      return;
+    }
+    // Bucket missing — create PRIVATE. First-call race is tolerated:
+    // Supabase returns an AlreadyExists error when two boots collide.
+    const createRes = await supabase.storage.createBucket(STORAGE_BUCKET, {
+      public: false,
+      fileSizeLimit: MAX_FILE_BYTES,
+    });
+    if (
+      createRes.error &&
+      !createRes.error.message.toLowerCase().includes('already')
+    ) {
+      logger.warn('document-intelligence: createBucket failed', {
+        bucket: STORAGE_BUCKET,
+        reason: createRes.error.message,
+      });
+      return;
+    }
+    cachedBucketChecked = true;
+  } catch (err) {
+    logger.warn('document-intelligence: ensureBucketExists threw', {
+      bucket: STORAGE_BUCKET,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * Build the canonical in-bucket object path for a document upload. The
+ * filename is sanitised to a single safe path segment (no separators, no
+ * traversal) so a hostile `fileName` cannot escape the
+ * `<tenantId>/<documentId>/` prefix that RLS + the worker key off.
+ */
+function buildUploadObjectPath(args: {
+  readonly tenantId: string;
+  readonly documentId: string;
+  readonly fileName: string;
+}): string {
+  const safeName =
+    args.fileName
+      .replace(/[/\\]+/g, '_')
+      .replace(/[^A-Za-z0-9._-]+/g, '_')
+      .replace(/^\.+/, '_')
+      .slice(0, 200) || 'upload.bin';
+  return `${args.tenantId}/${args.documentId}/${safeName}`;
+}
+
+function degradedPresign(path: string, mimeType: string): UploadPresign {
+  return {
+    bucket: STORAGE_BUCKET,
+    path,
+    uploadUrl: `${STORAGE_BUCKET}/${path}`,
+    token: '',
+    headers: { 'Content-Type': mimeType },
+    expiresAt: new Date(Date.now() + PRESIGN_TTL_SECONDS * 1000).toISOString(),
+    degraded: true,
+  };
+}
+
+/**
+ * Issue a real Supabase Storage signed-upload URL for the document upload.
+ * NEVER throws — returns `degraded:true` when the env/bucket/signature is
+ * unavailable so the upload registration still succeeds and the FE can branch.
+ */
+async function issueUploadPresign(args: {
+  readonly tenantId: string;
+  readonly documentId: string;
+  readonly fileName: string;
+  readonly mimeType: string;
+}): Promise<UploadPresign> {
+  const path = buildUploadObjectPath(args);
+  const supabase = getStorageAdminClient();
+  if (!supabase) {
+    logger.warn(
+      'document-intelligence: presign degraded — supabase env not wired',
+      { tenantId: args.tenantId, documentId: args.documentId },
+    );
+    return degradedPresign(path, args.mimeType);
+  }
+  await ensureStorageBucketExists(supabase);
+  try {
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      logger.warn('document-intelligence: createSignedUploadUrl failed', {
+        tenantId: args.tenantId,
+        documentId: args.documentId,
+        path,
+        reason: error?.message ?? 'no data',
+      });
+      return degradedPresign(path, args.mimeType);
+    }
+    return {
+      bucket: STORAGE_BUCKET,
+      path: data.path ?? path,
+      uploadUrl: data.signedUrl,
+      token: data.token,
+      headers: { 'Content-Type': args.mimeType },
+      expiresAt: new Date(
+        Date.now() + PRESIGN_TTL_SECONDS * 1000,
+      ).toISOString(),
+      degraded: false,
+    };
+  } catch (err) {
+    logger.warn('document-intelligence: createSignedUploadUrl threw', {
+      tenantId: args.tenantId,
+      documentId: args.documentId,
+      path,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    return degradedPresign(path, args.mimeType);
   }
 }
 
@@ -358,11 +560,25 @@ app.post('/upload', async (c) => {
   if (input.textSample !== undefined) {
     (classifyInput as { textSample?: string }).textSample = input.textSample;
   }
-  const kind = classifyDocument(classifyInput);  const documentType = kindToDocumentType(kind);
+  const kind = classifyDocument(classifyInput);
+  const documentType = kindToDocumentType(kind);
 
   const id = randomUUID();
-  const fileUrl = `s3://borjie-${tenantId}/document-intelligence/${id}/${encodeURIComponent(input.fileName)}`;
   const now = new Date();
+
+  // Mint a REAL Supabase Storage signed PUT into `tenant-uploads` and store
+  // the canonical in-bucket path as `file_url` — the exact path the async OCR
+  // worker downloads. Never throws (degrades to a bare path when env/bucket is
+  // unwired) so the upload registration always succeeds.
+  const presign = await issueUploadPresign({
+    tenantId,
+    documentId: id,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+  });
+  // `file_url` is what the worker fetches: store the bucket-qualified path so
+  // its `tenant-uploads/`-prefix strip yields the exact object key.
+  const fileUrl = `${presign.bucket}/${presign.path}`;
 
   try {
     const [row] = await db
@@ -403,6 +619,8 @@ app.post('/upload', async (c) => {
       documentId: id,
       kind,
       mimeType: input.mimeType,
+      storagePath: presign.path,
+      presignDegraded: presign.degraded,
     });
 
     // Synchronous, schema-guided extraction over the caller-supplied
@@ -428,7 +646,18 @@ app.post('/upload', async (c) => {
         documentId: row.id,
         ingestionStatus: 'queued',
         kind,
-        presignedPut: fileUrl,
+        // The FE PUTs the raw bytes to this URL, then calls
+        // POST /documents/:id/ready to trigger async OCR.
+        presignedPut: presign.uploadUrl,
+        presigned: {
+          bucket: presign.bucket,
+          path: presign.path,
+          uploadUrl: presign.uploadUrl,
+          token: presign.token,
+          headers: presign.headers,
+          expiresAt: presign.expiresAt,
+          degraded: presign.degraded,
+        },
         document: row,
         extraction,
       }),
