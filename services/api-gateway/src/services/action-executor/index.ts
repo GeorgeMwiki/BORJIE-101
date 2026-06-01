@@ -10,8 +10,8 @@
  *   - isKnownVerb(verb) / knownVerbs() — full registry membership.
  *   - requiresConfirmation(verb) — TRUE for a known CONFIRM-REQUIRED verb
  *     (create_site / add_employee / create_licence / log_production /
- *     draft_payroll_run); the `/micro-action` endpoint uses it to refuse
- *     those up front.
+ *     draft_payroll_run / draft_royalty_return); the `/micro-action`
+ *     endpoint uses it to refuse those up front.
  *   - types — ExecContext / ExecResult / DispatchResult / RegistryEntry.
  *
  * See ./registry.ts for the verb set + trust classes and the hard-rule
@@ -19,8 +19,10 @@
  * and DEFERRED to a LedgerService-backed wave. sites + employees + licences
  * + production records are confirm-required NON-money rows; draft_payroll_run
  * is a confirm-required NON-money DRAFT (a `payroll_runs` header in
- * `status='draft'` — no wage figures, no ledger). A draft_royalty_return
- * sibling is FLAGGED (no royalty-draft table exists yet) — see registry.ts.
+ * `status='draft'` — no wage figures, no ledger). draft_royalty_return is its
+ * royalty sibling — a confirm-required NON-money DRAFT (a
+ * `royalty_return_drafts` header in `status='draft'`; that table has no
+ * money/ledger column at all) backed by migration 0159 — see registry.ts.
  */
 
 export {

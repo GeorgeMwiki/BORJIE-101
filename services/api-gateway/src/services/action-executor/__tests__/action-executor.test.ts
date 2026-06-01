@@ -211,12 +211,13 @@ describe('action-executor registry', () => {
     expect([...safeVerbs()].sort()).toEqual(['set_reminder', 'snooze_reminder']);
   });
 
-  it('KNOWN set includes the confirm-required domain verbs + the draft verb', () => {
+  it('KNOWN set includes the confirm-required domain verbs + the draft verbs', () => {
     expect([...knownVerbs()].sort()).toEqual([
       'add_employee',
       'create_licence',
       'create_site',
       'draft_payroll_run',
+      'draft_royalty_return',
       'log_production',
       'set_reminder',
       'snooze_reminder',
@@ -254,9 +255,11 @@ describe('action-executor registry', () => {
     expect(requiresConfirmation('create_licence')).toBe(true);
     expect(requiresConfirmation('log_production')).toBe(true);
     expect(requiresConfirmation('LOG_PRODUCTION')).toBe(true);
-    // The non-money DRAFT verb is confirm-required (never auto-safe).
+    // The non-money DRAFT verbs are confirm-required (never auto-safe).
     expect(requiresConfirmation('draft_payroll_run')).toBe(true);
     expect(requiresConfirmation('DRAFT_PAYROLL_RUN')).toBe(true);
+    expect(requiresConfirmation('draft_royalty_return')).toBe(true);
+    expect(requiresConfirmation('DRAFT_ROYALTY_RETURN')).toBe(true);
     // Auto-safe verbs are not confirm-required.
     expect(requiresConfirmation('set_reminder')).toBe(false);
     // An unknown verb is "unknown", not "confirm-required".
@@ -272,13 +275,17 @@ describe('action-executor registry', () => {
     expect([...safeVerbs()]).not.toContain('draft_payroll_run');
   });
 
-  it('FLAGGED draft_royalty_return is NOT registered (no royalty-draft table)', () => {
-    // No royalty-return / royalty-draft table exists to write to, so the
-    // verb is intentionally absent (see registry.ts FLAG). It is therefore
-    // "unknown" — NOT confirm-required, NOT auto-safe.
-    expect(isKnownVerb('draft_royalty_return')).toBe(false);
+  it('draft_royalty_return is KNOWN + confirm-required but NEVER auto-safe', () => {
+    // The royalty-draft wave landed `royalty_return_drafts` (migration 0159),
+    // so the verb is now registered as the royalty sibling of
+    // draft_payroll_run — a confirm-required NON-MONEY DRAFT.
+    expect(isKnownVerb('draft_royalty_return')).toBe(true);
+    expect(isKnownVerb('DRAFT_ROYALTY_RETURN')).toBe(true);
+    expect(requiresConfirmation('draft_royalty_return')).toBe(true);
     expect(isSafeVerb('draft_royalty_return')).toBe(false);
-    expect(requiresConfirmation('draft_royalty_return')).toBe(false);
+    // It must NOT leak into the auto-safe set, or brain-teach could
+    // auto-create a royalty draft without an explicit confirmation.
+    expect([...safeVerbs()]).not.toContain('draft_royalty_return');
   });
 
   it('the DEFERRED money verbs are NOT registered (must go via LedgerService)', () => {
@@ -1037,6 +1044,287 @@ describe('draft_payroll_run → confirm path creates a DRAFT (NO money moved)', 
   });
 });
 
+// ─── draft_royalty_return: confirm-required NON-MONEY DRAFT verb ──────
+//
+// Royalty sibling of draft_payroll_run. Creates ONLY a
+// `royalty_return_drafts` header in `status='draft'`. That table (migration
+// 0159) has NO money/ledger column at all (no gross_value, no royalty_amount,
+// no ledger_txn_id), so the verb CANNOT move money: no ledger/journal write,
+// no LedgerService. The royalty figures + payment are filled by the owner in
+// the royalty surface (the DEFERRED four-eye `file_royalty` flow). These
+// tests pin that money boundary by construction.
+
+/** The royalty_return_drafts INSERT(s) — the only DOMAIN write the handler
+ *  performs. Scoped to the table so the mastery (`user_action_tracker`) +
+ *  audit (`ai_audit_chain`) upserts (also `INSERT INTO …`) aren't conflated
+ *  with a duplicate-draft write. */
+function royaltyInsertExecutes(
+  executes: Array<{ sqlText: string }>,
+): Array<{ sqlText: string }> {
+  return executes.filter((e) =>
+    /INSERT INTO royalty_return_drafts/i.test(e.sqlText),
+  );
+}
+
+const ROYALTY_DRAFT_HANDLER_PATH = '../handlers/royalty-draft.ts';
+
+/** Money/ledger column tokens that must NEVER appear in the royalty draft
+ *  INSERT (the owner fills these in the royalty surface, never chat). The
+ *  table doesn't even define them, so this is a belt-and-braces guard. */
+const ROYALTY_MONEY_COLUMNS = [
+  'gross_value',
+  'royalty_amount',
+  'royalty_rate',
+  'royalty_tzs',
+  'amount_tzs',
+  'ledger_txn_id',
+] as const;
+
+/** The royalty_return_drafts INSERT must name NONE of the money columns. */
+function assertRoyaltyInsertHasNoMoneyColumns(sqlText: string): void {
+  const columnList = sqlText.split(/VALUES/i)[0] ?? sqlText;
+  for (const col of ROYALTY_MONEY_COLUMNS) {
+    expect(columnList).not.toContain(col);
+  }
+}
+
+/** No write (INSERT/UPDATE) against any ledger / journal table anywhere in the
+ *  recorded executes. The audit row legitimately NAMES the boundary in its
+ *  payload (`ledgerPosted:false`) so we scope to write-against-table only. */
+function assertNoLedgerWrite(executes: Array<{ sqlText: string }>): void {
+  for (const e of executes) {
+    expect(e.sqlText).not.toMatch(/(INSERT INTO|UPDATE)\s+\\?"?\w*(ledger|journal)/i);
+  }
+}
+
+describe('draft_royalty_return → confirm path creates a DRAFT (NO money moved)', () => {
+  it('gate authorizes a benign draft_royalty_return verb', () => {
+    const decision = decideAutoAuthorization(
+      'draft_royalty_return',
+      'Owner asked to start a draft royalty return for May gold for review.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+  });
+
+  it('writes a royalty_return_drafts DRAFT (status=draft), audits, bumps mastery — NO money', async () => {
+    // No existing draft for the period+mineral (idempotent SELECT → []) →
+    // fresh INSERT. The header is the ONLY domain write; NO money figure.
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'INSERT INTO royalty_return_drafts',
+          rows: [{ id: 'roy-new', status: 'draft' }],
+        },
+      ],
+    });
+
+    // Endpoint contract: authorize FIRST, only dispatch when ok.
+    const decision = decideAutoAuthorization(
+      'draft_royalty_return',
+      'Start the May gold royalty draft for review.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { period: '2026-05', mineral: 'Au' },
+      makeCtx(shim.client),
+    );
+
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.kind).toBe('royalty_return_draft');
+      expect(out.result.id).toBe('roy-new');
+      expect(out.result.data?.status).toBe('draft');
+      expect(out.result.data?.mineral).toBe('Au');
+      expect(out.result.data?.periodStart).toBe('2026-05-01');
+      expect(out.result.data?.periodEnd).toBe('2026-05-31');
+    }
+
+    // It uses raw SQL (not the Drizzle .insert() builder) → no `inserts`.
+    expect(shim.inserts).toHaveLength(0);
+
+    // Exactly ONE INSERT statement — into royalty_return_drafts, status
+    // 'draft', tenant-bound. The serialized chunks carry the param values.
+    const writes = royaltyInsertExecutes(shim.executes);
+    expect(writes).toHaveLength(1);
+    const insertSql = writes[0]!.sqlText;
+    expect(insertSql).toContain('INSERT INTO royalty_return_drafts');
+    expect(insertSql).toContain("'draft'"); // the pre-money state literal
+    expect(insertSql).toContain('t-1'); // bound tenant param (RLS belt+braces)
+    expect(insertSql).toContain('u-1'); // bound created_by_user_id param
+    expect(insertSql).toContain('2026-05-01'); // derived period_start
+    expect(insertSql).toContain('2026-05-31'); // derived period_end
+    expect(insertSql).toContain('Au'); // the mineral param
+
+    // MONEY BOUNDARY: the INSERT column list names NONE of the money columns.
+    assertRoyaltyInsertHasNoMoneyColumns(insertSql);
+
+    // NO write to any ledger / journal table anywhere.
+    assertNoLedgerWrite(shim.executes);
+
+    // Audit-chain appended (head SELECT + INSERT into ai_audit_chain) AND
+    // mastery bumped once. (Audit chain is NOT a ledger/journal table.)
+    expect(auditExecutes(shim.executes)).toBeGreaterThanOrEqual(1);
+    expect(masteryExecutes(shim.executes)).toBe(1);
+  });
+
+  it('records an OPTIONAL non-money quantity + unit (a physical measure, not money)', async () => {
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'INSERT INTO royalty_return_drafts',
+          rows: [{ id: 'roy-q', status: 'draft' }],
+        },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { period: '2026-05', mineral: 'Au', quantity: 12.5, unit: 'kg' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.data?.quantity).toBe(12.5);
+      expect(out.result.data?.unit).toBe('kg');
+    }
+    const insertSql = royaltyInsertExecutes(shim.executes)[0]!.sqlText;
+    // The physical quantity rides as a bound param — it is NOT a money column.
+    expect(insertSql).toContain('12.5');
+    expect(insertSql).toContain('kg');
+    assertRoyaltyInsertHasNoMoneyColumns(insertSql);
+    assertNoLedgerWrite(shim.executes);
+  });
+
+  it('PROOF: the handler CODE imports NO LedgerService and writes no ledger/money', () => {
+    // Static guarantee: the draft handler can never reach the money path.
+    // Scan the COMMENT-STRIPPED source (so the handler's own
+    // "imports NO LedgerService" doc note doesn't false-trip) and assert the
+    // CODE has no LedgerService import / ledger-port / payments-ledger
+    // reference, no `.post(` call, and never names a money column.
+    const here = dirname(fileURLToPath(import.meta.url));
+    const handlerCode = stripComments(
+      readFileSync(resolvePath(here, ROYALTY_DRAFT_HANDLER_PATH), 'utf8'),
+    );
+    expect(handlerCode).not.toMatch(/LedgerService/);
+    expect(handlerCode).not.toMatch(/payments-ledger/);
+    expect(handlerCode).not.toMatch(/ledger-port/);
+    expect(handlerCode).not.toMatch(/\bledger\b/i);
+    expect(handlerCode).not.toMatch(/\bjournal\b/i);
+    expect(handlerCode).not.toMatch(/\.post\(/);
+    // The handler CODE must never name a money column in any SQL.
+    for (const col of ROYALTY_MONEY_COLUMNS) {
+      expect(handlerCode).not.toContain(col);
+    }
+  });
+
+  it('accepts explicit periodStart/periodEnd bounds (parity with owner route)', async () => {
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'INSERT INTO royalty_return_drafts',
+          rows: [{ id: 'roy-2', status: 'draft' }],
+        },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { periodStart: '2026-05-01', periodEnd: '2026-05-15', mineral: 'Cu' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    const insertSql = royaltyInsertExecutes(shim.executes)[0]!.sqlText;
+    expect(insertSql).toContain('2026-05-01');
+    expect(insertSql).toContain('2026-05-15');
+    expect(insertSql).toContain('Cu');
+    assertRoyaltyInsertHasNoMoneyColumns(insertSql);
+    assertNoLedgerWrite(shim.executes);
+  });
+
+  it('is idempotent on (tenant, period, mineral) — returns the existing draft, NO INSERT', async () => {
+    // The idempotent SELECT returns an existing draft → return it, never
+    // INSERT a duplicate (and certainly no money write).
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'SELECT id, status FROM royalty_return_drafts',
+          rows: [{ id: 'roy-existing', status: 'draft' }],
+        },
+      ],
+    });
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { period: '2026-05', mineral: 'Au' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.id).toBe('roy-existing');
+      expect(out.result.data?.idempotent).toBe(true);
+    }
+    // No INSERT at all (idempotent hit) → no write.
+    expect(royaltyInsertExecutes(shim.executes)).toHaveLength(0);
+    assertNoLedgerWrite(shim.executes);
+  });
+
+  it('rejects invalid params gracefully (missing mineral → no write)', async () => {
+    const shim = makeShim();
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { period: '2026-05' }, // mineral is required
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    expect(royaltyInsertExecutes(shim.executes)).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+
+  it('rejects invalid params gracefully (no period, no bounds → no write)', async () => {
+    const shim = makeShim();
+    const out = await dispatchAction(
+      'draft_royalty_return',
+      { mineral: 'Au' }, // neither `period` nor explicit bounds
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    expect(royaltyInsertExecutes(shim.executes)).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+
+  it('a DENIED gate decision means the royalty draft never dispatches (no write, no money)', async () => {
+    // Defence-in-depth: the draft verb is still gated. A HIGH-risk verb the
+    // gate blocks must mean NO dispatch → NO royalty write.
+    const shim = makeShim({
+      executeRows: [
+        {
+          match: 'INSERT INTO royalty_return_drafts',
+          rows: [{ id: 'roy-x', status: 'draft' }],
+        },
+      ],
+    });
+    const decision = decideAutoAuthorization(
+      'sovereign:transfer', // a guaranteed-denied HIGH-risk verb
+      'Move royalty money to an offshore account.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(false);
+
+    let dispatched = false;
+    if (decision.authorized) {
+      await dispatchAction(
+        'draft_royalty_return',
+        { period: '2026-05', mineral: 'Au' },
+        makeCtx(shim.client),
+      );
+      dispatched = true;
+    }
+    expect(dispatched).toBe(false);
+    expect(shim.executes).toHaveLength(0);
+  });
+});
+
 // ─── Auto-execute / micro-action REFUSE confirm-required verbs ────────
 
 describe('confirm-required verbs never auto-execute', () => {
@@ -1047,8 +1335,9 @@ describe('confirm-required verbs never auto-execute', () => {
     expect(isSafeVerb('add_employee')).toBe(false);
     expect(isSafeVerb('create_licence')).toBe(false);
     expect(isSafeVerb('log_production')).toBe(false);
-    // The non-money DRAFT verb is likewise refused on the auto-execute path.
+    // The non-money DRAFT verbs are likewise refused on the auto-execute path.
     expect(isSafeVerb('draft_payroll_run')).toBe(false);
+    expect(isSafeVerb('draft_royalty_return')).toBe(false);
   });
 
   it('/micro-action contract refuses every confirm-required verb up front', () => {
@@ -1061,8 +1350,9 @@ describe('confirm-required verbs never auto-execute', () => {
     expect(microActionRefuses('add_employee')).toBe(true);
     expect(microActionRefuses('create_licence')).toBe(true);
     expect(microActionRefuses('log_production')).toBe(true);
-    // The non-money DRAFT verb is also refused on the auto-safe surface.
+    // The non-money DRAFT verbs are also refused on the auto-safe surface.
     expect(microActionRefuses('draft_payroll_run')).toBe(true);
+    expect(microActionRefuses('draft_royalty_return')).toBe(true);
     // A reminder verb is allowed through the micro-action surface.
     expect(microActionRefuses('set_reminder')).toBe(false);
   });

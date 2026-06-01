@@ -22,19 +22,28 @@
  *   create_licence    — insert a mining licence/title       (autoSafe:false)
  *   log_production    — insert a production output record   (autoSafe:false)
  *   draft_payroll_run — insert a `payroll_runs` DRAFT header (autoSafe:false)
+ *   draft_royalty_return — insert a `royalty_return_drafts`
+ *                          DRAFT header                      (autoSafe:false)
  *
  * Money-MOVING verbs (post the ledger / commit wages) are intentionally
  * NOT here — they MUST go through `LedgerService.post()` (CLAUDE.md hard
  * rule) and need four-eye flows; they land in a later wave. See the
  * DEFERRED MONEY VERBS block below for the precise list + rationale.
  *
- * `draft_payroll_run` is the ONE money-ADJACENT verb here, and it is a
- * non-binding DRAFT, NOT a money move: it creates only the `payroll_runs`
- * header row in its initial `status='draft'` state (no wage figures, no
- * line items, total_tzs/worker_count left at their DB defaults). The owner
- * approves it elsewhere; only a SEPARATE preview→commit endpoint calls
- * LedgerService.post(). It imports NO LedgerService and writes NO ledger
- * row (see handlers/payroll-draft.ts).
+ * `draft_payroll_run` + `draft_royalty_return` are the money-ADJACENT verbs
+ * here, and both are non-binding DRAFTS, NOT money moves:
+ *   - draft_payroll_run creates only the `payroll_runs` header row in its
+ *     initial `status='draft'` state (no wage figures, no line items,
+ *     total_tzs/worker_count left at their DB defaults). The owner approves
+ *     it elsewhere; only a SEPARATE preview→commit endpoint calls
+ *     LedgerService.post(). See handlers/payroll-draft.ts.
+ *   - draft_royalty_return creates only a `royalty_return_drafts` header in
+ *     `status='draft'`. That table (migration 0159) carries NO posted money /
+ *     ledger column AT ALL — gross_value / royalty_amount are filled by the
+ *     owner in the royalty surface, NEVER from chat, and the royalty PAYMENT
+ *     posts via LedgerService.post() on the SEPARATE four-eye `file_royalty`
+ *     flow (DEFERRED below). See handlers/royalty-draft.ts.
+ * Both import NO LedgerService and write NO ledger row.
  *
  * The confirm-required domain verbs above are NON-MONEY by construction:
  *   - sites carry no money column.
@@ -50,6 +59,13 @@
  *     and stops at `status='draft'` — the pre-money state. The wage figures
  *     are computed by a SEPARATE preview step and posted ONLY by a SEPARATE
  *     commit step via LedgerService.post() (see handlers/payroll-draft.ts).
+ *   - royalty_return_drafts carry NO money column at all (no gross_value /
+ *     royalty_amount / ledger_txn_id — migration 0159). draft_royalty_return
+ *     writes only period + mineral + an OPTIONAL non-money physical
+ *     quantity/unit and stops at `status='draft'`. The royalty FIGURES are
+ *     filled by the owner in the royalty surface and the PAYMENT posts via
+ *     LedgerService.post() on the four-eye `file_royalty` flow (DEFERRED) —
+ *     never here (see handlers/royalty-draft.ts).
  * So all of these use their domain repos directly (no LedgerService).
  *
  * ─── DEFERRED MONEY-MOVING VERBS (NOT registered — do NOT add here) ─────
@@ -63,7 +79,10 @@
  *
  *   file_royalty  — POSTS a royalty liability/payment → MUST debit/credit
  *                   the ledger (royalty money obligation, not a note).
- *                   NOTE: distinct from `draft_royalty_return` (FLAG below).
+ *                   NOTE: distinct from `draft_royalty_return`, which is the
+ *                   registered NON-MONEY DRAFT (header-only) verb that writes
+ *                   no money figure; file_royalty is the money move and stays
+ *                   DEFERRED to the LedgerService-backed wave.
  *   set_payroll   — sets/COMMITS payroll figures → wage money path; goes
  *                   through payroll-runs commit + LedgerService, never a raw
  *                   insert. NOTE: distinct from `draft_payroll_run`, which
@@ -71,19 +90,23 @@
  *   post_ledger   — by definition a ledger posting → the ONLY legal path is
  *                   LedgerService.post(); never a direct write from chat.
  *
- * ─── FLAGGED: draft_royalty_return (NOT registered — NO backing table) ──
- * A `draft_royalty_return` DRAFT verb was requested (sibling to
- * draft_payroll_run): create a non-binding `status='draft'`/`pending_approval`
- * royalty-return row the owner approves elsewhere. It is NOT implemented
- * because there is NO royalty-return / royalty-draft table in the schema to
- * write to. The owner-web `RoyaltyDraftPanel`
- * (apps/owner-web/src/components/finance/RoyaltyDraftPanel.tsx) is backed by
- * a HARDCODED in-component fixture (`APRIL_DRAFTS`), and its own comment
- * says it "Plugs into `/api/v1/mining/royalties/draft` once the endpoint
- * lands" — neither the endpoint nor the table exists today. Per the wave
- * constraint we do NOT create money infrastructure (a royalty table +
- * migration) from the chat-bridge wave; this verb is FLAGGED for a
- * dedicated royalty-draft wave that first lands the table + RLS + route.
+ * ─── draft_royalty_return (NOW REGISTERED — NON-MONEY DRAFT) ────────────
+ * Previously FLAGGED "no backing table". The royalty-draft wave landed the
+ * table: `royalty_return_drafts` (migration 0159 + the
+ * royalty-return-drafts.schema.ts Drizzle schema), RLS FORCE-enabled exactly
+ * like payroll_runs (0134 §4). The verb is now registered below as the
+ * royalty sibling of draft_payroll_run: a CONFIRM-REQUIRED, NON-MONEY DRAFT
+ * that inserts a `status='draft'` header the owner reviews + completes in the
+ * royalty surface (apps/owner-web RoyaltyDraftPanel).
+ *
+ * Crucially, `royalty_return_drafts` carries NO posted money / ledger column
+ * AT ALL (no gross_value, no royalty_amount, no ledger_txn_id). The royalty
+ * FIGURES are filled by the owner in the royalty surface, NEVER from chat,
+ * and the royalty PAYMENT still posts the money path through
+ * `LedgerService.post()` on the SEPARATE four-eye `file_royalty` flow (DEFERRED
+ * above). draft_royalty_return imports NO LedgerService and writes NO ledger
+ * row (see handlers/royalty-draft.ts). This is distinct from the money-MOVING
+ * `file_royalty` verb, which remains DEFERRED.
  * ───────────────────────────────────────────────────────────────────────
  *
  * How auto-execution of a confirm-required verb is prevented (defence in
@@ -111,6 +134,7 @@ import { addEmployeeHandler } from './handlers/workforce.js';
 import { createLicenceHandler } from './handlers/licences.js';
 import { logProductionHandler } from './handlers/production.js';
 import { draftPayrollRunHandler } from './handlers/payroll-draft.js';
+import { draftRoyaltyReturnHandler } from './handlers/royalty-draft.js';
 import { bumpActionMastery } from './mastery-tracker.js';
 import type {
   ActionHandler,
@@ -135,6 +159,11 @@ const REGISTRY: Readonly<Record<string, RegistryEntry>> = Object.freeze({
   // CONFIRM-REQUIRED non-money DRAFT verb — creates only a `payroll_runs`
   // header in `status='draft'` (no wage money, no ledger). Never auto-safe.
   draft_payroll_run: { handler: draftPayrollRunHandler, autoSafe: false },
+  // CONFIRM-REQUIRED non-money DRAFT verb — creates only a
+  // `royalty_return_drafts` header in `status='draft'`. That table has NO
+  // money/ledger column at all; the royalty figures + payment are filled by
+  // the owner elsewhere (LedgerService four-eye flow). Never auto-safe.
+  draft_royalty_return: { handler: draftRoyaltyReturnHandler, autoSafe: false },
 });
 
 /** Normalise a model / FE verb token for registry lookup. */
