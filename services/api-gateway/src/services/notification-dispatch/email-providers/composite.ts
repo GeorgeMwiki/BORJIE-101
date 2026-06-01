@@ -3,16 +3,23 @@
  *
  * Reads env once at composition time and returns the first configured
  * adapter. Order:
- *   1. SendGrid (cheaper, simpler keys)
- *   2. AWS SES (better deliverability for high-volume)
+ *   1. Resend   (the configured prod rail; matches the K8s secrets)
+ *   2. SendGrid (cheaper, simpler keys)
+ *   3. AWS SES  (better deliverability for high-volume)
  *
- * Returns `null` when neither is configured so the caller can fall
- * back to the stub provider. This keeps the env-aware glue out of
+ * Returns `null` when none is configured so the caller can fall back
+ * to the stub provider. This keeps the env-aware glue out of
  * `email-provider.ts` and makes wiring testable in isolation.
  *
- * Override the order via `SES_PRIMARY=true` to flip SES before SendGrid.
+ * Override the order via `SES_PRIMARY=true` to flip SES to the front.
  */
 import type { EmailProvider } from '../email-provider';
+import {
+  createResendEmailProvider,
+  readResendConfigFromEnv,
+  type ResendConfig,
+  type ResendDeps,
+} from './resend';
 import {
   createSendGridEmailProvider,
   readSendGridConfigFromEnv,
@@ -27,6 +34,7 @@ import {
 } from './ses';
 
 export type CompositeEnvDeps = {
+  readonly resend?: ResendDeps;
   readonly sendgrid?: SendGridDeps;
   readonly ses?: SesDeps;
 };
@@ -35,12 +43,16 @@ export function createConfiguredEmailProviderFromEnv(
   env: NodeJS.ProcessEnv = process.env,
   deps: CompositeEnvDeps = {},
 ): EmailProvider | null {
+  const resend = readResendConfigFromEnv(env);
   const sendgrid = readSendGridConfigFromEnv(env);
   const ses = readSesConfigFromEnv(env);
   const sesPrimary = env.SES_PRIMARY === 'true';
 
   if (sesPrimary && ses) {
     return createSesEmailProvider(ses, deps.ses);
+  }
+  if (resend) {
+    return createResendEmailProvider(resend, deps.resend);
   }
   if (sendgrid) {
     return createSendGridEmailProvider(sendgrid, deps.sendgrid);
@@ -52,6 +64,7 @@ export function createConfiguredEmailProviderFromEnv(
 }
 
 export type CompositeConfigs = {
+  readonly resend?: ResendConfig;
   readonly sendgrid?: SendGridConfig;
   readonly ses?: SesConfig;
   readonly preferSes?: boolean;
@@ -67,6 +80,9 @@ export function createConfiguredEmailProvider(
 ): EmailProvider | null {
   if (configs.preferSes && configs.ses) {
     return createSesEmailProvider(configs.ses, deps.ses);
+  }
+  if (configs.resend) {
+    return createResendEmailProvider(configs.resend, deps.resend);
   }
   if (configs.sendgrid) {
     return createSendGridEmailProvider(configs.sendgrid, deps.sendgrid);

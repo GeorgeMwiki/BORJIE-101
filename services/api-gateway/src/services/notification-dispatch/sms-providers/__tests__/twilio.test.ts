@@ -73,6 +73,43 @@ describe('readTwilioConfigFromEnv', () => {
     });
     expect(cfg?.whatsappFrom).toBe('+15551234567');
   });
+
+  it('falls back fromNumber to TWILIO_SMS_NUMBER when TWILIO_FROM_NUMBER unset', () => {
+    const cfg = readTwilioConfigFromEnv({
+      TWILIO_ACCOUNT_SID: 'AC1',
+      TWILIO_AUTH_TOKEN: 'tok',
+      TWILIO_SMS_NUMBER: '+15559999999',
+    });
+    expect(cfg?.fromNumber).toBe('+15559999999');
+    // whatsappFrom inherits the resolved SMS from-number.
+    expect(cfg?.whatsappFrom).toBe('+15559999999');
+  });
+
+  it('prefers TWILIO_FROM_NUMBER over TWILIO_SMS_NUMBER when both set', () => {
+    const cfg = readTwilioConfigFromEnv({
+      TWILIO_ACCOUNT_SID: 'AC1',
+      TWILIO_AUTH_TOKEN: 'tok',
+      TWILIO_FROM_NUMBER: '+15551234567',
+      TWILIO_SMS_NUMBER: '+15559999999',
+    });
+    expect(cfg?.fromNumber).toBe('+15551234567');
+  });
+
+  it('delivers SMS via TWILIO_SMS_NUMBER fallback (real SID + number)', async () => {
+    const cfg = readTwilioConfigFromEnv({
+      TWILIO_ACCOUNT_SID: 'AC1',
+      TWILIO_AUTH_TOKEN: 'tok',
+      TWILIO_SMS_NUMBER: '+15559999999',
+    });
+    const fetchImpl = makeOk(TWILIO_OK_BODY);
+    const provider = createTwilioSmsProvider(cfg, fetchImpl);
+    const r = await provider.send({ ...baseInput, channel: 'sms' });
+
+    expect(r.status).toBe('sent');
+    const call = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = call[1].body as string;
+    expect(body).toContain('From=%2B15559999999');
+  });
 });
 
 describe('createTwilioSmsProvider', () => {

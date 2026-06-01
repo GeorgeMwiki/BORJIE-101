@@ -20,8 +20,12 @@
  * required field is missing):
  *   TWILIO_ACCOUNT_SID    (required)
  *   TWILIO_AUTH_TOKEN     (required)
- *   TWILIO_FROM_NUMBER    (required for SMS)
- *   TWILIO_WHATSAPP_FROM  (required for WhatsApp; falls back to FROM_NUMBER)
+ *   TWILIO_FROM_NUMBER    (required for SMS; falls back to TWILIO_SMS_NUMBER)
+ *   TWILIO_SMS_NUMBER     (alias accepted as the SMS from-number when
+ *                          TWILIO_FROM_NUMBER is unset — matches the
+ *                          var name populated in the deployed env)
+ *   TWILIO_WHATSAPP_FROM  (required for WhatsApp; falls back to the
+ *                          resolved SMS from-number)
  *
  * Error model:
  *   - HTTP 4xx (except 429) -> failed, retryable=false
@@ -64,11 +68,13 @@ export function readTwilioConfigFromEnv(
   const accountSid = env.TWILIO_ACCOUNT_SID;
   const authToken = env.TWILIO_AUTH_TOKEN;
   if (!accountSid || !authToken) return null;
+  const fromNumber =
+    env.TWILIO_FROM_NUMBER ?? env.TWILIO_SMS_NUMBER ?? null;
   return {
     accountSid,
     authToken,
-    fromNumber: env.TWILIO_FROM_NUMBER ?? null,
-    whatsappFrom: env.TWILIO_WHATSAPP_FROM ?? env.TWILIO_FROM_NUMBER ?? null,
+    fromNumber,
+    whatsappFrom: env.TWILIO_WHATSAPP_FROM ?? fromNumber,
   };
 }
 

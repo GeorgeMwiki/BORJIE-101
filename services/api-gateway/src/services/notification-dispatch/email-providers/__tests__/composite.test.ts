@@ -11,6 +11,10 @@ import {
   createConfiguredEmailProviderFromEnv,
 } from '../composite';
 
+const RESEND_ENV = {
+  RESEND_API_KEY: 're_fake',
+  RESEND_FROM_EMAIL: 'resend@borjie.io',
+};
 const SG_ENV = {
   SENDGRID_API_KEY: 'SG.fake',
   SENDGRID_FROM_EMAIL: 'sg@borjie.io',
@@ -27,6 +31,11 @@ describe('createConfiguredEmailProviderFromEnv', () => {
     expect(createConfiguredEmailProviderFromEnv({})).toBeNull();
   });
 
+  it('returns Resend when only Resend env present', () => {
+    const p = createConfiguredEmailProviderFromEnv(RESEND_ENV);
+    expect(p?.name).toBe('resend');
+  });
+
   it('returns SendGrid when only SendGrid env present', () => {
     const p = createConfiguredEmailProviderFromEnv(SG_ENV);
     expect(p?.name).toBe('sendgrid');
@@ -37,7 +46,24 @@ describe('createConfiguredEmailProviderFromEnv', () => {
     expect(p?.name).toBe('ses');
   });
 
-  it('prefers SendGrid by default when both are configured', () => {
+  it('prefers Resend first when all three are configured', () => {
+    const p = createConfiguredEmailProviderFromEnv({
+      ...RESEND_ENV,
+      ...SG_ENV,
+      ...SES_ENV,
+    });
+    expect(p?.name).toBe('resend');
+  });
+
+  it('prefers Resend over SendGrid when both are configured', () => {
+    const p = createConfiguredEmailProviderFromEnv({
+      ...RESEND_ENV,
+      ...SG_ENV,
+    });
+    expect(p?.name).toBe('resend');
+  });
+
+  it('falls back to SendGrid when Resend absent but SendGrid present', () => {
     const p = createConfiguredEmailProviderFromEnv({
       ...SG_ENV,
       ...SES_ENV,
@@ -45,8 +71,9 @@ describe('createConfiguredEmailProviderFromEnv', () => {
     expect(p?.name).toBe('sendgrid');
   });
 
-  it('flips to SES when SES_PRIMARY=true', () => {
+  it('flips to SES when SES_PRIMARY=true even with Resend present', () => {
     const p = createConfiguredEmailProviderFromEnv({
+      ...RESEND_ENV,
       ...SG_ENV,
       ...SES_ENV,
       SES_PRIMARY: 'true',
@@ -54,18 +81,27 @@ describe('createConfiguredEmailProviderFromEnv', () => {
     expect(p?.name).toBe('ses');
   });
 
-  it('SES_PRIMARY=true with no SES envs still falls back to SendGrid', () => {
+  it('SES_PRIMARY=true with no SES envs still falls back to Resend', () => {
     const p = createConfiguredEmailProviderFromEnv({
+      ...RESEND_ENV,
       ...SG_ENV,
       SES_PRIMARY: 'true',
     });
-    expect(p?.name).toBe('sendgrid');
+    expect(p?.name).toBe('resend');
   });
 });
 
 describe('createConfiguredEmailProvider (pure)', () => {
-  it('returns null when both configs absent', () => {
+  it('returns null when all configs absent', () => {
     expect(createConfiguredEmailProvider({})).toBeNull();
+  });
+
+  it('uses resend config first when present', () => {
+    const p = createConfiguredEmailProvider({
+      resend: { apiKey: 're_k', fromEmail: 'a@b.io' },
+      sendgrid: { apiKey: 'k', fromEmail: 'a@b.io' },
+    });
+    expect(p?.name).toBe('resend');
   });
 
   it('uses sendgrid config when present', () => {
