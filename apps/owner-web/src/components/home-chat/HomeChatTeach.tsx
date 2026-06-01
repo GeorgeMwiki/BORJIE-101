@@ -70,6 +70,7 @@ import {
 } from './teach-sse-normalisers';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+import { takeQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import {
   appendBoardElement,
   boardElementSchema,
@@ -682,6 +683,18 @@ export function HomeChatTeach({
     },
     [send],
   );
+
+  // "Ask Brain" hand-off: the Spawn-tab menu parks a free-form prompt in
+  // sessionStorage and focuses this chat tab. Drain it once on mount (the
+  // take-and-clear is atomic, so it submits exactly once even across the
+  // TabSleeper remount). `sendRef` keeps the latest `send` without making
+  // this a re-running effect.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const queued = takeQueuedPrompt();
+    if (queued) void sendRef.current(queued);
+  }, []);
 
   // Locale-resolved translator bound to the SAME source the rest of this
   // surface uses (the `languagePreference` prop) — so t() strings and the

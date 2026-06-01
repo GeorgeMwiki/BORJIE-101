@@ -1,22 +1,30 @@
 'use client';
 
 import { ingestionStatusLabel, kindLabel, type UploadedDocument } from './types';
+import type { Locale } from '@/lib/locale-shared';
+import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentListProps {
   readonly documents: ReadonlyArray<UploadedDocument>;
   readonly onSelect?: (doc: UploadedDocument) => void;
+  /** Active owner locale — drives strict EN/SW rendering (no mixing). */
+  readonly locale?: Locale;
 }
 
-export function DocumentList({ documents, onSelect }: DocumentListProps) {
+export function DocumentList({
+  documents,
+  onSelect,
+  locale = DEFAULT_LOCALE,
+}: DocumentListProps) {
   if (documents.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface/40 p-8 text-center">
         <p className="text-base font-semibold text-foreground">
-          {S.documentList.emptyTitle.sw}
+          {S.documentList.emptyTitle[locale]}
         </p>
         <p className="mt-1 text-sm text-neutral-400">
-          {S.documentList.emptyBody.sw}
+          {S.documentList.emptyBody[locale]}
         </p>
       </div>
     );
@@ -37,7 +45,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
               </span>
               <span className="mt-1 flex flex-wrap gap-2">
                 <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground">
-                  {kindLabel(doc.kind)}
+                  {kindLabel(doc.kind, locale)}
                 </span>
                 <span
                   className={
@@ -49,7 +57,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
                         : 'border-border bg-background')
                   }
                 >
-                  {ingestionStatusLabel(doc.ingestionStatus)}
+                  {ingestionStatusLabel(doc.ingestionStatus, locale)}
                 </span>
               </span>
             </span>

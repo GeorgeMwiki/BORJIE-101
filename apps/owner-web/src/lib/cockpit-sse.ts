@@ -389,7 +389,7 @@ export function useCockpitStream(
     }
     if (typeof window === 'undefined') return undefined;
 
-    const url = `${API_BASE}/cockpit/stream`;
+    const url = `${API_BASE.replace(/\/+$/, '')}/api/v1/cockpit/stream`;
     let source: EventSource;
     try {
       source = new EventSource(url, { withCredentials: true });

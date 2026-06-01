@@ -3,10 +3,12 @@
 import { useRef, useState } from 'react';
 import { registerUpload } from './api';
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types';
+import type { Locale } from '@/lib/locale-shared';
+import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentUploadButtonProps {
-  /** Surface label override; defaults to bilingual "Pakia hati / Upload". */
+  /** Surface label override; defaults to the locale-strict "Upload document". */
   readonly label?: string;
   /** Called once the upload row has been registered server-side. */
   readonly onUploaded?: (result: UploadResult) => void;
@@ -14,6 +16,8 @@ export interface DocumentUploadButtonProps {
   readonly onError?: (message: string) => void;
   /** Paperclip variant emits a small icon button; default emits a labelled CTA. */
   readonly variant?: 'paperclip' | 'button';
+  /** Active owner locale — drives strict EN/SW rendering (no mixing). */
+  readonly locale?: Locale;
 }
 
 /**
@@ -30,6 +34,7 @@ export function DocumentUploadButton({
   onUploaded,
   onError,
   variant = 'button',
+  locale = DEFAULT_LOCALE,
 }: DocumentUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -75,7 +80,7 @@ export function DocumentUploadButton({
   }
 
   const accept = ALLOWED_MIMES.join(',');
-  const resolvedLabel = label ?? S.documentUploadButton.defaultLabel.sw;
+  const resolvedLabel = label ?? S.documentUploadButton.defaultLabel[locale];
 
   if (variant === 'paperclip') {
     return (

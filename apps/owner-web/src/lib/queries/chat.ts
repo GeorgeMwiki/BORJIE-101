@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type { CeoModeId } from '@/lib/ceo-modes';
+import type { Locale } from '@/lib/locale-shared';
+import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { streamSse } from '@/lib/sse-stream';
 import type {
   ChatBreadcrumb,
@@ -31,7 +33,7 @@ export interface SendOptions {
  * hook surfaces an error in `state.error`. The UI is expected to
  * render an empty-state when no messages have been received yet.
  */
-export function useChatSession(): {
+export function useChatSession(language: Locale = DEFAULT_LOCALE): {
   readonly state: ChatState;
   readonly send: (opts: SendOptions) => Promise<void>;
   readonly abort: () => void;
@@ -99,7 +101,7 @@ export function useChatSession(): {
       try {
         for await (const ev of streamSse({
           path: '/api/v1/mining/chat',
-          body: { message: trimmed, mode, language: 'sw' },
+          body: { message: trimmed, mode, language },
           signal: controller.signal,
         })) {
           sawAny = true;
@@ -154,7 +156,7 @@ export function useChatSession(): {
         }));
       }
     },
-    [],
+    [language],
   );
 
   return { state, send, abort, resetTranscript };

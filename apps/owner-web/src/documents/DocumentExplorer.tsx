@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { askSession, createSession, summariseDocument } from './api';
 import type { UploadedDocument } from './types';
 import { ingestionStatusLabel, kindLabel } from './types';
+import type { Locale } from '@/lib/locale-shared';
+import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ChatTurn {
@@ -15,6 +17,8 @@ interface ChatTurn {
 export interface DocumentExplorerProps {
   readonly document: UploadedDocument;
   readonly initialPrompt?: string;
+  /** Active owner locale — drives strict EN/SW rendering (no mixing). */
+  readonly locale?: Locale;
 }
 
 /**
@@ -27,7 +31,11 @@ export interface DocumentExplorerProps {
  * "Documents as alive entities" — this is the canonical owner-side
  * explorer surface.
  */
-export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerProps) {
+export function DocumentExplorer({
+  document,
+  initialPrompt,
+  locale = DEFAULT_LOCALE,
+}: DocumentExplorerProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [turns, setTurns] = useState<ReadonlyArray<ChatTurn>>([]);
   const [draft, setDraft] = useState<string>('');
@@ -40,7 +48,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       return;
     }
     let cancelled = false;
-    summariseDocument({ documentId: document.id, language: 'sw' })
+    summariseDocument({ documentId: document.id, language: locale })
       .then((res) => {
         if (!cancelled) setSummary(res.summary);
       })
@@ -48,7 +56,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     return () => {
       cancelled = true;
     };
-  }, [document.id, document.ingestionStatus]);
+  }, [document.id, document.ingestionStatus, locale]);
 
   async function ensureSession(): Promise<string> {
     if (sessionId) {
@@ -57,7 +65,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     const { sessionId: newId } = await createSession({
       documentIds: [document.id],
       ...(initialPrompt !== undefined ? { initialPrompt } : {}),
-      title: `${S.documentExplorer.sessionTitlePrefix.sw}: ${document.fileName}`,
+      title: `${S.documentExplorer.sessionTitlePrefix[locale]}: ${document.fileName}`,
     });
     setSessionId(newId);
     return newId;
@@ -80,10 +88,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     setDraft('');
     try {
       const id = await ensureSession();
-      const res = await askSession({ sessionId: id, question, language: 'sw' });
+      const res = await askSession({ sessionId: id, question, language: locale });
       const assistantText =
         res.answer ??
-        S.documentExplorer.askFallback.sw.replace(
+        S.documentExplorer.askFallback[locale].replace(
           '{count}',
           String(res.evidenceIds.length),
         );
@@ -110,7 +118,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           </h2>
           <div className="mt-1 flex flex-wrap gap-2">
             <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground">
-              {kindLabel(document.kind)}
+              {kindLabel(document.kind, locale)}
             </span>
             <span
               className={
@@ -122,7 +130,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
                     : 'border-border bg-background')
               }
             >
-              {ingestionStatusLabel(document.ingestionStatus)}
+              {ingestionStatusLabel(document.ingestionStatus, locale)}
             </span>
           </div>
         </header>
@@ -141,14 +149,14 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-neutral-400">
-              {S.documentExplorer.previewUnavailable.sw}
+              {S.documentExplorer.previewUnavailable[locale]}
             </div>
           )}
         </div>
         {summary ? (
           <div className="border-t border-border bg-background/40 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-              {S.documentExplorer.summaryLabel.sw}
+              {S.documentExplorer.summaryLabel[locale]}
             </p>
             <p className="mt-1 line-clamp-6 text-sm text-foreground">{summary}</p>
           </div>
@@ -159,7 +167,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
         <ol className="flex-1 space-y-2 overflow-y-auto p-4">
           {turns.length === 0 ? (
             <li className="text-center text-sm text-neutral-400">
-              {S.documentExplorer.emptyConversation.sw}
+              {S.documentExplorer.emptyConversation[locale]}
             </li>
           ) : (
             turns.map((turn) => (
@@ -187,13 +195,13 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           className="flex items-end gap-2 border-t border-border bg-background/40 p-3"
         >
           <label htmlFor="document-question" className="sr-only">
-            {S.documentExplorer.questionLabel.sw}
+            {S.documentExplorer.questionLabel[locale]}
           </label>
           <textarea
             id="document-question"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={S.documentExplorer.questionPlaceholder.sw}
+            placeholder={S.documentExplorer.questionPlaceholder[locale]}
             disabled={busy}
             rows={2}
             className="flex-1 resize-none rounded-md border border-border bg-surface p-2 text-sm text-foreground placeholder:text-neutral-500 disabled:opacity-50"
@@ -201,10 +209,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           <button
             type="submit"
             disabled={busy || draft.trim().length === 0}
-            aria-label={S.documentExplorer.sendLabel.sw}
+            aria-label={S.documentExplorer.sendLabel[locale]}
             className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:opacity-50"
           >
-            {busy ? '...' : S.documentExplorer.send.sw}
+            {busy ? '...' : S.documentExplorer.send[locale]}
           </button>
         </form>
       </div>

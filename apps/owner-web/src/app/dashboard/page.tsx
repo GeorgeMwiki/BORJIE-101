@@ -1,30 +1,14 @@
 import Link from 'next/link';
-import {
-  ArrowRight,
-  Brain,
-  Calculator,
-  FileCheck,
-  HardHat,
-  Sparkles,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowRight, Brain, Sparkles } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
 import { getServerT } from '@/i18n/t.server';
 // NOTE: `isSw` is still derived below purely to drive the DailyBriefCard
 // child, which owns its own (separately-migrated) copy; the page's own
 // chrome now resolves through t().
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
+import { DashboardBriefSummary } from '@/components/dashboard/DashboardBriefSummary';
 import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
 import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/Card';
 
 /**
  * D-W-01 — Owner dashboard.
@@ -41,9 +25,11 @@ import {
  *      followed by the live `<OwnerDashboardSurface />` (seven slots
  *      sourced from `/api/v1/owner/brief`).
  *
- * The data on the strip / actions / week panels is the spec's
- * placeholder copy (deliberately static for the shell-mirror pass);
- * the live surface below is unchanged and continues to call the BFF.
+ * Sections 2-5 are now driven by REAL `/api/v1/owner/brief` data via the
+ * `<DashboardBriefSummary />` client island — each block degrades to an
+ * explicit empty state instead of the former fabricated placeholder copy
+ * (no invented royalty advice, no fake workforce count). The live surface
+ * below is unchanged and continues to call the BFF.
  */
 export default async function OwnerDashboardPage() {
   const session = await getOwnerSession();
@@ -61,9 +47,6 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-10">
-      {/* 0. Mr. Mwikila daily brief card (top of dashboard) */}
-      <DailyBriefCard isSw={isSw} salutation={session.salutation} />
-
       {/* 1. Greeting hero */}
       <header>
         <p className="font-mono text-badge uppercase tracking-eyebrow-wide text-signal-500">
@@ -118,143 +101,11 @@ export default async function OwnerDashboardPage() {
         />
       </section>
 
-      {/* 2. Today's brief - 3 metric tiles */}
-      <section aria-labelledby="todays-brief-heading">
-        <h2
-          id="todays-brief-heading"
-          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
-        >
-          {t('dashboard.todaysBrief')}
-        </h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <MetricTile
-            label={t('dashboard.metricOpenLicences')}
-            value={`${session.sites.length}`}
-            sub={t('dashboard.metricOpenLicencesSub')}
-            icon={FileCheck}
-          />
-          <MetricTile
-            label={t('dashboard.metricRoyaltyStatus')}
-            value={t('dashboard.metricRoyaltyValue')}
-            sub={t('dashboard.metricRoyaltySub')}
-            icon={Calculator}
-          />
-          <MetricTile
-            label={t('dashboard.metricWorkforce')}
-            value="48"
-            sub={t('dashboard.metricWorkforceSub')}
-            icon={Users}
-          />
-        </div>
-      </section>
-
-      {/* 3. Today's actions - 2-col priority cards */}
-      <section aria-labelledby="todays-actions-heading">
-        <h2
-          id="todays-actions-heading"
-          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
-        >
-          {t('dashboard.todaysActions')}
-        </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ActionCard
-            title={t('dashboard.actionSignProdTitle')}
-            context={t('dashboard.actionSignProdContext')}
-            ctaLabel={t('dashboard.actionOpen')}
-            ctaHref="/site-cockpit"
-          />
-          <ActionCard
-            title={t('dashboard.actionAdvancesTitle')}
-            context={t('dashboard.actionAdvancesContext')}
-            ctaLabel={t('dashboard.actionReview')}
-            ctaHref="/people"
-          />
-          <ActionCard
-            title={t('dashboard.actionGoldTitle')}
-            context={t('dashboard.actionGoldContext')}
-            ctaLabel={t('dashboard.actionCompare')}
-            ctaHref="/marketplace"
-          />
-          <ActionCard
-            title={t('dashboard.actionNemcTitle')}
-            context={t('dashboard.actionNemcContext')}
-            ctaLabel={t('dashboard.actionSign')}
-            ctaHref="/compliance"
-          />
-        </div>
-      </section>
-
-      {/* 4. This week - 3-col upcoming events */}
-      <section aria-labelledby="this-week-heading">
-        <h2
-          id="this-week-heading"
-          className="mb-3 text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
-        >
-          {t('dashboard.thisWeek')}
-        </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <EventCard
-            title={t('dashboard.eventLicenceExpiry')}
-            when={t('dashboard.eventLicenceExpiryWhen')}
-            href="/licences"
-            tone="warning"
-          />
-          <EventCard
-            title={t('dashboard.eventRoyaltyCutoff')}
-            when={t('dashboard.eventRoyaltyCutoffWhen')}
-            href="/finance"
-            tone="signal"
-          />
-          <EventCard
-            title={t('dashboard.eventNemcReview')}
-            when={t('dashboard.eventNemcReviewWhen')}
-            href="/compliance"
-            tone="neutral"
-          />
-        </div>
-      </section>
-
-      {/* 5. Brain stream - recent Master Brain decisions */}
-      <section aria-labelledby="brain-stream-heading" className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h2
-            id="brain-stream-heading"
-            className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
-          >
-            {t('dashboard.brainStream')}
-          </h2>
-          <Link
-            href="/master-brain"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-signal-500 hover:underline"
-          >
-            {t('dashboard.viewAll')}
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </header>
-        <Card variant="outline" className="border-border/60 bg-surface/40">
-          <CardHeader bordered>
-            <CardTitle size="sm">{t('dashboard.brainRecentTitle')}</CardTitle>
-            <CardDescription>{t('dashboard.brainRecentDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 pt-4">
-            <BrainStreamRow
-              tone="signal"
-              title={t('dashboard.brainRow1Title')}
-              detail={t('dashboard.brainRow1Detail')}
-            />
-            <BrainStreamRow
-              tone="warning"
-              title={t('dashboard.brainRow2Title')}
-              detail={t('dashboard.brainRow2Detail')}
-            />
-            <BrainStreamRow
-              tone="success"
-              title={t('dashboard.brainRow3Title')}
-              detail={t('dashboard.brainRow3Detail')}
-            />
-          </CardContent>
-        </Card>
-      </section>
+      {/* 2-5. Real-data summary — metric tiles, today's actions, this
+              week and the brain stream all sourced from the live
+              `/api/v1/owner/brief` BFF. Each block degrades to an
+              explicit empty state; no fabricated figures remain. */}
+      <DashboardBriefSummary />
 
       {/* Wave OWNER-OS — owner operating system shell. Tab strip with
           live chat (drop-zone), Docs, Drafts, Reminders, Insights.
@@ -291,119 +142,6 @@ export default async function OwnerDashboardPage() {
         </h2>
         <OwnerDashboardSurface />
       </section>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------
-// Local primitives — small, self-contained, no cross-page leak.
-// ------------------------------------------------------------------
-
-interface MetricTileProps {
-  readonly label: string;
-  readonly value: string;
-  readonly sub: string;
-  readonly icon: LucideIcon;
-}
-
-function MetricTile({ label, value, sub, icon: Icon }: MetricTileProps) {
-  return (
-    <Card variant="default" className="border-border/60">
-      <CardContent className="flex items-start justify-between p-6">
-        <div className="space-y-1">
-          <p className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400">
-            {label}
-          </p>
-          <p className="font-display text-3xl text-foreground">{value}</p>
-          <p className="text-xs text-neutral-400">{sub}</p>
-        </div>
-        <div className="rounded-xl bg-signal-500/10 p-2.5 text-signal-500">
-          <Icon className="h-5 w-5" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface ActionCardProps {
-  readonly title: string;
-  readonly context: string;
-  readonly ctaLabel: string;
-  readonly ctaHref: string;
-}
-
-function ActionCard({ title, context, ctaLabel, ctaHref }: ActionCardProps) {
-  return (
-    <Card variant="default" hoverable className="border-border/60">
-      <CardContent className="flex items-start justify-between gap-4 p-6">
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          <p className="text-sm text-neutral-400">{context}</p>
-        </div>
-        <Link
-          href={ctaHref}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface"
-        >
-          {ctaLabel}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface EventCardProps {
-  readonly title: string;
-  readonly when: string;
-  readonly href: string;
-  readonly tone: 'signal' | 'warning' | 'neutral';
-}
-
-function EventCard({ title, when, href, tone }: EventCardProps) {
-  const toneRing =
-    tone === 'signal'
-      ? 'before:bg-signal-500'
-      : tone === 'warning'
-        ? 'before:bg-warning'
-        : 'before:bg-neutral-500';
-  const Icon = tone === 'warning' ? HardHat : tone === 'signal' ? TrendingUp : FileCheck;
-  return (
-    <Link
-      href={href}
-      className={`group relative block overflow-hidden rounded-lg border border-border/60 bg-surface/60 p-5 hover:bg-surface ${toneRing} before:absolute before:left-0 before:top-0 before:h-full before:w-rail`}
-    >
-      <div className="flex items-center gap-2 text-xs text-neutral-400">
-        <Icon className="h-3.5 w-3.5" />
-        <span>{when}</span>
-      </div>
-      <div className="mt-2 text-base font-semibold text-foreground">{title}</div>
-      <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-signal-500 group-hover:underline">
-        <ArrowRight className="h-3 w-3" />
-      </div>
-    </Link>
-  );
-}
-
-interface BrainStreamRowProps {
-  readonly tone: 'signal' | 'warning' | 'success';
-  readonly title: string;
-  readonly detail: string;
-}
-
-function BrainStreamRow({ tone, title, detail }: BrainStreamRowProps) {
-  const dot =
-    tone === 'signal'
-      ? 'bg-signal-500'
-      : tone === 'warning'
-        ? 'bg-warning'
-        : 'bg-success';
-  return (
-    <div className="flex items-start gap-3">
-      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-foreground">{title}</div>
-        <div className="truncate text-xs text-neutral-400">{detail}</div>
-      </div>
     </div>
   );
 }

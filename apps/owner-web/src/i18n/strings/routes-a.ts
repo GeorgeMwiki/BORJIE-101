@@ -229,6 +229,15 @@ export const routesAStrings = {
       sw: 'Kipindi hakijaanza.',
       en: 'Session not ready.',
     },
+    startFailedTitle: {
+      sw: 'Hatukuweza kuanzisha usajili',
+      en: 'We could not start onboarding',
+    },
+    startFailedBody: {
+      sw: 'Huduma ya usajili haipatikani kwa sasa. Angalia muunganisho wako kisha jaribu tena.',
+      en: 'The onboarding service is unavailable right now. Check your connection and try again.',
+    },
+    retryButton: { sw: 'Jaribu tena', en: 'Retry' },
     progressSubtitle: { both: 'Maendeleo' },
     hintLicencesSw: { sw: 'Tia PML/PL/SML/ML hapa', en: 'Drop PML/PL/SML/ML PDFs here' },
     hintSitesSw: {

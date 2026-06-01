@@ -87,6 +87,13 @@ export default function OnboardingPage() {
     });
   }, [sessionId, startMutation]);
 
+  // When the start call fails the effect above bails (so it never loops),
+  // but that previously left the wizard greyed forever with no signal.
+  // Retry clears the error so the effect re-runs and re-issues `start`.
+  const retryStart = useCallback((): void => {
+    startMutation.reset();
+  }, [startMutation]);
+
   const buildPayload = useCallback(
     (index: number): unknown | null => {
       if (index === 0) {
@@ -179,6 +186,32 @@ export default function OnboardingPage() {
         <SectionCard title="Progress" subtitle={S.onboarding.progressSubtitle.both}>
           <Stepper steps={STEPS} current={step} />
         </SectionCard>
+        {startMutation.isError && !sessionId ? (
+          <div
+            role="alert"
+            data-testid="onboarding-start-error"
+            className="rounded-md border border-destructive/40 bg-destructive/10 p-4"
+          >
+            <p className="text-sm font-semibold text-destructive">
+              {pickByLocale(locale, S.onboarding.startFailedTitle)}
+            </p>
+            <p className="mt-1 text-xs text-neutral-300">
+              {pickByLocale(locale, S.onboarding.startFailedBody)}
+            </p>
+            {startMutation.error instanceof Error ? (
+              <p className="mt-1 text-xs text-neutral-500">
+                {startMutation.error.message}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={retryStart}
+              className="mt-3 inline-flex items-center gap-2 rounded-md border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+            >
+              {pickByLocale(locale, S.onboarding.retryButton)}
+            </button>
+          </div>
+        ) : null}
         <SectionCard
           title={`Step ${step + 1} of ${STEPS.length}`}
           subtitle={`${STEPS[step]!.label} / ${STEPS[step]!.labelSw}`}

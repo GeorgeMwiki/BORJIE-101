@@ -62,6 +62,7 @@ import {
   type TabProposalPayload,
   type TabTagErrorPayload,
 } from '@/lib/tab-sse-parser';
+import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 
 import { OwnerOSChatPanel } from './OwnerOSChatPanel';
 import { useAdaptiveTabOrder } from './useAdaptiveTabOrder';
@@ -731,16 +732,12 @@ export function OwnerOSShell({
         }}
         onAskBrain={(prompt) => {
           // Hand the free-form ask to the brain via the chat panel. The
-          // simplest path: focus the Chat tab + drop the prompt into the
-          // chat draft via a sessionStorage hand-off the chat picks up
-          // on next render. The brain replies with <spawn_tabs> and the
-          // FE renders the suggestion chip beneath its bubble.
-          try {
-            sessionStorage.setItem('borjie:home-chat:queued-prompt', prompt);
-          } catch {
-            /* private mode — drop silently */
-          }
-          // Focus chat so the queued prompt is visible immediately.
+          // composer lives in a sibling subtree, so we park the prompt in
+          // sessionStorage and focus the Chat tab; `HomeChatTeach` drains
+          // the key on mount and submits it. The brain then replies with
+          // <spawn_tabs> and the FE renders the suggestion chip below.
+          setQueuedPrompt(prompt);
+          // Focus chat so the queued prompt is submitted + visible.
           const chat = tabs.find((t) => t.kind === 'chat');
           if (chat) focus(chat.id);
         }}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useChatSession } from '@/lib/queries/chat';
+import { useLocale } from '@/lib/locale';
 import { CEO_MODES, type CeoModeId } from '@/lib/ceo-modes';
 import { ChatBubble } from './ChatBubble';
 import { Composer } from './Composer';
@@ -20,7 +21,12 @@ interface ChatPanelProps {
  * switcher above can rebind it without unmounting this component.
  */
 export function ChatPanel({ mode }: ChatPanelProps) {
-  const { state, send, abort } = useChatSession();
+  // Thread the owner's ACTIVE locale (borjie_locale cookie, the single
+  // source of truth) into the chat hook so the gateway is told the real
+  // language. Default owner locale is `en`; `useLocale` also re-renders
+  // when the owner flips the toggle mid-session.
+  const locale = useLocale();
+  const { state, send, abort } = useChatSession(locale);
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 

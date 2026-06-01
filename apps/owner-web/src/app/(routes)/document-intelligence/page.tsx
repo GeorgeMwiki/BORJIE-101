@@ -6,6 +6,7 @@ import { DocumentUploadButton } from '@/documents/DocumentUploadButton';
 import { DocumentExplorer } from '@/documents/DocumentExplorer';
 import { listDocuments } from '@/documents/api';
 import type { UploadedDocument } from '@/documents/types';
+import { useLocale } from '@/lib/locale';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
@@ -20,6 +21,7 @@ import { routesAStrings as S } from '@/i18n/strings/routes-a';
  * doc workspace). The intelligence surface is the upload + chat seat.
  */
 export default function DocumentIntelligencePage() {
+  const locale = useLocale();
   const [docs, setDocs] = useState<ReadonlyArray<UploadedDocument>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function DocumentIntelligencePage() {
           </p>
         </div>
         <DocumentUploadButton
+          locale={locale}
           onUploaded={(result) => {
             setDocs((prev) => [result.document, ...prev]);
             setSelectedId(result.document.id);
@@ -84,13 +87,14 @@ export default function DocumentIntelligencePage() {
           ) : (
             <DocumentList
               documents={docs}
+              locale={locale}
               onSelect={(doc) => setSelectedId(doc.id)}
             />
           )}
         </aside>
         <section className="lg:col-span-8">
           {selected ? (
-            <DocumentExplorer document={selected} />
+            <DocumentExplorer document={selected} locale={locale} />
           ) : (
             <div className="rounded-lg border border-border bg-surface/40 p-8 text-center text-sm text-neutral-400">
               {S.documentIntelligence.emptyState.both}

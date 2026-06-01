@@ -196,6 +196,29 @@ export const en = {
 
     ownerOsHeading: 'Mr. Mwikila — your operating system',
     liveBrief: 'Live brief',
+
+    // Real-data summary (replaces the former static metric/action/week/
+    // brain-stream copy). Driven by GET /api/v1/owner/brief; each block
+    // falls back to an explicit empty state rather than fabricated data.
+    summaryEmptyTitle: 'Your cockpit fills as you operate',
+    summaryEmptyBody:
+      'Log a shift, add a licence, or ask Borjie Brain and your daily figures appear here.',
+    summaryOffline: 'Live figures are offline right now.',
+    metricLicencesAtRiskSub: '{count} at risk of expiry',
+    metricLicencesNoneSub: 'No licences on file yet',
+    metricDecisionsLabel: 'Decisions in review',
+    metricDecisionsValueNone: 'All clear',
+    metricDecisionsSub: '{count} awaiting your call',
+    metricDecisionsNoneSub: 'Nothing pending right now',
+    metricWorkforceShiftsSub: '{count} on shift today',
+    metricWorkforceNoneSub: 'No shift logged yet',
+    actionsEmpty: 'No actions need you right now.',
+    actionReviewDecision: 'Review',
+    thisWeekEmpty: 'No licence deadlines in view.',
+    eventLicenceExpiresInDays: 'Expires in {count} days',
+    eventLicenceExpirySoon: 'Expiring soon',
+    brainStreamEmpty: 'Borjie Brain has no decisions logged yet.',
+    brainAdvisorTitle: 'Advisor insight',
   },
 
   nav: {
