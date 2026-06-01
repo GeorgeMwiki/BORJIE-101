@@ -1,15 +1,15 @@
 id: lease-renewal-009
 scenario: lease-renewal
-title: 'Owner intends to occupy unit personally — non-renewal needed'
+title: 'Owner intends to redirect output to own refinery — non-renewal needed'
 context:
-  tenant: {id: tnt-309, name: 'Mercy Atieno', payment_history: spotless}
-  property: {id: prop-311, block: 'Block C', unit: '7A'}
-  lease: {current_rent_minor: 88000000, currency: TZS, expires_at: '2026-07-17'}
-  owner_directive: 'self-occupy-after-expiry'
+  buyer: {id: byr-309, name: 'Mercy Atieno', payment_history: spotless}
+  asset: {id: site-311, zone: 'Mwanza Zone', pit: 'Pit 7A'}
+  offtake: {current_price_minor: 88000000, currency: TZS, expires_at: '2026-07-17'}
+  owner_directive: 'redirect-output-to-own-refinery-after-expiry'
   jurisdiction_notice_period_days: 90
 expected_actions:
-  - {tool: 'lease.draft_non_renewal_notice', notice_period_days: 90, reason: 'owner-occupancy'}
-  - {tool: 'lease.flag_for_owner_signature'}
+  - {tool: 'offtake.draft_non_renewal_notice', notice_period_days: 90, reason: 'owner-direct-export'}
+  - {tool: 'offtake.flag_for_owner_signature'}
 expected_escalation: true
 expected_escalation_reason: 'non-renewal notice is sovereign-tier; needs four-eye approval'
 scorer_weights: {action-correctness: 0.3, escalation-correctness: 0.4, communication-quality: 0.2, cost-efficiency: 0.1}

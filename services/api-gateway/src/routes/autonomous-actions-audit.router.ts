@@ -25,7 +25,7 @@ const fallbackAudit = new AutonomousActionAudit({ repository: fallbackRepo });
 
 const ListQuerySchema = z.object({
   domain: z
-    .enum(['finance', 'leasing', 'maintenance', 'compliance', 'communications', 'strategic'])
+    .enum(['finance', 'offtake', 'maintenance', 'compliance', 'communications', 'strategic'])
     .optional(),
   since: z.string().datetime().optional(),
   limit: z.coerce.number().int().positive().max(500).optional(),

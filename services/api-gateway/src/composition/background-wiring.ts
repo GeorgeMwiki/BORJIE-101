@@ -209,7 +209,7 @@ export function createHeartbeatSupervisor(
 ): HeartbeatSupervisor {
   // Wave 27 Agent F — risk-recompute dispatcher. The registry is the
   // `kind → compute fn` map; each compute fn proxies to the matching
-  // domain service (credit-rating / property-grading / etc). Missing
+  // domain service (credit-rating / asset-grading / etc). Missing
   // services simply stay unregistered — the dispatcher skips silently
   // for any event classified to a kind that has no compute fn.
   //
@@ -225,13 +225,13 @@ export function createHeartbeatSupervisor(
       await svc.computeRating(job.tenantId, job.entityId);
     };
   }
-  if (registry.propertyGrading) {
-    const svc = registry.propertyGrading as unknown as {
-      gradeProperty?: (tenantId: string, propertyId: string) => Promise<unknown>;
+  if (registry.assetGrading) {
+    const svc = registry.assetGrading as unknown as {
+      gradeAsset?: (tenantId: string, assetId: string) => Promise<unknown>;
     };
-    if (typeof svc.gradeProperty === 'function') {
-      mutableRegistry.property_grade = async (job: RiskComputeJob) => {
-        await svc.gradeProperty!(job.tenantId, job.entityId);
+    if (typeof svc.gradeAsset === 'function') {
+      mutableRegistry.asset_grade = async (job: RiskComputeJob) => {
+        await svc.gradeAsset!(job.tenantId, job.entityId);
       };
     }
   }
@@ -721,22 +721,24 @@ function buildExtensionTasks(
   }
 
   // recompute_property_grades — weekly (Mon 06:00 UTC) bulk-grade of every
-  // property for every tenant so the admin/owner dashboards always surface
+  // asset for every tenant so the admin/owner dashboards always surface
   // fresh report cards. Skips silently when the service is in degraded
-  // (DB-less) mode. Each grade is persisted to `property_grade_snapshots`
-  // so the 12-month history chart can be rendered without replay.
-  if (registry.propertyGrading) {
+  // (DB-less) mode. NB: `recompute_property_grades` is the stable scheduler
+  // `TaskName` / feature-flag token owned by `@borjie/ai-copilot`; the body
+  // drives the mining AssetGradingService. The token is renamed in the
+  // ai-copilot workstream, not here, to keep the contract single-sourced.
+  if (registry.assetGrading) {
     tasks.push({
       name: 'recompute_property_grades',
       cron: '0 6 * * 1',
       description:
-        'Weekly bulk recompute of every property grade for a tenant — persists a snapshot per property so history is complete.',
+        'Weekly bulk recompute of every asset grade for a tenant — persists a snapshot per asset so history is complete.',
       featureFlagKey: 'ai.bg.recompute_property_grades',
       run: async (ctx) => {
         const start = Date.now();
         let regraded = 0;
         try {
-          const outcomes = await registry.propertyGrading!.gradeAllProperties(
+          const outcomes = await registry.assetGrading!.gradeAllAssets(
             ctx.tenantId,
           );
           regraded = outcomes.length;

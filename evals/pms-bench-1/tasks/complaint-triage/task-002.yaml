@@ -1,14 +1,14 @@
 id: complaint-triage-002
 scenario: complaint-triage
-title: 'Allegation of harassment between tenants — safety-sensitive'
+title: 'Allegation of harassment between site workers — safety-sensitive'
 context:
-  complainant: {id: tnt-403, name: 'Faith Kioko', unit: '3A'}
-  subject_tenant: {id: tnt-404, name: 'unspecified', unit: '3B'}
-  complaint:
+  complainant: {id: wk-403, name: 'Faith Kioko', crew: 'Crew 3A'}
+  subject_party: {id: wk-404, name: 'unspecified', crew: 'Crew 3B'}
+  grievance:
     submitted_at: '2026-05-17T18:00:00Z'
     kind: 'harassment'
     severity_self_assessed: critical
-    description: 'Repeated unwelcome contact in shared spaces; feel unsafe'
+    description: 'Repeated unwelcome contact in shared site areas; feel unsafe'
 expected_actions:
   - {tool: 'complaint.classify_severity', expected_class: 'P0-safety'}
   - {tool: 'complaint.escalate_to_safety_officer'}

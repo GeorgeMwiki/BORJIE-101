@@ -157,8 +157,8 @@ import type {
   FeatureExtractor,
   ForecastRepository,
 } from '@borjie/forecasting';
-import { PropertyGrading } from '@borjie/ai-copilot';
-type PropertyGradingService = import('@borjie/ai-copilot').PropertyGrading.PropertyGradingService;
+import { AssetGrading } from '@borjie/ai-copilot';
+type AssetGradingService = import('@borjie/ai-copilot').AssetGrading.AssetGradingService;
 import {
   createCreditRatingService,
   type CreditRatingService,
@@ -784,9 +784,9 @@ export interface ServiceRegistry {
     readonly queryService: GraphQueryService | null;
   };
 
-  /** Property grading — A–F report card scoring + portfolio rollup.
+  /** Asset grading — A–F report card scoring + portfolio rollup.
    *  Postgres-backed in live mode, null when DATABASE_URL is unset. */
-  readonly propertyGrading: PropertyGradingService | null;
+  readonly assetGrading: AssetGradingService | null;
 
   /**
    * PO-port wave-5 wiring #1 — six-layer cognitive memory v2 (episodic,
@@ -1601,7 +1601,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
         brainKernel: null,
       };
     })(),
-    propertyGrading: null,
+    assetGrading: null,
     creditRating: null,
     // Wave 29 — forecasting stays null in degraded mode; the router
     // returns 503 FORECAST_SERVICE_UNAVAILABLE. No mock data ever.
@@ -2481,13 +2481,13 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         brainKernel,
       };
     })(),
-    // Mining-domain Wave 5 — property-grading adapters previously
-    // bound to `tenant_grading_weights` + `property_grade_snapshots`
+    // Mining-domain Wave 5 — asset-grading adapters previously
+    // bound to `tenant_grading_weights` + `asset_grade_snapshots`
     // (both removed by migration 0003). The mining ore-grading repo
     // (DrizzleOreGradingRepository) ships through the dedicated
-    // `oreGrading` slot below; the legacy `propertyGrading` slot stays
+    // `oreGrading` slot below; the legacy `assetGrading` slot stays
     // null in the live registry until follow-up batches retire it.
-    propertyGrading: null,
+    assetGrading: null,
     // Tenant credit rating — FICO-scale 300-850 + CRB bands + portable
     // certificate. Postgres-backed repository pulls real invoice /
     // payment / tenancy data — zero mocks.
@@ -2538,7 +2538,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // Mining-domain Wave 5 — live bindings of the new mining repos
     // surfaced through dedicated slots. The corresponding legacy slots
     // (financialProfile / riskReport / negotiation / warehouse /
-    // propertyGrading / far) stay null until follow-up batches retire
+    // assetGrading / far) stay null until follow-up batches retire
     // their consumer surfaces.
     buyerFinancialProfile: buyerFinancialProfileRepo,
     buyerRiskReport: buyerRiskReportRepo,
@@ -2549,7 +2549,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // Mining hard-fork wave 6 — bindings of the seven new mining-domain
     // replacement repos. Their legacy slots (waitlist / gamification /
     // stationMasterCoverageRepo / maintenanceTaxonomy / conditionalSurveys /
-    // renewal / propertyGrading) stay null in the live registry; consumers
+    // renewal / assetGrading) stay null in the live registry; consumers
     // migrate to these slots.
     offtakeQueue: offtakeQueueRepo,
     workerIncentives: workerIncentivesRepo,

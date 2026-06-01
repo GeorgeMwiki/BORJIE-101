@@ -37,7 +37,7 @@ const ACTOR_KIND_ENUM = z.enum([
 
 const ACTION_CATEGORY_ENUM = z.enum([
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -46,7 +46,7 @@ const ACTION_CATEGORY_ENUM = z.enum([
   'procurement',
   'insurance',
   'legal',
-  'tenant_welfare',
+  'community_welfare',
   'other',
 ]);
 

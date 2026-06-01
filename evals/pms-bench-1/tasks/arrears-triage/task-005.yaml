@@ -1,25 +1,25 @@
 id: arrears-triage-005
 scenario: arrears-triage
-title: '7-day arrears, tenant on agreed payment plan, on track'
+title: '7-day outstanding royalty, counterparty on agreed payment plan, on track'
 context:
-  tenant:
-    id: tnt-005
+  counterparty:
+    id: cpty-005
     name: 'Mary Ouma'
-    arrears_days: 7
+    outstanding_days: 7
     history: payment-plan-active
-  property:
-    id: prop-005
-    block: 'Block D'
-    unit: '9A'
-  lease:
-    monthly_rent_minor: 75000000
+  asset:
+    id: site-005
+    zone: 'Chunya Zone'
+    pit: 'Pit 9A'
+  offtake:
+    monthly_royalty_minor: 75000000
     currency: TZS
   events:
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 75000000}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 75000000}
     - {at: '2026-05-01', kind: 'payment_plan.installment_received', amount_minor: 25000000}
     - {at: '2026-05-07', kind: 'payment_plan.installment_received', amount_minor: 25000000}
 expected_actions:
-  - {tool: 'arrears.acknowledge_plan_progress', tone: 'warm-encouraging'}
+  - {tool: 'royalty.acknowledge_plan_progress', tone: 'warm-encouraging'}
 expected_escalation: false
 scorer_weights:
   action-correctness: 0.5

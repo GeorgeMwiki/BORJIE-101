@@ -22,7 +22,7 @@ const UpdatePolicySchema = z
   .object({
     autonomousModeEnabled: z.boolean().optional(),
     finance: z.record(z.string(), z.unknown()).optional(),
-    leasing: z.record(z.string(), z.unknown()).optional(),
+    offtake: z.record(z.string(), z.unknown()).optional(),
     maintenance: z.record(z.string(), z.unknown()).optional(),
     compliance: z.record(z.string(), z.unknown()).optional(),
     communications: z.record(z.string(), z.unknown()).optional(),

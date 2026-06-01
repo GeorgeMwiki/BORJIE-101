@@ -165,11 +165,11 @@ export function createServiceContextMiddleware(registry: ServiceRegistry) {
       c.set('autonomyPolicyService', registry.autonomy.policyService);
     }
 
-    // Property grading — live in Postgres-backed mode, null otherwise.
-    // The router reads `services.propertyGrading` and emits 503 when it
+    // Asset grading — live in Postgres-backed mode, null otherwise.
+    // The router reads `services.assetGrading` and emits 503 when it
     // is absent, so flat-key consumers are not required.
-    if (registry.propertyGrading) {
-      c.set('propertyGradingService', registry.propertyGrading);
+    if (registry.assetGrading) {
+      c.set('assetGradingService', registry.assetGrading);
     }
 
     // Credit rating — FICO 300-850 + CRB bands. Router reads

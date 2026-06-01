@@ -26,7 +26,7 @@ import { routeCatch } from '../utils/safe-error';
 import { withSecurityEvents } from '@borjie/observability';
 const AUTONOMY_DOMAIN_VALUES = [
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -35,7 +35,7 @@ const AUTONOMY_DOMAIN_VALUES = [
   'procurement',
   'insurance',
   'legal_proceedings',
-  'tenant_welfare',
+  'community_welfare',
 ] as const;
 
 const ProvisionBodySchema = z

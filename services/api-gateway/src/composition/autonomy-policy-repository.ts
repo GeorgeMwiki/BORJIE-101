@@ -108,7 +108,7 @@ function policyToJson(policy: AutonomyPolicy): Record<string, unknown> {
   return {
     autonomousModeEnabled: policy.autonomousModeEnabled,
     finance: policy.finance,
-    leasing: policy.leasing,
+    offtake: policy.offtake,
     maintenance: policy.maintenance,
     compliance: policy.compliance,
     communications: policy.communications,
@@ -118,7 +118,7 @@ function policyToJson(policy: AutonomyPolicy): Record<string, unknown> {
     procurement: policy.procurement,
     insurance: policy.insurance,
     legal_proceedings: policy.legal_proceedings,
-    tenant_welfare: policy.tenant_welfare,
+    community_welfare: policy.community_welfare,
     escalation: policy.escalation,
     version: policy.version,
     updatedAt: policy.updatedAt,
@@ -133,7 +133,7 @@ function rowToPolicy(row: AutonomyPolicyRow): AutonomyPolicy {
     tenantId: row.tenant_id,
     autonomousModeEnabled: row.autonomous_mode_enabled,
     finance: { ...defaults.finance, ...(json.finance ?? {}) },
-    leasing: { ...defaults.leasing, ...(json.leasing ?? {}) },
+    offtake: { ...defaults.offtake, ...(json.offtake ?? {}) },
     maintenance: { ...defaults.maintenance, ...(json.maintenance ?? {}) },
     compliance: {
       ...defaults.compliance,
@@ -160,9 +160,9 @@ function rowToPolicy(row: AutonomyPolicyRow): AutonomyPolicy {
       // tribunal filings NEVER auto-submit regardless of stale row state.
       autoFileToTribunal: false,
     },
-    tenant_welfare: {
-      ...defaults.tenant_welfare,
-      ...(json.tenant_welfare ?? {}),
+    community_welfare: {
+      ...defaults.community_welfare,
+      ...(json.community_welfare ?? {}),
     },
     escalation: {
       primaryUserId:

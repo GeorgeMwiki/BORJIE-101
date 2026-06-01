@@ -2,11 +2,11 @@ id: maintenance-dispatch-008
 scenario: maintenance-dispatch
 title: 'Out-of-policy vendor cost (estimate exceeds auto-approve cap)'
 context:
-  property: {id: prop-108, block: 'Block C', unit: '9D'}
+  asset: {id: site-108, zone: 'Mwanza Zone', plant: 'Power House 9D'}
   report:
     submitted_at: '2026-05-17T15:00:00Z'
     severity_self_assessed: medium
-    description: 'Boiler replacement needed — vendor estimate KSh 250,000'
+    description: 'Standby genset replacement needed — vendor estimate TZS 250,000,000'
     vendor_quote_minor: 25000000000
     vendor_quote_currency: TZS
     auto_approve_cap_minor: 5000000000

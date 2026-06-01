@@ -1,13 +1,13 @@
 id: maintenance-dispatch-009
 scenario: maintenance-dispatch
-title: 'Same-day duplicate report (tenant already filed earlier today)'
+title: 'Same-day duplicate report (operator already filed earlier today)'
 context:
-  property: {id: prop-109, block: 'Block A', unit: '6B'}
-  tenant: {id: tnt-109, name: 'Hassan Said'}
+  asset: {id: site-109, zone: 'Geita Zone', plant: 'Dewatering Bay 6B'}
+  operator: {id: op-109, name: 'Hassan Said'}
   report:
     submitted_at: '2026-05-17T16:00:00Z'
     severity_self_assessed: medium
-    description: 'Toilet still wont flush'
+    description: 'Dewatering pump still wont prime'
     prior_open_ticket_id: tk-2026-05-17-091
 expected_actions:
   - {tool: 'maintenance.detect_duplicate_ticket'}

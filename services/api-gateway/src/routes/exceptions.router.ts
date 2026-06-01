@@ -30,7 +30,7 @@ const ListQuerySchema = z.object({
   domain: z
     .enum([
       'finance',
-      'leasing',
+      'offtake',
       'maintenance',
       'compliance',
       'communications',

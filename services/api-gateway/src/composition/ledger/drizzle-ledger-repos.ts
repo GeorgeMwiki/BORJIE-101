@@ -74,9 +74,7 @@ import {
   type LedgerEntryType,
   type OwnerId,
   type PaymentIntentId,
-  type PropertyId,
   type TenantId,
-  type UnitId,
 } from '@borjie/domain-models';
 // `DatabaseClient` is imported as a *value* factory and the type derived
 // via ReturnType — importing the named `DatabaseClient` type collides
@@ -262,7 +260,11 @@ function rowToAccount(row: AccountRow): Account {
     currency: row.currency as CurrencyCode,
     customerId: (row.customerId ?? undefined) as CustomerId | undefined,
     ownerId: (row.ownerId ?? undefined) as OwnerId | undefined,
-    propertyId: (row.propertyId ?? undefined) as PropertyId | undefined,
+    // `Account.propertyId` is branded against common/types `PropertyId`,
+    // while the barrel now re-aliases the bare `PropertyId` import to the
+    // mining `MiningSiteId` brand. Cast through the interface field type so
+    // the adapter tracks whichever brand `Account` declares (W-E rename).
+    propertyId: (row.propertyId ?? undefined) as Account['propertyId'],
     balanceMinorUnits: row.balanceMinorUnits ?? 0,
     lastEntryId: row.lastEntryId ?? undefined,
     lastEntryAt: row.lastEntryAt ?? undefined,
@@ -300,8 +302,12 @@ function rowToLedgerEntry(row: LedgerEntryRow): LedgerEntry {
       | PaymentIntentId
       | undefined,
     leaseId: (row.leaseId ?? undefined) as LeaseId | undefined,
-    propertyId: (row.propertyId ?? undefined) as PropertyId | undefined,
-    unitId: (row.unitId ?? undefined) as UnitId | undefined,
+    // propertyId / unitId are branded against common/types, but the barrel
+    // now re-aliases the bare imports to the mining MiningSiteId / MiningUnitId
+    // brands. Cast through the interface field types so the adapter tracks
+    // whichever brand `LedgerEntry` declares (W-E rename).
+    propertyId: (row.propertyId ?? undefined) as LedgerEntry['propertyId'],
+    unitId: (row.unitId ?? undefined) as LedgerEntry['unitId'],
     description: row.description ?? '',
     metadata: safeMetadata(row.metadata),
     // Hash-chain tamper-evidence (durability defect #3). Null in legacy

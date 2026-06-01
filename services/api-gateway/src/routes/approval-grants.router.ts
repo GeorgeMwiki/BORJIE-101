@@ -26,7 +26,7 @@ import { routeCatch } from '../utils/safe-error';
 import { withSecurityEvents } from '@borjie/observability';
 const DOMAIN_ENUM = z.enum([
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -35,7 +35,7 @@ const DOMAIN_ENUM = z.enum([
   'procurement',
   'insurance',
   'legal_proceedings',
-  'tenant_welfare',
+  'community_welfare',
 ]);
 
 const StandingScopeSchema = z

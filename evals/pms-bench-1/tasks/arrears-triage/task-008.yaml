@@ -1,27 +1,27 @@
 id: arrears-triage-008
 scenario: arrears-triage
-title: 'Multi-property arrears: same tenant, 2 units delinquent'
+title: 'Multi-offtake outstanding royalty: same counterparty, 2 sites in default'
 context:
-  tenant:
-    id: tnt-008
+  counterparty:
+    id: cpty-008
     name: 'Brian Karanja'
-    arrears_days: 25
-    history: multi-property-tenant
-    properties_held: 2
-  property:
-    id: prop-008
-    block: 'Block C'
-    unit: '6A'
-  lease:
-    monthly_rent_minor: 90000000
+    outstanding_days: 25
+    history: multi-offtake-counterparty
+    offtakes_held: 2
+  asset:
+    id: site-008
+    zone: 'Mwanza Zone'
+    pit: 'Pit 6A'
+  offtake:
+    monthly_royalty_minor: 90000000
     currency: TZS
   events:
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 90000000, property_id: prop-008}
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 110000000, property_id: prop-009}
-    - {at: '2026-05-15', kind: 'partial_payment', amount_minor: 60000000, property_id: prop-008}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 90000000, asset_id: site-008}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 110000000, asset_id: site-009}
+    - {at: '2026-05-15', kind: 'partial_payment', amount_minor: 60000000, asset_id: site-008}
 expected_actions:
-  - {tool: 'arrears.consolidate_view_across_properties'}
-  - {tool: 'arrears.send_consolidated_reminder', tone: 'firm-but-empathetic'}
+  - {tool: 'royalty.consolidate_view_across_offtakes'}
+  - {tool: 'royalty.send_consolidated_reminder', tone: 'firm-but-empathetic'}
 expected_escalation: false
 scorer_weights:
   action-correctness: 0.5

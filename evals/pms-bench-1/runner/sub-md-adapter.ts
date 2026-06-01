@@ -73,7 +73,7 @@ const PERSONA_BY_SUB_MD: Readonly<Record<SupportedSubMd, string>> = Object.freez
   'tra.filing_assistant':
     'You are the tra.filing_assistant sub-MD — a Tier-C prep-only sub-agent. Your remit: compile single-owner royalty-return batches, ' +
     'validate pre-filing, DRAFT the TRA filing payload, and fetch filing status. NEVER submits; that stays HQ-tier via ' +
-    'platform.file_kra_mri (four-eye).',
+    'platform.file_tra_royalty (four-eye).',
   'report.weekly_compiler':
     'You are the report.weekly_compiler sub-MD — a Tier-C pure-read/draft sub-agent. Your remit: gather weekly KPIs, ' +
     'detect anomalies via predicted-vs-actual deltas, DRAFT a markdown briefing with inline [c:metric-id] citations, ' +
@@ -120,7 +120,7 @@ function renderUserPrompt(fixture: TaskFixture): string {
           },
         ],
         escalated: 'boolean — true iff a human must be looped in',
-        comm: 'string — the natural-language message you would send the tenant/owner',
+        comm: 'string — the natural-language message you would send the buyer/owner',
         resolutionQuality: 'number in [0,1] — self-estimated quality of your plan',
       },
       null,

@@ -4,7 +4,7 @@
  * User-declared facts join the kernel's semantic memory with
  * `source: 'declared'`. Examples:
  *   - "My preferred language is Swahili"
- *   - "Always quote rent in USD on this account"
+ *   - "Always quote offtake prices in USD on this account"
  *   - "Do not contact me before 9am"
  *
  * Declared facts outrank both extracted and consolidated facts at
