@@ -1,12 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { extractFormFields } from '../extract.js';
 import {
+  accountantExportSchema,
   bankStatementSchema,
   idCardSchema,
   invoiceSchema,
   leaseAgreementSchema,
+  miningLicenceSchema,
   receiptSchema,
+  royaltyReturnSchema,
   utilityBillSchema,
+  ACCOUNTANT_EXPORT_TABULAR,
+  accountantExportColumns,
 } from '../schemas.js';
 import { buildPage, buildParsedDocument } from '../../ocr/parsed-document-builder.js';
 import type { BrainPort, TextBlock } from '../../types.js';
@@ -128,6 +133,98 @@ describe('extractFormFields — pre-shipped schemas', () => {
     expect(byName.provider!.value).toBe('TANESCO');
     expect(byName.account_number!.value).toBe('1234567890');
     expect(byName.amount_due!.value).toContain('67,500');
+  });
+
+  it('extracts mining licence fields (PML)', async () => {
+    const doc = await makeDoc('pml', [
+      'PRIMARY MINING LICENCE',
+      'Licence Number: PML 0098/2026',
+      'Licence Type: PML',
+      'Holder Name: Kahama Gold Co Ltd',
+      'Mineral: Gold',
+      'Area (Ha): 12.5',
+      'Region: Geita',
+      'Expiry Date: 2033-01-14',
+    ]);
+    const fields = await extractFormFields({ doc, schema: miningLicenceSchema });
+    const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
+    expect(byName.licence_number!.value).toBe('PML 0098/2026');
+    expect(byName.holder_name!.value).toBe('Kahama Gold Co Ltd');
+    expect(byName.mineral!.value).toBe('Gold');
+    expect(byName.area_hectares!.value).toBe('12.5');
+    expect(byName.region!.value).toBe('Geita');
+    expect(byName.expiry_date!.value).toBe('2033-01-14');
+    expect(byName.licence_number!.source).not.toBeNull();
+    expect(byName.licence_number!.origin).toBe('extracted');
+  });
+
+  it('extracts mining licence fields with Swahili labels', async () => {
+    const doc = await makeDoc('pml-sw', [
+      'LESENI YA MADINI',
+      'Nambari ya leseni: PML 1234/2026',
+      'Mwenye leseni: Mwanza Madini Ltd',
+      'Madini: Almasi',
+      'Mkoa: Shinyanga',
+    ]);
+    const fields = await extractFormFields({ doc, schema: miningLicenceSchema });
+    const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
+    expect(byName.licence_number!.value).toBe('PML 1234/2026');
+    expect(byName.holder_name!.value).toBe('Mwanza Madini Ltd');
+    expect(byName.mineral!.value).toBe('Almasi');
+    expect(byName.region!.value).toBe('Shinyanga');
+  });
+
+  it('extracts mineral royalty return fields', async () => {
+    const doc = await makeDoc('roy', [
+      'MINERAL ROYALTY RETURN',
+      'Assessment Number: TRA-RY-2026-0421',
+      'Period: April 2026',
+      'Mineral: Gold',
+      'Quantity: 3.250',
+      'Unit: kg',
+      'Gross Value: TZS 850,000,000',
+      'Royalty Rate: 6%',
+      'Royalty Amount: TZS 51,000,000',
+    ]);
+    const fields = await extractFormFields({ doc, schema: royaltyReturnSchema });
+    const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
+    expect(byName.assessment_number!.value).toBe('TRA-RY-2026-0421');
+    expect(byName.period!.value).toBe('April 2026');
+    expect(byName.mineral!.value).toBe('Gold');
+    expect(byName.quantity!.value).toBe('3.250');
+    expect(byName.unit!.value).toBe('kg');
+    expect(byName.gross_value!.value).toContain('850,000,000');
+    expect(byName.royalty_rate!.value).toBe('6%');
+    expect(byName.royalty_amount!.value).toContain('51,000,000');
+  });
+
+  it('extracts accountant export SUMMARY fields (tabular body is not line-keyed)', async () => {
+    // Trial balances put per-account debit/credit/balance in a TABLE; the
+    // line-keyword heuristic recovers only the document-level summary lines.
+    const doc = await makeDoc('tb', [
+      'TRIAL BALANCE',
+      'Period: as at 31 May 2026',
+      'Reporting Currency: TZS',
+      'Total Debits: 412,000,000',
+      'Total Credits: 412,000,000',
+    ]);
+    const fields = await extractFormFields({
+      doc,
+      schema: accountantExportSchema,
+    });
+    const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
+    expect(byName.period!.value).toBe('as at 31 May 2026');
+    expect(byName.currency!.value).toBe('TZS');
+    expect(byName.debit!.value).toContain('412,000,000');
+    expect(byName.credit!.value).toContain('412,000,000');
+  });
+
+  it('flags accountant export as tabular and exposes column synonyms', () => {
+    // The async-OCR worker keys off this flag to walk ExtractedTable rows.
+    expect(ACCOUNTANT_EXPORT_TABULAR).toBe(true);
+    expect(accountantExportColumns.debit).toContain('dr');
+    expect(accountantExportColumns.credit).toContain('cr');
+    expect(accountantExportColumns.account).toContain('akaunti');
   });
 
   it('marks missing fields with origin "missing"', async () => {

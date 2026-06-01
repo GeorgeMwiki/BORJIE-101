@@ -13,5 +13,10 @@ export {
   receiptSchema,
   invoiceSchema,
   utilityBillSchema,
+  miningLicenceSchema,
+  royaltyReturnSchema,
+  accountantExportSchema,
+  ACCOUNTANT_EXPORT_TABULAR,
+  accountantExportColumns,
 } from './schemas.js';
 export type { NamedSchema } from './schemas.js';
