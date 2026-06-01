@@ -213,14 +213,37 @@ export async function findCorpusEvidenceTopK(args: {
   readonly message: string;
   readonly k?: number;
 }): Promise<ReadonlyArray<CorpusEvidence>> {
+  // Embed FIRST (external OpenAI round-trip), then run the DB search. The
+  // two phases are split into `embedQueryViaOpenAI` + `searchCorpusTopK` so
+  // a caller that must run the read inside a per-tenant transaction (e.g.
+  // the un-pinned chat orchestrator) can keep the embedding fetch OUTSIDE
+  // that transaction — never holding a pooled connection across the fetch.
+  const embedding = await embedQueryViaOpenAI(args.message);
+  return searchCorpusTopK({ ...args, embedding });
+}
+
+/**
+ * DB-only corpus search given a (possibly null) precomputed query embedding.
+ * Split out of `findCorpusEvidenceTopK` so the external embedding call can
+ * happen OUTSIDE any tenant transaction the caller opens. Tenant-scoping is
+ * enforced by the bound RLS GUC (the caller binds it) AND the explicit
+ * `tenant_id` predicate (belt-and-braces). Path 1 (pgvector ANN) requires a
+ * non-null embedding; otherwise we degrade to the ILIKE keyword path.
+ */
+export async function searchCorpusTopK(args: {
+  readonly db: unknown;
+  readonly tenantId: string | null;
+  readonly message: string;
+  readonly k?: number;
+  readonly embedding: ReadonlyArray<number> | null;
+}): Promise<ReadonlyArray<CorpusEvidence>> {
   const db = args.db as DrizzleSelector | null;
   if (!db) return [];
   const k = clampTopK(args.k);
 
-  // Path 1: pgvector ANN via OpenAI embedding.
-  const embedding = await embedQueryViaOpenAI(args.message);
-  if (embedding && typeof db.execute === 'function') {
-    const annHits = await annSearch(db, args.tenantId, embedding, k);
+  // Path 1: pgvector ANN via the precomputed embedding.
+  if (args.embedding && typeof db.execute === 'function') {
+    const annHits = await annSearch(db, args.tenantId, args.embedding, k);
     if (annHits.length > 0) return annHits;
   }
 

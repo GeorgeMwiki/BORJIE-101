@@ -1089,8 +1089,8 @@ async function appendDispatchAuditEntry(args: {
   // ai_audit_chain table is RLS-FORCED; without the GUC bind every
   // INSERT here would be silently rejected and the chain would gap.
   // Mirrors the helper used by outcome-reconciliation-worker.
-  await withWorkerTenantContext(args.db, args.tenantId, async () => {
-    await args.db.execute(sql`
+  await withWorkerTenantContext(args.db, args.tenantId, async (tx) => {
+    await tx.execute(sql`
       WITH prev AS (
         SELECT this_hash, sequence_id
           FROM ai_audit_chain
@@ -1119,7 +1119,7 @@ async function appendDispatchAuditEntry(args: {
     `);
     // Link the dispatch row back to its audit entry. Inside the same
     // txn so a partial chain append cannot leave a dangling pointer.
-    await args.db.execute(sql`
+    await tx.execute(sql`
       UPDATE daily_brief_dispatches
          SET hash_chain_id = ${id}::uuid
        WHERE id = ${args.dispatchId}::uuid

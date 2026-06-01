@@ -289,17 +289,22 @@ export function createDecisionRetrospectiveWorker(
       // and the recorder's INSERT could leave the INSERT running on
       // a fresh connection with no GUC, which RLS would reject as
       // permission_denied.
-      await withWorkerTenantContext(options.db, pending.tenantId, async () => {
-        await options.recorder.recordOutcome({
-          tenantId: pending.tenantId,
-          decisionId: pending.id,
-          outcomeSummary: summary,
-          observedValueTzs: pending.observedValueTzs,
-          observedAt: clock().toISOString(),
-          retrospectiveGrade: grade,
-          learnings,
-          recordedBy: 'reconciler',
-        });
+      await withWorkerTenantContext(options.db, pending.tenantId, async (tx) => {
+        // Pass the pinned `tx` so the recorder's existence-check, hash-read,
+        // and INSERT all run on the connection carrying the tenant GUC.
+        await options.recorder.recordOutcome(
+          {
+            tenantId: pending.tenantId,
+            decisionId: pending.id,
+            outcomeSummary: summary,
+            observedValueTzs: pending.observedValueTzs,
+            observedAt: clock().toISOString(),
+            retrospectiveGrade: grade,
+            learnings,
+            recordedBy: 'reconciler',
+          },
+          tx,
+        );
       });
       return 'graded';
     } catch (err) {

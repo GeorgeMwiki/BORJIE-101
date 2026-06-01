@@ -839,3 +839,46 @@ describe('POST /api/v1/brain/turn — teamId auto-resolution (issue #170)', () =
     expect(body.error).toBe('teamId_must_be_string');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Removed routes — dead property-domain migration relic (gh-issue #29)
+// ---------------------------------------------------------------------------
+//
+// `/brain/migrate/extract` + `/brain/migrate/commit` were removed in the
+// dead-code sweep. `/migrate/commit` previously called a non-existent
+// `MigrationWriterService.commit` (the stub only has a no-op `write`), so it
+// threw `writer.commit is not a function` at runtime — surviving tsc only
+// because the handler params were `any`. These assertions guard against the
+// routes (and that runtime crash) ever coming back. The supported surface is
+// the live wizard at `/api/v1/migration`.
+
+describe('removed legacy /brain/migrate/* routes', () => {
+  it('POST /api/v1/brain/migrate/commit is gone (404, never a 500 crash)', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/migrate/commit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ bundle: {}, bestEffort: true }),
+    });
+    expect(res.status).toBe(404);
+    expect(res.status).not.toBe(500);
+  });
+
+  it('POST /api/v1/brain/migrate/extract is gone (404)', async () => {
+    const app = mount();
+    const res = await app.request('/api/v1/brain/migrate/extract', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: await bearerOk(),
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ plainText: 'anything' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});

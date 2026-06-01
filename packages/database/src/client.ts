@@ -100,13 +100,151 @@ function readPoolOptions() {
   };
 }
 
+/**
+ * The drizzle-usable schema, filtered ONCE at module load. Both the
+ * primary/readonly client factories and `withReservedConnection` reuse this
+ * exact object so a reserved-connection Drizzle instance carries the same
+ * relational config as the pooled one.
+ */
+const FILTERED_SCHEMA = filterSchema(rawSchema as Record<string, unknown>);
+
 export function createDatabaseClient(connectionString: string) {
   const client = postgres(connectionString, readPoolOptions());
-  const schema = filterSchema(rawSchema as Record<string, unknown>);
-  return drizzle(client, { schema });
+  return drizzle(client, { schema: FILTERED_SCHEMA });
 }
 
 export type DatabaseClient = ReturnType<typeof createDatabaseClient>;
+
+/**
+ * Run `fn` against a Drizzle client bound to a SINGLE, EXCLUSIVELY-RESERVED
+ * pool connection — the foundation of request-scoped RLS connection pinning.
+ *
+ * Why this exists
+ * ───────────────
+ * postgres.js checks out a connection PER STATEMENT. Binding the RLS tenant
+ * GUC with `set_config('app.current_tenant_id', t, false)` on the pooled
+ * client and then reading as a separate statement can land the read on a
+ * DIFFERENT backend connection — one whose GUC was last set by another
+ * tenant's request. Under concurrent multi-tenant load that leaks rows
+ * across tenants (RLS evaluates the stale GUC). `sql.reserve()` hands back a
+ * connection held exclusively until `release()`, so the caller can bind the
+ * GUC and run every subsequent statement on that one connection with no
+ * interleaving.
+ *
+ * This deliberately keeps today's per-statement write atomicity (it is NOT a
+ * request-wide transaction): the caller still issues independent
+ * auto-committed statements — they simply all run on the reserved connection.
+ * That matters because request handlers interleave DB work with long
+ * external calls (LLM / payments / calendar); a request-wide transaction
+ * would hold the connection across those round-trips and exhaust the pool.
+ *
+ * Lifecycle (security-critical)
+ * ─────────────────────────────
+ * The caller binds the GUC(s) it needs on `reqDb` (canonical
+ * `app.current_tenant_id`, and downstream middleware may add
+ * `app.current_person_id`). On the way out — success OR throw — every app.*
+ * GUC this request path can set is reset to a safe default before the
+ * connection returns to the pool. The next reservation re-binds the tenant
+ * GUC before any read, but `app.current_person_id` / `app.is_service_role`
+ * are NOT guaranteed to be re-bound by every consumer, so resetting them
+ * here is what prevents a lingering person-scope / service-role bypass on a
+ * recycled connection. We do NOT use `DISCARD ALL` — it would drop the
+ * prepared-statement cache postgres.js relies on.
+ */
+/**
+ * postgres.js `reserve()` hands back a bare tagged-template `Sql` bound to
+ * one connection. It carries `.unsafe` but NOT the `.options` Drizzle's
+ * `construct` reads (parsers/serializers) nor the `.begin`/`.savepoint` a
+ * Drizzle `.transaction()` calls — those live only on the top-level pool
+ * client. We graft them on so `drizzle(reserved)` is a fully-functional
+ * client whose EVERY statement — including transactions — runs on the one
+ * reserved connection that carries the tenant GUC. Crucially, `begin`/
+ * `savepoint` are emulated ON the reserved connection (BEGIN/COMMIT as
+ * statements) rather than delegated to the pool's `begin`, which would open
+ * the transaction on a DIFFERENT pooled connection and lose the GUC.
+ */
+interface ReservedClientGrafts {
+  options: unknown;
+  unsafe: (query: string, params?: unknown[]) => Promise<unknown>;
+  begin: (a: unknown, b?: unknown) => Promise<unknown>;
+  savepoint: (a: unknown, b?: unknown) => Promise<unknown>;
+}
+
+function reservedToDrizzle(
+  poolClient: { options: unknown },
+  reserved: Awaited<ReturnType<DatabaseClient['$client']['reserve']>>,
+): DatabaseClient {
+  const r = reserved as unknown as ReservedClientGrafts;
+  // Share the pool's options object — Drizzle mutates only a fixed set of
+  // type parsers/serializers, idempotently, so sharing is safe.
+  r.options = poolClient.options;
+  let savepointSeq = 0;
+  const pickFn = (a: unknown, b: unknown): ((client: unknown) => Promise<unknown>) =>
+    (typeof a === 'function' ? a : b) as (client: unknown) => Promise<unknown>;
+  r.begin = async (a, b) => {
+    const fn = pickFn(a, b);
+    await r.unsafe('begin');
+    try {
+      const result = await fn(reserved);
+      await r.unsafe('commit');
+      return result;
+    } catch (err) {
+      try {
+        await r.unsafe('rollback');
+      } catch {
+        // Connection may already be aborted; the original error wins.
+      }
+      throw err;
+    }
+  };
+  r.savepoint = async (a, b) => {
+    const fn = pickFn(a, b);
+    const name = `drizzle_sp_${savepointSeq++}`;
+    await r.unsafe(`savepoint ${name}`);
+    try {
+      const result = await fn(reserved);
+      await r.unsafe(`release savepoint ${name}`);
+      return result;
+    } catch (err) {
+      try {
+        await r.unsafe(`rollback to savepoint ${name}`);
+      } catch {
+        // Savepoint rollback failed; the original error wins.
+      }
+      throw err;
+    }
+  };
+  return drizzle(reserved as unknown as ReturnType<typeof postgres>, {
+    schema: FILTERED_SCHEMA,
+  }) as unknown as DatabaseClient;
+}
+
+export async function withReservedConnection<T>(
+  db: DatabaseClient,
+  fn: (reqDb: DatabaseClient) => Promise<T>,
+): Promise<T> {
+  const reserved = await db.$client.reserve();
+  try {
+    const reqDb = reservedToDrizzle(
+      db.$client as unknown as { options: unknown },
+      reserved,
+    );
+    return await fn(reqDb);
+  } finally {
+    try {
+      await reserved`SELECT
+        set_config('app.current_tenant_id', '', false),
+        set_config('app.tenant_id', '', false),
+        set_config('app.current_person_id', '', false),
+        set_config('app.is_service_role', 'false', false)`;
+    } catch {
+      // Best-effort reset. The next reservation re-binds the tenant GUC
+      // before any read, so a failed reset cannot surface another tenant's
+      // rows; this clears the person/service GUCs as defence-in-depth.
+    }
+    reserved.release();
+  }
+}
 
 /**
  * Z5 HA wire — opens a Drizzle client against a read replica.
@@ -139,6 +277,5 @@ function readReadonlyPoolOptions() {
 
 export function createReadonlyDatabaseClient(connectionString: string) {
   const client = postgres(connectionString, readReadonlyPoolOptions());
-  const schema = filterSchema(rawSchema as Record<string, unknown>);
-  return drizzle(client, { schema });
+  return drizzle(client, { schema: FILTERED_SCHEMA });
 }

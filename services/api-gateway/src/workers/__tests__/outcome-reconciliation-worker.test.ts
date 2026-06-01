@@ -34,31 +34,42 @@ interface CapturedCall {
 function makeStubDb(claimRows: ReadonlyArray<Record<string, unknown>>) {
   const calls: CapturedCall[] = [];
   let claimReturned = false;
+  const execute = vi.fn(async (q: unknown) => {
+    const sqlObj = q as {
+      strings?: ReadonlyArray<string>;
+      queryChunks?: ReadonlyArray<{ value?: string }>;
+      values?: unknown[];
+    };
+    const text =
+      sqlObj?.strings?.join(' ') ??
+      sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
+      '';
+    calls.push({ sql: text, values: sqlObj?.values ?? [] });
+
+    // The claim query reads from outcome_predictions and returns rows.
+    if (text.includes('FROM outcome_predictions') && !claimReturned) {
+      claimReturned = true;
+      return { rows: claimRows };
+    }
+    // The audit-chain head query returns max_seq + last_hash.
+    if (text.includes('FROM ai_audit_chain')) {
+      return { rows: [{ max_seq: 0, last_hash: '' }] };
+    }
+    return { rows: [] };
+  });
+  // Transaction-capable stub: `withTenantContext` (used by the worker's
+  // `withWorkerTenantContext`) calls `db.transaction(fn)` and PINS the
+  // connection. We run `fn` against a tx whose `execute` is the SAME
+  // recorder, so the SET LOCAL binds + the body's audit-chain statements all
+  // land in `calls`. A callback throw rethrows (the real driver also rolls
+  // back + rethrows).
   return {
     calls,
-    execute: vi.fn(async (q: unknown) => {
-      const sqlObj = q as {
-        strings?: ReadonlyArray<string>;
-        queryChunks?: ReadonlyArray<{ value?: string }>;
-        values?: unknown[];
-      };
-      const text =
-        sqlObj?.strings?.join(' ') ??
-        sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
-        '';
-      calls.push({ sql: text, values: sqlObj?.values ?? [] });
-
-      // The claim query reads from outcome_predictions and returns rows.
-      if (text.includes('FROM outcome_predictions') && !claimReturned) {
-        claimReturned = true;
-        return { rows: claimRows };
-      }
-      // The audit-chain head query returns max_seq + last_hash.
-      if (text.includes('FROM ai_audit_chain')) {
-        return { rows: [{ max_seq: 0, last_hash: '' }] };
-      }
-      return { rows: [] };
-    }),
+    execute,
+    transaction: vi.fn(
+      async <T>(fn: (tx: { execute: typeof execute }) => Promise<T>): Promise<T> =>
+        fn({ execute }),
+    ),
   };
 }
 
@@ -305,13 +316,18 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
       resolvers: { royalty_filing: resolver },
     });
     await worker.tickOnce();
-    const setConfigCall = db.calls.find(
-      (c) =>
-        c.sql.includes('set_config') &&
-        c.sql.includes('app.current_tenant_id') &&
-        c.sql.includes('app.tenant_id'),
+    // The audit append runs inside a pinned transaction (withWorkerTenantContext
+    // → withTenantContext → db.transaction). Both GUC names are bound on that
+    // tx via SET LOCAL — now as SEPARATE set_config statements.
+    expect(db.transaction).toHaveBeenCalled();
+    const currentTenantBind = db.calls.find(
+      (c) => c.sql.includes('set_config') && c.sql.includes('app.current_tenant_id'),
     );
-    expect(setConfigCall).toBeDefined();
+    const legacyTenantBind = db.calls.find(
+      (c) => c.sql.includes('set_config') && c.sql.includes('app.tenant_id'),
+    );
+    expect(currentTenantBind).toBeDefined();
+    expect(legacyTenantBind).toBeDefined();
     // GUC bound BEFORE the audit-chain head SELECT runs.
     const auditHeadIdx = db.calls.findIndex((c) =>
       c.sql.includes('FROM ai_audit_chain'),
@@ -325,14 +341,13 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     expect(setConfigIdx).toBeLessThan(auditHeadIdx);
   });
 
-  it('wraps the GUC bind + audit append in BEGIN/COMMIT (G8 closure)', async () => {
-    // G8 from Docs/AUDIT/ROBUSTNESS_AUDIT_2026-05-29.md — the prior
-    // `set_config(..., false)` call left the tenant GUC on the pooled
-    // connection. If Supabase reaped the conn mid-tick the next
-    // INSERT ran with NULL GUC and RLS rejected. The fix wraps the
-    // tenant block in BEGIN; SET LOCAL ...; <body>; COMMIT; so the
-    // binding dies at the txn boundary regardless of connection
-    // lifetime.
+  it('binds the GUC inside a pinned transaction, before the audit append', async () => {
+    // The tenant GUC is bound transaction-locally on a PINNED connection
+    // (withWorkerTenantContext → withTenantContext → db.transaction →
+    // postgres.js .begin()), so the binding and the audit INSERT share one
+    // connection and the binding dies at the txn boundary — closing the
+    // pooled-connection-reuse gap the prior raw-BEGIN code never actually
+    // closed (it didn't pin).
     const db = makeStubDb([
       {
         id: 'p_txn',
@@ -359,10 +374,10 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     });
     await worker.tickOnce();
 
-    // Find indices of BEGIN, set_config, INSERT INTO ai_audit_chain,
-    // and COMMIT. The order MUST be:
-    //    BEGIN < set_config < INSERT INTO ai_audit_chain < COMMIT
-    const beginIdx = db.calls.findIndex((c) => /^\s*BEGIN/.test(c.sql));
+    // A transaction was opened, and the GUC bind precedes the audit INSERT
+    // (both on the pinned tx). The literal BEGIN/COMMIT are the driver's
+    // concern now, not raw statements on the pooled client.
+    expect(db.transaction).toHaveBeenCalled();
     const setConfigIdx = db.calls.findIndex(
       (c) =>
         c.sql.includes('set_config') &&
@@ -371,13 +386,9 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     const auditInsertIdx = db.calls.findIndex((c) =>
       c.sql.includes('INSERT INTO ai_audit_chain'),
     );
-    const commitIdx = db.calls.findIndex((c) => /^\s*COMMIT/.test(c.sql));
-
-    expect(beginIdx).toBeGreaterThanOrEqual(0);
-    expect(commitIdx).toBeGreaterThanOrEqual(0);
-    expect(beginIdx).toBeLessThan(setConfigIdx);
+    expect(setConfigIdx).toBeGreaterThanOrEqual(0);
+    expect(auditInsertIdx).toBeGreaterThanOrEqual(0);
     expect(setConfigIdx).toBeLessThan(auditInsertIdx);
-    expect(auditInsertIdx).toBeLessThan(commitIdx);
   });
 
   it('rolls back the txn when the audit INSERT throws (G8 connection-reap simulation)', async () => {
@@ -388,9 +399,7 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     const calls: CapturedCall[] = [];
     let claimReturned = false;
     let auditInserts = 0;
-    const db = {
-      calls,
-      execute: vi.fn(async (q: unknown) => {
+    const execute = vi.fn(async (q: unknown) => {
         const sqlObj = q as {
           strings?: ReadonlyArray<string>;
           queryChunks?: ReadonlyArray<{ value?: string }>;
@@ -429,7 +438,15 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
           throw new Error('connection terminated unexpectedly');
         }
         return { rows: [] };
-      }),
+    });
+    const db = {
+      calls,
+      execute,
+      transaction: vi.fn(
+        async <T>(
+          fn: (tx: { execute: typeof execute }) => Promise<T>,
+        ): Promise<T> => fn({ execute }),
+      ),
     };
     const resolver: ObservationResolver = vi.fn(async () => ({
       observedOutcome: { filed: true },
@@ -447,12 +464,13 @@ describe('createOutcomeReconciliationWorker.tickOnce', () => {
     // without poisoning the batch.
     const result = await worker.tickOnce();
     expect(auditInserts).toBe(1);
-    // The helper must emit ROLLBACK after the throw so no committed
-    // txn carries a half-written audit chain.
-    const rollbackIdx = calls.findIndex((c) => /^\s*ROLLBACK/.test(c.sql));
-    expect(rollbackIdx).toBeGreaterThanOrEqual(0);
-    // And the reconciliation outcome still counted — the per-row try/
-    // catch isolates the audit failure so the tick body completes.
+    // The audit INSERT threw inside the pinned transaction; the driver rolls
+    // it back + rethrows, and the worker's per-row try/catch isolates the
+    // audit-append failure so the tick still completes (no half-written chain
+    // is committed). We assert a transaction was opened + the failure was
+    // isolated — the literal ROLLBACK is the driver's job now, not a raw
+    // statement on the pooled client.
+    expect(db.transaction).toHaveBeenCalled();
     expect(result.claimed).toBe(1);
   });
 });

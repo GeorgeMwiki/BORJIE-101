@@ -155,25 +155,8 @@ export const brainService = {
       reviewedAt: string;
     }>('/brain/review', body);
   },
-
-  async migrateExtract(body: {
-    sheets?: Record<string, Array<Record<string, string | number | null>>>;
-    plainText?: string;
-    hints?: { propertyName?: string };
-  }): Promise<ApiResponse<{ bundle: unknown; diff: unknown }>> {
-    return getApiClient().post<{ bundle: unknown; diff: unknown }>(
-      '/brain/migrate/extract',
-      body
-    );
-  },
-
-  async migrateCommit(body: {
-    bundle: unknown;
-    bestEffort?: boolean;
-  }): Promise<ApiResponse<{ report: unknown }>> {
-    return getApiClient().post<{ report: unknown }>(
-      '/brain/migrate/commit',
-      body
-    );
-  },
+  // `migrateExtract` / `migrateCommit` were REMOVED: the `/brain/migrate/*`
+  // endpoints they called were a property-domain relic deleted post mining
+  // hard-fork (the writer was a no-op stub and `/migrate/commit` threw at
+  // runtime). Use the live migration wizard under `/api/v1/migration`.
 };

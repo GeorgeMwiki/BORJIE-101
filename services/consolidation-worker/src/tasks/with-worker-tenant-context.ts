@@ -1,31 +1,26 @@
 /**
  * Worker tenant-context helper for the consolidation-worker.
  *
- * Workers bypass api-gateway's `databaseMiddleware`, so the pooled
- * connection carries NO `app.current_tenant_id` GUC. Every tenant-scoped
- * write therefore MUST bind the GUC itself. This helper wraps a body in:
+ * Workers bypass api-gateway's `databaseMiddleware`, so the pooled connection
+ * carries NO `app.current_tenant_id` GUC; every tenant-scoped statement must
+ * bind it itself.
  *
- *     BEGIN;
- *     SET LOCAL app.current_tenant_id = $1;   -- via set_config(..., true)
- *     SET LOCAL app.tenant_id         = $1;   -- legacy policies (pre-0172)
- *     <body>
- *     COMMIT;                                  -- (ROLLBACK on throw)
+ * This delegates to `withTenantContext` from `@borjie/database`, which opens a
+ * real Drizzle transaction (postgres.js `.begin()` — which PINS one connection
+ * for the transaction) and binds `app.current_tenant_id` + `app.tenant_id` +
+ * `app.is_service_role` via `SET LOCAL`. The body receives the pinned `tx` and
+ * MUST run all its DB calls through THAT handle (not the outer pooled `db`).
  *
- * `SET LOCAL` scopes the binding to the transaction; it dies at COMMIT /
- * ROLLBACK and cannot leak onto the pooled connection — closing audit gap
- * G8 (`Docs/AUDIT/ROBUSTNESS_AUDIT_2026-05-29.md`).
- *
- * This is a verbatim mirror of
- * `services/api-gateway/src/workers/with-tenant-context.ts`, duplicated here
- * because the consolidation-worker cannot import api-gateway `src` directly
- * (only its built `dist` via the sibling-service pattern), and this helper
- * is small + invariant. Both files must stay in sync.
- *
- * `body` MUST run all its DB calls through the SAME `db` handle so
- * postgres.js keeps every statement on the txn-owned connection.
+ * Replaces a raw `BEGIN`/`SET LOCAL`/`COMMIT`-via-separate-`execute()`
+ * implementation that did NOT pin on a pooled postgres.js client (the SET
+ * LOCAL ran outside any transaction and never applied; a dangling transaction
+ * could be left on the pool). It only appeared to work because the worker
+ * connects via the Supabase `service_role` (BYPASSRLS). Mirrors
+ * `services/api-gateway/src/workers/with-tenant-context.ts`; both must stay in
+ * sync. The api-gateway copy carries the verified concurrency regression test.
  */
 
-import { sql } from 'drizzle-orm';
+import { withTenantContext } from '@borjie/database';
 
 export interface TenantContextDbLike {
   execute(query: unknown): Promise<unknown>;
@@ -34,26 +29,14 @@ export interface TenantContextDbLike {
 export async function withWorkerTenantContext<T>(
   db: TenantContextDbLike,
   tenantId: string,
-  body: () => Promise<T>,
+  body: (tx: TenantContextDbLike) => Promise<T>,
 ): Promise<T> {
   if (!tenantId || tenantId.trim().length === 0) {
     throw new Error('withWorkerTenantContext: tenantId must be non-empty');
   }
-  await db.execute(sql`BEGIN`);
-  try {
-    await db.execute(
-      sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true),
-                  set_config('app.tenant_id', ${tenantId}, true)`,
-    );
-    const result = await body();
-    await db.execute(sql`COMMIT`);
-    return result;
-  } catch (err) {
-    try {
-      await db.execute(sql`ROLLBACK`);
-    } catch {
-      // Ignore — the original error takes precedence.
-    }
-    throw err;
-  }
+  return withTenantContext(
+    db as unknown as Parameters<typeof withTenantContext>[0],
+    tenantId,
+    (tx) => body(tx as unknown as TenantContextDbLike),
+  );
 }

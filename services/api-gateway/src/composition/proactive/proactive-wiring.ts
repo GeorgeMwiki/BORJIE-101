@@ -53,6 +53,7 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import type { ProactiveLoop } from '@borjie/ai-copilot';
+import { withTenantContext } from '@borjie/database';
 
 import { runTabSuggesterTick } from '../../services/tab-suggester/index.js';
 import {
@@ -168,21 +169,6 @@ function resolveDeliveryIntervalMs(override?: number): number {
 }
 
 /**
- * Bind the tenant GUC for an out-of-band worker write. The request
- * middleware (which normally sets `app.current_tenant_id`) does not run on
- * the scheduler path, so we bind BOTH GUC names because the two inboxes
- * this loop touches disagree on the canonical name:
- *   - `mwikila_actions_inbox` RLS reads `app.current_tenant_id`
- *   - `tab_proposals_inbox`   RLS reads `app.tenant_id`
- * Setting both keeps every tenant-scoped write inside RLS FORCE.
- */
-async function bindTenantGuc(db: DbLike, tenantId: string): Promise<void> {
-  await db.execute(
-    sql`SELECT set_config('app.tenant_id', ${tenantId}, false), set_config('app.current_tenant_id', ${tenantId}, false)`,
-  );
-}
-
-/**
  * Active-tenant lister with owner-user resolution — one row per active
  * tenant joined to its flagged owner. Tenants without an owner are dropped
  * (the suggester needs a `user_id` to scope the proposal). Returns `[]` on
@@ -289,8 +275,10 @@ export function scheduleProactive(deps: ProactiveWiringDeps): ProactiveSuperviso
   const signalIntervalMs = resolveSignalIntervalMs(deps.signalIntervalMs);
   const deliveryIntervalMs = resolveDeliveryIntervalMs(deps.deliveryIntervalMs);
 
-  const observations = buildDrizzleSuggesterObservations(db, logger);
-  const persistence = buildDrizzleSuggesterPersistence(db, logger);
+  // Suggester observations/persistence are rebuilt PER TICK on the
+  // tenant-bound transaction handle inside `runDeliveryOnce` (so their
+  // queries run on the connection carrying the tenant GUC), not once on the
+  // shared pool client here.
 
   // Track the last signal poll watermark per tenant so the source only
   // returns events detected since the previous tick.
@@ -311,7 +299,12 @@ export function scheduleProactive(deps: ProactiveWiringDeps): ProactiveSuperviso
     const tenants = await listActiveTenantIds(db, logger);
     for (const tenantId of tenants) {
       try {
-        await bindTenantGuc(db, tenantId);
+        // No tenant GUC bind here: the signal cadence performs NO
+        // tenant-scoped DB work on the proactive `db` — the signal source
+        // and the orchestrator own their own data access (and receive
+        // `tenantId` explicitly). `listActiveTenantIds` above is a
+        // cross-tenant read. Binding a session GUC here would only create a
+        // stale-context window on the shared pool.
         const sinceMs = lastSignalPollMs.get(tenantId) ?? Date.now() - signalIntervalMs;
         const signals = await signalSource.poll({ tenantId, sinceMs });
         lastSignalPollMs.set(tenantId, Date.now());
@@ -359,45 +352,63 @@ export function scheduleProactive(deps: ProactiveWiringDeps): ProactiveSuperviso
     const pairs = await listActiveTenantsWithOwner(db, logger);
     for (const { tenantId, ownerUserId } of pairs) {
       try {
-        await bindTenantGuc(db, tenantId);
+        // Bind tenant context PER TICK inside a short transaction
+        // (`withTenantContext` issues SET LOCAL for both GUC names on ONE
+        // pinned connection), so the suggester + inbox drains all run on the
+        // connection that carries the tenant GUC. This replaces the previous
+        // session-scoped `set_config(..., false)` on the shared Pool B
+        // connection, which could be clobbered by a concurrent worker tick
+        // (e.g. the calendar-sync worker) between the bind and the reads.
+        // `publishCockpitEvent` is a synchronous in-process EventEmitter emit
+        // (no external I/O), so it is safe to run inside the transaction.
+        const proposed = await withTenantContext(
+          db as unknown as Parameters<typeof withTenantContext>[0],
+          tenantId,
+          async (tx) => {
+            const txDb = tx as unknown as DbLike;
+            const observations = buildDrizzleSuggesterObservations(txDb, logger);
+            const persistence = buildDrizzleSuggesterPersistence(txDb, logger);
 
-        // 1 — drive the suggester (its own dedup/cooldown applies).
-        try {
-          await runTabSuggesterTick({
-            tenantId,
-            userId: ownerUserId,
-            now: new Date(),
-            observations,
-            persistence,
-          });
-        } catch (err) {
-          logger.warn(
-            {
-              worker: 'proactive-scheduler',
+            // 1 — drive the suggester (its own dedup/cooldown applies).
+            try {
+              await runTabSuggesterTick({
+                tenantId,
+                userId: ownerUserId,
+                now: new Date(),
+                observations,
+                persistence,
+              });
+            } catch (err) {
+              logger.warn(
+                {
+                  worker: 'proactive-scheduler',
+                  tenantId,
+                  err: err instanceof Error ? err.message : String(err),
+                },
+                'proactive: tab-suggester tick failed',
+              );
+            }
+
+            // 2 — drain OPEN proposals → cockpit.tab.proposed (idempotent via
+            //     last_surfaced_at stamp inside the drain).
+            const drained = await drainTabProposalsInbox({
+              db: txDb,
               tenantId,
-              err: err instanceof Error ? err.message : String(err),
-            },
-            'proactive: tab-suggester tick failed',
-          );
-        }
+              logger,
+              publish: publishCockpitEvent,
+            });
 
-        // 2 — drain OPEN proposals → cockpit.tab.proposed (idempotent via
-        //     last_surfaced_at stamp inside the drain).
-        const proposed = await drainTabProposalsInbox({
-          db,
-          tenantId,
-          logger,
-          publish: publishCockpitEvent,
-        });
+            // 3 — surface any kernel proactive_nudge rows (item (c)).
+            await drainProactiveNudges({
+              db: txDb,
+              tenantId,
+              logger,
+              publish: publishCockpitEvent,
+            });
+            return drained;
+          },
+        );
         delivered += proposed;
-
-        // 3 — surface any kernel proactive_nudge rows (item (c)).
-        await drainProactiveNudges({
-          db,
-          tenantId,
-          logger,
-          publish: publishCockpitEvent,
-        });
       } catch (err) {
         logger.warn(
           {
@@ -478,5 +489,4 @@ export const __testing = {
   listActiveTenantIds,
   resolveSignalIntervalMs,
   resolveDeliveryIntervalMs,
-  bindTenantGuc,
 };

@@ -180,9 +180,28 @@ export async function resolvePersonContext(
 }
 
 // ============================================================================
-// GUC binding — mirrors database.ts pattern
+// GUC binding — rides the request's PINNED connection
 // ============================================================================
 
+/**
+ * Bind `app.current_person_id` for the request's unified-KB RLS.
+ *
+ * The `false` (session-scoped) third arg is SAFE here — and ONLY here —
+ * because `db` is `c.get('db')`, which (for any router using the pinning
+ * `databaseMiddleware`) is a Drizzle client bound to that request's
+ * EXCLUSIVELY-RESERVED connection. The person GUC therefore lands on the
+ * same connection that carries `app.current_tenant_id`, every subsequent
+ * read in the request runs on it, and `withReservedConnection` RESETS
+ * `app.current_person_id` before the connection returns to the pool — so it
+ * cannot leak across pooled connections the way a session-scoped bind on a
+ * shared pool would.
+ *
+ * INVARIANT: this middleware MUST only be mounted on connection-pinned
+ * routers. (It is currently UNMOUNTED — defined for the unified-KB recall
+ * path but not yet wired into the gateway; see `index.ts`.) If it is ever
+ * mounted on a `databaseMiddlewareNoPin` / unpinned router, switch this to
+ * per-operation `withTenantContext`-style binding instead.
+ */
 async function bindPersonGuc(
   db: PersonContextDb,
   personId: string,

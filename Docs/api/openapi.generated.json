@@ -2065,82 +2065,6 @@
         }
       }
     },
-    "/brain/migrate/extract": {
-      "post": {
-        "summary": "POST /brain/migrate/extract",
-        "tags": [
-          "brain"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response."
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/brain/migrate/commit": {
-      "post": {
-        "summary": "POST /brain/migrate/commit",
-        "tags": [
-          "brain"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response."
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/applications/": {
       "get": {
         "summary": "Smoke test — returns empty applications list",
@@ -3793,6 +3717,44 @@
     "/scans/bundles/{id}/ocr": {
       "post": {
         "summary": "POST /scans/bundles/{id}/ocr",
+        "tags": [
+          "scans"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/bundles/{id}/assemble": {
+      "post": {
+        "summary": "POST /scans/bundles/{id}/assemble",
         "tags": [
           "scans"
         ],

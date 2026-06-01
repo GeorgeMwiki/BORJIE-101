@@ -305,8 +305,8 @@ async function appendReconciliationAudit(
     // RLS rejected. The helper sets BOTH `app.current_tenant_id` and
     // legacy `app.tenant_id` via SET LOCAL so policies on either
     // migration generation accept the call.
-    await withWorkerTenantContext(db, payload.tenantId, async () => {
-      const headRes = await db.execute(sql`
+    await withWorkerTenantContext(db, payload.tenantId, async (tx) => {
+      const headRes = await tx.execute(sql`
         SELECT COALESCE(MAX(sequence_id), 0)::bigint AS max_seq,
                (SELECT this_hash FROM ai_audit_chain
                  WHERE tenant_id = ${payload.tenantId}
@@ -326,7 +326,7 @@ async function appendReconciliationAudit(
       const thisHash = createHash('sha256')
         .update(lastHash + canonical)
         .digest('hex');
-      await db.execute(sql`
+      await tx.execute(sql`
         INSERT INTO ai_audit_chain (
           id, tenant_id, sequence_id, turn_id, action,
           prev_hash, this_hash, payload, created_at

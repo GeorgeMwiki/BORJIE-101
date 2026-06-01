@@ -16,20 +16,15 @@ import {
   SupabaseAuthError,
   BrainConfigError,
   DEFAULT_PERSONAE,
-  migrationExtract,
-  migrationDiff,
-  MigrationExtractParamsSchema,
-  ExtractionBundleSchema,
   checkBrainHealth,
   streamTurn,
   type StreamTurnEvent,
 } from '@borjie/ai-copilot';
 import {
   createDatabaseClient,
+  withTenantContext,
   BrainThreadRepository,
-  MigrationWriterService,
 } from '@borjie/database';
-import { sql } from 'drizzle-orm';
 import {
   createNeo4jClient,
   createGraphQueryService,
@@ -68,22 +63,6 @@ function db() {
   if (dbCache) return dbCache;
   dbCache = createDatabaseClient(env().DATABASE_URL);
   return dbCache;
-}
-
-async function resolveTenantRegion(
-  _tenantId: string
-): Promise<{ country: string; currency: string; defaultCity?: string }> {
-  const country = process.env.DEFAULT_TENANT_COUNTRY?.trim() || '';
-  const currency = process.env.DEFAULT_TENANT_CURRENCY?.trim() || '';
-  const defaultCity = process.env.DEFAULT_TENANT_CITY?.trim() || undefined;
-  if (process.env.NODE_ENV === 'production' && (!country || !currency)) {
-    throw new Error(
-      'brain.hono: DEFAULT_TENANT_COUNTRY and DEFAULT_TENANT_CURRENCY are required in production.'
-    );
-  }
-  const out: { country: string; currency: string; defaultCity?: string } = { country, currency };
-  if (defaultCity !== undefined) out.defaultCity = defaultCity;
-  return out;
 }
 
 function registry() {
@@ -132,18 +111,6 @@ async function authenticate(c) {
     principal,
     ...principalToBrainContexts(principal),
   };
-}
-
-async function bindTenantGuc(
-  database: ReturnType<typeof createDatabaseClient>,
-  tenantId: string
-): Promise<void> {
-  if (!tenantId || typeof tenantId !== 'string') {
-    throw new SupabaseAuthError('missing_tenant_for_guc_bind', 403);
-  }
-  await database.execute(
-    sql`SELECT set_config('app.tenant_id', ${tenantId}, false), set_config('app.current_tenant_id', ${tenantId}, false)`
-  );
 }
 
 function handleError(c, err) {
@@ -257,7 +224,8 @@ brainRouter.get('/health', async (c) => {
     return handleError(c, err);
   }
   try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
+    // No session-scoped GUC bind: the thread-store repo binds tenant context
+    // per operation now, and `checkBrainHealth` probes a synthetic tenant.
     const brain = registry().for(ctx.tenant.tenantId);
     const health = await checkBrainHealth(brain);
     return c.json(health);
@@ -496,11 +464,11 @@ async function gateTurn(
       );
     }
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return { ok: false, response: handleError(c, err) };
-  }
+  // Tenant context is bound PER OPERATION downstream — the thread-store repo
+  // wraps each read/write in a short per-tenant transaction, and support
+  // recall is wrapped in `withTenantContext` (see `withRecalledMemory`). A
+  // session-scoped bind here would be clobbered across the turn's LLM calls
+  // on the shared brain pool.
   return { ok: true, ctx };
 }
 
@@ -540,14 +508,23 @@ async function withRecalledMemory<
 >(c: any, ctx: TurnGateContext, body: T): Promise<T> {
   try {
     const lang = pickRecallLang(c.req.header('accept-language') ?? null);
-    const { preamble, cases } = await recallSupportMemory(
-      {
-        db: db(),
-        tenantId: ctx.tenant.tenantId,
-        userId: ctx.viewer.userId,
-        logger,
-      },
-      lang,
+    // Bind tenant context for the recall read in a short transaction (the
+    // brain pool is not request-pinned). The query is belt-and-braces
+    // (tenant_id + user_id) and never makes an external call, so it is safe
+    // inside the transaction.
+    const { preamble, cases } = await withTenantContext(
+      db(),
+      ctx.tenant.tenantId,
+      (tx) =>
+        recallSupportMemory(
+          {
+            db: tx,
+            tenantId: ctx.tenant.tenantId,
+            userId: ctx.viewer.userId,
+            logger,
+          },
+          lang,
+        ),
     );
     if (!preamble) return body;
     logger.info(
@@ -1315,11 +1292,8 @@ brainRouter.get('/threads', async (c) => {
   } catch (err) {
     return handleError(c, err);
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return handleError(c, err);
-  }
+  // Thread-store reads self-bind tenant context per operation (the repo
+  // wraps each query in a short per-tenant transaction).
   const brain = registry().for(ctx.tenant.tenantId);
   const limit = Number(c.req.query('limit') ?? 50);
   const list = await brain.threads.listThreads(ctx.tenant.tenantId, {
@@ -1336,11 +1310,8 @@ brainRouter.get('/threads/:id', async (c) => {
   } catch (err) {
     return handleError(c, err);
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return handleError(c, err);
-  }
+  // Thread-store reads self-bind tenant context per operation (the repo
+  // wraps each query in a short per-tenant transaction).
   const brain = registry().for(ctx.tenant.tenantId);
   const id = c.req.param('id');
   const thread = await brain.threads.getThread(id);
@@ -1352,67 +1323,17 @@ brainRouter.get('/threads/:id', async (c) => {
   return c.json({ thread, events });
 });
 
-brainRouter.post('/migrate/extract', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
-  try {
-    await authenticate(c);
-  } catch (err) {
-    return handleError(c, err);
-  }
-  let body;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_json' }, 400);
-  }
-  const parsed = MigrationExtractParamsSchema.safeParse(body);
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-  const bundle = migrationExtract(parsed.data);
-  const diff = migrationDiff({ bundle } as Parameters<typeof migrationDiff>[0]);
-  return c.json({ bundle, diff });
-}));
-
-brainRouter.post('/migrate/commit', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
-  let ctx;
-  try {
-    ctx = await authenticate(c);
-  } catch (err) {
-    return handleError(c, err);
-  }
-  if (!ctx.actor.roles.includes('admin')) {
-    return c.json({ error: 'admin_role_required', code: 'FORBIDDEN' }, 403);
-  }
-  let body;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_json' }, 400);
-  }
-  const schema = (await import('zod')).z.object({
-    bundle: ExtractionBundleSchema,
-    bestEffort: (await import('zod')).z.boolean().optional().default(false),
-  });
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-    const writer = new MigrationWriterService(db());
-    const region = await resolveTenantRegion(ctx.tenant.tenantId);
-    const report = await writer.commit(
-      parsed.data.bundle,
-      {
-        tenantId: ctx.tenant.tenantId,
-        ownerUserId: ctx.actor.id,
-        actorUserId: ctx.actor.id,
-        tenantCountry: region.country,
-        tenantCurrency: region.currency,
-        defaultCity: region.defaultCity,
-      },
-      { bestEffort: parsed.data.bestEffort }
-    );
-    return c.json({ report });
-  } catch (err) {
-    return handleError(c, err);
-  }
-}));
+// NOTE: the legacy `/brain/migrate/extract` + `/brain/migrate/commit` routes
+// were REMOVED in the RLS-pinning / dead-code sweep. They were a
+// property-domain relic from the BossNyumba hard-fork: they extracted/diffed/
+// committed `{ properties, units, tenants, employees, departments, teams }`
+// bundles via `MigrationWriterService`, whose backing tables were dropped in
+// migration 0003_mining_domain.sql (the service is now a no-op stub — gh-issue
+// #29). `/migrate/commit` in particular called a non-existent `writer.commit`
+// (the stub only exposes a no-op `write`), so it threw `writer.commit is not a
+// function` at runtime; it only type-checked because the handler params were
+// `any`. The supported migration surface is the live wizard at
+// `/api/v1/migration` (`migration.router.ts`), which uses a real per-run
+// commit service — NOT this dead brain endpoint.
 
 export { brainRouter };
