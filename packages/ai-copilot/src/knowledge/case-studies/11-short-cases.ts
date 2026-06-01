@@ -1,6 +1,6 @@
 /**
- * Wave 13 short-form case corpus — 22 additional 200-400 word case
- * studies covering leasing, maintenance, compliance, finance, and
+ * Wave 13 short-form case corpus — 22 additional 200-400 word mining case
+ * studies covering operations, processing, compliance, finance, and
  * strategy patterns. They complement the 10 longform HBR-style cases
  * already in this directory and bring the total above the 30-case bar
  * the platform-wide case-study corpus targets.
@@ -15,147 +15,147 @@ import { defineCaseStudy, type CaseStudy } from './case-study-types.js';
 
 const SHORT_CASES: readonly CaseStudy[] = [
   defineCaseStudy({
-    id: 'cs-11-45-day-arrears-kinondoni',
-    title: 'The 45-day arrears pattern in a 24-unit Kinondoni block',
+    id: 'cs-11-asm-levy-arrears-kahama',
+    title: 'The chronic levy-arrears pattern in a 24-member Kahama cooperative',
     wordCount: 260,
     country: 'TZ',
-    tags: ['arrears', 'operations', 'collections'],
+    tags: ['cooperative', 'levy-arrears', 'collections'],
     difficulty: 'intermediate',
-    narrative: `Seven of 24 units in a Kinondoni walk-up have slipped into a stable 30-45 day arrears rhythm. The owner is an upcountry banker who takes a 10-day trip home every quarter, and the caretaker has grown accustomed to excuses — "TSh 200k on Friday," "school fees this week," "GePG was down." The ledger shows balances bouncing between TSh 450k and TSh 1.2M per unit, never clearing, never escalating. Late fees are in the lease but never applied. Tenant turnover is low, which the owner reads as loyalty; Mr. Mwikila reads it as a pattern of tolerated slippage that has become the new normal.
+    narrative: `Seven of 24 members in a Kahama gold cooperative have slipped into a stable rhythm of selling part of their production off-desk and settling the cooperative levy weeks late. The chair is an upcountry trader who travels for 10 days every month, and the desk clerk has grown used to excuses — "I will top up after the next pour," "school fees this week," "GePG was down." The levy ledger shows balances bouncing between TZS 450k and TZS 1.2M per member, never clearing, never escalating. Penalty interest is in the by-laws but never applied. Member turnover is low, which the chair reads as loyalty; Mr. Mwikila reads it as tolerated slippage that has become the new normal — and as under-remitted royalty risk, because off-desk metal is not being declared.
 
-Three of the seven tenants are long-standing (>5 years); two are recent; two are tied to the same M-Pesa sender, hinting at a family cluster. Rent across the 24 units is TSh 380-420k; total arrears on any given day hover at TSh 6.5M — roughly two weeks of gross collections. The owner asks whether to "just write it off and move on."`,
+Three of the seven are long-standing members (>5 years); two are recent; two share an M-Pesa sender, hinting at a family cluster. Levy owed across the 24 members hovers at TZS 6.5M on any given day — roughly two weeks of desk margin. The chair asks whether to "just write it off and move on."`,
     dataTable: {
-      title: 'Kinondoni arrears snapshot',
+      title: 'Kahama levy-arrears snapshot',
       rows: [
-        { label: 'Units in chronic arrears', value: '7 of 24' },
-        { label: 'Average balance per chronic unit', value: 'TSh 780k' },
-        { label: 'Total portfolio arrears', value: 'TSh 6.5M' },
-        { label: 'Late fees applied', value: 'TSh 0' },
+        { label: 'Members in chronic arrears', value: '7 of 24' },
+        { label: 'Average balance per member', value: 'TZS 780k' },
+        { label: 'Total levy arrears', value: 'TZS 6.5M' },
+        { label: 'Penalty interest applied', value: 'TZS 0' },
       ],
     },
     decisionQuestion:
-      'What would you do in the next 30 days to reset the collections culture without losing the long-standing tenants?',
+      'What would you do in the next 30 days to reset the levy-collection culture without losing the long-standing members?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why do chronic arrears persist even when late fees exist in the lease?',
+        question: 'Why do chronic arrears persist even when penalty interest exists in the by-laws?',
       },
       {
         bloomLevel: 'evaluate',
         question:
-          'Is aggressive enforcement or phased catch-up plans the right lever here?',
+          'Is aggressive enforcement or a phased catch-up plan the right lever here?',
       },
     ],
     activity: {
-      prompt: 'Draft the first 30-day collections plan for these 7 units.',
-      deliverable: 'One-page memo to the owner with ladder + expected recoveries.',
+      prompt: 'Draft the first 30-day levy-collection plan for these 7 members.',
+      deliverable: 'One-page memo to the chair with a ladder + expected recoveries + royalty-declaration fix.',
       timeBoxMinutes: 40,
     },
     discussionQuestions: [
       'How would you split these seven into enforcement tiers?',
-      'What would make you walk away from a chronic tenant?',
+      'What would make you expel a chronically off-desk member?',
     ],
   }),
 
   defineCaseStudy({
-    id: 'cs-12-water-meter-drift',
-    title: 'When the service-charge does not balance: reconciling 6 months of water-meter drift',
+    id: 'cs-12-recovery-balance-drift',
+    title: 'When the metallurgical balance does not close: reconciling 6 months of recovery drift',
     wordCount: 240,
-    country: 'KE',
-    tags: ['service-charge', 'utilities', 'reconciliation'],
+    country: 'TZ',
+    tags: ['metallurgy', 'recovery', 'reconciliation'],
     difficulty: 'intermediate',
-    narrative: `A Lavington 20-unit block has been showing a stubborn KSh 42,000-per-month gap between billed water and actual utility invoices for six months running. The owner wants to raise the service charge to absorb it. The caretaker blames "Nairobi Water" for over-billing; the accountant blames "meter drift."
+    narrative: `A small 300 tpd Mwanza plant has been showing a stubborn ~4 percent gap between the gold its grade model says it fed and the gold the gold room poured, six months running. The plant manager wants to write it off as "normal loss." The metallurgist blames "the feed grade." The gold-room foreman blames "the assay lab."
 
-Mr. Mwikila walks the block with the building engineer. Two of the 20 units have had new tenants within the last year, both of whom installed extra washing machines without notification. One meter has a cracked housing and reads low. The bulk meter on the compound shows KSh 42k more consumption than the sum of unit meters — an almost-perfect match for the gap.
+Mr. Mwikila walks the circuit with the plant metallurgist. Two changes landed in the last year: a new high-grade ore source was blended in without re-tuning the leach residence time, and the gravity concentrator's recovery has quietly fallen as the cones wore. The tails assay shows gold reporting to the tailings dam well above target — an almost-perfect match for the gap. The "loss" is not loss; it is unrecovered gold walking out in the tails.
 
-The owner considers three actions: (1) raise service charge 3 percent to absorb; (2) replace all 20 unit meters at KSh 8,000 each; (3) investigate the meter drift and bill the two washing-machine tenants retroactively. Mr. Mwikila's framing: the service charge is for common services, not to subsidise individual over-consumption.`,
+The owner considers three actions: (1) accept the gap and lower the forecast; (2) re-tune the leach and replace the gravity cones; (3) audit the gold-room balance for skimming. Mr. Mwikila's framing: a recovery gap is a process signal, not an accounting rounding — chase it to the tails before you write it off.`,
     dataTable: {
-      title: 'Water-drift reconciliation',
+      title: 'Recovery-drift reconciliation',
       rows: [
-        { label: 'Monthly gap', value: 'KSh 42,000' },
+        { label: 'Model-vs-poured gap', value: '~4%' },
         { label: 'Duration', value: '6 months' },
-        { label: 'Total gap', value: 'KSh 252,000' },
-        { label: 'Unit-meter replacement cost', value: 'KSh 160,000 (20 units)' },
+        { label: 'Tails assay', value: 'Above target' },
+        { label: 'Gravity-cone refurbishment cost', value: 'TZS 22M' },
       ],
     },
     decisionQuestion: 'Which of the three actions — or which combination — would you recommend?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why is it dangerous to use the service charge to close this gap?',
+        question: 'Why is it dangerous to write a recovery gap off as "normal loss"?',
       },
       {
         bloomLevel: 'create',
-        question: 'Draft the email to the two washing-machine tenants.',
+        question: 'Draft the test work plan to localise where the gold is being lost.',
       },
     ],
     activity: {
-      prompt: 'Write the owner memo explaining the root cause and proposed fix.',
-      deliverable: 'Two-paragraph email.',
+      prompt: 'Write the owner memo explaining the root cause and the proposed fix.',
+      deliverable: 'Two-paragraph memo + a tails-monitoring routine.',
       timeBoxMinutes: 25,
     },
     discussionQuestions: [
-      'What governance change prevents this drift from happening again?',
+      'What governance change prevents recovery drift from going unnoticed again?',
     ],
   }),
 
   defineCaseStudy({
-    id: 'cs-13-early-termination-midlease',
-    title: 'A tenant requesting early termination mid-lease',
+    id: 'cs-13-early-contract-termination',
+    title: 'A contractor requesting early termination mid-term',
     wordCount: 230,
-    country: 'KE',
-    tags: ['lease', 'termination', 'leasing'],
+    country: 'TZ',
+    tags: ['contract', 'termination', 'mining-services'],
     difficulty: 'intermediate',
-    narrative: `A Kilimani 2-bedroom lease runs through December 2027. In April 2026, the tenant — a young finance professional recently promoted to Rwanda — requests an early termination effective end-May. The lease has a standard break clause: 2 months' notice plus 2 months' rent buyout. He is asking for the clause to be waived on grounds of "unavoidable transfer."
+    narrative: `A load-and-haul contract at a Geita pit runs through December 2027. In April 2026 the contractor — whose fleet is suddenly in demand at a larger mine paying better rates — requests early termination effective end-May. The contract has a standard exit clause: 2 months' notice plus a demobilisation/early-exit fee equal to 2 months of contracted rates. The contractor asks for the fee to be waived on grounds of "unavoidable redeployment."
 
-The unit is currently rented at KSh 68,000, slightly below market. Mr. Mwikila's read: the tenant could credibly re-lease the unit himself via a handover tenant, and the owner could capture a market reset. The question is whether to strictly enforce the buyout, waive entirely, or find a middle path.`,
+The contract is currently priced slightly below the going market rate for haulage. Mr. Mwikila's read: the producer could credibly re-tender the haulage at a market reset, and could ask the departing contractor to bridge until a replacement mobilises. The question is whether to strictly enforce the exit fee, waive it, or structure a managed handover.`,
     dataTable: {
-      title: 'Break-clause math',
+      title: 'Exit-clause math',
       rows: [
         { label: 'Months remaining', value: '19' },
-        { label: 'Current rent', value: 'KSh 68,000' },
-        { label: 'Market rent', value: 'KSh 75,000' },
-        { label: 'Buyout per lease', value: 'KSh 136,000' },
+        { label: 'Contracted rate', value: 'Below market' },
+        { label: 'Market haulage rate', value: '~10% higher' },
+        { label: 'Early-exit fee per contract', value: '2 months of rates' },
       ],
     },
-    decisionQuestion: 'Enforce, waive, or structure a handover?',
+    decisionQuestion: 'Enforce, waive, or structure a managed handover?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What is the landlord actually trying to protect with the break clause?',
+        question: 'What is the producer actually trying to protect with the early-exit fee?',
       },
       {
         bloomLevel: 'evaluate',
-        question: 'How does the below-market rent change the calculation?',
+        question: 'How does the below-market contracted rate change the calculation?',
       },
     ],
     activity: {
-      prompt: 'Draft the counter-proposal to the tenant.',
+      prompt: 'Draft the counter-proposal to the contractor.',
       deliverable: 'One-paragraph response.',
       timeBoxMinutes: 20,
     },
-    discussionQuestions: ['Would your answer change if the unit were above market?'],
+    discussionQuestions: ['Would your answer change if the contract were above market?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-14-mixed-use-conversion',
-    title: 'Converting a single building into mixed-use: zoning and capex',
+    id: 'cs-14-cil-retrofit-permit',
+    title: 'Adding a CIL leach behind a gravity plant: permits and capex',
     wordCount: 300,
-    country: 'KE',
-    tags: ['mixed-use', 'zoning', 'capex'],
+    country: 'TZ',
+    tags: ['cil-retrofit', 'permit', 'capex'],
     difficulty: 'advanced',
-    narrative: `A Westlands owner holds a 4-storey residential building with ground-floor parking. The top three floors are 12 apartments; the ground floor is under-utilised. A coffee chain has offered KSh 380,000/month for the ground floor on a 10-year triple-net lease — four times the per-sqm rent of the residential floors — provided the owner can deliver zoning change-of-user, a dedicated service entrance, and a grease trap.
+    narrative: `A Geita operator runs a 250 tpd gravity-only plant recovering coarse free gold at 1.4 g/t against a 2.4 g/t head — leaving most of the fine and locked gold in the tails. A reagent supplier and an EPC contractor propose bolting a CIL leach behind the gravity circuit: capex TZS 2.2 billion, projected recovered grade rising to 2.0 g/t, but the change requires an environmental certificate variation for cyanide use, a detox circuit, and a lined residue cell.
 
-The owner's planner consultant estimates change-of-user approval at KSh 450,000 in fees and 4-6 months. Fit-out capex to landlord account: KSh 2.2M. The 12 residents are on month-to-month tenancies; three would move if the coffee chain opens. The existing parking can be partly converted to an outdoor seating area.
+The operator's environmental consultant estimates the NEMC certificate variation at TZS 90 million in fees and 4-6 months. The detox-and-cell capex to the operator's account: another TZS 0.6 billion. The cooperative members feeding the plant are nervous about cyanide near the village water source; three would stop delivering if the leach goes in without a credible safety story.
 
-The decision: pursue the change, negotiate, or decline. Mr. Mwikila's frame: a real option — every month delayed is a month of foregone rent if approval succeeds, but rejected applications leave legal hair to untangle.`,
+The decision: pursue the variation, negotiate, or decline. Mr. Mwikila's frame: it is a real option — every month delayed is a month of recoverable gold walking out in the tails if approval succeeds, but a rejected or contested cyanide variation leaves an environmental and community problem to untangle.`,
     dataTable: {
-      title: 'Mixed-use conversion math',
+      title: 'CIL-retrofit math',
       rows: [
-        { label: 'New NOI from ground floor', value: 'KSh 4.56M/yr' },
-        { label: 'Current NOI from parking', value: 'KSh 0' },
-        { label: 'Change-of-user fee', value: 'KSh 450k' },
-        { label: 'Landlord fit-out', value: 'KSh 2.2M' },
+        { label: 'Recovered-grade uplift', value: '1.4 → 2.0 g/t' },
+        { label: 'Leach capex', value: 'TZS 2.2B' },
+        { label: 'Detox + lined cell', value: 'TZS 0.6B' },
+        { label: 'NEMC variation fee', value: 'TZS 90M' },
         { label: 'Approval probability', value: '70%' },
       ],
     },
@@ -163,86 +163,86 @@ The decision: pursue the change, negotiate, or decline. Mr. Mwikila's frame: a r
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'How do you size the risk of the 30% rejection probability?',
+        question: 'How do you size the risk of the 30% chance the cyanide variation is refused or contested?',
       },
       {
         bloomLevel: 'evaluate',
-        question: 'What would you ask the coffee chain to commit to before you file?',
+        question: 'What would you ask the EPC contractor and the supplier to commit to before you file?',
       },
     ],
     activity: {
-      prompt: 'Build a decision memo covering approval risk, capex recovery, and tenant displacement.',
+      prompt: 'Build a decision memo covering permit risk, capex recovery, and community/water safety.',
       deliverable: 'One-page memo.',
       timeBoxMinutes: 60,
     },
-    discussionQuestions: ['How do you protect the three residents likely to move?'],
+    discussionQuestions: ['How do you protect the cooperative members nervous about cyanide near the water source?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-15-q4-vacancy-spike',
-    title: 'Vacancy spikes in Q4: renewal cadence fix',
+    id: 'cs-15-rainy-season-production-dip',
+    title: 'Production dips every rainy season: planning cadence fix',
     wordCount: 220,
-    country: 'KE',
-    tags: ['vacancy', 'renewals', 'operations'],
+    country: 'TZ',
+    tags: ['production-planning', 'seasonality', 'operations'],
     difficulty: 'intermediate',
-    narrative: `A 40-unit Kileleshwa portfolio has shown a stubborn Q4 vacancy spike three years running: 92% occupancy in Q1-Q3, dropping to 84% in Q4 as a cluster of leases (14 of 40) all expire in November-December simultaneously. The owner asks whether to spread renewals or stagger lease lengths.
+    narrative: `A small Lake Zone open-pit operation shows a stubborn rainy-season production dip three years running: it mills near nameplate in the dry months and drops about 18 percent over March-May as the pit floods, haul roads soften, and the run-of-mine stockpile runs thin. The owner asks whether to build a bigger stockpile buffer or stagger the mining sequence.
 
-Mr. Mwikila's read: the bunching is legacy from an opening campaign in 2022. The 90/60/30 renewal cadence has been applied reactively rather than proactively; by the time December hits, the leasing agent is doing 14 renegotiations at once and drops three.`,
+Mr. Mwikila's read: the dip is self-inflicted. The mine plan has been run reactively — by the time the rains arrive, there is no dry-mined ore buffer ahead of the plant, dewatering pumps are undersized, and the plant is starved for feed exactly when it cannot be replenished.`,
     dataTable: {
-      title: 'Kileleshwa occupancy by quarter',
+      title: 'Seasonal throughput by period',
       rows: [
-        { label: 'Q1-Q3 occupancy', value: '92%' },
-        { label: 'Q4 occupancy', value: '84%' },
-        { label: 'Nov-Dec expiries', value: '14 of 40 leases' },
-        { label: 'Economic loss per Q4', value: 'KSh 770k' },
+        { label: 'Dry-season utilisation', value: '~95%' },
+        { label: 'Rainy-season utilisation', value: '~77%' },
+        { label: 'Affected months', value: 'March-May' },
+        { label: 'Lost production value per wet season', value: 'TZS 770M' },
       ],
     },
     decisionQuestion:
-      'What specific actions would you take over the next 12 months to fix the Q4 spike structurally?',
+      'What specific actions would you take over the next 12 months to fix the rainy-season dip structurally?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why does bunching amplify the leasing-agent bottleneck?',
+        question: 'Why does an un-buffered mine plan amplify the rainy-season bottleneck?',
       },
       {
         bloomLevel: 'create',
-        question: 'Design a stagger plan that de-clusters expiries.',
+        question: 'Design a stockpile-and-dewatering plan that de-risks the wet months.',
       },
     ],
     activity: {
-      prompt: 'Draw a 12-month Gantt showing each lease expiry and the proposed stagger.',
-      deliverable: 'Gantt + narrative.',
+      prompt: 'Draw a 12-month plan showing the ROM stockpile build-up ahead of each wet season.',
+      deliverable: 'Plan + narrative.',
       timeBoxMinutes: 45,
     },
-    discussionQuestions: ['What incentives would you offer tenants willing to shift their renewal date?'],
+    discussionQuestions: ['What investment in dewatering and haul-road maintenance pays for itself in one wet season?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-16-returning-vendor-manipulation',
-    title: 'Tender manipulation by a returning vendor: detection and remedy',
+    id: 'cs-16-returning-contractor-manipulation',
+    title: 'Tender manipulation by a returning contractor: detection and remedy',
     wordCount: 280,
     country: 'TZ',
-    tags: ['tender', 'vendor', 'fraud'],
+    tags: ['tender', 'contractor', 'fraud'],
     difficulty: 'advanced',
-    narrative: `A three-building Mikocheni portfolio runs a quarterly maintenance tender. Over four cycles, the same vendor — "Kisima Solutions" — has won three, each time by a narrow margin. Wanjiku the accountant noticed something off: across the three wins, Kisima's bid is within TSh 80-120k of the runner-up, as if they had seen the competing bids before submitting. Two of the three losing bidders have complained informally.
+    narrative: `A Mikocheni-based mid-tier operator runs a quarterly drill-and-blast tender for its Lake Zone pit. Over four cycles, the same contractor — "Kisima Drilling" — has won three, each by a narrow margin. Wanjiku the accountant noticed something off: across the three wins, Kisima's bid is within TZS 80-120k of the runner-up, as if they had seen the competing bids before submitting. Two of the three losing bidders have complained informally.
 
-Mr. Mwikila walks the tender file. The evaluation committee of three has one member — Joshua, the maintenance supervisor — who has worked with Kisima's principal for eight years. Joshua is always the first to receive competing bids by email before the opening meeting.
+Mr. Mwikila walks the tender file. The evaluation committee of three has one member — Joshua, the mining superintendent — who has worked with Kisima's principal for eight years. Joshua is always the first to receive competing bids by email before the opening meeting.
 
-The pattern is textbook: either Joshua is leaking bids, or the committee's two-envelope opening procedure is not being enforced. The owner wants to avoid a direct accusation until evidence is firm.`,
+The pattern is textbook: either Joshua is leaking bids, or the committee's two-envelope opening procedure is not being enforced. The owner wants to avoid a direct accusation until the evidence is firm — and Kisima currently runs the only drill rig on site, so a clumsy move could stop the blast cycle and the pit with it.`,
     dataTable: {
       title: 'Tender history',
       rows: [
         { label: 'Cycles', value: '4' },
         { label: 'Kisima wins', value: '3' },
-        { label: 'Margin over runner-up', value: 'TSh 80-120k' },
+        { label: 'Margin over runner-up', value: 'TZS 80-120k' },
         { label: 'Joshua tenure with Kisima', value: '8 years' },
       ],
     },
-    decisionQuestion: 'What does the owner do next — and in what sequence?',
+    decisionQuestion: 'What does the owner do next — and in what sequence, without stopping the blast cycle?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What are the signals that distinguish competitive luck from manipulation?',
+        question: 'What signals distinguish competitive luck from bid manipulation?',
       },
       {
         bloomLevel: 'create',
@@ -251,126 +251,126 @@ The pattern is textbook: either Joshua is leaking bids, or the committee's two-e
     ],
     activity: {
       prompt: 'Draft the remediation memo for the owner.',
-      deliverable: 'Memo with detection evidence + procedural fix.',
+      deliverable: 'Memo with detection evidence + procedural fix + an interim drilling bridge.',
       timeBoxMinutes: 40,
     },
     discussionQuestions: [
-      'What is the labour-law path if Joshua is guilty?',
+      'What is the labour-law path if Joshua is found to be leaking bids?',
       'How do you re-tender without appearing to favour the losing bidders?',
     ],
   }),
 
   defineCaseStudy({
-    id: 'cs-17-rent-repricing-longstanding-tenant',
-    title: 'Rent repricing conversation with a long-standing tenant',
+    id: 'cs-17-offtake-tcrc-repricing',
+    title: 'TC/RC repricing conversation with a long-standing off-taker',
     wordCount: 250,
-    country: 'KE',
-    tags: ['rent-repricing', 'tenant-retention', 'leasing'],
+    country: 'TZ',
+    tags: ['offtake', 'buyer-retention', 'pricing'],
     difficulty: 'intermediate',
-    narrative: `A Kilimani 3-bed has housed the same tenant — a consultant at a UN agency — for nine years. Current rent KSh 95,000; market KSh 125,000. The lease comes up for annual review; the owner wants to "fix the gap at least halfway." The tenant has perfect payment history, a daughter at a nearby school, and a close relationship with the caretaker.
+    narrative: `A Mwanza buyer has taken doré from the same producer — a steady, audited, mercury-free operation — for nine years at a London-fix-less-2.6 percent deduction. Competing buyers now quote fix-less-1.8 percent. The annual review is due; the producer wants to "fix the gap at least halfway." The producer has a flawless delivery and chain-of-custody record, an LBMA-aligned clean-supply story, and a close working relationship with the buyer's assay desk.
 
-Mr. Mwikila's framing: the retention premium for a 9-year perfect-payment tenant is substantial — 3-4 months of gross rent in turnover costs, plus 2-3 weeks of vacancy, plus uncertain replacement quality. A 30% increase is legally and market-defensible but likely to precipitate a move. A 10-12% increase paired with a 3-year commitment might be the cleanest structure.`,
+Mr. Mwikila's framing: the retention premium for a 9-year clean-supply producer is substantial — re-onboarding a replacement, re-auditing chain of custody, and the throughput gap while a new supplier mobilises. Cutting the deduction all the way to 1.8 percent is defensible but erodes the buyer's margin sharply. A 2.1-2.2 percent deduction paired with a 3-year volume commitment might be the cleanest structure.`,
     dataTable: {
-      title: 'Repricing math',
+      title: 'TC/RC repricing math',
       rows: [
-        { label: 'Current rent', value: 'KSh 95,000' },
-        { label: 'Market rent', value: 'KSh 125,000' },
-        { label: 'Gap', value: '31.6%' },
-        { label: 'Turnover cost estimate', value: 'KSh 360k' },
-        { label: 'Tenant tenure', value: '9 years' },
+        { label: 'Current deduction', value: '2.6% of fix' },
+        { label: 'Market deduction', value: '1.8% of fix' },
+        { label: 'Gap', value: '0.8 percentage points' },
+        { label: 'Replacement / re-onboarding cost', value: 'High' },
+        { label: 'Supplier tenure', value: '9 years' },
       ],
     },
     decisionQuestion: 'Which approach would you advise — and how would you frame the conversation?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why is a 30% market-close not always the right answer?',
+        question: 'Why is cutting the deduction all the way to market not always the right answer for the buyer?',
       },
       {
         bloomLevel: 'create',
-        question: 'Draft the opening line of the rent-review letter.',
+        question: 'Draft the opening line of the off-take review letter.',
       },
     ],
     activity: {
-      prompt: 'Write the rent-review letter.',
+      prompt: 'Write the off-take review letter.',
       deliverable: 'Letter with market evidence + proposed terms.',
       timeBoxMinutes: 30,
     },
-    discussionQuestions: ['When is it worth losing a great tenant to capture market rent?'],
+    discussionQuestions: ['When is it worth losing a clean-supply producer to protect deduction margin?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-18-holdover-dispute',
-    title: 'Handling a dispute over holdover rent',
+    id: 'cs-18-tribute-overstay-dispute',
+    title: 'Handling a dispute over an artisanal tribute overstay',
     wordCount: 230,
-    country: 'KE',
-    tags: ['holdover', 'dispute', 'lease'],
+    country: 'TZ',
+    tags: ['tribute', 'dispute', 'access'],
     difficulty: 'advanced',
-    narrative: `A commercial tenant in an Industrial Area warehouse is holding over 4 months past the lease end while negotiating a renewal. The original lease has a 125% holdover-rent clause; the tenant has been paying the original rent and ignoring the uplift. The landlord's accountant booked holdover rent at the uplifted rate; receivables show KSh 320,000 outstanding.
+    narrative: `An artisanal group has been working a demarcated tribute block on a producer's Mining Licence under a written tribute agreement that expired four months ago, while a renewal is negotiated. The original tribute set a 15 percent production share to the licence holder; the group has kept paying the original share and ignored a contractual escalation to 18 percent that triggered on renewal-pending status. The producer's accountant booked the share at the escalated rate; receivables show TZS 320,000 outstanding.
 
-The tenant's counter-argument: the landlord accepted rent payments without protest, which implies consent to the original rate. The landlord's rebuttal: the lease is explicit, and no written waiver exists. Mr. Mwikila's read: by accepting four months of rent payments without reserving rights in writing, the landlord has weakened the holdover claim.`,
+The group's counter-argument: the producer accepted the original-rate payments without protest, which implies consent to keep the old share. The producer's rebuttal: the tribute is explicit, and no written waiver exists. Mr. Mwikila's read: by accepting four months of payments without reserving its rights in writing, the producer has weakened the escalation claim.`,
     dataTable: {
-      title: 'Holdover math',
+      title: 'Tribute-overstay math',
       rows: [
-        { label: 'Original rent', value: 'KSh 320,000' },
-        { label: 'Holdover rate (125%)', value: 'KSh 400,000' },
-        { label: 'Months held over', value: '4' },
-        { label: 'Receivable at uplifted rate', value: 'KSh 320,000' },
+        { label: 'Original share owed', value: 'TZS 320,000' },
+        { label: 'Escalated share (18%)', value: 'TZS 400,000' },
+        { label: 'Months overstayed', value: '4' },
+        { label: 'Receivable at escalated rate', value: 'TZS 320,000' },
       ],
     },
     decisionQuestion:
-      'Can the landlord still recover the uplift — and if not, what procedural change prevents recurrence?',
+      'Can the producer still recover the escalation — and if not, what procedural change prevents recurrence?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What is "implied consent" and how does it erode contract rights?',
+        question: 'What is "implied consent" and how does it erode contractual rights?',
       },
       {
         bloomLevel: 'create',
-        question: 'Draft the "without prejudice" cover letter for the next rent receipt.',
+        question: 'Draft the "without prejudice" cover note for the next tribute-share receipt.',
       },
     ],
     activity: {
-      prompt: 'Prepare the written reservation of rights to attach to rent receipts during holdover.',
+      prompt: 'Prepare the written reservation of rights to attach to tribute-share receipts during the renewal period.',
       deliverable: 'Template paragraph.',
       timeBoxMinutes: 20,
     },
-    discussionQuestions: ['Should the landlord pursue the tribunal or settle?'],
+    discussionQuestions: ['Should the producer escalate to the Mining Commission or settle?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-19-refurb-vs-divest-40yr',
-    title: 'Portfolio-level decision: refurbish vs divest a 40-year-old block',
+    id: 'cs-19-upgrade-vs-divest-40yr',
+    title: 'Asset-level decision: upgrade vs divest a 40-year-old plant',
     wordCount: 310,
-    country: 'KE',
-    tags: ['refurbish', 'divest', 'strategy', 'capex'],
+    country: 'TZ',
+    tags: ['plant-upgrade', 'divest', 'strategy', 'capex'],
     difficulty: 'advanced',
-    narrative: `The owner inherited a 28-unit block in South B, built in 1984, from his late father. The building generates KSh 7.8M NOI against a valuation of KSh 105M — a 7.4% cap. Comparable new-builds in the area trade at 6.2% cap. A refurb plan from a QS targets KSh 32M spend to modernize kitchens, bathrooms, lifts, and facade — projected NOI lift to KSh 12.5M and valuation to KSh 195M post-refurb.
+    narrative: `An owner inherited a small 28-tonne-per-hour vat-leach plant near Chunya, built in 1984, from his late father. The operation generates TZS 7.8M-per-month operating surplus against an asset value of about TZS 105M — a tired plant on a marginal recovery. A QS upgrade plan targets TZS 32M to add a gravity concentrator, replace pumps and the thickener, and add a detox circuit — projected to lift recovery and operating surplus to TZS 12.5M/month and the asset value toward TZS 195M post-upgrade.
 
-The alternative: sell now at KSh 105M and redeploy into a newer asset or a shareholding in a REIT. The owner has emotional attachment to the building — it was his father's flagship.
+The alternative: sell now at TZS 105M and redeploy into a newer, higher-grade tenement or a stake in a larger operation. The owner has emotional attachment to the plant — it was his father's first build.
 
-Mr. Mwikila's structured take: refurb IRR roughly 14% over 5 years; re-deployed capital could hit 16-18% in a value-add strategy. Both are defensible. The deciding factors are execution risk (does the refurb finish on time?) and whether the owner has the bandwidth for an 18-month construction project.`,
+Mr. Mwikila's structured take: the upgrade IRR is roughly 14 percent over 5 years; the redeployed capital could hit 16-18 percent in a higher-grade asset. Both are defensible. The deciding factors are execution risk (does the upgrade finish on time and hit the recovery target?) and whether the owner has the bandwidth for a construction project on an ageing plant.`,
     dataTable: {
-      title: 'Refurb vs divest',
+      title: 'Upgrade vs divest',
       rows: [
-        { label: 'Current NOI', value: 'KSh 7.8M' },
-        { label: 'Current value', value: 'KSh 105M' },
-        { label: 'Refurb spend', value: 'KSh 32M' },
-        { label: 'Post-refurb NOI', value: 'KSh 12.5M' },
-        { label: 'Post-refurb value', value: 'KSh 195M' },
-        { label: 'Refurb IRR', value: '~14%' },
-        { label: 'Redeployed capital target IRR', value: '16-18%' },
+        { label: 'Current monthly surplus', value: 'TZS 7.8M' },
+        { label: 'Current value', value: 'TZS 105M' },
+        { label: 'Upgrade spend', value: 'TZS 32M' },
+        { label: 'Post-upgrade surplus', value: 'TZS 12.5M/month' },
+        { label: 'Post-upgrade value', value: 'TZS 195M' },
+        { label: 'Upgrade IRR', value: '~14%' },
+        { label: 'Redeployed-capital target IRR', value: '16-18%' },
       ],
     },
-    decisionQuestion: 'Refurbish or divest — and what additional data would you want before committing?',
+    decisionQuestion: 'Upgrade or divest — and what additional data would you want before committing?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'How do you weigh execution risk against opportunity cost?',
+        question: 'How do you weigh execution and recovery risk against opportunity cost?',
       },
       {
         bloomLevel: 'evaluate',
-        question: 'What would change your answer if the refurb IRR was 18% instead of 14%?',
+        question: 'What would change your answer if the upgrade IRR were 18 percent instead of 14 percent?',
       },
     ],
     activity: {
@@ -379,37 +379,37 @@ Mr. Mwikila's structured take: refurb IRR roughly 14% over 5 years; re-deployed 
       timeBoxMinutes: 60,
     },
     discussionQuestions: [
-      'How do you incorporate the emotional value of the asset without letting it dominate the decision?',
+      'How do you incorporate the emotional value of the plant without letting it dominate the decision?',
     ],
   }),
 
   defineCaseStudy({
-    id: 'cs-20-first-90-days-200unit',
-    title: 'Managing the first 90 days after acquisition of a 200-unit portfolio',
+    id: 'cs-20-first-90-days-multi-licence',
+    title: 'Managing the first 90 days after acquiring a multi-licence portfolio',
     wordCount: 300,
-    country: 'KE',
+    country: 'TZ',
     tags: ['acquisition', 'first-90-days', 'operations'],
     difficulty: 'advanced',
-    narrative: `A pan-African fund has just closed on a 200-unit mid-market residential portfolio across three Nairobi estates — 80 units in Kileleshwa, 60 in South C, 60 in Lavington. The seller's on-site team of 14 stays on a 90-day retention; BORJIE is appointed asset manager.
+    narrative: `A pan-African fund has just closed on a cluster of gold tenements across the Lake Zone — one producing ML with a small CIL plant near Geita, two tribute PMLs near Kahama, and a dormant exploration block near Mwanza. The seller's on-site team of 14 stays on a 90-day retention; BORJIE is appointed operator.
 
-Day 1 challenges: records are split between three Excel workbooks and a shoebox of lease PDFs. The accountant has left. Vendor contracts are either verbal or expired. The rent roll shows 94% occupancy on paper; a walk-through reveals two units are used by the seller's family and one is empty but reported as occupied. Arrears reporting has been selective.
+Day-1 challenges: production and sales records are split across three spreadsheets and a folder of refiner settlement PDFs. The accountant has left. Reagent and fuel supply contracts are either verbal or expired. The production ledger shows the plant "at nameplate" on paper; a walk-through reveals the gravity circuit is bypassed and two royalty returns are filed late. Gold-room reconciliation has been selective.
 
-Mr. Mwikila's 90-day playbook: Week 1 — meet every staff member individually, take possession of keys and records. Week 2-4 — tenant interviews, baseline condition survey, vendor audit. Week 5-8 — quick wins: paint, gate repair, signage; renegotiate the two most expensive vendor contracts; tighten collections. Week 9-12 — migrate onto BORJIE systems, first clean month-end, first owner report. Target: 5% NOI uplift by day 90.`,
+Mr. Mwikila's 90-day playbook: Week 1 — meet every staff member individually, re-seal the gold room under dual control, take possession of keys, the magazine, and records. Weeks 2-4 — workforce interviews, baseline plant-and-TSF survey, contractor audit. Weeks 5-8 — quick wins: restore the gravity circuit, fix the worst pump, bring royalty filings current; renegotiate the two most expensive supply contracts; tighten the desk reconciliation. Weeks 9-12 — migrate onto BORJIE systems, first clean month-end metallurgical balance, first owner report. Target: 5 percent all-in cost-per-ounce improvement by day 90.`,
     dataTable: {
       title: 'Acquisition baseline',
       rows: [
-        { label: 'Units', value: '200' },
-        { label: 'Reported occupancy', value: '94%' },
-        { label: 'Actual occupancy after walkthrough', value: '92%' },
+        { label: 'Tenements', value: '1 ML + 2 PML + 1 exploration block' },
+        { label: 'Reported plant utilisation', value: 'Nameplate (on paper)' },
+        { label: 'Actual after walkthrough', value: 'Gravity bypassed; recovery low' },
         { label: 'On-site staff retained', value: '14 (90-day transition)' },
-        { label: 'NOI uplift target by day 90', value: '5%' },
+        { label: 'Cost-per-ounce target by day 90', value: '5% improvement' },
       ],
     },
     decisionQuestion: 'What are the 5 highest-leverage actions in the first 30 days?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why does speed matter in the first 30 days?',
+        question: 'Why does speed matter in the first 30 days at a gold operation specifically?',
       },
       {
         bloomLevel: 'create',
@@ -417,40 +417,40 @@ Mr. Mwikila's 90-day playbook: Week 1 — meet every staff member individually, 
       },
     ],
     activity: {
-      prompt: 'Draft the week-1 team meeting agenda and the week-1 owner-update note.',
+      prompt: 'Draft the week-1 team-meeting agenda and the week-1 owner-update note.',
       deliverable: 'Agenda + note.',
       timeBoxMinutes: 50,
     },
-    discussionQuestions: ['What do you do about the two units used by the seller family?'],
+    discussionQuestions: ['What do you do about the two late royalty returns inherited at close?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-21-security-deposit-dispute',
-    title: 'Security-deposit dispute: damage vs fair wear and tear',
+    id: 'cs-21-rehabilitation-bond-dispute',
+    title: 'Rehabilitation-bond dispute: liability vs natural ground disturbance',
     wordCount: 220,
-    country: 'KE',
-    tags: ['deposit', 'dispute', 'move-out'],
+    country: 'TZ',
+    tags: ['rehabilitation', 'closure', 'dispute', 'handover'],
     difficulty: 'intermediate',
-    narrative: `A tenant vacated a Westlands 2-bed after 18 months. Move-out inspection showed: wall scuffs on corridor (paint required), cracked tile in kitchen, scratched hardwood in living room, and a slightly-stained mattress cover in the landlord-provided beds. Deposit: KSh 180,000. Landlord withheld KSh 140k citing the above plus "cleaning KSh 25k."
+    narrative: `A producer relinquished a worked-out satellite pit after 18 months and applied to release its rehabilitation deposit held against closure obligations. The closure inspection found: un-backfilled benches needing re-profiling, a small uncapped tails patch, topsoil not respread on one platform, and a borrow area the producer argues was already disturbed by artisanal miners before they arrived. Deposit held: TZS 180,000,000. The regulator proposes withholding TZS 140M citing the above plus "monitoring TZS 25M."
 
-The tenant filed at the tribunal claiming fair wear and tear. Mr. Mwikila's read: paint after 18 months is borderline (normal cycle 2-3 years), the cracked tile is damage, the hardwood scratches are damage, and the mattress stain with time-stamped move-in photos is wear-and-tear.`,
+The producer filed a challenge. Mr. Mwikila's read: the un-backfilled benches and the uncapped tails are clear closure liabilities, the topsoil is a genuine obligation, but the pre-existing artisanal borrow disturbance — if backed by time-stamped baseline photos from the environmental certificate — is not the producer's to remediate.`,
     dataTable: {
-      title: 'Disposition breakdown',
+      title: 'Closure-cost breakdown',
       rows: [
-        { label: 'Deposit', value: 'KSh 180,000' },
-        { label: 'Withheld', value: 'KSh 140,000' },
-        { label: 'Paint (18 mo)', value: 'KSh 35,000' },
-        { label: 'Tile repair', value: 'KSh 18,000' },
-        { label: 'Hardwood refinish', value: 'KSh 42,000' },
-        { label: 'Cleaning', value: 'KSh 25,000' },
-        { label: 'Mattress cover', value: 'KSh 20,000' },
+        { label: 'Rehabilitation deposit', value: 'TZS 180M' },
+        { label: 'Proposed withholding', value: 'TZS 140M' },
+        { label: 'Bench re-profiling', value: 'TZS 35M' },
+        { label: 'Tails capping', value: 'TZS 18M' },
+        { label: 'Topsoil respread', value: 'TZS 42M' },
+        { label: 'Monitoring', value: 'TZS 25M' },
+        { label: 'Pre-existing borrow area', value: 'TZS 20M' },
       ],
     },
-    decisionQuestion: 'How much of the KSh 140k withholding is defensible at tribunal?',
+    decisionQuestion: 'How much of the TZS 140M withholding is defensible at review?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What is the legal test for fair wear and tear?',
+        question: 'What is the test for separating inherited disturbance from a producer\'s closure liability?',
       },
       {
         bloomLevel: 'evaluate',
@@ -458,27 +458,27 @@ The tenant filed at the tribunal claiming fair wear and tear. Mr. Mwikila's read
       },
     ],
     activity: {
-      prompt: 'Prepare the revised disposition statement for the tribunal.',
-      deliverable: 'Letter + photo annex.',
+      prompt: 'Prepare the revised closure-cost statement for the regulator review.',
+      deliverable: 'Letter + baseline-photo annex.',
       timeBoxMinutes: 40,
     },
-    discussionQuestions: ['How would earlier move-in photos have changed this?'],
+    discussionQuestions: ['How would a time-stamped baseline survey at grant have changed this?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-22-gepg-unapplied-cash',
-    title: 'GePG unapplied cash cleanup',
+    id: 'cs-22-gepg-unapplied-royalty',
+    title: 'GePG unapplied-royalty-cash cleanup',
     wordCount: 210,
     country: 'TZ',
-    tags: ['gepg', 'reconciliation', 'finance'],
+    tags: ['gepg', 'royalty', 'reconciliation', 'finance'],
     difficulty: 'intermediate',
-    narrative: `A Dar property-management operation has accumulated TSh 4.8M in an unapplied-cash clearing account over nine months. The accountant treats it as "safer than applying wrong." The operations manager sees it as a Sarbanes-like time bomb: money that belongs to someone, but no one is sure who.
+    narrative: `A Dar-based mining group's finance function has accumulated TZS 4.8M in a GePG clearing account over nine months — payments made toward royalty and clearing-fee control numbers that were never matched back to a specific parcel or return. The accountant treats it as "safer than applying wrong." The finance controller sees it as a compliance time bomb: money paid to the Mining Commission rail, but not reconciled to any royalty return.
 
-Mr. Mwikila's audit: 38 transactions. 22 match cleanly with a same-day rent invoice — just never posted. 9 are partial payments (allocate oldest arrears first). 4 are wrong control numbers — research the sender, reverse-and-rebook. 3 are overpayments — credit next invoice with tenant confirmation.`,
+Mr. Mwikila's audit: 38 transactions. 22 match cleanly to a same-period parcel and royalty return — just never posted. 9 are partial royalty payments (allocate to the oldest open return first). 4 used a wrong control number — research the parcel, reverse-and-rebook against the correct return. 3 are overpayments — credit the next return with the Mining Commission's confirmation.`,
     dataTable: {
-      title: 'Unapplied cash composition',
+      title: 'Unapplied GePG composition',
       rows: [
-        { label: 'Total unapplied', value: 'TSh 4.8M' },
+        { label: 'Total unapplied', value: 'TZS 4.8M' },
         { label: 'Transactions', value: '38' },
         { label: 'Clean matches', value: '22' },
         { label: 'Partial payments', value: '9' },
@@ -490,114 +490,114 @@ Mr. Mwikila's audit: 38 transactions. 22 match cleanly with a same-day rent invo
     socraticPath: [
       {
         bloomLevel: 'apply',
-        question: 'Walk through the cleanup steps for one of the wrong-control-number transactions.',
+        question: 'Walk through the cleanup steps for one of the wrong-control-number royalty payments.',
       },
       {
         bloomLevel: 'create',
-        question: 'Design a daily reconciliation routine that keeps unapplied cash at zero.',
+        question: 'Design a daily reconciliation routine that keeps the GePG royalty clearing account at zero.',
       },
     ],
     activity: {
-      prompt: 'Write the SOP for daily GePG reconciliation.',
+      prompt: 'Write the SOP for daily GePG royalty reconciliation.',
       deliverable: 'One-page SOP.',
       timeBoxMinutes: 35,
     },
-    discussionQuestions: ['When is it safer to leave cash unapplied than to apply it guessing?'],
+    discussionQuestions: ['When is it safer to leave a royalty payment unapplied than to apply it guessing?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-23-airbnb-sublet-breach',
-    title: 'Airbnb sublet discovered mid-lease',
+    id: 'cs-23-unauthorised-toll-treating',
+    title: 'Unauthorised third-party toll-treating discovered at the plant',
     wordCount: 220,
-    country: 'KE',
-    tags: ['sublet', 'breach', 'lease'],
+    country: 'TZ',
+    tags: ['toll-treating', 'breach', 'compliance'],
     difficulty: 'intermediate',
-    narrative: `A Westlands 1-bed tenant has been listing the unit on Airbnb on weekends for 3 months without landlord consent. The lease has a standard "no sublet without written consent" clause. The landlord discovered via a neighbour's complaint; a quick search confirmed 12 weekend bookings at KSh 8,000/night average.
+    narrative: `A plant operator near Geita discovers that the night-shift plant supervisor has, for three months, been quietly running third-party artisanal ore through the CIL circuit on weekends for a fee — without the owner's consent and outside any tolling agreement or royalty declaration. The owner found out via a haul-truck driver's complaint; a check of weighbridge logs confirmed roughly 9 weekend campaigns at an estimated TZS 8M of toll fees collected by the supervisor.
 
-The tenant argues the sublet generated KSh 288k of income on her side — significantly more than her KSh 55k monthly rent — and offers a revenue-share retroactively.`,
+The supervisor argues the side-tolling generated TZS 72M of throughput value he "kept the plant busy with" and offers a revenue share retroactively. The owner's exposure is larger than the toll fees: the third-party gold was never declared, so royalty was not paid, and the chain of custody and the plant's clean-supply story are compromised.`,
     dataTable: {
-      title: 'Airbnb breach facts',
+      title: 'Unauthorised-tolling facts',
       rows: [
-        { label: 'Bookings', value: '12' },
-        { label: 'Avg nightly', value: 'KSh 8,000' },
-        { label: 'Gross revenue', value: 'KSh 288,000 (3 months)' },
-        { label: 'Tenant rent', value: 'KSh 55,000/month' },
+        { label: 'Weekend campaigns', value: '9' },
+        { label: 'Estimated toll fees taken', value: 'TZS 8M' },
+        { label: 'Third-party throughput value', value: 'TZS 72M (3 months)' },
+        { label: 'Royalty on third-party gold', value: 'Undeclared / unpaid' },
       ],
     },
-    decisionQuestion: 'Enforce strict breach consequences, accept revenue share, or renegotiate the lease?',
+    decisionQuestion: 'Enforce strict breach consequences, accept a revenue share, or formalise a tolling line?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What is the landlord actually trying to protect with the no-sublet clause?',
+        question: 'What is the owner actually trying to protect by controlling what runs through the plant?',
       },
       {
         bloomLevel: 'evaluate',
-        question: 'How does insurance coverage change if Airbnb is allowed?',
+        question: 'How does undeclared royalty and broken chain of custody change the exposure beyond the toll fees?',
       },
     ],
     activity: {
-      prompt: 'Draft the landlord response letter with three options for the tenant.',
-      deliverable: 'Letter.',
+      prompt: 'Draft the owner response with three options, including a properly licensed tolling structure.',
+      deliverable: 'Memo.',
       timeBoxMinutes: 25,
     },
     discussionQuestions: [
-      'Should the lease template be updated with a platform-specific clause?',
+      'Should the operating procedures be updated with a formal third-party-ore policy and gate controls?',
     ],
   }),
 
   defineCaseStudy({
-    id: 'cs-24-nema-eia-delay',
-    title: 'NEMA EIA delay on a greenfield 50-unit project',
+    id: 'cs-24-nemc-eia-stop-work',
+    title: 'NEMC EIA stop-work on a greenfield mine development',
     wordCount: 220,
-    country: 'KE',
-    tags: ['nema', 'eia', 'compliance', 'development'],
+    country: 'TZ',
+    tags: ['nemc', 'eia', 'compliance', 'development'],
     difficulty: 'advanced',
-    narrative: `A developer is 8 months into a 50-unit residential project in Kitengela. Foundation is complete; superstructure is starting. A neighbour lodged an objection to the NEMA EIA citing inadequate public participation. NEMA issued a stop-work notice. The developer's financing has a 14-day drawdown clock.
+    narrative: `A developer is 8 months into building a greenfield gold mine near Songea. Earthworks and the plant pad are done; tankage is starting. A neighbouring village lodged an objection to the environmental impact assessment, citing inadequate public participation and concern over a downstream water source. NEMC issued a stop-work notice. The developer's project-finance facility has a 14-day drawdown clock tied to milestones.
 
-Mr. Mwikila's read: the objection has merit on procedure — the developer's lead expert held one sparsely-attended public meeting. Remediation requires a fresh round of stakeholder engagement (4-6 weeks) and supplementary EIA filing (2-3 weeks NEMA review). Total delay: 6-9 weeks, plus bank fees.`,
+Mr. Mwikila's read: the objection has procedural merit — the developer's lead expert held one sparsely-attended consultation and never engaged the downstream ward. Remediation requires a fresh round of genuine stakeholder engagement (4-6 weeks) and a supplementary EIA filing (2-3 weeks NEMC review). Total delay: 6-9 weeks, plus standby costs on the EPC contractor.`,
     dataTable: {
-      title: 'NEMA EIA delay impact',
+      title: 'NEMC EIA stop-work impact',
       rows: [
-        { label: 'Months into project', value: '8' },
+        { label: 'Months into build', value: '8' },
         { label: 'Drawdown clock', value: '14 days' },
         { label: 'Delay estimate', value: '6-9 weeks' },
-        { label: 'Bank penalty', value: 'KSh 1.4M' },
+        { label: 'EPC standby + finance penalty', value: 'TZS 1.4B' },
       ],
     },
     decisionQuestion: 'What is the containment + remediation plan?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why does a procedural objection stop work when the substance is compliant?',
+        question: 'Why does a procedural objection stop work even when the engineering is sound?',
       },
       {
         bloomLevel: 'create',
-        question: 'Design a stakeholder-engagement plan that would pass NEMA muster.',
+        question: 'Design a stakeholder-engagement plan that would pass NEMC muster.',
       },
     ],
     activity: {
-      prompt: 'Write the email to the bank explaining the delay and seeking a covenant waiver.',
-      deliverable: 'Email.',
+      prompt: 'Write the note to the project-finance lenders explaining the delay and seeking a milestone waiver.',
+      deliverable: 'Letter.',
       timeBoxMinutes: 35,
     },
-    discussionQuestions: ['What process change avoids this in future projects?'],
+    discussionQuestions: ['What process change avoids this on the next development?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-25-solar-panel-decision',
-    title: 'Solar panel capex decision on a 30-unit block',
+    id: 'cs-25-solar-hybrid-power',
+    title: 'Solar-hybrid power capex decision on an off-grid mine',
     wordCount: 230,
-    country: 'KE',
-    tags: ['capex', 'solar', 'sustainability'],
+    country: 'TZ',
+    tags: ['capex', 'solar', 'power', 'sustainability'],
     difficulty: 'intermediate',
-    narrative: `A Lavington 30-unit block spends KSh 380k/month on Kenya Power for common-area lighting, water pumps, and the borehole. A solar proposal from a local integrator quotes KSh 4.8M capex for a system covering 60% of daytime load, with KSh 180k/month savings. Payback: ~27 months. Warranty: 10 years.
+    narrative: `An off-grid Lake Zone operation spends about TZS 380M/month on diesel to run its plant, pumps, and camp. A solar-plus-battery proposal from an integrator quotes TZS 4.8 billion capex for a hybrid system covering ~60 percent of daytime load, cutting diesel spend by about TZS 180M/month. Simple payback: ~27 months. Warranty: 10 years, comfortably inside the remaining mine life.
 
-The owner is cash-rich but cautious. The service charge could not easily absorb the capex without a special assessment, and tenants resist those.`,
+The owner is cash-generative but cautious. Funding the capex from operating cash would suppress distributions for two quarters, and the lenders have a say on any new capital draw.`,
     dataTable: {
-      title: 'Solar capex math',
+      title: 'Solar-hybrid math',
       rows: [
-        { label: 'Capex', value: 'KSh 4.8M' },
-        { label: 'Monthly saving', value: 'KSh 180k' },
+        { label: 'Capex', value: 'TZS 4.8B' },
+        { label: 'Monthly diesel saving', value: 'TZS 180M' },
         { label: 'Simple payback', value: '27 months' },
         { label: 'Warranty', value: '10 years' },
       ],
@@ -606,11 +606,11 @@ The owner is cash-rich but cautious. The service charge could not easily absorb 
     socraticPath: [
       {
         bloomLevel: 'apply',
-        question: 'Calculate the NPV at 12% over 10 years.',
+        question: 'Calculate the NPV at 14% over 10 years.',
       },
       {
         bloomLevel: 'evaluate',
-        question: 'Which financing structure (cash / sinking fund / vendor financing) do you prefer?',
+        question: 'Which financing structure (cash / lender facility / build-own-operate by the integrator) do you prefer?',
       },
     ],
     activity: {
@@ -618,29 +618,29 @@ The owner is cash-rich but cautious. The service charge could not easily absorb 
       deliverable: 'Memo.',
       timeBoxMinutes: 40,
     },
-    discussionQuestions: ['Would your answer change if the block had only 3 years of hold left?'],
+    discussionQuestions: ['Would your answer change if the mine had only 3 years of reserves left?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-26-late-fee-legal-defensibility',
-    title: 'Late-fee legal defensibility at tribunal',
+    id: 'cs-26-liquidated-damages-defensibility',
+    title: 'Liquidated-damages clause defensibility in a mining-services dispute',
     wordCount: 210,
-    country: 'KE',
-    tags: ['late-fee', 'legal', 'arrears'],
+    country: 'TZ',
+    tags: ['liquidated-damages', 'legal', 'contract'],
     difficulty: 'advanced',
-    narrative: `A landlord enforced a 5% compounding monthly late fee on a tenant 4 months in arrears. The tenant paid the principal and contested the KSh 21k late fees at the BPRT. The lease has the clause in writing; the tenant argues it is "penal" and therefore unenforceable.
+    narrative: `A producer enforced a 5 percent compounding monthly penalty against a haulage contractor who missed tonnage targets for 4 months. The contractor paid the principal shortfall but contested TZS 21M of penalties. The contract has the clause in writing; the contractor argues it is "penal" and therefore unenforceable.
 
-Mr. Mwikila's read: East African courts generally enforce late fees if they are (a) clearly stated, (b) a reasonable pre-estimate of the landlord's loss, and (c) not punitive. A 5% compounding monthly fee is aggressive. The landlord's position is strong on (a) but weaker on (b) and (c).`,
+Mr. Mwikila's read: courts generally enforce a damages clause in a commercial contract if it is (a) clearly stated, (b) a genuine pre-estimate of the producer's loss (deferred ounces, idle plant), and (c) not punitive. A 5 percent compounding monthly figure is aggressive. The producer's position is strong on (a) but weaker on (b) and (c).`,
     dataTable: {
-      title: 'Late-fee math',
+      title: 'Liquidated-damages math',
       rows: [
-        { label: 'Rent', value: 'KSh 45,000/month' },
-        { label: 'Months late', value: '4' },
-        { label: 'Late fee claimed', value: 'KSh 21,000' },
-        { label: 'As % of principal', value: '11.7%' },
+        { label: 'Monthly contract value', value: 'TZS 45M' },
+        { label: 'Months in breach', value: '4' },
+        { label: 'Penalty claimed', value: 'TZS 21M' },
+        { label: 'As % of contract value', value: '11.7%' },
       ],
     },
-    decisionQuestion: 'What is the litigation strategy? Defend, negotiate, withdraw?',
+    decisionQuestion: 'What is the dispute strategy? Defend, negotiate, or withdraw?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
@@ -648,42 +648,42 @@ Mr. Mwikila's read: East African courts generally enforce late fees if they are 
       },
       {
         bloomLevel: 'create',
-        question: 'Redraft the late-fee clause so it is more defensible.',
+        question: 'Redraft the damages clause so it is more defensible.',
       },
     ],
     activity: {
-      prompt: 'Write the revised clause for the lease template.',
+      prompt: 'Write the revised clause for the mining-services contract template.',
       deliverable: 'One-paragraph clause.',
       timeBoxMinutes: 25,
     },
-    discussionQuestions: ['When do you waive fees to preserve a good tenant?'],
+    discussionQuestions: ['When do you waive penalties to preserve a reliable contractor relationship?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-27-portfolio-rebalance-coastal',
-    title: 'Portfolio rebalance: adding coastal exposure',
+    id: 'cs-27-commodity-diversification',
+    title: 'Portfolio rebalance: adding graphite exposure',
     wordCount: 250,
-    country: 'KE',
+    country: 'TZ',
     tags: ['portfolio', 'strategy', 'diversification'],
     difficulty: 'advanced',
-    narrative: `A Nairobi-based owner has a KSh 800M portfolio — 85% residential, 100% Nairobi. A Mombasa broker offers a 12-unit beachfront apartment building at KSh 180M, yielding 9.5% gross. The owner is intrigued — diversifies geography, adds tourism exposure — but nervous about distance-management.
+    narrative: `A Lake Zone gold producer holds a TZS 800M portfolio that is 100 percent gold, 100 percent Lake Zone. A broker offers a graphite prospect near Nachingwea in Lindi region — a different mineral, a different buyer base (battery-anode and refractory off-takers), and a different price cycle — at TZS 180M for the operating interest, with a modeled margin attractive on current flake-graphite prices. The owner is intrigued — it diversifies commodity and geography — but nervous about a mineral and a market he does not know, and about managing an asset 1,000 km away.
 
-Mr. Mwikila's take: geography diversification cuts portfolio volatility 20-30% if the assets are not correlated. Mombasa tourism correlates with coastal KSh/USD flows more than Nairobi office. Operational risk is higher — distance means reliance on on-site staff. A third-party manager at 8-10% of collections absorbs ~100bps of the yield.`,
+Mr. Mwikila's take: commodity-and-geography diversification can cut portfolio volatility 20-30 percent if gold and graphite prices are not correlated — and they largely are not. But operational risk is higher: a different flowsheet, a thinner local skills base, and distance management. A capable on-site team and a credible off-take for the flake size distribution are the make-or-break items, not the headline grade.`,
     dataTable: {
-      title: 'Portfolio rebalance math',
+      title: 'Diversification math',
       rows: [
-        { label: 'Current portfolio', value: 'KSh 800M, 100% Nairobi' },
-        { label: 'Mombasa target', value: 'KSh 180M, 9.5% gross' },
-        { label: 'Management fee', value: '8-10% of collections' },
-        { label: 'Net yield after fee', value: '~8.5%' },
+        { label: 'Current portfolio', value: 'TZS 800M, 100% gold / Lake Zone' },
+        { label: 'Graphite target', value: 'TZS 180M, Nachingwea' },
+        { label: 'Buyer base', value: 'Battery-anode + refractory off-takers' },
+        { label: 'Price correlation to gold', value: 'Low' },
       ],
     },
     decisionQuestion:
-      'Proceed, pass, or explore Coastal but on a different asset?',
+      'Proceed, pass, or explore graphite but via a different structure?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'How do you decide whether distance-management risk is worth the diversification benefit?',
+        question: 'How do you decide whether distance-and-flowsheet risk is worth the diversification benefit?',
       },
       {
         bloomLevel: 'evaluate',
@@ -695,107 +695,107 @@ Mr. Mwikila's take: geography diversification cuts portfolio volatility 20-30% i
       deliverable: 'Memo.',
       timeBoxMinutes: 45,
     },
-    discussionQuestions: ['Would your answer differ for a value-add vs stabilised coastal asset?'],
+    discussionQuestions: ['Would your answer differ for a development-stage vs producing graphite asset?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-28-anchor-tenant-financial-distress',
-    title: 'Anchor tenant showing financial distress',
+    id: 'cs-28-offtaker-financial-distress',
+    title: 'Anchor off-taker showing financial distress',
     wordCount: 250,
-    country: 'KE',
-    tags: ['anchor-tenant', 'distress', 'commercial'],
+    country: 'TZ',
+    tags: ['offtake', 'distress', 'commercial'],
     difficulty: 'advanced',
-    narrative: `A Westlands mixed-use building's ground-floor anchor is a fashion retailer with 3 years left on a 7-year lease at KSh 1.1M/month. Three pattern-breaks over the last 6 months: rent payments slipping from day 1 to days 8, 14, 21. Q3 sales (per the tenant's own reporting under the percentage-rent clause) down 30%. The tenant's listed parent in South Africa just cut its East African store count from 40 to 28.
+    narrative: `A producer's anchor off-taker — a regional buyer-exporter taking roughly TZS 1.1B of doré a month — shows three pattern-breaks over six months: settlement slipping from days 1 to 8 to 14 to 21; the buyer quietly trimming the parcel sizes it will pre-finance; and word that the buyer's bank cut its trade-finance line. The off-take has 3 years left.
 
-Mr. Mwikila's read: this is pre-default. Options are engage (negotiate temporary abatement tied to a cure plan), enforce (pressure full payment, accept possible default), or prepare (line up a backup anchor quietly). The cost of losing the anchor is 4-6 months vacancy and KSh 200-400k of TI on a replacement.`,
+Mr. Mwikila's read: this is pre-default on the buyer side. The producer's options are engage (negotiate a tighter settlement cadence and partial cash-on-delivery tied to a cure plan), enforce (demand cash-on-delivery and accept the buyer may walk), or prepare (quietly line up a backup buyer and a refiner-direct route). The cost of losing the anchor buyer is a 4-6 month throughput-to-sale gap and re-onboarding a new counterparty's chain-of-custody audit.`,
     dataTable: {
-      title: 'Anchor tenant distress signals',
+      title: 'Off-taker distress signals',
       rows: [
-        { label: 'Monthly rent', value: 'KSh 1.1M' },
-        { label: 'Lease remaining', value: '3 years' },
-        { label: 'Payment slippage', value: '1 → 8 → 14 → 21 days' },
-        { label: 'Q3 sales drop', value: '-30%' },
-        { label: 'Vacancy cost estimate', value: 'KSh 6M + TI' },
+        { label: 'Monthly off-take value', value: 'TZS 1.1B' },
+        { label: 'Off-take remaining', value: '3 years' },
+        { label: 'Settlement slippage', value: '1 → 8 → 14 → 21 days' },
+        { label: 'Pre-finance behaviour', value: 'Parcel sizes trimmed' },
+        { label: 'Switching cost estimate', value: '4-6 month sale gap + re-audit' },
       ],
     },
     decisionQuestion: 'What is your sequenced 30/60/90-day plan?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'What information is hidden in the payment-slippage pattern?',
+        question: 'What information is hidden in the settlement-slippage pattern?',
       },
       {
         bloomLevel: 'create',
-        question: 'Design the temporary abatement structure.',
+        question: 'Design the cash-on-delivery / partial-prepayment transition structure.',
       },
     ],
     activity: {
-      prompt: 'Draft the meeting agenda for the tenant conversation.',
+      prompt: 'Draft the meeting agenda for the off-taker conversation.',
       deliverable: 'Agenda.',
       timeBoxMinutes: 35,
     },
-    discussionQuestions: ['When is it right to pre-emptively replace an anchor before they default?'],
+    discussionQuestions: ['When is it right to pre-emptively switch buyers before the anchor defaults?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-29-sinking-fund-underfunded',
-    title: 'Sinking fund underfunded — 25-year-old block',
+    id: 'cs-29-rehabilitation-fund-underfunded',
+    title: 'Rehabilitation fund underfunded — 25-year-old operation',
     wordCount: 230,
     country: 'TZ',
-    tags: ['sinking-fund', 'capex', 'reserves'],
+    tags: ['rehabilitation', 'closure', 'reserves'],
     difficulty: 'intermediate',
-    narrative: `A 32-unit block in Mikocheni, built in 2001, has a sinking fund of TSh 8M. The 5-year capex plan calls for TSh 28M of work (roof TSh 14M in year 2, lifts TSh 9M in year 4, painting TSh 5M in year 3). Current service-charge collections can only fund a 10% sinking-fund contribution — about TSh 3.8M/year.
+    narrative: `A 25-year-old operation near Mikocheni-area workings holds a rehabilitation-and-closure fund of TZS 8M. The 5-year closure plan calls for TZS 28M of work (tailings capping TZS 14M in year 2, pit re-profiling TZS 9M in year 4, revegetation TZS 5M in year 3). Current cash flow can fund only about TZS 3.8M/year of closure provisioning.
 
-The owner asks: raise the service charge, special assessment, or stretch the capex schedule?`,
+The owner asks: raise the provisioning rate now, take a one-off top-up from this year's surplus, or stretch the closure schedule?`,
     dataTable: {
-      title: 'Sinking fund math',
+      title: 'Rehabilitation-fund math',
       rows: [
-        { label: 'Sinking fund balance', value: 'TSh 8M' },
-        { label: '5-yr capex plan', value: 'TSh 28M' },
-        { label: 'Annual contribution', value: 'TSh 3.8M' },
-        { label: 'Funding gap at Y5', value: 'TSh 1M (assuming on-schedule)' },
+        { label: 'Fund balance', value: 'TZS 8M' },
+        { label: '5-yr closure plan', value: 'TZS 28M' },
+        { label: 'Annual provisioning', value: 'TZS 3.8M' },
+        { label: 'Funding gap at Y5', value: 'TZS 1M (if on schedule)' },
       ],
     },
     decisionQuestion:
-      'Service-charge increase, special assessment, or capex stretch — and how do you explain to tenants?',
+      'Raise provisioning, take a one-off top-up, or stretch the closure schedule — and how do you justify it to the regulator?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why are special assessments the last resort?',
+        question: 'Why is under-provisioning closure a regulatory and balance-sheet risk, not just a timing question?',
       },
       {
         bloomLevel: 'create',
-        question: 'Design a 3-year ramp in service-charge contributions.',
+        question: 'Design a 3-year ramp in closure provisioning.',
       },
     ],
     activity: {
-      prompt: 'Write the service-charge-review letter to tenants.',
-      deliverable: 'Letter.',
+      prompt: 'Write the closure-provisioning plan to file with the regulator.',
+      deliverable: 'Plan note.',
       timeBoxMinutes: 30,
     },
-    discussionQuestions: ['Does your answer change if the building is due for sale in 3 years?'],
+    discussionQuestions: ['Does your answer change if the mine is due for sale in 3 years?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-30-dpa-subject-access-request',
-    title: 'DPA subject-access request from former tenant',
+    id: 'cs-30-dpa-subject-access-employee',
+    title: 'DPA subject-access request from a former mine employee',
     wordCount: 210,
-    country: 'KE',
+    country: 'TZ',
     tags: ['dpa', 'privacy', 'compliance'],
     difficulty: 'intermediate',
-    narrative: `A former tenant of a Nairobi 40-unit block filed a subject-access request under the Data Protection Act 2019 three months after moving out. She requests "all data held about me." The PM has: lease agreements (hers + co-tenant), KYC docs (her ID, her husband's ID, employer letter), rent ledger, complaint emails, maintenance case notes, move-out photos, CCTV footage references.
+    narrative: `A former gold-room operator at a Lake Zone mine files a personal-data subject-access request three months after leaving. He requests "all data held about me." The operator holds: his employment contract (and a co-signed indemnity), KYC and next-of-kin records (his ID, his spouse's ID, a guarantor letter), payroll and PAYE records, disciplinary and grievance notes, gold-room access logs, and CCTV-footage references from the gold room.
 
-Mr. Mwikila's checklist: 30 days to respond. Redact all third parties in joint documents (co-tenant, husband where they appear, maintenance contractor identities). CCTV footage is rarely included unless the subject specifically requested it. Format must be machine-readable.`,
+Mr. Mwikila's checklist: respond within the statutory window. Redact all third parties in joint documents (spouse, guarantor, co-workers and any investigation subjects who appear). Gold-room CCTV is rarely included unless specifically requested and is constrained by the security exemption. Provide the bundle in a usable format and log the disclosure.`,
     dataTable: {
       title: 'SAR response inventory',
       rows: [
-        { label: 'Response window', value: '30 days' },
-        { label: 'Data categories', value: '7 (lease, KYC, ledger, emails, maintenance, photos, CCTV)' },
-        { label: 'Redaction required', value: 'co-tenant, husband, third parties' },
-        { label: 'Penalty for non-compliance', value: 'up to KSh 5M' },
+        { label: 'Response window', value: 'Statutory deadline' },
+        { label: 'Data categories', value: '6 (contract, KYC, payroll, discipline, access logs, CCTV)' },
+        { label: 'Redaction required', value: 'spouse, guarantor, co-workers, investigation subjects' },
+        { label: 'Risk of non-compliance', value: 'Regulatory penalty' },
       ],
     },
-    decisionQuestion: 'What is the 30-day SAR response plan?',
+    decisionQuestion: 'What is the SAR response plan within the statutory window?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
@@ -811,69 +811,69 @@ Mr. Mwikila's checklist: 30 days to respond. Redact all third parties in joint d
       deliverable: 'Checklist + letter.',
       timeBoxMinutes: 40,
     },
-    discussionQuestions: ['How do you minimise the burden of SARs going forward?'],
+    discussionQuestions: ['How do you minimise the burden of employee SARs going forward?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-31-cam-dispute-office',
-    title: 'CAM reconciliation dispute with office tenant',
+    id: 'cs-31-jv-cost-recovery-dispute',
+    title: 'Cost-recovery true-up dispute with a JV partner',
     wordCount: 230,
-    country: 'KE',
-    tags: ['cam', 'commercial', 'reconciliation'],
+    country: 'TZ',
+    tags: ['joint-venture', 'cost-recovery', 'reconciliation'],
     difficulty: 'advanced',
-    narrative: `A Westlands office-building tenant disputes the KSh 1.3M year-end CAM true-up bill. The base-year OpEx (when the lease started in 2022) was KSh 95/sqft. The 2025 CAM came in at KSh 138/sqft. The tenant's audit rights permit a review, which they are now invoking.
+    narrative: `A junior partner in a Lake Zone mining joint venture disputes the operator's TZS 1.3 billion year-end cost-recovery true-up. The base-year operating cost (when the JV started in 2022) was modest; the 2025 recovered cost is far higher. The JV agreement gives the non-operator audit rights, which it is now invoking.
 
-Their findings: the landlord included a lobby-refurbishment capex line (KSh 4.2M) as OpEx, and did not gross up variable OpEx during a 76%-occupied year. Mr. Mwikila's read: the capex inclusion is a clear error; the gross-up is a defensible practice if the lease says so.`,
+Their findings: the operator booked a TZS 4.2 billion plant-expansion item (a clear capital cost) as a recoverable operating cost, and did not gross up shared overheads correctly during a year when the operation ran at 76 percent of plan. Mr. Mwikila's read: the capital-as-operating misclassification is a clear error; the overhead gross-up is a defensible practice if the JV agreement provides for it.`,
     dataTable: {
-      title: 'CAM dispute math',
+      title: 'Cost-recovery dispute math',
       rows: [
-        { label: 'Base-year OpEx', value: 'KSh 95/sqft' },
-        { label: '2025 OpEx', value: 'KSh 138/sqft' },
-        { label: 'Billed passthrough', value: 'KSh 1.3M' },
-        { label: 'Capex misposted', value: 'KSh 4.2M' },
-        { label: 'Building occupancy during year', value: '76%' },
+        { label: 'Base-year operating cost', value: 'Modest' },
+        { label: '2025 recovered cost', value: 'Far higher' },
+        { label: 'Billed true-up', value: 'TZS 1.3B' },
+        { label: 'Capital miscoded as operating', value: 'TZS 4.2B' },
+        { label: 'Operation vs plan during year', value: '76%' },
       ],
     },
-    decisionQuestion: 'What concessions do you make, what do you defend, and how do you preserve the relationship?',
+    decisionQuestion: 'What do you concede, what do you defend, and how do you preserve the JV relationship?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
-        question: 'Why is capex-as-OpEx a common but costly error?',
+        question: 'Why is capital-coded-as-operating a common but costly error in JV cost recovery?',
       },
       {
         bloomLevel: 'create',
-        question: 'Draft the revised CAM statement.',
+        question: 'Draft the revised cost-recovery statement.',
       },
     ],
     activity: {
-      prompt: 'Write the tenant response letter.',
-      deliverable: 'Letter + revised CAM table.',
+      prompt: 'Write the partner response letter.',
+      deliverable: 'Letter + revised cost-recovery table.',
       timeBoxMinutes: 45,
     },
-    discussionQuestions: ['How do you prevent this across the whole building?'],
+    discussionQuestions: ['How do you prevent this across the whole JV going forward?'],
   }),
 
   defineCaseStudy({
-    id: 'cs-32-tenant-harassment-complaint',
-    title: 'Tenant harassment complaint against a caretaker',
+    id: 'cs-32-workforce-harassment-complaint',
+    title: 'Workforce harassment complaint against a shift supervisor',
     wordCount: 220,
-    country: 'KE',
+    country: 'TZ',
     tags: ['harassment', 'hr', 'compliance'],
     difficulty: 'advanced',
-    narrative: `A single-tenant female resident in a 40-unit South C block lodged a written complaint alleging the caretaker made inappropriate comments and lingered outside her unit on two occasions. No physical contact; no witnesses; no CCTV on her corridor.
+    narrative: `A female plant operator at a Lake Zone mine lodged a written complaint alleging her shift supervisor made inappropriate comments and lingered near her station on two occasions. No physical contact; no witnesses; no CCTV covering that part of the plant floor.
 
-The caretaker has worked on the block for 6 years with no prior complaints, two positive tenant references, and a clean record. The tenant is a reliable payer, 2-year tenure, and explicitly asked for confidentiality and protection.`,
+The supervisor has worked at the operation for 6 years with no prior complaints, two positive references, and a clean record. The operator is reliable, 2 years on site, and explicitly asked for confidentiality and protection.`,
     dataTable: {
       title: 'Complaint investigation snapshot',
       rows: [
         { label: 'Allegations', value: '2 incidents' },
         { label: 'Physical contact', value: 'No' },
         { label: 'Witnesses / CCTV', value: 'None' },
-        { label: 'Caretaker tenure', value: '6 years' },
-        { label: 'Tenant tenure', value: '2 years' },
+        { label: 'Supervisor tenure', value: '6 years' },
+        { label: 'Operator tenure', value: '2 years' },
       ],
     },
-    decisionQuestion: 'What is the protocol — for the tenant, the caretaker, and the record?',
+    decisionQuestion: 'What is the protocol — for the operator, the supervisor, and the record?',
     socraticPath: [
       {
         bloomLevel: 'analyze',
@@ -881,7 +881,7 @@ The caretaker has worked on the block for 6 years with no prior complaints, two 
       },
       {
         bloomLevel: 'evaluate',
-        question: 'When do you escalate to the labour office or police?',
+        question: 'When do you escalate to the labour officer or police?',
       },
     ],
     activity: {
@@ -890,7 +890,7 @@ The caretaker has worked on the block for 6 years with no prior complaints, two 
       timeBoxMinutes: 50,
     },
     discussionQuestions: [
-      'What preventative measures would reduce recurrence risk across the portfolio?',
+      'What preventative measures would reduce recurrence risk across the workforce?',
     ],
   }),
 ] as const;
