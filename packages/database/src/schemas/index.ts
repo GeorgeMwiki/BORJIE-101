@@ -1294,3 +1294,13 @@ export * from './regulator-jurisdictions.schema.js';
 // Public-write surface bound to `POST /api/v1/marketing/pilot-application`,
 // SUPER_ADMIN-read via the `pilot_app_select_super_admin` RLS policy.
 export * from './marketing-pilot-applications.schema.js';
+
+// Wave ROYALTY-DRAFT — `royalty_return_drafts` (migration 0159). The
+// backing table for the confirm-required, NON-MONEY `draft_royalty_return`
+// chat verb (sibling of draft_payroll_run / payroll_runs draft, 0134 §4).
+// NO posted money / ledger column by design — gross_value / royalty_amount
+// are filled by the owner in the royalty surface, NEVER from chat, and the
+// royalty PAYMENT posts via LedgerService.post() on a separate four-eye flow
+// (CLAUDE.md hard rule). Consumed by the action-executor
+// handlers/royalty-draft.ts (draft_royalty_return).
+export * from './royalty-return-drafts.schema.js';
