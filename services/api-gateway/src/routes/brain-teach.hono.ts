@@ -105,6 +105,12 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+import type { ScopeContext } from '@borjie/central-intelligence';
+// Auto-authorized safety gate — validate the LLM's <auto_authorized> tag
+// against the real policy gate + inviolable rules before presenting it as
+// an authorization, and append a hash-chained audit row when authorized.
+import { decideAutoAuthorization } from '../services/auto-authorize-gate/index.js';
+import { appendAutoAuthorizedAudit } from '../services/auto-authorize-gate/audit.js';
 import { renderScalePersonaSection } from '../services/brain/scale-persona.js';
 import { lookupTenantScaleTier } from '../services/brain/tenant-scale-lookup.js';
 import { resolveJurisdictionForPrompt } from '../services/brain/jurisdiction-prompt.js';
@@ -978,17 +984,78 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
-    // Auto-authorized companion — fired BEFORE the audit chain is
-    // written. The FE renders the rationale without buttons; the server
-    // is responsible for executing the action and writing the audit row.
+    // Auto-authorized companion — the LLM emitted an <auto_authorized>
+    // tag. We MUST NOT present that unvalidated tag as an authorization.
+    // Validate the proposed action against the real policy gate +
+    // inviolable rules + HIGH-risk prefixes first:
+    //   - authorized  → emit the `auto_authorized` frame (as before) AND
+    //                   append a hash-chained, append-only audit row.
+    //   - denied / error / HIGH-risk → downgrade to a NON-authorized
+    //                   suggestion (`authorized:false` + `reason`) so the
+    //                   FE shows "suggested — needs confirmation".
+    // Fail CLOSED on any gate error (the gate returns authorized:false).
+    let autoAuthOutcome: 'authorized' | 'suggested' | null = null;
     if (autoAuthResult.autoAuthorized) {
-      await stream.writeSSE({
-        event: 'auto_authorized',
-        data: JSON.stringify({
-          payload: autoAuthResult.autoAuthorized,
-          at: new Date().toISOString(),
-        }),
-      });
+      const payload = autoAuthResult.autoAuthorized;
+      const scope: ScopeContext = {
+        kind: 'tenant',
+        tenantId,
+        actorUserId: userId,
+        roles: [...auth.actor.roles],
+        personaId: 'mr-mwikila-head',
+      };
+      const decision = decideAutoAuthorization(
+        payload.action,
+        payload.rationale,
+        scope,
+      );
+
+      if (decision.authorized) {
+        // Append the audit row BEFORE the frame leaves the gateway so the
+        // authorization is durably recorded the instant the FE sees it.
+        await appendAutoAuthorizedAudit({
+          db: memoryDb,
+          tenantId,
+          userId,
+          action: payload.action,
+          rationale: payload.rationale,
+          payload: payload.payload,
+          modelVersion: winningProvider,
+          logger,
+        });
+        autoAuthOutcome = 'authorized';
+        await stream.writeSSE({
+          event: 'auto_authorized',
+          data: JSON.stringify({
+            payload,
+            authorized: true,
+            at: new Date().toISOString(),
+          }),
+        });
+      } else {
+        // Downgrade: route the same payload through the auto_authorized
+        // frame but flagged NOT authorized, with the deny reason. The FE
+        // renders this as a confirmation chip, never an auto-approval.
+        autoAuthOutcome = 'suggested';
+        logger.warn(
+          {
+            wiring: 'auto-authorized-gate',
+            action: payload.action,
+            reason: decision.reason,
+            tenantId,
+          },
+          'auto_authorized: downgraded to suggestion (not authorized)',
+        );
+        await stream.writeSSE({
+          event: 'auto_authorized',
+          data: JSON.stringify({
+            payload,
+            authorized: false,
+            reason: decision.reason,
+            at: new Date().toISOString(),
+          }),
+        });
+      }
     }
 
     // Primary ui_block (teaching) — emit after text so the renderer can
@@ -1135,7 +1202,12 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         inline_blocks: inlineResult.blocks.length,
         inline_block_types: inlineResult.blocks.map((b) => b.type),
         auto_authorized: autoAuthResult.autoAuthorized
-          ? autoAuthResult.autoAuthorized.action
+          ? {
+              action: autoAuthResult.autoAuthorized.action,
+              // 'authorized' when the policy gate + inviolable rules
+              // passed; 'suggested' when downgraded to needs-confirmation.
+              outcome: autoAuthOutcome,
+            }
           : null,
         spawn_tabs: spawnResult.batch.tabs.length,
         tab_tags: {

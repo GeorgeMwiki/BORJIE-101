@@ -130,6 +130,11 @@ import { meTenantsRouter } from './routes/me-tenants.hono';
 // JA-7 — owner-facing jurisdiction snapshot endpoint
 // (GET /me/jurisdiction) backing the settings/jurisdiction page.
 import { meJurisdictionRouter } from './routes/me-jurisdiction.hono';
+// Progressive-disclosure surfaces — serve the two previously-dark
+// super-powers (MasteryGate + LearnedShortcutsPanel) from the caller's
+// user_action_tracker rows (GET /me/mastery, GET /me/shortcuts).
+import { meMasteryRouter } from './routes/me-mastery.hono';
+import { meShortcutsRouter } from './routes/me-shortcuts.hono';
 // Bidirectional notification receiver loop — push token registry
 // (GET/POST /me/device-tokens, DELETE /me/device-tokens/:id).
 // Mobile apps call this on successful login so the dispatcher can
@@ -1491,6 +1496,9 @@ api.route('/owner/finance', pnlTableRouter);
 api.route('/me/tenants', meTenantsRouter);
 // JA-7 — owner-facing jurisdiction snapshot endpoint.
 api.route('/me/jurisdiction', meJurisdictionRouter);
+// Progressive-disclosure: mastery score + ranked learned shortcuts.
+api.route('/me/mastery', meMasteryRouter);
+api.route('/me/shortcuts', meShortcutsRouter);
 // Bidirectional notification receiver loop — push token registry.
 api.route('/me/device-tokens', meDeviceTokensRouter);
 api.route('/workforce', workforceClockInRouter);
