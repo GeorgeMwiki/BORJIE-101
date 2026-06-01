@@ -145,6 +145,9 @@ export interface CorpusEvidence {
   readonly url: string | null;
 }
 
+/** Max chunks injected into the generation context (top-K cap). */
+export const CORPUS_TOPK_DEFAULT = 5;
+
 interface DrizzleSelector {
   select: (cols: Record<string, unknown>) => {
     from: (table: unknown) => {
@@ -192,25 +195,50 @@ export async function findCorpusEvidence(args: {
   readonly tenantId: string | null;
   readonly message: string;
 }): Promise<CorpusEvidence | null> {
+  const top = await findCorpusEvidenceTopK({ ...args, k: 1 });
+  return top[0] ?? null;
+}
+
+/**
+ * Retrieve the top-K corpus chunks most-relevant to the message, in
+ * relevance order (best first). Used to GROUND generation — the chunk
+ * TEXT (not just the id) is injected into the Master Brain + junior
+ * synthesizer prompts. Returns `[]` when the DB is unavailable / no rows
+ * match, so callers degrade to the un-grounded path. Tenant-scoped:
+ * global (`tenant_id IS NULL`) chunks AND the caller's private chunks.
+ */
+export async function findCorpusEvidenceTopK(args: {
+  readonly db: unknown;
+  readonly tenantId: string | null;
+  readonly message: string;
+  readonly k?: number;
+}): Promise<ReadonlyArray<CorpusEvidence>> {
   const db = args.db as DrizzleSelector | null;
-  if (!db) return null;
+  if (!db) return [];
+  const k = clampTopK(args.k);
 
   // Path 1: pgvector ANN via OpenAI embedding.
   const embedding = await embedQueryViaOpenAI(args.message);
   if (embedding && typeof db.execute === 'function') {
-    const annHit = await annSearch(db, args.tenantId, embedding);
-    if (annHit) return annHit;
+    const annHits = await annSearch(db, args.tenantId, embedding, k);
+    if (annHits.length > 0) return annHits;
   }
 
   // Path 2: ILIKE keyword fallback.
-  return ilikeSearch(db, args.tenantId, args.message);
+  return ilikeSearch(db, args.tenantId, args.message, k);
+}
+
+function clampTopK(k: number | undefined): number {
+  if (typeof k !== 'number' || !Number.isFinite(k) || k <= 0) return CORPUS_TOPK_DEFAULT;
+  return Math.min(Math.floor(k), 20);
 }
 
 async function annSearch(
   db: DrizzleSelector,
   tenantId: string | null,
   embedding: ReadonlyArray<number>,
-): Promise<CorpusEvidence | null> {
+  limit: number,
+): Promise<ReadonlyArray<CorpusEvidence>> {
   try {
     const vecLiteral = `[${embedding.join(',')}]`;
     const tenantSql = tenantId
@@ -222,26 +250,24 @@ async function annSearch(
        WHERE ${tenantSql}
          AND embedding IS NOT NULL
        ORDER BY embedding <-> ${vecLiteral}::vector
-       LIMIT 5
+       LIMIT ${limit}
     `;
     const raw: unknown = await db.execute!(queryText);
     const rows: ReadonlyArray<Record<string, unknown>> = Array.isArray(raw)
       ? (raw as ReadonlyArray<Record<string, unknown>>)
       : (((raw as { rows?: ReadonlyArray<Record<string, unknown>> })?.rows) ?? []);
-    const top = rows[0];
-    if (!top) return null;
-    return {
-      id: String(top.id ?? ''),
-      text: String(top.chunk_text ?? top.text ?? ''),
-      sourceFile: String(top.source_file ?? ''),
-      url: typeof top.url === 'string' ? top.url : null,
-    };
+    return rows.map((row) => ({
+      id: String(row.id ?? ''),
+      text: String(row.chunk_text ?? row.text ?? ''),
+      sourceFile: String(row.source_file ?? ''),
+      url: typeof row.url === 'string' ? row.url : null,
+    }));
   } catch (err) {
     logger.warn(
       { err },
       `chat-corpus-evidence: ANN query failed — ${err instanceof Error ? err.message : String(err)}`,
     );
-    return null;
+    return [];
   }
 }
 
@@ -249,7 +275,8 @@ async function ilikeSearch(
   db: DrizzleSelector,
   tenantId: string | null,
   message: string,
-): Promise<CorpusEvidence | null> {
+  limit: number,
+): Promise<ReadonlyArray<CorpusEvidence>> {
   const keywords = pickKeywords(message);
   const keywordPredicates = keywords.map((k) =>
     ilike(intelligenceCorpusChunks.text, `%${k}%`),
@@ -270,16 +297,14 @@ async function ilikeSearch(
       .from(intelligenceCorpusChunks)
       .where(wherePred)
       .orderBy(desc(intelligenceCorpusChunks.ingestedAt))
-      .limit(1)) as ReadonlyArray<CorpusRow>;
-    const top = rows[0];
-    if (!top) return null;
-    return {
-      id: top.id,
-      text: top.text,
-      sourceFile: top.sourceFile,
-      url: top.url,
-    };
+      .limit(limit)) as ReadonlyArray<CorpusRow>;
+    return rows.map((row) => ({
+      id: row.id,
+      text: row.text,
+      sourceFile: row.sourceFile,
+      url: row.url,
+    }));
   } catch {
-    return null;
+    return [];
   }
 }

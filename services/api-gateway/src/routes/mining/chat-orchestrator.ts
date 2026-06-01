@@ -32,8 +32,14 @@ import {
   lazyClaudeClient,
   type DispatchPlanStep,
   type JuniorExecutionResult,
+  type RetrievedContextChunk,
 } from '@borjie/ai-copilot';
-import { findCorpusEvidence, type CorpusEvidence } from './chat-corpus-evidence';
+import { createPiiTokeniser } from '@borjie/document-ai';
+import {
+  CORPUS_TOPK_DEFAULT,
+  findCorpusEvidenceTopK,
+  type CorpusEvidence,
+} from './chat-corpus-evidence';
 
 // ─────────────────────────────────────────────────────────────────────
 // Owner-facing modes the chat surface accepts
@@ -134,11 +140,20 @@ export async function* runChatOrchestrator(
     return;
   }
 
-  const corpus = await findCorpusEvidence({
+  // ── RAG retrieval + grounding ────────────────────────────────────
+  // Pull the top-K corpus chunks, PII-tokenise their TEXT (the LLM never
+  // sees raw national IDs / phones / GPS — TZ DPA s.42), then INJECT the
+  // tokenised passages into BOTH the Master Brain and the per-junior
+  // synthesizer so the answer is GROUNDED in the corpus (not just citing
+  // ids). Empty retrieval ⇒ `retrievedContext` is [] and the prompts are
+  // byte-identical to the un-grounded path.
+  const corpusChunks = await findCorpusEvidenceTopK({
     db: input.db,
     tenantId: input.tenantId,
     message: input.message,
+    k: CORPUS_TOPK_DEFAULT,
   });
+  const retrievedContext = tokeniseRetrievedContext(corpusChunks);
 
   // ── Master Brain ─────────────────────────────────────────────────
   let brainOut;
@@ -150,6 +165,7 @@ export async function* runChatOrchestrator(
       query: input.message,
       language: input.language === 'sw' ? 'sw' : 'en',
       context: { sessionId: input.sessionId ?? null, ownerMode: input.mode },
+      retrievedContext: [...retrievedContext],
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -192,6 +208,7 @@ export async function* runChatOrchestrator(
       chat_message: input.message,
       mode: input.mode,
       lmbm_context: { sessionId: input.sessionId ?? null, ownerMode: input.mode },
+      retrieved_context: retrievedContext,
     },
     claude,
     parallel: false,
@@ -259,7 +276,10 @@ export async function* runChatOrchestrator(
   }
 
   // ── Merge evidence + emit final message_chunk ────────────────────
-  const merged = mergeAllEvidence(brainOut.evidence_ids, results, corpus);
+  // Cite EVERY grounded chunk id (the answer is grounded in their text)
+  // plus the brain's + each junior's own evidence — the union the Auditor
+  // verifies against.
+  const merged = mergeAllEvidence(brainOut.evidence_ids, results, corpusChunks);
   yield {
     type: 'message_chunk',
     text: brainOut.one_line_answer,
@@ -273,15 +293,36 @@ export async function* runChatOrchestrator(
 // Helpers
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * PII-tokenise the retrieved corpus passages before any LLM egress. One
+ * tokeniser instance is shared across all chunks so the token numbering is
+ * globally stable (chunk A's `[NIDA_1]` never collides with chunk B's).
+ * The raw values never leave the process; the model reasons over tokens.
+ */
+function tokeniseRetrievedContext(
+  chunks: ReadonlyArray<CorpusEvidence>,
+): ReadonlyArray<RetrievedContextChunk> {
+  if (chunks.length === 0) return [];
+  const tokeniser = createPiiTokeniser();
+  const out: RetrievedContextChunk[] = [];
+  for (const chunk of chunks) {
+    if (!chunk.id || chunk.text.length === 0) continue;
+    out.push({ id: chunk.id, text: tokeniser.tokenise(chunk.text) });
+  }
+  return out;
+}
+
 function mergeAllEvidence(
   fromBrain: ReadonlyArray<string>,
   fromJuniors: ReadonlyArray<JuniorExecutionResult>,
-  fromCorpus: CorpusEvidence | null,
+  fromCorpus: ReadonlyArray<CorpusEvidence>,
 ): ReadonlyArray<string> {
   const seen = new Set<string>(fromBrain);
   for (const r of fromJuniors) {
     for (const id of r.evidence_ids) seen.add(id);
   }
-  if (fromCorpus) seen.add(fromCorpus.id);
+  for (const c of fromCorpus) {
+    if (c.id) seen.add(c.id);
+  }
   return Array.from(seen);
 }

@@ -181,10 +181,30 @@ export {
   type DataOnboardingAuditScope,
 } from './audit/audit-chain-link.js';
 
+// ── OCR → entity bridge (Stage 0) ────────────────────────────────────
+export {
+  ocrExtractionToTabularSample,
+  type OcrToSampleArgs,
+} from './ocr/ocr-extraction-bridge.js';
+
 // ── Recipes ──────────────────────────────────────────────────────────
-export { workerOnboardingRecipe } from './recipes/worker-onboarding.js';
-export { parcelOnboardingRecipe } from './recipes/parcel-onboarding.js';
-export { buyerOnboardingRecipe } from './recipes/buyer-onboarding.js';
+export {
+  workerOnboardingRecipe,
+  createWorkerOnboardingRecipe,
+} from './recipes/worker-onboarding.js';
+export {
+  parcelOnboardingRecipe,
+  createParcelOnboardingRecipe,
+} from './recipes/parcel-onboarding.js';
+export {
+  buyerOnboardingRecipe,
+  createBuyerOnboardingRecipe,
+} from './recipes/buyer-onboarding.js';
+export {
+  buildPersistFn,
+  type RecipePersistDeps,
+  type RecipePersistFn,
+} from './recipes/persist-fn.js';
 export {
   BUILT_IN_RECIPES,
   DataOnboardingRecipeRegistry,

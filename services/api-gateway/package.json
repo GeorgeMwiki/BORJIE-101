@@ -49,6 +49,7 @@
     "@borjie/compliance-plugins": "workspace:*",
     "@borjie/conformal-calibration-online": "workspace:*",
     "@borjie/connectors": "workspace:*",
+    "@borjie/data-onboarding": "workspace:*",
     "@borjie/database": "workspace:*",
     "@borjie/email-templates": "workspace:*",
     "@borjie/translation": "workspace:*",

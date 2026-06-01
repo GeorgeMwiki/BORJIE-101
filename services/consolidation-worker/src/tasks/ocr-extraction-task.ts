@@ -71,6 +71,7 @@
  *     report. NOTHING here fabricates extracted fields.
  */
 
+import { createHash } from 'node:crypto';
 import { logger } from '../logger.js';
 import {
   withWorkerTenantContext,
@@ -157,12 +158,31 @@ export interface BrainExtractPort {
   }): Promise<ExtractionOutcome>;
 }
 
+/**
+ * Embeds a chunk of document text into a 1024-d vector to match the
+ * `intelligence_corpus_chunks.embedding` column. Reuse the existing
+ * `createOpenAIEmbedder` (text-embedding-3-large, dimensions: 1024) from
+ * `./borjie-corpus-adapters.ts`. Optional: when absent the task skips the
+ * corpus-indexing step (extraction still succeeds) and logs why, mirroring
+ * the degraded-adapter philosophy — never a silent stub.
+ */
+export interface EmbedPort {
+  embed(text: string): Promise<ReadonlyArray<number>>;
+}
+
 /** Per-document deps bundle. */
 export interface OcrExtractionDeps {
   readonly db: OcrExtractionDb;
   readonly storage: StorageFetchPort;
   readonly ocr: OcrPort;
   readonly extractor: BrainExtractPort;
+  /**
+   * Optional embedder. When provided, the extracted FULL text is chunked +
+   * embedded into `intelligence_corpus_chunks` (tenant-scoped) and linked
+   * via `document_corpus_links`, turning the upload into reusable retrieval
+   * knowledge. When absent, corpus indexing is skipped.
+   */
+  readonly embed?: EmbedPort;
   /** Stable provider tag for the ocr_extractions.ocr_provider column. */
   readonly providerTag?: string;
 }
@@ -183,6 +203,8 @@ export interface OcrExtractionResult {
   readonly overallConfidence: number;
   readonly producedBy: string | null;
   readonly brainAugmented: boolean;
+  /** Count of corpus chunks embedded + linked for this document (0 if skipped). */
+  readonly corpusChunksIndexed: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -220,6 +242,7 @@ export async function runOcrExtractionForDocument(
     overallConfidence: 0,
     producedBy: null,
     brainAugmented: false,
+    corpusChunksIndexed: 0,
   } as const;
 
   try {
@@ -285,6 +308,12 @@ export async function runOcrExtractionForDocument(
       outcome,
     });
 
+    // 5) Index the FULL text into the reusable knowledge corpus: chunk +
+    // embed into intelligence_corpus_chunks (tenant-scoped) and link via
+    // document_corpus_links. Best-effort — the extraction row is already
+    // durable, so an indexing failure logs but never flips the status.
+    const corpusChunksIndexed = await indexDocumentCorpus(deps, doc, fullText);
+
     const fieldCount = Object.keys(outcome.extractedFields).length;
     logger.info('ocr-extraction: document extracted', {
       tenantId: doc.tenantId,
@@ -295,6 +324,7 @@ export async function runOcrExtractionForDocument(
       brainAugmented: outcome.brainAugmented,
       fieldCount,
       overallConfidence: outcome.overallConfidence,
+      corpusChunksIndexed,
     });
 
     return {
@@ -306,6 +336,7 @@ export async function runOcrExtractionForDocument(
       overallConfidence: outcome.overallConfidence,
       producedBy: ocr.producedBy,
       brainAugmented: outcome.brainAugmented,
+      corpusChunksIndexed,
     };
   } catch (err) {
     logger.error('ocr-extraction: document failed', {
@@ -526,6 +557,251 @@ async function runAuditAppend(
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Corpus indexing — turn the extracted FULL text into reusable retrieval
+// knowledge: chunk → embed (1024-d) → upsert intelligence_corpus_chunks
+// (tenant-scoped, NEVER tenant_id NULL — that is the global ground-truth
+// corpus) → link via document_corpus_links.
+//
+// Idempotency: chunk identity is deterministic on (documentId, chunkIndex),
+// so re-running an extraction overwrites the SAME rows (ON CONFLICT DO
+// UPDATE) and re-inserts the SAME links (ON CONFLICT DO NOTHING) — never a
+// duplicate. The natural `(source_file, section)` UNIQUE on the corpus table
+// and `(document_id, chunk_id)` UNIQUE on the link table back this.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Max chunks indexed per document — bounds embed cost on huge scans. */
+const MAX_CORPUS_CHUNKS_PER_DOC = 200;
+/** Target chunk size (chars) and minimum to bother embedding. */
+const CORPUS_CHUNK_CHARS = 1_200;
+const CORPUS_CHUNK_MIN_CHARS = 64;
+
+/**
+ * The `source_file` value used for a document's private chunks. Stable per
+ * document so the `(source_file, section)` upsert key is idempotent and the
+ * chunks are easy to attribute back to their upload.
+ */
+function corpusSourceFile(documentId: string): string {
+  return `doc:${documentId}`;
+}
+
+async function indexDocumentCorpus(
+  deps: OcrExtractionDeps,
+  doc: ReadyDocument,
+  fullText: string,
+): Promise<number> {
+  if (!deps.embed) {
+    logger.warn('ocr-extraction: no embedder — skipping corpus indexing', {
+      tenantId: doc.tenantId,
+      documentId: doc.documentId,
+    });
+    return 0;
+  }
+
+  const chunks = chunkDocumentText(fullText);
+  if (chunks.length === 0) return 0;
+
+  try {
+    // Embed OUTSIDE the txn (network I/O must not hold a DB transaction
+    // open). A single embed failure aborts indexing for this doc but the
+    // extraction is already durable.
+    const embedded: ReadonlyArray<{
+      readonly chunkId: string;
+      readonly chunkIndex: number;
+      readonly section: string;
+      readonly text: string;
+      readonly embedding: ReadonlyArray<number>;
+    }> = await Promise.all(
+      chunks.map(async (chunk) => ({
+        chunkId: deterministicChunkId(doc.documentId, chunk.index),
+        chunkIndex: chunk.index,
+        section: `chunk-${chunk.index}`,
+        text: chunk.text,
+        embedding: await deps.embed!.embed(chunk.text),
+      })),
+    );
+
+    const sourceFile = corpusSourceFile(doc.documentId);
+    const language = asLanguage(doc);
+    const now = new Date();
+
+    await withWorkerTenantContext(deps.db, doc.tenantId, async () => {
+      for (const row of embedded) {
+        await runUpsertCorpusChunk(deps.db, {
+          chunkId: row.chunkId,
+          tenantId: doc.tenantId,
+          sourceFile,
+          section: row.section,
+          text: row.text,
+          embedding: row.embedding,
+          language,
+          documentId: doc.documentId,
+          ingestedAt: now,
+        });
+        await runInsertCorpusLink(deps.db, {
+          tenantId: doc.tenantId,
+          documentId: doc.documentId,
+          chunkId: row.chunkId,
+          chunkIndex: row.chunkIndex,
+          createdAt: now,
+        });
+      }
+    });
+
+    logger.info('ocr-extraction: corpus indexed', {
+      tenantId: doc.tenantId,
+      documentId: doc.documentId,
+      chunks: embedded.length,
+    });
+    return embedded.length;
+  } catch (err) {
+    logger.warn('ocr-extraction: corpus indexing failed', {
+      tenantId: doc.tenantId,
+      documentId: doc.documentId,
+      reason: messageOf(err),
+    });
+    return 0;
+  }
+}
+
+/**
+ * Split full document text into bounded, paragraph-aware chunks. Greedily
+ * packs paragraphs up to `CORPUS_CHUNK_CHARS`; an oversized paragraph is
+ * hard-split. Chunks shorter than `CORPUS_CHUNK_MIN_CHARS` are dropped
+ * unless they are the only chunk (so a short doc still indexes one chunk).
+ */
+export function chunkDocumentText(text: string): ReadonlyArray<{
+  readonly index: number;
+  readonly text: string;
+}> {
+  const normalised = text.replace(/\r\n/g, '\n').trim();
+  if (normalised.length === 0) return [];
+
+  const paragraphs = normalised.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
+  const packed: string[] = [];
+  let current = '';
+  for (const para of paragraphs.length > 0 ? paragraphs : [normalised]) {
+    for (const piece of splitOversized(para, CORPUS_CHUNK_CHARS)) {
+      if (current.length === 0) {
+        current = piece;
+      } else if (current.length + 1 + piece.length <= CORPUS_CHUNK_CHARS) {
+        current = `${current}\n${piece}`;
+      } else {
+        packed.push(current);
+        current = piece;
+      }
+    }
+  }
+  if (current.length > 0) packed.push(current);
+
+  const kept = packed.filter((c) => c.length >= CORPUS_CHUNK_MIN_CHARS);
+  const effective = kept.length > 0 ? kept : packed.slice(0, 1);
+  return effective
+    .slice(0, MAX_CORPUS_CHUNKS_PER_DOC)
+    .map((chunk, index) => ({ index, text: chunk }));
+}
+
+/** Hard-split a single paragraph that exceeds `size` into ≤size pieces. */
+function splitOversized(paragraph: string, size: number): ReadonlyArray<string> {
+  if (paragraph.length <= size) return [paragraph];
+  const out: string[] = [];
+  for (let i = 0; i < paragraph.length; i += size) {
+    out.push(paragraph.slice(i, i + size));
+  }
+  return out;
+}
+
+/**
+ * Deterministic, stable chunk id (text PK on intelligence_corpus_chunks).
+ * Derived from `(documentId, chunkIndex)` so a re-extraction overwrites the
+ * same rows rather than duplicating. Hashed so it is opaque + collision-safe
+ * and not directly user-controlled.
+ */
+function deterministicChunkId(documentId: string, chunkIndex: number): string {
+  return sha256Hex(`doc-chunk::${documentId}::${chunkIndex}`).slice(0, 32);
+}
+
+function asLanguage(doc: ReadyDocument): string {
+  // Best-effort: the OCR result may carry a dominant language, but the doc
+  // metadata here does not — default to the corpus column default.
+  void doc;
+  return 'en';
+}
+
+async function runUpsertCorpusChunk(
+  db: OcrExtractionDb,
+  v: {
+    readonly chunkId: string;
+    readonly tenantId: string;
+    readonly sourceFile: string;
+    readonly section: string;
+    readonly text: string;
+    readonly embedding: ReadonlyArray<number>;
+    readonly language: string;
+    readonly documentId: string;
+    readonly ingestedAt: Date;
+  },
+): Promise<void> {
+  const sql = await sqlTag();
+  const vectorLiteral = `[${v.embedding.join(',')}]`;
+  const metadata = JSON.stringify({ document_upload_id: v.documentId, source: 'ocr-extraction' });
+  // ON CONFLICT on the natural (source_file, section) identity so a re-run
+  // overwrites content + embedding in place (idempotent). tenant_id is set
+  // to the document's tenant — NEVER NULL (that is reserved for the global
+  // ground-truth corpus, per the Borjie hard rule).
+  await db.execute(sql`
+    INSERT INTO intelligence_corpus_chunks
+      (id, tenant_id, source_file, section, text, embedding, language,
+       metadata, ingested_at)
+    VALUES (
+      ${v.chunkId},
+      ${v.tenantId},
+      ${v.sourceFile},
+      ${v.section},
+      ${v.text},
+      ${vectorLiteral}::vector,
+      ${v.language},
+      ${metadata}::jsonb,
+      ${v.ingestedAt.toISOString()}::timestamptz
+    )
+    ON CONFLICT (source_file, section) DO UPDATE
+      SET text = EXCLUDED.text,
+          embedding = EXCLUDED.embedding,
+          tenant_id = EXCLUDED.tenant_id,
+          language = EXCLUDED.language,
+          metadata = EXCLUDED.metadata,
+          ingested_at = EXCLUDED.ingested_at
+  `);
+}
+
+async function runInsertCorpusLink(
+  db: OcrExtractionDb,
+  v: {
+    readonly tenantId: string;
+    readonly documentId: string;
+    readonly chunkId: string;
+    readonly chunkIndex: number;
+    readonly createdAt: Date;
+  },
+): Promise<void> {
+  const sql = await sqlTag();
+  // ON CONFLICT on the (document_id, chunk_id) UNIQUE so re-runs do not
+  // duplicate the link row.
+  await db.execute(sql`
+    INSERT INTO document_corpus_links
+      (id, tenant_id, document_id, chunk_id, chunk_index, created_at)
+    VALUES (
+      ${randomUuid()},
+      ${v.tenantId},
+      ${v.documentId},
+      ${v.chunkId},
+      ${v.chunkIndex},
+      ${v.createdAt.toISOString()}::timestamptz
+    )
+    ON CONFLICT (document_id, chunk_id) DO NOTHING
+  `);
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Poll: select ready documents lacking an async OCR extraction and run
 // the step for each. The trigger when `ingestion_status` flips to `ready`.
 //
@@ -652,9 +928,48 @@ export interface GatewayOcrAdapters {
   readonly storage: StorageFetchPort;
   readonly ocr: OcrPort;
   readonly extractor: BrainExtractPort;
+  /** Optional embedder; when absent the supervisor falls back to its own. */
+  readonly embed?: EmbedPort;
   readonly providerTag?: string;
   /** Precise list of what is unwired (missing keys / endpoints / bucket). */
   readonly runtimeWarnings: ReadonlyArray<string>;
+}
+
+/**
+ * Resolve the corpus embedder for the supervisor poll. Reuses the existing
+ * `createOpenAIEmbedder` (text-embedding-3-large @ 1024-d, matching the
+ * `intelligence_corpus_chunks.embedding` column) from
+ * `./borjie-corpus-adapters.ts`. Returns `null` when `OPENAI_API_KEY` is
+ * unset so corpus indexing is cleanly skipped — never a zero-vector stub in
+ * the retrieval path (the stub embedder is for the ingest dry-run only).
+ */
+export async function resolveDefaultEmbedder(): Promise<EmbedPort | null> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    logger.warn(
+      'ocr-extraction: OPENAI_API_KEY unset — corpus indexing disabled for this poll',
+    );
+    return null;
+  }
+  try {
+    const mod = (await import('./borjie-corpus-adapters.js')) as {
+      createOpenAIEmbedder?: (config: {
+        apiKey: string;
+        baseUrl?: string;
+      }) => EmbedPort;
+    };
+    if (typeof mod.createOpenAIEmbedder !== 'function') return null;
+    const baseUrl = process.env.OPENAI_BASE_URL?.trim();
+    return mod.createOpenAIEmbedder({
+      apiKey,
+      ...(baseUrl ? { baseUrl } : {}),
+    });
+  } catch (err) {
+    logger.warn('ocr-extraction: embedder resolve failed — corpus indexing disabled', {
+      reason: messageOf(err),
+    });
+    return null;
+  }
 }
 
 export async function resolveGatewayOcrAdapters(): Promise<GatewayOcrAdapters | null> {
@@ -704,11 +1019,13 @@ export async function runOcrExtractionPollWithGatewayAdapters(args: {
       runtimeWarnings: adapters.runtimeWarnings,
     });
   }
+  const embed = adapters.embed ?? (await resolveDefaultEmbedder());
   const deps: OcrExtractionDeps = {
     db: args.db,
     storage: adapters.storage,
     ocr: adapters.ocr,
     extractor: adapters.extractor,
+    ...(embed ? { embed } : {}),
     ...(adapters.providerTag ? { providerTag: adapters.providerTag } : {}),
   };
   return pollAndRunOcrExtractions(deps, {
@@ -765,6 +1082,10 @@ function rowsOf(result: unknown): ReadonlyArray<Record<string, unknown>> {
 function asString(v: unknown): string | undefined {
   if (typeof v === 'string' && v.length > 0) return v;
   return undefined;
+}
+
+function sha256Hex(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
 }
 
 function messageOf(error: unknown): string {

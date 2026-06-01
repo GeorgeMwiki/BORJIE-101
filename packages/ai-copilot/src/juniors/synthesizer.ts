@@ -24,6 +24,10 @@ import {
   type ClaudeClient,
   type JuniorLogger,
 } from './_shared.js';
+import {
+  formatRetrievedContextBlock,
+  type RetrievedContextChunk,
+} from './master-brain.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Types
@@ -35,6 +39,13 @@ export interface SynthesisContext {
   readonly mode: string;
   readonly tenantId: string;
   readonly lmbm_context: Readonly<Record<string, unknown>>;
+  /**
+   * Top-K retrieved passages (already PII-tokenised by the caller). When
+   * present they are injected as a "Retrieved context" block so the junior
+   * input is synthesised against real corpus evidence. Empty/absent ⇒ the
+   * prompt is byte-identical to the un-grounded path.
+   */
+  readonly retrieved_context?: ReadonlyArray<RetrievedContextChunk>;
 }
 
 export interface SynthesisSuccess<T> {
@@ -98,16 +109,18 @@ function replacer(_key: string, value: unknown): unknown {
   return value;
 }
 
-function buildUserPrompt(
+export function buildSynthesizerUserPrompt(
   ctx: SynthesisContext,
   schema: ZodSchema,
   priorError: string | null,
 ): string {
+  const retrieved = formatRetrievedContextBlock(ctx.retrieved_context ?? []);
   const parts: string[] = [
     `JUNIOR: ${ctx.junior_name}`,
     `MODE: ${ctx.mode}`,
     `TENANT_ID: ${ctx.tenantId}`,
     `LMBM_CONTEXT_JSON: ${JSON.stringify(ctx.lmbm_context).slice(0, 2000)}`,
+    ...(retrieved ? [retrieved] : []),
     `CHAT_MESSAGE:`,
     '"""',
     ctx.chat_message.slice(0, 4000),
@@ -144,7 +157,7 @@ export async function synthesizeJuniorInput<TSchema extends ZodSchema>(
     try {
       const response = await args.claude.complete({
         systemPrompt: SYSTEM_PROMPT,
-        userPrompt: buildUserPrompt(args.context, args.schema, priorError),
+        userPrompt: buildSynthesizerUserPrompt(args.context, args.schema, priorError),
         model: args.model ?? 'claude-haiku-4-5-20251001',
         maxTokens: args.maxTokens ?? 1200,
         temperature: 0,

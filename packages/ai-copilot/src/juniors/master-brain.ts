@@ -34,12 +34,30 @@ export const MasterBrainMode = z.enum([
 ]);
 export type MasterBrainMode = z.infer<typeof MasterBrainMode>;
 
+/**
+ * A retrieved corpus passage to GROUND the answer in. `text` MUST already
+ * be PII-tokenised by the caller — `@borjie/ai-copilot` performs no LLM
+ * egress control itself; the api-gateway orchestrator tokenises every
+ * chunk via `@borjie/document-ai` before handing it here.
+ */
+export const RetrievedContextChunkSchema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+});
+export type RetrievedContextChunk = z.infer<typeof RetrievedContextChunkSchema>;
+
 export const MasterBrainInputSchema = z.object({
   tenantId: z.string().min(1),
   mode: MasterBrainMode,
   query: z.string().min(1),
   language: z.enum(['sw', 'en', 'fr']).default('sw'),
   context: z.record(z.string(), z.unknown()).default({}),
+  /**
+   * Top-K retrieved passages (already PII-tokenised). When present they
+   * are injected as a "Retrieved context" block so the answer is grounded
+   * in the corpus and can cite the chunk ids. Empty ⇒ un-grounded path.
+   */
+  retrievedContext: z.array(RetrievedContextChunkSchema).default([]),
 });
 export type MasterBrainInput = z.infer<typeof MasterBrainInputSchema>;
 
@@ -124,12 +142,44 @@ export const MASTER_BRAIN_SYSTEM_PROMPT = buildUniversalPrompt({
   ],
 });
 
-function buildUserPrompt(input: MasterBrainInput): string {
+/**
+ * Render the shared "Retrieved context" block injected into both the
+ * Master Brain and the junior synthesizer prompts. Returns `''` when there
+ * are no chunks so the un-grounded prompt is byte-identical to before. The
+ * passages are already PII-tokenised by the caller. A per-chunk char cap +
+ * an overall budget bound the injected size (token-budget guard).
+ */
+export function formatRetrievedContextBlock(
+  chunks: ReadonlyArray<RetrievedContextChunk>,
+  opts?: { readonly perChunkChars?: number; readonly totalChars?: number },
+): string {
+  if (chunks.length === 0) return '';
+  const perChunkChars = opts?.perChunkChars ?? 1_200;
+  const totalChars = opts?.totalChars ?? 6_000;
+  const lines: string[] = [
+    'RETRIEVED_CONTEXT (ground your answer in these passages and cite their [id]; do NOT invent facts beyond them):',
+  ];
+  let used = 0;
+  for (const chunk of chunks) {
+    const body = chunk.text.replace(/\s+/g, ' ').trim().slice(0, perChunkChars);
+    if (body.length === 0) continue;
+    const entry = `[${chunk.id}] ${body}`;
+    if (used + entry.length > totalChars) break;
+    used += entry.length;
+    lines.push(entry);
+  }
+  // Only the header was added (every chunk was empty) ⇒ emit nothing.
+  return lines.length > 1 ? lines.join('\n') : '';
+}
+
+export function buildMasterBrainUserPrompt(input: MasterBrainInput): string {
+  const retrieved = formatRetrievedContextBlock(input.retrievedContext);
   return [
     `TENANT: ${input.tenantId}`,
     `MODE: ${input.mode}`,
     `LANGUAGE: ${input.language}`,
     `CONTEXT_JSON: ${JSON.stringify(input.context).slice(0, 4_000)}`,
+    ...(retrieved ? [retrieved] : []),
     `OWNER_QUERY:`,
     `"""`,
     input.query.slice(0, 4_000),
@@ -152,7 +202,7 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
         juniorName: 'master-brain',
         schema: MasterBrainOutputSchema,
         systemPrompt: MASTER_BRAIN_SYSTEM_PROMPT,
-        userPrompt: buildUserPrompt(validated),
+        userPrompt: buildMasterBrainUserPrompt(validated),
         model: 'claude-sonnet-4-5-20250929',
         maxTokens: 2000,
       });

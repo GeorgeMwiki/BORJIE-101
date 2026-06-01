@@ -23,6 +23,7 @@
 
 import { type ZodSchema } from 'zod';
 import { synthesizeJuniorInput, type SynthesisContext } from './synthesizer.js';
+import type { RetrievedContextChunk } from './master-brain.js';
 import type { ClaudeClient, JuniorLogger } from './_shared.js';
 import {
   JUNIOR_REGISTRY,
@@ -68,6 +69,12 @@ export interface ExecutorContext {
   readonly chat_message: string;
   readonly mode: string;
   readonly lmbm_context?: Readonly<Record<string, unknown>>;
+  /**
+   * Top-K retrieved passages (already PII-tokenised by the caller). Forwarded
+   * verbatim to each junior's input synthesizer so the synthesised input is
+   * grounded in the same corpus evidence the Master Brain saw.
+   */
+  readonly retrieved_context?: ReadonlyArray<RetrievedContextChunk>;
 }
 
 export interface ExecutorHooks {
@@ -172,6 +179,7 @@ async function executeOne(
     mode: context.mode,
     tenantId: context.tenantId,
     lmbm_context: context.lmbm_context ?? {},
+    ...(context.retrieved_context ? { retrieved_context: context.retrieved_context } : {}),
   };
 
   const synth = await synthesizeJuniorInput({

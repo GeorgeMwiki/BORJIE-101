@@ -20,12 +20,12 @@ import { matchColumns } from '../matching/column-matcher.js';
 import { findJoinCandidates } from '../matching/join-candidate-finder.js';
 import { buildProposals } from '../evolution/proposal-builder.js';
 import { buildChainGraph } from '../profile-chain/chain-graph-builder.js';
+import { buildPersistFn, type RecipePersistDeps } from './persist-fn.js';
 import type {
   DataOnboardingRecipe,
   DiscoveredSchema,
   EnrichmentCtx,
   EnrichmentResult,
-  PersistResult,
   PersistedRow,
   ProfileChainGraph,
   SchemaEvolutionProposal,
@@ -33,8 +33,6 @@ import type {
   TabularSample,
   TenantSchemaCtx,
   EntityType,
-  Row,
-  AppliedSchema,
 } from '../types.js';
 import { DataOnboardingError } from '../types.js';
 import { hashChainEntry } from '@borjie/audit-hash-chain';
@@ -88,30 +86,6 @@ async function proposeEvolutionFn(
   });
 }
 
-async function persistFn(
-  rows: ReadonlyArray<Row>,
-  _approved_schema: AppliedSchema,
-): Promise<PersistResult> {
-  const persisted_rows: ReadonlyArray<PersistedRow> = Object.freeze(
-    rows.map((r, i) =>
-      Object.freeze({
-        target_row_id: `stub_${i}`,
-        source_row_number: r.source_row_number,
-        operation: 'insert' as const,
-        audit_hash: '',
-      }),
-    ),
-  );
-  return Object.freeze({
-    target_table: 'buyers',
-    rows_inserted: rows.length,
-    rows_updated: 0,
-    rows_skipped: 0,
-    persisted_rows,
-    audit_hash: '',
-  });
-}
-
 async function buildChainFn(
   _entity_type: EntityType,
   ctx: TenantSchemaCtx,
@@ -153,17 +127,32 @@ async function enrichFn(
   });
 }
 
-export const buyerOnboardingRecipe: DataOnboardingRecipe = Object.freeze({
-  id: 'buyer_onboarding',
-  entity_type: 'buyer',
-  version: 1,
-  status: 'shadow',
-  discover: discoverFn,
-  match: matchFn,
-  propose_evolution: proposeEvolutionFn,
-  persist: persistFn,
-  build_chain: buildChainFn,
-  enrich: enrichFn,
-  authority_tier: 2,
-  brand: 'borjie',
-});
+/**
+ * Build a buyer-onboarding recipe. Omit `deps` for the fail-closed
+ * default singleton used by tests + the registry.
+ */
+export function createBuyerOnboardingRecipe(
+  deps?: RecipePersistDeps,
+): DataOnboardingRecipe {
+  return Object.freeze({
+    id: 'buyer_onboarding',
+    entity_type: 'buyer',
+    version: 1,
+    status: 'live',
+    discover: discoverFn,
+    match: matchFn,
+    propose_evolution: proposeEvolutionFn,
+    persist: buildPersistFn('buyer_onboarding', deps),
+    build_chain: buildChainFn,
+    enrich: enrichFn,
+    authority_tier: 2,
+    brand: 'borjie',
+  });
+}
+
+/**
+ * Default singleton — `live` but fail-closed on `persist` until a
+ * `RowWriter` is injected via {@link createBuyerOnboardingRecipe}.
+ */
+export const buyerOnboardingRecipe: DataOnboardingRecipe =
+  createBuyerOnboardingRecipe();

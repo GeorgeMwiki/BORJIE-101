@@ -7,8 +7,11 @@
  * `shift_assignments`, `incidents`, `certifications`,
  * `payroll_entries`, `safety_inspections`.
  *
- * Status: `shadow` at scaffold time. Promoted to `live` after the
- * first owner-led test session.
+ * Status: `live`. Stage-5 persistence is supplied by the runtime via
+ * the `createWorkerOnboardingRecipe(deps)` factory (a Drizzle-backed
+ * `RowWriter` + `ProvenanceWriter` bound in the api-gateway composition
+ * root). The default singleton export fails closed on `persist` — it
+ * never fabricates placeholder rows.
  */
 
 import { recognizeEntityType } from '../intent/entity-recognizer.js';
@@ -31,21 +34,19 @@ import { createInMemoryNssfVerifier } from '../enrichment/adapters/nssf-verifier
 import { createInMemoryLinkedinVerifier } from '../enrichment/adapters/linkedin-verifier.js';
 import { createInMemoryCertVerifier } from '../enrichment/adapters/cert-verifier.js';
 import { createInMemorySalaryBenchmarker } from '../enrichment/adapters/salary-benchmark.js';
+import { buildPersistFn, type RecipePersistDeps } from './persist-fn.js';
 import type {
   DataOnboardingRecipe,
   DiscoveredSchema,
   EnrichmentResult,
   EnrichmentCtx,
-  PersistResult,
-  PersistedRow,
   ProfileChainGraph,
   SchemaEvolutionProposal,
   SchemaMatchResult,
   TabularSample,
   TenantSchemaCtx,
   EntityType,
-  Row,
-  AppliedSchema,
+  PersistedRow,
 } from '../types.js';
 import { DataOnboardingError } from '../types.js';
 
@@ -106,33 +107,6 @@ async function proposeEvolutionFn(
   });
 }
 
-async function persistFn(
-  rows: ReadonlyArray<Row>,
-  _approved_schema: AppliedSchema,
-): Promise<PersistResult> {
-  // Persistence requires runtime-injected RowWriter + ProvenanceWriter;
-  // the seed recipe ships a stub PersistResult so the contract is
-  // exercised end-to-end in tests. Production wiring overrides.
-  const persisted_rows: ReadonlyArray<PersistedRow> = Object.freeze(
-    rows.map((r, i) =>
-      Object.freeze({
-        target_row_id: `stub_${i}`,
-        source_row_number: r.source_row_number,
-        operation: 'insert' as const,
-        audit_hash: '',
-      }),
-    ),
-  );
-  return Object.freeze({
-    target_table: 'workers',
-    rows_inserted: rows.length,
-    rows_updated: 0,
-    rows_skipped: 0,
-    persisted_rows,
-    audit_hash: '',
-  });
-}
-
 async function buildChainFn(
   _entity_type: EntityType,
   ctx: TenantSchemaCtx,
@@ -155,17 +129,36 @@ async function enrichFn(
   );
 }
 
-export const workerOnboardingRecipe: DataOnboardingRecipe = Object.freeze({
-  id: 'worker_onboarding',
-  entity_type: 'worker',
-  version: 1,
-  status: 'shadow',
-  discover: discoverFn,
-  match: matchFn,
-  propose_evolution: proposeEvolutionFn,
-  persist: persistFn,
-  build_chain: buildChainFn,
-  enrich: enrichFn,
-  authority_tier: 2,
-  brand: 'borjie',
-});
+/**
+ * Build a worker-onboarding recipe.
+ *
+ * @param deps  runtime persistence ports (Drizzle-backed `RowWriter` +
+ *              `ProvenanceWriter` bound per onboarding session). Omit
+ *              for the fail-closed default singleton used by tests +
+ *              the registry.
+ */
+export function createWorkerOnboardingRecipe(
+  deps?: RecipePersistDeps,
+): DataOnboardingRecipe {
+  return Object.freeze({
+    id: 'worker_onboarding',
+    entity_type: 'worker',
+    version: 1,
+    status: 'live',
+    discover: discoverFn,
+    match: matchFn,
+    propose_evolution: proposeEvolutionFn,
+    persist: buildPersistFn('worker_onboarding', deps),
+    build_chain: buildChainFn,
+    enrich: enrichFn,
+    authority_tier: 2,
+    brand: 'borjie',
+  });
+}
+
+/**
+ * Default singleton — `live` but fail-closed on `persist` until a
+ * `RowWriter` is injected via {@link createWorkerOnboardingRecipe}.
+ */
+export const workerOnboardingRecipe: DataOnboardingRecipe =
+  createWorkerOnboardingRecipe();

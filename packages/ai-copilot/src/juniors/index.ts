@@ -58,6 +58,7 @@ export * from './_shared.js';
 
 export {
   synthesizeJuniorInput,
+  buildSynthesizerUserPrompt,
   type SynthesisContext,
   type SynthesisResult,
   type SynthesisSuccess,
@@ -106,14 +107,18 @@ export {
 export {
   createMasterBrainAgent,
   createDefaultMasterBrainAgent,
+  buildMasterBrainUserPrompt,
+  formatRetrievedContextBlock,
   MasterBrainInputSchema,
   MasterBrainOutputSchema,
   MasterBrainMode,
+  RetrievedContextChunkSchema,
   JuniorName,
   MASTER_BRAIN_SYSTEM_PROMPT,
   type MasterBrainInput,
   type MasterBrainOutput,
   type MasterBrainAgent,
+  type RetrievedContextChunk,
 } from './master-brain.js';
 
 export {

@@ -65,6 +65,11 @@ import { miningBuyersKycRouter } from './buyers-kyc.hono';
 import { miningCsrPlansRouter } from './csr-plans.hono';
 import { miningDocsRouter } from './docs.hono';
 
+// New-user ONBOARDING BOOTSTRAP — upload/OCR → recognise → propose →
+// PERSIST real rows into employees / sites / licences via the
+// @borjie/data-onboarding recipe pipeline + Drizzle RowWriter.
+import { miningOnboardingRouter } from './onboarding.hono';
+
 // Wave OWNER-OS PANELS-WIRE (final 5) — the last CTA-only owner-os panels
 // land on real, RLS-scoped read surfaces:
 //   /esg          → village_meetings (community engagement; real rows)
@@ -169,6 +174,12 @@ mining.route('/procurement', miningProcurementRouter);
 mining.route('/accounting', miningAccountingRouter);
 mining.route('/legal', miningLegalRouter);
 mining.route('/ancillary', miningAncillaryRouter);
+
+// New-user onboarding bootstrap — POST /onboarding/ingest +
+// /onboarding/commit. Persists real rows into the tenant's domain
+// tables (employees / sites / licences) with idempotency + hash-chained
+// audit + row provenance.
+mining.route('/onboarding', miningOnboardingRouter);
 
 // Document drafter (B-DocDrafter).
 mining.route('/drafts', miningDraftsRouter);
