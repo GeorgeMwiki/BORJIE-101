@@ -60,8 +60,15 @@ export interface ActiveConnectionRow {
 }
 
 export interface CalendarConnectionStore {
-  /** Insert a fresh connection (callback). Tokens are sealed here. */
-  upsert(input: UpsertConnectionInput): Promise<{ readonly id: string }>;
+  /**
+   * Insert a fresh connection (callback). Tokens are sealed here. Pass `exec`
+   * (a transaction handle) to pin the soft-revoke + INSERT to ONE connection
+   * alongside a transaction-local RLS GUC; defaults to the store's own db.
+   */
+  upsert(
+    input: UpsertConnectionInput,
+    exec?: DrizzleLike,
+  ): Promise<{ readonly id: string }>;
   /** Soft-revoke the active connection(s) for (tenant,user[,provider]). */
   disconnect(
     tenantId: string,
@@ -136,10 +143,11 @@ export function createCalendarConnectionStore(
   cipher: CalendarTokenCipher,
 ): CalendarConnectionStore {
   return {
-    async upsert(input) {
+    async upsert(input, exec = db) {
       // One active connection per (tenant,user,provider): soft-revoke any
-      // existing active row first so the partial-unique never collides.
-      await db.execute(sql`
+      // existing active row first so the partial-unique never collides. Both
+      // statements run on `exec` so a caller can pin them to a transaction.
+      await exec.execute(sql`
         UPDATE owner_calendar_connections
            SET revoked_at = NOW(), updated_at = NOW()
          WHERE tenant_id = ${input.tenantId}
@@ -154,7 +162,7 @@ export function createCalendarConnectionStore(
       const sealedAccess = input.accessToken
         ? cipher.seal(input.accessToken)
         : null;
-      await db.execute(sql`
+      await exec.execute(sql`
         INSERT INTO owner_calendar_connections (
           id, tenant_id, user_id, provider,
           encrypted_refresh_token, encrypted_access_token,

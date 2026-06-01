@@ -177,8 +177,18 @@ beforeEach(() => {
     userId: 'user-1',
     role: UserRole.OWNER,
   };
+  const calDbExec = vi.fn(async () => ({ rows: [] }));
   (globalThis as any).__BORJIE_CAL_DB__ = {
-    execute: vi.fn(async () => ({ rows: [] })),
+    execute: calDbExec,
+    // The callback pins its GUC + store write in ONE transaction. The stub runs
+    // the callback with a tx whose `execute` is the SAME spy as the top-level db
+    // (so the set_config bound via tx still registers on it) while recording that
+    // the write happened transactionally (MED-2 regression guard below).
+    transaction: vi.fn(
+      async (
+        fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<unknown>,
+      ) => fn({ execute: calDbExec }),
+    ),
   };
   exchangeAuthorizationCodeMock.mockReset();
 });
@@ -285,6 +295,11 @@ describe('GET /owner/calendar/callback', () => {
     expect(sealedAccess).not.toContain('PLAINTEXT-ACCESS');
     expect(channel.cipher.open(sealedRefresh)).toBe('PLAINTEXT-REFRESH');
     expect(channel.cipher.open(sealedAccess)).toBe('PLAINTEXT-ACCESS');
+
+    // MED-2 regression guard: the GUC bind + store write ran inside ONE
+    // transaction (pinned to a single pooled connection), not session-level.
+    const dbStub = (globalThis as any).__BORJIE_CAL_DB__;
+    expect(dbStub.transaction).toHaveBeenCalledTimes(1);
 
     // The RLS GUC was bound from the VERIFIED state tenant before the write.
     const dbExec = (globalThis as any).__BORJIE_CAL_DB__.execute;

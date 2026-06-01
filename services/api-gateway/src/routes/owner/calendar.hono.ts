@@ -289,60 +289,17 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
       );
     }
 
-    // Bind the RLS GUC from the VERIFIED state tenant (no JWT on this route).
+    // Exchange the authorization code OUTSIDE any DB transaction — it is a
+    // network round-trip to the provider and must not hold a pooled connection.
+    let tokens: Awaited<ReturnType<typeof exchangeAuthorizationCode>>;
     try {
-      await db.execute(
-        sql`SELECT set_config('app.current_tenant_id', ${state.tenantId}, false)`,
-      );
-    } catch (err) {
-      moduleLogger.error('owner-calendar: failed to bind tenant GUC', {
-        tenantId: state.tenantId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return c.json(
-        {
-          success: false,
-          error: { code: 'RLS_CONTEXT_FAILED', message: 'Could not establish tenant context.' },
-        },
-        500,
-      );
-    }
-
-    try {
-      const tokens = await exchangeAuthorizationCode({
+      tokens = await exchangeAuthorizationCode({
         provider: state.provider,
         config: channel.oauthConfig,
         code: parsed.data.code,
       });
-      // refreshToken is guaranteed non-null by exchangeAuthorizationCode.
-      const { id } = await channel.store.upsert({
-        tenantId: state.tenantId,
-        userId: state.userId,
-        provider: state.provider,
-        refreshToken: tokens.refreshToken as string,
-        accessToken: tokens.accessToken,
-        tokenExpiresAt: new Date(tokens.expiresAt),
-        calendarId: 'primary',
-        scope: tokens.scope,
-      });
-
-      moduleLogger.info('owner-calendar: connection stored (tokens sealed)', {
-        tenantId: state.tenantId,
-        userId: state.userId,
-        provider: state.provider,
-        connectionId: id,
-      });
-
-      return c.json({
-        success: true,
-        data: {
-          connected: true,
-          provider: state.provider,
-          connectionId: id,
-        },
-      });
     } catch (err) {
-      moduleLogger.error('owner-calendar: callback exchange/store failed', {
+      moduleLogger.error('owner-calendar: callback code exchange failed', {
         tenantId: state.tenantId,
         provider: state.provider,
         error: err instanceof Error ? err.message : String(err),
@@ -358,6 +315,75 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
         502,
       );
     }
+
+    // Pin the RLS GUC + the store writes to ONE connection in a single
+    // transaction. postgres.js checks out a connection PER statement, so a
+    // session-level set_config could land on a different connection than the
+    // INSERT — leaving FORCE-RLS un-applied to the write. `SET LOCAL` (third arg
+    // `true`) scopes the GUC to this transaction and auto-clears on commit (no
+    // leak to the next pooled-connection user). The store's (tenant,user)
+    // predicates stay the primary guard; this makes RLS effective defence-in-depth.
+    let connectionId: string;
+    try {
+      const result = await (
+        db as {
+          transaction: <T>(
+            cb: (tx: { execute(q: unknown): Promise<unknown> }) => Promise<T>,
+          ) => Promise<T>;
+        }
+      ).transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT set_config('app.current_tenant_id', ${state.tenantId}, true)`,
+        );
+        // refreshToken is guaranteed non-null by exchangeAuthorizationCode.
+        return channel.store.upsert(
+          {
+            tenantId: state.tenantId,
+            userId: state.userId,
+            provider: state.provider,
+            refreshToken: tokens.refreshToken as string,
+            accessToken: tokens.accessToken,
+            tokenExpiresAt: new Date(tokens.expiresAt),
+            calendarId: 'primary',
+            scope: tokens.scope,
+          },
+          tx,
+        );
+      });
+      connectionId = result.id;
+    } catch (err) {
+      moduleLogger.error('owner-calendar: callback store failed', {
+        tenantId: state.tenantId,
+        provider: state.provider,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RLS_CONTEXT_FAILED',
+            message: 'Could not persist the calendar connection.',
+          },
+        },
+        500,
+      );
+    }
+
+    moduleLogger.info('owner-calendar: connection stored (tokens sealed)', {
+      tenantId: state.tenantId,
+      userId: state.userId,
+      provider: state.provider,
+      connectionId,
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        connected: true,
+        provider: state.provider,
+        connectionId,
+      },
+    });
   });
 
   // ───────────────────────────────────────────────────────────────────
