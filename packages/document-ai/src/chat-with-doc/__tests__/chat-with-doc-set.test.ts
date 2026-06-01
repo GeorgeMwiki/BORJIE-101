@@ -14,7 +14,7 @@ function tBlock(id: string, text: string): TextBlock {
   };
 }
 
-async function leaseDoc(id: string, rent: string) {
+async function offtakeDoc(id: string, royalty: string) {
   return await buildParsedDocument({
     id,
     sourceMime: 'application/pdf',
@@ -23,7 +23,7 @@ async function leaseDoc(id: string, rent: string) {
       buildPage({
         pageNumber: 1,
         language: 'en',
-        blocks: [tBlock('b-0', `Monthly rent is ${rent}.`)],
+        blocks: [tBlock('b-0', `Monthly royalty is ${royalty}.`)],
       }),
     ],
     producedBy: 'test',
@@ -32,17 +32,17 @@ async function leaseDoc(id: string, rent: string) {
 
 describe('chatWithDocSet', () => {
   it('returns per-doc contributions and detects cross-doc synthesis', async () => {
-    const docA = await leaseDoc('a', 'TZS 1,000,000');
-    const docB = await leaseDoc('b', 'KES 50,000');
+    const docA = await offtakeDoc('a', 'TZS 1,000,000');
+    const docB = await offtakeDoc('b', 'KES 50,000');
     const brain: BrainPort = {
       complete: vi.fn(async () => ({
         text:
-          'Doc A has monthly rent TZS 1,000,000 [doc:a#p1:b-0:"Monthly rent is TZS 1,000,000."] while Doc B has KES 50,000 [doc:b#p1:b-0:"Monthly rent is KES 50,000."].',
+          'Doc A has monthly royalty TZS 1,000,000 [doc:a#p1:b-0:"Monthly royalty is TZS 1,000,000."] while Doc B has KES 50,000 [doc:b#p1:b-0:"Monthly royalty is KES 50,000."].',
       })),
     };
     const answer = await chatWithDocSet({
       docs: [docA, docB],
-      question: 'rent',
+      question: 'royalty',
       brain,
     });
     expect(answer.crossDocSynthesis).toBe(true);
@@ -53,7 +53,7 @@ describe('chatWithDocSet', () => {
   });
 
   it('respects empty result with zero contribution scores', async () => {
-    const docA = await leaseDoc('a', 'TZS 1');
+    const docA = await offtakeDoc('a', 'TZS 1');
     const brain: BrainPort = {
       complete: vi.fn(async () => ({ text: 'X' })),
     };
@@ -68,13 +68,13 @@ describe('chatWithDocSet', () => {
   });
 
   it('caps total chunks at globalChunkBudget', async () => {
-    const docA = await leaseDoc('a', 'TZS 1');
-    const docB = await leaseDoc('b', 'TZS 2');
-    const docC = await leaseDoc('c', 'TZS 3');
+    const docA = await offtakeDoc('a', 'TZS 1');
+    const docB = await offtakeDoc('b', 'TZS 2');
+    const docC = await offtakeDoc('c', 'TZS 3');
     const brain: BrainPort = { complete: vi.fn(async () => ({ text: 'OK' })) };
     await chatWithDocSet({
       docs: [docA, docB, docC],
-      question: 'rent',
+      question: 'royalty',
       brain,
       globalChunkBudget: 2,
     });

@@ -32,8 +32,8 @@ describe('schema-sniff: CSV', () => {
     expect(byName.get('salary')?.type).toEqual('integer');
   });
 
-  it('sales-leads.csv — budget integer + email + phone columns', () => {
-    const table = parseCsv(readFixture('sales-leads.csv'));
+  it('prospective-buyers.csv — budget integer + email + phone columns', () => {
+    const table = parseCsv(readFixture('prospective-buyers.csv'));
     const schema = inferSchema(table);
     expect(schema.rowCount).toEqual(8);
 
@@ -43,8 +43,8 @@ describe('schema-sniff: CSV', () => {
     expect(byName.get('phone')?.type).toEqual('phone');
   });
 
-  it('property-portfolio.csv — reference column flagged as PK candidate', () => {
-    const table = parseCsv(readFixture('property-portfolio.csv'));
+  it('mining-asset-register.csv — reference column flagged as PK candidate', () => {
+    const table = parseCsv(readFixture('mining-asset-register.csv'));
     const schema = inferSchema(table);
     expect(schema.rowCount).toEqual(8);
     const ref = schema.columns.find((c) => c.name === 'reference');

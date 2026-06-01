@@ -1,14 +1,15 @@
 /**
  * Germany (DE) — Kapitalertragsteuer + Solidaritätszuschlag on non-resident
- * landlords. Statutory residential-lease rules from BGB §§ 535 ff.
+ * mineral operators. Statutory mining rules from the Bundesberggesetz (BBergG).
  *
  * Sources:
  *  - § 50a EStG (Einkommensteuergesetz) — withholding for non-residents
- *  - § 551 BGB — deposit cap at 3 months Kaltmiete
- *  - § 573c BGB — notice periods (tenant: 3 months; landlord: 3 / 6 / 9 m)
+ *  - BBergG (Federal Mining Act) — Bergbauberechtigung, field-fee (Feldes-
+ *    abgabe) and production-royalty (Förderabgabe) framework
+ *  - § 31 BBergG — Förderabgabe (production royalty) set by the Länder
  *
  * The withholding rate combines 15% corporate income tax (körperschaft-
- * steuer) on net rental + 5.5% Soli surcharge. The port uses a blended
+ * steuer) on net proceeds + 5.5% Soli surcharge. The port uses a blended
  * ~15.825% on gross as a conservative operator-configurable default.
  */
 
@@ -16,7 +17,7 @@ import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -63,19 +64,19 @@ const germanyCore: CountryPlugin = {
     { id: 'klarna', name: 'Klarna', kind: 'card', envPrefix: 'KLARNA' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 3, // § 551 BGB — Kaltmiete x 3
+    minBondMonths: 0,
+    maxBondMonths: 3, // performance-bond norm ~3 months royalty
     noticePeriodDays: 90,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 180,
+    bondReturnDays: 180,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Wohnraummietvertrag (DE)',
-      templatePath: 'de/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineralien-Liefervertrag (DE Mineral Offtake)',
+      templatePath: 'de/offtake-agreement.hbs',
       locale: 'de-DE',
     },
   ],
@@ -94,7 +95,7 @@ export const germanyProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     15.825,
     'DE-FINANZAMT-50a-EStG',
-    'Blended 15% KSt + 5.5% Soli surcharge on gross rent for non-resident landlords (§ 50a EStG).'
+    'Blended 15% KSt + 5.5% Soli surcharge on gross mineral proceeds for non-resident operators (§ 50a EStG). Production royalty (Förderabgabe) is set separately by the Land.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -131,46 +132,46 @@ export const germanyProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'de-kaltmiete',
-        label: 'Kaltmiete (net-cold rent) amount and due date',
+        id: 'de-foerderabgabe',
+        label: 'Förderabgabe (production royalty) rate and due date',
         mandatory: true,
-        citation: 'BGB § 535 Abs. 2',
+        citation: 'BBergG § 31',
       },
       {
-        id: 'de-deposit',
-        label: 'Security deposit (Mietkaution) — max 3 Kaltmieten',
+        id: 'de-bond',
+        label: 'Performance / reclamation bond (Sicherheitsleistung)',
         mandatory: true,
-        citation: 'BGB § 551',
+        citation: 'BBergG § 56 Abs. 2',
       },
       {
         id: 'de-kuendigung',
         label: 'Notice-period clause (Kündigungsfristen)',
         mandatory: true,
-        citation: 'BGB § 573c',
+        citation: 'BBergG; BGB § 573c (suppletory)',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 90,
+      'licence-expiry': 90,
       'renewal-non-continuation': 90,
-      'non-payment': 14,
-      'breach-of-covenant': 30,
+      'royalty-default': 14,
+      'breach-of-condition': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 3,
-        citation: 'BGB § 551 Abs. 1 (Kaltmiete x 3)',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 3,
+        citation: 'BBergG § 56 — Sicherheitsleistung (≈ 3 months royalty norm)',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         pctPerAnnum: 20,
-        citation: 'BGB § 558 (Kappungsgrenze — 20% / 3 years, 15% in tight markets)',
+        citation: 'Länder Förderabgabe practice (escalation reviewed periodically)',
       },
     },
     defaultNoticeWindowDays: 90,
   }),
-  tenantScreening: buildStubScreeningPort('SCHUFA_DE'),
+  counterpartyScreening: buildStubScreeningPort('SCHUFA_DE'),
 };

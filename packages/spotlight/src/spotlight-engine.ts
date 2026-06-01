@@ -43,12 +43,12 @@ export interface SpotlightResult {
 }
 
 export interface EntityIndex {
-  readonly units: ReadonlyArray<{ id: string; label: string; propertyName?: string }>;
-  readonly properties: ReadonlyArray<{ id: string; name: string }>;
-  readonly tenants: ReadonlyArray<{ id: string; name: string }>;
+  readonly units: ReadonlyArray<{ id: string; label: string; siteName?: string }>;
+  readonly sites: ReadonlyArray<{ id: string; name: string }>;
+  readonly counterparties: ReadonlyArray<{ id: string; name: string }>;
 }
 
-const EMPTY_INDEX: EntityIndex = { units: [], properties: [], tenants: [] };
+const EMPTY_INDEX: EntityIndex = { units: [], sites: [], counterparties: [] };
 
 /**
  * Run a palette search. Returns results ranked by composite score.

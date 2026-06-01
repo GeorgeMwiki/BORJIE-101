@@ -370,9 +370,9 @@ export async function proposeNewSubMd(
  * `destructiveToolBlocklist` option on `compileAndDeploySubMd`.
  */
 const DEFAULT_DESTRUCTIVE_TOOL_BLOCKLIST: ReadonlyArray<string> = Object.freeze([
-  'platform.evict_tenant',
+  'platform.suspend_licence',
   'platform.delete_tenant',
-  'platform.suspend_tenant',
+  'platform.suspend_operator',
   'platform.purge_data',
   'platform.transfer_funds',
   'platform.disburse_funds',

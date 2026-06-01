@@ -109,8 +109,10 @@ export * from './audit/audit-event';
 // Geo — per-org elastic geo-hierarchy (NOT the country registry).
 export * from './geo';
 
-// Property management — property.ts and block.ts each declare their own
-// calculateOccupancyRate. Expose block under a namespace.
+// Mining-site management — property.ts (site) and block.ts each declare
+// their own calculate*UtilisationRate. Expose block under a namespace.
+// `property/*` export the canonical MiningSite / MiningUnit models plus
+// deprecated Property / Unit aliases for the in-flight W-E migration.
 export * from './property/property';
 export * from './property/unit';
 export * as Block from './property/block';
@@ -118,9 +120,13 @@ export * as Block from './property/block';
 // Customer management
 export * from './customer/customer';
 
-// Lease management
+// Offtake (supply-agreement) management. `Offtake` / `ProductionTenure`
+// are the canonical mining namespaces; `Lease` / `Occupancy` are
+// retained as back-compat aliases until downstream importers migrate.
+export * as Offtake from './lease/lease';
 export * as Lease from './lease/lease';
-// occupancy re-exposed under a namespace so its helpers don't collide.
+// production tenure re-exposed under a namespace so its helpers don't collide.
+export * as ProductionTenure from './lease/occupancy';
 export * as Occupancy from './lease/occupancy';
 
 // Payments

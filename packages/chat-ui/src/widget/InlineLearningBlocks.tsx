@@ -17,7 +17,7 @@
  *
  * For `ui_block`, two well-known kinds are wired:
  *   - 'royalty_calculator' (Borjie mining) → simple inline calculator stub
- *   - 'rent_reminder_schedule' (BN real-estate) → schedule preview
+ *   - 'royalty_reminder_schedule' (Borjie mining) → schedule preview
  * Unknown kinds fall through to a JSON dump card so the AI can still
  * emit experimental blocks without crashing the widget.
  */
@@ -134,17 +134,17 @@ function RoyaltyCalculatorInline({
   );
 }
 
-interface RentReminderPayload {
+interface RoyaltyReminderPayload {
   readonly unitLabel?: string;
   readonly amount?: number;
   readonly currency?: string;
   readonly daysBefore?: ReadonlyArray<number>;
 }
 
-function RentReminderInline({
+function RoyaltyReminderInline({
   payload,
 }: {
-  readonly payload: RentReminderPayload;
+  readonly payload: RoyaltyReminderPayload;
 }): JSX.Element {
   const days = payload.daysBefore ?? [7, 3, 1];
   const currency = payload.currency ?? 'TZS';
@@ -152,11 +152,11 @@ function RentReminderInline({
     n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   return (
     <div
-      data-testid="chat-inline-rent-reminder"
+      data-testid="chat-inline-royalty-reminder"
       className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3"
     >
       <h3 className="text-sm font-semibold text-foreground">
-        Rent reminder schedule
+        Royalty reminder schedule
         {payload.unitLabel ? ` — ${payload.unitLabel}` : ''}
       </h3>
       {typeof payload.amount === 'number' && (
@@ -225,11 +225,11 @@ export function InlineLearningBlocks({
               />
             );
           }
-          if (block.kind === 'rent_reminder_schedule') {
+          if (block.kind === 'royalty_reminder_schedule') {
             return (
-              <RentReminderInline
+              <RoyaltyReminderInline
                 key={i}
-                payload={payload as RentReminderPayload}
+                payload={payload as RoyaltyReminderPayload}
               />
             );
           }

@@ -59,7 +59,7 @@ describe('ingestDocument', () => {
     const result = await ingestDocument(
       {
         tenantId: 'tenant-a',
-        filename: 'lease.txt',
+        filename: 'offtake.txt',
         mimeType: 'text/plain',
         content: 'hello world',
       },
@@ -78,7 +78,7 @@ describe('ingestDocument', () => {
     const first = await ingestDocument(
       {
         tenantId: 'tenant-a',
-        filename: 'lease.txt',
+        filename: 'offtake.txt',
         mimeType: 'text/plain',
         content: 'duplicate payload',
       },
@@ -87,7 +87,7 @@ describe('ingestDocument', () => {
     const second = await ingestDocument(
       {
         tenantId: 'tenant-a',
-        filename: 'lease-copy.txt',
+        filename: 'offtake-copy.txt',
         mimeType: 'text/plain',
         content: 'duplicate payload',
       },

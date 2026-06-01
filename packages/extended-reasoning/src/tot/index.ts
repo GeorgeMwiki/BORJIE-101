@@ -14,8 +14,8 @@ export type {
   ToTPathStep,
 } from './types.js';
 export {
-  EVICTION_DECISION_TREE,
+  LICENCE_SUSPENSION_TREE,
   VENDOR_SELECTION_TREE,
-  KRA_FILING_TREE,
-  TENANT_SCREENING_TREE,
+  TRA_FILING_TREE,
+  BUYER_SCREENING_TREE,
 } from './trees/index.js';

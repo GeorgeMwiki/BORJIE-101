@@ -10,37 +10,37 @@
  *
  *
  * ============================================================================
- * TAX REGIME — Tanzania Revenue Authority (TRA)
+ * ROYALTY REGIME — Tanzania Revenue Authority (TRA) / Mining Commission
  * ============================================================================
- * Source: Income Tax Act, Cap. 332 (R.E. 2019, consolidating Act No. 11 of
- * 2004) — rental income withholding under § 83(1)(b).
- *   - 10% withholding on gross rent paid to a RESIDENT individual landlord.
- *   - 15% withholding on gross rent paid to a NON-RESIDENT landlord
- *     (§ 83(1)(c), Third Schedule ¶4).
- *   - Corporate / juristic landlords fold rent into chargeable income at
- *     30% — withholding still runs at 10% as a prepayment credit.
+ * Source: Mining Act 2010 (am. 2017) § 87 — mineral royalty on gross market
+ * value, collected by TRA on behalf of the Treasury.
+ *   - 6% royalty on gross market value of gold and other metallic minerals.
+ *   - + 1% clearing/inspection fee on the same value (Finance Act 2019).
+ *   - 16% State free-carried interest in large-scale mining companies
+ *     (Mining Act 2010 § 10, am. 2017).
  *
  * Public refs:
- *   - https://www.tra.go.tz/images/uploads/LAWS/ITA-2004.pdf
- *   - https://www.tra.go.tz/ (Tax Portal — WHT on Rent)
+ *   - https://www.tra.go.tz/ (Tax Portal — Mineral Royalty Returns)
+ *   - https://www.madini.go.tz/ (Mining Commission)
  *
  * ============================================================================
- * LEASE LAW — Land & Tenancy
+ * MINING LAW — Licensing & Tenure
  * ============================================================================
- *   - Land Act, 1999 (Cap. 113) — general land tenure.
- *   - Land (Landlord and Tenant) Act, 2022 — codifies notice windows,
- *     deposit caps, and Housing Tribunal arbitration for residential
- *     tenancies. See §§ 29–32, 56, 88–90.
- *   - Business Tenancies: 3-month notice standard for termination absent
- *     written clause.
+ *   - Mining Act 2010 (am. 2017) — mineral rights, PML / ML / SML licence
+ *     tiers, royalties, and the Mining Commission's dispute arbitration.
+ *     See §§ 8, 10, 87.
+ *   - PML (Primary Mining Licence): citizen-only, 7-year renewable term —
+ *     the ASM formalisation tier.
+ *   - Industrial offtake/supply: 3-month notice standard for termination
+ *     absent written clause.
  *
  * Typical norms (confirmed with Tanzanian counsel before production use):
- *   - Residential deposit cap: 6 months (industry norm; no statutory cap
- *     absent specific rent-control area — § 32 LLTA 2022).
- *   - Commercial deposit: 12 months norm.
- *   - Notice for non-payment: 30 days.
- *   - Notice end-of-term: 90 days residential, 3 months commercial.
- *   - Landlord repossession for major refurb: 180 days.
+ *   - Artisanal performance-bond cap: 6 months (industry norm; no statutory
+ *     cap absent a cooperative-managed area — Mining (Mineral Rights) Regs).
+ *   - Industrial performance-bond: 12 months norm.
+ *   - Notice for royalty-default: 30 days.
+ *   - Notice on licence-expiry: 90 days artisanal, 3 months industrial.
+ *   - State repossession for non-compliance: 180 days.
  *
  * ============================================================================
  * DATA PROTECTION
@@ -71,7 +71,7 @@
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -182,57 +182,58 @@ export function isKnownTzMobilePrefix(prefix2Digit: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Tax regime — Income Tax Act 2004 § 83(1)(b)/(c).
+// Royalty regime — Mining Act 2010 (am. 2017) § 87.
 // ---------------------------------------------------------------------------
 
 /**
- * Compute rental-income withholding for TZ. Respects residency flag so
- * non-resident landlords are billed the higher 15% rate.
+ * Compute mineral-royalty withholding for TZ. The headline royalty on gross
+ * market value of metallic minerals is 6%; a 1% clearing/inspection fee
+ * (Finance Act 2019) is collected on the same value at clearance.
  *
- * We expose a FACTORY so the orchestrator can supply the landlord's residency
- * status per-lease. The default-exported port picks 10% (resident-individual
- * default) — the monthly-close orchestrator overrides for non-resident cases
- * by calling `buildTzTaxRegime({ isResident: false })`.
+ * We expose a FACTORY so the orchestrator can choose whether the 1% clearing
+ * fee is bundled per consignment. The default-exported port picks 6% (royalty
+ * only) — the monthly-close orchestrator overrides for clearance runs by
+ * calling `buildTzTaxRegime({ includesClearingFee: true })` → 7%.
  */
 export function buildTzTaxRegime(
-  opts: { readonly isResident: boolean } = { isResident: true }
+  opts: { readonly includesClearingFee: boolean } = { includesClearingFee: false }
 ): TaxRegimePort {
-  const ratePct = opts.isResident ? 10 : 15;
-  const rateNote = opts.isResident
-    ? 'TRA withholding — 10% on gross rent (resident individual, Income Tax Act §83(1)(b), Cap. 332).'
-    : 'TRA withholding — 15% on gross rent (non-resident, Income Tax Act §83(1)(c) + Third Schedule ¶4).';
+  const ratePct = opts.includesClearingFee ? 7 : 6;
+  const rateNote = opts.includesClearingFee
+    ? 'TRA mineral royalty — 6% on gross market value + 1% clearing fee (Mining Act 2010 §87 + Finance Act 2019).'
+    : 'TRA mineral royalty — 6% on gross market value of metallic minerals (Mining Act 2010 §87).';
   return {
-    calculateWithholding(grossRentMinorUnits, _currency, _period) {
+    calculateWithholding(grossValueMinorUnits, _currency, _period) {
       return flatRateWithholding(
-        grossRentMinorUnits,
+        grossValueMinorUnits,
         ratePct,
-        'TRA-WHT-RENT',
+        'TRA-ROYALTY',
         rateNote
       );
     },
   };
 }
 
-const tanzaniaTaxRegime: TaxRegimePort = buildTzTaxRegime({ isResident: true });
+const tanzaniaTaxRegime: TaxRegimePort = buildTzTaxRegime({ includesClearingFee: false });
 
 // ---------------------------------------------------------------------------
-// Tax filing — TRA Tax Portal WHT-on-Rent format.
+// Royalty filing — TRA Tax Portal Mineral-Royalty-Return format.
 //
-// TRA currently accepts a CSV upload through the Tax Portal's e-Filing
-// section for WHT returns. The format below is TRA-compatible: one row per
-// paying tenant per period, with the TIN-identified landlord in the header
+// TRA accepts a CSV upload through the Tax Portal's e-Filing section for
+// royalty returns. The format below is TRA-compatible: one row per
+// consignment per period, with the TIN-identified operator in the header
 // line. When / if TRA publishes an official schema (they are migrating to
 // XBRL), switch `filingFormat` to 'xml' and add a real payload builder.
 // ---------------------------------------------------------------------------
 
 function buildTraPayload(
-  run: { readonly lineItems: readonly { leaseId: string; tenantName: string; propertyReference: string; grossRentMinorUnits: number; withholdingMinorUnits: number; currency: string; paymentDate: string; }[]; totalGrossMinorUnits: number; totalWithholdingMinorUnits: number; runId: string },
-  tenantProfile: { readonly legalName: string; readonly taxpayerId: string; readonly countryCode: string }
+  run: { readonly lineItems: readonly { offtakeId: string; counterpartyName: string; siteReference: string; grossValueMinorUnits: number; withholdingMinorUnits: number; currency: string; paymentDate: string; }[]; totalGrossMinorUnits: number; totalWithholdingMinorUnits: number; runId: string },
+  operatorProfile: { readonly legalName: string; readonly taxpayerId: string; readonly countryCode: string }
 ): string {
   const header = [
-    '# TRA WHT-RENT FILING',
-    `# Taxpayer: ${tenantProfile.legalName}`,
-    `# TIN: ${tenantProfile.taxpayerId}`,
+    '# TRA MINERAL-ROYALTY FILING',
+    `# Taxpayer: ${operatorProfile.legalName}`,
+    `# TIN: ${operatorProfile.taxpayerId}`,
     `# Run: ${run.runId}`,
     `# Total gross (TZS): ${run.totalGrossMinorUnits}`,
     `# Total withheld (TZS): ${run.totalWithholdingMinorUnits}`,
@@ -242,17 +243,17 @@ function buildTraPayload(
 }
 
 const tanzaniaTaxFiling: TaxFilingPort = {
-  prepareFiling(run, tenantProfile, period) {
+  prepareFiling(run, operatorProfile, period) {
     return {
       filingFormat: 'csv',
-      payload: buildTraPayload(run, tenantProfile),
+      payload: buildTraPayload(run, operatorProfile),
       targetRegulator: 'TRA',
       submitEndpointHint: 'https://taxportal.tra.go.tz',
       instructions:
         `Upload the CSV to the TRA Tax Portal (https://taxportal.tra.go.tz) ` +
-        `under "Withholding Tax Returns" for period ${formatFilingPeriodLabel(period)}. ` +
-        `WHT must be paid and return filed by the 7th of the month following ` +
-        `the payment date (Income Tax Act §83(4) read with §90). Keep the ` +
+        `under "Mineral Royalty Returns" for period ${formatFilingPeriodLabel(period)}. ` +
+        `Royalty must be paid and return filed by the 7th of the month following ` +
+        `the payment date (Mining Act 2010 §87 read with TRA procedure). Keep the ` +
         `acknowledgement receipt for audit.`,
     };
   },
@@ -309,27 +310,27 @@ const tanzaniaCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 1,
-    // Residential norm is 1–3 months; commercial climbs to 6–12. We set the
+    minBondMonths: 1,
+    // Artisanal norm is 1–3 months; industrial climbs to 6–12. We set the
     // ceiling at 6 so auto-onboarding flags anything above that for review.
-    maxDepositMonths: 6,
-    noticePeriodDays: 90, // residential end-of-term norm (LLTA 2022 § 56)
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
-    lateFeeCapRate: null, // no statutory cap; arbitrated by Housing Tribunal
-    depositReturnDays: 30,
+    maxBondMonths: 6,
+    noticePeriodDays: 90, // licence-expiry norm (Mining Act 2010)
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
+    lateFeeCapRate: null, // no statutory cap; arbitrated by Mining Commission
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Mkataba wa Upangaji (TZ Residential Lease)',
-      templatePath: 'tz/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mkataba wa Mauzo ya Madini (TZ Mineral Offtake Agreement)',
+      templatePath: 'tz/offtake-agreement.hbs',
       locale: 'sw-TZ',
     },
     {
-      id: 'notice-of-termination',
-      name: 'Notisi ya Kusitisha (TZ Notice of Termination)',
-      templatePath: 'tz/notice-of-termination.hbs',
+      id: 'notice-of-suspension',
+      name: 'Notisi ya Kusimamisha Leseni (TZ Notice of Licence Suspension)',
+      templatePath: 'tz/notice-of-suspension.hbs',
       locale: 'sw-TZ',
     },
     {
@@ -433,87 +434,87 @@ export const tanzaniaProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'tz-parties',
-        label: 'Parties (landlord + tenant, full legal names, addresses)',
+        label: 'Parties (owner + counterparty, full legal names, addresses)',
         mandatory: true,
-        citation: 'Land (Landlord and Tenant) Act, 2022 § 29.',
+        citation: 'Mining Act 2010 § 8 — mineral rights.',
       },
       {
-        id: 'tz-premises',
-        label: 'Description of premises (plot, block, district, locality)',
+        id: 'tz-site',
+        label: 'Description of licensed mining area (plot, block, district, locality)',
         mandatory: true,
-        citation: 'Land (Landlord and Tenant) Act, 2022 § 29(2).',
+        citation: 'Mining Act 2010 § 8(2).',
       },
       {
-        id: 'tz-rent',
-        label: 'Rent amount and payment frequency, denominated in TZS',
+        id: 'tz-royalty',
+        label: 'Royalty/payment rate and frequency, denominated in TZS',
         mandatory: true,
-        citation: 'Land (Landlord and Tenant) Act, 2022 § 30.',
+        citation: 'Mining Act 2010 § 87 — mineral royalty.',
       },
       {
         id: 'tz-tra-tin',
-        label: 'Landlord\'s TRA TIN disclosure (for withholding)',
+        label: 'Operator\'s TRA TIN disclosure (for royalty withholding)',
         mandatory: true,
-        citation: 'Income Tax Act, Cap. 332 § 83(1)(b) — withholding-agent duty.',
+        citation: 'Mining Act 2010 § 87 read with TRA withholding-agent duty.',
       },
       {
-        id: 'tz-deposit',
-        label: 'Deposit amount and return conditions',
+        id: 'tz-bond',
+        label: 'Performance-bond amount and return conditions',
         mandatory: true,
-        citation: 'Land (Landlord and Tenant) Act, 2022 § 32.',
+        citation: 'Mining (Mineral Rights) Regulations 2018.',
       },
       {
         id: 'tz-notice',
-        label: 'Notice period and termination grounds',
+        label: 'Notice period and licence-suspension grounds',
         mandatory: true,
-        citation: 'Land (Landlord and Tenant) Act, 2022 § 56.',
+        citation: 'Mining Act 2010 — Mining Commission procedure.',
       },
     ],
     noticeWindowDaysByReason: {
-      'non-payment': 30,
-      'end-of-term': 90,
+      'royalty-default': 30,
+      'licence-expiry': 90,
       'renewal-non-continuation': 90,
-      'landlord-repossession': 180,
-      'breach-of-covenant': 30,
-      'illegal-use': 14,
-      nuisance: 14,
+      'state-repossession': 180,
+      'breach-of-condition': 30,
+      'illegal-mining': 14,
+      'environmental-breach': 14,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 6,
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 6,
         citation:
-          'Land (Landlord and Tenant) Act, 2022 § 32 — industry norm 1–3 months; ceiling 6 months.',
+          'Mining (Mineral Rights) Regulations 2018 — industry norm 1–3 months; ceiling 6 months.',
       },
-      commercial: {
-        maxMonthsOfRent: 12,
+      industrial: {
+        maxMonthsOfRoyalty: 12,
         citation:
-          'Commercial norm; Housing Tribunal arbitrates disputes. No statutory cap.',
+          'Industrial (ML/SML) norm; Mining Commission arbitrates disputes. No statutory cap.',
       },
-      'residential-rent-controlled': {
-        maxMonthsOfRent: 3,
+      'artisanal-controlled': {
+        maxMonthsOfRoyalty: 3,
         citation:
-          'Rent Restriction Act (repealed 2005) applies only in specific declared areas; otherwise § 32 LLTA 2022 governs.',
+          'Cooperative-managed PML areas; otherwise the Mining (Mineral Rights) Regulations 2018 govern.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'No statutory cap. Disputes arbitrated by the Housing Tribunal under Land (Landlord and Tenant) Act, 2022 §§ 88–90.',
+          'No statutory cap. Disputes arbitrated by the Mining Commission under the Mining Act 2010.',
       },
-      commercial: {
-        citation: 'Freely negotiated per contract; no statutory cap.',
+      industrial: {
+        citation: 'Freely negotiated per offtake contract; no statutory cap.',
       },
     },
     defaultNoticeWindowDays: 90,
   }),
   // Tanzania has NO centralized consumer-credit bureau equivalent to CRB-KE.
   // Credit Reference Bureau (TZ) Regulations 2012 exist, but coverage is
-  // institutional-loan-focused and no tenant-screening adapter is available.
-  // The stub returns `BUREAU_NOT_CONFIGURED` and the operator playbook
-  // recommends: employer-letter verification + 6-month bank statement
-  // analysis + employment-contract verification.
-  tenantScreening: buildStubScreeningPort('CRB_TZ'),
+  // institutional-loan-focused and no counterparty-screening adapter is
+  // available. The stub returns `BUREAU_NOT_CONFIGURED` and the operator
+  // playbook recommends: bank-reference verification + 6-month statement
+  // analysis + LBMA/refiner accreditation checks for off-takers.
+  counterpartyScreening: buildStubScreeningPort('CRB_TZ'),
 };

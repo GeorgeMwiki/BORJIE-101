@@ -150,7 +150,7 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.kenya.kra_rental_summary'],
+      expectToolCalls: ['skill.kenya.tra_royalty_summary'],
     },
   },
   {

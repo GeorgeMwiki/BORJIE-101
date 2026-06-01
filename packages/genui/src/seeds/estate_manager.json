@@ -2,7 +2,7 @@
   "version": 1,
   "personaId": "estate_manager",
   "topbar": {
-    "logo": { "label": "Boss Nyumba — Estate", "href": "/estate", "markId": "midnight-ledger" },
+    "logo": { "label": "Borjie — Estate", "href": "/estate", "markId": "midnight-ledger" },
     "search": { "enabled": true, "placeholder": "Search portfolios, owners, approvals…", "scope": "tenant" },
     "notifications": { "enabled": true, "pollSeconds": 45 },
     "profile": {
@@ -22,7 +22,7 @@
         "title": "Field operations",
         "items": [
           { "id": "home", "label": "Dashboard", "icon": "home", "href": "/estate" },
-          { "id": "map", "label": "Properties map", "icon": "map", "href": "/estate/map" },
+          { "id": "map", "label": "Sites map", "icon": "map", "href": "/estate/map" },
           { "id": "work-orders", "label": "Work orders", "icon": "clipboard-list", "href": "/estate/work-orders" },
           { "id": "inspections", "label": "Inspections", "icon": "search-check", "href": "/estate/inspections" }
         ]
@@ -54,7 +54,7 @@
         "id": "fleet-map",
         "span": 12,
         "kind": "map",
-        "title": "Active properties + incidents",
+        "title": "Active sites + incidents",
         "initialProps": null
       },
       {

@@ -114,7 +114,7 @@ describe('createApprovalPolicyService.resolve', () => {
         rows: [
           {
             tenantId: 't1',
-            actionType: 'eviction.propose',
+            actionType: 'licence-suspension.propose',
             minTotalApprovers: 3,
             roleGroups: [
               { name: 'compliance', minApprovers: 1 },
@@ -131,7 +131,7 @@ describe('createApprovalPolicyService.resolve', () => {
       },
     ];
     const svc = createApprovalPolicyService(stub.client);
-    const policy = await svc.resolve({ tenantId: 't1', actionType: 'eviction.propose' });
+    const policy = await svc.resolve({ tenantId: 't1', actionType: 'licence-suspension.propose' });
     expect(policy.source).toBe('tenant');
     expect(policy.minTotalApprovers).toBe(3);
     expect(policy.roleGroups).toHaveLength(3);
@@ -147,7 +147,7 @@ describe('createApprovalPolicyService.resolve', () => {
         rows: [
           {
             tenantId: null,
-            actionType: 'eviction.propose',
+            actionType: 'licence-suspension.propose',
             minTotalApprovers: 2,
             roleGroups: [
               { name: 'compliance', minApprovers: 1 },
@@ -163,7 +163,7 @@ describe('createApprovalPolicyService.resolve', () => {
       },
     ];
     const svc = createApprovalPolicyService(stub.client);
-    const policy = await svc.resolve({ tenantId: 't1', actionType: 'eviction.propose' });
+    const policy = await svc.resolve({ tenantId: 't1', actionType: 'licence-suspension.propose' });
     expect(policy.source).toBe('platform-default');
     expect(policy.minTotalApprovers).toBe(2);
     expect(policy.roleGroups.map((g) => g.name)).toEqual(['compliance', 'ops']);
@@ -187,7 +187,7 @@ describe('createApprovalPolicyService.resolve', () => {
     const svc = createApprovalPolicyService(stub.client);
     const policy = await svc.resolve({
       tenantId: 't1',
-      actionType: 'eviction.propose',
+      actionType: 'licence-suspension.propose',
     });
     expect(policy.source).toBe('baseline');
   });
@@ -205,7 +205,7 @@ describe('createApprovalPolicyService.resolve', () => {
         rows: [
           {
             tenantId: 't1',
-            actionType: 'kra.file_mri_return',
+            actionType: 'tra.file_royalty_return',
             minTotalApprovers: 2,
             roleGroups: 'not-an-array',
             maxStaleMinutes: 1440,
@@ -220,7 +220,7 @@ describe('createApprovalPolicyService.resolve', () => {
     const svc = createApprovalPolicyService(stub.client);
     const policy = await svc.resolve({
       tenantId: 't1',
-      actionType: 'kra.file_mri_return',
+      actionType: 'tra.file_royalty_return',
     });
     expect(policy.roleGroups).toEqual([]);
   });
@@ -238,7 +238,7 @@ describe('createApprovalPolicyService.upsert validation', () => {
     await expect(
       svc.upsert({
         tenantId: 't1',
-        actionType: 'eviction.propose',
+        actionType: 'licence-suspension.propose',
         minTotalApprovers: 3,
         roleGroups: [
           { name: 'compliance', minApprovers: 1 },
@@ -253,7 +253,7 @@ describe('createApprovalPolicyService.upsert validation', () => {
     await expect(
       svc.upsert({
         tenantId: 't1',
-        actionType: 'eviction.propose',
+        actionType: 'licence-suspension.propose',
         minTotalApprovers: 2,
         roleGroups: [
           { name: 'compliance', minApprovers: 1 },
@@ -267,10 +267,10 @@ describe('createApprovalPolicyService.upsert validation', () => {
     const svc = createApprovalPolicyService(stub.client);
     const out: ResolvedApprovalPolicy = await svc.upsert({
       tenantId: 't1',
-      actionType: 'eviction.propose',
+      actionType: 'licence-suspension.propose',
       minTotalApprovers: 2,
       roleGroups: [
-        { name: 'property-manager', minApprovers: 1 },
+        { name: 'site-manager', minApprovers: 1 },
         { name: 'owner-relations', minApprovers: 1 },
       ],
       maxStaleMinutes: 480,
@@ -278,7 +278,7 @@ describe('createApprovalPolicyService.upsert validation', () => {
       reAuthRequired: true,
       reAuthMaxAgeSeconds: 120,
       allowProposerSignature: false,
-      notes: 'TZ rentals — property-manager + owner-relations quorum',
+      notes: 'TZ offtakes — site-manager + owner-relations quorum',
     });
     expect(out.source).toBe('tenant');
     expect(out.minTotalApprovers).toBe(2);
@@ -292,7 +292,7 @@ describe('createApprovalPolicyService.upsert validation', () => {
     await expect(
       svc.upsert({
         tenantId: null,
-        actionType: 'kra.file_mri_return',
+        actionType: 'tra.file_royalty_return',
         minTotalApprovers: 1,
         roleGroups: [],
       }),

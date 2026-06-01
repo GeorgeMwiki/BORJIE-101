@@ -37,7 +37,7 @@ export interface PrmTrainingSample {
   /** Aggregated trajectory reward from K-D Reflexion / action receipts. */
   readonly rewardSignal: number;
   readonly emittedAt: string;
-  /** Free-form metadata — e.g. `{ jurisdiction: 'TZ-DSM' }`. */
+  /** Free-form metadata — e.g. `{ jurisdiction: 'TZ-GEITA' }`. */
   readonly metadata?: { readonly [k: string]: JsonValue };
 }
 

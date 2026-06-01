@@ -118,8 +118,8 @@ const DEFAULT_ALLOWED_KINDS: ReadonlySet<string> = new Set([
  * ```ts
  * const dispatch = createGenUiActionDispatcher({
  *   allowedTools: new Set([
- *     'tenant.send_reminder',
- *     'lease.draft_renewal',
+ *     'counterparty.send_reminder',
+ *     'offtake.draft_renewal',
  *   ]),
  *   onAllow: (action) => fireTool(action.payload.tool, action.payload),
  *   onReject: (reason, detail) => telemetry.record('genui.action.rejected', { reason, detail }),

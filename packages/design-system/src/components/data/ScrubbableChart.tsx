@@ -35,11 +35,11 @@ import * as React from 'react';
  * ```tsx
  * <ScrubbableChart
  *   series={[
- *     { name: 'NOI',       values: [...], color: 'signal' },
- *     { name: 'Occupancy', values: [...], color: 'success' },
+ *     { name: 'Royalty',  values: [...], color: 'signal' },
+ *     { name: 'Recovery', values: [...], color: 'success' },
  *   ]}
  *   labels={['May', 'Jun', 'Jul', ...]}
- *   formatValue={(v, i) => i === 0 ? `₦${v.toFixed(1)}M` : `${v}%`}
+ *   formatValue={(v, i) => i === 0 ? `TZS ${v.toFixed(1)}M` : `${v}%`}
  *   header={({ activeIndex, activeLabel, activeValues }) =>
  *     activeIndex == null
  *       ? <DefaultHeader />

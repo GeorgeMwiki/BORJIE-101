@@ -176,18 +176,18 @@ describe('ApprovalGrantService — checkAuthorization', () => {
   it('enforces entity allow-list on standing grant', async () => {
     const { svc } = makeService();
     await svc.grantStanding(TENANT, {
-      domain: 'leasing',
+      domain: 'offtake',
       actionCategory: 'propose_renewal',
       scope: { entityType: 'lease', entityIds: ['lease_1', 'lease_2'] },
       createdBy: HEAD,
     });
     const allowed = await svc.checkAuthorization(TENANT, 'propose_renewal', {
-      domain: 'leasing',
+      domain: 'offtake',
       targetEntityType: 'lease',
       targetEntityId: 'lease_1',
     });
     const denied = await svc.checkAuthorization(TENANT, 'propose_renewal', {
-      domain: 'leasing',
+      domain: 'offtake',
       targetEntityType: 'lease',
       targetEntityId: 'lease_99',
     });

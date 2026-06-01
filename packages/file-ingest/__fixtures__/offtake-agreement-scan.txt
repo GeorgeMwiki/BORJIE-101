@@ -1,0 +1,23 @@
+BORJIE OFFTAKE AGREEMENT — Extracted OCR text
+
+Offtake Reference: OA-2025-0049
+Counterparty Name: Patricia Mwafula
+Asset Reference: MIN-GEI-0001
+Consignment Number: 12B
+Agreement Start Date: 2025-02-15
+Agreement End Date: 2026-02-14
+Monthly Volume: 850 kg refined gold
+
+Agreement signed in the presence of:
+  Asha Mwangi (Site Manager)
+  Grace Mlangwa (Legal Counsel)
+
+Notes:
+  Pricing referenced to the LBMA morning fix; 6% royalty plus 1% clearing fee withheld at the gold room.
+  Logistics covered by Bahari Bullion Ltd as per standing arrangement.
+
+Offtake Reference  Counterparty Name  Asset Reference  Start Date  End Date    Monthly Volume
+OA-2025-0049     Patricia Mwafula   MIN-GEI-0001       2025-02-15  2026-02-14  850
+OA-2025-0050     Daniel Nyongesa    MIN-GEI-0002       2025-03-01  2026-02-28  920
+OA-2025-0051     Eunice Mhagama     MIN-CHU-0001       2025-03-15  2026-03-14  1180
+OA-2025-0052     Frank Mwale        MIN-KAH-0001       2025-04-01  2026-03-31  720

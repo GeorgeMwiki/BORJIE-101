@@ -3,7 +3,7 @@
  *
  * Distinct from the legacy `PaymentGateway` list (which is credentials /
  * integration metadata) — this port exposes BUSINESS attributes: settlement
- * SLA, minimum amount, currency, operational mode. The rent-collection
+ * SLA, minimum amount, currency, operational mode. The payment-collection
  * router uses these to pick the cheapest viable rail for a given charge.
  */
 
@@ -23,7 +23,7 @@ export type PaymentRailKind =
 export interface PaymentRail {
   /** Stable machine ID, unique within a country (e.g. 'mpesa_ke', 'ach_us'). */
   readonly id: string;
-  /** Display label for dashboards / tenant apps. */
+  /** Display label for dashboards / operator apps. */
   readonly label: string;
   /** Classification. */
   readonly kind: PaymentRailKind;
@@ -36,7 +36,7 @@ export interface PaymentRail {
    */
   readonly minAmountMinorUnits: number;
   /**
-   * Best-case typical settlement lag into the landlord's account, in hours.
+   * Best-case typical settlement lag into the owner's account, in hours.
    * Used for cash-flow forecasting — NOT a SLA guarantee.
    */
   readonly settlementLagHours: number;
@@ -47,12 +47,12 @@ export interface PaymentRail {
    */
   readonly integrationAdapterHint: string | null;
   /**
-   * True if this rail supports inbound rent collection (i.e. customer →
-   * landlord). False for disbursement-only rails.
+   * True if this rail supports inbound payment collection (i.e. buyer →
+   * owner). False for disbursement-only rails.
    */
   readonly supportsCollection: boolean;
   /**
-   * True if this rail supports outbound disbursement (landlord → vendor).
+   * True if this rail supports outbound disbursement (owner → vendor).
    */
   readonly supportsDisbursement: boolean;
 }

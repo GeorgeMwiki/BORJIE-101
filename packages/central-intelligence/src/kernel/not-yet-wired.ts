@@ -4,7 +4,7 @@
  *
  * Background
  * ──────────
- * The brain kernel ships HQ tools (`platform.evict_tenant`,
+ * The brain kernel ships HQ tools (`platform.suspend_licence`,
  * `platform.payout_owner`, `platform.file_kra_mri`,
  * `platform.verify_nida`, `platform.verify_eardhi_title`, etc.) that depend
  * on optional ports. Each port has TWO legitimate composition outcomes:
@@ -55,8 +55,8 @@ export const NOT_YET_WIRED_REASON = Object.freeze({
   EARDHI_PORT: 'eardhi-port',
 
   // ─── Temporal-backed sovereign workflow dispatchers ──────────────
-  /** Eviction workflow dispatcher. */
-  EVICTION_DISPATCHER: 'eviction-dispatcher',
+  /** Licence-suspension workflow dispatcher. */
+  LICENCE_SUSPENSION_DISPATCHER: 'licence-suspension-dispatcher',
   /** Owner-payout workflow dispatcher. */
   OWNER_PAYOUT_DISPATCHER: 'owner-payout-dispatcher',
   /** KRA MRI filing workflow dispatcher. */
@@ -91,7 +91,7 @@ export type NotYetWiredReason =
  *
  * Throw shape:
  *
- *   throw new NotYetWiredError(NOT_YET_WIRED_REASON.EVICTION_DISPATCHER);
+ *   throw new NotYetWiredError(NOT_YET_WIRED_REASON.LICENCE_SUSPENSION_DISPATCHER);
  *   throw new NotYetWiredError('custom.subname');   // ad-hoc — also legal
  */
 /**

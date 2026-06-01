@@ -34,7 +34,7 @@ const ALL_SCOPES: ReadonlyArray<AgentScope> = [
   'read:cases',
   'write:cases',
   'read:graph',
-  'read:tenants',
+  'read:counterparties',
   'execute:skills',
 ];
 

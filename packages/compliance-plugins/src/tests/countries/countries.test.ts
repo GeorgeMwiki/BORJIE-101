@@ -13,7 +13,7 @@ import {
   canadaProfile,
   franceProfile,
   germanyProfile,
-  getTenantCountryDefault,
+  getOperatorCountryDefault,
   indiaProfile,
   japanProfile,
   koreaProfile,
@@ -110,7 +110,7 @@ describe('tax-regime withholding', () => {
     expect(res.requiresManualConfiguration).toBe(true);
   });
 
-  it('AU stubs withholding — rental not withheld', () => {
+  it('AU stubs withholding — mineral proceeds not federally withheld', () => {
     const res = australiaProfile.taxRegime.calculateWithholding(
       100_000,
       'AUD',
@@ -164,19 +164,19 @@ describe('national-id validators', () => {
   });
 });
 
-describe('lease-law port', () => {
+describe('mining-law port', () => {
   it('DE notice-windows differ by reason', () => {
-    expect(germanyProfile.leaseLaw.noticeWindowDays('end-of-term')).toBe(90);
-    expect(germanyProfile.leaseLaw.noticeWindowDays('non-payment')).toBe(14);
+    expect(germanyProfile.miningLaw.noticeWindowDays('licence-expiry')).toBe(90);
+    expect(germanyProfile.miningLaw.noticeWindowDays('royalty-default')).toBe(14);
   });
 
-  it('GB deposit cap uses weeks-of-rent', () => {
-    const cap = ukProfile.leaseLaw.depositCapMultiple('residential-standard');
-    expect(cap.maxWeeksOfRent).toBe(5);
+  it('GB bond cap uses weeks-of-royalty', () => {
+    const cap = ukProfile.miningLaw.bondCapMultiple('artisanal-standard');
+    expect(cap.maxWeeksOfRoyalty).toBe(5);
   });
 
-  it('KR rent-increase cap is 5% on renewal', () => {
-    const cap = koreaProfile.leaseLaw.rentIncreaseCap('residential-standard');
+  it('KR royalty-escalation cap is 5% on renewal', () => {
+    const cap = koreaProfile.miningLaw.royaltyEscalationCap('artisanal-standard');
     expect(cap.pctPerAnnum).toBe(5);
   });
 });
@@ -215,8 +215,8 @@ describe('global default fallback', () => {
     expect(resolveExtendedProfile('JP').plugin.countryCode).toBe('JP');
   });
 
-  it('getTenantCountryDefault returns a sensible hint', () => {
-    expect(getTenantCountryDefault().length).toBe(2);
+  it('getOperatorCountryDefault returns a sensible hint', () => {
+    expect(getOperatorCountryDefault().length).toBe(2);
   });
 
   it('GLOBAL_DEFAULT_PROFILE has USD / en / manual rails', () => {

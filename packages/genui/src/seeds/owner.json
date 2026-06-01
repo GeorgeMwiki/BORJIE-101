@@ -2,8 +2,8 @@
   "version": 1,
   "personaId": "owner",
   "topbar": {
-    "logo": { "label": "Boss Nyumba — Owner", "href": "/owner", "markId": "midnight-ledger" },
-    "search": { "enabled": true, "placeholder": "Search properties, statements…", "scope": "persona" },
+    "logo": { "label": "Borjie — Owner", "href": "/owner", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search assets, statements…", "scope": "persona" },
     "notifications": { "enabled": true, "pollSeconds": 120 },
     "profile": {
       "enabled": true,
@@ -22,7 +22,7 @@
         "title": "Portfolio",
         "items": [
           { "id": "home", "label": "Dashboard", "icon": "home", "href": "/owner" },
-          { "id": "properties", "label": "My properties", "icon": "building", "href": "/owner/properties" },
+          { "id": "assets", "label": "My assets", "icon": "building", "href": "/owner/assets" },
           { "id": "statements", "label": "Statements", "icon": "scroll-text", "href": "/owner/statements" }
         ]
       },
@@ -64,17 +64,17 @@
         "initialProps": null
       },
       {
-        "id": "property-comparison",
+        "id": "asset-comparison",
         "span": 4,
         "kind": "comparison-table",
-        "title": "Properties side-by-side",
+        "title": "Assets side-by-side",
         "initialProps": null
       },
       {
-        "id": "property-list",
+        "id": "asset-list",
         "span": 6,
         "kind": "data-table",
-        "title": "My properties",
+        "title": "My assets",
         "initialProps": null
       },
       {

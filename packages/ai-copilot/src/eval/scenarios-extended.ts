@@ -57,7 +57,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [{ userText: 'Please abstract the supply agreement A-99 I just uploaded (47 data points).' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
-      expectToolCalls: ['skill.leasing.abstract'],
+      expectToolCalls: ['skill.offtake.abstract'],
     },
   },
   {
@@ -213,7 +213,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.kenya.kra_rental_summary'],
+      expectToolCalls: ['skill.kenya.tra_royalty_summary'],
     },
   },
   {

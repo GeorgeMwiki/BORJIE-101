@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "Country compliance plugin registry — pluggable currency, phone, KYC, payment, and regulatory rules per country for BORJIE's global property-management platform.",
+  "description": "Country compliance plugin registry — pluggable currency, phone, KYC, payment, and mining-regulatory rules per country for BORJIE's AI-native mining estate OS.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./src/index.ts",

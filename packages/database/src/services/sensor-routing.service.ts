@@ -105,7 +105,7 @@ export interface SensorRoutingService {
 // ─────────────────────────────────────────────────────────────────────
 // Builtin sensor chains
 //
-// Property-management-shaped tasks. Tiered by tenant value so a free
+// Mining-operations-shaped tasks. Tiered by tenant value so a free
 // tenant gets Haiku-class on greetings and Sonnet on heavy work; an
 // enterprise tenant pins Opus on high-stakes turns. Used as a safe
 // default until the live router consumes DB overrides.
@@ -167,9 +167,9 @@ const BUILTIN: Readonly<Record<string, BuiltinRoute>> = Object.freeze({
   inspection_summary: {
     chain: [SONNET, OPUS],
     cognitionMode: 'default',
-    reasoning: 'property-mgmt inspection digest — Sonnet primary',
+    reasoning: 'mine-site inspection digest — Sonnet primary',
   },
-  arrears_memo: {
+  outstanding_royalties_memo: {
     chain: [OPUS, SONNET],
     cognitionMode: 'deep',
     reasoning: 'high-stakes financial memo — Opus primary, Sonnet fallback',
@@ -177,9 +177,9 @@ const BUILTIN: Readonly<Record<string, BuiltinRoute>> = Object.freeze({
   compliance_review: {
     chain: [OPUS, SONNET],
     cognitionMode: 'deep',
-    reasoning: 'KRA / GePG / certificate logic — Opus primary',
+    reasoning: 'TRA / GePG / certificate logic — Opus primary',
   },
-  property_grade_briefing: {
+  asset_grade_briefing: {
     chain: [OPUS, SONNET],
     cognitionMode: 'deep',
     reasoning: '5-axis grade synthesis — Opus primary',

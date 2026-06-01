@@ -40,7 +40,7 @@ describe('decideRouting — happy paths', () => {
       extractions: [
         field('applicant_name'),
         field('requested_asset'),
-        field('requested_rent'),
+        field('requested_royalty'),
       ],
     });
     expect(decisions).toHaveLength(1);
@@ -95,12 +95,12 @@ describe('decideRouting — HITL flags', () => {
     const decisions = decideRouting({
       docType: 'lease_contract',
       docTypeConfidence: 0.9,
-      extractions: [field('tenant_name'), field('asset_reference')],
-      // missing monthly_rent
+      extractions: [field('buyer_name'), field('asset_reference')],
+      // missing monthly_royalty
     });
     expect(decisions[0]?.hitlRequired).toBe(true);
     expect(decisions[0]?.reasoning?.['requiredKeysMissing']).toContain(
-      'monthly_rent',
+      'monthly_royalty',
     );
   });
 

@@ -49,8 +49,8 @@ const GEPG_REF_RX =
   /\b(?:gepg\s*(?:control\s*number|ref(?:erence)?)|control\s*number)[:\s]+(\d{8,24})\b/i;
 /** M-Pesa transaction reference: e.g. RFD9KL2P3M (10 alphanumeric). */
 const MPESA_REF_RX = /\b(?:m[-\s]?pesa|mpesa)[^A-Za-z0-9]+([A-Z0-9]{9,12})\b/i;
-/** Plot number: e.g. PLOT 123, PLOT NO. 45/B, PROP-DAR-0001. */
-const PLOT_RX = /\b(?:plot|prop|property)\s*(?:no\.?|number|reference|ref)?[:\s]+([A-Z0-9][A-Z0-9\-/]{2,32})\b/i;
+/** Asset / licence reference: e.g. SITE 123, ML NO. 45/B, ML-GEITA-0001. */
+const PLOT_RX = /\b(?:site|licence|asset|mining\s+licence|ml|pml|plot|prop|property)\s*(?:no\.?|number|reference|ref)?[:\s]+([A-Z0-9][A-Z0-9\-/]{2,32})\b/i;
 /** Address: at least two of street/road/area + town. Best-effort. */
 const ADDRESS_RX =
   /\b((?:plot|house|apt|apartment|unit)\s+[\dA-Z][\dA-Z\-/]{0,20}[,\s]+(?:[A-Z][a-z]+\s+(?:road|street|avenue|drive|lane)[,\s]+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g;
@@ -179,20 +179,20 @@ function extractPersonByLabels(
 
 const LEASE_FIELDS: ReadonlyArray<FieldSpec> = [
   {
-    key: 'landlord_name',
+    key: 'owner_name',
     kind: 'entity',
-    extract: (t) => extractPersonByLabels(t, ['lessor', 'landlord', 'mwenye nyumba']),
+    extract: (t) => extractPersonByLabels(t, ['seller', 'owner', 'mwenye madini']),
   },
   {
-    key: 'tenant_name',
+    key: 'buyer_name',
     kind: 'entity',
     extract: (t) =>
       extractPersonByLabels(t, [
-        'lessee',
-        'tenant name',
-        'jina la mpangaji',
-        'mpangaji',
-        'tenant',
+        'buyer',
+        'buyer name',
+        'jina la mnunuzi',
+        'mnunuzi',
+        'offtaker',
       ]),
   },
   {
@@ -206,13 +206,13 @@ const LEASE_FIELDS: ReadonlyArray<FieldSpec> = [
     },
   },
   {
-    key: 'monthly_rent',
+    key: 'monthly_royalty',
     kind: 'amount',
     extract: (t) => {
       const amounts = extractAllAmounts(t);
       if (amounts.length === 0) return [];
-      // Cheapest heuristic: the first labelled rent amount.
-      const labelled = /(?:monthly\s+rent|kodi\s+ya\s+mwezi|rent\s*[:=])[^\n]{0,80}?(KES|TZS|UGX|RWF|NGN|GHS|USD)\s*([0-9](?:[0-9.,\s]*[0-9])?)/i.exec(
+      // Cheapest heuristic: the first labelled royalty amount.
+      const labelled = /(?:monthly\s+royalty|mrabaha\s+wa\s+mwezi|royalty\s*[:=])[^\n]{0,80}?(KES|TZS|UGX|RWF|NGN|GHS|USD)\s*([0-9](?:[0-9.,\s]*[0-9])?)/i.exec(
         t,
       );
       if (labelled && labelled[1] && labelled[2]) {
@@ -233,22 +233,22 @@ const LEASE_FIELDS: ReadonlyArray<FieldSpec> = [
     },
   },
   {
-    key: 'lease_start_date',
+    key: 'offtake_start_date',
     kind: 'date',
     extract: (t) =>
       labelLookup(
         t,
-        ['lease start date', 'start date', 'commencement date', 'tarehe ya kuanza'],
+        ['offtake start date', 'start date', 'commencement date', 'tarehe ya kuanza'],
         /(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-.]\w{1,10}[\/\-.]\d{2,4})/,
       ),
   },
   {
-    key: 'lease_end_date',
+    key: 'offtake_end_date',
     kind: 'date',
     extract: (t) =>
       labelLookup(
         t,
-        ['lease end date', 'end date', 'expiry date', 'tarehe ya kumalizika'],
+        ['offtake end date', 'end date', 'expiry date', 'tarehe ya kumalizika'],
         /(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-.]\w{1,10}[\/\-.]\d{2,4})/,
       ),
   },
@@ -290,10 +290,10 @@ const LEASE_APPLICATION_FIELDS: ReadonlyArray<FieldSpec> = [
     },
   },
   {
-    key: 'requested_rent',
+    key: 'requested_royalty',
     kind: 'amount',
     extract: (t) => {
-      const labelled = /(?:requested\s+rent|proposed\s+rent|offered\s+rent|kodi\s+ninayotaka)[^\n]{0,80}?(KES|TZS|UGX|RWF|NGN|GHS|USD)\s*([0-9](?:[0-9.,\s]*[0-9])?)/i.exec(
+      const labelled = /(?:requested\s+royalty|proposed\s+royalty|offered\s+royalty|mrabaha\s+ninaotaka)[^\n]{0,80}?(KES|TZS|UGX|RWF|NGN|GHS|USD)\s*([0-9](?:[0-9.,\s]*[0-9])?)/i.exec(
         t,
       );
       if (labelled && labelled[1] && labelled[2]) {
@@ -480,12 +480,12 @@ const COMPLAINT_FIELDS: ReadonlyArray<FieldSpec> = [
 
 const RENEWAL_FIELDS: ReadonlyArray<FieldSpec> = [
   {
-    key: 'tenant_name',
+    key: 'counterparty_name',
     kind: 'entity',
     extract: (t) =>
-      // Longest labels first — `tenant name` is more specific than `tenant`
+      // Longest labels first — `buyer name` is more specific than `buyer`
       // and must be tried before the shorter prefix.
-      extractPersonByLabels(t, ['tenant name', 'mpangaji', 'tenant']),
+      extractPersonByLabels(t, ['buyer name', 'mnunuzi', 'buyer']),
   },
   {
     key: 'asset_reference',
@@ -511,9 +511,9 @@ const RENEWAL_FIELDS: ReadonlyArray<FieldSpec> = [
 
 const TERMINATION_FIELDS: ReadonlyArray<FieldSpec> = [
   {
-    key: 'tenant_name',
+    key: 'counterparty_name',
     kind: 'entity',
-    extract: (t) => extractPersonByLabels(t, ['tenant name', 'mpangaji', 'tenant']),
+    extract: (t) => extractPersonByLabels(t, ['buyer name', 'mnunuzi', 'buyer']),
   },
   {
     key: 'asset_reference',
@@ -531,7 +531,7 @@ const TERMINATION_FIELDS: ReadonlyArray<FieldSpec> = [
     extract: (t) =>
       labelLookup(
         t,
-        ['effective date', 'vacating date', 'tarehe ya kuondoka'],
+        ['effective date', 'termination date', 'tarehe ya kusitisha'],
         /(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-.]\w{1,10}[\/\-.]\d{2,4})/,
       ),
   },

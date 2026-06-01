@@ -3,7 +3,7 @@
  * (`@borjie/tab-need-detector`).
  *
  * The brain occasionally detects that the user could benefit from a new
- * tab (e.g. "you're asking three rent questions — want a Rent Insights
+ * tab (e.g. "you're asking three royalty questions — want a Royalty Insights
  * tab to pin on your dashboard?"). The detector emits proposals which
  * land in the `tab_spawn_proposals` table; this banner reads them via a
  * fetch seam supplied by the consuming app and lets the user accept or

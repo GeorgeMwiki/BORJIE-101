@@ -6,7 +6,7 @@
  * fallback. Callers may therefore access `plugin.taxRegime.foo(...)`
  * without null checks.
  *
- * `DEFAULT_PLUGIN` is the synthetic fallback used when a tenant has no
+ * `DEFAULT_PLUGIN` is the synthetic fallback used when an operator has no
  * country set. It carries USD / English / 0% withholding and a "manual"
  * payment rail.
  */
@@ -17,13 +17,13 @@ import {
   DEFAULT_TAX_REGIME,
   DEFAULT_TAX_FILING,
   DEFAULT_PAYMENT_RAIL_PORT,
-  DEFAULT_TENANT_SCREENING,
-  DEFAULT_LEASE_LAW,
+  DEFAULT_COUNTERPARTY_SCREENING,
+  DEFAULT_MINING_LAW,
   type TaxRegimePort,
   type TaxFilingPort,
   type PaymentRailPort,
-  type TenantScreeningPort,
-  type LeaseLawPort,
+  type CounterpartyScreeningPort,
+  type MiningLawPort,
 } from './ports/index.js';
 
 /** A `CountryPlugin` with every port guaranteed non-optional. */
@@ -31,12 +31,12 @@ export interface ResolvedCountryPlugin extends CountryPlugin {
   readonly taxRegime: TaxRegimePort;
   readonly taxFiling: TaxFilingPort;
   readonly paymentRails: PaymentRailPort;
-  readonly tenantScreening: TenantScreeningPort;
-  readonly leaseLaw: LeaseLawPort;
+  readonly counterpartyScreening: CounterpartyScreeningPort;
+  readonly miningLaw: MiningLawPort;
 }
 
 /**
- * Synthetic default used when the tenant has no country selected.
+ * Synthetic default used when the operator has no country selected.
  *  - Currency: USD
  *  - Language: English
  *  - Withholding: 0% (generic note)
@@ -60,20 +60,20 @@ export const DEFAULT_PLUGIN: ResolvedCountryPlugin = Object.freeze({
   kycProviders: Object.freeze([]),
   paymentGateways: Object.freeze([]),
   compliance: Object.freeze({
-    minDepositMonths: 1,
-    maxDepositMonths: 2,
+    minBondMonths: 1,
+    maxBondMonths: 2,
     noticePeriodDays: 30,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required' as const,
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required' as const,
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   }),
   documentTemplates: Object.freeze([]),
   taxRegime: DEFAULT_TAX_REGIME,
   taxFiling: DEFAULT_TAX_FILING,
   paymentRails: DEFAULT_PAYMENT_RAIL_PORT,
-  tenantScreening: DEFAULT_TENANT_SCREENING,
-  leaseLaw: DEFAULT_LEASE_LAW,
+  counterpartyScreening: DEFAULT_COUNTERPARTY_SCREENING,
+  miningLaw: DEFAULT_MINING_LAW,
 }) as ResolvedCountryPlugin;
 
 /**
@@ -95,8 +95,8 @@ export function resolvePlugin(
     taxRegime: base.taxRegime ?? DEFAULT_TAX_REGIME,
     taxFiling: base.taxFiling ?? DEFAULT_TAX_FILING,
     paymentRails: base.paymentRails ?? DEFAULT_PAYMENT_RAIL_PORT,
-    tenantScreening: base.tenantScreening ?? DEFAULT_TENANT_SCREENING,
-    leaseLaw: base.leaseLaw ?? DEFAULT_LEASE_LAW,
+    counterpartyScreening: base.counterpartyScreening ?? DEFAULT_COUNTERPARTY_SCREENING,
+    miningLaw: base.miningLaw ?? DEFAULT_MINING_LAW,
   }) as ResolvedCountryPlugin;
 }
 
@@ -106,8 +106,8 @@ export interface PortCoverageRow {
   readonly taxRegime: boolean;
   readonly taxFiling: boolean;
   readonly paymentRails: boolean;
-  readonly tenantScreening: boolean;
-  readonly leaseLaw: boolean;
+  readonly counterpartyScreening: boolean;
+  readonly miningLaw: boolean;
 }
 
 /** Produce the coverage matrix used by the compliance dashboard + tests. */
@@ -119,8 +119,8 @@ export function getPortCoverageMatrix(): readonly PortCoverageRow[] {
         taxRegime: Boolean(plugin.taxRegime),
         taxFiling: Boolean(plugin.taxFiling),
         paymentRails: Boolean(plugin.paymentRails),
-        tenantScreening: Boolean(plugin.tenantScreening),
-        leaseLaw: Boolean(plugin.leaseLaw),
+        counterpartyScreening: Boolean(plugin.counterpartyScreening),
+        miningLaw: Boolean(plugin.miningLaw),
       })
     )
   );

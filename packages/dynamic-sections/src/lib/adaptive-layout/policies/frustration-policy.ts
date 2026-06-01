@@ -15,7 +15,7 @@
  *   - frustration >= 0.75 → policy weight escalates (stronger pin)
  *
  * The policy uses a fuzzy-match against known section-id prefixes
- * rather than an enum. A new "tenant.support.requests" section will
+ * rather than an enum. A new "owner.support.requests" section will
  * be auto-pinned the moment it's registered, without a code change.
  */
 
@@ -33,7 +33,7 @@ const HIGH_FRUSTRATION_THRESHOLD = 0.75;
 /**
  * Substrings that mark a section as "rescue hatch" — pinned when
  * frustration is high. Match is case-insensitive substring; this is
- * deliberately broad so a new "tenant.help-centre" or "owner.contact-
+ * deliberately broad so a new "owner.help-centre" or "owner.contact-
  * agency" section participates automatically.
  */
 const HELP_MARKERS: readonly string[] = [

@@ -22,13 +22,13 @@ const baseProvenanceSeed = {
 };
 
 describe('InMemoryEntityStoreService', () => {
-  it('listEntityTypes returns default set with at least employee + property', async () => {
+  it('listEntityTypes returns default set with at least employee + mining_asset', async () => {
     const store = new InMemoryEntityStoreService();
     const types = await store.listEntityTypes(TENANT);
     const names = types.map((t) => t.entity_type);
     expect(names).toContain('employee');
-    expect(names).toContain('property');
-    expect(names).toContain('lead');
+    expect(names).toContain('mining_asset');
+    expect(names).toContain('prospective_buyer');
   });
 
   it('getEntityType returns null for unknown types', async () => {

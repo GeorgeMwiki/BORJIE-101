@@ -33,14 +33,14 @@ export type AgentStatus = 'active' | 'suspended' | 'revoked';
 // ============================================================================
 
 export type AgentScope =
-  | 'read:properties'
-  | 'read:tenants'
+  | 'read:assets'
+  | 'read:counterparties'
   | 'read:cases'
   | 'write:cases'
   | 'read:letters'
   | 'write:letters'
   | 'read:payments'
-  | 'read:occupancy'
+  | 'read:production'
   | 'read:graph'
   | 'read:warehouse'
   | 'read:taxonomy'
@@ -51,14 +51,14 @@ export type AgentScope =
   | 'admin:agents';
 
 export const ALL_AGENT_SCOPES: ReadonlyArray<AgentScope> = Object.freeze([
-  'read:properties',
-  'read:tenants',
+  'read:assets',
+  'read:counterparties',
   'read:cases',
   'write:cases',
   'read:letters',
   'write:letters',
   'read:payments',
-  'read:occupancy',
+  'read:production',
   'read:graph',
   'read:warehouse',
   'read:taxonomy',
@@ -164,21 +164,21 @@ export type WebhookDeliveryStatus =
 // ============================================================================
 
 export const SUBSCRIBABLE_EVENTS: ReadonlyArray<string> = Object.freeze([
-  'property.created',
-  'property.updated',
+  'asset.created',
+  'asset.updated',
   'unit.created',
   'unit.updated',
-  'lease.created',
-  'lease.renewed',
-  'lease.terminated',
-  'tenant.created',
-  'tenant.updated',
+  'offtake.created',
+  'offtake.renewed',
+  'offtake.terminated',
+  'counterparty.created',
+  'counterparty.updated',
   'case.created',
   'case.assigned',
   'case.resolved',
   'payment.received',
   'payment.failed',
-  'arrears.threshold_breached',
+  'royalty_arrears.threshold_breached',
   'compliance.flag_raised',
   'ai.budget_warning',
 ]);

@@ -4,7 +4,7 @@
  * Canonical list of action names that unambiguously warrant deliberate
  * deep reasoning. Callers rarely want to hand-craft a `DecisionContext`
  * from scratch; they pass an `actionType` string and this module returns
- * the field defaults (irreversible, regulated, affectsHousing, etc.)
+ * the field defaults (irreversible, regulated, affectsLivelihoods, etc.)
  * pre-populated so the classifier can do its job.
  *
  * The catalogue is exported as a typed constant so ops/UI can render
@@ -36,16 +36,16 @@ export const HIGH_STAKES_CATALOGUE: ReadonlyArray<HighStakesCatalogueEntry> =
   Object.freeze([
     // ---------- legal_proceedings ----------
     {
-      actionName: 'eviction.file_notice',
+      actionName: 'licence_suspension.file_notice',
       domain: 'legal_proceedings',
       description:
-        'File an eviction notice against a tenant. Tribunal-adjacent, irreversible, directly threatens housing.',
+        'File a licence-suspension / incursion-response notice against an operator. Mining-Commission-adjacent, irreversible, directly threatens livelihoods.',
       expectedStakes: 'critical',
       defaults: {
         domain: 'legal_proceedings',
         reversible: false,
         regulated: true,
-        affectsHousing: true,
+        affectsLivelihoods: true,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },
@@ -54,28 +54,28 @@ export const HIGH_STAKES_CATALOGUE: ReadonlyArray<HighStakesCatalogueEntry> =
       actionName: 'tribunal.submit_filing',
       domain: 'legal_proceedings',
       description:
-        'Submit a filing to the housing tribunal. Regulated, irreversible once filed.',
+        'Submit a filing to the Mining Commission tribunal. Regulated, irreversible once filed.',
       expectedStakes: 'critical',
       defaults: {
         domain: 'legal_proceedings',
         reversible: false,
         regulated: true,
-        affectsHousing: true,
+        affectsLivelihoods: true,
         publiclyVisible: true,
         counterpartyIsVulnerable: false,
       },
     },
     {
-      actionName: 'tenant.blacklist',
+      actionName: 'counterparty.blacklist',
       domain: 'legal_proceedings',
       description:
-        'Add tenant to shared blacklist / negative-residence registry. Effectively cuts off future housing.',
+        'Add counterparty to shared blacklist / negative-trade registry. Effectively cuts off future offtake.',
       expectedStakes: 'critical',
       defaults: {
         domain: 'legal_proceedings',
         reversible: false,
         regulated: true,
-        affectsHousing: true,
+        affectsLivelihoods: true,
         publiclyVisible: true,
         counterpartyIsVulnerable: false,
       },
@@ -84,45 +84,45 @@ export const HIGH_STAKES_CATALOGUE: ReadonlyArray<HighStakesCatalogueEntry> =
       actionName: 'credit_report.submit_negative',
       domain: 'legal_proceedings',
       description:
-        'Report tenant to the credit bureau for arrears. Regulated, hard to reverse.',
+        'Report buyer to the credit bureau for outstanding royalties. Regulated, hard to reverse.',
       expectedStakes: 'high',
       defaults: {
         domain: 'legal_proceedings',
         reversible: false,
         regulated: true,
-        affectsHousing: false,
+        affectsLivelihoods: false,
         publiclyVisible: true,
         counterpartyIsVulnerable: false,
       },
     },
 
-    // ---------- leasing ----------
+    // ---------- offtake ----------
     {
-      actionName: 'lease.terminate',
-      domain: 'leasing',
+      actionName: 'offtake.terminate',
+      domain: 'offtake',
       description:
-        'Terminate a lease before its scheduled end date. Irreversible; threatens housing.',
+        'Terminate an offtake / supply agreement before its scheduled end date. Irreversible; threatens livelihoods.',
       expectedStakes: 'critical',
       defaults: {
-        domain: 'leasing',
+        domain: 'offtake',
         reversible: false,
         regulated: true,
-        affectsHousing: true,
+        affectsLivelihoods: true,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },
     },
     {
-      actionName: 'lease.rent_increase_above_policy',
-      domain: 'leasing',
+      actionName: 'offtake.price_increase_above_policy',
+      domain: 'offtake',
       description:
-        'Apply a rent increase above the tenant-level autonomy policy. Regulated in many jurisdictions.',
+        'Apply a price increase above the tenant-level autonomy policy. Regulated in many jurisdictions.',
       expectedStakes: 'high',
       defaults: {
-        domain: 'leasing',
+        domain: 'offtake',
         reversible: true,
         regulated: true,
-        affectsHousing: true,
+        affectsLivelihoods: true,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },
@@ -139,22 +139,22 @@ export const HIGH_STAKES_CATALOGUE: ReadonlyArray<HighStakesCatalogueEntry> =
         domain: 'finance',
         reversible: false,
         regulated: false,
-        affectsHousing: false,
+        affectsLivelihoods: false,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },
     },
     {
-      actionName: 'finance.security_deposit_writeoff',
+      actionName: 'finance.performance_bond_writeoff',
       domain: 'finance',
       description:
-        'Write off a tenant security deposit above threshold (deduct without consent signature).',
+        'Write off a buyer performance bond above threshold (deduct without consent signature).',
       expectedStakes: 'high',
       defaults: {
         domain: 'finance',
         reversible: false,
         regulated: true,
-        affectsHousing: false,
+        affectsLivelihoods: false,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },
@@ -171,7 +171,7 @@ export const HIGH_STAKES_CATALOGUE: ReadonlyArray<HighStakesCatalogueEntry> =
         domain: 'procurement',
         reversible: false,
         regulated: false,
-        affectsHousing: false,
+        affectsLivelihoods: false,
         publiclyVisible: false,
         counterpartyIsVulnerable: false,
       },

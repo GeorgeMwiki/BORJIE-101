@@ -7,13 +7,18 @@
  *
  * Supported triggers (see phM-platform-blueprint Part B.6):
  *   - PaymentReceived / PaymentMissed    → credit_rating + churn_probability
- *   - LeaseSigned / LeaseTerminated      → credit_rating + property_grade
- *   - ArrearsCaseOpened                  → credit_rating + churn_probability
- *   - InspectionCompleted                → property_grade
+ *   - OfftakeSigned / OfftakeTerminated  → credit_rating + asset_grade
+ *   - RoyaltyArrearsCaseOpened           → credit_rating + churn_probability
+ *   - InspectionCompleted                → asset_grade
  *   - WorkOrderClosed                    → vendor_scorecard
- *   - MessageReceived (low sentiment)    → tenant_sentiment + churn_probability
+ *   - MessageReceived (low sentiment)    → buyer_sentiment + churn_probability
  *   - RenewalConversationUpdated         → churn_probability
- *   - MaintenancePhotoUploaded           → property_grade
+ *   - MaintenancePhotoUploaded           → asset_grade
+ *
+ * NOTE: the `eventType` case labels + `payload.*Id` keys mirror the
+ * platform event-bus contract emitted by other packages and are read
+ * verbatim (with additive mining-key fallbacks) so the matcher keeps
+ * firing while emitters migrate in lockstep.
  */
 
 import type { RiskEventClassifier, RiskTriggerMatch } from './types.js';
@@ -42,13 +47,13 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     case 'LeaseSigned':
     case 'LeaseTerminated': {
       const customerId = str(payload.customerId) ?? str(payload.tenantCustomerId);
-      const propertyId = str(payload.propertyId);
+      const assetId = str(payload.assetId) ?? str(payload.propertyId);
       if (customerId) {
         matches.push({ kind: 'credit_rating', entityId: customerId });
         matches.push({ kind: 'churn_probability', entityId: customerId });
       }
-      if (propertyId) {
-        matches.push({ kind: 'property_grade', entityId: propertyId });
+      if (assetId) {
+        matches.push({ kind: 'asset_grade', entityId: assetId });
       }
       break;
     }
@@ -65,9 +70,9 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
 
     case 'InspectionCompleted':
     case 'PropertyInspectionSurveyAdded': {
-      const propertyId = str(payload.propertyId);
-      if (propertyId) {
-        matches.push({ kind: 'property_grade', entityId: propertyId });
+      const assetId = str(payload.assetId) ?? str(payload.propertyId);
+      if (assetId) {
+        matches.push({ kind: 'asset_grade', entityId: assetId });
       }
       break;
     }
@@ -75,12 +80,12 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     case 'WorkOrderClosed':
     case 'WorkOrderResolved': {
       const vendorId = str(payload.vendorId);
-      const propertyId = str(payload.propertyId);
+      const assetId = str(payload.assetId) ?? str(payload.propertyId);
       if (vendorId) {
         matches.push({ kind: 'vendor_scorecard', entityId: vendorId });
       }
-      if (propertyId) {
-        matches.push({ kind: 'property_grade', entityId: propertyId });
+      if (assetId) {
+        matches.push({ kind: 'asset_grade', entityId: assetId });
       }
       break;
     }
@@ -89,7 +94,7 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     case 'TenantChatMessage': {
       const customerId = str(payload.customerId) ?? str(payload.fromCustomerId);
       if (customerId) {
-        matches.push({ kind: 'tenant_sentiment', entityId: customerId });
+        matches.push({ kind: 'buyer_sentiment', entityId: customerId });
         matches.push({ kind: 'churn_probability', entityId: customerId });
       }
       break;
@@ -104,9 +109,9 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     }
 
     case 'MaintenancePhotoUploaded': {
-      const propertyId = str(payload.propertyId);
-      if (propertyId) {
-        matches.push({ kind: 'property_grade', entityId: propertyId });
+      const assetId = str(payload.assetId) ?? str(payload.propertyId);
+      if (assetId) {
+        matches.push({ kind: 'asset_grade', entityId: assetId });
       }
       break;
     }

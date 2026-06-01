@@ -8,6 +8,7 @@ export default defineConfig({
     'lease/index': 'src/lease/index.ts',
     'payment/index': 'src/payment/index.ts',
     'maintenance/index': 'src/maintenance/index.ts',
+    'regulatory/index': 'src/regulatory/index.ts',
   },
   format: ['cjs', 'esm'],
   // dts generation is delegated to `tsc --declaration --emitDeclarationOnly`

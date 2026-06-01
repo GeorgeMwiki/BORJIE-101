@@ -243,7 +243,7 @@ export interface Signer {
   readonly name: string;
   /** Order in which signers sign; 0 = signs first. */
   readonly order: number;
-  /** Optional role label (e.g. 'tenant', 'landlord', 'witness'). */
+  /** Optional role label (e.g. 'buyer', 'owner', 'witness'). */
   readonly role?: string;
 }
 

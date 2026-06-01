@@ -28,13 +28,13 @@ describe('route — default growth gate (0.95 / 0.70)', () => {
   });
 
   it('returns audit for confidence in [0.70, 0.95)', () => {
-    const v = route('draft-lease', 0.82);
+    const v = route('draft-offtake', 0.82);
     expect(v.mode).toBe('audit');
     expect(v.reason).toContain('audit');
   });
 
   it('returns escalate for confidence below 0.70', () => {
-    const v = route('evict-tenant', 0.55);
+    const v = route('suspend-licence', 0.55);
     expect(v.mode).toBe('escalate');
     expect(v.reason).toContain('escalate');
   });
@@ -150,8 +150,8 @@ describe('route — defensive escalation on bad input', () => {
 
 describe('route — audit-trail reason embeds the decision label', () => {
   it('embeds the decision label and confidence in the reason', () => {
-    const v = route('approve-refund:tenant=42', 0.97);
-    expect(v.reason).toContain('approve-refund:tenant=42');
+    const v = route('approve-payout:counterparty=42', 0.97);
+    expect(v.reason).toContain('approve-payout:counterparty=42');
     expect(v.reason).toContain('0.9700');
   });
 });

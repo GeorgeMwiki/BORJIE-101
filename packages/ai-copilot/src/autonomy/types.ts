@@ -15,21 +15,21 @@
 
 export type AutonomyDomain =
   | 'finance'
-  | 'leasing'
+  | 'offtake'
   | 'maintenance'
   | 'compliance'
   | 'communications'
-  // Wave 27 Part B.9 additions — full estate-business domain coverage.
+  // Wave 27 Part B.9 additions — full mining-estate domain coverage.
   | 'marketing'
   | 'hr'
   | 'procurement'
   | 'insurance'
   | 'legal_proceedings'
-  | 'tenant_welfare';
+  | 'community_welfare';
 
 export const AUTONOMY_DOMAINS: readonly AutonomyDomain[] = [
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -38,7 +38,7 @@ export const AUTONOMY_DOMAINS: readonly AutonomyDomain[] = [
   'procurement',
   'insurance',
   'legal_proceedings',
-  'tenant_welfare',
+  'community_welfare',
 ] as const;
 
 export type AutonomyActionType =
@@ -72,9 +72,9 @@ export interface FinancePolicy {
 }
 
 /**
- * Leasing — applications, renewals, terminations.
+ * Offtake — supply agreements, renewals, terminations.
  */
-export interface LeasingPolicy {
+export interface OfftakePolicy {
   readonly autoApproveRenewalsSameTerms: boolean;
   readonly maxAutoApproveRentIncreasePct: number;
   readonly autoApproveApplicationScoreMin: number;
@@ -151,8 +151,8 @@ export interface LegalProceedingsPolicy {
   readonly autoScheduleMediation: boolean;
 }
 
-/** Wave 27 Part B.9 — Tenant welfare: hardship cases, resident programs. */
-export interface TenantWelfarePolicy {
+/** Wave 27 Part B.9 — Community welfare: hardship cases, ASM cooperative programs. */
+export interface CommunityWelfarePolicy {
   readonly autoOfferPaymentPlansBelowMinorUnits: number;
   readonly autoEnrollInHardshipRelief: boolean;
   readonly escalateVulnerableHouseholds: boolean;
@@ -169,7 +169,7 @@ export interface AutonomyPolicy {
   readonly tenantId: string;
   readonly autonomousModeEnabled: boolean;
   readonly finance: FinancePolicy;
-  readonly leasing: LeasingPolicy;
+  readonly offtake: OfftakePolicy;
   readonly maintenance: MaintenancePolicy;
   readonly compliance: CompliancePolicy;
   readonly communications: CommunicationsPolicy;
@@ -179,7 +179,7 @@ export interface AutonomyPolicy {
   readonly procurement: ProcurementPolicy;
   readonly insurance: InsurancePolicy;
   readonly legal_proceedings: LegalProceedingsPolicy;
-  readonly tenant_welfare: TenantWelfarePolicy;
+  readonly community_welfare: CommunityWelfarePolicy;
   readonly escalation: EscalationContacts;
   readonly version: number;
   readonly updatedAt: string;
@@ -214,7 +214,7 @@ export interface AutonomyPolicyRepository {
 export interface UpdatePolicyInput {
   readonly autonomousModeEnabled?: boolean;
   readonly finance?: Partial<FinancePolicy>;
-  readonly leasing?: Partial<LeasingPolicy>;
+  readonly offtake?: Partial<OfftakePolicy>;
   readonly maintenance?: Partial<MaintenancePolicy>;
   readonly compliance?: Partial<CompliancePolicy>;
   readonly communications?: Partial<CommunicationsPolicy>;
@@ -224,7 +224,7 @@ export interface UpdatePolicyInput {
   readonly procurement?: Partial<ProcurementPolicy>;
   readonly insurance?: Partial<InsurancePolicy>;
   readonly legal_proceedings?: Partial<LegalProceedingsPolicy>;
-  readonly tenant_welfare?: Partial<TenantWelfarePolicy>;
+  readonly community_welfare?: Partial<CommunityWelfarePolicy>;
   readonly escalation?: Partial<EscalationContacts>;
   readonly updatedBy?: string;
 }

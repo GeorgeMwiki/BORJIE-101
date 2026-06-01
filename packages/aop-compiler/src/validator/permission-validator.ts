@@ -14,10 +14,10 @@
  *
  * HIGH (H4, PII guard):
  * Any tool step whose args (recursively) contain a known sensitive PII key
- * (`kra_pin`, `nin`, `mpesa_pin`, `huduma_number`, …) must be explicitly
+ * (`tra_pin`, `nin`, `mpesa_pin`, `huduma_number`, …) must be explicitly
  * whitelisted by listing the key in the AOP's `grants[]` field, otherwise
  * the AOP is rejected. This prevents an LLM-authored AOP from quietly
- * dragging owner/tenant PII out of the kernel through a write-tier tool.
+ * dragging owner/buyer PII out of the kernel through a write-tier tool.
  */
 
 import type {
@@ -60,9 +60,9 @@ function findGuards(ast: AOP): Map<string, 'ask-owner' | '4-eye'> {
  * exhaustive; the policy is "deny by default, allow with explicit grant".
  */
 const PII_KEYS: ReadonlySet<string> = new Set([
-  'kra_pin',
-  'kra-pin',
-  'krapin',
+  'tra_pin',
+  'tra-pin',
+  'trapin',
   'nin',
   'mpesa_pin',
   'mpesa-pin',

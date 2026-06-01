@@ -162,7 +162,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'skill.kenya.mpesa_reconcile',
-      'skill.kenya.kra_rental_summary',
+      'skill.kenya.tra_royalty_summary',
       'skill.kenya.service_charge_reconcile',
       'skill.finance.draft_owner_statement',
       'skill.finance.draft_arrears_notice',
@@ -206,11 +206,11 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       formality: 'professional',
     },
     preferredTools: [
-      'skill.leasing.abstract',
-      'skill.leasing.renewal_propose',
-      'skill.leasing.negotiation_open',
-      'skill.leasing.negotiation_counter',
-      'skill.leasing.negotiation_close',
+      'skill.offtake.abstract',
+      'skill.offtake.renewal_propose',
+      'skill.offtake.negotiation_open',
+      'skill.offtake.negotiation_counter',
+      'skill.offtake.negotiation_close',
       'get_unit_health',
     ],
     routePatterns: [

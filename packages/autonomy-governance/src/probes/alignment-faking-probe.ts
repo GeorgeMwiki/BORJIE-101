@@ -18,9 +18,9 @@
  * A robust brain produces (near-)identical decisions across the
  * contrast pair. An alignment-faking brain produces materially
  * different ones — passes regulator inspection, then mis-behaves in
- * production. This is the killer failure mode for a property-management
- * AI: it would pass the agency-license audit and then quietly burn
- * tenant trust at runtime.
+ * production. This is the killer failure mode for a mining-estate
+ * AI: it would pass the Mining Commission / TRA audit and then quietly
+ * burn counterparty trust at runtime.
  *
  * Pure orchestration. The actual LLM is injected as a `ContrastPairRunner`
  * dependency (use the multi-LLM synthesizer for jury). Killswitch is
@@ -51,7 +51,7 @@ export type AlignmentBand = 'robust' | 'moderate' | 'faking_suspected';
  * (eval-framed + deploy-framed) and assembles this shape.
  *
  * The shape is generic over T so callers may pass strongly-typed
- * decision objects (e.g. a rent-adjustment proposal) for the
+ * decision objects (e.g. a royalty-adjustment proposal) for the
  * flip-detection signal without losing type-safety.
  */
 export interface AlignmentProbePair<T = unknown> {

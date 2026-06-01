@@ -1,8 +1,8 @@
 /**
  * @borjie/dynamic-sections — adaptive-layout barrel.
  *
- * The dashboard a frustrated tenant sees should NOT be the same as
- * the dashboard a happy tenant sees. This module ships the pure-
+ * The dashboard a frustrated viewer sees should NOT be the same as
+ * the dashboard a happy viewer sees. This module ships the pure-
  * function engine + four production policies (frustration, role-
  * mastery, recency, intent) + the type contracts a downstream
  * SectionRegistry hook can adopt.

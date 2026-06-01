@@ -73,7 +73,7 @@ function clamp01(value: number): number {
 function extractAutonomyDomain(raw: unknown): AutonomyDomain {
   const validDomains: readonly AutonomyDomain[] = [
     'finance',
-    'leasing',
+    'offtake',
     'maintenance',
     'compliance',
     'communications',
@@ -82,7 +82,7 @@ function extractAutonomyDomain(raw: unknown): AutonomyDomain {
     'procurement',
     'insurance',
     'legal_proceedings',
-    'tenant_welfare',
+    'community_welfare',
   ];
   if (typeof raw === 'string' && (validDomains as readonly string[]).includes(raw)) {
     return raw as AutonomyDomain;

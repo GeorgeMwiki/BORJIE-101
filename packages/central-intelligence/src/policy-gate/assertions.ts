@@ -151,7 +151,7 @@ export interface AssertTierPolicyOptions {
    *  NOTE: actions whose prefix appears in
    *  `HIGH_RISK_LITERAL_ONLY_PREFIXES` (money-movement, sovereign
    *  mutations, payouts, killswitches, key rotations, policy rollouts,
-   *  model pins, tenant-suspensions) are ALWAYS treated as literal-only
+   *  model pins, operator-suspensions) are ALWAYS treated as literal-only
    *  regardless of this flag. Setting it to `false` cannot widen those
    *  surfaces — the SECURITY DEFAULT wins. */
   readonly skipGeneralization?: boolean;
@@ -193,7 +193,7 @@ export function assertTierPolicy(
 
   // SECURITY DEFAULT: high-risk action prefixes (money-movement,
   // sovereign mutations, payouts, killswitches, key rotations, policy
-  // rollouts, model pins, tenant-suspensions) are ALWAYS literal-only.
+  // rollouts, model pins, operator-suspensions) are ALWAYS literal-only.
   const forceLiteralOnly =
     isHighRiskLiteralOnly(action) || options?.skipGeneralization === true;
 

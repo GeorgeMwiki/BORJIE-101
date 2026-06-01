@@ -1,27 +1,27 @@
 BORJIE — CONDITION SURVEY / INSPECTION REPORT
 
-Property Reference: PROP-DAR-0001
+Site Reference: ML-GEITA-0001
 Unit Number: 12B
 Inspection Date: 2025-02-08
-Inspected By: Joseph Kibwana (Property Manager)
+Inspected By: Joseph Kibwana (Site Manager)
 
-Unit Condition Summary:
-  Walls: minor scuffing on north wall, paint touch-up required
-  Floor: tiles in good condition; one cracked tile in kitchen
-  Plumbing: tap in bathroom leaking — repair required
-  Electrical: all sockets functional; one bulb missing in living room
-  Windows: locks tested, all functional
+Plant Condition Summary:
+  Crusher: minor wear on jaw plates, liner replacement required
+  Conveyor: belt in good condition; one cracked roller at feed end
+  CIL circuit: leak on tank 3 launder — repair required
+  Electrical: all motor starters functional; one beacon lamp missing
+  Weighbridge: load cells tested, all functional
 
-[PHOTO 1] — kitchen overview
-[PHOTO 2] — bathroom leakage detail
-[PHOTO 3] — north wall scuffing
-Picha zimeambatishwa kama uthibitisho wa hali ya nyumba.
+[PHOTO 1] — crusher overview
+[PHOTO 2] — CIL tank 3 leak detail
+[PHOTO 3] — jaw plate wear
+Picha zimeambatishwa kama uthibitisho wa hali ya mtambo.
 
 Repair Required:
-  - Replace cracked kitchen tile
-  - Fix bathroom tap (leakage)
-  - Touch up north wall paint
-  - Replace living room bulb
+  - Replace cracked conveyor roller
+  - Fix CIL tank 3 launder (leak)
+  - Replace crusher jaw liners
+  - Replace missing beacon lamp
 
 Inspector Signature: Joseph Kibwana
 Date: 2025-02-08

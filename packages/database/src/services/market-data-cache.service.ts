@@ -2,8 +2,8 @@
  * Market data cache service — Drizzle/Postgres adapter for the
  * `market_data_cache` table created in migration 0120.
  *
- * Caches results from external market-data adapters (Zillow, Airbnb,
- * Rentometer, etc.) so repeated kernel queries within a TTL window do
+ * Caches results from external market-data adapters (LME, COMEX,
+ * LBMA, etc.) so repeated kernel queries within a TTL window do
  * not hammer the upstream provider.
  *
  * Public surface:

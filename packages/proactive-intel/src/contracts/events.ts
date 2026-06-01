@@ -8,7 +8,7 @@
 
 export type AnomalyKind =
   | 'cashflow-dip'
-  | 'arrears-spike'
+  | 'royalty-arrears-spike'
   | 'churn-risk'
   | 'cost-anomaly'
   | 'slo-breach'
@@ -18,7 +18,7 @@ export type AnomalyKind =
 export type OpportunityKind =
   | 'vendor-rate-arbitrage'
   | 'policy-tightening'
-  | 'rent-vs-market';
+  | 'offtake-price-vs-market';
 
 /**
  * Confidence band. Detectors emit a numeric score in [0,1] and a label.

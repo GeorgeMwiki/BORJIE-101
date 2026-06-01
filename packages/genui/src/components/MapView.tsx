@@ -14,7 +14,7 @@
  * hard-depends on `window`; SSR rendering would crash.
  *
  * Follow-up (#33): offline tile cache via localStorage / IndexedDB. The TZ field
- * staff hit dead zones; warm-loading tiles when a property is opened
+ * staff hit dead zones; warm-loading tiles when a site is opened
  * lets inspections continue offline. Not in this slice.
  */
 

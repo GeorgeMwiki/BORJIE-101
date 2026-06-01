@@ -7,14 +7,14 @@
  *
  * Example:
  *   ---
- *   name: handle-late-rent
- *   description: Walk a late-rent ticket through grace -> notice -> escalation.
+ *   name: handle-late-royalty
+ *   description: Walk a late-royalty ticket through grace -> notice -> escalation.
  *   when_to_use:
- *     - tenant 5+ days late
- *     - missed rent reminder
+ *     - counterparty 5+ days late
+ *     - missed royalty reminder
  *   allowed_tools: [Read, Write]
  *   jurisdiction_aware: true
- *   code_entrypoint: ./handle-late-rent.skill.ts
+ *   code_entrypoint: ./handle-late-royalty.skill.ts
  *   ---
  */
 

@@ -2,7 +2,7 @@
  * Universal national-ID validator — dispatches to the per-country validator
  * attached to the country plugin's `ExtendedCountryProfile`. Returns a
  * 'validation-unavailable' verdict (NOT 'invalid') when no rule is known,
- * so tenants in unsupported jurisdictions still onboard.
+ * so operators in unsupported jurisdictions still onboard.
  */
 
 import type { IdValidationResult } from '../countries/types.js';

@@ -115,7 +115,7 @@ export const sentimentMonitorSignalSource: SignalSource<SentimentShiftRaw> = {
       signalId: freshSignalId('sentiment-monitor'),
       source: 'sentiment-monitor',
       tenantId: raw.tenantId,
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity,
       payload: {
         customerId: raw.customerId,
@@ -161,7 +161,7 @@ function predictiveDomain(signalType: PredictiveSignalType): AutonomyDomain {
       return 'communications';
     case 'high_churn_risk':
     default:
-      return 'tenant_welfare';
+      return 'community_welfare';
   }
 }
 
@@ -222,7 +222,7 @@ export const patternMiningSignalSource: SignalSource<PatternInsightRaw> = {
       signalId: freshSignalId('pattern-mining'),
       source: 'pattern-mining',
       tenantId: raw.tenantIdForDelivery,
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity,
       payload: {
         insightId: raw.id,

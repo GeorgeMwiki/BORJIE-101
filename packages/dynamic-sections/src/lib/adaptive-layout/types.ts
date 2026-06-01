@@ -1,8 +1,8 @@
 /**
  * Adaptive layout engine — type contracts.
  *
- * Vision: the dashboard a frustrated tenant sees should NOT be the
- * same as the dashboard a happy tenant sees. The same goes for
+ * Vision: the dashboard a frustrated viewer sees should NOT be the
+ * same as the dashboard a happy viewer sees. The same goes for
  * novice vs. master, casual vs. payment-bent, mobile vs. desktop.
  *
  * The engine is a deterministic, side-effect-free pure function that
@@ -109,7 +109,7 @@ export interface LayoutContext {
   readonly tenantId: string;
   readonly userId: string;
   /**
-   * App-route key (e.g. 'owner.dashboard', 'tenant.payments'). Used
+   * App-route key (e.g. 'owner.dashboard', 'owner.payments'). Used
    * as the persistence key for the section_layouts table — two
    * routes have independent layouts.
    */

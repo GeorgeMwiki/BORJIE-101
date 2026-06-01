@@ -1,18 +1,18 @@
 /**
- * Canada (CA) — CRA Part XIII withholding on non-resident rental income.
+ * Canada (CA) — CRA Part XIII withholding on non-resident mineral proceeds.
  *
- * Source: Income Tax Act Part XIII § 212(1)(d) — 25% on gross rent paid to
- * a non-resident. Can be reduced via Form NR6 election on net income.
- * Provincial residential-tenancy acts differ (ON: RTA 2006; BC: RTA;
- * QC: Civil Code Book V). Plugin exposes federal baseline; consumers
- * stack provincial overrides via their own layer.
+ * Source: Income Tax Act Part XIII § 212(1)(d) — 25% on gross proceeds paid
+ * to a non-resident. Can be reduced via Form NR6 election on net income.
+ * Provincial mining acts differ (ON: Mining Act; BC: Mineral Tenure Act;
+ * QC: Mining Act). Plugin exposes federal baseline; consumers stack
+ * provincial overrides via their own layer.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -58,19 +58,19 @@ const canadaCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 1, // ON: max 1 month (last month's rent); other provinces vary
+    minBondMonths: 0,
+    maxBondMonths: 1, // ON: ~1 month royalty bond norm; other provinces vary
     noticePeriodDays: 60,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 21,
+    bondReturnDays: 21,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Residential Lease Agreement (CA federal)',
-      templatePath: 'ca/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (CA federal)',
+      templatePath: 'ca/offtake-agreement.hbs',
       locale: 'en-CA',
     },
   ],
@@ -126,7 +126,7 @@ export const canadaProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     25,
     'CA-CRA-ITA-PartXIII',
-    'Part XIII non-resident rental withholding: 25% on gross rent (ITA § 212(1)(d)). Reducible via NR6 election.'
+    'Part XIII non-resident withholding: 25% on gross mineral proceeds (ITA § 212(1)(d)). Reducible via NR6 election.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -163,32 +163,32 @@ export const canadaProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'ca-federal-baseline',
-        label: 'Provincial Residential Tenancy Act applies — select province',
+        label: 'Provincial Mining Act applies — select province',
         mandatory: true,
-        citation: 'ITA baseline — provincial RTA governs substance.',
+        citation: 'ITA baseline — provincial Mining Act governs substance.',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60,
-      'non-payment': 14,
+      'licence-expiry': 60,
+      'royalty-default': 14,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 1,
-        citation: 'Typical: 1 month (last month rent). ON-RTA 2006 § 106.',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 1,
+        citation: 'Typical: ~1 month royalty bond. ON Mining Act.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'Provincial — ON guideline published annually; BC capped to CPI-linked rate.',
+          'Provincial — ON mining-tax guideline published annually; BC mineral-tax CPI-linked.',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('EQUIFAX_CA'),
+  counterpartyScreening: buildStubScreeningPort('EQUIFAX_CA'),
 };

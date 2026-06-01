@@ -6,14 +6,14 @@ const SAMPLE_PDF = new TextEncoder().encode('%PDF-1.7\n%trailer\n');
 
 function sampleConfig(): SignaturePortConfig {
   return {
-    doc: { id: 'lease-001', bytes: SAMPLE_PDF, mime: 'application/pdf' },
+    doc: { id: 'offtake-001', bytes: SAMPLE_PDF, mime: 'application/pdf' },
     signers: [
-      { email: 'tenant@example.com', name: 'Asha Mwangi', order: 0, role: 'tenant' },
-      { email: 'landlord@example.com', name: 'Borjie Mwema', order: 1, role: 'landlord' },
+      { email: 'buyer@example.com', name: 'Asha Mwangi', order: 0, role: 'buyer' },
+      { email: 'owner@example.com', name: 'Borjie Mwema', order: 1, role: 'owner' },
     ],
     expiresAt: new Date('2026-12-31T00:00:00Z'),
     jurisdiction: 'TZ_ETA2015',
-    subject: 'Sign your lease',
+    subject: 'Sign your offtake agreement',
   };
 }
 
@@ -22,7 +22,7 @@ describe('createMockESignAdapter', () => {
     const adapter = createMockESignAdapter();
     const req = await adapter.requestSignature(sampleConfig());
     expect(req.requestId).toMatch(/^mock-/);
-    expect(req.docId).toBe('lease-001');
+    expect(req.docId).toBe('offtake-001');
     expect(req.signers).toHaveLength(2);
     expect(req.jurisdiction).toBe('TZ_ETA2015');
   });
@@ -34,12 +34,12 @@ describe('createMockESignAdapter', () => {
     const first = await adapter.pollStatus(req.requestId);
     expect(first.status).toBe('pending');
 
-    adapter.markSigned(req.requestId, 'tenant@example.com');
+    adapter.markSigned(req.requestId, 'buyer@example.com');
     const partial = await adapter.pollStatus(req.requestId);
     expect(partial.status).toBe('partially_signed');
-    expect(partial.signedBy).toContain('tenant@example.com');
+    expect(partial.signedBy).toContain('buyer@example.com');
 
-    adapter.markSigned(req.requestId, 'landlord@example.com');
+    adapter.markSigned(req.requestId, 'owner@example.com');
     const done = await adapter.pollStatus(req.requestId);
     expect(done.status).toBe('completed');
   });
@@ -56,10 +56,10 @@ describe('createMockESignAdapter', () => {
   it('marks declined when markDeclined is called', async () => {
     const adapter = createMockESignAdapter();
     const req = await adapter.requestSignature(sampleConfig());
-    adapter.markDeclined(req.requestId, 'tenant@example.com');
+    adapter.markDeclined(req.requestId, 'buyer@example.com');
     const status = await adapter.pollStatus(req.requestId);
     expect(status.status).toBe('declined');
-    expect(status.declinedBy).toContain('tenant@example.com');
+    expect(status.declinedBy).toContain('buyer@example.com');
   });
 
   it('downloads signed PDF with marker appended', async () => {

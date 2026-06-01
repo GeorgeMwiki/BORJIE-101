@@ -229,16 +229,16 @@ describe('createKernelGoalsService', () => {
       tenantId: 't_demo',
       userId: 'u_alice',
       threadId: 'th_1',
-      title: 'Resolve arrears for unit 4B',
-      description: 'Unit 4B has 30+ days of arrears.',
+      title: 'Resolve outstanding royalties for block 4B',
+      description: 'Block 4B has 30+ days of outstanding royalties.',
       status: 'active',
       priority: 'high',
       steps: [
         {
           seq: 0,
           description: 'Send reminder',
-          toolName: 'rent.send-reminder',
-          toolPayload: { leaseId: 'L1', channel: 'sms' },
+          toolName: 'royalty.send-reminder',
+          toolPayload: { offtakeId: 'L1', channel: 'sms' },
         },
         {
           seq: 1,
@@ -252,7 +252,7 @@ describe('createKernelGoalsService', () => {
     expect(id).toBeTruthy();
     expect(stub.rows).toHaveLength(1);
     const row = stub.rows[0]!;
-    expect(row.title).toBe('Resolve arrears for unit 4B');
+    expect(row.title).toBe('Resolve outstanding royalties for block 4B');
     expect(row.stepsTotal).toBe(2);
     const steps = row.steps as Array<Record<string, unknown>>;
     expect(steps).toHaveLength(2);
@@ -456,11 +456,11 @@ describe('createKernelGoalsService', () => {
     ]);
     const svc = createKernelGoalsService(stub.client);
 
-    await svc.markStalled('g1', 'no progress for 7 days (rent-collection)');
+    await svc.markStalled('g1', 'no progress for 7 days (royalty-collection)');
 
     const row = stub.rows[0]!;
     expect(row.status).toBe('stalled');
-    expect(row.stallReason).toBe('no progress for 7 days (rent-collection)');
+    expect(row.stallReason).toBe('no progress for 7 days (royalty-collection)');
     expect(row.stalledAt).not.toBeNull();
   });
 

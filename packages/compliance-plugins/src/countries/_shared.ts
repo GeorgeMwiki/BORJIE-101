@@ -5,7 +5,7 @@
  * - `stubWithholding` gives plugins a zero-rate port whose `rateNote`
  *   makes it clear the rate is operator-configurable.
  * - `buildPaymentRailsPort` accepts a pre-frozen list and returns the port.
- * - `buildLeaseLawPort` accepts a snapshot and returns the port.
+ * - `buildMiningLawPort` accepts a snapshot and returns the port.
  */
 
 import {
@@ -18,17 +18,17 @@ import type {
 } from '../ports/payment-rail.port.js';
 import type {
   ClauseSpec,
-  DepositCap,
-  DepositCapRegime,
-  LeaseKind,
-  LeaseLawPort,
+  BondCap,
+  BondCapRegime,
+  OperationKind,
+  MiningLawPort,
   NoticeReason,
-  RentIncreaseCap,
-} from '../ports/lease-law.port.js';
+  RoyaltyEscalationCap,
+} from '../ports/mining-law.port.js';
 import {
   buildStubBureauResult,
-  type TenantScreeningPort,
-} from '../ports/tenant-screening.port.js';
+  type CounterpartyScreeningPort,
+} from '../ports/counterparty-screening.port.js';
 
 export function buildFlatWithholding(
   ratePct: number,
@@ -36,9 +36,9 @@ export function buildFlatWithholding(
   rateNote: string
 ): TaxRegimePort {
   return {
-    calculateWithholding(grossRentMinorUnits) {
+    calculateWithholding(grossValueMinorUnits) {
       return flatRateWithholding(
-        grossRentMinorUnits,
+        grossValueMinorUnits,
         ratePct,
         regulatorRef,
         rateNote
@@ -75,28 +75,28 @@ export function buildPaymentRailsPort(
   };
 }
 
-export interface LeaseLawSpec {
+export interface MiningLawSpec {
   readonly requiredClauses: readonly ClauseSpec[];
   readonly noticeWindowDaysByReason: Readonly<
     Partial<Record<NoticeReason, number>>
   >;
-  readonly depositCapByRegime: Readonly<
-    Partial<Record<DepositCapRegime, DepositCap>>
+  readonly bondCapByRegime: Readonly<
+    Partial<Record<BondCapRegime, BondCap>>
   >;
-  readonly rentIncreaseCapByRegime: Readonly<
-    Partial<Record<DepositCapRegime, RentIncreaseCap>>
+  readonly royaltyEscalationCapByRegime: Readonly<
+    Partial<Record<BondCapRegime, RoyaltyEscalationCap>>
   >;
   readonly defaultNoticeWindowDays?: number;
-  readonly defaultDepositCap?: DepositCap;
-  readonly defaultRentIncreaseCap?: RentIncreaseCap;
+  readonly defaultBondCap?: BondCap;
+  readonly defaultRoyaltyEscalationCap?: RoyaltyEscalationCap;
 }
 
-export function buildLeaseLawPort(spec: LeaseLawSpec): LeaseLawPort {
+export function buildMiningLawPort(spec: MiningLawSpec): MiningLawPort {
   const universalClauses: readonly ClauseSpec[] = Object.freeze([
     ...spec.requiredClauses.map((c) => Object.freeze({ ...c })),
   ]);
   return {
-    requiredClauses(_leaseKind: LeaseKind) {
+    requiredClauses(_operationKind: OperationKind) {
       return universalClauses;
     },
     noticeWindowDays(reason: NoticeReason): number | null {
@@ -104,38 +104,38 @@ export function buildLeaseLawPort(spec: LeaseLawSpec): LeaseLawPort {
       if (typeof byReason === 'number') return byReason;
       return spec.defaultNoticeWindowDays ?? null;
     },
-    depositCapMultiple(regime: DepositCapRegime): DepositCap {
-      const cap = spec.depositCapByRegime[regime];
+    bondCapMultiple(regime: BondCapRegime): BondCap {
+      const cap = spec.bondCapByRegime[regime];
       if (cap) return Object.freeze({ ...cap });
-      if (spec.defaultDepositCap) {
-        return Object.freeze({ ...spec.defaultDepositCap });
+      if (spec.defaultBondCap) {
+        return Object.freeze({ ...spec.defaultBondCap });
       }
       return {
         citation:
-          'CONFIGURE_FOR_YOUR_JURISDICTION: deposit cap not configured for regime.',
+          'CONFIGURE_FOR_YOUR_JURISDICTION: performance-bond cap not configured for regime.',
       };
     },
-    rentIncreaseCap(regime: DepositCapRegime): RentIncreaseCap {
-      const cap = spec.rentIncreaseCapByRegime[regime];
+    royaltyEscalationCap(regime: BondCapRegime): RoyaltyEscalationCap {
+      const cap = spec.royaltyEscalationCapByRegime[regime];
       if (cap) return Object.freeze({ ...cap });
-      if (spec.defaultRentIncreaseCap) {
-        return Object.freeze({ ...spec.defaultRentIncreaseCap });
+      if (spec.defaultRoyaltyEscalationCap) {
+        return Object.freeze({ ...spec.defaultRoyaltyEscalationCap });
       }
       return {
         citation:
-          'CONFIGURE_FOR_YOUR_JURISDICTION: rent-increase cap not configured.',
+          'CONFIGURE_FOR_YOUR_JURISDICTION: royalty-escalation cap not configured.',
       };
     },
   };
 }
 
 /**
- * Tenant-screening port for plugins that reference a bureau but have no
+ * Counterparty-screening port for plugins that reference a bureau but have no
  * live adapter configured — returns a stubbed result.
  */
 export function buildStubScreeningPort(
   bureauId: string
-): TenantScreeningPort {
+): CounterpartyScreeningPort {
   return {
     async lookupBureau(_identityDocument, _country, _consentToken) {
       return buildStubBureauResult(bureauId);

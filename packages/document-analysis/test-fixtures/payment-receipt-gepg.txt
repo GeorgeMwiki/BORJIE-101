@@ -12,10 +12,10 @@ Payer Phone: 0744111222
 
 Amount Paid: TZS 850,000
 Payment Date: 2025-02-15
-Payment For: Monthly rent — February 2025
+Payment For: Monthly royalty — February 2025
 
-Description: Monthly rent for PROP-DAR-0001, unit 12B.
-Service Provider: Bossnyumba Property Services
+Description: Monthly royalty for ML-GEITA-0001, unit 12B.
+Service Provider: Borjie Mining Services
 
 [OFFICIAL STAMP]
 Authorised Signatory: Joseph Kibwana

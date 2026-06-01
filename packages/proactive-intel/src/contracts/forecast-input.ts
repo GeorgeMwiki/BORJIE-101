@@ -24,14 +24,15 @@ export interface CashflowForecastSlice {
   readonly safetyFloor: number;
 }
 
-export interface ArrearsTimePoint {
+export interface RoyaltyArrearsTimePoint {
   readonly weekStartMs: number;
+  /** Operators/buyers with outstanding royalty payments this week. */
   readonly arrearsCount: number;
 }
 
-export interface ArrearsSeries {
+export interface RoyaltyArrearsSeries {
   readonly tenantId: string;
-  readonly weeks: ReadonlyArray<ArrearsTimePoint>;
+  readonly weeks: ReadonlyArray<RoyaltyArrearsTimePoint>;
 }
 
 export interface CustomerOwnerSignal {
@@ -60,9 +61,10 @@ export interface SloObservation {
 }
 
 export type ComplianceDeadlineKind =
-  | 'kra-filing'
+  | 'tra-filing'
   | 'firs-filing'
-  | 'lease-renewal'
+  | 'licence-renewal'
+  | 'royalty-return'
   | 'business-permit'
   | 'insurance-renewal';
 
@@ -70,7 +72,7 @@ export interface ComplianceDeadline {
   readonly tenantId: string;
   readonly kind: ComplianceDeadlineKind;
   readonly dueAtMs: number;
-  readonly subjectId: string; // e.g. leaseId, filingId
+  readonly subjectId: string; // e.g. licenceId, filingId
   readonly subjectLabel: string;
 }
 

@@ -1,6 +1,6 @@
 ---
 name: compile-weekly-report
-description: Build a portfolio weekly report from entity-store data (rent collected, units occupied, maintenance throughput, arrears aged). Writes a `weekly_report` entity with attribute breakdown; pure read-derive-write skill.
+description: Build a portfolio weekly report from entity-store data (royalty collected, assets producing, maintenance throughput, outstanding royalties aged). Writes a `weekly_report` entity with attribute breakdown; pure read-derive-write skill.
 when_to_use:
   - portfolio weekly recap due
   - operator asks for the weekly report
@@ -18,10 +18,10 @@ version: 1.0.0
 
 Gathers seven-day aggregates from the entity-store across:
 
-- **Rent collected**: sum of `rent_payment.amount` where `payment_date` in window.
-- **Occupancy**: ratio of `unit.status === 'occupied'` to total units at snapshot time.
+- **Royalty collected**: sum of `royalty_payment.amount` where `payment_date` in window.
+- **Production utilisation**: ratio of `asset.status === 'producing'` to total assets at snapshot time.
 - **Maintenance throughput**: count of `maintenance_ticket.state` transitions to `closed`.
-- **Arrears aged**: by bucket (0-30, 31-60, 61-90, 90+ days).
+- **Outstanding royalties aged**: by bucket (0-30, 31-60, 61-90, 90+ days).
 
 The skill is jurisdiction-neutral — currency is preserved as recorded
 (no implicit conversion). If a downstream consumer wants a single display

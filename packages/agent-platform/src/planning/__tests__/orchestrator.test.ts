@@ -51,13 +51,13 @@ function makeExecutor(behavior: 'all-succeed' | 'all-fail'): StepExecutor {
 }
 
 const toolDir = [
-  { name: 'lookup_lease', description: 'look up a lease by id' },
+  { name: 'lookup_offtake', description: 'look up an offtake by id' },
   { name: 'send_notice', description: 'queue a notice for delivery' },
 ];
 
 const planAB = JSON.stringify({
   steps: [
-    { id: 'a', description: 'lookup', toolName: 'lookup_lease', input: {} },
+    { id: 'a', description: 'lookup', toolName: 'lookup_offtake', input: {} },
     { id: 'b', description: 'notify', toolName: 'send_notice', input: {} },
   ],
   deps: [['a', 'b']],
@@ -85,7 +85,7 @@ describe('runPlanExecute', () => {
     const synth = makeSynthesizer([planAB, verifierSuccess]);
     const audit = new InMemoryAuditSink();
     const result = await runPlanExecute({
-      goal: 'send a lease renewal notice',
+      goal: 'send an offtake renewal notice',
       toolDirectory: toolDir,
       synthesizer: synth,
       executor: makeExecutor('all-succeed'),
@@ -103,7 +103,7 @@ describe('runPlanExecute', () => {
     const synth = makeSynthesizer([planAB, verifierFail, planAB, verifierSuccess]);
     const audit = new InMemoryAuditSink();
     const result = await runPlanExecute({
-      goal: 'send a lease renewal notice',
+      goal: 'send an offtake renewal notice',
       toolDirectory: toolDir,
       synthesizer: synth,
       executor: makeExecutor('all-succeed'),
@@ -121,7 +121,7 @@ describe('runPlanExecute', () => {
     const synth = makeSynthesizer([planAB, verifierFail, planAB, verifierFail]);
     const audit = new InMemoryAuditSink();
     const result = await runPlanExecute({
-      goal: 'send a lease renewal notice',
+      goal: 'send an offtake renewal notice',
       toolDirectory: toolDir,
       synthesizer: synth,
       executor: makeExecutor('all-succeed'),

@@ -1,7 +1,7 @@
 /**
- * Uganda (UG) compliance plugin.
+ * Uganda (UG) mining-compliance plugin.
  *
- * Based on the Landlord and Tenant Act 2022 and URA's rental income tax
+ * Based on the Mining and Minerals Act 2022 and URA's royalty / withholding
  * framework. Mobile-money prefixes follow services/payments MTN adapter.
  */
 
@@ -18,32 +18,32 @@ import {
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
 import {
   buildStubBureauResult,
-  type TenantScreeningPort,
-} from '../ports/tenant-screening.port.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+  type CounterpartyScreeningPort,
+} from '../ports/counterparty-screening.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 
 // --- Uganda port implementations --------------------------------------------
 
-/** URA rental tax — 12% on gross above UGX 2.82M threshold for individuals. */
+/** Uganda mineral royalty — 5% on gross market value of precious metals. */
 const ugandaTaxRegime: TaxRegimePort = {
-  calculateWithholding(grossRentMinorUnits, _currency, _period) {
+  calculateWithholding(grossValueMinorUnits, _currency, _period) {
     return flatRateWithholding(
-      grossRentMinorUnits,
-      12,
-      'URA-RENTAL',
-      'URA Rental Tax — 12% on gross above UGX 2.82M/yr (Income Tax (Amendment) Act 2023).'
+      grossValueMinorUnits,
+      5,
+      'URA-ROYALTY',
+      'Uganda mineral royalty — 5% on gross market value of precious metals (Mining and Minerals Act 2022).'
     );
   },
 };
 
 const ugandaTaxFiling: TaxFilingPort = {
-  prepareFiling(run, _tenantProfile, _period) {
+  prepareFiling(run, _operatorProfile, _period) {
     return {
       filingFormat: 'csv',
       payload: buildGenericCsvPayload(run),
       targetRegulator: 'URA',
       submitEndpointHint: 'https://www.ura.go.ug',
-      instructions: 'Upload under URA Rental Tax return; annual filing.',
+      instructions: 'Upload under URA mineral-royalty return; monthly filing.',
     };
   },
 };
@@ -58,7 +58,7 @@ const ugandaPaymentRails: PaymentRailPort = {
   },
 };
 
-const ugandaTenantScreening: TenantScreeningPort = {
+const ugandaCounterpartyScreening: CounterpartyScreeningPort = {
   async lookupBureau(_identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('CRB_UG', ['CONSENT_TOKEN_INVALID']);
     // Follow-up ph-Z-global (#33): wire CRB UG adapter when available.
@@ -66,35 +66,35 @@ const ugandaTenantScreening: TenantScreeningPort = {
   },
 };
 
-const ugandaLeaseLaw: LeaseLawPort = {
-  requiredClauses(_leaseKind) {
+const ugandaMiningLaw: MiningLawPort = {
+  requiredClauses(_operationKind) {
     return Object.freeze([
-      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Landlord and Tenant Act 2022 §5.' },
-      { id: 'premises', label: 'Premises description', mandatory: true, citation: 'Landlord and Tenant Act 2022 §5.' },
-      { id: 'rent-amount', label: 'Rent amount and frequency in UGX', mandatory: true, citation: 'Landlord and Tenant Act 2022 §7.' },
-      { id: 'deposit', label: 'Deposit not exceeding 3 months rent', mandatory: true, citation: 'Landlord and Tenant Act 2022 §13.' },
+      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Mining and Minerals Act 2022 §5.' },
+      { id: 'site', label: 'Licensed-area description', mandatory: true, citation: 'Mining and Minerals Act 2022 §5.' },
+      { id: 'royalty-rate', label: 'Royalty/payment rate and frequency in UGX', mandatory: true, citation: 'Mining and Minerals Act 2022 §7.' },
+      { id: 'bond', label: 'Performance bond not exceeding 3 months royalty', mandatory: true, citation: 'Mining and Minerals Act 2022 §13.' },
     ]);
   },
   noticeWindowDays(reason) {
     switch (reason) {
-      case 'non-payment': return 14;
-      case 'end-of-term':
+      case 'royalty-default': return 14;
+      case 'licence-expiry':
       case 'renewal-non-continuation': return 60;
-      case 'landlord-repossession': return 90;
-      case 'breach-of-covenant': return 30;
-      case 'illegal-use':
-      case 'nuisance': return 7;
+      case 'state-repossession': return 90;
+      case 'breach-of-condition': return 30;
+      case 'illegal-mining':
+      case 'environmental-breach': return 7;
       default: return null;
     }
   },
-  depositCapMultiple(regime) {
-    if (regime === 'commercial') return { maxMonthsOfRent: 6, citation: 'Market norm.' };
-    return { maxMonthsOfRent: 3, citation: 'Landlord and Tenant Act 2022 §13.' };
+  bondCapMultiple(regime) {
+    if (regime === 'industrial') return { maxMonthsOfRoyalty: 6, citation: 'Market norm.' };
+    return { maxMonthsOfRoyalty: 3, citation: 'Mining and Minerals Act 2022 §13.' };
   },
-  rentIncreaseCap(_regime) {
+  royaltyEscalationCap(_regime) {
     return {
       pctPerAnnum: 10,
-      citation: 'Landlord and Tenant Act 2022 §13(5) — 10% cap per annum.',
+      citation: 'Mining and Minerals Act 2022 §13(5) — 10% cap per annum.',
     };
   },
 };
@@ -143,31 +143,31 @@ export const ugandaPlugin: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 3,
+    minBondMonths: 1,
+    maxBondMonths: 3,
     noticePeriodDays: 60,
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Residential Lease Agreement (UG)',
-      templatePath: 'ug/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (UG)',
+      templatePath: 'ug/offtake-agreement.hbs',
       locale: 'en-UG',
     },
     {
-      id: 'notice-of-termination',
-      name: 'Notice of Termination (UG)',
-      templatePath: 'ug/notice-of-termination.hbs',
+      id: 'notice-of-suspension',
+      name: 'Notice of Licence Suspension (UG)',
+      templatePath: 'ug/notice-of-suspension.hbs',
       locale: 'en-UG',
     },
   ],
   taxRegime: ugandaTaxRegime,
   taxFiling: ugandaTaxFiling,
   paymentRails: ugandaPaymentRails,
-  tenantScreening: ugandaTenantScreening,
-  leaseLaw: ugandaLeaseLaw,
+  counterpartyScreening: ugandaCounterpartyScreening,
+  miningLaw: ugandaMiningLaw,
 };

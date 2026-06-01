@@ -8,31 +8,31 @@ const CHUNKS: DocChunk[] = [
     docId: 'd1',
     pageNumber: 1,
     blockIds: ['b-1'],
-    text: 'Monthly rent is TZS 1,250,000 due on the first of each month.',
+    text: 'Monthly royalty is TZS 1,250,000 due on the first of each month.',
   },
   {
     docId: 'd1',
     pageNumber: 1,
     blockIds: ['b-2'],
-    text: 'The tenant is responsible for water and electricity utilities.',
+    text: 'The operator is responsible for water and electricity utilities.',
   },
   {
     docId: 'd1',
     pageNumber: 2,
     blockIds: ['b-3'],
-    text: 'Eviction requires thirty days notice as per Tanzania Land Act.',
+    text: 'Licence suspension requires thirty days notice as per the Mining Act 2010.',
   },
 ];
 
 describe('retrieve (BM25)', () => {
-  it('returns the rent chunk first when asking about rent', async () => {
-    const results = await retrieve({ chunks: CHUNKS }, 'how much is the rent?');
-    expect(results[0]!.chunk.text).toContain('rent');
+  it('returns the royalty chunk first when asking about royalty', async () => {
+    const results = await retrieve({ chunks: CHUNKS }, 'how much is the royalty?');
+    expect(results[0]!.chunk.text).toContain('royalty');
   });
 
-  it('returns the eviction chunk first when asking about notice', async () => {
-    const results = await retrieve({ chunks: CHUNKS }, 'how much eviction notice is required');
-    expect(results[0]!.chunk.text.toLowerCase()).toContain('eviction');
+  it('returns the suspension chunk first when asking about notice', async () => {
+    const results = await retrieve({ chunks: CHUNKS }, 'how much suspension notice is required');
+    expect(results[0]!.chunk.text.toLowerCase()).toContain('suspension');
   });
 
   it('returns empty list when no terms match', async () => {
@@ -41,7 +41,7 @@ describe('retrieve (BM25)', () => {
   });
 
   it('honors topK', async () => {
-    const results = await retrieve({ chunks: CHUNKS }, 'tenant', { topK: 1 });
+    const results = await retrieve({ chunks: CHUNKS }, 'operator', { topK: 1 });
     expect(results).toHaveLength(1);
   });
 });
@@ -54,7 +54,7 @@ describe('retrieve with embedder re-rank', () => {
     const embedder: EmbedderPort = { embed };
     const results = await retrieve(
       { chunks: CHUNKS, embedder },
-      'rent',
+      'royalty',
       { topK: 2 }
     );
     expect(embed).toHaveBeenCalled();

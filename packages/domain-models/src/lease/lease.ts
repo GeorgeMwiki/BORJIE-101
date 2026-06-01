@@ -1,19 +1,28 @@
 /**
- * Lease domain model
- * Represents a rental agreement between property and customer
+ * Offtake (supply-agreement) domain model
+ * Represents a mineral offtake / supply agreement between a mining
+ * owner (seller) and a buyer / off-taker counterparty. Defines the
+ * term, delivery cadence, pricing / royalty-bearing payment, and the
+ * performance bond securing the agreement.
  */
 
 import type { Brand, TenantId, UserId, EntityMetadata, ISOTimestamp } from '../common/types';
 import { Money } from '../common/money';
 import type { CustomerId, LeaseId } from '../payments/payment-intent';
-import type { PropertyId } from '../property/property';
-import type { UnitId } from '../property/unit';
+import type { MiningSiteId } from '../property/property';
+import type { MiningUnitId } from '../property/unit';
 
+// The persisted brand id is still `LeaseId` (sourced from the payments
+// domain). `OfftakeId` is the canonical mining-domain name; the legacy
+// `LeaseId` re-export is retained for downstream importers (W-E phase).
+export type OfftakeId = LeaseId;
+/** @deprecated Use {@link OfftakeId}. */
 export type { LeaseId } from '../payments/payment-intent';
 export { asLeaseId } from '../payments/payment-intent';
+export { asLeaseId as asOfftakeId } from '../payments/payment-intent';
 
-/** Lease status */
-export type LeaseStatus =
+/** Offtake-agreement status */
+export type OfftakeStatus =
   | 'draft'
   | 'pending_signature'
   | 'active'
@@ -22,106 +31,123 @@ export type LeaseStatus =
   | 'terminated'
   | 'renewed';
 
-/** Lease type */
-export type LeaseType = 'fixed_term' | 'month_to_month' | 'periodic';
+/** @deprecated Use {@link OfftakeStatus}. */
+export type LeaseStatus = OfftakeStatus;
 
-/** Rent frequency */
-export type RentFrequency = 'monthly' | 'quarterly' | 'annual';
+/** Offtake-agreement type */
+export type OfftakeType = 'fixed_term' | 'spot' | 'evergreen';
 
-/** Occupant (additional person on lease) */
-export interface LeaseOccupant {
+/** @deprecated Use {@link OfftakeType}. */
+export type LeaseType = OfftakeType;
+
+/** Payment / pricing frequency */
+export type PaymentFrequency = 'per_shipment' | 'monthly' | 'quarterly' | 'annual';
+
+/** @deprecated Use {@link PaymentFrequency}. */
+export type RentFrequency = PaymentFrequency;
+
+/** Additional party named on the offtake agreement. */
+export interface OfftakeParty {
   readonly name: string;
   readonly relationship: string;
-  readonly isAdult: boolean;
+  readonly isAuthorisedSignatory: boolean;
 }
 
 /**
- * Lease entity
+ * Offtake-agreement entity
  */
-export interface Lease extends EntityMetadata {
-  readonly id: LeaseId;
+export interface Offtake extends EntityMetadata {
+  readonly id: OfftakeId;
   readonly tenantId: TenantId;
-  readonly propertyId: PropertyId;
-  readonly unitId: UnitId;
-  readonly customerId: CustomerId;
-  readonly leaseNumber: string; // e.g., "LSE-2024-0001"
-  readonly status: LeaseStatus;
-  readonly type: LeaseType;
+  readonly siteId: MiningSiteId;
+  readonly unitId: MiningUnitId;
+  /** The buyer / off-taker counterparty. */
+  readonly counterpartyId: CustomerId;
+  readonly offtakeNumber: string; // e.g., "OFT-2026-0001"
+  readonly status: OfftakeStatus;
+  readonly type: OfftakeType;
   readonly startDate: ISOTimestamp;
-  readonly endDate: ISOTimestamp | null; // Null for month-to-month
-  readonly moveInDate: ISOTimestamp;
-  readonly moveOutDate: ISOTimestamp | null;
-  readonly rentAmount: Money;
-  readonly rentFrequency: RentFrequency;
-  readonly rentDueDay: number; // Day of month (1-28)
-  readonly securityDeposit: Money;
-  readonly depositPaid: boolean;
-  readonly lateFeePercentage: number; // e.g., 5 for 5%
-  readonly lateFeeGraceDays: number; // Days after due date before late fee applies
-  readonly additionalOccupants: readonly LeaseOccupant[];
+  readonly endDate: ISOTimestamp | null; // Null for evergreen
+  /** First-delivery / mobilisation date. */
+  readonly mobilisationDate: ISOTimestamp;
+  /** Final-delivery / close-out date. */
+  readonly closeoutDate: ISOTimestamp | null;
+  /** Contracted payment per cycle (price / royalty-bearing consideration). */
+  readonly paymentAmount: Money;
+  readonly paymentFrequency: PaymentFrequency;
+  readonly paymentDueDay: number; // Day of month (1-28)
+  /** Performance / delivery bond securing the agreement. */
+  readonly performanceBond: Money;
+  readonly bondPosted: boolean;
+  readonly latePaymentPercentage: number; // e.g., 5 for 5%
+  readonly latePaymentGraceDays: number; // Days after due date before fee applies
+  readonly additionalParties: readonly OfftakeParty[];
   readonly specialTerms: string | null;
   readonly documentIds: readonly string[]; // Signed document references
   readonly signedAt: ISOTimestamp | null;
   readonly terminatedAt: ISOTimestamp | null;
   readonly terminationReason: string | null;
-  readonly renewedFromLeaseId: LeaseId | null;
-  readonly renewedToLeaseId: LeaseId | null;
+  readonly renewedFromOfftakeId: OfftakeId | null;
+  readonly renewedToOfftakeId: OfftakeId | null;
 }
 
-/** Create a new lease */
-export function createLease(
-  id: LeaseId,
+/** @deprecated Use {@link Offtake}. */
+export type Lease = Offtake;
+
+/** Create a new offtake agreement */
+export function createOfftake(
+  id: OfftakeId,
   data: {
     tenantId: TenantId;
-    propertyId: PropertyId;
-    unitId: UnitId;
-    customerId: CustomerId;
-    leaseNumber: string;
-    type: LeaseType;
+    siteId: MiningSiteId;
+    unitId: MiningUnitId;
+    counterpartyId: CustomerId;
+    offtakeNumber: string;
+    type: OfftakeType;
     startDate: ISOTimestamp;
     endDate?: ISOTimestamp;
-    moveInDate: ISOTimestamp;
-    rentAmount: Money;
-    rentFrequency?: RentFrequency;
-    rentDueDay?: number;
-    securityDeposit: Money;
-    lateFeePercentage?: number;
-    lateFeeGraceDays?: number;
-    additionalOccupants?: LeaseOccupant[];
+    mobilisationDate: ISOTimestamp;
+    paymentAmount: Money;
+    paymentFrequency?: PaymentFrequency;
+    paymentDueDay?: number;
+    performanceBond: Money;
+    latePaymentPercentage?: number;
+    latePaymentGraceDays?: number;
+    additionalParties?: OfftakeParty[];
     specialTerms?: string;
   },
   createdBy: UserId
-): Lease {
+): Offtake {
   const now = new Date().toISOString();
 
   return {
     id,
     tenantId: data.tenantId,
-    propertyId: data.propertyId,
+    siteId: data.siteId,
     unitId: data.unitId,
-    customerId: data.customerId,
-    leaseNumber: data.leaseNumber,
+    counterpartyId: data.counterpartyId,
+    offtakeNumber: data.offtakeNumber,
     status: 'draft',
     type: data.type,
     startDate: data.startDate,
     endDate: data.endDate ?? null,
-    moveInDate: data.moveInDate,
-    moveOutDate: null,
-    rentAmount: data.rentAmount,
-    rentFrequency: data.rentFrequency ?? 'monthly',
-    rentDueDay: data.rentDueDay ?? 1,
-    securityDeposit: data.securityDeposit,
-    depositPaid: false,
-    lateFeePercentage: data.lateFeePercentage ?? 5,
-    lateFeeGraceDays: data.lateFeeGraceDays ?? 5,
-    additionalOccupants: data.additionalOccupants ?? [],
+    mobilisationDate: data.mobilisationDate,
+    closeoutDate: null,
+    paymentAmount: data.paymentAmount,
+    paymentFrequency: data.paymentFrequency ?? 'monthly',
+    paymentDueDay: data.paymentDueDay ?? 1,
+    performanceBond: data.performanceBond,
+    bondPosted: false,
+    latePaymentPercentage: data.latePaymentPercentage ?? 5,
+    latePaymentGraceDays: data.latePaymentGraceDays ?? 5,
+    additionalParties: data.additionalParties ?? [],
     specialTerms: data.specialTerms ?? null,
     documentIds: [],
     signedAt: null,
     terminatedAt: null,
     terminationReason: null,
-    renewedFromLeaseId: null,
-    renewedToLeaseId: null,
+    renewedFromOfftakeId: null,
+    renewedToOfftakeId: null,
     createdAt: now,
     updatedAt: now,
     createdBy,
@@ -129,15 +155,18 @@ export function createLease(
   };
 }
 
-/** Activate lease after signing */
-export function activateLease(
-  lease: Lease,
+/** @deprecated Use {@link createOfftake}. */
+export const createLease = createOfftake;
+
+/** Activate offtake agreement after signing */
+export function activateOfftake(
+  offtake: Offtake,
   documentIds: string[],
   updatedBy: UserId
-): Lease {
+): Offtake {
   const now = new Date().toISOString();
   return {
-    ...lease,
+    ...offtake,
     status: 'active',
     documentIds,
     signedAt: now,
@@ -146,52 +175,60 @@ export function activateLease(
   };
 }
 
-/** Terminate lease */
-export function terminateLease(
-  lease: Lease,
+/** @deprecated Use {@link activateOfftake}. */
+export const activateLease = activateOfftake;
+
+/** Terminate offtake agreement */
+export function terminateOfftake(
+  offtake: Offtake,
   reason: string,
-  moveOutDate: ISOTimestamp,
+  closeoutDate: ISOTimestamp,
   updatedBy: UserId
-): Lease {
+): Offtake {
   const now = new Date().toISOString();
   return {
-    ...lease,
+    ...offtake,
     status: 'terminated',
     terminatedAt: now,
     terminationReason: reason,
-    moveOutDate,
+    closeoutDate,
     updatedAt: now,
     updatedBy,
   };
 }
 
-/** Check if lease is expiring soon (within days) */
-export function isExpiringSoon(lease: Lease, daysThreshold: number = 60): boolean {
-  if (!lease.endDate || lease.status !== 'active') return false;
-  const endDate = new Date(lease.endDate);
+/** @deprecated Use {@link terminateOfftake}. */
+export const terminateLease = terminateOfftake;
+
+/** Check if offtake is expiring soon (within days) */
+export function isExpiringSoon(offtake: Offtake, daysThreshold: number = 60): boolean {
+  if (!offtake.endDate || offtake.status !== 'active') return false;
+  const endDate = new Date(offtake.endDate);
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
   return endDate <= thresholdDate && endDate > new Date();
 }
 
-/** Check if lease is expired */
-export function isExpired(lease: Lease): boolean {
-  if (!lease.endDate || lease.status === 'terminated') return false;
-  return new Date(lease.endDate) < new Date();
+/** Check if offtake is expired */
+export function isExpired(offtake: Offtake): boolean {
+  if (!offtake.endDate || offtake.status === 'terminated') return false;
+  return new Date(offtake.endDate) < new Date();
 }
 
-/** Calculate late fee */
-export function calculateLateFee(lease: Lease): Money {
-  const feeAmount = Math.round(lease.rentAmount.amount * (lease.lateFeePercentage / 100));
-  return Money.fromMinorUnits(feeAmount, lease.rentAmount.currency);
+/** Calculate late-payment fee */
+export function calculateLateFee(offtake: Offtake): Money {
+  const feeAmount = Math.round(offtake.paymentAmount.amount * (offtake.latePaymentPercentage / 100));
+  return Money.fromMinorUnits(feeAmount, offtake.paymentAmount.currency);
 }
 
-/** Generate lease number */
-export function generateLeaseNumber(year: number, sequence: number): string {
-  return `LSE-${year}-${String(sequence).padStart(4, '0')}`;
+/** Generate offtake-agreement number */
+export function generateOfftakeNumber(year: number, sequence: number): string {
+  return `OFT-${year}-${String(sequence).padStart(4, '0')}`;
 }
 
-/** Get days until rent due for current period */
+/** @deprecated Use {@link generateOfftakeNumber}. */
+export const generateLeaseNumber = generateOfftakeNumber;
+
 /**
  * Clamp a requested day-of-month to the actual last day of that month.
  * Prevents the Date constructor's silent rollover: new Date(2026, 1, 31)
@@ -203,18 +240,19 @@ function clampDayToMonth(year: number, month: number, day: number): number {
   return Math.min(Math.max(1, day), lastDay);
 }
 
-export function getDaysUntilRentDue(lease: Lease): number {
+/** Get days until the next payment is due for the current period. */
+export function getDaysUntilPaymentDue(offtake: Offtake): number {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // Handle months with fewer days than rentDueDay (Feb with rentDueDay=31).
-  // Without this clamp, a lease rentDueDay=31 on Feb 15 would compute a due
+  // Handle months with fewer days than paymentDueDay (Feb with day=31).
+  // Without this clamp, a day=31 due date on Feb 15 would compute a due
   // date of March 3 (a rollover artifact), inflating "days until due".
   let dueDate = new Date(
     currentYear,
     currentMonth,
-    clampDayToMonth(currentYear, currentMonth, lease.rentDueDay)
+    clampDayToMonth(currentYear, currentMonth, offtake.paymentDueDay)
   );
 
   // If due date has passed this month, get next month's due date
@@ -223,10 +261,13 @@ export function getDaysUntilRentDue(lease: Lease): number {
     dueDate = new Date(
       currentYear,
       nextMonth,
-      clampDayToMonth(currentYear, nextMonth, lease.rentDueDay)
+      clampDayToMonth(currentYear, nextMonth, offtake.paymentDueDay)
     );
   }
 
   const diffTime = dueDate.getTime() - now.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
+
+/** @deprecated Use {@link getDaysUntilPaymentDue}. */
+export const getDaysUntilRentDue = getDaysUntilPaymentDue;

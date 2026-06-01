@@ -7,8 +7,9 @@
  * against this interface with a mock so the two phases stay decoupled.
  *
  * Naming and shape are deliberately conservative and entity-type-agnostic —
- * any entity (property, employee, lead, tenant, vendor, kra-filing, payment,
- * lease, performance-review) flows through the same surface.
+ * any entity (mining-asset, employee, prospective-buyer, counterparty, vendor,
+ * tra-filing, royalty-payment, offtake-agreement, performance-review) flows
+ * through the same surface.
  *
  * IMPORTANT: All writes are scoped by tenant_id (multi-tenant SaaS) and
  * accompanied by a Provenance record. The store MUST honour the provenance
@@ -24,7 +25,7 @@ import type { Provenance } from '../provenance/types.js';
  * exist?" before mapping columns.
  */
 export interface EntityTypeDescriptor {
-  /** Stable identifier, e.g. "employee", "lead", "property", "kra_filing". */
+  /** Stable identifier, e.g. "employee", "prospective_buyer", "mining_asset", "tra_filing". */
   readonly entity_type: string;
   /** Human-readable label for chat display. */
   readonly label: string;

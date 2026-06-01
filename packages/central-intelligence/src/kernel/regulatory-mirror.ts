@@ -3,9 +3,9 @@
  *
  * The kernel's step 10 policy gate consults this module BEFORE final
  * output assembly. Given a `(jurisdiction, action, payload)` triple,
- * the mirror walks the configured rule sets (TZ Landlord & Tenant Act,
- * KE Rent Restriction Act, RERA placeholder) and returns the first
- * matching verdict:
+ * the mirror walks the configured rule sets (TZ Mining Act 2010 +
+ * Mineral Royalty Regulations, KE Mining Act 2016, UAE placeholder) and
+ * returns the first matching verdict:
  *
  *   - 'refuse' — the action violates statute; policy gate hard-blocks.
  *   - 'flag'   — the action is statute-adjacent; policy gate softens
@@ -32,22 +32,37 @@ export type RegulatoryJurisdiction = 'TZ' | 'KE' | 'UAE';
 export type RegulatoryVerdict = 'allow' | 'refuse' | 'flag';
 
 export type RegulatoryAction =
-  | 'collect_deposit'
-  | 'issue_eviction_notice'
-  | 'raise_rent'
-  | 'distrain_goods'
-  | 'enter_premises'
-  | 'evict'
-  | 'recover_arrears';
+  | 'pay_royalty'
+  | 'file_royalty_return'
+  | 'export_mineral'
+  | 'sell_gold'
+  | 'transfer_licence'
+  | 'operate_without_licence'
+  | 'suspend_licence'
+  | 'use_mercury';
 
 export interface RegulatoryRulePayload {
+  /** Transaction / consideration amount in currency minor units. */
   readonly amountMinor?: number;
-  readonly monthlyRentMinor?: number;
+  /** Gross sale or production value the royalty is assessed on, minor units. */
+  readonly grossValueMinor?: number;
   readonly currencyCode?: string;
-  readonly noticeDays?: number;
-  readonly increasePercentage?: number;
-  readonly tenantHasArrears?: boolean;
-  readonly hasCourtOrder?: boolean;
+  /** Royalty rate actually applied, as a percentage (e.g. 6 for 6 %). */
+  readonly royaltyRatePct?: number;
+  /** Clearing-house inspection fee actually applied, as a percentage. */
+  readonly clearingFeePct?: number;
+  /** Days late relative to a statutory filing / payment deadline. */
+  readonly daysLate?: number;
+  /** Holder licence tier for the tenement in question. */
+  readonly licenceTier?: 'PML' | 'PL' | 'ML' | 'SML';
+  /** Whether the actor holds a valid, active licence for the action. */
+  readonly hasValidLicence?: boolean;
+  /** Whether the actor holds an approved EIA / environmental certificate. */
+  readonly hasEnvironmentalApproval?: boolean;
+  /** Whether the Mining Commission has consented (e.g. to a transfer). */
+  readonly hasCommissionConsent?: boolean;
+  /** Whether refined gold was routed through the Bank of Tanzania window. */
+  readonly routedThroughGoldWindow?: boolean;
   readonly extra?: Readonly<Record<string, unknown>>;
 }
 

@@ -158,19 +158,19 @@ describe('createReflectiveMemoryService', () => {
       periodKind: 'weekly',
       periodStart: '2026-04-27T00:00:00.000Z',
       periodEnd: '2026-05-04T00:00:00.000Z',
-      summary: 'Asked 14 times about vacancy; sentiment trending negative.',
-      topTopics: [{ topic: 'vacancy', count: 14 }],
+      summary: 'Asked 14 times about available capacity; sentiment trending negative.',
+      topTopics: [{ topic: 'available-capacity', count: 14 }],
       sentimentAvg: -0.2,
-      actionItems: ['Schedule a vacancy strategy review'],
+      actionItems: ['Schedule an available-capacity strategy review'],
     });
 
     expect(stub.rows).toHaveLength(1);
     expect(stub.rows[0]?.periodKind).toBe('weekly');
-    expect(stub.rows[0]?.summary).toContain('vacancy');
-    expect(stub.rows[0]?.topTopics).toEqual([{ topic: 'vacancy', count: 14 }]);
+    expect(stub.rows[0]?.summary).toContain('available capacity');
+    expect(stub.rows[0]?.topTopics).toEqual([{ topic: 'available-capacity', count: 14 }]);
     expect(stub.rows[0]?.sentimentAvg).toBe(-0.2);
     expect(stub.rows[0]?.actionItems).toEqual([
-      'Schedule a vacancy strategy review',
+      'Schedule an available-capacity strategy review',
     ]);
   });
 

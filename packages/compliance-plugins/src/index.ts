@@ -33,7 +33,7 @@ export {
   canadaProfile,
   franceProfile,
   germanyProfile,
-  getTenantCountryDefault,
+  getOperatorCountryDefault,
   indiaProfile,
   japanProfile,
   koreaProfile,
@@ -108,12 +108,12 @@ _registerAllCountryPlugins(countryPluginRegistry, { overwrite: false });
  *
  * The previous implementation silently fell back to the Tanzania
  * plugin (`DEFAULT_COUNTRY_ID = 'TZ'`), so a typo like `'TZW'` made
- * every lease law, tax regime, deposit cap, and notice-window query
- * return Tanzanian values regardless of where the property actually
- * lived. That is a compliance violation by typo — KRA's MRI rate
- * applied to a Nigerian property, or the wrong deposit cap applied to
- * a Ugandan one. Failing closed surfaces the bug instead of papering
- * over it.
+ * every mining law, royalty regime, performance-bond cap, and
+ * notice-window query return Tanzanian values regardless of where the
+ * mining operation actually sat. That is a compliance violation by typo
+ * — Tanzania's 6% royalty applied to a Nigerian operation, or the wrong
+ * bond cap applied to a Ugandan one. Failing closed surfaces the bug
+ * instead of papering over it.
  */
 export class UnknownJurisdictionError extends Error {
   readonly code = 'UNKNOWN_JURISDICTION';

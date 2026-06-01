@@ -44,8 +44,8 @@ const SECTIONS = [
     kind: 'kpi_grid' as const,
     kpi_grid: {
       metrics: [
-        { label: 'Occupancy', value: '93%' },
-        { label: 'NOI', value: '78k', delta: '+4%' },
+        { label: 'Recovery', value: '93%' },
+        { label: 'Royalty', value: '78k', delta: '+4%' },
       ],
     },
   },

@@ -20,9 +20,9 @@ import type { CSSProperties } from 'react';
  * decoupled from Supabase: pass these in, get a ranked list out.
  */
 export interface UserActionTrackerRow {
-  /** Stable action identifier — e.g. `nav:portfolio.add-property`. */
+  /** Stable action identifier — e.g. `nav:portfolio.add-asset`. */
   readonly id: string;
-  /** Display label — e.g. "Add property". Localised upstream. */
+  /** Display label — e.g. "Add asset". Localised upstream. */
   readonly label: string;
   /** Optional icon name from the consuming app's icon set. */
   readonly icon?: string;

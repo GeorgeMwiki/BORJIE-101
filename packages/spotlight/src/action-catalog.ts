@@ -30,7 +30,13 @@ export interface CatalogAction {
   readonly requires: readonly string[];
   readonly route?: string;
   readonly persona?: string;
-  readonly entityBinding?: 'unit' | 'property' | 'tenant' | 'lease' | 'case' | 'invoice';
+  readonly entityBinding?:
+    | 'unit'
+    | 'site'
+    | 'counterparty'
+    | 'offtake'
+    | 'case'
+    | 'invoice';
 }
 
 export const ACTION_CATALOG: readonly CatalogAction[] = [
@@ -45,45 +51,45 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
     route: '/dashboard',
   },
   {
-    id: 'nav.properties',
-    title: 'Open properties',
-    description: 'Browse your properties',
-    keywords: ['buildings', 'estates'],
+    id: 'nav.sites',
+    title: 'Open mining sites',
+    description: 'Browse your mining sites',
+    keywords: ['sites', 'operations', 'concessions'],
     kind: 'navigation',
     requires: ['OWNER', 'MANAGER', 'ADMIN'],
-    route: '/properties',
+    route: '/sites',
   },
   {
     id: 'nav.units',
     title: 'Open units',
     description: 'Browse every unit',
-    keywords: ['apartments', 'flats', 'doors'],
+    keywords: ['pits', 'blocks', 'shafts'],
     kind: 'navigation',
     requires: ['OWNER', 'MANAGER', 'ADMIN'],
     route: '/units',
   },
   {
-    id: 'nav.tenants',
-    title: 'Open tenants',
-    description: 'Browse tenants',
-    keywords: ['residents', 'customers', 'wapangaji'],
+    id: 'nav.buyers',
+    title: 'Open buyers',
+    description: 'Browse buyers and counterparties',
+    keywords: ['offtakers', 'counterparties', 'operators', 'wanunuzi'],
     kind: 'navigation',
     requires: ['OWNER', 'MANAGER', 'ADMIN'],
-    route: '/customers',
+    route: '/buyers',
   },
   {
-    id: 'nav.arrears',
-    title: 'Show arrears',
-    description: 'View outstanding rent',
-    keywords: ['overdue', 'debt', 'collections', 'rent due'],
+    id: 'nav.outstanding_royalties',
+    title: 'Show outstanding royalties',
+    description: 'View outstanding royalty payments',
+    keywords: ['overdue', 'debt', 'collections', 'royalty due'],
     kind: 'navigation',
     requires: ['OWNER', 'MANAGER', 'ADMIN'],
-    route: '/arrears',
+    route: '/outstanding-royalties',
   },
   {
     id: 'nav.maintenance',
     title: 'Open maintenance',
-    description: 'Work orders and repair cases',
+    description: 'Work orders and equipment repair cases',
     keywords: ['repairs', 'work orders', 'kurekebisha'],
     kind: 'navigation',
     requires: ['OWNER', 'MANAGER', 'ADMIN', 'TENANT'],
@@ -101,18 +107,18 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
     route: '/maintenance/new',
   },
   {
-    id: 'mutate.lease.draft',
-    title: 'Draft a lease',
-    description: 'Generate a new lease agreement',
-    keywords: ['new lease', 'contract', 'tenancy'],
+    id: 'mutate.offtake.draft',
+    title: 'Draft an offtake agreement',
+    description: 'Generate a new offtake / supply agreement',
+    keywords: ['new offtake', 'supply agreement', 'contract'],
     kind: 'mutation',
     requires: ['OWNER', 'MANAGER'],
-    route: '/leases/new',
+    route: '/offtakes/new',
   },
   {
     id: 'mutate.letter.generate',
     title: 'Generate a letter',
-    description: 'Draft rent reminder, notice, or custom letter',
+    description: 'Draft royalty reminder, notice, or custom letter',
     keywords: ['notice', 'reminder', 'letter', 'barua'],
     kind: 'mutation',
     requires: ['OWNER', 'MANAGER'],
@@ -121,7 +127,7 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: 'mutate.invoice.create',
     title: 'Create invoice',
-    description: 'Issue a new rent or service-charge invoice',
+    description: 'Issue a new royalty or cooperative-levy invoice',
     keywords: ['bill', 'invoice', 'ankara'],
     kind: 'mutation',
     requires: ['OWNER', 'MANAGER'],
@@ -139,7 +145,7 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: 'mutate.inspection.start',
     title: 'Start inspection',
-    description: 'Begin a move-in or move-out inspection',
+    description: 'Begin a mobilisation or closeout inspection',
     keywords: ['inspect', 'walkthrough', 'condition'],
     kind: 'mutation',
     requires: ['MANAGER', 'STATION_MASTER'],
@@ -148,7 +154,7 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: 'mutate.waitlist.add',
     title: 'Add to waitlist',
-    description: 'Add a prospect to a unit waitlist',
+    description: 'Add a prospective buyer to a unit waitlist',
     keywords: ['waitlist', 'queue', 'interest list'],
     kind: 'mutation',
     requires: ['OWNER', 'MANAGER'],
@@ -157,42 +163,43 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
 
   // Queries
   {
-    id: 'query.rent_roll',
-    title: 'Show rent roll',
-    description: 'Current rent roll with arrears',
-    keywords: ['collections', 'rent roll', 'report'],
+    id: 'query.royalty_roll',
+    title: 'Show royalty roll',
+    description: 'Current royalty roll with outstanding royalties',
+    keywords: ['collections', 'royalty roll', 'report'],
     kind: 'query',
     requires: ['OWNER', 'MANAGER', 'ADMIN'],
-    route: '/reports/rent-roll',
+    route: '/reports/royalty-roll',
   },
   {
-    id: 'query.tenant_health',
-    title: 'Tenant 5P health check',
-    description: 'Score a tenancy on payment, property, purpose, person, protection',
-    keywords: ['5p', 'tenant risk', 'health score'],
+    id: 'query.counterparty_health',
+    title: 'Counterparty 5P health check',
+    description:
+      'Score a counterparty on payment, production, purpose, person, protection',
+    keywords: ['5p', 'counterparty risk', 'health score'],
     kind: 'query',
     requires: ['OWNER', 'MANAGER'],
-    entityBinding: 'tenant',
+    entityBinding: 'counterparty',
   },
   {
-    id: 'query.occupancy_forecast',
-    title: 'Occupancy forecast',
-    description: 'Project vacancy rates for the next 12 months',
-    keywords: ['occupancy', 'vacancy', 'forecast'],
+    id: 'query.production_forecast',
+    title: 'Production forecast',
+    description: 'Project available-capacity for the next 12 months',
+    keywords: ['production', 'available capacity', 'forecast'],
     kind: 'query',
     requires: ['OWNER', 'MANAGER'],
-    route: '/reports/occupancy',
+    route: '/reports/production',
   },
 
   // Persona handoffs
   {
-    id: 'persona.leasing.ask',
-    title: 'Ask the leasing persona',
-    description: 'Get advice on lease drafting, renewal, or negotiation',
-    keywords: ['leasing', 'lease advice', 'renewal'],
+    id: 'persona.offtake.ask',
+    title: 'Ask the offtake persona',
+    description: 'Get advice on offtake drafting, renewal, or negotiation',
+    keywords: ['offtake', 'offtake advice', 'renewal'],
     kind: 'persona_handoff',
     requires: [],
-    persona: 'leasing',
+    persona: 'offtake',
   },
   {
     id: 'persona.maintenance.ask',
@@ -206,7 +213,7 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: 'persona.finance.ask',
     title: 'Ask the finance persona',
-    description: 'Reconciliation, arrears strategy, cashflow',
+    description: 'Reconciliation, outstanding-royalty strategy, cashflow',
     keywords: ['finance', 'money', 'reconciliation'],
     kind: 'persona_handoff',
     requires: [],
@@ -215,8 +222,8 @@ export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: 'persona.compliance.ask',
     title: 'Ask the compliance persona',
-    description: 'KRA, TRA, URA, landlord-tenant act questions',
-    keywords: ['compliance', 'legal', 'kra', 'tra'],
+    description: 'TRA, Mining Commission, Mining Act / royalty / licence questions',
+    keywords: ['compliance', 'legal', 'tra', 'royalty', 'licence'],
     kind: 'persona_handoff',
     requires: [],
     persona: 'compliance',

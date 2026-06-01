@@ -27,13 +27,13 @@ describe('createArtifact', () => {
       threadId: 'thr_1',
       artifactType: 'chart',
       contentJsonb: { kind: 'bar', data: [1, 2, 3] },
-      title: 'Vacancy by block',
+      title: 'Available capacity by block',
       idGenerator: () => 'a_1',
       repository: repo,
     });
     expect(a.version).toBe(1);
     expect(a.id).toBe('a_1');
-    expect(a.title).toBe('Vacancy by block');
+    expect(a.title).toBe('Available capacity by block');
   });
 });
 

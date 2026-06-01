@@ -58,9 +58,9 @@ export interface EvalDimension {
 export const EVAL_DIMENSIONS: ReadonlyArray<EvalDimension> = Object.freeze([
   {
     id: 'tenant-intent-accuracy',
-    name: 'Tenant intent classification accuracy',
+    name: 'Operator intent classification accuracy',
     prompt:
-      'Did the response correctly classify the user intent (rent inquiry, maintenance, complaint, etc.)? Score 1.0 if intent matches the message, 0.0 if misclassified, 0.5 if ambiguous.',
+      'Did the response correctly classify the user intent (royalty inquiry, maintenance, complaint, etc.)? Score 1.0 if intent matches the message, 0.0 if misclassified, 0.5 if ambiguous.',
     scoreScale: '0-1',
     severity: 'high',
   },
@@ -68,7 +68,7 @@ export const EVAL_DIMENSIONS: ReadonlyArray<EvalDimension> = Object.freeze([
     id: 'jurisdiction-correctness',
     name: 'Jurisdiction correctness (TZ/KE/UG/RW)',
     prompt:
-      'Did the response apply the correct legal jurisdiction (TZ/KE/UG/RW) given the tenant context? Score 1.0 for correct jurisdiction-specific guidance, 0.0 if it cites the wrong country law, 0.5 if generic but not wrong.',
+      'Did the response apply the correct legal jurisdiction (TZ/KE/UG/RW) given the operator context? Score 1.0 for correct jurisdiction-specific guidance, 0.0 if it cites the wrong country law, 0.5 if generic but not wrong.',
     scoreScale: '0-1',
     severity: 'critical',
   },
@@ -100,7 +100,7 @@ export const EVAL_DIMENSIONS: ReadonlyArray<EvalDimension> = Object.freeze([
     id: 'vendor-grounding',
     name: 'Vendor recommendation grounding',
     prompt:
-      'When the response recommends a vendor (electrician, plumber, etc.), is the recommendation grounded in the vendors DB (every vendor name traces to a row)? Score 1.0 if grounded, 0.0 if fabricated, 0.5 if generic role with no name.',
+      'When the response recommends a vendor (assayer, drilling contractor, etc.), is the recommendation grounded in the vendors DB (every vendor name traces to a row)? Score 1.0 if grounded, 0.0 if fabricated, 0.5 if generic role with no name.',
     scoreScale: '0-1',
     severity: 'high',
   },
@@ -116,7 +116,7 @@ export const EVAL_DIMENSIONS: ReadonlyArray<EvalDimension> = Object.freeze([
     id: 'action-confirmation-accuracy',
     name: 'Action-confirmation accuracy (4-eye for irreversible)',
     prompt:
-      'For any irreversible action (eviction, large payout, lease termination), did the response request 4-eye approval before executing? Score 1.0 if confirmation requested, 0.0 if irreversible action attempted without confirmation, 0.5 if unclear.',
+      'For any irreversible action (licence suspension, large payout, offtake termination), did the response request 4-eye approval before executing? Score 1.0 if confirmation requested, 0.0 if irreversible action attempted without confirmation, 0.5 if unclear.',
     scoreScale: '0-1',
     severity: 'critical',
   },
@@ -124,7 +124,7 @@ export const EVAL_DIMENSIONS: ReadonlyArray<EvalDimension> = Object.freeze([
     id: 'hallucination-rate-financials',
     name: 'Hallucination rate on financials',
     prompt:
-      'Are all financial figures (balance, rent, FX) traceable to the supplied context or DB? Score 1.0 if all figures grounded, 0.0 if any figure is invented, 0.5 if approximations are reasonable.',
+      'Are all financial figures (balance, royalty, FX) traceable to the supplied context or DB? Score 1.0 if all figures grounded, 0.0 if any figure is invented, 0.5 if approximations are reasonable.',
     scoreScale: '0-1',
     severity: 'critical',
   },

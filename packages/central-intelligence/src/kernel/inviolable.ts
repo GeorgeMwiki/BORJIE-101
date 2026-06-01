@@ -14,16 +14,18 @@
  *      bulk for export to an unknown sink.
  *   3. Counterfeit-authority — claims the user is "from Borjie"
  *      asking for system internals.
- *   4. Tribunal/legal autonomy — asking the agent to "decide" an
- *      eviction without going through the documented arrears ladder.
+ *   4. Regulatory/legal autonomy — asking the agent to "decide" a
+ *      licence-suspension without going through the documented
+ *      outstanding-royalties escalation ladder.
  *   5. (K5) IP — copyright. Refuses requests to reproduce full song
  *      lyrics, book chapters, or other obviously-copyrighted prose.
  *   6. (K5) IP — competitor / proprietary data. Refuses requests for
- *      a competing property-manager's tenant ledger, owner statements,
+ *      a competing mining operator's royalty roll, buyout statements,
  *      or back-office data — even when the requester is asking the
  *      Borjie kernel from a different tenant scope.
  *   7. (K5) IP — legal-IP / forge-impersonate. Refuses to draft forged
- *      leases, fabricated KRA receipts, or impersonating legal notices.
+ *      offtake agreements, fabricated TRA receipts, or impersonating
+ *      legal notices.
  */
 
 import type { ScopeContext } from '../types.js';
@@ -43,8 +45,8 @@ export interface InviolableVerdict {
 }
 
 const BULK_PII_PATTERNS: ReadonlyArray<RegExp> = [
-  /\b(export|dump|list|give me|send me|email me)\b.{0,40}\b(all|every|each|complete)\b.{0,40}\b(tenant|resident|owner|phone|email|nida|tin|passport)/i,
-  /\b(spreadsheet|csv|excel|xlsx)\b.{0,30}\b(of|with)\b.{0,30}\b(tenant|resident|owner|phone)/i,
+  /\b(export|dump|list|give me|send me|email me)\b.{0,40}\b(all|every|each|complete)\b.{0,40}\b(tenant|buyer|operator|owner|phone|email|nida|tin|passport)/i,
+  /\b(spreadsheet|csv|excel|xlsx)\b.{0,30}\b(of|with)\b.{0,30}\b(tenant|buyer|operator|owner|phone)/i,
 ];
 
 const COUNTERFEIT_AUTHORITY_PATTERNS: ReadonlyArray<RegExp> = [
@@ -54,8 +56,8 @@ const COUNTERFEIT_AUTHORITY_PATTERNS: ReadonlyArray<RegExp> = [
 ];
 
 const TRIBUNAL_AUTONOMY_PATTERNS: ReadonlyArray<RegExp> = [
-  /\b(decide|finalize|finalise|approve|sign[- ]off on)\b.{0,40}\b(eviction|termination|lockout|seizure)/i,
-  /\b(skip|bypass)\b.{0,30}\b(arrears ladder|notice|tribunal|hearing)/i,
+  /\b(decide|finalize|finalise|approve|sign[- ]off on)\b.{0,40}\b(licence[- ]?suspension|license[- ]?suspension|incursion[- ]?response|site[- ]?seizure|seizure|regulatory[- ]?hearing)/i,
+  /\b(skip|bypass)\b.{0,30}\b(outstanding[- ]?royalties ladder|royalties ladder|notice|regulatory hearing|hearing)/i,
 ];
 
 // ─────────────────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ const TRIBUNAL_AUTONOMY_PATTERNS: ReadonlyArray<RegExp> = [
 /**
  * IP — copyrighted creative-work reproduction.
  *
- * The kernel is designed for property-management workflows, not for
+ * The kernel is designed for mining-estate workflows, not for
  * music / publishing-rights work. Anything that asks the kernel to
  * REPRODUCE full lyrics / a full poem / a full book chapter / a full
  * news article gets refused at the input layer.
@@ -80,27 +82,29 @@ const IP_COPYRIGHT_PATTERNS: ReadonlyArray<RegExp> = [
 /**
  * IP — competitor / proprietary data probe.
  *
- * Refuses prompts that target a NAMED competitor property-manager's
- * confidential operational data (owner statements, tenant rolls,
- * arrears reports) — even when phrased as "show me Pongezi's owner
- * statements". The kernel has no access to such data and must not
- * fabricate.
+ * Refuses prompts that target a NAMED competitor mining operator's
+ * confidential operational data (buyout statements, royalty rolls,
+ * production reports) — even when phrased as "show me Geita Gold's
+ * buyout statements". The kernel has no access to such data and must
+ * not fabricate.
  *
  * Heuristic: a known competitor brand name AND a back-office artifact
  * keyword in the same sentence.
  */
 const COMPETITOR_NAMES: ReadonlyArray<string> = [
-  'pongezi',
-  'mrelevant',
-  'rentscope',
-  'estatemanager360',
-  'estatempro',
-  'kodiwa',
-  'nyumbakubwa',
+  'geita gold',
+  'geitagold',
+  'acacia mining',
+  'barrick',
+  'shanta gold',
+  'shantagold',
+  'williamson diamonds',
+  'twiga minerals',
+  'buckreef',
 ];
 
 const COMPETITOR_DATA_ARTIFACTS = new RegExp(
-  '\\b(owner[- ]?statement|tenant[- ]?roll|tenant[- ]?ledger|rent[- ]?roll|arrears[- ]?report|portfolio[- ]?report|p&l|owner[- ]?payout|disbursement[- ]?report|back[- ]?office)s?\\b',
+  '\\b(royalty[- ]?roll|buyout[- ]?statement|production[- ]?report|operator[- ]?payout|offtake[- ]?ledger|assay[- ]?ledger|owner[- ]?statement|tenant[- ]?roll|tenant[- ]?ledger|rent[- ]?roll|arrears[- ]?report|outstanding[- ]?royalties[- ]?report|portfolio[- ]?report|p&l|owner[- ]?payout|disbursement[- ]?report|back[- ]?office)s?\\b',
   'i',
 );
 
@@ -110,9 +114,9 @@ function looksLikeCompetitorDataRequest(msg: string): boolean {
   for (const brand of COMPETITOR_NAMES) {
     if (lower.includes(brand)) return true;
   }
-  // Generic phrasing — "another property manager's owner statements".
+  // Generic phrasing — "another mining operator's buyout statements".
   if (
-    /\b(another|other|competitor|rival)\b.{0,40}\b(property[- ]?manager|landlord|agency|company|firm|operator)/i.test(
+    /\b(another|other|competitor|rival)\b.{0,40}\b(mining[- ]?operator|mining[- ]?company|operator|miner|licence[- ]?holder|license[- ]?holder|agency|company|firm)/i.test(
       msg,
     )
   ) {
@@ -124,15 +128,16 @@ function looksLikeCompetitorDataRequest(msg: string): boolean {
 /**
  * IP — forge / impersonate.
  *
- * Refuses prompts asking the kernel to forge a lease, fabricate a KRA
- * receipt, draft an impersonating eviction notice, or otherwise create
- * documents intended to deceive a third party.
+ * Refuses prompts asking the kernel to forge an offtake agreement,
+ * fabricate a TRA receipt, draft an impersonating licence-suspension
+ * notice, or otherwise create documents intended to deceive a third
+ * party.
  */
 const IP_FORGE_PATTERNS: ReadonlyArray<RegExp> = [
-  /\b(forge|fake|fabricate|counterfeit)\b.{0,40}\b(lease|contract|kra|receipt|notice|stamp|signature|letterhead|certificate)/i,
+  /\b(forge|fake|fabricate|counterfeit)\b.{0,40}\b(offtake|agreement|contract|licence|license|permit|tra|kra|receipt|notice|stamp|signature|letterhead|certificate)/i,
   /\b(draft|write|generate|compose)\b.{0,40}\b(a\s+)?(forged|fake|fraudulent|impersonating|counterfeit)\b/i,
-  /\b(pretend|impersonate)\b.{0,30}\b(to be|you are)\b.{0,40}\b(landlord|tribunal|magistrate|kra|tax authority|government|advocate|bank)/i,
-  /\b(create|make)\b.{0,30}\b(a\s+)?(fake|forged|backdated)\b.{0,40}\b(lease|receipt|kra|invoice|payment|stamp duty)/i,
+  /\b(pretend|impersonate)\b.{0,30}\b(to be|you are)\b.{0,40}\b(owner|operator|mining commission|regulator|magistrate|tra|kra|tax authority|government|advocate|bank)/i,
+  /\b(create|make)\b.{0,30}\b(a\s+)?(fake|forged|backdated)\b.{0,40}\b(offtake|agreement|licence|license|receipt|tra|kra|invoice|payment|royalty)/i,
 ];
 
 // ─────────────────────────────────────────────────────────────────────
@@ -175,7 +180,7 @@ export function checkInviolable(req: ThoughtRequest): InviolableVerdict {
       return {
         status: 'block',
         category: 'autonomy',
-        reason: 'eviction / tribunal actions go through the arrears-ladder workflow, not the chat kernel',
+        reason: 'licence-suspension / regulatory actions go through the outstanding-royalties escalation ladder, not the chat kernel',
       };
     }
   }
@@ -206,7 +211,7 @@ export function checkInviolable(req: ThoughtRequest): InviolableVerdict {
     return {
       status: 'block',
       category: 'ip-competitor-data',
-      reason: 'requesting another property-manager’s proprietary owner / tenant data is outside the kernel mandate',
+      reason: 'requesting another mining-operator’s proprietary royalty / buyout data is outside the kernel mandate',
     };
   }
 

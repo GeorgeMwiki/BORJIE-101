@@ -22,12 +22,12 @@ import type {
   FinancePolicy,
   HRPolicy,
   InsurancePolicy,
-  LeasingPolicy,
+  OfftakePolicy,
   LegalProceedingsPolicy,
   MaintenancePolicy,
   MarketingPolicy,
   ProcurementPolicy,
-  TenantWelfarePolicy,
+  CommunityWelfarePolicy,
 } from '../autonomy/types.js';
 import {
   DailyActionCapExceededError,
@@ -300,7 +300,7 @@ export function validatePolicySubset(
 ): readonly string[] {
   const violations: string[] = [];
   if (subset.finance) checkFinance(subset.finance, tenant.finance, violations);
-  if (subset.leasing) checkLeasing(subset.leasing, tenant.leasing, violations);
+  if (subset.offtake) checkOfftake(subset.offtake, tenant.offtake, violations);
   if (subset.maintenance) checkMaintenance(subset.maintenance, tenant.maintenance, violations);
   if (subset.compliance) checkCompliance(subset.compliance, tenant.compliance, violations);
   if (subset.communications)
@@ -311,8 +311,8 @@ export function validatePolicySubset(
   if (subset.insurance) checkInsurance(subset.insurance, tenant.insurance, violations);
   if (subset.legal_proceedings)
     checkLegal(subset.legal_proceedings, tenant.legal_proceedings, violations);
-  if (subset.tenant_welfare)
-    checkWelfare(subset.tenant_welfare, tenant.tenant_welfare, violations);
+  if (subset.community_welfare)
+    checkWelfare(subset.community_welfare, tenant.community_welfare, violations);
   return violations;
 }
 
@@ -345,10 +345,10 @@ function checkFinance(sub: Partial<FinancePolicy>, t: FinancePolicy, v: string[]
   checkNumberLTE(sub.escalateArrearsAboveMinorUnits, t.escalateArrearsAboveMinorUnits, 'finance.escalateArrearsAboveMinorUnits', v);
 }
 
-function checkLeasing(sub: Partial<LeasingPolicy>, t: LeasingPolicy, v: string[]): void {
-  checkBoolLTE(sub.autoApproveRenewalsSameTerms, t.autoApproveRenewalsSameTerms, 'leasing.autoApproveRenewalsSameTerms', v);
-  checkBoolLTE(sub.autoSendOfferLetters, t.autoSendOfferLetters, 'leasing.autoSendOfferLetters', v);
-  checkNumberLTE(sub.maxAutoApproveRentIncreasePct, t.maxAutoApproveRentIncreasePct, 'leasing.maxAutoApproveRentIncreasePct', v);
+function checkOfftake(sub: Partial<OfftakePolicy>, t: OfftakePolicy, v: string[]): void {
+  checkBoolLTE(sub.autoApproveRenewalsSameTerms, t.autoApproveRenewalsSameTerms, 'offtake.autoApproveRenewalsSameTerms', v);
+  checkBoolLTE(sub.autoSendOfferLetters, t.autoSendOfferLetters, 'offtake.autoSendOfferLetters', v);
+  checkNumberLTE(sub.maxAutoApproveRentIncreasePct, t.maxAutoApproveRentIncreasePct, 'offtake.maxAutoApproveRentIncreasePct', v);
 }
 
 function checkMaintenance(sub: Partial<MaintenancePolicy>, t: MaintenancePolicy, v: string[]): void {
@@ -402,7 +402,7 @@ function checkLegal(sub: Partial<LegalProceedingsPolicy>, t: LegalProceedingsPol
   }
 }
 
-function checkWelfare(sub: Partial<TenantWelfarePolicy>, t: TenantWelfarePolicy, v: string[]): void {
+function checkWelfare(sub: Partial<CommunityWelfarePolicy>, t: CommunityWelfarePolicy, v: string[]): void {
   checkBoolLTE(sub.autoEnrollInHardshipRelief, t.autoEnrollInHardshipRelief, 'tenant_welfare.autoEnrollInHardshipRelief', v);
   checkNumberLTE(sub.autoOfferPaymentPlansBelowMinorUnits, t.autoOfferPaymentPlansBelowMinorUnits, 'tenant_welfare.autoOfferPaymentPlansBelowMinorUnits', v);
 }

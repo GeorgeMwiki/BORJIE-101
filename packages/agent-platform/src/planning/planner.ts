@@ -34,7 +34,7 @@ export interface PlannerInput {
   readonly generation: number;
 }
 
-const PLANNER_SYSTEM = `You are the PLANNER for a property-management AI agent.
+const PLANNER_SYSTEM = `You are the PLANNER for a mining estate AI agent.
 Given a goal + a directory of available tools, output a JSON object
 matching this exact schema (no prose, no markdown fence):
 

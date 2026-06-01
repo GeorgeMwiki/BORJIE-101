@@ -1,9 +1,10 @@
 /**
- * South Africa (ZA) compliance plugin.
+ * South Africa (ZA) mining-compliance plugin.
  *
- * Defaults based on the Rental Housing Act 50 of 1999 and SARS requirements.
- * Rental Housing Tribunal handles disputes — surfaced as a tax-authority-
- * adjacent KYC provider so downstream UI knows the dispute channel.
+ * Defaults based on the Mineral and Petroleum Resources Royalty Act 28 of 2008
+ * and SARS requirements. The Mineral Resources regulator handles disputes —
+ * surfaced as a tax-authority-adjacent KYC provider so downstream UI knows
+ * the dispute channel.
  */
 
 import { buildPhoneNormalizer } from '../core/phone.js';
@@ -19,38 +20,38 @@ import {
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
 import {
   buildStubBureauResult,
-  type TenantScreeningPort,
-} from '../ports/tenant-screening.port.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+  type CounterpartyScreeningPort,
+} from '../ports/counterparty-screening.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 
 // --- South Africa port implementations --------------------------------------
 
 /**
- * SARS rental income is taxed as regular income for residents — no flat
- * withholding applies. Non-resident landlords are subject to 7.5%
- * provisional tax via the agent. We implement the non-resident rate
- * conservatively and flag manual configuration for residents.
+ * SARS levies a mineral royalty under the Mineral and Petroleum Resources
+ * Royalty Act 28 of 2008. The headline rate for refined minerals is variable
+ * (formula-based); we implement a conservative 7.5% on gross value as a
+ * baseline and flag manual configuration for the precise formula.
  */
 const southAfricaTaxRegime: TaxRegimePort = {
-  calculateWithholding(grossRentMinorUnits, _currency, _period) {
+  calculateWithholding(grossValueMinorUnits, _currency, _period) {
     return flatRateWithholding(
-      grossRentMinorUnits,
+      grossValueMinorUnits,
       7.5,
-      'SARS-WHT-NR',
-      'SARS non-resident lessor withholding — 7.5% provisional. Residents: file as ordinary income.'
+      'SARS-MINERAL-ROYALTY',
+      'SARS mineral royalty — 7.5% baseline on gross value (Mineral and Petroleum Resources Royalty Act 28 of 2008). Refined-mineral formula applies; confirm rate.'
     );
   },
 };
 
 const southAfricaTaxFiling: TaxFilingPort = {
-  prepareFiling(run, _tenantProfile, _period) {
+  prepareFiling(run, _operatorProfile, _period) {
     return {
       filingFormat: 'csv',
       payload: buildGenericCsvPayload(run),
       targetRegulator: 'SARS',
       submitEndpointHint: 'https://secure.sarsefiling.co.za',
       instructions:
-        'Upload under SARS eFiling. Residents declare in IRP6 provisional tax; non-residents: NR02/NR03.',
+        'Upload under SARS eFiling. Declare on the MPR1/MPR2/MPR3 mineral-royalty returns.',
     };
   },
 };
@@ -65,7 +66,7 @@ const southAfricaPaymentRails: PaymentRailPort = {
   },
 };
 
-const southAfricaTenantScreening: TenantScreeningPort = {
+const southAfricaCounterpartyScreening: CounterpartyScreeningPort = {
   async lookupBureau(_identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('TPN_ZA', ['CONSENT_TOKEN_INVALID']);
     // Follow-up ph-Z-global (#33): wire TPN / Experian ZA.
@@ -73,34 +74,34 @@ const southAfricaTenantScreening: TenantScreeningPort = {
   },
 };
 
-const southAfricaLeaseLaw: LeaseLawPort = {
-  requiredClauses(_leaseKind) {
+const southAfricaMiningLaw: MiningLawPort = {
+  requiredClauses(_operationKind) {
     return Object.freeze([
-      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Rental Housing Act 50 of 1999 §5.' },
-      { id: 'premises', label: 'Premises', mandatory: true, citation: 'Rental Housing Act 50 of 1999 §5.' },
-      { id: 'rent-amount', label: 'Rent amount and frequency in ZAR', mandatory: true, citation: 'Rental Housing Act 50 of 1999 §5(3).' },
-      { id: 'deposit', label: 'Deposit handling and interest', mandatory: true, citation: 'Rental Housing Act 50 of 1999 §5(3)(d).' },
-      { id: 'ingoing-outgoing-inspection', label: 'Joint ingoing/outgoing inspection clause', mandatory: true, citation: 'Rental Housing Act 50 of 1999 §5(3)(e)-(f).' },
+      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Mineral and Petroleum Resources Development Act 28 of 2002 §5.' },
+      { id: 'site', label: 'Licensed area', mandatory: true, citation: 'Mineral and Petroleum Resources Development Act 28 of 2002 §5.' },
+      { id: 'royalty-rate', label: 'Royalty/payment rate and frequency in ZAR', mandatory: true, citation: 'Mineral and Petroleum Resources Royalty Act 28 of 2008.' },
+      { id: 'bond', label: 'Performance bond handling and interest', mandatory: true, citation: 'MPRDA 28 of 2002 §41 (financial provision).' },
+      { id: 'rehabilitation', label: 'Environmental rehabilitation / closure plan clause', mandatory: true, citation: 'MPRDA 28 of 2002 §41; NEMA.' },
     ]);
   },
   noticeWindowDays(reason) {
     switch (reason) {
-      case 'non-payment': return 20; // CPA 20 business days
-      case 'end-of-term':
+      case 'royalty-default': return 20; // 20 business days
+      case 'licence-expiry':
       case 'renewal-non-continuation': return 20;
-      case 'landlord-repossession': return 60;
-      case 'breach-of-covenant': return 20;
-      case 'illegal-use':
-      case 'nuisance': return 14;
+      case 'state-repossession': return 60;
+      case 'breach-of-condition': return 20;
+      case 'illegal-mining':
+      case 'environmental-breach': return 14;
       default: return null;
     }
   },
-  depositCapMultiple(regime) {
-    if (regime === 'commercial') return { maxMonthsOfRent: 3, citation: 'Market norm.' };
-    return { maxMonthsOfRent: 2, citation: 'Rental Housing Act 50 of 1999 — customary cap.' };
+  bondCapMultiple(regime) {
+    if (regime === 'industrial') return { maxMonthsOfRoyalty: 3, citation: 'Market norm.' };
+    return { maxMonthsOfRoyalty: 2, citation: 'MPRDA 28 of 2002 — customary financial-provision cap.' };
   },
-  rentIncreaseCap(_regime) {
-    return { citation: 'No statutory cap; Rental Housing Tribunal may invalidate unreasonable increases.' };
+  royaltyEscalationCap(_regime) {
+    return { citation: 'No statutory cap; the Mineral Resources regulator may invalidate unreasonable escalations.' };
   },
 };
 
@@ -133,10 +134,10 @@ export const southAfricaPlugin: CountryPlugin = {
       idFormat: /^\d{10}$/,
     },
     {
-      id: 'rht',
-      name: 'Rental Housing Tribunal',
+      id: 'dmre',
+      name: 'Department of Mineral Resources and Energy',
       kind: 'credit-bureau',
-      envPrefix: 'RHT',
+      envPrefix: 'DMRE',
     },
   ],
   paymentGateways: [
@@ -154,31 +155,31 @@ export const southAfricaPlugin: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 2,
+    minBondMonths: 1,
+    maxBondMonths: 2,
     noticePeriodDays: 20,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 14,
+    bondReturnDays: 14,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Residential Lease Agreement (ZA)',
-      templatePath: 'za/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (ZA)',
+      templatePath: 'za/offtake-agreement.hbs',
       locale: 'en-ZA',
     },
     {
-      id: 'notice-of-termination',
-      name: 'Notice of Termination (ZA)',
-      templatePath: 'za/notice-of-termination.hbs',
+      id: 'notice-of-suspension',
+      name: 'Notice of Licence Suspension (ZA)',
+      templatePath: 'za/notice-of-suspension.hbs',
       locale: 'en-ZA',
     },
   ],
   taxRegime: southAfricaTaxRegime,
   taxFiling: southAfricaTaxFiling,
   paymentRails: southAfricaPaymentRails,
-  tenantScreening: southAfricaTenantScreening,
-  leaseLaw: southAfricaLeaseLaw,
+  counterpartyScreening: southAfricaCounterpartyScreening,
+  miningLaw: southAfricaMiningLaw,
 };

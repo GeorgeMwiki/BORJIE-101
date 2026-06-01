@@ -135,17 +135,17 @@ describe('NotYetWiredError degraded-mode tagging', () => {
   });
 
   it('defaults affectedCapabilities to [reason]', () => {
-    const err = new NotYetWiredError(NOT_YET_WIRED_REASON.EVICTION_DISPATCHER);
-    expect([...err.affectedCapabilities]).toEqual(['eviction-dispatcher']);
+    const err = new NotYetWiredError(NOT_YET_WIRED_REASON.LICENCE_SUSPENSION_DISPATCHER);
+    expect([...err.affectedCapabilities]).toEqual(['licence-suspension-dispatcher']);
   });
 
   it('accepts a richer affectedCapabilities list', () => {
     const err = new NotYetWiredError(NOT_YET_WIRED_REASON.NIDA_PORT, {
-      affectedCapabilities: ['platform.verify_nida', 'platform.evict_tenant'],
+      affectedCapabilities: ['platform.verify_nida', 'platform.suspend_licence'],
     });
     expect([...err.affectedCapabilities]).toEqual([
       'platform.verify_nida',
-      'platform.evict_tenant',
+      'platform.suspend_licence',
     ]);
   });
 

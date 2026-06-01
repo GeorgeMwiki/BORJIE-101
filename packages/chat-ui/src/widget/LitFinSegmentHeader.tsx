@@ -51,9 +51,9 @@ const PORTAL_LABELS: Record<
 > = {
   public: { en: 'Public', sw: 'Umma' },
   owner: { en: 'Owner', sw: 'Mmiliki' },
-  'estate-manager': { en: 'Estate Manager', sw: 'Meneja wa Mali' },
+  'estate-manager': { en: 'Estate Manager', sw: 'Meneja wa Migodi' },
   admin: { en: 'Admin', sw: 'Msimamizi' },
-  customer: { en: 'Tenant', sw: 'Mpangaji' },
+  customer: { en: 'Buyer', sw: 'Mnunuzi' },
 };
 
 export interface LitFinSegmentHeaderProps {

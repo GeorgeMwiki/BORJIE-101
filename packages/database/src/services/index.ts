@@ -38,9 +38,10 @@ export {
 } from './kernel-prior-turns.service.js';
 
 // Kernel grounding — Drizzle-backed GroundingFactsProvider that reads
-// occupancy, active leases, open work-orders, and lease-expiry counts.
-// Triggered by user-message keywords; produces tenant-scoped facts the
-// kernel mixes into the system prompt as grounding evidence.
+// production/asset-utilisation, active offtakes, open work-orders, and
+// licence-expiry counts. Triggered by user-message keywords; produces
+// tenant-scoped facts the kernel mixes into the system prompt as
+// grounding evidence.
 export {
   createKernelGroundingProvider,
   type GroundingFactShape,
@@ -51,8 +52,8 @@ export {
 
 // Kernel cohort — Drizzle-backed TenantAggregateSource for the
 // graph-privacy DP aggregator. Composed at the api-gateway sovereign
-// composition root; reads cross-tenant arrears / collections /
-// renewals / maintenance-TTC. Returns per-tenant per-statistic
+// composition root; reads cross-tenant outstanding-royalties /
+// collections / renewals / maintenance-TTC. Returns per-tenant per-statistic
 // contributions; missing data ⇒ empty array (the aggregator handles
 // that path safely). Port shape duck-typed locally so this package
 // does not compile-time-depend on @borjie/graph-privacy.
@@ -249,7 +250,7 @@ export {
 
 // Market-rate snapshots (migration 0103) — Drizzle-backed adapter for
 // the market-surveillance agent's snapshot persistence. `listActiveUnits`
-// is composed elsewhere from the occupancy/units repository.
+// is composed elsewhere from the production/sites repository.
 export {
   createMarketRateSnapshotsService,
   type DriftFlag,
@@ -260,7 +261,7 @@ export {
 
 // Tenant predictions + intervention opportunities (migration 0106) —
 // Drizzle-backed adapter for the predictive-interventions agent.
-// `listActiveTenants` is composed elsewhere from occupancy/lease repos.
+// `listActiveTenants` is composed elsewhere from production/offtake repos.
 export {
   createTenantPredictionsService,
   type InterventionOpportunityShape,

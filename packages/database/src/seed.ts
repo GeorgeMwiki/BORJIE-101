@@ -1,8 +1,8 @@
 // @ts-nocheck — bcrypt has no @types, import-assertion syntax change, drizzle 0.36 pgEnum narrowing in seed row shapes. Tracked.
 /**
  * BORJIE Database Seed
- * Seeds the initial tenant, admin user, sample properties, units, customers,
- * and leases.
+ * Seeds the initial tenant, admin user, sample mining sites, blocks,
+ * counterparties, and offtake agreements.
  *
  * Production policy: NO hardcoded fallbacks. All required env vars must be
  * provided (DATABASE_URL, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD,
@@ -44,7 +44,7 @@ async function seed() {
   if (process.env.SEED_DEMO !== 'true') {
     throw new Error(
       'Refusing to run demo seed: set SEED_DEMO=true to acknowledge this ' +
-        'will write a demo tenant + admin + sample property/units/leases. ' +
+        'will write a demo tenant + admin + sample site/blocks/offtakes. ' +
         'For production tenant onboarding use the Migration Wizard.'
     );
   }
@@ -58,7 +58,7 @@ async function seed() {
   const tenantPhone = process.env.SEED_TENANT_PHONE?.trim() ?? '';
   const propertyName = requireEnv('SEED_PROPERTY_NAME');
   const propertyAddress = requireEnv('SEED_PROPERTY_ADDRESS');
-  const propertyCity = process.env.SEED_PROPERTY_CITY?.trim() ?? 'Nairobi';
+  const propertyCity = process.env.SEED_PROPERTY_CITY?.trim() ?? 'Geita';
 
   const tenantId = crypto.randomUUID();
   const orgId = crypto.randomUUID();
@@ -87,7 +87,7 @@ async function seed() {
       primaryPhone: tenantPhone || null,
       addressLine1: propertyAddress,
       city: propertyCity,
-      country: 'KE',
+      country: 'TZ',
       currentUsers: 1,
       currentProperties: 1,
       currentUnits: 2,
@@ -145,7 +145,7 @@ async function seed() {
       status: 'active',
       addressLine1: propertyAddress,
       city: propertyCity,
-      country: 'KE',
+      country: 'TZ',
       totalUnits: 2,
       occupiedUnits: 2,
       vacantUnits: 0,

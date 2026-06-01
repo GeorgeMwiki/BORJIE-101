@@ -10,7 +10,7 @@
 
 export type AuditDomain =
   | 'finance'
-  | 'leasing'
+  | 'offtake'
   | 'maintenance'
   | 'compliance'
   | 'communications'

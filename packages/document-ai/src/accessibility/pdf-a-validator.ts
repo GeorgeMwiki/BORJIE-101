@@ -3,7 +3,7 @@
  *
  * Full PDF/A validation requires a binary toolchain (veraPDF, callas
  * pdfaPilot). This module performs a lightweight scan that catches
- * the failures we actually see in property-management PDFs:
+ * the failures we actually see in mining estate PDFs:
  *
  *  - Missing XMP metadata block
  *  - Missing /Type /Catalog

@@ -6,27 +6,27 @@ import {
   validateSchema,
   validateTools,
 } from '../validator/index.js';
-import { arrearsChase } from './fixtures/arrears-chase.aop.js';
-import { leaseRenewal } from './fixtures/lease-renewal.aop.js';
-import { kraFiling } from './fixtures/kra-filing.aop.js';
+import { royaltyArrearsChase } from './fixtures/royalty-arrears-chase.aop.js';
+import { offtakeRenewal } from './fixtures/offtake-renewal.aop.js';
+import { traFiling } from './fixtures/tra-filing.aop.js';
 import { buildRegistry, FIXTURE_TOOLS } from './_test-helpers.js';
 import type { AOP } from '../types.js';
 
 describe('validateSchema', () => {
   it('accepts the three fixtures', () => {
-    for (const ast of [arrearsChase, leaseRenewal, kraFiling]) {
+    for (const ast of [royaltyArrearsChase, offtakeRenewal, traFiling]) {
       expect(validateSchema(ast).ok).toBe(true);
     }
   });
 
   it('rejects an AOP with no steps', () => {
-    const bad = { ...arrearsChase, steps: [] };
+    const bad = { ...royaltyArrearsChase, steps: [] };
     expect(validateSchema(bad).ok).toBe(false);
   });
 
   it('rejects bad cron expressions', () => {
     const bad = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       trigger: { kind: 'cron', schedule: 'not-a-cron' } as const,
     };
     expect(validateSchema(bad).ok).toBe(false);
@@ -34,12 +34,12 @@ describe('validateSchema', () => {
 
   it('rejects a step id that is not kebab/snake', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'BadID',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: {},
         },
       ],
@@ -54,11 +54,11 @@ describe('validateSchema', () => {
     const tooMany = Array.from({ length: 201 }, (_, i) => ({
       kind: 'tool' as const,
       id: `s-${i}`,
-      tool: 'tenant.send_reminder',
+      tool: 'buyer.send_reminder',
       args: {},
     }));
     const bad = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: tooMany,
       entry: 's-0',
     };
@@ -67,7 +67,7 @@ describe('validateSchema', () => {
 
   it('rejects monitor without a timeout', () => {
     const bad: unknown = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'monitor',
@@ -83,7 +83,7 @@ describe('validateSchema', () => {
 
 describe('validateInvariants', () => {
   it('passes on the three fixtures', () => {
-    for (const ast of [arrearsChase, leaseRenewal, kraFiling]) {
+    for (const ast of [royaltyArrearsChase, offtakeRenewal, traFiling]) {
       const r = validateInvariants(ast);
       expect(r.ok).toBe(true);
     }
@@ -91,12 +91,12 @@ describe('validateInvariants', () => {
 
   it('detects orphan references', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'a',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: {},
           on_success: 'does-not-exist',
         },
@@ -110,10 +110,10 @@ describe('validateInvariants', () => {
 
   it('detects duplicate step ids', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
-        { kind: 'tool', id: 'a', tool: 'tenant.send_reminder', args: {} },
-        { kind: 'tool', id: 'a', tool: 'tenant.voice_call', args: {} },
+        { kind: 'tool', id: 'a', tool: 'buyer.send_reminder', args: {} },
+        { kind: 'tool', id: 'a', tool: 'buyer.voice_call', args: {} },
       ],
       entry: 'a',
     };
@@ -123,19 +123,19 @@ describe('validateInvariants', () => {
 
   it('detects unbounded cycles (no loop block)', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'a',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: {},
           on_success: 'b',
         },
         {
           kind: 'tool',
           id: 'b',
-          tool: 'tenant.voice_call',
+          tool: 'buyer.voice_call',
           args: {},
           on_success: 'a',
         },
@@ -148,7 +148,7 @@ describe('validateInvariants', () => {
 
   it('permits bounded loop cycles', () => {
     const ok: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'loop',
@@ -158,7 +158,7 @@ describe('validateInvariants', () => {
             {
               kind: 'tool',
               id: 'try',
-              tool: 'tenant.send_reminder',
+              tool: 'buyer.send_reminder',
               args: {},
               on_success: 'try',
             },
@@ -172,19 +172,19 @@ describe('validateInvariants', () => {
 
   it('detects no-terminal-step when every step is non-terminal and not in a loop', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'a',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: {},
           on_success: 'b',
         },
         {
           kind: 'tool',
           id: 'b',
-          tool: 'tenant.voice_call',
+          tool: 'buyer.voice_call',
           args: {},
           on_success: 'a',
         },
@@ -197,7 +197,7 @@ describe('validateInvariants', () => {
 
   it('detects unknown entry id', () => {
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       entry: 'nope-not-here',
     };
     const r = validateInvariants(bad);
@@ -208,38 +208,38 @@ describe('validateInvariants', () => {
 describe('validateTools', () => {
   it('passes when all tools are registered', () => {
     const reg = buildRegistry(FIXTURE_TOOLS);
-    for (const ast of [arrearsChase, leaseRenewal, kraFiling]) {
+    for (const ast of [royaltyArrearsChase, offtakeRenewal, traFiling]) {
       expect(validateTools(ast, reg).ok).toBe(true);
     }
   });
 
   it('reports unknown tools', () => {
     const reg = buildRegistry({}); // empty
-    const r = validateTools(arrearsChase, reg);
+    const r = validateTools(royaltyArrearsChase, reg);
     expect(r.ok).toBe(false);
     expect(r.errors.every((e) => e.code === 'unknown-tool')).toBe(true);
   });
 });
 
 describe('validatePermissions', () => {
-  it('passes when destructive tools are guarded (arrears-chase)', () => {
+  it('passes when destructive tools are guarded (royalty-arrears-chase)', () => {
     const reg = buildRegistry(FIXTURE_TOOLS);
-    expect(validatePermissions(arrearsChase, reg).ok).toBe(true);
+    expect(validatePermissions(royaltyArrearsChase, reg).ok).toBe(true);
   });
 
   it('flags a destructive tool that is NOT preceded by an ask-owner hook', () => {
     const reg = buildRegistry({ ...FIXTURE_TOOLS });
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
-          id: 'evict-now',
-          tool: 'notice.draft_eviction_notice',
+          id: 'suspend-now',
+          tool: 'notice.draft_supply_suspension',
           args: {},
         },
       ],
-      entry: 'evict-now',
+      entry: 'suspend-now',
     };
     const r = validatePermissions(bad, reg);
     expect(r.ok).toBe(false);
@@ -247,12 +247,12 @@ describe('validatePermissions', () => {
   });
 
   it('fail-closed: when the registry exposes no tier info, every tool step is treated as destructive and must be guarded (C1)', () => {
-    // arrears-chase contains a destructive eviction tool that IS guarded by
-    // ask-owner — but it also contains write-tier tools (send_reminder,
-    // voice_call) which are NOT guarded. With tier() absent, ALL of them
-    // are now treated as destructive, so the AOP must fail.
+    // royalty-arrears-chase contains a destructive supply-suspension tool that
+    // IS guarded by ask-owner — but it also contains write-tier tools
+    // (send_reminder, voice_call) which are NOT guarded. With tier() absent,
+    // ALL of them are now treated as destructive, so the AOP must fail.
     const reg = { has: () => true };
-    const r = validatePermissions(arrearsChase, reg);
+    const r = validatePermissions(royaltyArrearsChase, reg);
     expect(r.ok).toBe(false);
     // Every error must be the destructive-tool-unguarded code, and the
     // failure reason must explain the fail-closed default so operators
@@ -267,15 +267,15 @@ describe('validatePermissions', () => {
   it('inspects step.args recursively for PII keys and rejects without grants (H4)', () => {
     const reg = buildRegistry({ ...FIXTURE_TOOLS });
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'send-reminder-with-pii',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: {
-            template: 'arrears-reminder',
-            metadata: { kra_pin: '{{tenant.kra_pin}}' },
+            template: 'outstanding-reminder',
+            metadata: { tra_pin: '{{buyer.tra_pin}}' },
           },
         },
       ],
@@ -289,17 +289,17 @@ describe('validatePermissions', () => {
   it('allows PII keys in step.args when an explicit grant is declared (H4)', () => {
     const reg = buildRegistry({ ...FIXTURE_TOOLS });
     const ok: AOP & { grants: ReadonlyArray<string> } = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'send-reminder-with-pii',
-          tool: 'tenant.send_reminder',
-          args: { template: 'arrears-reminder', kra_pin: 'P123' },
+          tool: 'buyer.send_reminder',
+          args: { template: 'outstanding-reminder', tra_pin: 'P123' },
         },
       ],
       entry: 'send-reminder-with-pii',
-      grants: ['kra_pin'],
+      grants: ['tra_pin'],
     };
     const r = validatePermissions(ok, reg);
     expect(r.ok).toBe(true);
@@ -308,12 +308,12 @@ describe('validatePermissions', () => {
   it('detects PII keys nested inside arrays (H4)', () => {
     const reg = buildRegistry({ ...FIXTURE_TOOLS });
     const bad: AOP = {
-      ...arrearsChase,
+      ...royaltyArrearsChase,
       steps: [
         {
           kind: 'tool',
           id: 'send-many',
-          tool: 'tenant.send_reminder',
+          tool: 'buyer.send_reminder',
           args: { recipients: [{ name: 'A', nin: '12345' }] },
         },
       ],
@@ -328,7 +328,7 @@ describe('validatePermissions', () => {
 describe('validate (composed)', () => {
   it('runs end-to-end on all three fixtures', () => {
     const reg = buildRegistry(FIXTURE_TOOLS);
-    for (const ast of [arrearsChase, leaseRenewal, kraFiling]) {
+    for (const ast of [royaltyArrearsChase, offtakeRenewal, traFiling]) {
       const r = validate(ast, reg);
       if (!r.ok) {
         // Surface the errors so debugging the fixture is fast.

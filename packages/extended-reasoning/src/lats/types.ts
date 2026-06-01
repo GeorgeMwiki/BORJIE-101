@@ -7,10 +7,10 @@
  * very real long-horizon flows where the action space is large and feedback
  * is sparse:
  *
- *   - 60-day lease renewal (send-early / wait / discount / partial / not)
- *   - 30-day onboarding (KYC → contract → deposit → keys → first inspection)
- *   - 90-day eviction (notice → cure period → court filing → hearing → enforcement)
- *   - monthly KRA cycle (compute → file → settle → reconcile)
+ *   - 60-day offtake renewal (send-early / wait / discount / partial / not)
+ *   - 30-day onboarding (KYC → supply-agreement → advance → mobilisation → first assay)
+ *   - 90-day licence suspension (notice → cure period → Commission filing → hearing → enforcement)
+ *   - monthly TRA royalty cycle (compute → file → settle → reconcile)
  *
  * Each "action" advances the state by one symbolic step. The reflection
  * callback consults K-D's Reflexion store (lessons from prior renewals)
@@ -76,7 +76,7 @@ export interface RunLatsInput {
   readonly maxDepth: number;
   /** Exploration constant for UCB1. Default sqrt(2). */
   readonly explorationC?: number;
-  /** Deterministic seed for replay. Default 0xBOSS_NYUMBA. */
+  /** Deterministic seed for replay. Default 0xb05_5ec0. */
   readonly seed?: number;
   /**
    * Reflection prefix. The runner calls `reflectionCallback` before expanding

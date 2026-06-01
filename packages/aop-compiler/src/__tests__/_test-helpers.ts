@@ -15,19 +15,20 @@ export function buildRegistry(
 }
 
 export const FIXTURE_TOOLS: Record<string, ToolTier> = {
-  // arrears-chase
-  'tenant.send_reminder': 'write',
-  'tenant.voice_call': 'write',
-  'notice.draft_eviction_notice': 'destructive',
-  // lease-renewal
-  'lease.draft_renewal': 'write',
-  'lease.send_to_tenant': 'write',
-  'lease.record_signature': 'write',
-  // kra-filing — note: filing is `write` not `destructive`. Filings can be
-  // amended; they are not legally irreversible the way an eviction is. Keep
-  // this distinction precise so the destructive-guard rule remains tight.
-  'kra.compile_mri_batch': 'read',
-  'kra.file_via_mcp': 'write',
+  // royalty-arrears-chase
+  'buyer.send_reminder': 'write',
+  'buyer.voice_call': 'write',
+  'notice.draft_supply_suspension': 'destructive',
+  // offtake-renewal
+  'offtake.draft_renewal': 'write',
+  'offtake.send_to_buyer': 'write',
+  'offtake.record_signature': 'write',
+  // tra-filing — note: filing is `write` not `destructive`. Royalty returns
+  // can be amended; they are not legally irreversible the way a supply
+  // suspension is. Keep this distinction precise so the destructive-guard
+  // rule remains tight.
+  'tra.compile_royalty_return': 'read',
+  'tra.file_via_mcp': 'write',
   'owner.notify': 'write',
 };
 

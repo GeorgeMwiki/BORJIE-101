@@ -1536,7 +1536,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       let regulatoryCiteText = '';
       const regProbe = (req as { regulatoryProbe?: {
         jurisdiction: 'TZ' | 'KE' | 'UAE';
-        action: 'collect_deposit' | 'issue_eviction_notice' | 'raise_rent' | 'distrain_goods' | 'enter_premises' | 'evict' | 'recover_arrears';
+        action: 'pay_royalty' | 'file_royalty_return' | 'export_mineral' | 'sell_gold' | 'transfer_licence' | 'operate_without_licence' | 'suspend_licence' | 'use_mercury';
         payload: Record<string, unknown>;
       } }).regulatoryProbe;
       if (deps.regulatoryMirror && regProbe) {

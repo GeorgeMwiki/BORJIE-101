@@ -2,8 +2,8 @@
   "version": 1,
   "personaId": "property_manager",
   "topbar": {
-    "logo": { "label": "Boss Nyumba", "href": "/portal", "markId": "midnight-ledger" },
-    "search": { "enabled": true, "placeholder": "Search tenants, properties, leases…", "scope": "tenant" },
+    "logo": { "label": "Borjie", "href": "/portal", "markId": "midnight-ledger" },
+    "search": { "enabled": true, "placeholder": "Search sites, operators, offtakes…", "scope": "tenant" },
     "notifications": { "enabled": true, "pollSeconds": 60 },
     "profile": {
       "enabled": true,
@@ -22,25 +22,25 @@
         "title": "Day-to-day",
         "items": [
           { "id": "home", "label": "Dashboard", "icon": "home", "href": "/portal" },
-          { "id": "properties", "label": "Properties", "icon": "building", "href": "/portal/properties" },
-          { "id": "tenants", "label": "Tenants", "icon": "users", "href": "/portal/tenants" },
-          { "id": "leases", "label": "Leases", "icon": "file-signature", "href": "/portal/leases" }
+          { "id": "sites", "label": "Sites", "icon": "building", "href": "/portal/sites" },
+          { "id": "operators", "label": "Operators", "icon": "users", "href": "/portal/operators" },
+          { "id": "offtakes", "label": "Offtakes", "icon": "file-signature", "href": "/portal/offtakes" }
         ]
       },
       {
         "id": "ops",
         "title": "Operations",
         "items": [
-          { "id": "rent", "label": "Rent & arrears", "icon": "banknote", "href": "/portal/rent" },
+          { "id": "royalty", "label": "Royalty & outstanding", "icon": "banknote", "href": "/portal/royalty" },
           { "id": "maintenance", "label": "Maintenance", "icon": "wrench", "href": "/portal/maintenance" },
-          { "id": "renewals", "label": "Renewals", "icon": "refresh-cw", "href": "/portal/renewals" }
+          { "id": "renewals", "label": "Licence renewals", "icon": "refresh-cw", "href": "/portal/renewals" }
         ]
       },
       {
         "id": "reports",
         "title": "Reports",
         "items": [
-          { "id": "occupancy", "label": "Occupancy", "icon": "bar-chart-3", "href": "/portal/reports/occupancy" },
+          { "id": "production", "label": "Production", "icon": "bar-chart-3", "href": "/portal/reports/production" },
           { "id": "ledger", "label": "Ledger", "icon": "scroll", "href": "/portal/reports/ledger" }
         ]
       }
@@ -58,10 +58,10 @@
         "initialProps": null
       },
       {
-        "id": "rent-roll",
+        "id": "royalty-roll",
         "span": 8,
         "kind": "data-table",
-        "title": "Rent roll",
+        "title": "Royalty roll",
         "initialProps": null
       },
       {
@@ -82,7 +82,7 @@
         "id": "renewals-calendar",
         "span": 6,
         "kind": "calendar",
-        "title": "Renewals due",
+        "title": "Licence renewals due",
         "initialProps": null
       },
       {
@@ -95,8 +95,8 @@
     ]
   },
   "primaryAction": {
-    "label": "Create lease",
-    "intent": "create_lease",
+    "label": "Create offtake",
+    "intent": "create_offtake",
     "icon": "file-plus"
   },
   "theme": {

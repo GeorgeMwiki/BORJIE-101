@@ -16,8 +16,8 @@ describe('<SectionSkeleton>', () => {
   });
 
   it('includes a screen-reader-only label when sectionLabel is passed', () => {
-    render(<SectionSkeleton sectionLabel="Customers" />);
-    expect(screen.getByText(/Loading Customers section/i)).toBeInTheDocument();
+    render(<SectionSkeleton sectionLabel="Ore Parcels" />);
+    expect(screen.getByText(/Loading Ore Parcels section/i)).toBeInTheDocument();
   });
 
   it('uses a generic label when no sectionLabel is passed', () => {

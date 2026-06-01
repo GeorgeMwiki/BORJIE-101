@@ -41,7 +41,7 @@ describe('buildDefaultPolicy', () => {
 
   it('caps auto-approve rent increase at 8 percent', () => {
     const policy = buildDefaultPolicy('t1');
-    expect(policy.leasing.maxAutoApproveRentIncreasePct).toBe(8);
+    expect(policy.offtake.maxAutoApproveRentIncreasePct).toBe(8);
   });
 
   it('seeds escalation contacts as null/empty', () => {
@@ -71,7 +71,7 @@ describe('buildDefaultPolicy', () => {
     expect(policy.procurement.autoIssuePurchaseOrdersBelowMinorUnits).toBe(0);
     expect(policy.procurement.escalateSingleSourceAwards).toBe(true);
     expect(policy.insurance.escalateCoverageGaps).toBe(true);
-    expect(policy.tenant_welfare.escalateVulnerableHouseholds).toBe(true);
+    expect(policy.community_welfare.escalateVulnerableHouseholds).toBe(true);
   });
 
   it('returns a fresh object each call (no shared reference)', () => {

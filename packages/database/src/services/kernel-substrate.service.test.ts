@@ -145,7 +145,7 @@ describe('createKernelSubstrateService', () => {
       judgeScore: 0.8,
       cohortFingerprints: ['fp1', 'fp2'],
       toolCallSummaries: [
-        { toolName: 'rent.send', latencyMs: 100, ok: true },
+        { toolName: 'royalty.send', latencyMs: 100, ok: true },
       ],
       latencyMs: 250,
       producedAt: '2026-05-08T12:00:00Z',

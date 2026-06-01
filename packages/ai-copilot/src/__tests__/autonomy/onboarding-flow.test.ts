@@ -61,7 +61,7 @@ describe('onboarding flow', () => {
     expect(advance!.derivedPolicy?.maintenance?.autoApproveBelowMinorUnits).toBe(
       100_000,
     );
-    expect(advance!.derivedPolicy?.leasing?.maxAutoApproveRentIncreasePct).toBe(8);
+    expect(advance!.derivedPolicy?.offtake?.maxAutoApproveRentIncreasePct).toBe(8);
     expect(advance!.derivedPolicy?.escalation?.primaryUserId).toBe('head_1');
     expect(advance!.derivedPolicy?.compliance?.autoDraftNotices).toBe(true);
   });

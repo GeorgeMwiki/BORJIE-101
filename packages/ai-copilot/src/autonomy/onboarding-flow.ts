@@ -57,7 +57,7 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStepDefinition
   renewals_auto_approve: {
     id: 'renewals_auto_approve',
     prompt: 'On same-terms renewals, what rent bump may Mr. Mwikila approve?',
-    rationale: 'Sets leasing.max_auto_approve_rent_increase_pct.',
+    rationale: 'Sets offtake.max_auto_approve_royalty_increase_pct.',
     choices: ['0%', 'up_to_5%', 'up_to_8%', 'up_to_12%', 'always_review'],
   },
   compliance_policy: {
@@ -187,7 +187,7 @@ export function derivePolicy(state: OnboardingState): UpdatePolicyInput {
         }
       : undefined;
   const ren = state.answers.renewals_auto_approve;
-  const leasing =
+  const offtake =
     ren && ren.stepId === 'renewals_auto_approve'
       ? (() => {
           const pct =
@@ -236,7 +236,7 @@ export function derivePolicy(state: OnboardingState): UpdatePolicyInput {
     autonomousModeEnabled,
     ...(finance ? { finance } : {}),
     ...(maintenance ? { maintenance } : {}),
-    ...(leasing ? { leasing } : {}),
+    ...(offtake ? { offtake } : {}),
     ...(compliance ? { compliance } : {}),
     ...(escalation ? { escalation } : {}),
   };
@@ -249,8 +249,8 @@ function summarise(_state: OnboardingState, derived: UpdatePolicyInput): string 
     parts.push(`Refunds auto-approved below ${derived.finance.autoApproveRefundsMinorUnits}.`);
   if (derived.maintenance)
     parts.push(`Maintenance auto-approved below ${derived.maintenance.autoApproveBelowMinorUnits}.`);
-  if (derived.leasing)
-    parts.push(`Renewals auto-approved up to +${derived.leasing.maxAutoApproveRentIncreasePct}%.`);
+  if (derived.offtake)
+    parts.push(`Renewals auto-approved up to +${derived.offtake.maxAutoApproveRentIncreasePct}%.`);
   if (derived.compliance) parts.push('Legal notices will NEVER auto-send.');
   if (derived.escalation)
     parts.push(`Escalation primary: ${derived.escalation.primaryUserId ?? 'unset'}.`);

@@ -1,18 +1,19 @@
 /**
- * United Arab Emirates (AE) — no personal income tax.
+ * United Arab Emirates (AE) — no personal income tax; gold-trade hub.
  *
  * Source: UAE Federal Decree-Law No. 47 of 2022 — corporate tax applies
- * from June 2023 but PERSONAL rental income is not subject to income tax.
- * Emirate-level "municipality fees" (5% in Dubai) apply — not plugin scope.
+ * from June 2023 but PERSONAL mineral-trade income is not subject to income
+ * tax. The UAE (DMCC / Dubai Good Delivery) is a major precious-metals
+ * refining and offtake hub rather than a producer.
  *
- * Lease: Dubai Rera mandates Ejari registration; RERA rental-increase
- * calculator caps increases (0-20% by gap to market).
+ * Offtake: DMCC mandates registration of bullion dealers; OECD due-diligence
+ * and Dubai Good Delivery standards govern responsible sourcing.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
   stubWithholding,
@@ -70,19 +71,19 @@ const uaeCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 3,
-    noticePeriodDays: 90, // Dubai RERA Law 26/2007 — 12 months notice for non-renewal
-    minimumLeaseMonths: 12,
-    subleaseConsent: 'consent-required',
+    minBondMonths: 1,
+    maxBondMonths: 3,
+    noticePeriodDays: 90, // 12-month notice norm for non-renewal of supply
+    minimumTermMonths: 12,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Ejari Tenancy Contract (AE)',
-      templatePath: 'ae/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'DMCC Bullion Offtake Contract (AE)',
+      templatePath: 'ae/offtake-agreement.hbs',
       locale: 'ar-AE',
     },
   ],
@@ -101,7 +102,7 @@ export const uaeProfile: ExtendedCountryProfile = {
   }),
   taxRegime: stubWithholding(
     'AE-FTA-NO-WHT',
-    'UAE has no personal income tax on rental income (Federal Decree-Law 47/2022). Corporate tax (9%) may apply to juristic landlords — configure per entity.'
+    'UAE has no personal income tax on mineral-trade income (Federal Decree-Law 47/2022). Corporate tax (9%) may apply to juristic operators — configure per entity.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -138,31 +139,31 @@ export const uaeProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'ae-ejari',
-        label: 'Contract must be registered via Ejari (Dubai RERA)',
+        id: 'ae-dmcc',
+        label: 'Bullion dealer registered with DMCC; OECD due-diligence attached',
         mandatory: true,
-        citation: 'Dubai Law 26 of 2007',
+        citation: 'DMCC Rules; OECD Due Diligence Guidance',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 360, // 12 months notice for non-renewal
-      'non-payment': 30,
+      'licence-expiry': 360, // 12 months notice for non-renewal
+      'royalty-default': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        citation: 'No statutory cap; industry norm 5-10% of annual rent.',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        citation: 'No statutory cap; industry norm 5-10% of annual contract value.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         indexedTo: 'LOCAL_INDEX',
-        citation: 'RERA Rental Increase Calculator (Decree 43/2013).',
+        citation: 'LBMA / Dubai Good Delivery price indexation.',
       },
     },
     defaultNoticeWindowDays: 90,
   }),
-  tenantScreening: buildStubScreeningPort('AECB_AE'),
+  counterpartyScreening: buildStubScreeningPort('AECB_AE'),
 };

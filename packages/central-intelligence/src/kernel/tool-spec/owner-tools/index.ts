@@ -29,17 +29,17 @@ import type { HqToolContext, HqToolExecutionResult } from '../../risk-tier.js';
 import type { OwnerToolName, OwnerToolSpec } from './types.js';
 
 import {
-  createListArrearsTool,
-  type ListArrearsDeps,
-} from './owner.list_arrears.js';
+  createListOutstandingTool,
+  type ListOutstandingDeps,
+} from './owner.list_outstanding.js';
 import {
-  createDraftEvictionNoticeTool,
-  type DraftEvictionNoticeDeps,
-} from './owner.draft_eviction_notice.js';
+  createDraftSuspensionNoticeTool,
+  type DraftSuspensionNoticeDeps,
+} from './owner.draft_suspension_notice.js';
 import {
-  createShowOccupancyTool,
-  type ShowOccupancyDeps,
-} from './owner.show_occupancy.js';
+  createShowAssetAllocationTool,
+  type ShowAssetAllocationDeps,
+} from './owner.show_asset_allocation.js';
 import {
   createNextActionsTool,
   type NextActionsDeps,
@@ -54,34 +54,34 @@ import {
 // ─────────────────────────────────────────────────────────────────────
 
 export {
-  createListArrearsTool,
-  ListArrearsInputSchema,
-  ListArrearsOutputSchema,
-  ListArrearsRowSchema,
-  type ArrearsServicePort,
-  type ListArrearsDeps,
-  type ListArrearsInput,
-  type ListArrearsOutput,
-  type ListArrearsRow,
-} from './owner.list_arrears.js';
+  createListOutstandingTool,
+  ListOutstandingInputSchema,
+  ListOutstandingOutputSchema,
+  ListOutstandingRowSchema,
+  type OutstandingServicePort,
+  type ListOutstandingDeps,
+  type ListOutstandingInput,
+  type ListOutstandingOutput,
+  type ListOutstandingRow,
+} from './owner.list_outstanding.js';
 export {
-  createDraftEvictionNoticeTool,
-  DraftEvictionNoticeInputSchema,
-  DraftEvictionNoticeOutputSchema,
-  type DraftEvictionNoticeDeps,
-  type DraftEvictionNoticeInput,
-  type DraftEvictionNoticeOutput,
-  type EvictionNoticeDraftPort,
-} from './owner.draft_eviction_notice.js';
+  createDraftSuspensionNoticeTool,
+  DraftSuspensionNoticeInputSchema,
+  DraftSuspensionNoticeOutputSchema,
+  type DraftSuspensionNoticeDeps,
+  type DraftSuspensionNoticeInput,
+  type DraftSuspensionNoticeOutput,
+  type SuspensionNoticeDraftPort,
+} from './owner.draft_suspension_notice.js';
 export {
-  createShowOccupancyTool,
-  ShowOccupancyInputSchema,
-  ShowOccupancyOutputSchema,
-  type OccupancyServicePort,
-  type ShowOccupancyDeps,
-  type ShowOccupancyInput,
-  type ShowOccupancyOutput,
-} from './owner.show_occupancy.js';
+  createShowAssetAllocationTool,
+  ShowAssetAllocationInputSchema,
+  ShowAssetAllocationOutputSchema,
+  type AssetAllocationServicePort,
+  type ShowAssetAllocationDeps,
+  type ShowAssetAllocationInput,
+  type ShowAssetAllocationOutput,
+} from './owner.show_asset_allocation.js';
 export {
   createNextActionsTool,
   NextActionsInputSchema,
@@ -118,18 +118,18 @@ export type {
 // ─────────────────────────────────────────────────────────────────────
 
 export const OWNER_TOOL_NAMES: ReadonlyArray<OwnerToolName> = Object.freeze([
-  'owner.list_arrears',
-  'owner.draft_eviction_notice',
-  'owner.show_occupancy',
+  'owner.list_outstanding',
+  'owner.draft_suspension_notice',
+  'owner.show_asset_allocation',
   'owner.next_actions',
   'owner.financial_summary',
 ]);
 
 export const OWNER_TOOL_TIERS: Readonly<Record<OwnerToolName, 'read' | 'mutate'>> =
   Object.freeze({
-    'owner.list_arrears': 'read',
-    'owner.draft_eviction_notice': 'mutate',
-    'owner.show_occupancy': 'read',
+    'owner.list_outstanding': 'read',
+    'owner.draft_suspension_notice': 'mutate',
+    'owner.show_asset_allocation': 'read',
     'owner.next_actions': 'read',
     'owner.financial_summary': 'read',
   });
@@ -232,15 +232,15 @@ export function assertOwnerToolSpecValid<I, O>(spec: OwnerToolSpec<I, O>): void 
 // ─────────────────────────────────────────────────────────────────────
 
 export interface SeedOwnerBrainToolsDeps {
-  readonly arrears: ListArrearsDeps['arrears'];
-  readonly notices: DraftEvictionNoticeDeps['notices'];
-  readonly occupancy: ShowOccupancyDeps['occupancy'];
+  readonly outstanding: ListOutstandingDeps['outstanding'];
+  readonly notices: DraftSuspensionNoticeDeps['notices'];
+  readonly assetAllocation: ShowAssetAllocationDeps['assetAllocation'];
   readonly proposer: NextActionsDeps['proposer'];
   readonly financials: FinancialSummaryDeps['financials'];
   /**
    * Optional per-tenant currency resolver. When supplied, the
    * financial-summary tool defaults to the tenant's preferred currency
-   * (from `currency_preferences`) rather than the legacy `'KES'`
+   * (from `currency_preferences`) rather than the legacy `'TZS'`
    * literal. Composition root wires this from
    * `CurrencyPreferencesService.resolve({ tenantId })`.
    */
@@ -260,9 +260,9 @@ export function seedOwnerBrainTools(
   deps: SeedOwnerBrainToolsDeps,
 ): ReadonlyArray<OwnerToolName> {
   const specs: ReadonlyArray<OwnerToolSpec> = [
-    createListArrearsTool({ arrears: deps.arrears }) as OwnerToolSpec,
-    createDraftEvictionNoticeTool({ notices: deps.notices }) as OwnerToolSpec,
-    createShowOccupancyTool({ occupancy: deps.occupancy }) as OwnerToolSpec,
+    createListOutstandingTool({ outstanding: deps.outstanding }) as OwnerToolSpec,
+    createDraftSuspensionNoticeTool({ notices: deps.notices }) as OwnerToolSpec,
+    createShowAssetAllocationTool({ assetAllocation: deps.assetAllocation }) as OwnerToolSpec,
     createNextActionsTool({ proposer: deps.proposer }) as OwnerToolSpec,
     createFinancialSummaryTool({
       financials: deps.financials,

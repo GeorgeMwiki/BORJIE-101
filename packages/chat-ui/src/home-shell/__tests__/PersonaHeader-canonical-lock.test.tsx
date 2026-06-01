@@ -34,9 +34,9 @@ const LEAKY_SPECIALISATIONS: ReadonlyArray<ResolvedAgent> = [
     surface: 'borjie-estate-manager-app',
   },
   {
-    id: 'tenant-junior',
-    display_name: 'Tenancy Concierge',
-    title: 'Customer Junior',
+    id: 'buyer-junior',
+    display_name: 'Buyer Concierge',
+    title: 'Buyer Junior',
     surface: 'borjie-customer-app',
   },
 ];

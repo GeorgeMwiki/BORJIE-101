@@ -34,7 +34,7 @@ export const BRAND = {
   meaningEn: 'the master of the estate',
   tagline: 'The head of the house, amplified.',
   longTagline:
-    'Borjie is the autonomous operating system for property portfolios. A brain that runs your estate on your authority.',
+    'Borjie is the autonomous operating system for mining estates. A brain that runs your estate on your authority.',
   shortTagline: 'Your estate brain.',
 
   colors: {

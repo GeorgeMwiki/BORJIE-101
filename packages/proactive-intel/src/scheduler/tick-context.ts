@@ -8,7 +8,7 @@
  */
 import type {
   CashflowForecastSlice,
-  ArrearsSeries,
+  RoyaltyArrearsSeries,
   CustomerOwnerSignal,
   CostObservation,
   SloObservation,
@@ -18,7 +18,7 @@ import type {
 
 export interface TickInputs {
   readonly cashflow?: CashflowForecastSlice;
-  readonly arrears?: ArrearsSeries;
+  readonly royaltyArrears?: RoyaltyArrearsSeries;
   readonly customerOwners?: ReadonlyArray<CustomerOwnerSignal>;
   readonly cost?: CostObservation;
   readonly slo?: ReadonlyArray<SloObservation>;

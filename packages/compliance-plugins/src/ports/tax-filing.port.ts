@@ -1,5 +1,5 @@
 /**
- * TaxFilingPort — produces regulator-ready filing payloads.
+ * TaxFilingPort — produces regulator-ready royalty-return / filing payloads.
  *
  * Each country plugin decides its own wire-format (csv / xml / json) and
  * target regulator. Generic countries fall back to a plain CSV with
@@ -14,11 +14,11 @@ import type { TaxPeriod } from './tax-regime.port.js';
 /** Supported wire formats. */
 export type FilingFormat = 'csv' | 'xml' | 'json';
 
-/** Minimal tenant-profile shape that every filing implementation can rely on. */
-export interface TenantProfileForFiling {
+/** Minimal operator-profile shape that every filing implementation can rely on. */
+export interface OperatorProfileForFiling {
   /** Stable tenant (platform-customer) id. */
   readonly tenantId: string;
-  /** Landlord / taxpayer ID (e.g. KRA PIN, EIN). */
+  /** Operator / taxpayer ID (e.g. TRA TIN, KRA PIN, EIN). */
   readonly taxpayerId: string;
   /** Legal entity name on the filing. */
   readonly legalName: string;
@@ -26,16 +26,16 @@ export interface TenantProfileForFiling {
   readonly countryCode: string;
   /** Optional free-form address block printed on the filing. */
   readonly address?: string;
-  /** Optional VAT-registration number (for combined MRI+VAT filings). */
+  /** Optional VAT-registration number (for combined royalty+VAT filings). */
   readonly vatNumber?: string | null;
 }
 
-/** A single rental-income line item. Minor-unit integer amounts. */
+/** A single mineral-sale / royalty line item. Minor-unit integer amounts. */
 export interface FilingLineItem {
-  readonly leaseId: string;
-  readonly tenantName: string;
-  readonly propertyReference: string;
-  readonly grossRentMinorUnits: number;
+  readonly offtakeId: string;
+  readonly counterpartyName: string;
+  readonly siteReference: string;
+  readonly grossValueMinorUnits: number;
   readonly withholdingMinorUnits: number;
   readonly currency: string;
   /** ISO-8601 date string, e.g. '2026-03-28'. */
@@ -46,7 +46,7 @@ export interface FilingLineItem {
 export interface FilingRun {
   readonly runId: string;
   readonly lineItems: readonly FilingLineItem[];
-  /** Sum of `grossRentMinorUnits` across all line items. */
+  /** Sum of `grossValueMinorUnits` across all line items. */
   readonly totalGrossMinorUnits: number;
   /** Sum of `withholdingMinorUnits` across all line items. */
   readonly totalWithholdingMinorUnits: number;
@@ -57,7 +57,7 @@ export interface FilingResult {
   readonly filingFormat: FilingFormat;
   /** Serialised payload — CSV string, XML string, or JSON string. */
   readonly payload: string;
-  /** Target regulator short-name (e.g. 'KRA', 'HMRC', 'IRS', 'GENERIC'). */
+  /** Target regulator short-name (e.g. 'TRA', 'KRA', 'IRS', 'GENERIC'). */
   readonly targetRegulator: string;
   /**
    * Hint for the submission service — URL or endpoint ID of the regulator
@@ -74,7 +74,7 @@ export interface FilingResult {
 export interface TaxFilingPort {
   prepareFiling(
     run: FilingRun,
-    tenantProfile: TenantProfileForFiling,
+    operatorProfile: OperatorProfileForFiling,
     period: TaxPeriod
   ): FilingResult;
 }
@@ -102,20 +102,20 @@ function formatPeriodLabel(period: TaxPeriod): string {
 
 export function buildGenericCsvPayload(run: FilingRun): string {
   const header = [
-    'lease_id',
-    'tenant_name',
-    'property_reference',
-    'gross_rent_minor',
+    'offtake_id',
+    'counterparty_name',
+    'site_reference',
+    'gross_value_minor',
     'withholding_minor',
     'currency',
     'payment_date',
   ].join(',');
   const rows = run.lineItems.map((li) =>
     [
-      csvEscape(li.leaseId),
-      csvEscape(li.tenantName),
-      csvEscape(li.propertyReference),
-      String(li.grossRentMinorUnits),
+      csvEscape(li.offtakeId),
+      csvEscape(li.counterpartyName),
+      csvEscape(li.siteReference),
+      String(li.grossValueMinorUnits),
       String(li.withholdingMinorUnits),
       csvEscape(li.currency),
       csvEscape(li.paymentDate),
@@ -126,15 +126,15 @@ export function buildGenericCsvPayload(run: FilingRun): string {
 
 /** Default — CSV / GENERIC regulator, no submission endpoint. */
 export const DEFAULT_TAX_FILING: TaxFilingPort = {
-  prepareFiling(run, tenantProfile, period) {
+  prepareFiling(run, operatorProfile, period) {
     return {
       filingFormat: 'csv',
       payload: buildGenericCsvPayload(run),
       targetRegulator: 'GENERIC',
       submitEndpointHint: null,
       instructions:
-        `Generic rental-income filing for ${tenantProfile.legalName} ` +
-        `(${tenantProfile.countryCode}) — period ${formatPeriodLabel(period)}. ` +
+        `Generic mineral-royalty filing for ${operatorProfile.legalName} ` +
+        `(${operatorProfile.countryCode}) — period ${formatPeriodLabel(period)}. ` +
         `No regulator-specific format configured; submit manually.`,
     };
   },
@@ -147,11 +147,11 @@ export { formatPeriodLabel as formatFilingPeriodLabel };
 //
 // The audit observed that every country plugin was shipping
 // `buildGenericCsvPayload(run)` regardless of what the actual
-// regulator accepted. KRA's iTax MRI return is XML / structured upload,
-// not free-form CSV. Until each plugin wires a real builder we now ship
-// at least a structured-XML option for KRA so dashboards can render
-// the right shape and the submission-service can target the real
-// iTax endpoint.
+// regulator accepted. Kenya's mineral-royalty return is an XML /
+// structured upload, not free-form CSV. Until each plugin wires a real
+// builder we now ship at least a structured-XML option for Kenya so
+// dashboards can render the right shape and the submission-service can
+// target the real royalty-return endpoint.
 // ---------------------------------------------------------------------------
 
 function xmlEscape(value: string): string {
@@ -164,46 +164,46 @@ function xmlEscape(value: string): string {
 }
 
 /**
- * Build a KRA iTax Monthly Rental Income XML payload. The shape
- * mirrors KRA's published MRI return template — one `<rentalIncome>`
- * element per line item plus rollup totals.
+ * Build a Kenya mineral-royalty XML payload. The shape mirrors a
+ * structured royalty-return template — one `<royaltyLine>` element per
+ * line item plus rollup totals.
  *
- * NOT a substitute for the bona-fide signed iTax envelope (which
- * requires KRA's wsdl + a registered certificate); rather, this is
- * the canonical data shape an integrator can feed into the signer.
+ * NOT a substitute for the bona-fide signed envelope (which requires the
+ * regulator's wsdl + a registered certificate); rather, this is the
+ * canonical data shape an integrator can feed into the signer.
  */
-export function buildKenyaMriXmlPayload(
+export function buildKenyaRoyaltyXmlPayload(
   run: FilingRun,
-  tenantProfile: TenantProfileForFiling,
+  operatorProfile: OperatorProfileForFiling,
   period: TaxPeriod
 ): string {
   const lines = run.lineItems
     .map(
-      (li) => `  <rentalIncome>
-    <leaseId>${xmlEscape(li.leaseId)}</leaseId>
-    <tenantName>${xmlEscape(li.tenantName)}</tenantName>
-    <propertyReference>${xmlEscape(li.propertyReference)}</propertyReference>
-    <grossRentMinorUnits>${li.grossRentMinorUnits}</grossRentMinorUnits>
+      (li) => `  <royaltyLine>
+    <offtakeId>${xmlEscape(li.offtakeId)}</offtakeId>
+    <counterpartyName>${xmlEscape(li.counterpartyName)}</counterpartyName>
+    <siteReference>${xmlEscape(li.siteReference)}</siteReference>
+    <grossValueMinorUnits>${li.grossValueMinorUnits}</grossValueMinorUnits>
     <withholdingMinorUnits>${li.withholdingMinorUnits}</withholdingMinorUnits>
     <currency>${xmlEscape(li.currency)}</currency>
     <paymentDate>${xmlEscape(li.paymentDate)}</paymentDate>
-  </rentalIncome>`
+  </royaltyLine>`
     )
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
-<kraMonthlyRentalIncome>
+<kenyaMineralRoyaltyReturn>
   <runId>${xmlEscape(run.runId)}</runId>
   <period>${xmlEscape(formatPeriodLabel(period))}</period>
-  <landlord>
-    <kraPin>${xmlEscape(tenantProfile.taxpayerId)}</kraPin>
-    <legalName>${xmlEscape(tenantProfile.legalName)}</legalName>
-    <countryCode>${xmlEscape(tenantProfile.countryCode)}</countryCode>
-  </landlord>
+  <operator>
+    <kraPin>${xmlEscape(operatorProfile.taxpayerId)}</kraPin>
+    <legalName>${xmlEscape(operatorProfile.legalName)}</legalName>
+    <countryCode>${xmlEscape(operatorProfile.countryCode)}</countryCode>
+  </operator>
 ${lines}
   <totals>
     <grossMinorUnits>${run.totalGrossMinorUnits}</grossMinorUnits>
     <withholdingMinorUnits>${run.totalWithholdingMinorUnits}</withholdingMinorUnits>
     <lineCount>${run.lineItems.length}</lineCount>
   </totals>
-</kraMonthlyRentalIncome>`;
+</kenyaMineralRoyaltyReturn>`;
 }

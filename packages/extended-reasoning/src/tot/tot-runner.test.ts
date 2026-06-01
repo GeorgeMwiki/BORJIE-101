@@ -3,10 +3,10 @@ import {
   runToT,
   runToTTree,
   validateTree,
-  EVICTION_DECISION_TREE,
+  LICENCE_SUSPENSION_TREE,
   VENDOR_SELECTION_TREE,
-  KRA_FILING_TREE,
-  TENANT_SCREENING_TREE,
+  TRA_FILING_TREE,
+  BUYER_SCREENING_TREE,
 } from './index.js';
 import type { DecisionTree, ToTContext } from './types.js';
 
@@ -153,10 +153,10 @@ describe('runToTTree — fixed decision-tree walker', () => {
 describe('validateTree — structural validation', () => {
   it('all 4 built-in trees pass validation', () => {
     for (const tree of [
-      EVICTION_DECISION_TREE,
+      LICENCE_SUSPENSION_TREE,
       VENDOR_SELECTION_TREE,
-      KRA_FILING_TREE,
-      TENANT_SCREENING_TREE,
+      TRA_FILING_TREE,
+      BUYER_SCREENING_TREE,
     ]) {
       expect(validateTree(tree)).toEqual([]);
     }
@@ -182,13 +182,13 @@ describe('validateTree — structural validation', () => {
   });
 });
 
-describe('EVICTION_DECISION_TREE — 3 fixtures', () => {
-  it('fixture A — arrears + mediation clause + no offer yet → offer-mediation', () => {
+describe('LICENCE_SUSPENSION_TREE — 3 fixtures', () => {
+  it('fixture A — default + mediation clause + no offer yet → offer-mediation', () => {
     const r = runToTTree({
-      tree: EVICTION_DECISION_TREE,
+      tree: LICENCE_SUSPENSION_TREE,
       ctx: ctx({
         notice_served: false,
-        tenant_in_arrears: true,
+        operator_in_default: true,
         mediation_opt_in: true,
         mediation_offered: false,
       }),
@@ -196,25 +196,25 @@ describe('EVICTION_DECISION_TREE — 3 fixtures', () => {
     expect(r.outcome).toBe('offer-mediation');
     expect(r.path.map((p) => p.nodeId)).toEqual([
       'root',
-      'q_arrears',
+      'q_default',
       'q_mediation_clause',
       'q_mediation_offered',
       'out_offer_mediation',
     ]);
   });
 
-  it('fixture B — notice served 20 days ago → file-court', () => {
+  it('fixture B — notice served 20 days ago → file-commission', () => {
     const r = runToTTree({
-      tree: EVICTION_DECISION_TREE,
+      tree: LICENCE_SUSPENSION_TREE,
       ctx: ctx({ notice_served: true, days_elapsed_since_notice: 20 }),
     });
-    expect(r.outcome).toBe('file-court');
+    expect(r.outcome).toBe('file-commission');
   });
 
-  it('fixture C — no arrears → no-grounds', () => {
+  it('fixture C — no default → no-grounds', () => {
     const r = runToTTree({
-      tree: EVICTION_DECISION_TREE,
-      ctx: ctx({ notice_served: false, tenant_in_arrears: false }),
+      tree: LICENCE_SUSPENSION_TREE,
+      ctx: ctx({ notice_served: false, operator_in_default: false }),
     });
     expect(r.outcome).toBe('no-grounds');
   });
@@ -251,48 +251,48 @@ describe('VENDOR_SELECTION_TREE — 3 fixtures', () => {
   });
 });
 
-describe('KRA_FILING_TREE — 3 fixtures', () => {
-  it('fixture A — TZ property → not-applicable', () => {
+describe('TRA_FILING_TREE — 3 fixtures', () => {
+  it('fixture A — KE site → not-applicable', () => {
     const r = runToTTree({
-      tree: KRA_FILING_TREE,
-      ctx: ctx({ jurisdiction: 'TZ-DSM' }),
+      tree: TRA_FILING_TREE,
+      ctx: ctx({ jurisdiction: 'KE-NRB' }),
     });
     expect(r.outcome).toBe('not-applicable');
   });
 
-  it('fixture B — KE, PIN active, above threshold, open period, no arrears → file-mri', () => {
+  it('fixture B — TZ, TIN active, above threshold, open period, no outstanding → file-royalty-return', () => {
     const r = runToTTree({
-      tree: KRA_FILING_TREE,
+      tree: TRA_FILING_TREE,
       ctx: ctx({
-        jurisdiction: 'KE-NRB',
-        kra_pin_active: true,
-        rent_income_above_threshold: true,
-        tax_period_open: true,
-        has_arrears_owing: false,
+        jurisdiction: 'TZ-GEITA',
+        tra_tin_active: true,
+        mineral_sales_above_threshold: true,
+        return_period_open: true,
+        has_outstanding_royalties: false,
       }),
     });
-    expect(r.outcome).toBe('file-mri');
+    expect(r.outcome).toBe('file-royalty-return');
   });
 
-  it('fixture C — KE, no PIN → register-pin', () => {
+  it('fixture C — TZ, no TIN → register-tin', () => {
     const r = runToTTree({
-      tree: KRA_FILING_TREE,
-      ctx: ctx({ jurisdiction: 'KE-NRB', kra_pin_active: false }),
+      tree: TRA_FILING_TREE,
+      ctx: ctx({ jurisdiction: 'TZ-GEITA', tra_tin_active: false }),
     });
-    expect(r.outcome).toBe('register-pin');
+    expect(r.outcome).toBe('register-tin');
   });
 });
 
-describe('TENANT_SCREENING_TREE — 3 fixtures', () => {
-  it('fixture A — recent eviction → decline regardless of other facts', () => {
+describe('BUYER_SCREENING_TREE — 3 fixtures', () => {
+  it('fixture A — recent default → decline regardless of other facts', () => {
     const r = runToTTree({
-      tree: TENANT_SCREENING_TREE,
+      tree: BUYER_SCREENING_TREE,
       ctx: ctx({
         id_verified: true,
-        past_eviction: true,
-        past_eviction_within_3y: true,
-        employment_verified: true,
-        income_to_rent_ratio: 5,
+        past_default: true,
+        past_default_within_3y: true,
+        licence_verified: true,
+        income_to_offtake_ratio: 5,
         reference_count: 3,
       }),
     });
@@ -301,12 +301,12 @@ describe('TENANT_SCREENING_TREE — 3 fixtures', () => {
 
   it('fixture B — clean record, 3x income, 2 refs → approve', () => {
     const r = runToTTree({
-      tree: TENANT_SCREENING_TREE,
+      tree: BUYER_SCREENING_TREE,
       ctx: ctx({
         id_verified: true,
-        past_eviction: false,
-        employment_verified: true,
-        income_to_rent_ratio: 3.2,
+        past_default: false,
+        licence_verified: true,
+        income_to_offtake_ratio: 3.2,
         reference_count: 2,
       }),
     });
@@ -315,7 +315,7 @@ describe('TENANT_SCREENING_TREE — 3 fixtures', () => {
 
   it('fixture C — no ID verified → request-id', () => {
     const r = runToTTree({
-      tree: TENANT_SCREENING_TREE,
+      tree: BUYER_SCREENING_TREE,
       ctx: ctx({ id_verified: false }),
     });
     expect(r.outcome).toBe('request-id');

@@ -92,7 +92,7 @@ export class AutonomyPolicyService {
     switch (domain) {
       case 'finance':
         return evaluateFinance(policy, action, context);
-      case 'leasing':
+      case 'offtake':
         return evaluateLeasing(policy, action, context);
       case 'maintenance':
         return evaluateMaintenance(policy, action, context);
@@ -132,7 +132,7 @@ function mergePolicy(
     autonomousModeEnabled:
       input.autonomousModeEnabled ?? current.autonomousModeEnabled,
     finance: { ...current.finance, ...(input.finance ?? {}) },
-    leasing: { ...current.leasing, ...(input.leasing ?? {}) },
+    offtake: { ...current.offtake, ...(input.offtake ?? {}) },
     maintenance: { ...current.maintenance, ...(input.maintenance ?? {}) },
     compliance: {
       ...current.compliance,
@@ -229,30 +229,30 @@ function evaluateLeasing(
   action: string,
   ctx: AuthorizeContext,
 ): AuthorizationDecision {
-  const { leasing } = policy;
+  const { offtake } = policy;
   if (action === 'approve_renewal') {
-    if (!leasing.autoApproveRenewalsSameTerms) {
-      return requireApproval(policy, 'Auto-renewals disabled.', 'leasing.renewals_disabled');
+    if (!offtake.autoApproveRenewalsSameTerms) {
+      return requireApproval(policy, 'Auto-renewals disabled.', 'offtake.renewals_disabled');
     }
     const pct = ctx.rentIncreasePct ?? 0;
-    if (pct <= leasing.maxAutoApproveRentIncreasePct) {
-      return approve(`Renewal within ${pct}% bump allowance.`, 'leasing.renewal_same_terms');
+    if (pct <= offtake.maxAutoApproveRentIncreasePct) {
+      return approve(`Renewal within ${pct}% bump allowance.`, 'offtake.renewal_same_terms');
     }
-    return requireApproval(policy, 'Renewal increase above ceiling.', 'leasing.renewal_over_pct');
+    return requireApproval(policy, 'Renewal increase above ceiling.', 'offtake.renewal_over_pct');
   }
   if (action === 'approve_application') {
     const score = ctx.applicationScore ?? 0;
-    if (score >= leasing.autoApproveApplicationScoreMin) {
-      return approve('Application score above threshold.', 'leasing.application_score');
+    if (score >= offtake.autoApproveApplicationScoreMin) {
+      return approve('Application score above threshold.', 'offtake.application_score');
     }
-    return requireApproval(policy, 'Application score below threshold.', 'leasing.application_below');
+    return requireApproval(policy, 'Application score below threshold.', 'offtake.application_below');
   }
   if (action === 'send_offer_letter') {
-    return leasing.autoSendOfferLetters
-      ? approve('Offer letter auto-send enabled.', 'leasing.offers_enabled')
-      : requireApproval(policy, 'Offer letters require review.', 'leasing.offers_review');
+    return offtake.autoSendOfferLetters
+      ? approve('Offer letter auto-send enabled.', 'offtake.offers_enabled')
+      : requireApproval(policy, 'Offer letters require review.', 'offtake.offers_review');
   }
-  return requireApproval(policy, `Unknown leasing action: ${action}`, 'leasing.unknown_action');
+  return requireApproval(policy, `Unknown offtake action: ${action}`, 'offtake.unknown_action');
 }
 
 function evaluateMaintenance(

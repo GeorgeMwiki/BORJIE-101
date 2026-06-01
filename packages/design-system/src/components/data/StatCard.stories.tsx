@@ -13,6 +13,6 @@ export const Default: Story = {
     const StatCard = (S as unknown as {
       StatCard: React.FC<{ label: string; value: string; delta?: string }>;
     }).StatCard;
-    return <StatCard label="Active leases" value="128" delta="+4.2%" />;
+    return <StatCard label="Active offtakes" value="128" delta="+4.2%" />;
   },
 };

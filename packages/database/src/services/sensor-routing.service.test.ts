@@ -298,10 +298,10 @@ describe('createSensorRoutingService', () => {
   it('selectSensorChain downgrades Opus → Sonnet on free tier', () => {
     const stub = makeStubDb();
     const svc = createSensorRoutingService(stub.client);
-    const enterprise = svc.selectSensorChain('arrears_memo', 'enterprise');
+    const enterprise = svc.selectSensorChain('outstanding_royalties_memo', 'enterprise');
     expect(enterprise.primary.sensor).toBe('claude.opus-4-7');
 
-    const free = svc.selectSensorChain('arrears_memo', 'free');
+    const free = svc.selectSensorChain('outstanding_royalties_memo', 'free');
     // The free tier downgrade rewrites any opus choice to sonnet
     // before selecting the primary — verify no opus remains in chain.
     expect(free.primary.sensor).not.toBe('claude.opus-4-7');

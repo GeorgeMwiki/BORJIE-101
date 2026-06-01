@@ -25,7 +25,7 @@
 // ─────────────────────────────────────────────────────────────────────
 // EvidenceCitation — every claim, every plan, every verification
 // outcome MUST cite the source it was grounded in. This is non-
-// negotiable for liability in the property-management domain (see
+// negotiable for liability in the mining estate domain (see
 // `.audit/litfin-sota-2026-05-23/15-cross-tool-stitching.md` §8).
 //
 // `freshnessMs` records how stale the source was at decision time.

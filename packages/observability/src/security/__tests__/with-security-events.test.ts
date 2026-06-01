@@ -72,17 +72,17 @@ describe('withSecurityEvents (binding-first HOF)', () => {
 
   it('emits a SecurityEvent for POST', async () => {
     const handler = withSecurityEvents(
-      { action: 'property.create', resource: 'property', severity: 'info' },
+      { action: 'offtake.create', resource: 'offtake', severity: 'info' },
       async (c) => {
         (c.res as { status: number }).status = 201;
         return { ok: true };
       },
     );
-    await handler(makeCtx({ method: 'POST', path: '/api/v1/properties' }));
+    await handler(makeCtx({ method: 'POST', path: '/api/v1/offtakes' }));
     expect(captured.events.length).toBe(1);
     expect(captured.events[0].errored).toBe(false);
     expect(captured.events[0].responseStatus).toBe(201);
-    expect(captured.events[0].action).toBe('property.create');
+    expect(captured.events[0].action).toBe('offtake.create');
     expect(captured.events[0].method).toBe('POST');
   });
 
@@ -90,10 +90,10 @@ describe('withSecurityEvents (binding-first HOF)', () => {
     // The HOF version is opt-in per route — read endpoints simply don't
     // wrap themselves. The verb-based skip is the middleware's job.
     const handler = withSecurityEvents(
-      { action: 'property.list', resource: 'property' },
+      { action: 'offtake.list', resource: 'offtake' },
       async () => ({ ok: true }),
     );
-    await handler(makeCtx({ method: 'GET', path: '/api/v1/properties' }));
+    await handler(makeCtx({ method: 'GET', path: '/api/v1/offtakes' }));
     expect(captured.events.length).toBe(1);
     expect(captured.events[0].method).toBe('GET');
   });
@@ -116,13 +116,13 @@ describe('withSecurityEvents (binding-first HOF)', () => {
 
   it('classifies thrown error as errored with 500 status', async () => {
     const handler = withSecurityEvents(
-      { action: 'lease.update', resource: 'lease' },
+      { action: 'offtake.update', resource: 'offtake' },
       async () => {
         throw new Error('boom');
       },
     );
     await expect(
-      handler(makeCtx({ method: 'PATCH', path: '/api/v1/leases/abc' })),
+      handler(makeCtx({ method: 'PATCH', path: '/api/v1/offtakes/abc' })),
     ).rejects.toThrow('boom');
     expect(captured.events.length).toBe(1);
     expect(captured.events[0].errored).toBe(true);
@@ -133,16 +133,16 @@ describe('withSecurityEvents (binding-first HOF)', () => {
   it('captures extractDetail output in the event detail', async () => {
     const handler = withSecurityEvents(
       {
-        action: 'property.create',
-        resource: 'property',
+        action: 'offtake.create',
+        resource: 'offtake',
         extractDetail: (_ctx, result) => ({
-          propertyId: (result as { id: string }).id,
+          offtakeId: (result as { id: string }).id,
         }),
       },
-      async () => ({ id: 'prop-123' }),
+      async () => ({ id: 'offtake-123' }),
     );
-    await handler(makeCtx({ method: 'POST', path: '/api/v1/properties' }));
-    expect(captured.events[0].detail.propertyId).toBe('prop-123');
+    await handler(makeCtx({ method: 'POST', path: '/api/v1/offtakes' }));
+    expect(captured.events[0].detail.offtakeId).toBe('offtake-123');
   });
 
   it('never blocks the request when the sink throws', async () => {

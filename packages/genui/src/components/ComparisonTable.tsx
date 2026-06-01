@@ -3,7 +3,7 @@
 /**
  * 30. comparison-table — typed equivalent of block-system's
  * `property_comparison_table`. One row per attribute, one column per
- * subject (property, unit, tenant…). Optional best/worst highlight.
+ * subject (site, unit, operator…). Optional best/worst highlight.
  */
 
 import type { AgUiUiPartByKind, ComparisonRow } from '../types';

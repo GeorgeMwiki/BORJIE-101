@@ -13,7 +13,7 @@ import type {
   VerificationResult,
 } from './types.js';
 
-const VERIFIER_SYSTEM = `You are the VERIFIER for a property-management AI agent.
+const VERIFIER_SYSTEM = `You are the VERIFIER for a mining estate AI agent.
 Given a goal + the records produced by executing a plan, decide whether
 the goal was achieved. Output a JSON object (no prose):
 

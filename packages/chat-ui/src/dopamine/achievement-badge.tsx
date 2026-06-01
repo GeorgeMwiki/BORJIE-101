@@ -60,7 +60,7 @@ export function AchievementBadge(props: AchievementBadgeProps): JSX.Element {
 
 function iconFor(key: string): string {
   const map: Record<string, string> = {
-    lease: '#',
+    offtake: '#',
     streak: '*',
     inspect: '!',
     default: '+',

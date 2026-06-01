@@ -83,9 +83,9 @@ import {
   type SendAnnouncementDeps,
 } from './platform.send_announcement.js';
 import {
-  createEvictTenantTool,
-  type EvictTenantDeps,
-} from './platform.evict_tenant.js';
+  createSuspendLicenceTool,
+  type SuspendLicenceDeps,
+} from './platform.suspend_licence.js';
 import {
   createPayoutOwnerTool,
   type PayoutOwnerDeps,
@@ -225,15 +225,15 @@ export {
   type SendAnnouncementOutput,
 } from './platform.send_announcement.js';
 export {
-  createEvictTenantTool,
-  EvictTenantInputSchema,
-  EvictTenantOutputSchema,
-  EvictTenantBreachKindSchema,
-  type EvictionWorkflowDispatcherPort,
-  type EvictTenantDeps,
-  type EvictTenantInput,
-  type EvictTenantOutput,
-} from './platform.evict_tenant.js';
+  createSuspendLicenceTool,
+  SuspendLicenceInputSchema,
+  SuspendLicenceOutputSchema,
+  SuspendLicenceBreachKindSchema,
+  type LicenceSuspensionWorkflowDispatcherPort,
+  type SuspendLicenceDeps,
+  type SuspendLicenceInput,
+  type SuspendLicenceOutput,
+} from './platform.suspend_licence.js';
 export {
   createPayoutOwnerTool,
   PayoutOwnerInputSchema,
@@ -292,7 +292,7 @@ export const HQ_TOOL_NAMES: ReadonlyArray<`platform.${string}`> = Object.freeze(
   'platform.set_killswitch',
   'platform.adjust_invoice',
   'platform.send_announcement',
-  'platform.evict_tenant',
+  'platform.suspend_licence',
   'platform.payout_owner',
   'platform.file_kra_mri',
   'platform.verify_nida',
@@ -312,7 +312,7 @@ export const HQ_TOOL_TIERS: Readonly<Record<string, RiskTier>> = Object.freeze({
   'platform.set_killswitch': 'destroy',
   'platform.adjust_invoice': 'billing',
   'platform.send_announcement': 'external-comm',
-  'platform.evict_tenant': 'destroy',
+  'platform.suspend_licence': 'destroy',
   'platform.payout_owner': 'billing',
   'platform.file_kra_mri': 'external-comm',
   'platform.verify_nida': 'read',
@@ -411,7 +411,7 @@ export interface SeedHqBrainToolsDeps {
   readonly killswitchWrite: SetKillswitchDeps['killswitch'];
   readonly invoices: AdjustInvoiceDeps['invoices'];
   readonly announcements: SendAnnouncementDeps['announcements'];
-  readonly evictionDispatcher: EvictTenantDeps['evictionDispatcher'];
+  readonly licenceSuspensionDispatcher: SuspendLicenceDeps['licenceSuspensionDispatcher'];
   readonly ownerPayoutDispatcher: PayoutOwnerDeps['ownerPayoutDispatcher'];
   readonly kraMriDispatcher: FileKraMriDeps['kraMriDispatcher'];
   readonly kraEritsDispatcher?: FileKraMriDeps['kraEritsDispatcher'];
@@ -458,8 +458,8 @@ export function seedHqBrainTools(
       announcements: deps.announcements,
       maxRecipientCount: deps.maxRecipientCount,
     }) as HqToolSpec,
-    createEvictTenantTool({
-      evictionDispatcher: deps.evictionDispatcher,
+    createSuspendLicenceTool({
+      licenceSuspensionDispatcher: deps.licenceSuspensionDispatcher,
     }) as HqToolSpec,
     createPayoutOwnerTool({
       ownerPayoutDispatcher: deps.ownerPayoutDispatcher,

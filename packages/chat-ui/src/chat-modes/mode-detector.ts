@@ -1,9 +1,9 @@
 /**
- * Chat Mode Detector (BORJIE estate-management edition)
+ * Chat Mode Detector (BORJIE mining-estate edition)
  *
  * Zero-LLM pattern analysis. Port of LitFin's mode detector, re-keyed
- * for estate-management training vocabulary (rent affordability,
- * arrears, lease, maintenance, tenancy risk, 5 Ps).
+ * for mining-estate training vocabulary (royalty affordability,
+ * outstanding royalties, offtake, maintenance, operator risk, 5 Ps).
  *
  * Rules:
  *  - Quiz indicators + A/B/C/D options   -> quiz
@@ -45,8 +45,8 @@ const TEACHING_INDICATORS: readonly RegExp[] = [
   /the (main|key|important) (idea|concept|point)/i,
   /bloom('s)? (level|taxonomy)/i,
   /let('s| us) (learn|explore|understand)/i,
-  /fundamentals of (property|tenancy|lease|rent|maintenance|estate)/i,
-  /(rent affordability|arrears|security deposit|5 ?p'?s|tenancy risk)/i,
+  /fundamentals of (asset|operator|offtake|royalty|maintenance|estate)/i,
+  /(royalty affordability|outstanding royalties|security deposit|5 ?p'?s|operator risk)/i,
 ];
 
 const REVIEW_INDICATORS: readonly RegExp[] = [
@@ -54,7 +54,7 @@ const REVIEW_INDICATORS: readonly RegExp[] = [
   /you('ve| have) (mastered|completed|achieved|scored)/i,
   /session (summary|review|results)/i,
   /mastery.{0,20}(increased|improved|reached)/i,
-  /tenancy readiness score/i,
+  /operator readiness score/i,
   /five ?p'?s.{0,20}(score|analysis|assessment)/i,
   /readiness.{0,20}(score|level|assessment)/i,
   /your progress/i,

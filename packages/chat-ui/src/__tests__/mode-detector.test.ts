@@ -24,7 +24,7 @@ describe('mode-detector — teaching', () => {
   it('switches to teaching on 2+ pedagogy keywords', () => {
     const result = detectModeFromResponse({
       responseText:
-        "Let me explain rent affordability. The key points about rent-to-income ratios are simple.",
+        "Let me explain royalty affordability. The key points about royalty-to-income ratios are simple.",
       toolCalls: [],
       currentMode: 'conversation',
       isGroupSession: false,
@@ -37,9 +37,9 @@ describe('mode-detector — teaching', () => {
 describe('mode-detector — quiz', () => {
   it('detects quiz pattern with A/B/C options', () => {
     const text = `Let me test your understanding. Which of the following is true?
-A) Rent is always 50% of income
-B) Rent should be at most 33% of gross income
-C) Rent should equal the security deposit`;
+A) Royalty is always 50% of income
+B) Royalty should be at most 33% of gross income
+C) Royalty should equal the security deposit`;
     const result = detectModeFromResponse({
       responseText: text,
       toolCalls: [],
@@ -125,7 +125,7 @@ describe('mode-detector — warm-up', () => {
 
 describe('mode-detector — teaching extraction', () => {
   it('extracts bullet points as key points', () => {
-    const data = extractTeachingData(`- Tenant's payment history matters\n- Property fit reduces turnover\n- Security deposit protects the landlord`);
+    const data = extractTeachingData(`- Operator's payment history matters\n- Asset fit reduces turnover\n- Security deposit protects the owner`);
     expect(data.keyPoints?.length).toBe(3);
   });
 

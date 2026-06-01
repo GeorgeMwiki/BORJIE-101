@@ -3,8 +3,8 @@
  * appearance behaviour end-to-end:
  *
  *   - FirstDayTenant: zero entities → zero tabs → empty-state shows
- *   - TwoTabsTenant: tenant has customers + properties → only those
- *     two tabs render
+ *   - TwoTabsTenant: tenant has pml-licences + active-shifts → only
+ *     those two tabs render
  *   - FullSeedAdmin: internal-admin + platform_ops sees all eight
  *     customer sections (override) plus internal-staff if data exists
  *
@@ -80,7 +80,7 @@ export const TwoTabsTenant: Story = {
     <StoryShell
       sections={seedSections}
       loader={makeStoryContextLoader({
-        entityCounts: { customers: 12, properties: 3 },
+        entityCounts: { 'pml-licences': 12, 'active-shifts': 3 },
       })}
     >
       <HookedTabBar scope={DEMO_SCOPE_OWNER} />
@@ -107,7 +107,7 @@ export const LiveAppearance: Story = {
   name: 'Live appearance · simulated entity creation',
   render: () => {
     // Simulate the MD creating entities via chat — first 0 tabs, then
-    // after 1.5s the customers tab appears, then after 3s properties.
+    // after 1.5s the PML-licences tab appears, then after 3s active-shifts.
     function LiveDemo() {
       const [tick, setTick] = useState(0);
       useEffect(() => {
@@ -122,8 +122,8 @@ export const LiveAppearance: Story = {
         tick === 0
           ? {}
           : tick === 1
-            ? { customers: 1 }
-            : { customers: 1, properties: 1 };
+            ? { 'pml-licences': 1 }
+            : { 'pml-licences': 1, 'active-shifts': 1 };
       const ctx = {
         tenantId: DEMO_TENANT_ID,
         scope: DEMO_SCOPE_OWNER,
@@ -159,7 +159,7 @@ export const MobileLayout: Story = {
     <StoryShell
       sections={seedSections}
       loader={makeStoryContextLoader({
-        entityCounts: { customers: 3, properties: 1, leads: 4 },
+        entityCounts: { 'pml-licences': 3, 'active-shifts': 1, 'ore-parcels': 4 },
       })}
     >
       <HookedTabBar scope={DEMO_SCOPE_OWNER} />

@@ -37,6 +37,11 @@
       "types": "./src/maintenance/index.ts",
       "import": "./dist/maintenance/index.mjs",
       "require": "./dist/maintenance/index.js"
+    },
+    "./regulatory": {
+      "types": "./src/regulatory/index.ts",
+      "import": "./dist/regulatory/index.mjs",
+      "require": "./dist/regulatory/index.js"
     }
   },
   "files": [

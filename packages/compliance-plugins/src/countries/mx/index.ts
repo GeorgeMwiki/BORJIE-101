@@ -1,17 +1,18 @@
 /**
- * Mexico (MX) — ISR withholding on rental income.
+ * Mexico (MX) — ISR withholding on mineral proceeds + mining duties.
  *
- * Source: Ley del ISR Art. 116 — individual landlords can elect a monthly
- * provisional-payment regime; corporate payers withhold 10% ISR on gross
- * rent (Art. 115). Plugin defaults to 10%, stubs individual-regime choice
- * for operator configuration.
+ * Source: Ley del ISR — corporate payers withhold 10% ISR on gross mineral
+ * proceeds. The Ley Minera + LFD impose a special mining duty (derecho
+ * especial sobre minería, ~7.5% of EBIT) and an extraordinary duty on
+ * precious metals. Plugin defaults to 10% withholding; mining duties are
+ * configured per operator.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -64,19 +65,19 @@ const mexicoCore: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 2,
+    minBondMonths: 1,
+    maxBondMonths: 2,
     noticePeriodDays: 30,
-    minimumLeaseMonths: 12,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 12,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Contrato de Arrendamiento (MX)',
-      templatePath: 'mx/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Contrato de Suministro de Minerales (MX Mineral Offtake)',
+      templatePath: 'mx/offtake-agreement.hbs',
       locale: 'es-MX',
     },
   ],
@@ -95,7 +96,7 @@ export const mexicoProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     10,
     'MX-SAT-LISR-Art-116',
-    'ISR withholding on rental income: 10% on gross when landlord is individual and payer is a corporation (LISR Art. 116). Configure monthly provisional-payment regime per landlord.'
+    'ISR withholding on mineral proceeds: 10% on gross when the payer is a corporation (LISR). Configure the Ley Minera mining duty (derecho especial ~7.5%) per operator.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -132,32 +133,32 @@ export const mexicoProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'mx-codigo-civil',
-        label: 'Contrato regido por Código Civil estatal (varies by state)',
+        id: 'mx-ley-minera',
+        label: 'Suministro regido por la Ley Minera (concesión minera)',
         mandatory: true,
-        citation: 'Código Civil (state-specific)',
+        citation: 'Ley Minera; Ley Federal de Derechos',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 30,
-      'non-payment': 30,
+      'licence-expiry': 30,
+      'royalty-default': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 2,
-        citation: 'No statutory cap federal; industry norm 1-2 meses.',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 2,
+        citation: 'No statutory cap federal; industry norm 1-2 meses de regalía.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         indexedTo: 'LOCAL_INDEX',
         citation: 'INPC (Banxico) — indexation by agreement.',
       },
     },
     defaultNoticeWindowDays: 30,
   }),
-  tenantScreening: buildStubScreeningPort('BURO_CREDITO_MX'),
+  counterpartyScreening: buildStubScreeningPort('BURO_CREDITO_MX'),
 };

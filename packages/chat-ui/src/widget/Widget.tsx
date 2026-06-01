@@ -4,8 +4,8 @@
  * Widget — Borjie's floating Mr. Mwikila chat bubble.
  *
  * Carbon-copy port of LitFin's `LitFinWidget.tsx` with the brand swapped
- * to BorjieMark + Mr. Mwikila persona (Borjie's AI Estate-Management
- * Director, covers both property and mining).
+ * to BorjieMark + Mr. Mwikila persona (Borjie's AI Mining Estate
+ * Director for the mining estate operating system).
  *
  * Source of mirror:
  *   LITFIN_PATH/src/core/litfin-ai/components/LitFinWidget.tsx

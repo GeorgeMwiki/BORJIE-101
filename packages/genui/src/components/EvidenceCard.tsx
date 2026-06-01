@@ -4,7 +4,7 @@
  * 16. evidence-card — document quote with cite-link.
  *
  * Critical for compliance reasoning ("MD says X because page 4 of
- * the lease says Y"). Renders the quote in a styled blockquote with
+ * the offtake agreement says Y"). Renders the quote in a styled blockquote with
  * source reference + click-through, plus a confidence chip.
  */
 

@@ -84,7 +84,6 @@ interface LitFinAIContextValue {
   /**
    * Domain-specific compliance copy shown in the bottom footer of the
    * chat panel. Borjie mounts pass the mining-domain "mine owner"
-   * variant; BossNyumba mounts pass the real-estate "landlord"
    * variant. Missing → the panel renders a generic "owner" fallback.
    *
    * Typed as `string | undefined` (not optional) so the literal
@@ -107,10 +106,9 @@ export interface LitFinAIProviderProps {
   readonly endpoint?: string;
   /**
    * Bilingual compliance copy injected into LitFinChatPanel's footer.
-   * Borjie passes the mining "mine owner" variant; BossNyumba passes
-   * the real-estate "landlord" variant. Keeps the panel domain-agnostic
-   * while making the domain choice explicit at the mount boundary so
-   * unrelated edits cannot silently swap copy.
+   * Borjie passes the mining "mine owner" variant. Keeps the panel
+   * domain-agnostic while making the domain choice explicit at the
+   * mount boundary so unrelated edits cannot silently swap copy.
    */
   readonly disclaimerEn?: string;
   readonly disclaimerSw?: string;

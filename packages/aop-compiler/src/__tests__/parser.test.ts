@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { parseNL, parseAST } from '../parser/nl-parser.js';
-import { arrearsChase } from './fixtures/arrears-chase.aop.js';
-import { leaseRenewal } from './fixtures/lease-renewal.aop.js';
-import { kraFiling } from './fixtures/kra-filing.aop.js';
+import { royaltyArrearsChase } from './fixtures/royalty-arrears-chase.aop.js';
+import { offtakeRenewal } from './fixtures/offtake-renewal.aop.js';
+import { traFiling } from './fixtures/tra-filing.aop.js';
 import {
-  ARREARS_CHASE_NL,
-  KRA_FILING_NL,
-  LEASE_RENEWAL_NL,
+  ROYALTY_ARREARS_CHASE_NL,
+  TRA_FILING_NL,
+  OFFTAKE_RENEWAL_NL,
 } from './fixtures/nl-inputs.js';
 import { buildStubLLM } from './_test-helpers.js';
 
@@ -20,32 +20,35 @@ describe('parseNL', () => {
     }
   });
 
-  it('compiles the arrears-chase NL to the fixture AST', async () => {
+  it('compiles the royalty-arrears-chase NL to the fixture AST', async () => {
     const llm = buildStubLLM([
-      { contains: ARREARS_CHASE_NL.slice(0, 40), respond: arrearsChase },
+      {
+        contains: ROYALTY_ARREARS_CHASE_NL.slice(0, 40),
+        respond: royaltyArrearsChase,
+      },
     ]);
-    const result = await parseNL(ARREARS_CHASE_NL, llm);
+    const result = await parseNL(ROYALTY_ARREARS_CHASE_NL, llm);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.ast.name).toBe('monthly-arrears-chase');
+      expect(result.ast.name).toBe('monthly-royalty-arrears-chase');
       expect(result.ast.steps).toHaveLength(6);
     }
   });
 
-  it('compiles the lease-renewal NL', async () => {
+  it('compiles the offtake-renewal NL', async () => {
     const llm = buildStubLLM([
-      { contains: LEASE_RENEWAL_NL.slice(0, 40), respond: leaseRenewal },
+      { contains: OFFTAKE_RENEWAL_NL.slice(0, 40), respond: offtakeRenewal },
     ]);
-    const result = await parseNL(LEASE_RENEWAL_NL, llm);
+    const result = await parseNL(OFFTAKE_RENEWAL_NL, llm);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.ast.trigger.kind).toBe('event');
   });
 
-  it('compiles the kra-filing NL', async () => {
+  it('compiles the tra-filing NL', async () => {
     const llm = buildStubLLM([
-      { contains: KRA_FILING_NL.slice(0, 40), respond: kraFiling },
+      { contains: TRA_FILING_NL.slice(0, 40), respond: traFiling },
     ]);
-    const result = await parseNL(KRA_FILING_NL, llm);
+    const result = await parseNL(TRA_FILING_NL, llm);
     expect(result.ok).toBe(true);
     if (result.ok && result.ast.trigger.kind === 'cron') {
       expect(result.ast.trigger.schedule).toBe('0 6 5 * *');
@@ -63,7 +66,7 @@ describe('parseNL', () => {
     const llm = buildStubLLM([
       {
         contains: 'fenced',
-        respond: '```json\n' + JSON.stringify(arrearsChase) + '\n```',
+        respond: '```json\n' + JSON.stringify(royaltyArrearsChase) + '\n```',
       },
     ]);
     const result = await parseNL('fenced input', llm);
@@ -81,9 +84,9 @@ describe('parseNL', () => {
 
 describe('parseAST round-trip', () => {
   it.each([
-    ['arrears-chase', arrearsChase],
-    ['lease-renewal', leaseRenewal],
-    ['kra-filing', kraFiling],
+    ['royalty-arrears-chase', royaltyArrearsChase],
+    ['offtake-renewal', offtakeRenewal],
+    ['tra-filing', traFiling],
   ])('is idempotent for %s', (_name, ast) => {
     const json = JSON.stringify(ast);
     const round1 = parseAST(json);

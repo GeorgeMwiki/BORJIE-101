@@ -2,9 +2,10 @@
  * Compliance-deadline-near detector.
  *
  * Flags deadlines coming up within their kind-specific window:
- *   - kra-filing: 7 days out (P1), 3 days out (P0)
+ *   - tra-filing: 7 days out (P1), 3 days out (P0)
  *   - firs-filing: 7 days out (P1), 3 days out (P0)
- *   - lease-renewal: 60 days out (P2), 30 days out (P1)
+ *   - licence-renewal: 60 days out (P2), 30 days out (P1)
+ *   - royalty-return: 7 days out (P1), 3 days out (P0)
  *   - business-permit: 30 days out (P1), 7 days out (P0)
  *   - insurance-renewal: 30 days out (P2), 7 days out (P0)
  */
@@ -24,9 +25,10 @@ interface KindThresholds {
 }
 
 const THRESHOLDS: Readonly<Record<ComplianceDeadlineKind, KindThresholds>> = {
-  'kra-filing': { p0Days: 3, p1Days: 7, p2Days: 14 },
+  'tra-filing': { p0Days: 3, p1Days: 7, p2Days: 14 },
   'firs-filing': { p0Days: 3, p1Days: 7, p2Days: 14 },
-  'lease-renewal': { p0Days: 14, p1Days: 30, p2Days: 60 },
+  'licence-renewal': { p0Days: 14, p1Days: 30, p2Days: 60 },
+  'royalty-return': { p0Days: 3, p1Days: 7, p2Days: 14 },
   'business-permit': { p0Days: 7, p1Days: 30, p2Days: 60 },
   'insurance-renewal': { p0Days: 7, p1Days: 30, p2Days: 60 },
 };

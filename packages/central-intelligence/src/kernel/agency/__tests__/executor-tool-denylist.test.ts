@@ -1,7 +1,7 @@
 /**
  * A2b-2 wire #6 — per-tenant tool-call denylist check at dispatch.
  *
- * An entry of the form `(tenantA, platform.evict_tenant)` MUST cause
+ * An entry of the form `(tenantA, platform.suspend_licence)` MUST cause
  * the executor to refuse the step with a `tool-denylisted` outcome
  * and the denial reason preserved on the audit row. The same tool
  * called for a DIFFERENT tenant runs normally.
@@ -20,15 +20,15 @@ import {
   createInMemoryToolCallDenylist,
 } from '../../tool-spec/tool-call-denylist.js';
 
-function evictTool(): ActionToolDef {
+function suspendLicenceTool(): ActionToolDef {
   return {
-    name: 'platform.evict_tenant',
-    description: 'Evicts a tenant (sovereign tier).',
+    name: 'platform.suspend_licence',
+    description: 'Suspends an operator licence (sovereign tier).',
     stakes: 'critical',
     schemaIn: { type: 'object' },
     schemaOut: { type: 'object' },
     async invoke() {
-      return { ok: true, output: { evicted: true } };
+      return { ok: true, output: { suspended: true } };
     },
   };
 }
@@ -37,12 +37,12 @@ describe('A2b-2 wire #6 — tool-call denylist consulted at dispatch', () => {
   it('refuses a denylisted tool for the affected tenant', async () => {
     const goals = createInMemoryGoalsPort();
     const tools = createActionToolRegistry();
-    tools.register(evictTool());
+    tools.register(suspendLicenceTool());
     const auditSink = createInMemoryActionAuditSink();
     const denylist = createInMemoryToolCallDenylist();
     await denylist.add({
       tenantId: 'tenantA',
-      toolName: 'platform.evict_tenant',
+      toolName: 'platform.suspend_licence',
       reason: 'regulator hold #1234',
     });
 
@@ -57,15 +57,15 @@ describe('A2b-2 wire #6 — tool-call denylist consulted at dispatch', () => {
       tenantId: 'tenantA',
       userId: 'u_1',
       threadId: 'thr_1',
-      title: 'Process eviction',
-      description: 'eviction',
+      title: 'Process licence-suspension',
+      description: 'licence-suspension',
       status: 'active',
       priority: 'high',
       steps: [
         {
           seq: 1,
-          description: 'evict the tenant',
-          toolName: 'platform.evict_tenant',
+          description: 'suspend the operator licence',
+          toolName: 'platform.suspend_licence',
           toolPayload: { unitId: 'unit_42' },
         },
       ],
@@ -84,12 +84,12 @@ describe('A2b-2 wire #6 — tool-call denylist consulted at dispatch', () => {
   it('allows the same tool for a tenant NOT in the denylist', async () => {
     const goals = createInMemoryGoalsPort();
     const tools = createActionToolRegistry();
-    tools.register(evictTool());
+    tools.register(suspendLicenceTool());
     const auditSink = createInMemoryActionAuditSink();
     const denylist = createInMemoryToolCallDenylist();
     await denylist.add({
       tenantId: 'tenantA',
-      toolName: 'platform.evict_tenant',
+      toolName: 'platform.suspend_licence',
       reason: 'regulator hold #1234',
     });
 
@@ -104,15 +104,15 @@ describe('A2b-2 wire #6 — tool-call denylist consulted at dispatch', () => {
       tenantId: 'tenantB',
       userId: 'u_2',
       threadId: 'thr_2',
-      title: 'Process eviction',
-      description: 'eviction',
+      title: 'Process licence-suspension',
+      description: 'licence-suspension',
       status: 'active',
       priority: 'high',
       steps: [
         {
           seq: 1,
-          description: 'evict the tenant',
-          toolName: 'platform.evict_tenant',
+          description: 'suspend the operator licence',
+          toolName: 'platform.suspend_licence',
           toolPayload: { unitId: 'unit_99' },
         },
       ],

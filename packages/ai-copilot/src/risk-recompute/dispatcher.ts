@@ -4,7 +4,7 @@
  * Subscribes to the platform event bus and fans-out every event to the
  * relevant risk compute functions. The dispatcher itself is purely a
  * fan-out / de-duplication / telemetry surface — the actual scoring
- * logic lives in CreditRatingService / PropertyGradingService / etc.
+ * logic lives in CreditRatingService / AssetGradingService / etc.
  *
  * Idempotency: jobs are deduped within a short window keyed on
  * `(kind, entityId, triggerEventId)` to protect against redelivered
@@ -18,10 +18,10 @@
  *   const dispatcher = createRiskRecomputeDispatcher({
  *     registry: {
  *       credit_rating: (job) => creditRating.computeRating(job.tenantId, job.entityId),
- *       property_grade: (job) => propertyGrading.gradeProperty(job.tenantId, job.entityId),
+ *       asset_grade: (job) => assetGrading.gradeAsset(job.tenantId, job.entityId),
  *       vendor_scorecard: (job) => vendorScoring.recompute(job.tenantId, job.entityId),
  *       churn_probability: (job) => churnModel.predictFor(job.tenantId, job.entityId),
- *       tenant_sentiment: (job) => sentimentScorer.recompute(job.tenantId, job.entityId),
+ *       buyer_sentiment: (job) => sentimentScorer.recompute(job.tenantId, job.entityId),
  *     },
  *     classifier: defaultRiskEventClassifier,
  *     telemetry: (t) => observer.log('risk_recompute', t),

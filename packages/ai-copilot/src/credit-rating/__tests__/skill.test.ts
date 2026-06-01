@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import {
-  tenantCreditTool,
-  runTenantCredit,
-} from '../../skills/estate/tenant-credit.js';
+  buyerCreditTool,
+  runBuyerCredit,
+} from '../../skills/estate/buyer-credit.js';
 import { ESTATE_SKILL_TOOLS } from '../../skills/estate/index.js';
 
-describe('skill.estate.get_tenant_credit', () => {
+describe('skill.estate.get_buyer_credit', () => {
   it('is registered in ESTATE_SKILL_TOOLS', () => {
     expect(
-      ESTATE_SKILL_TOOLS.find((t) => t.name === 'skill.estate.get_tenant_credit'),
+      ESTATE_SKILL_TOOLS.find((t) => t.name === 'skill.estate.get_buyer_credit'),
     ).toBeDefined();
   });
 
-  it('runTenantCredit returns a credit_rating_card block', () => {
-    const result = runTenantCredit({
+  it('runBuyerCredit returns a credit_rating_card block', () => {
+    const result = runBuyerCredit({
       tenantId: 't-1',
       customerId: 'c-1',
       totalInvoices: 12,
@@ -42,7 +42,7 @@ describe('skill.estate.get_tenant_credit', () => {
   });
 
   it('tool.execute returns ok=true on valid params', async () => {
-    const res = await tenantCreditTool.execute(
+    const res = await buyerCreditTool.execute(
       {
         tenantId: 't-1',
         customerId: 'c-1',
@@ -55,7 +55,7 @@ describe('skill.estate.get_tenant_credit', () => {
   });
 
   it('tool.execute returns ok=false on missing required params', async () => {
-    const res = await tenantCreditTool.execute(
+    const res = await buyerCreditTool.execute(
       { tenantId: 't-1' } as never,
       {} as never,
     );
@@ -63,7 +63,7 @@ describe('skill.estate.get_tenant_credit', () => {
   });
 
   it('tool.execute insufficient-data path emits a clear summary', async () => {
-    const res = await tenantCreditTool.execute(
+    const res = await buyerCreditTool.execute(
       {
         tenantId: 't-1',
         customerId: 'c-1',

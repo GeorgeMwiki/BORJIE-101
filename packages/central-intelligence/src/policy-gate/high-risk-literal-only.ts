@@ -9,7 +9,7 @@
  * Rationale: token-cosine ≥ 0.7 is a fuzzy match. It is strong enough
  * for read-side capabilities (e.g. `md:list-tenants` → `md:list-leases`)
  * but unacceptable for any action with material blast radius. A
- * disbursement, a payout, a tenant-suspension, a key rotation, a
+ * disbursement, a payout, an operator-suspension, a key rotation, a
  * killswitch toggle, or a model pin change must require an exact
  * literal allow-list entry — the brain must never generalise its way
  * into one of these.
@@ -47,13 +47,13 @@ export const HIGH_RISK_LITERAL_ONLY_PREFIXES: ReadonlyArray<string> =
     'md:adjust-ledger',
     'md:write-off-arrears',
 
-    // ─── Tenancy + lease hard-stops ────────────────────────────────
-    // Eviction proposals, lease terminations, and forced-vacancies are
-    // not safe to generalise across similar verbs.
-    'md:terminate-lease',
-    'md:propose-eviction',
-    'md:execute-eviction',
-    'md:lockout-tenant',
+    // ─── Offtake + licence hard-stops ──────────────────────────────
+    // Licence-suspension proposals, offtake terminations, and operator
+    // revocations are not safe to generalise across similar verbs.
+    'md:terminate-offtake',
+    'md:propose-suspension',
+    'md:execute-suspension',
+    'md:revoke-operator',
 
     // ─── Killswitch / kill-switch toggles ──────────────────────────
     'kill_switch:',
@@ -74,9 +74,9 @@ export const HIGH_RISK_LITERAL_ONLY_PREFIXES: ReadonlyArray<string> =
     'md:rollout-policy',
     'md:pin-model-version',
 
-    // ─── Tenant + org suspension levers (hard-stops) ───────────────
+    // ─── Operator + org suspension levers (hard-stops) ─────────────
     'md:suspend-org',
-    'md:suspend-tenant',
+    'md:suspend-operator',
     'md:force-logout',
     'md:force-status-change',
     'md:archive-org',

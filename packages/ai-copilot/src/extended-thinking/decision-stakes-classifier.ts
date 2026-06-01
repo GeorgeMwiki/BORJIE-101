@@ -10,14 +10,14 @@
  * tooling can answer "why did this get classified X?" without re-running.
  *
  * Rules (highest → lowest):
- *   CRIT-01  critical:  irreversible + regulated + (affectsHousing OR vulnerable)
+ *   CRIT-01  critical:  irreversible + regulated + (affectsLivelihoods OR vulnerable)
  *   HIGH-01  high:      irreversible AND regulated
- *   HIGH-02  high:      irreversible AND affectsHousing
- *   HIGH-03  high:      regulated AND affectsHousing
+ *   HIGH-02  high:      irreversible AND affectsLivelihoods
+ *   HIGH-03  high:      regulated AND affectsLivelihoods
  *   HIGH-04  high:      amount above domain threshold
  *   HIGH-05  high:      publicly-visible regulated decision
  *   HIGH-06  high:      vulnerable counterparty + irreversible
- *   MED-01   medium:    autonomous decision on tenant relationship (reversible)
+ *   MED-01   medium:    autonomous decision on counterparty relationship (reversible)
  *   MED-02   medium:    non-trivial amount above medium threshold
  *   MED-03   medium:    publicly visible (marketing / procurement)
  *   LOW-01   low:       routine / reminder / sub-threshold amount
@@ -50,7 +50,7 @@ const DEFAULT_DOMAIN_THRESHOLDS: Readonly<
   Record<AutonomyDomain, DomainThreshold>
 > = Object.freeze({
   finance: { highMinorUnits: 500_000_00, mediumMinorUnits: 50_000_00 }, // > 500k units → high
-  leasing: { highMinorUnits: 1_000_000_00, mediumMinorUnits: 100_000_00 },
+  offtake: { highMinorUnits: 1_000_000_00, mediumMinorUnits: 100_000_00 },
   maintenance: { highMinorUnits: 200_000_00, mediumMinorUnits: 20_000_00 },
   compliance: { highMinorUnits: 100_000_00, mediumMinorUnits: 10_000_00 },
   communications: { highMinorUnits: Number.MAX_SAFE_INTEGER, mediumMinorUnits: Number.MAX_SAFE_INTEGER },
@@ -59,7 +59,7 @@ const DEFAULT_DOMAIN_THRESHOLDS: Readonly<
   procurement: { highMinorUnits: 500_000_00, mediumMinorUnits: 50_000_00 },
   insurance: { highMinorUnits: 1_000_000_00, mediumMinorUnits: 100_000_00 },
   legal_proceedings: { highMinorUnits: 0, mediumMinorUnits: 0 }, // any amount → high
-  tenant_welfare: { highMinorUnits: 200_000_00, mediumMinorUnits: 20_000_00 },
+  community_welfare: { highMinorUnits: 200_000_00, mediumMinorUnits: 20_000_00 },
 });
 
 // Public for tests + admin UI rendering.
@@ -93,12 +93,12 @@ export function classifyStakes(
   if (
     !ctx.reversible &&
     ctx.regulated &&
-    (ctx.affectsHousing || ctx.counterpartyIsVulnerable)
+    (ctx.affectsLivelihoods || ctx.counterpartyIsVulnerable)
   ) {
     return buildClassification(
       'critical',
       'CRIT-01',
-      'Irreversible + regulated + (affects housing OR vulnerable counterparty). Deep deliberation required; cost is irrelevant vs regret.',
+      'Irreversible + regulated + (affects livelihoods OR vulnerable counterparty). Deep deliberation required; cost is irrelevant vs regret.',
       budgets,
       models,
     );
@@ -114,20 +114,20 @@ export function classifyStakes(
       models,
     );
   }
-  if (!ctx.reversible && ctx.affectsHousing) {
+  if (!ctx.reversible && ctx.affectsLivelihoods) {
     return buildClassification(
       'high',
       'HIGH-02',
-      'Irreversible and affects housing — wrong outcome leaves someone without shelter.',
+      'Irreversible and affects livelihoods — wrong outcome shuts down an operator.',
       budgets,
       models,
     );
   }
-  if (ctx.regulated && ctx.affectsHousing) {
+  if (ctx.regulated && ctx.affectsLivelihoods) {
     return buildClassification(
       'high',
       'HIGH-03',
-      'Regulated housing decision — compliance + welfare both at stake.',
+      'Regulated livelihoods decision — compliance + welfare both at stake.',
       budgets,
       models,
     );
@@ -161,11 +161,11 @@ export function classifyStakes(
   }
 
   // ---------- MEDIUM ----------
-  if (affectsTenantRelationship(ctx)) {
+  if (affectsCounterpartyRelationship(ctx)) {
     return buildClassification(
       'medium',
       'MED-01',
-      `Autonomous ${ctx.domain} decision affects tenant relationship.`,
+      `Autonomous ${ctx.domain} decision affects counterparty relationship.`,
       budgets,
       models,
     );
@@ -193,7 +193,7 @@ export function classifyStakes(
   return buildClassification(
     'low',
     'LOW-01',
-    'Routine decision — no regulatory, housing, public, or amount triggers.',
+    'Routine decision — no regulatory, livelihoods, public, or amount triggers.',
     budgets,
     models,
   );
@@ -220,12 +220,12 @@ function buildClassification(
 }
 
 /**
- * `medium` MED-01 — the decision affects the tenant relationship. These
+ * `medium` MED-01 — the decision affects the counterparty relationship. These
  * are the domains where a wrong autonomous move erodes trust even if it
  * is technically reversible.
  */
-function affectsTenantRelationship(ctx: DecisionContext): boolean {
-  if (ctx.domain === 'leasing' || ctx.domain === 'tenant_welfare') return true;
+function affectsCounterpartyRelationship(ctx: DecisionContext): boolean {
+  if (ctx.domain === 'offtake' || ctx.domain === 'community_welfare') return true;
   if (ctx.domain === 'communications' && ctx.counterpartyIsVulnerable) return true;
   if (ctx.domain === 'finance' && ctx.counterpartyIsVulnerable) return true;
   return false;

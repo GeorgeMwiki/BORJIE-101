@@ -2,7 +2,7 @@
   "version": 1,
   "personaId": "customer",
   "topbar": {
-    "logo": { "label": "Boss Nyumba", "href": "/", "markId": "midnight-ledger" },
+    "logo": { "label": "Borjie", "href": "/", "markId": "midnight-ledger" },
     "search": { "enabled": false },
     "notifications": { "enabled": true, "pollSeconds": 60 },
     "profile": {
@@ -20,10 +20,10 @@
         "id": "main",
         "items": [
           { "id": "home", "label": "Home", "icon": "home", "href": "/" },
-          { "id": "rent", "label": "Pay rent", "icon": "banknote", "intent": "pay_rent" },
+          { "id": "royalty", "label": "Pay royalty", "icon": "banknote", "intent": "pay_royalty" },
           { "id": "maintenance", "label": "Maintenance", "icon": "wrench", "intent": "request_maintenance" },
           { "id": "messages", "label": "Messages", "icon": "message-square", "intent": "open_chat" },
-          { "id": "lease", "label": "My lease", "icon": "file-text", "href": "/lease" }
+          { "id": "offtake", "label": "My offtake", "icon": "file-text", "href": "/offtake" }
         ]
       }
     ],
@@ -43,7 +43,7 @@
         "id": "chat",
         "span": 12,
         "kind": "chat-embed",
-        "title": "Ask Boss Nyumba",
+        "title": "Ask Borjie",
         "initialProps": { "scope": "customer" }
       },
       {
@@ -54,17 +54,17 @@
         "initialProps": null
       },
       {
-        "id": "lease-preview",
+        "id": "offtake-preview",
         "span": 12,
         "kind": "file-preview",
-        "title": "My lease",
+        "title": "My offtake",
         "initialProps": null
       }
     ]
   },
   "primaryAction": {
-    "label": "Pay rent",
-    "intent": "pay_rent",
+    "label": "Pay royalty",
+    "intent": "pay_royalty",
     "icon": "banknote"
   },
   "theme": {

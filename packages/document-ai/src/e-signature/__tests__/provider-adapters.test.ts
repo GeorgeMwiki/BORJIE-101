@@ -8,8 +8,8 @@ const SAMPLE_PDF = new TextEncoder().encode('%PDF-1.7\n%trailer\n');
 
 function cfg(jurisdiction: SignaturePortConfig['jurisdiction']): SignaturePortConfig {
   return {
-    doc: { id: 'lease-99', bytes: SAMPLE_PDF, mime: 'application/pdf' },
-    signers: [{ email: 'tenant@x.io', name: 'Asha', order: 0 }],
+    doc: { id: 'offtake-99', bytes: SAMPLE_PDF, mime: 'application/pdf' },
+    signers: [{ email: 'buyer@x.io', name: 'Asha', order: 0 }],
     expiresAt: new Date('2027-01-01T00:00:00Z'),
     jurisdiction,
   };

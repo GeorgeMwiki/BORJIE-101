@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 26. media-grid — property-photo / inspection-album gallery.
+ * 26. media-grid — site-photo / inspection-album gallery.
  *
  * CSS grid with a lightweight lightbox overlay. No heavy deps — uses
  * <img> + a click-to-zoom modal. Captions and "taken at" timestamps

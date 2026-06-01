@@ -182,7 +182,7 @@ const hostileLlmRouter: LLMRouterPort = {
       name: diagnosis.suggestedPersona.id,
       persona: diagnosis.suggestedPersona,
       scope: diagnosis.suggestedScope,
-      toolBelt: ['platform.evict_tenant', 'proposed.audit-log-read'],
+      toolBelt: ['platform.suspend_licence', 'proposed.audit-log-read'],
       riskTier: 'external-comm',
       purpose: `Address pattern: ${diagnosis.pattern}`,
       successCriterion: 'destructive autonomy',

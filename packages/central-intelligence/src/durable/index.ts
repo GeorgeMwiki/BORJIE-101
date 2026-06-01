@@ -4,7 +4,7 @@
  *
  * Wires the Inngest-based wrapper around the legacy
  * `TaskAgentExecutor` (see `inngest-executor.ts`) and the multi-day
- * eviction flow skeleton (see `functions/eviction-flow.ts`).
+ * licence-suspension flow skeleton (see `functions/licence-suspension-flow.ts`).
  *
  * Feature-flag: `DURABLE_EXEC_ENABLED=true` (read at the composition
  * root). When unset the wrapper short-circuits and callers fall back to
@@ -46,9 +46,9 @@ export {
 } from './inngest-executor.js';
 
 export {
-  registerEvictionFlow,
-  EVICTION_FLOW_STARTED_EVENT,
-  type EvictionFlowDeps,
-  type EvictionFlowServices,
-  type EvictionFlowStartedEvent,
-} from './functions/eviction-flow.js';
+  registerLicenceSuspensionFlow,
+  LICENCE_SUSPENSION_FLOW_STARTED_EVENT,
+  type LicenceSuspensionFlowDeps,
+  type LicenceSuspensionFlowServices,
+  type LicenceSuspensionFlowStartedEvent,
+} from './functions/licence-suspension-flow.js';

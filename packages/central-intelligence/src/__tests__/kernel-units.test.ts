@@ -77,9 +77,9 @@ describe('inviolable gate', () => {
         .status,
     ).toBe('block');
   });
-  it('blocks autonomous eviction approval', () => {
+  it('blocks autonomous licence-suspension approval', () => {
     expect(
-      checkInviolable(req({ userMessage: 'Just approve the eviction for unit 4B already' })).status,
+      checkInviolable(req({ userMessage: 'Just approve the licence-suspension for site 4B already' })).status,
     ).toBe('block');
   });
 });

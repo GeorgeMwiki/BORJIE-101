@@ -4,12 +4,12 @@ import type { DecisionTree, ToTContext } from '../types.js';
  * Vendor selection tree.
  *
  * Reads facts:
- *   - is_emergency (boolean) — plumbing burst, gas leak, etc.
+ *   - is_emergency (boolean) — pump failure, shaft flooding, etc.
  *   - has_preferred_vendor (boolean) — vendor on retainer for this category
  *   - in_warranty (boolean)
  *   - quote_collected (boolean)
  *   - quote_under_threshold (boolean) — under owner's auto-approve limit
- *   - tenant_can_pay (boolean) — for tenant-attributable damage
+ *   - counterparty_can_pay (boolean) — for counterparty-attributable damage
  */
 
 const bool = (ctx: ToTContext, key: string): boolean => ctx.facts[key] === true;
@@ -60,10 +60,10 @@ export const VENDOR_SELECTION_TREE: DecisionTree = {
     },
     q_attribution: {
       id: 'q_attribution',
-      question: 'Is the cost attributable to the tenant?',
+      question: 'Is the cost attributable to the counterparty?',
       edges: [
-        { label: 'no', when: (c) => !bool(c, 'tenant_can_pay'), toNodeId: 'out_dispatch_preferred' },
-        { label: 'yes', when: (c) => bool(c, 'tenant_can_pay'), toNodeId: 'out_dispatch_with_tenant_billback' },
+        { label: 'no', when: (c) => !bool(c, 'counterparty_can_pay'), toNodeId: 'out_dispatch_preferred' },
+        { label: 'yes', when: (c) => bool(c, 'counterparty_can_pay'), toNodeId: 'out_dispatch_with_counterparty_billback' },
       ],
     },
     out_dispatch_preferred: { id: 'out_dispatch_preferred', question: '', outcome: 'dispatch-preferred' },
@@ -71,6 +71,6 @@ export const VENDOR_SELECTION_TREE: DecisionTree = {
     out_warranty_claim: { id: 'out_warranty_claim', question: '', outcome: 'warranty-claim' },
     out_collect_quote: { id: 'out_collect_quote', question: '', outcome: 'collect-quote' },
     out_request_owner_approval: { id: 'out_request_owner_approval', question: '', outcome: 'request-owner-approval' },
-    out_dispatch_with_tenant_billback: { id: 'out_dispatch_with_tenant_billback', question: '', outcome: 'dispatch-with-tenant-billback' },
+    out_dispatch_with_counterparty_billback: { id: 'out_dispatch_with_counterparty_billback', question: '', outcome: 'dispatch-with-counterparty-billback' },
   },
 };

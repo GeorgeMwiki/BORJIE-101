@@ -74,7 +74,7 @@ function mkDeps(): {
 }
 
 const baseSlo: SubMdSlo = Object.freeze({
-  subMd: 'arrears-triage',
+  subMd: 'royalty-triage',
   tenantId: TENANT,
   metric: 'resolution-quality',
   target: 0.85,
@@ -151,7 +151,7 @@ describe('executeAutoRollback', () => {
         verdict,
         inFlightRequest: {
           tenantId: TENANT,
-          payload: { caseId: 'arr-001' },
+          payload: { caseId: 'roy-001' },
           priority: 'P1',
         },
       },
@@ -195,7 +195,7 @@ describe('executeAutoRollback', () => {
         verdict,
         inFlightRequest: {
           tenantId: TENANT,
-          payload: { caseId: 'arr-002' },
+          payload: { caseId: 'roy-002' },
         },
       },
       env.deps,

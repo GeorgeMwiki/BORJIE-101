@@ -1,8 +1,8 @@
 /**
  * GoT + ToT integration.
  *
- * GoT identifies the candidate property tranche; raw ToT then runs the fixed
- * refinance-decision tree per property.
+ * GoT identifies the candidate site tranche; raw ToT then runs the fixed
+ * refinance-decision tree per site.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -29,30 +29,30 @@ const REFINANCE_TREE: DecisionTree = {
   },
 };
 
-describe('GoT + ToT — tranche selection then per-property tree walk', () => {
-  it('GoT picks the DSM tranche; ToT walks each property tree to a decision', async () => {
+describe('GoT + ToT — tranche selection then per-site tree walk', () => {
+  it('GoT picks the GEI tranche; ToT walks each site tree to a decision', async () => {
     const stub = createStubModel({
       rules: [
-        { match: 'rate-DSM', respond: '[score: 0.9] DSM rate drop 1.5%' },
-        { match: 'rate-ARU', respond: '[score: 0.7] ARU rate drop 0.4%' },
-        { match: 'pick', respond: '[score: 0.95] DSM tranche' },
+        { match: 'rate-GEI', respond: '[score: 0.9] GEI rate drop 1.5%' },
+        { match: 'rate-MWZ', respond: '[score: 0.7] MWZ rate drop 0.4%' },
+        { match: 'pick', respond: '[score: 0.95] GEI tranche' },
       ],
     });
     const got = await runGoT(
       {
-        question: 'Which city tranche to refinance?',
+        question: 'Which region tranche to refinance?',
         ops: [
-          { kind: 'generate', id: 'dsm', prompt: 'rate-DSM' },
-          { kind: 'generate', id: 'aru', prompt: 'rate-ARU' },
-          { kind: 'merge', id: 'merge', from: ['dsm', 'aru'], prompt: 'pick' },
+          { kind: 'generate', id: 'gei', prompt: 'rate-GEI' },
+          { kind: 'generate', id: 'mwz', prompt: 'rate-MWZ' },
+          { kind: 'merge', id: 'merge', from: ['gei', 'mwz'], prompt: 'pick' },
         ],
       },
       stub.call,
     );
     expect(got.bestNodeId).toBe('merge');
 
-    const propertyCtx: ToTContext = { facts: { drop: 1.5 } };
-    const totResult = runToTTree({ tree: REFINANCE_TREE, ctx: propertyCtx });
+    const siteCtx: ToTContext = { facts: { drop: 1.5 } };
+    const totResult = runToTTree({ tree: REFINANCE_TREE, ctx: siteCtx });
     expect(totResult.outcome).toBe('go');
   });
 });

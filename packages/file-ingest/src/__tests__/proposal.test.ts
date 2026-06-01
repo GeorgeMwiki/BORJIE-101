@@ -51,37 +51,37 @@ describe('heuristic proposal', () => {
     expect(proposal.confidence).toBeGreaterThanOrEqual(AUTO_MAP_THRESHOLD);
   });
 
-  it('maps property-portfolio.csv to property', async () => {
+  it('maps mining-asset-register.csv to mining_asset', async () => {
     const types = await entityTypes();
-    const schema = inferSchema(parseCsv(read('property-portfolio.csv')));
+    const schema = inferSchema(parseCsv(read('mining-asset-register.csv')));
     const proposal = proposeMappingHeuristic({
       schema,
       availableEntityTypes: types,
     });
-    expect(proposal.entity_type).toEqual('property');
+    expect(proposal.entity_type).toEqual('mining_asset');
     expect(proposal.field_map['reference']).toEqual('reference');
     expect(proposal.confidence).toBeGreaterThan(LLM_PROPOSAL_THRESHOLD);
   });
 
-  it('maps sales-leads.csv to lead', async () => {
+  it('maps prospective-buyers.csv to prospective_buyer', async () => {
     const types = await entityTypes();
-    const schema = inferSchema(parseCsv(read('sales-leads.csv')));
+    const schema = inferSchema(parseCsv(read('prospective-buyers.csv')));
     const proposal = proposeMappingHeuristic({
       schema,
       availableEntityTypes: types,
     });
-    expect(proposal.entity_type).toEqual('lead');
+    expect(proposal.entity_type).toEqual('prospective_buyer');
     expect(proposal.field_map['email']).toEqual('email');
   });
 
-  it('maps kra-filings.csv to kra_filing', async () => {
+  it('maps tra-filings.csv to tra_filing', async () => {
     const types = await entityTypes();
-    const schema = inferSchema(parseCsv(read('kra-filings.csv')));
+    const schema = inferSchema(parseCsv(read('tra-filings.csv')));
     const proposal = proposeMappingHeuristic({
       schema,
       availableEntityTypes: types,
     });
-    expect(proposal.entity_type).toEqual('kra_filing');
+    expect(proposal.entity_type).toEqual('tra_filing');
   });
 
   it('maps vendor-list.csv to vendor', async () => {
@@ -94,14 +94,14 @@ describe('heuristic proposal', () => {
     expect(proposal.entity_type).toEqual('vendor');
   });
 
-  it('maps tenant-payments.csv to tenant_payment', async () => {
+  it('maps royalty-payments.csv to royalty_payment', async () => {
     const types = await entityTypes();
-    const schema = inferSchema(parseCsv(read('tenant-payments.csv')));
+    const schema = inferSchema(parseCsv(read('royalty-payments.csv')));
     const proposal = proposeMappingHeuristic({
       schema,
       availableEntityTypes: types,
     });
-    expect(proposal.entity_type).toEqual('tenant_payment');
+    expect(proposal.entity_type).toEqual('royalty_payment');
   });
 
   it('maps employee-performance.csv to employee_performance', async () => {

@@ -1,25 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { valueProperty, propertyValuationTool } from '../property-valuation.js';
+import { valueAsset, assetValuationTool } from '../asset-valuation.js';
 import { scoreTenderBids, tenderBidScoringTool } from '../tender-bid-scoring.js';
-import { forecastOccupancy, occupancyForecastTool } from '../occupancy-forecast.js';
-import { analyzeRentRoll, rentRollAnalysisTool } from '../rent-roll-analysis.js';
-import { tenantHealthCheck, tenantHealthCheckTool } from '../tenant-health-check.js';
+import { forecastProductionCapacity, productionCapacityForecastTool } from '../production-capacity-forecast.js';
+import { analyzeRoyaltyRoll, royaltyRollAnalysisTool } from '../royalty-roll-analysis.js';
+import { buyerHealthCheck, buyerHealthCheckTool } from '../buyer-health-check.js';
 import { forecastMaintenanceCost, maintenanceCostForecastTool } from '../maintenance-cost-forecast.js';
-import { adviseRentRepricing, rentRepricingAdvisorTool } from '../rent-repricing-advisor.js';
+import { adviseRoyaltyRepricing, royaltyRepricingAdvisorTool } from '../royalty-repricing-advisor.js';
 import { ESTATE_SKILL_TOOLS } from '../index.js';
 
-describe('property-valuation', () => {
+describe('asset-valuation', () => {
   it('returns a point estimate with a range', () => {
-    const r = valueProperty({
-      propertyId: 'p1',
-      bedrooms: 2,
-      sqm: 70,
+    const r = valueAsset({
+      assetId: 'a1',
+      oreGradeGpt: 2.5,
+      reserveTonnes: 70,
       ageYears: 5,
       condition: 'good',
       comparables: [
-        { id: 'c1', pricePerSqm: 100_000, bedrooms: 2, ageYears: 5, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 2 },
-        { id: 'c2', pricePerSqm: 110_000, bedrooms: 2, ageYears: 4, condition: 'excellent', distanceKm: 1, soldMonthsAgo: 4 },
-        { id: 'c3', pricePerSqm: 95_000, bedrooms: 3, ageYears: 7, condition: 'fair', distanceKm: 2, soldMonthsAgo: 6 },
+        { id: 'c1', pricePerTonne: 100_000, oreGradeGpt: 2.5, ageYears: 5, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 2 },
+        { id: 'c2', pricePerTonne: 110_000, oreGradeGpt: 2.4, ageYears: 4, condition: 'excellent', distanceKm: 1, soldMonthsAgo: 4 },
+        { id: 'c3', pricePerTonne: 95_000, oreGradeGpt: 3.0, ageYears: 7, condition: 'fair', distanceKm: 2, soldMonthsAgo: 6 },
       ],
     });
     expect(r.estimateTotal).toBeGreaterThan(0);
@@ -28,27 +28,27 @@ describe('property-valuation', () => {
   });
 
   it('marks confidence low for few comparables', () => {
-    const r = valueProperty({
-      propertyId: 'p1',
-      bedrooms: 2,
-      sqm: 50,
+    const r = valueAsset({
+      assetId: 'a1',
+      oreGradeGpt: 2.5,
+      reserveTonnes: 50,
       ageYears: 1,
       comparables: [
-        { id: 'c1', pricePerSqm: 100_000, bedrooms: 2, ageYears: 1, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 1 },
+        { id: 'c1', pricePerTonne: 100_000, oreGradeGpt: 2.5, ageYears: 1, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 1 },
       ],
     });
     expect(r.confidence).toBe('low');
   });
 
   it('tool returns ok on valid input', async () => {
-    const r = await propertyValuationTool.execute(
+    const r = await assetValuationTool.execute(
       {
-        propertyId: 'p1',
-        bedrooms: 2,
-        sqm: 50,
+        assetId: 'a1',
+        oreGradeGpt: 2.5,
+        reserveTonnes: 50,
         ageYears: 1,
         comparables: [
-          { id: 'c1', pricePerSqm: 100_000, bedrooms: 2, ageYears: 1, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 1 },
+          { id: 'c1', pricePerTonne: 100_000, oreGradeGpt: 2.5, ageYears: 1, condition: 'good', distanceKm: 0.5, soldMonthsAgo: 1 },
         ],
       },
       {} as never
@@ -95,24 +95,24 @@ describe('tender-bid-scoring', () => {
   });
 });
 
-describe('occupancy-forecast', () => {
+describe('production-capacity-forecast', () => {
   it('produces 12 months of forecast', () => {
-    const r = forecastOccupancy({
-      propertyId: 'p1',
-      totalUnits: 20,
-      currentlyOccupied: 18,
-      leasesExpiringPerMonth: [1, 2, 0, 0, 3, 1, 0, 2, 1, 0, 0, 1],
+    const r = forecastProductionCapacity({
+      siteId: 'a1',
+      totalCapacityUnits: 20,
+      currentlyCommitted: 18,
+      offtakesExpiringPerMonth: [1, 2, 0, 0, 3, 1, 0, 2, 1, 0, 0, 1],
     });
     expect(r.months.length).toBe(12);
   });
 
   it('tool returns ok', async () => {
-    const r = await occupancyForecastTool.execute(
+    const r = await productionCapacityForecastTool.execute(
       {
-        propertyId: 'p1',
-        totalUnits: 10,
-        currentlyOccupied: 9,
-        leasesExpiringPerMonth: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        siteId: 'a1',
+        totalCapacityUnits: 10,
+        currentlyCommitted: 9,
+        offtakesExpiringPerMonth: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
       {} as never
     );
@@ -120,32 +120,32 @@ describe('occupancy-forecast', () => {
   });
 });
 
-describe('rent-roll-analysis', () => {
-  it('flags chronic arrears', () => {
-    const r = analyzeRentRoll({
-      propertyId: 'p1',
+describe('royalty-roll-analysis', () => {
+  it('flags chronic outstanding royalties', () => {
+    const r = analyzeRoyaltyRoll({
+      siteId: 'a1',
       rows: [
-        { unitId: 'u1', unitLabel: '1A', monthlyRent: 30_000, arrearsMonths: 4, arrearsAmount: 120_000, hasLease: true, lastPaymentDaysAgo: 120 },
+        { consignmentId: 'u1', consignmentLabel: '1A', monthlyRoyalty: 30_000, outstandingMonths: 4, outstandingAmount: 120_000, hasOfftake: true, lastPaymentDaysAgo: 120 },
       ],
     });
-    expect(r.anomalies.some((a) => a.kind === 'chronic_arrears')).toBe(true);
+    expect(r.anomalies.some((a) => a.kind === 'chronic_outstanding')).toBe(true);
   });
 
-  it('flags under-market rent', () => {
-    const r = analyzeRentRoll({
-      propertyId: 'p1',
+  it('flags under-market royalty', () => {
+    const r = analyzeRoyaltyRoll({
+      siteId: 'a1',
       rows: [
-        { unitId: 'u1', unitLabel: '1A', monthlyRent: 20_000, marketRent: 35_000, hasLease: true, lastPaymentDaysAgo: 3, arrearsAmount: 0, arrearsMonths: 0 },
+        { consignmentId: 'u1', consignmentLabel: '1A', monthlyRoyalty: 20_000, marketRoyalty: 35_000, hasOfftake: true, lastPaymentDaysAgo: 3, outstandingAmount: 0, outstandingMonths: 0 },
       ],
     });
-    expect(r.anomalies.some((a) => a.kind === 'under_market_rent')).toBe(true);
+    expect(r.anomalies.some((a) => a.kind === 'under_market_royalty')).toBe(true);
   });
 
   it('tool returns ok', async () => {
-    const r = await rentRollAnalysisTool.execute(
+    const r = await royaltyRollAnalysisTool.execute(
       {
-        propertyId: 'p1',
-        rows: [{ unitId: 'u1', unitLabel: '1A', monthlyRent: 25_000, hasLease: true, arrearsMonths: 0, arrearsAmount: 0, lastPaymentDaysAgo: 0 }],
+        siteId: 'a1',
+        rows: [{ consignmentId: 'u1', consignmentLabel: '1A', monthlyRoyalty: 25_000, hasOfftake: true, outstandingMonths: 0, outstandingAmount: 0, lastPaymentDaysAgo: 0 }],
       },
       {} as never
     );
@@ -153,34 +153,34 @@ describe('rent-roll-analysis', () => {
   });
 });
 
-describe('tenant-health-check', () => {
-  it('returns green for healthy tenant', () => {
-    const r = tenantHealthCheck({
-      tenantId: 't1',
-      unitId: 'u1',
+describe('buyer-health-check', () => {
+  it('returns green for healthy buyer', () => {
+    const r = buyerHealthCheck({
+      buyerId: 't1',
+      consignmentId: 'u1',
       paymentOnTimeRatio: 1,
       paymentDaysLateAvg: 0,
-      propertyConditionScore: 1,
+      performanceScore: 1,
       kycComplete: true,
       referencesCount: 3,
-      depositPaid: true,
+      performanceBondPaid: true,
       guarantorPresent: true,
       insuranceOnFile: true,
     });
     expect(r.rating).toBe('green');
   });
 
-  it('returns red for high-risk tenant', () => {
-    const r = tenantHealthCheck({
-      tenantId: 't1',
-      unitId: 'u1',
+  it('returns red for high-risk buyer', () => {
+    const r = buyerHealthCheck({
+      buyerId: 't1',
+      consignmentId: 'u1',
       paymentOnTimeRatio: 0.2,
       paymentDaysLateAvg: 40,
-      propertyConditionScore: 0.3,
-      complaintsLast12m: 6,
+      performanceScore: 0.3,
+      disputesLast12m: 6,
       kycComplete: false,
       referencesCount: 0,
-      depositPaid: false,
+      performanceBondPaid: false,
       guarantorPresent: false,
       insuranceOnFile: false,
     });
@@ -189,8 +189,8 @@ describe('tenant-health-check', () => {
   });
 
   it('tool returns ok', async () => {
-    const r = await tenantHealthCheckTool.execute(
-      { tenantId: 't1', unitId: 'u1' },
+    const r = await buyerHealthCheckTool.execute(
+      { buyerId: 't1', consignmentId: 'u1' },
       {} as never
     );
     expect(r.ok).toBe(true);
@@ -227,12 +227,12 @@ describe('maintenance-cost-forecast', () => {
   });
 });
 
-describe('rent-repricing-advisor', () => {
-  it('holds flat when vacancy risk is high', () => {
-    const r = adviseRentRepricing({
-      propertyId: 'p1',
-      units: [
-        { unitId: 'u1', currentRent: 30_000, marketRent: 40_000, tenantPaymentScore: 0.9, tenantTenureMonths: 24, vacancyRisk: 0.5 },
+describe('royalty-repricing-advisor', () => {
+  it('holds flat when available-capacity risk is high', () => {
+    const r = adviseRoyaltyRepricing({
+      siteId: 'a1',
+      consignments: [
+        { consignmentId: 'u1', currentPrice: 30_000, marketPrice: 40_000, buyerPaymentScore: 0.9, buyerTenureMonths: 24, availableCapacityRisk: 0.5 },
       ],
       maxIncreasePct: 0.1,
     });
@@ -241,20 +241,20 @@ describe('rent-repricing-advisor', () => {
   });
 
   it('proposes an increase when market gap is wide', () => {
-    const r = adviseRentRepricing({
-      propertyId: 'p1',
-      units: [
-        { unitId: 'u1', currentRent: 30_000, marketRent: 40_000, tenantPaymentScore: 1, tenantTenureMonths: 36, vacancyRisk: 0.05 },
+    const r = adviseRoyaltyRepricing({
+      siteId: 'a1',
+      consignments: [
+        { consignmentId: 'u1', currentPrice: 30_000, marketPrice: 40_000, buyerPaymentScore: 1, buyerTenureMonths: 36, availableCapacityRisk: 0.05 },
       ],
     });
-    expect(r.recommendations[0].recommendedRent).toBeGreaterThan(30_000);
+    expect(r.recommendations[0].recommendedPrice).toBeGreaterThan(30_000);
   });
 
   it('tool returns ok', async () => {
-    const r = await rentRepricingAdvisorTool.execute(
+    const r = await royaltyRepricingAdvisorTool.execute(
       {
-        propertyId: 'p1',
-        units: [{ unitId: 'u1', currentRent: 1000, marketRent: 1100, tenantPaymentScore: 0.5, tenantTenureMonths: 12, vacancyRisk: 0.1 }],
+        siteId: 'a1',
+        consignments: [{ consignmentId: 'u1', currentPrice: 1000, marketPrice: 1100, buyerPaymentScore: 0.5, buyerTenureMonths: 12, availableCapacityRisk: 0.1 }],
       },
       {} as never
     );
@@ -272,8 +272,8 @@ describe('estate skill bundle', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('includes skill.estate.grade_property', () => {
+  it('includes skill.estate.grade_asset', () => {
     const names = ESTATE_SKILL_TOOLS.map((t) => t.name);
-    expect(names).toContain('skill.estate.grade_property');
+    expect(names).toContain('skill.estate.grade_asset');
   });
 });

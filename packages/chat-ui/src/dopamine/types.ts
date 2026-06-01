@@ -35,9 +35,9 @@ export interface LevelState {
 }
 
 export type CelebrationTrigger =
-  | 'tenant-signed-lease'
-  | 'tenant-on-time-payment'
+  | 'buyer-signed-offtake'
+  | 'buyer-on-time-payment'
   | 'maintenance-case-resolved'
-  | 'arrears-case-cleared'
+  | 'outstanding-royalty-cleared'
   | 'tender-awarded'
   | 'perfect-inspection';

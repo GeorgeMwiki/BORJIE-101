@@ -50,7 +50,7 @@ export function domainForRiskKind(kind: RiskKind): AutonomyDomain {
     case 'churn_risk':
     case 'renewal_opportunity':
     case 'void_risk':
-      return 'leasing';
+      return 'offtake';
     case 'incident_risk':
     case 'repair_recurrence':
       return 'maintenance';

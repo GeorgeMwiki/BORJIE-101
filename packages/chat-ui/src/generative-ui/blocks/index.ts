@@ -1,6 +1,6 @@
-export { RentAffordabilityCalculator, classifyAffordability } from './rent-affordability-calculator';
-export { ArrearsProjectionChart } from './arrears-projection-chart';
-export { PropertyComparisonTable } from './property-comparison-table';
-export { LeaseTimelineDiagram } from './lease-timeline-diagram';
+export { RoyaltyAffordabilityCalculator, classifyAffordability } from './royalty-affordability-calculator';
+export { OutstandingRoyaltyProjectionChart } from './outstanding-royalty-projection-chart';
+export { AssetComparisonTable } from './asset-comparison-table';
+export { OfftakeTimelineDiagram } from './offtake-timeline-diagram';
 export { MaintenanceCaseFlowDiagram } from './maintenance-case-flow-diagram';
-export { FivePsTenancyRiskWheel, computeFivePs } from './5ps-tenancy-risk-wheel';
+export { FivePsOperatorRiskWheel, computeFivePs } from './5ps-operator-risk-wheel';

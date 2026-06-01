@@ -1,16 +1,17 @@
 /**
- * Singapore (SG) — IRAS withholding on non-resident rental income.
+ * Singapore (SG) — IRAS withholding on non-resident mineral-trade proceeds.
  *
- * Source: Income Tax Act §45C — 15% withholding on gross rent paid to a
- * non-resident property owner (payer liable).
- * Tenancy: no statutory deposit cap; industry norm = 1-3 months.
+ * Singapore is a refining / offtake-trading hub rather than a producer.
+ * Source: Income Tax Act §45C — 15% withholding on gross proceeds paid to a
+ * non-resident counterparty (payer liable).
+ * Offtake: no statutory bond cap; industry norm = 1-3 months royalty.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -51,19 +52,19 @@ const singaporeCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 3,
+    minBondMonths: 1,
+    maxBondMonths: 3,
     noticePeriodDays: 60,
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 14,
+    bondReturnDays: 14,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Tenancy Agreement (SG)',
-      templatePath: 'sg/tenancy-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake & Trade Agreement (SG)',
+      templatePath: 'sg/offtake-agreement.hbs',
       locale: 'en-SG',
     },
   ],
@@ -83,7 +84,7 @@ export const singaporeProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     15,
     'SG-IRAS-ITA-45C',
-    'Non-resident rental withholding: 15% on gross rent (ITA § 45C).'
+    'Non-resident withholding: 15% on gross mineral-trade proceeds (ITA § 45C).'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -120,30 +121,30 @@ export const singaporeProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'sg-stamp-duty',
-        label: 'Tenancy must be e-stamped with IRAS within 14 days',
+        label: 'Offtake agreement must be e-stamped with IRAS within 14 days',
         mandatory: true,
         citation: 'Stamp Duties Act § 22',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60,
-      'non-payment': 14,
+      'licence-expiry': 60,
+      'royalty-default': 14,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        citation: 'No statutory cap; industry norm 1-3 months.',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        citation: 'No statutory cap; industry norm 1-3 months royalty.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
-        citation: 'No statutory rent control.',
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
+        citation: 'No statutory royalty-escalation control.',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('CBS_SG'),
+  counterpartyScreening: buildStubScreeningPort('CBS_SG'),
 };

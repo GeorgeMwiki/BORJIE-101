@@ -5,9 +5,9 @@
  *   - `binary`   strict equality (`===`) — yes/no, approve/deny, "FIX-001"
  *   - `numeric`  threshold-bounded: `|ai - human| <= tolerance`
  *
- * The numeric path is forced by reality: rent estimates, late-fee cents,
- * refund amounts, etc. are almost never byte-identical between AI and a
- * human — agreement is "within X". The tolerance is supplied by the
+ * The numeric path is forced by reality: royalty estimates, clearing-fee
+ * cents, payout amounts, etc. are almost never byte-identical between AI
+ * and a human — agreement is "within X". The tolerance is supplied by the
  * caller (via `CutoverCriteria.numericTolerance`) so one cutover run
  * uses one tolerance and the gate is reproducible from (session,
  * criteria) alone.

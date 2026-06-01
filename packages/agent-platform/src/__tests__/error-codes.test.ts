@@ -34,8 +34,8 @@ describe('createAgentError envelope', () => {
   });
 
   it('attaches frozen details when provided', () => {
-    const err = createAgentError('TOOL_INVALID_INPUT', { field: 'rent' });
-    expect((err as { details?: Record<string, unknown> }).details).toEqual({ field: 'rent' });
+    const err = createAgentError('TOOL_INVALID_INPUT', { field: 'royalty' });
+    expect((err as { details?: Record<string, unknown> }).details).toEqual({ field: 'royalty' });
   });
 
   it('omits details when not provided', () => {

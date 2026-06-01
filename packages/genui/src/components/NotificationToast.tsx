@@ -5,7 +5,7 @@
  *
  * Differs from `timeline` entries (which are historical) — this is an
  * ephemeral inline toast that auto-dismisses after `autoCloseMs`. Used
- * for "Payment posted", "Notice sent", "Lease saved" confirmations.
+ * for "Payment posted", "Notice sent", "Offtake saved" confirmations.
  */
 
 import { useEffect, useState } from 'react';

@@ -9,7 +9,7 @@
  *   - 5 roles (internal_admin, property_manager, estate_manager, owner, customer)
  *   - 5 users, one per role, with deterministic IDs and stable email aliases
  *
- * The seed deliberately writes NO properties, units, leases, payments,
+ * The seed deliberately writes NO sites, blocks, offtakes, payments,
  * maintenance, or transactions. All operational data must be created by
  * the user's first conversation with the MD agent. This guarantees:
  *
@@ -87,8 +87,8 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   {
     id: TRC_ROLE_IDS.property_manager,
     name: 'property_manager',
-    displayName: 'Property Manager',
-    description: 'Day-to-day operator: leasing, collections, maintenance, vendors.',
+    displayName: 'Site Manager',
+    description: 'Day-to-day operator: offtakes, royalty collections, maintenance, contractors.',
     priority: 70,
     permissions: [
       'property:read',
@@ -109,7 +109,7 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
     id: TRC_ROLE_IDS.estate_manager,
     name: 'estate_manager',
     displayName: 'Estate Manager',
-    description: 'Portfolio-level oversight: approvals, reporting, owner relations.',
+    description: 'Estate-level oversight: approvals, reporting, owner relations.',
     priority: 80,
     permissions: [
       'property:read',
@@ -129,8 +129,8 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   {
     id: TRC_ROLE_IDS.owner,
     name: 'owner',
-    displayName: 'Property Owner',
-    description: 'Sees only their own portfolio: ROI, statements, advisory.',
+    displayName: 'Mining Estate Owner',
+    description: 'Sees only their own estate: ROI, statements, advisory.',
     priority: 60,
     permissions: [
       'property:read:own',
@@ -144,8 +144,8 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   {
     id: TRC_ROLE_IDS.customer,
     name: 'customer',
-    displayName: 'Tenant / Resident',
-    description: 'Pays rent, raises tickets, sees their own lease and notices.',
+    displayName: 'Buyer / Counterparty',
+    description: 'Pays royalties, raises tickets, sees their own offtake and notices.',
     priority: 20,
     permissions: [
       'lease:read:own',
@@ -190,7 +190,7 @@ const TRC_USERS: readonly TrcUserSpec[] = [
     id: TRC_USER_IDS.property_manager,
     roleName: 'property_manager',
     firstName: 'TRC',
-    lastName: 'PropertyManager',
+    lastName: 'SiteManager',
     email: 'trc+pm@borjie.test',
     phone: '+255700000002',
     isOwner: false,
@@ -220,7 +220,7 @@ const TRC_USERS: readonly TrcUserSpec[] = [
     id: TRC_USER_IDS.customer,
     roleName: 'customer',
     firstName: 'TRC',
-    lastName: 'Tenant',
+    lastName: 'Buyer',
     email: 'trc+tenant@borjie.test',
     phone: '+255700000005',
     isOwner: false,
@@ -362,7 +362,7 @@ export async function seedTrcTestOrg(db: DatabaseClient): Promise<void> {
   // memory (semantic facts + core blocks + reflexion lessons) and the
   // elastic-architecture config (tenant.settings.elasticConfig +
   // approval_policies). Both are idempotent — re-running this seed
-  // produces no net change. Operational data (properties/units/leases/
+  // produces no net change. Operational data (sites/blocks/offtakes/
   // payments) is STILL not seeded; that contract is preserved.
   const baseline = await seedTrcQuestionnaireBaseline(db);
   const elastic = await seedTrcElasticConfig(db);
@@ -377,6 +377,6 @@ export async function seedTrcTestOrg(db: DatabaseClient): Promise<void> {
   console.log(
     `[trc]   elastic: config_keys=${elastic.elasticConfigKeys.length} approval_policies=${elastic.approvalPoliciesWritten}`,
   );
-  console.log(`[trc]   NOTE: no properties/units/leases/payments seeded —`);
+  console.log(`[trc]   NOTE: no sites/blocks/offtakes/payments seeded —`); // eslint-disable-line no-console -- reason: seed-script CLI progress output
   console.log(`[trc]   all operational data flows from the user's first MD chat.`);
 }

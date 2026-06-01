@@ -269,7 +269,7 @@ describe('recordUserAction', () => {
     const result = await recordUserAction(store, {
       tenantId: 't1',
       userId: 'u1',
-      actionId: 'add-property',
+      actionId: 'add-asset',
     });
     expect(result.actionCount).toBe(1);
     expect(rows.size).toBe(1);
@@ -280,12 +280,12 @@ describe('recordUserAction', () => {
     await recordUserAction(store, {
       tenantId: 't1',
       userId: 'u1',
-      actionId: 'add-property',
+      actionId: 'add-asset',
     });
     const second = await recordUserAction(store, {
       tenantId: 't1',
       userId: 'u1',
-      actionId: 'add-property',
+      actionId: 'add-asset',
     });
     expect(second.actionCount).toBe(2);
   });
@@ -509,7 +509,7 @@ describe('useUserMastery', () => {
     expect(result.current.score?.totalActions).toBe(0);
 
     await act(async () => {
-      await result.current.record('add-property');
+      await result.current.record('add-asset');
     });
 
     await waitFor(() => expect(result.current.score?.totalActions).toBe(1));

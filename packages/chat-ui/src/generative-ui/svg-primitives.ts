@@ -22,22 +22,22 @@ export const SVG_COLORS = {
 
 /** Prompt text injected into AI system prompt so SVG output is consistent. */
 export const SVG_PRIMITIVES_PROMPT = `
-## SVG BLACKBOARD PRIMITIVES (ESTATE-MANAGEMENT)
+## SVG BLACKBOARD PRIMITIVES (MINING-ESTATE)
 
 Compose from these when drawing on the blackboard. Canvas = 500x300.
 
-### BAR CHART — comparing rent vs income, arrears growth, unit occupancy
+### BAR CHART — comparing royalty vs income, outstanding-royalty growth, asset utilisation
 <rect x="X" y="Y" width="60" height="H" rx="4" fill="#3b82f6" opacity="0.85"/>
 <text x="X+30" y="Y-8" text-anchor="middle" font-size="11" fill="#1e293b">LABEL</text>
 
-### BALANCE SCALE — rent vs income affordability, 5 Ps trade-offs
+### BALANCE SCALE — royalty vs income affordability, 5 Ps trade-offs
 <polygon points="250,200 230,260 270,260" fill="#94a3b8" opacity="0.3"/>
 <rect x="60"  y="170" width="120" height="50" rx="8" fill="#22c55e" opacity="0.15" stroke="#22c55e"/>
 <rect x="320" y="190" width="120" height="50" rx="8" fill="#ef4444" opacity="0.15" stroke="#ef4444"/>
 
-### PENTAGON / 5 Ps RADAR — Payment history, Property fit, Purpose, Person, Protection
+### PENTAGON / 5 Ps RADAR — Payment history, Asset fit, Purpose, Person, Protection
 
-### TIMELINE — lease signing, rent start, renewal window, lease end
+### TIMELINE — offtake signing, royalty start, renewal window, offtake end
 Use filled circles for completed events, outlined for upcoming.
 
 ### FLOW DIAGRAM — maintenance case: Reported -> Triaged -> Assigned -> Resolved

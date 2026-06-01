@@ -3,8 +3,8 @@
  *
  * The L1 audit said "use Self-Discover instead". That advice holds when the
  * task structure is unknown and must be discovered. But BORJIE has many
- * decision points where the structure is **FIXED**: eviction-decision tree,
- * vendor-selection tree, KRA-filing-route tree, tenant-screening tree.
+ * decision points where the structure is **FIXED**: licence-suspension tree,
+ * vendor-selection tree, TRA-royalty-filing-route tree, buyer-screening tree.
  *
  * For these, raw ToT with a pre-built tree is strictly faster than
  * Self-Discover — we skip the discovery cost and walk a known graph.
@@ -26,7 +26,7 @@ export interface ToTEdge {
   readonly label: string;
   /**
    * Predicate evaluated against the runtime context. The decision tree
-   * structure stays fixed; only the predicates change per-tenant/per-case.
+   * structure stays fixed; only the predicates change per-counterparty/per-case.
    */
   readonly when: (ctx: ToTContext) => boolean;
   readonly toNodeId: string;

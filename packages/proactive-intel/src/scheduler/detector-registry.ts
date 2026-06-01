@@ -7,7 +7,7 @@
  * declares how.
  *
  * J5 core PR wires the 3 anomaly detectors that ship in this PR
- * (cashflow-dip, arrears-spike, churn-risk). The other 4 anomaly
+ * (cashflow-dip, royalty-arrears-spike, churn-risk). The other 4 anomaly
  * detectors are already scaffolded under detectors/ but are wired in a
  * follow-up to keep the surface tight. Opportunity detectors land in a
  * separate PR — registry is intentionally empty until then so the
@@ -23,7 +23,7 @@ import type { TickContext } from './tick-context.js';
 
 // Anomaly detectors — core 3 shipped in J5 core PR.
 import { detectCashflowDip } from '../detectors/cashflow-dip.detector.js';
-import { detectArrearsSpike } from '../detectors/arrears-spike.detector.js';
+import { detectRoyaltyArrearsSpike } from '../detectors/royalty-arrears-spike.detector.js';
 import { detectChurnRisk } from '../detectors/churn-risk.detector.js';
 
 export type AnomalyDetectorFn = (ctx: TickContext) => ReadonlyArray<AnomalyEvent>;
@@ -33,7 +33,7 @@ export type OpportunityDetectorFn = (
 
 export const ANOMALY_DETECTORS: Readonly<Record<string, AnomalyDetectorFn>> = {
   'cashflow-dip': detectCashflowDip,
-  'arrears-spike': detectArrearsSpike,
+  'royalty-arrears-spike': detectRoyaltyArrearsSpike,
   'churn-risk': detectChurnRisk,
   // Deferred to follow-up PR (already scaffolded under detectors/):
   //   'cost-anomaly', 'slo-breach', 'compliance-deadline-near',
@@ -44,5 +44,5 @@ export const OPPORTUNITY_DETECTORS: Readonly<
   Record<string, OpportunityDetectorFn>
 > = {
   // Deferred to follow-up PR:
-  //   'vendor-rate-arbitrage', 'policy-tightening', 'rent-vs-market'
+  //   'vendor-rate-arbitrage', 'policy-tightening', 'offtake-price-vs-market'
 } as const;

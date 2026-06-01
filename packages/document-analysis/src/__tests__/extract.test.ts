@@ -12,7 +12,7 @@ function findField(
 }
 
 describe('classifyDocType', () => {
-  it('classifies a lease application', async () => {
+  it('classifies an offtake application', async () => {
     const text = loadFixture('lease-application');
     const result = await classifyDocType(text);
     expect(result.docType).toBe('lease_application');
@@ -52,7 +52,7 @@ describe('classifyDocType', () => {
 
   it('handles Swahili-heavy text', async () => {
     const result = await classifyDocType(
-      'Mkataba wa upangaji wa kodi ya mwezi. Mpangaji na mwenye nyumba wamekubaliana.',
+      'Mkataba wa madini wa mrabaha wa mwezi. Mnunuzi na mwenye madini wamekubaliana.',
     );
     expect(result.docType).toBe('lease_contract');
   });
@@ -92,8 +92,8 @@ describe('classifyDocType', () => {
   });
 });
 
-describe('extractEntities — lease application', () => {
-  it('extracts applicant + asset + rent', async () => {
+describe('extractEntities — offtake application', () => {
+  it('extracts applicant + asset + royalty', async () => {
     const text = loadFixture('lease-application');
     const layout = await parseLayout({ text });
     const fields = extractEntities({
@@ -104,8 +104,8 @@ describe('extractEntities — lease application', () => {
     expect(findField(fields, 'applicant_name')?.value).toBe('Asha Mwangi');
     expect(findField(fields, 'applicant_phone')?.value).toBe('+255712345678');
     expect(findField(fields, 'applicant_nida')?.value).toContain('19850101');
-    expect(findField(fields, 'requested_asset')?.value).toBe('PROP-DAR-0001');
-    expect(findField(fields, 'requested_rent')?.value).toEqual({
+    expect(findField(fields, 'requested_asset')?.value).toBe('ML-GEITA-0001');
+    expect(findField(fields, 'requested_royalty')?.value).toEqual({
       currency: 'TZS',
       amount: 850000,
       amountMinor: 85_000_000,
@@ -171,7 +171,7 @@ describe('extractEntities — condition survey', () => {
       text,
       layout,
     });
-    expect(findField(fields, 'asset_reference')?.value).toBe('PROP-DAR-0001');
+    expect(findField(fields, 'asset_reference')?.value).toBe('ML-GEITA-0001');
     expect(findField(fields, 'inspection_date')?.value).toBe('2025-02-08');
     expect(findField(fields, 'inspector_name')?.value).toBe('Joseph Kibwana');
   });
@@ -188,7 +188,7 @@ describe('extractEntities — complaint letter', () => {
     });
     expect(findField(fields, 'complainant_name')?.value).toBe('Asha Mwangi');
     expect(findField(fields, 'complaint_topic')?.value).toContain('water leakage');
-    expect(findField(fields, 'asset_reference')?.value).toBe('PROP-DAR-0001');
+    expect(findField(fields, 'asset_reference')?.value).toBe('ML-GEITA-0001');
   });
 });
 

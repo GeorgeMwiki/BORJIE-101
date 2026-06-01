@@ -1,12 +1,13 @@
 /**
- * Tanzania (TZ) compliance plugin.
+ * Tanzania (TZ) mining-compliance plugin.
  *
  * Preserves every piece of Tanzania-specific logic that used to live inline
  * in identity / payments / tax services. Env-var prefixes match the existing
  * `.env` patterns — real credentials stay in the environment, never in code.
  *
- * Statutory defaults (notice periods, deposit caps) sourced from Tanzania's
- * Land (Landlord and Tenant) Act. Confirm with counsel before going live.
+ * Statutory defaults (notice periods, performance-bond caps) sourced from the
+ * Mining Act 2010 (am. 2017) and its royalty schedule. Confirm with counsel
+ * before going live.
  */
 
 import { buildPhoneNormalizer } from '../core/phone.js';
@@ -22,33 +23,33 @@ import {
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
 import {
   buildStubBureauResult,
-  type TenantScreeningPort,
-} from '../ports/tenant-screening.port.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+  type CounterpartyScreeningPort,
+} from '../ports/counterparty-screening.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 
 // --- Tanzania port implementations ------------------------------------------
 
-/** TRA rental income: 10% withholding on gross for individual landlords. */
+/** TRA mineral royalty: 6% on gross market value (Mining Act 2010 §87). */
 const tanzaniaTaxRegime: TaxRegimePort = {
-  calculateWithholding(grossRentMinorUnits, _currency, _period) {
+  calculateWithholding(grossValueMinorUnits, _currency, _period) {
     return flatRateWithholding(
-      grossRentMinorUnits,
-      10,
-      'TRA-WHT-RENT',
-      'TRA rental-income withholding — 10% on gross rent (Income Tax Act §83).'
+      grossValueMinorUnits,
+      6,
+      'TRA-ROYALTY',
+      'TRA mineral royalty — 6% on gross market value of minerals (Mining Act 2010 §87).'
     );
   },
 };
 
 const tanzaniaTaxFiling: TaxFilingPort = {
-  prepareFiling(run, _tenantProfile, _period) {
+  prepareFiling(run, _operatorProfile, _period) {
     return {
       filingFormat: 'csv',
       payload: buildGenericCsvPayload(run),
       targetRegulator: 'TRA',
       submitEndpointHint: 'https://taxportal.tra.go.tz',
       instructions:
-        'Upload the CSV to the TRA Tax Portal under Withholding Tax on Rent. ' +
+        'Upload the CSV to the TRA Tax Portal under Mineral Royalty Returns. ' +
         'File by the 7th of the month following the period.',
     };
   },
@@ -67,7 +68,7 @@ const tanzaniaPaymentRails: PaymentRailPort = {
   },
 };
 
-const tanzaniaTenantScreening: TenantScreeningPort = {
+const tanzaniaCounterpartyScreening: CounterpartyScreeningPort = {
   async lookupBureau(identityDocument, _country, consentToken) {
     if (!consentToken) {
       return buildStubBureauResult('CRB_TZ', ['CONSENT_TOKEN_INVALID']);
@@ -78,33 +79,33 @@ const tanzaniaTenantScreening: TenantScreeningPort = {
   },
 };
 
-const tanzaniaLeaseLaw: LeaseLawPort = {
-  requiredClauses(_leaseKind) {
+const tanzaniaMiningLaw: MiningLawPort = {
+  requiredClauses(_operationKind) {
     return Object.freeze([
-      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Land (Landlord and Tenant) Act §29.' },
-      { id: 'premises', label: 'Description of premises', mandatory: true, citation: 'Land (Landlord and Tenant) Act §29.' },
-      { id: 'rent-amount', label: 'Rent amount and frequency in TZS', mandatory: true, citation: 'Land (Landlord and Tenant) Act §30.' },
-      { id: 'tra-tin', label: "Landlord's TRA TIN disclosure", mandatory: true, citation: 'TRA withholding-agent requirement.' },
+      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Mining Act 2010 §8 (mineral rights).' },
+      { id: 'site', label: 'Description of licensed mining area', mandatory: true, citation: 'Mining Act 2010 §8.' },
+      { id: 'royalty-rate', label: 'Royalty/payment rate and frequency in TZS', mandatory: true, citation: 'Mining Act 2010 §87 (royalties).' },
+      { id: 'tra-tin', label: "Operator's TRA TIN disclosure", mandatory: true, citation: 'TRA withholding-agent requirement.' },
     ]);
   },
   noticeWindowDays(reason) {
     switch (reason) {
-      case 'non-payment': return 30;
-      case 'end-of-term':
+      case 'royalty-default': return 30;
+      case 'licence-expiry':
       case 'renewal-non-continuation': return 90;
-      case 'landlord-repossession': return 180;
-      case 'breach-of-covenant': return 30;
-      case 'illegal-use':
-      case 'nuisance': return 14;
+      case 'state-repossession': return 180;
+      case 'breach-of-condition': return 30;
+      case 'illegal-mining':
+      case 'environmental-breach': return 14;
       default: return null;
     }
   },
-  depositCapMultiple(regime) {
-    if (regime === 'commercial') return { maxMonthsOfRent: 12, citation: 'Market norm.' };
-    return { maxMonthsOfRent: 6, citation: 'Land (Landlord and Tenant) Act §32.' };
+  bondCapMultiple(regime) {
+    if (regime === 'industrial') return { maxMonthsOfRoyalty: 12, citation: 'Market norm.' };
+    return { maxMonthsOfRoyalty: 6, citation: 'Mining (Mineral Rights) Regulations 2018.' };
   },
-  rentIncreaseCap(_regime) {
-    return { citation: 'No statutory cap — arbitrated by Housing Tribunal on dispute.' };
+  royaltyEscalationCap(_regime) {
+    return { citation: 'No statutory cap — arbitrated by the Mining Commission on dispute.' };
   },
 };
 
@@ -176,31 +177,31 @@ export const tanzaniaPlugin: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 6,
+    minBondMonths: 1,
+    maxBondMonths: 6,
     noticePeriodDays: 90,
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Residential Lease Agreement (TZ)',
-      templatePath: 'tz/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (TZ)',
+      templatePath: 'tz/offtake-agreement.hbs',
       locale: 'sw-TZ',
     },
     {
-      id: 'notice-of-termination',
-      name: 'Notice of Termination (TZ)',
-      templatePath: 'tz/notice-of-termination.hbs',
+      id: 'notice-of-suspension',
+      name: 'Notice of Licence Suspension (TZ)',
+      templatePath: 'tz/notice-of-suspension.hbs',
       locale: 'sw-TZ',
     },
   ],
   taxRegime: tanzaniaTaxRegime,
   taxFiling: tanzaniaTaxFiling,
   paymentRails: tanzaniaPaymentRails,
-  tenantScreening: tanzaniaTenantScreening,
-  leaseLaw: tanzaniaLeaseLaw,
+  counterpartyScreening: tanzaniaCounterpartyScreening,
+  miningLaw: tanzaniaMiningLaw,
 };

@@ -18,7 +18,7 @@ import {
   parseProposedAction,
   classifyInitialTurn,
   reconcileMpesa,
-  summarizeKraRental,
+  summarizeTraRoyalty,
   reconcileServiceCharge,
   draftNotice,
   canSee,
@@ -159,62 +159,62 @@ describe('M-Pesa reconciliation', () => {
   });
 });
 
-describe('KRA rental summary', () => {
-  it('applies MRI at 7.5% under threshold', () => {
-    const r = summarizeKraRental({
+describe('TRA royalty summary', () => {
+  it('applies royalty at 7% under threshold', () => {
+    const r = summarizeTraRoyalty({
       receipts: [
         {
           ownerId: 'O1',
-          propertyId: 'P1',
+          assetId: 'P1',
           month: '2026-03',
-          amountKes: 100_000,
+          amountTzs: 100_000,
           collectedAsAgent: false,
         },
       ],
       month: '2026-03',
-      rate: 0.075,
-      annualThresholdKes: 15_000_000,
+      rate: 0.07,
+      annualThresholdTzs: 15_000_000_000,
       trailingGrossByOwner: {},
     });
-    expect(r.owners[0].mriDueKes).toBe(7_500);
-    expect(r.owners[0].withinMriThreshold).toBe(true);
+    expect(r.owners[0].royaltyDueTzs).toBeCloseTo(7_000);
+    expect(r.owners[0].withinStandardThreshold).toBe(true);
   });
 
-  it('withholds 7.5% when collected as agent', () => {
-    const r = summarizeKraRental({
+  it('withholds 7% when collected as agent', () => {
+    const r = summarizeTraRoyalty({
       receipts: [
         {
           ownerId: 'O1',
-          propertyId: 'P1',
+          assetId: 'P1',
           month: '2026-03',
-          amountKes: 100_000,
+          amountTzs: 100_000,
           collectedAsAgent: true,
         },
       ],
       month: '2026-03',
-      rate: 0.075,
-      annualThresholdKes: 15_000_000,
+      rate: 0.07,
+      annualThresholdTzs: 15_000_000_000,
       trailingGrossByOwner: {},
     });
-    expect(r.owners[0].withheldByAgentKes).toBe(7_500);
-    expect(r.owners[0].netPayableByOwnerKes).toBe(0);
+    expect(r.owners[0].withheldByAgentTzs).toBeCloseTo(7_000);
+    expect(r.owners[0].netPayableByOwnerTzs).toBe(0);
   });
 
   it('flags owners over the annual threshold', () => {
-    const r = summarizeKraRental({
+    const r = summarizeTraRoyalty({
       receipts: [
         {
           ownerId: 'O1',
-          propertyId: 'P1',
+          assetId: 'P1',
           month: '2026-03',
-          amountKes: 2_000_000,
+          amountTzs: 2_000_000_000,
           collectedAsAgent: false,
         },
       ],
       month: '2026-03',
-      rate: 0.075,
-      annualThresholdKes: 15_000_000,
-      trailingGrossByOwner: { O1: 14_000_000 },
+      rate: 0.07,
+      annualThresholdTzs: 15_000_000_000,
+      trailingGrossByOwner: { O1: 14_000_000_000 },
     });
     expect(r.owners[0].exceedsThreshold).toBe(true);
     expect(r.warnings.length).toBeGreaterThan(0);
@@ -270,7 +270,7 @@ describe('Brain wiring', () => {
     expect(brain.orchestrator).toBeTruthy();
     expect(brain.personas.list()).toHaveLength(12); // 7 juniors + EM + 2 coworkers + migration + tenant-assistant + owner-advisor
     expect(brain.tools.has('skill.kenya.mpesa_reconcile')).toBe(true);
-    expect(brain.tools.has('skill.kenya.kra_rental_summary')).toBe(true);
+    expect(brain.tools.has('skill.kenya.tra_royalty_summary')).toBe(true);
     expect(brain.tools.has('skill.kenya.swahili_draft')).toBe(true);
   });
 

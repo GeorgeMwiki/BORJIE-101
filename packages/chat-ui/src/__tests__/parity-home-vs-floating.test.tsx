@@ -26,14 +26,14 @@ import type { ChatMessage } from '../widget/types';
 
 const BLACKBOARD_METADATA: Record<string, unknown> = {
   blackboard: {
-    conceptTitle: 'Rent Affordability Ratio',
+    conceptTitle: 'Royalty Affordability Ratio',
     parts: [
       {
         kind: 'kpi-grid',
         title: 'Snapshot',
         tiles: [
           { label: 'Ratio', value: 30, format: 'percent' },
-          { label: 'Median rent', value: 25000, format: 'number' },
+          { label: 'Median royalty', value: 25000, format: 'number' },
         ],
       },
     ],
@@ -42,7 +42,7 @@ const BLACKBOARD_METADATA: Record<string, unknown> = {
 
 const TAB_DETAIL_METADATA: Record<string, unknown> = {
   tabDetail: {
-    title: 'Arrears Dashboard',
+    title: 'Outstanding Royalties Dashboard',
     subtitle: 'Q2 forecast',
     parts: [
       {
@@ -130,7 +130,7 @@ describe('MessageBubble compact tab-detail snapshot', () => {
     const message: ChatMessage = {
       id: 'm-tab-1',
       role: 'mwikila',
-      text: 'Here is the arrears dashboard you asked about.',
+      text: 'Here is the outstanding royalties dashboard you asked about.',
       language: 'en',
       createdAt: '2026-05-27T10:00:00Z',
       metadata: TAB_DETAIL_METADATA,
@@ -160,13 +160,13 @@ describe('MessageBubble compact tab-detail snapshot', () => {
     const title = container.querySelector(
       '[data-testid="inline-tab-detail-title"]',
     );
-    expect(title?.textContent).toBe('Arrears Dashboard');
+    expect(title?.textContent).toBe('Outstanding Royalties Dashboard');
 
     // Persona name is never replaced with a junior name (canonical
     // display directive). Body text + persona render normally.
     expect(container.textContent).toContain('Mr. Mwikila');
     expect(container.textContent).toContain(
-      'Here is the arrears dashboard you asked about.',
+      'Here is the outstanding royalties dashboard you asked about.',
     );
 
     // Pin the inline subtree shape — every landmark MUST be present

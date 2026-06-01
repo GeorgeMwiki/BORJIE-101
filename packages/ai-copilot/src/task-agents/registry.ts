@@ -8,40 +8,40 @@
  * not side-load via glob.
  */
 import type { TaskAgent } from './types.js';
-import { rentReminderAgent } from './agents/rent-reminder.agent.js';
+import { royaltyReminderAgent } from './agents/royalty-reminder.agent.js';
 import { lateFeeCalculatorAgent } from './agents/late-fee-calculator.agent.js';
-import { leaseRenewalSchedulerAgent } from './agents/lease-renewal-scheduler.agent.js';
-import { moveOutNoticeAgent } from './agents/move-out-notice.agent.js';
+import { offtakeRenewalSchedulerAgent } from './agents/offtake-renewal-scheduler.agent.js';
+import { siteClosureNoticeAgent } from './agents/site-closure-notice.agent.js';
 import { inspectionReminderAgent } from './agents/inspection-reminder.agent.js';
 import { vendorInvoiceApproverAgent } from './agents/vendor-invoice-approver.agent.js';
-import { tenantSentimentMonitorAgent } from './agents/tenant-sentiment-monitor.agent.js';
-import { arrearsLadderTickAgent } from './agents/arrears-ladder-tick.agent.js';
+import { buyerSentimentMonitorAgent } from './agents/buyer-sentiment-monitor.agent.js';
+import { royaltyArrearsLadderTickAgent } from './agents/royalty-arrears-ladder-tick.agent.js';
 import { insuranceExpiryMonitorAgent } from './agents/insurance-expiry-monitor.agent.js';
 import { licenseExpiryMonitorAgent } from './agents/license-expiry-monitor.agent.js';
-import { utilityMeterReadingReminderAgent } from './agents/utility-meter-reading-reminder.agent.js';
-import { vacancyMarketerAgent } from './agents/vacancy-marketer.agent.js';
+import { productionMeterReadingReminderAgent } from './agents/production-meter-reading-reminder.agent.js';
+import { availableCapacityMarketerAgent } from './agents/available-capacity-marketer.agent.js';
 import { proactiveMaintenanceAlertAgent } from './agents/proactive-maintenance-alert.agent.js';
-import { crossTenantChurnRiskAgent } from './agents/cross-tenant-churn-risk.agent.js';
+import { crossBuyerChurnRiskAgent } from './agents/cross-buyer-churn-risk.agent.js';
 import { paymentPlanProposerAgent } from './agents/payment-plan-proposer.agent.js';
 
 // The full typed registry. Order is stable (insertion order) for UI
 // enumeration but the consumer is `Record`-shaped for O(1) lookup by id.
 export const TASK_AGENT_REGISTRY: Readonly<Record<string, TaskAgent>> =
   Object.freeze({
-    [rentReminderAgent.id]: rentReminderAgent as unknown as TaskAgent,
+    [royaltyReminderAgent.id]: royaltyReminderAgent as unknown as TaskAgent,
     [lateFeeCalculatorAgent.id]: lateFeeCalculatorAgent as unknown as TaskAgent,
-    [leaseRenewalSchedulerAgent.id]: leaseRenewalSchedulerAgent as unknown as TaskAgent,
-    [moveOutNoticeAgent.id]: moveOutNoticeAgent as unknown as TaskAgent,
+    [offtakeRenewalSchedulerAgent.id]: offtakeRenewalSchedulerAgent as unknown as TaskAgent,
+    [siteClosureNoticeAgent.id]: siteClosureNoticeAgent as unknown as TaskAgent,
     [inspectionReminderAgent.id]: inspectionReminderAgent as unknown as TaskAgent,
     [vendorInvoiceApproverAgent.id]: vendorInvoiceApproverAgent as unknown as TaskAgent,
-    [tenantSentimentMonitorAgent.id]: tenantSentimentMonitorAgent as unknown as TaskAgent,
-    [arrearsLadderTickAgent.id]: arrearsLadderTickAgent as unknown as TaskAgent,
+    [buyerSentimentMonitorAgent.id]: buyerSentimentMonitorAgent as unknown as TaskAgent,
+    [royaltyArrearsLadderTickAgent.id]: royaltyArrearsLadderTickAgent as unknown as TaskAgent,
     [insuranceExpiryMonitorAgent.id]: insuranceExpiryMonitorAgent as unknown as TaskAgent,
     [licenseExpiryMonitorAgent.id]: licenseExpiryMonitorAgent as unknown as TaskAgent,
-    [utilityMeterReadingReminderAgent.id]: utilityMeterReadingReminderAgent as unknown as TaskAgent,
-    [vacancyMarketerAgent.id]: vacancyMarketerAgent as unknown as TaskAgent,
+    [productionMeterReadingReminderAgent.id]: productionMeterReadingReminderAgent as unknown as TaskAgent,
+    [availableCapacityMarketerAgent.id]: availableCapacityMarketerAgent as unknown as TaskAgent,
     [proactiveMaintenanceAlertAgent.id]: proactiveMaintenanceAlertAgent as unknown as TaskAgent,
-    [crossTenantChurnRiskAgent.id]: crossTenantChurnRiskAgent as unknown as TaskAgent,
+    [crossBuyerChurnRiskAgent.id]: crossBuyerChurnRiskAgent as unknown as TaskAgent,
     [paymentPlanProposerAgent.id]: paymentPlanProposerAgent as unknown as TaskAgent,
   });
 

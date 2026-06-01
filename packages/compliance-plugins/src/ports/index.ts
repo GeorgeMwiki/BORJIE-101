@@ -1,7 +1,7 @@
 /**
  * Port contracts — the five jurisdiction-pluggable surfaces every country
- * plugin is expected to implement. Each port ships with a DEFAULT
- * implementation so hot paths never crash on an unconfigured country.
+ * mining-compliance plugin is expected to implement. Each port ships with a
+ * DEFAULT implementation so hot paths never crash on an unconfigured country.
  */
 
 export {
@@ -25,7 +25,7 @@ export type {
   FilingResult,
   FilingRun,
   TaxFilingPort,
-  TenantProfileForFiling,
+  OperatorProfileForFiling,
 } from './tax-filing.port.js';
 
 export {
@@ -39,22 +39,22 @@ export type {
 } from './payment-rail.port.js';
 
 export {
-  DEFAULT_TENANT_SCREENING,
+  DEFAULT_COUNTERPARTY_SCREENING,
   buildStubBureauResult,
-} from './tenant-screening.port.js';
+} from './counterparty-screening.port.js';
 export type {
   BureauLookupResult,
   IdentityDocument,
-  TenantScreeningPort,
-} from './tenant-screening.port.js';
+  CounterpartyScreeningPort,
+} from './counterparty-screening.port.js';
 
-export { DEFAULT_LEASE_LAW } from './lease-law.port.js';
+export { DEFAULT_MINING_LAW } from './mining-law.port.js';
 export type {
   ClauseSpec,
-  DepositCap,
-  DepositCapRegime,
-  LeaseKind,
-  LeaseLawPort,
+  BondCap,
+  BondCapRegime,
+  OperationKind,
+  MiningLawPort,
   NoticeReason,
-  RentIncreaseCap,
-} from './lease-law.port.js';
+  RoyaltyEscalationCap,
+} from './mining-law.port.js';

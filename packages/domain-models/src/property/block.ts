@@ -1,6 +1,8 @@
 /**
  * Block domain model
- * Logical grouping of units within a property (e.g., "Block A", "Building 1")
+ * Logical grouping of units within a mining site (e.g., "Block A",
+ * "North Pit", "Plant 1"). A block aggregates the production /
+ * capacity counts of the units it contains.
  */
 
 import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
@@ -12,47 +14,47 @@ export function asBlockId(id: string): BlockId {
 }
 
 /** Block status */
-export type BlockStatus = 'active' | 'inactive' | 'under_construction' | 'under_renovation' | 'demolished';
+export type BlockStatus = 'active' | 'inactive' | 'under_development' | 'rehabilitating' | 'closed_out';
 
 /**
  * Block entity
- * Represents a logical grouping of units within a property
+ * Represents a logical grouping of units within a mining site
  */
 export interface Block extends EntityMetadata, SoftDeletable {
   readonly id: BlockId;
   readonly tenantId: TenantId;
-  readonly propertyId: string;
-  
+  readonly siteId: string;
+
   // Identity
   readonly blockCode: string;
   readonly name: string;
   readonly description: string | null;
-  
+
   // Status
   readonly status: BlockStatus;
-  
+
   // Location
-  readonly floor: number | null;
-  readonly wing: string | null;
-  
+  readonly level: number | null;
+  readonly zone: string | null;
+
   // Capacity
   readonly totalUnits: number;
-  readonly occupiedUnits: number;
-  readonly vacantUnits: number;
-  
+  readonly activeUnits: number;
+  readonly idleUnits: number;
+
   // Features
   readonly amenities: readonly string[];
   readonly features: Record<string, unknown>;
-  readonly hasElevator: boolean;
-  readonly hasParking: boolean;
+  readonly hasHaulRoad: boolean;
+  readonly hasWeighbridge: boolean;
   readonly hasSecurity: boolean;
-  
+
   // Management
   readonly managerId: string | null;
-  
+
   // Media
   readonly images: readonly string[];
-  
+
   // Display
   readonly sortOrder: number;
 }
@@ -62,16 +64,16 @@ export function createBlock(
   id: BlockId,
   data: {
     tenantId: TenantId;
-    propertyId: string;
+    siteId: string;
     blockCode: string;
     name: string;
     description?: string;
-    floor?: number;
-    wing?: string;
+    level?: number;
+    zone?: string;
     amenities?: string[];
     features?: Record<string, unknown>;
-    hasElevator?: boolean;
-    hasParking?: boolean;
+    hasHaulRoad?: boolean;
+    hasWeighbridge?: boolean;
     hasSecurity?: boolean;
     managerId?: string;
     sortOrder?: number;
@@ -83,20 +85,20 @@ export function createBlock(
   return {
     id,
     tenantId: data.tenantId,
-    propertyId: data.propertyId,
+    siteId: data.siteId,
     blockCode: data.blockCode,
     name: data.name,
     description: data.description ?? null,
     status: 'active',
-    floor: data.floor ?? null,
-    wing: data.wing ?? null,
+    level: data.level ?? null,
+    zone: data.zone ?? null,
     totalUnits: 0,
-    occupiedUnits: 0,
-    vacantUnits: 0,
+    activeUnits: 0,
+    idleUnits: 0,
     amenities: data.amenities ?? [],
     features: data.features ?? {},
-    hasElevator: data.hasElevator ?? false,
-    hasParking: data.hasParking ?? false,
+    hasHaulRoad: data.hasHaulRoad ?? false,
+    hasWeighbridge: data.hasWeighbridge ?? false,
     hasSecurity: data.hasSecurity ?? false,
     managerId: data.managerId ?? null,
     images: [],
@@ -114,14 +116,14 @@ export function createBlock(
 export function updateBlockUnitCounts(
   block: Block,
   totalUnits: number,
-  occupiedUnits: number,
+  activeUnits: number,
   updatedBy: UserId
 ): Block {
   return {
     ...block,
     totalUnits,
-    occupiedUnits,
-    vacantUnits: totalUnits - occupiedUnits,
+    activeUnits,
+    idleUnits: totalUnits - activeUnits,
     updatedAt: new Date().toISOString(),
     updatedBy,
   };
@@ -142,12 +144,15 @@ export function changeBlockStatus(
 }
 
 /** Generate block code */
-export function generateBlockCode(propertyCode: string, sequence: number): string {
-  return `${propertyCode}-BLK-${String(sequence).padStart(2, '0')}`;
+export function generateBlockCode(siteCode: string, sequence: number): string {
+  return `${siteCode}-BLK-${String(sequence).padStart(2, '0')}`;
 }
 
-/** Calculate block occupancy rate */
-export function calculateOccupancyRate(block: Block): number {
+/** Calculate block production / asset-utilisation rate. */
+export function calculateUtilisationRate(block: Block): number {
   if (block.totalUnits === 0) return 0;
-  return Math.round((block.occupiedUnits / block.totalUnits) * 100);
+  return Math.round((block.activeUnits / block.totalUnits) * 100);
 }
+
+/** @deprecated Use {@link calculateUtilisationRate}. */
+export const calculateOccupancyRate = calculateUtilisationRate;

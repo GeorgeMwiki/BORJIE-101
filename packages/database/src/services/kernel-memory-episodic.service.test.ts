@@ -202,7 +202,7 @@ describe('createEpisodicMemoryService', () => {
       threadId: 'th_1',
       turnId: 'tu_1',
       kind: 'user-message',
-      summary: 'asks about lease L-417',
+      summary: 'asks about offtake O-417',
     });
 
     expect(stub.rows).toHaveLength(1);
@@ -210,7 +210,7 @@ describe('createEpisodicMemoryService', () => {
     expect(stub.rows[0]?.userId).toBe('u_alice');
     expect(stub.rows[0]?.threadId).toBe('th_1');
     expect(stub.rows[0]?.turnId).toBe('tu_1');
-    expect(stub.rows[0]?.summary).toBe('asks about lease L-417');
+    expect(stub.rows[0]?.summary).toBe('asks about offtake O-417');
   });
 
   it('record honours an explicit ttlDays override and accepts ttl=null', async () => {

@@ -91,7 +91,7 @@ describe('createPgAutonomyPolicyService', () => {
         autonomousModeEnabled: true,
         policyJson: {
           actions: {
-            'rent.send-reminder': {
+            'royalty.send-reminder': {
               authorized: true,
               requiresApproval: false,
             },
@@ -104,7 +104,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision: AutonomyPolicyDecision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'medium',
     });
 
@@ -129,7 +129,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'arrears.escalate',
+      toolName: 'outstanding-royalties.escalate',
       stakes: 'high',
     });
 
@@ -145,7 +145,7 @@ describe('createPgAutonomyPolicyService', () => {
     const lowDecision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'low',
     });
     expect(lowDecision.authorized).toBe(true);
@@ -155,7 +155,7 @@ describe('createPgAutonomyPolicyService', () => {
     const highDecision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'arrears.escalate',
+      toolName: 'outstanding-royalties.escalate',
       stakes: 'high',
     });
     expect(highDecision.authorized).toBe(true);
@@ -169,7 +169,7 @@ describe('createPgAutonomyPolicyService', () => {
         autonomousModeEnabled: false,
         policyJson: {
           actions: {
-            'rent.send-reminder': {
+            'royalty.send-reminder': {
               authorized: true,
               requiresApproval: false,
             },
@@ -182,7 +182,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'low',
     });
 
@@ -203,7 +203,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'medium',
     });
 
@@ -219,7 +219,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision = await svc.decide({
       tenantId: 't1',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'low',
     });
 
@@ -234,7 +234,7 @@ describe('createPgAutonomyPolicyService', () => {
     const decision = await svc.decide({
       tenantId: '',
       userId: 'u1',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       stakes: 'low',
     });
 

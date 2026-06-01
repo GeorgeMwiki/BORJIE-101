@@ -19,7 +19,7 @@ function buildTenantPolicy(): AutonomyPolicy {
     ...buildDefaultPolicy(TENANT),
     autonomousModeEnabled: true,
     // Loosen a few cells so subsets have room to move.
-    leasing: {
+    offtake: {
       autoApproveRenewalsSameTerms: true,
       maxAutoApproveRentIncreasePct: 10,
       autoApproveApplicationScoreMin: 0.75,
@@ -32,10 +32,10 @@ function buildSpec(overrides: Partial<JuniorAISpec> = {}): JuniorAISpec {
   return {
     tenantId: TENANT,
     teamLeadUserId: LEAD,
-    domain: 'leasing',
+    domain: 'offtake',
     mandate: 'Handle same-terms renewals for ward 3.',
     policySubset: {
-      leasing: {
+      offtake: {
         autoApproveRenewalsSameTerms: true,
         maxAutoApproveRentIncreasePct: 5,
         autoApproveApplicationScoreMin: 0.8,
@@ -86,7 +86,7 @@ describe('JuniorAIFactoryService', () => {
     const { service } = makeService({ auditEvents });
     const badSpec = buildSpec({
       policySubset: {
-        leasing: {
+        offtake: {
           autoApproveRenewalsSameTerms: true,
           // Tenant cap is 10; junior requests 15 → violation.
           maxAutoApproveRentIncreasePct: 15,
@@ -135,7 +135,7 @@ describe('JuniorAIFactoryService', () => {
     const rec = await service.provision(buildSpec());
     const patched = await service.adjustScope(TENANT, rec.id, {
       policySubset: {
-        leasing: {
+        offtake: {
           autoApproveRenewalsSameTerms: true,
           maxAutoApproveRentIncreasePct: 8,
           autoApproveApplicationScoreMin: 0.8,
@@ -143,7 +143,7 @@ describe('JuniorAIFactoryService', () => {
         },
       },
     });
-    expect(patched.policySubset.leasing?.maxAutoApproveRentIncreasePct).toBe(8);
+    expect(patched.policySubset.offtake?.maxAutoApproveRentIncreasePct).toBe(8);
     const kinds = auditEvents.map((e) => e.kind);
     expect(kinds).toContain('scope_adjusted');
 
@@ -151,7 +151,7 @@ describe('JuniorAIFactoryService', () => {
     await expect(
       service.adjustScope(TENANT, rec.id, {
         policySubset: {
-          leasing: {
+          offtake: {
             autoApproveRenewalsSameTerms: true,
             maxAutoApproveRentIncreasePct: 50,
             autoApproveApplicationScoreMin: 0.8,

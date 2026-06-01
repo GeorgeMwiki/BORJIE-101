@@ -31,7 +31,7 @@ manifest. Shape (subset):
 {
   "schemaVersion": "0.2.0",
   "name": "Borjie",
-  "description": "AI-native property management OS — Tanzania-first",
+  "description": "AI-native mining estate OS — Tanzania-first",
   "version": "1.0.0",
   "endpoints": {
     "invoke": "$PUBLIC_BASE_URL/api/v1/a2a/invoke",

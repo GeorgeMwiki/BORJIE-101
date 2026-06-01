@@ -2,7 +2,7 @@
 
 /**
  * 29. org-chart — hierarchical relationship graph
- * (tenant ↔ guarantor ↔ co-applicant, owner ↔ portfolios ↔ properties).
+ * (operator ↔ guarantor ↔ co-applicant, owner ↔ portfolios ↔ sites).
  *
  * Pure CSS + SVG connector lines. No heavy graph libs. Recursive
  * indentation for vertical layout; horizontal layout uses CSS grid.

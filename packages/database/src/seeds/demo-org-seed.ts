@@ -1,14 +1,14 @@
 // @ts-nocheck — import-assertion syntax replaced in TS 5.3+; drizzle 0.36 pgEnum narrowing in demo seed. Tracked.
 /**
- * Demo Estate Corporation Seed
+ * Demo Mining Corporation Seed
  *
- * Provisions a generic multi-district estate-company organization end-to-end
- * so geo-hierarchy, approval workflows, and sample leases/payments/maintenance
+ * Provisions a generic multi-district mining-company organization end-to-end
+ * so geo-hierarchy, approval workflows, and sample offtakes/payments/maintenance
  * are testable without touching production data. The fixture models a large
- * multi-district public-sector estate client — intentionally anonymous so
+ * multi-district mining estate client — intentionally anonymous so
  * BORJIE customers of any size/region see a recognizable shape.
  *
- *   - Platform tenant "Demo Estate Corporation" (country=TZ, TZS currency)
+ *   - Platform tenant "Demo Mining Corporation" (country=TZ, TZS currency)
  *   - Organization "Head Office" (orgId base: demo-org)
  *   - GeoLabelTypes: depth=0 District, depth=1 Region, depth=2 Station
  *   - 4 District nodes with simplified polygons (demo-districts.json)
@@ -17,8 +17,8 @@
  *   - Approval thresholds: 100k / 500k TZS per spec
  *   - Users: Director General (OWNER), 2 Super Admins, 5 Station Masters
  *   - InviteCodeRecord rows (DEMO-*) for onboarding
- *   - Sample properties: 10 warehouses + 5 barelands + 5 godowns
- *   - Sample tenants/leases/payments/maintenance via sample-tenants.ts
+ *   - Sample mining sites: 10 processing yards + 5 open-cast blocks + 5 ore sheds
+ *   - Sample buyers/offtakes/payments/maintenance via sample-tenants.ts
  *
  * Idempotency:
  *   - Every insert uses a deterministic natural-key id (`demo-*-NNN`) and
@@ -51,8 +51,8 @@ import {
 } from '../schemas/index.js';
 import districtsData from './demo-districts.json' assert { type: 'json' };
 import {
-  SAMPLE_TENANTS,
-  SAMPLE_LEASES,
+  SAMPLE_BUYERS,
+  SAMPLE_OFFTAKES,
   SAMPLE_PAYMENTS,
   SAMPLE_MAINTENANCE,
 } from './sample-tenants.js';
@@ -151,8 +151,8 @@ const LEASE_EXCEPTION_POLICY = {
   type: 'lease_exception',
   currency: 'TZS',
   thresholds: [
-    { maxAmountMinor: TZS_500K, approver: 'ESTATE_MANAGER', description: 'Rent <= 500k TZS — Estate Manager may sign.' },
-    { maxAmountMinor: null,     approver: 'DIRECTOR_GENERAL', description: 'Rent > 500k TZS — Director General approval required.' },
+    { maxAmountMinor: TZS_500K, approver: 'ESTATE_MANAGER', description: 'Royalty <= 500k TZS — Estate Manager may sign.' },
+    { maxAmountMinor: null,     approver: 'DIRECTOR_GENERAL', description: 'Royalty > 500k TZS — Director General approval required.' },
   ],
   autoApproveRules: [],
   approvalChain: ['ESTATE_MANAGER', 'DIRECTOR_GENERAL'],
@@ -236,54 +236,54 @@ function planStations(regions: readonly (SeedRegion & { districtCode: string })[
 }
 
 // ---------------------------------------------------------------------------
-// Sample properties — 10 warehouses + 5 barelands + 5 godowns
+// Sample mining sites — 10 processing yards + 5 open-cast blocks + 5 ore sheds
 // ---------------------------------------------------------------------------
-interface SeedProperty {
+interface SeedSite {
   readonly externalRef: string;
   readonly name: string;
-  readonly type: 'warehouse' | 'bareland' | 'godown';
+  readonly type: 'processing_yard' | 'open_cast_block' | 'ore_shed';
   readonly stationCode: string; // which station node (geo) owns it
   readonly addressLine1: string;
   readonly city: string;
 }
 
-function planProperties(stations: readonly SeedStation[]): readonly SeedProperty[] {
+function planSites(stations: readonly SeedStation[]): readonly SeedSite[] {
   const getStation = (i: number) => stations[i % stations.length]!;
-  const props: SeedProperty[] = [];
+  const sites: SeedSite[] = [];
   for (let i = 0; i < 10; i++) {
     const st = getStation(i);
-    props.push({
+    sites.push({
       externalRef: `demo-prop-wh-${String(i + 1).padStart(2, '0')}`,
-      name: `${st.name} Warehouse`,
-      type: 'warehouse',
+      name: `${st.name} Processing Yard`,
+      type: 'processing_yard',
       stationCode: st.code,
-      addressLine1: `${st.name}, Platform Road`,
+      addressLine1: `${st.name}, Mine Access Road`,
       city: st.name.split(' ')[0] ?? 'Tanzania',
     });
   }
   for (let i = 0; i < 5; i++) {
     const st = getStation(i + 10);
-    props.push({
+    sites.push({
       externalRef: `demo-prop-bl-${String(i + 1).padStart(2, '0')}`,
-      name: `${st.name} Bareland Parcel`,
-      type: 'bareland',
+      name: `${st.name} Open-Cast Block`,
+      type: 'open_cast_block',
       stationCode: st.code,
-      addressLine1: `Bareland adjacent to ${st.name}`,
+      addressLine1: `Open-cast block adjacent to ${st.name}`,
       city: st.name.split(' ')[0] ?? 'Tanzania',
     });
   }
   for (let i = 0; i < 5; i++) {
     const st = getStation(i + 15);
-    props.push({
+    sites.push({
       externalRef: `demo-prop-gd-${String(i + 1).padStart(2, '0')}`,
-      name: `${st.name} Godown`,
-      type: 'godown',
+      name: `${st.name} Ore Shed`,
+      type: 'ore_shed',
       stationCode: st.code,
-      addressLine1: `${st.name} Godown Block B`,
+      addressLine1: `${st.name} Ore Shed Block B`,
       city: st.name.split(' ')[0] ?? 'Tanzania',
     });
   }
-  return props;
+  return sites;
 }
 
 // ---------------------------------------------------------------------------
@@ -301,7 +301,7 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
       .insert(tenants)
       .values({
         id: DEMO_TENANT_ID,
-        name: 'Demo Estate Corporation',
+        name: 'Demo Mining Corporation',
         slug: 'demo',
         status: 'active',
         subscriptionTier: 'enterprise',
@@ -666,11 +666,11 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
       .set({ settings: { inviteCodes } })
       .where(eq(tenants.id, DEMO_TENANT_ID));
 
-    // 11. Properties ----------------------------------------------------------
-    const sampleProps = planProperties(stations);
-    const propertyIdByRef = new Map<string, string>();
-    for (const p of sampleProps) {
-      propertyIdByRef.set(p.externalRef, p.externalRef); // use ref as id for idempotence
+    // 11. Mining sites --------------------------------------------------------
+    const sampleSites = planSites(stations);
+    const siteIdByRef = new Map<string, string>();
+    for (const p of sampleSites) {
+      siteIdByRef.set(p.externalRef, p.externalRef); // use ref as id for idempotence
       await tx
         .insert(properties)
         .values({
@@ -680,11 +680,11 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           propertyCode: p.externalRef.toUpperCase(),
           name: p.name,
           type:
-            p.type === 'warehouse'
+            p.type === 'processing_yard'
               ? 'commercial'
-              : p.type === 'godown'
+              : p.type === 'ore_shed'
                 ? 'commercial'
-                : 'other', // bareland
+                : 'other', // open_cast_block
           status: 'active',
           addressLine1: p.addressLine1,
           city: p.city,
@@ -697,7 +697,7 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
         })
         .onConflictDoNothing();
 
-      // one unit per property
+      // one block per site
       const unitId = `${p.externalRef}-unit-a`;
       const unitCode = 'A';
       await tx
@@ -707,17 +707,17 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           tenantId: DEMO_TENANT_ID,
           propertyId: p.externalRef,
           unitCode,
-          name: `${p.name} — Unit A`,
-          type: p.type === 'bareland' ? 'other' : 'warehouse',
+          name: `${p.name} — Block A`,
+          type: p.type === 'open_cast_block' ? 'other' : 'warehouse',
           status: 'vacant',
-          baseRentAmount: 200_000_00, // default placeholder; overridden by leases
+          baseRentAmount: 200_000_00, // default placeholder; overridden by offtakes
           baseRentCurrency: DEMO_CURRENCY,
         })
         .onConflictDoNothing();
     }
 
-    // 12. Sample customers ----------------------------------------------------
-    for (const t of SAMPLE_TENANTS) {
+    // 12. Sample buyers / counterparties --------------------------------------
+    for (const t of SAMPLE_BUYERS) {
       await tx
         .insert(customers)
         .values({
@@ -731,57 +731,57 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           status: 'active',
           kycStatus: 'verified',
           occupation: t.occupation,
-          monthlyIncome: t.monthlyIncomeTzsMinor,
+          monthlyIncome: t.monthlyTurnoverTzsMinor,
           incomeCurrency: DEMO_CURRENCY,
           nationality: 'Tanzanian',
         })
         .onConflictDoNothing();
     }
 
-    // 13. Sample leases + customer ledger accounts ----------------------------
-    const leaseById = new Map<string, { id: string; startDate: Date }>();
-    for (const l of SAMPLE_LEASES) {
-      const unitRef = `${l.propertyRef}-unit-a`;
+    // 13. Sample offtake agreements + counterparty ledger accounts ------------
+    const offtakeById = new Map<string, { id: string; startDate: Date }>();
+    for (const l of SAMPLE_OFFTAKES) {
+      const unitRef = `${l.siteRef}-unit-a`;
       const startDate = new Date(now);
       startDate.setMonth(startDate.getMonth() + l.startOffsetMonths);
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + l.termMonths);
-      const leaseId = l.externalRef;
-      leaseById.set(l.externalRef, { id: leaseId, startDate });
+      const offtakeId = l.externalRef;
+      offtakeById.set(l.externalRef, { id: offtakeId, startDate });
 
       await tx
         .insert(leases)
         .values({
-          id: leaseId,
+          id: offtakeId,
           tenantId: DEMO_TENANT_ID,
-          propertyId: l.propertyRef,
+          propertyId: l.siteRef,
           unitId: unitRef,
-          customerId: l.tenantRef,
-          leaseNumber: leaseId.toUpperCase(),
+          customerId: l.buyerRef,
+          leaseNumber: offtakeId.toUpperCase(),
           leaseType: 'fixed_term',
           status: 'active',
           startDate,
           endDate,
-          rentAmount: l.monthlyRentTzsMinor,
+          rentAmount: l.monthlyRoyaltyTzsMinor,
           rentCurrency: DEMO_CURRENCY,
           rentFrequency: 'monthly',
           rentDueDay: 1,
-          securityDepositAmount: l.monthlyRentTzsMinor * l.depositMultiplier,
-          securityDepositPaid: l.monthlyRentTzsMinor * l.depositMultiplier,
-          primaryOccupant: { name: l.tenantRef, relationship: 'self' },
+          securityDepositAmount: l.monthlyRoyaltyTzsMinor * l.depositMultiplier,
+          securityDepositPaid: l.monthlyRoyaltyTzsMinor * l.depositMultiplier,
+          primaryOccupant: { name: l.buyerRef, relationship: 'self' },
         })
         .onConflictDoNothing();
 
-      // customer liability account (rent receivable)
-      const acctId = `acct-${l.tenantRef}-liab`;
+      // counterparty liability account (royalty receivable)
+      const acctId = `acct-${l.buyerRef}-liab`;
       await tx
         .insert(accounts)
         .values({
           id: acctId,
           tenantId: DEMO_TENANT_ID,
-          customerId: l.tenantRef,
-          propertyId: l.propertyRef,
-          name: `Rent Receivable — ${l.tenantRef}`,
+          customerId: l.buyerRef,
+          propertyId: l.siteRef,
+          name: `Royalty Receivable — ${l.buyerRef}`,
           type: 'CUSTOMER_LIABILITY',
           status: 'ACTIVE',
           currency: DEMO_CURRENCY,
@@ -790,13 +790,13 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
         .onConflictDoNothing();
     }
 
-    // 14. Sample payment ledger entries --------------------------------------
+    // 14. Sample royalty-payment ledger entries -------------------------------
     let seq = 1;
     for (const p of SAMPLE_PAYMENTS) {
-      const lease = leaseById.get(p.leaseRef);
-      if (!lease) continue;
-      const acctId = `acct-${p.tenantRef}-liab`;
-      const periodStart = new Date(lease.startDate);
+      const offtake = offtakeById.get(p.offtakeRef);
+      if (!offtake) continue;
+      const acctId = `acct-${p.buyerRef}-liab`;
+      const periodStart = new Date(offtake.startDate);
       periodStart.setMonth(periodStart.getMonth() + p.periodOffsetMonths);
       const effective = new Date(periodStart);
       effective.setDate(effective.getDate() + p.daysLate);
@@ -815,17 +815,17 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           balanceAfterMinorUnits: 0,
           sequenceNumber: seq++,
           effectiveDate: effective,
-          leaseId: p.leaseRef,
+          leaseId: p.offtakeRef,
           description:
             p.daysLate === 0
-              ? 'On-time rent payment'
-              : `Rent payment (${p.daysLate} days late)`,
+              ? 'On-time royalty payment'
+              : `Royalty payment (${p.daysLate} days late)`,
           metadata: { daysLate: p.daysLate, periodOffsetMonths: p.periodOffsetMonths },
         })
         .onConflictDoNothing();
     }
 
-    // 15. Sample open maintenance cases --------------------------------------
+    // 15. Sample open site-maintenance cases ---------------------------------
     for (const m of SAMPLE_MAINTENANCE) {
       const submittedAt = new Date(now);
       submittedAt.setDate(submittedAt.getDate() - m.submittedDaysAgo);
@@ -834,8 +834,8 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
         .values({
           id: m.externalRef,
           tenantId: DEMO_TENANT_ID,
-          propertyId: m.propertyRef,
-          customerId: m.tenantRef ?? undefined,
+          propertyId: m.siteRef,
+          customerId: m.buyerRef ?? undefined,
           requestNumber: m.externalRef.toUpperCase(),
           status: 'submitted',
           title: m.title,

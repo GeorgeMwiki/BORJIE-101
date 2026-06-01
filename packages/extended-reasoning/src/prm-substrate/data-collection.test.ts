@@ -10,15 +10,15 @@ describe('emitPrmTrainingSample', () => {
     const sample = await emitPrmTrainingSample(
       {
         conversationId: 'conv_1',
-        taskClass: 'lease-renewal',
+        taskClass: 'offtake-renewal',
         steps: [
-          { index: 0, description: 'fetch tenant profile' },
-          { index: 1, description: 'compute renewal price', context: { rentTzs: 500000 } },
+          { index: 0, description: 'fetch counterparty profile' },
+          { index: 1, description: 'compute renewal price', context: { royaltyTzs: 500000 } },
           { index: 2, description: 'draft renewal letter' },
         ],
         outcome: 'success',
         rewardSignal: 0.82,
-        metadata: { jurisdiction: 'TZ-DSM' },
+        metadata: { jurisdiction: 'TZ-GEITA' },
       },
       async (s) => {
         captured.push(s);
@@ -29,12 +29,12 @@ describe('emitPrmTrainingSample', () => {
     expect(captured).toHaveLength(1);
     expect(sample.version).toBe('1.0');
     expect(sample.conversationId).toBe('conv_1');
-    expect(sample.taskClass).toBe('lease-renewal');
+    expect(sample.taskClass).toBe('offtake-renewal');
     expect(sample.steps).toHaveLength(3);
     expect(sample.outcome).toBe('success');
     expect(sample.rewardSignal).toBe(0.82);
     expect(sample.emittedAt).toBe('2026-05-19T12:00:00.000Z');
-    expect(sample.metadata?.jurisdiction).toBe('TZ-DSM');
+    expect(sample.metadata?.jurisdiction).toBe('TZ-GEITA');
   });
 
   it('rejects empty steps', async () => {

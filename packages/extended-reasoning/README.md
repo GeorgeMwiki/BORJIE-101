@@ -6,9 +6,9 @@ each grounded in a concrete BORJIE use case:
 
 | Module | L1 deferral | BORJIE grounding |
 |---|---|---|
-| `got/` Graph-of-Thoughts | "niche" | Portfolio-level reasoning with shared deps + multi-jurisdiction interlock |
-| `lats/` Language Agent Tree Search | "overkill for MD" | Long-horizon multi-month flows (lease renewal, eviction, KRA cycle) |
-| `tot/` raw Tree-of-Thoughts | "use Self-Discover instead" | FIXED decision trees (eviction, vendor, KRA-route, tenant-screening) |
+| `got/` Graph-of-Thoughts | "niche" | Estate-level reasoning with shared deps + multi-jurisdiction interlock |
+| `lats/` Language Agent Tree Search | "overkill for MD" | Long-horizon multi-month flows (offtake renewal, licence suspension, TRA royalty cycle) |
+| `tot/` raw Tree-of-Thoughts | "use Self-Discover instead" | FIXED decision trees (licence-suspension, vendor, TRA-royalty-route, buyer-screening) |
 | `prm-substrate/` Process Reward Model substrate | "Phase 3 — needs data" | Data collection + runtime scoring harness + eval — drop-in when trained |
 | `sot/` Skeleton-of-Thought | "latency not our bottleneck" | Mobile on 3G — halves FMP for long owner-portal briefings |
 
@@ -21,7 +21,7 @@ the end-to-end portfolio-refinance decision that uses all 5 patterns.
 ```ts
 import { runGoT } from '@borjie/extended-reasoning/got';
 import { runLATS } from '@borjie/extended-reasoning/lats';
-import { runToT, EVICTION_DECISION_TREE, VENDOR_SELECTION_TREE, KRA_FILING_TREE, TENANT_SCREENING_TREE } from '@borjie/extended-reasoning/tot';
+import { runToT, LICENCE_SUSPENSION_TREE, VENDOR_SELECTION_TREE, TRA_FILING_TREE, BUYER_SCREENING_TREE } from '@borjie/extended-reasoning/tot';
 import { scoreStepWithPRM, emitPrmTrainingSample, runPrmEval } from '@borjie/extended-reasoning/prm-substrate';
 import { runSoT } from '@borjie/extended-reasoning/sot';
 ```

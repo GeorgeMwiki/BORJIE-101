@@ -1,20 +1,25 @@
 /**
- * Lease domain models.
+ * Offtake (supply-agreement) domain models (public subpath barrel).
  *
- * Leases represent rental agreements between tenants (customers) and property owners.
- * They define the terms, duration, and obligations of the rental relationship.
+ * Offtakes represent mineral supply agreements between mining owners
+ * (sellers) and buyer / off-taker counterparties. They define the
+ * terms, duration, and obligations of the supply relationship. This
+ * barrel re-exports the canonical `Offtake` and `ProductionTenure`
+ * models and adds the counterparty value model + input DTOs.
  */
 
-// Export the detailed Occupancy model with Zod schemas
+// Canonical models (offtake agreement + production tenure).
+export * from './lease';
 export * from './occupancy';
 
 import { BaseEntity, TenantScoped, DateRange, Money, ContactInfo, Address } from '../common';
+import type { OfftakeType } from './lease';
 
 // ============================================================================
-// Customer Account Entity
+// Counterparty Account Entity
 // ============================================================================
 
-export interface CustomerAccount extends BaseEntity, TenantScoped {
+export interface CounterpartyAccount extends BaseEntity, TenantScoped {
   userId?: string; // Linked user for app access
   firstName: string;
   lastName: string;
@@ -23,14 +28,14 @@ export interface CustomerAccount extends BaseEntity, TenantScoped {
   dateOfBirth?: Date;
   contactInfo: ContactInfo;
   emergencyContact?: EmergencyContact;
-  employmentInfo?: EmploymentInfo;
-  documents: CustomerDocument[];
-  status: CustomerStatus;
+  tradeInfo?: TradeInfo;
+  documents: CounterpartyDocument[];
+  status: CounterpartyStatus;
 }
 
 export type IdentificationType = 'national_id' | 'passport' | 'drivers_license' | 'company_registration';
 
-export type CustomerStatus = 'active' | 'inactive' | 'blacklisted';
+export type CounterpartyStatus = 'active' | 'inactive' | 'blacklisted';
 
 export interface EmergencyContact {
   name: string;
@@ -39,15 +44,16 @@ export interface EmergencyContact {
   email?: string;
 }
 
-export interface EmploymentInfo {
-  employer: string;
-  position: string;
-  monthlyIncome?: Money;
-  employerPhone?: string;
-  employerAddress?: Address;
+export interface TradeInfo {
+  /** Buyer / off-taker trading entity. */
+  tradingName: string;
+  role: string;
+  monthlyVolume?: Money;
+  tradingPhone?: string;
+  tradingAddress?: Address;
 }
 
-export interface CustomerDocument {
+export interface CounterpartyDocument {
   id: string;
   type: DocumentType;
   name: string;
@@ -59,93 +65,15 @@ export interface CustomerDocument {
 
 export type DocumentType =
   | 'id_copy'
-  | 'proof_of_income'
-  | 'employment_letter'
+  | 'proof_of_funds'
+  | 'trade_licence'
   | 'bank_statement'
   | 'reference_letter'
   | 'other';
 
 // ============================================================================
-// Lease Entity
+// Site-condition Inspection Value Object
 // ============================================================================
-
-export interface Lease extends BaseEntity, TenantScoped {
-  unitId: string;
-  customerId: string;
-  status: LeaseStatus;
-  type: LeaseType;
-  term: DateRange;
-  rentAmount: Money;
-  depositAmount: Money;
-  depositPaid: Money;
-  paymentDay: number; // Day of month rent is due (1-28)
-  terms: LeaseTerms;
-  signatories: LeaseSignatory[];
-  renewalHistory: LeaseRenewal[];
-  documents: LeaseDocument[];
-}
-
-export type LeaseStatus = 'draft' | 'pending_signature' | 'active' | 'expired' | 'terminated' | 'renewed';
-
-export type LeaseType = 'fixed_term' | 'month_to_month' | 'short_term';
-
-export interface LeaseTerms {
-  lateFeePercentage: number;
-  lateFeeGraceDays: number;
-  noticePeriodDays: number;
-  petsAllowed: boolean;
-  maxOccupants: number;
-  includedUtilities: string[];
-  specialConditions?: string;
-}
-
-export interface LeaseSignatory {
-  customerId: string;
-  role: 'primary' | 'co_tenant' | 'guarantor';
-  signedAt?: Date;
-  signatureUrl?: string;
-}
-
-export interface LeaseRenewal {
-  previousLeaseId: string;
-  renewedAt: Date;
-  newTerm: DateRange;
-  newRentAmount: Money;
-  reason?: string;
-}
-
-export interface LeaseDocument {
-  id: string;
-  type: LeaseDocumentType;
-  name: string;
-  url: string;
-  generatedAt: Date;
-  signedAt?: Date;
-}
-
-export type LeaseDocumentType =
-  | 'lease_agreement'
-  | 'addendum'
-  | 'notice'
-  | 'termination_letter'
-  | 'renewal_offer';
-
-// ============================================================================
-// Occupancy Entity
-// ============================================================================
-
-export interface Occupancy extends BaseEntity, TenantScoped {
-  leaseId: string;
-  unitId: string;
-  customerId: string;
-  status: OccupancyStatus;
-  moveInDate: Date;
-  moveOutDate?: Date;
-  moveInInspection?: Inspection;
-  moveOutInspection?: Inspection;
-}
-
-export type OccupancyStatus = 'scheduled' | 'active' | 'notice_given' | 'moved_out';
 
 export interface Inspection {
   id: string;
@@ -155,7 +83,7 @@ export interface Inspection {
   overallCondition: 'excellent' | 'good' | 'fair' | 'poor';
   photos: string[];
   notes?: string;
-  signedByCustomer: boolean;
+  signedByCounterparty: boolean;
   signedAt?: Date;
 }
 
@@ -167,10 +95,10 @@ export interface InspectionItem {
 }
 
 // ============================================================================
-// DTOs
+// Input DTOs
 // ============================================================================
 
-export interface CreateCustomerInput {
+export interface CreateCounterpartyInput {
   firstName: string;
   lastName: string;
   idType: IdentificationType;
@@ -180,28 +108,26 @@ export interface CreateCustomerInput {
   emergencyContact?: EmergencyContact;
 }
 
-export interface CreateLeaseInput {
+export interface CreateOfftakeInput {
   unitId: string;
-  customerId: string;
-  type: LeaseType;
+  counterpartyId: string;
+  type: OfftakeType;
   term: DateRange;
-  rentAmount: Money;
-  depositAmount: Money;
+  paymentAmount: Money;
+  performanceBond: Money;
   paymentDay: number;
-  terms: LeaseTerms;
-  additionalSignatories?: Array<{
-    customerId: string;
-    role: 'co_tenant' | 'guarantor';
+  additionalParties?: Array<{
+    counterpartyId: string;
+    role: 'co_buyer' | 'guarantor';
   }>;
 }
 
-export interface RenewLeaseInput {
+export interface RenewOfftakeInput {
   newTerm: DateRange;
-  newRentAmount?: Money;
-  updatedTerms?: Partial<LeaseTerms>;
+  newPaymentAmount?: Money;
 }
 
-export interface TerminateLeaseInput {
+export interface TerminateOfftakeInput {
   reason: string;
   effectiveDate: Date;
   refundAmount?: Money;

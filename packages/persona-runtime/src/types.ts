@@ -11,7 +11,7 @@
  *   T2 ADMIN     — top operational lead (DG / CEO / GM / VC)
  *   T3 MANAGER   — dept/region/module head
  *   T4 EMPLOYEE  — field staff
- *   T5 CUSTOMER  — external (lessee / guest / student / vendor)
+ *   T5 CUSTOMER  — external (buyer / guest / student / vendor)
  */
 
 import { z } from 'zod';
@@ -97,7 +97,7 @@ export const ChannelSchema = z.enum(CHANNELS);
  *
  *   - tenant_scope    — "everything in tenant X"
  *   - org_scope       — "everything in organization Y inside tenant X"
- *   - module_scope    — "everything inside module M (maintenance, leasing, ...)"
+ *   - module_scope    — "everything inside module M (maintenance, offtake, ...)"
  *   - region_scope    — "everything in region R (north, south, ...)"
  *   - own_records     — "rows whose owner_user_id equals the caller"
  *   - none            — "no access" (sentinel — useful for kill-switched personas)
@@ -189,7 +189,7 @@ export const AuthorizationContextSchema = z.object({
   personaId: z.string().min(1),
   /** Optional org binding for module_scope evaluations. */
   orgId: z.string().optional(),
-  /** Active module hint, e.g. 'maintenance', 'leasing'. */
+  /** Active module hint, e.g. 'maintenance', 'offtake'. */
   moduleId: z.string().optional(),
   /** Active region hint when persona is region_scope. */
   regionId: z.string().optional(),

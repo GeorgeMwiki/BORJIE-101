@@ -18,8 +18,10 @@ const PII_PATTERNS: ReadonlyArray<{
   readonly regex: RegExp;
   readonly replacement: string;
 }> = [
-  // Kenya KRA PIN — A123456789B
-  { regex: /\b[A-Z]\d{9}[A-Z]\b/g, replacement: '<kra-pin:redacted>' },
+  // Tanzania TRA TIN — 123-456-789 (9 digits, NNN-NNN-NNN). The canonical
+  // mirror in sovereign-action-ledger.service.ts must make the matching
+  // KRA-PIN -> TRA-TIN change to avoid redaction drift between the two.
+  { regex: /\b\d{3}-\d{3}-\d{3}\b/g, replacement: '<tra-tin:redacted>' },
   // Tanzania NIDA — 20 digits total. The canonical NIDA format is
   // `YYYY-MMDD-NNNNN-NNNNNNN` (4-4-5-7 with hyphen separators). We
   // accept either:

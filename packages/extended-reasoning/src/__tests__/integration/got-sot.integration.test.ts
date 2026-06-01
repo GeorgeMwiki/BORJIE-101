@@ -35,7 +35,7 @@ describe('GoT → SoT briefing flow', () => {
 
     // Stage 2 — SoT renders the briefing
     const skeleton: ModelAdapter = async () =>
-      JSON.stringify(['Revenue', 'Occupancy', 'Risks', 'Next 30 days']);
+      JSON.stringify(['Revenue', 'Production', 'Risks', 'Next 30 days']);
     const point: ModelAdapter = async (input) => `Detail: ${input.prompt.slice(-30)}`;
     let order: string[] = [];
     let virtualNow = 0;

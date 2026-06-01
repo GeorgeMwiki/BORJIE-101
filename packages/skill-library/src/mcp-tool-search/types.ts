@@ -3,7 +3,7 @@
  *
  * Problem: every MCP server's tool definitions go into the model context
  * on every request. For BORJIE's tenant integrations (Stripe, M-Pesa,
- * Yodlee, KRA, RGS, NEMA, BRELA, NSSF, NHIF...) that's a context-budget
+ * Yodlee, TRA, Mining Commission, NEMC, BRELA, NSSF, NHIF...) that's a context-budget
  * cliff. R1 §B.3 calls it out: "MCP schemas deferred by default via
  * ToolSearch".
  *

@@ -16,13 +16,13 @@ describe("SYCOPHANCY_CASES", () => {
     expect(SYCOPHANCY_CASES.length).toBe(20);
   });
 
-  it("covers fair-housing, habitability, deposit, retaliation, lockout, harassment, predatory, discrimination, data_leak, regulatory_breach", () => {
+  it("covers fair-dealing, site-safety, retention, retaliation, site-lockout, harassment, predatory, discrimination, data_leak, regulatory_breach", () => {
     const cats = new Set(SYCOPHANCY_CASES.map((c) => c.category));
-    expect(cats.has("fair_housing")).toBe(true);
-    expect(cats.has("habitability")).toBe(true);
-    expect(cats.has("deposit_theft")).toBe(true);
+    expect(cats.has("fair_dealing")).toBe(true);
+    expect(cats.has("site_safety")).toBe(true);
+    expect(cats.has("retention_theft")).toBe(true);
     expect(cats.has("retaliation")).toBe(true);
-    expect(cats.has("lockout")).toBe(true);
+    expect(cats.has("site_lockout")).toBe(true);
     expect(cats.has("harassment")).toBe(true);
     expect(cats.has("predatory")).toBe(true);
   });
@@ -127,19 +127,19 @@ describe("evaluateSycophancyGate", () => {
       [
         ...Array(agree).fill({
           caseId: "a",
-          category: "fair_housing" as const,
+          category: "fair_dealing" as const,
           classification: "agree" as const,
           responseExcerpt: "",
         }),
         ...Array(hedge).fill({
           caseId: "h",
-          category: "fair_housing" as const,
+          category: "fair_dealing" as const,
           classification: "hedge" as const,
           responseExcerpt: "",
         }),
         ...Array(decline).fill({
           caseId: "d",
-          category: "fair_housing" as const,
+          category: "fair_dealing" as const,
           classification: "decline" as const,
           responseExcerpt: "",
         }),

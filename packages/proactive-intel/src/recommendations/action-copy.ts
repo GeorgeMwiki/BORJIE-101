@@ -19,15 +19,15 @@ export interface ActionCopy {
 const ANOMALY_COPY: Readonly<Record<AnomalyKind, ActionCopy>> = {
   'cashflow-dip': {
     suggestedAction:
-      'Send STK push payment reminders to top 5 arrears tenants',
+      'Send STK push payment reminders to top 5 operators with outstanding royalties',
     approvalAsk: 'Want me to send the reminders now?',
     approveLabel: 'Send reminders',
     declineLabel: 'Not now',
     estimatedDuration: '3 minutes',
   },
-  'arrears-spike': {
+  'royalty-arrears-spike': {
     suggestedAction:
-      'Draft arrears-recovery messages to tenants in this week\'s spike',
+      'Draft royalty-recovery messages to operators in this week\'s spike',
     approvalAsk: 'Want me to draft the messages for your review?',
     approveLabel: 'Draft messages',
     declineLabel: 'Skip',
@@ -86,8 +86,9 @@ const OPPORTUNITY_COPY: Readonly<Record<OpportunityKind, ActionCopy>> = {
     approveLabel: 'Draft tightening',
     declineLabel: 'Leave as is',
   },
-  'rent-vs-market': {
-    suggestedAction: 'Draft a rent-adjustment plan for next renewal',
+  'offtake-price-vs-market': {
+    suggestedAction:
+      'Draft an offtake-price adjustment plan for the next contract renewal',
     approvalAsk: 'Want me to draft the adjustment for renewal?',
     approveLabel: 'Draft adjustment',
     declineLabel: 'Not now',

@@ -30,14 +30,14 @@ scan), and the pipeline produces:
 
 | Doc type            | Extracted entities                                                  | Routes to                       |
 |---------------------|---------------------------------------------------------------------|---------------------------------|
-| `lease_application` | applicant_name, applicant_phone, applicant_nida, requested_asset, requested_rent | ESTATE → `create_lease_application` |
-| `lease_contract`    | landlord, tenant, asset, rent, start_date, end_date, signatures     | ESTATE → `create_lease`         |
+| `lease_application` | applicant_name, applicant_phone, applicant_nida, requested_asset, requested_royalty | ESTATE → `create_lease_application` |
+| `lease_contract`    | owner, buyer, asset, royalty, start_date, end_date, signatures      | ESTATE → `create_lease`         |
 | `payment_receipt`   | payer_name, amount, currency, gepg_ref, payment_date                | FINANCE → `post_receipt`        |
 | `national_id`       | id_number, full_name, dob, photo_region                             | COMPLIANCE → `archive_id`       |
 | `condition_survey`  | asset, inspection_date, condition_items, photo_regions              | ESTATE → `update_condition`     |
 | `complaint_letter`  | complainant, complaint_topic, asset, urgency                        | CRM → `open_ticket`             |
-| `renewal_request`   | tenant, asset, requested_dates                                      | ESTATE → `create_renewal_request` |
-| `termination_notice`| tenant, asset, notice_date, effective_date                          | LEGAL → `process_termination`   |
+| `renewal_request`   | counterparty, asset, requested_dates                                | ESTATE → `create_renewal_request` |
+| `termination_notice`| counterparty, asset, notice_date, effective_date                    | LEGAL → `process_termination`   |
 | `vendor_invoice`    | vendor, invoice_number, amount, line_items                          | FINANCE → `process_invoice`     |
 | `unknown`           | (heuristic)                                                          | HITL (no auto-route)            |
 
@@ -45,7 +45,7 @@ scan), and the pipeline produces:
 
 - Tesseract loaded with `eng + swa` traineddata.
 - Doc classifier keyword set includes Swahili equivalents
-  (mkataba/lease, malipo/payment, kitambulisho/ID, etc.).
+  (mkataba/offtake, malipo/payment, kitambulisho/ID, etc.).
 - Extracted text preserved verbatim; routing rules work on either.
 
 ## Citation back to source

@@ -224,8 +224,8 @@ describe('skill-registry.upsertSkill', () => {
 
     const out = await svc.upsertSkill({
       tenantId: 't-1',
-      name: 'late-rent-reminder',
-      nlDescription: 'Draft a Swahili late-rent reminder respecting grace period',
+      name: 'late-royalty-reminder',
+      nlDescription: 'Draft a Swahili late-royalty reminder respecting grace period',
       toolCallTemplate: { tool: 'comms.send', input: { lang: 'sw' } },
       codeHash: 'hash-1',
       embedding: EMBED_1536(1),

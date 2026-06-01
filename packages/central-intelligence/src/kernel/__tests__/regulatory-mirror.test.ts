@@ -1,19 +1,18 @@
 /**
  * Regulatory mirror — unit tests.
  *
- * Verifies:
- *   - TZ deposit cap (2x rent) refuse
- *   - TZ eviction notice < 30 days refuse
- *   - TZ rent-increase ceiling flag at >15%
- *   - TZ eviction without court order refuse
- *   - TZ entry < 48h flag
- *   - TZ distress prohibited refuse
- *   - KE deposit cap (2x rent) refuse
- *   - KE rent-increase notice < 60 days refuse
- *   - KE rent-increase ceiling flag at >10%
- *   - KE eviction notice < 60 days refuse
- *   - KE distress without court order refuse
- *   - UAE/RERA placeholder returns 'allow'
+ * Verifies (mining domain):
+ *   - TZ royalty underpaid (< 6%) refuse
+ *   - TZ royalty return > 30 days late refuse
+ *   - TZ export without Mining Commission consent flag
+ *   - TZ export without a valid licence refuse
+ *   - TZ operating without a licence refuse (always)
+ *   - TZ mercury use flag
+ *   - KE royalty underpaid (< 5%) refuse
+ *   - KE royalty return > 30 days late refuse
+ *   - KE export without consent flag / without licence refuse
+ *   - KE licence transfer without Commission consent refuse
+ *   - UAE placeholder returns 'allow'
  *   - Unknown jurisdiction returns 'allow' (graceful)
  *   - Multi-match returns refuse > flag > allow precedence
  *   - Predicate that throws is treated as no-match
@@ -30,71 +29,67 @@ import {
 const TZ_RULES: RegulatoryRuleSet = {
   jurisdiction: 'TZ',
   displayName: 'TZ test fixture',
-  statuteVersion: '2022',
+  statuteVersion: '2010',
   rules: [
     {
-      id: 'tz-deposit-cap-2x',
+      id: 'tz-royalty-underpaid',
       jurisdiction: 'TZ',
-      action: 'collect_deposit',
-      citation: 'TZ s.27(1)',
-      rationale: '<=2x rent',
+      action: 'pay_royalty',
+      citation: 'TZ Mining Act 2010 s.87(2)',
+      rationale: '>=6% royalty on gross value',
       verdict: 'refuse',
       predicate: (p) =>
-        typeof p.amountMinor === 'number' &&
-        typeof p.monthlyRentMinor === 'number' &&
-        p.monthlyRentMinor > 0 &&
-        p.amountMinor > p.monthlyRentMinor * 2,
+        typeof p.royaltyRatePct === 'number' && p.royaltyRatePct < 6,
     },
     {
-      id: 'tz-eviction-notice-min-30',
+      id: 'tz-return-late',
       jurisdiction: 'TZ',
-      action: 'issue_eviction_notice',
-      citation: 'TZ s.41(2)',
-      rationale: '>=30 days',
+      action: 'file_royalty_return',
+      citation: 'TZ Mineral Royalty Regs reg.12',
+      rationale: 'royalty return within 30 days',
       verdict: 'refuse',
-      predicate: (p) => typeof p.noticeDays === 'number' && p.noticeDays < 30,
+      predicate: (p) => typeof p.daysLate === 'number' && p.daysLate > 30,
     },
     {
-      id: 'tz-rent-increase-ceiling',
+      id: 'tz-export-no-consent',
       jurisdiction: 'TZ',
-      action: 'raise_rent',
-      citation: 'TZ s.31(3)',
-      rationale: '<=15% per cycle',
+      action: 'export_mineral',
+      citation: 'TZ Mining Act 2010 s.59',
+      rationale: 'export requires Commission consent',
       verdict: 'flag',
-      predicate: (p) =>
-        typeof p.increasePercentage === 'number' && p.increasePercentage > 15,
+      predicate: (p) => p.hasCommissionConsent === false,
     },
     {
-      id: 'tz-eviction-no-court-order',
+      id: 'tz-export-no-licence',
       jurisdiction: 'TZ',
-      action: 'evict',
-      citation: 'TZ s.42',
-      rationale: 'court order required',
+      action: 'export_mineral',
+      citation: 'TZ Mining Act 2010 s.8',
+      rationale: 'valid licence required to export',
       verdict: 'refuse',
-      predicate: (p) => p.hasCourtOrder === false,
+      predicate: (p) => p.hasValidLicence === false,
     },
     {
-      id: 'tz-entry-without-notice',
+      id: 'tz-mercury-flag',
       jurisdiction: 'TZ',
-      action: 'enter_premises',
-      citation: 'TZ s.36',
-      rationale: '48h notice',
+      action: 'use_mercury',
+      citation: 'TZ Mining (Environmental) / Minamata',
+      rationale: 'mercury use restricted',
       verdict: 'flag',
-      predicate: (p) => typeof p.noticeDays === 'number' && p.noticeDays < 2,
+      predicate: () => true,
     },
     {
-      id: 'tz-distress-prohibited',
+      id: 'tz-operate-unlicensed',
       jurisdiction: 'TZ',
-      action: 'distrain_goods',
-      citation: 'TZ s.45',
-      rationale: 'no self-help',
+      action: 'operate_without_licence',
+      citation: 'TZ Mining Act 2010 s.100',
+      rationale: 'no mining without a licence',
       verdict: 'refuse',
       predicate: () => true,
     },
     {
-      id: 'tz-rent-increase-defective',
+      id: 'tz-return-defective',
       jurisdiction: 'TZ',
-      action: 'raise_rent',
+      action: 'file_royalty_return',
       citation: 'TZ defective',
       rationale: 'defective predicate',
       verdict: 'refuse',
@@ -108,64 +103,60 @@ const TZ_RULES: RegulatoryRuleSet = {
 const KE_RULES: RegulatoryRuleSet = {
   jurisdiction: 'KE',
   displayName: 'KE test fixture',
-  statuteVersion: '2012',
+  statuteVersion: '2016',
   rules: [
     {
-      id: 'ke-deposit-cap-2x',
+      id: 'ke-royalty-underpaid',
       jurisdiction: 'KE',
-      action: 'collect_deposit',
-      citation: 'KE Cap.296 s.5(2)(b)',
-      rationale: '<=2x rent',
+      action: 'pay_royalty',
+      citation: 'KE Mining Act 2016 s.183',
+      rationale: '>=5% royalty on gross value',
       verdict: 'refuse',
       predicate: (p) =>
-        typeof p.amountMinor === 'number' &&
-        typeof p.monthlyRentMinor === 'number' &&
-        p.monthlyRentMinor > 0 &&
-        p.amountMinor > p.monthlyRentMinor * 2,
+        typeof p.royaltyRatePct === 'number' && p.royaltyRatePct < 5,
     },
     {
-      id: 'ke-rent-increase-notice',
+      id: 'ke-export-no-licence',
       jurisdiction: 'KE',
-      action: 'raise_rent',
-      citation: 'KE Cap.296 s.6(2)',
-      rationale: '>=60 days notice',
+      action: 'export_mineral',
+      citation: 'KE Mining Act 2016 s.30',
+      rationale: 'valid permit required to export',
       verdict: 'refuse',
-      predicate: (p) => typeof p.noticeDays === 'number' && p.noticeDays < 60,
+      predicate: (p) => p.hasValidLicence === false,
     },
     {
-      id: 'ke-rent-increase-ceiling',
+      id: 'ke-export-no-consent',
       jurisdiction: 'KE',
-      action: 'raise_rent',
-      citation: 'KE Cap.296 s.6(3)',
-      rationale: '<=10% per cycle',
+      action: 'export_mineral',
+      citation: 'KE Mining Act 2016 s.42',
+      rationale: 'export permit / consent required',
       verdict: 'flag',
-      predicate: (p) =>
-        typeof p.increasePercentage === 'number' && p.increasePercentage > 10,
+      predicate: (p) => p.hasCommissionConsent === false,
     },
     {
-      id: 'ke-eviction-notice-min-60',
+      id: 'ke-return-late',
       jurisdiction: 'KE',
-      action: 'issue_eviction_notice',
-      citation: 'KE Cap.296 s.7',
-      rationale: '>=60 days',
+      action: 'file_royalty_return',
+      citation: 'KE Mining (Royalty) Regs reg.5',
+      rationale: 'royalty return within 30 days',
       verdict: 'refuse',
-      predicate: (p) => typeof p.noticeDays === 'number' && p.noticeDays < 60,
+      predicate: (p) => typeof p.daysLate === 'number' && p.daysLate > 30,
     },
     {
-      id: 'ke-distress-requires-warrant',
+      id: 'ke-transfer-no-consent',
       jurisdiction: 'KE',
-      action: 'distrain_goods',
-      citation: 'KE Cap.293 s.4',
-      rationale: 'warrant required',
+      action: 'transfer_licence',
+      citation: 'KE Mining Act 2016 s.166',
+      rationale: 'CS consent required for transfer',
       verdict: 'refuse',
-      predicate: (p) => p.hasCourtOrder !== true,
+      predicate: (p) => p.hasCommissionConsent !== true,
     },
   ],
 };
 
 const RERA_PLACEHOLDER: RegulatoryRuleSet = {
   jurisdiction: 'UAE',
-  displayName: 'RERA placeholder',
+  displayName: 'UAE placeholder',
   statuteVersion: 'deferred',
   rules: [],
 };
@@ -175,146 +166,146 @@ const mirror = createRegulatoryMirror({
 });
 
 describe('regulatory mirror — TZ', () => {
-  it('refuses deposit > 2x rent', () => {
+  it('refuses royalty underpaid below the 6% rate', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'collect_deposit',
-      payload: { amountMinor: 700_000, monthlyRentMinor: 300_000 },
+      action: 'pay_royalty',
+      payload: { royaltyRatePct: 3, grossValueMinor: 700_000 },
     });
     expect(r.verdict).toBe('refuse');
-    expect(r.matches[0]?.ruleId).toBe('tz-deposit-cap-2x');
-    expect(r.citeText).toContain('TZ s.27(1)');
+    expect(r.matches[0]?.ruleId).toBe('tz-royalty-underpaid');
+    expect(r.citeText).toContain('TZ Mining Act 2010 s.87(2)');
   });
 
-  it('allows deposit at exactly 2x rent', () => {
+  it('allows royalty paid at exactly the 6% rate', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'collect_deposit',
-      payload: { amountMinor: 600_000, monthlyRentMinor: 300_000 },
+      action: 'pay_royalty',
+      payload: { royaltyRatePct: 6, grossValueMinor: 700_000 },
     });
     expect(r.verdict).toBe('allow');
   });
 
-  it('refuses eviction notice < 30 days', () => {
+  it('refuses a royalty return more than 30 days late', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'issue_eviction_notice',
-      payload: { noticeDays: 14 },
+      action: 'file_royalty_return',
+      payload: { daysLate: 45 },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('flags rent increase > 15%', () => {
+  it('flags export without Mining Commission consent', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'raise_rent',
-      payload: { increasePercentage: 18 },
+      action: 'export_mineral',
+      payload: { hasValidLicence: true, hasCommissionConsent: false },
     });
     expect(r.verdict).toBe('flag');
   });
 
-  it('refuses eviction without court order', () => {
+  it('refuses export without a valid licence', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'evict',
-      payload: { hasCourtOrder: false },
+      action: 'export_mineral',
+      payload: { hasValidLicence: false },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('flags entry with < 48h notice', () => {
+  it('refuses operating without a licence', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'enter_premises',
-      payload: { noticeDays: 1 },
-    });
-    expect(r.verdict).toBe('flag');
-  });
-
-  it('refuses any distress action', () => {
-    const r = mirror.check({
-      jurisdiction: 'TZ',
-      action: 'distrain_goods',
+      action: 'operate_without_licence',
       payload: {},
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('treats a throwing predicate as a non-match', () => {
-    // The defective rent-increase rule is registered alongside the
-    // flag rule. With increasePercentage=5 the flag rule does not
-    // fire and the defective predicate must not crash the mirror.
+  it('flags mercury use', () => {
     const r = mirror.check({
       jurisdiction: 'TZ',
-      action: 'raise_rent',
-      payload: { increasePercentage: 5 },
+      action: 'use_mercury',
+      payload: {},
+    });
+    expect(r.verdict).toBe('flag');
+  });
+
+  it('treats a throwing predicate as a non-match', () => {
+    // The defective return rule is registered alongside the late-return
+    // rule. With daysLate=5 the late rule does not fire and the defective
+    // predicate must not crash the mirror.
+    const r = mirror.check({
+      jurisdiction: 'TZ',
+      action: 'file_royalty_return',
+      payload: { daysLate: 5 },
     });
     expect(r.verdict).toBe('allow');
   });
 });
 
 describe('regulatory mirror — KE', () => {
-  it('refuses KE deposit > 2x rent', () => {
+  it('refuses KE royalty underpaid below the 5% rate', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'collect_deposit',
-      payload: { amountMinor: 250_000, monthlyRentMinor: 100_000 },
+      action: 'pay_royalty',
+      payload: { royaltyRatePct: 2, grossValueMinor: 250_000 },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('refuses KE rent-increase notice < 60 days', () => {
+  it('refuses a KE royalty return more than 30 days late', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'raise_rent',
-      payload: { noticeDays: 30 },
+      action: 'file_royalty_return',
+      payload: { daysLate: 45 },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('flags KE rent increase > 10%', () => {
+  it('flags KE export without consent', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'raise_rent',
-      payload: { noticeDays: 90, increasePercentage: 12 },
+      action: 'export_mineral',
+      payload: { hasValidLicence: true, hasCommissionConsent: false },
     });
     expect(r.verdict).toBe('flag');
   });
 
-  it('refuses KE eviction notice < 60 days', () => {
+  it('refuses KE export without a valid licence', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'issue_eviction_notice',
-      payload: { noticeDays: 45 },
+      action: 'export_mineral',
+      payload: { hasValidLicence: false },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('refuses KE distress without warrant', () => {
+  it('refuses KE licence transfer without Commission consent', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'distrain_goods',
-      payload: { hasCourtOrder: false },
+      action: 'transfer_licence',
+      payload: { hasCommissionConsent: false },
     });
     expect(r.verdict).toBe('refuse');
   });
 
-  it('allows KE distress with warrant', () => {
+  it('allows KE licence transfer with Commission consent', () => {
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'distrain_goods',
-      payload: { hasCourtOrder: true },
+      action: 'transfer_licence',
+      payload: { hasCommissionConsent: true },
     });
     expect(r.verdict).toBe('allow');
   });
 });
 
-describe('regulatory mirror — RERA placeholder', () => {
+describe('regulatory mirror — UAE placeholder', () => {
   it('returns allow for UAE (no rules wired yet)', () => {
     const r = mirror.check({
       jurisdiction: 'UAE',
-      action: 'collect_deposit',
-      payload: { amountMinor: 9_999_999, monthlyRentMinor: 1 },
+      action: 'pay_royalty',
+      payload: { grossValueMinor: 9_999_999, royaltyRatePct: 0 },
     });
     expect(r.verdict).toBe('allow');
     expect(r.matches.length).toBe(0);
@@ -323,11 +314,11 @@ describe('regulatory mirror — RERA placeholder', () => {
 
 describe('regulatory mirror — precedence', () => {
   it('returns refuse when refuse + flag both match', () => {
-    // KE raise_rent with noticeDays < 60 (refuse) AND increase > 10% (flag)
+    // KE export_mineral without a licence (refuse) AND without consent (flag)
     const r = mirror.check({
       jurisdiction: 'KE',
-      action: 'raise_rent',
-      payload: { noticeDays: 30, increasePercentage: 18 },
+      action: 'export_mineral',
+      payload: { hasValidLicence: false, hasCommissionConsent: false },
     });
     expect(r.verdict).toBe('refuse');
     expect(r.matches.length).toBeGreaterThanOrEqual(2);

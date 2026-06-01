@@ -80,9 +80,9 @@ describe('redactPiiFromString — NIDA regex tightness', () => {
 });
 
 describe('redactPiiFromString — other PII still works', () => {
-  it('still redacts Kenya KRA PIN tokens', () => {
-    const out = redactPiiFromString('PIN A123456789B issued.');
-    expect(out).toContain('<kra-pin:redacted>');
+  it('still redacts Tanzania TRA TIN tokens', () => {
+    const out = redactPiiFromString('TIN 123-456-789 issued.');
+    expect(out).toContain('<tra-tin:redacted>');
   });
 
   it('still redacts +255 Tanzania mobile numbers', () => {

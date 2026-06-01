@@ -286,7 +286,7 @@ function buildFromPlugin(
       evictionNoticeDaysCommercial:
         overlay?.evictionNoticeDaysCommercial ??
         plugin.compliance.noticePeriodDays,
-      depositReturnDays: plugin.compliance.depositReturnDays,
+      depositReturnDays: plugin.compliance.bondReturnDays,
     },
     mobileMoneyProviders: mobileMoneyFromPlugin(plugin),
   };

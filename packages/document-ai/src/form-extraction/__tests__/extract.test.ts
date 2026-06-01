@@ -110,14 +110,14 @@ describe('extractFormFields — pre-shipped schemas', () => {
       'Invoice Number: INV-2026-08842',
       'Issue Date: 2026-05-10',
       'Due Date: 2026-05-30',
-      'Bill To: Borjie Properties',
+      'Bill To: Borjie Mining Ltd',
       'Total: TZS 750,000',
     ]);
     const fields = await extractFormFields({ doc, schema: invoiceSchema });
     const byName = Object.fromEntries(fields.map((f) => [f.name, f]));
     expect(byName.invoice_number!.value).toBe('INV-2026-08842');
     expect(byName.due_date!.value).toBe('2026-05-30');
-    expect(byName.bill_to!.value).toBe('Borjie Properties');
+    expect(byName.bill_to!.value).toBe('Borjie Mining Ltd');
   });
 
   it('extracts utility bill fields', async () => {

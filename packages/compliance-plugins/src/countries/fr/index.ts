@@ -1,22 +1,20 @@
 /**
- * France (FR) — prélèvement à la source + prélèvements sociaux on rental.
+ * France (FR) — prélèvement à la source + prélèvements sociaux on mineral
+ * proceeds.
  *
- * Source: CGI (Code général des impôts). Non-resident landlords pay:
- *   - 20% minimum income-tax withholding on net rental income
+ * Source: CGI (Code général des impôts). Non-resident operators pay:
+ *   - 20% minimum income-tax withholding on net mineral proceeds
  *   - 17.2% prélèvements sociaux (most cases)
  * Plugin uses 20% as the operator-configurable minimum; social charges
- * are added via operator override per taxpayer residence.
- *
- * Deposit: Loi du 6 juillet 1989 § 22 — 1 month cap for unfurnished,
- * 2 months for furnished. Notice: 3 months for unfurnished tenant
- * departure (1 month in tense markets).
+ * are added via operator override per taxpayer residence. Mining tenure
+ * is governed by the Code minier (redevances minières apply).
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -62,19 +60,19 @@ const franceCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 2, // 1 for unfurnished, 2 for furnished
+    minBondMonths: 0,
+    maxBondMonths: 2, // performance-bond norm 1–2 months royalty
     noticePeriodDays: 90,
-    minimumLeaseMonths: 36, // unfurnished 3y; furnished 1y
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 36, // typical multi-year supply term
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 60,
+    bondReturnDays: 60,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Contrat de bail (FR)',
-      templatePath: 'fr/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Contrat de fourniture de minerais (FR Mineral Offtake)',
+      templatePath: 'fr/offtake-agreement.hbs',
       locale: 'fr-FR',
     },
   ],
@@ -94,7 +92,7 @@ export const franceProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     20,
     'FR-DGFIP-CGI-Art244bis',
-    'Non-resident minimum income-tax withholding: 20% on net rental income (CGI Art. 244 bis). Add 17.2% prélèvements sociaux where applicable.'
+    'Non-resident minimum income-tax withholding: 20% on net mineral proceeds (CGI Art. 244 bis). Add 17.2% prélèvements sociaux where applicable.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -120,42 +118,42 @@ export const franceProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'fr-loi-89-462',
-        label: 'Bail régi par la Loi du 6 juillet 1989',
+        id: 'fr-code-minier',
+        label: 'Fourniture régie par le Code minier',
         mandatory: true,
-        citation: 'Loi n° 89-462 du 6 juillet 1989',
+        citation: 'Code minier (redevances minières)',
       },
       {
-        id: 'fr-dpe',
-        label: 'Diagnostic de performance énergétique (DPE) attaché',
+        id: 'fr-impact-env',
+        label: 'Étude d\'impact environnemental attachée',
         mandatory: true,
-        citation: 'Code construction § L126-26',
+        citation: 'Code de l\'environnement (autorisation environnementale)',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 90, // unfurnished 3mo
-      'non-payment': 60,
+      'licence-expiry': 90,
+      'royalty-default': 60,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 1,
-        citation: 'Loi 89-462 § 22 (1 mois — non meublé)',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 1,
+        citation: 'Code minier — garantie (≈ 1 mois redevance)',
       },
-      'residential-rent-controlled': {
-        maxMonthsOfRent: 2,
-        citation: 'Loi 89-462 § 25-6 (2 mois — meublé)',
+      'artisanal-controlled': {
+        maxMonthsOfRoyalty: 2,
+        citation: 'Code minier — garantie renforcée (≈ 2 mois redevance)',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         indexedTo: 'LOCAL_INDEX',
-        citation: 'IRL (Indice de référence des loyers) — INSEE.',
+        citation: 'Indice INSEE applicable aux redevances minières.',
       },
     },
     defaultNoticeWindowDays: 90,
   }),
-  tenantScreening: buildStubScreeningPort('FCC_FR'),
+  counterpartyScreening: buildStubScreeningPort('FCC_FR'),
 };

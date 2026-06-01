@@ -25,7 +25,7 @@ import {
 } from '../index.js';
 
 const STUB_BRAND: TenantBrand = {
-  displayName: 'Acme Property Management',
+  displayName: 'Geita Gold Mining Ltd',
   primaryColor: '#1F3864',
   secondaryColor: '#4472C4',
   accentColor: '#FFC000',

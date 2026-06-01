@@ -224,7 +224,7 @@ describe('worm-audit-log.append', () => {
     const second = await svc.append({
       tenantId: 't-1',
       actorId: 'u-1',
-      documentKind: 'eviction-notice',
+      documentKind: 'licence-suspension-notice',
       documentId: 'doc-2',
       renderedAtIso: '2026-05-23T01:00:00Z',
       renderedSha256: 'r2',

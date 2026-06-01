@@ -33,7 +33,7 @@ const PERSONA_LABELS_SW: Record<SubPersona, string> = {
 };
 
 const PORTAL_LABELS_EN: Record<RouteContext['portal'], string> = {
-  customer: 'Tenant app',
+  customer: 'Buyer app',
   'estate-manager': 'Manager app',
   admin: 'Admin portal',
   owner: 'Owner portal',
@@ -41,7 +41,7 @@ const PORTAL_LABELS_EN: Record<RouteContext['portal'], string> = {
 };
 
 const PORTAL_LABELS_SW: Record<RouteContext['portal'], string> = {
-  customer: 'Programu ya mpangaji',
+  customer: 'Programu ya mnunuzi',
   'estate-manager': 'Programu ya meneja',
   admin: 'Bandari ya msimamizi',
   owner: 'Bandari ya mmiliki',

@@ -165,7 +165,7 @@ describe('client schemas — kpi-grid', () => {
   it('accepts a percent tile without currency', () => {
     const r = KpiGridPartSchema.safeParse({
       kind: 'kpi-grid',
-      tiles: [{ label: 'Occupancy', value: 0.94, format: 'percent' }],
+      tiles: [{ label: 'Recovery', value: 0.94, format: 'percent' }],
     });
     expect(r.success).toBe(true);
   });
@@ -391,7 +391,7 @@ describe('client schemas — calendar', () => {
   it('accepts a valid event', () => {
     const r = CalendarPartSchema.safeParse({
       kind: 'calendar',
-      events: [{ id: 'e1', title: 'Lease renewal', start: '2026-06-01T09:00:00Z' }],
+      events: [{ id: 'e1', title: 'Licence renewal', start: '2026-06-01T09:00:00Z' }],
     });
     expect(r.success).toBe(true);
   });
@@ -657,8 +657,8 @@ describe('client schemas — evidence-card', () => {
   it('accepts a valid quote + source', () => {
     const r = EvidenceCardPartSchema.safeParse({
       kind: 'evidence-card',
-      quote: 'Rent is due',
-      sourceTitle: 'Lease',
+      quote: 'Royalty is due',
+      sourceTitle: 'Offtake agreement',
     });
     expect(r.success).toBe(true);
   });
@@ -840,8 +840,8 @@ describe('client schemas — signature-pad', () => {
     const r = SignaturePadPartSchema.safeParse({
       kind: 'signature-pad',
       prompt: 'sign here',
-      requiredFor: 'lease renewal',
-      onSubmitAction: { kind: 'tool', payload: { tool: 'lease.sign' } },
+      requiredFor: 'offtake renewal',
+      onSubmitAction: { kind: 'tool', payload: { tool: 'offtake.sign' } },
     });
     expect(r.success).toBe(true);
   });
@@ -889,7 +889,7 @@ describe('client schemas — pdf-viewer', () => {
   it('rejects missing name', () => {
     const r = PdfViewerPartSchema.safeParse({
       kind: 'pdf-viewer',
-      url: '/lease.pdf',
+      url: '/offtake.pdf',
     });
     expect(r.success).toBe(false);
   });
@@ -899,7 +899,7 @@ describe('client schemas — slider-input', () => {
   it('accepts a valid slider config', () => {
     const r = SliderInputPartSchema.safeParse({
       kind: 'slider-input',
-      label: 'Rent offer',
+      label: 'Royalty offer',
       min: 100,
       max: 1000,
       value: 500,
@@ -983,7 +983,7 @@ describe('client schemas — chat-embed', () => {
   it('accepts a valid scope', () => {
     const r = ChatEmbedPartSchema.safeParse({
       kind: 'chat-embed',
-      scope: 'arrears.case.123',
+      scope: 'outstanding-royalties.case.123',
     });
     expect(r.success).toBe(true);
   });
@@ -1033,7 +1033,7 @@ describe('client schemas — org-chart', () => {
   it('accepts a nested chart', () => {
     const r = OrgChartPartSchema.safeParse({
       kind: 'org-chart',
-      root: { id: 'r', label: 'Owner', children: [{ id: 'p', label: 'Property' }] },
+      root: { id: 'r', label: 'Owner', children: [{ id: 'p', label: 'Site' }] },
     });
     expect(r.success).toBe(true);
   });
@@ -1059,7 +1059,7 @@ describe('client schemas — comparison-table', () => {
     const r = ComparisonTablePartSchema.safeParse({
       kind: 'comparison-table',
       columns: ['Unit A', 'Unit B'],
-      rows: [{ key: 'rent', label: 'Rent', values: [1000, 1100] }],
+      rows: [{ key: 'royalty', label: 'Royalty', values: [1000, 1100] }],
     });
     expect(r.success).toBe(true);
   });
@@ -1142,7 +1142,7 @@ describe('client schemas — decision-trace', () => {
     const r = DecisionTracePartSchema.safeParse({
       kind: 'decision-trace',
       steps: [
-        { id: 's1', title: 'observed arrears', rationale: 'past due 30+', kind: 'observation' },
+        { id: 's1', title: 'observed outstanding royalties', rationale: 'past due 30+', kind: 'observation' },
       ],
     });
     expect(r.success).toBe(true);
@@ -1195,7 +1195,7 @@ describe('client schemas — dataflow-diagram', () => {
     const r = DataflowDiagramPartSchema.safeParse({
       kind: 'dataflow-diagram',
       nodes: [
-        { id: 'src', label: 'Lease feed', kind: 'source' },
+        { id: 'src', label: 'Offtake feed', kind: 'source' },
         { id: 'snk', label: 'Statements', kind: 'sink' },
       ],
       edges: [{ from: 'src', to: 'snk' }],

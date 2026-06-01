@@ -5,11 +5,11 @@
  * mandate:
  *   1. Currency: TZS 0-decimal, "TSh 50,000" NOT "TSh 500"
  *   2. Language: Swahili primary, English fallback
- *   3. Tax regime: TRA 10% resident / 15% non-resident (Income Tax Act §83)
- *   4. Tax filing: TRA CSV payload + submitEndpointHint
+ *   3. Royalty regime: TRA 6% mineral royalty (+1% clearing) (Mining Act 2010 §87)
+ *   4. Royalty filing: TRA CSV payload + submitEndpointHint
  *   5. Payment rails: M-Pesa TZ, Tigo Pesa, Airtel Money, HaloPesa, GEPG, bank, Stripe
- *   6. Lease law: LLTA 2022 notice windows + deposit caps
- *   7. Tenant screening: BUREAU_NOT_CONFIGURED (no centralized TZ bureau)
+ *   6. Mining law: Mining Act 2010 notice windows + performance-bond caps
+ *   7. Counterparty screening: BUREAU_NOT_CONFIGURED (no centralized TZ bureau)
  *   8. NIDA 20-digit + TRA TIN 9-digit validators
  *   9. Phone: +255 + known TZ mobile prefixes only
  *  10. Data Protection: audit-event shape carries country='TZ' + regulatorRef='TRA'
@@ -30,7 +30,7 @@ import {
 } from '../countries/tz/index.js';
 import { validateNationalId, setNationalIdResolver } from '../validators/national-id.js';
 import { CountryPluginRegistry } from '../core/registry.js';
-import { DEFAULT_TAX_REGIME, DEFAULT_TAX_FILING, DEFAULT_PAYMENT_RAIL_PORT, DEFAULT_TENANT_SCREENING, DEFAULT_LEASE_LAW } from '../ports/index.js';
+import { DEFAULT_TAX_REGIME, DEFAULT_TAX_FILING, DEFAULT_PAYMENT_RAIL_PORT, DEFAULT_COUNTERPARTY_SCREENING, DEFAULT_MINING_LAW } from '../ports/index.js';
 
 // Local registry so this suite runs in isolation from the process-singleton
 // registry configured in src/index.ts (which pulls in the broken scaffolds).
@@ -39,8 +39,8 @@ localRegistry.register({
   ...tanzaniaProfile.plugin,
   taxRegime: tanzaniaProfile.taxRegime,
   paymentRails: tanzaniaProfile.paymentRails,
-  leaseLaw: tanzaniaProfile.leaseLaw,
-  tenantScreening: tanzaniaProfile.tenantScreening,
+  miningLaw: tanzaniaProfile.miningLaw,
+  counterpartyScreening: tanzaniaProfile.counterpartyScreening,
 } as unknown as import('../core/types.js').CountryPlugin);
 
 setNationalIdResolver((iso) =>
@@ -55,16 +55,16 @@ function resolvePluginLocal(countryCode: string) {
     taxFiling: (base as { taxFiling?: unknown }).taxFiling ?? DEFAULT_TAX_FILING,
     paymentRails:
       (base as { paymentRails?: unknown }).paymentRails ?? DEFAULT_PAYMENT_RAIL_PORT,
-    tenantScreening:
-      (base as { tenantScreening?: unknown }).tenantScreening ??
-      DEFAULT_TENANT_SCREENING,
-    leaseLaw: (base as { leaseLaw?: unknown }).leaseLaw ?? DEFAULT_LEASE_LAW,
+    counterpartyScreening:
+      (base as { counterpartyScreening?: unknown }).counterpartyScreening ??
+      DEFAULT_COUNTERPARTY_SCREENING,
+    miningLaw: (base as { miningLaw?: unknown }).miningLaw ?? DEFAULT_MINING_LAW,
   } as typeof base & {
     readonly taxRegime: typeof DEFAULT_TAX_REGIME;
     readonly taxFiling: typeof DEFAULT_TAX_FILING;
     readonly paymentRails: typeof DEFAULT_PAYMENT_RAIL_PORT;
-    readonly tenantScreening: typeof DEFAULT_TENANT_SCREENING;
-    readonly leaseLaw: typeof DEFAULT_LEASE_LAW;
+    readonly counterpartyScreening: typeof DEFAULT_COUNTERPARTY_SCREENING;
+    readonly miningLaw: typeof DEFAULT_MINING_LAW;
   };
 }
 
@@ -108,39 +108,38 @@ describe('Wave-27 / TZ / checklist 2 — language', () => {
     }
   });
 
-  it('lease-agreement template label is in Swahili', () => {
-    const lease = tanzaniaProfile.plugin.documentTemplates.find(
-      (t) => t.id === 'lease-agreement'
+  it('offtake-agreement template label is in Swahili', () => {
+    const offtake = tanzaniaProfile.plugin.documentTemplates.find(
+      (t) => t.id === 'offtake-agreement'
     );
-    expect(lease).toBeDefined();
-    expect(lease!.name).toMatch(/Mkataba/);
+    expect(offtake).toBeDefined();
+    expect(offtake!.name).toMatch(/Mkataba/);
   });
 });
 
-describe('Wave-27 / TZ / checklist 3 — tax regime (TRA)', () => {
-  it('resident individual: 10% withholding on gross rent', () => {
+describe('Wave-27 / TZ / checklist 3 — royalty regime (TRA)', () => {
+  it('mineral royalty: 6% withholding on gross market value', () => {
     const res = tanzaniaProfile.taxRegime.calculateWithholding(
       500_000,
       'TZS',
       { kind: 'month', year: 2026, month: 4 }
     );
-    expect(res.withholdingMinorUnits).toBe(50_000);
-    expect(res.regulatorRef).toBe('TRA-WHT-RENT');
-    expect(res.rateNote).toContain('10%');
-    expect(res.rateNote).toContain('§83');
+    expect(res.withholdingMinorUnits).toBe(30_000);
+    expect(res.regulatorRef).toBe('TRA-ROYALTY');
+    expect(res.rateNote).toContain('6%');
+    expect(res.rateNote).toContain('§87');
     expect(res.requiresManualConfiguration).toBeFalsy();
   });
 
-  it('non-resident: 15% withholding on gross rent', () => {
-    const nonResidentRegime = buildTzTaxRegime({ isResident: false });
-    const res = nonResidentRegime.calculateWithholding(
+  it('with clearing fee: 7% withholding on gross market value', () => {
+    const withClearingRegime = buildTzTaxRegime({ includesClearingFee: true });
+    const res = withClearingRegime.calculateWithholding(
       500_000,
       'TZS',
       { kind: 'month', year: 2026, month: 4 }
     );
-    expect(res.withholdingMinorUnits).toBe(75_000);
-    expect(res.rateNote).toContain('15%');
-    expect(res.rateNote).toContain('non-resident');
+    expect(res.withholdingMinorUnits).toBe(35_000);
+    expect(res.rateNote).toContain('1% clearing fee');
   });
 
   it('is NOT the legacy Kenya 7.5% flat rate', () => {
@@ -149,12 +148,12 @@ describe('Wave-27 / TZ / checklist 3 — tax regime (TRA)', () => {
       'TZS',
       { kind: 'month', year: 2026, month: 4 }
     );
-    // 7.5% of 1,000,000 would be 75,000 — we expect 100,000 instead.
-    expect(res.withholdingMinorUnits).toBe(100_000);
+    // 7.5% of 1,000,000 would be 75,000 — we expect 60,000 (6%) instead.
+    expect(res.withholdingMinorUnits).toBe(60_000);
     expect(res.withholdingMinorUnits).not.toBe(75_000);
   });
 
-  it('handles zero rent gracefully', () => {
+  it('handles zero proceeds gracefully', () => {
     const res = tanzaniaProfile.taxRegime.calculateWithholding(
       0,
       'TZS',
@@ -171,10 +170,10 @@ describe('Wave-27 / TZ / checklist 4 — tax filing (TRA)', () => {
       runId: 'RUN-2026-04',
       lineItems: [
         {
-          leaseId: 'LEASE-1',
-          tenantName: 'Mwangi Co. Ltd',
-          propertyReference: 'Plot 12, Msasani',
-          grossRentMinorUnits: 800_000,
+          offtakeId: 'OFFTAKE-1',
+          counterpartyName: 'Mwangi Co. Ltd',
+          siteReference: 'PML 12, Geita',
+          grossValueMinorUnits: 800_000,
           withholdingMinorUnits: 80_000,
           currency: 'TZS',
           paymentDate: '2026-04-05',
@@ -188,7 +187,7 @@ describe('Wave-27 / TZ / checklist 4 — tax filing (TRA)', () => {
       {
         tenantId: 't_1',
         taxpayerId: '123456789',
-        legalName: 'Mwangi Properties Ltd',
+        legalName: 'Mwangi Mining Ltd',
         countryCode: 'TZ',
       },
       { kind: 'month', year: 2026, month: 4 }
@@ -196,11 +195,11 @@ describe('Wave-27 / TZ / checklist 4 — tax filing (TRA)', () => {
     expect(filing.targetRegulator).toBe('TRA');
     expect(filing.submitEndpointHint).toBe('https://taxportal.tra.go.tz');
     expect(filing.filingFormat).toBe('csv');
-    expect(filing.payload).toContain('Mwangi Properties Ltd');
+    expect(filing.payload).toContain('Mwangi Mining Ltd');
     expect(filing.payload).toContain('123456789');
-    expect(filing.payload).toContain('LEASE-1');
+    expect(filing.payload).toContain('OFFTAKE-1');
     expect(filing.instructions).toMatch(/7th of the month/i);
-    expect(filing.instructions).toMatch(/§83/);
+    expect(filing.instructions).toMatch(/§87/);
   });
 });
 
@@ -259,60 +258,59 @@ describe('Wave-27 / TZ / checklist 5 — payment rails', () => {
   });
 });
 
-describe('Wave-27 / TZ / checklist 6 — lease law (Land Act + LLTA 2022)', () => {
-  it('non-payment notice window is 30 days', () => {
+describe('Wave-27 / TZ / checklist 6 — mining law (Mining Act 2010)', () => {
+  it('royalty-default notice window is 30 days', () => {
     expect(
-      tanzaniaProfile.leaseLaw.noticeWindowDays('non-payment')
+      tanzaniaProfile.miningLaw.noticeWindowDays('royalty-default')
     ).toBe(30);
   });
 
-  it('end-of-term notice is 90 days', () => {
+  it('licence-expiry notice is 90 days', () => {
     expect(
-      tanzaniaProfile.leaseLaw.noticeWindowDays('end-of-term')
+      tanzaniaProfile.miningLaw.noticeWindowDays('licence-expiry')
     ).toBe(90);
   });
 
-  it('landlord-repossession notice is 180 days', () => {
+  it('state-repossession notice is 180 days', () => {
     expect(
-      tanzaniaProfile.leaseLaw.noticeWindowDays('landlord-repossession')
+      tanzaniaProfile.miningLaw.noticeWindowDays('state-repossession')
     ).toBe(180);
   });
 
-  it('residential deposit cap = 6 months with statute citation', () => {
-    const cap = tanzaniaProfile.leaseLaw.depositCapMultiple(
-      'residential-standard'
+  it('artisanal performance-bond cap = 6 months with statute citation', () => {
+    const cap = tanzaniaProfile.miningLaw.bondCapMultiple(
+      'artisanal-standard'
     );
-    expect(cap.maxMonthsOfRent).toBe(6);
-    expect(cap.citation).toContain('Land (Landlord and Tenant) Act');
-    expect(cap.citation).toContain('2022');
-    expect(cap.citation).toContain('§ 32');
+    expect(cap.maxMonthsOfRoyalty).toBe(6);
+    expect(cap.citation).toContain('Mining (Mineral Rights) Regulations');
+    expect(cap.citation).toContain('2018');
   });
 
-  it('commercial deposit cap = 12 months', () => {
-    const cap = tanzaniaProfile.leaseLaw.depositCapMultiple('commercial');
-    expect(cap.maxMonthsOfRent).toBe(12);
+  it('industrial performance-bond cap = 12 months', () => {
+    const cap = tanzaniaProfile.miningLaw.bondCapMultiple('industrial');
+    expect(cap.maxMonthsOfRoyalty).toBe(12);
   });
 
-  it('requires TRA TIN clause in the lease', () => {
-    const clauses = tanzaniaProfile.leaseLaw.requiredClauses('residential');
+  it('requires TRA TIN clause in the offtake agreement', () => {
+    const clauses = tanzaniaProfile.miningLaw.requiredClauses('artisanal');
     const tin = clauses.find((c) => c.id === 'tz-tra-tin');
     expect(tin).toBeDefined();
     expect(tin!.mandatory).toBe(true);
-    expect(tin!.citation).toContain('Income Tax Act');
+    expect(tin!.citation).toContain('Mining Act 2010');
   });
 
-  it('rent-increase cap cites Housing Tribunal (LLTA 2022 §§ 88–90)', () => {
-    const cap = tanzaniaProfile.leaseLaw.rentIncreaseCap(
-      'residential-standard'
+  it('royalty-escalation cap cites the Mining Commission (Mining Act 2010)', () => {
+    const cap = tanzaniaProfile.miningLaw.royaltyEscalationCap(
+      'artisanal-standard'
     );
-    expect(cap.citation).toMatch(/Housing Tribunal/i);
-    expect(cap.citation).toMatch(/88/);
+    expect(cap.citation).toMatch(/Mining Commission/i);
+    expect(cap.citation).toMatch(/Mining Act 2010/);
   });
 });
 
-describe('Wave-27 / TZ / checklist 7 — tenant screening', () => {
+describe('Wave-27 / TZ / checklist 7 — counterparty screening', () => {
   it('no centralized bureau — returns BUREAU_NOT_CONFIGURED gracefully', async () => {
-    const result = await tanzaniaProfile.tenantScreening.lookupBureau(
+    const result = await tanzaniaProfile.counterpartyScreening.lookupBureau(
       { kind: 'nida', value: '19900101-12345-12345-01', country: 'TZ' },
       'TZ',
       'valid-consent-token'
@@ -407,9 +405,9 @@ describe('Wave-27 / TZ / checklist 9 — phone validation', () => {
 });
 
 describe('Wave-27 / TZ / checklist 10 — audit-event shape', () => {
-  it('monthly-close withholding event carries country + regulatorRef', () => {
+  it('monthly-close royalty event carries country + regulatorRef', () => {
     // Simulate the shape the monthly-close orchestrator emits for each
-    // landlord + period. This is the minimum contract the audit-event
+    // operator + period. This is the minimum contract the audit-event
     // store depends on — the orchestrator itself lives in
     // services/payments-ledger, out of scope for this plugin test.
     const res = tanzaniaProfile.taxRegime.calculateWithholding(
@@ -418,17 +416,17 @@ describe('Wave-27 / TZ / checklist 10 — audit-event shape', () => {
       { kind: 'month', year: 2026, month: 4 }
     );
     const auditEvent = {
-      eventType: 'withholding_computed',
+      eventType: 'royalty_computed',
       country: tanzaniaProfile.plugin.countryCode,
       regulatorRef: res.regulatorRef,
-      grossRentMinorUnits: 2_000_000,
+      grossValueMinorUnits: 2_000_000,
       withholdingMinorUnits: res.withholdingMinorUnits,
       currency: tanzaniaProfile.plugin.currencyCode,
     };
     expect(auditEvent.country).toBe('TZ');
-    expect(auditEvent.regulatorRef).toBe('TRA-WHT-RENT');
+    expect(auditEvent.regulatorRef).toBe('TRA-ROYALTY');
     expect(auditEvent.currency).toBe('TZS');
-    expect(auditEvent.withholdingMinorUnits).toBe(200_000);
+    expect(auditEvent.withholdingMinorUnits).toBe(120_000);
   });
 });
 
@@ -444,7 +442,7 @@ describe('Wave-27 / TZ / registry wiring', () => {
     expect(plugin.currencyCode).toBe('TZS');
     expect(plugin.taxRegime).toBeDefined();
     expect(plugin.paymentRails).toBeDefined();
-    expect(plugin.leaseLaw).toBeDefined();
+    expect(plugin.miningLaw).toBeDefined();
   });
 
   it('resolvePluginLocal("TZ") guarantees every port non-null', () => {
@@ -452,8 +450,8 @@ describe('Wave-27 / TZ / registry wiring', () => {
     expect(p.taxRegime).toBeDefined();
     expect(p.taxFiling).toBeDefined();
     expect(p.paymentRails).toBeDefined();
-    expect(p.tenantScreening).toBeDefined();
-    expect(p.leaseLaw).toBeDefined();
+    expect(p.counterpartyScreening).toBeDefined();
+    expect(p.miningLaw).toBeDefined();
   });
 
   it('localRegistry.list() includes TZ', () => {
@@ -463,14 +461,14 @@ describe('Wave-27 / TZ / registry wiring', () => {
 
 describe('Wave-27 / TZ / end-to-end pipeline simulation', () => {
   /**
-   * Simulates the full vacancy → lease → monthly-close chain a Tanzania
-   * tenant runs. Uses the resolved plugin the same way the orchestrator
+   * Simulates the full prospect → offtake → monthly-close chain a Tanzania
+   * operator runs. Uses the resolved plugin the same way the orchestrator
    * would in production.
    */
-  it('vacancy-to-lease-to-close: every step honours TZ config', async () => {
+  it('prospect-to-offtake-to-close: every step honours TZ config', async () => {
     const plugin = resolvePluginLocal('TZ');
 
-    // Step 1 — tenant onboarding: validate NIDA + phone
+    // Step 1 — operator onboarding: validate NIDA + phone
     const nidaVerdict = plugin.kycProviders
       .find((k) => k.id === 'nida')!
       .idFormat!.test('19900101123451234501');
@@ -478,13 +476,13 @@ describe('Wave-27 / TZ / end-to-end pipeline simulation', () => {
     const phone = plugin.normalizePhone('0752111222');
     expect(phone).toBe('+255752111222');
 
-    // Step 2 — deposit cap check: landlord requesting 6 months OK,
+    // Step 2 — performance-bond cap check: operator posting 6 months OK,
     // 7 months rejected
-    const cap = plugin.leaseLaw.depositCapMultiple('residential-standard');
-    expect(cap.maxMonthsOfRent).toBe(6);
+    const cap = plugin.miningLaw.bondCapMultiple('artisanal-standard');
+    expect(cap.maxMonthsOfRoyalty).toBe(6);
 
-    // Step 3 — notice period for lease end
-    const notice = plugin.leaseLaw.noticeWindowDays('end-of-term');
+    // Step 3 — notice period for licence expiry
+    const notice = plugin.miningLaw.noticeWindowDays('licence-expiry');
     expect(notice).toBe(90);
 
     // Step 4 — payment rail selection: pick cheapest mobile-money
@@ -492,14 +490,14 @@ describe('Wave-27 / TZ / end-to-end pipeline simulation', () => {
     const mobile = rails.filter((r) => r.kind === 'mobile-money');
     expect(mobile.length).toBeGreaterThanOrEqual(3);
 
-    // Step 5 — monthly close: compute withholding
+    // Step 5 — monthly close: compute royalty (6% of gross value)
     const wht = plugin.taxRegime.calculateWithholding(
       1_500_000,
       'TZS',
       { kind: 'month', year: 2026, month: 4 }
     );
-    expect(wht.withholdingMinorUnits).toBe(150_000);
-    expect(wht.regulatorRef).toBe('TRA-WHT-RENT');
+    expect(wht.withholdingMinorUnits).toBe(90_000);
+    expect(wht.regulatorRef).toBe('TRA-ROYALTY');
 
     // Step 6 — prepare TRA filing
     const filing = plugin.taxFiling.prepareFiling(
@@ -507,17 +505,17 @@ describe('Wave-27 / TZ / end-to-end pipeline simulation', () => {
         runId: 'E2E-RUN',
         lineItems: [
           {
-            leaseId: 'LEASE-E2E',
-            tenantName: 'Jane Mwanri',
-            propertyReference: 'Plot 7, Masaki',
-            grossRentMinorUnits: 1_500_000,
-            withholdingMinorUnits: 150_000,
+            offtakeId: 'OFFTAKE-E2E',
+            counterpartyName: 'Jane Mwanri',
+            siteReference: 'PML 7, Geita',
+            grossValueMinorUnits: 1_500_000,
+            withholdingMinorUnits: 90_000,
             currency: 'TZS',
             paymentDate: '2026-04-05',
           },
         ],
         totalGrossMinorUnits: 1_500_000,
-        totalWithholdingMinorUnits: 150_000,
+        totalWithholdingMinorUnits: 90_000,
       },
       {
         tenantId: 't_e2e',

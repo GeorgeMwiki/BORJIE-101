@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runGoT } from '../../got/index.js';
 import { runLATS } from '../../lats/index.js';
-import { runToTTree, EVICTION_DECISION_TREE, TENANT_SCREENING_TREE } from '../../tot/index.js';
+import { runToTTree, LICENCE_SUSPENSION_TREE, BUYER_SCREENING_TREE } from '../../tot/index.js';
 import {
   emitPrmTrainingSample,
   scoreStepWithPRM,
@@ -24,15 +24,15 @@ import type {
 } from '../../lats/index.js';
 
 describe('cross-pattern integrations', () => {
-  it('integration 1 — ToT eviction outcome feeds LATS action filter', async () => {
+  it('integration 1 — ToT licence-suspension outcome feeds LATS action filter', async () => {
     // Decision: tree says `offer-mediation`. LATS over the next-90-days uses
     // that as the seed action and only explores follow-ups consistent with it.
     const totResult = runToTTree({
-      tree: EVICTION_DECISION_TREE,
+      tree: LICENCE_SUSPENSION_TREE,
       ctx: {
         facts: {
           notice_served: false,
-          tenant_in_arrears: true,
+          operator_in_default: true,
           mediation_opt_in: true,
           mediation_offered: false,
         },
@@ -74,13 +74,13 @@ describe('cross-pattern integrations', () => {
 
   it('integration 2 — screening ToT outcome emits PRM training sample', async () => {
     const totResult = runToTTree({
-      tree: TENANT_SCREENING_TREE,
+      tree: BUYER_SCREENING_TREE,
       ctx: {
         facts: {
           id_verified: true,
-          past_eviction: false,
-          employment_verified: true,
-          income_to_rent_ratio: 4,
+          past_default: false,
+          licence_verified: true,
+          income_to_offtake_ratio: 4,
           reference_count: 3,
         },
       },
@@ -95,11 +95,11 @@ describe('cross-pattern integrations', () => {
     await emitPrmTrainingSample(
       {
         conversationId: 'screen_1',
-        taskClass: 'tenant-screening',
+        taskClass: 'buyer-screening',
         steps,
         outcome: totResult.outcome === 'approve' ? 'success' : 'partial',
         rewardSignal: 0.9,
-        metadata: { tree_id: TENANT_SCREENING_TREE.id, outcome: totResult.outcome },
+        metadata: { tree_id: BUYER_SCREENING_TREE.id, outcome: totResult.outcome },
       },
       async (s) => {
         captured.push(s);
