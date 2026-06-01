@@ -474,6 +474,9 @@ importers:
       '@borjie/persona-runtime':
         specifier: workspace:*
         version: link:../../packages/persona-runtime
+      '@borjie/portal-genui':
+        specifier: workspace:*
+        version: link:../../packages/portal-genui
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.75.0)
@@ -5154,6 +5157,9 @@ importers:
       '@borjie/cross-org-denial-recorder':
         specifier: workspace:*
         version: link:../../packages/cross-org-denial-recorder
+      '@borjie/data-onboarding':
+        specifier: workspace:*
+        version: link:../../packages/data-onboarding
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database

@@ -1,16 +1,17 @@
 /**
  * Drizzle-backed `TabRegistry` — narrow adapter for the SQL
- * `portal_tabs` table from migration 0173.
+ * `portal_tabs` table from migration 0170.
  *
- * The adapter takes a minimal `DbExecutor` port (just `query` /
- * `transaction`) so callers can satisfy it with whatever Postgres
- * client they already wire in `@borjie/database` (pg, postgres-js,
- * drizzle). We intentionally do NOT import drizzle-orm here — the
- * dependency tree of `@borjie/database` is heavier than this
- * package needs, and we want this module to typecheck on its own.
+ * The adapter takes a minimal `DbExecutor` port (just `query`) so
+ * callers can satisfy it with whatever Postgres client they already
+ * wire in `@borjie/database` (pg, postgres-js, drizzle). We
+ * intentionally do NOT import drizzle-orm here — the dependency tree
+ * of `@borjie/database` is heavier than this package needs, and we
+ * want this module to typecheck on its own.
  *
- * Composition root (`services/api-gateway/src/composition/portal-genui-
- * wiring.ts`) constructs the adapter with the live `getDb()`.
+ * Composition root
+ * (`services/api-gateway/src/composition/portal-genui/portal-genui-wiring.ts`)
+ * constructs the adapter with the live `getDb()`.
  */
 
 import { PortalTabSchema, type PortalTab } from '../types.js';

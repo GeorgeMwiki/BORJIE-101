@@ -4,7 +4,7 @@
  * Provides an in-memory implementation that's safe to use in tests,
  * tab-builder previews, and dev. The Drizzle-backed implementation
  * lives in `./drizzle-tab-repo.ts` and depends on the `portal_tabs`
- * table introduced by migration 0173.
+ * table introduced by migration 0170.
  *
  * Tabs are immutable from the persistence layer's perspective — to
  * change a tab the caller saves a new version. The registry preserves

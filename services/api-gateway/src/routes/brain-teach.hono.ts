@@ -86,6 +86,8 @@ import {
 import { createPiiTokeniser, restorePii } from '@borjie/document-ai';
 import { extractTabTags } from '@borjie/central-intelligence';
 import { processTabTagsForOwner } from '../services/tab-crud/index.js';
+import { buildGenuiTabProposal } from '../services/brain/genui-tab-proposal.js';
+import type { GenUIEngine } from '@borjie/portal-genui';
 import { parseBoardElements } from './board-element-parser';
 import { parseSuperpowers } from './ui-navigate-parser';
 import {
@@ -1233,6 +1235,42 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       });
     }
 
+    // ── Portal-GenUI bridge (seam #3) ───────────────────────────────
+    // Route a HIGH-confidence tab-AUTHORING intent in the user's message
+    // to the portal-genui engine, GENERATE the real PortalTab (preview,
+    // not persisted), and emit it as a `tab_proposal` chip so the owner
+    // PREVIEWS the actual fields before persisting. The engine is read
+    // off the service registry the composition root wired; when it is
+    // unwired (no DATABASE_URL / not mounted) this no-ops. Fail-soft:
+    // never throws into the stream.
+    const portalGenuiEngine = (
+      (c as { get(key: string): unknown }).get('services') as
+        | { portalGenUIEngine?: GenUIEngine }
+        | undefined
+    )?.portalGenUIEngine;
+    let genuiProposalEmitted = false;
+    if (portalGenuiEngine && !abort.signal.aborted) {
+      const proposal = await buildGenuiTabProposal({
+        engine: portalGenuiEngine,
+        message,
+        tenantId,
+        userId,
+        language: language === 'sw' ? 'sw' : 'en',
+        ...(sessionId ? { sourceConversationId: sessionId } : {}),
+        logger,
+      }).catch(() => null);
+      if (proposal && !abort.signal.aborted) {
+        await stream.writeSSE({
+          event: 'tab_proposal',
+          data: JSON.stringify({
+            payload: proposal,
+            at: new Date().toISOString(),
+          }),
+        });
+        genuiProposalEmitted = true;
+      }
+    }
+
     // Wave BRAIN-DEPTH: record the observation so the next turn sees
     // the engagement signal, the question kind, and any detected
     // routine / aversion in the persistent advisor memory. Never
@@ -1290,6 +1328,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           dropped: tabTagsResult.dropped.length,
           actions: tabActions.length,
         },
+        genui_tab_proposal: genuiProposalEmitted,
         board_elements: boardResult.elements.length,
         board_element_types: boardResult.elements.map((e) => e.type),
         board_dropped: boardResult.dropped,

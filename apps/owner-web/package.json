@@ -24,6 +24,7 @@
     "@borjie/owner-os-tabs": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",
     "@borjie/persona-runtime": "workspace:*",
+    "@borjie/portal-genui": "workspace:*",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
     "@hookform/resolvers": "^3.9.0",

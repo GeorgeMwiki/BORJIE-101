@@ -61,6 +61,7 @@ const nextConfig = {
     '@borjie/dynamic-sections',
     '@borjie/owner-os-tabs',
     '@borjie/persona-runtime',
+    '@borjie/portal-genui',
   ],
   experimental: {
     optimizePackageImports: [

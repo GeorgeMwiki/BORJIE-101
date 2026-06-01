@@ -163,6 +163,7 @@ import {
   type WebSocketServerLike,
   type ClientSocketLike,
 } from './routes/brain-voice.hono';
+import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
 // uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
@@ -1451,6 +1452,13 @@ api.use('*', ensureTenantIsolation);
 // Inject the service registry + flat tenantId/userId into the request ctx
 // so 22 new routers can pull real service instances out of the context.
 api.use('*', createServiceContextMiddleware(serviceRegistry));
+// Portal-genui: MD-authored dynamic tabs — construct the engine + mount its
+// router. The engine is exposed on the live serviceRegistry the middleware
+// already closed over (mount order vs. the middleware is irrelevant).
+const portalGenuiWiring = buildPortalGenuiWiring();
+(serviceRegistry as { portalGenUIEngine?: unknown }).portalGenUIEngine =
+  portalGenuiWiring.engine;
+api.route('/portal-genui', portalGenuiWiring.router);
 // R8 wiring follow-up — expose the cognitive bundle on every request via
 // `c.get('cognitive')`. Routes (e.g. brain.hono.ts /turn) can read it to
 // enrich the system prompt with recalled memories. When the bundle is

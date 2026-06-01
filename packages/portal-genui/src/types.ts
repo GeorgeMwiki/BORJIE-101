@@ -28,9 +28,9 @@
  *   - TabGenerationIntent — the intent-detector's output describing
  *                        "user is asking for an X tab".
  *
- * Persistence: stored in the `portal_tabs` table (migration 0173).
- * The shape is JSONB with a typed (tenant_id, persona_id, user_id,
- * tab_key) header so existing RLS patterns translate.
+ * Persistence: stored in the `portal_tabs` table (migration 0170).
+ * The shape is JSONB with a typed (tenant_id, user_id, tab_key)
+ * header so existing RLS patterns translate.
  *
  * The whole module is pure / serializable — no React refs, no
  * functions, no class instances.

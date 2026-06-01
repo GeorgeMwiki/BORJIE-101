@@ -61,6 +61,10 @@ describe('portal-genui router — JWT env', () => {
   beforeAll(() => {
     expect(process.env.JWT_SECRET?.length ?? 0).toBeGreaterThanOrEqual(32);
   });
+
+  it('has a JWT secret long enough to sign test tokens', () => {
+    expect(process.env.JWT_SECRET?.length ?? 0).toBeGreaterThanOrEqual(32);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────

@@ -31,11 +31,12 @@
  * WHAT NEEDS RUNTIME VALIDATION (see the FLAG block at the bottom of this
  * file and the §RUNTIME-FLAGS export):
  *   • WS-UPGRADE TRANSPORT: the gateway HTTP server is Express
- *     (`app.listen(...)`) and neither `@hono/node-ws` nor `ws` is installed
- *     as a typed dependency. `attachBrainVoiceWebSocket()` is written against
- *     an injected `WebSocketServerLike` factory and is a NO-OP (with a clear
- *     Pino warning) until that factory is wired. No silent stub — the real
- *     attach is present and ready.
+ *     (`app.listen(...)`). `attachBrainVoiceWebSocket()` is written against an
+ *     injected `WebSocketServerLike` factory and is a NO-OP (with a clear Pino
+ *     warning) until that factory is wired. The real `ws`-backed factory now
+ *     lives in `composition/voice/voice-wiring.ts`; the orchestrator mounts it
+ *     via `createVoiceWiring({ server })` after `app.listen(...)`. No silent
+ *     stub — the real attach is present and ready.
  *   • PROVIDER KEYS: GEMINI_API_KEY (or OPENAI_API_KEY). Without a key the
  *     upstream session cannot open; the bridge reports `provider_unavailable`.
  *   • AUDIO CODEC: the browser must send 16 kHz mono PCM little-endian
@@ -1255,10 +1256,11 @@ const VOICE_WS_PATH = '/api/v1/brain/voice/stream';
  * Attach the brain-voice WebSocket endpoint to the gateway's HTTP server.
  *
  * REAL + READY, but transport-gated: when no `webSocketServerFactory` is
- * supplied (because neither `ws` nor `@hono/node-ws` is installed) this logs a
- * precise warning and NO-OPS — it never throws, so gateway boot is unchanged.
- * Supply the factory (one `pnpm add ws @types/ws` away) and the endpoint goes
- * fully live with zero changes to the bridge logic above.
+ * supplied this logs a precise warning and NO-OPS — it never throws, so gateway
+ * boot is unchanged. The real `ws`-backed factory is built by
+ * `composition/voice/voice-wiring.ts` (`createVoiceWiring`); once it is passed
+ * here the endpoint goes fully live with zero changes to the bridge logic
+ * above.
  *
  * Each accepted connection gets its own `VoiceSession`; inbound text frames
  * are JSON-parsed and routed; outbound events are serialised back to the
@@ -1342,9 +1344,11 @@ export function parseClientTextFrame(raw: unknown): InboundClientFrame | null {
 
 export const BRAIN_VOICE_RUNTIME_FLAGS = Object.freeze({
   wsUpgrade:
-    'WS-UPGRADE TRANSPORT: gateway HTTP server is Express; install `ws` (+ @types/ws) ' +
-    'or `@hono/node-ws` and pass `webSocketServerFactory` to attachBrainVoiceWebSocket. ' +
-    'Until then the endpoint is registered but INACTIVE.',
+    'WS-UPGRADE TRANSPORT: gateway HTTP server is Express; the real `ws`-backed ' +
+    '`webSocketServerFactory` is built in composition/voice/voice-wiring.ts and mounted ' +
+    'via createVoiceWiring({ server }) after app.listen. When that factory is passed to ' +
+    'attachBrainVoiceWebSocket the endpoint is LIVE; without it (e.g. `ws` unavailable) ' +
+    'attach NO-OPs and the endpoint stays INACTIVE.',
   providerKey:
     'PROVIDER KEY: set GEMINI_API_KEY (primary, native-audio duplex) or wire the ' +
     'gpt-realtime-2 path with OPENAI_API_KEY. Without a key, sessions emit ' +
