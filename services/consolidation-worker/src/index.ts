@@ -27,6 +27,7 @@ import {
   createSemanticMemoryService,
   createTemporalEntityGraphService,
   createSemanticBulkReEmbedService,
+  createSkillRegistryService,
   type BulkReEmbedder,
 } from '@borjie/database';
 import {
@@ -37,9 +38,21 @@ import {
   type SemanticSink,
   type WorkerLogger,
 } from './consolidation.js';
+import {
+  runConsolidationOrchestrator,
+  type ConsolidationOrchestratorDeps,
+} from './orchestrator.js';
 import type { EntityConsolidatorPort } from './stages/06-consolidate.js';
 import type { ReEmbedPort } from './stages/07-re-embed.js';
 import type { ConstitutionalCriticPort } from './stages/03-reflect.js';
+import type { IngestSources } from './stages/01-ingest.js';
+import type {
+  ConsolidationEmbedder,
+  ImplicitSignalEntry,
+  SkillRegistryPort,
+  StageLogger,
+  TraceEntry,
+} from './stages/types.js';
 import { logger } from './logger.js';
 import {
   runOcrExtractionPollWithGatewayAdapters,
@@ -53,6 +66,17 @@ function resolveOcrPollMs(): number {
   const raw = Number(process.env.OCR_EXTRACTION_POLL_MS);
   if (!Number.isFinite(raw) || raw <= 0) return 30_000;
   return Math.min(Math.max(Math.floor(raw), 5_000), 600_000);
+}
+
+// 8-stage sleep-time consolidation orchestrator cadence (stages 01→09,
+// including 04-promote → skill_registry). This is the heavyweight nightly
+// cascade, distinct from the lightweight reservoir→semantic consolidation
+// loop above. Default every 24h; clamped to [1min, 7d] so a deploy can
+// dial it down for staging without letting it run unboundedly often.
+function resolveOrchestratorIntervalMs(): number {
+  const raw = Number(process.env.CONSOLIDATION_ORCHESTRATOR_INTERVAL_MS);
+  if (!Number.isFinite(raw) || raw <= 0) return 24 * 60 * 60 * 1000;
+  return Math.min(Math.max(Math.floor(raw), 60_000), 7 * 24 * 60 * 60 * 1000);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -171,6 +195,113 @@ function createSemanticAdapter(db: DrizzleLikeClient): SemanticSink {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Drizzle-backed ingest sources for the 8-stage orchestrator (stage 01).
+//
+// Three independent reads, each degrading to an empty array on any
+// failure (pre-migration schema, transient DB error) so a missing source
+// never stalls the cascade — stage 01's own `safe(...)` wrapper double-
+// guards this:
+//
+//   - fetchTraces           → `kernel_cot_reservoir` (the chain-of-thought
+//                             ribbon; same column set the consolidation
+//                             reservoir source reads).
+//   - fetchImplicitSignals  → `implicit_feedback_signals` (copy / re-prompt
+//                             / override / … — the >99% of feedback that
+//                             isn't a thumbs; migration 0133 family).
+//   - fetchExplicitFeedback → empty for now. There is no single canonical
+//                             thumbs/correction table whose shape matches
+//                             `FeedbackEntry`; the implicit ribbon already
+//                             carries the success/failure signal stage 02
+//                             clusters on. Wiring an explicit source is a
+//                             follow-up and is intentionally OUT OF SCOPE
+//                             here (no new migration).
+//
+// Window bounds (`since`/`until`) come from stage 01; we honour them in
+// the SQL so the worker only ever inspects the rolling window.
+// ─────────────────────────────────────────────────────────────────────
+
+function createReservoirIngestSources(db: DrizzleLikeClient): IngestSources {
+  return {
+    async fetchTraces({ since, until, limit }) {
+      try {
+        const lim = clampLimit(limit, 5000);
+        const result = (await db.execute(
+          sql`SELECT thought_id, tenant_id, user_id, thread_id,
+                     thought_text AS summary, captured_at
+              FROM kernel_cot_reservoir
+              WHERE captured_at >= ${since}
+                AND captured_at < ${until}
+                AND user_id IS NOT NULL
+              ORDER BY captured_at DESC
+              LIMIT ${lim}`,
+        )) as unknown;
+        const rows = toRows(result);
+        const out: TraceEntry[] = [];
+        for (const row of rows) {
+          const traceId = asString(row.thought_id);
+          const userId = asString(row.user_id);
+          if (!traceId || !userId) continue;
+          out.push({
+            traceId,
+            tenantId: asNullableString(row.tenant_id),
+            userId,
+            threadId: asString(row.thread_id) ?? '',
+            summary: asString(row.summary) ?? '',
+            capturedAt: asDateString(row.captured_at),
+          });
+        }
+        return out;
+      } catch (error) {
+        logger.warn('[consolidation-worker] ingest fetchTraces failed (schema may be pre-migration)', { value: asMessage(error) });
+        return [];
+      }
+    },
+    async fetchImplicitSignals({ since, until, limit }) {
+      try {
+        const lim = clampLimit(limit, 5000);
+        const result = (await db.execute(
+          sql`SELECT id, trace_id, agent_action_id, tenant_id, user_id,
+                     surface, signal_type, strength, emitted_at
+              FROM implicit_feedback_signals
+              WHERE emitted_at >= ${since}
+                AND emitted_at < ${until}
+              ORDER BY emitted_at DESC
+              LIMIT ${lim}`,
+        )) as unknown;
+        const rows = toRows(result);
+        const out: ImplicitSignalEntry[] = [];
+        for (const row of rows) {
+          const id = asString(row.id);
+          const traceId = asString(row.trace_id);
+          const tenantId = asString(row.tenant_id);
+          const userId = asString(row.user_id);
+          if (!id || !traceId || !tenantId || !userId) continue;
+          out.push({
+            id,
+            traceId,
+            agentActionId: asNullableString(row.agent_action_id),
+            tenantId,
+            userId,
+            surface: asString(row.surface) ?? 'unknown',
+            signalType: normaliseSignalType(row.signal_type),
+            strength: asNumber(row.strength),
+            emittedAt: asDateString(row.emitted_at),
+          });
+        }
+        return out;
+      } catch (error) {
+        logger.warn('[consolidation-worker] ingest fetchImplicitSignals failed (schema may be pre-migration)', { value: asMessage(error) });
+        return [];
+      }
+    },
+    async fetchExplicitFeedback() {
+      // No canonical thumbs/correction source mapped yet — see header.
+      return [];
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Phase C C1 — B4 service wires for the 8-stage orchestrator.
 //
 // Stages 03 (reflect), 06 (consolidate), and 07 (re-embed) each accept
@@ -200,6 +331,14 @@ export interface OrchestratorB4Deps {
   readonly entityConsolidator: EntityConsolidatorPort | null;
   readonly reEmbedder: ReEmbedPort | null;
   readonly constitutionalCritic: ConstitutionalCriticPort | null;
+  /**
+   * WRITE side of the SKILLS loop — the pgvector-backed `skill_registry`
+   * writer. Stage 04-promote upserts a skill row for every recurring-
+   * success trace cluster (≥3 traces, score ≥0.5, stable I/O signature).
+   * Tenant scope is carried per-row by the cluster's `tenantId`
+   * (`null` = global pool). Null in degraded mode (no DB).
+   */
+  readonly skillRegistry: SkillRegistryPort | null;
 }
 
 export interface OrchestratorB4DepsOptions {
@@ -256,6 +395,7 @@ export async function createOrchestratorB4Deps(
       entityConsolidator: null,
       reEmbedder: null,
       constitutionalCritic: null,
+      skillRegistry: null,
     };
   }
 
@@ -267,11 +407,38 @@ export async function createOrchestratorB4Deps(
     ...(options.anthropicClient ? { anthropicClient: options.anthropicClient } : {}),
     ...(options.logger ? { logger: options.logger } : {}),
   });
+  // WRITE side of the SKILLS loop — wire the pgvector-backed
+  // `skill_registry` writer. `createSkillRegistryService(db).upsertSkill`
+  // already matches the orchestrator's `SkillRegistryPort` shape exactly
+  // (same args incl. the optional 1536-dim `embedding`, same
+  // `{ id, created }` return), so no adapter wrapper is needed. The
+  // service swallows hard DB failures internally (logs + returns a
+  // benign result), so a registry outage degrades stage 04 to "no skills
+  // promoted this tick" rather than crashing the worker.
+  const skillRegistry = wrapSkillRegistry(db);
 
   return {
     entityConsolidator,
     reEmbedder,
     constitutionalCritic,
+    skillRegistry,
+  };
+}
+
+/**
+ * Adapt the Drizzle-backed `skill_registry` service to the
+ * orchestrator's `SkillRegistryPort`. The service's `upsertSkill` is
+ * structurally identical to the port, but the service surfaces extra
+ * methods (`searchByEmbedding`, `recordOutcome`, …) the promote stage
+ * doesn't need — narrowing to the port keeps the orchestrator's
+ * dependency surface minimal and duck-typed.
+ */
+function wrapSkillRegistry(db: DrizzleLikeClient): SkillRegistryPort {
+  const svc = createSkillRegistryService(db as never);
+  return {
+    async upsertSkill(args) {
+      return svc.upsertSkill(args);
+    },
   };
 }
 
@@ -341,6 +508,47 @@ async function loadConstitutionalCritic(opts: {
     log(
       { err: asMessage(error) },
       'consolidation-worker: constitutional critic load failed — stage 03 will run without verdict',
+    );
+    return null;
+  }
+}
+
+/**
+ * Resolve a 1536-dim text embedder for stage 04-promote so promoted
+ * skills carry a `description_embedding` and the kernel's READ-side
+ * retriever (sovereign.ts) can find them by cosine similarity. The
+ * central-intelligence `createOpenAiEmbedder` defaults to
+ * `text-embedding-3-small` (1536 dims), matching `skill_registry`'s
+ * `VECTOR(1536)` column AND the read-side embedder — keeping write/read
+ * in the same vector space.
+ *
+ * Resolved via dynamic import of the central-intelligence dist (the same
+ * sibling-package pattern `loadConstitutionalCritic` uses) so the worker
+ * compiles + unit-tests without a build or an OpenAI key:
+ *   - no `OPENAI_EMBEDDING_API_KEY` / `OPENAI_API_KEY` → returns null
+ *     (stage 04 upserts skills WITHOUT a vector; still idempotent).
+ *   - dist missing / factory throws → returns null (logged).
+ */
+async function loadSkillEmbedder(
+  log?: WorkerLogger,
+): Promise<ConsolidationEmbedder | null> {
+  const apiKey =
+    (process.env.OPENAI_EMBEDDING_API_KEY?.trim() ||
+      process.env.OPENAI_API_KEY?.trim()) ??
+    '';
+  if (!apiKey) return null;
+  try {
+    const mod = (await import(
+      '../../../packages/central-intelligence/dist/kernel/embedder.js'
+    )) as {
+      createOpenAiEmbedder?: (cfg: { apiKey: string }) => ConsolidationEmbedder;
+    };
+    if (typeof mod.createOpenAiEmbedder !== 'function') return null;
+    return mod.createOpenAiEmbedder({ apiKey });
+  } catch (error) {
+    (log?.warn ?? (() => undefined))(
+      { err: asMessage(error) },
+      'consolidation-worker: skill embedder load failed — stage 04 will promote without embeddings',
     );
     return null;
   }
@@ -428,6 +636,88 @@ export async function main(options: MainOptions = {}): Promise<void> {
   ocrPollHandle.unref();
   logger.info({ ocrPollMs }, 'consolidation-worker: ocr-extraction poll started');
 
+  // ───────────────────────────────────────────────────────────────────
+  // 8-stage sleep-time consolidation orchestrator (WRITE side of the
+  // SKILLS loop). Builds the B4 port bundle ONCE — now including the
+  // pgvector-backed `skillRegistry` writer — plus the Drizzle ingest
+  // sources and a 1536-dim skill embedder, then runs the full
+  // 01→09 cascade on its own (daily) cadence. Stage 04-promote upserts a
+  // `skill_registry` row for every recurring-success trace cluster, which
+  // the kernel's READ-side retriever (sovereign.ts) then renders into its
+  // "Available learned skills:" prompt fragment — closing the loop.
+  //
+  // A tick never throws: `runConsolidationOrchestrator` already absorbs
+  // per-stage failures and the outer try/catch double-guards so the
+  // supervisor stays up regardless. Ticks never overlap.
+  const orchestratorIntervalMs = resolveOrchestratorIntervalMs();
+  // A single 1536-dim embedder feeds BOTH the SKILLS-loop skill vectors
+  // (stage 04-promote) AND the semantic-memory re-embed (stage 07). Both
+  // columns are `VECTOR(1536)` / `text-embedding-3-small`, so the embedder
+  // is dimensionally correct for each; off-dim vectors are dropped
+  // defensively by each service. `ConsolidationEmbedder` and
+  // `BulkReEmbedder` are the same structural port (`embed(text)`), so no
+  // cast is needed when forwarding to the B4 builder.
+  const skillEmbedder = await loadSkillEmbedder(logger);
+  const b4Deps = await createOrchestratorB4Deps(db, {
+    ...(skillEmbedder ? { embedder: skillEmbedder } : {}),
+    logger,
+  });
+  const ingestSources = createReservoirIngestSources(db);
+  const orchestratorDeps: ConsolidationOrchestratorDeps = {
+    sources: ingestSources,
+    logger: logger as StageLogger,
+    ...(b4Deps.skillRegistry ? { skillRegistry: b4Deps.skillRegistry } : {}),
+    ...(skillEmbedder ? { embedder: skillEmbedder } : {}),
+    ...(b4Deps.entityConsolidator
+      ? { entityConsolidator: b4Deps.entityConsolidator }
+      : {}),
+    ...(b4Deps.reEmbedder ? { reEmbedder: b4Deps.reEmbedder } : {}),
+    ...(b4Deps.constitutionalCritic
+      ? { constitutionalCritic: b4Deps.constitutionalCritic }
+      : {}),
+  };
+  let orchestratorTickInFlight = false;
+  const runOrchestratorTick = async (): Promise<void> => {
+    if (orchestratorTickInFlight) return; // never overlap ticks
+    orchestratorTickInFlight = true;
+    try {
+      const result = await runConsolidationOrchestrator(orchestratorDeps);
+      logger.info(
+        {
+          tickId: result.delta.tickId,
+          clustersInspected: result.clustersInspected,
+          skillsPromoted: result.delta.skillsPromoted,
+          promptPatches: result.delta.promptPatches,
+          errors: result.errors.length,
+        },
+        'consolidation-worker: 8-stage orchestrator tick complete',
+      );
+    } catch (err) {
+      logger.warn(
+        { reason: asMessage(err) },
+        'consolidation-worker: orchestrator tick failed',
+      );
+    } finally {
+      orchestratorTickInFlight = false;
+    }
+  };
+  const orchestratorHandle = setInterval(
+    () => void runOrchestratorTick(),
+    orchestratorIntervalMs,
+  );
+  orchestratorHandle.unref();
+  logger.info(
+    {
+      orchestratorIntervalMs,
+      skillRegistry: b4Deps.skillRegistry ? 'wired' : 'null',
+      skillEmbedder: skillEmbedder ? 'wired' : 'null',
+    },
+    'consolidation-worker: 8-stage orchestrator started',
+  );
+  // Run one tick immediately at boot so the first sleep-time cascade does
+  // not wait a full interval. Fire-and-forget — the tick is self-guarding.
+  void runOrchestratorTick();
+
   // SIGTERM-safe shutdown.
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {
@@ -436,6 +726,7 @@ export async function main(options: MainOptions = {}): Promise<void> {
     logger.info({ signal }, 'consolidation-worker: shutdown requested');
     loop.stop();
     clearInterval(ocrPollHandle);
+    clearInterval(orchestratorHandle);
     // Give in-flight tick room to finish (the loop's safeTick is
     // already guarded; we just want to flush pending logs before exit).
     setTimeout(() => process.exit(0), 50).unref();
@@ -490,6 +781,32 @@ function asDateString(v: unknown): string {
   if (v instanceof Date) return v.toISOString();
   if (typeof v === 'string') return v;
   return new Date().toISOString();
+}
+
+function asNumber(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+const IMPLICIT_SIGNAL_TYPES = new Set<ImplicitSignalEntry['signalType']>([
+  'copy',
+  're-prompt',
+  'edit-resubmit',
+  'override',
+  'abandonment',
+  'time-to-resolution',
+]);
+
+function normaliseSignalType(v: unknown): ImplicitSignalEntry['signalType'] {
+  if (
+    typeof v === 'string' &&
+    IMPLICIT_SIGNAL_TYPES.has(v as ImplicitSignalEntry['signalType'])
+  ) {
+    return v as ImplicitSignalEntry['signalType'];
+  }
+  // Unknown producer label — treat as a neutral outcome proxy rather than
+  // dropping the row (stage 02 weights it as a weak signal).
+  return 'time-to-resolution';
 }
 
 function asMessage(error: unknown): string {

@@ -218,6 +218,22 @@ export {
   type EmbedderPort,
   type OpenAiEmbedderConfig,
 } from './embedder.js';
+// C5 — Voyager skill retriever. The factory + ports are surfaced here
+// (rather than only via the inline `import(...)` type in compose.ts) so
+// the api-gateway composition root can construct the live retriever and
+// thread it into `composeSovereign({ skillRetriever })`. Only the
+// retriever surface is re-exported — the skill-compiler / tool-affinity
+// helpers stay internal to avoid widening the public barrel.
+export {
+  createSkillRetriever,
+  DEFAULT_SKILL_TOP_K,
+  DEFAULT_SKILL_MAX_DISTANCE,
+  type SkillEntry,
+  type SkillRetriever,
+  type SkillRetrieverDeps,
+  type SkillRetrieverPort,
+  type RetrieveSkillsArgs,
+} from './skill-library/skill-retriever.js';
 export {
   createApprovalGate,
   createInMemoryApprovalStore,

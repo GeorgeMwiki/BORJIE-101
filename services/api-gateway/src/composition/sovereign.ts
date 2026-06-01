@@ -40,12 +40,17 @@ import {
   agency as agencyKernel,
   composeSovereign,
   createDpCohortSource,
+  createNullEmbedder,
+  createOpenAiEmbedder,
+  createSkillRetriever,
   tools as kernelTools,
   type AgencyKernelPort,
+  type EmbedderPort,
   type FeedbackMemoryPort,
   type MemoryHierarchy,
   type PersonaBrandingOverride,
   type PersonaBrandingResolver,
+  type SkillRetriever,
   type SovereignBrain,
   type Sensor,
   type SubstrateSinks,
@@ -72,6 +77,7 @@ import {
   createKernelGoalsService,
   createKernelActionAuditService,
   createSensoriumEventLogService,
+  createSkillRegistryService,
 } from '@borjie/database';
 // Central Command Phase A C4 / Phase B B2 — Behaviour signal source.
 // Surfaces derived brain-mind-state signals (engagement.high,
@@ -274,6 +280,16 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   let behaviorSignalSource:
     | ReturnType<typeof createBehaviorSignalSource>
     | undefined;
+  // C5 — Voyager skill retriever (READ side of the SKILLS loop). When
+  // the DB is up we point the retriever at the Drizzle-backed,
+  // pgvector-keyed `skill_registry` (the same table the consolidation
+  // worker's stage 04-promote writes) and at the resolved text embedder.
+  // The kernel renders the top-K matches into its "Available learned
+  // skills:" system-prompt fragment (kernel.ts step 4f). Retrieval is an
+  // ADDITIVE, optional kernel dep: when the embedder is the always-
+  // rejects null sentinel (no OpenAI key) the retriever degrades to an
+  // empty fragment and the kernel/Jarvis path is unchanged.
+  let skillRetriever: SkillRetriever | undefined;
   if (db) {
     const svc = createKernelSubstrateService(db, { tenantId: scope.tenantId });
     substrateSinks = {
@@ -495,6 +511,20 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // dep-free of @borjie/database.
     const sensoriumEventLogService = createSensoriumEventLogService(db);
     behaviorSignalSource = createBehaviorSignalSource(sensoriumEventLogService);
+
+    // C5 — wire the Voyager skill retriever. The registry service is the
+    // pgvector-backed `skill_registry` reader; tenant scope is applied
+    // per-call inside `retrieve({ tenantId })` from the kernel (the kernel
+    // passes the active turn's tenant). The embedder is resolved from the
+    // OpenAI embedding/API key — when absent, `createNullEmbedder()` is
+    // threaded and the retriever returns no skills (the kernel skips the
+    // addendum). This is purely additive: `deps.skillRetriever` becomes
+    // live without changing any other kernel construction path.
+    const skillEmbedder = resolveSkillEmbedder();
+    skillRetriever = createSkillRetriever({
+      port: createSkillRegistryService(db),
+      embedder: skillEmbedder.modelId === 'null' ? null : skillEmbedder,
+    });
   }
 
   // The wrapped `anthropic` client was constructed at the top of
@@ -523,9 +553,45 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // assign-by-key keeps the type-narrowing happy.
     mutable.behaviorSignalSource = behaviorSignalSource;
   }
+  // C5 — Voyager skill retriever (READ side). Threaded onto the kernel
+  // deps via `composeSovereign({ skillRetriever })` so kernel step 4f
+  // renders the "Available learned skills:" fragment. Optional/additive:
+  // only set when the DB is up (the retriever needs the registry reader).
+  if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
 
   return composeSovereign(mutable as Parameters<typeof composeSovereign>[0]);
+}
+
+// ---------------------------------------------------------------------------
+// Skill-retriever embedder resolver (C5 READ side).
+//
+// Mirrors `brain-kernel-wiring.ts::resolveEmbedder`: prefer a dedicated
+// `OPENAI_EMBEDDING_API_KEY` (operators can split embedding + generation
+// keys), fall back to `OPENAI_API_KEY`. When neither is set we return the
+// always-rejects `createNullEmbedder()` sentinel; the caller passes
+// `embedder: null` into `createSkillRetriever` so retrieval degrades to
+// an empty fragment without an extra branch. Never throws — a malformed
+// construction falls back to the null embedder so kernel boot is uniform.
+//
+// The retriever's `description_embedding` column is pgvector(1536), which
+// matches `createOpenAiEmbedder`'s default `text-embedding-3-small`
+// (1536 dims); the registry's `sanitizeEmbedding` drops any off-dim
+// vector defensively, so a mismatch degrades to a keyless-but-safe write.
+// ---------------------------------------------------------------------------
+
+export function resolveSkillEmbedder(): EmbedderPort {
+  const apiKey =
+    (process.env.OPENAI_EMBEDDING_API_KEY?.trim() ||
+      process.env.OPENAI_API_KEY?.trim()) ??
+    '';
+  if (!apiKey) return createNullEmbedder();
+  try {
+    return createOpenAiEmbedder({ apiKey });
+  } catch (err) {
+    logger.warn('sovereign-composition: skill embedder construction failed; using null embedder', { value: err instanceof Error ? err.message : err });
+    return createNullEmbedder();
+  }
 }
 
 // ---------------------------------------------------------------------------
