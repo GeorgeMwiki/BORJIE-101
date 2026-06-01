@@ -8,17 +8,19 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import { ownerOsBffStrings as B } from '@/i18n/strings/owner-os-bff';
+import { useLegalContracts, type LegalContractRow } from '@/lib/queries/legal';
 
 const LEGAL_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'legal',
   labelEn: 'Legal',
-  labelSw: 'Sheria',
+  labelSw: B.legal.descriptorLabel.sw,
   descriptionEn: 'Contracts library, draft inbox and counsel response queue.',
-  descriptionSw: 'Maktaba ya mikataba, sanduku la rasimu na foleni ya majibu ya wakili.',
+  descriptionSw: B.legal.descriptorDescription.sw,
   iconName: 'FileText',
   color: 'navy',
   contextSchema: ownerOsTabContextSchema,
@@ -41,7 +43,7 @@ const LEGAL_DESCRIPTOR: OwnerOSTabDescriptor = {
     {
       toolId: 'legal.draft-contract',
       labelEn: 'Draft contract',
-      labelSw: 'Tayarisha mkataba',
+      labelSw: B.legal.draftContractTool.sw,
     },
   ],
   briefSlices: ['audit-trail'],
@@ -52,7 +54,32 @@ registerTab(LEGAL_DESCRIPTOR);
 
 export const LEGAL_PANEL_DESCRIPTOR = LEGAL_DESCRIPTOR;
 
+function legalColumns(
+  isSw: boolean,
+): ReadonlyArray<PanelColumn<LegalContractRow>> {
+  return [
+    {
+      key: 'title',
+      header: isSw ? B.legal.colTitle.sw : B.legal.colTitle.en,
+      render: (r) => r.title,
+    },
+    {
+      key: 'counterparty',
+      header: isSw ? B.legal.colCounterparty.sw : B.legal.colCounterparty.en,
+      render: (r) => r.counterparty ?? '—',
+    },
+    {
+      key: 'status',
+      header: isSw ? B.legal.colStatus.sw : B.legal.colStatus.en,
+      render: (r) => r.status ?? '—',
+    },
+  ];
+}
+
 export function LegalPanel({ locale }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useLegalContracts();
+  const rows = data ?? [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -61,28 +88,29 @@ export function LegalPanel({ locale }: OwnerOSPanelProps): ReactElement {
       <PanelHero
         icon={FileText}
         color="navy"
-        titleEn="Legal"
-        titleSw="Sheria"
-        subtitleEn="Contracts library, draft inbox and outside-counsel response queue."
-        subtitleSw="Maktaba ya mikataba, sanduku la rasimu na foleni ya majibu ya wakili."
+        titleEn={B.legal.heroTitle.en}
+        titleSw={B.legal.heroTitle.sw}
+        subtitleEn={B.legal.heroSubtitle.en}
+        subtitleSw={B.legal.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        icon={FileText}
-        titleEn="Legal workspace landing soon"
-        titleSw="Eneo la sheria linakuja hivi karibuni"
-        bodyEn="The document-templates and document-composer packages already power contract drafting. This panel will surface the active contracts library and the counsel response queue once /api/v1/legal is exposed."
-        bodySw="Pakiti ya document-templates na document-composer tayari zinaunda mikataba. Paneli hii itaonyesha maktaba ya mikataba na foleni ya majibu ya wakili mara tu /api/v1/legal itakapozinduliwa."
-        contractEn="GET /api/v1/legal/{contracts|drafts|queue}"
-        contractSw="GET /api/v1/legal/{contracts|drafts|queue}"
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={legalColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={isSw ? B.legal.emptyTitle.sw : B.legal.emptyTitle.en}
+        emptyBody={isSw ? B.legal.emptyBody.sw : B.legal.emptyBody.en}
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.legal.ask.sw : P.legal.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
-      <div className="flex justify-center">
-        <AskMwikilaCta
-          label={locale === 'sw' ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
-          prompt={locale === 'sw' ? P.legal.ask.sw : P.legal.ask.en}
-        />
-      </div>
     </section>
   );
 }

@@ -8,11 +8,13 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import { ownerOsBffStrings as B } from '@/i18n/strings/owner-os-bff';
+import { useAccountingLedger, type AccountingLedgerRow } from '@/lib/queries/accounting';
 
 const ACCOUNTING_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'accounting',
@@ -56,9 +58,35 @@ registerTab(ACCOUNTING_DESCRIPTOR);
 
 export const ACCOUNTING_PANEL_DESCRIPTOR = ACCOUNTING_DESCRIPTOR;
 
+function accountingColumns(
+  isSw: boolean,
+): ReadonlyArray<PanelColumn<AccountingLedgerRow>> {
+  return [
+    {
+      key: 'postedAt',
+      header: isSw ? B.accounting.colDate.sw : B.accounting.colDate.en,
+      render: (r) => r.postedAt,
+    },
+    {
+      key: 'account',
+      header: isSw ? B.accounting.colAccount.sw : B.accounting.colAccount.en,
+      render: (r) => r.account,
+    },
+    {
+      key: 'amount',
+      header: isSw ? B.accounting.colAmount.sw : B.accounting.colAmount.en,
+      alignRight: true,
+      render: (r) => r.amount ?? '—',
+    },
+  ];
+}
+
 export function AccountingPanel({
   locale,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useAccountingLedger();
+  const rows = data ?? [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -67,28 +95,29 @@ export function AccountingPanel({
       <PanelHero
         icon={Calculator}
         color="navy"
-        titleEn="Accounting"
-        titleSw={S.accounting.heroTitle.sw}
-        subtitleEn="Live journal feed off the LedgerService double-entry ledger; AP / AR ageing buckets."
-        subtitleSw={S.accounting.heroSubtitle.sw}
+        titleEn={B.accounting.heroTitle.en}
+        titleSw={B.accounting.heroTitle.sw}
+        subtitleEn={B.accounting.heroSubtitle.en}
+        subtitleSw={B.accounting.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        icon={Calculator}
-        titleEn="Accounting workspace landing soon"
-        titleSw={S.accounting.emptyTitle.sw}
-        bodyEn="Account ageing, journal browser and reconciliation queue will surface here once the /api/v1/accounting BFF is exposed. The LedgerService entries already exist; this panel is the surface contract."
-        bodySw={S.accounting.emptyBody.sw}
-        contractEn="GET /api/v1/accounting/ledger?range=30d"
-        contractSw="GET /api/v1/accounting/ledger?range=30d"
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={accountingColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={isSw ? B.accounting.emptyTitle.sw : B.accounting.emptyTitle.en}
+        emptyBody={isSw ? B.accounting.emptyBody.sw : B.accounting.emptyBody.en}
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.accounting.ask.sw : P.accounting.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
-      <div className="flex justify-center">
-        <AskMwikilaCta
-          label={locale === 'sw' ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
-          prompt={locale === 'sw' ? P.accounting.ask.sw : P.accounting.ask.en}
-        />
-      </div>
     </section>
   );
 }
