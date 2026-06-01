@@ -185,6 +185,11 @@ export * from './owner-skills.schema.js';
 
 // Portal layouts + WORM audit + lesson store + AOP registry
 export * from './portal-layouts.schema.js';
+// Portal-genui dynamic tabs (migration 0170) — the MD-authored "infinite
+// dynamic tabs" store. Sibling of portal_layouts; backs @borjie/portal-genui's
+// PortalTab document. Consumed by the portal-genui composition wiring +
+// migration introspection tests.
+export * from './portal-tabs.schema.js';
 export * from './worm-audit-log.schema.js';
 export * from './lesson-store.schema.js';
 export * from './aop-registry.schema.js';
@@ -992,6 +997,12 @@ export * from './blackboard-sota.schema.js';
 // and the reminders-dispatch worker.
 export * from './owner-reminders.schema.js';
 export * from './owner-tabs.schema.js';
+// Wave MD-WRITE-PARITY (migration 0169) — server-PERSISTED, per-tab structural
+// store for the owner cockpit strip. Promotes tab structure from the opaque
+// single-jsonb `owner_tabs` blob to one queryable row per (tenant, user, tab_id)
+// so the action-executor `manage_tab` verb persists spawn/update/remove/reorder/
+// pin server-side instead of FE-chip-only.
+export * from './owner-tabs-structural.schema.js';
 // Wave BRAIN-UI-CONTROL (migration 0097) — per-user dashboard tile order
 // + sidebar order + hash-chained ui_redesign_audit.
 export * from './owner-dashboard-layout.schema.js';
