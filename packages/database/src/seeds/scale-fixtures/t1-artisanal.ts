@@ -11,7 +11,7 @@
 
 import type { ScaleFixture } from './types.js';
 
-export const T1_ARTISANAL_FIXTURE: ScaleFixture = Object.freeze({
+export const T1_ARTISANAL_FIXTURE: ScaleFixture = Object.freeze<ScaleFixture>({
   tier: 't1_artisanal',
   tenantId: 'fx-t1-001',
   tenantName: 'Mzee Juma Solo Pit',

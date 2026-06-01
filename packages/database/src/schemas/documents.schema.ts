@@ -39,6 +39,13 @@ export const documentTypeEnum = pgEnum('document_type', [
   'maintenance_photo',
   'receipt',
   'notice',
+  // Tanzanian mining-domain document types (migration 0158). Their values
+  // match the `NamedSchema.id`s in
+  // packages/document-ai/src/form-extraction/schemas.ts 1:1, so
+  // selectSchemaForDocument can switch on them directly.
+  'mining_licence',
+  'royalty_return',
+  'accountant_export',
   'other',
 ]);
 

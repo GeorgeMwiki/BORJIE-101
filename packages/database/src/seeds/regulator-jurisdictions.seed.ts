@@ -34,7 +34,7 @@ interface JurisdictionRow {
   readonly contactUrl: string | null;
   readonly dsrEndpoint: string | null;
   readonly licenceRenewalEndpoint: string | null;
-  readonly attributes: Record<string, unknown>;
+  readonly attributes: Record<string, string | number | boolean | null>;
 }
 
 const REGULATOR_ROWS: ReadonlyArray<JurisdictionRow> = Object.freeze([

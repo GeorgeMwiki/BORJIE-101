@@ -8,7 +8,7 @@
 
 import type { ScaleFixture } from './types.js';
 
-export const T2_COOPERATIVE_FIXTURE: ScaleFixture = Object.freeze({
+export const T2_COOPERATIVE_FIXTURE: ScaleFixture = Object.freeze<ScaleFixture>({
   tier: 't2_cooperative',
   tenantId: 'fx-t2-001',
   tenantName: 'Mererani Block C Coop',
