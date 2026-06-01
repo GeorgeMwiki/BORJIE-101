@@ -41,6 +41,19 @@ import type { EntityConsolidatorPort } from './stages/06-consolidate.js';
 import type { ReEmbedPort } from './stages/07-re-embed.js';
 import type { ConstitutionalCriticPort } from './stages/03-reflect.js';
 import { logger } from './logger.js';
+import {
+  runOcrExtractionPollWithGatewayAdapters,
+  type OcrExtractionDb,
+} from './tasks/ocr-extraction-task.js';
+
+// Async per-upload OCR + full-text extraction poll cadence. Documents that
+// flip to `ingestion_status='ready'` are picked up here; default every 30s,
+// clamped to [5s, 10min].
+function resolveOcrPollMs(): number {
+  const raw = Number(process.env.OCR_EXTRACTION_POLL_MS);
+  if (!Number.isFinite(raw) || raw <= 0) return 30_000;
+  return Math.min(Math.max(Math.floor(raw), 5_000), 600_000);
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Logger — tiny pino-shape that doesn't require pulling pino in.
@@ -387,6 +400,34 @@ export async function main(options: MainOptions = {}): Promise<void> {
     ...(typeof options.intervalMs === 'number' ? { intervalMs: options.intervalMs } : {}),
   });
 
+  // Async per-upload OCR + full-text extraction poll. Runs on its own
+  // interval (independent cadence from the consolidation loop). Each tick
+  // resolves the REAL gateway adapters (Supabase download + SSRF-guarded OCR
+  // adapter + BrainPort) via the sibling-service dynamic import and processes
+  // documents whose `ingestion_status` has flipped to `ready`. A tick never
+  // throws — failures degrade to a logged no-op so the supervisor stays up.
+  const ocrPollMs = resolveOcrPollMs();
+  let ocrTickInFlight = false;
+  const runOcrTick = async (): Promise<void> => {
+    if (ocrTickInFlight) return; // never overlap ticks
+    ocrTickInFlight = true;
+    try {
+      await runOcrExtractionPollWithGatewayAdapters({
+        db: db as unknown as OcrExtractionDb,
+      });
+    } catch (err) {
+      logger.warn(
+        { reason: err instanceof Error ? err.message : String(err) },
+        'consolidation-worker: ocr-extraction poll tick failed',
+      );
+    } finally {
+      ocrTickInFlight = false;
+    }
+  };
+  const ocrPollHandle = setInterval(() => void runOcrTick(), ocrPollMs);
+  ocrPollHandle.unref();
+  logger.info({ ocrPollMs }, 'consolidation-worker: ocr-extraction poll started');
+
   // SIGTERM-safe shutdown.
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {
@@ -394,6 +435,7 @@ export async function main(options: MainOptions = {}): Promise<void> {
     shuttingDown = true;
     logger.info({ signal }, 'consolidation-worker: shutdown requested');
     loop.stop();
+    clearInterval(ocrPollHandle);
     // Give in-flight tick room to finish (the loop's safeTick is
     // already guarded; we just want to flush pending logs before exit).
     setTimeout(() => process.exit(0), 50).unref();
