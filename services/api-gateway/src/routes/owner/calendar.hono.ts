@@ -28,8 +28,14 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 
-import { CALENDAR_PROVIDERS, type CalendarProvider } from '@borjie/database/schemas';
-import { authMiddleware } from '../../middleware/hono-auth';
+// Import the provider enum from the TOP-LEVEL @borjie/database barrel, NOT the
+// `/schemas` subpath: under the gateway's module-init order the subpath barrel
+// can surface `CALENDAR_PROVIDERS` as `undefined` (circular-init in the large
+// schemas index), which would make `z.enum(CALENDAR_PROVIDERS)` throw at load /
+// reject valid input as a 500. The top-level barrel is init-stable.
+import { CALENDAR_PROVIDERS, type CalendarProvider } from '@borjie/database';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import {
@@ -75,7 +81,7 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
   // ───────────────────────────────────────────────────────────────────
   // GET /connect/:provider — redirect the owner to the provider consent.
   // ───────────────────────────────────────────────────────────────────
-  app.get('/connect/:provider', authMiddleware, async (c: any) => {
+  app.get('/connect/:provider', authMiddleware, requireRole(UserRole.OWNER), async (c: any) => {
     const channel = deps.channel;
     if (!channel) {
       return c.json(
@@ -106,6 +112,20 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
     }
     const provider = parsed.data.provider as CalendarProvider;
     const auth = c.get('auth') as { tenantId: string; userId: string };
+    // A Supabase JWT missing `app_metadata.tenant_id` yields tenantId=''. Refuse
+    // to mint an OAuth state (and later an orphan connection row) for it.
+    if (!auth?.tenantId) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'TENANT_CONTEXT_MISSING',
+            message: 'This account has no tenant binding.',
+          },
+        },
+        400,
+      );
+    }
 
     const pc =
       provider === 'google'
@@ -227,6 +247,20 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
         400,
       );
     }
+    // Belt-and-suspenders to the /connect guard: never bind an empty RLS tenant
+    // GUC or write a connection row from a state that carries no tenant.
+    if (!state.tenantId) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_STATE_TENANT',
+            message: 'OAuth state has no tenant binding.',
+          },
+        },
+        400,
+      );
+    }
 
     const db = c.get('db');
     if (!db) {
@@ -313,7 +347,7 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
   // ───────────────────────────────────────────────────────────────────
   // GET /status — list the caller's active connections (token-free).
   // ───────────────────────────────────────────────────────────────────
-  app.get('/status', authMiddleware, databaseMiddleware, async (c: any) => {
+  app.get('/status', authMiddleware, requireRole(UserRole.OWNER), databaseMiddleware, async (c: any) => {
     if (!deps.channel) {
       return c.json({ success: true, data: { configured: false, connections: [] } });
     }
@@ -345,7 +379,7 @@ export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
   // ───────────────────────────────────────────────────────────────────
   // DELETE /disconnect — soft-revoke the caller's connection(s).
   // ───────────────────────────────────────────────────────────────────
-  app.delete('/disconnect', authMiddleware, databaseMiddleware, async (c: any) => {
+  app.delete('/disconnect', authMiddleware, requireRole(UserRole.OWNER), databaseMiddleware, async (c: any) => {
     if (!deps.channel) {
       return c.json(
         {
