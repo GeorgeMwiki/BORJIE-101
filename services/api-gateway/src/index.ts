@@ -164,6 +164,9 @@ import {
   type ClientSocketLike,
 } from './routes/brain-voice.hono';
 import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
+import { scheduleProactive } from './composition/proactive/proactive-wiring';
+import { createCalendarRouter } from './routes/owner/calendar.hono';
+import { createCalendarChannelFromEnv } from './services/notification-dispatch/calendar-providers/index';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
 // uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
@@ -1459,6 +1462,17 @@ const portalGenuiWiring = buildPortalGenuiWiring();
 (serviceRegistry as { portalGenUIEngine?: unknown }).portalGenUIEngine =
   portalGenuiWiring.engine;
 api.route('/portal-genui', portalGenuiWiring.router);
+// Owner calendar integration — build the calendar channel (null without a
+// CALENDAR_TOKEN_KEY) + mount the OAuth/connect router (503s when unconfigured).
+const calendarChannel = serviceRegistry.db
+  ? createCalendarChannelFromEnv({
+      db: serviceRegistry.db as unknown as Parameters<
+        typeof createCalendarChannelFromEnv
+      >[0]['db'],
+      logger,
+    })
+  : null;
+api.route('/owner/calendar', createCalendarRouter({ channel: calendarChannel }));
 // R8 wiring follow-up — expose the cognitive bundle on every request via
 // `c.get('cognitive')`. Routes (e.g. brain.hono.ts /turn) can read it to
 // enrich the system prompt with recalled memories. When the bundle is
@@ -2632,6 +2646,11 @@ const mwikilaAutonomousWorker = createMwikilaAutonomousWiring({
     ),
 });
 
+const proactiveScheduler = scheduleProactive({
+  db: (serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> }) ?? null,
+  logger,
+});
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -2765,6 +2784,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   }
   try {
     mwikilaAutonomousWorker.stop();
+    proactiveScheduler.stop();
     logger.info('shutdown: mwikila autonomous worker stopped');
   } catch (err) {
     logger.warn(
@@ -3023,6 +3043,7 @@ if (require.main === module) {
   // the inbox fills on a cadence rather than only on inbound route
   // calls. Inert in test mode + when BORJIE_MWIKILA_WORKER_DISABLED=true.
   mwikilaAutonomousWorker.start();
+  proactiveScheduler.start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the

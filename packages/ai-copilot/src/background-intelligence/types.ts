@@ -97,7 +97,11 @@ export type TaskName =
   // Wave-28 Phase A Agent PhA2 — monthly bookkeeping close orchestrator.
   // Runs 02:00 UTC on the 1st, iterates per tenant, and walks the 8-step
   // close graph (reconcile → statements → KRA MRI → disbursements → email).
-  | 'monthly_close';
+  | 'monthly_close'
+  // Onboarding / growth driver — hourly per-tenant scan for missing core
+  // mining entities (no sites / workers / licences) that writes an
+  // idempotent Mr. Mwikila inbox nudge prompting the next setup step.
+  | 'detect_onboarding_gaps';
 
 export interface ScheduledTaskDefinition {
   readonly name: TaskName;

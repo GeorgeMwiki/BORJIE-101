@@ -43,6 +43,7 @@ import {
   createIntelligenceHistorySupervisor,
   type IntelligenceHistorySupervisor,
 } from './intelligence-history-wiring.js';
+import { detectOnboardingGaps } from './onboarding/detect-onboarding-gaps.js';
 
 export type {
   IntelligenceHistorySupervisor,
@@ -543,6 +544,51 @@ function buildExtensionTasks(
 ): readonly import('@borjie/ai-copilot/background-intelligence').ScheduledTaskDefinition[] {
   const tasks: import('@borjie/ai-copilot/background-intelligence').ScheduledTaskDefinition[] = [];
 
+  // detect_onboarding_gaps — the onboarding / growth driver (replaces the
+  // old all-`[]` buildTaskData no-op). Hourly per tenant: detect missing
+  // core mining entities (no sites / no workers / no licences) and write a
+  // single idempotent Mr. Mwikila inbox nudge per gap prompting the next
+  // setup step. This is the "always thinking about how to onboard / grow /
+  // get-data" driver. Skips silently when DB is absent. Each gap is deduped
+  // on an open (proposed) row with the same action_kind so it never spams.
+  if (registry.db) {
+    tasks.push({
+      name: 'detect_onboarding_gaps',
+      cron: '0 * * * *', // top of every hour
+      description:
+        'Detect tenants with incomplete onboarding (no sites / workers / licences) and nudge the owner to complete setup. Idempotent: one nudge per gap.',
+      featureFlagKey: 'ai.bg.detect_onboarding_gaps',
+      run: async (ctx) => {
+        const start = Date.now();
+        let nudges = 0;
+        try {
+          nudges = await detectOnboardingGaps({
+            db: registry.db as unknown as {
+              execute(q: unknown): Promise<unknown>;
+            },
+            tenantId: ctx.tenantId,
+            logger,
+          });
+        } catch (err) {
+          logger.warn(
+            {
+              tenantId: ctx.tenantId,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            'bg-task detect_onboarding_gaps failed',
+          );
+        }
+        return {
+          task: 'detect_onboarding_gaps',
+          tenantId: ctx.tenantId,
+          insightsEmitted: nudges,
+          durationMs: Date.now() - start,
+          ranAt: ctx.now.toISOString(),
+        };
+      },
+    });
+  }
+
   // detect_bottlenecks — delegate to the org-awareness detector.
   if (registry.orgAwareness?.bottleneckDetector) {
     tasks.push({
@@ -772,9 +818,12 @@ function buildExtensionTasks(
 }
 
 function buildTaskData(registry: ServiceRegistry): BackgroundTaskData {
-  // Minimal data provider: each list method returns an empty array so the
-  // catalogue runs without crashing. Real data wiring is a follow-up —
-  // this is the shape expected by `buildTaskCatalogue`.
+  // Property-domain catalogue ports (leases / arrears / inspections) stay
+  // empty by design — Borjie is a mining OS, not a property manager, so
+  // those legacy scanners have no source tables here. The mining
+  // onboarding / growth driver lives in `buildExtensionTasks` as
+  // `detect_onboarding_gaps` (the real "get-data / grow" loop); the
+  // `renewalProposal` port below is still wired to the live service.
   //
   // Wave 18 — wire the `renewalProposal` port to the real RenewalService
   // so the scheduled `renewal_proposal_generator` actually dispatches
