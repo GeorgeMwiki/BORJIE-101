@@ -51,6 +51,16 @@ import {
   type InlineMetric,
 } from './UiBlockRenderer';
 import { InlineBlockRenderer } from './inline-blocks/InlineBlockRenderer';
+import {
+  mapInlineActionToDispatch,
+  type RawInlineActionEvent,
+} from './inline-action-map';
+import { buildMicroActionSummary } from './micro-action-summary';
+import {
+  dispatchMicroAction,
+  confirmAction,
+  type MicroActionResult,
+} from '@/lib/queries/chat-actions';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
@@ -164,6 +174,38 @@ function genId(): string {
     return crypto.randomUUID();
   }
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Build a standalone assistant note bubble (no stream, no blocks) used to
+ * reflect a micro-action result — an executed confirmation or a
+ * "needs your confirmation" decline — back into the transcript.
+ */
+function makeAssistantNote(text: string): TeachMessage {
+  return {
+    id: genId(),
+    role: 'assistant',
+    text,
+    inlineMetrics: [],
+    uiBlock: null,
+    inlineBlocks: [],
+    suggestedActions: [],
+    citations: [],
+    spawnTabs: [],
+    navigates: [],
+    prefills: [],
+    highlights: [],
+    shares: [],
+    bulks: [],
+    bookmarks: [],
+    debate: null,
+    brainState: null,
+    autoAuthorized: null,
+    streaming: false,
+    errored: false,
+    errorMessage: null,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function parseFrames(buffer: string): {
@@ -704,6 +746,68 @@ export function HomeChatTeach({
     [languagePreference],
   );
 
+  const appendNote = useCallback((text: string) => {
+    if (!text) return;
+    setMessages((prev) => [...prev, makeAssistantNote(text)]);
+  }, []);
+
+  // Apply the action-bridge response to the transcript: executed →
+  // confirmation note · declined (authorized:false) → "needs your
+  // confirmation" note · undecided → text fallback so the brain answers.
+  const reflectActionResult = useCallback(
+    (
+      event: RawInlineActionEvent,
+      verb: string,
+      params: Readonly<Record<string, unknown>>,
+      result: MicroActionResult,
+    ): void => {
+      if (result.executed) {
+        const summary = buildMicroActionSummary({
+          t,
+          verb,
+          result: result.result,
+          params,
+        });
+        appendNote(t('teach.microAction.executed', { summary }));
+        return;
+      }
+      if (!result.authorized && result.reason) {
+        appendNote(
+          t('teach.microAction.needsConfirmation', { reason: result.reason }),
+        );
+        return;
+      }
+      onSuggestion(`__inline_action:${event.action}`);
+    },
+    [appendNote, onSuggestion, t],
+  );
+
+  // Inline-block action bridge. Tapping an ACTION-bearing inline block
+  // (micro_action_card / confirmation_card primary / data_capture submit)
+  // now EXECUTES through the gateway action-bridge instead of being
+  // downgraded to a `__inline_action:` text string. Fire-and-forget: the
+  // dispatcher never rejects (it catches network/parse errors), and a
+  // defensive `.catch` keeps a stray rejection from going unhandled —
+  // both fall back to the text suggestion so the brain still responds.
+  const runInlineAction = useCallback(
+    (event: RawInlineActionEvent): void => {
+      const target = mapInlineActionToDispatch(event);
+      if (!target) {
+        onSuggestion(`__inline_action:${event.action}`);
+        return;
+      }
+      const { channel, verb, params } = target;
+      const dispatch =
+        channel === 'confirm'
+          ? confirmAction({ verb, params })
+          : dispatchMicroAction({ verb, params });
+      void dispatch
+        .then((result) => reflectActionResult(event, verb, params, result))
+        .catch(() => onSuggestion(`__inline_action:${event.action}`));
+    },
+    [onSuggestion, reflectActionResult],
+  );
+
   // Wave SUPERPOWERS (UI-2): translate a ProactiveHint CTA emit into a
   // follow-up turn so the hint's button is never a dead click. The
   // canonical Theory-of-Mind emits map to a localised owner message.
@@ -820,6 +924,7 @@ export function HomeChatTeach({
                   languagePreference={languagePreference}
                   isLatestAssistant={message.id === lastAssistantId}
                   onSuggestion={onSuggestion}
+                  onInlineAction={runInlineAction}
                   composerDisabled={composerDisabled || isStreaming}
                   {...(onSpawnTab ? { onSpawnTab } : {})}
                 />
@@ -888,6 +993,12 @@ interface TeachBubbleProps {
   readonly languagePreference: 'sw' | 'en';
   readonly isLatestAssistant: boolean;
   readonly onSuggestion: (text: string) => void;
+  /**
+   * Execute an ACTION-bearing inline block through the gateway action-
+   * bridge. The host owns the network dispatch + result reflection; this
+   * component only forwards the raw `{ action, payload }` event.
+   */
+  readonly onInlineAction: (event: RawInlineActionEvent) => void;
   readonly composerDisabled: boolean;
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
@@ -897,6 +1008,7 @@ function TeachBubble({
   languagePreference,
   isLatestAssistant,
   onSuggestion,
+  onInlineAction,
   composerDisabled,
   onSpawnTab,
 }: TeachBubbleProps): ReactElement {
@@ -1057,15 +1169,15 @@ function TeachBubble({
                       }
                       return;
                     }
-                    // Other actions (micro_action / wizard submit /
-                    // capture / file upload / etc) — forward as a
-                    // surfaced suggestion so the brain sees the action
-                    // intent in the next turn. The host owns the real
-                    // network dispatch; this keeps the chat continuous
-                    // until the explicit micro-action endpoint is
-                    // wired through.
+                    // ACTION-bearing blocks (micro_action_card,
+                    // confirmation_card primary, data_capture submit) →
+                    // EXECUTE through the gateway action-bridge. The host
+                    // maps the verb/params, dispatches, and reflects the
+                    // result; blocks with no executable verb (file upload,
+                    // cancel, unknown) fall back to a text suggestion so
+                    // the brain still responds.
                     if (typeof event.action === 'string' && event.action.length > 0) {
-                      onSuggestion(`__inline_action:${event.action}`);
+                      onInlineAction(event);
                     }
                   }}
                 />

@@ -293,6 +293,18 @@ export const en = {
     hintHandoff: 'Connect me with a human advisor.',
     hintSimpler: 'Explain that more simply.',
     hintCmdk: 'Show me what I can do from here.',
+    // Inline micro-action result bubbles. Rendered when an inline-block
+    // tap executes (or is declined) through the gateway action-bridge.
+    // `summary` carries a verb-specific line built from the tool result.
+    microAction: {
+      executed: '✓ {summary}',
+      actionDone: 'Action completed.',
+      reminderSet: 'Reminder set — {title}',
+      reminderSetIn: 'Reminder set — {title} in {days} days',
+      reminderSnoozed: 'Reminder snoozed {days} days',
+      needsConfirmation: 'Needs your confirmation — {reason}',
+      needsConfirmationBare: 'This action needs your confirmation.',
+    },
   },
 
   // Suite-wide portal switcher (the @borjie/app-shell <AppTopBar>). These

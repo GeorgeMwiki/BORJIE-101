@@ -267,7 +267,16 @@ export const sw = {
     "autoAuthorized": "Imeidhinishwa kiotomatiki",
     "hintHandoff": "Niunganishe na mshauri wa kibinadamu.",
     "hintSimpler": "Eleza hilo kwa lugha rahisi zaidi.",
-    "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa."
+    "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa.",
+    "microAction": {
+      "executed": "✓ {summary}",
+      "actionDone": "Hatua imekamilika.",
+      "reminderSet": "Kikumbusho kimewekwa — {title}",
+      "reminderSetIn": "Kikumbusho kimewekwa — {title} baada ya siku {days}",
+      "reminderSnoozed": "Kikumbusho kimeahirishwa siku {days}",
+      "needsConfirmation": "Inahitaji uthibitisho wako — {reason}",
+      "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako."
+    }
   },
   "portal": {
     "owner": "Kokpiti ya Mmiliki",
