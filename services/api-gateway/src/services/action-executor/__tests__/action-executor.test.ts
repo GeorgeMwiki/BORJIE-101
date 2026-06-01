@@ -211,14 +211,17 @@ describe('action-executor registry', () => {
     expect([...safeVerbs()].sort()).toEqual(['set_reminder', 'snooze_reminder']);
   });
 
-  it('KNOWN set includes the confirm-required domain verbs + the draft verbs', () => {
+  it('KNOWN set includes the confirm-required domain verbs + the draft + support verbs', () => {
     expect([...knownVerbs()].sort()).toEqual([
       'add_employee',
       'create_licence',
       'create_site',
       'draft_payroll_run',
       'draft_royalty_return',
+      'escalate_to_human',
       'log_production',
+      'open_support_case',
+      'resolve_support_case',
       'set_reminder',
       'snooze_reminder',
     ]);
