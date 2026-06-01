@@ -21,74 +21,74 @@ const RANK: Record<ComplaintSeverity, number> = {
 
 const CASES: ReadonlyArray<Case> = [
   // SAFETY (critical) — 5
-  { text: 'I feel unsafe in this building, broken stairs and smoke alarm dead', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
-  { text: 'There is a gas leak in the kitchen, please help urgently', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
-  { text: 'A wall is about to collapse, structural collapse imminent', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
-  { text: 'Electric shock from the bathroom switch, very dangerous', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'I feel unsafe in this pit, rockfall and no shoring', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'There is a gas leak in the shaft, please help urgently', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'A tunnel collapse is imminent, ground is cracking', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'Electric shock from the pump panel, very dangerous', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
   { text: 'I was just attacked at the gate by someone, I feel unsafe', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
 
   // FAIR-TREATMENT — 5
-  { text: 'The estate manager is harassing me about my late rent', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
-  { text: 'I am being threatened with eviction unfairly', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
+  { text: 'The site manager is harassing me about my shift', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
+  { text: 'I am being threatened with a licence suspension threat unfairly', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
   { text: 'I am being treated unfairly because of my ethnicity, discrimination', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
-  { text: 'Retaliation for complaining about the lift, this is unfair', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
-  { text: 'Eviction threat issued today because I asked for repair', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
+  { text: 'Retaliation for raising a safety flag, this is unfair', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
+  { text: 'Harassment from the supervisor again, I have no recourse, unfair', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
 
   // PRIVACY — 4
-  { text: 'The caretaker entered without notice while I was sleeping', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
-  { text: 'There is a CCTV camera pointed into my bedroom window', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
-  { text: 'My personal data was shared with another tenant, privacy breach', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
-  { text: 'Privacy violation — someone recorded me on cctv inside the lift', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
+  { text: 'The guard entered without notice while I was resting', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
+  { text: 'There is a CCTV camera pointed into the change room', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
+  { text: 'My personal data was shared with another buyer, privacy breach', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
+  { text: 'Privacy violation — someone recorded me on cctv at the gate', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
 
   // BILLING — 6
-  { text: 'I was overcharged on my invoice this month by 50,000 TZS', expectedCategory: 'billing' },
-  { text: 'The deposit refund is wrong, missing 100,000 TZS', expectedCategory: 'billing' },
-  { text: 'Late fee charged but I paid on time, billing error', expectedCategory: 'billing' },
-  { text: 'The rent calculation looks wrong on the latest invoice', expectedCategory: 'billing' },
-  { text: 'Wrong invoice — billed twice for the same month', expectedCategory: 'billing' },
-  { text: 'Refund of deposit pending for 3 months now, please act today', expectedCategory: 'billing', expectedSeverityAtLeast: 'urgent' },
+  { text: 'I was underpaid on my settlement this month by 50,000 TZS', expectedCategory: 'billing' },
+  { text: 'The advance refund is wrong, missing 100,000 TZS', expectedCategory: 'billing' },
+  { text: 'Short payment on the last delivery, payment error', expectedCategory: 'billing' },
+  { text: 'The royalty deduction looks wrong on the latest settlement', expectedCategory: 'billing' },
+  { text: 'Wrong settlement — paid twice deducted for the same lot', expectedCategory: 'billing' },
+  { text: 'Refund of advance pending for 3 months now, please act today', expectedCategory: 'billing', expectedSeverityAtLeast: 'urgent' },
 
-  // NEIGHBOR NOISE — 4
-  { text: 'My noisy neighbour plays loud music until 3 am every night', expectedCategory: 'neighbor-noise' },
-  { text: 'There is a party next door every weekend, very loud music', expectedCategory: 'neighbor-noise' },
-  { text: 'Constant shouting from the unit above, cannot sleep', expectedCategory: 'neighbor-noise' },
-  { text: 'Noise from upstairs neighbour late at night', expectedCategory: 'neighbor-noise' },
+  // COMMUNITY — 4
+  { text: 'Dust from the site is covering our village every day', expectedCategory: 'community' },
+  { text: 'Blasting noise every afternoon, the whole village shakes, vibration', expectedCategory: 'community' },
+  { text: 'Water contamination downstream from the wash plant', expectedCategory: 'community' },
+  { text: 'Constant noise and dust from the site late at night', expectedCategory: 'community' },
 
-  // LEASE-QUESTION — 4
-  { text: 'Question about the termination clause in my lease', expectedCategory: 'lease-question' },
-  { text: 'Can I renew my lease for another year, and what is the notice period?', expectedCategory: 'lease-question' },
-  { text: 'The lease says one thing, the contract says another, please clarify', expectedCategory: 'lease-question' },
-  { text: 'I need to know the notice period before I move out', expectedCategory: 'lease-question' },
+  // CONTRACT-QUESTION — 4
+  { text: 'Question about the termination clause in my offtake agreement', expectedCategory: 'contract-question' },
+  { text: 'Can I renew my contract for another year, and what is the notice period?', expectedCategory: 'contract-question' },
+  { text: 'The contract says one thing, the contract clause says another, please clarify', expectedCategory: 'contract-question' },
+  { text: 'I need to know the notice period before termination', expectedCategory: 'contract-question' },
 
   // MAINTENANCE — 6
-  { text: 'The kitchen tap is leaking and needs a plumber', expectedCategory: 'maintenance' },
-  { text: 'AC not cooling, very hot inside', expectedCategory: 'maintenance' },
-  { text: 'Cockroach problem in the kitchen, pest control needed', expectedCategory: 'maintenance' },
-  { text: 'Electric socket loose in the living room, not working', expectedCategory: 'maintenance' },
-  { text: 'Broken handle on the bathroom door, needs repair', expectedCategory: 'maintenance' },
-  { text: 'Lights not working in the corridor, needs an electrician', expectedCategory: 'maintenance' },
+  { text: 'The dewatering pump is leaking and needs a fitter', expectedCategory: 'maintenance' },
+  { text: 'Generator not working, no power at the plant', expectedCategory: 'maintenance' },
+  { text: 'The crusher is broken, production is stopped', expectedCategory: 'maintenance' },
+  { text: 'Excavator hydraulics loose at the face, not working', expectedCategory: 'maintenance' },
+  { text: 'Broken conveyor belt, needs repair', expectedCategory: 'maintenance' },
+  { text: 'Drill not working at the bench, needs a technician', expectedCategory: 'maintenance' },
 
   // SWAHILI cases — 16 (>15 required)
-  { text: 'Nimekasirika sana, hesabu ya kodi yangu sio sahihi', expectedCategory: 'billing' },
-  { text: 'Tafadhali, ankara batili ya mwezi huu', expectedCategory: 'billing' },
-  { text: 'Nina swali kuhusu mkataba wangu, kifungu cha kuvunja mkataba', expectedCategory: 'lease-question' },
-  { text: 'Kifungu cha mkataba sicho wazi, naomba ufafanuzi', expectedCategory: 'lease-question' },
-  { text: 'Jirani mwenye kelele kila usiku, muziki mkubwa', expectedCategory: 'neighbor-noise' },
-  { text: 'Wanapiga kelele usiku wote, sijali kulala', expectedCategory: 'neighbor-noise' },
-  { text: 'Caretaker aliingia nyumbani kwangu bila taarifa', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
+  { text: 'Nimekasirika sana, makato ya mrabaha yangu sio sahihi', expectedCategory: 'billing' },
+  { text: 'Tafadhali, malipo batili ya mwezi huu', expectedCategory: 'billing' },
+  { text: 'Nina swali kuhusu mkataba wangu, kifungu cha kuvunja mkataba', expectedCategory: 'contract-question' },
+  { text: 'Kifungu cha mkataba sicho wazi, naomba ufafanuzi', expectedCategory: 'contract-question' },
+  { text: 'Vumbi kutoka eneo la mgodi kila siku, kelele za mlipuko', expectedCategory: 'community' },
+  { text: 'Maji yamechafuliwa chini ya mto, mtetemo wa milipuko', expectedCategory: 'community' },
+  { text: 'Mlinzi aliingia bila taarifa eneo langu', expectedCategory: 'privacy', expectedSeverityAtLeast: 'urgent' },
   { text: 'Nasikia kuna ubaguzi kutoka kwa msimamizi, sina haki', expectedCategory: 'fair-treatment', expectedSeverityAtLeast: 'urgent' },
-  { text: 'Gesi inavuja jikoni, hatari ya maisha, haraka', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
-  { text: 'Sijihisi salama hapa, tishio kutoka kwa mwenye jirani', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
-  { text: 'Bomba la maji inavuja jikoni, tafadhali msaada', expectedCategory: 'maintenance' },
-  { text: 'Mende wengi sana jikoni, wadudu wamejaa', expectedCategory: 'maintenance' },
-  { text: 'Umeme umekatika tena, haifanyi kazi tangu jana', expectedCategory: 'maintenance' },
-  { text: 'Friji haifanyi kazi vizuri, chakula kinaharibika', expectedCategory: 'maintenance' },
+  { text: 'Gesi inavuja shimoni, hatari ya maisha, haraka', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'Sijihisi salama hapa, tishio kutoka kwa mtu', expectedCategory: 'safety', expectedSeverityAtLeast: 'critical' },
+  { text: 'Pampu ya maji inavuja tena, mtambo umevunjika', expectedCategory: 'maintenance' },
+  { text: 'Jenereta haifanyi kazi, hakuna umeme', expectedCategory: 'maintenance' },
+  { text: 'Mashine ya kusaga imevunjika, haifanyi kazi tangu jana', expectedCategory: 'maintenance' },
+  { text: 'Mtambo haifanyi kazi vizuri, uzalishaji umesimama', expectedCategory: 'maintenance' },
   { text: 'Asante kwa huduma nzuri, nashukuru sana', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
-  { text: 'Tafadhali nisaidie haraka, ankara sio sahihi tena', expectedCategory: 'billing' },
+  { text: 'Tafadhali nisaidie haraka, malipo sio sahihi tena', expectedCategory: 'billing' },
 
   // Chatter / other — 3
-  { text: 'FYI — just letting you know the lobby door squeaks a bit', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
-  { text: 'No big deal, but the mailbox is a little loose', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
+  { text: 'FYI — just letting you know the gate hinge squeaks a bit', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
+  { text: 'No big deal, but the notice board is a little loose', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
   { text: 'Thank you for the quick response, appreciate it', expectedCategory: 'other', expectedSeverityAtMost: 'chatter' },
 ];
 
@@ -121,7 +121,7 @@ describe('classifyComplaint — accuracy harness', () => {
   });
 
   it('detects Swahili language on heavy-Swahili inputs', () => {
-    const r = classifyComplaint('Tafadhali nisaidie, ankara sio sahihi, nimekasirika sana');
+    const r = classifyComplaint('Tafadhali nisaidie, malipo sio sahihi, nimekasirika sana');
     expect(r.detectedLanguage === 'sw' || r.detectedLanguage === 'mixed').toBe(true);
   });
 

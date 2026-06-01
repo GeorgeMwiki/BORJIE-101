@@ -1,27 +1,27 @@
 /**
  * `vendor.classify_capabilities` — read tier.
  *
- * Categorizes the vendor's claimed skills against the canonical
+ * Categorizes the contractor's claimed skills against the canonical
  * capability tags maintained alongside the maintenance-dispatch
- * vendor record. Bilingual.
+ * contractor record. Bilingual.
  */
 
 export type CapabilityTag =
-  | 'plumber'
+  | 'pump-tech'
   | 'electrician'
-  | 'hvac-tech'
-  | 'gas-fitter'
-  | 'mason'
-  | 'handyman'
-  | 'painter'
-  | 'cleaner'
-  | 'pest-control'
-  | 'locksmith'
-  | 'security'
-  | 'appliance-tech'
-  | 'roofer'
-  | 'landscaper'
-  | 'carpenter';
+  | 'hydraulics-tech'
+  | 'process-fitter'
+  | 'diesel-mechanic'
+  | 'boilermaker'
+  | 'rigger'
+  | 'civil'
+  | 'surveyor'
+  | 'blasting'
+  | 'assayer'
+  | 'safety-tech'
+  | 'haulage'
+  | 'fabrication'
+  | 'general-hand';
 
 export interface ClassifiedCapabilities {
   readonly capabilityTags: ReadonlyArray<CapabilityTag>;
@@ -39,26 +39,26 @@ interface CapabilityRule {
 }
 
 const RULES: ReadonlyArray<CapabilityRule> = [
-  { tag: 'plumber', weight: 4, tokens: ['plumber', 'plumbing', 'mfereji', 'bomba', 'maji', 'tap', 'sink', 'toilet', 'choo'] },
-  { tag: 'electrician', weight: 4, tokens: ['electrician', 'electrical', 'umeme', 'wiring', 'breaker', 'socket', 'taa'] },
-  { tag: 'hvac-tech', weight: 4, tokens: ['hvac', 'aircon', 'ac', 'kiyoyozi', 'cooling', 'heating', 'ventilation', 'fan', 'feni'] },
-  { tag: 'gas-fitter', weight: 4, tokens: ['gas fitting', 'gas fitter', 'gesi', 'lpg', 'cylinder'] },
-  { tag: 'mason', weight: 4, tokens: ['mason', 'masonry', 'concrete', 'plastering', 'sement', 'walling', 'ujenzi'] },
-  { tag: 'handyman', weight: 3, tokens: ['handyman', 'general repairs', 'fundi', 'fixing things'] },
-  { tag: 'painter', weight: 4, tokens: ['painter', 'painting', 'rangi', 'wall painting', 'kupaka rangi'] },
-  { tag: 'cleaner', weight: 3, tokens: ['cleaner', 'cleaning', 'kufanya usafi', 'usafi'] },
-  { tag: 'pest-control', weight: 4, tokens: ['pest control', 'pest', 'fumigation', 'wadudu', 'wadudu wa nyumbani', 'mende', 'panya', 'mchwa'] },
-  { tag: 'locksmith', weight: 4, tokens: ['locksmith', 'kufuli', 'lock and key', 'rekebisha kufuli'] },
-  { tag: 'security', weight: 4, tokens: ['security', 'cctv', 'alarm', 'access control', 'usalama', 'mlinzi'] },
-  { tag: 'appliance-tech', weight: 4, tokens: ['appliance', 'fridge repair', 'oven', 'washing machine', 'jiko', 'friji'] },
-  { tag: 'roofer', weight: 4, tokens: ['roof', 'roofing', 'paa', 'ukarabati wa paa'] },
-  { tag: 'landscaper', weight: 4, tokens: ['landscaper', 'gardening', 'bustani', 'kupanda miti', 'lawn'] },
-  { tag: 'carpenter', weight: 4, tokens: ['carpenter', 'carpentry', 'seremala', 'furniture', 'samani'] },
+  { tag: 'pump-tech', weight: 4, tokens: ['pump tech', 'pump technician', 'dewatering', 'pampu', 'slurry pump', 'borehole pump'] },
+  { tag: 'electrician', weight: 4, tokens: ['electrician', 'electrical', 'umeme', 'wiring', 'switchgear', 'transformer', 'motor rewind'] },
+  { tag: 'hydraulics-tech', weight: 4, tokens: ['hydraulics', 'hydraulic', 'haidroliki', 'hose', 'cylinder', 'ram'] },
+  { tag: 'process-fitter', weight: 4, tokens: ['process fitter', 'crusher', 'ball mill', 'kinu', 'wash plant', 'screen', 'cyclone'] },
+  { tag: 'diesel-mechanic', weight: 4, tokens: ['diesel mechanic', 'mechanic', 'engine', 'haul truck', 'excavator', 'loader', 'fleet', 'gari'] },
+  { tag: 'boilermaker', weight: 4, tokens: ['boilermaker', 'welding', 'kulehemu', 'plate work', 'wear plate'] },
+  { tag: 'rigger', weight: 4, tokens: ['rigger', 'rigging', 'crane', 'lifting', 'winch'] },
+  { tag: 'civil', weight: 4, tokens: ['civil', 'concrete', 'sement', 'retaining wall', 'road works', 'ujenzi', 'culvert'] },
+  { tag: 'surveyor', weight: 4, tokens: ['surveyor', 'survey', 'pegging', 'upimaji', 'gps survey', 'mine survey'] },
+  { tag: 'blasting', weight: 4, tokens: ['blasting', 'blast', 'shotfirer', 'milipuko', 'explosives', 'baruti'] },
+  { tag: 'assayer', weight: 4, tokens: ['assayer', 'assay', 'lab', 'fire assay', 'sampling', 'maabara'] },
+  { tag: 'safety-tech', weight: 4, tokens: ['safety', 'ventilation', 'gas detection', 'usalama', 'fire suppression', 'mine rescue'] },
+  { tag: 'haulage', weight: 4, tokens: ['haulage', 'transport', 'usafirishaji', 'tipper', 'cartage', 'logistics'] },
+  { tag: 'fabrication', weight: 4, tokens: ['fabrication', 'fabricator', 'sheet metal', 'machining', 'workshop'] },
+  { tag: 'general-hand', weight: 3, tokens: ['general hand', 'general labour', 'fundi wa kawaida', 'cleaning', 'housekeeping', 'usafi'] },
 ];
 
 const EMERGENCY_TOKENS = ['24/7', 'around the clock', 'emergency', 'dharura', 'on-call', 'on call'];
 const SERVICE_AREA_RX = /(?:areas?|maeneo|wilaya|near)\s*[:|-]?\s*([A-Z][\w-]+(?:\s*,\s*[A-Z][\w-]+)*)/gi;
-const SWAHILI_INDICATORS = ['na', 'ya', 'kwa', 'mfereji', 'umeme', 'fundi', 'rangi', 'usafi', 'wadudu', 'mlinzi', 'paa', 'bustani', 'samani', 'seremala'];
+const SWAHILI_INDICATORS = ['na', 'ya', 'kwa', 'pampu', 'umeme', 'fundi', 'kinu', 'usafi', 'milipuko', 'upimaji', 'maabara', 'usalama', 'usafirishaji', 'haidroliki'];
 
 export function classifyCapabilities(profileText: string): ClassifiedCapabilities {
   const lower = profileText.toLowerCase();

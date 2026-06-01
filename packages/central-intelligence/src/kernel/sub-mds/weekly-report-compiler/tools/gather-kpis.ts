@@ -1,10 +1,12 @@
 /**
  * `report.gather_kpis` — read tier.
  *
- * Pulls the week's KPIs across cashflow, occupancy, arrears,
- * maintenance, complaints. The data sources are abstracted behind a
- * port — production wires the warehouse adapters, tests inject
- * fixtures.
+ * Pulls the week's KPIs across cashflow, asset-utilization,
+ * outstanding-royalties, maintenance, and grievances. The data sources
+ * are abstracted behind a port — production wires the warehouse
+ * adapters, tests inject fixtures. (Field/key identifiers below keep
+ * their historical names for storage-schema stability; the rendered
+ * briefing surfaces the mining labels.)
  */
 
 export interface KpiCitation {

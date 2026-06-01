@@ -49,7 +49,7 @@ executor row-by-row in `kernel_action_audit`. Sub-system:
 
 - `goals/` — persistent goal stack with JSON-serialised steps
 - `executor/` — step machine: open → planning → awaiting_approval → executing → done
-- `initiative/wake-loop.ts` — proactive triggers (arrears spike, vacancy jump)
+- `initiative/wake-loop.ts` — proactive triggers (production-delay, asset-offline)
 
 ### `kernel/critics/`
 

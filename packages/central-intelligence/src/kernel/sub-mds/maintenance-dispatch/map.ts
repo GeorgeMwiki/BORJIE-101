@@ -1,5 +1,5 @@
 /**
- * MAP — builds the vendor-performance graph + SLA-breach
+ * MAP — builds the contractor-performance graph + SLA-breach
  * distribution.
  */
 

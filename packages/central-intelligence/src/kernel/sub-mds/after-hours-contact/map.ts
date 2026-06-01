@@ -6,6 +6,6 @@
 import { runMapStage } from '../shared/map-stage.js';
 import type { ObservedEvent, ProcessGraph } from '../shared/sub-md-base.js';
 
-export function mapLeasing(events: ReadonlyArray<ObservedEvent>): ProcessGraph {
+export function mapAfterHours(events: ReadonlyArray<ObservedEvent>): ProcessGraph {
   return runMapStage({ events, stateKey: 'state', caseKey: 'inquiryId' });
 }

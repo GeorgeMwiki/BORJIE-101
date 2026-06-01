@@ -43,8 +43,8 @@ describe('escalateWhenNeeded', () => {
     expect(r.tags.length).toBe(0);
   });
 
-  it('neighbor-noise non-chatter → community tag standard queue', () => {
-    const r = escalateWhenNeeded({ category: 'neighbor-noise', severity: 'standard' });
+  it('community non-chatter → community tag standard queue', () => {
+    const r = escalateWhenNeeded({ category: 'community', severity: 'standard' });
     expect(r.channel).toBe('standard-queue');
     expect(r.tags).toContain('community');
   });
@@ -68,8 +68,8 @@ describe('routeComplaint', () => {
     expect(r.desk).toBe('legal-review');
   });
 
-  it('neighbor-noise → community-desk', () => {
-    const r = routeComplaint({ category: 'neighbor-noise', severity: 'standard' });
+  it('community → community-desk', () => {
+    const r = routeComplaint({ category: 'community', severity: 'standard' });
     expect(r.desk).toBe('community-desk');
   });
 

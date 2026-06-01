@@ -33,11 +33,11 @@ export function routePeopleIntent(intent: OwnerIntent): ReadonlyArray<PeopleRout
   const t = intent.text.toLowerCase();
   const routes: PeopleRoute[] = [];
 
-  if (/vendor|contractor|supplier|onboard vendor|kyc vendor/.test(t)) {
+  if (/vendor|contractor|supplier|onboard contractor|kyc contractor/.test(t)) {
     routes.push({
       lineWorker: 'vendor.onboarding',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Run the vendor onboarding checklist',
+      description: 'Run the contractor onboarding checklist',
     });
   }
   if (/employee|staff|hire|onboard employee|terminate|fire/.test(t)) {
@@ -93,7 +93,7 @@ export async function orchestratePeople(args: {
       spawns: Object.freeze([]),
       gaps: Object.freeze([]),
       summary:
-        'I did not find a vendor, employee, payroll, or retention signal in your note.',
+        'I did not find a contractor, employee, payroll, or retention signal in your note.',
     });
   }
 

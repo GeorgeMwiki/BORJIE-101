@@ -52,8 +52,8 @@ export async function draftOpsWeeklyReport(args: {
       numericUnit: 'hours',
     }),
     buildVpReportCard({
-      title: 'Vacancy days',
-      headline: 'Vacancy days (onboarding-side)',
+      title: 'Onboarding cycle days',
+      headline: 'Onboarding cycle days (onboarding-side)',
       ...(onboarding ? { rollup: onboarding } : {}),
       numericUnit: 'days',
     }),

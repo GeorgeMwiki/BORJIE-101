@@ -1,8 +1,8 @@
 /**
  * `maintenance.dispatch_work_order` — mutate tier (reversible).
  *
- * Sends a work order to the chosen vendor via their preferred
- * channel. Audit-logged. Reversible until the vendor confirms
+ * Sends a work order to the chosen contractor via their preferred
+ * channel. Audit-logged. Reversible until the contractor confirms
  * acceptance (the kernel records a `recall_window_ms` window in
  * which the order can be withdrawn).
  *
@@ -11,13 +11,13 @@
  * channel.
  */
 
-export type VendorChannel = 'sms' | 'whatsapp' | 'email' | 'phone';
+export type ContractorChannel = 'sms' | 'whatsapp' | 'email' | 'phone';
 
 export interface WorkOrderDraft {
   readonly ticketId: string;
-  readonly vendorId: string;
-  readonly vendorName: string;
-  readonly channel: VendorChannel;
+  readonly contractorId: string;
+  readonly contractorName: string;
+  readonly channel: ContractorChannel;
   readonly preferredAddress: string;
   readonly subject: string;
   readonly body: string;
@@ -42,7 +42,7 @@ export interface DispatchArgs {
   readonly transport: DispatchTransportPort;
   readonly audit: DispatchAuditSink;
   readonly correlationId: string;
-  /** Tier-A reversibility — default 30s window before vendor
+  /** Tier-A reversibility — default 30s window before contractor
    *  ACK locks in. */
   readonly recallWindowMs?: number;
 }

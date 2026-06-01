@@ -1,6 +1,6 @@
 # vendor.onboarding — Tier-C sub-MD
 
-KYC the vendor against the right jurisdictional MCP server, classify
+KYC the contractor against the right jurisdictional MCP server, classify
 claimed capabilities, draft the MSA, set up the payment rail.
 
 ## Tools
@@ -16,6 +16,13 @@ claimed capabilities, draft the MSA, set up the payment rail.
 
 `vendor-onboarding-officer` — procedural, plain-spoken. Leads with KYC
 outcome. Never stores or echoes ID numbers in clear text.
+
+## Capability tags
+
+Mining contractor trades: `pump-tech`, `electrician`, `hydraulics-tech`,
+`process-fitter`, `diesel-mechanic`, `boilermaker`, `rigger`, `civil`,
+`surveyor`, `blasting`, `assayer`, `safety-tech`, `haulage`,
+`fabrication`, `general-hand`.
 
 ## Risk posture
 

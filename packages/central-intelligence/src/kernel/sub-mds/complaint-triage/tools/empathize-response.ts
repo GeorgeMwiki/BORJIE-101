@@ -1,9 +1,9 @@
 /**
  * `complaint.empathize_response` — DRAFT tier.
  *
- * Drafts a tenant-facing acknowledgement tone-matched to detected
+ * Drafts a reporter-facing acknowledgement tone-matched to detected
  * sentiment. ALWAYS sent to the owner for review — never auto-sent
- * to the tenant.
+ * to the reporter.
  */
 
 import type {
@@ -15,7 +15,7 @@ export interface EmpathizeResponseArgs {
   readonly category: ComplaintCategory;
   readonly sentiment: ComplaintSentiment;
   readonly language: 'en' | 'sw' | 'mixed';
-  readonly tenantDisplayName?: string;
+  readonly reporterDisplayName?: string;
   readonly referenceId: string;
 }
 
@@ -34,7 +34,7 @@ export function empathizeResponse(args: EmpathizeResponseArgs): EmpathyDraft {
     : args.sentiment === 'appreciative' ? 'thankful'
     : 'professional';
 
-  const greetingName = args.tenantDisplayName ?? '';
+  const greetingName = args.reporterDisplayName ?? '';
   const body = renderBody({
     language: args.language,
     tone,
@@ -88,10 +88,10 @@ function renderBody(args: {
 
 function enCategoryLabel(c: ComplaintCategory): string {
   switch (c) {
-    case 'maintenance': return 'a maintenance issue';
-    case 'billing': return 'a billing matter';
-    case 'neighbor-noise': return 'a noise concern';
-    case 'lease-question': return 'a lease question';
+    case 'maintenance': return 'an equipment-maintenance issue';
+    case 'billing': return 'a payment matter';
+    case 'community': return 'a community concern';
+    case 'contract-question': return 'a contract question';
     case 'fair-treatment': return 'a fair-treatment concern';
     case 'safety': return 'a safety concern';
     case 'privacy': return 'a privacy concern';
@@ -103,8 +103,8 @@ function swCategoryLabel(c: ComplaintCategory): string {
   switch (c) {
     case 'maintenance': return 'matengenezo';
     case 'billing': return 'malipo';
-    case 'neighbor-noise': return 'kelele za jirani';
-    case 'lease-question': return 'mkataba';
+    case 'community': return 'suala la jamii';
+    case 'contract-question': return 'mkataba';
     case 'fair-treatment': return 'haki na usawa';
     case 'safety': return 'usalama';
     case 'privacy': return 'faragha';

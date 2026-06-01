@@ -1,8 +1,8 @@
 /**
- * `leasing.schedule_viewing_draft` — DRAFT-only.
+ * `after_hours.schedule_inspection_draft` — DRAFT-only.
  *
- * Proposes up to 3 viewing slots from the owner's calendar. The
- * owner approves one (or rejects all) before the prospect is told.
+ * Proposes up to 3 site-inspection slots from the owner's calendar.
+ * The owner approves one (or rejects all) before the buyer is told.
  * Never books a slot directly.
  */
 
@@ -12,11 +12,11 @@ export interface OwnerCalendarSlot {
   readonly free: boolean;
 }
 
-export interface ScheduleViewingDraftArgs {
+export interface ScheduleInspectionDraftArgs {
   readonly slots: ReadonlyArray<OwnerCalendarSlot>;
   readonly nowMs: number;
-  readonly unitId: string;
-  readonly prospectName: string;
+  readonly lotId: string;
+  readonly buyerName: string;
   readonly language: 'en' | 'sw' | 'mixed';
   /** Earliest slot we accept (e.g. 24h notice). Defaults to 24h. */
   readonly minLeadMs?: number;
@@ -30,17 +30,17 @@ export interface ProposedSlot {
   readonly humanLabel: string;
 }
 
-export interface ScheduleViewingDraftResult {
+export interface ScheduleInspectionDraftResult {
   readonly proposals: ReadonlyArray<ProposedSlot>;
   readonly draftStatus: 'queued-for-owner-review';
-  readonly prospectMessage: string;
+  readonly buyerMessage: string;
 }
 
 const DEFAULT_MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_PROPOSALS = 3;
 
-export function scheduleViewingDraft(args: ScheduleViewingDraftArgs): ScheduleViewingDraftResult {
+export function scheduleInspectionDraft(args: ScheduleInspectionDraftArgs): ScheduleInspectionDraftResult {
   const minLead = args.minLeadMs ?? DEFAULT_MIN_LEAD_MS;
   const window = args.windowMs ?? DEFAULT_WINDOW_MS;
   const earliest = args.nowMs + minLead;
@@ -57,17 +57,17 @@ export function scheduleViewingDraft(args: ScheduleViewingDraftArgs): ScheduleVi
     humanLabel: formatSlot(s.startMs, args.language),
   }));
 
-  const prospectMessage = renderMessage({
+  const buyerMessage = renderMessage({
     proposals,
-    prospectName: args.prospectName,
-    unitId: args.unitId,
+    buyerName: args.buyerName,
+    lotId: args.lotId,
     lang: args.language,
   });
 
   return Object.freeze({
     proposals: Object.freeze(proposals),
     draftStatus: 'queued-for-owner-review',
-    prospectMessage,
+    buyerMessage,
   });
 }
 
@@ -84,18 +84,18 @@ function formatSlot(startMs: number, lang: 'en' | 'sw' | 'mixed'): string {
 
 function renderMessage(args: {
   readonly proposals: ReadonlyArray<ProposedSlot>;
-  readonly prospectName: string;
-  readonly unitId: string;
+  readonly buyerName: string;
+  readonly lotId: string;
   readonly lang: 'en' | 'sw' | 'mixed';
 }): string {
   if (args.proposals.length === 0) {
     return args.lang === 'sw'
-      ? `Habari ${args.prospectName}, kwa sasa hatuna nafasi za kuangalia kwa wiki hii. Tutakujulisha tukipata.`
-      : `Hello ${args.prospectName}, we do not have free viewing windows this week. We will let you know when one opens up.`;
+      ? `Habari ${args.buyerName}, kwa sasa hatuna nafasi za ukaguzi kwa wiki hii. Tutakujulisha tukipata.`
+      : `Hello ${args.buyerName}, we do not have free inspection windows this week. We will let you know when one opens up.`;
   }
   const labels = args.proposals.map((p, i) => `${i + 1}. ${p.humanLabel}`).join('\n');
   if (args.lang === 'sw') {
-    return `Habari ${args.prospectName}, kwa unit ${args.unitId}, tunapendekeza nyakati hizi za kuangalia:\n${labels}\nTafadhali chagua moja inayokufaa.`;
+    return `Habari ${args.buyerName}, kwa lot ${args.lotId}, tunapendekeza nyakati hizi za ukaguzi:\n${labels}\nTafadhali chagua moja inayokufaa.`;
   }
-  return `Hello ${args.prospectName}, for unit ${args.unitId} we propose the following viewing slots:\n${labels}\nReply with the option that works for you.`;
+  return `Hello ${args.buyerName}, for lot ${args.lotId} we propose the following inspection slots:\n${labels}\nReply with the option that works for you.`;
 }

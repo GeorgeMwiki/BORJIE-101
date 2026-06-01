@@ -34,7 +34,7 @@ function makeTenantCtx(): ScopeContext {
     kind: 'tenant',
     tenantId: 't1',
     actorUserId: 'u1',
-    roles: Object.freeze(['PROPERTY_MANAGER']),
+    roles: Object.freeze(['ESTATE_MANAGER']),
     personaId: 'mr-mwikila-head',
   });
 }
@@ -64,8 +64,8 @@ function scriptedLlm(scripts: ReadonlyArray<ReadonlyArray<LlmStreamChunk>>): Llm
 function makeGraphTool(): Tool {
   const citation: Citation = Object.freeze({
     id: 'cite_1',
-    target: { kind: 'graph_node', nodeLabel: 'Unit', nodeId: 'u_3b' },
-    label: 'Unit 3B',
+    target: { kind: 'graph_node', nodeLabel: 'Lot', nodeId: 'l_3b' },
+    label: 'Lot 3B',
     confidence: 0.95,
   });
   return {
@@ -85,7 +85,7 @@ function makeGraphTool(): Tool {
       return {
         kind: 'ok',
         ok: true,
-        output: { label: input.label, id: input.id, arrearsDays: 12 },
+        output: { label: input.label, id: input.id, outstandingRoyaltyDays: 12 },
         latencyMs: 5,
         citations: [citation],
         artifact: null,
@@ -116,11 +116,11 @@ describe('central-intelligence / agent loop', () => {
   it('runs a single-tool-call turn end-to-end', async () => {
     const llm = scriptedLlm([
       [
-        { kind: 'tool_call', toolCall: { callId: 'c1', toolName: 'graph.lookup_node', input: { label: 'Unit', id: 'u_3b' } } },
+        { kind: 'tool_call', toolCall: { callId: 'c1', toolName: 'graph.lookup_node', input: { label: 'Lot', id: 'l_3b' } } },
         { kind: 'stop', stopReason: 'tool_use' },
       ],
       [
-        { kind: 'text_delta', text: 'Unit 3B is 12 days late.' },
+        { kind: 'text_delta', text: 'Lot 3B is 12 days late.' },
         { kind: 'stop', stopReason: 'end_turn' },
       ],
     ]);
@@ -129,12 +129,12 @@ describe('central-intelligence / agent loop', () => {
     const tools = createToolRegistry([makeGraphTool()]);
 
     const ctx = makeTenantCtx();
-    const thread = await memory.createThread(ctx, 'How is Unit 3B doing?');
+    const thread = await memory.createThread(ctx, 'How is Lot 3B doing?');
     const agent = createCentralIntelligenceAgent({ llm, tools, memory, voice });
 
     const events = await collect(agent.run({
       threadId: thread.threadId,
-      userMessage: 'How is Unit 3B doing?',
+      userMessage: 'How is Lot 3B doing?',
       ctx,
     }));
 
@@ -149,7 +149,7 @@ describe('central-intelligence / agent loop', () => {
     const stored = await memory.getThread(thread.threadId, ctx);
     expect(stored?.turns.length).toBe(2);
     const agentTurn = stored!.turns.find((t) => t.role === 'agent');
-    expect(agentTurn?.content).toContain('Unit 3B');
+    expect(agentTurn?.content).toContain('Lot 3B');
     expect(agentTurn?.citations.length).toBeGreaterThan(0);
   });
 
@@ -169,12 +169,12 @@ describe('central-intelligence / agent loop', () => {
     // register a platform tool but a tenant ctx
     const tools = createToolRegistry([makePlatformOnlyTool()]);
     const ctx = makeTenantCtx();
-    const thread = await memory.createThread(ctx, 'industry arrears?');
+    const thread = await memory.createThread(ctx, 'industry outstanding royalties?');
     const agent = createCentralIntelligenceAgent({ llm, tools, memory, voice });
 
     const events = await collect(agent.run({
       threadId: thread.threadId,
-      userMessage: 'industry arrears?',
+      userMessage: 'industry outstanding royalties?',
       ctx,
     }));
 

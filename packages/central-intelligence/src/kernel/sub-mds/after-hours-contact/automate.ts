@@ -1,5 +1,5 @@
 /**
- * AUTOMATE — compiles the leasing redesign into a draft Skill. All
+ * AUTOMATE — compiles the after-hours redesign into a draft Skill. All
  * artefacts run in draft state; the four-eye approval flow decides
  * whether to promote.
  */
@@ -11,13 +11,13 @@ import type {
   SubMdBudget,
 } from '../shared/sub-md-base.js';
 
-export function automateLeasing(
+export function automateAfterHours(
   proposal: RedesignProposal,
   budget: SubMdBudget,
 ): AutomationArtifact {
   return runAutomateStage({
     proposal,
-    skillNamespace: 'leasing-after-hours-contact',
+    skillNamespace: 'after-hours-contact',
     cronExpression: '*/5 18-23,0-7 * * *',
     monitorThresholds: {
       draftAcceptanceFloor: 0.6,
@@ -25,10 +25,10 @@ export function automateLeasing(
       classificationAccuracyFloor: 0.85,
     },
     hookNames: [
-      'leasing.classify_inquiry',
-      'leasing.fetch_unit_match',
-      'leasing.draft_response',
-      'leasing.schedule_viewing_draft',
+      'after_hours.classify_inquiry',
+      'after_hours.fetch_lot_match',
+      'after_hours.draft_response',
+      'after_hours.schedule_inspection_draft',
     ],
     budget,
   });

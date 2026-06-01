@@ -1,15 +1,15 @@
 /**
  * `maintenance.follow_up` — read tier.
  *
- * Polls the work-order state and prepares a tenant-facing feedback
- * request once the vendor reports completion. The follow-up message
- * itself is DRAFTED and queued for owner review (no auto-send) —
- * Tier-A means human in the loop.
+ * Polls the work-order state and prepares a requester-facing feedback
+ * request once the contractor reports completion. The follow-up
+ * message itself is DRAFTED and queued for owner review (no auto-send)
+ * — Tier-A means human in the loop.
  */
 
 export type WorkOrderState =
   | 'dispatched'
-  | 'vendor-acknowledged'
+  | 'contractor-acknowledged'
   | 'on-site'
   | 'resolved'
   | 'no-show'
@@ -41,7 +41,7 @@ export interface FollowUpArgs {
 export interface FollowUpResult {
   readonly state: WorkOrderState;
   readonly draft?: FollowUpDraft;
-  readonly action: 'wait' | 'follow-up-tenant' | 'escalate-no-show';
+  readonly action: 'wait' | 'follow-up-requester' | 'escalate-no-show';
 }
 
 export async function followUp(args: FollowUpArgs): Promise<FollowUpResult> {
@@ -56,7 +56,7 @@ export async function followUp(args: FollowUpArgs): Promise<FollowUpResult> {
         body: renderBody(args.language, 'resolved', args.ticketId),
         draftStatus: 'queued-for-review',
       }),
-      action: 'follow-up-tenant',
+      action: 'follow-up-requester',
     });
   }
   if (status.state === 'no-show' || status.state === 'cancelled') {
