@@ -28,12 +28,20 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 
-// Import the provider enum from the TOP-LEVEL @borjie/database barrel, NOT the
-// `/schemas` subpath: under the gateway's module-init order the subpath barrel
-// can surface `CALENDAR_PROVIDERS` as `undefined` (circular-init in the large
-// schemas index), which would make `z.enum(CALENDAR_PROVIDERS)` throw at load /
-// reject valid input as a 500. The top-level barrel is init-stable.
-import { CALENDAR_PROVIDERS, type CalendarProvider } from '@borjie/database';
+// `CALENDAR_PROVIDERS` is the single source of truth for the provider enum.
+// Read it from the TOP-LEVEL @borjie/database barrel and — crucially — build the
+// `z.enum(...)` schemas LAZILY inside createCalendarRouter (see the note there),
+// NOT at module top-level. Constructing the enum at import time can read the
+// const while the schemas barrel is still mid-init (a circular-init window in the
+// 1.3k-line index), yielding `z.enum(undefined)` whose error formatter later
+// throws — turning a 400 (bad provider) into an unhandled 500.
+import { CALENDAR_PROVIDERS } from '@borjie/database';
+// Derive `CalendarProvider` from the imported VALUE rather than importing the type
+// symbol: the top-level barrel surfaces `CalendarProvider` as a NAMESPACE (a known
+// cross-package declaration-merge drift → TS2709 "cannot use namespace as a type"),
+// whereas the value import is clean. `(typeof CALENDAR_PROVIDERS)[number]` is
+// exactly the `'google' | 'microsoft'` union.
+type CalendarProvider = (typeof CALENDAR_PROVIDERS)[number];
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
@@ -48,19 +56,14 @@ import {
 
 const moduleLogger = createLogger('owner-calendar');
 
-const providerParamSchema = z.object({
-  provider: z.enum(CALENDAR_PROVIDERS),
-});
-
+// `providerParamSchema` / `disconnectQuerySchema` depend on CALENDAR_PROVIDERS,
+// so they are built lazily INSIDE createCalendarRouter (see note there).
+// `callbackQuerySchema` has no such dependency and stays at module scope.
 const callbackQuerySchema = z.object({
   code: z.string().min(1).optional(),
   state: z.string().min(1).optional(),
   error: z.string().optional(),
   error_description: z.string().optional(),
-});
-
-const disconnectQuerySchema = z.object({
-  provider: z.enum(CALENDAR_PROVIDERS).optional(),
 });
 
 export interface CalendarRouterDeps {
@@ -77,6 +80,19 @@ export interface CalendarRouterDeps {
 export function createCalendarRouter(deps: CalendarRouterDeps): Hono {
   const env = deps.env ?? process.env;
   const app = new Hono();
+
+  // Build the CALENDAR_PROVIDERS-dependent zod enums HERE, at router-construction
+  // time — NOT at module top-level. By the time the composition root (or a test)
+  // calls createCalendarRouter, every @borjie/database module is fully
+  // initialised, so `CALENDAR_PROVIDERS` is guaranteed defined. This is the
+  // root-cause fix for the schemas-barrel circular-init that could otherwise have
+  // `z.enum(...)` read `undefined` and 500 on an unsupported provider.
+  const providerParamSchema = z.object({
+    provider: z.enum(CALENDAR_PROVIDERS),
+  });
+  const disconnectQuerySchema = z.object({
+    provider: z.enum(CALENDAR_PROVIDERS).optional(),
+  });
 
   // ───────────────────────────────────────────────────────────────────
   // GET /connect/:provider — redirect the owner to the provider consent.

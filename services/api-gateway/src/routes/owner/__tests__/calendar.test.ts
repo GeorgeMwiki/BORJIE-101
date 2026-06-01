@@ -20,30 +20,17 @@
  * and state round-trip are genuinely exercised. The store is a spy that runs the
  * REAL cipher so the "sealed at rest" invariant is proven, not assumed.
  *
- * NOTE: the `@borjie/database/schemas` *subpath* barrel can surface
- * `CALENDAR_PROVIDERS` as `undefined` under vitest (a circular-init quirk of the
- * 1.3k-line index). ROOT CAUSE FIXED in the route: `calendar.hono.ts` now imports
- * the provider enum from the init-stable TOP-LEVEL `@borjie/database` barrel, so
- * `z.enum(CALENDAR_PROVIDERS)` is always populated. The subpath mock below is
- * retained as defensive insurance for any transitive subpath consumer — it only
- * ever re-injects the REAL array, never a stub.
+ * NOTE: the route builds its `z.enum(CALENDAR_PROVIDERS)` schemas LAZILY inside
+ * createCalendarRouter (not at module top-level), so by the time these tests call
+ * it the provider enum is always fully initialised. No `@borjie/database/schemas`
+ * mock is needed — the earlier subpath circular-init workaround was removed once
+ * that root cause was fixed. The `connect/yahoo -> 400` and
+ * `disconnect?provider=microsoft -> 200` cases below are the regression guards.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import { UserRole } from '../../../types/user-role';
-
-// ── Repair CALENDAR_PROVIDERS for the route's top-level z.enum (see header). ──
-vi.mock('@borjie/database/schemas', async (importActual) => {
-  const actual = (await importActual()) as Record<string, unknown>;
-  const top = (await import('@borjie/database')) as Record<string, unknown>;
-  return {
-    ...actual,
-    CALENDAR_PROVIDERS:
-      (actual.CALENDAR_PROVIDERS as readonly string[] | undefined) ??
-      top.CALENDAR_PROVIDERS,
-  };
-});
 
 // ── Mock auth + database middleware (hoisted). Auth/db come from globals. ────
 vi.mock('../../../middleware/hono-auth', () => ({
