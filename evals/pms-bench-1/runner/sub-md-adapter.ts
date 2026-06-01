@@ -33,9 +33,9 @@ export type SupportedSubMd =
   | 'complaint.triage'
   // Phase F.1 — Tier-B/C sub-MDs registered for bench coverage
   | 'leasing.after_hours_contact'
-  | 'arrears.chaser'
-  | 'lease.coordinator'
-  | 'kra.filing_assistant'
+  | 'royalty.chaser'
+  | 'offtake.coordinator'
+  | 'tra.filing_assistant'
   | 'report.weekly_compiler'
   | 'vendor.onboarding';
 
@@ -43,9 +43,9 @@ const SUPPORTED_SCENARIOS: Readonly<Record<string, SupportedSubMd>> = Object.fre
   'maintenance-dispatch': 'maintenance.dispatch',
   'complaint-triage': 'complaint.triage',
   // Phase F.1 — match evals/pms-bench-1/tasks/<scenario> dir names
-  'lease-renewal': 'lease.coordinator',
-  'arrears-triage': 'arrears.chaser',
-  'kra-filing': 'kra.filing_assistant',
+  'lease-renewal': 'offtake.coordinator',
+  'arrears-triage': 'royalty.chaser',
+  'kra-filing': 'tra.filing_assistant',
 });
 
 const PERSONA_BY_SUB_MD: Readonly<Record<SupportedSubMd, string>> = Object.freeze({
@@ -63,16 +63,16 @@ const PERSONA_BY_SUB_MD: Readonly<Record<SupportedSubMd, string>> = Object.freez
     'You are the leasing.after_hours_contact sub-MD — a Tier-B sub-agent. Your remit: classify after-hours leasing ' +
     'inquiries, fetch matching units from the portfolio, and DRAFT (never auto-send) a tenant-facing response + viewing ' +
     'slot proposals. Owner reviews every draft. Bilingual EN+SW.',
-  'arrears.chaser':
-    'You are the arrears.chaser sub-MD — a Tier-B sub-agent. Your remit: classify arrears severity (1-7d/8-21d/22-44d/45d+) ' +
-    'and run the escalation ladder (reminder → call → draft notice). NEVER files eviction; that stays HQ-tier. STK push is ' +
-    'autonomy-capped; voice calls four-eye-gated.',
-  'lease.coordinator':
-    'You are the lease.coordinator sub-MD — a Tier-C draft-only sub-agent. Your remit: detect 60-day renewal windows, ' +
-    'DRAFT renewal proposals (uses forecasting retention curve), and DRAFT termination responses. Owner approves every send.',
-  'kra.filing_assistant':
-    'You are the kra.filing_assistant sub-MD — a Tier-C prep-only sub-agent. Your remit: compile single-owner MRI batches, ' +
-    'validate pre-filing, DRAFT the eRITS payload, and fetch filing status. NEVER submits; that stays HQ-tier via ' +
+  'royalty.chaser':
+    'You are the royalty.chaser sub-MD — a Tier-B sub-agent. Your remit: classify overdue-balance severity (1-7d/8-21d/22-44d/45d+) ' +
+    'on overdue royalty obligations and buyer payments, and run the escalation ladder (reminder → call → draft notice). NEVER files a ' +
+    'legal notice; that stays HQ-tier. STK push is autonomy-capped; voice calls four-eye-gated.',
+  'offtake.coordinator':
+    'You are the offtake.coordinator sub-MD — a Tier-C draft-only sub-agent. Your remit: detect 60-day offtake-agreement renewal ' +
+    'windows, DRAFT renewal proposals (uses forecasting retention curve), and DRAFT termination responses. Owner approves every send.',
+  'tra.filing_assistant':
+    'You are the tra.filing_assistant sub-MD — a Tier-C prep-only sub-agent. Your remit: compile single-owner royalty-return batches, ' +
+    'validate pre-filing, DRAFT the TRA filing payload, and fetch filing status. NEVER submits; that stays HQ-tier via ' +
     'platform.file_kra_mri (four-eye).',
   'report.weekly_compiler':
     'You are the report.weekly_compiler sub-MD — a Tier-C pure-read/draft sub-agent. Your remit: gather weekly KPIs, ' +

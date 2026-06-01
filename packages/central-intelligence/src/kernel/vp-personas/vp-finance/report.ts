@@ -33,8 +33,8 @@ export async function draftFinanceWeeklyReport(args: {
   readonly weekStartingIso: string;
   readonly rollups: ReadonlyArray<VpLineWorkerRollup>;
 }): Promise<VpWeeklyReport> {
-  const arrears = pick(args.rollups, 'arrears.chaser');
-  const kra = pick(args.rollups, 'kra.filing-assistant');
+  const arrears = pick(args.rollups, 'royalty.chaser');
+  const kra = pick(args.rollups, 'tra.filing-assistant');
   const utilities = pick(args.rollups, 'utility-billing-clerk');
   const cashflow = pick(args.rollups, 'cashflow-forecaster');
 

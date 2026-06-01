@@ -54,13 +54,13 @@ describe('OutcomeRecorder — HIGH-B partial-failure handling', () => {
     // Default (failFast=false): record returns successfully, persistence
     // failure is logged, SloEvent IS still emitted.
     const out = await rec.record({
-      subMdName: 'arrears-chaser',
+      subMdName: 'royalty-chaser',
       predicted: predicted(),
       actual: actual(),
     });
     expect(out.verdict).toBe('on-target');
     expect(events).toHaveLength(1);
-    expect(events[0]?.subMd).toBe('arrears-chaser');
+    expect(events[0]?.subMd).toBe('royalty-chaser');
     expect(errors.some((e) => e.msg.includes('persistence-sink'))).toBe(true);
   });
 

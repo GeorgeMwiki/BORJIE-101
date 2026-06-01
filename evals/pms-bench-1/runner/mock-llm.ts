@@ -259,7 +259,7 @@ const PLANS: Readonly<Record<string, CannedPlan>> = Object.freeze({
     resolutionQuality: 0.94,
   },
 
-  // ─── arrears-triage (Tier-B sub-MD — arrears.chaser) ────────────
+  // ─── arrears-triage (Tier-B sub-MD — royalty.chaser) ────────────
   // The chaser runs the escalation ladder (reminder -> call -> draft notice)
   // and NEVER files eviction — destructive tools are flagged for human
   // approval only. STK push is autonomy-capped; voice calls four-eye-gated.
@@ -361,7 +361,7 @@ const PLANS: Readonly<Record<string, CannedPlan>> = Object.freeze({
     resolutionQuality: 0.93,
   },
 
-  // ─── kra-filing (Tier-C sub-MD — kra.filing_assistant) ──────────
+  // ─── kra-filing (Tier-C sub-MD — tra.filing_assistant) ──────────
   // Prep-only: compiles MRI batches, validates pre-filing, drafts the
   // eRITS payload, fetches status. NEVER submits — actual filing is
   // HQ-tier via `platform.file_kra_mri` (four-eye approval).
@@ -473,7 +473,7 @@ const PLANS: Readonly<Record<string, CannedPlan>> = Object.freeze({
     resolutionQuality: 0.91,
   },
 
-  // ─── lease-renewal (Tier-C sub-MD — lease.coordinator) ──────────
+  // ─── lease-renewal (Tier-C sub-MD — offtake.coordinator) ──────────
   // Draft-only: detects 60-day renewal windows, drafts proposals, drafts
   // termination responses. Owner approves every send — sub-MD never
   // auto-sends.

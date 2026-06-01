@@ -36,7 +36,7 @@ export async function draftGrowthWeeklyReport(args: {
   readonly weekStartingIso: string;
   readonly rollups: ReadonlyArray<VpLineWorkerRollup>;
 }): Promise<VpWeeklyReport> {
-  const lease = pick(args.rollups, 'lease.coordinator');
+  const lease = pick(args.rollups, 'offtake.coordinator');
   const afterHours = pick(args.rollups, 'leasing.after-hours-contact');
   const pricing = pick(args.rollups, 'pricing.analyst');
   const acquisitions = pick(args.rollups, 'vacancy.acquisitions-scout');

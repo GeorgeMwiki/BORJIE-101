@@ -12,8 +12,8 @@ import {
 } from '../shared/vp-base.js';
 
 export const VP_FINANCE_LINE_WORKERS = Object.freeze([
-  'arrears.chaser',
-  'kra.filing-assistant',
+  'royalty.chaser',
+  'tra.filing-assistant',
   'utility-billing-clerk',
   'cashflow-forecaster',
 ] as const);
@@ -32,14 +32,14 @@ export function routeFinanceIntent(intent: OwnerIntent): ReadonlyArray<FinanceRo
 
   if (/arrears|overdue|late rent|chase|outstanding/.test(t)) {
     routes.push({
-      lineWorker: 'arrears.chaser',
+      lineWorker: 'royalty.chaser',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
       description: 'Run the arrears ladder for overdue accounts',
     });
   }
   if (/kra|tax|mri|withholding|filing/.test(t)) {
     routes.push({
-      lineWorker: 'kra.filing-assistant',
+      lineWorker: 'tra.filing-assistant',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
       description: 'Prepare the KRA filing — owner signs off before submission',
     });
@@ -102,7 +102,7 @@ export async function orchestrateFinance(args: {
       gaps.push({
         missingLineWorker: route.lineWorker,
         reason: `VP Finance needed ${route.lineWorker} for intent "${intent.text}" but it is not registered for this scope.`,
-        suggestedRiskTier: route.lineWorker === 'kra.filing-assistant' ? 'external-comm' : 'mutate',
+        suggestedRiskTier: route.lineWorker === 'tra.filing-assistant' ? 'external-comm' : 'mutate',
       });
       continue;
     }

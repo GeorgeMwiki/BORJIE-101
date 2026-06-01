@@ -11,7 +11,7 @@ import {
 } from '../shared/vp-base.js';
 
 export const VP_GROWTH_LINE_WORKERS = Object.freeze([
-  'lease.coordinator',
+  'offtake.coordinator',
   'leasing.after-hours-contact',
   'pricing.analyst',
   'vacancy.acquisitions-scout',
@@ -31,7 +31,7 @@ export function routeGrowthIntent(intent: OwnerIntent): ReadonlyArray<GrowthRout
 
   if (/renew|lease end|expir(?:e|ing|y)|new lease|sign lease/.test(t)) {
     routes.push({
-      lineWorker: 'lease.coordinator',
+      lineWorker: 'offtake.coordinator',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
       description: 'Run the renewal / new-lease funnel',
     });

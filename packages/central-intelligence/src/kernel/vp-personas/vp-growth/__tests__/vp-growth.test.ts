@@ -16,9 +16,9 @@ function catalogue(known: ReadonlyArray<string>): VpLineWorkerCatalogue {
 }
 
 describe('vp.growth — orchestrate', () => {
-  it('routes a renewal intent to lease.coordinator', async () => {
+  it('routes a renewal intent to offtake.coordinator', async () => {
     const vp = createVpGrowth({
-      lineWorkerCatalogue: catalogue(['lease.coordinator']),
+      lineWorkerCatalogue: catalogue(['offtake.coordinator']),
     });
     const intent: OwnerIntent = {
       kind: 'remediate',
@@ -28,7 +28,7 @@ describe('vp.growth — orchestrate', () => {
     };
     const plan = await vp.orchestrate(intent);
     expect(plan.spawns).toHaveLength(1);
-    expect(plan.spawns[0]?.subMdId).toBe('lease.coordinator');
+    expect(plan.spawns[0]?.subMdId).toBe('offtake.coordinator');
   });
 
   it('routes acquisition intents to vacancy.acquisitions-scout', async () => {
