@@ -36,7 +36,11 @@ import {
   createGraphAgentToolkit,
 } from '@borjie/graph-sync';
 import { getBrainExtraSkills } from '../composition/brain-extensions';
-import { auditChatResponse } from '../composition/chat-response-gate';
+import {
+  auditChatResponse,
+  decideStrictResponse,
+  type StrictWithholdLang,
+} from '../composition/chat-response-gate';
 import {
   recallSupportMemory,
   type RecallLang,
@@ -567,6 +571,255 @@ async function withRecalledMemory<
   }
 }
 
+// ─── GAP 2 — 14-step kernel PRE-FLIGHT on /brain/turn ────────────────
+//
+// Before this wiring the main chat path (/brain/turn) called only
+// `brain.orchestrator.handleTurn` — the persona-driven ai-copilot
+// stack — and NEVER `kernel.think`. The disciplined 14-step pipeline
+// (inviolable → policy-gate → uncertainty/escalation → confidence →
+// provenance) ran ONLY on the Jarvis routers. The main chat surface was
+// therefore ungated by the kernel's hard refusal rails.
+//
+// SAFE SUBSET (per the wiring brief): route /brain/turn through the SAME
+// `kernel.think` entry the Jarvis routers use (`getSovereignBrain(...)
+// .kernel.think(...)`) as a PRE-FLIGHT discipline gate. When the kernel
+// REFUSES (inviolable / policy / drift block) we short-circuit and
+// return the refusal — the persona path never gets to answer an unsafe
+// or out-of-bounds request. When the kernel ALLOWS, we fall through to
+// the existing persona path UNCHANGED (persona binding preserved).
+//
+// STAYED STAGED (flagged): the FULL threading — delegating the whole
+// turn to the kernel's Claude-Code-style orchestrator main-loop
+// (`composeSovereign({ orchestrator })`) so the persona answer itself
+// is GENERATED inside the 14-step pipeline — still depends on the LLM
+// router + dispatcher adapters that ship in a separate PR (see
+// `packages/central-intelligence/src/kernel/compose.ts` Phase E.5.1 and
+// `brain-kernel-wiring.ts` `orchestratorBindings`). Threading that here
+// would risk the working persona path, so we ship the pre-flight gate
+// (which is the load-bearing safety half) and leave answer-generation
+// on the persona path.
+//
+// Fail-OPEN on infra (NOT on a refusal): if the kernel is unwired (no
+// ANTHROPIC_API_KEY) or `think` throws for an infra reason, the
+// pre-flight degrades to "allow" so the main chat keeps working — the
+// persona path + the auditor evidence gate (GAP 1) remain in force.
+// A genuine kernel REFUSAL always blocks; only infra faults pass.
+
+/**
+ * Conservative kernel-scope role derived from the turn viewer. Drives
+ * WHICH grounding slice the pre-flight kernel sees; the inviolable /
+ * policy rails fire regardless of role.
+ */
+type KernelScopeRole = 'tenant' | 'manager' | 'org-admin';
+
+function kernelRoleForViewer(viewer: TurnGateContext['viewer']): KernelScopeRole {
+  if (viewer.isAdmin) return 'org-admin';
+  if (viewer.isManagement) return 'manager';
+  return 'tenant';
+}
+
+/** Single-language refusal copy. EN default; SW when the locale toggles. */
+const KERNEL_REFUSAL_TEXTS = Object.freeze({
+  en: 'I can’t help with that request — it crosses a safety or policy boundary I’m not allowed to bypass.',
+  sw: 'Siwezi kukusaidia na ombi hilo — linavuka mpaka wa usalama au sera ambao siruhusiwi kuukiuka.',
+} as const);
+
+export interface KernelPreflightResult {
+  /** True when the kernel issued a hard refusal — the turn must stop. */
+  readonly refused: boolean;
+  /** Which gate refused (for structured logging), when refused. */
+  readonly gate?: 'inviolable' | 'policy' | 'drift';
+  /** Single-language, locale-correct refusal message for the client. */
+  readonly message?: string;
+  /** True when the pre-flight could not run (infra) and we failed open. */
+  readonly degraded?: boolean;
+}
+
+/**
+ * Run the 14-step kernel as a PRE-FLIGHT over the user's text. Returns a
+ * refusal directive when the kernel blocks (inviolable / policy / drift);
+ * otherwise signals "allow" so the caller proceeds to the persona path.
+ *
+ * Never throws. Tenant-scoped: the calling tenant rides on
+ * `req.scope` so memory recall / provenance writes stay isolated.
+ */
+async function kernelPreflight(
+  c: any,
+  ctx: TurnGateContext,
+  userText: string,
+): Promise<KernelPreflightResult> {
+  const lang: StrictWithholdLang = pickRecallLang(
+    c.req.header('accept-language') ?? null,
+  );
+  try {
+    const role = kernelRoleForViewer(ctx.viewer);
+    // Dynamic import: the sovereign composition root transitively pulls
+    // in the service-registry + ledger infrastructure. Loading it lazily
+    // (only when a turn actually pre-flights) keeps it OUT of this
+    // module's eval graph so route-level test suites that partially mock
+    // `@borjie/database` don't fault on an unrelated module-eval read.
+    const { getSovereignBrain } = await import('../composition/sovereign.js');
+    const sov = await getSovereignBrain({
+      tenantId: ctx.tenant.tenantId,
+      userId: ctx.viewer.userId,
+      role,
+    });
+    const decision = await sov.kernel.think({
+      threadId: `brain-turn-preflight:${ctx.tenant.tenantId}:${ctx.viewer.userId}`,
+      userMessage: userText,
+      scope: {
+        kind: 'tenant',
+        tenantId: ctx.tenant.tenantId,
+        actorUserId: ctx.viewer.userId,
+        roles: ctx.viewer.roles,
+        personaId: 'mr-mwikila-head',
+      },
+      // Conservative defaults: the pre-flight exists to fire the hard
+      // rails, not to escalate trust. 'tenant' tier + 'low' stakes keep
+      // the off-hours / sovereign-tier policy checks from over-firing on
+      // ordinary chat while still running inviolable + policy + drift.
+      tier: 'tenant',
+      stakes: 'low',
+      surface: 'owner-portal',
+    });
+    if (decision.kind === 'refusal') {
+      logger.warn(
+        {
+          wiring: 'kernel-preflight',
+          tenantId: ctx.tenant.tenantId,
+          userId: ctx.viewer.userId,
+          gate: decision.gateThatRefused,
+          lang,
+        },
+        'brain /turn: kernel PRE-FLIGHT refused the turn (14-step rail fired)',
+      );
+      return {
+        refused: true,
+        gate: decision.gateThatRefused,
+        message: KERNEL_REFUSAL_TEXTS[lang],
+      };
+    }
+    logger.info(
+      {
+        wiring: 'kernel-preflight',
+        tenantId: ctx.tenant.tenantId,
+        userId: ctx.viewer.userId,
+        decision: decision.kind,
+      },
+      'brain /turn: kernel PRE-FLIGHT passed (14-step pipeline cleared)',
+    );
+    return { refused: false };
+  } catch (err) {
+    // Infra fault (kernel unwired / sensor down). Fail OPEN — the main
+    // chat must keep working; the persona path + GAP-1 evidence gate
+    // still apply. A genuine refusal NEVER reaches this catch.
+    logger.warn(
+      {
+        wiring: 'kernel-preflight',
+        tenantId: ctx.tenant.tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'brain /turn: kernel PRE-FLIGHT unavailable; failing open to persona path',
+    );
+    return { refused: false, degraded: true };
+  }
+}
+
+// ─── Evidence-required ENFORCEMENT (HARD / JSON mode) ────────────────
+//
+// CLAUDE.md hard rule: "The Auditor Agent REJECTS responses with empty
+// evidence chains." The auditor already computes the verdict; this is
+// the enforcement half — in JSON mode we WITHHOLD an ungrounded answer
+// and ship a safe single-language placeholder + 422 instead of the
+// evidence-free text. Gated behind `BRAIN_STRICT_EVIDENCE` (default ON
+// for JSON). SSE remains a non-blocking warn frame (a stream can't
+// un-send) handled by `emitAuditorFrame`.
+
+/**
+ * Resolve the HARD-mode strict-evidence flag. Default ON for the JSON
+ * path. Operators can disable with `BRAIN_STRICT_EVIDENCE=off|0|false`
+ * to restore the legacy observe-only behaviour (e.g. during a corpus
+ * back-fill where many answers are legitimately evidence-thin).
+ */
+function strictEvidenceEnabled(): boolean {
+  const raw = process.env.BRAIN_STRICT_EVIDENCE?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return true; // default ON
+  return !(raw === 'off' || raw === '0' || raw === 'false' || raw === 'no');
+}
+
+/**
+ * Run the auditor over a JSON-mode response and apply HARD-mode
+ * enforcement. Returns the (possibly substituted) responseText, the
+ * HTTP status (422 when withheld), and the public audit envelope.
+ *
+ * Pure-ish: performs the auditor call + a Pino log on withhold; never
+ * throws (the auditor itself is best-effort). The caller assembles the
+ * final JSON body from `responseText` + `audit`.
+ */
+async function auditAndEnforceJson(args: {
+  readonly c: any;
+  readonly ctx: TurnGateContext;
+  readonly threadId: string;
+  readonly personaId: string;
+  readonly responseText: string;
+  readonly tokensUsed: number;
+}): Promise<{
+  readonly responseText: string;
+  readonly status: 200 | 422;
+  readonly audit: {
+    verdict: string;
+    evidenceCount: number;
+    auditLogId: string;
+    evidenceWarning: 'no_evidence_cited' | null;
+    enforced: boolean;
+  };
+}> {
+  const verdict = await auditChatResponse({
+    tenantId: args.ctx.tenant.tenantId,
+    threadId: args.threadId,
+    userId: args.ctx.viewer.userId,
+    personaId: args.personaId,
+    responseText: args.responseText,
+    tokensUsed: args.tokensUsed,
+  });
+  const lang: StrictWithholdLang = pickRecallLang(
+    args.c.req.header('accept-language') ?? null,
+  );
+  const strict = strictEvidenceEnabled();
+  const decision = decideStrictResponse({
+    verdict: verdict.verdict,
+    originalText: args.responseText,
+    lang,
+    strict,
+  });
+  if (decision.withheld) {
+    logger.warn(
+      {
+        wiring: 'evidence-enforcement',
+        tenantId: args.ctx.tenant.tenantId,
+        userId: args.ctx.viewer.userId,
+        threadId: args.threadId,
+        verdict: verdict.verdict,
+        evidenceCount: verdict.evidenceCount,
+        auditLogId: verdict.auditLogId,
+        lang,
+      },
+      'brain /turn: ungrounded response WITHHELD in HARD mode (evidence-required)',
+    );
+  }
+  return {
+    responseText: decision.responseText,
+    status: decision.status,
+    audit: {
+      verdict: verdict.verdict,
+      evidenceCount: verdict.evidenceCount,
+      auditLogId: verdict.auditLogId,
+      evidenceWarning: verdict.evidenceWarning,
+      enforced: decision.withheld,
+    },
+  };
+}
+
 async function handleTurnJson(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
@@ -590,30 +843,28 @@ async function handleTurnJson(
       if (!result.success) return c.json({ error: result.error.message }, 500);
       const turn = result.data.turn;
       const newThreadId = result.data.thread.id;
-      const auditVerdict = await auditChatResponse({
-        tenantId: ctx.tenant.tenantId,
+      const enforced = await auditAndEnforceJson({
+        c,
+        ctx,
         threadId: newThreadId,
-        userId: ctx.viewer.userId,
         personaId: turn.finalPersonaId,
         responseText: turn.responseText,
         tokensUsed: turn.tokensUsed,
       });
-      return c.json({
-        threadId: newThreadId,
-        finalPersonaId: turn.finalPersonaId,
-        responseText: turn.responseText,
-        handoffs: turn.handoffs,
-        toolCalls: turn.toolCalls,
-        advisorConsulted: turn.advisorConsulted,
-        proposedAction: turn.proposedAction,
-        tokensUsed: turn.tokensUsed,
-        audit: {
-          verdict: auditVerdict.verdict,
-          evidenceCount: auditVerdict.evidenceCount,
-          auditLogId: auditVerdict.auditLogId,
-          evidenceWarning: auditVerdict.evidenceWarning,
+      return c.json(
+        {
+          threadId: newThreadId,
+          finalPersonaId: turn.finalPersonaId,
+          responseText: enforced.responseText,
+          handoffs: turn.handoffs,
+          toolCalls: turn.toolCalls,
+          advisorConsulted: turn.advisorConsulted,
+          proposedAction: turn.proposedAction,
+          tokensUsed: turn.tokensUsed,
+          audit: enforced.audit,
         },
-      });
+        enforced.status,
+      );
     }
     const result = await brain.orchestrator.handleTurn({
       threadId: body.threadId,
@@ -624,30 +875,28 @@ async function handleTurnJson(
       ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
     });
     if (!result.success) return c.json({ error: result.error.message }, 500);
-    const auditVerdict = await auditChatResponse({
-      tenantId: ctx.tenant.tenantId,
+    const enforced = await auditAndEnforceJson({
+      c,
+      ctx,
       threadId: result.data.threadId,
-      userId: ctx.viewer.userId,
       personaId: result.data.finalPersonaId,
       responseText: result.data.responseText,
       tokensUsed: result.data.tokensUsed,
     });
-    return c.json({
-      threadId: result.data.threadId,
-      finalPersonaId: result.data.finalPersonaId,
-      responseText: result.data.responseText,
-      handoffs: result.data.handoffs,
-      toolCalls: result.data.toolCalls,
-      advisorConsulted: result.data.advisorConsulted,
-      proposedAction: result.data.proposedAction,
-      tokensUsed: result.data.tokensUsed,
-      audit: {
-        verdict: auditVerdict.verdict,
-        evidenceCount: auditVerdict.evidenceCount,
-        auditLogId: auditVerdict.auditLogId,
-        evidenceWarning: auditVerdict.evidenceWarning,
+    return c.json(
+      {
+        threadId: result.data.threadId,
+        finalPersonaId: result.data.finalPersonaId,
+        responseText: enforced.responseText,
+        handoffs: result.data.handoffs,
+        toolCalls: result.data.toolCalls,
+        advisorConsulted: result.data.advisorConsulted,
+        proposedAction: result.data.proposedAction,
+        tokensUsed: result.data.tokensUsed,
+        audit: enforced.audit,
       },
-    });
+      enforced.status,
+    );
   } catch (err) {
     return handleError(c, err);
   }
@@ -702,6 +951,13 @@ async function emitAuditorFrame(
         evidenceCount: verdict.evidenceCount,
         auditLogId: verdict.auditLogId,
         evidenceWarning: verdict.evidenceWarning,
+        // SSE is WARN-ONLY: tokens were already streamed to the client,
+        // so we cannot un-send an ungrounded answer here. The auditor
+        // verdict is surfaced for client-side display (e.g. an
+        // "unverified" badge). HARD enforcement (withhold + 422) lives
+        // on the JSON path only. See `auditAndEnforceJson`.
+        enforced: false,
+        mode: 'warn-only',
       }),
     });
   } catch (err) {
@@ -954,6 +1210,45 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   const gate = await gateTurn(c, body);
   if (!gate.ok) return gate.response;
 
+  const wantsSse = clientWantsSse(c.req.header('accept'));
+
+  // GAP 2 — 14-step kernel PRE-FLIGHT. Route the turn through the same
+  // `kernel.think` entry the Jarvis routers use BEFORE the persona path
+  // so the inviolable / policy / drift rails fire on the MAIN chat too.
+  // A hard refusal short-circuits the turn (JSON 403 / SSE refusal
+  // frame); an infra fault fails open to the persona path. We pre-flight
+  // the ORIGINAL user text (before the memory preamble is prepended) so
+  // the rails see exactly what the user asked.
+  const preflight = await kernelPreflight(c, gate.ctx, body.userText);
+  if (preflight.refused) {
+    if (wantsSse) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            message: preflight.message,
+            code: 'KERNEL_REFUSED',
+            gate: preflight.gate,
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
+        });
+      });
+    }
+    return c.json(
+      {
+        error: 'kernel_refused',
+        code: 'KERNEL_REFUSED',
+        gate: preflight.gate,
+        responseText: preflight.message,
+      },
+      403,
+    );
+  }
+
   // Persistent-memory RECALL — load the user's OPEN/active support cases
   // (tenant+user scoped; GUC bound by gateTurn) and prepend a compact,
   // single-language memory preamble to the user's text so Mr. Mwikila never
@@ -967,7 +1262,6 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // we replay it and skip the orchestrator entirely — no LLM tokens
   // burned on the retry. The cache hit sets `Idempotent-Replayed: true`
   // so live-verify can confirm the gate fired.
-  const wantsSse = clientWantsSse(c.req.header('accept'));
   if (!wantsSse) {
     const rawKey = extractBrainIdempotencyKey(c);
     if (rawKey) {

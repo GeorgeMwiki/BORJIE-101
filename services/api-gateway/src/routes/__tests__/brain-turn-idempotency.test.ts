@@ -53,7 +53,10 @@ vi.mock('@borjie/ai-copilot', async () => {
               turn: {
                 threadId: `thread-${startThreadCallCount}`,
                 finalPersonaId: 'persona.coworker',
-                responseText: `mock response #${startThreadCallCount}`,
+                // Grounded fixture (carries an evidence citation) so the
+                // HARD-mode evidence gate approves at 200 — the idempotency
+                // contract under test is orthogonal to the evidence gate.
+                responseText: `mock response #${startThreadCallCount} [evidence:lmbm_idem_${startThreadCallCount}]`,
                 toolCalls: [],
                 handoffs: [],
                 tokensUsed: 100,
@@ -169,7 +172,7 @@ describe('G2 — brain /turn Idempotency-Key cache', () => {
     expect(startThreadCallCount).toBe(1);
     expect(res.headers.get('idempotent-replayed')).toBeNull();
     const body = await res.json();
-    expect(body.responseText).toBe('mock response #1');
+    expect(body.responseText).toBe('mock response #1 [evidence:lmbm_idem_1]');
   });
 
   it('duplicate call within TTL replays cache and skips orchestrator', async () => {

@@ -622,6 +622,26 @@ export function createBrainKernelWiring(
   // dispatcher adapters ship as a separate PR. When the caller skips
   // the bindings block, we surface `null` so the audit script doesn't
   // mis-classify the absence as a no-op chain.
+  //
+  // GAP 2 — STAYED STAGED (precise flag): the full main-loop threading
+  // (`composeSovereign({ orchestrator: { router, dispatcher, ...hooks } })`)
+  // CANNOT be wired here yet. `composeSovereign`'s `orchestrator` block
+  // REQUIRES a concrete `router: LLMRouter` + `dispatcher: Dispatcher`
+  // and THROWS when they are absent (see
+  // `packages/central-intelligence/src/kernel/compose.ts` Phase E.5.1).
+  // `buildOrchestratorBindings(...)` returns the 9-hook chain + deps,
+  // NOT a router/dispatcher — so passing it into `composeSovereign`
+  // here would crash kernel construction and take the voice agent down
+  // with it. We therefore keep the hook chain on the WIRING SLOT only.
+  //
+  // The LIVE GAP-2 fix (route the MAIN chat /brain/turn through the
+  // 14-step kernel) is shipped as a PRE-FLIGHT in
+  // `services/api-gateway/src/routes/brain.hono.ts::kernelPreflight`,
+  // which calls `getSovereignBrain(...).kernel.think(...)` (the SAME
+  // entry the Jarvis routers use) before the persona path so the
+  // inviolable / policy / drift rails fire on the main chat. Answer
+  // GENERATION inside the orchestrator main-loop remains staged on the
+  // router/dispatcher PR above.
   let orchestratorBindings: OrchestratorBindings | null = null;
   if (deps.orchestratorBindings) {
     try {

@@ -233,3 +233,83 @@ export async function auditChatResponse(
     violation,
   };
 }
+
+// ─── HARD-mode enforcement ──────────────────────────────────────────
+//
+// CLAUDE.md hard rule: "The Auditor Agent REJECTS responses with empty
+// evidence chains." Computing the verdict (above) is observe-only — it
+// makes the violation visible but still ships the ungrounded answer.
+// This block is the ENFORCEMENT half: in HARD (JSON) mode, when the
+// verdict is reject / needs_human, we WITHHOLD the ungrounded
+// responseText and substitute a safe, single-language placeholder so
+// the user never receives an evidence-free recommendation.
+//
+// SSE stays a non-blocking warn frame (a stream cannot un-send tokens
+// already flushed); the JSON path is the enforceable surface.
+//
+// EN/SW absolute (CLAUDE.md): the substitution is single-language —
+// `en` by default, full Swahili when the active locale is `sw`, zero
+// mixing.
+
+/** Active locale for the safe-withhold message. EN default; SW toggles. */
+export type StrictWithholdLang = 'en' | 'sw';
+
+/**
+ * Single-language safe message shown when the auditor withholds an
+ * ungrounded answer. Deterministic (no LLM): the brain says it does not
+ * yet have grounded evidence and will consult the records — rather than
+ * shipping an evidence-free claim. Strictly one language per locale.
+ */
+export const STRICT_WITHHOLD_TEXTS: Readonly<Record<StrictWithholdLang, string>> =
+  Object.freeze({
+    en: "I don't have grounded evidence for that yet — let me check the records before I answer.",
+    sw: 'Sina ushahidi wenye msingi kuhusu hilo bado — niangalie kumbukumbu kwanza kabla sijajibu.',
+  });
+
+/** Verdicts that trigger a HARD-mode withhold (anything that is not an approval). */
+function verdictWithholds(verdict: ChatResponseGateVerdict['verdict']): boolean {
+  return verdict === 'reject' || verdict === 'needs_human';
+}
+
+export interface StrictDecision {
+  /** True when the original responseText was withheld and replaced. */
+  readonly withheld: boolean;
+  /** The text to actually ship to the client (safe message when withheld). */
+  readonly responseText: string;
+  /**
+   * HTTP status the caller should use. `422` when withheld (the answer
+   * failed the evidence gate), `200` otherwise.
+   */
+  readonly status: 200 | 422;
+}
+
+/**
+ * Decide what a HARD-mode (JSON) caller should ship given an auditor
+ * verdict. Pure + deterministic so it is unit-testable without a route.
+ *
+ *   - strict OFF                → never withhold (observe-only, legacy).
+ *   - verdict approves          → ship the original text, 200.
+ *   - verdict reject/needs_human → withhold: return the single-language
+ *     safe message + 422.
+ *
+ * @param verdict       the auditor verdict for this response
+ * @param originalText  the model's ungrounded responseText
+ * @param lang          active locale (EN default, SW toggles)
+ * @param strict        strict-mode flag (default ON for JSON callers)
+ */
+export function decideStrictResponse(args: {
+  readonly verdict: ChatResponseGateVerdict['verdict'];
+  readonly originalText: string;
+  readonly lang: StrictWithholdLang;
+  readonly strict: boolean;
+}): StrictDecision {
+  const { verdict, originalText, lang, strict } = args;
+  if (!strict || !verdictWithholds(verdict)) {
+    return { withheld: false, responseText: originalText, status: 200 };
+  }
+  return {
+    withheld: true,
+    responseText: STRICT_WITHHOLD_TEXTS[lang],
+    status: 422,
+  };
+}

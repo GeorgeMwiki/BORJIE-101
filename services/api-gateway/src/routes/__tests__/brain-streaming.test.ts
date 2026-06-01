@@ -75,7 +75,7 @@ let startThreadImpl: (
       turn: {
         threadId: 'thread-mock-1',
         finalPersonaId: 'persona.coworker',
-        responseText: 'Hello from mock brain.',
+        responseText: 'Hello from mock brain. [evidence:lmbm_mock_1]',
         toolCalls: [],
         handoffs: [],
         tokensUsed: 42,
@@ -91,7 +91,7 @@ let handleTurnImpl: () => Promise<{ success: boolean; data?: MockTurn; error?: {
   data: {
     threadId: 'thread-mock-existing',
     finalPersonaId: 'persona.coworker',
-    responseText: 'Existing thread reply from mock.',
+    responseText: 'Existing thread reply from mock. [evidence:lmbm_mock_2]',
     toolCalls: [{ tool: 'skill.lookup', ok: true }],
     handoffs: [],
     tokensUsed: 21,
@@ -328,7 +328,7 @@ afterEach(() => {
         turn: {
           threadId: 'thread-mock-1',
           finalPersonaId: 'persona.coworker',
-          responseText: 'Hello from mock brain.',
+          responseText: 'Hello from mock brain. [evidence:lmbm_mock_1]',
           toolCalls: [],
           handoffs: [],
           tokensUsed: 42,
@@ -343,7 +343,7 @@ afterEach(() => {
     data: {
       threadId: 'thread-mock-existing',
       finalPersonaId: 'persona.coworker',
-      responseText: 'Existing thread reply from mock.',
+      responseText: 'Existing thread reply from mock. [evidence:lmbm_mock_2]',
       toolCalls: [{ tool: 'skill.lookup', ok: true }],
       handoffs: [],
       tokensUsed: 21,
@@ -537,15 +537,18 @@ describe('POST /api/v1/brain/turn — JSON fallback', () => {
       };
     };
     expect(body.threadId).toBe('thread-mock-1');
-    expect(body.responseText).toBe('Hello from mock brain.');
+    // Grounded fixture (carries an evidence citation) → the HARD-mode
+    // evidence gate approves and ships the answer verbatim at 200.
+    expect(body.responseText).toBe('Hello from mock brain. [evidence:lmbm_mock_1]');
     expect(body.tokensUsed).toBe(42);
-    // Wave-AC1: Auditor gate fires on every JSON response (HARD MODE).
+    // Auditor gate fires on every JSON response (HARD MODE). The
+    // grounded fixture cites evidence → the gate APPROVES, ships the
+    // answer at 200, and raises no warning.
     expect(body.audit).toBeDefined();
-    expect(['approve', 'reject', 'needs_human']).toContain(body.audit.verdict);
-    expect(typeof body.audit.evidenceCount).toBe('number');
+    expect(body.audit.verdict).toBe('approve');
+    expect(body.audit.evidenceCount).toBeGreaterThanOrEqual(1);
     expect(typeof body.audit.auditLogId).toBe('string');
-    // Mock response has no evidence citations → reject + warning.
-    expect(body.audit.evidenceWarning).toBe('no_evidence_cited');
+    expect(body.audit.evidenceWarning).toBeNull();
   });
 
   it('JSON fallback applies for missing Accept header (legacy clients)', async () => {
