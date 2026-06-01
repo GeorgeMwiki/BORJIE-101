@@ -1,11 +1,13 @@
 /**
- * Policy Packs — per-country legal / compliance knowledge shipped with
- * the platform. Loaded on tenant creation (seeded via a one-shot script)
- * or looked up on-demand via `getPolicyPack(countryCode)`.
+ * Policy Packs — per-country mining legal / compliance knowledge shipped
+ * with the platform. Loaded on tenant creation (seeded via a one-shot
+ * script) or looked up on-demand via `getPolicyPack(countryCode)`.
  *
  * This module hosts the summaries only. Full pack content lives in the
  * `@borjie/compliance-plugins` package; we cross-reference to avoid
- * duplicating the legal text.
+ * duplicating the legal text. Summaries are deliberately high-level — the
+ * authoritative figures (royalty rates, fee schedules) live in the plugin
+ * packs and the intelligence corpus, which the Auditor cites against.
  */
 
 import { z } from 'zod';
@@ -29,96 +31,121 @@ export interface PolicyPack {
 export const POLICY_PACKS: Record<CountryCode, PolicyPack> = {
   KE: {
     countryCode: 'KE',
-    title: 'Kenya landlord-tenant pack',
+    title: 'Kenya mining regulatory pack',
     version: '2024.1',
     summary:
-      'Covers the Landlord and Tenant (Shops, Hotels and Catering Establishments) Act, the Rent Restriction Act, and KRA monthly rental income rules.',
+      'Covers the Mining Act 2016, the Mining (Use of Local Goods and Services) Regulations, the royalty regime administered by the State Department for Mining, and KRA mineral-income taxation.',
     keyReferences: [
       {
-        section: 'LTA §4',
-        heading: 'Notice to quit',
+        section: 'Mining Act 2016 §183',
+        heading: 'Royalties',
         summary:
-          'For controlled tenancies, the landlord must serve a notice in the prescribed form 60 days before termination.',
+          'Royalty is charged on the gross sales value of minerals at mineral-specific rates set by the Cabinet Secretary (e.g. gold and most metals around 5%); the holder declares and remits to the State Department for Mining.',
       },
       {
-        section: 'RRA §5',
-        heading: 'Standard rent',
+        section: 'Mining Act 2016 Part VIII',
+        heading: 'Mineral rights & licences',
         summary:
-          'Rent is regulated; any proposed increase must be filed with the Rent Tribunal for approval.',
+          'Prospecting and mining are gated by prospecting licences, mining permits (artisanal / small-scale) and mining licences (large-scale); permits for artisanal operations are reserved for Kenyan citizens.',
       },
       {
-        section: 'KRA MRI',
-        heading: 'Monthly Rental Income',
+        section: 'KRA mineral income',
+        heading: 'Corporate tax & withholding',
         summary:
-          'Residential rental income is taxed at 10% gross via the MRI regime; returns due by the 20th of the following month.',
+          'Mineral dealers and producers are taxed under the Income Tax Act; royalties to non-residents and service payments attract withholding tax; export of unprocessed minerals is regulated.',
       },
     ],
-    tags: ['kenya', 'landlord-tenant', 'kra', 'mri'],
+    tags: ['kenya', 'mining', 'royalty', 'kra'],
   },
   TZ: {
     countryCode: 'TZ',
-    title: 'Tanzania landlord-tenant pack',
+    title: 'Tanzania mining regulatory pack',
     version: '2024.1',
     summary:
-      'Covers the Land Act, the Rent Restriction Act (repealed but referenced), and TRA rental income rules.',
+      'Covers the Mining Act 2010 as amended by the Written Laws (Miscellaneous Amendments) Act 2017, the royalty + inspection-fee regime, Mining Commission oversight, the State free-carried interest, local-content rules, and TRA taxation.',
     keyReferences: [
       {
-        section: 'LA §88',
-        heading: 'Form of lease',
+        section: 'Mining Act 2010 §87 (as amended 2017)',
+        heading: 'Royalty & inspection fee',
         summary:
-          'Leases over 12 months must be in writing; leases over 5 years must be registered at the Land Registry.',
+          'Royalty is levied on the gross value of minerals — 6% for metallic minerals (gold, copper, silver) and gemstones, 3% for other minerals — plus a 1% clearing/inspection fee at the point of sale or export.',
       },
       {
-        section: 'TRA Rental',
-        heading: 'Withholding tax',
+        section: 'Mining Act 2010 §10 / §100',
+        heading: 'Mineral rights & PML',
         summary:
-          'Landlords must withhold 10% on rent paid by corporate tenants; residential rent is taxed at 15% net.',
+          'Rights run from Primary Mining Licence (PML — reserved for Tanzanian citizens, 7 years renewable) through Mining Licence (ML) to Special Mining Licence (SML) for large-scale operations.',
+      },
+      {
+        section: 'Written Laws 2017 — free-carried interest',
+        heading: 'State participation & local content',
+        summary:
+          'The Government is entitled to a non-dilutable free-carried interest of not less than 16% in mining companies; local-content and beneficiation obligations apply to licence holders.',
+      },
+      {
+        section: 'TRA',
+        heading: 'Corporate tax, VAT & withholding',
+        summary:
+          'Corporate income tax is 30%; VAT, withholding and the GePG payment rail apply. Domestic mineral transactions are priced in TZS (GN 198/2025).',
       },
     ],
-    tags: ['tanzania', 'landlord-tenant', 'tra'],
+    tags: ['tanzania', 'mining', 'royalty', 'tra'],
   },
   UG: {
     countryCode: 'UG',
-    title: 'Uganda landlord-tenant pack',
+    title: 'Uganda mining regulatory pack',
     version: '2024.1',
     summary:
-      'Covers the Landlord and Tenant Act 2022 and URA rental tax rules.',
+      'Covers the Mining and Minerals Act 2022, the royalty regime, the Directorate of Geological Survey and Mines (DGSM), and URA mineral taxation.',
     keyReferences: [
       {
-        section: 'LTA 2022 §10',
-        heading: 'Security deposit',
+        section: 'Mining and Minerals Act 2022 Part X',
+        heading: 'Royalties & revenue sharing',
         summary:
-          'Deposit capped at one month rent; must be refundable within 14 days of move-out less verified damages.',
+          'Royalty is charged on the gross value of minerals at rates prescribed by regulation; royalty revenue is shared between central government, local government and lawful occupiers of the land.',
       },
       {
-        section: 'URA Rental',
-        heading: 'Rental tax',
+        section: 'Mining and Minerals Act 2022 Part IV',
+        heading: 'Mineral rights',
         summary:
-          'Individual rental income tax is 12% of gross above UGX 2.82m annual threshold.',
+          'Licences span exploration, retention, mining (large-scale), small-scale mining and artisanal mining permits; artisanal rights are reserved for Ugandan citizens and registered associations.',
+      },
+      {
+        section: 'URA',
+        heading: 'Income tax & withholding',
+        summary:
+          'Mining income is taxed under the Income Tax Act with a ring-fenced mining regime; URA administers corporate tax, withholding and VAT on mineral dealings.',
       },
     ],
-    tags: ['uganda', 'landlord-tenant', 'ura'],
+    tags: ['uganda', 'mining', 'royalty', 'ura'],
   },
   RW: {
     countryCode: 'RW',
-    title: 'Rwanda landlord-tenant pack',
+    title: 'Rwanda mining regulatory pack',
     version: '2024.1',
-    summary: 'Covers Law N° 30/2016 governing commercial leases and RRA rental tax rules.',
+    summary:
+      'Covers Law N° 58/2018 on mining and quarry operations, the royalty regime administered by the Rwanda Mines, Petroleum and Gas Board (RMB), 3T/gold traceability (ITSCI), and RRA taxation.',
     keyReferences: [
       {
-        section: 'Law 30/2016 Art. 8',
-        heading: 'Lease duration',
+        section: 'Law 58/2018 Chapter IV',
+        heading: 'Mineral licences',
         summary:
-          'Default term is 3 years where not specified; written contract mandatory for any lease over 1 year.',
+          'Operations require an exploration licence followed by a mining licence (large or small scale) or a quarry licence; licences are issued and supervised by the RMB.',
       },
       {
-        section: 'RRA Rental',
-        heading: 'Rental income tax',
+        section: 'RMB royalty regime',
+        heading: 'Royalties & traceability',
         summary:
-          'Flat 10% on gross rental income for individuals, 30% on net for companies.',
+          'Royalty is charged on the value of minerals (notably the 3T minerals — tin, tantalum, tungsten — and gold); tagged traceability (ITSCI) and due-diligence reporting are mandatory for export.',
+      },
+      {
+        section: 'RRA',
+        heading: 'Income tax & withholding',
+        summary:
+          'Mineral income is taxed under the income tax law; RRA administers corporate tax, withholding and VAT on mineral sales and exports.',
       },
     ],
-    tags: ['rwanda', 'landlord-tenant', 'rra'],
+    tags: ['rwanda', 'mining', 'royalty', 'rmb'],
   },
 };
 

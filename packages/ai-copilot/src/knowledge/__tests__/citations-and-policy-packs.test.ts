@@ -23,13 +23,13 @@ function chunk(overrides: Partial<KnowledgeChunk> = {}): KnowledgeChunk {
     id: 'chk-1',
     tenantId: 'tenant-1',
     knowledgeSource: 'platform-seed',
-    sourceId: 'tza-rental-act',
-    sourceUrl: 'https://example.com/tza-rental-act',
-    title: 'Tanzania Rental Act',
+    sourceId: 'tza-mining-act',
+    sourceUrl: 'https://example.com/tza-mining-act',
+    title: 'Tanzania Mining Act',
     chunkIndex: 2,
     countryCode: 'TZ',
     kind: 'policy_pack',
-    content: 'Section 12, paragraph 3 — landlords must serve a notice...'.repeat(
+    content: 'Section 87 — royalty on the gross value of minerals...'.repeat(
       4,
     ),
     tags: [],
@@ -120,9 +120,9 @@ describe('policy-packs', () => {
     }
   });
 
-  it('every pack has tags that include landlord-tenant', () => {
+  it('every pack has tags that include mining', () => {
     for (const pack of listPolicyPacks()) {
-      expect(pack.tags).toContain('landlord-tenant');
+      expect(pack.tags).toContain('mining');
     }
   });
 
