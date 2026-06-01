@@ -80,8 +80,8 @@ describe('scrubPiiPatterns', () => {
   });
 
   it('leaves prose intact', () => {
-    const out = scrubPiiPatterns('Rent is due on Friday for unit 4B');
-    expect(out).toBe('Rent is due on Friday for unit 4B');
+    const out = scrubPiiPatterns('Royalty is due on Friday for pit 4B');
+    expect(out).toBe('Royalty is due on Friday for pit 4B');
   });
 
   it('handles empty input', () => {

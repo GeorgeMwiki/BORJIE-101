@@ -125,7 +125,7 @@ describe('client schemas — kpi-grid', () => {
   it('accepts a percent tile without currency', () => {
     const r = KpiGridPartSchema.safeParse({
       kind: 'kpi-grid',
-      tiles: [{ label: 'Occupancy', value: 0.94, format: 'percent' }],
+      tiles: [{ label: 'Recovery', value: 0.94, format: 'percent' }],
     });
     expect(r.success).toBe(true);
   });
@@ -291,7 +291,7 @@ describe('client schemas — calendar', () => {
   it('accepts a valid event', () => {
     const r = CalendarPartSchema.safeParse({
       kind: 'calendar',
-      events: [{ id: 'e1', title: 'Lease renewal', start: '2026-06-01T09:00:00Z' }],
+      events: [{ id: 'e1', title: 'Licence renewal', start: '2026-06-01T09:00:00Z' }],
     });
     expect(r.success).toBe(true);
   });

@@ -24,6 +24,12 @@ vi.mock('../../api/client', () => ({
   miningApi: {
     get: vi.fn(async () => ({ success: false })),
     post: vi.fn(async () => ({ success: false }))
+  },
+  ownerApi: {
+    post: vi.fn(async () => ({
+      success: true,
+      data: { url: 'https://borjie.app/s/production_report/pr-123', token: 'tok-1' }
+    }))
   }
 }))
 
@@ -71,10 +77,10 @@ describe('workforce-mobile superpowers/navigate', () => {
 })
 
 describe('workforce-mobile superpowers/share', () => {
-  it('returns ok + url even when the share-link API fails', async () => {
+  it('returns ok + the server-minted url when the share-link API succeeds', async () => {
     const { shareEntity } = await import('../share')
-    const res = await shareEntity({ entityType: 'task', entityId: 'task-123', title: 'Repack pillar' })
+    const res = await shareEntity({ entityType: 'production_report', entityId: 'pr-123', title: 'Repack pillar' })
     expect(res.ok).toBe(true)
-    expect(res.url).toContain('task/task-123')
+    expect(res.url).toContain('production_report/pr-123')
   })
 })

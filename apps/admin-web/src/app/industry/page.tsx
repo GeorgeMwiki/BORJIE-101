@@ -5,11 +5,11 @@ import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 const SLOTS = [
-  { key: 'arrears-by-jurisdiction', title: 'Arrears by jurisdiction' },
-  { key: 'occupancy-by-class', title: 'Occupancy by asset class' },
-  { key: 'vendor-reopen-rate', title: 'Vendor reopen rate' },
-  { key: 'sentiment-index', title: 'Tenant sentiment index' },
-  { key: 'renewal-rate', title: 'Renewal rate' },
+  { key: 'arrears-by-jurisdiction', title: 'Outstanding royalties by jurisdiction' },
+  { key: 'occupancy-by-class', title: 'Production by asset grade' },
+  { key: 'vendor-reopen-rate', title: 'Contractor reopen rate' },
+  { key: 'sentiment-index', title: 'Operator sentiment index' },
+  { key: 'renewal-rate', title: 'Licence renewal rate' },
   { key: 'maintenance-ttc', title: 'Maintenance TTC' },
 ] as const;
 

@@ -18,10 +18,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 
+// NOTE: `id` values are the wire contract consumed by the gateway's
+// parity-capability-dashboard factory (services/api-gateway). They are NOT
+// user-visible — only `label` is rendered — so the ids stay verbatim while
+// the labels carry the mining domain wording.
 const CAPABILITIES = [
-  { id: 'rent-reconciliation', label: 'Rent reconciliation' },
-  { id: 'lease-renewal', label: 'Lease renewal' },
-  { id: 'kra-mri', label: 'KRA MRI' },
+  { id: 'rent-reconciliation', label: 'Royalty reconciliation' },
+  { id: 'lease-renewal', label: 'Licence renewal' },
+  { id: 'kra-mri', label: 'TRA royalty return' },
   { id: 'gepg', label: 'GePG' },
   { id: 'maintenance-triage', label: 'Maintenance triage' },
   { id: 'voice-agent', label: 'Voice agent' },

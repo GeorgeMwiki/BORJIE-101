@@ -22,7 +22,7 @@ describe('pii-redactor — hasPii()', () => {
   });
 
   it('returns false for plain prose', () => {
-    expect(hasPii('The rent for unit 4B is due')).toBe(false);
+    expect(hasPii('The royalty for pit 4B is due')).toBe(false);
   });
 
   it('returns false for very short values', () => {

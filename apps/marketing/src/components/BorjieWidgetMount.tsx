@@ -10,7 +10,8 @@
  * endpoint).
  *
  * Persona: "Mr. Mwikila — Borjie's AI Estate-Management Director"
- * (covers both real-estate and mining).
+ * (the mining-estate brain layer: licences, royalty, workforce,
+ * compliance, offtake).
  *
  * SOTA lazy-load
  * --------------
@@ -42,10 +43,10 @@ interface BorjieWidgetMountProps {
 }
 
 /**
- * Borjie mining-domain compliance copy. Owners of mines are NOT
- * landlords — the BossNyumba real-estate variant says "landlord". We
- * pin "mine owner" here so an unrelated edit (or a sibling chat-ui
- * session targeting the property domain) cannot revert it.
+ * Borjie mining-domain compliance copy. The actor here is the mine
+ * owner / licence holder. We pin "mine owner" in the disclaimer so an
+ * unrelated edit (or a sibling chat-ui session targeting a different
+ * domain) cannot revert it to a generic counterparty.
  */
 const BORJIE_DISCLAIMER_EN =
   'AI-generated. Not legal advice. Decisions are made by the mine owner.';

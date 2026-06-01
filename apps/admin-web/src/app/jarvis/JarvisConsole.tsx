@@ -249,8 +249,9 @@ export function JarvisConsole(): JSX.Element {
       <div className="flex min-h-console-pane flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
         {turns.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Ask Nyumba Mind anything about the platform — collection trends, vacancy drift,
-            arrears patterns. Every claim is grounded in DP-aggregate evidence.
+            Ask Nyumba Mind anything about the platform — royalty collection trends,
+            available-capacity drift, outstanding-royalty patterns. Every claim is
+            grounded in DP-aggregate evidence.
           </p>
         ) : (
           turns.map((t) => {
@@ -386,7 +387,7 @@ export function JarvisConsole(): JSX.Element {
           title={
             pendingImages.length >= MAX_IMAGES_PER_TURN
               ? `Up to ${MAX_IMAGES_PER_TURN} images per turn`
-              : 'Attach images (lease scan, property photo, damage assessment)'
+              : 'Attach images (licence scan, site photo, equipment assessment)'
           }
           className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         >
