@@ -44,17 +44,22 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   documentUploads,
   documentIntelligenceSessions,
   documentCorpusLinks,
   intelligenceCorpusChunks,
+  ocrExtractions,
 } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
 import { classifyDocument, type DocumentKind } from './document-intelligence-classifier';
+import {
+  runFormExtraction,
+  buildOcrExtractionInsert,
+} from './document-extraction';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -133,6 +138,165 @@ function kindToDocumentType(kind: DocumentKind): string {
     case 'other':
     default:
       return 'other';
+  }
+}
+
+/**
+ * Run synchronous, schema-guided field extraction over the caller-supplied
+ * `textSample`, persist it into `ocr_extractions`, point
+ * `document_uploads.ocr_extraction_id` at the new row, and hash-chain the
+ * extraction event into `ai_audit_chain`.
+ *
+ * Best-effort: extraction MUST NOT fail the upload. Any error is logged
+ * and swallowed (the upload row already exists; ingestion still proceeds).
+ * Returns the extraction summary on success, or `null` when skipped/failed.
+ *
+ * Heuristic-only (no brain) → zero LLM egress; see `document-extraction.ts`.
+ */
+async function extractAndPersist(input: {
+  readonly db: ReturnType<typeof Object> & {
+    insert: (table: unknown) => {
+      values: (v: Record<string, unknown>) => {
+        returning: () => Promise<ReadonlyArray<Record<string, unknown>>>;
+      };
+    };
+    update: (table: unknown) => {
+      set: (v: Record<string, unknown>) => {
+        where: (clause: unknown) => Promise<unknown>;
+      };
+    };
+    execute: (q: unknown) => Promise<unknown>;
+  };
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly kind: DocumentKind;
+  readonly mimeType: string;
+  readonly textSample: string;
+}): Promise<{
+  readonly extractionId: string;
+  readonly schemaId: string;
+  readonly fieldCount: number;
+  readonly overallConfidence: number;
+} | null> {
+  const { db, tenantId, documentId } = input;
+  try {
+    const startedAt = new Date();
+    const result = await runFormExtraction({
+      documentId,
+      text: input.textSample,
+      sourceMime: input.mimeType,
+      documentType: input.documentType,
+      kind: input.kind,
+    });
+    const completedAt = new Date();
+
+    const extractionId = randomUUID();
+    const insert = buildOcrExtractionInsert({
+      tenantId,
+      documentUploadId: documentId,
+      result,
+      rawText: input.textSample,
+      startedAt,
+      completedAt,
+      extractionId,
+    });
+
+    await db.insert(ocrExtractions).values(insert).returning();
+
+    // Back-point the upload row at its extraction (tenantId belt-and-braces
+    // on top of FORCE RLS).
+    await db
+      .update(documentUploads)
+      .set({ ocrExtractionId: extractionId, updatedAt: completedAt })
+      .where(
+        and(
+          eq(documentUploads.tenantId, tenantId),
+          eq(documentUploads.id, documentId),
+        ),
+      );
+
+    const fieldCount = Object.keys(result.extractedFields).length;
+
+    // Hash-chained, append-only audit of the extraction event. Best-effort:
+    // a chain gap is logged but never blocks the upload.
+    try {
+      await db.execute(
+        sql`
+          WITH prev AS (
+            SELECT this_hash, sequence_id
+              FROM ai_audit_chain
+             WHERE tenant_id = ${tenantId}
+             ORDER BY sequence_id DESC
+             LIMIT 1
+          )
+          INSERT INTO ai_audit_chain
+            (id, tenant_id, sequence_id, turn_id, session_id, action,
+             prev_hash, this_hash, payload_ref, payload, created_at)
+          VALUES (
+            ${randomUUID()},
+            ${tenantId},
+            COALESCE((SELECT sequence_id FROM prev), 0) + 1,
+            ${`doc-extract-${documentId}`},
+            NULL,
+            ${'mining.document.extraction'},
+            COALESCE((SELECT this_hash FROM prev), ''),
+            encode(sha256(
+              (COALESCE((SELECT this_hash FROM prev), '') ||
+               ${JSON.stringify({
+                 documentId,
+                 extractionId,
+                 tenantId,
+                 schemaId: result.schemaId,
+                 fieldCount,
+               })}
+              )::bytea
+            ), 'hex'),
+            NULL,
+            ${JSON.stringify({
+              action: 'mining.document.extraction',
+              documentId,
+              extractionId,
+              schemaId: result.schemaId,
+              fieldCount,
+              overallConfidence: result.overallConfidence,
+              mode: 'heuristic',
+            })}::jsonb,
+            ${completedAt.toISOString()}::timestamptz
+          )
+        `,
+      );
+    } catch (auditErr) {
+      logger.warn('document-intelligence: extraction audit-chain append failed', {
+        tenantId,
+        documentId,
+        reason: auditErr instanceof Error ? auditErr.message : String(auditErr),
+      });
+    }
+
+    logger.info('document-intelligence: fields extracted', {
+      tenantId,
+      documentId,
+      extractionId,
+      schemaId: result.schemaId,
+      fieldCount,
+      overallConfidence: result.overallConfidence,
+    });
+
+    return {
+      extractionId,
+      schemaId: result.schemaId,
+      fieldCount,
+      overallConfidence: result.overallConfidence,
+    };
+  } catch (err) {
+    logger.error('document-intelligence: extraction failed', {
+      tenantId,
+      documentId,
+      error: err instanceof Error ? err.message : 'unknown',
+    });
+    return null;
   }
 }
 
@@ -227,6 +391,24 @@ app.post('/upload', async (c) => {
       mimeType: input.mimeType,
     });
 
+    // Synchronous, schema-guided extraction over the caller-supplied
+    // text sample. Best-effort — never fails the upload. When no sample is
+    // present (binary not yet OCR'd) extraction is deferred to the async
+    // OCR worker (not yet wired — see KNOWN gap).
+    const extraction =
+      input.textSample && input.textSample.trim().length > 0
+        ? await extractAndPersist({
+            db,
+            tenantId,
+            userId,
+            documentId: id,
+            documentType,
+            kind,
+            mimeType: input.mimeType,
+            textSample: input.textSample,
+          })
+        : null;
+
     return c.json(
       envelope({
         documentId: row.id,
@@ -234,6 +416,7 @@ app.post('/upload', async (c) => {
         kind,
         presignedPut: fileUrl,
         document: row,
+        extraction,
       }),
       201,
     );
@@ -548,6 +731,69 @@ app.post('/documents/:id/summary', async (c) => {
       summary: previewSummary || 'Summary will be generated once chunks are indexed.',
       evidenceIds: links.map((l) => l.chunkId),
       note: 'doc-chat orchestrator dispatch — full summary streams via /chat SSE',
+    }),
+    200,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /documents/:id/extraction — fetch the persisted structured fields
+// ---------------------------------------------------------------------------
+
+app.get('/documents/:id/extraction', async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db');
+  const id = c.req.param('id');
+  if (!isUuid(id)) {
+    return c.json(errorEnvelope('VALIDATION_ERROR', 'Invalid document id'), 400);
+  }
+
+  // Confirm the document belongs to the caller's tenant first so we can
+  // distinguish "no such doc" (404) from "doc exists, not yet extracted"
+  // (200 with extraction: null). RLS already scopes both queries; the
+  // explicit tenantId predicate is belt-and-braces.
+  const [doc] = await db
+    .select({ id: documentUploads.id, kind: documentUploads.kind })
+    .from(documentUploads)
+    .where(and(eq(documentUploads.tenantId, tenantId), eq(documentUploads.id, id)))
+    .limit(1);
+
+  if (!doc) {
+    return c.json(errorEnvelope('NOT_FOUND', 'Document not found'), 404);
+  }
+
+  const [extraction] = await db
+    .select({
+      id: ocrExtractions.id,
+      extractedFields: ocrExtractions.extractedFields,
+      confidenceScores: ocrExtractions.confidenceScores,
+      overallConfidence: ocrExtractions.overallConfidence,
+      ocrProvider: ocrExtractions.ocrProvider,
+      validationStatus: ocrExtractions.validationStatus,
+      processingCompletedAt: ocrExtractions.processingCompletedAt,
+      createdAt: ocrExtractions.createdAt,
+    })
+    .from(ocrExtractions)
+    .where(
+      and(
+        eq(ocrExtractions.tenantId, tenantId),
+        eq(ocrExtractions.documentUploadId, id),
+      ),
+    )
+    .orderBy(desc(ocrExtractions.createdAt))
+    .limit(1);
+
+  logger.info('document-intelligence: extraction fetched', {
+    tenantId,
+    documentId: id,
+    found: Boolean(extraction),
+  });
+
+  return c.json(
+    envelope({
+      documentId: id,
+      kind: doc.kind,
+      extraction: extraction ?? null,
     }),
     200,
   );
