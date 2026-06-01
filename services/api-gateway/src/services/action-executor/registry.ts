@@ -24,6 +24,23 @@
  *   draft_payroll_run — insert a `payroll_runs` DRAFT header (autoSafe:false)
  *   draft_royalty_return — insert a `royalty_return_drafts`
  *                          DRAFT header                      (autoSafe:false)
+ *   open_support_case / resolve_support_case / escalate_to_human
+ *                        — Mr. Mwikila's support-case lifecycle (autoSafe:false)
+ *   update_site / update_employee / update_licence / update_production /
+ *   update_reminder      — NON-MONEY EDITS of an existing row (autoSafe:false)
+ *   archive_site / remove_employee / void_licence / delete_production /
+ *   cancel_reminder      — SOFT-delete (status flip / voided marker)(autoSafe:false)
+ *   manage_tab           — SERVER-PERSISTED tab structure ops
+ *                          (spawn|update|remove|reorder|pin)     (autoSafe:false)
+ *
+ * The UPDATE + DELETE/ARCHIVE verbs complete the "Mr. Mwikila can do anything
+ * from chat" claim: the create/add/log verbs already INSERT; these EDIT and
+ * REMOVE. Every one is NON-MONEY by construction (no wage / fee / ledger column
+ * is ever written; production_records has no money column at all) and every
+ * delete is a SOFT-delete that preserves the row + audit trail. `manage_tab`
+ * promotes tab structure from FE-chip-only to a durable per-row store
+ * (`owner_tabs_structural`, migration 0169). See handlers/updates.ts,
+ * handlers/deletes.ts, handlers/tabs.ts.
  *
  * Money-MOVING verbs (post the ledger / commit wages) are intentionally
  * NOT here — they MUST go through `LedgerService.post()` (CLAUDE.md hard
@@ -140,6 +157,21 @@ import {
   resolveSupportCaseHandler,
   escalateToHumanHandler,
 } from './handlers/support.js';
+import {
+  updateSiteHandler,
+  updateEmployeeHandler,
+  updateLicenceHandler,
+  updateProductionHandler,
+  updateReminderHandler,
+} from './handlers/updates.js';
+import {
+  archiveSiteHandler,
+  removeEmployeeHandler,
+  voidLicenceHandler,
+  deleteProductionHandler,
+  cancelReminderHandler,
+} from './handlers/deletes.js';
+import { manageTabHandler } from './handlers/tabs.js';
 import { bumpActionMastery } from './mastery-tracker.js';
 import type {
   ActionHandler,
@@ -178,6 +210,31 @@ const REGISTRY: Readonly<Record<string, RegistryEntry>> = Object.freeze({
   open_support_case: { handler: openSupportCaseHandler, autoSafe: false },
   resolve_support_case: { handler: resolveSupportCaseHandler, autoSafe: false },
   escalate_to_human: { handler: escalateToHumanHandler, autoSafe: false },
+  // ─── UPDATE verbs (NON-MONEY edits) — the "MD can EDIT anything" half ──────
+  // Each patches an existing domain row, tenant-scoped (WHERE tenant_id=ctx AND
+  // id=…), audit-chained. NONE touch a money column (wage/fees/ledger are never
+  // written; production carries no money column). All CONFIRM-REQUIRED. See
+  // handlers/updates.ts.
+  update_site: { handler: updateSiteHandler, autoSafe: false },
+  update_employee: { handler: updateEmployeeHandler, autoSafe: false },
+  update_licence: { handler: updateLicenceHandler, autoSafe: false },
+  update_production: { handler: updateProductionHandler, autoSafe: false },
+  update_reminder: { handler: updateReminderHandler, autoSafe: false },
+  // ─── DELETE / ARCHIVE verbs (SOFT-delete) — the "MD can REMOVE anything" half
+  // Each SOFT-deletes (status flip / voided marker) so the row + audit survive;
+  // tenant-scoped + audit-chained. NONE touch a money column. All CONFIRM-
+  // REQUIRED. See handlers/deletes.ts.
+  archive_site: { handler: archiveSiteHandler, autoSafe: false },
+  remove_employee: { handler: removeEmployeeHandler, autoSafe: false },
+  void_licence: { handler: voidLicenceHandler, autoSafe: false },
+  delete_production: { handler: deleteProductionHandler, autoSafe: false },
+  cancel_reminder: { handler: cancelReminderHandler, autoSafe: false },
+  // ─── SERVER-PERSISTED TABS — durable structural store (migration 0169) ────
+  // manage_tab (op: spawn|update|remove|reorder|pin) writes
+  // `owner_tabs_structural` directly so tab structure PERSISTS server-side
+  // instead of FE-chip-only. Pure UI structure — NO money column. CONFIRM-
+  // REQUIRED. See handlers/tabs.ts.
+  manage_tab: { handler: manageTabHandler, autoSafe: false },
 });
 
 /** Normalise a model / FE verb token for registry lookup. */

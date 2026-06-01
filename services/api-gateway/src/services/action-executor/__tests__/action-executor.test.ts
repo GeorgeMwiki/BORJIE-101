@@ -211,19 +211,30 @@ describe('action-executor registry', () => {
     expect([...safeVerbs()].sort()).toEqual(['set_reminder', 'snooze_reminder']);
   });
 
-  it('KNOWN set includes the confirm-required domain verbs + the draft + support verbs', () => {
+  it('KNOWN set includes the confirm-required domain verbs + the draft + support + edit/remove/tab verbs', () => {
     expect([...knownVerbs()].sort()).toEqual([
       'add_employee',
+      'archive_site',
+      'cancel_reminder',
       'create_licence',
       'create_site',
+      'delete_production',
       'draft_payroll_run',
       'draft_royalty_return',
       'escalate_to_human',
       'log_production',
+      'manage_tab',
       'open_support_case',
+      'remove_employee',
       'resolve_support_case',
       'set_reminder',
       'snooze_reminder',
+      'update_employee',
+      'update_licence',
+      'update_production',
+      'update_reminder',
+      'update_site',
+      'void_licence',
     ]);
   });
 
