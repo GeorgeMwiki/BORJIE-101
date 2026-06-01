@@ -35,6 +35,33 @@
   .platform-card-value {
     @apply text-3xl font-display font-medium tracking-tight text-foreground tabular-nums;
   }
+
+  /* Cross-portal switcher (@borjie/app-shell). Headless markup — these
+     class hooks give it the console's hairline-border / gold-accent look
+     so it sits naturally in the TopBar between the env badge and search.
+     Built on native <details>/<summary>; the marker arrow is suppressed
+     in favour of the package's own chevron. */
+  .borjie-portal-switcher {
+    @apply relative shrink-0;
+  }
+  .borjie-portal-switcher__trigger {
+    @apply inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-surface-sunken px-2.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-surface hover:text-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/30;
+  }
+  .borjie-portal-switcher__trigger::-webkit-details-marker {
+    display: none;
+  }
+  .borjie-portal-switcher__chevron {
+    @apply text-tiny text-neutral-400;
+  }
+  .borjie-portal-switcher__menu {
+    @apply absolute left-0 top-full z-40 mt-1.5 flex min-w-[12rem] flex-col gap-0.5 rounded-md border border-border bg-surface p-1 shadow-md;
+  }
+  .borjie-portal-switcher__item {
+    @apply rounded px-2.5 py-1.5 text-sm text-foreground no-underline transition-colors hover:bg-surface-sunken hover:text-signal-500;
+  }
+  .borjie-portal-switcher__item--current {
+    @apply cursor-default bg-signal-500/10 font-medium text-signal-500 ring-1 ring-inset ring-signal-500/20 hover:bg-signal-500/10 hover:text-signal-500;
+  }
 }
 
 /* Skip-to-main-content link — visually hidden until focused

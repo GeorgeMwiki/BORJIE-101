@@ -5,9 +5,10 @@ import type { ReactNode } from 'react';
 
 /**
  * AdminShellGate — chooses between the chrome-wrapped AdminShell and a
- * bare layout based on the active path. Auth routes (sign-in, login)
- * and the error/loading pages render without sidebar + top bar so
- * unauthenticated users do not see a broken nav.
+ * bare layout based on the active path. The sign-in surface, the legacy
+ * `/login` redirect, and the error/loading pages render without sidebar
+ * + top bar so unauthenticated users never see a broken nav (or a flash
+ * of chrome while `/login` redirects to `/sign-in`).
  */
 
 const BARE_ROUTES: ReadonlyArray<string> = ['/sign-in', '/login', '/auth'];

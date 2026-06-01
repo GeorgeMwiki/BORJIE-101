@@ -1,41 +1,30 @@
-import { Suspense } from 'react';
-import { LoginForm } from './LoginForm';
+import { redirect } from 'next/navigation';
+import { sanitizeNext } from '@/lib/safe-next';
 
 export const dynamic = 'force-dynamic';
-export const metadata = {
-  title: 'Sign in — Borjie HQ',
-};
+
+interface LoginRedirectProps {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
 /**
- * Legacy `/login` landing (staff platform session).
+ * Legacy `/login` → canonical `/sign-in` redirect.
  *
- * LitFin-pattern: full-screen centered card with a soft gold aurora at
- * the top of the canvas. The form component owns its own visual rhythm
- * (wordmark, kicker, heading, fields, trust microcopy).
+ * The Supabase-backed `/sign-in` surface is now the single sign-in entry
+ * point for the Borjie Console; the old cookie-session `/login` form was
+ * retired. This route is kept only as a permanent redirect so existing
+ * bookmarks and any stale deep-links (e.g. `/login?next=…`) land on the
+ * canonical form with their `next` target preserved.
  */
-export default function LoginPage() {
-  return (
-    <main
-      id="main-content"
-      className="relative min-h-screen overflow-hidden bg-background p-6"
-    >
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 50% at 50% 10%, hsl(var(--signal-500) / 0.12) 0%, transparent 60%)',
-        }}
-      />
-      <div className="relative flex min-h-shell items-center justify-center">
-        <Suspense
-          fallback={
-            <div className="text-sm text-neutral-500">Loading…</div>
-          }
-        >
-          <LoginForm />
-        </Suspense>
-      </div>
-    </main>
-  );
+export default async function LoginPage({ searchParams }: LoginRedirectProps) {
+  const params = await searchParams;
+  const rawNext = params.next;
+  const next = Array.isArray(rawNext) ? rawNext[0] : rawNext;
+  // Reject protocol-relative / backslash-smuggled targets before forwarding.
+  const safeNext = sanitizeNext(next);
+  const target =
+    safeNext !== '/'
+      ? `/sign-in?next=${encodeURIComponent(safeNext)}`
+      : '/sign-in';
+  redirect(target);
 }

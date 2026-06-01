@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { sanitizeNext } from '@/lib/safe-next';
 
 const SignInSchema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -27,7 +28,8 @@ interface FormState {
 export function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') ?? '/';
+  // Guard against open-redirect: only same-origin absolute paths survive.
+  const next = sanitizeNext(params.get('next'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [state, setState] = useState<FormState>({ phase: 'idle' });

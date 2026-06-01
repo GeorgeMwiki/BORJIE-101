@@ -14,8 +14,9 @@ import { refreshSupabaseSession } from './lib/supabase/middleware';
  *      bounce back.
  *
  * Public paths (no session required):
- *   - `/sign-in` — the sign-in form itself
- *   - `/login` — legacy login form kept available during the migration
+ *   - `/sign-in` — the canonical sign-in form
+ *   - `/login` — legacy alias; permanently redirects to `/sign-in`, so it
+ *     must stay reachable without a session to emit that redirect cleanly
  *   - `/api/platform/health` — ops liveness probe
  *   - static Next assets — excluded via `config.matcher` below
  */

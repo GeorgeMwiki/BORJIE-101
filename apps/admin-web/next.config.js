@@ -41,6 +41,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   transpilePackages: [
+    '@borjie/app-shell',
     '@borjie/design-system',
     '@borjie/graph-privacy',
     '@borjie/observability',

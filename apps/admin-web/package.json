@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@borjie/api-sdk": "workspace:*",
+    "@borjie/app-shell": "workspace:*",
     "@borjie/central-intelligence": "workspace:*",
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
