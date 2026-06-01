@@ -9,13 +9,14 @@
  *     brain-teach auto-execute path gates on (reminders only).
  *   - isKnownVerb(verb) / knownVerbs() — full registry membership.
  *   - requiresConfirmation(verb) — TRUE for a known CONFIRM-REQUIRED verb
- *     (create_site / add_employee); the `/micro-action` endpoint uses it
- *     to refuse those up front.
+ *     (create_site / add_employee / create_licence / log_production); the
+ *     `/micro-action` endpoint uses it to refuse those up front.
  *   - types — ExecContext / ExecResult / DispatchResult / RegistryEntry.
  *
  * See ./registry.ts for the verb set + trust classes and the hard-rule
- * rationale (money / ledger / licence-grant verbs are excluded; sites +
- * employees are confirm-required, never auto-safe).
+ * rationale (money / ledger / royalty / payroll verbs are excluded and
+ * DEFERRED to a LedgerService-backed wave; sites + employees + licences +
+ * production records are confirm-required NON-money rows, never auto-safe).
  */
 
 export {

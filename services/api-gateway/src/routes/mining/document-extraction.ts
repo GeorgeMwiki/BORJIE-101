@@ -34,10 +34,30 @@
  *    writes/reads as belt-and-braces.
  *
  *  - Schemas. The pre-shipped Zod schemas cover lease / bank / id /
- *    invoice / receipt / utility-bill. Mining-specific documents (licence,
- *    royalty return, accountant export) have no bespoke schema yet, so they
- *    fall through to a GENERIC `Label: value` extractor. Bespoke mining
- *    schemas are a tracked follow-up.
+ *    invoice / receipt / utility-bill PLUS the Tanzanian mining set:
+ *    mining licence (PML/PL/SML/ML), mineral royalty return (TRA), and the
+ *    accountant trial-balance export. Documents that still match none fall
+ *    through to a GENERIC `Label: value` extractor.
+ *
+ *  - Mining doc routing WITHOUT a migration. The `document_type` pgEnum
+ *    (`packages/database/src/schemas/documents.schema.ts`) has NO
+ *    mining-specific value — the closest existing values are `notice` and
+ *    `other`, which are far too generic to key a schema off. Rather than
+ *    add an enum value (a migration is owned by a parallel reconcile
+ *    agent — see the FOLLOW-UP note on `selectSchemaForDocument`), mining
+ *    docs are routed via TWO non-enum signals already available at the
+ *    call site: (1) the lightweight classifier `kind` string — exactly the
+ *    same loose metadata channel the existing `kind === 'invoice'` rule
+ *    uses — and (2) a content sniff over the text sample. Neither path
+ *    changes the `runFormExtraction` / `buildOcrExtractionInsert`
+ *    signatures the async-OCR worker imports.
+ *
+ *  - Accountant export is TABULAR. Its account-level debit/credit/balance
+ *    rows live in an `ExtractedTable`, not in `Label: value` lines, so the
+ *    synchronous line-keyword heuristic only recovers summary fields
+ *    (period / currency / totals). The full ledger walk belongs to the
+ *    async-OCR worker via `ACCOUNTANT_EXPORT_TABULAR` +
+ *    `accountantExportColumns` — see the schema doc-comment.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -50,6 +70,9 @@ import {
   invoiceSchema,
   receiptSchema,
   utilityBillSchema,
+  miningLicenceSchema,
+  royaltyReturnSchema,
+  accountantExportSchema,
 } from '@borjie/document-ai/form-extraction';
 import {
   buildPage,
@@ -64,16 +87,84 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
+ * Content sniffers for the Tanzanian mining document set. Because the
+ * `document_type` pgEnum carries no mining value (see header note), we
+ * detect mining docs from the upload classifier `kind` string and/or a
+ * keyword sniff over the text sample. Order is precedence: a doc that
+ * looks like a royalty return AND a licence is treated as the more
+ * specific match first.
+ *
+ * Each predicate is bilingual (en/sw) and anchored on tokens that are
+ * highly characteristic of the doc so a generic mining mention does not
+ * mis-route (e.g. a lease that merely names a mineral).
+ */
+const MINING_CONTENT_SNIFFERS: ReadonlyArray<{
+  readonly kind: string;
+  readonly schema: NamedSchema;
+  readonly test: (haystack: string) => boolean;
+}> = [
+  {
+    // Royalty return is checked before the licence: a TRA royalty form
+    // names the licence but is unambiguously a return.
+    kind: 'royalty_return',
+    schema: royaltyReturnSchema,
+    test: (h) =>
+      h.includes('royalty return') ||
+      h.includes('royalty payable') ||
+      h.includes('mineral royalty') ||
+      h.includes('mrabaha') ||
+      (h.includes('royalty') && h.includes('assessment')),
+  },
+  {
+    kind: 'mining_licence',
+    schema: miningLicenceSchema,
+    test: (h) =>
+      h.includes('mining licence') ||
+      h.includes('mining license') ||
+      h.includes('primary mining licence') ||
+      h.includes('special mining licence') ||
+      h.includes('prospecting licence') ||
+      h.includes('leseni ya madini') ||
+      /\b(pml|sml)\b/.test(h) ||
+      (h.includes('licence') && h.includes('mineral')),
+  },
+  {
+    kind: 'accountant_export',
+    schema: accountantExportSchema,
+    test: (h) =>
+      h.includes('trial balance') ||
+      h.includes('accountant export') ||
+      h.includes('chart of accounts') ||
+      h.includes('general ledger') ||
+      h.includes('salio la majaribio') ||
+      (h.includes('debit') && h.includes('credit') && h.includes('balance')),
+  },
+];
+
+/**
  * Pick the best pre-shipped schema for a classified document, or `null`
  * when none fits (→ generic extraction).
  *
  * `documentType` is the `document_type` enum already derived in the upload
- * route; `kind` is the lightweight classifier kind. We key primarily off
- * `documentType` because it is the more specific signal.
+ * route; `kind` is the lightweight classifier kind (treated as a loose
+ * metadata string, NOT the enum); `textSample` is the optional first ≤4 KB
+ * of text that the upload classifier already consumes. We key primarily
+ * off `documentType` because it is the most specific signal, then fall to
+ * `kind`, then to a content sniff.
+ *
+ * FOLLOW-UP (flagged for the migration-reconcile agent): the cleanest fix
+ * is to add `'mining_licence'`, `'royalty_return'` (and optionally
+ * `'accountant_export'`) to the `document_type` pgEnum and switch on them
+ * directly, the way `lease_agreement` etc. are handled below. That needs a
+ * forward-only migration with the correct sequential number, which is
+ * owned by a parallel agent — a number collision here would break it. Once
+ * that migration lands, replace the `kind`/content branches for these
+ * three with proper `case` arms on `documentType`.
  */
 export function selectSchemaForDocument(input: {
   readonly documentType: string;
   readonly kind?: string;
+  readonly textSample?: string;
 }): NamedSchema | null {
   switch (input.documentType) {
     case 'lease_agreement':
@@ -91,8 +182,35 @@ export function selectSchemaForDocument(input: {
     default:
       break;
   }
-  // Secondary signal: an "invoice"-flavoured kind with no specific type.
-  if (input.kind === 'invoice') return invoiceSchema;
+
+  // Secondary signal: the loose classifier `kind` string. Mirrors the
+  // existing `kind === 'invoice'` channel — these mining kinds are NOT
+  // `document_type` enum values; they are metadata the caller / async-OCR
+  // worker may stamp once it has classified the doc more precisely.
+  switch (input.kind) {
+    case 'invoice':
+      return invoiceSchema;
+    case 'mining_licence':
+      return miningLicenceSchema;
+    case 'royalty_return':
+      return royaltyReturnSchema;
+    case 'accountant_export':
+      return accountantExportSchema;
+    default:
+      break;
+  }
+
+  // Tertiary signal: content sniff over the text sample. This makes mining
+  // routing fire even when the doc arrived as `notice` / `other` with no
+  // mining `kind` set — i.e. the real-world case the property-era generic
+  // fallback was blind to.
+  if (input.textSample && input.textSample.length > 0) {
+    const haystack = input.textSample.toLowerCase();
+    for (const sniffer of MINING_CONTENT_SNIFFERS) {
+      if (sniffer.test(haystack)) return sniffer.schema;
+    }
+  }
+
   return null;
 }
 
@@ -219,6 +337,10 @@ export async function runFormExtraction(input: {
   const schema = selectSchemaForDocument({
     documentType: input.documentType,
     ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    // Forward the text sample so the content sniff can route mining docs
+    // that arrived with a generic enum type and no mining `kind`. The
+    // public `runFormExtraction` signature is unchanged.
+    textSample: input.text,
   });
 
   let fields: ReadonlyArray<FormField>;

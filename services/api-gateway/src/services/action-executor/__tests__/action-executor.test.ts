@@ -193,7 +193,9 @@ describe('action-executor registry', () => {
   it('KNOWN set includes the confirm-required domain verbs', () => {
     expect([...knownVerbs()].sort()).toEqual([
       'add_employee',
+      'create_licence',
       'create_site',
+      'log_production',
       'set_reminder',
       'snooze_reminder',
     ]);
@@ -208,24 +210,44 @@ describe('action-executor registry', () => {
     expect(isSafeVerb('hire_employee')).toBe(false);
   });
 
-  it('create_site / add_employee are KNOWN but NOT auto-safe', () => {
+  it('domain verbs are KNOWN but NOT auto-safe', () => {
     // Known to the registry…
     expect(isKnownVerb('create_site')).toBe(true);
     expect(isKnownVerb('add_employee')).toBe(true);
+    expect(isKnownVerb('create_licence')).toBe(true);
+    expect(isKnownVerb('log_production')).toBe(true);
     expect(isKnownVerb('CREATE_SITE')).toBe(true);
+    expect(isKnownVerb('LOG_PRODUCTION')).toBe(true);
     // …but never auto-safe (brain-teach's isSafeVerb gate refuses them).
     expect(isSafeVerb('create_site')).toBe(false);
     expect(isSafeVerb('add_employee')).toBe(false);
+    expect(isSafeVerb('create_licence')).toBe(false);
+    expect(isSafeVerb('log_production')).toBe(false);
   });
 
   it('requiresConfirmation is TRUE only for known confirm-required verbs', () => {
     expect(requiresConfirmation('create_site')).toBe(true);
     expect(requiresConfirmation('add_employee')).toBe(true);
     expect(requiresConfirmation('ADD_EMPLOYEE')).toBe(true);
+    expect(requiresConfirmation('create_licence')).toBe(true);
+    expect(requiresConfirmation('log_production')).toBe(true);
+    expect(requiresConfirmation('LOG_PRODUCTION')).toBe(true);
     // Auto-safe verbs are not confirm-required.
     expect(requiresConfirmation('set_reminder')).toBe(false);
     // An unknown verb is "unknown", not "confirm-required".
     expect(requiresConfirmation('teleport_owner')).toBe(false);
+  });
+
+  it('the DEFERRED money verbs are NOT registered (must go via LedgerService)', () => {
+    // file_royalty / set_payroll / post_ledger are documented DEFERRED in
+    // registry.ts and MUST NOT be dispatchable as plain domain inserts —
+    // they write the money path (LedgerService.post()) and are absent here.
+    for (const verb of ['file_royalty', 'set_payroll', 'post_ledger']) {
+      expect(isKnownVerb(verb)).toBe(false);
+      expect(isSafeVerb(verb)).toBe(false);
+      // Unknown ⇒ NOT "confirm-required" (it is simply not in the registry).
+      expect(requiresConfirmation(verb)).toBe(false);
+    }
   });
 });
 
@@ -478,17 +500,211 @@ describe('add_employee → confirm path executes (insert + audit + mastery)', ()
   });
 });
 
+describe('create_licence → confirm path executes (insert + audit + mastery)', () => {
+  it('gate authorizes a benign create_licence verb', () => {
+    const decision = decideAutoAuthorization(
+      'create_licence',
+      'Owner asked to register their new PML title for the Geita block.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+  });
+
+  it('inserts a licences row (tenant-scoped, company resolved), audits, mastery', async () => {
+    // The handler resolves the tenant's most-recent company first.
+    const shim = makeShim({
+      selectRowsByTable: { companies: [{ id: 'co-1' }] },
+      insertReturn: { id: 'lic-new', kind: 'PML', number: 'PML-0241' },
+    });
+
+    // Endpoint contract: authorize FIRST, only dispatch when ok.
+    const decision = decideAutoAuthorization(
+      'create_licence',
+      'Register the PML title.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+
+    const out = await dispatchAction(
+      'create_licence',
+      { type: 'pml', number: 'PML-0241', authority: 'Ministry of Minerals', expiresAt: '2030-01-01' },
+      makeCtx(shim.client),
+    );
+
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.kind).toBe('licence');
+      expect(out.result.id).toBeTruthy();
+      expect(out.result.summary).toContain('PML-0241');
+    }
+
+    // Real persisted side effect: one insert into the licences table, with
+    // the bound tenant on the row (belt-and-braces RLS) and the resolved
+    // company FK. `type` is normalised to the upper-case `kind` code.
+    expect(shim.inserts).toHaveLength(1);
+    expect(shim.inserts[0]!.table).toBe('licences');
+    expect(shim.inserts[0]!.values.tenantId).toBe('t-1');
+    expect(shim.inserts[0]!.values.companyId).toBe('co-1');
+    expect(shim.inserts[0]!.values.kind).toBe('PML');
+    expect(shim.inserts[0]!.values.number).toBe('PML-0241');
+    expect(shim.inserts[0]!.values.mineral).toBe('unspecified');
+    expect(shim.inserts[0]!.values.status).toBe('active');
+    expect(shim.inserts[0]!.values.expiryDate).toBe('2030-01-01');
+    // Authority + chat provenance recorded in the `obligations` jsonb.
+    expect(shim.inserts[0]!.values.obligations).toMatchObject({
+      via: 'chat',
+      authority: 'Ministry of Minerals',
+    });
+    // MONEY BOUNDARY: the `fees` money jsonb must be left at its DB default
+    // (never written from chat) — the handler omits it entirely.
+    expect(shim.inserts[0]!.values.fees).toBeUndefined();
+
+    // Audit-chain appended (head SELECT + INSERT) AND mastery bumped once.
+    expect(auditExecutes(shim.executes)).toBeGreaterThanOrEqual(1);
+    expect(masteryExecutes(shim.executes)).toBe(1);
+  });
+
+  it('synthesises a unique number when omitted and defaults mineral', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { companies: [{ id: 'co-1' }] },
+      insertReturn: { id: 'lic-2', kind: 'ML', number: 'CHAT-XXXX' },
+    });
+    const out = await dispatchAction(
+      'create_licence',
+      { type: 'ML' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    // A CHAT-prefixed placeholder satisfies the (tenant, kind, number) UNIQUE.
+    expect(String(shim.inserts[0]!.values.number)).toMatch(/^CHAT-[0-9A-F]{8}$/);
+    expect(shim.inserts[0]!.values.mineral).toBe('unspecified');
+  });
+
+  it('verifies an explicit company and fails gracefully when it is not the tenant’s', async () => {
+    // Explicit companyId that the tenant does not own → resolver throws →
+    // dispatcher converts to graceful (no insert, no mastery).
+    const shim = makeShim({ selectRowsByTable: { companies: [] } });
+    const out = await dispatchAction(
+      'create_licence',
+      { type: 'PML', companyId: 'co-OTHER' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    if (!out.executed) expect(out.reason).toBe('create_licence_company_not_found:co-OTHER');
+    expect(shim.inserts).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+
+  it('fails gracefully when the tenant has no company (no insert, no mastery)', async () => {
+    const shim = makeShim({ selectRowsByTable: { companies: [] } });
+    const out = await dispatchAction(
+      'create_licence',
+      { type: 'PML' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    if (!out.executed) expect(out.reason).toBe('create_licence_requires_company');
+    expect(shim.inserts).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+});
+
+describe('log_production → confirm path executes (insert + audit + mastery)', () => {
+  it('gate authorizes a benign log_production verb', () => {
+    const decision = decideAutoAuthorization(
+      'log_production',
+      'Owner logged today’s gold output for the Geita pit.',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+  });
+
+  it('inserts a production_records row (tenant-scoped, site verified), audits, mastery', async () => {
+    // The handler verifies the REQUIRED site belongs to the tenant first.
+    const shim = makeShim({
+      selectRowsByTable: { sites: [{ id: 'site-1' }] },
+      insertReturn: { id: 'prod-new', siteId: 'site-1' },
+    });
+
+    const out = await dispatchAction(
+      'log_production',
+      { siteId: 'site-1', mineral: 'Au', quantity: 12.5, unit: 'kg', date: '2026-06-01' },
+      makeCtx(shim.client),
+    );
+
+    expect(out.executed).toBe(true);
+    if (out.executed) {
+      expect(out.result.kind).toBe('production_record');
+      expect(out.result.id).toBeTruthy();
+      expect(out.result.summary).toContain('12.5 kg of Au');
+    }
+
+    // Real persisted side effect: one insert into production_records, with
+    // the bound tenant + the verified site FK. `kind` defaults to a valid
+    // enum value; quantity is projected onto numeric `mass_kg` (string at
+    // the ORM boundary) AND echoed into the `grade` jsonb with its unit.
+    expect(shim.inserts).toHaveLength(1);
+    expect(shim.inserts[0]!.table).toBe('production_records');
+    expect(shim.inserts[0]!.values.tenantId).toBe('t-1');
+    expect(shim.inserts[0]!.values.siteId).toBe('site-1');
+    expect(shim.inserts[0]!.values.kind).toBe('run_of_mine');
+    expect(shim.inserts[0]!.values.massKg).toBe('12.5');
+    expect(shim.inserts[0]!.values.grade).toMatchObject({
+      via: 'chat',
+      mineral: 'Au',
+      quantity: 12.5,
+      unit: 'kg',
+    });
+    const ts = shim.inserts[0]!.values.ts as Date;
+    expect(ts.getTime()).toBe(new Date('2026-06-01').getTime());
+
+    expect(auditExecutes(shim.executes)).toBeGreaterThanOrEqual(1);
+    expect(masteryExecutes(shim.executes)).toBe(1);
+  });
+
+  it('defaults ts to now() when date omitted', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { sites: [{ id: 'site-1' }] },
+      insertReturn: { id: 'prod-2', siteId: 'site-1' },
+    });
+    const out = await dispatchAction(
+      'log_production',
+      { siteId: 'site-1', mineral: 'Cu', quantity: 3, unit: 't' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    // No explicit `ts` written → column default (now()) applies.
+    expect(shim.inserts[0]!.values.ts).toBeUndefined();
+  });
+
+  it('fails gracefully when the site is not the tenant’s (no insert, no mastery)', async () => {
+    // No site rows → resolver throws → dispatcher converts to graceful.
+    const shim = makeShim({ selectRowsByTable: { sites: [] } });
+    const out = await dispatchAction(
+      'log_production',
+      { siteId: 'site-OTHER', mineral: 'Au', quantity: 1, unit: 'kg' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(false);
+    if (!out.executed) expect(out.reason).toBe('log_production_site_not_found:site-OTHER');
+    expect(shim.inserts).toHaveLength(0);
+    expect(masteryExecutes(shim.executes)).toBe(0);
+  });
+});
+
 // ─── Auto-execute / micro-action REFUSE confirm-required verbs ────────
 
 describe('confirm-required verbs never auto-execute', () => {
-  it('brain-teach gate (isSafeVerb) refuses create_site / add_employee', () => {
+  it('brain-teach gate (isSafeVerb) refuses every confirm-required domain verb', () => {
     // brain-teach.hono.ts only dispatches when isSafeVerb(verb) — so a
     // confirm-required verb is left badge-only there.
     expect(isSafeVerb('create_site')).toBe(false);
     expect(isSafeVerb('add_employee')).toBe(false);
+    expect(isSafeVerb('create_licence')).toBe(false);
+    expect(isSafeVerb('log_production')).toBe(false);
   });
 
-  it('/micro-action contract refuses a confirm-required verb up front', () => {
+  it('/micro-action contract refuses every confirm-required verb up front', () => {
     // Mirrors the route guard in chat-actions.hono.ts: on the auto-safe
     // micro-action surface, a confirm-required verb returns
     // executed:false reason:confirmation_required BEFORE any dispatch.
@@ -496,6 +712,8 @@ describe('confirm-required verbs never auto-execute', () => {
       requiresConfirmation(verb); // source === 'micro_action' is implied here
     expect(microActionRefuses('create_site')).toBe(true);
     expect(microActionRefuses('add_employee')).toBe(true);
+    expect(microActionRefuses('create_licence')).toBe(true);
+    expect(microActionRefuses('log_production')).toBe(true);
     // A reminder verb is allowed through the micro-action surface.
     expect(microActionRefuses('set_reminder')).toBe(false);
   });

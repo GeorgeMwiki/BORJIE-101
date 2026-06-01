@@ -15,16 +15,44 @@
  *                    these; the auto-safe paths refuse them.
  *
  * Registered verbs:
- *   set_reminder    — insert an owner reminder        (autoSafe:true)
- *   snooze_reminder — push a reminder forward          (autoSafe:true)
- *   create_site     — insert a physical mining site    (autoSafe:false)
- *   add_employee    — insert a workforce HR record     (autoSafe:false)
+ *   set_reminder    — insert an owner reminder         (autoSafe:true)
+ *   snooze_reminder — push a reminder forward           (autoSafe:true)
+ *   create_site     — insert a physical mining site     (autoSafe:false)
+ *   add_employee    — insert a workforce HR record      (autoSafe:false)
+ *   create_licence  — insert a mining licence/title     (autoSafe:false)
+ *   log_production  — insert a production output record (autoSafe:false)
  *
- * Money / ledger / licence-grant / sovereign verbs are intentionally NOT
- * here — they need LedgerService + four-eye flows and land in later
- * waves. sites + employees are NOT money (their numeric money columns are
- * deliberately left unset — see handlers/workforce.ts), so they use their
- * domain repos directly.
+ * Money / ledger / royalty / payroll / sovereign verbs are intentionally
+ * NOT here — they MUST go through `LedgerService.post()` (CLAUDE.md hard
+ * rule) and need four-eye flows; they land in a later wave. See the
+ * DEFERRED MONEY VERBS block below for the precise list + rationale.
+ *
+ * The confirm-required domain verbs above are NON-MONEY by construction:
+ *   - sites carry no money column.
+ *   - employees carry one (`wage_rate_tzs`) that is DELIBERATELY left unset
+ *     (see handlers/workforce.ts).
+ *   - licences carry only a `fees` jsonb, left at its `{}` DB default — no
+ *     fee/royalty figure is written (see handlers/licences.ts).
+ *   - production_records carry NO money column at all (mass/grade only —
+ *     see handlers/production.ts).
+ * So all four use their domain repos directly (no LedgerService).
+ *
+ * ─── DEFERRED MONEY VERBS (NOT registered — do NOT add here) ───────────
+ * The following verbs were explicitly considered and DEFERRED. They each
+ * write the money path and therefore MUST be routed through
+ * `LedgerService.post()` in `services/payments-ledger/` (the immutable
+ * double-entry invariant — CLAUDE.md hard rule), behind the relevant
+ * four-eye / policy flow. Registering them here as plain domain inserts
+ * would bypass the ledger and is FORBIDDEN. They will land in a dedicated
+ * money-actions wave that calls LedgerService — not in this registry.
+ *
+ *   file_royalty  — posts a royalty liability/payment → MUST debit/credit
+ *                   the ledger (royalty is a money obligation, not a note).
+ *   set_payroll   — sets/commits payroll figures → wage money path; goes
+ *                   through payroll-runs + LedgerService, never a raw insert.
+ *   post_ledger   — by definition a ledger posting → the ONLY legal path is
+ *                   LedgerService.post(); never a direct write from chat.
+ * ───────────────────────────────────────────────────────────────────────
  *
  * How auto-execution of a confirm-required verb is prevented (defence in
  * depth — any ONE of these blocks it):
@@ -48,6 +76,8 @@ import {
 } from './handlers/reminders.js';
 import { createSiteHandler } from './handlers/sites.js';
 import { addEmployeeHandler } from './handlers/workforce.js';
+import { createLicenceHandler } from './handlers/licences.js';
+import { logProductionHandler } from './handlers/production.js';
 import { bumpActionMastery } from './mastery-tracker.js';
 import type {
   ActionHandler,
@@ -67,6 +97,8 @@ const REGISTRY: Readonly<Record<string, RegistryEntry>> = Object.freeze({
   // CONFIRM-REQUIRED domain verbs — real persisted rows. Never auto-safe.
   create_site: { handler: createSiteHandler, autoSafe: false },
   add_employee: { handler: addEmployeeHandler, autoSafe: false },
+  create_licence: { handler: createLicenceHandler, autoSafe: false },
+  log_production: { handler: logProductionHandler, autoSafe: false },
 });
 
 /** Normalise a model / FE verb token for registry lookup. */

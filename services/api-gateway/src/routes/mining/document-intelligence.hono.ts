@@ -60,6 +60,20 @@ import {
   runFormExtraction,
   buildOcrExtractionInsert,
 } from './document-extraction';
+// Async per-upload OCR + full-text extraction (Wave DOC-INTEL).
+// The heavy wiring (real Supabase download + SSRF-guarded OCR adapter +
+// real BrainPort + reuse of runFormExtraction/extractFormFields) lives in a
+// focused sibling module so this route stays thin. It is RE-EXPORTED here so
+// the consolidation-worker can reach it via its canonical sibling-service
+// dynamic import of this route's built dist
+// (`…/routes/mining/document-intelligence.hono.js`).
+export {
+  buildOcrExtractionAdapters,
+  type GatewayOcrAdapters,
+} from './document-ocr-extraction-wiring';
+import {
+  triggerAsyncOcrExtraction,
+} from './document-ocr-extraction-wiring';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -797,6 +811,81 @@ app.get('/documents/:id/extraction', async (c) => {
     }),
     200,
   );
+});
+
+// ---------------------------------------------------------------------------
+// POST /documents/:id/ready — confirm the FE finished its presigned PUT and
+// flip ingestion_status → 'ready'. This is the TRIGGER for the async per-
+// upload OCR + full-text extraction: it stamps `ingested_at` and enqueues the
+// worker (whose poll on `ingestion_status='ready'` is the durable backstop).
+//
+// Why a dedicated endpoint: at `POST /upload` the binary is not yet stored
+// (presign only), so OCR cannot run there. The FE PUTs the bytes, then calls
+// this to signal "bytes are in storage" — the only point at which a full-text
+// OCR pass is possible. Idempotent: re-flipping an already-ready doc re-emits
+// the enqueue but does not duplicate state.
+//
+// RUNTIME note: until the FE is wired to call this after its PUT (or the
+// corpus-ingestion pipeline flips the status itself), documents stay 'queued'
+// and the async OCR worker has nothing to process.
+// ---------------------------------------------------------------------------
+
+app.post('/documents/:id/ready', async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db');
+  const id = c.req.param('id');
+  if (!isUuid(id)) {
+    return c.json(errorEnvelope('VALIDATION_ERROR', 'Invalid document id'), 400);
+  }
+
+  // Confirm tenant ownership (RLS-scoped; explicit predicate belt-and-braces).
+  const [doc] = await db
+    .select({ id: documentUploads.id })
+    .from(documentUploads)
+    .where(and(eq(documentUploads.tenantId, tenantId), eq(documentUploads.id, id)))
+    .limit(1);
+
+  if (!doc) {
+    return c.json(errorEnvelope('NOT_FOUND', 'Document not found'), 404);
+  }
+
+  const now = new Date();
+  try {
+    // Raw SQL UPDATE so we target the migration-0083 columns
+    // (`ingestion_status` / `ingested_at`) directly — the Drizzle
+    // `documentUploads` object does not yet declare them. Only flips from a
+    // pre-ready state so a 'failed' doc isn't silently resurrected.
+    await db.execute(
+      sql`
+        UPDATE document_uploads
+           SET ingestion_status = 'ready',
+               ingested_at = ${now.toISOString()}::timestamptz,
+               updated_at = ${now.toISOString()}::timestamptz
+         WHERE tenant_id = ${tenantId}
+           AND id = ${id}
+           AND ingestion_status IN ('queued', 'processing')
+      `,
+    );
+  } catch (err) {
+    logger.error('document-intelligence: ready-flip failed', {
+      tenantId,
+      documentId: id,
+      error: err instanceof Error ? err.message : 'unknown',
+    });
+    return c.json(errorEnvelope('READY_FLIP_FAILED', 'Failed to mark document ready'), 500);
+  }
+
+  // Best-effort enqueue — the worker poll on ingestion_status='ready' is the
+  // durable trigger; this is an early-start nudge that never blocks the
+  // request (no inline OCR; the binary fetch + OCR happen in the worker).
+  triggerAsyncOcrExtraction({ tenantId, documentId: id });
+
+  logger.info('document-intelligence: document marked ready', {
+    tenantId,
+    documentId: id,
+  });
+
+  return c.json(envelope({ documentId: id, ingestionStatus: 'ready' }), 200);
 });
 
 // ---------------------------------------------------------------------------

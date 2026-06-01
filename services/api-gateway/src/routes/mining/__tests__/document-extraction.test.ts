@@ -62,12 +62,80 @@ describe('selectSchemaForDocument', () => {
     ).toBe('invoice');
   });
 
-  it('returns null (→ generic) for a mining licence (notice type)', () => {
+  it('returns null (→ generic) for a bare notice type with no signal', () => {
+    // `notice` is a generic enum value; with no mining `kind` and no text
+    // sample there is nothing to route on → generic.
     expect(selectSchemaForDocument({ documentType: 'notice' })).toBeNull();
   });
 
-  it('returns null (→ generic) for an unknown accountant export', () => {
+  it('returns null (→ generic) for a bare other type with no signal', () => {
     expect(selectSchemaForDocument({ documentType: 'other' })).toBeNull();
+  });
+
+  // --- Mining set: routed WITHOUT a document_type enum value -------------
+  // (a) loose classifier `kind` channel (mirrors the invoice rule)
+
+  it('maps mining_licence kind → mining licence schema', () => {
+    expect(
+      selectSchemaForDocument({ documentType: 'other', kind: 'mining_licence' })
+        ?.id,
+    ).toBe('mining_licence');
+  });
+
+  it('maps royalty_return kind → royalty return schema', () => {
+    expect(
+      selectSchemaForDocument({ documentType: 'other', kind: 'royalty_return' })
+        ?.id,
+    ).toBe('royalty_return');
+  });
+
+  it('maps accountant_export kind → accountant export schema', () => {
+    expect(
+      selectSchemaForDocument({
+        documentType: 'other',
+        kind: 'accountant_export',
+      })?.id,
+    ).toBe('accountant_export');
+  });
+
+  // (b) content sniff over the text sample (notice/other + no mining kind)
+
+  it('content-sniffs a Primary Mining Licence from a notice-type doc', () => {
+    expect(
+      selectSchemaForDocument({
+        documentType: 'notice',
+        textSample: 'PRIMARY MINING LICENCE\nLicence Number: PML 0098/2026',
+      })?.id,
+    ).toBe('mining_licence');
+  });
+
+  it('content-sniffs a TRA royalty return from an other-type doc', () => {
+    expect(
+      selectSchemaForDocument({
+        documentType: 'other',
+        textSample: 'MINERAL ROYALTY RETURN\nRoyalty Payable: TZS 4,500,000',
+      })?.id,
+    ).toBe('royalty_return');
+  });
+
+  it('content-sniffs a trial-balance accountant export', () => {
+    expect(
+      selectSchemaForDocument({
+        documentType: 'other',
+        textSample:
+          'TRIAL BALANCE\nAccount        Debit      Credit     Balance',
+      })?.id,
+    ).toBe('accountant_export');
+  });
+
+  it('does not mis-route a lease that merely names a mineral', () => {
+    // A lease mentioning "gold" in passing must NOT sniff as mining.
+    expect(
+      selectSchemaForDocument({
+        documentType: 'lease_agreement',
+        textSample: 'LEASE AGREEMENT for the gold storage warehouse',
+      })?.id,
+    ).toBe('lease_agreement');
   });
 });
 
@@ -143,17 +211,156 @@ describe('extractGenericFields — mining licence', () => {
     expect(fields.some((f) => f.value === 'this line has no colon and is ignored')).toBe(false);
   });
 
-  it('runFormExtraction uses generic mode for a notice-type doc', async () => {
+  it('runFormExtraction content-routes a mining licence (notice type) to the mining schema', async () => {
+    // Property-era behaviour was generic here; the content sniff now routes
+    // it to the bespoke mining_licence schema even with a generic enum type.
     const result = await runFormExtraction({
       documentId: 'doc-licence-1',
-      text: 'Licence Number: PML 0098/2026\nMineral: Gold',
+      text: 'PRIMARY MINING LICENCE\nLicence Number: PML 0098/2026\nMineral: Gold',
+      sourceMime: 'text/plain',
+      documentType: 'notice',
+      kind: 'letter',
+    });
+    expect(result.schemaId).toBe('mining_licence');
+    expect(result.extractedFields.licence_number).toBe('PML 0098/2026');
+    expect(result.extractedFields.mineral).toBe('Gold');
+  });
+
+  it('runFormExtraction still uses generic mode for a non-mining notice doc', async () => {
+    const result = await runFormExtraction({
+      documentId: 'doc-notice-1',
+      text: 'Reference: NT-001\nSubject: Boundary wall repair',
       sourceMime: 'text/plain',
       documentType: 'notice',
       kind: 'letter',
     });
     expect(result.schemaId).toBe('generic');
+    expect(result.extractedFields.reference).toBe('NT-001');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mining schemas — schema-guided heuristic extraction (no brain)
+// ---------------------------------------------------------------------------
+
+describe('runFormExtraction — mining licence schema', () => {
+  it('extracts mining licence fields from a text sample', async () => {
+    const text = [
+      'PRIMARY MINING LICENCE',
+      'Licence Number: PML 0098/2026',
+      'Licence Type: PML',
+      'Holder Name: Kahama Gold Co Ltd',
+      'Mineral: Gold',
+      'Area (Ha): 12.5',
+      'Region: Geita',
+      'District: Nyang’hwale',
+      'Grant Date: 2026-01-15',
+      'Expiry Date: 2033-01-14',
+      'Annual Rent: TZS 1,200,000',
+    ].join('\n');
+
+    const result = await runFormExtraction({
+      documentId: 'doc-pml-1',
+      text,
+      sourceMime: 'text/plain',
+      documentType: 'other',
+      kind: 'mining_licence',
+    });
+
+    expect(result.schemaId).toBe('mining_licence');
     expect(result.extractedFields.licence_number).toBe('PML 0098/2026');
+    expect(result.extractedFields.holder_name).toBe('Kahama Gold Co Ltd');
     expect(result.extractedFields.mineral).toBe('Gold');
+    expect(result.extractedFields.area_hectares).toBe('12.5');
+    expect(result.extractedFields.region).toBe('Geita');
+    expect(result.extractedFields.expiry_date).toBe('2033-01-14');
+    expect(typeof result.confidenceScores.licence_number).toBe('number');
+    expect(result.overallConfidence).toBeGreaterThan(0);
+    expect(result.overallConfidence).toBeLessThanOrEqual(1);
+  });
+
+  it('extracts bilingual (Swahili) mining licence labels', async () => {
+    const result = await runFormExtraction({
+      documentId: 'doc-pml-sw',
+      text: [
+        'LESENI YA MADINI',
+        'Nambari ya leseni: PML 1234/2026',
+        'Mwenye leseni: Mwanza Madini Ltd',
+        'Madini: Almasi',
+        'Mkoa: Shinyanga',
+      ].join('\n'),
+      sourceMime: 'text/plain',
+      documentType: 'other',
+      kind: 'mining_licence',
+    });
+    expect(result.schemaId).toBe('mining_licence');
+    expect(result.extractedFields.licence_number).toBe('PML 1234/2026');
+    expect(result.extractedFields.holder_name).toBe('Mwanza Madini Ltd');
+    expect(result.extractedFields.mineral).toBe('Almasi');
+    expect(result.extractedFields.region).toBe('Shinyanga');
+  });
+});
+
+describe('runFormExtraction — royalty return schema', () => {
+  it('extracts TRA mineral royalty return fields', async () => {
+    const text = [
+      'MINERAL ROYALTY RETURN',
+      'Assessment Number: TRA-RY-2026-0421',
+      'Period: April 2026',
+      'Mineral: Gold',
+      'Quantity: 3.250',
+      'Unit: kg',
+      'Gross Value: TZS 850,000,000',
+      'Royalty Rate: 6%',
+      'Royalty Amount: TZS 51,000,000',
+      'Currency: TZS',
+    ].join('\n');
+
+    const result = await runFormExtraction({
+      documentId: 'doc-roy-1',
+      text,
+      sourceMime: 'text/plain',
+      documentType: 'other',
+      kind: 'royalty_return',
+    });
+
+    expect(result.schemaId).toBe('royalty_return');
+    expect(result.extractedFields.assessment_number).toBe('TRA-RY-2026-0421');
+    expect(result.extractedFields.period).toBe('April 2026');
+    expect(result.extractedFields.mineral).toBe('Gold');
+    expect(result.extractedFields.quantity).toBe('3.250');
+    expect(result.extractedFields.unit).toBe('kg');
+    expect(result.extractedFields.gross_value).toContain('850,000,000');
+    expect(result.extractedFields.royalty_rate).toBe('6%');
+    expect(result.extractedFields.royalty_amount).toContain('51,000,000');
+  });
+});
+
+describe('runFormExtraction — accountant export (tabular) schema', () => {
+  it('recovers the document-level summary fields from a trial balance', async () => {
+    // The per-account rows live in a table the sync heuristic cannot read;
+    // we assert the summary (period / currency / totals) it CAN recover.
+    const text = [
+      'TRIAL BALANCE',
+      'Period: as at 31 May 2026',
+      'Reporting Currency: TZS',
+      'Total Debits: 412,000,000',
+      'Total Credits: 412,000,000',
+    ].join('\n');
+
+    const result = await runFormExtraction({
+      documentId: 'doc-tb-1',
+      text,
+      sourceMime: 'text/plain',
+      documentType: 'other',
+      kind: 'accountant_export',
+    });
+
+    expect(result.schemaId).toBe('accountant_export');
+    expect(result.extractedFields.period).toBe('as at 31 May 2026');
+    expect(result.extractedFields.currency).toBe('TZS');
+    expect(result.extractedFields.debit).toContain('412,000,000');
+    expect(result.extractedFields.credit).toContain('412,000,000');
   });
 });
 
@@ -366,7 +573,7 @@ describe('upload → extract → persist → retrieve (round-trip)', () => {
     );
   });
 
-  it('persists generic fields for a mining licence document', async () => {
+  it('persists mining-licence fields for a content-sniffed mining document', async () => {
     const { app, state } = makeApp();
     const res = await app.request('/upload', {
       method: 'POST',
@@ -375,14 +582,17 @@ describe('upload → extract → persist → retrieve (round-trip)', () => {
         documentId: 'd2',
         documentType: 'notice',
         kind: 'letter',
-        textSample: 'Licence Number: PML 0098/2026\nMineral: Gold',
+        textSample:
+          'PRIMARY MINING LICENCE\nLicence Number: PML 0098/2026\nMineral: Gold',
       }),
     });
     expect(res.status).toBe(201);
     const body = (await res.json()) as {
       data: { extraction: { schemaId: string } };
     };
-    expect(body.data.extraction.schemaId).toBe('generic');
+    // Property-era fallback was 'generic'; the mining content sniff now
+    // routes this through the bespoke mining_licence schema.
+    expect(body.data.extraction.schemaId).toBe('mining_licence');
     expect(state.extractions[0]!.extractedFields.licence_number).toBe(
       'PML 0098/2026',
     );

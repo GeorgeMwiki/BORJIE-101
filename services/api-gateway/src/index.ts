@@ -151,6 +151,14 @@ import { brainRouter } from './routes/brain.hono';
 // chain. Sibling mount under /brain so Hono composes it next to the
 // existing /turn route without touching the kernel.
 import { brainTeachRouter } from './routes/brain-teach.hono';
+// SOTA realtime-voice BACKEND — a WS endpoint at /api/v1/brain/voice/stream
+// that bridges the owner's mic to a duplex model (Gemini Live) in front of
+// the real Borjie brain (mining persona + tool-calling + tenant binding).
+// Attached to the HTTP server in the listen block (it is a WS-upgrade, not a
+// Hono route). The attach NO-OPS with a Pino warning until a WS-upgrade
+// transport (`ws` / `@hono/node-ws`) is wired — see the route file's
+// §RUNTIME-FLAGS. Does not affect gateway boot when inactive.
+import { attachBrainVoiceWebSocket } from './routes/brain-voice.hono';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
 // uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
@@ -2812,6 +2820,20 @@ if (require.main === module) {
   server = app.listen(port, () => {
     logger.info({ port }, 'API Gateway started');
   });
+
+  // SOTA realtime-voice BACKEND — attach the brain-voice WS endpoint to the
+  // HTTP server now that it is listening. Currently INACTIVE (no-op + warn)
+  // because no WS-upgrade transport (`ws` / `@hono/node-ws`) is installed;
+  // pass `webSocketServerFactory` here once it is. Wrapped so a wiring bug in
+  // the voice channel can never crash gateway boot.
+  try {
+    attachBrainVoiceWebSocket({ server });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain-voice: attach failed (voice channel disabled, gateway continues)',
+    );
+  }
 
   // Wave 12 — start heartbeat + background scheduler after the server
   // is listening. Both are gated by DATABASE_URL internally; degraded
