@@ -2,20 +2,29 @@
  * action-executor — the chat→action execution bridge.
  *
  * Public surface:
- *   - dispatchAction(verb, params, ctx) — run a SAFE verb's handler,
- *     bump mastery on success. Caller MUST authorize first.
- *   - isSafeVerb(verb) / safeVerbs() — the SAFE registry membership the
- *     brain-teach auto-execute path gates on.
- *   - types — ExecContext / ExecResult / DispatchResult.
+ *   - dispatchAction(verb, params, ctx) — run a registered verb's handler,
+ *     bump mastery on success. Caller MUST authorize first (and only the
+ *     confirm-action path may dispatch a confirm-required verb).
+ *   - isSafeVerb(verb) / safeVerbs() — AUTO-SAFE membership the
+ *     brain-teach auto-execute path gates on (reminders only).
+ *   - isKnownVerb(verb) / knownVerbs() — full registry membership.
+ *   - requiresConfirmation(verb) — TRUE for a known CONFIRM-REQUIRED verb
+ *     (create_site / add_employee); the `/micro-action` endpoint uses it
+ *     to refuse those up front.
+ *   - types — ExecContext / ExecResult / DispatchResult / RegistryEntry.
  *
- * See ./registry.ts for the SAFE verb set and the hard-rule rationale
- * (money / ledger / hire / licence verbs are intentionally excluded).
+ * See ./registry.ts for the verb set + trust classes and the hard-rule
+ * rationale (money / ledger / licence-grant verbs are excluded; sites +
+ * employees are confirm-required, never auto-safe).
  */
 
 export {
   dispatchAction,
   isSafeVerb,
+  isKnownVerb,
+  requiresConfirmation,
   safeVerbs,
+  knownVerbs,
 } from './registry.js';
 
 export type {
@@ -25,4 +34,5 @@ export type {
   ExecDbClient,
   ExecLogger,
   ExecResult,
+  RegistryEntry,
 } from './types.js';

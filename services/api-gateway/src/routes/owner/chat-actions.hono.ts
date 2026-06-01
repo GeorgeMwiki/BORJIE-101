@@ -9,8 +9,12 @@
  *
  *   POST /micro-action   { verb, params }                  — a chip the
  *       chat surfaced (e.g. an `auto_authorized` follow-up the user taps).
+ *       AUTO-SAFE surface: it REFUSES confirm-required verbs (create_site
+ *       / add_employee) with `reason:'confirmation_required'`.
  *   POST /confirm-action { verb, params } | { actionId }   — an action
- *       the user EXPLICITLY confirmed via a `confirmation_card`.
+ *       the user EXPLICITLY confirmed via a `confirmation_card`. This is
+ *       the ONLY path that runs confirm-required domain verbs (sites +
+ *       employees → real persisted rows).
  *
  * Both run, in order:
  *   1. authMiddleware  — Supabase JWT (canonical auth).
@@ -42,6 +46,7 @@ import { decideAutoAuthorization } from '../../services/auto-authorize-gate/inde
 import { appendAutoAuthorizedAudit } from '../../services/auto-authorize-gate/audit.js';
 import {
   dispatchAction,
+  requiresConfirmation,
   type ExecContext,
   type ExecResult,
 } from '../../services/action-executor/index.js';
@@ -140,6 +145,25 @@ async function gateExecuteAudit(args: {
   readonly source: 'micro_action' | 'confirm_action';
 }): Promise<ActionResponseBody> {
   const { verb, params, rationale, auth, db, source } = args;
+
+  // 0) CONFIRM-REQUIRED policy. `/micro-action` is an AUTO-SAFE surface —
+  //    the chat surfaced the chip and the user tapped it without an
+  //    explicit confirmation dialog. A confirm-required verb (create_site
+  //    / add_employee creates a durable domain row) MUST NOT run there: we
+  //    refuse it up front, BEFORE the gate, so an auto-safe tap can never
+  //    persist a site/employee. Such verbs run ONLY via `/confirm-action`,
+  //    where the owner explicitly confirmed the action.
+  if (source === 'micro_action' && requiresConfirmation(verb)) {
+    moduleLogger.info('chat-actions: confirm-required verb refused on micro-action', {
+      verb,
+      source,
+      tenantId: auth.tenantId,
+    });
+    return {
+      success: true,
+      data: { executed: false, authorized: false, reason: 'confirmation_required' },
+    };
+  }
 
   // 1) FAIL-CLOSED authorization gate FIRST. On any internal gate error
   //    the gate itself returns authorized:false (never throws an allow),

@@ -81,6 +81,22 @@ export type ActionHandler = (
 ) => Promise<ExecResult>;
 
 /**
+ * One registry entry: the handler plus its trust class.
+ *
+ * `autoSafe:true` verbs (reminders) may run on the brain-teach
+ * auto-execute path and `/micro-action` without an explicit human
+ * confirmation. `autoSafe:false` verbs (create_site / add_employee)
+ * are CONFIRM-REQUIRED: they perform a durable domain mutation and may
+ * ONLY run via `/confirm-action`, after the owner explicitly confirmed.
+ * The flag defaults to confirm-required in spirit — a verb is only
+ * auto-safe when its registry entry says so explicitly.
+ */
+export interface RegistryEntry {
+  readonly handler: ActionHandler;
+  readonly autoSafe: boolean;
+}
+
+/**
  * Outcome of dispatching a verb through the registry. `executed:false`
  * with `reason:'unknown_action'` is returned for an unregistered verb —
  * the dispatcher NEVER throws for an unknown verb (graceful by design).
