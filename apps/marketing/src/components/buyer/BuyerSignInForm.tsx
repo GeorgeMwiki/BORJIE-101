@@ -63,7 +63,7 @@ export function BuyerSignInForm({
     // requirePublicBaseUrl throws in prod when env unset — avoids silent
     // redirect to localhost from the deployed marketing site.
     const base = requirePublicBaseUrl(
-      'NEXT_PUBLIC_OWNER_WEB_URL',
+      'NEXT_PUBLIC_OWNER_WEB_ORIGIN',
       'http://localhost:3010',
     ).replace(/\/$/, '');
     return `${base}/dashboard?as=buyer`;

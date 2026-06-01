@@ -2,9 +2,26 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Mail, MapPin, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, MapPin, ShieldCheck, Smartphone } from 'lucide-react';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { BorjieLogo } from '@borjie/design-system';
+
+/**
+ * Optional workforce-mobile store links. Managers and employees work in
+ * the Expo workforce app by design (mobile-only) — marketing only
+ * surfaces a store link when its URL is configured. The vars are empty
+ * by default, so we read them directly (not via requirePublicBaseUrl,
+ * which intentionally throws in prod for required base URLs) and render
+ * each link only when its own value is present — never a broken link.
+ */
+const WORKFORCE_APP_LINKS: ReadonlyArray<{
+  readonly id: 'ios' | 'android';
+  readonly url: string | undefined;
+}> = [
+  { id: 'ios', url: process.env.NEXT_PUBLIC_WORKFORCE_APP_IOS_URL },
+  { id: 'android', url: process.env.NEXT_PUBLIC_WORKFORCE_APP_ANDROID_URL },
+];
 
 interface WordmarkProps {
   readonly size?: 'sm' | 'md' | 'lg';
@@ -46,6 +63,27 @@ function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
 export function Footer({ locale }: { readonly locale: Locale }) {
   const t = getMessages(locale).footer;
   const nav = getMessages(locale).nav;
+
+  // Borjie team console lives on its own origin (port 3020 in dev). A
+  // discreet footer link is the only marketing entry into the admin
+  // console — staff know to look here; visitors never see a CTA.
+  // requirePublicBaseUrl throws in prod when NEXT_PUBLIC_ADMIN_WEB_ORIGIN
+  // is unset so the deployed site can never link to localhost.
+  const adminSignInHref = `${requirePublicBaseUrl(
+    'NEXT_PUBLIC_ADMIN_WEB_ORIGIN',
+    'http://localhost:3020',
+  ).replace(/\/$/, '')}/sign-in`;
+
+  // Store names are proper-noun tokens (like GitHub / LinkedIn above) —
+  // not translatable copy. The "Workforce app" label resolves through
+  // i18n. Only stores with a configured URL render.
+  const workforceStores = WORKFORCE_APP_LINKS.filter(
+    (s): s is { id: 'ios' | 'android'; url: string } =>
+      typeof s.url === 'string' && s.url.length > 0,
+  ).map((s) => ({
+    ...s,
+    name: s.id === 'ios' ? 'iOS' : 'Android',
+  }));
 
   const cols: ReadonlyArray<{
     readonly title: string;
@@ -213,6 +251,38 @@ export function Footer({ locale }: { readonly locale: Locale }) {
               {t.systemsOperational}
             </span>
           </div>
+
+          {/* Portal utility links — discreet front doors for staff and the
+              mobile workforce. Owners reach their cockpit via the nav. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-foreground/60">
+            <a
+              href={adminSignInHref}
+              className="inline-flex items-center gap-1.5 text-sm transition-colors duration-fast hover:text-foreground focus:outline-none focus:text-foreground"
+            >
+              <Lock className="h-3.5 w-3.5" aria-hidden />
+              {nav.adminSignIn}
+            </a>
+            {workforceStores.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-sm">
+                <Smartphone className="h-3.5 w-3.5" aria-hidden />
+                <span>{nav.workforceApp}</span>
+                <span className="inline-flex items-center gap-2">
+                  {workforceStores.map((store) => (
+                    <a
+                      key={store.id}
+                      href={store.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline focus:outline-none focus:text-foreground"
+                    >
+                      {store.name}
+                    </a>
+                  ))}
+                </span>
+              </span>
+            ) : null}
+          </div>
+
           <div className="flex flex-col items-start gap-2 font-mono text-tiny uppercase tracking-widest text-foreground/70 sm:flex-row sm:items-center sm:gap-4">
             <span>© 2026 Borjie. {t.rights}</span>
             <span aria-hidden className="hidden h-3 w-px bg-border/60 sm:inline-block" />

@@ -20,6 +20,7 @@
     "pilot": "Pilot",
     "docs": "Docs",
     "signIn": "Sign in",
+    "signUp": "Sign up",
     "whoWeServe": "Who we serve",
     "about": "About",
     "resources": "Resources",
@@ -28,6 +29,8 @@
     "careers": "Careers",
     "support": "Support",
     "requestPilot": "Get started",
+    "adminSignIn": "Borjie team sign-in",
+    "workforceApp": "Workforce app",
     "categories": {
       "operators": "Mine operators",
       "buyers": "Off-takers and buyers",

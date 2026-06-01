@@ -155,14 +155,20 @@ export function Nav({ locale }: { readonly locale: Locale }) {
   const isOnAudiencePage = ALL_AUDIENCE_HREFS.includes(pathname);
 
   // Owner cockpit lives on a different origin (port 3010 in dev). The
-  // marketing site never owns auth — Sign In + Pilot CTA both bounce to
-  // owner-web. requirePublicBaseUrl throws in prod when the env var is
-  // unset so the deployed marketing site cannot link to localhost.
+  // marketing site never owns auth — Sign In bounces to owner-web's
+  // canonical /sign-in. requirePublicBaseUrl throws in prod when
+  // NEXT_PUBLIC_OWNER_WEB_ORIGIN is unset so the deployed marketing
+  // site cannot link to localhost.
   const ownerWebUrl = requirePublicBaseUrl(
-    'NEXT_PUBLIC_OWNER_WEB_URL',
+    'NEXT_PUBLIC_OWNER_WEB_ORIGIN',
     'http://localhost:3010',
   );
   const signInHref = `${ownerWebUrl}/sign-in`;
+  // Self-serve owner sign-up is a real marketing-owned route (this app),
+  // so it stays an internal <Link> — no cross-origin hop. It is the
+  // canonical, end-to-end-working signup entry; owner-web /signup
+  // redirects back here.
+  const signUpHref = '/sign-up';
   const pilotHref = '/pilot';
 
   return (
@@ -311,6 +317,12 @@ export function Nav({ locale }: { readonly locale: Locale }) {
             {t.signIn}
           </a>
           <Link
+            href={signUpHref}
+            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"
+          >
+            {t.signUp}
+          </Link>
+          <Link
             href={pilotHref}
             className="hidden h-9 items-center gap-1.5 rounded-xl bg-signal-500 px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] sm:inline-flex"
           >
@@ -407,6 +419,13 @@ export function Nav({ locale }: { readonly locale: Locale }) {
               >
                 {t.signIn}
               </a>
+              <Link
+                href={signUpHref}
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-border/60 px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-raised"
+              >
+                {t.signUp}
+              </Link>
             </div>
           </div>
         </div>
