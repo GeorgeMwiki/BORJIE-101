@@ -95,12 +95,6 @@ jobs:
           - service: consolidation-worker
             context: .
             dockerfile: services/consolidation-worker/Dockerfile
-          - service: document-intelligence
-            context: .
-            dockerfile: docker/Dockerfile.service
-            build_args: |
-              SERVICE_NAME=document-intelligence
-              PACKAGE_NAME=@borjie/document-intelligence-service
           - service: domain-services
             context: .
             dockerfile: docker/Dockerfile.service
@@ -219,7 +213,7 @@ jobs:
         working-directory: infra/k8s/overlays/staging
         run: |
           for service in api-gateway consolidation-worker \
-                         document-intelligence domain-services identity \
+                         domain-services identity \
                          notifications payments reports webhooks \
                          marketing owner-web admin-web; do
             kustomize edit set image \
@@ -269,7 +263,7 @@ jobs:
         working-directory: infra/k8s/overlays/prod
         run: |
           for service in api-gateway consolidation-worker \
-                         document-intelligence domain-services identity \
+                         domain-services identity \
                          notifications payments reports webhooks \
                          marketing owner-web admin-web; do
             kustomize edit set image \

@@ -18,8 +18,8 @@
 #
 # ENABLE (per environment, AFTER provisioning runsc/kata on the node pool):
 #   set `runtimeClassName: gvisor` on the agent-code-executing workloads —
-#   api-gateway, consolidation-worker, document-intelligence,
-#   mcp-process-intel, research-orchestrator, brain-evolution-worker.
+#   api-gateway, consolidation-worker, mcp-process-intel,
+#   research-orchestrator, brain-evolution-worker.
 #   Provision: install containerd-shim-runsc-v1 + a `runsc` containerd handler
 #   on the nodes (GKE Sandbox / a runsc DaemonSet), then schedule those
 #   workloads onto the gVisor node pool. Pods referencing an unprovisioned

@@ -28,7 +28,6 @@ resources:
   - mcp-firs-deployment.yaml
   - mcp-nggis-deployment.yaml
   - mcp-opay-deployment.yaml
-  - document-intelligence-deployment.yaml
   - domain-services-deployment.yaml
   - identity-deployment.yaml
   - notifications-deployment.yaml
