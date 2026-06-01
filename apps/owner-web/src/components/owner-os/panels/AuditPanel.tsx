@@ -8,9 +8,12 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import { useAuditEntries, type AuditEntryRow } from '@/lib/queries/audit-trail';
+import { fmtDate } from '@/lib/format';
 
 const AUDIT_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'audit',
@@ -49,10 +52,42 @@ registerTab(AUDIT_DESCRIPTOR);
 
 export const AUDIT_PANEL_DESCRIPTOR = AUDIT_DESCRIPTOR;
 
+function auditColumns(isSw: boolean): ReadonlyArray<PanelColumn<AuditEntryRow>> {
+  return [
+    {
+      key: 'action',
+      header: isSw ? P.audit.colAction.sw : P.audit.colAction.en,
+      render: (r) => r.actionKind,
+    },
+    {
+      key: 'actor',
+      header: isSw ? P.audit.colActor.sw : P.audit.colActor.en,
+      render: (r) => r.actorDisplay ?? r.actorKind,
+    },
+    {
+      key: 'category',
+      header: isSw ? P.audit.colCategory.sw : P.audit.colCategory.en,
+      render: (r) => r.actionCategory,
+    },
+    {
+      key: 'when',
+      header: isSw ? P.audit.colWhen.sw : P.audit.colWhen.en,
+      render: (r) => fmtDate(r.occurredAt),
+    },
+  ];
+}
+
 export function AuditPanel({
   locale,
   context,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  // The tab's `focus` scopes the feed to a single subject when present.
+  const focus = typeof context.focus === 'string' ? context.focus : undefined;
+  const { data, isLoading, isError, refetch } = useAuditEntries(
+    focus ? { subjectId: focus } : undefined,
+  );
+  const rows = data ?? [];
   const focusChip = context.focus
     ? [
         {
@@ -77,15 +112,16 @@ export function AuditPanel({
         locale={locale}
         {...(focusChip ? { metaChips: focusChip } : {})}
       />
-      <EmptyPanelBody
-        icon={Scale}
-        titleEn="Tab-scoped audit feed landing soon"
-        titleSw={S.audit.emptyTitle.sw}
-        bodyEn="The audit-hash-chain package already records every action. This panel will surface a tab-scoped slice (filtered by siteId / licenceId / employeeId / focus) once the /api/v1/audit/feed contract is exposed."
-        bodySw={S.audit.emptyBody.sw}
-        contractEn="GET /api/v1/audit/feed?focus=...&siteId=..."
-        contractSw="GET /api/v1/audit/feed?focus=...&siteId=..."
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={auditColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={isSw ? P.audit.emptyTitle.sw : P.audit.emptyTitle.en}
+        emptyBody={isSw ? P.audit.emptyBody.sw : P.audit.emptyBody.en}
+        onRetry={() => void refetch()}
       />
     </section>
   );

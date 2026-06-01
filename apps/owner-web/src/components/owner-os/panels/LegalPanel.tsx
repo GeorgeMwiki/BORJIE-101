@@ -9,7 +9,9 @@ import {
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 
 const LEGAL_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'legal',
@@ -75,6 +77,12 @@ export function LegalPanel({ locale }: OwnerOSPanelProps): ReactElement {
         contractSw="GET /api/v1/legal/{contracts|drafts|queue}"
         locale={locale}
       />
+      <div className="flex justify-center">
+        <AskMwikilaCta
+          label={locale === 'sw' ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+          prompt={locale === 'sw' ? P.legal.ask.sw : P.legal.ask.en}
+        />
+      </div>
     </section>
   );
 }

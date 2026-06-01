@@ -21,14 +21,28 @@ interface AskComposerProps {
   readonly busy: boolean;
   readonly disabled?: boolean;
   /**
-   * When set, a locale-aware hands-free mic (Web Speech STT) is mounted
-   * beside the send control. The owner's spoken sentence streams into
-   * the textarea live and auto-submits through the same `onSubmit`
-   * pipeline as typing. Omit the prop to render the composer without
-   * voice (the default for surfaces that are not a primary chat entry).
-   * The mic self-hides when the browser lacks SpeechRecognition.
+   * When set, a locale-aware hands-free mic is mounted beside the send
+   * control. It PREFERS a realtime-duplex "call" against the gateway voice
+   * WS (mic streams up, Mr. Mwikila's audio plays back, barge-in) and
+   * automatically FALLS BACK to browser Web-Speech STT when the live path
+   * is unavailable or errors — in which case the owner's spoken sentence
+   * streams into the textarea live and auto-submits through the same
+   * `onSubmit` pipeline as typing. Omit the prop to render the composer
+   * without voice. The mic self-hides when the browser lacks both paths.
    */
   readonly voiceLocale?: 'sw' | 'en';
+  /**
+   * Prefer the realtime-duplex gateway voice path when it can connect.
+   * Defaults to true; set false to pin the browser Web-Speech fallback
+   * (useful for surfaces or environments where the live WS is undesired).
+   */
+  readonly preferRealtimeVoice?: boolean;
+  /**
+   * Optional: receives the assistant's final reply TEXT for a realtime
+   * voice turn (the spoken answer's transcript), so a parent surface can
+   * render it in the conversation alongside the audio.
+   */
+  readonly onVoiceReply?: (text: string) => void;
 }
 
 /**
@@ -40,11 +54,12 @@ interface AskComposerProps {
  * the textarea as read-only and the send button as inactive — no
  * silent failures, no mock fallback.
  *
- * Hands-free voice (opt-in via `voiceLocale`): a `VoiceMicButton`
- * dictates in the owner's active locale (en→en-TZ, sw→sw-TZ). The final
- * transcript both fills the textarea (so the owner sees the captured
- * sentence) and auto-submits, so speaking a sentence reaches the brain
- * exactly like typing it.
+ * Hands-free voice (opt-in via `voiceLocale`): a `VoiceMicButton` runs in
+ * the owner's active locale (en→en-TZ, sw→sw-TZ). It prefers the realtime
+ * duplex call to the gateway brain; when that is unavailable it degrades
+ * to browser STT, whose final transcript both fills the textarea (so the
+ * owner sees the captured sentence) and auto-submits — so speaking a
+ * sentence reaches the brain exactly like typing it.
  */
 export function AskComposer({
   onSubmit,
@@ -52,6 +67,8 @@ export function AskComposer({
   busy,
   disabled,
   voiceLocale,
+  preferRealtimeVoice = true,
+  onVoiceReply,
 }: AskComposerProps) {
   const {
     register,
@@ -132,8 +149,10 @@ export function AskComposer({
         <VoiceMicButton
           languagePreference={voiceLocale}
           disabled={Boolean(busy || disabled)}
+          preferRealtime={preferRealtimeVoice}
           onTranscriptUpdate={onTranscriptUpdate}
           onTranscriptFinal={onTranscriptFinal}
+          {...(onVoiceReply ? { onVoiceReply } : {})}
         />
       ) : null}
       {busy && onAbort ? (

@@ -9,8 +9,10 @@ import {
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 
 const ESG_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'esg',
@@ -75,6 +77,12 @@ export function ESGPanel({ locale }: OwnerOSPanelProps): ReactElement {
         contractSw="GET /api/v1/esg/{snapshot|community|reclamation}"
         locale={locale}
       />
+      <div className="flex justify-center">
+        <AskMwikilaCta
+          label={locale === 'sw' ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+          prompt={locale === 'sw' ? P.esg.ask.sw : P.esg.ask.en}
+        />
+      </div>
     </section>
   );
 }

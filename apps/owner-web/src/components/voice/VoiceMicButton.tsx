@@ -3,139 +3,130 @@
 /**
  * VoiceMicButton — CE-3 hands-free chat composer mic.
  *
- * Single visible button the owner taps to start hands-free chat
- * input. Toggles between idle / listening states; emits the final
- * transcript via `onTranscriptFinal` when the user taps stop or the
- * recogniser auto-stops on extended silence.
+ * Single visible control the owner taps to talk to Mr. Mwikila. It runs
+ * TWO voice surfaces behind one button and picks the best available:
  *
- * Locale-aware: caller passes `languagePreference` so the hook
- * recognises Swahili-TZ vs English-TZ accents accurately.
+ *   1. PREFERRED — realtime duplex against the gateway voice WS
+ *      (`useRealtimeVoice`). Opens a live "call": mic PCM streams up, model
+ *      audio plays back, barge-in interrupts. The live ASR transcript is
+ *      mirrored into the composer and the final reply text is handed back.
  *
- * Accessibility:
- *   - Visually-hidden status text for screen readers.
- *   - aria-live region announces start/stop.
- *   - Keyboard-accessible (button native).
+ *   2. FALLBACK — the original browser Web-Speech STT (`BrowserMic`,
+ *      wrapping `useSpeechRecognition`). Used automatically whenever the
+ *      realtime path is unsupported, fails its handshake, errors, or the
+ *      mic is denied. The browser path is NEVER removed.
  *
- * Bilingual labels per CLAUDE.md hard rule.
+ * The realtime endpoint is not live in this environment, so on any failure
+ * `useRealtimeVoice` reports `status: 'fallback'`, and this component
+ * transparently renders the browser mic instead — no dead button, ever.
+ *
+ * `preferRealtime={false}` forces the browser path (e.g. for tests or
+ * surfaces that opt out of the live call). Locale drives both surfaces
+ * (en→en-TZ, sw→sw-TZ).
+ *
+ * Bilingual labels per CLAUDE.md hard rule; all copy is imported from the
+ * guard-exempt i18n string tables (zero Swahili literals here).
  */
 
-import { Mic, MicOff } from 'lucide-react';
-import { useEffect } from 'react';
-import {
-  useSpeechRecognition,
-  type SpeechLang,
-} from './use-speech-recognition';
-import { tailStrings as S } from '@/i18n/strings/tail';
+import { useCallback, useEffect } from 'react';
+import { BrowserMic } from './BrowserMic';
+import { RealtimeMic } from './RealtimeMic';
+import { useRealtimeVoice } from './use-realtime-voice';
+import { getBrainAccessToken } from '@/lib/brain-api';
 
 export interface VoiceMicButtonProps {
   readonly languagePreference: 'sw' | 'en';
   readonly disabled?: boolean;
   /**
-   * Fires when the recogniser produces a non-empty interim or final
-   * segment. Caller may use this to live-update the composer
-   * textarea (so the owner sees what's being captured).
+   * Prefer the realtime-duplex gateway path when it can connect. Defaults
+   * to true; set false to pin the browser Web-Speech fallback.
+   */
+  readonly preferRealtime?: boolean;
+  /**
+   * Fires when the active surface produces a non-empty interim/final
+   * segment (browser STT) or a live ASR transcript (realtime). Callers
+   * use it to mirror what is being captured into the composer textarea.
    */
   readonly onTranscriptUpdate?: (text: string) => void;
   /**
-   * Fires once when the owner taps stop OR the recogniser auto-stops.
-   * The supplied `transcript` is the full final accumulated text.
-   * Caller should treat this as "submit the message" hand-off.
+   * Fires once with the full final transcript when the owner stops a
+   * browser-STT dictation. Treated by the caller as "submit this message".
+   * (In realtime mode the brain answers over the audio channel, so this
+   * fires only on the browser fallback path.)
    */
   readonly onTranscriptFinal: (transcript: string) => void;
+  /**
+   * Optional: fires with the assistant's final reply TEXT for a realtime
+   * turn, so a transcript surface can render it alongside the spoken audio.
+   */
+  readonly onVoiceReply?: (text: string) => void;
 }
 
-function toLocale(pref: 'sw' | 'en'): SpeechLang {
-  return pref === 'sw' ? 'sw-TZ' : 'en-TZ';
+/** Resolve the Supabase token for the WS handshake (null when signed out). */
+async function resolveToken(): Promise<string | null> {
+  return getBrainAccessToken();
 }
-
-const M = S.voiceMicButton;
-
-const LABELS = {
-  sw: {
-    start: M.start.sw,
-    stop: M.stop.sw,
-    listening: M.listening.sw,
-    unsupported: M.unsupported.sw,
-    error: M.error.sw,
-  },
-  en: {
-    start: M.start.en,
-    stop: M.stop.en,
-    listening: M.listening.en,
-    unsupported: M.unsupported.en,
-    error: M.error.en,
-  },
-} as const;
 
 export function VoiceMicButton({
   languagePreference,
   disabled,
+  preferRealtime = true,
   onTranscriptUpdate,
   onTranscriptFinal,
+  onVoiceReply,
 }: VoiceMicButtonProps) {
-  const labels = LABELS[languagePreference];
-  const { state, start, stop } = useSpeechRecognition(toLocale(languagePreference));
+  const realtime = useRealtimeVoice({
+    locale: languagePreference,
+    getToken: resolveToken,
+  });
 
-  // Live-update the composer with combined transcript + interim.
+  // Mirror the live ASR transcript into the composer while the call runs.
   useEffect(() => {
-    if (!onTranscriptUpdate) return;
-    const merged = state.transcript + state.interim;
-    if (merged.length > 0) onTranscriptUpdate(merged);
-  }, [state.transcript, state.interim, onTranscriptUpdate]);
+    if (!realtime.isLive || !onTranscriptUpdate) return;
+    if (realtime.state.transcript.length > 0) {
+      onTranscriptUpdate(realtime.state.transcript);
+    }
+  }, [realtime.isLive, realtime.state.transcript, onTranscriptUpdate]);
 
-  // Final hand-off when the recogniser stops with content.
+  // Surface the final spoken reply text to any listening transcript view.
   useEffect(() => {
-    if (state.status !== 'stopped') return;
-    const finalText = state.transcript.trim();
-    if (finalText.length === 0) return;
-    onTranscriptFinal(finalText);
-  }, [state.status, state.transcript, onTranscriptFinal]);
+    if (!onVoiceReply) return;
+    const reply = realtime.state.lastReply.trim();
+    if (reply.length > 0) onVoiceReply(reply);
+  }, [realtime.state.lastReply, onVoiceReply]);
 
-  const handleClick = (): void => {
-    if (state.status === 'listening' || state.status === 'requesting') {
-      stop();
+  const onToggleRealtime = useCallback((): void => {
+    if (realtime.isLive || realtime.state.status === 'connecting') {
+      realtime.disconnect();
       return;
     }
-    start();
-  };
+    realtime.connect();
+  }, [realtime]);
 
-  if (state.status === 'unsupported') {
+  // The realtime path has decided it cannot run here — degrade to browser.
+  const degraded =
+    realtime.state.status === 'fallback' ||
+    realtime.state.status === 'unsupported' ||
+    realtime.state.status === 'error';
+
+  if (!preferRealtime || degraded) {
     return (
-      <button
-        type="button"
-        aria-label={labels.unsupported}
-        disabled
-        title={labels.unsupported}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-surface/40 text-neutral-400"
-      >
-        <MicOff className="h-4 w-4" aria-hidden="true" />
-      </button>
+      <BrowserMic
+        languagePreference={languagePreference}
+        showFallbackNotice={degraded && preferRealtime}
+        onTranscriptFinal={onTranscriptFinal}
+        {...(disabled !== undefined ? { disabled } : {})}
+        {...(onTranscriptUpdate ? { onTranscriptUpdate } : {})}
+      />
     );
   }
 
-  const isActive = state.status === 'listening' || state.status === 'requesting';
-  const ariaLabel = isActive ? labels.stop : labels.start;
-  const Icon = isActive ? MicOff : Mic;
-  const tone = isActive
-    ? 'border-destructive/40 bg-destructive/10 text-destructive animate-pulse'
-    : 'border-border bg-surface/40 text-foreground hover:bg-surface';
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-pressed={isActive}
-        data-testid="voice-mic-button"
-        className={`inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm disabled:cursor-not-allowed disabled:opacity-50 ${tone}`}
-      >
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </button>
-      <span className="sr-only" role="status" aria-live="polite">
-        {isActive ? labels.listening : ''}
-        {state.error ? ` ${labels.error}: ${state.error}` : ''}
-      </span>
-    </>
+    <RealtimeMic
+      languagePreference={languagePreference}
+      status={realtime.state.status}
+      onToggle={onToggleRealtime}
+      {...(disabled !== undefined ? { disabled } : {})}
+    />
   );
 }

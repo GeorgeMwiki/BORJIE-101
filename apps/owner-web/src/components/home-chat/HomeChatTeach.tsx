@@ -61,6 +61,8 @@ import {
   confirmAction,
   type MicroActionResult,
 } from '@/lib/queries/chat-actions';
+import type { DocUploadOutcome } from '@/lib/queries/doc-upload';
+import { fillDocUpload } from '@/i18n/strings/doc-upload';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { VoicePlayButton } from '@/components/voice/VoicePlayButton';
 import { QuickReplyChips } from './QuickReplyChips';
@@ -207,6 +209,31 @@ function makeAssistantNote(text: string): TeachMessage {
     errorMessage: null,
     createdAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Build the transcript note for ONE in-chat upload outcome, locale-pure.
+ * Success carries the extraction field count when the gateway returned one
+ * ("Uploaded <name> — extracted N fields"), else the plain confirmation.
+ * Failure renders a graceful note with the validator/gateway detail.
+ */
+function uploadOutcomeNote(
+  outcome: DocUploadOutcome,
+  locale: 'sw' | 'en',
+): string {
+  if (outcome.ok) {
+    return outcome.fieldCount !== null
+      ? fillDocUpload('uploadedWithFields', locale, {
+          name: outcome.fileName,
+          count: outcome.fieldCount,
+        })
+      : fillDocUpload('uploadedPlain', locale, { name: outcome.fileName });
+  }
+  const reason = outcome.detail ?? fillDocUpload(outcome.reasonKey, locale);
+  return fillDocUpload('uploadFailed', locale, {
+    name: outcome.fileName,
+    reason,
+  });
 }
 
 function parseFrames(buffer: string): {
@@ -809,6 +836,24 @@ export function HomeChatTeach({
     [onSuggestion, reflectActionResult],
   );
 
+  // file_request_card upload bridge. The card streams the attached file(s)
+  // to the gateway (real upload + synchronous extraction) and hands back the
+  // per-file outcomes; here we reflect each one into the transcript as an
+  // assistant note. On unknown shapes (no usable outcome) we keep the legacy
+  // text fallback so the brain still acknowledges the attachment.
+  const reflectUploadResults = useCallback(
+    (results: ReadonlyArray<DocUploadOutcome>): void => {
+      if (results.length === 0) {
+        onSuggestion('__inline_action:upload');
+        return;
+      }
+      for (const outcome of results) {
+        appendNote(uploadOutcomeNote(outcome, languagePreference));
+      }
+    },
+    [appendNote, languagePreference, onSuggestion],
+  );
+
   // Wave SUPERPOWERS (UI-2): translate a ProactiveHint CTA emit into a
   // follow-up turn so the hint's button is never a dead click. The
   // canonical Theory-of-Mind emits map to a localised owner message.
@@ -926,6 +971,7 @@ export function HomeChatTeach({
                   isLatestAssistant={message.id === lastAssistantId}
                   onSuggestion={onSuggestion}
                   onInlineAction={runInlineAction}
+                  onUploadResults={reflectUploadResults}
                   composerDisabled={composerDisabled || isStreaming}
                   {...(onSpawnTab ? { onSpawnTab } : {})}
                 />
@@ -1001,6 +1047,13 @@ interface TeachBubbleProps {
    * component only forwards the raw `{ action, payload }` event.
    */
   readonly onInlineAction: (event: RawInlineActionEvent) => void;
+  /**
+   * Reflect the outcomes of a file_request_card upload into the transcript.
+   * The card performs the real gateway upload; the host renders the notes.
+   */
+  readonly onUploadResults: (
+    results: ReadonlyArray<DocUploadOutcome>,
+  ) => void;
   readonly composerDisabled: boolean;
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
@@ -1011,6 +1064,7 @@ function TeachBubble({
   isLatestAssistant,
   onSuggestion,
   onInlineAction,
+  onUploadResults,
   composerDisabled,
   onSpawnTab,
 }: TeachBubbleProps): ReactElement {
@@ -1157,6 +1211,20 @@ function TeachBubble({
                         const first = parsed.data.tabs[0];
                         if (first) onSpawnTab(first);
                       }
+                      return;
+                    }
+                    // file_request_card upload → the card already streamed
+                    // the bytes to the gateway; reflect each outcome into the
+                    // transcript (success with extracted-field count, or a
+                    // graceful failure note). Unknown shapes fall back to the
+                    // text suggestion inside the reflector.
+                    if (event.action === 'upload') {
+                      const p = event.payload as {
+                        readonly results?: ReadonlyArray<DocUploadOutcome>;
+                      };
+                      onUploadResults(
+                        Array.isArray(p.results) ? p.results : [],
+                      );
                       return;
                     }
                     // level_select → reply as the owner's next turn so

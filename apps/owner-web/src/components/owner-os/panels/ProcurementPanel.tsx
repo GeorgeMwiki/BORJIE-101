@@ -9,7 +9,9 @@ import {
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
 import { EmptyPanelBody } from './EmptyPanelBody';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 
 const PROCUREMENT_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'procurement',
@@ -78,6 +80,12 @@ export function ProcurementPanel({
         contractSw="GET /api/v1/procurement/{suppliers|pos|rfqs}"
         locale={locale}
       />
+      <div className="flex justify-center">
+        <AskMwikilaCta
+          label={locale === 'sw' ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+          prompt={locale === 'sw' ? P.procurement.ask.sw : P.procurement.ask.en}
+        />
+      </div>
     </section>
   );
 }

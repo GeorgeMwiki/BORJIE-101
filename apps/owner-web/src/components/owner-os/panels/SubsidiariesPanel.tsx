@@ -7,8 +7,14 @@ import {
   registerTab,
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import {
+  useEstateEntities,
+  type EstateEntityRow,
+} from '@/lib/queries/estate';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 
 const SUBSIDIARIES_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -51,9 +57,44 @@ const SUBSIDIARIES_DESCRIPTOR: OwnerOSTabDescriptor = {
 
 registerTab(SUBSIDIARIES_DESCRIPTOR);
 
+function subsidiaryColumns(
+  isSw: boolean,
+): ReadonlyArray<PanelColumn<EstateEntityRow>> {
+  return [
+    {
+      key: 'name',
+      header: isSw ? P.subsidiaries.colName.sw : P.subsidiaries.colName.en,
+      render: (r) => r.name,
+    },
+    {
+      key: 'kind',
+      header: isSw ? P.subsidiaries.colKind.sw : P.subsidiaries.colKind.en,
+      render: (r) => r.kind,
+    },
+    {
+      key: 'ownership',
+      header: isSw
+        ? P.subsidiaries.colOwnership.sw
+        : P.subsidiaries.colOwnership.en,
+      alignRight: true,
+      render: (r) => `${r.ownershipPct}%`,
+    },
+    {
+      key: 'status',
+      header: isSw ? P.subsidiaries.colStatus.sw : P.subsidiaries.colStatus.en,
+      render: (r) => r.status,
+    },
+  ];
+}
+
 export function SubsidiariesPanel({
   locale,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useEstateEntities();
+  // The endpoint returns `{ entities }` in flat mode (no `tree` flag).
+  const rows =
+    data?.data && 'entities' in data.data ? data.data.entities : [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -62,20 +103,32 @@ export function SubsidiariesPanel({
       <PanelHero
         icon={Building2}
         color="navy"
-        titleEn="Subsidiaries — entities you own"
-        titleSw="Kampuni za Tanzu — taasisi unazomiliki"
-        subtitleEn="Track child companies, their performance, and intercompany flows."
-        subtitleSw="Fuatilia kampuni za tanzu, utendaji wao, na flux za kati ya kampuni."
+        titleEn={P.subsidiaries.heroTitle.en}
+        titleSw={P.subsidiaries.heroTitle.sw}
+        subtitleEn={P.subsidiaries.heroSubtitle.en}
+        subtitleSw={P.subsidiaries.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        titleEn="No subsidiaries yet"
-        titleSw="Hakuna kampuni za tanzu bado"
-        descriptionEn="Add your subsidiary companies to track their performance and ownership."
-        descriptionSw="Ongeza kampuni za tanzu kubaini utendaji wao na kumiliki."
-        ctaEn="Add subsidiary"
-        ctaSw="Ongeza kampuni ya tanzu"
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={subsidiaryColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={
+          isSw ? P.subsidiaries.emptyTitle.sw : P.subsidiaries.emptyTitle.en
+        }
+        emptyBody={
+          isSw ? P.subsidiaries.emptyBody.sw : P.subsidiaries.emptyBody.en
+        }
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.subsidiaries.ask.sw : P.subsidiaries.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
     </section>
   );

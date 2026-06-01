@@ -8,8 +8,11 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import { useEstateGroups, type EstateGroupRow } from '@/lib/queries/estate';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 
 const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -53,9 +56,35 @@ const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
 
 registerTab(HOLDINGS_DESCRIPTOR);
 
-export function HoldingsPanel({
-  locale,
-}: OwnerOSPanelProps): ReactElement {
+function holdingsColumns(isSw: boolean): ReadonlyArray<PanelColumn<EstateGroupRow>> {
+  return [
+    {
+      key: 'name',
+      header: isSw ? P.holdings.colName.sw : P.holdings.colName.en,
+      render: (r) => r.name,
+    },
+    {
+      key: 'type',
+      header: isSw ? P.holdings.colType.sw : P.holdings.colType.en,
+      render: (r) => r.holdingType,
+    },
+    {
+      key: 'country',
+      header: isSw ? P.holdings.colCountry.sw : P.holdings.colCountry.en,
+      render: (r) => r.country,
+    },
+    {
+      key: 'principal',
+      header: isSw ? P.holdings.colPrincipal.sw : P.holdings.colPrincipal.en,
+      render: (r) => r.principalOwnerName,
+    },
+  ];
+}
+
+export function HoldingsPanel({ locale }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useEstateGroups();
+  const rows = data?.data.groups ?? [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -70,14 +99,22 @@ export function HoldingsPanel({
         subtitleSw={S.holdings.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        titleEn={S.holdings.emptyTitle.en}
-        titleSw={S.holdings.emptyTitle.sw}
-        descriptionEn={S.holdings.emptyDescription.en}
-        descriptionSw={S.holdings.emptyDescription.sw}
-        ctaEn={S.holdings.emptyCta.en}
-        ctaSw={S.holdings.emptyCta.sw}
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={holdingsColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={isSw ? P.holdings.emptyTitle.sw : P.holdings.emptyTitle.en}
+        emptyBody={isSw ? P.holdings.emptyBody.sw : P.holdings.emptyBody.en}
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.holdings.ask.sw : P.holdings.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
     </section>
   );

@@ -8,9 +8,13 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import { useEstateAssets, type EstateAssetRow } from '@/lib/queries/estate';
+import { fmtTzs } from '@/lib/format';
 
 const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'asset-register',
@@ -59,9 +63,45 @@ const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
 
 registerTab(ASSET_REGISTER_DESCRIPTOR);
 
+function assetValue(raw: string): string {
+  const n = Number(raw);
+  return Number.isFinite(n) ? fmtTzs(n) : raw;
+}
+
+function assetColumns(
+  isSw: boolean,
+): ReadonlyArray<PanelColumn<EstateAssetRow>> {
+  return [
+    {
+      key: 'descriptor',
+      header: isSw ? P.assetRegister.colDescriptor.sw : P.assetRegister.colDescriptor.en,
+      render: (r) => r.descriptor,
+    },
+    {
+      key: 'class',
+      header: isSw ? P.assetRegister.colClass.sw : P.assetRegister.colClass.en,
+      render: (r) => r.assetClass,
+    },
+    {
+      key: 'value',
+      header: isSw ? P.assetRegister.colValue.sw : P.assetRegister.colValue.en,
+      alignRight: true,
+      render: (r) => assetValue(r.currentValueTzs),
+    },
+    {
+      key: 'method',
+      header: isSw ? P.assetRegister.colMethod.sw : P.assetRegister.colMethod.en,
+      render: (r) => r.valuationMethod,
+    },
+  ];
+}
+
 export function AssetRegisterPanel({
   locale,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useEstateAssets();
+  const rows = data?.data.assets ?? [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -76,14 +116,26 @@ export function AssetRegisterPanel({
         subtitleSw={S.assetRegister.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        titleEn="No assets registered yet"
-        titleSw={S.assetRegister.emptyTitle.sw}
-        descriptionEn="Add your assets to create a complete register and calculate net worth."
-        descriptionSw={S.assetRegister.emptyDescription.sw}
-        ctaEn="Add asset"
-        ctaSw={S.assetRegister.emptyCta.sw}
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={assetColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={
+          isSw ? P.assetRegister.emptyTitle.sw : P.assetRegister.emptyTitle.en
+        }
+        emptyBody={
+          isSw ? P.assetRegister.emptyBody.sw : P.assetRegister.emptyBody.en
+        }
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.assetRegister.ask.sw : P.assetRegister.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
     </section>
   );

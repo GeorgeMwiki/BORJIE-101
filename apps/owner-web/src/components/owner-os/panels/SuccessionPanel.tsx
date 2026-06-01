@@ -8,8 +8,15 @@ import {
   type OwnerOSTabDescriptor,
 } from '@borjie/owner-os-tabs';
 import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
+import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
+import {
+  useSuccessionPlans,
+  type SuccessionPlanRow,
+} from '@/lib/queries/estate';
+import { fmtDate } from '@/lib/format';
 import { PanelHero } from './PanelHero';
-import { EmptyPanelBody } from './EmptyPanelBody';
+import { PanelDataTable, type PanelColumn } from './PanelDataTable';
+import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
 
 const SUCCESSION_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -54,9 +61,39 @@ const SUCCESSION_DESCRIPTOR: OwnerOSTabDescriptor = {
 
 registerTab(SUCCESSION_DESCRIPTOR);
 
+function successionColumns(
+  isSw: boolean,
+): ReadonlyArray<PanelColumn<SuccessionPlanRow>> {
+  return [
+    {
+      key: 'principal',
+      header: isSw ? P.succession.colPrincipal.sw : P.succession.colPrincipal.en,
+      render: (r) => r.currentPrincipalName,
+    },
+    {
+      key: 'successor',
+      header: isSw ? P.succession.colSuccessor.sw : P.succession.colSuccessor.en,
+      render: (r) => r.designatedSuccessorName,
+    },
+    {
+      key: 'relation',
+      header: isSw ? P.succession.colRelation.sw : P.succession.colRelation.en,
+      render: (r) => r.designatedSuccessorRelation,
+    },
+    {
+      key: 'nextReview',
+      header: isSw ? P.succession.colNextReview.sw : P.succession.colNextReview.en,
+      render: (r) => fmtDate(r.nextReviewDueAt),
+    },
+  ];
+}
+
 export function SuccessionPanel({
   locale,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+  const { data, isLoading, isError, refetch } = useSuccessionPlans();
+  const rows = data?.data.plans ?? [];
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -71,14 +108,22 @@ export function SuccessionPanel({
         subtitleSw={S.succession.heroSubtitle.sw}
         locale={locale}
       />
-      <EmptyPanelBody
-        titleEn={S.succession.emptyTitle.en}
-        titleSw={S.succession.emptyTitle.sw}
-        descriptionEn={S.succession.emptyDescription.en}
-        descriptionSw={S.succession.emptyDescription.sw}
-        ctaEn={S.succession.emptyCta.en}
-        ctaSw={S.succession.emptyCta.sw}
-        locale={locale}
+      <PanelDataTable
+        isSw={isSw}
+        isLoading={isLoading}
+        isError={isError}
+        rows={rows}
+        columns={successionColumns(isSw)}
+        rowKey={(r) => r.id}
+        emptyTitle={isSw ? P.succession.emptyTitle.sw : P.succession.emptyTitle.en}
+        emptyBody={isSw ? P.succession.emptyBody.sw : P.succession.emptyBody.en}
+        emptyAction={
+          <AskMwikilaCta
+            label={isSw ? P.cta.askMwikila.sw : P.cta.askMwikila.en}
+            prompt={isSw ? P.succession.ask.sw : P.succession.ask.en}
+          />
+        }
+        onRetry={() => void refetch()}
       />
     </section>
   );
