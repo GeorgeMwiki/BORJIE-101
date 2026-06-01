@@ -32,13 +32,25 @@ const docUploadStrings = {
     sw: 'Inapakia hati {done}/{total}…',
     en: 'Uploading document {done}/{total}…',
   },
+  /** Single-file byte progress shown while the binary streams to storage. */
+  uploadingPercent: {
+    sw: 'Inapakia {name}… {percent}%',
+    en: 'Uploading {name}… {percent}%',
+  },
   /** Assistant note on success WITH a returned extraction summary. */
   uploadedWithFields: {
     sw: 'Imepakiwa {name} — sehemu {count} zimesomwa',
     en: 'Uploaded {name} — extracted {count} fields',
   },
-  /** Assistant note on success without an extraction summary. */
-  uploadedPlain: { sw: 'Imepakiwa {name}', en: 'Uploaded {name}' },
+  /**
+   * Assistant note on success without a synchronous extraction summary —
+   * i.e. a binary file whose OCR is deferred to the async worker. Reads as
+   * "processing" because the structured fields are still being extracted.
+   */
+  uploadedPlain: {
+    sw: 'Imepakiwa {name} — inachakatwa',
+    en: 'Uploaded {name} — processing',
+  },
   /** Assistant note summarising a multi-file batch. */
   uploadedBatch: {
     sw: 'Imepakia hati {count}',
@@ -67,6 +79,21 @@ const docUploadStrings = {
   reasonNameRequired: {
     sw: 'jina la faili linahitajika',
     en: 'a file name is required',
+  },
+  /** Binary path — storage isn't wired so the bytes can't be saved. */
+  reasonStorageUnavailable: {
+    sw: 'hifadhi ya faili haipatikani kwa sasa',
+    en: 'file storage is unavailable right now',
+  },
+  /** Binary path — the direct-to-storage upload of the bytes failed. */
+  reasonStoragePutFailed: {
+    sw: 'kupakia faili kwenye hifadhi kumeshindikana',
+    en: 'uploading the file to storage failed',
+  },
+  /** Binary path — bytes saved but the "ready" trigger failed. */
+  reasonReadyFailed: {
+    sw: 'faili limehifadhiwa lakini kuanzisha uchakataji kumeshindikana',
+    en: 'the file was saved but processing could not be started',
   },
   /** Generic fallback reason when the gateway error carries no message. */
   reasonUnknown: { sw: 'jaribu tena', en: 'please try again' },

@@ -53,7 +53,7 @@ export interface FileRequestCardBlockProps {
   }) => void;
 }
 
-/** Live upload progress while files stream to the gateway. */
+/** Live upload progress while files stream to the gateway + storage. */
 type UploadState =
   | { readonly phase: 'idle' }
   | {
@@ -61,6 +61,8 @@ type UploadState =
       readonly total: number;
       readonly done: number;
       readonly firstName: string;
+      /** Byte fraction (0..1) of the in-flight binary PUT, when known. */
+      readonly fraction: number;
     };
 
 export function FileRequestCardBlock({
@@ -94,10 +96,17 @@ export function FileRequestCardBlock({
       total: list.length,
       done: 0,
       firstName: list[0]?.name ?? '',
+      fraction: 0,
     });
 
-    const results = await uploadChatDocuments(list, (done, total) =>
-      setUpload({ phase: 'busy', total, done, firstName: list[0]?.name ?? '' }),
+    const results = await uploadChatDocuments(list, (done, total, fraction) =>
+      setUpload({
+        phase: 'busy',
+        total,
+        done,
+        firstName: list[0]?.name ?? '',
+        fraction,
+      }),
     );
 
     setUpload({ phase: 'idle' });
@@ -164,12 +173,17 @@ export function FileRequestCardBlock({
           className="mt-2 animate-pulse text-tiny text-info"
           data-testid="file-request-card-uploading"
         >
-          {upload.total === 1
-            ? fillDocUpload('uploading', locale, { name: upload.firstName })
-            : fillDocUpload('uploadingProgress', locale, {
+          {upload.total !== 1
+            ? fillDocUpload('uploadingProgress', locale, {
                 done: upload.done,
                 total: upload.total,
-              })}
+              })
+            : upload.fraction > 0
+              ? fillDocUpload('uploadingPercent', locale, {
+                  name: upload.firstName,
+                  percent: Math.round(upload.fraction * 100),
+                })
+              : fillDocUpload('uploading', locale, { name: upload.firstName })}
         </p>
       ) : selected.length > 0 ? (
         <p className="mt-2 text-tiny text-foreground/70">
