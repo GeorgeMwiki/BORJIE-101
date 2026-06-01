@@ -11,10 +11,13 @@
  * Hard rule (CLAUDE.md): this module NEVER writes the money ledger
  * directly. The money-path audit test enforces this.
  *
- * Idempotency: dedupe by `event.id`. Stripe guarantees at-least-once
- * delivery and may retry the same event up to ~3 days; the in-memory
- * set is bounded by process lifetime, with a persistent layer recommended
- * for production via the existing `webhook-idempotency.middleware.ts`.
+ * Idempotency (EDGE-HARDENING #3): dedupe by `event.id`. Stripe guarantees
+ * at-least-once delivery and may retry the same event for ~3 days. A
+ * durable {@link WebhookDedupeStore} (DB-backed `webhook_events`, migration
+ * 0163) claims each event id BEFORE the ledger write so a redelivery after
+ * a restart or on another replica is dropped. The ledger post is ALSO keyed
+ * on `event.id` (durability defect #2) as a post-once backstop. When no
+ * store is wired (dev/test) the handler falls back to a process-local Set.
  */
 import {
   Money,
@@ -27,6 +30,7 @@ import {
 import type { LedgerService } from '../../services/ledger.service';
 import { logger } from '../../logger.js';
 import type { IStripeClient, StripeWebhookEvent } from './client';
+import type { WebhookDedupeStore } from '../webhook-dedupe-store';
 
 const ACCEPTED_CURRENCIES = new Set<CurrencyCode>([
   'USD',
@@ -56,6 +60,14 @@ export interface StripeWebhookHandlerDeps {
   readonly client: IStripeClient;
   readonly ledgerService: LedgerService;
   readonly resolveTenantContext: StripeTenantResolver;
+  /**
+   * Durable, claim-after-commit dedupe (EDGE-HARDENING #3). Survives
+   * restart + multi-replica when DB-backed. When supplied it is the
+   * authoritative duplicate guard; the legacy `seenEventIds` Set is
+   * ignored. The ledger post is ALSO keyed on `event.id` (defect #2) so a
+   * crash between claim-commit and ledger-post cannot double-credit.
+   */
+  readonly dedupeStore?: WebhookDedupeStore;
   readonly seenEventIds?: Set<string>;
 }
 
@@ -85,30 +97,57 @@ export async function handleStripeWebhook(
     return { status: 'rejected', reason: 'invalid-signature' };
   }
 
-  const seen = deps.seenEventIds ?? defaultSeenIds;
-  if (seen.has(event.id)) {
-    logger.info('stripe webhook duplicate ignored', { eventId: event.id });
-    return { status: 'duplicate' };
-  }
-
+  // EDGE-HARDENING #3 — durable dedupe. With a store wired this survives
+  // restart + replicas; without one it falls back to the process-local Set
+  // (dev/test/legacy). The actual CLAIM (which advances the dedupe state)
+  // happens AT the point we commit to acting, inside each processor, so a
+  // tenant-less/ignored event still records correctly. Here we only do a
+  // cheap pre-check to short-circuit obvious replays.
   if (event.type === 'checkout.session.completed') {
-    return processCheckoutCompleted(event, deps, seen);
+    return processCheckoutCompleted(event, deps);
   }
   if (event.type === 'charge.refunded') {
-    return processRefund(event, deps, seen);
+    return processRefund(event, deps);
   }
   // We intentionally don't post for other event types (e.g.
   // `checkout.session.expired`, `payment_intent.payment_failed`). Record
   // the dedupe marker so retries are still idempotent and the ledger
   // remains untouched.
-  seen.add(event.id);
+  if (await markStripeSeen(deps, event.id, null)) {
+    logger.info('stripe webhook duplicate ignored', { eventId: event.id });
+    return { status: 'duplicate' };
+  }
   return { status: 'ignored', reason: event.type };
+}
+
+/**
+ * Claim a Stripe event id as seen. Prefers the durable
+ * {@link WebhookDedupeStore} (survives restart + replicas); falls back to
+ * the process-local Set otherwise. Returns true when ALREADY seen (caller
+ * drops the event as a duplicate).
+ */
+async function markStripeSeen(
+  deps: StripeWebhookHandlerDeps,
+  eventId: string,
+  tenantId: TenantId | null,
+): Promise<boolean> {
+  if (deps.dedupeStore) {
+    const claim = await deps.dedupeStore.claim(
+      'stripe',
+      eventId,
+      tenantId ?? 'global',
+    );
+    return claim === 'duplicate';
+  }
+  const seen = deps.seenEventIds ?? defaultSeenIds;
+  if (seen.has(eventId)) return true;
+  seen.add(eventId);
+  return false;
 }
 
 async function processCheckoutCompleted(
   event: StripeWebhookEvent,
   deps: StripeWebhookHandlerDeps,
-  seen: Set<string>,
 ): Promise<StripeWebhookResult> {
   const obj = event.data.object;
   const amount = obj.amount_total ?? obj.amount ?? obj.amount_received;
@@ -130,9 +169,14 @@ async function processCheckoutCompleted(
     };
   }
 
-  // Mark seen BEFORE the ledger write — retries within this process
-  // cannot double-write. Persistent dedupe lives at the gateway layer.
-  seen.add(event.id);
+  // EDGE-HARDENING #3 — claim durably (tenant-scoped) BEFORE the ledger
+  // write. A redelivery post-restart/other-replica hits the existing row
+  // and is dropped here. The claim commits first; the ledger key below is
+  // the post-once backstop if the claim is ever lost.
+  if (await markStripeSeen(deps, event.id, ctx.tenantId)) {
+    logger.info('stripe webhook duplicate ignored', { eventId: event.id });
+    return { status: 'duplicate' };
+  }
 
   const journalRequest: CreateJournalEntryRequest = {
     tenantId: ctx.tenantId,
@@ -158,14 +202,18 @@ async function processCheckoutCompleted(
       },
     ],
   };
-  const result = await deps.ledgerService.postJournalEntry(journalRequest);
+  // EDGE-HARDENING #3 (defence-in-depth) — key the post on the Stripe event
+  // id. Even if the durable claim was lost, the ledger is POST-ONCE on this
+  // key so a redelivery cannot double-credit.
+  const result = await deps.ledgerService.postJournalEntry(journalRequest, {
+    idempotencyKey: `stripe:${event.id}`,
+  });
   return { status: 'posted', journalId: result.journalId };
 }
 
 async function processRefund(
   event: StripeWebhookEvent,
   deps: StripeWebhookHandlerDeps,
-  seen: Set<string>,
 ): Promise<StripeWebhookResult> {
   const obj = event.data.object;
   const amount = obj.amount ?? obj.amount_received;
@@ -181,7 +229,12 @@ async function processRefund(
     return { status: 'no-tenant' };
   }
 
-  seen.add(event.id);
+  // EDGE-HARDENING #3 — claim durably (tenant-scoped) BEFORE the reversing
+  // ledger write; a redelivered refund event is dropped here.
+  if (await markStripeSeen(deps, event.id, ctx.tenantId)) {
+    logger.info('stripe webhook duplicate ignored', { eventId: event.id });
+    return { status: 'duplicate' };
+  }
 
   // Refund flow reverses the original journal direction.
   const journalRequest: CreateJournalEntryRequest = {
@@ -215,7 +268,10 @@ async function processRefund(
       },
     ],
   };
-  const result = await deps.ledgerService.postJournalEntry(journalRequest);
+  // EDGE-HARDENING #3 (defence-in-depth) — post-once on the Stripe event id.
+  const result = await deps.ledgerService.postJournalEntry(journalRequest, {
+    idempotencyKey: `stripe:${event.id}`,
+  });
   return { status: 'refunded', journalId: result.journalId };
 }
 

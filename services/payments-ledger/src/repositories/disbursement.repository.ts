@@ -5,9 +5,22 @@
 import { TenantId, OwnerId, Money, CurrencyCode } from '@borjie/domain-models';
 
 /**
- * Disbursement status
+ * Disbursement status.
+ *
+ * NEEDS_REVERSAL (EDGE-HARDENING #6): the ledger journal was posted but the
+ * outbound transfer FAILED afterwards. The disbursement is retryable — the
+ * reconciliation job either re-drives the transfer under the SAME
+ * idempotency key (on confirmed non-delivery) or posts a compensating
+ * reversal. NEVER a blind re-transfer.
  */
-export type DisbursementStatus = 'PENDING' | 'PROCESSING' | 'IN_TRANSIT' | 'PAID' | 'FAILED' | 'CANCELLED';
+export type DisbursementStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'IN_TRANSIT'
+  | 'PAID'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'NEEDS_REVERSAL';
 
 /**
  * Disbursement entity
@@ -82,9 +95,22 @@ export interface IDisbursementRepository {
   findByIdempotencyKey(idempotencyKey: string, tenantId: TenantId): Promise<Disbursement | null>;
 
   /**
-   * Get disbursement by transfer ID
+   * Get disbursement by transfer ID.
+   *
+   * F1 (CROSS-TENANT money write) — `tenantId` is REQUIRED. The B2C result
+   * webhook runs OUTSIDE tenant context (webhooks are excluded from auth), so
+   * without a tenant predicate tenant A's inbound result could resolve to
+   * tenant B's disbursement (the provider transfer-id namespace is shared) and
+   * post a reversal into tenant B's ledger. The caller resolves the tenant
+   * from the globally-unique `disb-<id>` originator FIRST, then passes it here
+   * so the lookup is tenant-scoped (mirrors `findByExternalId`). RLS is the
+   * belt; this predicate is suspenders.
    */
-  findByTransferId(provider: string, transferId: string): Promise<Disbursement | null>;
+  findByTransferId(
+    provider: string,
+    transferId: string,
+    tenantId: TenantId,
+  ): Promise<Disbursement | null>;
 
   /**
    * Update disbursement
@@ -110,6 +136,21 @@ export interface IDisbursementRepository {
    * Get last disbursement for owner
    */
   findLastByOwner(tenantId: TenantId, ownerId: OwnerId): Promise<Disbursement | null>;
+
+  /**
+   * F1 — resolve a disbursement's owning tenant from its globally-unique id.
+   *
+   * The B2C result webhook runs OUTSIDE tenant context and only knows the
+   * disbursement id (echoed back as the `disb-<id>` OriginatorConversationID).
+   * It must learn the tenant BEFORE any tenant-scoped op. This is the only
+   * cross-tenant read in the repository; it returns just the tenant id (never
+   * row contents) and is keyed on the unguessable UUID PK so it resolves to a
+   * single row. Production binds the `service_role_bypass` GUC for this read;
+   * the in-memory adapter looks up its map directly.
+   *
+   * Returns null when no disbursement has that id.
+   */
+  resolveTenantById(id: string): Promise<{ tenantId: TenantId } | null>;
 }
 
 /**
@@ -140,9 +181,17 @@ export class InMemoryDisbursementRepository implements IDisbursementRepository {
     return null;
   }
 
-  async findByTransferId(provider: string, transferId: string): Promise<Disbursement | null> {
+  async findByTransferId(
+    provider: string,
+    transferId: string,
+    tenantId: TenantId,
+  ): Promise<Disbursement | null> {
     for (const disbursement of this.disbursements.values()) {
-      if (disbursement.provider === provider && disbursement.transferId === transferId) {
+      if (
+        disbursement.provider === provider &&
+        disbursement.transferId === transferId &&
+        disbursement.tenantId === tenantId
+      ) {
         return { ...disbursement };
       }
     }
@@ -202,9 +251,10 @@ export class InMemoryDisbursementRepository implements IDisbursementRepository {
 
   async findPending(tenantId: TenantId): Promise<Disbursement[]> {
     return Array.from(this.disbursements.values())
-      .filter(d => 
-        d.tenantId === tenantId && 
-        ['PENDING', 'PROCESSING', 'IN_TRANSIT'].includes(d.status)
+      .filter(d =>
+        d.tenantId === tenantId &&
+        // NEEDS_REVERSAL is retryable — surfaced to the reconciliation job.
+        ['PENDING', 'PROCESSING', 'IN_TRANSIT', 'NEEDS_REVERSAL'].includes(d.status)
       )
       .map(d => ({ ...d }));
   }
@@ -215,5 +265,10 @@ export class InMemoryDisbursementRepository implements IDisbursementRepository {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return disbursements.length > 0 ? { ...disbursements[0] } : null;
+  }
+
+  async resolveTenantById(id: string): Promise<{ tenantId: TenantId } | null> {
+    const disbursement = this.disbursements.get(id);
+    return disbursement ? { tenantId: disbursement.tenantId } : null;
   }
 }

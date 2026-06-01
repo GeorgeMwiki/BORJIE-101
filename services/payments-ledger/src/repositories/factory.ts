@@ -57,6 +57,15 @@ export interface Repositories {
   ledgerRepository: ILedgerRepository;
   statementRepository: IStatementRepository;
   disbursementRepository: IDisbursementRepository;
+  /**
+   * The shared Drizzle client, or `null` when the factory degraded to the
+   * in-memory adapters (dev/test, no DATABASE_URL). Exposed so the
+   * composition root can build the DURABLE webhook dedupe store
+   * (`createWebhookDedupeStore({ db })`, migration 0163) on the SAME
+   * connection pool as the repositories. The webhook handlers are the
+   * only consumers; nothing writes the money ledger through this handle.
+   */
+  db: DbClient | null;
 }
 
 interface FactoryLogger {
@@ -144,6 +153,8 @@ export function createRepositories(logger?: FactoryLogger): Repositories {
       ledgerRepository,
       statementRepository: new InMemoryStatementRepository(),
       disbursementRepository: new InMemoryDisbursementRepository(),
+      // No DB → webhook dedupe falls back to the in-memory store.
+      db: null,
     };
   }
 
@@ -167,5 +178,8 @@ export function createRepositories(logger?: FactoryLogger): Repositories {
     ledgerRepository: new DrizzleLedgerRepository(db),
     statementRepository: new DrizzleStatementRepository(db),
     disbursementRepository: new DrizzleDisbursementRepository(db),
+    // Shared with the webhook dedupe store so durable idempotency runs on
+    // the SAME pool the repositories use.
+    db,
   };
 }

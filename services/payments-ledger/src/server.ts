@@ -27,7 +27,6 @@ import {
   CurrencyCode,
   JournalTemplates
 } from '@borjie/domain-models';
-import type { PaymentStatus } from './types';
 
 // Import domain extensions to augment Money prototype and get TenantAggregate
 import './domain-extensions';
@@ -46,6 +45,24 @@ import { createRepositories } from './repositories/factory';
 import { ReconciliationJob } from './jobs/reconciliation.job';
 import { StatementGenerationJob } from './jobs/statement-generation.job';
 import { DisbursementJob } from './jobs/disbursement.job';
+import { DisbursementReconciliationJob } from './jobs/disbursement-reconciliation.job';
+import { createWebhookDedupeStore } from './providers/webhook-dedupe-store';
+import {
+  processLegacyStkWebhook,
+  processLegacyStripeWebhook,
+  parseB2cResult,
+  processB2cResult,
+} from './composition/legacy-webhooks';
+import type {
+  MpesaTenantContext,
+  MpesaTenantResolver,
+  MpesaPaymentFailureSink,
+} from './providers/mpesa/webhook-handler';
+import type {
+  StripeTenantContext,
+  StripeTenantResolver,
+} from './providers/stripe/webhook-handler';
+import type { IStripeClient, StripeWebhookEvent } from './providers/stripe/client';
 
 // =============================================================================
 // Request Validation Schemas
@@ -93,23 +110,10 @@ const CreateDisbursementSchema = z.object({
   idempotencyKey: z.string().optional()
 }).strict();
 
-// M-PESA STK Callback Schema
-const MpesaStkCallbackSchema = z.object({
-  Body: z.object({
-    stkCallback: z.object({
-      MerchantRequestID: z.string(),
-      CheckoutRequestID: z.string(),
-      ResultCode: z.number(),
-      ResultDesc: z.string(),
-      CallbackMetadata: z.object({
-        Item: z.array(z.object({
-          Name: z.string(),
-          Value: z.union([z.string(), z.number()]).optional()
-        }))
-      }).optional()
-    })
-  })
-});
+// NOTE: the M-PESA STK callback is now structurally validated INSIDE the
+// hardened `handleMpesaWebhook` (providers/mpesa/webhook-handler.ts), so the
+// legacy `MpesaStkCallbackSchema` that used to live here was removed — the
+// STK routes delegate the raw body straight to the handler.
 
 // M-PESA C2B Confirmation Schema. Daraja sends this when a customer
 // pays directly to the shortcode (no STK push). BillRefNumber is the
@@ -311,6 +315,16 @@ const repos = createRepositories(logger);
 const { paymentIntentRepository, accountRepository, ledgerRepository, statementRepository, disbursementRepository } = repos;
 const eventPublisher = new InMemoryEventPublisher();
 
+// Durable webhook idempotency (EDGE-HARDENING #3, migration 0163). Built
+// ONCE on the SAME Drizzle pool the repositories use. When DATABASE_URL is
+// unset (dev/test) this degrades to the in-memory adapter. This REPLACES the
+// process-local `mpesaDeduplicator` for the STK + B2C-result legacy paths;
+// the durable store survives restart + multi-replica.
+const webhookDedupeStore = createWebhookDedupeStore({
+  db: repos.db,
+  logger: { warn: (ctx, msg) => logger.warn(ctx, msg) },
+});
+
 // =============================================================================
 // Initialize Services
 // =============================================================================
@@ -435,6 +449,28 @@ const disbursementJob = new DisbursementJob(
     error: (msg, ctx) => logger.error(ctx, msg)
   }
 );
+
+// F3 — the NEEDS_REVERSAL consumer. Sweeps debited-but-undelivered
+// disbursements and drives each to terminal (re-drive / reverse) or flags it
+// LOUD so money can never sit silently lost. Reuses `resolveB2cReversalAccounts`
+// (the same reversal-account resolver the B2C-result path uses, hoisted
+// function declaration) and resolves the provider by name for re-drive /
+// status. Triggered on a cadence by POST /api/v1/admin/jobs/disbursement-reconciliation.
+const disbursementReconciliationJob = new DisbursementReconciliationJob({
+  disbursementRepository,
+  ledgerService,
+  resolveReversalAccounts: (input) => resolveB2cReversalAccounts(input),
+  getProvider: (name) => {
+    if (mpesaProvider && name === mpesaProvider.name) return mpesaProvider;
+    if (stripeProvider && name === stripeProvider.name) return stripeProvider;
+    return null;
+  },
+  logger: {
+    info: (ctx, msg) => logger.info(ctx, msg),
+    warn: (ctx, msg) => logger.warn(ctx, msg),
+    error: (ctx, msg) => logger.error(ctx, msg),
+  },
+});
 
 // =============================================================================
 // Middleware
@@ -1321,6 +1357,152 @@ app.post('/api/v1/reconciliation/provider', async (req: Request, res: Response, 
 });
 
 // =============================================================================
+// Webhook composition — resolvers + sinks for the hardened handlers
+// -----------------------------------------------------------------------------
+// The legacy STK / Stripe / B2C-result routes DELEGATE to the hardened
+// provider modules (providers/mpesa, providers/stripe, composition/
+// legacy-webhooks). Those modules are pure: they take a tenant resolver +
+// failure sink so they never reach for module-global repos. Here we bind
+// those ports to the real payment-intent / account repositories. Money still
+// flows ONLY through LedgerService.postJournalEntry inside the handlers.
+// =============================================================================
+
+/**
+ * Resolve the M-Pesa STK tenant context (tenant + accounts + expected
+ * amount) for a CheckoutRequestID. Tenant comes from the shortcode→tenant
+ * map (`resolveMpesaStkTenantId`); the payment intent (tenant-scoped, by
+ * provider external id) supplies the customer + amount; the customer
+ * liability and platform-holding accounts come from the account repo. Any
+ * gap returns null so the handler short-circuits with `no-tenant` (acked,
+ * flagged for reconciliation) rather than guessing accounts.
+ */
+const resolveMpesaStkContext: MpesaTenantResolver = async (
+  checkoutRequestId,
+): Promise<MpesaTenantContext | null> => {
+  const tenantIdRaw = resolveMpesaStkTenantId();
+  if (!tenantIdRaw) return null;
+  const tenantId = asTenantId(tenantIdRaw);
+
+  const intent = await paymentIntentRepository.findByExternalId(
+    checkoutRequestId,
+    'mpesa',
+    tenantId,
+  );
+  if (!intent) return null;
+
+  const customerAccount = await accountRepository.findByCustomerAndType(
+    tenantId,
+    intent.customerId,
+    'CUSTOMER_LIABILITY',
+  );
+  const clearingAccount = await accountRepository.findPlatformAccounts(
+    tenantId,
+    'PLATFORM_HOLDING',
+  );
+  if (!customerAccount || !clearingAccount) return null;
+
+  return {
+    tenantId,
+    customerAccountId: customerAccount.id,
+    cashClearingAccountId: clearingAccount.id,
+    currency: intent.amount.currency,
+    // EDGE-HARDENING #5 — pin the originating amount so a success callback
+    // whose Amount does not reconcile is refused (mis-credit guard).
+    expectedAmountMinorUnits: intent.amount.amountMinorUnits,
+  };
+};
+
+/**
+ * Mark the originating payment intent FAILED when an STK callback reports a
+ * non-zero ResultCode (or a mis-credit amount mismatch). No ledger credit is
+ * posted on this path — this only records the terminal failure state.
+ */
+const markMpesaPaymentFailed: MpesaPaymentFailureSink = async (failure) => {
+  if (!failure.tenantId) return;
+  const intent = await paymentIntentRepository.findByExternalId(
+    failure.checkoutRequestId,
+    'mpesa',
+    failure.tenantId,
+  );
+  if (!intent) return;
+  await paymentIntentRepository.update({
+    ...intent,
+    status: 'FAILED',
+    externalStatus: String(failure.resultCode),
+    failureReason: failure.failureReason,
+    updatedAt: new Date(),
+  });
+};
+
+/**
+ * Resolve the Stripe tenant context. Tenant comes from event metadata
+ * (`resolveStripeTenantId`); the payment intent (by Stripe payment-intent /
+ * session id) supplies the customer; accounts come from the account repo.
+ */
+const resolveStripeContext: StripeTenantResolver = async (
+  event: StripeWebhookEvent,
+): Promise<StripeTenantContext | null> => {
+  const tenantIdRaw = resolveStripeTenantId(
+    event.data as { metadata?: Record<string, unknown> | null },
+  );
+  if (!tenantIdRaw) return null;
+  const tenantId = asTenantId(tenantIdRaw);
+
+  const obj = event.data.object as { payment_intent?: string; id?: string };
+  const externalId = obj.payment_intent ?? obj.id;
+  const intent = externalId
+    ? await paymentIntentRepository.findByExternalId(externalId, 'stripe', tenantId)
+    : null;
+  if (!intent) return null;
+
+  const customerAccount = await accountRepository.findByCustomerAndType(
+    tenantId,
+    intent.customerId,
+    'CUSTOMER_LIABILITY',
+  );
+  const clearingAccount = await accountRepository.findPlatformAccounts(
+    tenantId,
+    'PLATFORM_HOLDING',
+  );
+  if (!customerAccount || !clearingAccount) return null;
+
+  return {
+    tenantId,
+    customerAccountId: customerAccount.id,
+    cashClearingAccountId: clearingAccount.id,
+    currency: intent.amount.currency,
+  };
+};
+
+/**
+ * Resolve the two accounts a B2C non-delivery reversal touches: the tenant's
+ * platform-holding account and the owner's operating account. The reversal
+ * posts DR holding / CR owner-operating (mirror of the original disbursement)
+ * so the money returns to holding.
+ */
+async function resolveB2cReversalAccounts(input: {
+  tenantId: TenantId;
+  ownerId: OwnerId;
+}): Promise<{
+  platformHoldingAccountId: AccountId | null;
+  ownerOperatingAccountId: AccountId | null;
+}> {
+  const holding = await accountRepository.findPlatformAccounts(
+    input.tenantId,
+    'PLATFORM_HOLDING',
+  );
+  const operating = await accountRepository.findByOwnerAndType(
+    input.tenantId,
+    input.ownerId,
+    'OWNER_OPERATING',
+  );
+  return {
+    platformHoldingAccountId: holding?.id ?? null,
+    ownerOperatingAccountId: operating?.id ?? null,
+  };
+}
+
+// =============================================================================
 // Webhook Routes
 // =============================================================================
 
@@ -1351,9 +1533,43 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 
     logger.info({ eventType: event.type, eventId: event.id }, 'Stripe webhook received');
 
-    // W4-A: resolve tenantId from Stripe metadata BEFORE forwarding. Short-
-    // circuit with 400/MISSING_TENANT_CONTEXT when absent so the orchestrator
-    // can rely on tenant-scoped repository lookups.
+    // DELEGATE the money-posting events (`checkout.session.completed`,
+    // `charge.refunded`) to the hardened handler: DURABLE dedupe (survives
+    // restart/replicas) + the single ledger post keyed `stripe:<id>`. The
+    // signature was already verified above, so we pass a PASS-THROUGH client
+    // whose constructWebhookEvent just returns the verified, already-parsed
+    // event (no second HMAC). `payment_intent.*` is `ignored` by the handler
+    // and still flows through the orchestration switch below for status.
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body.toString('utf8')
+      : typeof req.body === 'string'
+        ? req.body
+        : JSON.stringify(req.body ?? {});
+    const passthroughClient: IStripeClient = {
+      ...(stripeProvider as unknown as IStripeClient),
+      constructWebhookEvent: () => event as unknown as StripeWebhookEvent,
+    };
+    const stripeResult = await processLegacyStripeWebhook(rawBody, signature, {
+      handlerDeps: {
+        client: passthroughClient,
+        ledgerService,
+        resolveTenantContext: resolveStripeContext,
+        dedupeStore: webhookDedupeStore,
+      },
+      logger: {
+        info: (ctx, msg) => logger.info(ctx, msg),
+        warn: (ctx, msg) => logger.warn(ctx, msg),
+        error: (ctx, msg) => logger.error(ctx, msg),
+      },
+    });
+    if (stripeResult.loud) {
+      // A genuine processing failure in the hardened path — surface it.
+      return res.status(stripeResult.httpStatus).json(stripeResult.body);
+    }
+
+    // W4-A: resolve tenantId from Stripe metadata BEFORE forwarding the
+    // status orchestration. Short-circuit with 400/MISSING_TENANT_CONTEXT
+    // when absent so the orchestrator can rely on tenant-scoped lookups.
     const stripeTenantId = resolveStripeTenantId(event.data as Record<string, unknown>);
     if (!stripeTenantId) {
       logger.warn({ eventType: event.type, eventId: event.id }, 'Stripe webhook missing tenant context');
@@ -1361,7 +1577,8 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
     }
     const stripeTenant = asTenantId(stripeTenantId);
 
-    // Handle the event
+    // Handle the status-orchestration events (payment_intent.*). The
+    // ledger-posting events were already delegated above.
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data as { id: string; receipt_url?: string };
@@ -1413,87 +1630,43 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
  */
 app.post('/webhooks/mpesa/stk', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const validation = MpesaStkCallbackSchema.safeParse(req.body);
-    if (!validation.success) {
-      logger.warn({ body: req.body }, 'Invalid M-PESA callback payload');
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
+    // The signature + 5-minute replay window were already verified by
+    // `mpesaSignatureMiddleware` (mounted on /webhooks/mpesa) BEFORE this
+    // route runs, so the handler skips its own HMAC check. Use the captured
+    // raw bytes the handler structurally validates + de-duplicates.
+    const rawBody = req.rawBody
+      ? req.rawBody.toString('utf8')
+      : JSON.stringify(req.body ?? {});
 
-    const callback = validation.data.Body.stkCallback;
-    logger.info({
-      checkoutRequestId: callback.CheckoutRequestID,
-      resultCode: callback.ResultCode,
-      resultDesc: callback.ResultDesc
-    }, 'M-PESA STK callback received');
-
-    // Idempotency — Safaricom retries every few minutes until it gets a
-    // 200 with {ResultCode: 0}. If we've already processed this
-    // CheckoutRequestID, ack and exit so we don't double-credit the ledger.
-    if (mpesaDeduplicator.seenBefore(`stk:${callback.CheckoutRequestID}`)) {
-      logger.info(
-        { checkoutRequestId: callback.CheckoutRequestID },
-        'Duplicate M-PESA STK callback — acking without reprocessing'
-      );
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
-
-    // W4-A: resolve tenantId from STK config BEFORE forwarding. STK is
-    // initiated against `MPESA_BUSINESS_SHORT_CODE`, which is keyed in the
-    // shortcode -> tenant map. Without a tenant we cannot scope the
-    // payment-intent lookup safely; log and ack to stop retries.
-    const stkTenantId = resolveMpesaStkTenantId();
-    if (!stkTenantId) {
-      logger.warn({ checkoutRequestId: callback.CheckoutRequestID }, 'M-PESA STK callback missing tenant context — ack without processing');
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
-    const stkTenant = asTenantId(stkTenantId);
-
-    // ResultCode 0 means success
-    const isSuccess = callback.ResultCode === 0;
-
-    if (isSuccess) {
-      // Extract metadata from callback
-      const metadata = callback.CallbackMetadata?.Item || [];
-      const amount = metadata.find(i => i.Name === 'Amount')?.Value;
-      const mpesaReceiptNumber = metadata.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
-      const transactionDate = metadata.find(i => i.Name === 'TransactionDate')?.Value;
-      const phoneNumber = metadata.find(i => i.Name === 'PhoneNumber')?.Value;
-
-      logger.info({
-        checkoutRequestId: callback.CheckoutRequestID,
-        amount,
-        mpesaReceiptNumber,
-        transactionDate,
-        phoneNumber
-      }, 'M-PESA payment successful');
-
-      // Update payment status via orchestration service
-      await paymentOrchestrationService.handleWebhook(
-        'mpesa',
-        callback.CheckoutRequestID,
-        'SUCCEEDED',
-        stkTenant,
-        mpesaReceiptNumber?.toString()
-      );
-    } else {
-      // Payment failed or was cancelled
-      const status: PaymentStatus = callback.ResultCode === 1032 ? 'CANCELLED' : 'FAILED';
-      await paymentOrchestrationService.handleWebhook(
-        'mpesa',
-        callback.CheckoutRequestID,
-        status,
-        stkTenant,
-        undefined,
-        callback.ResultDesc
-      );
-    }
-
-    // M-PESA expects this specific response format
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    // DELEGATE to the hardened handler: ResultCode classification, DURABLE
+    // dedupe (survives restart/replicas), amount reconciliation, and the
+    // single money-ledger post (keyed `mpesa:stk:<id>`). A genuine
+    // processing failure surfaces NON-success — never a masked ResultCode:0.
+    const { httpStatus, body } = await processLegacyStkWebhook(
+      rawBody,
+      {},
+      {
+        handlerDeps: {
+          ledgerService,
+          resolveTenantContext: resolveMpesaStkContext,
+          dedupeStore: webhookDedupeStore,
+          skipSignatureCheck: true,
+          onPaymentFailed: markMpesaPaymentFailed,
+        },
+        logger: {
+          info: (ctx, msg) => logger.info(ctx, msg),
+          warn: (ctx, msg) => logger.warn(ctx, msg),
+          error: (ctx, msg) => logger.error(ctx, msg),
+        },
+      },
+    );
+    res.status(httpStatus).json(body);
   } catch (error) {
-    logger.error({ err: error }, 'Error processing M-PESA callback');
-    // Still return success to M-PESA to prevent retries
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    // An UNEXPECTED throw is a real failure — surface non-success + log loud.
+    // (The delegate already catches handler errors; this guards the route
+    // plumbing itself.) NEVER mask as ResultCode:0.
+    logger.error({ err: error }, 'M-PESA STK route failure — returning non-success');
+    res.status(500).json({ ResultCode: 1, ResultDesc: 'Processing failed' });
   }
 });
 
@@ -1504,29 +1677,40 @@ app.post('/webhooks/mpesa/b2c/result', async (req: Request, res: Response, next:
   try {
     logger.info({ body: req.body }, 'M-PESA B2C result received');
 
-    const result = req.body?.Result;
-    if (!result) {
+    const envelope = parseB2cResult(req.body);
+    if (!envelope) {
+      // No `Result` envelope → nothing to act on. Not a processing failure.
       return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
     }
 
-    const isSuccess = result.ResultCode === 0;
-    const conversationId = result.ConversationID;
-    const transactionId = result.TransactionID;
+    // DELEGATE to the hardened B2C finalizer: durable dedup on the B2C tx,
+    // disbursement match (RLS-scoped), NEEDS_REVERSAL/in-flight → PAID on
+    // success, or a COMPENSATING reversal via LedgerService.post on confirmed
+    // non-delivery. Money moves ONLY through the ledger service.
+    const outcome = await processB2cResult(envelope, {
+      ledgerService,
+      disbursementRepository,
+      dedupeStore: webhookDedupeStore,
+      resolveReversalAccounts: resolveB2cReversalAccounts,
+      logger: {
+        info: (ctx, msg) => logger.info(ctx, msg),
+        warn: (ctx, msg) => logger.warn(ctx, msg),
+        error: (ctx, msg) => logger.error(ctx, msg),
+      },
+    });
 
-    logger.info({
-      conversationId,
-      transactionId,
-      resultCode: result.ResultCode,
-      resultDesc: result.ResultDesc
-    }, `M-PESA B2C ${isSuccess ? 'succeeded' : 'failed'}`);
-
-    // In a full implementation, update the disbursement status in the database
-    // and publish appropriate events
-
+    logger.info({ outcome: outcome.status }, 'M-PESA B2C result processed');
+    // All non-throwing outcomes ack Daraja (the side effect, if any, already
+    // committed). A throw below is the only non-success path.
     res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
   } catch (error) {
-    logger.error({ err: error }, 'Error processing M-PESA B2C result');
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    // A throw here means we could NOT finalize (e.g. the reversal could not
+    // be posted — reversal accounts missing). NEVER mask as Accepted: the
+    // disbursement stays NEEDS_REVERSAL and the failure is surfaced so the
+    // reconciliation job / operators act. Daraja will retry; the durable
+    // claim + ledger idempotency key keep the retry safe.
+    logger.error({ err: error }, 'M-PESA B2C result finalize FAILED — returning non-success');
+    res.status(500).json({ ResultCode: 1, ResultDesc: 'Finalize failed' });
   }
 });
 
@@ -1746,6 +1930,28 @@ app.post('/api/v1/admin/jobs/disbursements', async (req: Request, res: Response,
   }
 });
 
+/**
+ * POST /api/v1/admin/jobs/disbursement-reconciliation - Sweep NEEDS_REVERSAL
+ *
+ * F3 — drives debited-but-undelivered disbursements to terminal (re-drive /
+ * compensating reversal) or surfaces them LOUD. Scoped to the caller's tenant
+ * (the GUC the auth middleware binds); a scheduler hits this per tenant on a
+ * cadence. The response carries the queryable NEEDS_REVERSAL count so an
+ * external monitor can alert on debited-but-undelivered money.
+ */
+app.post(
+  '/api/v1/admin/jobs/disbursement-reconciliation',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = getTenantId(req);
+      const [result] = await disbursementReconciliationJob.run([tenantId]);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // =============================================================================
 // Additional API Routes (aliases and convenience endpoints)
 // =============================================================================
@@ -1756,65 +1962,36 @@ app.post('/api/v1/admin/jobs/disbursements', async (req: Request, res: Response,
  */
 app.post('/api/v1/payments/webhook/mpesa', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const validation = MpesaStkCallbackSchema.safeParse(req.body);
-    if (!validation.success) {
-      logger.warn({ body: req.body }, 'Invalid M-PESA callback payload via API path');
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
+    // API-path alias for the STK callback — same hardened delegation as
+    // `/webhooks/mpesa/stk`. Signature + replay verified upstream by
+    // mpesaSignatureMiddleware (also mounted on this path); the handler
+    // skips its own HMAC and uses the durable dedupe + single ledger post.
+    const rawBody = req.rawBody
+      ? req.rawBody.toString('utf8')
+      : JSON.stringify(req.body ?? {});
 
-    const callback = validation.data.Body.stkCallback;
-    logger.info({
-      checkoutRequestId: callback.CheckoutRequestID,
-      resultCode: callback.ResultCode,
-      resultDesc: callback.ResultDesc
-    }, 'M-PESA STK callback received via API path');
-
-    // Idempotency — same reasoning as /webhooks/mpesa/stk above.
-    if (mpesaDeduplicator.seenBefore(`stk:${callback.CheckoutRequestID}`)) {
-      logger.info(
-        { checkoutRequestId: callback.CheckoutRequestID },
-        'Duplicate M-PESA STK callback (API path) — acking without reprocessing'
-      );
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
-
-    // W4-A: resolve tenantId from STK config (same as /webhooks/mpesa/stk).
-    const apiStkTenantId = resolveMpesaStkTenantId();
-    if (!apiStkTenantId) {
-      logger.warn({ checkoutRequestId: callback.CheckoutRequestID }, 'M-PESA STK callback (API path) missing tenant context — ack without processing');
-      return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-    }
-    const apiStkTenant = asTenantId(apiStkTenantId);
-
-    const isSuccess = callback.ResultCode === 0;
-
-    if (isSuccess) {
-      const metadata = callback.CallbackMetadata?.Item || [];
-      const mpesaReceiptNumber = metadata.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
-
-      await paymentOrchestrationService.handleWebhook(
-        'mpesa',
-        callback.CheckoutRequestID,
-        'SUCCEEDED',
-        apiStkTenant,
-        mpesaReceiptNumber?.toString()
-      );
-    } else {
-      const status: PaymentStatus = callback.ResultCode === 1032 ? 'CANCELLED' : 'FAILED';
-      await paymentOrchestrationService.handleWebhook(
-        'mpesa',
-        callback.CheckoutRequestID,
-        status,
-        apiStkTenant,
-        undefined,
-        callback.ResultDesc
-      );
-    }
-
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    const { httpStatus, body } = await processLegacyStkWebhook(
+      rawBody,
+      {},
+      {
+        handlerDeps: {
+          ledgerService,
+          resolveTenantContext: resolveMpesaStkContext,
+          dedupeStore: webhookDedupeStore,
+          skipSignatureCheck: true,
+          onPaymentFailed: markMpesaPaymentFailed,
+        },
+        logger: {
+          info: (ctx, msg) => logger.info(ctx, msg),
+          warn: (ctx, msg) => logger.warn(ctx, msg),
+          error: (ctx, msg) => logger.error(ctx, msg),
+        },
+      },
+    );
+    res.status(httpStatus).json(body);
   } catch (error) {
-    logger.error({ err: error }, 'Error processing M-PESA callback via API path');
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    logger.error({ err: error }, 'M-PESA STK (API path) route failure — returning non-success');
+    res.status(500).json({ ResultCode: 1, ResultDesc: 'Processing failed' });
   }
 });
 

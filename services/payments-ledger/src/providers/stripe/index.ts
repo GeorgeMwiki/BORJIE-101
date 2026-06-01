@@ -39,3 +39,11 @@ export {
   type StripeWebhookResult,
   handleStripeWebhook,
 } from './webhook-handler';
+export {
+  type WebhookProvider,
+  type WebhookClaim,
+  type WebhookDedupeStore,
+  InMemoryWebhookDedupeStore,
+  DbWebhookDedupeStore,
+  createWebhookDedupeStore,
+} from '../webhook-dedupe-store';

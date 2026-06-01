@@ -32,9 +32,15 @@ export {
   type MpesaTenantContext,
   type MpesaTenantResolver,
   type MpesaWebhookHandlerDeps,
+  type MpesaPaymentFailureSink,
   type MpesaSignatureHeaders,
   type MpesaWebhookResult,
   type ParsedStkCallback,
   handleMpesaWebhook,
   verifyMpesaSignature,
 } from './webhook-handler';
+export {
+  MPESA_SUCCESS_CODE,
+  isMpesaSuccess,
+  mpesaResultReason,
+} from './result-codes';
