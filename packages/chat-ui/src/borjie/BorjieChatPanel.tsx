@@ -58,6 +58,7 @@ import type {
   BorjieMode,
   UseBorjieChatResult,
 } from './useBorjieChat';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { BorjieModeSelector } from './BorjieModeSelector';
 import { BorjieChatBubble } from './BorjieChatBubble';
 import { BorjieMark, BORJIE_GOLD_GRADIENT, BORJIE_GOLD_DEEP } from './BorjieMark';
@@ -135,6 +136,10 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
   } = props;
 
   const [draft, setDraft] = useState('');
+  // Floating-variant only: toggles the panel between the compact
+  // corner size and a near-fullscreen reading size. The bottom-sheet
+  // variant is already fullscreen so this is ignored there.
+  const [isExpanded, setIsExpanded] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
@@ -246,8 +251,8 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
       position: 'fixed',
       bottom: 24,
       right: 24,
-      width: 'min(92vw, 380px)',
-      height: 'min(80vh, 720px)',
+      width: isExpanded ? 'min(96vw, 1100px)' : 'min(92vw, 380px)',
+      height: isExpanded ? 'min(94vh, 980px)' : 'min(80vh, 720px)',
       display: 'flex',
       flexDirection: 'column',
       background: PANEL_BG,
@@ -257,8 +262,9 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
       overflow: 'hidden',
       zIndex: 10_001,
       border: '1px solid rgba(15, 23, 42, 0.10)',
+      transition: reducedMotion ? 'none' : 'width 240ms ease, height 240ms ease',
     };
-  }, [variant]);
+  }, [variant, isExpanded, reducedMotion]);
 
   // The synthetic "hello" we dispatch on first open is filtered out
   // so the user never sees their own greeting echoed back at them.
@@ -289,6 +295,11 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
   const showChips = !hasUserTurn && authenticated;
   const ariaCloseLabel = t(MESSAGES.ariaClose, language);
   const switchLanguageLabel = t(MESSAGES.switchLanguage, language);
+  // Size-toggle label flips with the current state so the screen-reader
+  // announcement + native tooltip always describe the NEXT action.
+  const sizeToggleLabel = isExpanded
+    ? t(MESSAGES.collapse, language)
+    : t(MESSAGES.expand, language);
 
   // Pre-compute the visible list with segment dividers spliced in.
   const visibleItems = useMemo(() => {
@@ -484,6 +495,20 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
               {language.toUpperCase()}
             </span>
           </HeaderIconButton>
+          {variant === 'floating' ? (
+            <HeaderIconButton
+              ariaLabel={sizeToggleLabel}
+              title={sizeToggleLabel}
+              onClick={() => setIsExpanded((v) => !v)}
+              testId="borjie-size-toggle"
+            >
+              {isExpanded ? (
+                <Minimize2 size={15} aria-hidden="true" />
+              ) : (
+                <Maximize2 size={15} aria-hidden="true" />
+              )}
+            </HeaderIconButton>
+          ) : null}
           <HeaderIconButton
             ariaLabel={ariaCloseLabel}
             title={ariaCloseLabel}

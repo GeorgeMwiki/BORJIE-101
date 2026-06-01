@@ -73,6 +73,17 @@ export const MESSAGES = {
     en: 'Minimize',
     sw: 'Punguza',
   },
+  // Maximise / restore the floating panel. "Panua" = widen/expand,
+  // "Kunja" = fold/collapse — the canonical Swahili pair for a
+  // size toggle, consistent with the `minimize: Punguza` neighbour.
+  expand: {
+    en: 'Expand',
+    sw: 'Panua',
+  },
+  collapse: {
+    en: 'Collapse',
+    sw: 'Kunja',
+  },
   contextDiscussing: {
     en: 'Discussing',
     sw: 'Kuhusu',
