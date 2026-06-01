@@ -37,6 +37,10 @@ import {
 } from '@borjie/graph-sync';
 import { getBrainExtraSkills } from '../composition/brain-extensions';
 import { auditChatResponse } from '../composition/chat-response-gate';
+import {
+  recallSupportMemory,
+  type RecallLang,
+} from '../services/support-cases/index.js';
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
 import { withSecurityEvents } from '@borjie/observability';
@@ -496,6 +500,73 @@ async function gateTurn(
   return { ok: true, ctx };
 }
 
+// ─── Persistent-memory RECALL — the "never loses memory" hook ─────────
+//
+// Mr. Mwikila is the user's first line of technical support. At the start of
+// every turn we load the user's OPEN/active `support_cases` (tenant + user
+// scoped; the GUC is already bound by gateTurn) and PREPEND a compact,
+// single-language memory preamble to the user's text, so the MD always
+// remembers their in-flight issues across sessions AND devices — a new login
+// on a new phone still recalls the case state.
+//
+// This is a CHEAP QUERY, never an LLM call, and runs best-effort: a recall
+// failure never blocks the turn (the user still gets their answer, just
+// without the preamble that turn).
+//
+// EN/SW absolute (CLAUDE.md): the default user language is `en`; an explicit
+// `sw` in Accept-Language switches the preamble entirely to Swahili with zero
+// mixing.
+
+/** Resolve the recall locale. Default `en` (CLAUDE.md); explicit `sw` toggles. */
+function pickRecallLang(acceptLanguage: string | null): RecallLang {
+  if (typeof acceptLanguage !== 'string' || acceptLanguage.length === 0) {
+    return 'en';
+  }
+  const first = acceptLanguage.split(',')[0]?.trim().toLowerCase() ?? '';
+  return first.startsWith('sw') ? 'sw' : 'en';
+}
+
+/**
+ * Load the user's active support cases and return the body with the memory
+ * preamble prepended to `userText`. Best-effort — returns the body unchanged on
+ * any failure. Pure on the input body (immutability): builds a new object.
+ */
+async function withRecalledMemory<
+  T extends { readonly userText: string },
+>(c: any, ctx: TurnGateContext, body: T): Promise<T> {
+  try {
+    const lang = pickRecallLang(c.req.header('accept-language') ?? null);
+    const { preamble, cases } = await recallSupportMemory(
+      {
+        db: db(),
+        tenantId: ctx.tenant.tenantId,
+        userId: ctx.viewer.userId,
+        logger,
+      },
+      lang,
+    );
+    if (!preamble) return body;
+    logger.info(
+      {
+        wiring: 'support-recall',
+        tenantId: ctx.tenant.tenantId,
+        userId: ctx.viewer.userId,
+        activeCases: cases.length,
+        lang,
+      },
+      'brain /turn: injected persistent support-case memory',
+    );
+    return { ...body, userText: `${preamble}\n\n${body.userText}` };
+  } catch (err) {
+    // Never let recall break the turn.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: support-memory recall failed (continuing)',
+    );
+    return body;
+  }
+}
+
 async function handleTurnJson(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
@@ -882,6 +953,13 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   }
   const gate = await gateTurn(c, body);
   if (!gate.ok) return gate.response;
+
+  // Persistent-memory RECALL — load the user's OPEN/active support cases
+  // (tenant+user scoped; GUC bound by gateTurn) and prepend a compact,
+  // single-language memory preamble to the user's text so Mr. Mwikila never
+  // loses support context across sessions/devices. Cheap query, never an LLM
+  // call; best-effort (never blocks the turn).
+  body = await withRecalledMemory(c, gate.ctx, body);
 
   // G2 — Idempotency-Key cache lookup. Only applies to the JSON path
   // (SSE streams are not cacheable). When the client sends a valid key

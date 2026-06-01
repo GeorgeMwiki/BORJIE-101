@@ -135,6 +135,11 @@ import { createLicenceHandler } from './handlers/licences.js';
 import { logProductionHandler } from './handlers/production.js';
 import { draftPayrollRunHandler } from './handlers/payroll-draft.js';
 import { draftRoyaltyReturnHandler } from './handlers/royalty-draft.js';
+import {
+  openSupportCaseHandler,
+  resolveSupportCaseHandler,
+  escalateToHumanHandler,
+} from './handlers/support.js';
 import { bumpActionMastery } from './mastery-tracker.js';
 import type {
   ActionHandler,
@@ -164,6 +169,15 @@ const REGISTRY: Readonly<Record<string, RegistryEntry>> = Object.freeze({
   // money/ledger column at all; the royalty figures + payment are filled by
   // the owner elsewhere (LedgerService four-eye flow). Never auto-safe.
   draft_royalty_return: { handler: draftRoyaltyReturnHandler, autoSafe: false },
+  // ─── SUPPORT verbs (NON-MONEY) — Mr. Mwikila's first-line-support actions ──
+  // None touch the money path; `support_cases` has NO money column. All three
+  // are CONFIRM-REQUIRED (durable support-case writes): open persists a new
+  // case the MD remembers forever; resolve closes it (= confirm); escalate
+  // hands the case to a human (always-authorized in spirit, but still gated +
+  // RECORDED in the immutable audit chain — never silent). See handlers/support.ts.
+  open_support_case: { handler: openSupportCaseHandler, autoSafe: false },
+  resolve_support_case: { handler: resolveSupportCaseHandler, autoSafe: false },
+  escalate_to_human: { handler: escalateToHumanHandler, autoSafe: false },
 });
 
 /** Normalise a model / FE verb token for registry lookup. */
