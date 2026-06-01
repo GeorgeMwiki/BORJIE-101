@@ -13,7 +13,9 @@
  * └────────────┘  PCM frames   └──────┬───────┘  audio+tool └─────────────┘
  *                                     │ tool_call
  *                                     ▼
- *                              Borjie brain / action-executor  (TODO: dispatch)
+ *                       fail-closed gate → typed action-executor
+ *                       (auto-safe runs; confirm-required needs a SPOKEN
+ *                        confirmation token round-trip — never moves money)
  *
  * WHAT IS REAL AND COMPILES HERE
  *   • Supabase JWT auth (HS256 secret OR ES256 JWKS) — fail-closed.
@@ -44,9 +46,11 @@
  * objects.
  */
 
+import { randomUUID } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import type { Server as HttpServer } from 'node:http';
 
+import { sql } from 'drizzle-orm';
 import pino from 'pino';
 import {
   verifySupabaseJwt,
@@ -63,6 +67,20 @@ import {
   BrainThreadRepository,
 } from '@borjie/database';
 import { BUILT_IN_PERSONAS } from '@borjie/persona-runtime';
+import type { ScopeContext } from '@borjie/central-intelligence';
+
+// Action-execution wiring (IMPORTED — never edited from here). The voice
+// channel runs the EXACT same fail-closed gate → typed executor path the
+// text `/brain` and `/owner/chat/*` surfaces use, so a spoken action is
+// authorized, RLS-scoped, and hash-chain-audited identically to a tapped one.
+import {
+  isSafeVerb,
+  requiresConfirmation,
+  dispatchAction,
+  type ExecContext,
+  type DispatchResult,
+} from '../services/action-executor/index.js';
+import { decideAutoAuthorization } from '../services/auto-authorize-gate/index.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -297,9 +315,10 @@ function registry(): BrainRegistry {
  * still works for talk, it just can't take actions.
  */
 export function buildVoiceToolDeclarations(tenantId: string): VoiceFunctionDeclaration[] {
+  let catalog: VoiceFunctionDeclaration[];
   try {
     const brain = registry().for(tenantId);
-    return brain.tools.list().map((t) => ({
+    catalog = brain.tools.list().map((t) => ({
       name: t.name,
       description: t.description,
       parameters: t.parameters,
@@ -309,8 +328,15 @@ export function buildVoiceToolDeclarations(tenantId: string): VoiceFunctionDecla
       { err: err instanceof Error ? err.message : String(err), tenantId },
       'brain-voice: tool catalog unavailable — voice session will be conversational-only',
     );
-    return [];
+    catalog = [];
   }
+  // ALWAYS expose the spoken-confirmation completion tool, even when the brain
+  // catalog is empty. This is the SECOND half of the verbal-confirmation
+  // round-trip: when a confirm-required verb was proposed, the model received a
+  // short-lived `confirmationToken`; after the owner says "yes" out loud the
+  // model calls THIS tool with that token to actually run the action. Without
+  // it the round-trip cannot complete and confirm-required verbs stay inert.
+  return [...catalog, CONFIRM_PENDING_ACTION_DECLARATION];
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -622,44 +648,413 @@ function normalizeSampleRate(raw: unknown): VoiceAudioChunk['sampleRate'] {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Tool-call dispatch — TODO: route through the brain / action-executor.
+// Tool-call dispatch — SAFE verbal-confirmation flow.
+//
+// Voice tool-calls now REACH the executor, but only through the same
+// fail-closed gate the tapped surfaces use, and confirm-required verbs only
+// after an explicit SPOKEN confirmation round-trip:
+//
+//   AUTO-SAFE (isSafeVerb → reminders): gate → execute immediately. "Remind
+//     me…" runs by voice.
+//   CONFIRM-REQUIRED (requiresConfirmation → create_site / add_employee /
+//     create_licence / log_production / draft_payroll_run / draft_royalty_return):
+//     NEVER executed on first mention. We mint a short-lived, single-use,
+//     tenant-bound TOKEN and tell the model the action needs spoken
+//     confirmation. The model asks the owner aloud; on a spoken "yes" it calls
+//     the `confirm_pending_action` tool with the token → we validate (tenant
+//     match + not expired), consume it, run the gate, and only THEN execute.
+//   `confirm_pending_action`: the completion tool above.
+//
+// HARD RULES preserved:
+//   • Fail-closed gate runs before EVERY execution (auto-safe AND the
+//     confirmed path). On any gate error → deny, never execute.
+//   • Tenant GUC bound via `SET LOCAL` inside a transaction before any
+//     executor DB write (mirrors brain-teach.hono.ts) — never leaks to the
+//     next pooled-connection request, never double-filters RLS.
+//   • The executor (handlers) hash-chain-audit + RLS-scope every write; no
+//     extra audit row is appended here.
+//   • NO LedgerService from voice. Money/draft verbs: even WITH the token, the
+//     gate runs (fails closed on HIGH-risk prefixes) and the executor only
+//     creates a non-binding DRAFT header — voice never moves money.
 // ───────────────────────────────────────────────────────────────────────────
 
+/** The name the model must call to COMPLETE a confirm-required action. */
+export const CONFIRM_PENDING_ACTION_TOOL = 'confirm_pending_action';
+
 /**
- * Dispatch a tool-call the realtime model emitted.
+ * Function declaration for the spoken-confirmation completion tool. Registered
+ * by `buildVoiceToolDeclarations` so the realtime model can invoke it after the
+ * owner verbally approves a pending confirm-required action.
+ */
+export const CONFIRM_PENDING_ACTION_DECLARATION: VoiceFunctionDeclaration =
+  Object.freeze({
+    name: CONFIRM_PENDING_ACTION_TOOL,
+    description:
+      'Complete a previously-proposed action that requires the owner\'s spoken ' +
+      'confirmation. Call this ONLY after the owner has clearly said yes out ' +
+      'loud, passing the exact confirmationToken you were given when the action ' +
+      'was first proposed. Never call it pre-emptively or without an explicit ' +
+      'spoken approval.',
+    parameters: {
+      type: 'object',
+      properties: {
+        token: {
+          type: 'string',
+          description:
+            'The confirmationToken returned when the action was first proposed.',
+        },
+      },
+      required: ['token'],
+    },
+  });
+
+/** Default token time-to-live: a confirmation must complete within ~2 minutes. */
+export const CONFIRMATION_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Hard cap on simultaneously-pending confirmations PER PROCESS. Bounds the
+ * in-memory store so an adversarial / looping model that proposes
+ * confirm-required verbs without ever confirming cannot grow it without limit
+ * (memory-DoS). When full, the oldest entry is evicted first — it would expire
+ * soonest anyway. Generous vs. real usage: a voice session proposes one action
+ * at a time. Disappears once the store moves to the flagged Redis TTL seam.
+ */
+export const MAX_PENDING_CONFIRMATIONS = 1000;
+
+/**
+ * One pending confirm-required action, awaiting a SPOKEN "yes". Bound to the
+ * tenant that proposed it so a token can never be replayed across tenants.
+ */
+interface PendingConfirmation {
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly verb: string;
+  readonly params: Record<string, unknown>;
+  readonly expiresAt: number;
+}
+
+/**
+ * In-memory, single-use confirmation-token store.
  *
- * FLAGGED TODO (intentional, not a silent stub): a production dispatch must
- * route this through the SAME path the text `/brain` surface uses —
- * `brain.orchestrator.handleTurn(...)` for read tools, and the fail-closed
- * auto-authorize gate + typed executor registry in
- * services/api-gateway/src/services/action-executor/ for WRITE tools — then
- * append a hash-chained audit row (composition/brain-tools/audit-sink). That
- * wiring is OUT OF SCOPE for this file per the task boundary (we must not
- * touch action-executor or brain.hono.ts), so here we return an explicit
- * "acknowledged, not yet executed" envelope. The model narrates the deferral
- * to the owner (the persona instruction already forbids implying completion).
+ * ⚠️ MULTI-REPLICA FLAG: this Map is PER-PROCESS. It is correct for a single
+ * gateway replica because a realtime voice session is pinned to one WS
+ * connection — propose and confirm hit the SAME process. Under horizontal
+ * scaling (multiple gateway replicas / pods) a confirm that lands on a
+ * different replica than the propose would not find the token and would be
+ * rejected (fail-closed — safe, but the owner would have to re-confirm). Before
+ * running multi-replica, back this with a SHARED, TTL'd store keyed by token
+ * (Redis `SET token … EX 120 NX` + atomic `GETDEL` on consume) so the
+ * propose/confirm pair can cross replicas while staying single-use. The
+ * surface below (`mintConfirmationToken` / `consumeConfirmationToken`) is the
+ * exact seam to swap. See BRAIN_VOICE_RUNTIME_FLAGS.confirmationStore.
+ */
+const confirmationStore = new Map<string, PendingConfirmation>();
+
+/** Drop expired tokens. Cheap lazy GC — runs on each mint/consume. */
+function sweepExpiredConfirmations(now: number): void {
+  for (const [token, pending] of confirmationStore) {
+    if (pending.expiresAt <= now) confirmationStore.delete(token);
+  }
+}
+
+/**
+ * Mint a single-use confirmation token for a confirm-required action. The
+ * token is an opaque UUID — it carries no verb/params itself, so an
+ * intercepted token reveals nothing and cannot be forged into a different
+ * action. `now`/`newToken` are injectable for deterministic tests.
+ */
+export function mintConfirmationToken(
+  pending: Omit<PendingConfirmation, 'expiresAt'>,
+  opts?: { readonly now?: number; readonly ttlMs?: number; readonly newToken?: () => string },
+): { readonly token: string; readonly expiresAt: number } {
+  const now = opts?.now ?? Date.now();
+  sweepExpiredConfirmations(now);
+  // Bound the store (memory-DoS guard). Map preserves insertion order, so the
+  // first key is the oldest / soonest-to-expire — evict it first when full.
+  while (confirmationStore.size >= MAX_PENDING_CONFIRMATIONS) {
+    const oldest = confirmationStore.keys().next().value;
+    if (oldest === undefined) break;
+    confirmationStore.delete(oldest);
+  }
+  const token = (opts?.newToken ?? randomUUID)();
+  const expiresAt = now + (opts?.ttlMs ?? CONFIRMATION_TTL_MS);
+  confirmationStore.set(token, { ...pending, expiresAt });
+  return { token, expiresAt };
+}
+
+/**
+ * Look up + atomically CONSUME (single-use) a confirmation token, enforcing
+ * tenant match, USER match, and expiry. Returns the pending action on success,
+ * or a typed rejection reason. The token is removed whether or not validation
+ * passes for an existing entry, so a token can never be used twice. Binding to
+ * BOTH tenant and the originating user means a token proposed in one principal's
+ * session can never be completed by a different user — even within the same
+ * tenant (defense-in-depth for any future handler that trusts `created_by`).
+ */
+export function consumeConfirmationToken(
+  token: string,
+  ctx: { readonly tenantId: string; readonly userId: string; readonly now?: number },
+):
+  | { readonly ok: true; readonly pending: PendingConfirmation }
+  | {
+      readonly ok: false;
+      readonly reason: 'unknown_token' | 'expired_token' | 'tenant_mismatch' | 'user_mismatch';
+    } {
+  const now = ctx.now ?? Date.now();
+  const pending = confirmationStore.get(token);
+  if (!pending) return { ok: false, reason: 'unknown_token' };
+  // Single-use: remove on first lookup, before any further validation, so a
+  // mismatched/expired token cannot be retried either.
+  confirmationStore.delete(token);
+  if (pending.expiresAt <= now) return { ok: false, reason: 'expired_token' };
+  if (pending.tenantId !== ctx.tenantId) return { ok: false, reason: 'tenant_mismatch' };
+  if (pending.userId !== ctx.userId) return { ok: false, reason: 'user_mismatch' };
+  return { ok: true, pending };
+}
+
+/** Test-only: clear the in-memory token store between cases. */
+export function __resetConfirmationStoreForTests(): void {
+  confirmationStore.clear();
+}
+
+/**
+ * Injectable seams for `dispatchVoiceToolCall`. Production uses the real
+ * module-level db + gate + executor; tests pass stubs so the dispatch's own
+ * branching (not Postgres / the kernel) is what's under test. `now`/`newToken`
+ * make token lifecycle deterministic.
+ */
+export interface VoiceDispatchDeps {
+  readonly db?: { transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T> } | null;
+  readonly decideAuthorization?: typeof decideAutoAuthorization;
+  readonly dispatch?: typeof dispatchAction;
+  readonly now?: () => number;
+  readonly newToken?: () => string;
+}
+
+/** Build the tenant scope the fail-closed gate authorizes against. */
+function voiceScope(principal: BrainAuthPrincipal): ScopeContext {
+  return {
+    kind: 'tenant',
+    tenantId: principal.tenantId,
+    actorUserId: principal.userId,
+    roles: [...principal.roles],
+    personaId: 'mr-mwikila-head',
+  };
+}
+
+/**
+ * Run the fail-closed gate, then — only if authorized — dispatch the verb to
+ * the typed executor inside a transaction whose `app.current_tenant_id` GUC is
+ * bound with `SET LOCAL`. The bridge bypasses `databaseMiddleware`, so the
+ * pooled connection has no tenant bound; binding it transaction-locally keeps
+ * the executor's writes RLS-scoped to the caller and prevents the binding from
+ * leaking to the next request that reuses the connection.
  *
- * The tenant + principal are threaded so the eventual real dispatch is a
- * drop-in: it already has everything it needs to run tenant-scoped.
+ * Returns a model-facing envelope. Never throws for an authorization denial or
+ * an unknown/failed verb (all become `executed:false` envelopes).
+ */
+async function gateAndExecuteVoiceAction(args: {
+  readonly principal: BrainAuthPrincipal;
+  readonly verb: string;
+  readonly params: Record<string, unknown>;
+  readonly rationale: string;
+  readonly deps: VoiceDispatchDeps;
+}): Promise<Record<string, unknown>> {
+  const { principal, verb, params, rationale, deps } = args;
+  const decide = deps.decideAuthorization ?? decideAutoAuthorization;
+  const runDispatch = deps.dispatch ?? dispatchAction;
+  const database = deps.db === undefined ? db() : deps.db;
+
+  // 1) FAIL-CLOSED gate FIRST. The gate itself returns authorized:false on any
+  //    internal error (never throws an allow); an exception here can only be a
+  //    programmer error, which we also treat as a denial (defence-in-depth).
+  let authorized = false;
+  let reason = 'not_authorized';
+  try {
+    const decision = decide(verb, rationale, voiceScope(principal));
+    authorized = decision.authorized;
+    reason = decision.reason;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'brain-voice-gate',
+        verb,
+        tenantId: principal.tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+      'brain-voice: authorization gate threw (fail-closed deny)',
+    );
+    return { status: 'denied', executed: false, reason: 'gate_error_fail_closed', tool: verb };
+  }
+
+  if (!authorized) {
+    logger.info(
+      { wiring: 'brain-voice-gate', verb, tenantId: principal.tenantId, reason },
+      'brain-voice: action not authorized',
+    );
+    return { status: 'denied', executed: false, reason, tool: verb };
+  }
+
+  // 2) No DB → cannot execute. Surface a graceful not-executed envelope rather
+  //    than throwing, so the model narrates a deferral instead of crashing.
+  if (!database) {
+    logger.warn(
+      { wiring: 'brain-voice-execute', verb, tenantId: principal.tenantId },
+      'brain-voice: database unavailable — action authorized but not executed',
+    );
+    return { status: 'unavailable', executed: false, reason: 'database_unavailable', tool: verb };
+  }
+
+  // 3) Bind the tenant GUC transaction-locally, then dispatch. The executor's
+  //    handlers RLS-scope + hash-chain-audit the write themselves.
+  let dispatched: DispatchResult;
+  try {
+    dispatched = await database.transaction(async (tx) => {
+      await (tx as { execute: (q: unknown) => Promise<unknown> }).execute(
+        sql`SELECT set_config('app.current_tenant_id', ${principal.tenantId}, true)`,
+      );
+      const execCtx: ExecContext = {
+        db: tx as unknown as ExecContext['db'],
+        tenantId: principal.tenantId,
+        userId: principal.userId,
+        logger: logger as unknown as ExecContext['logger'],
+      };
+      return runDispatch(verb, params, execCtx);
+    });
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'brain-voice-execute',
+        verb,
+        tenantId: principal.tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+      'brain-voice: executor transaction threw',
+    );
+    return { status: 'error', executed: false, reason: 'execution_failed', tool: verb };
+  }
+
+  if (!dispatched.executed) {
+    return { status: 'not_executed', executed: false, reason: dispatched.reason, tool: verb };
+  }
+  return {
+    status: 'executed',
+    executed: true,
+    tool: verb,
+    result: dispatched.result as unknown as Record<string, unknown>,
+  };
+}
+
+/**
+ * Dispatch a tool-call the realtime model emitted, applying the SAFE
+ * verbal-confirmation flow.
+ *
+ * Routing:
+ *   • `confirm_pending_action` → validate + consume the token, then gate +
+ *     execute the originally-proposed verb (the spoken-"yes" completion).
+ *   • AUTO-SAFE verb (isSafeVerb) → gate + execute immediately.
+ *   • CONFIRM-REQUIRED verb (requiresConfirmation) → DO NOT execute; mint a
+ *     single-use token and tell the model to ask for spoken confirmation.
+ *   • Anything else (read tools / brain-catalog verbs not in the executor) →
+ *     acknowledged, not executed (unchanged conversational behaviour).
+ *
+ * The tenant + principal are threaded; `deps` is injectable for tests.
  */
 export async function dispatchVoiceToolCall(args: {
   readonly principal: BrainAuthPrincipal;
   readonly call: VoiceToolCall;
+  readonly deps?: VoiceDispatchDeps;
 }): Promise<Record<string, unknown>> {
+  const { principal, call } = args;
+  const deps = args.deps ?? {};
+  const verb = call.name;
+
   logger.info(
-    {
-      tenantId: args.principal.tenantId,
-      userId: args.principal.userId,
-      tool: args.call.name,
-    },
-    'brain-voice: tool_call received (dispatch deferred — see FLAGGED TODO)',
+    { tenantId: principal.tenantId, userId: principal.userId, tool: verb },
+    'brain-voice: tool_call received',
   );
-  // TODO(brain-voice dispatch): replace with real brain/action-executor route.
+
+  // (A) Completion tool — the owner has spoken "yes"; finish a pending action.
+  if (verb === CONFIRM_PENDING_ACTION_TOOL) {
+    const token = typeof call.args?.token === 'string' ? call.args.token : '';
+    if (!token) {
+      return { status: 'rejected', executed: false, reason: 'missing_token', tool: verb };
+    }
+    const now = deps.now?.() ?? Date.now();
+    const outcome = consumeConfirmationToken(token, {
+      tenantId: principal.tenantId,
+      userId: principal.userId,
+      now,
+    });
+    if (!outcome.ok) {
+      logger.warn(
+        { wiring: 'brain-voice-confirm', tenantId: principal.tenantId, reason: outcome.reason },
+        'brain-voice: confirmation token rejected',
+      );
+      return { status: 'rejected', executed: false, reason: outcome.reason };
+    }
+    // Token valid + consumed (single-use). Run the SAME gate + GUC-bound
+    // dispatch as any other write — even here the gate fails closed on
+    // HIGH-risk prefixes and money/draft verbs only ever create a draft.
+    return gateAndExecuteVoiceAction({
+      principal,
+      verb: outcome.pending.verb,
+      params: outcome.pending.params,
+      rationale: `voice_confirmed:${outcome.pending.verb}`,
+      deps,
+    });
+  }
+
+  // (B) AUTO-SAFE verb (reminders) — gate + execute on first mention.
+  if (isSafeVerb(verb)) {
+    return gateAndExecuteVoiceAction({
+      principal,
+      verb,
+      params: call.args,
+      rationale: `voice_auto_safe:${verb}`,
+      deps,
+    });
+  }
+
+  // (C) CONFIRM-REQUIRED verb — NEVER execute on first mention. Mint a
+  //     single-use, tenant-bound token and ask the model to seek spoken
+  //     confirmation. Execution happens ONLY on the `confirm_pending_action`
+  //     round-trip above.
+  if (requiresConfirmation(verb)) {
+    const { token, expiresAt } = mintConfirmationToken(
+      { tenantId: principal.tenantId, userId: principal.userId, verb, params: call.args },
+      {
+        ...(deps.now ? { now: deps.now() } : {}),
+        ...(deps.newToken ? { newToken: deps.newToken } : {}),
+      },
+    );
+    logger.info(
+      { wiring: 'brain-voice-confirm', verb, tenantId: principal.tenantId },
+      'brain-voice: confirm-required verb pending spoken confirmation',
+    );
+    return {
+      status: 'confirmation_required',
+      executed: false,
+      tool: verb,
+      confirmationToken: token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      instruction:
+        'This action changes durable records and must be confirmed by the owner ' +
+        'out loud first. Briefly restate what will happen, ask the owner to ' +
+        'confirm, and ONLY after a clear spoken "yes" call the ' +
+        `${CONFIRM_PENDING_ACTION_TOOL} tool with this confirmationToken. Do not ` +
+        'imply the action is done yet.',
+    };
+  }
+
+  // (D) Anything else (read tools / brain-catalog verbs outside the executor
+  //     registry) — acknowledged, NOT executed. Unchanged conversational
+  //     behaviour; the persona forbids implying completion.
   return {
     status: 'acknowledged',
     executed: false,
-    note: 'Tool dispatch is not yet wired into the brain/action-executor from the voice channel. The request was logged for human confirmation.',
-    tool: args.call.name,
+    tool: verb,
+    note: 'This is not a write action wired into the action-executor from voice; it was acknowledged only.',
   };
 }
 
@@ -959,7 +1354,18 @@ export const BRAIN_VOICE_RUNTIME_FLAGS = Object.freeze({
     'Gemini returns 24 kHz PCM. Opus transcode + sample-rate negotiation are not ' +
     'handled here.',
   toolDispatch:
-    'TOOL DISPATCH: model tool-calls are received + acknowledged but NOT yet routed ' +
-    'through the brain/action-executor (out of scope per task boundary). See the ' +
-    'FLAGGED TODO in dispatchVoiceToolCall.',
+    'TOOL DISPATCH: WIRED. Auto-safe verbs (reminders) execute on first mention; ' +
+    'confirm-required verbs (sites / employees / licences / production / payroll & ' +
+    'royalty DRAFTS) execute ONLY after an explicit SPOKEN confirmation via the ' +
+    'confirm_pending_action token round-trip. Every execution passes the fail-closed ' +
+    'gate, binds the tenant GUC (SET LOCAL), and the executor hash-chain-audits + ' +
+    'RLS-scopes the write. NO LedgerService from voice — money/draft verbs only ever ' +
+    'create a non-binding draft. See dispatchVoiceToolCall.',
+  confirmationStore:
+    'CONFIRMATION STORE: the pending-confirmation token Map is PER-PROCESS (correct ' +
+    'for a single replica — a voice session is pinned to one WS connection, so ' +
+    'propose + confirm hit the same process). For MULTI-REPLICA gateways back it with ' +
+    'a shared TTL store (Redis SET … EX 120 NX + atomic GETDEL on consume) so the ' +
+    'propose/confirm pair can cross replicas while staying single-use; swap at ' +
+    'mintConfirmationToken / consumeConfirmationToken.',
 } as const);
