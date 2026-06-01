@@ -44,6 +44,8 @@
  * lightweight direct LLM stream for the chat-first home surface.
  */
 
+import { sql } from 'drizzle-orm';
+
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { zValidator } from '@hono/zod-validator';
@@ -111,6 +113,16 @@ import type { ScopeContext } from '@borjie/central-intelligence';
 // an authorization, and append a hash-chained audit row when authorized.
 import { decideAutoAuthorization } from '../services/auto-authorize-gate/index.js';
 import { appendAutoAuthorizedAudit } from '../services/auto-authorize-gate/audit.js';
+// Wave CHAT-ACTIONS — execute SAFE auto-authorized verbs inline. When the
+// gate authorizes an action AND the verb is in the executor's SAFE
+// registry (reminders today), we dispatch it (real persisted side effect)
+// and report `executed:true` in the auto_authorized frame. Unknown / unsafe
+// verbs keep the legacy badge-only (executed:false) behaviour.
+import {
+  dispatchAction,
+  isSafeVerb,
+  type ExecContext,
+} from '../services/action-executor/index.js';
 import { renderScalePersonaSection } from '../services/brain/scale-persona.js';
 import { lookupTenantScaleTier } from '../services/brain/tenant-scale-lookup.js';
 import { resolveJurisdictionForPrompt } from '../services/brain/jurisdiction-prompt.js';
@@ -1024,11 +1036,74 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           logger,
         });
         autoAuthOutcome = 'authorized';
+
+        // Wave CHAT-ACTIONS — actually EXECUTE the authorized action when
+        // its verb is in the executor's SAFE registry (reminders today).
+        // The executor performs one real, RLS-scoped, persisted side
+        // effect and bumps the mastery tracker. Unknown / unsafe verbs are
+        // NOT executed here — they keep the badge-only behaviour so an
+        // out-of-set model verb can never trigger an unvetted side effect.
+        // Best-effort: a dispatch failure is logged but never breaks the
+        // SSE stream (the authorization itself already passed the gate).
+        let executed = false;
+        let execResult: unknown = null;
+        if (memoryDb && isSafeVerb(payload.action)) {
+          try {
+            // brain-teach bypasses databaseMiddleware, so the pooled
+            // connection has no app.current_tenant_id bound. Bind it with
+            // SET LOCAL inside a transaction so the executor's RLS-scoped
+            // writes run under the caller's tenant — and the binding cannot
+            // leak to the next request that reuses this pooled connection.
+            const dispatched = await memoryDb.transaction(async (tx) => {
+              await tx.execute(
+                sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,
+              );
+              const execCtx: ExecContext = {
+                db: tx as unknown as ExecContext['db'],
+                tenantId,
+                userId,
+                logger: logger as unknown as ExecContext['logger'],
+              };
+              return dispatchAction(
+                payload.action,
+                (payload.payload ?? {}) as Record<string, unknown>,
+                execCtx,
+              );
+            });
+            if (dispatched.executed) {
+              executed = true;
+              execResult = dispatched.result;
+            } else {
+              logger.warn(
+                {
+                  wiring: 'chat-actions-auto-execute',
+                  action: payload.action,
+                  reason: dispatched.reason,
+                  tenantId,
+                },
+                'auto_authorized: safe verb did not execute',
+              );
+            }
+          } catch (err) {
+            logger.error(
+              {
+                wiring: 'chat-actions-auto-execute',
+                action: payload.action,
+                tenantId,
+                error: err instanceof Error ? err.message : String(err),
+              },
+              'auto_authorized: executor threw (badge-only fallback)',
+            );
+          }
+        }
+
         await stream.writeSSE({
           event: 'auto_authorized',
           data: JSON.stringify({
             payload,
             authorized: true,
+            executed,
+            ...(execResult ? { result: execResult } : {}),
             at: new Date().toISOString(),
           }),
         });

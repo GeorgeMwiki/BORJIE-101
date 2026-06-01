@@ -469,6 +469,14 @@ import { ownerDocsRouter } from './routes/owner/docs.hono';
 import { ownerFormsRouter } from './routes/owner/forms.hono';
 import { ownerRemindersRouter } from './routes/owner/reminders.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
+// Wave CHAT-ACTIONS — the chat→action EXECUTION bridge. The cockpit chat
+// (/api/v1/brain/teach) emits action chips; these endpoints actually
+// EXECUTE the SAFE ones (reminders today) through the fail-closed
+// auto-authorize gate + the typed executor registry, then append a
+// hash-chained audit row. See:
+//   services/api-gateway/src/routes/owner/chat-actions.hono.ts
+//   services/api-gateway/src/services/action-executor/
+import { ownerChatActionsRouter } from './routes/owner/chat-actions.hono';
 // Wave SUPERPOWERS - chat-callable UI actions: navigate, prefill,
 // highlight, share, bulk, undo, bookmark. See:
 //   services/api-gateway/src/routes/owner/{share-links,undo-journal,pinned-items,superpowers}.hono.ts
@@ -1923,6 +1931,9 @@ api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
+// Wave CHAT-ACTIONS — POST /owner/chat/micro-action + /owner/chat/confirm-action.
+// Mounted before the generic /owner/* wildcards so the specific path wins.
+api.route('/owner/chat', ownerChatActionsRouter);
 api.route('/owner/tabs', ownerTabsRouter);
 // Wave SUPERPOWERS - chat-callable surface for share / undo / bookmark /
 // bulk. The public token resolver is mounted OUTSIDE auth (token-only).
