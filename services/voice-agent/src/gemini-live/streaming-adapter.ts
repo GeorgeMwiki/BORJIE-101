@@ -48,6 +48,20 @@ export interface GeminiServerEvent {
     readonly turnComplete?: boolean;
   };
   readonly setupComplete?: Record<string, unknown>;
+  /**
+   * Function-call envelope. The Gemini Live API delivers tool calls on a
+   * dedicated top-level `toolCall` field (NOT inside `serverContent`). Each
+   * entry carries the model-assigned call `id`, the tool `name`, and parsed
+   * `args`. The client (`gemini-live-client.ts`) routes these to its
+   * function-call queue; `adaptServerEvent` itself ignores them.
+   */
+  readonly toolCall?: {
+    readonly functionCalls?: ReadonlyArray<{
+      readonly id?: string;
+      readonly name?: string;
+      readonly args?: Record<string, unknown>;
+    }>;
+  };
   readonly error?: { readonly code?: number; readonly message?: string };
 }
 

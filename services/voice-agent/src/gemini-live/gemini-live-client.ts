@@ -34,6 +34,61 @@ import { loadConfig, type GeminiLiveConfig } from './config.js';
 import { adaptServerEvent, type GeminiServerEvent } from './streaming-adapter.js';
 
 /**
+ * A single function-declaration the realtime model may call. Mirrors the
+ * Gemini Live `tools[].functionDeclarations[]` shape AND the brain's
+ * `ToolHandler` descriptor ({ name, description, parameters }), so a caller
+ * can map the brain tool catalog straight onto a voice session with no
+ * translation. `parameters` is an OpenAPI-subset JSON schema object.
+ */
+export interface GeminiFunctionDeclaration {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Record<string, unknown>;
+}
+
+/**
+ * Per-session persona + capability overrides. ALL optional + additive — the
+ * existing call sites (and the hermetic unit tests) keep working unchanged.
+ *
+ * Why this lives on `StartSessionOptions` as an intersection rather than in
+ * the shared `providers/types.ts`: only the duplex Gemini/GPT-realtime path
+ * carries a model-side system instruction + function-calling tools; the
+ * STT/TTS-only providers do not, so widening the shared type would leak a
+ * concept the other providers can't honour.
+ */
+export interface GeminiPersonaOptions {
+  /**
+   * Full system instruction the model is booted with. When omitted we fall
+   * back to a neutral mining-domain default (NEVER the retired property
+   * persona). The gateway bridge passes a locale-driven Mr. Mwikila
+   * mining-owner instruction here.
+   */
+  readonly systemInstruction?: string;
+  /**
+   * Function-calling tools the model may invoke. Map directly from the
+   * brain's `tools.list()` descriptors. Omitted → the model is conversational
+   * only (no actions).
+   */
+  readonly tools?: ReadonlyArray<GeminiFunctionDeclaration>;
+}
+
+/** Session options accepted by the Gemini Live client (shared + persona). */
+export type GeminiStartSessionOptions = StartSessionOptions & GeminiPersonaOptions;
+
+/**
+ * A function-call the model emitted, surfaced to the caller so it can route
+ * the dispatch (e.g. through the Borjie brain / action-executor) and feed a
+ * `functionResponse` back. Provider-agnostic shape.
+ */
+export interface VoiceFunctionCall {
+  readonly sessionId: string;
+  /** Gemini's per-call id — echo it back in the functionResponse. */
+  readonly callId?: string;
+  readonly name: string;
+  readonly args: Record<string, unknown>;
+}
+
+/**
  * Use the OpenAI provider name as the visible `ProviderName` so the router
  * type stays unchanged. Tests assert on the concrete string instead.
  */
@@ -71,11 +126,30 @@ export interface WebSocketLike {
   removeEventListener(event: string, listener: WebSocketEventListener): void;
 }
 
+/**
+ * Duplex handle augmented with the realtime function-calling surface. The
+ * base `DuplexSessionHandle` only knows audio + transcripts; voice that can
+ * take ACTIONS needs the tool-call channel too.
+ */
+export interface GeminiLiveSessionHandle extends DuplexSessionHandle {
+  /** Async stream of function-calls the model emitted. */
+  functionCalls(): AsyncIterable<VoiceFunctionCall>;
+  /**
+   * Feed a tool result back to the model so it can continue the turn. The
+   * `output` is serialised into the Gemini `functionResponse.response` field.
+   */
+  respondToFunctionCall(args: {
+    readonly callId?: string;
+    readonly name: string;
+    readonly output: Record<string, unknown>;
+  }): Promise<void>;
+}
+
 export interface GeminiLiveClient {
   readonly provider: typeof PROVIDER_LABEL;
   /** Resolved config at construction time — exported for assertions. */
   readonly config: GeminiLiveConfig;
-  startSession(options: StartSessionOptions): Promise<DuplexSessionHandle>;
+  startSession(options: GeminiStartSessionOptions): Promise<GeminiLiveSessionHandle>;
 }
 
 /**
@@ -94,7 +168,9 @@ export function createGeminiLiveClient(
   return {
     provider: PROVIDER_LABEL,
     config,
-    async startSession(sessionOptions: StartSessionOptions): Promise<DuplexSessionHandle> {
+    async startSession(
+      sessionOptions: GeminiStartSessionOptions,
+    ): Promise<GeminiLiveSessionHandle> {
       const sessionId = makeSessionId(sessionOptions);
       if (!config.apiKey) {
         warnOnce(
@@ -119,7 +195,7 @@ function makeSessionId(options: StartSessionOptions): string {
 
 interface OpenLiveSessionArgs {
   readonly sessionId: string;
-  readonly sessionOptions: StartSessionOptions;
+  readonly sessionOptions: GeminiStartSessionOptions;
   readonly config: GeminiLiveConfig;
   readonly websocketFactory: NonNullable<GeminiLiveClientOptions['websocketFactory']>;
 }
@@ -133,10 +209,11 @@ interface OpenLiveSessionArgs {
  */
 async function openLiveSession(
   args: OpenLiveSessionArgs,
-): Promise<DuplexSessionHandle> {
+): Promise<GeminiLiveSessionHandle> {
   const { sessionId, sessionOptions, config, websocketFactory } = args;
   const transcriptQueue = new AsyncQueue<PartialTranscript>();
   const audioQueue = new AsyncQueue<PartialAudio>();
+  const functionCallQueue = new AsyncQueue<VoiceFunctionCall>();
   const ws = websocketFactory(`${config.baseUrl}?key=${config.apiKey}`, {});
 
   ws.addEventListener('open', () => {
@@ -145,10 +222,16 @@ async function openLiveSession(
   const onMessage = (evt: { data: string | Buffer }): void => {
     const parsed = safeParse(evt.data);
     if (!parsed) return;
+    // Function-calls arrive on their own top-level `toolCall` envelope —
+    // route them to the dedicated queue before the audio/transcript adapt.
+    for (const call of extractFunctionCalls(parsed, sessionId)) {
+      functionCallQueue.push(call);
+    }
     const adapted = adaptServerEvent(parsed, sessionId, sessionOptions.language);
     if (adapted.error) {
       transcriptQueue.fail(adapted.error);
       audioQueue.fail(adapted.error);
+      functionCallQueue.fail(adapted.error);
       return;
     }
     for (const t of adapted.transcripts) transcriptQueue.push(t);
@@ -160,15 +243,17 @@ async function openLiveSession(
     const error = new Error(`gemini-live websocket error: ${evt.message ?? 'unknown'}`);
     transcriptQueue.fail(error);
     audioQueue.fail(error);
+    functionCallQueue.fail(error);
   };
   ws.addEventListener('error', onError);
   ws.addEventListener('close', () => {
     transcriptQueue.close();
     audioQueue.close();
+    functionCallQueue.close();
   });
 
   await waitForReady(ws);
-  return buildHandle({ sessionId, ws, transcriptQueue, audioQueue });
+  return buildHandle({ sessionId, ws, transcriptQueue, audioQueue, functionCallQueue });
 }
 
 interface BuildHandleArgs {
@@ -176,10 +261,11 @@ interface BuildHandleArgs {
   readonly ws: WebSocketLike;
   readonly transcriptQueue: AsyncQueue<PartialTranscript>;
   readonly audioQueue: AsyncQueue<PartialAudio>;
+  readonly functionCallQueue: AsyncQueue<VoiceFunctionCall>;
 }
 
-function buildHandle(args: BuildHandleArgs): DuplexSessionHandle {
-  const { sessionId, ws, transcriptQueue, audioQueue } = args;
+function buildHandle(args: BuildHandleArgs): GeminiLiveSessionHandle {
+  const { sessionId, ws, transcriptQueue, audioQueue, functionCallQueue } = args;
   return {
     sessionId,
     provider: PROVIDER_LABEL as unknown as ProviderName,
@@ -207,6 +293,23 @@ function buildHandle(args: BuildHandleArgs): DuplexSessionHandle {
     },
     transcripts: () => transcriptQueue,
     audio: () => audioQueue,
+    functionCalls: () => functionCallQueue,
+    async respondToFunctionCall(callArgs): Promise<void> {
+      if (ws.readyState !== 1) return;
+      ws.send(
+        JSON.stringify({
+          toolResponse: {
+            functionResponses: [
+              {
+                ...(callArgs.callId !== undefined ? { id: callArgs.callId } : {}),
+                name: callArgs.name,
+                response: callArgs.output,
+              },
+            ],
+          },
+        }),
+      );
+    },
     async close(): Promise<void> {
       try {
         ws.close();
@@ -215,15 +318,27 @@ function buildHandle(args: BuildHandleArgs): DuplexSessionHandle {
       }
       transcriptQueue.close();
       audioQueue.close();
+      functionCallQueue.close();
     },
   };
 }
 
+/**
+ * Build the Gemini Live `setup` frame. Threads through the caller's persona
+ * system instruction (mining-domain default if unset — NEVER the retired
+ * property persona) and any function-calling tools.
+ */
 function sendSetup(
   ws: WebSocketLike,
   model: string,
-  options: StartSessionOptions,
+  options: GeminiStartSessionOptions,
 ): void {
+  const systemText =
+    options.systemInstruction ?? defaultMiningInstruction(options.language);
+  const tools =
+    options.tools && options.tools.length > 0
+      ? [{ functionDeclarations: options.tools.map((t) => ({ ...t })) }]
+      : undefined;
   ws.send(
     JSON.stringify({
       setup: {
@@ -237,15 +352,52 @@ function sendSetup(
           },
         },
         systemInstruction: {
-          parts: [
-            {
-              text: `You are Mr. Mwikila, a multilingual mining-domain voice agent. Reply in ${options.language}.`,
-            },
-          ],
+          parts: [{ text: systemText }],
         },
+        ...(tools !== undefined ? { tools } : {}),
       },
     }),
   );
+}
+
+/**
+ * Neutral mining-domain fallback instruction. Real callers (the gateway
+ * bridge) pass a full locale-driven Mr. Mwikila mining-owner persona; this
+ * default only guards the case where none is supplied so we never regress to
+ * the retired property persona.
+ */
+function defaultMiningInstruction(language: LanguageTag): string {
+  return [
+    'You are Mr. Mwikila, the brain layer of Borjie — an AI-native mining',
+    'estate operating system for African artisanal-to-mid-tier mining.',
+    `Reply only in ${language}. Never mix languages in a single reply.`,
+    'Cover licences, royalty, workforce, treasury, compliance, and the',
+    'marketplace. Never give property / real-estate advice.',
+  ].join('\n');
+}
+
+/**
+ * Extract any function-calls from a Gemini Live server frame. The live API
+ * delivers them under a top-level `toolCall.functionCalls[]` envelope (each
+ * carries `id`, `name`, `args`). Pure — returns an array the caller pushes.
+ */
+function extractFunctionCalls(
+  frame: GeminiServerEvent,
+  sessionId: string,
+): VoiceFunctionCall[] {
+  const calls = frame.toolCall?.functionCalls;
+  if (!calls || calls.length === 0) return [];
+  const out: VoiceFunctionCall[] = [];
+  for (const call of calls) {
+    if (!call?.name) continue;
+    out.push({
+      sessionId,
+      ...(typeof call.id === 'string' ? { callId: call.id } : {}),
+      name: call.name,
+      args: (call.args ?? {}) as Record<string, unknown>,
+    });
+  }
+  return out;
 }
 
 function safeParse(data: string | Buffer): GeminiServerEvent | null {
@@ -295,7 +447,7 @@ function defaultWebSocketFactory(url: string, headers: Record<string, string>): 
  * Stub session — identical contract, deterministic transcripts. Used when
  * GEMINI_API_KEY is missing so the unit tests stay hermetic.
  */
-function createStubHandle(sessionId: string, language: LanguageTag): DuplexSessionHandle {
+function createStubHandle(sessionId: string, language: LanguageTag): GeminiLiveSessionHandle {
   async function* transcripts(): AsyncIterable<PartialTranscript> {
     yield { sessionId, text: '[gemini-stub] partial', isFinal: false, language };
     yield { sessionId, text: '[gemini-stub] final', isFinal: true, confidence: 0.99, language };
@@ -306,6 +458,11 @@ function createStubHandle(sessionId: string, language: LanguageTag): DuplexSessi
       audio: { bytes: new Uint8Array(0), mimeType: 'audio/pcm', sampleRate: 24000 },
       isFinal: true,
     };
+  }
+  // eslint-disable-next-line require-yield
+  async function* functionCalls(): AsyncIterable<VoiceFunctionCall> {
+    /* stub — no tool calls without a live model */
+    return;
   }
   return {
     sessionId,
@@ -318,6 +475,10 @@ function createStubHandle(sessionId: string, language: LanguageTag): DuplexSessi
     },
     transcripts,
     audio,
+    functionCalls,
+    async respondToFunctionCall(): Promise<void> {
+      /* stub */
+    },
     async close(): Promise<void> {
       /* stub */
     },
