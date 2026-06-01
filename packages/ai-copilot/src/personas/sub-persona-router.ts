@@ -55,7 +55,7 @@ export interface SubPersonaRoutingResult {
 const MIN_CONFIDENCE = 0.4;
 const ALL_DIMENSIONS: ReadonlyArray<SubPersonaId> = [
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -163,7 +163,7 @@ function aggregateSignals(
 ): Readonly<Record<SubPersonaId, number>> {
   const scores: Record<SubPersonaId, number> = {
     finance: 0,
-    leasing: 0,
+    offtake: 0,
     maintenance: 0,
     compliance: 0,
     communications: 0,

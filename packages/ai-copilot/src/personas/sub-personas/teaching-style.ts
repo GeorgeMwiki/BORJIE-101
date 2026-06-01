@@ -131,7 +131,7 @@ These preferences override general verbosity defaults. Rubric rules (Socratic di
 function renderCulture(ctx: CultureContext): string {
   switch (ctx) {
     case 'east-african':
-      return '- Currency: Ksh / Tsh. Rails: M-Pesa / Tigo-Pesa / Airtel Money. Neighbourhoods: Kilimani, Westlands, Lavington, Embakasi, Kinondoni, Mikocheni, Oyster Bay. Code-switch EN/SW naturally.';
+      return '- Currency: Tsh (USD only on the export/offtake leg); Ksh for Kenya operations. Rails: M-Pesa / Tigo-Pesa / Airtel Money / GePG. Mining areas: Geita, Kahama, Chunya, Mererani, Nachingwea, Songea; Migori/Kakamega in Kenya. Code-switch EN/SW naturally.';
     case 'neutral':
       return '- Currency: USD unless the learner uses another. No location-specific flavour; generic worked numerics.';
     case 'global':
