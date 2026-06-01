@@ -118,18 +118,31 @@ export function royaltyRateForMineral(mineralKind: string): number {
 }
 
 /**
- * Round to two decimals — TZS settlements are stored as numeric(15,2)
- * per the migration. We round half-up.
- */
-export function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-/**
- * Compute the settlement math from a response row.
+ * Compute the settlement math from a response row — INTEGER minor units
+ * end-to-end (no float on the money path).
  *
- * Inputs are positive numbers. The result satisfies the migration's
- * CHECK constraint: net = gross - royalty - fee.
+ * The `settlements` money columns are BIGINT integer minor units and the
+ * ledger journal posts integer minor units; the previous float `round2`
+ * pipeline could round a leg differently from the ledger boundary's own
+ * `Math.round`, so the settlements row and the ledger journal could
+ * disagree by 1 shilling per leg. We integerise ONCE here so this is the
+ * single integer source of truth fed into BOTH the settlements INSERT
+ * (orchestrator) AND the ledger post (`splitSettlementMinorUnits`):
+ *
+ *   gross   = round(tonnage * price)            — once, at the boundary
+ *   royalty = round(gross * royaltyRate)        — independent integer leg
+ *   fee     = round(gross * PLATFORM_FEE_RATE)  — independent integer leg
+ *   net     = gross - royalty - fee             — exact integer remainder
+ *
+ * `net` as the remainder guarantees the double-entry identity
+ * `gross === royalty + fee + net` at integer scale (the seller absorbs any
+ * sub-unit rounding residual — the economically correct plug). The result
+ * satisfies the `settlements_math_chk` CHECK (net = gross - royalty - fee)
+ * exactly, because all four are integers derived from one another.
+ *
+ * For TZS (0-decimal) one minor unit == one shilling so these integers are
+ * also whole shillings. For a 2-decimal expansion currency the upstream
+ * tonnage/price would already be supplied in minor units.
  */
 export function computeSettlementMath(input: {
   readonly offeredTonnage: number;
@@ -142,12 +155,12 @@ export function computeSettlementMath(input: {
   if (input.offeredPriceTzs <= 0) {
     throw new Error('offeredPriceTzs must be positive');
   }
-  const grossTzs = round2(input.offeredTonnage * input.offeredPriceTzs);
+  const grossTzs = Math.round(input.offeredTonnage * input.offeredPriceTzs);
   const royaltyRate = royaltyRateForMineral(input.mineralKind);
-  const royaltyTzs = round2(grossTzs * royaltyRate);
-  const feeTzs = round2(grossTzs * PLATFORM_FEE_RATE);
-  // Compute net as gross - royalty - fee then round; the CHECK
-  // constraint will refuse rows that don't satisfy this identity.
-  const netTzs = round2(grossTzs - royaltyTzs - feeTzs);
+  const royaltyTzs = Math.round(grossTzs * royaltyRate);
+  const feeTzs = Math.round(grossTzs * PLATFORM_FEE_RATE);
+  // net is the exact integer remainder — guarantees gross === royalty +
+  // fee + net so the journal provably balances and the CHECK holds.
+  const netTzs = grossTzs - royaltyTzs - feeTzs;
   return { grossTzs, royaltyTzs, feeTzs, netTzs };
 }

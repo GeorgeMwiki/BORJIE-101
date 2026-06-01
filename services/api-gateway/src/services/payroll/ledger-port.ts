@@ -36,8 +36,15 @@ export interface PayrollLedgerPort {
 }
 
 let portOverride: PayrollLedgerPort | null = null;
+let portProduction: PayrollLedgerPort | null = null;
+// Fail-loud guard (M1) — see settlement/index.ts. The dev stub writes
+// NOTHING and returns a fake journal id; if reached when a database
+// exists, payroll would stamp posted + fire a real payout with no ledger
+// entry. The stub is reachable ONLY after the composition root declares
+// no-db mode via `__allowPayrollLedgerStub(true)`.
+let portStubAllowed = false;
 
-/** Test-only seam. */
+/** Test-only seam (wins over production + stub). */
 export function __setPayrollLedgerPortForTests(
   port: PayrollLedgerPort | null,
 ): void {
@@ -45,22 +52,55 @@ export function __setPayrollLedgerPortForTests(
 }
 
 /**
- * Resolve the active payroll ledger port. When no production wiring
- * landed (composition root has not registered a real adapter yet),
- * fall back to a deterministic stub that returns a SHA-1-derived
- * journal id so the chain still completes end-to-end in dev.
+ * Composition-root seam — register the REAL LedgerService-backed adapter.
+ * Installed once at boot by `composition/ledger`. Takes precedence over
+ * the dev stub but NOT over a test override.
+ */
+export function __setPayrollProductionLedgerPort(
+  port: PayrollLedgerPort | null,
+): void {
+  portProduction = port;
+}
+
+/**
+ * Composition-root seam (M1) — declare the dev stub is allowed because
+ * there is NO database. Called from `registerProductionLedgerPorts` ONLY
+ * in the `db === null` branch. When never called, `resolvePayrollLedgerPort`
+ * fails loud rather than returning the money-losing stub.
+ */
+export function __allowPayrollLedgerStub(allowed: boolean): void {
+  portStubAllowed = allowed;
+}
+
+/**
+ * Resolve the active payroll ledger port. Resolution order:
+ *   1. test override (in-memory adapter), when set;
+ *   2. production adapter wrapping the REAL `LedgerService.post()` from
+ *      `@borjie/payments-ledger-service`, registered once at boot by
+ *      `composition/ledger` (CLAUDE.md hard rule — the live money path);
+ *   3. dev stub — ONLY reached when neither is wired AND the composition
+ *      root declared no-db mode (`__allowPayrollLedgerStub`). It writes
+ *      NOTHING and returns a deterministic SHA-256 journal id purely so dev
+ *      flows complete.
  *
- * Production composition swaps this for an adapter that wraps the
- * real `LedgerService.post()` call from
- * `services/payments-ledger/src/services/ledger.service.ts`.
+ * If a database EXISTS but no production port is registered, this throws a
+ * loud `LEDGER_NOT_WIRED` (M1) — never the money-losing stub.
  */
 export function resolvePayrollLedgerPort(): PayrollLedgerPort {
   if (portOverride) return portOverride;
+  if (portProduction) return portProduction;
+  if (!portStubAllowed) {
+    throw new Error(
+      'LEDGER_NOT_WIRED: payroll ledger port is not wired — a database is ' +
+        'present but the production LedgerService adapter was not registered ' +
+        '(boot wiring failed). Refusing the dev stub, which would post ' +
+        'NOTHING to the ledger while a real payout fires.',
+    );
+  }
   return {
     async post(input) {
       // Deterministic dev journal id keyed on (run, worker) so replays
-      // produce the same id (matches LedgerService idempotency). We
-      // never re-use uuids — this is dev-only.
+      // produce the same id. Dev-only — writes nothing.
       const seed = `${input.payrollRunId}:${input.workerUserId}:${input.idempotencyKey}`;
       const journalId = `payroll-jrn-${hashHex(seed).slice(0, 16)}`;
       return { journalId };

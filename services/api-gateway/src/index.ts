@@ -980,6 +980,35 @@ try {
 }
 
 // ----------------------------------------------------------------------------
+// LIVE money path — wire the settlement + payroll ledger ports to the REAL
+// double-entry LedgerService (CLAUDE.md hard rule: money goes through
+// LedgerService.post()). Replaces the dev SHA-256 stubs that wrote nothing.
+// Fail-soft: when DATABASE_URL is unset this is a no-op and the dev stub
+// remains (the gateway already 503s pure-DB endpoints in that mode).
+// ----------------------------------------------------------------------------
+import { registerProductionLedgerPorts } from './composition/ledger/index.js';
+try {
+  registerProductionLedgerPorts(getDb());
+} catch (err) {
+  logger.error(
+    { err: err instanceof Error ? err.message : String(err) },
+    'ledger-production-wiring: failed to register settlement/payroll ledger ports',
+  );
+  // FAIL BOOT (M1): when a database EXISTS, a wiring failure must NOT be
+  // swallowed. If we continued, the settlement/payroll ledger ports would
+  // be unwired and the orchestrator could stamp status='posted' + fire a
+  // real M-Pesa payout while NOTHING was written to the double-entry
+  // ledger. (The resolvers also fail loud with LEDGER_NOT_WIRED as a
+  // second line of defence; this rethrow stops the process at boot.) When
+  // there is no database, `registerProductionLedgerPorts` does not throw —
+  // it explicitly allows the dev stub — so this branch only fires on a
+  // genuine wiring fault with money infrastructure present.
+  if (getDb() !== null) {
+    throw err;
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Translation facade binding — runs once after the service registry is up
 // so every consumer of `translate(...)` in @borjie/translation resolves to
 // the real Claude-backed + Drizzle-cached implementation. Fails open with
