@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocale } from '@/lib/locale';
 import { isBrainConfigured } from '@/lib/brain-api';
 import { useAskBorjie } from '@/lib/queries/brain';
 import { ApiError } from '@/lib/api-client';
@@ -26,6 +27,7 @@ import { AskEmptyState, type AskEmptyKind } from './AskEmptyState';
 export function AskBorjieSurface() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale();
   const initialThreadId = searchParams?.get('thread') ?? null;
   const configured = isBrainConfigured();
 
@@ -151,6 +153,7 @@ export function AskBorjieSurface() {
         <AskComposer
           busy={isStreaming}
           disabled={!configured || emptyKind === 'unauthenticated'}
+          voiceLocale={locale}
           onSubmit={(content) => void send(content)}
         />
       </section>

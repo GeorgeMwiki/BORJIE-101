@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Square } from 'lucide-react';
+import { VoiceMicButton } from '@/components/voice/VoiceMicButton';
 
 const schema = z.object({
   content: z
@@ -19,6 +20,15 @@ interface AskComposerProps {
   readonly onAbort?: () => void;
   readonly busy: boolean;
   readonly disabled?: boolean;
+  /**
+   * When set, a locale-aware hands-free mic (Web Speech STT) is mounted
+   * beside the send control. The owner's spoken sentence streams into
+   * the textarea live and auto-submits through the same `onSubmit`
+   * pipeline as typing. Omit the prop to render the composer without
+   * voice (the default for surfaces that are not a primary chat entry).
+   * The mic self-hides when the browser lacks SpeechRecognition.
+   */
+  readonly voiceLocale?: 'sw' | 'en';
 }
 
 /**
@@ -29,17 +39,25 @@ interface AskComposerProps {
  * Disabled state (e.g. when the gateway env var is missing) renders
  * the textarea as read-only and the send button as inactive — no
  * silent failures, no mock fallback.
+ *
+ * Hands-free voice (opt-in via `voiceLocale`): a `VoiceMicButton`
+ * dictates in the owner's active locale (en→en-TZ, sw→sw-TZ). The final
+ * transcript both fills the textarea (so the owner sees the captured
+ * sentence) and auto-submits, so speaking a sentence reaches the brain
+ * exactly like typing it.
  */
 export function AskComposer({
   onSubmit,
   onAbort,
   busy,
   disabled,
+  voiceLocale,
 }: AskComposerProps) {
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -60,6 +78,30 @@ export function AskComposer({
     }
   };
 
+  // Live interim transcript → mirror into the textarea so the owner sees
+  // what is being captured (no submit yet).
+  const onTranscriptUpdate = useCallback(
+    (text: string): void => {
+      setValue('content', text, { shouldValidate: false });
+      setDraft(text);
+    },
+    [setValue],
+  );
+
+  // Final transcript → submit it straight through the same pipeline as a
+  // typed message, then clear the composer. Guarded by busy/disabled so a
+  // late recogniser callback can never fire a turn mid-stream.
+  const onTranscriptFinal = useCallback(
+    (transcript: string): void => {
+      const trimmed = transcript.trim();
+      if (trimmed.length === 0 || busy || disabled) return;
+      onSubmit(trimmed);
+      reset({ content: '' });
+      setDraft('');
+    },
+    [busy, disabled, onSubmit, reset],
+  );
+
   return (
     <form
       onSubmit={(e: FormEvent<HTMLFormElement>) => void handleSubmit(submit)(e)}
@@ -72,6 +114,7 @@ export function AskComposer({
           {...register('content', {
             onChange: (e) => setDraft(e.target.value),
           })}
+          value={draft}
           onKeyDown={onKey}
           rows={Math.min(6, Math.max(1, draft.split('\n').length))}
           placeholder="Ask Borjie Brain — Swahili or English. Enter to send, Shift+Enter for a new line."
@@ -85,6 +128,14 @@ export function AskComposer({
           </div>
         ) : null}
       </div>
+      {voiceLocale ? (
+        <VoiceMicButton
+          languagePreference={voiceLocale}
+          disabled={Boolean(busy || disabled)}
+          onTranscriptUpdate={onTranscriptUpdate}
+          onTranscriptFinal={onTranscriptFinal}
+        />
+      ) : null}
       {busy && onAbort ? (
         <button
           type="button"

@@ -62,6 +62,7 @@ import {
   type MicroActionResult,
 } from '@/lib/queries/chat-actions';
 import { MessageBubble, TypingBubble } from './MessageBubble';
+import { VoicePlayButton } from '@/components/voice/VoicePlayButton';
 import { QuickReplyChips } from './QuickReplyChips';
 import { StepperBar } from './StepperBar';
 import {
@@ -973,6 +974,7 @@ export function HomeChatTeach({
           <AskComposer
             busy={isStreaming}
             disabled={composerDisabled}
+            voiceLocale={languagePreference}
             onSubmit={(content) => void send(content)}
           />
         </section>
@@ -1206,6 +1208,18 @@ function TeachBubble({
           <p className="mt-2 text-tiny text-destructive">
             {message.errorMessage}
           </p>
+        ) : null}
+
+        {!isOwner &&
+        !message.streaming &&
+        !message.errored &&
+        message.text.trim().length > 0 ? (
+          <div className="mt-2 flex" data-testid="teach-voice-playback">
+            <VoicePlayButton
+              text={message.text}
+              languagePreference={languagePreference}
+            />
+          </div>
         ) : null}
       </MessageBubble>
 
