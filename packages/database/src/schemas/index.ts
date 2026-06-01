@@ -1177,6 +1177,22 @@ export * from './production-tonnage.schema.js';
 export * from './cooperative-settlements.schema.js';
 
 // ---------------------------------------------------------------------------
+// Payments-ledger money spine — accounts / ledger_entries / payment_intents
+// (migration 0160). The double-entry tables behind the CLAUDE.md hard rule
+// "Money path goes through LedgerService.post()". All money is INTEGER minor
+// units; ledger_entries carries the idempotency_key + prev_hash/this_hash
+// durability chain. RLS FORCE on app.current_tenant_id.
+// ---------------------------------------------------------------------------
+export * from './payments-ledger.schema.js';
+
+// ---------------------------------------------------------------------------
+// Commercial-chain settlements (migration 0131; money cols -> BIGINT minor
+// units in 0131's successor 0161). One row per CoC final-step signature.
+// gross/royalty/fee/net are bigint whole-TZS minor units (no float/numeric).
+// ---------------------------------------------------------------------------
+export * from './settlements.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave INSURANCE-BROKER — quotes + policies (migration 0106)
 // ---------------------------------------------------------------------------
 //   insurance_quotes   — ephemeral quote requests from broker port.
