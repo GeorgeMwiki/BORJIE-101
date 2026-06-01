@@ -1320,3 +1320,21 @@ export * from './marketing-pilot-applications.schema.js';
 // (CLAUDE.md hard rule). Consumed by the action-executor
 // handlers/royalty-draft.ts (draft_royalty_return).
 export * from './royalty-return-drafts.schema.js';
+
+// Wave SUPPORT-MEMORY — `support_cases` (migration 0164). Mr. Mwikila's
+// PERSISTENT technical-support memory: one root-caused support/diagnosis case
+// per user issue (e.g. a payment failure). `evidence_ids` proves the diagnosis
+// (evidence-required). Recalled tenant+user-scoped at every brain turn so the MD
+// never loses memory across sessions/devices. NO money columns — diagnosis is
+// read-only; fixes route through the existing gated action-executor verbs.
+// Consumed by services/api-gateway support-diagnosis + support-cases services.
+export * from './support-cases.schema.js';
+
+// Wave FEEDBACK-RESTORE — `feedback_submissions` + `complaint_records`
+// (migration 0166, re-materialising the archived 0092). Backs
+// services/api-gateway/src/routes/feedback.ts (POST /api/v1/feedback,
+// /complaints, GET …). feedback_submissions holds both long-form survey
+// feedback and the Jarvis turn-thumbs signal (type='turn-thumbs');
+// complaint_records carries an open->resolved state machine. Both are
+// tenant-scoped with FORCE RLS on app.current_tenant_id. NO money columns.
+export * from './feedback.schema.js';
