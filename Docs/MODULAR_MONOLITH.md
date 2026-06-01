@@ -34,11 +34,14 @@ graph TB
   end
 
   subgraph "Frontend containers"
-    MKT[marketing<br/>Next.js]
-    CUST[customer-app<br/>Next.js]
-    OWNER[owner-portal<br/>Vite]
-    ADMIN[admin-platform-portal<br/>Next.js]
-    EM[estate-manager-app<br/>Next.js]
+    MKT[marketing<br/>Next.js :3002]
+    OWNER[owner-web<br/>Next.js :3010]
+    ADMIN[admin-web<br/>Next.js :3020]
+  end
+
+  subgraph "Mobile apps (Expo — app stores, not proxied)"
+    WF[workforce-mobile<br/>owner / mgr / employee]
+    BUY[buyer-mobile<br/>mineral buyers + marketplace]
   end
 
   subgraph "Data plane"
@@ -56,7 +59,8 @@ graph TB
     PSP[GePG / ClickPesa / M-Pesa]
   end
 
-  MKT & CUST & OWNER & ADMIN & EM --> NGINX
+  MKT & OWNER & ADMIN --> NGINX
+  WF & BUY -.HTTPS.-> NGINX
   NGINX --> HTTP
   HTTP --> PAY
   HTTP --> PG
@@ -99,7 +103,9 @@ Each of these folders exports its public API from `src/index.ts`. None of them c
 
 ### Frontends
 
-`apps/marketing`, `apps/customer-app`, `apps/owner-portal`, `apps/admin-platform-portal`, `apps/estate-manager-app` — five separate frontend containers, all calling the same `api-gateway` over HTTPS via `nginx`.
+Three separate Next.js web containers — `apps/marketing` (public bilingual sw/en site, :3002), `apps/owner-web` (mining owner strategic cockpit, :3010), `apps/admin-web` (Borjie team internal console, :3020) — all calling the same `api-gateway` over HTTPS via `nginx`. Each surface is its own Next.js app (one app per surface) so the modular-monolith boundary holds at the edge as well as in-process.
+
+Two Expo mobile apps — `apps/workforce-mobile` (role-gated owner / manager / employee) and `apps/buyer-mobile` (mineral buyers + marketplace) — ship through the app stores and call the same `api-gateway` directly; they are not nginx-proxied.
 
 ## Why modular monolith for launch
 

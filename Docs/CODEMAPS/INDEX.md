@@ -3,10 +3,10 @@
 **Last Updated:** 2026-05-22
 **Wave:** Wave 28+ (wave-4 perf indexes + real provider adapters + memory layer + UI-1..5 + P-6..10 + F4 every-package coverage)
 
-This directory contains module-level architectural maps for the Borjie
-multi-tenant property-management SaaS. Each codemap is a one-page reference
-describing the public surface, internal structure, dependencies, and common
-workflows of one package or app.
+This directory contains module-level architectural maps for Borjie, the
+AI-native multi-tenant mining estate operating system. Each codemap is a
+one-page reference describing the public surface, internal structure,
+dependencies, and common workflows of one package or app.
 
 ## How to read these maps
 
@@ -94,15 +94,17 @@ Codemaps are written from source. When source moves, update the codemap.
 
 ### Apps
 
+Three Next.js web apps + two Expo mobile apps, all calling the single
+`api-gateway` backend. Per-app codemaps are pending; the source is the
+reference until they land.
+
 | Codemap | Module | Purpose |
 |---------|--------|---------|
-| [customer-app.md](./customer-app.md) | `apps/customer-app/` | Next.js tenant portal (port 3002) |
-| [estate-manager-app.md](./estate-manager-app.md) | `apps/estate-manager-app/` | Next.js estate-manager workspace (port 3003) |
-| [owner-portal.md](./owner-portal.md) | `apps/owner-portal/` | Vite owner SPA (port 3001) |
-| [admin-platform-portal.md](./admin-platform-portal.md) | `apps/admin-platform-portal/` | Next.js operator command-deck (port 3020) |
-| [admin-portal.md](./admin-portal.md) | `apps/admin-portal/` | Deprecated Vite admin SPA |
-| [marketing.md](./marketing.md) | `apps/marketing/` | Public marketing site (port 3010) |
-| [borjie-mobile.md](./borjie-mobile.md) | `apps/borjie_app/` | Flutter iOS/Android/Web client |
+| (codemap pending) | `apps/marketing/` | Public bilingual sw/en marketing site (Next.js, port 3002) |
+| (codemap pending) | `apps/owner-web/` | Mining owner strategic cockpit (Next.js, port 3010) |
+| (codemap pending) | `apps/admin-web/` | Borjie team internal console (Next.js, port 3020) |
+| (codemap pending) | `apps/workforce-mobile/` | Expo app, role-gated owner / manager / employee |
+| (codemap pending) | `apps/buyer-mobile/` | Expo app for mineral buyers + marketplace |
 
 ### Domain models
 

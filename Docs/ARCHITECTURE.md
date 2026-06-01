@@ -2,7 +2,9 @@
 
 ## Overview
 
-BORJIE is a multi-tenant SaaS platform for property management. This document describes the system architecture, multi-tenant design, service layers, database schema, and event-driven patterns.
+BORJIE is an AI-native, multi-tenant mining estate operating system for Tanzanian (and pan-African) artisanal-to-mid-tier mining — licences, royalty, workforce, treasury, compliance, marketplace, holdings, and the full asset register, all orchestrated by Mr. Mwikila, the brain layer. This document describes the system architecture, multi-tenant design, service layers, database schema, and event-driven patterns.
+
+The product ships five surfaces (three Next.js web apps + two Expo mobile apps), all calling a single shared `api-gateway` backend. See [`MODULAR_MONOLITH.md`](./MODULAR_MONOLITH.md) for the runtime topology.
 
 ---
 
@@ -11,17 +13,20 @@ BORJIE is a multi-tenant SaaS platform for property management. This document de
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           CLIENT APPLICATIONS                                    │
-├──────────────────┬──────────────────┬──────────────────┬───────────────────────┤
-│   Admin Portal   │   Owner Portal   │   Customer App   │  Estate Manager App   │
-│   (Vite, :3000)  │   (Vite, :3001)  │ (Next.js, :3002)  │ (Next.js, :3003)      │
-└────────┬─────────┴────────┬─────────┴────────┬─────────┴───────────┬───────────┘
-         │                  │                  │                    │
-         └──────────────────┴──────────────────┴────────────────────┘
+├───────────────┬───────────────┬───────────────┬───────────────┬─────────────────┤
+│   marketing   │   owner-web   │   admin-web   │   workforce-  │   buyer-mobile  │
+│  (Next.js,    │  (Next.js,    │  (Next.js,    │    mobile     │   (Expo —       │
+│   :3002,      │   :3010,      │   :3020,      │  (Expo —      │    mineral      │
+│   public      │   owner       │   Borjie-team │   owner /     │    buyers +     │
+│   sw/en site) │   cockpit)    │   console)    │   mgr / empl) │    marketplace) │
+└───────┬───────┴───────┬───────┴───────┬───────┴───────┬───────┴────────┬────────┘
+        │               │               │               │                │
+        └───────────────┴───────────────┴───────────────┴────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              API GATEWAY (:4000)                                  │
-│  Express + Hono │ Auth (JWT) │ Rate Limit │ CORS │ Request Aggregation            │
+│                              API GATEWAY (:3001 local · :4000 in prod)            │
+│  Express + Hono BFF │ Supabase JWT │ Rate Limit │ CORS │ Request Aggregation      │
 └─────────────────────────────────────┬─────────────────────────────────────────────┘
                                      │
          ┌───────────────────────────┼───────────────────────────┐

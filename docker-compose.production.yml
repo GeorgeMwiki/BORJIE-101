@@ -423,20 +423,22 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 512M }
 
-  customer-app:
+  owner-web:
     build:
       context: .
       dockerfile: docker/Dockerfile.web
       args:
-        APP_NAME: customer-app
-        APP_PATH: apps/customer-app
+        APP_NAME: owner-web
+        APP_PATH: apps/owner-web
       target: nextjs
-    container_name: borjie-prod-customer-app
+    container_name: borjie-prod-owner-web
     <<: [*common-restart, *common-logging]
     env_file: .env.production
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      api-gateway: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -446,28 +448,7 @@ services:
     networks: [control-plane]
     deploy:
       resources:
-        limits: { cpus: "1.0", memory: 1G }
-
-  owner-portal:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
-      args:
-        APP_NAME: owner-portal
-        APP_PATH: apps/owner-portal
-      target: vite
-    container_name: borjie-prod-owner-portal
-    <<: [*common-restart, *common-logging]
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-    networks: [control-plane]
-    deploy:
-      resources:
-        limits: { cpus: "0.5", memory: 256M }
+        limits: { cpus: "0.5", memory: 512M }
 
   admin-web:
     build:
@@ -483,6 +464,8 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      api-gateway: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -493,31 +476,6 @@ services:
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 512M }
-
-  estate-manager-app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
-      args:
-        APP_NAME: estate-manager-app
-        APP_PATH: apps/estate-manager-app
-      target: nextjs
-    container_name: borjie-prod-estate-manager
-    <<: [*common-restart, *common-logging]
-    env_file: .env.production
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    networks: [control-plane]
-    deploy:
-      resources:
-        limits: { cpus: "1.0", memory: 1G }
 
   # ===========================================================================
   # Edge plane — Nginx (TLS termination, host-facing) + Certbot (LE auto-renew)
@@ -536,6 +494,9 @@ services:
       - nginx-logs:/var/log/nginx
     depends_on:
       api-gateway: { condition: service_healthy }
+      marketing: { condition: service_healthy }
+      owner-web: { condition: service_healthy }
+      admin-web: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
