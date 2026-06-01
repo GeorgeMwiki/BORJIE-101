@@ -271,18 +271,6 @@ export const tailStrings = {
     },
   },
 
-  // ── lib/ceo-modes.ts (labelSw values) ────────────────────────────
-  ceoModes: {
-    build: { sw: 'Jenga', en: 'Build' },
-    strategy: { sw: 'Mkakati', en: 'Strategy' },
-    operations: { sw: 'Uendeshaji', en: 'Operations' },
-    document: { sw: 'Hati', en: 'Document' },
-    finance: { sw: 'Fedha', en: 'Finance' },
-    risk: { sw: 'Hatari', en: 'Risk' },
-    board: { sw: 'Bodi / Wawekezaji', en: 'Board / Investor' },
-    compliance: { sw: 'Uzingatiaji', en: 'Compliance' },
-  },
-
   // ── lib/cockpit-sse.ts (sw toast branches) ───────────────────────
   cockpitSse: {
     decisionRecorded: {
