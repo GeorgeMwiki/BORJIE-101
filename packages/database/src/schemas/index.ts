@@ -1349,3 +1349,14 @@ export * from './support-cases.schema.js';
 // complaint_records carries an open->resolved state machine. Both are
 // tenant-scoped with FORCE RLS on app.current_tenant_id. NO money columns.
 export * from './feedback.schema.js';
+
+// Wave CALENDAR-SYNC — `owner_calendar_connections` (migration 0171). The
+// owner's linked Google Calendar / Microsoft 365 account for the `calendar`
+// reminder delivery channel. OAuth refresh/access tokens are stored ENCRYPTED
+// (AES-256-GCM, key from env) — never plaintext. Mr. Mwikila reminders
+// (channel='calendar') + the autonomous worker's time-bound items upsert as
+// native calendar events on a stable external id (idempotent — no dupes on
+// retry). Tenant+user scoped with FORCE RLS on app.current_tenant_id. Consumed
+// by services/api-gateway routes/owner/calendar.hono.ts + the calendar-sync
+// worker + the notification-dispatch calendar-providers adapter.
+export * from './owner-calendar-connections.schema.js';
