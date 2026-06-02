@@ -63,46 +63,8 @@
     <rect x="75" y="75" width="270" height="270" rx="44" fill="none" stroke="url(#frame)" stroke-width="16" stroke-linejoin="round"/>
     <path d="M119 75h182a44 44 0 0 1 44 44" fill="none" stroke="url(#highlight)" stroke-width="16" stroke-linecap="round" opacity="0.9"/>
 
-    <!-- BN monogram, centered at (210, 200) -->
-    <g transform="translate(10 0)" fill="url(#mono)">
-      <!-- B -->
-      <path d="
-        M118 135
-        h26
-        q30 0 30 27
-        q0 19 -16 24
-        q19 4 19 27
-        q0 29 -32 29
-        h-27
-        z
-        M132 148
-        v37
-        h11
-        q17 0 17 -19
-        q0 -18 -17 -18
-        z
-        M132 198
-        v40
-        h13
-        q18 0 18 -20
-        q0 -20 -18 -20
-        z
-      "/>
-      <!-- N -->
-      <path d="
-        M193 135
-        h14
-        l34 70
-        v-70
-        h15
-        v107
-        h-14
-        l-34 -70
-        v70
-        h-15
-        z
-      "/>
-    </g>
+    <!-- B monogram (Borjie), centered in frame -->
+    <text x="210" y="279" fill="url(#mono)" font-size="190" font-weight="600" text-anchor="middle" style="font-feature-settings:'ss01' 1">B</text>
 
     <!-- Corner notches -->
     <g stroke="#FFE2B4" stroke-width="4" stroke-linecap="round" opacity="0.4">
@@ -113,8 +75,8 @@
     </g>
   </g>
 
-  <!-- Wordmark (compound, amber dot separator) -->
-  <text x="210" y="420" fill="url(#wordmark)" font-size="52" font-weight="500" letter-spacing="-1.1" text-anchor="middle" style="font-feature-settings:'ss01' 1">
-    Boss<tspan fill="#E5B26B">·</tspan>Nyumba
+  <!-- Wordmark "Borjie" -->
+  <text x="210" y="420" fill="url(#wordmark)" font-size="64" font-weight="500" letter-spacing="-1.1" text-anchor="middle" style="font-feature-settings:'ss01' 1">
+    Borjie
   </text>
 </svg>
