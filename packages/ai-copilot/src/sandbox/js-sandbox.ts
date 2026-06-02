@@ -63,6 +63,16 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- optional native dep; types absent at build
 type IvmModule = any;
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace --
+   Local stand-ins for the optional isolated-vm namespace types used as
+   annotations below (ivm.Isolate / ivm.Context). Keeps the build independent of
+   the optional native package's bundled .d.ts (absent in CI). */
+declare namespace ivm {
+  type Isolate = any;
+  type Context = any;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace */
+
 let _ivmCache: IvmModule | null = null;
 let _ivmInitErrorMessage: string | null = null;
 
