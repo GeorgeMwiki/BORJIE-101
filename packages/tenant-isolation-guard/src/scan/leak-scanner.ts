@@ -440,8 +440,11 @@ export function renderMarkdownReport(
   lines.push('| Severity | Kind | Location | Snippet | Fix |');
   lines.push('|---------:|------|----------|---------|-----|');
   for (const f of result.findings) {
-    const snippet = f.snippet.replace(/\|/g, '\\|');
-    const fix = f.recommendation.replace(/\|/g, '\\|');
+    // Escape backslashes first so existing `\|` sequences in the snippet are
+    // not double-escaped by the pipe replacement that follows (js/incomplete-
+    // sanitization: sanitize the escape character before the escaped char).
+    const snippet = f.snippet.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+    const fix = f.recommendation.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
     lines.push(`| ${f.severity} | ${f.kind} | \`${f.file}:${f.line}\` | \`${snippet}\` | ${fix} |`);
   }
   lines.push('');
