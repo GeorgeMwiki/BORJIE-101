@@ -1,6 +1,12 @@
 -- =============================================================================
 -- Migration 0101 — Universal Provenance Column
 --
+-- @safety: dynamic-not-null-reviewed — every dynamic `EXECUTE format(...)` below
+-- adds the column as `NOT NULL DEFAULT '{"via":"unknown"}'::jsonb`, so existing
+-- rows are backfilled by the default at ADD COLUMN time. There is no unsafe NULL
+-- window; the static analyser simply cannot see the DEFAULT through the dynamic
+-- EXECUTE. Human-reviewed + confirmed safe.
+--
 -- Wave CHAT-AS-OS-PARITY. Implements principle 4 of the Chat-as-OS
 -- Bidirectional Parity Manifesto
 -- (`Docs/RESEARCH/CHAT_AS_OS_BIDIRECTIONAL_PARITY_SOTA.md`):
