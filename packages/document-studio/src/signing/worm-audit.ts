@@ -17,7 +17,7 @@ export interface WormAuditEntry {
   readonly entryId: string;
   readonly tenantId: string;
   readonly actorId: string;
-  readonly documentKind: string; // 'monthly-owner-report' | 'eviction-notice' | ...
+  readonly documentKind: string; // 'monthly-owner-report' | 'licence-suspension-notice' | ...
   readonly documentId: string;
   readonly renderedAtIso: string;
   readonly renderedSha256: string;

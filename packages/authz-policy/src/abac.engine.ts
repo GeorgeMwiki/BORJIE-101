@@ -96,7 +96,7 @@ const defaultPolicies: Policy[] = [
         effect: 'allow',
         priority: 90,
         conditions: [
-          { attribute: 'subject.roles', operator: 'contains', value: 'property-manager' },
+          { attribute: 'subject.roles', operator: 'contains', value: 'site-manager' },
           { attribute: 'resource.propertyId', operator: 'in', value: 'subject.propertyIds' },
         ],
         target: { resources: ['property', 'unit', 'tenant', 'lease'] },

@@ -417,11 +417,11 @@ export class AICopilot {
    *
    * Available tools:
    *  - get_case_timeline: Complete chronological case history
-   *  - get_tenant_risk_drivers: Why a tenant is at risk
+   *  - get_counterparty_risk_drivers: Why a counterparty is at risk
    *  - get_vendor_scorecard: Vendor performance metrics
-   *  - get_unit_health: Unit health composite score
+   *  - get_pit_health: Pit health composite score
    *  - get_parcel_compliance: Expiring documents/obligations
-   *  - get_property_rollup: Property-level KPIs
+   *  - get_site_rollup: Site-level KPIs
    *  - generate_evidence_pack: Court-ready evidence bundle
    *  - get_portfolio_overview: Portfolio-wide summary
    *  - get_graph_stats: Graph health/completeness

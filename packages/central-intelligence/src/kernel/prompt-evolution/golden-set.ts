@@ -17,11 +17,11 @@
  *
  * Composition:
  *   - One row per top-5 brain capability (see PROJECT.md / spec):
- *     1. "Draft a Swahili late-rent reminder."
- *     2. "Compute a prorated charge when tenant moves mid-month."
+ *     1. "Draft a Swahili late-royalty reminder."
+ *     2. "Compute a prorated charge when a counterparty starts mid-month."
  *     3. "Escalate a P1 maintenance ticket within 2h SLA."
- *     4. "Read the per-tenant outstanding balance."
- *     5. "Explain the TZ Rental Act 14-day notice rule."
+ *     4. "Read the per-counterparty outstanding balance."
+ *     5. "Explain the TZ Mining Act 14-day notice rule."
  *
  * Use a minimum of 5 cases per capability — the broader the
  * coverage, the harder the optimiser games it.
@@ -34,7 +34,7 @@
 import { createHash } from 'crypto';
 
 export interface EvalCase {
-  /** Stable id (e.g. 'late-rent-reminder-sw-1'). */
+  /** Stable id (e.g. 'late-royalty-reminder-sw-1'). */
   readonly id: string;
   /** Free-form user input. */
   readonly input: string;
@@ -54,40 +54,40 @@ export interface GoldenSet {
 
 const FROZEN_CASES: ReadonlyArray<EvalCase> = Object.freeze([
   {
-    id: 'late-rent-reminder-sw-1',
-    input: 'Kumbusha mpangaji Juma kuhusu kodi ya mwezi Mei.',
+    id: 'late-royalty-reminder-sw-1',
+    input: 'Kumbusha mnunuzi Juma kuhusu mrabaha wa mwezi Mei.',
     expectedOutput:
-      'Habari ndugu Juma, hii ni kumbusho la kirafiki la kodi ya mwezi Mei. Tafadhali fanya malipo kabla ya tarehe 5.',
-    capability: 'late-rent-reminder',
+      'Habari ndugu Juma, hii ni kumbusho la kirafiki la mrabaha wa mwezi Mei. Tafadhali fanya malipo kabla ya tarehe 5.',
+    capability: 'late-royalty-reminder',
   },
   {
     id: 'prorated-charge-1',
     input:
-      'Tenant moved in on the 15th of a 30-day month; monthly rent TZS 600,000. What is the prorated charge?',
+      'Counterparty started on the 15th of a 30-day month; monthly royalty TZS 600,000. What is the prorated charge?',
     expectedOutput: 'TZS 320,000',
     capability: 'prorated-charge',
   },
   {
     id: 'p1-maintenance-1',
     input:
-      'Maintenance ticket #4123 reports a burst pipe in unit 4B. Action?',
+      'Maintenance ticket #4123 reports a burst pipe in pit 4B. Action?',
     expectedOutput:
-      'Escalate to P1 (2h SLA), dispatch on-call plumber, notify property manager.',
+      'Escalate to P1 (2h SLA), dispatch on-call plumber, notify site manager.',
     capability: 'maintenance-escalation',
   },
   {
-    id: 'tenant-balance-1',
-    input: 'What is the outstanding balance for tenant john@example.com?',
+    id: 'counterparty-balance-1',
+    input: 'What is the outstanding balance for counterparty john@example.com?',
     expectedOutput:
       'TZS 1,200,000 outstanding across 2 unpaid invoices (April + May).',
-    capability: 'tenant-balance',
+    capability: 'counterparty-balance',
   },
   {
-    id: 'tz-rental-act-1',
-    input: 'How many days notice does a landlord need to give before eviction?',
+    id: 'tz-mining-act-1',
+    input: 'How many days notice does an owner need to give before licence suspension?',
     expectedOutput:
-      'Under the Tanzania Rental Act, the landlord must give 14 days written notice for non-payment.',
-    capability: 'tz-rental-act',
+      'Under the Tanzania Mining Act, the owner must give 14 days written notice for non-payment.',
+    capability: 'tz-mining-act',
   },
 ]);
 

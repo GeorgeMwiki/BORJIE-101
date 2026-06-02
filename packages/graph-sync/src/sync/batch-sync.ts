@@ -2,7 +2,7 @@
  * Batch Sync — Full PostgreSQL → Neo4j data load
  *
  * Used for:
- *  - Initial data population when CPG is first deployed
+ *  - Initial data population when CMG is first deployed
  *  - Recovery after graph database reset
  *  - Periodic reconciliation to catch any missed events
  *
@@ -25,14 +25,14 @@ export interface BatchSyncConfig {
 }
 
 export interface DataFetcher {
-  /** Fetch properties for a tenant */
-  fetchProperties(tenantId: string): Promise<Record<string, unknown>[]>;
-  /** Fetch units for a tenant */
-  fetchUnits(tenantId: string): Promise<Record<string, unknown>[]>;
+  /** Fetch sites for a tenant */
+  fetchSites(tenantId: string): Promise<Record<string, unknown>[]>;
+  /** Fetch pits for a tenant */
+  fetchPits(tenantId: string): Promise<Record<string, unknown>[]>;
   /** Fetch customers for a tenant */
   fetchCustomers(tenantId: string): Promise<Record<string, unknown>[]>;
-  /** Fetch leases for a tenant */
-  fetchLeases(tenantId: string): Promise<Record<string, unknown>[]>;
+  /** Fetch offtakes for a tenant */
+  fetchOfftakes(tenantId: string): Promise<Record<string, unknown>[]>;
   /** Fetch invoices for a tenant */
   fetchInvoices(tenantId: string): Promise<Record<string, unknown>[]>;
   /** Fetch payments for a tenant */
@@ -72,14 +72,14 @@ export interface BatchSyncResult {
 
 /**
  * Phases in dependency order.
- * Properties/Vendors/Customers first, then entities that reference them.
+ * Sites/Vendors/Customers first, then entities that reference them.
  */
 const SYNC_PHASES = [
   'vendors',
-  'properties',
-  'units',
+  'sites',
+  'pits',
   'customers',
-  'leases',
+  'offtakes',
   'invoices',
   'payments',
   'maintenance_requests',
@@ -151,39 +151,39 @@ type PhaseHandler = (
 ) => Promise<PhaseStats>;
 
 const PHASE_HANDLERS: Record<string, PhaseHandler> = {
-  properties: async (engine, fetcher, config) => {
-    const rows = await fetcher.fetchProperties(config.tenantId);
+  sites: async (engine, fetcher, config) => {
+    const rows = await fetcher.fetchSites(config.tenantId);
     const nodes: NodeSyncPayload[] = rows.map(row => ({
-      label: 'Property',
+      label: 'Site',
       id: String(row.id),
       tenantId: config.tenantId,
       properties: row,
     }));
-    const created = await engine.batchUpsertNodes('Property', nodes);
+    const created = await engine.batchUpsertNodes('Site', nodes);
     return { nodesCreated: created, relationshipsCreated: 0 };
   },
 
-  units: async (engine, fetcher, config) => {
-    const rows = await fetcher.fetchUnits(config.tenantId);
+  pits: async (engine, fetcher, config) => {
+    const rows = await fetcher.fetchPits(config.tenantId);
     const nodes: NodeSyncPayload[] = rows.map(row => ({
-      label: 'Unit',
+      label: 'Pit',
       id: String(row.id),
       tenantId: config.tenantId,
       properties: row,
     }));
-    const nodesCreated = await engine.batchUpsertNodes('Unit', nodes);
+    const nodesCreated = await engine.batchUpsertNodes('Pit', nodes);
 
     const rels: RelationshipSyncPayload[] = rows
       .filter(row => row.propertyId)
       .map(row => ({
-        fromLabel: 'Property',
+        fromLabel: 'Site',
         fromId: String(row.propertyId),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(row.id),
-        type: 'HAS_UNIT',
+        type: 'HAS_PIT',
         tenantId: config.tenantId,
       }));
-    const relsCreated = await engine.batchUpsertRelationships('Property', 'Unit', 'HAS_UNIT', rels);
+    const relsCreated = await engine.batchUpsertRelationships('Site', 'Pit', 'HAS_PIT', rels);
 
     return { nodesCreated, relationshipsCreated: relsCreated };
   },
@@ -212,43 +212,43 @@ const PHASE_HANDLERS: Record<string, PhaseHandler> = {
     return { nodesCreated: created, relationshipsCreated: 0 };
   },
 
-  leases: async (engine, fetcher, config) => {
-    const rows = await fetcher.fetchLeases(config.tenantId);
+  offtakes: async (engine, fetcher, config) => {
+    const rows = await fetcher.fetchOfftakes(config.tenantId);
     const nodes: NodeSyncPayload[] = rows.map(row => ({
-      label: 'Lease',
+      label: 'Offtake',
       id: String(row.id),
       tenantId: config.tenantId,
       properties: row,
     }));
-    const nodesCreated = await engine.batchUpsertNodes('Lease', nodes);
+    const nodesCreated = await engine.batchUpsertNodes('Offtake', nodes);
 
     let relsCreated = 0;
 
-    // Lease → Unit
+    // Offtake → Pit
     const unitRels: RelationshipSyncPayload[] = rows
       .filter(row => row.unitId)
       .map(row => ({
-        fromLabel: 'Lease',
+        fromLabel: 'Offtake',
         fromId: String(row.id),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(row.unitId),
         type: 'APPLIES_TO',
         tenantId: config.tenantId,
       }));
-    relsCreated += await engine.batchUpsertRelationships('Lease', 'Unit', 'APPLIES_TO', unitRels);
+    relsCreated += await engine.batchUpsertRelationships('Offtake', 'Pit', 'APPLIES_TO', unitRels);
 
-    // Customer → Lease
+    // Customer → Offtake
     const custRels: RelationshipSyncPayload[] = rows
       .filter(row => row.customerId)
       .map(row => ({
         fromLabel: 'Customer',
         fromId: String(row.customerId),
-        toLabel: 'Lease',
+        toLabel: 'Offtake',
         toId: String(row.id),
-        type: 'HAS_LEASE',
+        type: 'HAS_OFFTAKE',
         tenantId: config.tenantId,
       }));
-    relsCreated += await engine.batchUpsertRelationships('Customer', 'Lease', 'HAS_LEASE', custRels);
+    relsCreated += await engine.batchUpsertRelationships('Customer', 'Offtake', 'HAS_OFFTAKE', custRels);
 
     return { nodesCreated, relationshipsCreated: relsCreated };
   },
@@ -282,12 +282,12 @@ const PHASE_HANDLERS: Record<string, PhaseHandler> = {
       .map(row => ({
         fromLabel: 'Invoice',
         fromId: String(row.id),
-        toLabel: 'Lease',
+        toLabel: 'Offtake',
         toId: String(row.leaseId),
-        type: 'FOR_LEASE',
+        type: 'FOR_OFFTAKE',
         tenantId: config.tenantId,
       }));
-    relsCreated += await engine.batchUpsertRelationships('Invoice', 'Lease', 'FOR_LEASE', leaseRels);
+    relsCreated += await engine.batchUpsertRelationships('Invoice', 'Offtake', 'FOR_OFFTAKE', leaseRels);
 
     return { nodesCreated, relationshipsCreated: relsCreated };
   },
@@ -332,12 +332,12 @@ const PHASE_HANDLERS: Record<string, PhaseHandler> = {
       .map(row => ({
         fromLabel: 'MaintenanceRequest',
         fromId: String(row.id),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(row.unitId),
         type: 'ABOUT',
         tenantId: config.tenantId,
       }));
-    const relsCreated = await engine.batchUpsertRelationships('MaintenanceRequest', 'Unit', 'ABOUT', unitRels);
+    const relsCreated = await engine.batchUpsertRelationships('MaintenanceRequest', 'Pit', 'ABOUT', unitRels);
 
     return { nodesCreated, relationshipsCreated: relsCreated };
   },
@@ -359,12 +359,12 @@ const PHASE_HANDLERS: Record<string, PhaseHandler> = {
       .map(row => ({
         fromLabel: 'WorkOrder',
         fromId: String(row.id),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(row.unitId),
         type: 'TARGETS',
         tenantId: config.tenantId,
       }));
-    relsCreated += await engine.batchUpsertRelationships('WorkOrder', 'Unit', 'TARGETS', unitRels);
+    relsCreated += await engine.batchUpsertRelationships('WorkOrder', 'Pit', 'TARGETS', unitRels);
 
     const vendorRels: RelationshipSyncPayload[] = rows
       .filter(row => row.vendorId)
@@ -446,12 +446,12 @@ const PHASE_HANDLERS: Record<string, PhaseHandler> = {
       .map(row => ({
         fromLabel: 'Case',
         fromId: String(row.id),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(row.unitId),
         type: 'CASE_ABOUT',
         tenantId: config.tenantId,
       }));
-    relsCreated += await engine.batchUpsertRelationships('Case', 'Unit', 'CASE_ABOUT', unitRels);
+    relsCreated += await engine.batchUpsertRelationships('Case', 'Pit', 'CASE_ABOUT', unitRels);
 
     return { nodesCreated, relationshipsCreated: relsCreated };
   },

@@ -95,10 +95,10 @@ export interface JarvisRouterConfig {
 }
 
 const ALL_TIERS = [
-  'tenant', 'lease', 'unit', 'block', 'property',
+  'tenant', 'offtake', 'pit', 'zone', 'site',
   'portfolio', 'org', 'industry',
 ] as const;
-const CONSUMER_TIERS = ['tenant', 'lease', 'unit', 'property'] as const;
+const CONSUMER_TIERS = ['tenant', 'offtake', 'pit', 'site'] as const;
 
 const ProposeActionSchema = z.object({
   thoughtId: z.string().min(1).max(120),

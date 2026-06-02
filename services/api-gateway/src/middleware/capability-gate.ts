@@ -31,11 +31,11 @@ import { UserRole } from '../types/user-role';
 const ROLE_TO_POLICY_ROLE: Record<UserRole, string[]> = {
   SUPER_ADMIN: ['super-admin'],
   ADMIN: ['super-admin'],
-  SUPPORT: ['caretaker'], // read-mostly
+  SUPPORT: ['site-supervisor'], // read-mostly
   TENANT_ADMIN: ['property-owner'],
-  PROPERTY_MANAGER: ['property-manager'],
+  PROPERTY_MANAGER: ['site-manager'],
   ACCOUNTANT: ['accountant'],
-  MAINTENANCE_STAFF: ['caretaker'],
+  MAINTENANCE_STAFF: ['site-supervisor'],
   OWNER: ['property-owner'],
   RESIDENT: ['tenant'],
 };

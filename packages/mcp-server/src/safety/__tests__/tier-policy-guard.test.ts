@@ -8,7 +8,7 @@ import {
 
 function baseQueued(over: Partial<QueuedInvocationContext> = {}): QueuedInvocationContext {
   return {
-    toolName: 'payment:list_for_lease', // minTier: growth in MCP_SAFE_POLICY
+    toolName: 'payment:list_for_offtake', // minTier: growth in MCP_SAFE_POLICY
     enqueuedAt: '2026-05-20T00:00:00.000Z',
     originalCallerId: 'user-abc',
     originalPortalId: 'estate-manager',
@@ -80,7 +80,7 @@ describe('guardScheduledInvocation', () => {
   it('denies when caller tier downgraded below minTier (privilege laundering)', () => {
     const decision = guardScheduledInvocation(
       baseQueued({ originalTier: 'enterprise' }),
-      baseCurrent({ currentTier: 'free' }), // payment:list_for_lease requires growth
+      baseCurrent({ currentTier: 'free' }), // payment:list_for_offtake requires growth
     );
     expect(decision.allow).toBe(false);
     if (decision.allow) return;
@@ -98,7 +98,7 @@ describe('guardScheduledInvocation', () => {
 
   it('allows tools without a minTier on any tier', () => {
     const decision = guardScheduledInvocation(
-      baseQueued({ toolName: 'property:list_for_tenant' }), // no minTier
+      baseQueued({ toolName: 'site:list_for_counterparty' }), // no minTier
       baseCurrent({ currentTier: 'free' }),
     );
     expect(decision.allow).toBe(true);
@@ -108,7 +108,7 @@ describe('guardScheduledInvocation', () => {
 describe('captureInvocationContext', () => {
   it('builds a stable snapshot from enqueue-time data', () => {
     const ctx = captureInvocationContext({
-      toolName: 'property:list_for_tenant',
+      toolName: 'site:list_for_counterparty',
       callerId: 'u-1',
       portalId: 'estate-manager',
       userRole: 'estate_manager',
@@ -116,7 +116,7 @@ describe('captureInvocationContext', () => {
       tenantId: 't-1',
       enqueuedAt: new Date('2026-05-23T12:00:00Z'),
     });
-    expect(ctx.toolName).toBe('property:list_for_tenant');
+    expect(ctx.toolName).toBe('site:list_for_counterparty');
     expect(ctx.originalCallerId).toBe('u-1');
     expect(ctx.originalTier).toBe('growth');
     expect(ctx.enqueuedAt).toBe('2026-05-23T12:00:00.000Z');
@@ -125,7 +125,7 @@ describe('captureInvocationContext', () => {
   it('defaults enqueuedAt to now when omitted', () => {
     const before = Date.now();
     const ctx = captureInvocationContext({
-      toolName: 'property:list_for_tenant',
+      toolName: 'site:list_for_counterparty',
       callerId: 'u-1',
       portalId: 'estate-manager',
       userRole: 'estate_manager',

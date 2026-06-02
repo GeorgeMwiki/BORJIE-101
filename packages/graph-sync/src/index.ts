@@ -1,11 +1,11 @@
 /**
  * @borjie/graph-sync
  *
- * Canonical Property Graph (CPG) — Neo4j integration for Borjie
+ * Canonical Mining Graph (CMG) — Neo4j integration for Borjie
  *
  * Provides:
  *  - Neo4j client with connection management
- *  - CPG schema (node labels, relationship types, constraints)
+ *  - CMG schema (node labels, relationship types, constraints)
  *  - ETL sync engine (PostgreSQL → Neo4j)
  *  - GraphQueryService (AI agent query interface)
  */
@@ -39,7 +39,7 @@ export {
 export {
   ALL_NODE_LABELS,
   ORG_LABELS,
-  PROPERTY_LABELS,
+  SITE_LABELS,
   PEOPLE_LABELS,
   CONTRACT_LABELS,
   OPS_LABELS,
@@ -54,7 +54,7 @@ export {
 export {
   ALL_RELATIONSHIP_TYPES,
   ORG_RELATIONSHIPS,
-  PROPERTY_HIERARCHY_RELATIONSHIPS,
+  SITE_HIERARCHY_RELATIONSHIPS,
   LAND_HIERARCHY_RELATIONSHIPS,
   PEOPLE_RELATIONSHIPS,
   CONTRACT_RELATIONSHIPS,
@@ -92,12 +92,12 @@ export {
   GraphQueryService,
   createGraphQueryService,
   type CaseTimelineEntry,
-  type TenantRiskDriver,
-  type TenantRiskProfile,
+  type CounterpartyRiskDriver,
+  type CounterpartyRiskProfile,
   type VendorScorecardEntry,
-  type UnitHealthReport,
+  type PitHealthReport,
   type ParcelComplianceReport,
-  type PropertyRollup,
+  type SiteRollup,
   type EvidencePackResult,
   type GraphEvidencePath,
   type NaturalLanguageQueryResult,

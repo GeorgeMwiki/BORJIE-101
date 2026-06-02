@@ -20,7 +20,7 @@ import type { OrgStage, StageContext, StageRole } from '../types.js';
 
 const ROLE_FRIENDLY: Readonly<Record<StageRole, string>> = {
   admin: 'Hey — what part of platform ops can I help with?',
-  'property-manager':
+  'site-manager':
     'Hey — what part of the portfolio do you want to look at today?',
   'estate-manager':
     'Hey — which maintenance, inspection, or vendor question is on your plate?',

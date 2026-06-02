@@ -35,11 +35,11 @@ describe('canAccess', () => {
   });
 
   it('PM can read managed-portfolio at tenant-wide scope', () => {
-    expect(canAccess({ role: 'property-manager', resource: 'managed-portfolio', scope: 'tenant-wide' })).toBe('allow');
+    expect(canAccess({ role: 'site-manager', resource: 'managed-portfolio', scope: 'tenant-wide' })).toBe('allow');
   });
 
   it('PM redacts tenant-pii (in cannotSee)', () => {
-    expect(canAccess({ role: 'property-manager', resource: 'tenant-pii', scope: 'tenant-wide' })).toBe('deny');
+    expect(canAccess({ role: 'site-manager', resource: 'tenant-pii', scope: 'tenant-wide' })).toBe('deny');
   });
 
   it('prospect allowed for public-listing only', () => {

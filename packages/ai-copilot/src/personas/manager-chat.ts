@@ -18,9 +18,9 @@ export function createManagerChat(): BorjiePersona {
     systemPrompt: MANAGER_CHAT_PROMPT,
     availableTools: Object.freeze([
       'get_portfolio_overview',
-      'get_property_rollup',
-      'get_tenant_risk_drivers',
-      'get_unit_health',
+      'get_site_rollup',
+      'get_counterparty_risk_drivers',
+      'get_pit_health',
       'get_case_timeline',
       'get_parcel_compliance',
       'get_graph_stats',

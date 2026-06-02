@@ -177,12 +177,12 @@ describe('buildCounterModelPrompt + parseCounterModelResponse', () => {
 
   it('user prompt carries tool name + payload', () => {
     const built = buildCounterModelPrompt({
-      toolName: 'tenant-eviction-proposed',
+      toolName: 'licence-suspension-proposed',
       payload: { tenantId: 't', cause: 'arrears' },
       tenantId: 't_demo',
       userId: 'u_admin',
     });
-    expect(built.user).toContain('tenant-eviction-proposed');
+    expect(built.user).toContain('licence-suspension-proposed');
     expect(built.user).toContain('t_demo');
   });
 

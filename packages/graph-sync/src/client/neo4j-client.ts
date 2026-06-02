@@ -1,5 +1,5 @@
 /**
- * Neo4j Client — Connection management for the Canonical Property Graph
+ * Neo4j Client — Connection management for the Canonical Mining Graph
  *
  * Wraps the Neo4j JavaScript driver with:
  *  - Connection pooling

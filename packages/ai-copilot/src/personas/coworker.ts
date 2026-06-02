@@ -16,7 +16,7 @@ export function createCoworker(): BorjiePersona {
     portalId: 'estate-manager-app',
     systemPrompt: COWORKER_PROMPT,
     availableTools: Object.freeze([
-      'get_unit_health',
+      'get_pit_health',
       'get_case_timeline',
       'skill.kenya.swahili_draft',
       'skill.core.advise',

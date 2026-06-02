@@ -2,7 +2,7 @@
  * `@borjie/brain-llm-router/routing-overrides` — public surface.
  *
  * Admin-configurable per-tenant per-task routing overrides. Allows ops
- * to flip e.g. `lease_drafting: opus → sonnet` during an Anthropic
+ * to flip e.g. `offtake_drafting: opus → sonnet` during an Anthropic
  * outage WITHOUT redeploying.
  *
  * Ports + adapters (DB adapter is a follow-up):

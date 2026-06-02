@@ -8,7 +8,7 @@
  *
  * Mapping (lossy on purpose, never silently expand scope):
  *   SUPER_ADMIN / ADMIN / SUPPORT / TENANT_ADMIN  → 'admin'
- *   PROPERTY_MANAGER                              → 'property-manager'
+ *   PROPERTY_MANAGER                              → 'site-manager'
  *   ACCOUNTANT / MAINTENANCE_STAFF                → 'estate-manager'
  *   OWNER                                         → 'owner'
  *   RESIDENT                                      → 'tenant'
@@ -24,7 +24,7 @@
 
 export const ROLES = [
   'admin',
-  'property-manager',
+  'site-manager',
   'estate-manager',
   'owner',
   'tenant',
@@ -125,10 +125,10 @@ export const PERSONAS: Readonly<Record<Role, Persona>> = {
     cannotSee: [],
     defaultDepth: 'deep',
   },
-  'property-manager': {
-    role: 'property-manager',
+  'site-manager': {
+    role: 'site-manager',
     systemPrompt: [
-      'You are advising a property manager responsible for a portfolio.',
+      'You are advising a site manager responsible for a portfolio.',
       'Lead with actions they can take today; quote money in their currency.',
       'Frame answers around renewal-rate, occupancy, arrears, NOI levers.',
       'Cite tenant + unit ids — never names, never national-id digits.',
@@ -291,7 +291,7 @@ export function mapWireRoleToRole(wireRole: string): Role | null {
     case 'TENANT_ADMIN':
       return 'admin';
     case 'PROPERTY_MANAGER':
-      return 'property-manager';
+      return 'site-manager';
     case 'ACCOUNTANT':
     case 'MAINTENANCE_STAFF':
       return 'estate-manager';

@@ -391,7 +391,7 @@ const NAMED_QUERIES: Record<QueryKey, NamedQueryRunner> = {
   getCaseTimeline: (svc, tenantId, params) =>
     svc.getCaseTimeline(tenantId, String(params.caseId ?? '')),
   getTenantRiskDrivers: (svc, tenantId, params) =>
-    svc.getTenantRiskDrivers(tenantId, String(params.customerId ?? '')),
+    svc.getCounterpartyRiskDrivers(tenantId, String(params.customerId ?? '')),
   getVendorScorecard: (svc, tenantId, params) =>
     svc.getVendorScorecard(
       tenantId,
@@ -399,11 +399,11 @@ const NAMED_QUERIES: Record<QueryKey, NamedQueryRunner> = {
       typeof params.windowDays === 'number' ? params.windowDays : 365,
     ),
   getUnitHealth: (svc, tenantId, params) =>
-    svc.getUnitHealth(tenantId, String(params.unitId ?? '')),
+    svc.getPitHealth(tenantId, String(params.unitId ?? '')),
   getParcelCompliance: (svc, tenantId, params) =>
     svc.getParcelCompliance(tenantId, String(params.parcelId ?? '')),
   getPropertyRollup: (svc, tenantId, params) =>
-    svc.getPropertyRollup(tenantId, String(params.propertyId ?? '')),
+    svc.getSiteRollup(tenantId, String(params.propertyId ?? '')),
   generateEvidencePack: (svc, tenantId, params) =>
     svc.generateEvidencePack(tenantId, String(params.caseId ?? '')),
   getPortfolioOverview: (svc, tenantId) => svc.getPortfolioOverview(tenantId),

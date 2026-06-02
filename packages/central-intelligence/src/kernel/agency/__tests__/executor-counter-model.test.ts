@@ -68,7 +68,7 @@ function autonomousPolicy(): AutonomyPolicyPort {
  *  though stakes are 'high'. */
 function evictionTool(): ActionToolDef {
   return {
-    name: 'tenant-eviction-proposed',
+    name: 'licence-suspension-proposed',
     description: 'Sovereign-tier eviction proposal.',
     stakes: 'high',
     inputSchema: {},
@@ -155,7 +155,7 @@ describe('createExecutor counter-model integration', () => {
         {
           seq: 0,
           description: 'propose eviction',
-          toolName: 'tenant-eviction-proposed',
+          toolName: 'licence-suspension-proposed',
           toolPayload: { tenantId: 't', leaseId: 'L1' },
         },
       ],
@@ -199,7 +199,7 @@ describe('createExecutor counter-model integration', () => {
         {
           seq: 0,
           description: 'propose eviction',
-          toolName: 'tenant-eviction-proposed',
+          toolName: 'licence-suspension-proposed',
           toolPayload: { tenantId: 't-other', leaseId: 'L1' },
         },
       ],
@@ -248,7 +248,7 @@ describe('createExecutor counter-model integration', () => {
         {
           seq: 0,
           description: 'propose eviction',
-          toolName: 'tenant-eviction-proposed',
+          toolName: 'licence-suspension-proposed',
           toolPayload: {},
         },
       ],
@@ -327,7 +327,7 @@ describe('createExecutor counter-model integration', () => {
         {
           seq: 0,
           description: 'propose eviction',
-          toolName: 'tenant-eviction-proposed',
+          toolName: 'licence-suspension-proposed',
           toolPayload: {},
         },
       ],

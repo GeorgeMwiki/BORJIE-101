@@ -39,9 +39,16 @@ const ALLOWED_ACTOR_KINDS: ReadonlySet<AuditActorKind> = new Set([
   'system',
 ]);
 
+// Canonical mining vocabulary (INT-5) PLUS the deprecated property-domain
+// aliases. Both are ACCEPTED so historical hash-chained rows that persisted a
+// legacy label still pass validation; new callers should emit the canonical
+// mining value. Additive only — no value is ever removed from this set.
 const ALLOWED_CATEGORIES: ReadonlySet<AuditActionCategory> = new Set([
   'finance',
-  'leasing',
+  'offtake',
+  'royalty_collection',
+  'counterparty_welfare',
+  'licence_suspension',
   'maintenance',
   'compliance',
   'communications',
@@ -50,8 +57,12 @@ const ALLOWED_CATEGORIES: ReadonlySet<AuditActionCategory> = new Set([
   'procurement',
   'insurance',
   'legal',
-  'tenant_welfare',
   'other',
+  // Deprecated aliases — kept accepted for chain integrity (do not remove).
+  'leasing',
+  'rent_collection',
+  'tenant_welfare',
+  'eviction',
 ]);
 
 function assertNonEmpty(value: string | undefined | null, field: string): void {

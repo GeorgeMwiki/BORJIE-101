@@ -102,7 +102,7 @@ export function makeHandlers(
     list_maintenance_cases: defaultEcho,
     create_maintenance_case: defaultEcho,
     generate_letter: defaultEcho,
-    query_arrears_projection: defaultEcho,
+    query_outstanding_royalties_projection: defaultEcho,
     list_occupancy_timeline: defaultEcho,
     query_ai_cost_summary: defaultEcho,
     list_compliance_plugins: defaultEcho,

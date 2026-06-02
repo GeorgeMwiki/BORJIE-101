@@ -23,10 +23,25 @@ export type AuditActorKind =
   | 'human_action'
   | 'system';
 
-/** Eleven named domains + `other`, matching migration 0111. */
+/**
+ * Named domains + `other`. The canonical vocabulary is mining (INT-5), matching
+ * the central-intelligence security agent and DB migration 0181's enum-label
+ * map (`leasing`→`offtake`, `tenant_welfare`→`counterparty_welfare`,
+ * `rent_collection`→`royalty_collection`, `eviction`→`licence_suspension`).
+ *
+ * The rename is ADDITIVE: the legacy property values stay ACCEPTED (deprecated)
+ * so any pre-existing hash-chained audit row keeps verifying byte-for-byte —
+ * the hash covers `actionCategory`, so silently dropping a label would break
+ * the chain. New entries emit the canonical mining value; old rows persist
+ * their original label and remain valid.
+ */
 export type AuditActionCategory =
   | 'finance'
-  | 'leasing'
+  // Offtake (canonical) — `leasing` retained for legacy rows.
+  | 'offtake'
+  | 'royalty_collection'
+  | 'counterparty_welfare'
+  | 'licence_suspension'
   | 'maintenance'
   | 'compliance'
   | 'communications'
@@ -35,8 +50,12 @@ export type AuditActionCategory =
   | 'procurement'
   | 'insurance'
   | 'legal'
+  | 'other'
+  // ---- Deprecated property-domain aliases — ACCEPTED for chain integrity ----
+  | 'leasing'
+  | 'rent_collection'
   | 'tenant_welfare'
-  | 'other';
+  | 'eviction';
 
 /** The decision captured by this row. Free-form but these values dominate. */
 export type AuditDecision =

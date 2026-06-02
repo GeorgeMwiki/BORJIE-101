@@ -156,9 +156,9 @@ export function createTenantScopedCypher(
  * gate. Returns the rewritten pattern string.
  *
  * Example:
- *   scopeNodePattern('(p:Property)')  →  '(p:Property {_tenantId: $tenantId})'
- *   scopeNodePattern('(p:Property {status: "active"})')
- *     →  '(p:Property {_tenantId: $tenantId, status: "active"})'
+ *   scopeNodePattern('(p:Site)')  →  '(p:Site {_tenantId: $tenantId})'
+ *   scopeNodePattern('(p:Site {status: "active"})')
+ *     →  '(p:Site {_tenantId: $tenantId, status: "active"})'
  */
 export function scopeNodePattern(pattern: string): string {
   const trimmed = pattern.trim();

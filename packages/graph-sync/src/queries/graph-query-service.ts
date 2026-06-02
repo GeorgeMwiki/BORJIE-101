@@ -1,7 +1,7 @@
 /**
  * GraphQueryService — Safe, tenant-isolated graph query endpoints
  *
- * This is the primary interface between the AI agent layer and the CPG.
+ * This is the primary interface between the AI agent layer and the CMG.
  * Every method:
  *  1. Requires tenantId (enforced — no cross-tenant data leakage)
  *  2. Returns structured results with evidence paths
@@ -34,7 +34,7 @@ export interface CaseTimelineEntry {
   evidencePath: GraphEvidencePath[];
 }
 
-export interface TenantRiskDriver {
+export interface CounterpartyRiskDriver {
   factor: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   score: number;
@@ -42,12 +42,12 @@ export interface TenantRiskDriver {
   evidence: GraphEvidencePath[];
 }
 
-export interface TenantRiskProfile {
+export interface CounterpartyRiskProfile {
   customerId: string;
   customerName: string;
   overallRiskLevel: string;
   overallRiskScore: number;
-  drivers: TenantRiskDriver[];
+  drivers: CounterpartyRiskDriver[];
   churnProbability: number;
   recommendations: string[];
 }
@@ -69,7 +69,7 @@ export interface VendorScorecardEntry {
   }>;
 }
 
-export interface UnitHealthReport {
+export interface PitHealthReport {
   unitId: string;
   unitName: string;
   propertyName: string;
@@ -112,7 +112,7 @@ export interface ParcelComplianceReport {
   overallComplianceScore: number;
 }
 
-export interface PropertyRollup {
+export interface SiteRollup {
   propertyId: string;
   propertyName: string;
   totalUnits: number;
@@ -229,15 +229,15 @@ export class GraphQueryService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // B) Tenant Risk Drivers — "Why is Customer A at risk?"
+  // B) Counterparty Risk Drivers — "Why is Customer A at risk?"
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getTenantRiskDrivers(tenantId: string, customerId: string): Promise<TenantRiskProfile> {
+  async getCounterpartyRiskDrivers(tenantId: string, customerId: string): Promise<CounterpartyRiskProfile> {
     const cypher = `
       MATCH (cust:Customer {_tenantId: $tenantId, _id: $customerId})
 
       // Unresolved work orders
-      OPTIONAL MATCH (cust)<-[:BILLED_TO]-(inv:Invoice)-[:FOR_LEASE]->(l:Lease)-[:APPLIES_TO]->(u:Unit)
+      OPTIONAL MATCH (cust)<-[:BILLED_TO]-(inv:Invoice)-[:FOR_OFFTAKE]->(l:Offtake)-[:APPLIES_TO]->(u:Pit)
       WHERE u._tenantId = $tenantId
       OPTIONAL MATCH (u)<-[:TARGETS]-(wo:WorkOrder {_tenantId: $tenantId})
       WHERE wo.status IN ['open', 'assigned', 'scheduled', 'in_progress', 'escalated']
@@ -254,10 +254,10 @@ export class GraphQueryService {
       WHERE activeCase.status IN ['open', 'investigating', 'pending_response', 'escalated']
       WITH cust, openWorkOrders, units, overdueInvoices, collect(DISTINCT activeCase) AS activeCases
 
-      // Active leases
-      OPTIONAL MATCH (cust)-[:HAS_LEASE]->(lease:Lease {_tenantId: $tenantId})
-      WHERE lease.status = 'active'
-      WITH cust, openWorkOrders, units, overdueInvoices, activeCases, collect(DISTINCT lease) AS activeLeases
+      // Active offtakes
+      OPTIONAL MATCH (cust)-[:HAS_OFFTAKE]->(offtake:Offtake {_tenantId: $tenantId})
+      WHERE offtake.status = 'active'
+      WITH cust, openWorkOrders, units, overdueInvoices, activeCases, collect(DISTINCT offtake) AS activeLeases
 
       RETURN
         cust._id AS customerId,
@@ -286,7 +286,7 @@ export class GraphQueryService {
     }
 
     const r = records[0]!;
-    const drivers: TenantRiskDriver[] = [];
+    const drivers: CounterpartyRiskDriver[] = [];
 
     const unresolvedWO = toNumber(r.unresolvedWorkOrders);
     const overdueCount = toNumber(r.overdueInvoiceCount);
@@ -344,8 +344,8 @@ export class GraphQueryService {
     const recommendations: string[] = [];
     if (overdueCount > 0) recommendations.push('Initiate proactive payment plan discussion');
     if (unresolvedWO > 0) recommendations.push('Escalate unresolved maintenance to priority queue');
-    if (caseCount > 0) recommendations.push('Schedule case review meeting with tenant');
-    if (drivers.length === 0) recommendations.push('Tenant is in good standing — consider loyalty reward');
+    if (caseCount > 0) recommendations.push('Schedule case review meeting with counterparty');
+    if (drivers.length === 0) recommendations.push('Counterparty is in good standing — consider loyalty reward');
 
     return {
       customerId,
@@ -428,21 +428,21 @@ export class GraphQueryService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // D) Unit Health — "What's the overall health of Unit X?"
+  // D) Pit Health — "What's the overall health of Pit X?"
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getUnitHealth(tenantId: string, unitId: string): Promise<UnitHealthReport> {
+  async getPitHealth(tenantId: string, unitId: string): Promise<PitHealthReport> {
     const cypher = `
-      MATCH (u:Unit {_tenantId: $tenantId, _id: $unitId})
-      OPTIONAL MATCH (u)<-[:APPLIES_TO]-(l:Lease {_tenantId: $tenantId})
+      MATCH (u:Pit {_tenantId: $tenantId, _id: $unitId})
+      OPTIONAL MATCH (u)<-[:APPLIES_TO]-(l:Offtake {_tenantId: $tenantId})
       WHERE l.status = 'active'
       OPTIONAL MATCH (u)<-[:TARGETS]-(wo:WorkOrder {_tenantId: $tenantId})
       WHERE wo.status IN ['open', 'assigned', 'scheduled', 'in_progress']
       OPTIONAL MATCH (u)<-[:ABOUT]-(mr:MaintenanceRequest {_tenantId: $tenantId})
-      OPTIONAL MATCH (u)<-[:FOR_UNIT]-(inv:Invoice {_tenantId: $tenantId})
+      OPTIONAL MATCH (u)<-[:FOR_PIT]-(inv:Invoice {_tenantId: $tenantId})
       WHERE inv.status IN ['overdue', 'past_due']
       OPTIONAL MATCH (u)<-[:INSPECTS]-(insp:Inspection {_tenantId: $tenantId})
-      OPTIONAL MATCH (u)<-[:HAS_UNIT]-(p:Property {_tenantId: $tenantId})
+      OPTIONAL MATCH (u)<-[:HAS_PIT]-(p:Site {_tenantId: $tenantId})
 
       RETURN
         u._id AS unitId,
@@ -481,7 +481,7 @@ export class GraphQueryService {
 
     const healthScore = Math.max(0, 100 - (openWO * 15) - (overdueInv * 20) - (activeIssues * 10));
 
-    const issues: UnitHealthReport['issues'] = [];
+    const issues: PitHealthReport['issues'] = [];
     if (openWO > 0) {
       issues.push({
         type: 'maintenance',
@@ -613,13 +613,13 @@ export class GraphQueryService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // F) Property Rollup — Enterprise-level KPI rollup
+  // F) Site Rollup — Enterprise-level KPI rollup
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getPropertyRollup(tenantId: string, propertyId: string): Promise<PropertyRollup> {
+  async getSiteRollup(tenantId: string, propertyId: string): Promise<SiteRollup> {
     const cypher = `
-      MATCH (p:Property {_tenantId: $tenantId, _id: $propertyId})
-      OPTIONAL MATCH (p)-[:HAS_UNIT]->(u:Unit {_tenantId: $tenantId})
+      MATCH (p:Site {_tenantId: $tenantId, _id: $propertyId})
+      OPTIONAL MATCH (p)-[:HAS_PIT]->(u:Pit {_tenantId: $tenantId})
       WITH p, collect(u) AS allUnits
 
       WITH p, allUnits,
@@ -627,18 +627,18 @@ export class GraphQueryService {
            size([u IN allUnits WHERE u.status = 'occupied']) AS occupiedUnits,
            size([u IN allUnits WHERE u.status = 'vacant']) AS vacantUnits
 
-      // Active leases
-      OPTIONAL MATCH (p)-[:HAS_UNIT]->(u2:Unit)<-[:APPLIES_TO]-(l:Lease {_tenantId: $tenantId})
+      // Active offtakes
+      OPTIONAL MATCH (p)-[:HAS_PIT]->(u2:Pit)<-[:APPLIES_TO]-(l:Offtake {_tenantId: $tenantId})
       WHERE l.status = 'active'
       WITH p, totalUnits, occupiedUnits, vacantUnits, count(DISTINCT l) AS activeLeases
 
       // Open work orders
-      OPTIONAL MATCH (p)-[:HAS_UNIT]->(u3:Unit)<-[:TARGETS]-(wo:WorkOrder {_tenantId: $tenantId})
+      OPTIONAL MATCH (p)-[:HAS_PIT]->(u3:Pit)<-[:TARGETS]-(wo:WorkOrder {_tenantId: $tenantId})
       WHERE wo.status IN ['open', 'assigned', 'scheduled', 'in_progress']
       WITH p, totalUnits, occupiedUnits, vacantUnits, activeLeases, count(DISTINCT wo) AS openWorkOrders
 
       // Overdue invoices
-      OPTIONAL MATCH (p)-[:HAS_UNIT]->(u4:Unit)<-[:FOR_UNIT]-(inv:Invoice {_tenantId: $tenantId})
+      OPTIONAL MATCH (p)-[:HAS_PIT]->(u4:Pit)<-[:FOR_PIT]-(inv:Invoice {_tenantId: $tenantId})
       WHERE inv.status IN ['overdue', 'past_due']
       WITH p, totalUnits, occupiedUnits, vacantUnits, activeLeases, openWorkOrders, count(DISTINCT inv) AS overdueInvoices
 
@@ -765,10 +765,10 @@ export class GraphQueryService {
   // H) Portfolio Overview — Multi-property rollup for an org
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getPortfolioOverview(tenantId: string): Promise<PropertyRollup[]> {
+  async getPortfolioOverview(tenantId: string): Promise<SiteRollup[]> {
     const cypher = `
-      MATCH (p:Property {_tenantId: $tenantId})
-      OPTIONAL MATCH (p)-[:HAS_UNIT]->(u:Unit {_tenantId: $tenantId})
+      MATCH (p:Site {_tenantId: $tenantId})
+      OPTIONAL MATCH (p)-[:HAS_PIT]->(u:Pit {_tenantId: $tenantId})
       WITH p,
            count(u) AS totalUnits,
            size([u IN collect(u) WHERE u.status = 'occupied']) AS occupiedUnits,

@@ -82,7 +82,7 @@ describe('orchestrator.advise — happy path per role', () => {
       },
     ]);
     const res = await advisor.advise({
-      user: { id: 'p1', tenantId: 't1', role: 'property-manager' },
+      user: { id: 'p1', tenantId: 't1', role: 'site-manager' },
       question: 'Is my rent fair given the market?',
     });
     expect(res.answer.toLowerCase()).toContain('renewal-rate');

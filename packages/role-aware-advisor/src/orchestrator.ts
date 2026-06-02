@@ -268,7 +268,7 @@ function generateFollowUps(intent: Intent, role: Role): ReadonlyArray<string> {
         'What is a fair concession to offer this renewal?',
         'How does this rent compare to local market rate?',
       ],
-      'property-manager': [
+      'site-manager': [
         'Draft a renewal letter for this tenant.',
         'Which tenants in my portfolio are highest renewal risk?',
       ],
@@ -278,7 +278,7 @@ function generateFollowUps(intent: Intent, role: Role): ReadonlyArray<string> {
         'How can I escalate if the response is too slow?',
         'What can I do in the meantime to prevent damage?',
       ],
-      'property-manager': [
+      'site-manager': [
         'Which vendor has the best SLA in this category?',
         'How much should this typically cost?',
       ],

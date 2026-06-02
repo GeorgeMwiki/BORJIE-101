@@ -21,7 +21,7 @@ export type PersonaId =
 export type SubPersona =
   | 'finance'
   | 'maintenance'
-  | 'leasing'
+  | 'offtake'
   | 'compliance'
   | 'learning'
   | 'advisor'

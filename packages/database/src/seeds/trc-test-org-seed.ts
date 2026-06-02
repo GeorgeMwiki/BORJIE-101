@@ -6,7 +6,7 @@
  *
  *   - 1 tenant (TRC Corporation, country TZ, currency TZS)
  *   - 1 root organization (TRC Head Office)
- *   - 5 roles (internal_admin, property_manager, estate_manager, owner, customer)
+ *   - 5 roles (internal_admin, site-manager, estate_manager, owner, customer)
  *   - 5 users, one per role, with deterministic IDs and stable email aliases
  *
  * The seed deliberately writes NO sites, blocks, offtakes, payments,
@@ -86,7 +86,11 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   },
   {
     id: TRC_ROLE_IDS.property_manager,
-    name: 'property_manager',
+    // Persisted role name uses the canonical mining vocabulary (INT-5):
+    // legacy 'property_manager' -> 'site-manager'. The TS object key / natural-
+    // key id stay stable so onConflictDoNothing remains idempotent against rows
+    // seeded before the rename; migration 0183 relabels any such legacy row.
+    name: 'site-manager',
     displayName: 'Site Manager',
     description: 'Day-to-day operator: offtakes, royalty collections, maintenance, contractors.',
     priority: 70,

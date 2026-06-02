@@ -86,7 +86,7 @@ describe('generateStartingPoints', () => {
 
   it('PM gets arrears chip when arrears > 0', () => {
     const chips = generateStartingPoints({
-      user: { id: 'u1', tenantId: 't1', role: 'property-manager' },
+      user: { id: 'u1', tenantId: 't1', role: 'site-manager' },
       context: { today: '2026-04-01', arrearsCount: 8 },
     });
     expect(chips.map((c) => c.id)).toContain('pm-arrears');

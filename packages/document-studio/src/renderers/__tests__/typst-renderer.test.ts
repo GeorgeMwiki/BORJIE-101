@@ -15,7 +15,7 @@ import {
 import { type RendererInput } from '../../types.js';
 
 const baseInput: RendererInput = {
-  templateRef: '/tpl/eviction-notice-ke.typ',
+  templateRef: '/tpl/licence-suspension-notice-ke.typ',
   format: 'pdf',
   data: { tenant: 'Aisha M', unit: '4B', amount: 87500 },
 };
@@ -110,7 +110,7 @@ describe('TypstRenderer — spawn path', () => {
     expect(bin).toBe('typst');
     expect(args).toEqual([
       'compile',
-      '/tpl/eviction-notice-ke.typ',
+      '/tpl/licence-suspension-notice-ke.typ',
       '-',
       '--input',
       `data=${JSON.stringify(baseInput.data)}`,

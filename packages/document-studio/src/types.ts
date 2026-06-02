@@ -1,7 +1,7 @@
 /**
  * @borjie/document-studio — public types.
  *
- * Goal-to-document pipeline for property management deliverables:
+ * Goal-to-document pipeline for mining estate deliverables:
  *
  *   user goal → intent parse → structure learn → confirm →
  *   multi-LLM synthesis → render → cite/verify → sign & deliver
@@ -32,8 +32,8 @@ import { z } from 'zod';
 
 export const DOC_TYPES = [
   'monthly_owner_report',
-  'eviction_notice',
-  'lease_agreement',
+  'licence_suspension_notice',
+  'offtake_agreement',
 ] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 

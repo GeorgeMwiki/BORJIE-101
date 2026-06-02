@@ -23,16 +23,18 @@ import {
  * Tool names — match `graph-agent-toolkit` and the skills module.
  * Kept as string literals here to avoid a build-time dependency on graph-sync.
  */
-// NOTE: tool *identifiers* (skill.* / get_*) stay on their current registry
-// names — the registry + graph toolkit live outside this slice and are
-// renamed wholesale in a later wave. Only the domain COPY here is mining.
+// NOTE: graph tool *identifiers* are migrated to the mining vocabulary (INT-5)
+// in lockstep with the graph-agent-toolkit registry rename
+// (`get_property_rollup`→`get_site_rollup`, `get_unit_health`→`get_pit_health`,
+// `get_tenant_risk_drivers`→`get_counterparty_risk_drivers`). Identifiers are
+// kept as string literals here to avoid a build-time dependency on graph-sync.
 const GRAPH_TOOLS = {
   GET_CASE_TIMELINE: 'get_case_timeline',
-  GET_TENANT_RISK_DRIVERS: 'get_tenant_risk_drivers',
+  GET_COUNTERPARTY_RISK_DRIVERS: 'get_counterparty_risk_drivers',
   GET_VENDOR_SCORECARD: 'get_vendor_scorecard',
-  GET_UNIT_HEALTH: 'get_unit_health',
+  GET_PIT_HEALTH: 'get_pit_health',
   GET_PARCEL_COMPLIANCE: 'get_parcel_compliance',
-  GET_PROPERTY_ROLLUP: 'get_property_rollup',
+  GET_SITE_ROLLUP: 'get_site_rollup',
   GENERATE_EVIDENCE_PACK: 'generate_evidence_pack',
   GET_PORTFOLIO_OVERVIEW: 'get_portfolio_overview',
   GET_GRAPH_STATS: 'get_graph_stats',
@@ -73,9 +75,9 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   systemPrompt: ESTATE_MANAGER_PROMPT,
   allowedTools: [
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     GRAPH_TOOLS.GET_PARCEL_COMPLIANCE,
     GRAPH_TOOLS.GET_GRAPH_STATS,
@@ -113,9 +115,9 @@ export const JUNIOR_LEASING_TEMPLATE: Persona = {
     'Domain expert for offtake: prospective buyers, site visits, supply-agreement drafting, renewals, consignment handover/dispatch.',
   systemPrompt: JUNIOR_LEASING_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.OFFTAKE_ABSTRACT,
     SKILLS.RENEWAL_PROPOSE,
     SKILLS.ASSIGN_TO_TEAM_MEMBER,
@@ -137,7 +139,7 @@ export const JUNIOR_MAINTENANCE_TEMPLATE: Persona = {
     'Domain expert for mine maintenance: triage, dispatch, vendor management, plant and fleet emergencies.',
   systemPrompt: JUNIOR_MAINTENANCE_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_VENDOR_SCORECARD,
     SKILLS.TRIAGE_MAINTENANCE,
     SKILLS.ASSIGN_WORK_ORDER,
@@ -160,9 +162,9 @@ export const JUNIOR_FINANCE_TEMPLATE: Persona = {
     'Domain expert for finance: ledger, outstanding royalties, owner statements, GePG, TRA, cooperative levies.',
   systemPrompt: JUNIOR_FINANCE_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.MPESA_RECONCILE,
     SKILLS.TRA_ROYALTY_SUMMARY,
     SKILLS.SERVICE_CHARGE_RECONCILE,
@@ -193,7 +195,7 @@ export const JUNIOR_COMPLIANCE_TEMPLATE: Persona = {
     GRAPH_TOOLS.GET_PARCEL_COMPLIANCE,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     GRAPH_TOOLS.GENERATE_EVIDENCE_PACK,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.ADVISE,
   ],
   visibilityBudget: 'management',
@@ -238,7 +240,7 @@ export const COWORKER_TEMPLATE: Persona = {
     'Private coworker for a single employee — help, teach, draft, report only when asked.',
   systemPrompt: COWORKER_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     SKILLS.SWAHILI_DRAFT,
     SKILLS.ADVISE,
@@ -360,9 +362,9 @@ End every action-oriented turn with:
 `.trim(),
   allowedTools: [
     'get_portfolio_overview',
-    'get_property_rollup',
-    'get_unit_health',
-    'get_tenant_risk_drivers',
+    'get_site_rollup',
+    'get_pit_health',
+    'get_counterparty_risk_drivers',
     'skill.finance.draft_owner_statement',
     'skill.core.advise',
   ],
@@ -432,14 +434,14 @@ YOU CANNOT
   - Speak for the owner on any matter outside price + concessions.
 `.trim(),
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
     SKILLS.NEGOTIATION_OPEN,
     SKILLS.NEGOTIATION_COUNTER,
     SKILLS.NEGOTIATION_CLOSE,
     SKILLS.ADVISE,
   ],
-  defaultContextTools: [GRAPH_TOOLS.GET_UNIT_HEALTH],
+  defaultContextTools: [GRAPH_TOOLS.GET_PIT_HEALTH],
   visibilityBudget: 'team',
   defaultVisibility: 'team',
   modelTier: 'standard',
@@ -499,7 +501,7 @@ YOU CANNOT
 `.trim(),
   allowedTools: [
     GRAPH_TOOLS.GET_VENDOR_SCORECARD,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     SKILLS.NEGOTIATION_OPEN,
     SKILLS.NEGOTIATION_COUNTER,
     SKILLS.NEGOTIATION_CLOSE,

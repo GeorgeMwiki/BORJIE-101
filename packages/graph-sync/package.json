@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "Canonical Property Graph (CPG) — Neo4j graph sync, schema, and query service for Boss Nyumba",
+  "description": "Canonical Mining Graph (CMG) — Neo4j graph sync, schema, and query service for Borjie",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

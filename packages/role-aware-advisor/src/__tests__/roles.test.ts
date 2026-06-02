@@ -27,7 +27,7 @@ describe('Roles + Personas', () => {
 
   it('tone differs across roles where expected', () => {
     expect(PERSONAS.tenant.tone).toBe('friendly');
-    expect(PERSONAS['property-manager'].tone).toBe('professional');
+    expect(PERSONAS['site-manager'].tone).toBe('professional');
     expect(PERSONAS.admin.tone).toBe('authoritative');
     expect(PERSONAS.prospect.tone).toBe('friendly');
   });
@@ -76,7 +76,7 @@ describe('Roles + Personas', () => {
     expect(mapWireRoleToRole('ADMIN')).toBe('admin');
     expect(mapWireRoleToRole('SUPPORT')).toBe('admin');
     expect(mapWireRoleToRole('TENANT_ADMIN')).toBe('admin');
-    expect(mapWireRoleToRole('PROPERTY_MANAGER')).toBe('property-manager');
+    expect(mapWireRoleToRole('PROPERTY_MANAGER')).toBe('site-manager');
     expect(mapWireRoleToRole('ACCOUNTANT')).toBe('estate-manager');
     expect(mapWireRoleToRole('MAINTENANCE_STAFF')).toBe('estate-manager');
     expect(mapWireRoleToRole('OWNER')).toBe('owner');

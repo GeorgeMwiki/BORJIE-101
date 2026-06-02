@@ -27,11 +27,16 @@
  * test in `authority-level.test.ts`, which asserts the full set of expected
  * SystemRole string values — failing loudly if the two files drift apart.
  */
+// W-E migration: the operational field role moved to the mining domain —
+// `PROPERTY_MANAGER: 'property_manager'` → `SITE_MANAGER: 'site_manager'`. The
+// persisted value is migrated concurrently by the database agent (the DB's
+// `borjie_user_role` pgEnum uses `site_manager`). The SaaS org/admin roles
+// (`super_admin`, `tenant_admin`, `estate_manager`, `owner`, …) are kept.
 const SystemRoleValues = {
   SUPER_ADMIN: 'super_admin',
   PLATFORM_SUPPORT: 'platform_support',
   TENANT_ADMIN: 'tenant_admin',
-  PROPERTY_MANAGER: 'property_manager',
+  SITE_MANAGER: 'site_manager',
   OWNER: 'owner',
   ESTATE_MANAGER: 'estate_manager',
   ACCOUNTANT: 'accountant',
@@ -90,7 +95,7 @@ export const DEFAULT_AUTHORITY_FOR_ROLE: Record<SystemRole, AuthorityLevelId> = 
   [SystemRoleValues.SUPER_ADMIN]: 'SUPER_ADMIN',
   [SystemRoleValues.PLATFORM_SUPPORT]: 'ADMIN_L4',
   [SystemRoleValues.TENANT_ADMIN]: 'ADMIN_L1',
-  [SystemRoleValues.PROPERTY_MANAGER]: 'ADMIN_L3',
+  [SystemRoleValues.SITE_MANAGER]: 'ADMIN_L3',
   [SystemRoleValues.OWNER]: 'OWNER',
   [SystemRoleValues.ESTATE_MANAGER]: 'ESTATE_MANAGER',
   [SystemRoleValues.ACCOUNTANT]: 'ADMIN_L3',

@@ -15,7 +15,7 @@ interface ContextBadgeProps {
 const PERSONA_LABELS_EN: Record<SubPersona, string> = {
   finance: 'Finance',
   maintenance: 'Maintenance',
-  leasing: 'Leasing',
+  offtake: 'Offtake',
   compliance: 'Compliance',
   learning: 'Training',
   advisor: 'Portfolio advisor',
@@ -25,7 +25,7 @@ const PERSONA_LABELS_EN: Record<SubPersona, string> = {
 const PERSONA_LABELS_SW: Record<SubPersona, string> = {
   finance: 'Fedha',
   maintenance: 'Matengenezo',
-  leasing: 'Kukodisha',
+  offtake: 'Mauzo',
   compliance: 'Uzingatiaji',
   learning: 'Mafunzo',
   advisor: 'Mshauri wa kwingineko',

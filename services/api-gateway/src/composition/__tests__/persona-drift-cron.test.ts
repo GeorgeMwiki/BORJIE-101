@@ -45,7 +45,7 @@ function fakeVector(): PersonaVector {
 function obs(over: Partial<PersonaVectorObservation> = {}): PersonaVectorObservation {
   return {
     tenantId: 't1',
-    personaId: 'tenant-resident',
+    personaId: 'counterparty-resident',
     thoughtId: 'th-1',
     capturedAt: '2026-05-15T10:00:00Z',
     vector: fakeVector(),
@@ -99,7 +99,7 @@ describe('Phase D D7 — persona-drift cron', () => {
     expect(n).toBe(1);
     expect(events).toHaveLength(1);
     expect(events[0].severity).toBe('high');
-    expect(events[0].personaId).toBe('tenant-resident');
+    expect(events[0].personaId).toBe('counterparty-resident');
   });
 
   it('tick() does NOT emit when assessor passes', async () => {

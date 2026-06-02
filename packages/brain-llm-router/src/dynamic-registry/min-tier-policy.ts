@@ -1,12 +1,12 @@
 /**
- * Min-tier policy enforcement — Borjie real-estate task categories.
+ * Min-tier policy enforcement — Borjie mining-estate task categories.
  *
  * Ported from LITFIN `src/core/security/model-policy.ts` (262 LOC).
- * Adapted to BORJIE `ModelFamily` taxonomy + real-estate domain.
+ * Adapted to BORJIE `ModelFamily` taxonomy + mining-estate domain.
  *
- * **Why this exists:** cost-aware routing can silently downgrade a
- * lease-drafting / eviction-notice / financial-advice call to a Haiku-
- * class model. That's a legal-significance regression. This module
+ * **Why this exists:** cost-aware routing can silently downgrade an
+ * offtake-drafting / licence-suspension-notice / financial-advice call
+ * to a Haiku-class model. That's a legal-significance regression. This module
  * enforces a per-task-category minimum family floor; cost-cap can
  * REFUSE a call, but it can NEVER downgrade through this floor.
  *
@@ -17,9 +17,9 @@
  *   - Logger port: silent by default. Composition root sets a real
  *     Pino logger via `setMinTierLogger()`.
  *
- * Real-estate categories:
- *   - lease_drafting / eviction_notice / financial_advice /
- *     legal_review / tenant_screening / rent_calculation /
+ * Mining estate categories:
+ *   - offtake_drafting / licence_suspension_notice / financial_advice /
+ *     legal_review / tenant_screening / royalty_calculation /
  *     compliance_check / contract_extraction → must be sonnet+ (most)
  *     or opus (legal).
  *   - inspection_report / maintenance_triage / document_summary /
@@ -32,12 +32,12 @@ import { type ModelFamily, isModelFamily } from './baselines.js';
 // ───────────────────────────── Types ─────────────────────────────
 
 export type TaskCategory =
-  | 'lease_drafting'
-  | 'eviction_notice'
+  | 'offtake_drafting'
+  | 'licence_suspension_notice'
   | 'financial_advice'
   | 'legal_review'
   | 'tenant_screening'
-  | 'rent_calculation'
+  | 'royalty_calculation'
   | 'compliance_check'
   | 'contract_extraction'
   | 'inspection_report'
@@ -76,13 +76,13 @@ export interface EnforcementLogEntry {
  */
 export const MODEL_REQUIREMENTS: Readonly<Record<TaskCategory, ModelRequirement>> =
   Object.freeze({
-    lease_drafting: {
+    offtake_drafting: {
       minFamily: 'opus',
-      reason: 'Lease contracts are legally binding; opus-class precision required',
+      reason: 'Offtake contracts are legally binding; opus-class precision required',
     },
-    eviction_notice: {
+    licence_suspension_notice: {
       minFamily: 'opus',
-      reason: 'Eviction notices are jurisdictionally regulated; opus required',
+      reason: 'Licence-suspension notices are jurisdictionally regulated; opus required',
     },
     financial_advice: {
       minFamily: 'opus',
@@ -96,7 +96,7 @@ export const MODEL_REQUIREMENTS: Readonly<Record<TaskCategory, ModelRequirement>
       minFamily: 'sonnet',
       reason: 'Fair-housing law sensitivity; sonnet-class minimum',
     },
-    rent_calculation: {
+    royalty_calculation: {
       minFamily: 'sonnet',
       reason: 'Money math must be exact; sonnet-class minimum',
     },

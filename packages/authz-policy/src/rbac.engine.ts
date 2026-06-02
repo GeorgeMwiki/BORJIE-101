@@ -47,9 +47,9 @@ const defaultRoles: Record<string, Role> = {
       { action: 'read', resource: 'report' },
     ],
   },
-  'property-manager': {
-    name: 'property-manager',
-    description: 'Manages properties on behalf of owner',
+  'site-manager': {
+    name: 'site-manager',
+    description: 'Manages sites on behalf of owner',
     permissions: [
       { action: 'read', resource: 'property' },
       { action: 'update', resource: 'property' },
@@ -61,11 +61,11 @@ const defaultRoles: Record<string, Role> = {
       { action: 'manage', resource: 'maintenance' },
       { action: 'read', resource: 'report' },
     ],
-    inherits: ['caretaker'],
+    inherits: ['site-supervisor'],
   },
-  caretaker: {
-    name: 'caretaker',
-    description: 'On-site property caretaker',
+  'site-supervisor': {
+    name: 'site-supervisor',
+    description: 'On-site supervisor',
     permissions: [
       { action: 'read', resource: 'property' },
       { action: 'read', resource: 'unit' },

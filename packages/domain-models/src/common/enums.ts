@@ -697,19 +697,26 @@ export const EvidenceTypeSchema = z.enum([
   'payment_record', 'inspection_report', 'witness_statement', 'legal_document', 'other'
 ]);
 
+// W-E migration: notice vocabulary moved to the mining domain. Member KEYS
+// are kept stable (consumers reference `NoticeType.EVICTION_NOTICE` etc.) while
+// the string VALUES move — those persisted values are migrated concurrently by
+// the database agent. Renamed values:
+//   'eviction_warning' → 'licence_suspension_warning'
+//   'eviction_notice'  → 'licence_suspension_notice'
+//   'lease_violation'  → 'offtake_violation'
 export const NoticeType = {
   PAYMENT_REMINDER: 'payment_reminder',
   PAYMENT_DEMAND: 'payment_demand',
   LATE_FEE_NOTICE: 'late_fee_notice',
-  LEASE_VIOLATION: 'lease_violation',
+  LEASE_VIOLATION: 'offtake_violation',
   NOISE_WARNING: 'noise_warning',
   INSPECTION_NOTICE: 'inspection_notice',
   ENTRY_NOTICE: 'entry_notice',
   RENEWAL_OFFER: 'renewal_offer',
   NON_RENEWAL: 'non_renewal',
   TERMINATION: 'termination',
-  EVICTION_WARNING: 'eviction_warning',
-  EVICTION_NOTICE: 'eviction_notice',
+  EVICTION_WARNING: 'licence_suspension_warning',
+  EVICTION_NOTICE: 'licence_suspension_notice',
   DEPOSIT_DEDUCTION: 'deposit_deduction',
   MOVE_OUT_INSTRUCTIONS: 'move_out_instructions',
   LEGAL_DEMAND: 'legal_demand',
@@ -718,9 +725,9 @@ export const NoticeType = {
 } as const;
 export type NoticeType = (typeof NoticeType)[keyof typeof NoticeType];
 export const NoticeTypeSchema = z.enum([
-  'payment_reminder', 'payment_demand', 'late_fee_notice', 'lease_violation', 'noise_warning',
+  'payment_reminder', 'payment_demand', 'late_fee_notice', 'offtake_violation', 'noise_warning',
   'inspection_notice', 'entry_notice', 'renewal_offer', 'non_renewal', 'termination',
-  'eviction_warning', 'eviction_notice', 'deposit_deduction', 'move_out_instructions',
+  'licence_suspension_warning', 'licence_suspension_notice', 'deposit_deduction', 'move_out_instructions',
   'legal_demand', 'court_summons', 'other'
 ]);
 

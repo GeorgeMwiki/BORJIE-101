@@ -13,11 +13,12 @@
  *
  * The BORJIE constitution encodes:
  *
- *   1. TZ Rental Act
- *      - 14-day notice for non-payment eviction
- *      - 30-day notice for rent increase
- *      - Deposit held in escrow; returnable within 30 days of vacate
- *      - No advance rent > 6 months
+ *   1. TZ Mining Act
+ *      - 14-day notice for non-payment licence suspension
+ *      - 30-day notice for royalty-rate increase
+ *      - Rehabilitation deposit held in escrow; returnable within 30 days
+ *        of site relinquishment
+ *      - No advance royalty > 6 months
  *
  *   2. GDPR / PDPA
  *      - PII never leaves tenant boundary
@@ -42,7 +43,7 @@ import { logger } from '../../logger.js';
 export interface ConstitutionRule {
   readonly id: string;
   readonly description: string;
-  readonly category: 'tz-rental-act' | 'gdpr-pdpa' | 'currency-chain' | 'inviolable-ip';
+  readonly category: 'tz-mining-act' | 'gdpr-pdpa' | 'currency-chain' | 'inviolable-ip';
 }
 
 export interface ClusterReflection {
@@ -97,22 +98,22 @@ export interface CreateConstitutionalCriticArgs {
 export const BORJIE_CONSTITUTION: ReadonlyArray<ConstitutionRule> =
   Object.freeze([
     {
-      id: 'tz-rental-act-notice-period',
+      id: 'tz-mining-act-notice-period',
       description:
-        'TZ Rental Act: 14-day written notice required before eviction for non-payment.',
-      category: 'tz-rental-act',
+        'TZ Mining Act: 14-day written notice required before licence suspension for non-payment.',
+      category: 'tz-mining-act',
     },
     {
-      id: 'tz-rental-act-deposit-handling',
+      id: 'tz-mining-act-deposit-handling',
       description:
-        'Tenant deposit held in escrow; refundable within 30 days of vacate per TZ Rental Act.',
-      category: 'tz-rental-act',
+        'Rehabilitation deposit held in escrow; refundable within 30 days of site relinquishment per TZ Mining Act.',
+      category: 'tz-mining-act',
     },
     {
-      id: 'tz-rental-act-advance-rent',
+      id: 'tz-mining-act-advance-royalty',
       description:
-        'TZ Rental Act forbids landlord demanding > 6 months rent in advance.',
-      category: 'tz-rental-act',
+        'TZ Mining Act forbids the owner demanding > 6 months royalty in advance.',
+      category: 'tz-mining-act',
     },
     {
       id: 'gdpr-pii-boundary',
@@ -225,7 +226,7 @@ export function createConstitutionalCritic(
 // ─────────────────────────────────────────────────────────────────────
 
 const KEYWORDS_BY_CATEGORY: Record<string, ReadonlyArray<string>> = {
-  'tz-rental-act': ['eviction', 'evict', 'notice', 'deposit', 'rent advance', 'kodi'],
+  'tz-mining-act': ['licence suspension', 'suspend', 'notice', 'deposit', 'royalty advance', 'mrabaha'],
   'gdpr-pdpa': ['phone', 'id number', 'pii', 'email', 'address', 'simu'],
   'currency-chain': ['tzs', 'kes', 'usd', 'currency', 'exchange', 'fx'],
   'inviolable-ip': ['api key', 'till', 'mpesa', 'secret', 'cross-tenant'],

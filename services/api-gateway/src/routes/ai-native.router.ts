@@ -523,14 +523,14 @@ router.get('/doc-intelligence/:documentId/obligations', async (c) => {
 // --- POST /ai-native/legal-draft --------------------------------------------
 const LegalDraftSchema = z.object({
   documentKind: z.enum([
-    'notice_to_vacate',
-    'lease_addendum',
+    'notice_to_cease',
+    'offtake_addendum',
     'demand_letter',
-    'eviction_notice',
+    'licence_suspension_notice',
     'renewal_offer',
-    'rent_increase_notice',
-    'cure_or_quit',
-    'move_out_statement',
+    'royalty_increase_notice',
+    'cure_or_cease',
+    'offboarding_statement',
     'other',
   ]),
   context: z.object({

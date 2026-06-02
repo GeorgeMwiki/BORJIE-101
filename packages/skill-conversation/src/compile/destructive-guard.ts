@@ -11,8 +11,9 @@
  *
  *   2. **Internal-admin scope can't pre-approve destructive tools.** Even an
  *      admin must keep the ask-owner hook for tools like
- *      `notice.draft_eviction_notice` because the tenant of record (not the
- *      admin) is the owner. Removing it would break tenant authority.
+ *      `notice.draft_licence_suspension_notice` because the counterparty of
+ *      record (not the admin) is the owner. Removing it would break tenant
+ *      authority.
  *
  * These are scope-policy decisions, *not* per-tenant settings. They live here
  * because they ride the chat handoff boundary.
@@ -47,7 +48,7 @@ const OWNER_CUSTOMER_FORBIDDEN_TOOLS: ReadonlySet<string> = Object.freeze(
  */
 const TENANT_AUTHORITY_TOOLS: ReadonlySet<string> = Object.freeze(
   new Set([
-    'notice.draft_eviction_notice',
+    'notice.draft_licence_suspension_notice',
     'lease.terminate',
     'tenant.evict',
     'billing.refund',

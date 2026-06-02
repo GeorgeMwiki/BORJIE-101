@@ -1,5 +1,5 @@
 /**
- * Canonical Property Graph (CPG) — Neo4j Constraints & Indexes
+ * Canonical Mining Graph (CMG) — Neo4j Constraints & Indexes
  *
  * Enforces data integrity and optimizes query performance.
  * Run once during graph initialization, idempotent (IF NOT EXISTS).
@@ -32,12 +32,12 @@ const UNIQUENESS_CONSTRAINTS: Array<{ label: string; properties: string[] }> = [
   { label: 'User',             properties: ['_tenantId', '_id'] },
   { label: 'Vendor',           properties: ['_tenantId', '_id'] },
 
-  // Properties & Physical World
-  { label: 'Property',         properties: ['_tenantId', '_id'] },
+  // Sites & Physical World
+  { label: 'Site',             properties: ['_tenantId', '_id'] },
   { label: 'Building',         properties: ['_tenantId', '_id'] },
-  { label: 'Block',            properties: ['_tenantId', '_id'] },
+  { label: 'Zone',             properties: ['_tenantId', '_id'] },
   { label: 'Floor',            properties: ['_tenantId', '_id'] },
-  { label: 'Unit',             properties: ['_tenantId', '_id'] },
+  { label: 'Pit',              properties: ['_tenantId', '_id'] },
   { label: 'Space',            properties: ['_tenantId', '_id'] },
   { label: 'Asset',            properties: ['_tenantId', '_id'] },
   { label: 'Parcel',           properties: ['_tenantId', '_id'] },
@@ -47,11 +47,11 @@ const UNIQUENESS_CONSTRAINTS: Array<{ label: string; properties: string[] }> = [
   // People
   { label: 'Person',           properties: ['_tenantId', '_id'] },
   { label: 'Household',        properties: ['_tenantId', '_id'] },
-  { label: 'TenantProfile',    properties: ['_tenantId', '_id'] },
+  { label: 'CounterpartyProfile', properties: ['_tenantId', '_id'] },
   { label: 'Customer',         properties: ['_tenantId', '_id'] },
 
   // Contracts & Documents
-  { label: 'Lease',            properties: ['_tenantId', '_id'] },
+  { label: 'Offtake',          properties: ['_tenantId', '_id'] },
   { label: 'LandLease',        properties: ['_tenantId', '_id'] },
   { label: 'ContractVersion',  properties: ['_tenantId', '_id'] },
   { label: 'Document',         properties: ['_tenantId', '_id'] },
@@ -91,16 +91,16 @@ const UNIQUENESS_CONSTRAINTS: Array<{ label: string; properties: string[] }> = [
  */
 const PERFORMANCE_INDEXES: Array<{ label: string; properties: string[]; name: string }> = [
   // Tenant isolation (every query starts here)
-  { label: 'Property',  properties: ['_tenantId'],            name: 'idx_property_tenant' },
-  { label: 'Unit',      properties: ['_tenantId'],            name: 'idx_unit_tenant' },
+  { label: 'Site',      properties: ['_tenantId'],            name: 'idx_site_tenant' },
+  { label: 'Pit',       properties: ['_tenantId'],            name: 'idx_pit_tenant' },
   { label: 'Customer',  properties: ['_tenantId'],            name: 'idx_customer_tenant' },
 
-  // Property lookups
-  { label: 'Unit',      properties: ['unitCode'],             name: 'idx_unit_code' },
-  { label: 'Unit',      properties: ['status'],               name: 'idx_unit_status' },
-  { label: 'Property',  properties: ['propertyCode'],         name: 'idx_property_code' },
-  { label: 'Property',  properties: ['city'],                 name: 'idx_property_city' },
-  { label: 'Property',  properties: ['status'],               name: 'idx_property_status' },
+  // Site lookups
+  { label: 'Pit',       properties: ['unitCode'],             name: 'idx_pit_code' },
+  { label: 'Pit',       properties: ['status'],               name: 'idx_pit_status' },
+  { label: 'Site',      properties: ['propertyCode'],         name: 'idx_site_code' },
+  { label: 'Site',      properties: ['city'],                 name: 'idx_site_city' },
+  { label: 'Site',      properties: ['status'],               name: 'idx_site_status' },
 
   // Operations lookups
   { label: 'WorkOrder',  properties: ['status'],              name: 'idx_wo_status' },
@@ -124,8 +124,8 @@ const PERFORMANCE_INDEXES: Array<{ label: string; properties: string[]; name: st
   // People lookups
   { label: 'Customer',   properties: ['status'],              name: 'idx_customer_status' },
   { label: 'Customer',   properties: ['kycStatus'],           name: 'idx_customer_kyc' },
-  { label: 'Lease',      properties: ['status'],              name: 'idx_lease_status' },
-  { label: 'Lease',      properties: ['endDate'],             name: 'idx_lease_end' },
+  { label: 'Offtake',    properties: ['status'],              name: 'idx_offtake_status' },
+  { label: 'Offtake',    properties: ['endDate'],             name: 'idx_offtake_end' },
 
   // Timeline lookups
   { label: 'TimelineEvent', properties: ['timestamp'],        name: 'idx_timeline_ts' },
@@ -146,13 +146,13 @@ const PERFORMANCE_INDEXES: Array<{ label: string; properties: string[]; name: st
  */
 const FULLTEXT_INDEXES: Array<{ name: string; labels: string[]; properties: string[] }> = [
   {
-    name: 'ft_property_search',
-    labels: ['Property'],
+    name: 'ft_site_search',
+    labels: ['Site'],
     properties: ['name', 'addressLine1', 'city', 'description'],
   },
   {
-    name: 'ft_unit_search',
-    labels: ['Unit'],
+    name: 'ft_pit_search',
+    labels: ['Pit'],
     properties: ['name', 'unitCode', 'description'],
   },
   {

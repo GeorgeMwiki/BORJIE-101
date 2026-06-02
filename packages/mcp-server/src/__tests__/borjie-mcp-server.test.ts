@@ -30,7 +30,7 @@ describe('createBorjieMcpServer', () => {
     expect(toolNames).toContain('list_maintenance_cases');
     expect(toolNames).toContain('create_maintenance_case');
     expect(toolNames).toContain('generate_letter');
-    expect(toolNames).toContain('query_arrears_projection');
+    expect(toolNames).toContain('query_outstanding_royalties_projection');
     expect(toolNames).toContain('list_occupancy_timeline');
     expect(toolNames).toContain('query_ai_cost_summary');
     expect(toolNames).toContain('list_compliance_plugins');

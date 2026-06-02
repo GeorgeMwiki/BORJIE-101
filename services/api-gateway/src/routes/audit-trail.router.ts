@@ -35,9 +35,17 @@ const ACTOR_KIND_ENUM = z.enum([
   'system',
 ]);
 
+// Mirrors `AuditActionCategory` in `@borjie/ai-copilot` (additive): the
+// canonical mining categories PLUS the deprecated legacy aliases, so this
+// audit-query filter can match BOTH new entries and pre-rename
+// hash-chained entries (which are immutable, so their stored category
+// value is never relabelled).
 const ACTION_CATEGORY_ENUM = z.enum([
   'finance',
   'offtake',
+  'royalty_collection',
+  'licence_suspension',
+  'counterparty_welfare',
   'maintenance',
   'compliance',
   'communications',
@@ -46,8 +54,12 @@ const ACTION_CATEGORY_ENUM = z.enum([
   'procurement',
   'insurance',
   'legal',
-  'community_welfare',
   'other',
+  // Deprecated legacy aliases — retained for querying historical entries.
+  'leasing',
+  'rent_collection',
+  'tenant_welfare',
+  'eviction',
 ]);
 
 const RecordSchema = z

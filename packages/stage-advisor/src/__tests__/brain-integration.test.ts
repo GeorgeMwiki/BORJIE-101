@@ -14,7 +14,7 @@ describe('seedConversationOpener — stage + role tailored', () => {
   it('mentions the stage display name and a role-shaped greeting', () => {
     const opener = seedConversationOpener({
       stage: 'sapling',
-      role: 'property-manager',
+      role: 'site-manager',
     });
     expect(opener).toContain('Sapling');
     expect(opener.toLowerCase()).toContain('portfolio');
@@ -48,7 +48,7 @@ describe('seedConversationOpener — stage + role tailored', () => {
     ] as const;
     const roles = [
       'admin',
-      'property-manager',
+      'site-manager',
       'estate-manager',
       'owner',
       'tenant',

@@ -15,7 +15,7 @@ describe('routingOverridePatchSchema.parse', () => {
   it('accepts a valid patch', () => {
     const r = routingOverridePatchSchema.parse({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'Anthropic outage',
     });
@@ -26,7 +26,7 @@ describe('routingOverridePatchSchema.parse', () => {
   it('rejects unknown family', () => {
     const r = routingOverridePatchSchema.parse({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'made-up-family',
       reason: 'x',
     });
@@ -37,7 +37,7 @@ describe('routingOverridePatchSchema.parse', () => {
   it('rejects locked category', () => {
     const r = routingOverridePatchSchema.parse({
       tenantId: 't1',
-      taskCategory: 'lease_drafting',
+      taskCategory: 'offtake_drafting',
       family: 'sonnet',
       reason: 'x',
     });
@@ -48,7 +48,7 @@ describe('routingOverridePatchSchema.parse', () => {
   it('rejects empty tenantId', () => {
     const r = routingOverridePatchSchema.parse({
       tenantId: '',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
     });
@@ -65,7 +65,7 @@ describe('routingOverrideEntrySchema.parse', () => {
   it('accepts a valid entry with createdAtMs', () => {
     const r = routingOverrideEntrySchema.parse({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
       createdAtMs: Date.now(),
@@ -76,7 +76,7 @@ describe('routingOverrideEntrySchema.parse', () => {
   it('rejects missing createdAtMs', () => {
     const r = routingOverrideEntrySchema.parse({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
     });
@@ -86,8 +86,8 @@ describe('routingOverrideEntrySchema.parse', () => {
 
 describe('LOCKED_CATEGORIES', () => {
   it('contains the legal/safety-significant categories', () => {
-    expect(LOCKED_CATEGORIES.has('lease_drafting')).toBe(true);
-    expect(LOCKED_CATEGORIES.has('eviction_notice')).toBe(true);
+    expect(LOCKED_CATEGORIES.has('offtake_drafting')).toBe(true);
+    expect(LOCKED_CATEGORIES.has('licence_suspension_notice')).toBe(true);
     expect(LOCKED_CATEGORIES.has('financial_advice')).toBe(true);
     expect(LOCKED_CATEGORIES.has('legal_review')).toBe(true);
   });
@@ -103,7 +103,7 @@ describe('InMemoryOverrideAdapter', () => {
     const a = new InMemoryOverrideAdapter();
     await a.upsert({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
       createdAtMs: 100,
@@ -153,14 +153,14 @@ describe('RoutingOverrideRepository', () => {
     const repo = new RoutingOverrideRepository(a);
     await a.upsert({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
       createdAtMs: 100,
     });
-    expect(repo.getOverrideFor('t1', 'rent_calculation')).toBeNull();
+    expect(repo.getOverrideFor('t1', 'royalty_calculation')).toBeNull();
     await repo.warm('t1');
-    const out = repo.getOverrideFor('t1', 'rent_calculation');
+    const out = repo.getOverrideFor('t1', 'royalty_calculation');
     expect(out?.family).toBe('sonnet');
   });
 
@@ -176,14 +176,14 @@ describe('RoutingOverrideRepository', () => {
     // Inject directly to bypass schema (simulating bad DB row)
     await a.upsert({
       tenantId: 't1',
-      taskCategory: 'lease_drafting',
+      taskCategory: 'offtake_drafting',
       family: 'haiku',
       reason: 'bad',
       createdAtMs: 100,
     });
     const repo = new RoutingOverrideRepository(a);
     await repo.warm('t1');
-    expect(repo.getOverrideFor('t1', 'lease_drafting')).toBeNull();
+    expect(repo.getOverrideFor('t1', 'offtake_drafting')).toBeNull();
   });
 
   it('upsert invalidates cache', async () => {
@@ -192,14 +192,14 @@ describe('RoutingOverrideRepository', () => {
     await repo.warm('t1');
     await repo.upsert({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'opus',
       reason: 'x',
     });
     // Cache is invalidated — needs re-warm
-    expect(repo.getOverrideFor('t1', 'rent_calculation')).toBeNull();
+    expect(repo.getOverrideFor('t1', 'royalty_calculation')).toBeNull();
     await repo.warm('t1');
-    expect(repo.getOverrideFor('t1', 'rent_calculation')?.family).toBe('opus');
+    expect(repo.getOverrideFor('t1', 'royalty_calculation')?.family).toBe('opus');
   });
 
   it('upsert throws on locked category', async () => {
@@ -208,7 +208,7 @@ describe('RoutingOverrideRepository', () => {
     await expect(
       repo.upsert({
         tenantId: 't1',
-        taskCategory: 'lease_drafting',
+        taskCategory: 'offtake_drafting',
         family: 'haiku',
         reason: 'x',
       }),
@@ -220,14 +220,14 @@ describe('RoutingOverrideRepository', () => {
     const repo = new RoutingOverrideRepository(a);
     await repo.upsert({
       tenantId: 't1',
-      taskCategory: 'rent_calculation',
+      taskCategory: 'royalty_calculation',
       family: 'sonnet',
       reason: 'x',
     });
     await repo.warm('t1');
-    expect(repo.getOverrideFor('t1', 'rent_calculation')).not.toBeNull();
-    expect(await repo.remove('t1', 'rent_calculation')).toBe(true);
-    expect(repo.getOverrideFor('t1', 'rent_calculation')).toBeNull();
+    expect(repo.getOverrideFor('t1', 'royalty_calculation')).not.toBeNull();
+    expect(await repo.remove('t1', 'royalty_calculation')).toBe(true);
+    expect(repo.getOverrideFor('t1', 'royalty_calculation')).toBeNull();
   });
 
   it('warm dedupes concurrent calls', async () => {

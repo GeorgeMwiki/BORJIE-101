@@ -17,9 +17,9 @@ export function createOwnerAdvisor(): BorjiePersona {
     systemPrompt: OWNER_ADVISOR_PROMPT,
     availableTools: Object.freeze([
       'get_portfolio_overview',
-      'get_property_rollup',
-      'get_unit_health',
-      'get_tenant_risk_drivers',
+      'get_site_rollup',
+      'get_pit_health',
+      'get_counterparty_risk_drivers',
       'skill.finance.draft_owner_statement',
       'skill.core.advise',
     ]),

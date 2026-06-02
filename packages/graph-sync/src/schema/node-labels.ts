@@ -1,9 +1,9 @@
 /**
- * Canonical Property Graph (CPG) — Node Labels
+ * Canonical Mining Graph (CMG) — Node Labels
  *
- * Every node label maps to a real-world entity in the Borjie domain.
- * Labels are grouped by bounded context and must stay in sync with
- * the PostgreSQL source-of-truth schemas.
+ * Every node label maps to a real-world entity in the Borjie mining
+ * domain. Labels are grouped by bounded context and must stay in sync
+ * with the PostgreSQL source-of-truth schemas.
  *
  * Naming conventions:
  *  - PascalCase labels (Neo4j convention)
@@ -13,26 +13,26 @@
 // ─── Organization & Governance ───────────────────────────────────────────────
 
 export const ORG_LABELS = [
-  'Org',               // Enterprise customer / landlord corporation
+  'Org',               // Enterprise customer / owner corporation
   'Region',            // Geographic region grouping
   'Area',              // District / city / zone within a region
-  'Policy',            // Ruleset + constitution (rent escalation, SLA, etc.)
+  'Policy',            // Ruleset + constitution (royalty escalation, SLA, etc.)
   'ApprovalMatrix',    // Approval thresholds per action type
   'Role',              // RBAC role definition
   'User',              // Staff / system user
   'Vendor',            // External service provider
 ] as const;
 
-// ─── Properties & Physical World ─────────────────────────────────────────────
+// ─── Sites & Physical World ──────────────────────────────────────────────────
 
-export const PROPERTY_LABELS = [
-  'Property',          // Address-level management entity
-  'Building',          // Physical building within a property
-  'Block',             // Wing / block within a building
+export const SITE_LABELS = [
+  'Site',              // Estate / licence-level management entity
+  'Building',          // Physical building within a site
+  'Zone',              // Wing / zone within a building
   'Floor',             // Floor level
-  'Unit',              // Individual rentable/sellable space
-  'Space',             // Room or sub-space within a unit
-  'Asset',             // Fixture / appliance / equipment
+  'Pit',               // Individual workable/extractable space
+  'Space',             // Room or sub-space within a pit
+  'Asset',             // Fixture / equipment / plant
   'Parcel',            // Land parcel
   'SubParcel',         // Section of a land parcel
   'Improvement',       // Structure on parcel (fence, borehole, etc.)
@@ -41,21 +41,21 @@ export const PROPERTY_LABELS = [
 // ─── People & Relationships ──────────────────────────────────────────────────
 
 export const PEOPLE_LABELS = [
-  'Person',            // Natural person (tenant, guarantor, owner)
-  'Household',         // Group of persons sharing a unit
-  'TenantProfile',     // Person-in-this-org-at-this-property context
+  'Person',            // Natural person (counterparty, guarantor, owner)
+  'Household',         // Group of persons sharing a pit
+  'CounterpartyProfile', // Person-in-this-org-at-this-site context
   'Customer',          // Customer account (maps to PostgreSQL customers)
 ] as const;
 
 // ─── Contracts & Documents ───────────────────────────────────────────────────
 
 export const CONTRACT_LABELS = [
-  'Lease',             // Unit lease agreement
+  'Offtake',           // Pit offtake agreement
   'LandLease',         // Parcel lease agreement
   'ContractVersion',   // Versioned contract snapshot
-  'Document',          // ID doc, lease PDF, title doc, notice, invoice
+  'Document',          // ID doc, offtake PDF, title doc, notice, invoice
   'Verification',      // KYC verification result
-  'Badge',             // Verified ID, Verified Lease, etc.
+  'Badge',             // Verified ID, Verified Offtake, etc.
 ] as const;
 
 // ─── Operations ──────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ export const TIMELINE_LABELS = [
 
 export const ALL_NODE_LABELS = [
   ...ORG_LABELS,
-  ...PROPERTY_LABELS,
+  ...SITE_LABELS,
   ...PEOPLE_LABELS,
   ...CONTRACT_LABELS,
   ...OPS_LABELS,

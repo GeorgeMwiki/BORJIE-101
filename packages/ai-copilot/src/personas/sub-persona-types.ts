@@ -166,8 +166,8 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'skill.kenya.service_charge_reconcile',
       'skill.finance.draft_owner_statement',
       'skill.finance.draft_arrears_notice',
-      'get_tenant_risk_drivers',
-      'get_property_rollup',
+      'get_counterparty_risk_drivers',
+      'get_site_rollup',
     ],
     routePatterns: [
       '/finance/*',
@@ -211,7 +211,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'skill.offtake.negotiation_open',
       'skill.offtake.negotiation_counter',
       'skill.offtake.negotiation_close',
-      'get_unit_health',
+      'get_pit_health',
     ],
     routePatterns: [
       '/offtake/*',
@@ -250,7 +250,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     preferredTools: [
       'skill.maintenance.triage',
       'skill.maintenance.assign_work_order',
-      'get_unit_health',
+      'get_pit_health',
       'get_vendor_scorecard',
     ],
     routePatterns: [
@@ -396,7 +396,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'get_portfolio_overview',
-      'get_property_rollup',
+      'get_site_rollup',
       'skill.core.advise',
       'skill.estate.dcf_valuation',
       'skill.estate.npv_repair_vs_replace',
@@ -458,7 +458,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'get_portfolio_overview',
-      'get_property_rollup',
+      'get_site_rollup',
       'skill.core.advise',
     ],
     routePatterns: ['/strategy/*', '/portfolio/*', '/insights/*', '/dashboard'],
