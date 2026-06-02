@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
-    "ws": "^8.18.0",
+    "ws": "^8.20.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
