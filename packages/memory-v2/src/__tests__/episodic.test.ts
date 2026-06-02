@@ -10,14 +10,14 @@ function buildEpisode(overrides: Partial<Episode> = {}): Episode {
     tenantId: TENANT,
     userId: 'user-1',
     surface: 'owner_portal',
-    subject: 'property:123',
-    title: 'Tenant inquiry',
-    summary: 'Tenant asked about lease renewal terms.',
+    subject: 'site:123',
+    title: 'Royalty inquiry',
+    summary: 'Counterparty asked about royalty payment schedule.',
     validFrom: '2026-05-20T10:00:00.000Z',
     validTo: '2026-05-20T11:00:00.000Z',
     recordedAt: new Date().toISOString(),
     embedding: [0.1, 0.2, 0.3, 0.4],
-    tags: ['lease', 'renewal'],
+    tags: ['royalty', 'offtake'],
     ...overrides,
   };
 }
