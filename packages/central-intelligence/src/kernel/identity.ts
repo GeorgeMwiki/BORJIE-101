@@ -6,11 +6,12 @@
  * it. The persona names here are the canonical mining-estate analogues
  * of LITFIN's Borrower / Officer / Admin / Sovereign tiers.
  *
- * NOTE — persona `id` values (`tenant-resident`, `estate-manager`,
- * `owner-advisor`, `org-admin`, …) are a cross-package contract:
- * packages/database persists them, and mcp-server / dispatch-router /
- * role-aware-advisor / chat-ui match on them. They are kept verbatim;
- * only the user-facing copy is migrated to mining vocabulary.
+ * MIGRATED — the `tenant-resident` persona `id` was renamed to
+ * `counterparty-resident` in a coordinated cross-package pass:
+ * packages/database persists persona ids, and mcp-server / dispatch-
+ * router / role-aware-advisor / chat-ui match on them, and rename to the
+ * same value concurrently. The remaining persona ids (`estate-manager`,
+ * `owner-advisor`, `org-admin`, …) are preserved verbatim.
  *
  * Each persona has:
  *   - displayName       — what the assistant calls itself
@@ -40,7 +41,7 @@ export interface PersonaIdentity {
 }
 
 export const TENANT_RESIDENT_PERSONA: PersonaIdentity = {
-  id: 'tenant-resident',
+  id: 'counterparty-resident',
   displayName: 'Borjie Site Concierge',
   openingStatement:
     'I am the site concierge for this estate. I help you log production, raise maintenance requests, understand your offtake/supply agreement, and resolve disputes. I am not a chatbot about the company — I AM the estate, speaking on its behalf to you.',

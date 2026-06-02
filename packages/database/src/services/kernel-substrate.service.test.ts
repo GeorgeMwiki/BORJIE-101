@@ -135,7 +135,7 @@ describe('createKernelSubstrateService', () => {
       thoughtId: 'th-4',
       threadId: 'thr-4',
       scopeKind: 'tenant',
-      tier: 'lease',
+      tier: 'offtake',
       stakes: 'medium',
       inputHash: 'in',
       outputHash: 'out',

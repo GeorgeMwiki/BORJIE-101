@@ -44,12 +44,12 @@ import {
 
 export function domainForRiskKind(kind: RiskKind): AutonomyDomain {
   switch (kind) {
-    case 'arrears_risk':
+    case 'outstanding_royalties_risk':
     case 'payment_method_decay':
       return 'finance';
     case 'churn_risk':
     case 'renewal_opportunity':
-    case 'void_risk':
+    case 'available_capacity_risk':
       return 'offtake';
     case 'incident_risk':
     case 'repair_recurrence':

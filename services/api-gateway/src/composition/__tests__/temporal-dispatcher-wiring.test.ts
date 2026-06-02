@@ -87,8 +87,8 @@ describe('temporal-dispatcher-wiring — factory fallback', () => {
   });
 });
 
-describe('temporal-dispatcher-wiring — eviction adapter', () => {
-  it('start() forwards to startEvictionWorkflow with the canonical id', async () => {
+describe('temporal-dispatcher-wiring — licence-suspension adapter', () => {
+  it('start() forwards to startLicenceSuspensionWorkflow with the canonical id', async () => {
     const mock = createMockTemporalClient();
     const bundle = await createTemporalDispatcherFromEnv({ clientOverride: mock });
     const handle = await bundle.licenceSuspensionDispatcher.start({
@@ -99,24 +99,26 @@ describe('temporal-dispatcher-wiring — eviction adapter', () => {
       suspensionDate: '2026-06-01T00:00:00.000Z',
       hearingRef: null,
     });
-    expect(handle.workflowId).toBe('eviction-lse-1');
+    expect(handle.workflowId).toBe('licence-suspension-lse-1');
     expect(mock.state.starts).toHaveLength(1);
     expect(mock.state.starts[0]?.workflowType).toBe(
-      TEMPORAL_WORKFLOW_TYPES.EVICTION,
+      TEMPORAL_WORKFLOW_TYPES.LICENCE_SUSPENSION,
     );
-    expect(mock.state.starts[0]?.taskQueue).toBe(TEMPORAL_TASK_QUEUES.EVICTION);
+    expect(mock.state.starts[0]?.taskQueue).toBe(
+      TEMPORAL_TASK_QUEUES.LICENCE_SUSPENSION,
+    );
   });
 
-  it('withdraw() sends a withdrawEviction signal', async () => {
+  it('withdraw() sends a withdrawSuspension signal', async () => {
     const mock = createMockTemporalClient();
     const bundle = await createTemporalDispatcherFromEnv({ clientOverride: mock });
     await bundle.licenceSuspensionDispatcher.withdraw({
-      workflowId: 'eviction-lse-1',
+      workflowId: 'licence-suspension-lse-1',
       reason: 'operator-override',
     });
     expect(mock.state.signals).toHaveLength(1);
-    expect(mock.state.signals[0]?.signalName).toBe('withdrawEviction');
-    expect(mock.state.signals[0]?.workflowId).toBe('eviction-lse-1');
+    expect(mock.state.signals[0]?.signalName).toBe('withdrawSuspension');
+    expect(mock.state.signals[0]?.workflowId).toBe('licence-suspension-lse-1');
   });
 });
 

@@ -1,7 +1,10 @@
 /**
- * MoveOutChecklistService (lease/) — pure orchestration over an in-memory repo.
+ * MoveOutChecklistService (offtake close-out) — pure orchestration over an
+ * in-memory repo.
  *
- * Wave-4 D1: covers the four-step checklist the lease aggregate exposes.
+ * Wave-4 D1: covers the four-step checklist the offtake aggregate exposes.
+ * NOTE: the `leaseId` field + `findByLeaseId` method are a FROZEN
+ * cross-package + DB-column contract and are intentionally not renamed.
  */
 
 import { describe, it, expect } from 'vitest';

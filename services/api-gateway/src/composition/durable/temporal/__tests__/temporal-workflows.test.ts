@@ -11,11 +11,11 @@ import {
 } from '../temporal-client.js';
 import {
   LICENCE_SUSPENSION_STATUTORY_DAYS,
-  evictionWorkflowId,
-  startEvictionWorkflow,
-  tenantEvictionWorkflowBody,
-  type EvictionActivities,
-} from '../eviction-workflow.js';
+  licenceSuspensionWorkflowId,
+  startLicenceSuspensionWorkflow,
+  licenceSuspensionWorkflowBody,
+  type LicenceSuspensionActivities,
+} from '../licence-suspension-workflow.js';
 import {
   ownerPayoutWorkflowBody,
   ownerPayoutWorkflowId,
@@ -44,30 +44,30 @@ describe('temporal — MockTemporalClient contract', () => {
   });
 });
 
-describe('eviction workflow', () => {
+describe('licence-suspension workflow', () => {
   it('starts the workflow with the canonical id, queue, and type', async () => {
     const client = createMockTemporalClient();
-    const handle = await startEvictionWorkflow({
+    const handle = await startLicenceSuspensionWorkflow({
       client,
       input: {
         tenantId: 't1',
-        leaseId: 'lse-1',
+        licenceId: 'lse-1',
         breachKind: 'illicit-extraction',
         initiatedByUserId: 'u1',
       },
     });
-    expect(handle.workflowId).toBe(evictionWorkflowId('lse-1'));
+    expect(handle.workflowId).toBe(licenceSuspensionWorkflowId('lse-1'));
     expect(client.state.starts[0]?.workflowType).toBe(
-      TEMPORAL_WORKFLOW_TYPES.EVICTION,
+      TEMPORAL_WORKFLOW_TYPES.LICENCE_SUSPENSION,
     );
     expect(client.state.starts[0]?.taskQueue).toBe(
-      TEMPORAL_TASK_QUEUES.EVICTION,
+      TEMPORAL_TASK_QUEUES.LICENCE_SUSPENSION,
     );
   });
 
   it('walks issueNotice → wait → file → hearing → execute on happy path', async () => {
     const calls: string[] = [];
-    const activities: EvictionActivities = {
+    const activities: LicenceSuspensionActivities = {
       async issueNotice() {
         calls.push('issueNotice');
         return { noticeId: 'n1', issuedAt: '2026-01-01' };
@@ -81,10 +81,10 @@ describe('eviction workflow', () => {
         return { writRef: 'w1', outcome: 'executed' };
       },
     };
-    const out = await tenantEvictionWorkflowBody(
+    const out = await licenceSuspensionWorkflowBody(
       {
         tenantId: 't1',
-        leaseId: 'lse-1',
+        licenceId: 'lse-1',
         breachKind: 'illicit-extraction',
         initiatedByUserId: 'u1',
       },

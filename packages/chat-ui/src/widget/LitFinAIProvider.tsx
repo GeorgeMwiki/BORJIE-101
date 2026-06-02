@@ -30,14 +30,14 @@ export type LitFinPersonaId =
   | 'public-chat'
   | 'owner-advisor'
   | 'estate-manager-chat'
-  | 'tenant-assistant'
+  | 'counterparty-assistant'
   | 'admin-analyst';
 
 const PORTAL_PERSONA_MAP: Readonly<Record<LitFinPortalId, LitFinPersonaId>> = {
   public: 'public-chat',
   owner: 'owner-advisor',
   'estate-manager': 'estate-manager-chat',
-  customer: 'tenant-assistant',
+  customer: 'counterparty-assistant',
   admin: 'admin-analyst',
 };
 

@@ -1,9 +1,10 @@
 /**
- * eviction-workflow — Temporal workflow definition for tenant
- * eviction (multi-month, multi-step, regulator-grade).
+ * licence-suspension-workflow — Temporal workflow definition for mining
+ * licence suspension (multi-month, multi-step, regulator-grade).
  *
- * Why Temporal here? See `./temporal-client.ts` header — eviction
- * legally requires a deterministic, audit-replayable history of:
+ * Why Temporal here? See `./temporal-client.ts` header — licence
+ * suspension legally requires a deterministic, audit-replayable history
+ * of:
  *
  *   1. issueNotice(tenantId, breachKind, statutoryDays) — TZ Mining
  *      Act requires written notice; statutoryDays varies by
@@ -19,16 +20,16 @@
  *
  * Phase B (this PR): types + workflow + activity SIGNATURES only.
  * The bodies delegate to a `delegateTo` callback so Phase C can
- * swap in real eviction-court-gateway calls without touching the
- * workflow shape.
+ * swap in real licence-suspension-court-gateway calls without touching
+ * the workflow shape.
  *
  * Phase C follow-ups (#33):
  *   - Replace `delegateTo` with proxyActivities() from
  *     @temporalio/workflow
  *   - Provide real activity implementations via the worker registry
  *   - Add compensation handler for writ rejection
- *   - Wire the workflow start from agency executor (eviction is the
- *     output of a `tenant.evict` HQ tool)
+ *   - Wire the workflow start from agency executor (licence suspension
+ *     is the output of a `licence.suspend` HQ tool)
  */
 
 import {
@@ -43,9 +44,9 @@ export type LicenceSuspensionBreachKind =
   | 'environmental-damage'
   | 'unauthorised-operation';
 
-export interface EvictionWorkflowInput {
+export interface LicenceSuspensionWorkflowInput {
   readonly tenantId: string;
-  readonly leaseId: string;
+  readonly licenceId: string;
   readonly breachKind: LicenceSuspensionBreachKind;
   /** Mandatory in TZ for any judicial step — caller responsible. */
   readonly initiatedByUserId: string;
@@ -54,9 +55,9 @@ export interface EvictionWorkflowInput {
   readonly statutoryDaysOverride?: number;
 }
 
-export interface EvictionWorkflowResult {
+export interface LicenceSuspensionWorkflowResult {
   readonly tenantId: string;
-  readonly leaseId: string;
+  readonly licenceId: string;
   /** Final state — `executed` when writ of possession completed,
    *  `withdrawn` when the workflow was cancelled, `failed-court`
    *  when the court rejected the claim. */
@@ -78,23 +79,23 @@ export const LICENCE_SUSPENSION_STATUTORY_DAYS: Readonly<Record<LicenceSuspensio
 // proxies; Phase B uses a delegate callback so tests can pin shape.
 // ---------------------------------------------------------------------------
 
-export interface EvictionActivities {
+export interface LicenceSuspensionActivities {
   issueNotice(args: {
     tenantId: string;
-    leaseId: string;
+    licenceId: string;
     breachKind: LicenceSuspensionBreachKind;
     statutoryDays: number;
   }): Promise<{ noticeId: string; issuedAt: string }>;
 
   filePossessionClaim(args: {
     tenantId: string;
-    leaseId: string;
+    licenceId: string;
     noticeId: string;
   }): Promise<{ courtRef: string; filedAt: string }>;
 
   executeWritOfPossession(args: {
     tenantId: string;
-    leaseId: string;
+    licenceId: string;
     courtRef: string;
   }): Promise<{ writRef: string; outcome: 'executed' | 'failed-court' }>;
 }
@@ -104,8 +105,8 @@ export interface EvictionActivities {
 // signature without a real Temporal runtime.
 // ---------------------------------------------------------------------------
 
-export interface EvictionWorkflowDeps {
-  readonly activities: EvictionActivities;
+export interface LicenceSuspensionWorkflowDeps {
+  readonly activities: LicenceSuspensionActivities;
   /** Sleeper for the statutory waiting period. In Temporal this is
    *  replaced by `sleep()` from `@temporalio/workflow`. Tests inject
    *  a no-op. */
@@ -120,16 +121,16 @@ export interface EvictionWorkflowDeps {
  * this body inside `@temporalio/workflow`'s `defineWorkflow`. Until
  * then we treat it as a plain async function that takes deps.
  */
-export async function tenantEvictionWorkflowBody(
-  input: EvictionWorkflowInput,
-  deps: EvictionWorkflowDeps,
-): Promise<EvictionWorkflowResult> {
+export async function licenceSuspensionWorkflowBody(
+  input: LicenceSuspensionWorkflowInput,
+  deps: LicenceSuspensionWorkflowDeps,
+): Promise<LicenceSuspensionWorkflowResult> {
   const statutoryDays =
     input.statutoryDaysOverride ?? LICENCE_SUSPENSION_STATUTORY_DAYS[input.breachKind];
 
   const notice = await deps.activities.issueNotice({
     tenantId: input.tenantId,
-    leaseId: input.leaseId,
+    licenceId: input.licenceId,
     breachKind: input.breachKind,
     statutoryDays,
   });
@@ -137,18 +138,18 @@ export async function tenantEvictionWorkflowBody(
   await deps.sleep(statutoryDays * 24 * 60 * 60 * 1000);
   const filing = await deps.activities.filePossessionClaim({
     tenantId: input.tenantId,
-    leaseId: input.leaseId,
+    licenceId: input.licenceId,
     noticeId: notice.noticeId,
   });
   await deps.awaitHearingDate();
   const writ = await deps.activities.executeWritOfPossession({
     tenantId: input.tenantId,
-    leaseId: input.leaseId,
+    licenceId: input.licenceId,
     courtRef: filing.courtRef,
   });
   return {
     tenantId: input.tenantId,
-    leaseId: input.leaseId,
+    licenceId: input.licenceId,
     outcome: writ.outcome === 'executed' ? 'executed' : 'failed-court',
     courtRef: filing.courtRef,
     writRef: writ.writRef,
@@ -161,24 +162,24 @@ export async function tenantEvictionWorkflowBody(
 // works in tests.
 // ---------------------------------------------------------------------------
 
-export interface StartEvictionWorkflowArgs {
+export interface StartLicenceSuspensionWorkflowArgs {
   readonly client: TemporalClientLike;
-  readonly input: EvictionWorkflowInput;
+  readonly input: LicenceSuspensionWorkflowInput;
 }
 
 /** Build a deterministic workflow id — re-starting with the same
  *  id is a no-op in Temporal (single-instance constraint). */
-export function evictionWorkflowId(leaseId: string): string {
-  return `eviction-${leaseId}`;
+export function licenceSuspensionWorkflowId(licenceId: string): string {
+  return `licence-suspension-${licenceId}`;
 }
 
-export async function startEvictionWorkflow(
-  args: StartEvictionWorkflowArgs,
+export async function startLicenceSuspensionWorkflow(
+  args: StartLicenceSuspensionWorkflowArgs,
 ): Promise<{ workflowId: string; runId: string }> {
   const handle = await args.client.start({
-    workflowId: evictionWorkflowId(args.input.leaseId),
-    workflowType: TEMPORAL_WORKFLOW_TYPES.EVICTION,
-    taskQueue: TEMPORAL_TASK_QUEUES.EVICTION,
+    workflowId: licenceSuspensionWorkflowId(args.input.licenceId),
+    workflowType: TEMPORAL_WORKFLOW_TYPES.LICENCE_SUSPENSION,
+    taskQueue: TEMPORAL_TASK_QUEUES.LICENCE_SUSPENSION,
     args: [args.input],
   });
   return { workflowId: handle.workflowId, runId: handle.runId };

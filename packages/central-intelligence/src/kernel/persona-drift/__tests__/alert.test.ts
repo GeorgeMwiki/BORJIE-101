@@ -69,7 +69,7 @@ describe('emitPersonaDriftIfBreached', () => {
     const verdict = await emitPersonaDriftIfBreached({
       sample: BORJIE_REFERENCE_PERSONA,
       thoughtId: 't1',
-      personaId: 'tenant-resident',
+      personaId: 'counterparty-resident',
       capturedAt: new Date().toISOString(),
       sink,
     });
@@ -83,7 +83,7 @@ describe('emitPersonaDriftIfBreached', () => {
     await emitPersonaDriftIfBreached({
       sample,
       thoughtId: 't1',
-      personaId: 'tenant-resident',
+      personaId: 'counterparty-resident',
       capturedAt: '2026-05-14T09:00:00.000Z',
       sink,
     });
@@ -91,7 +91,7 @@ describe('emitPersonaDriftIfBreached', () => {
     const ev = sink.events[0]!;
     expect(ev.violationType).toBe('tone');
     expect(ev.thoughtId).toBe('t1');
-    expect(ev.personaId).toBe('tenant-resident');
+    expect(ev.personaId).toBe('counterparty-resident');
     expect(ev.excerpt).toMatch(/drifted/);
   });
 });

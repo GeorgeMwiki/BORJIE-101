@@ -28,9 +28,13 @@ export * from './property/index.js';
 // FinancialStatement).
 export * from './customer/index.js';
 
-// Lease services. Lease-specific value objects (ConditionRating,
+// Offtake services. Offtake-specific value objects (ConditionRating,
 // CustomerCreatedEvent re-export from move-in inspection, etc.) are
 // scoped to the namespace to avoid collisions with customer/maintenance.
+// The submodule path stays `./lease/` (the `@borjie/domain-services/lease`
+// subpath is a frozen import for the off-limits api-gateway composition root).
+export * as Offtake from './lease/index.js';
+/** @deprecated Use the `Offtake` namespace. */
 export * as Lease from './lease/index.js';
 
 // Invoice services (owns Invoice, InvoiceId, InvoiceLineItem,

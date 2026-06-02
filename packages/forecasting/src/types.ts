@@ -29,20 +29,24 @@ import { z } from 'zod';
 // a typecheck error, not a silent miss.
 // ─────────────────────────────────────────────────────────────────────
 
-// NOTE: the RISK_KINDS string values are a FROZEN public contract —
+// NOTE: the RISK_KINDS string values are a public contract that
 // `@borjie/ai-copilot` (graph-signals + proactive-insights) keys off
-// `void_risk` / `renewal_opportunity` / `arrears_risk` etc. directly.
-// Renaming a value here is a breaking change for a package this one
-// does not own, so the identifiers stay; only the comments are
-// re-pointed to the mining-estate domain.
+// directly. As part of the property→mining-estate migration the two
+// property-domain values were renamed in lockstep with their
+// `@borjie/ai-copilot` consumers:
+//   `arrears_risk` → `outstanding_royalties_risk`
+//   `void_risk`    → `available_capacity_risk`
+// `renewal_opportunity` and `churn_risk` are domain-neutral and stay.
+// Any future value rename must again move in lockstep across both
+// packages.
 export const RISK_KINDS = [
-  'arrears_risk',           // counterparty will be 30+ days late on royalty/payment
+  'outstanding_royalties_risk', // counterparty will be 30+ days late on royalty/payment
   'churn_risk',             // counterparty will not renew the offtake
   'incident_risk',          // unit will raise an unresolved maintenance escalation
   'vendor_decay',           // vendor performance is trending down across tenants
   'renewal_opportunity',    // above-market royalty potential at next renewal
   'compliance_drift',       // policy/statute cadence will be breached
-  'void_risk',              // unit will sit idle (un-contracted) beyond market average
+  'available_capacity_risk', // pit/unit will sit idle (un-contracted) beyond market average
   'repair_recurrence',      // same incident type likely to re-open
   'payment_method_decay',   // card will expire / mandate will fail
   'litigation_exposure',    // case is likely to escalate to tribunal

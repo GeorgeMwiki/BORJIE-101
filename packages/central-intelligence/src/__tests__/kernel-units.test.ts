@@ -55,7 +55,7 @@ function req(over: Partial<ThoughtRequest>): ThoughtRequest {
     threadId: 'th',
     userMessage: 'hello',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'low',
     surface: 'estate-manager-app',
     ...over,
@@ -214,11 +214,11 @@ describe('normalizer', () => {
 
 describe('awareness scopes', () => {
   it('contains is reflexive', () => {
-    expect(contains('property', 'property')).toBe(true);
+    expect(contains('site', 'site')).toBe(true);
   });
   it('respects ordering', () => {
-    expect(contains('property', 'unit')).toBe(true);
-    expect(contains('unit', 'property')).toBe(false);
+    expect(contains('site', 'pit')).toBe(true);
+    expect(contains('pit', 'site')).toBe(false);
   });
   it('rejects platform scope at tenant tier', () => {
     expect(isTierCompatibleWithScope('tenant', PLATFORM_SCOPE).ok).toBe(false);
@@ -227,7 +227,7 @@ describe('awareness scopes', () => {
     expect(isTierCompatibleWithScope('industry', TENANT_SCOPE).ok).toBe(false);
   });
   it('cohort min-k rises with tier', () => {
-    expect(cohortMinK('industry')).toBeGreaterThan(cohortMinK('lease'));
+    expect(cohortMinK('industry')).toBeGreaterThan(cohortMinK('offtake'));
   });
 });
 

@@ -8,7 +8,7 @@
  * Supported triggers (see phM-platform-blueprint Part B.6):
  *   - PaymentReceived / PaymentMissed    → credit_rating + churn_probability
  *   - OfftakeSigned / OfftakeTerminated  → credit_rating + asset_grade
- *   - RoyaltyArrearsCaseOpened           → credit_rating + churn_probability
+ *   - OutstandingRoyaltiesCaseOpened     → credit_rating + churn_probability
  *   - InspectionCompleted                → asset_grade
  *   - WorkOrderClosed                    → vendor_scorecard
  *   - MessageReceived (low sentiment)    → buyer_sentiment + churn_probability
@@ -44,8 +44,8 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
       break;
     }
 
-    case 'LeaseSigned':
-    case 'LeaseTerminated': {
+    case 'OfftakeSigned':
+    case 'OfftakeTerminated': {
       const customerId = str(payload.customerId) ?? str(payload.tenantCustomerId);
       const assetId = str(payload.assetId) ?? str(payload.propertyId);
       if (customerId) {
@@ -58,7 +58,7 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
       break;
     }
 
-    case 'ArrearsCaseOpened':
+    case 'OutstandingRoyaltiesCaseOpened':
     case 'ArrearsCaseClosed': {
       const customerId = str(payload.customerId);
       if (customerId) {
@@ -69,7 +69,7 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     }
 
     case 'InspectionCompleted':
-    case 'PropertyInspectionSurveyAdded': {
+    case 'SiteInspectionSurveyAdded': {
       const assetId = str(payload.assetId) ?? str(payload.propertyId);
       if (assetId) {
         matches.push({ kind: 'asset_grade', entityId: assetId });
@@ -91,7 +91,7 @@ export const defaultRiskEventClassifier: RiskEventClassifier = (
     }
 
     case 'MessageReceived':
-    case 'TenantChatMessage': {
+    case 'CounterpartyChatMessage': {
       const customerId = str(payload.customerId) ?? str(payload.fromCustomerId);
       if (customerId) {
         matches.push({ kind: 'buyer_sentiment', entityId: customerId });

@@ -57,12 +57,12 @@ function buildEmbedder(
 const SCOPE_A: SemanticCacheScope = {
   tenantId: 'tenant-A',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 const SCOPE_B: SemanticCacheScope = {
   tenantId: 'tenant-B',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 function pad(values: number[], dims = 8): number[] {

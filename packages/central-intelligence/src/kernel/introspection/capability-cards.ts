@@ -71,7 +71,7 @@ export interface CapabilityCard {
 // ─────────────────────────────────────────────────────────────────────
 
 const TENANT_RESIDENT_CARD: CapabilityCard = {
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
   personaDisplayName: 'Borjie Site Concierge',
   summary:
     'The first-person voice of the estate when counterparties log in. Handles royalty, maintenance, offtake-agreement, and dispute questions inside the counterparty\'s own agreement scope. Never sees other counterparties.',

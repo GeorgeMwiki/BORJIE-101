@@ -55,11 +55,11 @@ describe('portal -> primary persona routing', () => {
     expect(ids).toEqual(
       [
         'borjie-studio',
+        'counterparty-assistant',
         'coworker',
         'manager-chat',
         'owner-advisor',
         'public-guide',
-        'tenant-assistant',
       ].sort(),
     );
   });
@@ -74,8 +74,8 @@ describe('portal -> primary persona routing', () => {
     expect(resolvePersona('estate-manager-app').id).toBe('coworker');
   });
 
-  it('maps customer-app to tenant-assistant', () => {
-    expect(resolvePersona('customer-app').id).toBe('tenant-assistant');
+  it('maps customer-app to counterparty-assistant', () => {
+    expect(resolvePersona('customer-app').id).toBe('counterparty-assistant');
   });
 
   it('maps owner-portal to owner-advisor', () => {

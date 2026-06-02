@@ -9,11 +9,11 @@
  * surfaced a structured "not wired" message that the executor records.
  *
  * The five real factories cover the same five tools as the stubs:
- *   rent.send-reminder    → notifications port
- *   work-order.create     → work-orders port
- *   inspection.schedule   → inspections port
- *   arrears.escalate      → arrears port
- *   listing.publish       → marketplace port
+ *   royalty.send-reminder         → notifications port
+ *   work-order.create             → work-orders port
+ *   inspection.schedule           → inspections port
+ *   outstanding-royalties.escalate → arrears port
+ *   listing.publish               → marketplace port
  *
  * The composition root in services/api-gateway is responsible for
  * supplying real port instances when they exist; otherwise it leaves
@@ -21,9 +21,9 @@
  * stubs remain registered as the default fallback so the kernel can
  * always plan + execute end-to-end.
  *
- * Stake levels mirror the stubs: rent.send-reminder=low, work-order.
+ * Stake levels mirror the stubs: royalty.send-reminder=low, work-order.
  * create=medium, inspection.schedule=medium, listing.publish=medium,
- * arrears.escalate=high. The autonomy-policy + four-eye gate apply
+ * outstanding-royalties.escalate=high. The autonomy-policy + four-eye gate apply
  * uniformly regardless of which adapter is registered.
  */
 import type { ActionToolDef, ActionToolResult } from './types.js';
@@ -122,7 +122,7 @@ export function createRentSendReminderRealTool(
   { id: string }
 > {
   return {
-    name: 'rent.send-reminder',
+    name: 'royalty.send-reminder',
     description: 'Send a royalty-payment reminder to an agreement via SMS or email.',
     stakes: 'low',
     inputSchema: {
@@ -136,7 +136,7 @@ export function createRentSendReminderRealTool(
     },
     async invoke(input, ctx) {
       if (!deps.notifications) {
-        return notWired('notifications port unavailable for rent.send-reminder');
+        return notWired('notifications port unavailable for royalty.send-reminder');
       }
       try {
         const out = await deps.notifications.sendRentReminder({
@@ -146,7 +146,7 @@ export function createRentSendReminderRealTool(
         });
         return { ok: true, output: { id: out.id } };
       } catch (err) {
-        return { ok: false, message: `rent.send-reminder failed: ${safeError(err)}` };
+        return { ok: false, message: `royalty.send-reminder failed: ${safeError(err)}` };
       }
     },
   };
@@ -246,7 +246,7 @@ export function createArrearsEscalateRealTool(
   deps: Pick<RealActionToolDeps, 'arrears'>,
 ): ActionToolDef<{ leaseId: string; ladderStep: number }, { id: string }> {
   return {
-    name: 'arrears.escalate',
+    name: 'outstanding-royalties.escalate',
     description: 'Escalate an outstanding-royalties case to the next ladder step.',
     stakes: 'high',
     inputSchema: {
@@ -260,7 +260,7 @@ export function createArrearsEscalateRealTool(
     },
     async invoke(input, ctx) {
       if (!deps.arrears) {
-        return notWired('arrears port unavailable for arrears.escalate');
+        return notWired('arrears port unavailable for outstanding-royalties.escalate');
       }
       try {
         const out = await deps.arrears.escalate({
@@ -271,7 +271,7 @@ export function createArrearsEscalateRealTool(
         });
         return { ok: true, output: { id: out.id } };
       } catch (err) {
-        return { ok: false, message: `arrears.escalate failed: ${safeError(err)}` };
+        return { ok: false, message: `outstanding-royalties.escalate failed: ${safeError(err)}` };
       }
     },
   };

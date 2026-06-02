@@ -4,8 +4,8 @@
  *
  * Surfaces (Round-4 audit, HIGH):
  *   - NOT_YET_WIRED placeholder slots (NIDA, e-Ardhi, KRA-MRI dispatcher,
- *     owner-payout dispatcher, eviction dispatcher, etc.) so operators
- *     can see which capabilities are still on heuristic baselines.
+ *     owner-payout dispatcher, licence-suspension dispatcher, etc.) so
+ *     operators can see which capabilities are still on heuristic baselines.
  *   - LLM provider key presence (Anthropic / OpenAI / DeepSeek). Without
  *     a key the gateway falls back to the polite degraded stub.
  *   - Infra integrations the gateway can introspect via env presence
@@ -75,7 +75,7 @@ export interface HealthDependenciesPayload {
  *   getDegradedState()` result. When wired, the endpoint emits a
  *   per-LLM-provider `sensor:<id>` dependency with breaker state.
  * - `notYetWiredAdapters()` returns a list of currently-stubbed
- *   adapter reason tokens (e.g. `['nida-port', 'eviction-dispatcher']`).
+ *   adapter reason tokens (e.g. `['nida-port', 'licence-suspension-dispatcher']`).
  *   Composition root collects these at build time.
  * - `connectorLastSuccess(name)` returns the wall-clock ms of the last
  *   successful call to the named connector. `null` when not tracked.
@@ -183,9 +183,9 @@ const ENV_PRESENCE_CHECKS: ReadonlyArray<EnvPresenceCheck> = Object.freeze([
     capabilities: [NOT_YET_WIRED_REASON.KRA_MRI_DISPATCHER],
   },
   {
-    name: 'eviction-dispatcher',
-    envVars: ['TEMPORAL_ADDRESS', 'EVICTION_TASKQUEUE'],
-    note: 'sovereign eviction workflow',
+    name: 'licence-suspension-dispatcher',
+    envVars: ['TEMPORAL_ADDRESS', 'LICENCE_SUSPENSION_TASKQUEUE'],
+    note: 'sovereign licence-suspension workflow',
     capabilities: [NOT_YET_WIRED_REASON.LICENCE_SUSPENSION_DISPATCHER],
   },
   {

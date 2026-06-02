@@ -34,18 +34,19 @@ export type {
 // cohort signals are reachable.
 // ─────────────────────────────────────────────────────────────────────
 
-// NOTE — these tier string values (`lease`/`unit`/`block`/`property`)
-// are a cross-package contract: api-gateway, packages/database, and
-// observability all emit/compare them on the `borjie.kernel.tier`
-// span attribute and in kernel-substrate fixtures. Renaming the
-// values would break those packages, so they are kept verbatim; the
-// mining-domain semantics are documented in the trailing comments.
+// MIGRATED — these tier string values were renamed from the legacy
+// property vocabulary (`lease`/`unit`/`block`/`property`) to the mining
+// domain (`offtake`/`pit`/`zone`/`site`) as a coordinated cross-package
+// pass: api-gateway, packages/database, and observability emit/compare
+// them on the `borjie.kernel.tier` span attribute and in kernel-substrate
+// fixtures and rename to the same values concurrently. `tenant` (multi-
+// tenancy), `portfolio`, `org`, `industry` are preserved verbatim.
 export type AwarenessTier =
   | 'tenant'           // single counterparty inside one agreement
-  | 'lease'            // one offtake / supply agreement (one or more counterparties)
-  | 'unit'             // one workable unit / pit (multiple agreements over time)
-  | 'block'            // one block of units (multiple units)
-  | 'property'         // one site (one or more blocks)
+  | 'offtake'          // one offtake / supply agreement (one or more counterparties)
+  | 'pit'              // one workable pit (multiple agreements over time)
+  | 'zone'             // one zone of pits (multiple pits)
+  | 'site'             // one site (one or more zones)
   | 'portfolio'        // one owner's sites
   | 'org'              // one mining-estate org
   | 'industry';        // platform-wide DP-aggregate scope

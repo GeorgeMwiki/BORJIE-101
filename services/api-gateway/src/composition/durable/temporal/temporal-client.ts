@@ -1,6 +1,6 @@
 /**
  * temporal-client — shared scaffolding for the Temporal workflows
- * that govern SOX / regulator-grade actions (tenant eviction, owner
+ * that govern SOX / regulator-grade actions (licence suspension, owner
  * payouts, KRA MRI filing).
  *
  * Phase B (this PR) ships the workflow DEFINITIONS only. The actual
@@ -11,7 +11,7 @@
  *
  * Why Temporal for these particular workflows?
  *
- *   - Tenant eviction: multi-month process with legal notice
+ *   - Licence suspension: multi-month process with legal notice
  *     periods, court dates, retry-with-court-order activities. The
  *     determinism guarantee (workflow code re-runs identically on
  *     replay) gives auditors a cryptographic chain-of-custody.
@@ -41,7 +41,7 @@
  *   - Wire `createRealTemporalClient` against `@temporalio/client`
  *   - Provision the Temporal worker via `@temporalio/worker`
  *   - Move activity implementations from placeholder to real
- *     domain calls (eviction-court-gateway, GEPG, KRA MRI gateway)
+ *     domain calls (licence-suspension-court-gateway, GEPG, KRA MRI gateway)
  */
 
 /** Narrow surface — only what the workflows use. */
@@ -167,7 +167,7 @@ export function createMockTemporalClient(): MockTemporalClient {
 
 /** Stable task-queue names. Workers in Phase C subscribe to these. */
 export const TEMPORAL_TASK_QUEUES = {
-  EVICTION: 'borjie-eviction',
+  LICENCE_SUSPENSION: 'licence-suspension',
   OWNER_PAYOUT: 'borjie-owner-payout',
   KRA_MRI_FILING: 'borjie-kra-mri-filing',
 } as const;
@@ -175,7 +175,7 @@ export const TEMPORAL_TASK_QUEUES = {
 /** Stable workflow-type identifiers. Pinned constants so the worker
  *  registry and the dispatcher agree on a single string. */
 export const TEMPORAL_WORKFLOW_TYPES = {
-  EVICTION: 'TenantEvictionWorkflow',
+  LICENCE_SUSPENSION: 'LicenceSuspensionWorkflow',
   OWNER_PAYOUT: 'OwnerPayoutWorkflow',
   KRA_MRI_FILING: 'KraMriFilingWorkflow',
 } as const;

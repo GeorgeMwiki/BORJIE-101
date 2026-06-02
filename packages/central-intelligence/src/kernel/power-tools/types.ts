@@ -40,7 +40,7 @@ import type { z } from 'zod';
  * extra translation table.
  */
 export type PowerToolTier =
-  | 'tenant-resident'
+  | 'counterparty-resident'
   | 'owner-advisor'
   | 'estate-manager'
   | 'org-admin'
@@ -52,7 +52,7 @@ export type PowerToolTier =
  * dashboard rendering.
  */
 export const POWER_TOOL_TIERS_ORDERED: ReadonlyArray<PowerToolTier> = Object.freeze([
-  'tenant-resident',
+  'counterparty-resident',
   'owner-advisor',
   'estate-manager',
   'org-admin',
@@ -61,7 +61,7 @@ export const POWER_TOOL_TIERS_ORDERED: ReadonlyArray<PowerToolTier> = Object.fre
 ]);
 
 const TIER_RANK: Readonly<Record<PowerToolTier, number>> = Object.freeze({
-  'tenant-resident': 0,
+  'counterparty-resident': 0,
   'owner-advisor': 1,
   'estate-manager': 2,
   'org-admin': 3,

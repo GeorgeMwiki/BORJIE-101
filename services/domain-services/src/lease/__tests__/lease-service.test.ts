@@ -1,27 +1,28 @@
 /**
- * Unit tests for LeaseService
+ * Unit tests for OfftakeService
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import type { TenantId, UserId } from '@borjie/domain-models';
 import {
-  type Lease,
-  type LeaseId,
+  type Offtake,
   type Customer,
-  type CustomerId,
   type Money,
   money,
-  asLeaseId,
+  // `asOfftakeId` is exported flat only under its legacy `asLeaseId` name at
+  // the @borjie/domain-models root (the flat-export promotion is an
+  // off-limits domain-models concern); alias locally to the canonical name.
+  asLeaseId as asOfftakeId,
   asCustomerId,
   asPropertyId,
   asUnitId,
 } from '@borjie/domain-models';
-import type { LeaseRepository, CustomerRepository } from '../index.js';
+import type { OfftakeRepository, CustomerRepository } from '../index.js';
 import type { EventBus } from '../../common/events.js';
 import {
-  LeaseService,
-  LeaseServiceError,
-  type CreateLeaseInput,
+  OfftakeService,
+  OfftakeServiceError,
+  type CreateOfftakeInput,
   type RenewalInput,
 } from '../index.js';
 
@@ -32,13 +33,13 @@ function createMockEventBus(): EventBus {
   };
 }
 
-describe('LeaseService', () => {
+describe('OfftakeService', () => {
   const tenantId = 'tnt_test' as TenantId;
   const userId = 'usr_1' as UserId;
   const correlationId = 'corr_123';
 
-  describe('lease creation', () => {
-    it('creates a lease successfully', async () => {
+  describe('offtake creation', () => {
+    it('creates an offtake successfully', async () => {
       const customer = {
         id: asCustomerId('cust_1'),
         tenantId,
@@ -56,7 +57,7 @@ describe('LeaseService', () => {
         updatedBy: userId,
       } as Customer;
 
-      const createLeaseInput: CreateLeaseInput = {
+      const createOfftakeInput: CreateOfftakeInput = {
         propertyId: asPropertyId('prop_1'),
         unitId: asUnitId('unit_1'),
         customerId: customer.id,
@@ -64,24 +65,24 @@ describe('LeaseService', () => {
         startDate: '2025-01-01',
         endDate: '2025-12-31',
         moveInDate: '2025-01-01',
-        rentAmount: money(50000, 'KES'),
+        royaltyAmount: money(50000, 'KES'),
         securityDeposit: money(100000, 'KES'),
       };
 
-      const mockLease = {
-        id: asLeaseId('lease_1'),
+      const mockOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
-        leaseNumber: 'LEASE-2025-0001',
-        propertyId: createLeaseInput.propertyId,
-        unitId: createLeaseInput.unitId,
+        offtakeNumber: 'OFFTAKE-2025-0001',
+        propertyId: createOfftakeInput.propertyId,
+        unitId: createOfftakeInput.unitId,
         customerId: customer.id,
-        type: 'standard',
+        type: 'spot',
         status: 'draft',
-        startDate: createLeaseInput.startDate,
-        endDate: createLeaseInput.endDate,
-        moveInDate: createLeaseInput.moveInDate,
-        rentAmount: createLeaseInput.rentAmount,
-        securityDeposit: createLeaseInput.securityDeposit,
+        startDate: createOfftakeInput.startDate,
+        endDate: createOfftakeInput.endDate,
+        moveInDate: createOfftakeInput.moveInDate,
+        royaltyAmount: createOfftakeInput.royaltyAmount,
+        securityDeposit: createOfftakeInput.securityDeposit,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
@@ -92,37 +93,37 @@ describe('LeaseService', () => {
         findById: vi.fn().mockResolvedValue(customer),
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
+      const offtakeRepo: Partial<OfftakeRepository> = {
         findActiveByUnit: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue(mockLease),
+        create: vi.fn().mockResolvedValue(mockOfftake),
         getNextSequence: vi.fn().mockResolvedValue(1),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         customerRepo as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.createLease(tenantId, createLeaseInput, userId, correlationId);
+      const result = await service.createOfftake(tenantId, createOfftakeInput, userId, correlationId);
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.status).toBe('draft');
-        expect(result.data.leaseNumber).toBeDefined();
+        expect(result.data.offtakeNumber).toBeDefined();
       }
-      expect(leaseRepo.create).toHaveBeenCalled();
+      expect(offtakeRepo.create).toHaveBeenCalled();
     });
 
     it('returns error when customer not found', async () => {
-      const createLeaseInput: CreateLeaseInput = {
+      const createOfftakeInput: CreateOfftakeInput = {
         propertyId: asPropertyId('prop_1'),
         unitId: asUnitId('unit_1'),
         customerId: asCustomerId('cust_nonexistent'),
-        type: 'standard',
+        type: 'spot',
         startDate: '2025-01-01',
         moveInDate: '2025-01-01',
-        rentAmount: money(50000, 'KES'),
+        royaltyAmount: money(50000, 'KES'),
         securityDeposit: money(100000, 'KES'),
       };
 
@@ -130,43 +131,43 @@ describe('LeaseService', () => {
         findById: vi.fn().mockResolvedValue(null),
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
+      const offtakeRepo: Partial<OfftakeRepository> = {
         findActiveByUnit: vi.fn().mockResolvedValue(null),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         customerRepo as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.createLease(tenantId, createLeaseInput, userId, correlationId);
+      const result = await service.createOfftake(tenantId, createOfftakeInput, userId, correlationId);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(LeaseServiceError.CUSTOMER_NOT_FOUND);
+        expect(result.error.code).toBe(OfftakeServiceError.CUSTOMER_NOT_FOUND);
       }
     });
 
-    it('returns error when unit already leased', async () => {
+    it('returns error when unit already contracted', async () => {
       const customer = { id: asCustomerId('cust_1'), tenantId } as Customer;
-      const activeLease = { id: asLeaseId('lease_active'), unitId: asUnitId('unit_1') } as Lease;
+      const activeOfftake = { id: asOfftakeId('offtake_active'), unitId: asUnitId('unit_1') } as Offtake;
 
       const customerRepo: Partial<CustomerRepository> = {
         findById: vi.fn().mockResolvedValue(customer),
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findActiveByUnit: vi.fn().mockResolvedValue(activeLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findActiveByUnit: vi.fn().mockResolvedValue(activeOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         customerRepo as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.createLease(
+      const result = await service.createOfftake(
         tenantId,
         {
           propertyId: asPropertyId('prop_1'),
@@ -175,7 +176,7 @@ describe('LeaseService', () => {
           type: 'fixed_term',
           startDate: '2025-01-01',
           moveInDate: '2025-01-01',
-          rentAmount: money(50000, 'KES'),
+          royaltyAmount: money(50000, 'KES'),
           securityDeposit: money(100000, 'KES'),
         },
         userId,
@@ -184,17 +185,17 @@ describe('LeaseService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(LeaseServiceError.UNIT_ALREADY_LEASED);
+        expect(result.error.code).toBe(OfftakeServiceError.UNIT_ALREADY_CONTRACTED);
       }
     });
   });
 
-  describe('lease activation', () => {
-    it('activates a draft lease successfully', async () => {
-      const draftLease = {
-        id: asLeaseId('lease_1'),
+  describe('offtake activation', () => {
+    it('activates a draft offtake successfully', async () => {
+      const draftOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
-        leaseNumber: 'LSE-2025-0001',
+        offtakeNumber: 'OFT-2025-0001',
         propertyId: asPropertyId('prop_1'),
         unitId: asUnitId('unit_1'),
         customerId: asCustomerId('cust_1'),
@@ -204,9 +205,9 @@ describe('LeaseService', () => {
         endDate: '2025-12-31',
         moveInDate: '2025-01-01',
         moveOutDate: null,
-        rentAmount: money(50000, 'KES'),
-        rentFrequency: 'monthly' as const,
-        rentDueDay: 1,
+        royaltyAmount: money(50000, 'KES'),
+        paymentFrequency: 'monthly' as const,
+        royaltyDueDay: 1,
         securityDeposit: money(100000, 'KES'),
         depositPaid: false,
         lateFeePercentage: 5,
@@ -217,16 +218,16 @@ describe('LeaseService', () => {
         signedAt: null,
         terminatedAt: null,
         terminationReason: null,
-        renewedFromLeaseId: null,
-        renewedToLeaseId: null,
+        renewedFromOfftakeId: null,
+        renewedToOfftakeId: null,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const activatedLease = {
-        ...draftLease,
+      const activatedOfftake = {
+        ...draftOfftake,
         status: 'active' as const,
         documentIds: ['doc_1'],
         signedAt: new Date().toISOString(),
@@ -234,20 +235,20 @@ describe('LeaseService', () => {
         updatedBy: userId,
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(draftLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(draftOfftake),
         findActiveByUnit: vi.fn().mockResolvedValue(null),
-        update: vi.fn().mockResolvedValue(activatedLease),
+        update: vi.fn().mockResolvedValue(activatedOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.activateLease(
-        draftLease.id,
+      const result = await service.activateOfftake(
+        draftOfftake.id,
         tenantId,
         ['doc_1'],
         userId,
@@ -258,30 +259,30 @@ describe('LeaseService', () => {
       if (result.success) {
         expect(result.data.status).toBe('active');
       }
-      expect(leaseRepo.update).toHaveBeenCalled();
-      expect(leaseRepo.findActiveByUnit).toHaveBeenCalled(); // verify unit still available
+      expect(offtakeRepo.update).toHaveBeenCalled();
+      expect(offtakeRepo.findActiveByUnit).toHaveBeenCalled(); // verify unit still available
     });
 
-    it('returns error when lease cannot be activated from current status', async () => {
-      const activeLease = {
-        id: asLeaseId('lease_1'),
+    it('returns error when offtake cannot be activated from current status', async () => {
+      const activeOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
         status: 'active',
         unitId: asUnitId('unit_1'),
-      } as Lease;
+      } as Offtake;
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(activeLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(activeOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.activateLease(
-        activeLease.id,
+      const result = await service.activateOfftake(
+        activeOfftake.id,
         tenantId,
         ['doc_1'],
         userId,
@@ -290,17 +291,17 @@ describe('LeaseService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(LeaseServiceError.LEASE_CANNOT_BE_ACTIVATED);
+        expect(result.error.code).toBe(OfftakeServiceError.OFFTAKE_CANNOT_BE_ACTIVATED);
       }
     });
   });
 
-  describe('lease termination', () => {
-    it('terminates an active lease successfully', async () => {
-      const activeLease = {
-        id: asLeaseId('lease_1'),
+  describe('offtake termination', () => {
+    it('terminates an active offtake successfully', async () => {
+      const activeOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
-        leaseNumber: 'LSE-2025-0001',
+        offtakeNumber: 'OFT-2025-0001',
         propertyId: asPropertyId('prop_1'),
         unitId: asUnitId('unit_1'),
         customerId: asCustomerId('cust_1'),
@@ -310,9 +311,9 @@ describe('LeaseService', () => {
         endDate: '2025-12-31',
         moveInDate: '2025-01-01',
         moveOutDate: null,
-        rentAmount: money(50000, 'KES'),
-        rentFrequency: 'monthly' as const,
-        rentDueDay: 1,
+        royaltyAmount: money(50000, 'KES'),
+        paymentFrequency: 'monthly' as const,
+        royaltyDueDay: 1,
         securityDeposit: money(100000, 'KES'),
         depositPaid: false,
         lateFeePercentage: 5,
@@ -323,35 +324,35 @@ describe('LeaseService', () => {
         signedAt: '',
         terminatedAt: null,
         terminationReason: null,
-        renewedFromLeaseId: null,
-        renewedToLeaseId: null,
+        renewedFromOfftakeId: null,
+        renewedToOfftakeId: null,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const terminatedLease = {
-        ...activeLease,
+      const terminatedOfftake = {
+        ...activeOfftake,
         status: 'terminated' as const,
         terminatedAt: new Date().toISOString(),
         terminationReason: 'Mutual agreement',
         moveOutDate: '2025-06-30',
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(activeLease),
-        update: vi.fn().mockResolvedValue(terminatedLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(activeOfftake),
+        update: vi.fn().mockResolvedValue(terminatedOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.terminateLease(
-        activeLease.id,
+      const result = await service.terminateOfftake(
+        activeOfftake.id,
         tenantId,
         'Mutual agreement',
         '2025-06-30',
@@ -363,28 +364,28 @@ describe('LeaseService', () => {
       if (result.success) {
         expect(result.data.status).toBe('terminated');
       }
-      expect(leaseRepo.update).toHaveBeenCalled();
+      expect(offtakeRepo.update).toHaveBeenCalled();
     });
 
-    it('returns error when lease cannot be terminated from current status', async () => {
-      const draftLease = {
-        id: asLeaseId('lease_1'),
+    it('returns error when offtake cannot be terminated from current status', async () => {
+      const draftOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
         status: 'draft',
-      } as Lease;
+      } as Offtake;
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(draftLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(draftOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.terminateLease(
-        draftLease.id,
+      const result = await service.terminateOfftake(
+        draftOfftake.id,
         tenantId,
         'Reason',
         '2025-06-30',
@@ -394,17 +395,17 @@ describe('LeaseService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(LeaseServiceError.LEASE_CANNOT_BE_TERMINATED);
+        expect(result.error.code).toBe(OfftakeServiceError.OFFTAKE_CANNOT_BE_TERMINATED);
       }
     });
   });
 
   describe('renewal flows', () => {
-    it('renews an active lease successfully', async () => {
-      const expiringLease = {
-        id: asLeaseId('lease_1'),
+    it('renews an active offtake successfully', async () => {
+      const expiringOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
-        leaseNumber: 'LSE-2025-0001',
+        offtakeNumber: 'OFT-2025-0001',
         propertyId: asPropertyId('prop_1'),
         unitId: asUnitId('unit_1'),
         customerId: asCustomerId('cust_1'),
@@ -414,9 +415,9 @@ describe('LeaseService', () => {
         endDate: '2025-12-31',
         moveInDate: '2025-01-01',
         moveOutDate: null,
-        rentAmount: money(50000, 'KES'),
-        rentFrequency: 'monthly' as const,
-        rentDueDay: 1,
+        royaltyAmount: money(50000, 'KES'),
+        paymentFrequency: 'monthly' as const,
+        royaltyDueDay: 1,
         securityDeposit: money(100000, 'KES'),
         depositPaid: false,
         lateFeePercentage: 5,
@@ -427,33 +428,33 @@ describe('LeaseService', () => {
         signedAt: '',
         terminatedAt: null,
         terminationReason: null,
-        renewedFromLeaseId: null,
-        renewedToLeaseId: null,
+        renewedFromOfftakeId: null,
+        renewedToOfftakeId: null,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const newLease = {
-        ...expiringLease,
-        id: asLeaseId('lease_2'),
-        leaseNumber: 'LEASE-2025-0002',
+      const newOfftake = {
+        ...expiringOfftake,
+        id: asOfftakeId('offtake_2'),
+        offtakeNumber: 'OFFTAKE-2025-0002',
         startDate: '2025-12-31',
         endDate: '2026-12-31',
         moveInDate: '2025-12-31',
-        renewedFromLeaseId: expiringLease.id,
+        renewedFromOfftakeId: expiringOfftake.id,
       };
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(expiringLease),
-        create: vi.fn().mockResolvedValue(newLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(expiringOfftake),
+        create: vi.fn().mockResolvedValue(newOfftake),
         update: vi.fn().mockImplementation((l) => Promise.resolve(l)),
         getNextSequence: vi.fn().mockResolvedValue(2),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
@@ -462,8 +463,8 @@ describe('LeaseService', () => {
         newEndDate: '2026-12-31',
       };
 
-      const result = await service.renewLease(
-        expiringLease.id,
+      const result = await service.renewOfftake(
+        expiringOfftake.id,
         tenantId,
         renewalInput,
         userId,
@@ -472,32 +473,32 @@ describe('LeaseService', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.id).not.toBe(expiringLease.id);
+        expect(result.data.id).not.toBe(expiringOfftake.id);
         expect(result.data.endDate).toBe('2026-12-31');
       }
-      expect(leaseRepo.update).toHaveBeenCalled();
-      expect(leaseRepo.create).toHaveBeenCalled();
+      expect(offtakeRepo.update).toHaveBeenCalled();
+      expect(offtakeRepo.create).toHaveBeenCalled();
     });
 
-    it('returns error when renewal not allowed for lease status', async () => {
-      const terminatedLease = {
-        id: asLeaseId('lease_1'),
+    it('returns error when renewal not allowed for offtake status', async () => {
+      const terminatedOfftake = {
+        id: asOfftakeId('offtake_1'),
         tenantId,
         status: 'terminated',
-      } as Lease;
+      } as Offtake;
 
-      const leaseRepo: Partial<LeaseRepository> = {
-        findById: vi.fn().mockResolvedValue(terminatedLease),
+      const offtakeRepo: Partial<OfftakeRepository> = {
+        findById: vi.fn().mockResolvedValue(terminatedOfftake),
       };
 
-      const service = new LeaseService(
-        leaseRepo as LeaseRepository,
+      const service = new OfftakeService(
+        offtakeRepo as OfftakeRepository,
         {} as CustomerRepository,
         createMockEventBus()
       );
 
-      const result = await service.renewLease(
-        terminatedLease.id,
+      const result = await service.renewOfftake(
+        terminatedOfftake.id,
         tenantId,
         { newEndDate: '2026-12-31' },
         userId,
@@ -506,7 +507,7 @@ describe('LeaseService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(LeaseServiceError.RENEWAL_NOT_ALLOWED);
+        expect(result.error.code).toBe(OfftakeServiceError.RENEWAL_NOT_ALLOWED);
       }
     });
   });

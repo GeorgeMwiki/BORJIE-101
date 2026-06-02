@@ -16,12 +16,12 @@ import type { SemanticCacheScope } from '../cache-store.js';
 const SCOPE: SemanticCacheScope = {
   tenantId: 't1',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 const SCOPE_B: SemanticCacheScope = {
   tenantId: 't2',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 function buildEmbedder(

@@ -2,7 +2,7 @@
  * temporal/index — barrel for Temporal workflow scaffolds.
  *
  * Phase B ships definitions only. Composition root imports the
- * `start*` dispatchers and binds them to HQ tools (`tenant.evict`,
+ * `start*` dispatchers and binds them to HQ tools (`licence.suspend`,
  * `owner.payout`, `kra.mri.file`). Until Phase C boots a real
  * Temporal server, all dispatchers receive the `MockTemporalClient`.
  */
@@ -19,16 +19,16 @@ export {
 
 export {
   type LicenceSuspensionBreachKind,
-  type EvictionWorkflowInput,
-  type EvictionWorkflowResult,
-  type EvictionActivities,
-  type EvictionWorkflowDeps,
-  type StartEvictionWorkflowArgs,
+  type LicenceSuspensionWorkflowInput,
+  type LicenceSuspensionWorkflowResult,
+  type LicenceSuspensionActivities,
+  type LicenceSuspensionWorkflowDeps,
+  type StartLicenceSuspensionWorkflowArgs,
   LICENCE_SUSPENSION_STATUTORY_DAYS,
-  tenantEvictionWorkflowBody,
-  startEvictionWorkflow,
-  evictionWorkflowId,
-} from './eviction-workflow.js';
+  licenceSuspensionWorkflowBody,
+  startLicenceSuspensionWorkflow,
+  licenceSuspensionWorkflowId,
+} from './licence-suspension-workflow.js';
 
 export {
   type OwnerPayoutWorkflowInput,

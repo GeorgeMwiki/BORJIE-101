@@ -17,7 +17,7 @@
  *
  * Each detector returns goal openers with multi-step plans the executor
  * can walk: an informational "review" step (toolName=null) followed by
- * action-tool steps (rent.send-reminder, listing.publish, etc.) the
+ * action-tool steps (royalty.send-reminder, listing.publish, etc.) the
  * executor invokes through the registered tools.
  *
  * Errors inside a detector are NOT swallowed here — the wake-loop's
@@ -157,7 +157,7 @@ export function createArrears30dDetector(
           {
             seq: 2,
             description: `Send first SMS reminder for agreement ${row.leaseId}`,
-            toolName: 'rent.send-reminder',
+            toolName: 'royalty.send-reminder',
             toolPayload: {
               leaseId: row.leaseId,
               channel: 'sms',
@@ -166,7 +166,7 @@ export function createArrears30dDetector(
           {
             seq: 3,
             description: `Escalate outstanding royalties to ladder step 1 if reminder unanswered`,
-            toolName: 'arrears.escalate',
+            toolName: 'outstanding-royalties.escalate',
             toolPayload: {
               leaseId: row.leaseId,
               ladderStep: 1,
@@ -222,7 +222,7 @@ export function createLeaseExpiring30dDetector(
           {
             seq: 2,
             description: `Send renewal-window email reminder to agreement ${row.leaseId}`,
-            toolName: 'rent.send-reminder',
+            toolName: 'royalty.send-reminder',
             toolPayload: {
               leaseId: row.leaseId,
               channel: 'email',

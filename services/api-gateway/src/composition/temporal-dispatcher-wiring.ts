@@ -47,9 +47,9 @@ import {
   createMockTemporalClient,
 } from './durable/temporal/temporal-client.js';
 import {
-  evictionWorkflowId,
-  startEvictionWorkflow,
-} from './durable/temporal/eviction-workflow.js';
+  licenceSuspensionWorkflowId,
+  startLicenceSuspensionWorkflow,
+} from './durable/temporal/licence-suspension-workflow.js';
 import {
   ownerPayoutWorkflowId,
   startOwnerPayoutWorkflow,
@@ -182,14 +182,14 @@ function buildLicenceSuspensionDispatcher(
 ): LicenceSuspensionWorkflowDispatcherPort {
   return {
     async start(args) {
-      const handle = await startEvictionWorkflow({
+      const handle = await startLicenceSuspensionWorkflow({
         client,
         input: {
           tenantId: args.tenantId,
-          leaseId: args.licenceId,
+          licenceId: args.licenceId,
           breachKind: args.breachKind,
           initiatedByUserId: args.initiatedByUserId,
-          // `evictionDate` + `courtRef` are carried in the HQ-tool input
+          // `suspensionDate` + `courtRef` are carried in the HQ-tool input
           // for audit purposes; B3's workflow signature doesn't accept
           // them today (statutory days drive the timer). We forward
           // them as part of the workflow args anyway so the worker can
@@ -201,7 +201,7 @@ function buildLicenceSuspensionDispatcher(
     async withdraw(args) {
       await client.signal({
         workflowId: args.workflowId,
-        signalName: 'withdrawEviction',
+        signalName: 'withdrawSuspension',
         args: [{ reason: args.reason }],
       });
     },
@@ -402,7 +402,7 @@ function isMockClient(client: TemporalClientLike): boolean {
 // ─────────────────────────────────────────────────────────────────────
 
 export {
-  evictionWorkflowId,
+  licenceSuspensionWorkflowId,
   ownerPayoutWorkflowId,
   kraMriFilingWorkflowId,
 };

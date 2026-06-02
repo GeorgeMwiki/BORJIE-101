@@ -97,10 +97,10 @@ export interface HookContext {
   readonly scope: ScopeContext;
   readonly tier:
     | 'tenant'
-    | 'lease'
-    | 'unit'
-    | 'block'
-    | 'property'
+    | 'offtake'
+    | 'pit'
+    | 'zone'
+    | 'site'
     | 'portfolio'
     | 'org'
     | 'industry';

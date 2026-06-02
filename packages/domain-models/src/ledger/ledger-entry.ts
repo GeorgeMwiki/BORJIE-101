@@ -170,7 +170,9 @@ export const JournalTemplates = {
         type: 'RENT_CHARGE',
         direction: 'DEBIT',
         amount,
-        description: 'Rent charge',
+        // W-E migration: display text rent → royalty (TEXT only; the
+        // ledger type code RENT_CHARGE and amounts/logic are unchanged).
+        description: 'Royalty charge',
         leaseId,
         propertyId,
         unitId
@@ -180,7 +182,7 @@ export const JournalTemplates = {
         type: 'RENT_CHARGE',
         direction: 'CREDIT',
         amount,
-        description: 'Rent income accrued',
+        description: 'Royalty income accrued',
         leaseId,
         propertyId,
         unitId
@@ -216,7 +218,8 @@ export const JournalTemplates = {
         type: 'RENT_PAYMENT',
         direction: 'CREDIT',
         amount: grossAmount,
-        description: 'Rent payment received',
+        // W-E migration: display text rent → royalty (TEXT only).
+        description: 'Royalty payment received',
         leaseId,
         propertyId,
         unitId

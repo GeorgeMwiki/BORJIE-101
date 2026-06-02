@@ -72,7 +72,7 @@ const TENANT_SCOPE: ScopeContext = {
 const SEM_SCOPE: SemanticCacheScope = {
   tenantId: 't1',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 function buildReq(message: string): ThoughtRequest {
@@ -80,7 +80,7 @@ function buildReq(message: string): ThoughtRequest {
     threadId: 'th1',
     userMessage: message,
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'low',
     surface: 'estate-manager-app',
   };

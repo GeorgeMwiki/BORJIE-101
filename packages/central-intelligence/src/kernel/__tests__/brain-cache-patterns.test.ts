@@ -48,7 +48,7 @@ function req(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'th',
     userMessage: 'hi',
     scope: TENANT,
-    tier: 'property',
+    tier: 'site',
     stakes: 'low',
     surface: 'estate-manager-app',
     ...over,

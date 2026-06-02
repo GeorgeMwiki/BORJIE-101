@@ -197,18 +197,20 @@ export const TerminationReason = {
   END_OF_TERM: 'end_of_term',
   MUTUAL_AGREEMENT: 'mutual_agreement',
   TENANT_REQUEST: 'tenant_request',
-  LANDLORD_REQUEST: 'landlord_request',
+  // W-E migration: persisted value 'landlord_request' → 'owner_request'.
+  LANDLORD_REQUEST: 'owner_request',
   NON_PAYMENT: 'non_payment',
   LEASE_VIOLATION: 'lease_violation',
   PROPERTY_SALE: 'property_sale',
   PROPERTY_DAMAGE: 'property_damage',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   OTHER: 'other',
 } as const;
 export type TerminationReason = (typeof TerminationReason)[keyof typeof TerminationReason];
 export const TerminationReasonSchema = z.enum([
-  'end_of_term', 'mutual_agreement', 'tenant_request', 'landlord_request',
-  'non_payment', 'lease_violation', 'property_sale', 'property_damage', 'eviction', 'other'
+  'end_of_term', 'mutual_agreement', 'tenant_request', 'owner_request',
+  'non_payment', 'lease_violation', 'property_sale', 'property_damage', 'licence_suspension', 'other'
 ]);
 
 // ============================================================================
@@ -593,7 +595,8 @@ export const CaseType = {
   LEASE_VIOLATION: 'lease_violation',
   NOISE_COMPLAINT: 'noise_complaint',
   MAINTENANCE_DISPUTE: 'maintenance_dispute',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   HARASSMENT: 'harassment',
   SAFETY_CONCERN: 'safety_concern',
   BILLING_DISPUTE: 'billing_dispute',
@@ -602,7 +605,7 @@ export const CaseType = {
 export type CaseType = (typeof CaseType)[keyof typeof CaseType];
 export const CaseTypeSchema = z.enum([
   'arrears', 'deposit_dispute', 'damage_claim', 'lease_violation', 'noise_complaint',
-  'maintenance_dispute', 'eviction', 'harassment', 'safety_concern', 'billing_dispute', 'other'
+  'maintenance_dispute', 'licence_suspension', 'harassment', 'safety_concern', 'billing_dispute', 'other'
 ]);
 
 export const CaseSeverity = {
@@ -661,7 +664,8 @@ export const ResolutionType = {
   MUTUAL_AGREEMENT: 'mutual_agreement',
   MEDIATION_OUTCOME: 'mediation_outcome',
   COURT_ORDER: 'court_order',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   LEASE_TERMINATION: 'lease_termination',
   WARNING_ISSUED: 'warning_issued',
   NO_ACTION: 'no_action',
@@ -671,7 +675,7 @@ export const ResolutionType = {
 export type ResolutionType = (typeof ResolutionType)[keyof typeof ResolutionType];
 export const ResolutionTypeSchema = z.enum([
   'payment_plan', 'partial_payment', 'full_payment', 'deposit_deduction',
-  'mutual_agreement', 'mediation_outcome', 'court_order', 'eviction',
+  'mutual_agreement', 'mediation_outcome', 'court_order', 'licence_suspension',
   'lease_termination', 'warning_issued', 'no_action', 'withdrawn', 'other'
 ]);
 

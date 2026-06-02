@@ -124,7 +124,7 @@ describe('PermissionResolver', () => {
     it('should aggregate permissions from multiple roles', async () => {
       const role2 = createMockRole({
         id: asRoleId('role-2'),
-        permissions: ['property:read', 'property:list'],
+        permissions: ['site:read', 'site:list'],
       });
       roles.set('role-2', role2);
       
@@ -150,7 +150,7 @@ describe('PermissionResolver', () => {
       const resolved = await resolver.resolvePermissions(user);
       
       expect(resolved.permissions.has('user:read')).toBe(true);
-      expect(resolved.permissions.has('property:read')).toBe(true);
+      expect(resolved.permissions.has('site:read')).toBe(true);
     });
     
     it('should track org-specific permissions', async () => {
@@ -222,7 +222,7 @@ describe('PermissionResolver', () => {
     
     it('should return false for missing permission', async () => {
       const user = createMockUser();
-      expect(await resolver.hasPermission(user, 'property:read')).toBe(false);
+      expect(await resolver.hasPermission(user, 'site:read')).toBe(false);
     });
     
     it('should handle wildcard permissions', async () => {

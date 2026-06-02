@@ -16,7 +16,7 @@ export const RENT_SEND_REMINDER_TOOL: ActionToolDef<
   { leaseId: string; channel: 'sms' | 'email' },
   { id: string }
 > = {
-  name: 'rent.send-reminder',
+  name: 'royalty.send-reminder',
   description: 'Send a royalty-payment reminder to an agreement via SMS or email.',
   stakes: 'low',
   inputSchema: {
@@ -90,7 +90,7 @@ export const ARREARS_ESCALATE_TOOL: ActionToolDef<
   { leaseId: string; ladderStep: number },
   { id: string }
 > = {
-  name: 'arrears.escalate',
+  name: 'outstanding-royalties.escalate',
   description: 'Escalate an outstanding-royalties case to the next ladder step.',
   stakes: 'high',
   inputSchema: {

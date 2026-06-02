@@ -1001,7 +1001,7 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
   );
 
   bus.subscribe(
-    'LeaseTerminated',
+    'OfftakeTerminated',
     safeHandler('lease-terminated', logger, async (event) => {
       const tenantId = extractTenant(event);
       const customerId = extractCustomer(event);

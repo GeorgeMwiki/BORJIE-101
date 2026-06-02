@@ -26,7 +26,7 @@ const cap: CapabilityDeclaration = Object.freeze({
   sideEffects: 'med',
   costEstimateUsdCents: 50,
   latencyEstimateMs: 1500,
-  requiredScope: ['lease:write'],
+  requiredScope: ['offtake:write'],
   jurisdictions: ['TZ', 'KE'],
   version: '1.0.0',
 });

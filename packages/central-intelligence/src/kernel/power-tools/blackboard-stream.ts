@@ -19,8 +19,8 @@
  * sequencer via the adapter port.
  *
  * Tier model:
- *   - requiredTier: tenant-resident. Any tier can stream progress; the
- *     blackboard is a transparency surface, not a privileged write.
+ *   - requiredTier: counterparty-resident. Any tier can stream progress;
+ *     the blackboard is a transparency surface, not a privileged write.
  *
  * Approval: none. Streaming progress is read-only-equivalent from a
  * domain perspective; the event never mutates a tenant entity.
@@ -148,7 +148,7 @@ export function createBlackboardStreamPowerTool(
     name: 'Blackboard stream',
     description:
       'Emit a progress / decision / observation / warning event onto the shared blackboard channel for human-in-the-loop monitoring.',
-    requiredTier: 'tenant-resident',
+    requiredTier: 'counterparty-resident',
     requiresApproval: false,
     // Only warning events trigger audit-event persistence. The factory
     // declares 'audit-events' so the registry's invariant matches; the

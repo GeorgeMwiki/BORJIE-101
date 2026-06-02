@@ -26,7 +26,7 @@ const ctx: ActionToolContext = {
 };
 
 describe('real action-tool adapters', () => {
-  it('rent.send-reminder delegates to the notifications port (happy path)', async () => {
+  it('royalty.send-reminder delegates to the notifications port (happy path)', async () => {
     const calls: Array<Record<string, unknown>> = [];
     const tool = createRentSendReminderRealTool({
       notifications: {
@@ -101,7 +101,7 @@ describe('real action-tool adapters', () => {
     if (result.ok) expect(result.output.id).toBe('insp_event_1');
   });
 
-  it('arrears.escalate delegates to the arrears port (happy path)', async () => {
+  it('outstanding-royalties.escalate delegates to the arrears port (happy path)', async () => {
     const tool = createArrearsEscalateRealTool({
       arrears: {
         async escalate(args) {
@@ -159,10 +159,10 @@ describe('real action-tool adapters', () => {
     const names = bundle.map((t) => t.name).sort();
     expect(names).toEqual(
       [
-        'arrears.escalate',
+        'outstanding-royalties.escalate',
         'inspection.schedule',
         'listing.publish',
-        'rent.send-reminder',
+        'royalty.send-reminder',
         'work-order.create',
       ].sort(),
     );

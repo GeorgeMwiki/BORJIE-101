@@ -81,7 +81,7 @@ function evictionTool(): ActionToolDef {
 /** A non-sovereign low-stakes tool — counter-model must NOT fire. */
 function reminderTool(): ActionToolDef {
   return {
-    name: 'rent.send-reminder',
+    name: 'royalty.send-reminder',
     description: 'Non-sovereign reminder.',
     stakes: 'low',
     inputSchema: {},
@@ -289,7 +289,7 @@ describe('createExecutor counter-model integration', () => {
         {
           seq: 0,
           description: 'send sms',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: {},
         },
       ],

@@ -268,7 +268,7 @@ describe('Brain wiring', () => {
   it('creates a Brain with mock providers and registers default skills', () => {
     const brain = createBrainForTesting();
     expect(brain.orchestrator).toBeTruthy();
-    expect(brain.personas.list()).toHaveLength(12); // 7 juniors + EM + 2 coworkers + migration + tenant-assistant + owner-advisor
+    expect(brain.personas.list()).toHaveLength(12); // 7 juniors + EM + 2 coworkers + migration + counterparty-assistant + owner-advisor
     expect(brain.tools.has('skill.kenya.mpesa_reconcile')).toBe(true);
     expect(brain.tools.has('skill.kenya.tra_royalty_summary')).toBe(true);
     expect(brain.tools.has('skill.kenya.swahili_draft')).toBe(true);

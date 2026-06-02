@@ -34,7 +34,7 @@ function makeReq(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'thread-1',
     userMessage: 'How is rent recon this month?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     requireJudge: true,

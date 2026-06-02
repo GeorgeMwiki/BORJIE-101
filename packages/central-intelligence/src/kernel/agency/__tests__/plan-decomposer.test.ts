@@ -48,7 +48,7 @@ describe('decomposePlan', () => {
         { description: 'a', toolName: null, toolPayload: null },
         {
           description: 'b',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
         },
         { description: 'c', toolName: null, toolPayload: null },
@@ -59,7 +59,7 @@ describe('decomposePlan', () => {
         objective: 'resolve arrears',
         availableTools: [
           {
-            name: 'rent.send-reminder',
+            name: 'royalty.send-reminder',
             description: 'Send reminder',
             inputSchema: {},
           },
@@ -68,7 +68,7 @@ describe('decomposePlan', () => {
       { sensor },
     );
     expect(out).toHaveLength(3);
-    expect(out[1]?.toolName).toBe('rent.send-reminder');
+    expect(out[1]?.toolName).toBe('royalty.send-reminder');
   });
 
   it('returns empty array on malformed JSON', async () => {

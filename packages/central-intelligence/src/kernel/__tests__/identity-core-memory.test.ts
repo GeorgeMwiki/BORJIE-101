@@ -19,7 +19,7 @@ const SCOPE: ScopeContext = {
   tenantId: 'tn1',
   actorUserId: 'usr1',
   roles: ['resident'],
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 describe('renderIdentityPreamble — core memory injection', () => {

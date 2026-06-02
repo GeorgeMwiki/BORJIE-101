@@ -123,7 +123,7 @@ describe('executor — dependsOn gate', () => {
         {
           seq: 0,
           description: 'send',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
           dependsOn: ['s_does_not_exist_in_loop'],
         },
@@ -165,7 +165,7 @@ describe('executor — deadline gate', () => {
         {
           seq: 0,
           description: 'send',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
           due: '2020-01-01T00:00:00.000Z',
         },
@@ -204,7 +204,7 @@ describe('executor — deadline gate', () => {
         {
           seq: 0,
           description: 'send',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
           due: farFuture,
         },
@@ -241,7 +241,7 @@ describe('executor — blockers gate', () => {
         {
           seq: 0,
           description: 'send',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
           blockers: [
             {

@@ -15,7 +15,7 @@ import {
 
 const PREFIXES = {
   'rent-reconciliation': ['finance.', 'tenant.payment', 'arrears.', 'recon.'],
-  'lease-renewal': ['lease.', 'renewal.', 'tenant.renew', 'leasing.'],
+  'offtake-renewal': ['lease.', 'renewal.', 'tenant.renew', 'leasing.'],
   'kra-mri': ['compliance.kra', 'tax.', 'mri.'],
   gepg: ['gepg.', 'gov.payment', 'public.bill'],
   'maintenance-triage': ['maintenance.', 'workorder.', 'triage.'],
@@ -75,7 +75,7 @@ const now = () => FIXED_NOW;
 
 describe('mapCapability', () => {
   it('maps a sensor id with a known prefix to its capability bucket', () => {
-    expect(mapCapability('lease.renewal-2026', PREFIXES)).toBe('lease-renewal');
+    expect(mapCapability('lease.renewal-2026', PREFIXES)).toBe('offtake-renewal');
     expect(mapCapability('finance.recon', PREFIXES)).toBe('rent-reconciliation');
     expect(mapCapability('voice.ivr-call', PREFIXES)).toBe('voice-agent');
   });
@@ -135,7 +135,7 @@ describe('createParityCapabilityDashboard', () => {
     expect(rent.runsLast24h).toBe(5);
     expect(rent.meanJudgeScore).toBeCloseTo(0.82);
     expect(rent.regenRateLast24h).toBeCloseTo(0.2);
-    const lease = rollup.capabilities.find((c) => c.id === 'lease-renewal')!;
+    const lease = rollup.capabilities.find((c) => c.id === 'offtake-renewal')!;
     expect(lease.runsLast24h).toBe(3);
     expect(rollup.totals.provenanceCount).toBe(8);
     expect(rollup.totals.cotSampleCount).toBe(4);

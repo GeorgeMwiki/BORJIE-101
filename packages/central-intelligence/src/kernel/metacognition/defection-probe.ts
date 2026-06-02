@@ -63,8 +63,8 @@ const PERSONA_FORBIDDEN_FIRST_PERSON: Record<string, ReadonlyArray<string>> = {
     /\bmy offtake\b/i.source,
     /\bmy maintenance request\b/i.source,
   ],
-  // Tenant-resident uses "I" — slipping to a portfolio "we collected" is a defection.
-  'tenant-resident': [
+  // Counterparty-resident uses "I" — slipping to a portfolio "we collected" is a defection.
+  'counterparty-resident': [
     /\bwe collected\b/i.source,
     /\bour portfolio\b/i.source,
     /\bour tenants\b/i.source,

@@ -43,7 +43,7 @@ function req(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'th',
     userMessage: 'how is collection?',
     scope: TENANT,
-    tier: 'property',
+    tier: 'site',
     stakes: 'low',
     surface: 'estate-manager-app',
     ...over,
@@ -140,7 +140,7 @@ describe('thoughtCacheKey', () => {
   });
 
   it('differs on tier', () => {
-    expect(thoughtCacheKey(req({ tier: 'property' }))).not.toBe(
+    expect(thoughtCacheKey(req({ tier: 'site' }))).not.toBe(
       thoughtCacheKey(req({ tier: 'org' })),
     );
   });

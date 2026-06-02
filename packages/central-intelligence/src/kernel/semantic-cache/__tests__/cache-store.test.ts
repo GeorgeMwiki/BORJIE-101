@@ -34,12 +34,12 @@ function fakeDecision(text: string): BrainDecision {
 const SCOPE_A: SemanticCacheScope = {
   tenantId: 'tenant-A',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 const SCOPE_B: SemanticCacheScope = {
   tenantId: 'tenant-B',
   surface: 'tenant-portal',
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 function vec(values: number[], dims = 16): number[] {
@@ -97,7 +97,7 @@ describe('cosineSimilarity', () => {
 
 describe('scopeKey', () => {
   it('preserves tenant + surface + persona triple', () => {
-    expect(scopeKey(SCOPE_A)).toBe('tenant-A|tenant-portal|tenant-resident');
+    expect(scopeKey(SCOPE_A)).toBe('tenant-A|tenant-portal|counterparty-resident');
   });
   it('falls back to __platform__ for null tenantId', () => {
     expect(

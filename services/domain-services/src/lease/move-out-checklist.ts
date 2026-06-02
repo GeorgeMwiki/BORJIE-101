@@ -1,7 +1,8 @@
 /**
  * Move-Out Checklist
  *
- * Captures the four steps required when a tenant vacates a unit:
+ * Captures the four steps required when a counterparty vacates a unit at the
+ * close of an offtake agreement:
  *
  *   1. Final inspection (condition report reference)
  *   2. Utility meter readings (electricity / water / gas)
@@ -10,8 +11,14 @@
  *
  * The checklist is a value object. Each step is tracked as
  * `pending | in_progress | completed | skipped` so the UI can render progress
- * without loading the full lease aggregate. The service is deliberately thin
+ * without loading the full offtake aggregate. The service is deliberately thin
  * — persistence and notifications are delegated upwards.
+ *
+ * NOTE: the `leaseId` field + `MoveOutRepository.findByLeaseId` method name are
+ * a FROZEN cross-package contract — they map to the immutable
+ * `move_out_checklists.lease_id` column (migration 0097) and are accessed by
+ * name in the off-limits api-gateway `PostgresMoveOutRepository`. They are
+ * intentionally NOT renamed to `offtakeId`.
  */
 
 import type {

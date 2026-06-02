@@ -3,15 +3,14 @@
  * tenant/platform discriminator on ScopeContext is the security
  * boundary; tiers are richer reasoning lenses INSIDE the tenant scope.
  *
- * A request at tier=lease can talk about that offtake/supply agreement
- * and its parent unit/block/site in summary form, but cannot see
+ * A request at tier=offtake can talk about that offtake/supply agreement
+ * and its parent pit/zone/site in summary form, but cannot see
  * sibling agreements by id. A request at tier=portfolio can roll up
  * across an owner's sites but not name another owner.
  *
- * (The tier string values `lease`/`unit`/`block`/`property` are a
- * cross-package contract — see kernel-types.ts — so they are kept
- * verbatim even though their mining semantics are agreement/pit/
- * block/site.)
+ * (The tier string values `offtake`/`pit`/`zone`/`site` were migrated
+ * from the legacy `lease`/`unit`/`block`/`property` vocabulary in a
+ * coordinated cross-package pass — see kernel-types.ts.)
  *
  * The kernel uses the tier to:
  *   1. Pick which cohort signals are k-anonymous-safe to mix in
@@ -27,10 +26,10 @@ import type { ScopeContext } from '../types.js';
 
 const ORDER: ReadonlyArray<AwarenessTier> = [
   'tenant',
-  'lease',
-  'unit',
-  'block',
-  'property',
+  'offtake',
+  'pit',
+  'zone',
+  'site',
   'portfolio',
   'org',
   'industry',
@@ -56,7 +55,7 @@ export function commonAncestor(a: AwarenessTier, b: AwarenessTier): AwarenessTie
 
 /**
  * The platform scope can ONLY operate at tier=industry. A request that
- * names tenant/lease/unit (mining: counterparty/agreement/pit) while in
+ * names tenant/offtake/pit (counterparty/agreement/pit) while in
  * platform scope is invalid and the kernel must refuse it.
  */
 export function isTierCompatibleWithScope(
@@ -86,11 +85,11 @@ export function locusPhrase(tier: AwarenessTier, scope: ScopeContext): string {
   if (scope.kind === 'platform') return 'the mining industry, observing itself';
   switch (tier) {
     case 'tenant':    return 'this counterparty\'s personal concierge inside the estate';
-    case 'lease':     return 'this lease (offtake/supply agreement), in conversation with its signatories';
-    case 'unit':      return 'this unit (workable pit), summarising its agreements over time';
-    case 'block':     return 'this block of units';
-    case 'property':  return 'this property (site), summarising every block';
-    case 'portfolio': return 'this owner\'s portfolio of sites (property)';
+    case 'offtake':   return 'this offtake/supply agreement, in conversation with its signatories';
+    case 'pit':       return 'this workable pit, summarising its agreements over time';
+    case 'zone':      return 'this zone of pits';
+    case 'site':      return 'this site, summarising every zone';
+    case 'portfolio': return 'this owner\'s portfolio of sites';
     case 'org':       return 'this mining-estate organisation in full';
     case 'industry':  return 'the platform-wide aggregate';
   }
@@ -104,10 +103,10 @@ export function locusPhrase(tier: AwarenessTier, scope: ScopeContext): string {
 export function cohortMinK(tier: AwarenessTier): number {
   switch (tier) {
     case 'tenant':
-    case 'lease':     return 5;
-    case 'unit':
-    case 'block':     return 7;
-    case 'property':  return 10;
+    case 'offtake':   return 5;
+    case 'pit':
+    case 'zone':      return 7;
+    case 'site':      return 10;
     case 'portfolio': return 15;
     case 'org':       return 20;
     case 'industry':  return 25;
@@ -142,10 +141,10 @@ export function roleRank(role: AwarenessRole): number {
 const ALLOWED_ROLE_TIER: Readonly<
   Record<AwarenessRole, ReadonlyArray<AwarenessTier>>
 > = Object.freeze({
-  resident: ['tenant', 'lease'],
-  manager: ['unit', 'block', 'property', 'portfolio'],
-  owner: ['property', 'portfolio'],
-  admin: ['property', 'portfolio', 'org'],
+  resident: ['tenant', 'offtake'],
+  manager: ['pit', 'zone', 'site', 'portfolio'],
+  owner: ['site', 'portfolio'],
+  admin: ['site', 'portfolio', 'org'],
   'sovereign-admin': ['org'],
   'platform-operator': ['industry'],
 });

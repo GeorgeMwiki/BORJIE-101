@@ -349,10 +349,10 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           displayName: 'Demo Estate Manager',
           description: 'Regional estate manager.',
           permissions: [
-            'property:read',
-            'property:update',
-            'lease:read',
-            'lease:update',
+            'site:read',
+            'site:update',
+            'offtake:read',
+            'offtake:update',
             'maintenance:approve',
           ],
           isSystem: false,
@@ -365,7 +365,7 @@ export async function seedDemoOrg(db: DatabaseClient): Promise<void> {
           displayName: 'Demo Station Master',
           description: 'Local station manager — tagged worker.',
           permissions: [
-            'property:read',
+            'site:read',
             'maintenance:create',
             'maintenance:read',
           ],

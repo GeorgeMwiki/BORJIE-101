@@ -76,7 +76,7 @@ function spyMemory(): {
 const REQ_BASE: Omit<ThoughtRequest, 'userMessage'> = {
   threadId: 'thread-1',
   scope: TENANT_SCOPE,
-  tier: 'property',
+  tier: 'site',
   stakes: 'medium',
   surface: 'estate-manager-app',
 };

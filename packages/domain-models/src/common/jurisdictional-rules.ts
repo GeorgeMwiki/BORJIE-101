@@ -72,6 +72,10 @@ export interface JurisdictionalBankRailProvider {
 export interface JurisdictionalLeaseRules {
   readonly minNoticeDays: {
     readonly quit: number;
+    // W-E migration: 'eviction' → 'licenceSuspension' (ending a mining
+    // counterparty's production tenure).
+    readonly licenceSuspension: number;
+    /** @deprecated Use `licenceSuspension`. */
     readonly eviction: number;
     readonly rentIncrease: number;
   };
@@ -261,6 +265,8 @@ const TZ_RULES: JurisdictionalRules = Object.freeze({
   leaseRules: Object.freeze({
     minNoticeDays: Object.freeze({
       quit: 90,
+      licenceSuspension: 90,
+      // @deprecated mirror — kept so old-key consumers compile.
       eviction: 90,
       rentIncrease: 30,
     }),
@@ -414,6 +420,8 @@ const KE_RULES: JurisdictionalRules = Object.freeze({
   leaseRules: Object.freeze({
     minNoticeDays: Object.freeze({
       quit: 60,
+      licenceSuspension: 60,
+      // @deprecated mirror — kept so old-key consumers compile.
       eviction: 60,
       rentIncrease: 90,
     }),
@@ -579,6 +587,8 @@ const NG_RULES: JurisdictionalRules = Object.freeze({
     // lease-domain layer.
     minNoticeDays: Object.freeze({
       quit: 180,
+      licenceSuspension: 180,
+      // @deprecated mirror — kept so old-key consumers compile.
       eviction: 180,
       rentIncrease: 30,
     }),

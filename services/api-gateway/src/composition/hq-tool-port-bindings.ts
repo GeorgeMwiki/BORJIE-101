@@ -134,7 +134,7 @@ export function createHqToolPortBindings(
     return null;
   });
 
-  const lazyLicenceSuspensionDispatcher = createLazyEvictionDispatcher(
+  const lazyLicenceSuspensionDispatcher = createLazyLicenceSuspensionDispatcher(
     temporalBundlePromise,
   );
   const lazyOwnerPayoutDispatcher = createLazyOwnerPayoutDispatcher(
@@ -386,7 +386,7 @@ function formatConnectorFailure(outcome: {
 // tool's executor surfaces a deterministic refusal (caller sees the
 // same shape as the placeholder stub — see NOT_YET_WIRED_REASON).
 
-function createLazyEvictionDispatcher(
+function createLazyLicenceSuspensionDispatcher(
   bundlePromise: Promise<TemporalDispatcherBundle | null>,
 ): hqTools.SeedHqBrainToolsDeps['licenceSuspensionDispatcher'] {
   return {

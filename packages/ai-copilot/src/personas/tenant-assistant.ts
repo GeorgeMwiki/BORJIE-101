@@ -9,7 +9,7 @@ import type { BorjiePersona } from './persona-types.js';
 
 export function createTenantAssistant(): BorjiePersona {
   return Object.freeze({
-    id: 'tenant-assistant',
+    id: 'counterparty-assistant',
     displayName: 'Borjie Tenant Assistant',
     portalId: 'customer-app',
     systemPrompt: TENANT_ASSISTANT_PROMPT,

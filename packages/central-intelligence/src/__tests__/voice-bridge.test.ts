@@ -112,7 +112,7 @@ const TENANT_SCOPE: ScopeContext = {
   tenantId: 't',
   actorUserId: 'u',
   roles: ['tenant'],
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 function makeReq(surface: ThoughtRequest['surface']): ThoughtRequest {

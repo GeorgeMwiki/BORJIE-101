@@ -12,7 +12,7 @@ describe('createActionToolRegistry', () => {
   it('register() then get() returns the registered tool', () => {
     const reg = createActionToolRegistry();
     reg.register(RENT_SEND_REMINDER_TOOL);
-    const got = reg.get('rent.send-reminder');
+    const got = reg.get('royalty.send-reminder');
     expect(got).not.toBeNull();
     expect(got?.stakes).toBe('low');
   });
@@ -31,6 +31,6 @@ describe('createActionToolRegistry', () => {
     const list = reg.list();
     expect(list).toHaveLength(2);
     const names = list.map((t) => t.name).sort();
-    expect(names).toEqual(['rent.send-reminder', 'work-order.create']);
+    expect(names).toEqual(['royalty.send-reminder', 'work-order.create']);
   });
 });

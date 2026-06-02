@@ -77,7 +77,7 @@ function makeRequest(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'thread-1',
     userMessage: 'How is collection looking this month?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     ...over,

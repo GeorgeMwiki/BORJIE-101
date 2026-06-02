@@ -37,15 +37,21 @@ export const RoleScope = {
 
 export type RoleScope = (typeof RoleScope)[keyof typeof RoleScope];
 
-/** Permission resource categories */
+/**
+ * Permission resource categories.
+ *
+ * W-E migration: the RBAC scope vocabulary moved to the mining domain —
+ * `'property'` → `'site'` and `'lease'` → `'offtake'`. The `TENANT`
+ * category continues to denote the SaaS tenant (the org), so it is kept.
+ */
 export const ResourceCategory = {
   TENANT: 'tenant',
   ORGANIZATION: 'organization',
   USER: 'user',
   ROLE: 'role',
-  PROPERTY: 'property',
+  PROPERTY: 'site',
   UNIT: 'unit',
-  LEASE: 'lease',
+  LEASE: 'offtake',
   CUSTOMER: 'customer',
   MAINTENANCE: 'maintenance',
   WORK_ORDER: 'work_order',
@@ -81,7 +87,7 @@ export type PermissionAction = (typeof PermissionAction)[keyof typeof Permission
  * Examples: 
  *   - "user:read" - can read any user
  *   - "user:read:own" - can only read own user
- *   - "property:manage" - full management of properties
+ *   - "site:manage" - full management of mining sites
  */
 export interface Permission {
   readonly resource: ResourceCategory;
@@ -209,7 +215,7 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
       'organization:*',
       'user:*',
       'role:*',
-      'property:*',
+      'site:*',
       'settings:*',
       'report:*',
       'audit:read',
@@ -226,12 +232,12 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
     type: RoleType.SYSTEM,
     scope: RoleScope.GLOBAL,
     permissions: [
-      'property:read',
-      'property:list',
+      'site:read',
+      'site:list',
       'unit:read',
       'unit:list',
-      'lease:read',
-      'lease:list',
+      'offtake:read',
+      'offtake:list',
       'customer:read',
       'customer:list',
       'maintenance:read',
@@ -259,11 +265,11 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
     type: RoleType.SYSTEM,
     scope: RoleScope.PROPERTY_ONLY,
     permissions: [
-      'property:read',
+      'site:read',
       'unit:read',
       'unit:update',
       'unit:list',
-      'lease:*',
+      'offtake:*',
       'customer:*',
       'maintenance:*',
       'work_order:*',
@@ -282,7 +288,7 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
     type: RoleType.SYSTEM,
     scope: RoleScope.PROPERTY_ONLY,
     permissions: [
-      'lease:read:own',
+      'offtake:read:own',
       'payment:create:own',
       'payment:read:own',
       'payment:list:own',
@@ -312,12 +318,12 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
       'user:list',
       'role:read',
       'role:list',
-      'property:read',
-      'property:list',
+      'site:read',
+      'site:list',
       'unit:read',
       'unit:list',
-      'lease:read',
-      'lease:list',
+      'offtake:read',
+      'offtake:list',
       'customer:read',
       'customer:list',
       'maintenance:read',
@@ -351,10 +357,10 @@ export const SYSTEM_ROLES: Record<SystemRoleName, Omit<Role, 'id' | 'tenantId' |
       'report:*',
       'customer:read',
       'customer:list',
-      'lease:read',
-      'lease:list',
-      'property:read',
-      'property:list',
+      'offtake:read',
+      'offtake:list',
+      'site:read',
+      'site:list',
       'audit:read',
       'audit:list',
     ],

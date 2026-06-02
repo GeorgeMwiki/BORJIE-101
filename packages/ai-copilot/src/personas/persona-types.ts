@@ -31,7 +31,7 @@ export type PortalId =
 export type BorjiePersonaId =
   | 'manager-chat'
   | 'coworker'
-  | 'tenant-assistant'
+  | 'counterparty-assistant'
   | 'owner-advisor'
   | 'borjie-studio'
   | 'public-guide';
@@ -44,7 +44,7 @@ export type BorjiePersonaId =
 export const PORTAL_PERSONA_MAP: Readonly<Record<PortalId, BorjiePersonaId>> = {
   'admin-portal': 'manager-chat',
   'estate-manager-app': 'coworker',
-  'customer-app': 'tenant-assistant',
+  'customer-app': 'counterparty-assistant',
   'owner-portal': 'owner-advisor',
   studio: 'borjie-studio',
   marketing: 'public-guide',

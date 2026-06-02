@@ -36,7 +36,7 @@ export const PERSONA_IDS = {
   JUNIOR_COMMUNICATIONS: 'junior.communications',
   COWORKER_FAMILY: 'coworker',
   MIGRATION_WIZARD: 'migration-wizard',
-  TENANT_ASSISTANT: 'tenant-assistant',
+  TENANT_ASSISTANT: 'counterparty-assistant',
   OWNER_ADVISOR: 'owner-advisor',
   PRICE_NEGOTIATOR: 'junior.price-negotiator',
   TENDER_NEGOTIATOR: 'coworker.tender-negotiator',

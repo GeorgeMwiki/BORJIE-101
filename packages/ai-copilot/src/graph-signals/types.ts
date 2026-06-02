@@ -18,10 +18,10 @@ import type { SignalSeverity } from '../proactive-loop/types.js';
 
 /**
  * Thresholds used to promote a forecast point / lower-bound estimate to
- * a graph-signal severity. Probability kinds (arrears, churn, ...)
- * live in `[0, 1]` so the defaults are probability bands. Regression
- * kinds (e.g. `void_risk` expressed as days) can supply their own
- * thresholds via `ThresholdRegistry`.
+ * a graph-signal severity. Probability kinds (outstanding-royalties,
+ * churn, ...) live in `[0, 1]` so the defaults are probability bands.
+ * Regression kinds (e.g. `available_capacity_risk` expressed as days)
+ * can supply their own thresholds via `ThresholdRegistry`.
  */
 export interface SeverityThresholds {
   /** Lower-bound of the conformal interval above which severity is
@@ -50,13 +50,13 @@ export type ThresholdRegistry = Readonly<Record<RiskKind, SeverityThresholds>>;
  * with a lower-bound breach.
  */
 export const DEFAULT_THRESHOLDS: ThresholdRegistry = Object.freeze({
-  arrears_risk:         { criticalLowerBound: 0.6, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
+  outstanding_royalties_risk: { criticalLowerBound: 0.6, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
   churn_risk:           { criticalLowerBound: 0.6, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
   incident_risk:        { criticalLowerBound: 0.55, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
   vendor_decay:         { criticalLowerBound: 0.5, criticalPoint: 0.75, highPoint: 0.55, mediumPoint: 0.35 },
   renewal_opportunity:  { criticalLowerBound: 0.75, criticalPoint: 0.85, highPoint: 0.65, mediumPoint: 0.45 },
   compliance_drift:     { criticalLowerBound: 0.5, criticalPoint: 0.75, highPoint: 0.55, mediumPoint: 0.35 },
-  void_risk:            { criticalLowerBound: 0.6, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
+  available_capacity_risk: { criticalLowerBound: 0.6, criticalPoint: 0.8, highPoint: 0.6, mediumPoint: 0.4 },
   repair_recurrence:    { criticalLowerBound: 0.55, criticalPoint: 0.75, highPoint: 0.55, mediumPoint: 0.35 },
   payment_method_decay: { criticalLowerBound: 0.5, criticalPoint: 0.7, highPoint: 0.5, mediumPoint: 0.3 },
   litigation_exposure:  { criticalLowerBound: 0.4, criticalPoint: 0.6, highPoint: 0.4, mediumPoint: 0.25 },

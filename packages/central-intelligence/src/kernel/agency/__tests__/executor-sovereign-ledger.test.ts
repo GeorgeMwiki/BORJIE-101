@@ -130,7 +130,7 @@ function denyListNamedTool(): ActionToolDef<
 
 function lowStakesTool(): ActionToolDef<Record<string, unknown>, { id: string }> {
   return {
-    name: 'rent.send-reminder-stub',
+    name: 'royalty.send-reminder-stub',
     description: 'Low-stakes tool — must NOT hit the ledger.',
     stakes: 'low',
     inputSchema: {},
@@ -149,7 +149,7 @@ describe('createExecutor — sovereign action ledger', () => {
       isSovereignTier({ name: 'tenant-eviction-proposed', stakes: 'high' }),
     ).toBe(true);
     expect(
-      isSovereignTier({ name: 'rent.send-reminder', stakes: 'low' }),
+      isSovereignTier({ name: 'royalty.send-reminder', stakes: 'low' }),
     ).toBe(false);
     expect(SOVEREIGN_TIER_ACTION_NAMES.length).toBeGreaterThan(0);
   });

@@ -40,7 +40,7 @@ const ALL_ENV_SET: NodeJS.ProcessEnv = {
   EARDHI_GATEWAY_URL: 'https://eardhi.test',
   TEMPORAL_ADDRESS: 'temporal:7233',
   KRA_MRI_TASKQUEUE: 'kra-mri',
-  EVICTION_TASKQUEUE: 'eviction',
+  LICENCE_SUSPENSION_TASKQUEUE: 'licence-suspension',
   OWNER_PAYOUT_TASKQUEUE: 'owner-payout',
 };
 

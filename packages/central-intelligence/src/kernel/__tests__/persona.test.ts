@@ -18,7 +18,7 @@ const tenantScope: ScopeContext = {
   tenantId: 'acme-estates',
   actorUserId: 'user-1',
   roles: ['tenant'],
-  personaId: 'tenant-resident',
+  personaId: 'counterparty-resident',
 };
 
 describe('BORJIE_PERSONA', () => {
