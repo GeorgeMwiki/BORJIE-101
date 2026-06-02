@@ -5523,6 +5523,9 @@ importers:
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../../packages/brain-llm-router
+      '@borjie/central-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/central-intelligence
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -10465,7 +10468,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.2.0)
+      react-hook-form: 7.75.0(react@18.3.1)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):
