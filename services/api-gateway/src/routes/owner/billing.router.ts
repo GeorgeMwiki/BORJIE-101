@@ -1,40 +1,55 @@
 /**
- * /api/v1/billing — owner-portal BillingPage skeleton.
+ * /api/v1/billing — owner-portal BillingPage (platform SaaS revenue).
  *
- * Wave-2 commit 0ee27a0 converted BillingPage to render a
- * `MissingBackendNotice` declaring `GET /api/v1/billing/subscription` as
- * the missing endpoint. This is the SaaS platform-fee surface (per-tenant
- * invoices remain on `/invoices` via the existing `invoicesService`).
+ * WS-4: now serves the REAL subscription state from the `PlatformBillingService`
+ * (composition/billing), backed by `tenant_subscriptions` (migration 0178).
+ * This is the platform-fee surface (per-tenant operational invoices remain on
+ * `/invoices`).
  *
- * Until a Stripe (or alternative) subscription adapter is wired, this
- * returns a degraded subscription object with `status: 'unknown'` and
- * the `X-Backend-Status: degraded` header so the UI can render the
- * placeholder state instead of 404'ing.
+ * MONEY PATH (CLAUDE.md): `POST /subscription` charges the platform fee through
+ * the provider PORT (IPaymentProvider) and posts the receivable through
+ * LedgerService.post() — never a parallel ledger. The provider charge + the
+ * ledger post share one idempotency key, so a retried subscribe never
+ * double-charges or double-posts.
  *
- * Follow-up api-gateway, BILLING-001 (#33): wire platform billing.
- *   Concrete next-step:
- *     1. Add `tenant_subscriptions` migration ({ tenantId, externalId,
- *        plan, status, renewalAt, currency, mrrMinor }).
- *     2. Add `BillingService.getSubscription(tenantId)` in
- *        @borjie/domain-services that wraps Stripe/Paystack.
- *     3. Replace the degraded payload below with the real read.
+ * When the platform-billing service is not wired (no payment provider
+ * configured, or DATABASE_URL unset) the slot is absent and these routes
+ * return a typed 503 — the page renders a clear "billing not configured"
+ * state instead of fabricating data.
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { requireRole } from '../../middleware/authorization';
 import { UserRole } from '../../types/user-role';
-import { buildDegradedObject, isFlagOn, markDegraded, notImplementedFlagged } from './degraded-shape';
 
-const NEXT_STEP =
-  'create tenant_subscriptions table + BillingService.getSubscription(tenantId) (Stripe/Paystack adapter) and replace this skeleton';
+interface PlatformBillingPort {
+  getSubscription(tenantId: string): Promise<unknown>;
+  subscribe(input: {
+    readonly tenantId: string;
+    readonly plan: string;
+    readonly mrrMinor: number;
+    readonly seats: number;
+    readonly billingPeriod: string;
+    readonly providerCustomerId: string;
+    readonly actorId: string;
+  }): Promise<unknown>;
+}
 
-const FLAG_KEY = 'flag.bff.billing.subscription';
+const SubscribeSchema = z.object({
+  plan: z.string().trim().min(1).max(80),
+  mrrMinor: z.number().int().positive(),
+  seats: z.number().int().min(0).max(100_000).default(1),
+  // 'yyyy-mm' billing period anchor (idempotency + renewal).
+  billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'billingPeriod must be yyyy-mm'),
+  providerCustomerId: z.string().trim().min(1).max(255),
+});
 
 const app = new Hono();
 app.use('*', authMiddleware);
-// Subscription / platform billing is tenant-admin scope (the property
-// owner pays the platform fee, not individual residents).
+// Subscription / platform billing is tenant-admin scope (the owner pays the
+// platform fee, not individual residents).
 app.use(
   '*',
   requireRole(
@@ -45,41 +60,102 @@ app.use(
   ),
 );
 
-app.get('/subscription', async (c) => {
+function resolveBilling(c: unknown): PlatformBillingPort | null {
+  const services = (c as { get: (k: string) => unknown }).get('services') as
+    | { platformBilling?: PlatformBillingPort | null }
+    | undefined;
+  const billing = services?.platformBilling;
+  return billing && typeof billing.getSubscription === 'function' ? billing : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.get('/subscription', async (c: any) => {
   const auth = c.get('auth');
-  // Prefer the real wire when a platformBilling service is in the registry.
-  const services = c.get('services') as {
-    platformBilling?: { getSubscription: (tenantId: string) => Promise<unknown> };
-  } | undefined;
-  const billing = services?.platformBilling;  if (billing && typeof billing.getSubscription === 'function') {
-    try {
-      const sub = await billing.getSubscription(auth.tenantId);
-      return c.json({ success: true, data: sub });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'billing service failed';
-      return c.json(
-        { success: false, error: { code: 'BILLING_SERVICE_ERROR', message } },
-        503,
-      );
-    }
+  const billing = resolveBilling(c);
+  if (!billing) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'BILLING_NOT_CONFIGURED',
+          message:
+            'Platform billing is not configured (no payment provider). Configure STRIPE_SECRET_KEY to enable subscriptions.',
+        },
+      },
+      503,
+    );
+  }
+  try {
+    const sub = await billing.getSubscription(auth.tenantId);
+    return c.json({ success: true as const, data: sub }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'billing service failed';
+    return c.json(
+      { success: false as const, error: { code: 'BILLING_SERVICE_ERROR', message } },
+      503,
+    );
+  }
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.post('/subscription', async (c: any) => {
+  const auth = c.get('auth');
+  const billing = resolveBilling(c);
+  if (!billing) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'BILLING_NOT_CONFIGURED',
+          message:
+            'Platform billing is not configured (no payment provider). Configure STRIPE_SECRET_KEY to enable subscriptions.',
+        },
+      },
+      503,
+    );
   }
 
-  // Loud-failure path: 501 unless an operator turns the dev-mode flag on.
-  if (!(await isFlagOn(c, FLAG_KEY))) {
-    return notImplementedFlagged(c, FLAG_KEY, NEXT_STEP);
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid JSON body' },
+      },
+      400,
+    );
   }
-  // Flag-on dev mode: degraded shape so the page still renders.
-  markDegraded(c);
-  return c.json(
-    buildDegradedObject(auth.tenantId, NEXT_STEP, {
-      plan: null,
-      status: 'unknown',
-      renewalAt: null,
-      currency: null,
-      mrrMinor: 0,
-      seats: 0,
-    }),
-  );
+  const parsed = SubscribeSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid subscription request' },
+      },
+      400,
+    );
+  }
+
+  try {
+    const result = await billing.subscribe({
+      tenantId: auth.tenantId,
+      plan: parsed.data.plan,
+      mrrMinor: parsed.data.mrrMinor,
+      seats: parsed.data.seats,
+      billingPeriod: parsed.data.billingPeriod,
+      providerCustomerId: parsed.data.providerCustomerId,
+      actorId: auth.userId ?? 'unknown',
+    });
+    return c.json({ success: true as const, data: result }, 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'subscribe failed';
+    return c.json(
+      { success: false as const, error: { code: 'BILLING_SERVICE_ERROR', message } },
+      503,
+    );
+  }
 });
 
 export const billingRouter = app;

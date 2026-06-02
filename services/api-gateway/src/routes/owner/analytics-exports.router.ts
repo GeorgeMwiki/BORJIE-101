@@ -1,35 +1,40 @@
 /**
- * /api/v1/analytics/exports — owner-portal AnalyticsExportsPage skeleton.
+ * /api/v1/analytics/exports — owner-portal AnalyticsExportsPage.
  *
- * Wave-2 commit 0ee27a0 converted AnalyticsExportsPage to render a
- * `MissingBackendNotice` declaring `GET /api/v1/analytics/exports/templates`
- * as the missing endpoint. This router replies with an empty list +
- * `X-Backend-Status: degraded` so the UI stops 404'ing while the export
- * service is being designed.
+ * WS-4: now serves REAL saved export templates from the
+ * `analytics_export_templates` warehouse (migration 0177). The previous
+ * `X-Backend-Status: degraded` skeleton is gone.
  *
- * Follow-up api-gateway, ANL-EXPORTS-001 (#33): land the analytics export domain
- *   service. Concrete next-step:
- *     1. Add `analytics_export_templates` migration ({ id, tenantId,
- *        name, kind, schema, createdAt, createdBy }).
- *     2. Add `repos.analyticsExports.{listTemplates, listRecent, create}`
- *        in @borjie/database.
- *     3. Replace the degraded payload with a real query, scoped to
- *        `tenantId`.
+ * Routes:
+ *   GET  /templates  list the tenant's saved export definitions (newest first)
+ *   POST /templates  create a new export definition
+ *
+ * Reads/writes run on the RLS-pinned request client (`c.get('db')`), so tenant
+ * isolation is enforced by FORCE row-level security. NO money columns.
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { listExportTemplates, analyticsExportTemplates } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
+import { databaseMiddleware } from '../../middleware/database';
 import { requireRole } from '../../middleware/authorization';
 import { UserRole } from '../../types/user-role';
-import { buildDegradedList, isFlagOn, markDegraded, notImplementedFlagged } from './degraded-shape';
 
-const NEXT_STEP =
-  'create analytics_export_templates table + repos.analyticsExports.listTemplates(tenantId) and replace this skeleton';
+const CreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  kind: z.enum(['csv', 'xlsx', 'pdf', 'json']).default('csv'),
+  schema: z.record(z.unknown()).default({}),
+});
 
-const FLAG_KEY = 'flag.bff.analytics.exports';
+const ListQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(500).optional(),
+});
 
 const app = new Hono();
 app.use('*', authMiddleware);
+app.use('*', databaseMiddleware);
 app.use(
   '*',
   requireRole(
@@ -40,13 +45,70 @@ app.use(
   ),
 );
 
-app.get('/templates', async (c) => {
-  const auth = c.get('auth');
-  if (!(await isFlagOn(c, FLAG_KEY))) {
-    return notImplementedFlagged(c, FLAG_KEY, NEXT_STEP);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.get('/templates', async (c: any) => {
+  const { tenantId } = c.get('auth');
+  const parsed = ListQuerySchema.safeParse({ limit: c.req.query('limit') });
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' },
+      },
+      400,
+    );
   }
-  markDegraded(c);
-  return c.json(buildDegradedList(auth.tenantId, NEXT_STEP));
+  const db = c.get('db');
+  const templates = await listExportTemplates(db, tenantId, {
+    limit: parsed.data.limit,
+  });
+  return c.json(
+    { success: true as const, data: templates, meta: { tenantId, count: templates.length } },
+    200,
+  );
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.post('/templates', async (c: any) => {
+  const { tenantId, userId } = c.get('auth');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid JSON body' },
+      },
+      400,
+    );
+  }
+  const parsed = CreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid export template' },
+      },
+      400,
+    );
+  }
+  const db = c.get('db');
+  const now = new Date();
+  const [row] = await db
+    .insert(analyticsExportTemplates)
+    .values({
+      id: `aet_${randomUUID()}`,
+      tenantId,
+      name: parsed.data.name,
+      kind: parsed.data.kind,
+      schema: parsed.data.schema,
+      createdBy: userId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+  return c.json({ success: true as const, data: row }, 201);
 });
 
 export const analyticsExportsRouter = app;

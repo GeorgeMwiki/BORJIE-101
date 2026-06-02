@@ -37,14 +37,16 @@ import { createDatabaseClient } from '@borjie/database';
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 import type { AccountType } from '@borjie/domain-models';
 
-/** Logical settlement / payroll accounts a journal references. */
+/** Logical settlement / payroll / platform-billing accounts a journal references. */
 export type LedgerAccountKey =
   | 'settlement_clearing' // DR side of a mineral-sale settlement
   | 'royalty_payable' // CR — royalty owed to the state
   | 'platform_fee_revenue' // CR — Borjie platform fee
   | 'seller_payable' // CR — net owed to the seller
   | 'wage_expense' // DR side of payroll
-  | 'payroll_clearing'; // CR — net wages owed to workers
+  | 'payroll_clearing' // CR — net wages owed to workers
+  | 'platform_billing_receivable' // DR — SaaS subscription owed to Borjie
+  | 'platform_subscription_revenue'; // CR — Borjie SaaS subscription revenue
 
 interface AccountSpec {
   readonly key: LedgerAccountKey;
@@ -82,6 +84,20 @@ const ACCOUNT_SPECS: ReadonlyArray<AccountSpec> = [
     key: 'payroll_clearing',
     type: 'PLATFORM_HOLDING',
     name: 'Payroll Clearing',
+  },
+  {
+    // DR side of the platform SaaS subscription: the receivable Borjie is
+    // owed by the tenant for the platform fee. OWNER_OPERATING is the
+    // closest semantic fit (direction is carried by the journal line).
+    key: 'platform_billing_receivable',
+    type: 'OWNER_OPERATING',
+    name: 'Platform Billing Receivable',
+  },
+  {
+    // CR side: Borjie's own SaaS subscription revenue.
+    key: 'platform_subscription_revenue',
+    type: 'PLATFORM_REVENUE',
+    name: 'Platform Subscription Revenue',
   },
 ];
 

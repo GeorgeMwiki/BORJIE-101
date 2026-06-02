@@ -415,13 +415,11 @@ router.post(
 );
 
 function orgIdFromSpec(spec: ReportSpec): string {
-  switch (spec.scope.kind) {
-    case 'tenant':
-    case 'property':
-    case 'deal':
-    case 'portfolio':
-      return spec.scope.orgId;
-  }
+  // Every ReportScope variant (buyer | site | portfolio | deal) carries
+  // `orgId`, so the org id is the same regardless of kind. The previous switch
+  // listed stale property-domain cases ('tenant' / 'property') that are not in
+  // the union and omitted the real ones, leaving the function non-exhaustive.
+  return spec.scope.orgId;
 }
 
 export default router;

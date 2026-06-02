@@ -35,10 +35,12 @@ process.env.USE_MOCK_DATA = process.env.USE_MOCK_DATA ?? 'true';
 
 import { generateToken } from '../../../middleware/auth';
 import { UserRole } from '../../../types/user-role';
-import { analyticsExportsRouter } from '../analytics-exports.router';
-import { analyticsGrowthRouter } from '../analytics-growth.router';
-import { analyticsUsageRouter } from '../analytics-usage.router';
-import { billingRouter } from '../billing.router';
+// NOTE (WS-4): the analytics-{exports,growth,usage} routers and the billing
+// router are no longer degraded skeletons — they serve REAL warehouse / billing
+// data now. Their contracts are covered by:
+//   - analytics-warehouse-routers.test.ts (analytics)
+//   - platform-billing.test.ts            (billing)
+// so they were removed from this skeleton suite.
 import { ownerMessagingRouter } from '../owner-messaging.router';
 import { supportRouter } from '../support.router';
 import { adminUsersRouter } from '../admin-users.router';
@@ -91,125 +93,7 @@ async function assertNotImplemented(
 }
 
 // ---------------------------------------------------------------------------
-// 1. GET /analytics/exports/templates
-// ---------------------------------------------------------------------------
-
-describe('GET /analytics/exports/templates (skeleton)', () => {
-  const app = mount('/analytics/exports', analyticsExportsRouter);
-
-  it('rejects anonymous callers (401)', async () => {
-    const res = await app.request('/analytics/exports/templates');
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects RESIDENT role (403)', async () => {
-    const res = await app.request('/analytics/exports/templates', {
-      headers: { Authorization: bearer(UserRole.RESIDENT) },
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it('returns 501 loud-failure when feature flag is off', async () => {
-    await assertNotImplemented(
-      app,
-      '/analytics/exports/templates',
-      'flag.bff.analytics.exports',
-    );
-  });
-
-  it('still applies tenant-scoped auth (other tenant gets the same 501)', async () => {
-    const res = await app.request('/analytics/exports/templates', {
-      headers: { Authorization: bearer(UserRole.OWNER, OTHER_TENANT) },
-    });
-    expect(res.status).toBe(501);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 2. GET /analytics/growth
-// ---------------------------------------------------------------------------
-
-describe('GET /analytics/growth (skeleton)', () => {
-  const app = mount('/analytics/growth', analyticsGrowthRouter);
-
-  it('rejects anonymous callers (401)', async () => {
-    const res = await app.request('/analytics/growth');
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects RESIDENT role (403)', async () => {
-    const res = await app.request('/analytics/growth', {
-      headers: { Authorization: bearer(UserRole.RESIDENT) },
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it('returns 501 loud-failure for OWNER when flag is off', async () => {
-    await assertNotImplemented(app, '/analytics/growth', 'flag.bff.analytics.growth');
-  });
-
-  it('returns 501 loud-failure for TENANT_ADMIN when flag is off', async () => {
-    const res = await app.request('/analytics/growth', {
-      headers: { Authorization: bearer(UserRole.TENANT_ADMIN) },
-    });
-    expect(res.status).toBe(501);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 3. GET /analytics/usage
-// ---------------------------------------------------------------------------
-
-describe('GET /analytics/usage (skeleton)', () => {
-  const app = mount('/analytics/usage', analyticsUsageRouter);
-
-  it('rejects anonymous callers (401)', async () => {
-    const res = await app.request('/analytics/usage');
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects RESIDENT role (403)', async () => {
-    const res = await app.request('/analytics/usage', {
-      headers: { Authorization: bearer(UserRole.RESIDENT) },
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it('returns 501 loud-failure for OWNER when flag is off', async () => {
-    await assertNotImplemented(app, '/analytics/usage', 'flag.bff.analytics.usage');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 4. GET /billing/subscription
-// ---------------------------------------------------------------------------
-
-describe('GET /billing/subscription (skeleton)', () => {
-  const app = mount('/billing', billingRouter);
-
-  it('rejects anonymous callers (401)', async () => {
-    const res = await app.request('/billing/subscription');
-    expect(res.status).toBe(401);
-  });
-
-  it('rejects RESIDENT role (403)', async () => {
-    const res = await app.request('/billing/subscription', {
-      headers: { Authorization: bearer(UserRole.RESIDENT) },
-    });
-    expect(res.status).toBe(403);
-  });
-
-  it('returns 501 loud-failure for OWNER when no platformBilling is wired', async () => {
-    await assertNotImplemented(
-      app,
-      '/billing/subscription',
-      'flag.bff.billing.subscription',
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 5–7. GET /owner/messaging/{broadcasts,campaigns,templates}
+// GET /owner/messaging/{broadcasts,campaigns,templates}
 // ---------------------------------------------------------------------------
 
 describe('GET /owner/messaging/{broadcasts,campaigns,templates} (skeleton)', () => {
