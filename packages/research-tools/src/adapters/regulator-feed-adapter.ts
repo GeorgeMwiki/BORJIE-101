@@ -158,13 +158,16 @@ function stripCdata(s: string): string {
 }
 
 function decodeXml(s: string): string {
+  // Decode named entities before &amp; so that &amp;lt; becomes &lt; (a
+  // literal ampersand-lt sequence) rather than < (js/double-escaping fix:
+  // &amp; must be decoded last).
   return s
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'");
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 // ---------------------------------------------------------------------------

@@ -96,10 +96,14 @@ function stripToText(html: string): string {
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
+    // Decode named entities before &amp; so that &amp;lt; correctly
+    // decodes to &lt; (literal ampersand+lt) rather than < (js/double-escaping:
+    // &amp; must be the LAST substitution so it does not interfere with the
+    // other entity replacements).
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
 }
