@@ -17,6 +17,10 @@ describe('pii-redactor — hasPii()', () => {
     expect(hasPii('A123456789B')).toBe(true);
   });
 
+  it('detects Tanzania TRA TIN format (NNN-NNN-NNN)', () => {
+    expect(hasPii('123-456-789')).toBe(true);
+  });
+
   it('detects Tanzania NIDA national-id', () => {
     expect(hasPii('19880101-12345-67890-12')).toBe(true);
   });

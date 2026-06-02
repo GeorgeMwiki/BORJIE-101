@@ -25,6 +25,9 @@ const PATTERNS: ReadonlyArray<{ kind: PiiKind; re: RegExp }> = [
   { kind: 'email', re: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i },
   { kind: 'nida', re: /\b\d{8}-\d{5}-\d{5}-\d{2}\b/ },
   { kind: 'iban', re: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/ },
+  // Tanzania TRA TIN — 123-456-789 (NNN-NNN-NNN)
+  { kind: 'tra-tin', re: /\b\d{3}-\d{3}-\d{3}\b/ },
+  // Kenya KRA PIN — A123456789B
   { kind: 'kra-pin', re: /\b[A-Z]\d{9}[A-Z]\b/i },
   { kind: 'passport', re: /\b[A-Z]{1,2}\d{6,9}\b/ },
   { kind: 'tin', re: /\b\d{3}-?\d{3}-?\d{3}\b/ },

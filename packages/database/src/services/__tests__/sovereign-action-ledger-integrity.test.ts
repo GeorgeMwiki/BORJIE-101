@@ -685,13 +685,15 @@ describe('sovereign-action-ledger — PII redaction commutes with hashing (HIGH 
     );
 
     const original = {
-      message: 'Call A123456789B at +254712345678 or admin@example.com',
+      message:
+        'TRA TIN 123-456-789, KRA A123456789B at +254712345678 or admin@example.com',
       amount: 100,
     };
     const expectedHash = hashPayload(original);
     const redacted = redactPayloadPii(original);
 
     expect(redacted.message).not.toBe(original.message);
+    expect(redacted.message).toContain('<tra-tin:redacted>');
     expect(redacted.message).toContain('<kra-pin:redacted>');
     expect(redacted.message).toContain('[PHONE]');
     expect(redacted.message).toContain('[EMAIL]');
@@ -706,9 +708,11 @@ describe('sovereign-action-ledger — PII redaction commutes with hashing (HIGH 
     });
 
     const stored = stub.rows[0]?.payloadJson as Record<string, string>;
+    expect(stored.message).toContain('<tra-tin:redacted>');
     expect(stored.message).toContain('<kra-pin:redacted>');
     expect(stored.message).toContain('[PHONE]');
     expect(stored.message).toContain('[EMAIL]');
+    expect(stored.message).not.toContain('123-456-789');
     expect(stored.message).not.toContain('A123456789B');
     expect(stored.message).not.toContain('+254712345678');
     expect(stored.message).not.toContain('admin@example.com');

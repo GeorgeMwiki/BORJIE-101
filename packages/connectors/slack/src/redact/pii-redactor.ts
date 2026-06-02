@@ -2,8 +2,8 @@
  * Boundary PII redactor for Slack message text.
  *
  * Follows the `packages/session-mirror/src/field-capture/pii-redactor.ts`
- * pattern: detects PII shapes (email, phone, NIDA, KRA PIN, IBAN,
- * M-Pesa transaction codes) and replaces each match with a
+ * pattern: detects PII shapes (email, phone, NIDA, Tanzania TRA TIN,
+ * Kenya KRA PIN, IBAN, M-Pesa transaction codes) and replaces each match with a
  * salted-sha256 hash. The salt is `tenant_id ':' field_id ':' value`
  * so the same value in a different tenant or different field is
  * unlinkable.
@@ -23,6 +23,9 @@ const PATTERNS: ReadonlyArray<PiiPattern> = [
   { kind: 'email', re: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi },
   { kind: 'nida', re: /\b\d{8}-\d{5}-\d{5}-\d{2}\b/g },
   { kind: 'iban', re: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/g },
+  // Tanzania TRA TIN — 9 digits, NNN-NNN-NNN.
+  { kind: 'tra-tin', re: /\b\d{3}-\d{3}-\d{3}\b/g },
+  // Kenya KRA PIN — letter + 9 digits + letter.
   { kind: 'kra-pin', re: /\b[AP]\d{9}[A-Z]\b/g },
   { kind: 'mpesa', re: /\b[A-Z]{2}\d{8}[A-Z]{2}\b/g },
   { kind: 'phone', re: /\+?\d[\d\s().-]{6,18}\d/g },

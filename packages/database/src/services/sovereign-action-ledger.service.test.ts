@@ -382,6 +382,30 @@ describe('createSovereignActionLedgerService.appendLedgerEntry / PII redaction',
     expect(persistedPayload).toContain('Asha Kweli');
   });
 
+  it('redacts Tanzania TRA TIN from payload_json before persist', async () => {
+    const stub = makeStubDb();
+    const svc = createSovereignActionLedgerService(stub.client);
+    await svc.appendLedgerEntry({
+      tenantId: 't1',
+      actionType: 'tax.tra-filing-prepared',
+      payloadJson: {
+        traTin: '123-456-789',
+        ownerName: 'Asha Kweli',
+        amount: 9000,
+      },
+      proposer: 'u_admin',
+      approvers: ['u_admin', 'u_finance'],
+      executedAt: new Date('2026-05-14T00:00:00Z'),
+    });
+    expect(stub.rows).toHaveLength(1);
+    const persistedPayload = JSON.stringify(stub.rows[0]?.payloadJson ?? {});
+    expect(persistedPayload).not.toContain('123-456-789');
+    expect(persistedPayload).toContain('<tra-tin:redacted>');
+    // Amount + non-PII fields preserved.
+    expect(persistedPayload).toContain('9000');
+    expect(persistedPayload).toContain('Asha Kweli');
+  });
+
   it('hash is computed on the ORIGINAL payload — verify chain stays intact after redaction', async () => {
     const stub = makeStubDb();
     const svc = createSovereignActionLedgerService(stub.client);

@@ -2,8 +2,8 @@
  * PII redactor — Discipline 6 boundary check.
  *
  * Mirrors the patterns in `packages/file-ingest/src/schema-sniff/pii-redactor.ts`
- * (Borjie's canonical PII patterns: KRA-PIN, NIDA, +254/+255 mobile,
- * email, generic 9+-digit national id). Copied here intentionally — the
+ * (Borjie's canonical PII patterns: TRA-TIN, KRA-PIN, NIDA, +254/+255
+ * mobile, email, generic 9+-digit national id). Copied here intentionally — the
  * cognitive-engine package is a leaf and may not depend backward on
  * file-ingest (same rule that file-ingest enforces against database).
  *
@@ -22,7 +22,9 @@ interface PiiPattern {
 }
 
 const PII_PATTERNS: ReadonlyArray<PiiPattern> = [
-  // KRA PIN — A123456789B
+  // Tanzania TRA TIN — 123-456-789 (9 digits, NNN-NNN-NNN)
+  { kind: 'tra_tin', regex: /\b\d{3}-\d{3}-\d{3}\b/g, replacement: '[TRA_TIN]' },
+  // Kenya KRA PIN — A123456789B
   { kind: 'kra_pin', regex: /\b[A-Z]\d{9}[A-Z]\b/g, replacement: '[KRA_PIN]' },
   // NIDA — YYYY-MMDD-NNNNN-NNNNNNN
   {

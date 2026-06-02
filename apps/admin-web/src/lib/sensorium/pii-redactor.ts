@@ -4,8 +4,9 @@
  * The sensory bus NEVER sends raw input values to the server. Two
  * guardrails:
  *
- *   1. `hasPii(value)` — detects email, phone, KRA/MRI, NIDA, IBAN-ish,
- *      passport, M-Pesa till/paybill, credit-card-like patterns.
+ *   1. `hasPii(value)` — detects email, phone, Tanzania TRA TIN,
+ *      Kenya KRA PIN, NIDA, IBAN-ish, passport, M-Pesa till/paybill,
+ *      credit-card-like patterns.
  *   2. `redactToShape(field)` — for `input.change`, returns
  *      `{ fieldName, valueLength, hasPii }` instead of the value.
  *
@@ -25,9 +26,11 @@ const PATTERNS: ReadonlyArray<{ name: string; re: RegExp }> = [
   { name: 'card', re: /(?:\d[ -]?){13,19}/ },
   // Tanzania NIDA — 20-digit national id.
   { name: 'nida', re: /\b\d{8}-\d{5}-\d{5}-\d{2}\b/ },
-  // KRA PIN — letter + 9 digits + letter (Kenya tax id).
+  // Tanzania TRA TIN — 9 digits, NNN-NNN-NNN (canonical dashed form).
+  { name: 'tra-tin', re: /\b\d{3}-\d{3}-\d{3}\b/ },
+  // Kenya KRA PIN — letter + 9 digits + letter (Kenya tax id).
   { name: 'kra-pin', re: /\b[A-Z]\d{9}[A-Z]\b/i },
-  // Tanzania TIN — 9 digits with optional dashes.
+  // Tanzania TIN — 9 digits with optional dashes (catches the un-dashed form too).
   { name: 'tin', re: /\b\d{3}-?\d{3}-?\d{3}\b/ },
   // IBAN — 2 letters + 2 digits + 11-30 alnum.
   { name: 'iban', re: /\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/ },

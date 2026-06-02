@@ -199,7 +199,7 @@ export function hashPayload(payload: Record<string, unknown> | null): string {
 //
 // Sovereign-action ledger rows live under append-only audit retention.
 // Operators have legitimate read access, but ledger payloads must not
-// leak raw PII (KRA PIN, NIDA, M-Pesa phone, email) into the
+// leak raw PII (TRA TIN, KRA PIN, NIDA, M-Pesa phone, email) into the
 // long-retention surface. We redact-before-write so the persisted JSONB
 // column never contains plaintext PII — but the HASH is computed on
 // the ORIGINAL payload so the tamper-detection chain stays intact
@@ -217,6 +217,13 @@ const PAYLOAD_PII_PATTERNS: ReadonlyArray<{
   readonly regex: RegExp;
   readonly replacement: string;
 }> = [
+  // Tanzania TRA TIN — 123-456-789 (9 digits, NNN-NNN-NNN). Primary
+  // tax-ID entry (Tanzania-first, built for the world); the KRA PIN
+  // below covers the Kenya jurisdiction.
+  {
+    regex: /\b\d{3}-\d{3}-\d{3}\b/g,
+    replacement: '<tra-tin:redacted>',
+  },
   // Kenya KRA PIN — A123456789B
   {
     regex: /\b[A-Z]\d{9}[A-Z]\b/g,

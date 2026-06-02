@@ -35,6 +35,8 @@ const CURRENCY_AMOUNT_RX =
 
 /** Tanzania NIDA format: 20 digits with optional dashes. */
 const NIDA_RX = /\b((?:\d{8}-\d{5}-\d{5}-\d{2})|(?:\d{20}))\b/g;
+/** Tanzania TRA TIN: 123-456-789 (9 digits, NNN-NNN-NNN). */
+const TRA_TIN_RX = /\b(\d{3}-\d{3}-\d{3})\b/g;
 /** Kenya KRA PIN: A123456789Z. */
 const KRA_PIN_RX = /\b([A-Z]\d{9}[A-Z])\b/g;
 /** Kenya national ID: 7-8 digit number. */

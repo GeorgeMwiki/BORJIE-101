@@ -30,6 +30,13 @@ describe('scrubCotForPersist — regional PII coverage', () => {
     expect(out.categories).toContain('phone-ke');
   });
 
+  it('redacts a Tanzania TRA TIN (NNN-NNN-NNN shape)', () => {
+    const out = scrubCotForPersist('Their TRA TIN is 123-456-789 on the return.');
+    expect(out.scrubbed).not.toContain('123-456-789');
+    expect(out.scrubbed).toContain('[redacted-tra-tin]');
+    expect(out.categories).toContain('tra-tin');
+  });
+
   it('redacts a KRA PIN (P051234567Z shape)', () => {
     const out = scrubCotForPersist('Their KRA PIN is P051234567Z and ours differs.');
     expect(out.scrubbed).not.toContain('P051234567Z');

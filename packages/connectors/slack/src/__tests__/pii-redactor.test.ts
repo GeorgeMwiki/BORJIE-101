@@ -29,6 +29,21 @@ describe('Slack PII redactor', () => {
     expect(result.redactedFields).toContain('phone');
   });
 
+  it('redacts both Tanzania TRA TIN and Kenya KRA PIN tax ids', async () => {
+    const redactor = createPiiRedactor({ hasher: deterministicHasher() });
+    const result = await redactor.redact({
+      tenantId: 'tenant-001',
+      fieldId: 'slack:T01:C01:text',
+      value: 'TRA TIN 123-456-789 and KRA PIN A123456789B on file.',
+    });
+    expect(result.redacted).not.toContain('123-456-789');
+    expect(result.redacted).not.toContain('A123456789B');
+    expect(result.redacted).toMatch(/\[tra-tin:/);
+    expect(result.redacted).toMatch(/\[kra-pin:/);
+    expect(result.redactedFields).toContain('tra-tin');
+    expect(result.redactedFields).toContain('kra-pin');
+  });
+
   it('produces tenant-salted hashes — same value in different tenants are unlinkable', async () => {
     const redactor = createPiiRedactor({ hasher: deterministicHasher() });
     const a = await redactor.redact({

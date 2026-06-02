@@ -33,6 +33,14 @@ describe('classify()', () => {
     expect(classify('19850515-12345-67890-12')).toBe('nida');
   });
 
+  it('detects Tanzania TRA TIN (NNN-NNN-NNN)', () => {
+    expect(classify('123-456-789')).toBe('tra-tin');
+  });
+
+  it('still detects Kenya KRA PIN', () => {
+    expect(classify('A123456789B')).toBe('kra-pin');
+  });
+
   it('lets plain company names pass through as none', () => {
     expect(classify('Jamhuri Mining Co')).toBe('none');
   });

@@ -30,6 +30,13 @@ describe('redactPii', () => {
     expect(r.redacted).toContain('[KRA_PIN]');
   });
 
+  it('redacts Tanzania TRA TIN (NNN-NNN-NNN)', () => {
+    const r = redactPii('TIN 123-456-789 issued');
+    expect(r.redacted).toContain('[TRA_TIN]');
+    expect(r.redacted).not.toContain('123-456-789');
+    expect(r.redactions.some((x) => x.pattern_kind === 'tra_tin')).toBe(true);
+  });
+
   it('counts multiple redactions accurately', () => {
     const r = redactPii('Email a@b.com and c@d.com and +254700000000');
     const email = r.redactions.find((x) => x.pattern_kind === 'email');

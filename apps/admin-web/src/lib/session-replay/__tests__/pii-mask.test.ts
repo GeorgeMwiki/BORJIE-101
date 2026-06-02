@@ -79,6 +79,12 @@ describe('scrubPiiPatterns', () => {
     expect(out).not.toContain('A123456789B');
   });
 
+  it('redacts a Tanzania TRA TIN', () => {
+    const out = scrubPiiPatterns('TIN 123-456-789 on the return');
+    expect(out).not.toContain('123-456-789');
+    expect(out).toContain('•');
+  });
+
   it('leaves prose intact', () => {
     const out = scrubPiiPatterns('Royalty is due on Friday for pit 4B');
     expect(out).toBe('Royalty is due on Friday for pit 4B');

@@ -46,6 +46,7 @@ export type PiiKind =
   | 'phone'
   | 'card'
   | 'nida'
+  | 'tra-tin'
   | 'kra-pin'
   | 'tin'
   | 'iban'
