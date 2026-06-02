@@ -55,7 +55,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
       - name: pnpm -r typecheck
         run: pnpm -r typecheck
 
@@ -89,7 +89,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
 
       - name: pnpm -r test
         run: pnpm -r test
@@ -127,8 +127,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      - name: pnpm -r build
-        run: pnpm -r build
+      - name: turbo build (topological)
+        run: pnpm build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
