@@ -80,7 +80,7 @@ function fakeEngineOk(): ReportEngine {
       const report = fakeReport(spec);
       const persisted: PersistedReport = {
         reportId: `rpt_${spec.type}_test`,
-        orgId: spec.scope.kind === 'tenant' || spec.scope.kind === 'property' || spec.scope.kind === 'deal' || spec.scope.kind === 'portfolio' ? spec.scope.orgId : 'tnt-test',
+        orgId: spec.scope.orgId ?? 'tnt-test',
         type: spec.type,
         report,
         artifacts: [
@@ -104,7 +104,7 @@ function fakeEngineFail(code: 'gather_failed_all_sources' = 'gather_failed_all_s
 
 const VALID_SPEC_BODY = (overrides?: { actorId?: string; orgId?: string }) => ({
   spec: {
-    type: 'leasing_financial_performance' as const,
+    type: 'offtake_financial_performance' as const,
     scope: { kind: 'portfolio' as const, orgId: overrides?.orgId ?? 'tnt-test' },
     audience: 'board' as const,
     depth: 'standard' as const,
@@ -266,7 +266,7 @@ describe('GET /v1/strategic-reports/:jobId', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.status).toBe('completed');
-    expect(body.data.report.title).toBe('Fake leasing_financial_performance');
+    expect(body.data.report.title).toBe('Fake offtake_financial_performance');
     expect(body.data.report.sectionCount).toBe(1);
     expect(body.data.report.citationCount).toBe(1);
     expect(body.data.report.actionPlanCount).toBe(5);
@@ -345,7 +345,7 @@ describe('GET /v1/strategic-reports — list', () => {
       body: JSON.stringify(VALID_SPEC_BODY()),
       headers: { 'content-type': 'application/json', authorization: bearer(UserRole.SUPER_ADMIN) },
     });
-    const matching = await app.request('/v1/strategic-reports?type=leasing_financial_performance', {
+    const matching = await app.request('/v1/strategic-reports?type=offtake_financial_performance', {
       headers: { authorization: bearer(UserRole.SUPER_ADMIN) },
     });
     expect(matching.status).toBe(200);

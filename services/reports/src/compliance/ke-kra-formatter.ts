@@ -15,7 +15,6 @@
  * rental income.
  */
 
-import { resolvePlugin } from '@borjie/compliance-plugins';
 import { getJurisdictionalRules } from '@borjie/domain-models';
 
 export interface KeKraRentEntry {
@@ -52,21 +51,18 @@ export interface KeKraExportRow {
   readonly paymentDate: string;
 }
 
-// MRI rate is NOT hardcoded — it is derived from the Kenya plugin's
-// TaxRegimePort every time we format a row. If the Finance Act changes the
-// rate, the plugin's flat-rate call is the single place to update it.
-const KE_PLUGIN = resolvePlugin('KE');
-const MRI_RATE = (() => {
-  // Calculate for a known gross and reverse-derive the rate. This keeps the
-  // plugin as source-of-truth while preserving the legacy `MRI_RATE` export.
-  const probeGrossMinor = 1_000_000; // 10,000 KES in minor units
-  const result = KE_PLUGIN.taxRegime.calculateWithholding(
-    probeGrossMinor,
-    'KES',
-    { kind: 'month', year: new Date().getUTCFullYear(), month: 1 }
-  );
-  return result.withholdingMinorUnits / probeGrossMinor;
-})();
+// MRI rate: 7.5% per Kenya Finance Act 2024 (Monthly Rental Income tax).
+//
+// NOTE: The KE plugin's taxRegime.calculateWithholding() represents KRA
+// mineral-payment withholding (5% on gross mineral value per KRA-WHT-MINERAL)
+// which is a DIFFERENT tax instrument from MRI. After the property→mining
+// domain migration the plugin's calculateWithholding surface changed meaning;
+// deriving MRI rate from it would yield the wrong 5% figure.
+// The canonical MRI rate is a legislated constant (Finance Act 2024, Third
+// Schedule Part B) — it does not vary by mine type or operation; only a
+// Finance Act amendment changes it. So we declare it as a named constant here
+// (the single place to update it on a Finance Act change).
+const MRI_RATE = 0.075; // 7.5% Finance Act 2024
 const VAT_RATE = getJurisdictionalRules('KE').taxAuthority.vatRatePct / 100;
 
 function toMajor(minor: number): number {
