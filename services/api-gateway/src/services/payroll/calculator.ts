@@ -164,3 +164,39 @@ export function payslipLabel(
     en: `Your payslip: ${netTzs.toFixed(2)}`,
   };
 }
+
+/**
+ * Bilingual (sw + en) field labels for the worker payslip breakdown.
+ *
+ * Single source of truth shared by the worker payslip endpoint
+ * (routes/owner/payroll.hono.ts → GET /payslip/me) and the workforce-mobile
+ * payslip screen, so the labels never drift between backend + FE. Per the
+ * multi-currency hard rule we NEVER bake a currency symbol into the label —
+ * money fields are rendered FE-side via `formatCurrency(amount, currencyCode)`.
+ *
+ * `kind` tells the renderer whether the value is hours (`formatHours`) or
+ * money (`formatCurrency`) so the screen stays currency-agnostic.
+ */
+export interface PayslipFieldLabel {
+  readonly key:
+    | 'hoursWorked'
+    | 'overtimeHours'
+    | 'baseTzs'
+    | 'overtimeTzs'
+    | 'bonusTzs'
+    | 'deductionTzs'
+    | 'netTzs';
+  readonly kind: 'hours' | 'money';
+  readonly sw: string;
+  readonly en: string;
+}
+
+export const PAYSLIP_FIELD_LABELS: ReadonlyArray<PayslipFieldLabel> = [
+  { key: 'hoursWorked', kind: 'hours', sw: 'Masaa ya kazi', en: 'Hours worked' },
+  { key: 'overtimeHours', kind: 'hours', sw: 'Masaa ya ziada', en: 'Overtime hours' },
+  { key: 'baseTzs', kind: 'money', sw: 'Mshahara wa msingi', en: 'Base' },
+  { key: 'overtimeTzs', kind: 'money', sw: 'Mshahara wa ziada', en: 'Overtime' },
+  { key: 'bonusTzs', kind: 'money', sw: 'Bonasi', en: 'Bonus' },
+  { key: 'deductionTzs', kind: 'money', sw: 'Makato', en: 'Deduction' },
+  { key: 'netTzs', kind: 'money', sw: 'Jumla utakayopokea', en: 'You will receive' },
+] as const;
