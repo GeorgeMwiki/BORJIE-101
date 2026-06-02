@@ -262,6 +262,119 @@ describe('kernel.think() — killswitch short-circuit', () => {
   });
 });
 
+describe('kernel.think() — killswitch fires on the ORCHESTRATOR-routed path', () => {
+  // Regression: the orchestrator main-loop has no killswitch step of its
+  // own. Before the fix, routing through it (KERNEL_USE_ORCHESTRATOR /
+  // useByDefault: true) silently bypassed an active HALT — a fail-open.
+  // We wire `orchestrator.deps` as a trap that throws on ANY property
+  // access. If the step-0 gate fires first, the trap is never touched and
+  // we get the killswitch refusal copy; if it were reached, the orchestrator
+  // would throw and surface an `orchestrator-error` refusal instead.
+  function throwingOrchestratorDeps(): { readonly deps: never } {
+    const trap = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('ORCHESTRATOR_REACHED — killswitch was bypassed');
+        },
+      },
+    );
+    return { deps: trap as never };
+  }
+
+  it('refuses on platform HALT before delegating to the orchestrator', async () => {
+    const counted = scriptedSensor();
+    const port = createEnvKillswitchPort({ KILLSWITCH_STATE: 'halt' });
+    const kernel = createBrainKernel({
+      sensors: [counted.sensor],
+      killswitch: port,
+      orchestrator: { ...throwingOrchestratorDeps(), useByDefault: true },
+    });
+    const decision = await kernel.think(makeRequest());
+    expect(decision.kind).toBe('refusal');
+    if (decision.kind === 'refusal') {
+      expect(decision.gateThatRefused).toBe('inviolable');
+      // Killswitch refusal copy — NOT an orchestrator-error.
+      expect(decision.reason).toMatch(/temporarily paused/i);
+      expect(decision.reason).not.toMatch(/orchestrator-error/);
+    }
+    expect(counted.calls).toBe(0);
+  });
+
+  it('refuses on tenant HALT before delegating to the orchestrator', async () => {
+    const counted = scriptedSensor();
+    const port = createEnvKillswitchPort({
+      KILLSWITCH_TENANT_t_alpha: 'halt',
+      KILLSWITCH_TENANT_t_alpha_REASON: 'TENANT_DATA_LEAK_SUSPECTED',
+    });
+    const kernel = createBrainKernel({
+      sensors: [counted.sensor],
+      killswitch: port,
+      orchestrator: { ...throwingOrchestratorDeps(), useByDefault: true },
+    });
+    const decision = await kernel.think(makeRequest());
+    expect(decision.kind).toBe('refusal');
+    if (decision.kind === 'refusal') {
+      expect(decision.reason).toMatch(/temporarily paused/i);
+      expect(decision.reason).not.toMatch(/orchestrator-error/);
+    }
+    expect(counted.calls).toBe(0);
+  });
+
+  it('control: LIVE reaches the orchestrator (proves the trap is wired)', async () => {
+    const counted = scriptedSensor();
+    const port = createEnvKillswitchPort({}); // LIVE
+    const kernel = createBrainKernel({
+      sensors: [counted.sensor],
+      killswitch: port,
+      orchestrator: { ...throwingOrchestratorDeps(), useByDefault: true },
+    });
+    const decision = await kernel.think(makeRequest());
+    // Orchestrator was reached → its deps trap threw → runViaOrchestrator
+    // catches it and surfaces an `orchestrator-error` refusal. This is the
+    // counter-proof that the HALT cases above short-circuited EARLIER.
+    expect(decision.kind).toBe('refusal');
+    if (decision.kind === 'refusal') {
+      expect(decision.reason).toMatch(/orchestrator-error/);
+    }
+  });
+});
+
+describe('kernel.thinkStream() — killswitch fires on the ORCHESTRATOR-routed path', () => {
+  function throwingOrchestratorDeps(): { readonly deps: never } {
+    const trap = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('ORCHESTRATOR_REACHED — killswitch was bypassed');
+        },
+      },
+    );
+    return { deps: trap as never };
+  }
+
+  it('emits gate_verdict + done(refusal) on HALT without reaching the orchestrator', async () => {
+    const port = createEnvKillswitchPort({ KILLSWITCH_STATE: 'halt' });
+    const counted = scriptedSensor();
+    const kernel = createBrainKernel({
+      sensors: [counted.sensor],
+      killswitch: port,
+      orchestrator: { ...throwingOrchestratorDeps(), useByDefault: true },
+    });
+    const events: Array<string> = [];
+    let refusalReason = '';
+    for await (const ev of kernel.thinkStream(makeRequest())) {
+      events.push(ev.kind);
+      if (ev.kind === 'done' && ev.decision.kind === 'refusal') {
+        refusalReason = ev.decision.reason;
+      }
+    }
+    expect(events).toEqual(['turn_start', 'gate_verdict', 'done']);
+    expect(refusalReason).toMatch(/temporarily paused/i);
+    expect(refusalReason).not.toMatch(/orchestrator-error/);
+  });
+});
+
 describe('kernel.thinkStream() — killswitch short-circuit', () => {
   it('emits turn_start + gate_verdict + done(refusal) on HALT with no text deltas', async () => {
     const sensorCallStream = vi.fn();

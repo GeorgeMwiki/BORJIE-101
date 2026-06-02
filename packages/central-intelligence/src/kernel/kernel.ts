@@ -579,6 +579,36 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // fallback (flag off, or orchestrator not wired). Both paths
       // surface a `BrainDecision` so callers don't observe the swap.
       if (orchestratorRoutingEnabled && deps.orchestrator) {
+        // 0) killswitch — administrative HALT short-circuit. The
+        //    orchestrator main-loop has no killswitch step of its own,
+        //    so we run the shared step-0 gate HERE, before delegating,
+        //    to guarantee a platform / tenant HALT denies on the
+        //    orchestrator path exactly as it does on the legacy pipeline.
+        //    Fail-closed: an active hold must never be bypassed by the
+        //    routing flag.
+        const ksHalt = evaluateKillswitchHalt({
+          killswitch: deps.killswitch,
+          req,
+          thoughtId: randomUUID(),
+          startedAt: clock().getTime(),
+          clockNow: clock(),
+          provenanceSink: deps.provenanceSink,
+        });
+        if (ksHalt) {
+          if (outerTrace && !outerTrace.isFinalised()) {
+            outerTrace.addBranch({
+              id: 'killswitch',
+              label: 'Killswitch HALT',
+              rationale: `HALT reason=${ksHalt.state.reasonCode}`,
+            });
+            outerTrace.choose('killswitch', `HALT reason=${ksHalt.state.reasonCode}`);
+            outerTrace.finalize({
+              outcome: 'refused',
+              output: { kind: 'refusal', gate: 'killswitch' },
+            });
+          }
+          return ksHalt.decision;
+        }
         try {
           const result = await runViaOrchestrator(
             req,
@@ -1770,6 +1800,31 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // layer still emits at least: turn_start, ≥1 text_delta,
       // confidence (when present), done.
       if (orchestratorRoutingEnabled && deps.orchestrator) {
+        // 0) killswitch — administrative HALT short-circuit, streaming +
+        //    orchestrator path. The orchestrator main-loop has no
+        //    killswitch step of its own, so enforcing it here keeps the
+        //    HALT fail-closed regardless of the routing flag. We emit
+        //    `turn_start` first (the streaming contract guarantees it),
+        //    then — on HALT — a `gate_verdict` block + `done(refusal)`
+        //    with no deltas, mirroring the legacy stream step-0.
+        const ksHalt = evaluateKillswitchHalt({
+          killswitch: deps.killswitch,
+          req,
+          thoughtId: randomUUID(),
+          startedAt: clock().getTime(),
+          clockNow: clock(),
+          provenanceSink: deps.provenanceSink,
+        });
+        if (ksHalt) {
+          yield personaStartEvent(selectPersona(req));
+          yield {
+            kind: 'gate_verdict',
+            gate: 'inviolable',
+            verdict: { status: 'block', reason: ksHalt.state.reasonCode },
+          };
+          yield { kind: 'done', decision: ksHalt.decision };
+          return;
+        }
         yield* streamViaOrchestrator(req, deps.orchestrator.deps, clock);
         return;
       }
@@ -2392,6 +2447,48 @@ function makeRefusal(args: {
 
 function sha(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
+}
+
+/**
+ * Step-0 killswitch HALT short-circuit, shared by EVERY code path
+ * (legacy 13-step pipeline AND the orchestrator-routed primary path).
+ *
+ * Returns the refusal `BrainDecision` when the effective killswitch
+ * level is `halt` (and records provenance as a side-effect), or `null`
+ * when the request may proceed. A no-op (`null`) when no killswitch port
+ * is wired, so callers that never configure one are unaffected.
+ *
+ * SECURITY (fail-closed): the killswitch is the earliest governance
+ * gate — a platform / tenant HALT must DENY before any sensor, memory,
+ * cohort, or orchestrator hook work. It MUST fire regardless of whether
+ * the turn is routed through the legacy pipeline or the orchestrator
+ * main-loop; otherwise flipping `KERNEL_USE_ORCHESTRATOR` would silently
+ * bypass an active compliance / data-leak / provider-incident hold.
+ */
+function evaluateKillswitchHalt(args: {
+  readonly killswitch: KillswitchPort | undefined;
+  readonly req: ThoughtRequest;
+  readonly thoughtId: string;
+  readonly startedAt: number;
+  readonly clockNow: Date;
+  readonly provenanceSink: ProvenanceSink | undefined;
+}): { readonly decision: BrainDecision; readonly state: ReturnType<typeof resolveKillswitch> } | null {
+  if (!args.killswitch) return null;
+  const tenantId = args.req.scope.kind === 'tenant' ? args.req.scope.tenantId : null;
+  const ks = resolveKillswitch(args.killswitch, tenantId);
+  if (ks.level !== 'halt') return null;
+  const decision = makeRefusal({
+    thoughtId: args.thoughtId,
+    req: args.req,
+    reason: renderKillswitchRefusalText(ks),
+    gate: 'inviolable',
+    startedAt: args.startedAt,
+    clockNow: args.clockNow,
+  });
+  if (args.provenanceSink) {
+    void args.provenanceSink.record(decision.provenance).catch(() => undefined);
+  }
+  return { decision, state: ks };
 }
 
 /**
