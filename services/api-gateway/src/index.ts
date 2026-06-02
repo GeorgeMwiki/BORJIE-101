@@ -507,6 +507,9 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 // Admin-side bulk-action surface — distinct whitelist + 4-eye approval
 // for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
+// Admin Control Tower — cross-tenant toggles wired to REAL platform state
+// (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
+import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Real Holt-Winters forecasts (cash-flow, production, royalty) wired
@@ -2006,6 +2009,10 @@ api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
 // Admin counterpart — only the bulk-action verb-set differs.
 api.route('/admin/superpowers', adminSuperpowersRouter);
+// Admin Control Tower — GET /controls + POST /toggle (+ /toggle/:id/approve).
+// Each toggle drives a real platform control; HIGH-impact ones are four-eye
+// gated and only mutate state on the second-eye approval. SOC2-audited.
+api.route('/admin/control-tower', adminControlTowerRouter);
 api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under

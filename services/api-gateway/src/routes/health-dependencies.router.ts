@@ -186,7 +186,7 @@ const ENV_PRESENCE_CHECKS: ReadonlyArray<EnvPresenceCheck> = Object.freeze([
     name: 'eviction-dispatcher',
     envVars: ['TEMPORAL_ADDRESS', 'EVICTION_TASKQUEUE'],
     note: 'sovereign eviction workflow',
-    capabilities: [NOT_YET_WIRED_REASON.EVICTION_DISPATCHER],
+    capabilities: [NOT_YET_WIRED_REASON.LICENCE_SUSPENSION_DISPATCHER],
   },
   {
     name: 'owner-payout-dispatcher',

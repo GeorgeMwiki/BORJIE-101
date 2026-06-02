@@ -203,6 +203,14 @@ import {
   createPostgresArrearsEntryLoader,
   type ArrearsEntryLoader,
 } from './arrears-infrastructure.js';
+// Wave WS-4 — platform billing (SaaS revenue). The service drives the
+// platform fee through the provider PORT (IPaymentProvider) + LedgerService.
+import {
+  PlatformBillingService,
+  makeTenantCurrencyResolver,
+} from './billing/platform-billing-service.js';
+import { buildLedgerService } from './ledger/index.js';
+import { StripePaymentProvider } from '@borjie/payments-ledger-service';
 
 // Wave 9 enterprise polish — Feature flags, GDPR, AI cost ledger.
 import {
@@ -1054,6 +1062,29 @@ export interface ServiceRegistry {
     readonly repo: PostgresFarRepository | null;
   };
 
+  /**
+   * Wave WS-4 — platform billing (the platform's own SaaS revenue path).
+   * Backs GET /api/v1/billing/subscription. Non-null ONLY when a payment
+   * provider is configured (STRIPE_SECRET_KEY) AND DATABASE_URL is set: the
+   * service drives the platform fee through the provider PORT (IPaymentProvider)
+   * and posts the receivable through LedgerService.post(). Null otherwise — the
+   * billing router falls through to its loud-failure / degraded path. Typed
+   * structurally (not via a hard import) so the registry file stays free of a
+   * billing-service dependency cycle.
+   */
+  readonly platformBilling: {
+    getSubscription(tenantId: string): Promise<unknown>;
+    subscribe(input: {
+      readonly tenantId: string;
+      readonly plan: string;
+      readonly mrrMinor: number;
+      readonly seats: number;
+      readonly billingPeriod: string;
+      readonly providerCustomerId: string;
+      readonly actorId: string;
+    }): Promise<unknown>;
+  } | null;
+
   /** Mining-domain Wave 5 — buyer financial-profile repo (credit limit,
    *  AML status, banking, payment history) over the `buyers` extension
    *  columns added by migration 0005. Null when DATABASE_URL is unset. */
@@ -1436,6 +1467,43 @@ function buildGraphQueryService(): GraphQueryService | null {
   }
 }
 
+/**
+ * Wave WS-4 — build the platform-billing service for the LIVE registry.
+ *
+ * Non-null ONLY when a payment provider is configured (STRIPE_SECRET_KEY).
+ * The service drives the platform fee through the provider PORT
+ * (IPaymentProvider) and posts the receivable through LedgerService.post() —
+ * the established money seam, never a parallel ledger. When no provider key
+ * is present the slot stays null and the billing router falls through to its
+ * loud-failure / degraded path (unchanged behaviour). Typed via the registry
+ * slot shape (structural) so no billing-service type leaks into the slot.
+ */
+function buildPlatformBilling(
+  db: ReturnType<typeof createDatabaseClient>,
+): ServiceRegistry['platformBilling'] {
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return null;
+  try {
+    const provider = new StripePaymentProvider({
+      secretKey: stripeKey,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? '',
+    });
+    const ledger = buildLedgerService(db);
+    return new PlatformBillingService({
+      db,
+      provider,
+      ledger,
+      resolveCurrency: makeTenantCurrencyResolver(db),
+    });
+  } catch (err) {
+    logger.warn(
+      'service-registry: platform-billing init failed — returning null',
+      { value: err instanceof Error ? err.message : err },
+    );
+    return null;
+  }
+}
+
 function degradedRegistry(eventBus: EventBus): ServiceRegistry {
   // Single bus instance reused for the bus slot and the C2 fan-out /
   // dispatcher adapters so all three converge on the same in-memory
@@ -1617,6 +1685,8 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     damageDeductions: { service: null, repo: null },
     conditionalSurveys: { service: null, repo: null },
     far: { service: null, repo: null },
+    // Wave WS-4 — platform billing null in degraded mode (no DB / provider).
+    platformBilling: null,
     // Mining-domain Wave 5 — buyer / site / marketplace / ore repos.
     // All null in degraded mode (no DB to bind against).
     buyerFinancialProfile: null,
@@ -2402,7 +2472,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // and threads three lazy Temporal dispatchers in front of the
       // synchronously-built bundle promise. The brain-kernel wiring
       // below merges these tools into the kernel's tool registry so
-      // every `platform.verify_nida` / `platform.evict_tenant` /
+      // every `platform.verify_nida` / `platform.suspend_licence` /
       // `platform.payout_owner` / `platform.file_kra_mri` call routes
       // through the real adapter when bound (and through the existing
       // deterministic placeholder refusal otherwise — see
@@ -2535,6 +2605,10 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       service: farService,
       repo: farRepo,
     },
+    // Wave WS-4 — platform billing (SaaS revenue). Non-null only when a
+    // payment provider (STRIPE_SECRET_KEY) is configured; drives the platform
+    // fee through the provider PORT + LedgerService.post(). Null otherwise.
+    platformBilling: buildPlatformBilling(db),
     // Mining-domain Wave 5 — live bindings of the new mining repos
     // surfaced through dedicated slots. The corresponding legacy slots
     // (financialProfile / riskReport / negotiation / warehouse /

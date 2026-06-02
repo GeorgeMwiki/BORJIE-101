@@ -42,7 +42,7 @@ export function createInMemoryTranslationCache(): InMemoryCache {
   let misses = 0;
 
   return Object.freeze({
-    async get(key) {
+    async get(key: TranslationCacheKey) {
       const entry = store.get(serializeKey(key));
       if (entry === undefined) {
         misses += 1;
@@ -52,7 +52,7 @@ export function createInMemoryTranslationCache(): InMemoryCache {
       return entry.value.targetText;
     },
 
-    async set(key, value) {
+    async set(key: TranslationCacheKey, value: TranslationCacheValue) {
       store.set(serializeKey(key), { key, value });
     },
 

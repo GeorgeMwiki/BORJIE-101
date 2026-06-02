@@ -124,6 +124,7 @@ export * from './sovereign-action-ledger.schema.js';
 export * from './platform-privacy-budget.schema.js';
 export * from './platform-feature-flags.schema.js';
 export * from './platform-killswitch-state.schema.js';
+export * from './platform-autonomy-settings.schema.js';
 export * from './killswitch-authorities.schema.js';
 export * from './platform-announcements.schema.js';
 
@@ -1299,6 +1300,16 @@ export * from './help-requests.schema.js';
 // gateway and the buyer-mobile rfb-create / rfb-list screens.
 export * from './request-for-bids.schema.js';
 
+// Wave WS-2 — buyer ↔ seller bid chat / messaging (migration 0172).
+// One thread per request_for_bid_responses row; append-only; RLS FORCE
+// participant-aware read + tenant-locked write; idempotent send.
+export * from './bid-messages.schema.js';
+
+// Wave WS-2 — post-settlement seller ratings + reputation aggregate
+// (migration 0173). One rating per ledger-backed `settlements` row;
+// RLS FORCE strict tenant isolation; reputation via seller_reputation().
+export * from './seller-ratings.schema.js';
+
 // Issue #194 — regulator data-subject request (DSR) inbox
 // (migration 0135). One row per regulator-originated request from
 // PCCB / NEMC / EITI / TMAA. State-machine driven; pulses on the
@@ -1360,3 +1371,48 @@ export * from './feedback.schema.js';
 // by services/api-gateway routes/owner/calendar.hono.ts + the calendar-sync
 // worker + the notification-dispatch calendar-providers adapter.
 export * from './owner-calendar-connections.schema.js';
+
+// Wave WS-4 ANALYTICS — analytics warehouses (migrations 0175/0176/0177).
+// Three append-mostly read-models backing the owner-portal Analytics pages
+// that previously returned X-Backend-Status: degraded:
+//   analytics_usage_daily      ← audit_events feature-usage counts (0175)
+//   analytics_growth_monthly   ← sites→production→sales→ledger trend (0176)
+//   analytics_export_templates ← saved tenant export definitions (0177)
+// Money columns are BIGINT minor units + an ISO-4217 `currency` (never a
+// hardcoded TZS/USD). Tenant-scoped FORCE RLS on app.current_tenant_id.
+// Consumed by services/api-gateway analytics-{usage,growth,exports}.router.ts
+// + the consolidation-worker analytics-aggregate task.
+export * from './analytics-warehouse.schema.js';
+
+// Wave WS-4 BILLING — tenant_subscriptions (migration 0178). The platform's
+// own SaaS revenue read-model backing GET /api/v1/billing/subscription
+// (owner-portal BillingPage). State-only read-model: the actual platform-fee
+// money moves through the established provider PORT (IPaymentProvider) +
+// LedgerService.post(); `external_id` reconciles provider webhooks back here
+// idempotently. mrr_minor_units is BIGINT minor units + ISO-4217 `currency`
+// (never hardcoded). Tenant-scoped FORCE RLS on app.current_tenant_id; at most
+// one active subscription per tenant. Consumed by services/api-gateway
+// billing.router.ts + the PlatformBillingService adapter.
+export * from './tenant-subscriptions.schema.js';
+
+// Wave WS-3 WORKFORCE-WIRES — `leave_requests` (migration 0174). Worker-
+// submitted time-off requests with a SINGLE manager approval (NO four-eye):
+// pending -> approved | rejected. Mirrors the grievance flow (safety-csr →
+// grievances). `worker_user_id` is the same identity payroll_line_items +
+// clock-in events key on, so the worker reads/writes only their own rows.
+// Every approve/reject hash-chains into ai_audit_chain at the route layer.
+// Tenant-scoped FORCE RLS on app.current_tenant_id. NO money columns. Consumed
+// by services/api-gateway routes/mining/leave-requests.hono.ts + the
+// workforce-mobile (worker) leave screen.
+export * from './leave-requests.schema.js';
+
+// payroll_runs + payroll_line_items (migration 0134). The payroll chain L-B
+// tables behind the owner payroll route AND the WS-3 worker payslip read.
+// This schema file existed on disk but was NOT reachable from the barrel, so
+// `import { payrollRuns, payrollLineItems } from '@borjie/database'` resolved
+// to `undefined` at runtime under the source alias (only the built dist masked
+// it). Export it here so both the owner payroll route and the worker payslip
+// route bind the real Drizzle tables. RLS FORCE on app.current_tenant_id;
+// money path STILL goes through LedgerService.post() (these are read/commit
+// surfaces, never a direct ledger write).
+export * from './payroll-runs.schema.js';

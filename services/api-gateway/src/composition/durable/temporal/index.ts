@@ -18,13 +18,13 @@ export {
 } from './temporal-client.js';
 
 export {
-  type EvictionBreachKind,
+  type LicenceSuspensionBreachKind,
   type EvictionWorkflowInput,
   type EvictionWorkflowResult,
   type EvictionActivities,
   type EvictionWorkflowDeps,
   type StartEvictionWorkflowArgs,
-  EVICTION_STATUTORY_DAYS,
+  LICENCE_SUSPENSION_STATUTORY_DAYS,
   tenantEvictionWorkflowBody,
   startEvictionWorkflow,
   evictionWorkflowId,

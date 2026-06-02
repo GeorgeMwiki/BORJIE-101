@@ -1,7 +1,7 @@
 /**
  * temporal-dispatcher-wiring — factory that builds the per-tool
  * Temporal-workflow-dispatcher port adapters consumed by the 3 new HQ
- * tools (`platform.evict_tenant`, `platform.payout_owner`,
+ * tools (`platform.suspend_licence`, `platform.payout_owner`,
  * `platform.file_kra_mri`).
  *
  * Composition strategy
@@ -37,7 +37,7 @@
 
 import { hqTools } from '@borjie/central-intelligence';
 
-type EvictionWorkflowDispatcherPort = hqTools.EvictionWorkflowDispatcherPort;
+type LicenceSuspensionWorkflowDispatcherPort = hqTools.LicenceSuspensionWorkflowDispatcherPort;
 type OwnerPayoutWorkflowDispatcherPort = hqTools.OwnerPayoutWorkflowDispatcherPort;
 type KraMriFilingWorkflowDispatcherPort = hqTools.KraMriFilingWorkflowDispatcherPort;
 
@@ -71,7 +71,7 @@ import {
 export interface TemporalDispatcherBundle {
   readonly client: TemporalClientLike;
   readonly isMock: boolean;
-  readonly evictionDispatcher: EvictionWorkflowDispatcherPort;
+  readonly licenceSuspensionDispatcher: LicenceSuspensionWorkflowDispatcherPort;
   readonly ownerPayoutDispatcher: OwnerPayoutWorkflowDispatcherPort;
   readonly kraMriDispatcher: KraMriFilingWorkflowDispatcherPort;
 }
@@ -167,7 +167,7 @@ export async function createTemporalDispatcherFromEnv(
   return {
     client,
     isMock,
-    evictionDispatcher: buildEvictionDispatcher(client),
+    licenceSuspensionDispatcher: buildLicenceSuspensionDispatcher(client),
     ownerPayoutDispatcher: buildOwnerPayoutDispatcher(client, fx),
     kraMriDispatcher: buildKraMriDispatcher(client),
   };
@@ -177,16 +177,16 @@ export async function createTemporalDispatcherFromEnv(
 // Internal — dispatcher builders
 // ─────────────────────────────────────────────────────────────────────
 
-function buildEvictionDispatcher(
+function buildLicenceSuspensionDispatcher(
   client: TemporalClientLike,
-): EvictionWorkflowDispatcherPort {
+): LicenceSuspensionWorkflowDispatcherPort {
   return {
     async start(args) {
       const handle = await startEvictionWorkflow({
         client,
         input: {
           tenantId: args.tenantId,
-          leaseId: args.leaseId,
+          leaseId: args.licenceId,
           breachKind: args.breachKind,
           initiatedByUserId: args.initiatedByUserId,
           // `evictionDate` + `courtRef` are carried in the HQ-tool input

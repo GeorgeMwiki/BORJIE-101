@@ -1,29 +1,25 @@
 /**
- * Unit tests for PropertyService
+ * Unit tests for SiteService
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type { TenantId, UserId } from '@borjie/domain-models';
+import type { TenantId } from '@borjie/domain-models';
 import {
-  type Property,
-  type PropertyId,
-  type Unit,
-  type UnitId,
-  type Money,
+  type MiningSite,
+  type MiningUnit,
   money,
-  asPropertyId,
-  asUnitId,
+  asMiningSiteId,
+  asMiningUnitId,
   asUserId,
 } from '@borjie/domain-models';
-import type { PropertyRepository, UnitRepository } from '../index.js';
+import type { SiteRepository, UnitRepository } from '../index.js';
 import type { EventBus } from '../../common/events.js';
 import {
-  PropertyService,
-  PropertyServiceError,
-  type CreatePropertyInput,
-  type UpdatePropertyInput,
+  SiteService,
+  SiteServiceError,
+  type CreateSiteInput,
+  type UpdateSiteInput,
   type CreateUnitInput,
-  type UpdateUnitInput,
 } from '../index.js';
 
 function createMockEventBus(): EventBus {
@@ -33,103 +29,105 @@ function createMockEventBus(): EventBus {
   };
 }
 
-describe('PropertyService', () => {
+describe('SiteService', () => {
   const tenantId = 'tnt_test' as TenantId;
   const userId = asUserId('usr_1');
   const correlationId = 'corr_123';
 
-  describe('createProperty', () => {
-    it('creates a property successfully with valid input', async () => {
-      const createInput: CreatePropertyInput = {
-        name: 'Sunset Apartments',
-        type: 'apartment',
+  describe('createSite', () => {
+    it('creates a site successfully with valid input', async () => {
+      const createInput: CreateSiteInput = {
+        name: 'Geita Gold Site',
+        type: 'open_pit',
         ownerId: 'owner_1' as any,
         address: {
-          line1: '123 Main St',
-          line2: null,
-          city: 'Nairobi',
-          state: 'Nairobi',
+          street: '123 Mine Rd',
+          city: 'Geita',
+          county: 'Geita',
           postalCode: '00100',
-          country: 'Kenya',
+          country: 'Tanzania',
+          latitude: null,
+          longitude: null,
         },
       };
 
-      const mockProperty = {
-        id: asPropertyId('prop_1'),
+      const mockSite = {
+        id: asMiningSiteId('site_1'),
         tenantId,
-        name: 'Sunset Apartments',
-        code: 'PROP-2025-0001',
-        type: 'apartment',
+        name: 'Geita Gold Site',
+        code: 'SITE-2025-0001',
+        type: 'open_pit',
         status: 'active',
         ownerId: 'owner_1' as any,
         address: createInput.address,
         totalUnits: 0,
-        occupiedUnits: 0,
-        vacantUnits: 0,
+        activeUnits: 0,
+        idleUnits: 0,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const propertyRepo: Partial<PropertyRepository> = {
+      const siteRepo: Partial<SiteRepository> = {
         findByCode: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockImplementation((p) => Promise.resolve({ ...p, ...mockProperty })),
+        create: vi.fn().mockImplementation((s) => Promise.resolve({ ...s, ...mockSite })),
         getNextSequence: vi.fn().mockResolvedValue(1),
       };
 
       const unitRepo: Partial<UnitRepository> = {};
       const eventBus = createMockEventBus();
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         unitRepo as UnitRepository,
         eventBus
       );
 
-      const result = await service.createProperty(tenantId, createInput, userId, correlationId);
+      const result = await service.createSite(tenantId, createInput, userId, correlationId);
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.name).toBe('Sunset Apartments');
+        expect(result.data.name).toBe('Geita Gold Site');
         expect(result.data.code).toBeDefined();
       }
-      expect(propertyRepo.findByCode).toHaveBeenCalled();
-      expect(propertyRepo.create).toHaveBeenCalled();
+      expect(siteRepo.findByCode).toHaveBeenCalled();
+      expect(siteRepo.create).toHaveBeenCalled();
       expect(eventBus.publish).toHaveBeenCalled();
     });
 
-    it('returns error when property code already exists', async () => {
-      const createInput: CreatePropertyInput = {
-        name: 'Sunset Apartments',
-        code: 'PROP-2025-0001',
-        type: 'apartment',
+    it('returns error when site code already exists', async () => {
+      const createInput: CreateSiteInput = {
+        name: 'Geita Gold Site',
+        code: 'SITE-2025-0001',
+        type: 'open_pit',
         ownerId: 'owner_1' as any,
         address: {
-          line1: '123 Main St',
-          line2: null,
-          city: 'Nairobi',
-          state: 'Nairobi',
+          street: '123 Mine Rd',
+          city: 'Geita',
+          county: 'Geita',
           postalCode: '00100',
-          country: 'Kenya',
+          country: 'Tanzania',
+          latitude: null,
+          longitude: null,
         },
       };
 
-      const existingProperty = { id: asPropertyId('prop_existing') } as Property;
-      const propertyRepo: Partial<PropertyRepository> = {
-        findByCode: vi.fn().mockResolvedValue(existingProperty),
+      const existingSite = { id: asMiningSiteId('site_existing') } as MiningSite;
+      const siteRepo: Partial<SiteRepository> = {
+        findByCode: vi.fn().mockResolvedValue(existingSite),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         {} as UnitRepository,
         createMockEventBus()
       );
 
-      const result = await service.createProperty(tenantId, createInput, userId, correlationId);
+      const result = await service.createSite(tenantId, createInput, userId, correlationId);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(PropertyServiceError.PROPERTY_CODE_EXISTS);
+        expect(result.error.code).toBe(SiteServiceError.SITE_CODE_EXISTS);
       }
     });
 
@@ -138,65 +136,65 @@ describe('PropertyService', () => {
         name: '',
         type: undefined,
         ownerId: undefined,
-        address: { line1: '123', line2: null, city: 'Nairobi', state: 'NS', postalCode: '00100', country: 'KE' },
-      } as CreatePropertyInput;
+        address: { street: '123', city: 'Geita', county: 'Geita', postalCode: '00100', country: 'TZ', latitude: null, longitude: null },
+      } as unknown as CreateSiteInput;
 
-      const propertyRepo: Partial<PropertyRepository> = {
+      const siteRepo: Partial<SiteRepository> = {
         findByCode: vi.fn().mockResolvedValue(null),
         getNextSequence: vi.fn().mockResolvedValue(1),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         {} as UnitRepository,
         createMockEventBus()
       );
 
-      const result = await service.createProperty(tenantId, createInput, userId, correlationId);
+      const result = await service.createSite(tenantId, createInput, userId, correlationId);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(PropertyServiceError.INVALID_PROPERTY_DATA);
+        expect(result.error.code).toBe(SiteServiceError.INVALID_SITE_DATA);
       }
     });
   });
 
-  describe('updateProperty', () => {
-    it('updates a property successfully', async () => {
-      const existingProperty = {
-        id: asPropertyId('prop_1'),
+  describe('updateSite', () => {
+    it('updates a site successfully', async () => {
+      const existingSite = {
+        id: asMiningSiteId('site_1'),
         tenantId,
         name: 'Old Name',
-        code: 'PROP-001',
-        type: 'apartment',
+        code: 'SITE-001',
+        type: 'open_pit',
         status: 'active',
         ownerId: 'owner_1' as any,
         address: {} as any,
         totalUnits: 10,
-        occupiedUnits: 5,
-        vacantUnits: 5,
+        activeUnits: 5,
+        idleUnits: 5,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const updatedProperty = { ...existingProperty, name: 'Updated Name', updatedAt: new Date().toISOString() };
+      const updatedSite = { ...existingSite, name: 'Updated Name', updatedAt: new Date().toISOString() };
 
-      const propertyRepo: Partial<PropertyRepository> = {
-        findById: vi.fn().mockResolvedValue(existingProperty),
-        update: vi.fn().mockResolvedValue(updatedProperty),
+      const siteRepo: Partial<SiteRepository> = {
+        findById: vi.fn().mockResolvedValue(existingSite),
+        update: vi.fn().mockResolvedValue(updatedSite),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         {} as UnitRepository,
         createMockEventBus()
       );
 
-      const updateInput: UpdatePropertyInput = { name: 'Updated Name' };
-      const result = await service.updateProperty(
-        existingProperty.id,
+      const updateInput: UpdateSiteInput = { name: 'Updated Name' };
+      const result = await service.updateSite(
+        existingSite.id,
         tenantId,
         updateInput,
         userId,
@@ -209,19 +207,19 @@ describe('PropertyService', () => {
       }
     });
 
-    it('returns error when property not found', async () => {
-      const propertyRepo: Partial<PropertyRepository> = {
+    it('returns error when site not found', async () => {
+      const siteRepo: Partial<SiteRepository> = {
         findById: vi.fn().mockResolvedValue(null),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         {} as UnitRepository,
         createMockEventBus()
       );
 
-      const result = await service.updateProperty(
-        asPropertyId('prop_nonexistent'),
+      const result = await service.updateSite(
+        asMiningSiteId('site_nonexistent'),
         tenantId,
         { name: 'New Name' },
         userId,
@@ -230,25 +228,25 @@ describe('PropertyService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(PropertyServiceError.PROPERTY_NOT_FOUND);
+        expect(result.error.code).toBe(SiteServiceError.SITE_NOT_FOUND);
       }
     });
   });
 
   describe('unit management', () => {
     it('creates a unit successfully', async () => {
-      const property = {
-        id: asPropertyId('prop_1'),
+      const site = {
+        id: asMiningSiteId('site_1'),
         tenantId,
-        name: 'Test Property',
-        code: 'PROP-001',
-        type: 'apartment',
+        name: 'Test Site',
+        code: 'SITE-001',
+        type: 'open_pit',
         status: 'active',
         ownerId: 'owner_1' as any,
         address: {} as any,
         totalUnits: 0,
-        occupiedUnits: 0,
-        vacantUnits: 0,
+        activeUnits: 0,
+        idleUnits: 0,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
@@ -256,52 +254,52 @@ describe('PropertyService', () => {
       };
 
       const createUnitInput: CreateUnitInput = {
-        unitNumber: '101',
-        floor: 1,
-        type: 'apartment',
-        bedrooms: 2,
-        bathrooms: 1,
-        monthlyRent: money(50000, 'KES'),
-        depositAmount: money(100000, 'KES'),
+        unitNumber: 'PIT-101',
+        level: 1,
+        type: 'open_pit_bench',
+        oreGradeGramsPerTonne: 3.5,
+        recoveryPct: 92,
+        operatingLevy: money(50000, 'TZS'),
+        bondAmount: money(100000, 'TZS'),
       };
 
       const mockUnit = {
-        id: asUnitId('unit_1'),
+        id: asMiningUnitId('unit_1'),
         tenantId,
-        propertyId: property.id,
-        unitNumber: '101',
-        floor: 1,
-        type: 'apartment',
-        status: 'vacant',
-        bedrooms: 2,
-        bathrooms: 1,
-        monthlyRent: money(50000, 'KES'),
-        depositAmount: money(100000, 'KES'),
+        siteId: site.id,
+        unitNumber: 'PIT-101',
+        level: 1,
+        type: 'open_pit_bench',
+        status: 'idle',
+        oreGradeGramsPerTonne: 3.5,
+        recoveryPct: 92,
+        operatingLevy: money(50000, 'TZS'),
+        bondAmount: money(100000, 'TZS'),
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const propertyRepo: Partial<PropertyRepository> = {
-        findById: vi.fn().mockResolvedValue(property),
-        update: vi.fn().mockResolvedValue(property),
+      const siteRepo: Partial<SiteRepository> = {
+        findById: vi.fn().mockResolvedValue(site),
+        update: vi.fn().mockResolvedValue(site),
       };
 
       const unitRepo: Partial<UnitRepository> = {
         findByUnitNumber: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue(mockUnit),
-        countByProperty: vi.fn().mockResolvedValue({ total: 1, occupied: 0, vacant: 1 }),
+        countBySite: vi.fn().mockResolvedValue({ total: 1, inProduction: 0, idle: 1 }),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         unitRepo as UnitRepository,
         createMockEventBus()
       );
 
       const result = await service.createUnit(
-        property.id,
+        site.id,
         tenantId,
         createUnitInput,
         userId,
@@ -310,55 +308,55 @@ describe('PropertyService', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.unitNumber).toBe('101');
-        expect(result.data.status).toBe('vacant');
+        expect(result.data.unitNumber).toBe('PIT-101');
+        expect(result.data.status).toBe('idle');
       }
       expect(unitRepo.create).toHaveBeenCalled();
-      expect(propertyRepo.update).toHaveBeenCalled();
+      expect(siteRepo.update).toHaveBeenCalled();
     });
 
     it('returns error when unit number already exists', async () => {
-      const property = {
-        id: asPropertyId('prop_1'),
+      const site = {
+        id: asMiningSiteId('site_1'),
         tenantId,
-        name: 'Test Property',
-        code: 'PROP-001',
-        type: 'apartment',
+        name: 'Test Site',
+        code: 'SITE-001',
+        type: 'open_pit',
         status: 'active',
         ownerId: 'owner_1' as any,
         address: {} as any,
         totalUnits: 0,
-        occupiedUnits: 0,
-        vacantUnits: 0,
+        activeUnits: 0,
+        idleUnits: 0,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const existingUnit = { unitNumber: '101' } as Unit;
-      const propertyRepo: Partial<PropertyRepository> = { findById: vi.fn().mockResolvedValue(property) };
+      const existingUnit = { unitNumber: 'PIT-101' } as MiningUnit;
+      const siteRepo: Partial<SiteRepository> = { findById: vi.fn().mockResolvedValue(site) };
       const unitRepo: Partial<UnitRepository> = {
         findByUnitNumber: vi.fn().mockResolvedValue(existingUnit),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         unitRepo as UnitRepository,
         createMockEventBus()
       );
 
       const result = await service.createUnit(
-        property.id,
+        site.id,
         tenantId,
         {
-          unitNumber: '101',
-          floor: 1,
-          type: 'apartment',
-          bedrooms: 2,
-          bathrooms: 1,
-          monthlyRent: money(50000, 'KES'),
-          depositAmount: money(100000, 'KES'),
+          unitNumber: 'PIT-101',
+          level: 1,
+          type: 'open_pit_bench',
+          oreGradeGramsPerTonne: 3.5,
+          recoveryPct: 92,
+          operatingLevy: money(50000, 'TZS'),
+          bondAmount: money(100000, 'TZS'),
         },
         userId,
         correlationId
@@ -366,25 +364,25 @@ describe('PropertyService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBe(PropertyServiceError.UNIT_NUMBER_EXISTS);
+        expect(result.error.code).toBe(SiteServiceError.UNIT_NUMBER_EXISTS);
       }
     });
   });
 
-  describe('occupancy calculations', () => {
-    it('updates property counts when unit status changes', async () => {
-      const property = {
-        id: asPropertyId('prop_1'),
+  describe('utilisation calculations', () => {
+    it('updates site counts when unit status changes', async () => {
+      const site = {
+        id: asMiningSiteId('site_1'),
         tenantId,
-        name: 'Test Property',
-        code: 'PROP-001',
-        type: 'apartment',
+        name: 'Test Site',
+        code: 'SITE-001',
+        type: 'open_pit',
         status: 'active',
         ownerId: 'owner_1' as any,
         address: {} as any,
         totalUnits: 2,
-        occupiedUnits: 0,
-        vacantUnits: 2,
+        activeUnits: 0,
+        idleUnits: 2,
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
@@ -392,36 +390,36 @@ describe('PropertyService', () => {
       };
 
       const unit = {
-        id: asUnitId('unit_1'),
+        id: asMiningUnitId('unit_1'),
         tenantId,
-        propertyId: property.id,
-        unitNumber: '101',
-        floor: 1,
-        type: 'apartment',
-        status: 'vacant',
-        bedrooms: 2,
-        bathrooms: 1,
-        monthlyRent: money(50000, 'KES'),
-        depositAmount: money(100000, 'KES'),
+        siteId: site.id,
+        unitNumber: 'PIT-101',
+        level: 1,
+        type: 'open_pit_bench',
+        status: 'idle',
+        oreGradeGramsPerTonne: 3.5,
+        recoveryPct: 92,
+        operatingLevy: money(50000, 'TZS'),
+        bondAmount: money(100000, 'TZS'),
         createdAt: '',
         updatedAt: '',
         createdBy: userId,
         updatedBy: userId,
       };
 
-      const propertyRepo: Partial<PropertyRepository> = {
-        findById: vi.fn().mockResolvedValue(property),
-        update: vi.fn().mockImplementation((p) => Promise.resolve(p)),
+      const siteRepo: Partial<SiteRepository> = {
+        findById: vi.fn().mockResolvedValue(site),
+        update: vi.fn().mockImplementation((s) => Promise.resolve(s)),
       };
 
       const unitRepo: Partial<UnitRepository> = {
         findById: vi.fn().mockResolvedValue(unit),
-        update: vi.fn().mockImplementation((u) => Promise.resolve({ ...u, status: 'occupied' })),
-        countByProperty: vi.fn().mockResolvedValue({ total: 2, occupied: 1, vacant: 1 }),
+        update: vi.fn().mockImplementation((u) => Promise.resolve({ ...u, status: 'in_production' })),
+        countBySite: vi.fn().mockResolvedValue({ total: 2, inProduction: 1, idle: 1 }),
       };
 
-      const service = new PropertyService(
-        propertyRepo as PropertyRepository,
+      const service = new SiteService(
+        siteRepo as SiteRepository,
         unitRepo as UnitRepository,
         createMockEventBus()
       );
@@ -429,14 +427,14 @@ describe('PropertyService', () => {
       const result = await service.updateUnitStatus(
         unit.id,
         tenantId,
-        'occupied',
+        'in_production',
         userId,
         correlationId
       );
 
       expect(result.success).toBe(true);
       expect(unitRepo.update).toHaveBeenCalled();
-      expect(propertyRepo.update).toHaveBeenCalled();
+      expect(siteRepo.update).toHaveBeenCalled();
     });
   });
 });

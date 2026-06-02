@@ -472,6 +472,16 @@ export {
 } from './platform/killswitch-write.service.js';
 
 export {
+  createPlatformAutonomySettingsService,
+  type PlatformAutonomySettingsService,
+  type AutonomySettingsDeps,
+  type AutonomySettingSnapshot,
+  type SetAutonomySettingArgs,
+  type SetAutonomySettingResult,
+  type RestoreAutonomySettingArgs,
+} from './platform/autonomy-settings.service.js';
+
+export {
   createServiceHeartbeatService,
   type ServiceHealthRow as PlatformServiceHealthRow,
   type ServiceHealthState as PlatformServiceHealthState,

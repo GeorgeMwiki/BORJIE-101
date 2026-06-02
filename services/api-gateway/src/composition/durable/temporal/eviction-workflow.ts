@@ -5,9 +5,9 @@
  * Why Temporal here? See `./temporal-client.ts` header — eviction
  * legally requires a deterministic, audit-replayable history of:
  *
- *   1. issueNotice(tenantId, breachKind, statutoryDays) — TZ Land
- *      Act §43(2) requires written notice; statutoryDays varies by
- *      breach kind (rent-arrears = 60d, illegal-sublet = 30d).
+ *   1. issueNotice(tenantId, breachKind, statutoryDays) — TZ Mining
+ *      Act requires written notice; statutoryDays varies by
+ *      breach kind (illicit-extraction = 60d, equipment-theft = 30d).
  *   2. WAIT for statutoryDays (Temporal `sleep`) — the workflow
  *      survives process restarts and resumes the timer.
  *   3. filePossessionClaim(tenantId, courtId) — files in District
@@ -37,16 +37,16 @@ import {
   TEMPORAL_WORKFLOW_TYPES,
 } from './temporal-client.js';
 
-export type EvictionBreachKind =
-  | 'rent-arrears'
-  | 'illegal-sublet'
-  | 'property-damage'
-  | 'unauthorised-use';
+export type LicenceSuspensionBreachKind =
+  | 'illicit-extraction'
+  | 'equipment-theft'
+  | 'environmental-damage'
+  | 'unauthorised-operation';
 
 export interface EvictionWorkflowInput {
   readonly tenantId: string;
   readonly leaseId: string;
-  readonly breachKind: EvictionBreachKind;
+  readonly breachKind: LicenceSuspensionBreachKind;
   /** Mandatory in TZ for any judicial step — caller responsible. */
   readonly initiatedByUserId: string;
   /** Optional override on statutory notice period. Defaults map per
@@ -65,12 +65,12 @@ export interface EvictionWorkflowResult {
   readonly writRef: string | null;
 }
 
-/** Default notice periods per breach. TZ Land Act §43(2). */
-export const EVICTION_STATUTORY_DAYS: Readonly<Record<EvictionBreachKind, number>> = {
-  'rent-arrears': 60,
-  'illegal-sublet': 30,
-  'property-damage': 14,
-  'unauthorised-use': 30,
+/** Default notice periods per breach. TZ Mining Act (licence-suspension). */
+export const LICENCE_SUSPENSION_STATUTORY_DAYS: Readonly<Record<LicenceSuspensionBreachKind, number>> = {
+  'illicit-extraction': 60,
+  'equipment-theft': 30,
+  'environmental-damage': 14,
+  'unauthorised-operation': 30,
 };
 
 // ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ export interface EvictionActivities {
   issueNotice(args: {
     tenantId: string;
     leaseId: string;
-    breachKind: EvictionBreachKind;
+    breachKind: LicenceSuspensionBreachKind;
     statutoryDays: number;
   }): Promise<{ noticeId: string; issuedAt: string }>;
 
@@ -125,7 +125,7 @@ export async function tenantEvictionWorkflowBody(
   deps: EvictionWorkflowDeps,
 ): Promise<EvictionWorkflowResult> {
   const statutoryDays =
-    input.statutoryDaysOverride ?? EVICTION_STATUTORY_DAYS[input.breachKind];
+    input.statutoryDaysOverride ?? LICENCE_SUSPENSION_STATUTORY_DAYS[input.breachKind];
 
   const notice = await deps.activities.issueNotice({
     tenantId: input.tenantId,

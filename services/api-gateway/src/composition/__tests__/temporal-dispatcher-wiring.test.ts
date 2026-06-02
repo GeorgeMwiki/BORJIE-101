@@ -53,7 +53,7 @@ describe('temporal-dispatcher-wiring — factory fallback', () => {
   it('returns a mock-backed bundle when TEMPORAL_ADDRESS is unset', async () => {
     const bundle = await createTemporalDispatcherFromEnv();
     expect(bundle.isMock).toBe(true);
-    expect(bundle.evictionDispatcher).toBeDefined();
+    expect(bundle.licenceSuspensionDispatcher).toBeDefined();
     expect(bundle.ownerPayoutDispatcher).toBeDefined();
     expect(bundle.kraMriDispatcher).toBeDefined();
   });
@@ -91,13 +91,13 @@ describe('temporal-dispatcher-wiring — eviction adapter', () => {
   it('start() forwards to startEvictionWorkflow with the canonical id', async () => {
     const mock = createMockTemporalClient();
     const bundle = await createTemporalDispatcherFromEnv({ clientOverride: mock });
-    const handle = await bundle.evictionDispatcher.start({
+    const handle = await bundle.licenceSuspensionDispatcher.start({
       tenantId: 't1',
-      leaseId: 'lse-1',
-      breachKind: 'rent-arrears',
+      licenceId: 'lse-1',
+      breachKind: 'illicit-extraction',
       initiatedByUserId: 'u1',
-      evictionDate: '2026-06-01T00:00:00.000Z',
-      courtRef: null,
+      suspensionDate: '2026-06-01T00:00:00.000Z',
+      hearingRef: null,
     });
     expect(handle.workflowId).toBe('eviction-lse-1');
     expect(mock.state.starts).toHaveLength(1);
@@ -110,7 +110,7 @@ describe('temporal-dispatcher-wiring — eviction adapter', () => {
   it('withdraw() sends a withdrawEviction signal', async () => {
     const mock = createMockTemporalClient();
     const bundle = await createTemporalDispatcherFromEnv({ clientOverride: mock });
-    await bundle.evictionDispatcher.withdraw({
+    await bundle.licenceSuspensionDispatcher.withdraw({
       workflowId: 'eviction-lse-1',
       reason: 'operator-override',
     });

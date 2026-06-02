@@ -10,7 +10,7 @@ import {
   TEMPORAL_WORKFLOW_TYPES,
 } from '../temporal-client.js';
 import {
-  EVICTION_STATUTORY_DAYS,
+  LICENCE_SUSPENSION_STATUTORY_DAYS,
   evictionWorkflowId,
   startEvictionWorkflow,
   tenantEvictionWorkflowBody,
@@ -52,7 +52,7 @@ describe('eviction workflow', () => {
       input: {
         tenantId: 't1',
         leaseId: 'lse-1',
-        breachKind: 'rent-arrears',
+        breachKind: 'illicit-extraction',
         initiatedByUserId: 'u1',
       },
     });
@@ -85,7 +85,7 @@ describe('eviction workflow', () => {
       {
         tenantId: 't1',
         leaseId: 'lse-1',
-        breachKind: 'rent-arrears',
+        breachKind: 'illicit-extraction',
         initiatedByUserId: 'u1',
       },
       {
@@ -105,8 +105,8 @@ describe('eviction workflow', () => {
   });
 
   it('exposes statutory notice periods per breach kind', () => {
-    expect(EVICTION_STATUTORY_DAYS['rent-arrears']).toBe(60);
-    expect(EVICTION_STATUTORY_DAYS['illegal-sublet']).toBe(30);
+    expect(LICENCE_SUSPENSION_STATUTORY_DAYS['illicit-extraction']).toBe(60);
+    expect(LICENCE_SUSPENSION_STATUTORY_DAYS['equipment-theft']).toBe(30);
   });
 });
 

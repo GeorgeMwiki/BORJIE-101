@@ -7,7 +7,7 @@
  * - Statements
  * - Financial calculations
  */
-import { CurrencyCode } from '@borjie/domain-models';
+import { CurrencyCode, type MiningSiteId } from '@borjie/domain-models';
 
 // =============================================================================
 // Branded Type Helpers
@@ -27,7 +27,15 @@ export type AccountId = Brand<string, 'AccountId'>;
 export type TenantId = Brand<string, 'TenantId'>;
 export type CustomerId = Brand<string, 'CustomerId'>;
 export type OwnerId = Brand<string, 'OwnerId'>;
-export type PropertyId = Brand<string, 'PropertyId'>;
+/**
+ * Mining site the ledger entry / statement / disbursement is scoped to.
+ * Aliased to the canonical `MiningSiteId` so the money path shares ONE brand
+ * with `@borjie/domain-models` (prevents PropertyId/MiningSiteId collisions at
+ * the repository↔service boundary). Field rename `propertyId`→`siteId` is
+ * deferred to the coordinated contract pass (INT-5) to avoid churning the
+ * money path.
+ */
+export type PropertyId = MiningSiteId;
 export type UnitId = Brand<string, 'UnitId'>;
 export type LeaseId = Brand<string, 'LeaseId'>;
 
