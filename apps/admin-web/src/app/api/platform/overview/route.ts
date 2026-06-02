@@ -18,16 +18,21 @@ import { requirePublicBaseUrl } from '@/lib/env-guard';
  * the user seeing a generic "failed to fetch" surface.
  *
  * `API_GATEWAY_URL` is required in production — `requirePublicBaseUrl`
- * throws at module load when NODE_ENV === 'production' and the env var
+ * throws at request time when NODE_ENV === 'production' and the env var
  * is unset, refusing to silently point HQ at localhost:4000.
+ *
+ * `force-dynamic` prevents Next.js from executing this module during
+ * `next build` static page-data collection (the route must run at request
+ * time, not build time).
  */
 
-const GATEWAY_URL = requirePublicBaseUrl(
-  'API_GATEWAY_URL',
-  'http://localhost:4000',
-);
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const GATEWAY_URL = requirePublicBaseUrl(
+    'API_GATEWAY_URL',
+    'http://localhost:4000',
+  );
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(PLATFORM_SESSION_COOKIE);
   const incomingHeaders = await headers();

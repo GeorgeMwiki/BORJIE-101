@@ -32,35 +32,13 @@
 import { type ReactElement } from 'react';
 import type { PortalTab, PortalTabSection } from '@borjie/portal-genui';
 
+import { tailStrings as S } from '@/i18n/strings/tail';
 import { GenUIFieldRenderer } from './GenUIFieldRenderer';
 import { GenUIWidgetRenderer } from './GenUIWidgetRenderer';
 import { useGenuiTab } from './use-genui-tab';
 import { toSafeText } from './sanitize';
 
 type Locale = 'en' | 'sw';
-
-const COPY: Record<
-  Locale,
-  {
-    readonly loading: string;
-    readonly notFound: string;
-    readonly errorPrefix: string;
-    readonly empty: string;
-  }
-> = {
-  en: {
-    loading: 'Loading tab…',
-    notFound: 'This tab is no longer available.',
-    errorPrefix: 'Could not load this tab:',
-    empty: 'This tab has no sections yet.',
-  },
-  sw: {
-    loading: 'Inapakia kichupo…',
-    notFound: 'Kichupo hiki hakipatikani tena.',
-    errorPrefix: 'Imeshindwa kupakia kichupo hiki:',
-    empty: 'Kichupo hiki bado hakina sehemu.',
-  },
-};
 
 interface GenUITabHostBaseProps {
   readonly locale?: Locale;
@@ -153,7 +131,7 @@ function TabBody({
           <SectionView key={section.key} section={section} />
         ))
       ) : (
-        <p className="text-sm text-slate-500">{COPY[locale].empty}</p>
+        <p className="text-sm text-slate-500">{S.genUITabHost.empty[locale]}</p>
       )}
     </div>
   );
@@ -188,16 +166,16 @@ export function GenUITabHost(props: GenUITabHostProps): ReactElement {
 
   switch (fetchState.status) {
     case 'loading':
-      return <StatusNote>{COPY[locale].loading}</StatusNote>;
+      return <StatusNote>{S.genUITabHost.loading[locale]}</StatusNote>;
     case 'not_found':
-      return <StatusNote>{COPY[locale].notFound}</StatusNote>;
+      return <StatusNote>{S.genUITabHost.notFound[locale]}</StatusNote>;
     case 'error':
       return (
-        <StatusNote>{`${COPY[locale].errorPrefix} ${fetchState.message}`}</StatusNote>
+        <StatusNote>{`${S.genUITabHost.errorPrefix[locale]} ${fetchState.message}`}</StatusNote>
       );
     case 'ready':
       return <TabBody tab={fetchState.tab} locale={locale} />;
     default:
-      return <StatusNote>{COPY[locale].notFound}</StatusNote>;
+      return <StatusNote>{S.genUITabHost.notFound[locale]}</StatusNote>;
   }
 }

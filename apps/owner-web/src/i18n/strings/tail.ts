@@ -309,6 +309,14 @@ export const tailStrings = {
     },
   },
 
+  // ── components/genui-tab/GenUITabHost.tsx ────────────────────────
+  genUITabHost: {
+    loading: { sw: 'Inapakia kichupo…', en: 'Loading tab…' },
+    notFound: { sw: 'Kichupo hiki hakipatikani tena.', en: 'This tab is no longer available.' },
+    errorPrefix: { sw: 'Imeshindwa kupakia kichupo hiki:', en: 'Could not load this tab:' },
+    empty: { sw: 'Kichupo hiki bado hakina sehemu.', en: 'This tab has no sections yet.' },
+  },
+
   // ── lib/screens.ts (titleSw values, keyed by screen id) ──────────
   screens: {
     'O-W-00': { sw: 'Nyumbani — ongea na Borjie', en: 'Home — chat with Borjie' },

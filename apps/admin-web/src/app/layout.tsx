@@ -1,4 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+
+// All admin-web pages are auth-gated and require runtime request context
+// (session cookies, env-guarded origin URLs). Force-dynamic prevents Next.js
+// from trying to statically prerender them during `next build`, which would
+// execute AdminShell's requirePublicBaseUrl guard before runtime env vars are
+// available.
+export const dynamic = 'force-dynamic';
 import './globals.css';
 import { SensoriumProvider } from '@/lib/sensorium/SensoriumProvider';
 import { SessionReplayProvider } from '@/components/SessionReplayProvider';
