@@ -133,7 +133,7 @@ function buildDagPrompt(seed: HypothesisSeed): string {
     '  "edges": [{"from": string, "to": string, "rationale": string}],',
     '  "candidateEdges": [{"from": string, "to": string}]',
     '}',
-    'Edges must respect domain priors (e.g. rent affects eviction, not vice-versa).',
+    'Edges must respect domain priors (e.g. outstanding royalties affect licence suspension, not vice-versa).',
     'Treatment must have a directed path to Outcome.',
   ].join('\n');
 }

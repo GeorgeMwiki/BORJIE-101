@@ -4,15 +4,15 @@
  * we adopted the platform?" with before/after numbers.
  *
  * Metrics tracked:
- *   occupancy_rate                   higher-is-better
- *   arrears_ratio                    lower-is-better
- *   avg_days_to_collect              lower-is-better
- *   avg_maintenance_resolution_hours lower-is-better
- *   renewal_rate                     higher-is-better
- *   avg_vacancy_duration_days        lower-is-better
- *   compliance_breach_count          lower-is-better
- *   avg_lease_drafting_hours         lower-is-better
- *   operator_hours_saved_estimate    higher-is-better
+ *   production_rate                          higher-is-better
+ *   arrears_ratio                            lower-is-better
+ *   avg_days_to_collect                      lower-is-better
+ *   avg_maintenance_resolution_hours         lower-is-better
+ *   renewal_rate                             higher-is-better
+ *   avg_available_capacity_duration_days     lower-is-better
+ *   compliance_breach_count                  lower-is-better
+ *   avg_offtake_drafting_hours               lower-is-better
+ *   operator_hours_saved_estimate            higher-is-better
  *
  * Reports diff the current snapshot against a baseline (oldest / flagged
  * is_baseline=true) and return structured deltas with confidence ranges.
@@ -40,20 +40,20 @@ export interface GetImprovementReportOptions {
 }
 
 export const HIGHER_IS_BETTER: ReadonlyArray<ImprovementMetric> = [
-  'occupancy_rate',
+  'production_rate',
   'renewal_rate',
   'operator_hours_saved_estimate',
 ];
 
 export const ALL_METRICS: ReadonlyArray<ImprovementMetric> = [
-  'occupancy_rate',
+  'production_rate',
   'arrears_ratio',
   'avg_days_to_collect',
   'avg_maintenance_resolution_hours',
   'renewal_rate',
-  'avg_vacancy_duration_days',
+  'avg_available_capacity_duration_days',
   'compliance_breach_count',
-  'avg_lease_drafting_hours',
+  'avg_offtake_drafting_hours',
   'operator_hours_saved_estimate',
 ];
 

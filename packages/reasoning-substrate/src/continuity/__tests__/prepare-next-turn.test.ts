@@ -5,7 +5,7 @@
  *   1. user → assistant (thinking + tool_use) → tool_result → assistant text
  *   2. user → assistant (multiple thinking + tool_use pairs) → multi-result → text
  *   3. user → assistant (thinking + tool_use) → tool_result → user follow-up
- *   4. eviction flow — full §7 audit walkthrough (3 tool calls)
+ *   4. licence-suspension flow — full §7 audit walkthrough (3 tool calls)
  *   5. negative — missing thinking block before tool_use throws
  *   6. negative — missing tool_result for a tool_use throws
  */
@@ -44,13 +44,13 @@ function makeResp(content: ReadonlyArray<AssistantBlock>, stop: string = 'tool_u
 }
 
 describe('prepareNextTurn — sequence 1: single tool round-trip', () => {
-  it('lookup_lease → result → continue', () => {
+  it('lookup_offtake → result → continue', () => {
     const priorMessages: Message[] = [
-      { role: 'user', content: 'Decide whether to send eviction notice for t_8821.' },
+      { role: 'user', content: 'Decide whether to send licence-suspension notice for c_8821.' },
     ];
     const priorResponse = makeResp([
-      thinking('I need the lease to check mediation_opt_in.', 'sig-a'),
-      toolUse('tu_1', 'get_lease', { tenantId: 't_8821' }),
+      thinking('I need the offtake to check mediation_opt_in.', 'sig-a'),
+      toolUse('tu_1', 'get_offtake', { counterpartyId: 'c_8821' }),
     ]);
     const next = prepareNextTurn({
       priorMessages,
@@ -71,7 +71,7 @@ describe('prepareNextTurn — sequence 2: multi-tool interleaved', () => {
     const priorMessages: Message[] = [{ role: 'user', content: 'Late-fee for t_8821.' }];
     const priorResponse = makeResp([
       thinking('Pull payment history.', 'sig-1'),
-      toolUse('tu_1', 'query_rent_history', { tenantId: 't_8821' }),
+      toolUse('tu_1', 'query_royalty_history', { counterpartyId: 'c_8821' }),
       thinking('Now jurisdiction lookup.', 'sig-2'),
       toolUse('tu_2', 'get_jurisdiction_rules', { code: 'TZ-DSM' }),
     ]);
@@ -101,32 +101,32 @@ describe('prepareNextTurn — sequence 2: multi-tool interleaved', () => {
 
 describe('prepareNextTurn — sequence 3: result + new user message', () => {
   it('attaches new user text after tool_result blocks', () => {
-    const priorMessages: Message[] = [{ role: 'user', content: 'Compute prorated rent.' }];
+    const priorMessages: Message[] = [{ role: 'user', content: 'Compute prorated royalty.' }];
     const priorResponse = makeResp([
-      thinking('Need monthly rent.', 'sig-1'),
-      toolUse('tu_1', 'get_lease', { tenantId: 't_8821' }),
+      thinking('Need monthly royalty.', 'sig-1'),
+      toolUse('tu_1', 'get_offtake', { counterpartyId: 'c_8821' }),
     ]);
     const next = prepareNextTurn({
       priorMessages,
       priorResponse,
-      toolResults: [toolResult('tu_1', JSON.stringify({ monthlyRentKES: 24000 }))],
-      newUserMessage: 'Also use the move-in day from this email: 12.',
+      toolResults: [toolResult('tu_1', JSON.stringify({ monthlyRoyaltyKES: 24000 }))],
+      newUserMessage: 'Also use the mobilisation day from this email: 12.',
     });
     const userContent = next.messages[2]!.content as ReadonlyArray<unknown>;
     expect(userContent).toHaveLength(2);
     expect((userContent[0] as ToolResultBlock).type).toBe('tool_result');
     expect((userContent[1] as { type: string; text: string }).type).toBe('text');
-    expect((userContent[1] as { type: string; text: string }).text).toContain('move-in day');
+    expect((userContent[1] as { type: string; text: string }).text).toContain('mobilisation day');
   });
 });
 
-describe('prepareNextTurn — sequence 4: full eviction flow (3 tool calls)', () => {
+describe('prepareNextTurn — sequence 4: full licence-suspension flow (3 tool calls)', () => {
   it('preserves all 3 thinking+tool pairs across 3 turns', () => {
-    // Turn 1 — get_lease
+    // Turn 1 — get_offtake
     const t1User: Message = { role: 'user', content: 'Should we evict t_8821?' };
     const t1Resp = makeResp([
-      thinking('Need lease.', 'sig-1'),
-      toolUse('tu_1', 'get_lease', { tenantId: 't_8821' }),
+      thinking('Need offtake.', 'sig-1'),
+      toolUse('tu_1', 'get_offtake', { counterpartyId: 'c_8821' }),
     ]);
     const afterT1 = prepareNextTurn({
       priorMessages: [t1User],
@@ -135,10 +135,10 @@ describe('prepareNextTurn — sequence 4: full eviction flow (3 tool calls)', ()
     });
     expect(afterT1.messages).toHaveLength(3);
 
-    // Turn 2 — query_rent_history
+    // Turn 2 — query_royalty_history
     const t2Resp = makeResp([
       thinking('Mediation is in. Need payment history.', 'sig-2'),
-      toolUse('tu_2', 'query_rent_history', { tenantId: 't_8821' }),
+      toolUse('tu_2', 'query_royalty_history', { counterpartyId: 'c_8821' }),
     ]);
     const afterT2 = prepareNextTurn({
       priorMessages: afterT1.messages,
@@ -156,7 +156,7 @@ describe('prepareNextTurn — sequence 4: full eviction flow (3 tool calls)', ()
     // Turn 3 — check_mediation_status
     const t3Resp = makeResp([
       thinking('Need mediation status.', 'sig-3'),
-      toolUse('tu_3', 'check_mediation_status', { tenantId: 't_8821' }),
+      toolUse('tu_3', 'check_mediation_status', { counterpartyId: 'c_8821' }),
     ]);
     const afterT3 = prepareNextTurn({
       priorMessages: afterT2.messages,
@@ -198,7 +198,7 @@ describe('prepareNextTurn — sequence 6: negative cases', () => {
     const priorResponse = makeResp([
       // Note: no thinking block here. With adaptive thinking, this is
       // illegal — the model would have emitted one in real usage.
-      toolUse('tu_1', 'get_lease', { tenantId: 't_8821' }),
+      toolUse('tu_1', 'get_offtake', { counterpartyId: 'c_8821' }),
     ]);
     expect(() =>
       prepareNextTurn({

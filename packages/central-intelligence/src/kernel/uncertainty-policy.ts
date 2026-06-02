@@ -15,12 +15,19 @@
  *   - overall < 0.25                          → ask-back
  *   - overall < 0.15 AND stakes ≥ 'high'      → escalate (refusal)
  *
- * The output text is property-management-tailored: caveats reference
- * the tenancy entities most likely to be at risk (rent, lease, owner
- * statement, maintenance ticket, valuation, KRA MRI withholding,
- * GePG control number, market-rate snapshot). The detector picks the
- * relevant entities by scanning the rendered output; the result is
- * deterministic and pure (no IO, no LLM).
+ * The output text is mining-estate-tailored: caveats reference the
+ * agreement entities most likely to be at risk (royalty, offtake/supply
+ * agreement, owner statement, maintenance ticket, valuation, KRA/TRA
+ * royalty withholding, GePG control number, market-rate snapshot). The
+ * detector picks the relevant entities by scanning the rendered output;
+ * the result is deterministic and pure (no IO, no LLM).
+ *
+ * NOTE — the `PropertyManagementEntity` type name and its tag VALUES
+ * (`rent`, `lease`, `arrears`, `occupancy`, …) are a public contract:
+ * re-exported from kernel/index.ts, joined into the decision-trace, and
+ * pinned by the uncertainty-policy tests. The detector regexes must also
+ * keep matching the legacy vocabulary for back-compatibility. They are
+ * therefore kept verbatim; a rename belongs in a coordinated pass.
  */
 
 import type { ConfidenceVector, ThoughtRequest } from './kernel-types.js';
@@ -40,7 +47,8 @@ export interface UncertaintyDecision {
     | 'stability'
     | 'review'
     | 'numericalConsistency';
-  /** The property-management entity tags surfaced in the caveat. */
+  /** The mining-estate entity tags surfaced in the caveat (type name
+   *  `PropertyManagementEntity` kept as a public contract). */
   readonly affectedEntities: ReadonlyArray<PropertyManagementEntity>;
 }
 
@@ -68,10 +76,11 @@ const ESCALATE_THRESHOLD = 0.15;
 
 /**
  * Entity detectors. Each entry is `[entity, matcher]`. The matcher is
- * a case-insensitive regex looking for the property-management term in
- * the rendered output. The set is intentionally small — we only flag
- * the entities the user is likely to act on, not every property-mgmt
- * noun.
+ * a case-insensitive regex looking for the mining-estate term in the
+ * rendered output. The set is intentionally small — we only flag the
+ * entities the user is likely to act on, not every mining-domain noun.
+ * (Tag values + regexes kept verbatim — see the module-doc contract
+ * note above.)
  */
 const ENTITY_DETECTORS: ReadonlyArray<readonly [PropertyManagementEntity, RegExp]> = [
   ['rent',                 /\b(rent|monthly rent|rent due|rental)\b/i],

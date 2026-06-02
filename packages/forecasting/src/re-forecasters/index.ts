@@ -1,19 +1,24 @@
 /**
- * Real-estate-specific forecasters (composers).
+ * Recurring-entity forecasters (composers).
  *
  * These are the user-facing wrappers that the rest of Borjie calls
  * directly. Each composer picks an appropriate ensemble of the
- * generic forecasters and adds RE-specific domain logic:
+ * generic forecasters and adds mining-estate domain logic:
  *
- *   - forecastRent              — rent trajectory, jurisdictional cap
- *   - forecastOccupancy         — nightly occupancy, [0,1] clamp
- *   - forecastChurn             — hazard projection, [0,1] clamp
+ *   - forecastRoyalty            — royalty / payment trajectory, jurisdictional cap
+ *   - forecastUtilisation        — asset utilisation, [0,1] clamp
+ *   - forecastChurn              — counterparty hazard projection, [0,1] clamp
  *   - forecastMaintenanceFailure — asset failure hazard, [0,∞)
- *   - forecastEnergyConsumption — meter forecast, weather covariate
- *   - forecastMarketCycle       — regional metric + macro covariates
+ *   - forecastEnergyConsumption  — meter forecast, weather covariate
+ *   - forecastMarketCycle        — regional metric + macro covariates
  *
  * Each returns a `TimeSeriesForecast` with intervals + a recommended
  * action via the `recommendations` meta field.
+ *
+ * NOTE: the `re-rent`/`re-occupancy` historical ModelKind values are
+ * superseded by `re-royalty`/`re-utilisation`; deprecated function
+ * aliases (`forecastRent`, `forecastOccupancy`) are retained for any
+ * in-flight importer.
  */
 
 import type {
@@ -33,7 +38,7 @@ import {
   stdDev,
   values,
 } from '../util/series.js';
-import { rentCapFor, applyRentCap } from './jurisdictional-caps.js';
+import { royaltyCapFor, applyRoyaltyCap } from './jurisdictional-caps.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Shared utilities
@@ -53,7 +58,7 @@ function clampIntervals(
   ));
 }
 
-async function runDefaultRealEstateEnsemble(args: {
+async function runDefaultEnsemble(args: {
   readonly series: TimeSeries;
   readonly horizon: Horizon;
 }): Promise<TimeSeriesForecast> {
@@ -70,22 +75,25 @@ async function runDefaultRealEstateEnsemble(args: {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 1. Rent
+// 1. Royalty
 // ─────────────────────────────────────────────────────────────────────
 
-export interface RentForecastInput {
+export interface RoyaltyForecastInput {
   readonly unit: { readonly id: string; readonly jurisdiction: string };
   readonly history: TimeSeries;
   readonly comparables?: ReadonlyArray<TimeSeries>;
   readonly horizon: Horizon;
 }
 
-export async function forecastRent(
-  input: RentForecastInput,
+/** @deprecated Use {@link RoyaltyForecastInput}. */
+export type RentForecastInput = RoyaltyForecastInput;
+
+export async function forecastRoyalty(
+  input: RoyaltyForecastInput,
 ): Promise<TimeSeriesForecast> {
   const { unit, history, comparables, horizon } = input;
   if (history.points.length < 4) {
-    throw new RangeError('forecastRent: need ≥ 4 history points');
+    throw new RangeError('forecastRoyalty: need ≥ 4 history points');
   }
 
   // Build a "comparable-anchored" series: history + jurisdictional
@@ -93,11 +101,11 @@ export async function forecastRent(
   // base; absence falls back to the unit's own history.
   const series: TimeSeries = {
     ...history,
-    id: 'rent::' + unit.id,
+    id: 'royalty::' + unit.id,
     jurisdiction: unit.jurisdiction,
   };
 
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
   // If comparables provided, shrink the point toward the comparable
   // tail median (simple Bayes-style shrinkage).
   let shrunkPoints = baseForecast.points.map((p) => p.point);
@@ -109,14 +117,14 @@ export async function forecastRent(
     shrunkPoints = shrunkPoints.map((p) => 0.75 * p + 0.25 * compTailMean);
   }
 
-  // Apply jurisdictional rent cap to each step.
-  const policy = rentCapFor(unit.jurisdiction);
+  // Apply jurisdictional royalty cap to each step.
+  const policy = royaltyCapFor(unit.jurisdiction);
   const lastObserved = history.points[history.points.length - 1]!.y;
   const cappedPoints: number[] = [];
   let cappedAny = false;
   let prior = lastObserved;
   for (const p of shrunkPoints) {
-    const { value, capped } = applyRentCap({
+    const { value, capped } = applyRoyaltyCap({
       forecast: p,
       priorPeriodValue: prior,
       policy,
@@ -142,9 +150,9 @@ export async function forecastRent(
   });
 
   return Object.freeze({
-    seriesId:     'rent::' + unit.id,
-    modelKind:    're-rent',
-    modelVersion: 're-rent-1',
+    seriesId:     'royalty::' + unit.id,
+    modelKind:    're-royalty',
+    modelVersion: 're-royalty-1',
     horizon,
     points:       Object.freeze(newIntervals),
     generatedAt:  new Date().toISOString(),
@@ -161,51 +169,60 @@ export async function forecastRent(
   });
 }
 
+/** @deprecated Use {@link forecastRoyalty}. */
+export const forecastRent = forecastRoyalty;
+
 // ─────────────────────────────────────────────────────────────────────
-// 2. Occupancy
+// 2. Utilisation
 // ─────────────────────────────────────────────────────────────────────
 
-export interface OccupancyForecastInput {
-  readonly property: { readonly id: string };
+export interface UtilisationForecastInput {
+  readonly site: { readonly id: string };
   readonly history: TimeSeries;     // values in [0,1]
   readonly horizon: Horizon;
 }
 
-export async function forecastOccupancy(
-  input: OccupancyForecastInput,
+/** @deprecated Use {@link UtilisationForecastInput}. */
+export type OccupancyForecastInput = UtilisationForecastInput;
+
+export async function forecastUtilisation(
+  input: UtilisationForecastInput,
 ): Promise<TimeSeriesForecast> {
-  const { property, history, horizon } = input;
+  const { site, history, horizon } = input;
   if (history.points.length < 4) {
-    throw new RangeError('forecastOccupancy: need ≥ 4 history points');
+    throw new RangeError('forecastUtilisation: need ≥ 4 history points');
   }
-  const series: TimeSeries = { ...history, id: 'occ::' + property.id };
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const series: TimeSeries = { ...history, id: 'util::' + site.id };
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
   const clamped = clampIntervals(baseForecast.points, { lower: 0, upper: 1 });
   const meanForecast = mean(clamped.map((p) => p.point));
   return Object.freeze({
-    seriesId:     'occ::' + property.id,
-    modelKind:    're-occupancy',
-    modelVersion: 're-occupancy-1',
+    seriesId:     'util::' + site.id,
+    modelKind:    're-utilisation',
+    modelVersion: 're-utilisation-1',
     horizon,
     points:       clamped,
     generatedAt:  new Date().toISOString(),
     meta: {
-      meanForecastOccupancy: meanForecast,
+      meanForecastUtilisation: meanForecast,
       recommendation: meanForecast < 0.7
-        ? 'Forecast occupancy below 70% — trigger marketing/pricing review.'
-        : 'Occupancy projected within healthy range.',
+        ? 'Forecast utilisation below 70% — trigger offtake-pipeline/pricing review.'
+        : 'Utilisation projected within healthy range.',
     },
   });
 }
+
+/** @deprecated Use {@link forecastUtilisation}. */
+export const forecastOccupancy = forecastUtilisation;
 
 // ─────────────────────────────────────────────────────────────────────
 // 3. Churn — hazard projection
 // ─────────────────────────────────────────────────────────────────────
 
 export interface ChurnForecastInput {
-  readonly tenant: { readonly id: string };
+  readonly counterparty: { readonly id: string };
   /** History of churn-hazard signal in [0,1] (e.g. late-payment rate,
-   *  ticket frequency normalised, NPS rolling). */
+   *  ticket frequency normalised, satisfaction rolling). */
   readonly history: TimeSeries;
   readonly horizon: Horizon;
 }
@@ -213,18 +230,18 @@ export interface ChurnForecastInput {
 export async function forecastChurn(
   input: ChurnForecastInput,
 ): Promise<TimeSeriesForecast> {
-  const { tenant, history, horizon } = input;
+  const { counterparty, history, horizon } = input;
   if (history.points.length < 4) {
     throw new RangeError('forecastChurn: need ≥ 4 history points');
   }
-  const series: TimeSeries = { ...history, id: 'churn::' + tenant.id };
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const series: TimeSeries = { ...history, id: 'churn::' + counterparty.id };
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
   // Convert raw hazard trend to per-step survival via S(t) = exp(-H(t)).
   // Then to per-step churn probability: 1 - S(t)/S(t-1).
   const clamped = clampIntervals(baseForecast.points, { lower: 0, upper: 1 });
   const maxChurn = Math.max(...clamped.map((p) => p.point));
   return Object.freeze({
-    seriesId:     'churn::' + tenant.id,
+    seriesId:     'churn::' + counterparty.id,
     modelKind:    're-churn',
     modelVersion: 're-churn-1',
     horizon,
@@ -260,7 +277,7 @@ export async function forecastMaintenanceFailure(
     throw new RangeError('forecastMaintenanceFailure: need ≥ 4 history points');
   }
   const series: TimeSeries = { ...history, id: 'maint::' + asset.id };
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
 
   // Clamp to non-negative + apply an age-adjusted bath-tub uplift on
   // tail steps (assets fail more as they age).
@@ -324,7 +341,7 @@ export async function forecastEnergyConsumption(
     throw new RangeError('forecastEnergyConsumption: need ≥ 4 history points');
   }
   const series: TimeSeries = { ...history, id: 'energy::' + unit.id };
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
 
   // Apply a weather adjustment if a HDD/CDD series is supplied. We
   // compute the per-kWh-per-DD elasticity from the historical
@@ -373,9 +390,9 @@ export async function forecastEnergyConsumption(
 
 export interface MarketCycleForecastInput {
   readonly region: { readonly id: string; readonly jurisdiction: string };
-  /** Regional metric (e.g. NOI growth, vacancy rate). */
+  /** Regional metric (e.g. net-margin growth, idle-capacity rate). */
   readonly history: TimeSeries;
-  /** Optional macro covariate (e.g. policy rate, GDP-growth). */
+  /** Optional macro covariate (e.g. policy rate, commodity-price index). */
   readonly macro?: TimeSeries;
   readonly horizon: Horizon;
 }
@@ -392,7 +409,7 @@ export async function forecastMarketCycle(
     id: 'market::' + region.id,
     jurisdiction: region.jurisdiction,
   };
-  const baseForecast = await runDefaultRealEstateEnsemble({ series, horizon });
+  const baseForecast = await runDefaultEnsemble({ series, horizon });
 
   // Detect cycle phase via the recent trend direction (positive = up).
   const recentSlope =
@@ -455,7 +472,14 @@ export async function forecastMarketCycle(
 // Public re-export of the helpers used by the composers
 // ─────────────────────────────────────────────────────────────────────
 
-export { rentCapFor, applyRentCap, type RentCapPolicy } from './jurisdictional-caps.js';
+export {
+  royaltyCapFor,
+  applyRoyaltyCap,
+  rentCapFor,
+  applyRentCap,
+  type RoyaltyCapPolicy,
+  type RentCapPolicy,
+} from './jurisdictional-caps.js';
 
 // Re-export to keep build deterministic if a downstream consumer
 // imports the constructor directly.

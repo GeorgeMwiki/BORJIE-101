@@ -40,7 +40,10 @@ export function scoreConfidence(input: ConfidenceInput): ConfidenceVector {
 const SENTENCE_SPLIT = /[.!?]+(?:\s+|$)/;
 // A "factual" sentence has a number, a proper-noun-like token, or a
 // concrete claim verb. The heuristic is intentionally permissive.
-const FACTUAL_SIGNALS = /(\d|\$|TZS|KES|USD|%|tenant|lease|unit|block|property|owner|arrears|rent|vacancy)/i;
+// Mining-estate signals are added ALONGSIDE the legacy ones (additive —
+// the kept `tenant`/`lease`/`property` tokens are the AwarenessTier /
+// multi-tenancy vocabulary; the mining terms broaden coverage).
+const FACTUAL_SIGNALS = /(\d|\$|TZS|KES|USD|%|tenant|lease|unit|block|property|owner|arrears|rent|vacancy|royalty|offtake|mineral|site|production|tonnage|counterparty)/i;
 
 function scoreGroundedness(text: string, citations: number): number {
   if (!text.trim()) return 1;

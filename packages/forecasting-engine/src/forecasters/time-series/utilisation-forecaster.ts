@@ -1,21 +1,27 @@
 /**
- * OccupancyForecaster — Empirical Bayes per micro-market.
+ * UtilisationForecaster — Empirical Bayes per micro-market.
  *
  * Beta-Binomial conjugate posterior. Prior is fit from the cohort
  * mean + variance across all micro-markets (Method-of-Moments). For
  * each market we then update the posterior with that market's
- * occupied / total counts.
+ * in-production / total counts.
+ *
+ * NOTE: file renamed from `occupancy-forecaster.ts`; deprecated
+ * `*Occupancy*` aliases are retained for any in-flight importer.
  */
 
 import type { ForecastBand, FittedModel } from '../../types.js';
 
-export interface OccupancyObservation {
+export interface UtilisationObservation {
   readonly microMarketId: string;
-  readonly occupied: number;
+  readonly inProduction: number;
   readonly total: number;
 }
 
-export interface OccupancyParams {
+/** @deprecated Use {@link UtilisationObservation}. */
+export type OccupancyObservation = UtilisationObservation;
+
+export interface UtilisationParams {
   readonly priorAlpha: number;
   readonly priorBeta: number;
   readonly posteriorByMarket: ReadonlyMap<
@@ -24,16 +30,19 @@ export interface OccupancyParams {
   >;
 }
 
-export function fitOccupancy(
-  obs: ReadonlyArray<OccupancyObservation>,
-): FittedModel<OccupancyParams> {
+/** @deprecated Use {@link UtilisationParams}. */
+export type OccupancyParams = UtilisationParams;
+
+export function fitUtilisation(
+  obs: ReadonlyArray<UtilisationObservation>,
+): FittedModel<UtilisationParams> {
   if (obs.length === 0) {
-    throw new Error('Need at least 1 observation to fit occupancy');
+    throw new Error('Need at least 1 observation to fit utilisation');
   }
   // Per-market raw rates
   const rates = obs
     .filter((o) => o.total > 0)
-    .map((o) => o.occupied / o.total);
+    .map((o) => o.inProduction / o.total);
   const mean = rates.reduce((s, r) => s + r, 0) / Math.max(1, rates.length);
   const variance =
     rates.reduce((s, r) => s + (r - mean) * (r - mean), 0) /
@@ -56,8 +65,8 @@ export function fitOccupancy(
   >();
   obs.forEach((o) => {
     posteriorByMarket.set(o.microMarketId, {
-      alpha: priorAlpha + o.occupied,
-      beta: priorBeta + (o.total - o.occupied),
+      alpha: priorAlpha + o.inProduction,
+      beta: priorBeta + (o.total - o.inProduction),
     });
   });
 
@@ -71,8 +80,11 @@ export function fitOccupancy(
   };
 }
 
-export function forecastOccupancy(
-  model: FittedModel<OccupancyParams>,
+/** @deprecated Use {@link fitUtilisation}. */
+export const fitOccupancy = fitUtilisation;
+
+export function forecastUtilisation(
+  model: FittedModel<UtilisationParams>,
   microMarketId: string,
   horizonDays: number,
   nowMs: number = Date.now(),
@@ -103,18 +115,21 @@ export function forecastOccupancy(
   return out;
 }
 
-export function updateOccupancy(
-  model: FittedModel<OccupancyParams>,
-  obs: OccupancyObservation,
-): FittedModel<OccupancyParams> {
+/** @deprecated Use {@link forecastUtilisation}. */
+export const forecastOccupancy = forecastUtilisation;
+
+export function updateUtilisation(
+  model: FittedModel<UtilisationParams>,
+  obs: UtilisationObservation,
+): FittedModel<UtilisationParams> {
   const next = new Map(model.params.posteriorByMarket);
   const prev = next.get(obs.microMarketId) ?? {
     alpha: model.params.priorAlpha,
     beta: model.params.priorBeta,
   };
   next.set(obs.microMarketId, {
-    alpha: prev.alpha + obs.occupied,
-    beta: prev.beta + (obs.total - obs.occupied),
+    alpha: prev.alpha + obs.inProduction,
+    beta: prev.beta + (obs.total - obs.inProduction),
   });
   return {
     params: {
@@ -126,3 +141,6 @@ export function updateOccupancy(
     sampleSize: model.sampleSize + 1,
   };
 }
+
+/** @deprecated Use {@link updateUtilisation}. */
+export const updateOccupancy = updateUtilisation;

@@ -5,7 +5,7 @@
  * "Hardest report today" — evidence-driven, comparative to prior
  * surveys, with action plans. We assemble the current + prior
  * SurveySnapshot, compute the deflation / improvement delta per
- * building element, and surface a prioritised capex table.
+ * asset element, and surface a prioritised capex table.
  */
 
 import type { EvidencePack, Gatherer, GathererContext } from '../types.js';
@@ -44,9 +44,9 @@ export function createConditionalSurveyGatherer(deps: ConditionalSurveyGathererD
       });
     }
 
-    const propertyId = scopePropertyId(spec.scope);
-    if (!propertyId) {
-      health.push(sourceHealth('conditional-survey', 'unavailable', 'conditional survey requires a property-scoped spec'));
+    const siteId = scopeSiteId(spec.scope);
+    if (!siteId) {
+      health.push(sourceHealth('conditional-survey', 'unavailable', 'conditional survey requires a site-scoped spec'));
       return Object.freeze({
         type: spec.type,
         spec,
@@ -60,13 +60,13 @@ export function createConditionalSurveyGatherer(deps: ConditionalSurveyGathererD
     let latest: SurveySnapshot | null = null;
     let prior: SurveySnapshot | null = null;
     try {
-      latest = await port.fetchLatestSurvey({ propertyId });
+      latest = await port.fetchLatestSurvey({ siteId });
       health.push(sourceHealth('latest-survey', latest ? 'ok' : 'partial'));
     } catch (e) {
       health.push(sourceHealth('latest-survey', 'unavailable', stringifyErr(e)));
     }
     try {
-      prior = await port.fetchPriorSurvey({ propertyId });
+      prior = await port.fetchPriorSurvey({ siteId });
       health.push(sourceHealth('prior-survey', prior ? 'ok' : 'partial'));
     } catch (e) {
       health.push(sourceHealth('prior-survey', 'unavailable', stringifyErr(e)));
@@ -77,7 +77,7 @@ export function createConditionalSurveyGatherer(deps: ConditionalSurveyGathererD
         buildEvidenceFragment({
           id: 'cs-latest-overall',
           summary: `Latest survey ${latest.surveyDateIso}: overall grade ${latest.overallGrade}, ${latest.defects.length} defects logged.`,
-          source: { kind: 'survey', ref: `survey:${propertyId}:${latest.surveyDateIso}` },
+          source: { kind: 'survey', ref: `survey:${siteId}:${latest.surveyDateIso}` },
           data: { latest: { ...latest } },
         }),
       );
@@ -135,7 +135,7 @@ export function createConditionalSurveyGatherer(deps: ConditionalSurveyGathererD
         buildEvidenceFragment({
           id: 'cs-prior-comparison',
           summary: `Versus prior survey ${prior.surveyDateIso}: defect count change ${delta >= 0 ? '+' : ''}${delta}, grade ${prior.overallGrade} → ${latest.overallGrade}.`,
-          source: { kind: 'survey', ref: `survey:${propertyId}:${prior.surveyDateIso}` },
+          source: { kind: 'survey', ref: `survey:${siteId}:${prior.surveyDateIso}` },
           data: { prior: { ...prior } },
         }),
       );
@@ -152,13 +152,13 @@ export function createConditionalSurveyGatherer(deps: ConditionalSurveyGathererD
   };
 }
 
-function scopePropertyId(scope: GathererContext['spec']['scope']): string | null {
+function scopeSiteId(scope: GathererContext['spec']['scope']): string | null {
   switch (scope.kind) {
-    case 'property':
-      return scope.propertyId;
+    case 'site':
+      return scope.siteId;
     case 'deal':
-      return scope.propertyId ?? null;
-    case 'tenant':
+      return scope.siteId ?? null;
+    case 'buyer':
     case 'portfolio':
       return null;
   }

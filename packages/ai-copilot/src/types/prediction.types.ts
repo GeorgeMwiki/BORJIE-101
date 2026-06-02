@@ -1,11 +1,11 @@
 /**
  * Predictive Analytics Types
- * 
+ *
  * Types for predictive signals including:
- * - Arrears risk prediction
- * - Churn risk prediction
- * - Maintenance recurrence prediction
- * - Occupancy health scoring
+ * - Royalty arrears risk prediction
+ * - Buyer churn risk prediction
+ * - Equipment maintenance recurrence prediction
+ * - Production health scoring
  */
 
 import { z } from 'zod';
@@ -22,15 +22,15 @@ import {
  * Types of predictive models available
  */
 export const PredictionModelType = {
-  /** Predict likelihood of payment arrears */
-  ARREARS_RISK: 'ARREARS_RISK',
-  /** Predict tenant churn likelihood */
-  CHURN_RISK: 'CHURN_RISK',
-  /** Predict maintenance issue recurrence */
+  /** Predict likelihood of royalty/payment arrears */
+  ROYALTY_ARREARS_RISK: 'ROYALTY_ARREARS_RISK',
+  /** Predict buyer / off-taker churn likelihood */
+  BUYER_CHURN_RISK: 'BUYER_CHURN_RISK',
+  /** Predict equipment maintenance issue recurrence */
   MAINTENANCE_RECURRENCE: 'MAINTENANCE_RECURRENCE',
-  /** Score overall occupancy health */
-  OCCUPANCY_HEALTH: 'OCCUPANCY_HEALTH',
-  /** Predict rental yield optimization */
+  /** Score overall production health */
+  PRODUCTION_HEALTH: 'PRODUCTION_HEALTH',
+  /** Predict mineral yield optimization */
   YIELD_OPTIMIZATION: 'YIELD_OPTIMIZATION',
   /** Predict market trends */
   MARKET_TREND: 'MARKET_TREND',
@@ -117,19 +117,19 @@ export interface RecommendedAction {
 }
 
 // ============================================
-// ARREARS RISK PREDICTION
+// ROYALTY ARREARS RISK PREDICTION
 // ============================================
 
 /**
- * Input features for arrears risk prediction
+ * Input features for royalty arrears risk prediction
  */
-export interface ArrearsRiskInput {
-  /** Tenant/lease identifier */
-  tenantId: string;
-  leaseId: string;
-  propertyId: string;
-  unitId: string;
-  
+export interface RoyaltyArrearsRiskInput {
+  /** Counterparty / supply-agreement identifier */
+  counterpartyId: string;
+  supplyAgreementId: string;
+  siteId: string;
+  pitId: string;
+
   /** Payment history */
   paymentHistory: {
     /** Total months with data */
@@ -140,23 +140,23 @@ export interface ArrearsRiskInput {
     avgDaysLate: number;
     /** Longest arrears period in days */
     maxArrearsDays: number;
-    /** Current arrears amount */
+    /** Current outstanding-royalties amount */
     currentArrearsAmount: number;
     /** Times in arrears last 12 months */
     arrearsCount12m: number;
   };
-  
-  /** Tenant profile */
-  tenantProfile: {
-    tenancyMonths: number;
+
+  /** Counterparty profile */
+  counterpartyProfile: {
+    relationshipMonths: number;
     employmentStatus?: 'employed' | 'self-employed' | 'unemployed' | 'retired' | 'unknown';
     incomeVerified: boolean;
-    rentToIncomeRatio?: number;
+    paymentToRevenueRatio?: number;
   };
-  
+
   /** Current context */
   currentContext: {
-    rentAmount: number;
+    paymentAmount: number;
     daysUntilNextDue: number;
     hasAutoPay: boolean;
     communicationResponseRate?: number;
@@ -165,29 +165,29 @@ export interface ArrearsRiskInput {
 }
 
 /**
- * Arrears risk prediction result
+ * Royalty arrears risk prediction result
  */
-export interface ArrearsRiskPrediction extends PredictionBase {
-  modelType: typeof PredictionModelType.ARREARS_RISK;
-  
+export interface RoyaltyArrearsRiskPrediction extends PredictionBase {
+  modelType: typeof PredictionModelType.ROYALTY_ARREARS_RISK;
+
   /** Input used for prediction */
-  input: ArrearsRiskInput;
-  
+  input: RoyaltyArrearsRiskInput;
+
   /** Predicted arrears outcome */
   prediction: {
     /** Probability of arrears in horizon */
     arrearsProbability: number;
-    /** Expected arrears amount if occurs */
+    /** Expected outstanding-royalties amount if occurs */
     expectedArrearsAmount: number;
     /** Most likely arrears duration in days */
     expectedArrearsDays: number;
     /** Risk tier */
     riskTier: 'watch' | 'at-risk' | 'high-risk' | 'critical';
   };
-  
+
   /** Recommended actions */
   recommendedActions: RecommendedAction[];
-  
+
   /** Alert configuration */
   alertConfig: {
     shouldAlert: boolean;
@@ -198,85 +198,85 @@ export interface ArrearsRiskPrediction extends PredictionBase {
 }
 
 // ============================================
-// CHURN RISK PREDICTION
+// BUYER CHURN RISK PREDICTION
 // ============================================
 
 /**
- * Input features for churn risk prediction
+ * Input features for buyer churn risk prediction
  */
-export interface ChurnRiskInput {
-  tenantId: string;
-  leaseId: string;
-  propertyId: string;
-  unitId: string;
-  
-  /** Lease status */
-  leaseStatus: {
-    leaseStartDate: string;
-    leaseEndDate: string;
+export interface BuyerChurnRiskInput {
+  counterpartyId: string;
+  supplyAgreementId: string;
+  siteId: string;
+  pitId: string;
+
+  /** Supply-agreement status */
+  supplyAgreementStatus: {
+    agreementStartDate: string;
+    agreementEndDate: string;
     daysUntilExpiry: number;
-    isMonthToMonth: boolean;
+    isSpotMarket: boolean;
     renewalsCompleted: number;
   };
-  
-  /** Tenant engagement */
-  tenantEngagement: {
+
+  /** Counterparty engagement */
+  counterpartyEngagement: {
     loginFrequency30d: number;
     maintenanceRequestCount12m: number;
     maintenanceResolutionSatisfaction?: number;
     communicationSentiment?: 'positive' | 'neutral' | 'negative';
     complaintCount12m: number;
   };
-  
+
   /** Market factors */
   marketFactors: {
-    currentRent: number;
+    currentPrice: number;
     marketRateEstimate: number;
-    rentIncreasePercent?: number;
-    localVacancyRate?: number;
+    priceIncreasePercent?: number;
+    localAvailableCapacityRate?: number;
   };
-  
-  /** Property factors */
-  propertyFactors: {
-    propertyAge: number;
-    lastMajorRenovation?: string;
-    amenityScore?: number;
-    neighborhoodScore?: number;
+
+  /** Site factors */
+  siteFactors: {
+    siteAge: number;
+    lastMajorUpgrade?: string;
+    capabilityScore?: number;
+    locationScore?: number;
   };
 }
 
 /**
- * Churn risk prediction result
+ * Buyer churn risk prediction result
  */
-export interface ChurnRiskPrediction extends PredictionBase {
-  modelType: typeof PredictionModelType.CHURN_RISK;
-  
-  input: ChurnRiskInput;
-  
+export interface BuyerChurnRiskPrediction extends PredictionBase {
+  modelType: typeof PredictionModelType.BUYER_CHURN_RISK;
+
+  input: BuyerChurnRiskInput;
+
   prediction: {
     /** Probability of non-renewal */
     churnProbability: number;
     /** Most likely reason for churn */
     primaryChurnFactor: string;
-    /** Whether tenant is likely to give notice */
+    /** Whether buyer is likely to give notice */
     likelyToGiveNotice: boolean;
     /** Estimated notice timing */
     estimatedNoticeDays?: number;
     /** Churn risk tier */
     riskTier: 'stable' | 'watch' | 'at-risk' | 'likely-churning';
   };
-  
+
   /** Retention recommendations */
   retentionRecommendations: RecommendedAction[];
-  
+
   /** Financial impact */
   financialImpact: {
-    /** Estimated vacancy cost if churns */
-    vacancyCost: number;
+    /** Estimated available-capacity cost if churns */
+    availableCapacityCost: number;
     /** Estimated turnover cost */
     turnoverCost: number;
-    /** Potential rent loss during vacancy */
-    rentLoss: number;
+    /** Potential payment loss during available-capacity */
+    paymentLoss: number;
     /** Total financial impact */
     totalImpact: number;
   };
@@ -290,9 +290,9 @@ export interface ChurnRiskPrediction extends PredictionBase {
  * Input for maintenance recurrence prediction
  */
 export interface MaintenanceRecurrenceInput {
-  propertyId: string;
-  unitId: string;
-  
+  siteId: string;
+  pitId: string;
+
   /** Work order details */
   workOrder: {
     id: string;
@@ -305,24 +305,24 @@ export interface MaintenanceRecurrenceInput {
     resolutionNotes?: string;
     cost?: number;
   };
-  
-  /** Property context */
-  propertyContext: {
-    propertyAge: number;
-    buildingType: string;
+
+  /** Site context */
+  siteContext: {
+    siteAge: number;
+    assetType: string;
     unitSize: number;
     lastInspectionDate?: string;
-    hvacAge?: number;
-    plumbingAge?: number;
+    hydraulicsAge?: number;
+    pumpingAge?: number;
     electricalAge?: number;
   };
-  
+
   /** Historical patterns */
   historicalPatterns: {
-    /** Similar issues in this unit */
-    similarIssuesThisUnit: number;
-    /** Similar issues in property */
-    similarIssuesProperty: number;
+    /** Similar issues at this pit */
+    similarIssuesThisPit: number;
+    /** Similar issues at site */
+    similarIssuesSite: number;
     /** Average recurrence interval days */
     avgRecurrenceIntervalDays?: number;
     /** Seasonal pattern detected */
@@ -335,9 +335,9 @@ export interface MaintenanceRecurrenceInput {
  */
 export interface MaintenanceRecurrencePrediction extends PredictionBase {
   modelType: typeof PredictionModelType.MAINTENANCE_RECURRENCE;
-  
+
   input: MaintenanceRecurrenceInput;
-  
+
   prediction: {
     /** Probability of recurrence in horizon */
     recurrenceProbability: number;
@@ -350,10 +350,10 @@ export interface MaintenanceRecurrencePrediction extends PredictionBase {
     /** Related systems that may be affected */
     relatedSystems: string[];
   };
-  
+
   /** Preventive recommendations */
   preventiveActions: RecommendedAction[];
-  
+
   /** Cost projection */
   costProjection: {
     /** Cost if recurs without prevention */
@@ -366,57 +366,57 @@ export interface MaintenanceRecurrencePrediction extends PredictionBase {
 }
 
 // ============================================
-// OCCUPANCY HEALTH SCORING
+// PRODUCTION HEALTH SCORING
 // ============================================
 
 /**
- * Input for occupancy health scoring
+ * Input for production health scoring
  */
-export interface OccupancyHealthInput {
-  propertyId: string;
-  
+export interface ProductionHealthInput {
+  siteId: string;
+
   /** Portfolio view */
   portfolio: {
-    totalUnits: number;
-    occupiedUnits: number;
-    vacantUnits: number;
-    unitsUnderRenovation: number;
-    avgDaysOnMarket: number;
+    totalPits: number;
+    activePits: number;
+    idlePits: number;
+    pitsUnderUpgrade: number;
+    avgDaysToCommission: number;
   };
-  
+
   /** Financial performance */
   financialMetrics: {
-    grossPotentialRent: number;
-    effectiveGrossRent: number;
+    grossPotentialRevenue: number;
+    effectiveGrossRevenue: number;
     collectionRate: number;
-    avgRentPerUnit: number;
+    avgRevenuePerPit: number;
     marketRateComparison: number; // % vs market
   };
-  
-  /** Tenant composition */
-  tenantComposition: {
-    avgTenancyMonths: number;
-    tenantTurnoverRate12m: number;
+
+  /** Counterparty composition */
+  counterpartyComposition: {
+    avgRelationshipMonths: number;
+    counterpartyTurnoverRate12m: number;
     renewalRate: number;
     arrearsRate: number;
   };
-  
+
   /** Market context */
   marketContext: {
-    localVacancyRate: number;
+    localAvailableCapacityRate: number;
     marketTrend: 'declining' | 'stable' | 'growing';
     seasonalFactor?: number;
   };
 }
 
 /**
- * Occupancy health score result
+ * Production health score result
  */
-export interface OccupancyHealthScore extends PredictionBase {
-  modelType: typeof PredictionModelType.OCCUPANCY_HEALTH;
-  
-  input: OccupancyHealthInput;
-  
+export interface ProductionHealthScore extends PredictionBase {
+  modelType: typeof PredictionModelType.PRODUCTION_HEALTH;
+
+  input: ProductionHealthInput;
+
   /** Overall health score */
   healthScore: {
     /** Overall score (0-100) */
@@ -428,16 +428,16 @@ export interface OccupancyHealthScore extends PredictionBase {
     /** Change from previous score */
     changeFromPrevious?: number;
   };
-  
+
   /** Component scores */
   componentScores: {
-    occupancy: number;
+    production: number;
     collection: number;
     retention: number;
     marketPosition: number;
     operationalEfficiency: number;
   };
-  
+
   /** Key insights */
   insights: {
     strengths: string[];
@@ -445,14 +445,14 @@ export interface OccupancyHealthScore extends PredictionBase {
     opportunities: string[];
     threats: string[];
   };
-  
+
   /** Prioritized improvements */
   improvements: RecommendedAction[];
-  
+
   /** Projected impact of improvements */
   projectedImpact: {
     revenueUplift: number;
-    occupancyImprovement: number;
+    productionImprovement: number;
     collectionImprovement: number;
     timeToImpactDays: number;
   };
@@ -462,10 +462,10 @@ export interface OccupancyHealthScore extends PredictionBase {
  * Zod schemas for validation
  */
 export const PredictionModelTypeSchema = z.enum([
-  'ARREARS_RISK',
-  'CHURN_RISK',
+  'ROYALTY_ARREARS_RISK',
+  'BUYER_CHURN_RISK',
   'MAINTENANCE_RECURRENCE',
-  'OCCUPANCY_HEALTH',
+  'PRODUCTION_HEALTH',
   'YIELD_OPTIMIZATION',
   'MARKET_TREND',
 ]);
@@ -494,11 +494,11 @@ export const RecommendedActionSchema = z.object({
   automationId: z.string().optional(),
 });
 
-export const ArrearsRiskInputSchema = z.object({
-  tenantId: z.string(),
-  leaseId: z.string(),
-  propertyId: z.string(),
-  unitId: z.string(),
+export const RoyaltyArrearsRiskInputSchema = z.object({
+  counterpartyId: z.string(),
+  supplyAgreementId: z.string(),
+  siteId: z.string(),
+  pitId: z.string(),
   paymentHistory: z.object({
     historyMonths: z.number(),
     onTimeRate: z.number().min(0).max(1),
@@ -507,14 +507,14 @@ export const ArrearsRiskInputSchema = z.object({
     currentArrearsAmount: z.number().min(0),
     arrearsCount12m: z.number().min(0),
   }),
-  tenantProfile: z.object({
-    tenancyMonths: z.number().min(0),
+  counterpartyProfile: z.object({
+    relationshipMonths: z.number().min(0),
     employmentStatus: z.enum(['employed', 'self-employed', 'unemployed', 'retired', 'unknown']).optional(),
     incomeVerified: z.boolean(),
-    rentToIncomeRatio: z.number().min(0).optional(),
+    paymentToRevenueRatio: z.number().min(0).optional(),
   }),
   currentContext: z.object({
-    rentAmount: z.number().positive(),
+    paymentAmount: z.number().positive(),
     daysUntilNextDue: z.number(),
     hasAutoPay: z.boolean(),
     communicationResponseRate: z.number().min(0).max(1).optional(),
@@ -522,19 +522,19 @@ export const ArrearsRiskInputSchema = z.object({
   }),
 });
 
-export const ChurnRiskInputSchema = z.object({
-  tenantId: z.string(),
-  leaseId: z.string(),
-  propertyId: z.string(),
-  unitId: z.string(),
-  leaseStatus: z.object({
-    leaseStartDate: z.string(),
-    leaseEndDate: z.string(),
+export const BuyerChurnRiskInputSchema = z.object({
+  counterpartyId: z.string(),
+  supplyAgreementId: z.string(),
+  siteId: z.string(),
+  pitId: z.string(),
+  supplyAgreementStatus: z.object({
+    agreementStartDate: z.string(),
+    agreementEndDate: z.string(),
     daysUntilExpiry: z.number(),
-    isMonthToMonth: z.boolean(),
+    isSpotMarket: z.boolean(),
     renewalsCompleted: z.number().min(0),
   }),
-  tenantEngagement: z.object({
+  counterpartyEngagement: z.object({
     loginFrequency30d: z.number().min(0),
     maintenanceRequestCount12m: z.number().min(0),
     maintenanceResolutionSatisfaction: z.number().min(0).max(5).optional(),
@@ -542,15 +542,15 @@ export const ChurnRiskInputSchema = z.object({
     complaintCount12m: z.number().min(0),
   }),
   marketFactors: z.object({
-    currentRent: z.number().positive(),
+    currentPrice: z.number().positive(),
     marketRateEstimate: z.number().positive(),
-    rentIncreasePercent: z.number().optional(),
-    localVacancyRate: z.number().min(0).max(1).optional(),
+    priceIncreasePercent: z.number().optional(),
+    localAvailableCapacityRate: z.number().min(0).max(1).optional(),
   }),
-  propertyFactors: z.object({
-    propertyAge: z.number().min(0),
-    lastMajorRenovation: z.string().optional(),
-    amenityScore: z.number().min(0).max(10).optional(),
-    neighborhoodScore: z.number().min(0).max(10).optional(),
+  siteFactors: z.object({
+    siteAge: z.number().min(0),
+    lastMajorUpgrade: z.string().optional(),
+    capabilityScore: z.number().min(0).max(10).optional(),
+    locationScore: z.number().min(0).max(10).optional(),
   }),
 });

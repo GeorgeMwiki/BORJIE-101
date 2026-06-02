@@ -6,8 +6,8 @@
  * provides the `actual` and we compute the delta.
  *
  * H2 — `relativeError` denominator now uses `max(|p50|, |actual|, ε)`
- * so a systematically-near-zero prediction (e.g. arrears for a healthy
- * property) does NOT collapse to relativeError = 0 and silently
+ * so a systematically-near-zero prediction (e.g. outstanding royalties
+ * for a healthy unit) does NOT collapse to relativeError = 0 and silently
  * short-circuit `lessonFromDelta`. Pre-fix the model could stay bad
  * forever because the feedback loop returned null.
  *

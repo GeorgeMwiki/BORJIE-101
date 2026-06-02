@@ -35,9 +35,11 @@ import { z } from 'zod';
  *  - `US`     — Federal floor (COPPA, FHA, Section 508)
  *  - `US-CA`  — California (adds CCPA/CPRA)
  *  - `ZA`     — Republic of South Africa (POPIA)
- *  - `TZ`     — Tanzania (Land Act 1999, Persons with Disabilities Act 2010)
- *  - `KE`     — Kenya (Rental Housing Act 2017, DPA 2019)
- *  - `UG`     — Uganda (Landlord & Tenant Act 2022)
+ *  - `TZ`     — Tanzania (Mining Act 2010, Personal Data Protection Act 2022,
+ *               Persons with Disabilities Act 2010)
+ *  - `KE`     — Kenya (Mining Act 2016, Data Protection Act 2019)
+ *  - `UG`     — Uganda (Mining and Minerals Act 2022, Data Protection and
+ *               Privacy Act 2019)
  *  - `RW`     — Rwanda (Law 058/2021)
  *  - `NG`     — Nigeria (NDPA 2023)
  *  - `GLOBAL` — Catch-all for principles that apply everywhere
@@ -79,8 +81,8 @@ export const ETHICS_CONTEXTS = [
   'data-retention',
   'surveillance',
   'pricing',
-  'eviction',
-  'tenant-screening',
+  'licence-suspension',
+  'counterparty-screening',
   'communication',
   'ui-design',
   'accessibility',
@@ -206,7 +208,7 @@ export const VULNERABILITY_FACTORS = [
   'pregnant',
   'caregiver-of-dependent',
   'refugee',
-  'survivor-of-eviction',
+  'survivor-of-displacement',
 ] as const;
 export type VulnerabilityFactor = (typeof VULNERABILITY_FACTORS)[number];
 export const VulnerabilityFactorSchema = z.enum(VULNERABILITY_FACTORS);
@@ -328,7 +330,7 @@ export interface DarkPatternDetection {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Surveillance consent (cameras/sensors in rented units)
+// Surveillance consent (cameras/sensors at site facilities)
 // ─────────────────────────────────────────────────────────────────────
 
 export const SURVEILLANCE_DEVICE_TYPES = [
@@ -339,7 +341,7 @@ export const SURVEILLANCE_DEVICE_TYPES = [
   'motion-sensor',
   'smart-lock',
   'smart-thermostat',
-  'occupancy-sensor',
+  'presence-sensor',
   'noise-sensor',
   'leak-sensor',
 ] as const;

@@ -21,7 +21,7 @@ export type KeDpaProcessingBasis =
 export interface KeDpaAuditEntry {
   readonly recordId: string;
   readonly dataSubjectId: string;
-  readonly dataSubjectCategory: 'tenant' | 'landlord' | 'staff' | 'vendor';
+  readonly dataSubjectCategory: 'buyer' | 'owner' | 'staff' | 'vendor';
   readonly dataCategories: readonly string[];
   readonly purpose: string;
   readonly processingBasis: KeDpaProcessingBasis;

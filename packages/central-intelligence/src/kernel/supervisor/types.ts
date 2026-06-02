@@ -43,8 +43,16 @@ export type Jurisdiction = 'TZ' | 'KE' | 'UG' | 'NG' | 'RW' | 'ZA';
 // ---------------------------------------------------------------------------
 
 /**
- * The six departments of a digital property-management company. Matches
+ * The six departments of a digital mining-estate company. Matches
  * .audit/litfin-sota-2026-05-23/16-agent-orchestration-teams.md §3.
+ *
+ * NOTE — the `Department` string values (`leasing`/`eviction`/…) are a
+ * typed contract mirrored against the autonomy-governance constitution
+ * (C09 gates the `eviction` department; see
+ * packages/autonomy-governance/.../borjie-constitution.ts). They are
+ * kept verbatim; their mining semantics are offtake (leasing) and
+ * licence-suspension (eviction). A rename must be coordinated with the
+ * constitution package.
  */
 export type Department =
   | 'leasing'

@@ -12,10 +12,10 @@ import {
 } from './generators/index.js';
 import type { ReportType, ReportFormat } from './reports/report-types.js';
 import { financialReportToReportData } from './reports/financial-report.js';
-import { occupancyReportToReportData } from './reports/occupancy-report.js';
+import { assetUtilisationReportToReportData } from './reports/asset-utilisation-report.js';
 import { maintenanceReportToReportData } from './reports/maintenance-report.js';
-import { tenantReportToReportData } from './reports/tenant-report.js';
-import { propertyReportToReportData } from './reports/property-report.js';
+import { buyerReportToReportData } from './reports/buyer-report.js';
+import { siteReportToReportData } from './reports/site-report.js';
 import type { IReportDataProvider } from './data-provider.interface.js';
 import type { IReportStorage } from './storage/storage.js';
 import type { ReportListFilters } from './storage/storage.js';
@@ -46,10 +46,10 @@ export class ReportGenerationError extends Error {
 
 const REPORT_TITLES: Record<ReportType, string> = {
   financial: 'Financial Report',
-  occupancy: 'Occupancy Report',
+  asset_utilisation: 'Asset Utilisation Report',
   maintenance: 'Maintenance Report',
-  tenant: 'Tenant Report',
-  property: 'Property Report',
+  buyer: 'Buyer Report',
+  site: 'Site Report',
 };
 
 export interface ReportGenerationServiceOptions {
@@ -68,8 +68,8 @@ export class ReportGenerationService {
 
   /**
    * Generate a report
-   * @param reportType - Type of report (financial, occupancy, maintenance, tenant, property)
-   * @param params - Report parameters (tenantId required, optional dateRange, propertyIds, period)
+   * @param reportType - Type of report (financial, asset_utilisation, maintenance, buyer, site)
+   * @param params - Report parameters (tenantId required, optional dateRange, siteIds, period)
    * @param format - Output format (pdf, excel, csv)
    * @returns Report content and optional reportId if persisted
    */
@@ -145,7 +145,7 @@ export class ReportGenerationService {
   }
 
   private validateReportType(reportType: string): asserts reportType is ReportType {
-    const valid: ReportType[] = ['financial', 'occupancy', 'maintenance', 'tenant', 'property'];
+    const valid: ReportType[] = ['financial', 'asset_utilisation', 'maintenance', 'buyer', 'site'];
     if (!valid.includes(reportType as ReportType)) {
       throw new ReportGenerationError(
         `Unknown report type: ${reportType}. Valid types: ${valid.join(', ')}`,
@@ -230,7 +230,7 @@ export class ReportGenerationService {
   private normalizeParams(params: Record<string, unknown>): {
     tenantId: string;
     dateRange?: { start: Date; end: Date };
-    propertyIds?: string[];
+    siteIds?: string[];
     period?: string;
   } {
     const tenantId = params.tenantId as string;
@@ -253,8 +253,8 @@ export class ReportGenerationService {
       result.dateRange = { start, end };
     }
 
-    if (params.propertyIds) {
-      result.propertyIds = params.propertyIds as string[];
+    if (params.siteIds) {
+      result.siteIds = params.siteIds as string[];
     }
     if (params.period) {
       result.period = params.period as string;
@@ -271,7 +271,7 @@ export class ReportGenerationService {
     const reportParams = {
       tenantId: params.tenantId,
       ...(params.dateRange !== undefined ? { dateRange: params.dateRange } : {}),
-      ...(params.propertyIds !== undefined ? { propertyIds: params.propertyIds } : {}),
+      ...(params.siteIds !== undefined ? { siteIds: params.siteIds } : {}),
       ...(params.period !== undefined ? { period: params.period } : {}),
     };
 
@@ -281,8 +281,8 @@ export class ReportGenerationService {
           tenantId,
           reportParams
         );
-      case 'occupancy':
-        return this.options.dataProvider.getOccupancyData(
+      case 'asset_utilisation':
+        return this.options.dataProvider.getAssetUtilisationData(
           tenantId,
           reportParams
         );
@@ -291,13 +291,13 @@ export class ReportGenerationService {
           tenantId,
           reportParams
         );
-      case 'tenant':
-        return this.options.dataProvider.getTenantData(
+      case 'buyer':
+        return this.options.dataProvider.getBuyerData(
           tenantId,
           reportParams
         );
-      case 'property':
-        return this.options.dataProvider.getPropertyData(
+      case 'site':
+        return this.options.dataProvider.getSiteData(
           tenantId,
           reportParams
         );
@@ -315,21 +315,21 @@ export class ReportGenerationService {
         return financialReportToReportData(
           data as import('./reports/financial-report.js').FinancialReportData
         );
-      case 'occupancy':
-        return occupancyReportToReportData(
-          data as import('./reports/occupancy-report.js').OccupancyReportData
+      case 'asset_utilisation':
+        return assetUtilisationReportToReportData(
+          data as import('./reports/asset-utilisation-report.js').AssetUtilisationReportData
         );
       case 'maintenance':
         return maintenanceReportToReportData(
           data as import('./reports/maintenance-report.js').MaintenanceReportData
         );
-      case 'tenant':
-        return tenantReportToReportData(
-          data as import('./reports/tenant-report.js').TenantReportData
+      case 'buyer':
+        return buyerReportToReportData(
+          data as import('./reports/buyer-report.js').BuyerReportData
         );
-      case 'property':
-        return propertyReportToReportData(
-          data as import('./reports/property-report.js').PropertyReportData
+      case 'site':
+        return siteReportToReportData(
+          data as import('./reports/site-report.js').SiteReportData
         );
       default:
         throw new ReportGenerationError(

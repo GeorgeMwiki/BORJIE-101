@@ -23,9 +23,9 @@ const ROLE_BIAS: Readonly<
     'arrears_followup',
     'inspection_followup',
   ],
-  tenant: ['tenant_satisfaction', 'workflow_unblock'],
+  counterparty: ['counterparty_satisfaction', 'workflow_unblock'],
   admin: ['compliance_reminder', 'vendor_swap'],
-  agent: ['renewal_opportunity', 'tenant_satisfaction'],
+  agent: ['renewal_opportunity', 'counterparty_satisfaction'],
 };
 
 export function predictNeeds(
@@ -41,11 +41,11 @@ export function predictNeeds(
       hint: `${context.openArrearsCases} open arrears case${context.openArrearsCases === 1 ? '' : 's'}`,
     });
   }
-  if (context.leasesExpiring90 && context.leasesExpiring90 > 0) {
+  if (context.offtakesExpiring90 && context.offtakesExpiring90 > 0) {
     scored.push({
       category: 'renewal_opportunity',
-      confidence: clamp(0.3 + context.leasesExpiring90 * 0.04, 0, 0.9),
-      hint: `${context.leasesExpiring90} lease${context.leasesExpiring90 === 1 ? '' : 's'} near expiry`,
+      confidence: clamp(0.3 + context.offtakesExpiring90 * 0.04, 0, 0.9),
+      hint: `${context.offtakesExpiring90} offtake${context.offtakesExpiring90 === 1 ? '' : 's'} near expiry`,
     });
   }
   if (context.overdueTickets && context.overdueTickets > 0) {

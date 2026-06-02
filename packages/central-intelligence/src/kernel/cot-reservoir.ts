@@ -180,8 +180,8 @@ const COT_PII_PATTERNS_EXTENDED: ReadonlyArray<ExtendedPiiPattern> = [
   // Credit-card numbers — 13-19 digits with optional space/dash
   // groupings. The regex is intentionally permissive (catch any 13-19
   // digit run); the Luhn validator filters the noise. Numbers under
-  // 13 digits stay un-redacted because legitimate property numbers
-  // (lease IDs, invoice numbers) routinely sit in the 10-12 range.
+  // 13 digits stay un-redacted because legitimate mining-estate numbers
+  // (agreement IDs, invoice numbers) routinely sit in the 10-12 range.
   {
     kind: 'credit-card-luhn',
     re: /\b(?:\d[\s-]?){12,18}\d\b/g,

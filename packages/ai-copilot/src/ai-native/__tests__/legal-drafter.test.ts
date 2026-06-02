@@ -1,10 +1,10 @@
 /**
  * Legal drafter tests (Agent PhL).
  *
- *   1. Happy: compose a notice_to_vacate; cites jurisdiction statutes.
- *   2. Guardrail: eviction_notice + autonomy.canAutoSend = true — service
+ *   1. Happy: compose a notice_to_cease; cites jurisdiction statutes.
+ *   2. Guardrail: licence_suspension_notice + autonomy.canAutoSend = true — service
  *      MUST still set needsHumanReview + autonomy_decision=auto_send_forbidden.
- *   3. Global-first: unknown country plugin throws in leaseLaw.resolve →
+ *   3. Global-first: unknown country plugin throws in legalLaw.resolve →
  *      VALIDATION result (no LLM call).
  */
 
@@ -15,7 +15,7 @@ import type {
   LegalDraftRepository,
   LegalDraftRow,
   LegalDrafterLLMPort,
-  LeaseLawDispatchPort,
+  LegalLawDispatchPort,
 } from '../legal-drafter/types.js';
 
 function makeRepo() {
@@ -35,15 +35,15 @@ function makeRepo() {
 const TZ_LAW = {
   noticeWindowDays: 30,
   requiredClauses: ['notice-period', 'reason', 'remedy-window'],
-  citations: ['TZ-Landlord-Tenant-Act-2023'],
-  forbiddenClauses: ['perpetual-lease'],
+  citations: ['TZ-Mining-Act-2010'],
+  forbiddenClauses: ['perpetual-offtake'],
   sourceTag: 'TZ-default',
 };
 
 describe('LegalDrafter', () => {
-  it('happy: notice_to_vacate composes with jurisdiction citations', async () => {
+  it('happy: notice_to_cease composes with jurisdiction citations', async () => {
     const { repo, rows } = makeRepo();
-    const leaseLaw: LeaseLawDispatchPort = {
+    const legalLaw: LegalLawDispatchPort = {
       resolve(countryCode) {
         if (countryCode !== 'TZ') throw new Error('unknown country');
         return TZ_LAW;
@@ -53,10 +53,10 @@ describe('LegalDrafter', () => {
       async compose({ law }) {
         expect(law.sourceTag).toBe('TZ-default');
         return {
-          title: 'Notice to Vacate',
-          body: 'Dear tenant... (statutory 30-day notice).',
+          title: 'Notice to Cease Operations',
+          body: 'Dear counterparty... (statutory 30-day notice).',
           languageCode: 'sw',
-          reviewFlags: ['verify-move-out-date'],
+          reviewFlags: ['verify-cease-date'],
           citedClauses: ['notice-period', 'reason'],
           modelVersion: 'test-opus-1',
           confidence: 0.85,
@@ -66,10 +66,10 @@ describe('LegalDrafter', () => {
         };
       },
     };
-    const drafter = createLegalDrafter({ leaseLaw, llm, repo });
+    const drafter = createLegalDrafter({ legalLaw, llm, repo });
 
     const res = await drafter.draft({
-      documentKind: 'notice_to_vacate',
+      documentKind: 'notice_to_cease',
       context: {
         tenantId: 'tnt_1',
         countryCode: 'TZ',
@@ -80,23 +80,23 @@ describe('LegalDrafter', () => {
 
     expect(res.success).toBe(true);
     if (!res.success) return;
-    expect(res.data.documentKind).toBe('notice_to_vacate');
+    expect(res.data.documentKind).toBe('notice_to_cease');
     expect(res.data.needsHumanReview).toBe(true); // default — no autonomy lookup
     expect(res.data.autonomyDecision).toBe('queued_for_review');
-    expect(res.data.legalCitations).toContain('TZ-Landlord-Tenant-Act-2023');
+    expect(res.data.legalCitations).toContain('TZ-Mining-Act-2010');
     expect(res.data.citations.some((c) => c.kind === 'statute')).toBe(true);
     expect(rows).toHaveLength(1);
   });
 
-  it('guardrail: eviction_notice + autonomy claims auto-send → still forbidden', async () => {
+  it('guardrail: licence_suspension_notice + autonomy claims auto-send → still forbidden', async () => {
     const { repo } = makeRepo();
-    const leaseLaw: LeaseLawDispatchPort = {
+    const legalLaw: LegalLawDispatchPort = {
       resolve: () => TZ_LAW,
     };
     const llm: LegalDrafterLLMPort = {
       async compose() {
         return {
-          title: 'Eviction Notice',
+          title: 'Licence Suspension Notice',
           body: '...',
           languageCode: 'en',
           reviewFlags: [],
@@ -116,10 +116,10 @@ describe('LegalDrafter', () => {
       },
     };
 
-    const drafter = createLegalDrafter({ leaseLaw, llm, autonomy, repo });
+    const drafter = createLegalDrafter({ legalLaw, llm, autonomy, repo });
 
     const res = await drafter.draft({
-      documentKind: 'eviction_notice',
+      documentKind: 'licence_suspension_notice',
       context: { tenantId: 'tnt_1', countryCode: 'TZ' },
       facts: { cause: 'non-payment', arrearsDays: 90 },
     });
@@ -132,7 +132,7 @@ describe('LegalDrafter', () => {
 
   it('global-first: unknown country → VALIDATION, no LLM call', async () => {
     const { repo } = makeRepo();
-    const leaseLaw: LeaseLawDispatchPort = {
+    const legalLaw: LegalLawDispatchPort = {
       resolve: (countryCode) => {
         throw new Error(`no plugin for country ${countryCode}`);
       },
@@ -140,7 +140,7 @@ describe('LegalDrafter', () => {
     const llm: LegalDrafterLLMPort = {
       compose: vi.fn(),
     };
-    const drafter = createLegalDrafter({ leaseLaw, llm, repo });
+    const drafter = createLegalDrafter({ legalLaw, llm, repo });
 
     const res = await drafter.draft({
       documentKind: 'demand_letter',

@@ -89,7 +89,7 @@ export function buildAdaptPrompt(args: {
     'Rephrase each primitive in the context of THIS task class. The output is a single',
     'narrative paragraph (2-6 sentences) that explains how the primitives compose to',
     'solve the task. Cite each primitive id in square brackets, e.g.',
-    '"[gather-relevant-facts] pull the tenant\'s 12-month payment history; then [apply-tz-rental-act]…"',
+    '"[gather-relevant-facts] pull the counterparty\'s 12-month payment history; then [apply-tz-mining-act]…"',
     'Return raw text only, no JSON.',
   ].join('\n');
 }

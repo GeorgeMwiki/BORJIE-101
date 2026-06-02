@@ -34,14 +34,20 @@ export type {
 // cohort signals are reachable.
 // ─────────────────────────────────────────────────────────────────────
 
+// NOTE — these tier string values (`lease`/`unit`/`block`/`property`)
+// are a cross-package contract: api-gateway, packages/database, and
+// observability all emit/compare them on the `borjie.kernel.tier`
+// span attribute and in kernel-substrate fixtures. Renaming the
+// values would break those packages, so they are kept verbatim; the
+// mining-domain semantics are documented in the trailing comments.
 export type AwarenessTier =
-  | 'tenant'           // single tenant inside one lease
-  | 'lease'            // one lease (one or more tenants)
-  | 'unit'             // one unit (multiple leases over time)
-  | 'block'            // one block (multiple units)
-  | 'property'         // one property (one or more blocks)
-  | 'portfolio'        // one owner's properties
-  | 'org'              // one estate-management org
+  | 'tenant'           // single counterparty inside one agreement
+  | 'lease'            // one offtake / supply agreement (one or more counterparties)
+  | 'unit'             // one workable unit / pit (multiple agreements over time)
+  | 'block'            // one block of units (multiple units)
+  | 'property'         // one site (one or more blocks)
+  | 'portfolio'        // one owner's sites
+  | 'org'              // one mining-estate org
   | 'industry';        // platform-wide DP-aggregate scope
 
 // ─────────────────────────────────────────────────────────────────────
@@ -95,9 +101,9 @@ export interface ThoughtRequest {
   /** When true, request a self-review judge pass before returning. */
   readonly requireJudge?: boolean;
   /**
-   * Optional multimodal attachments (lease scans, property photos,
-   * damage assessment images). When present, the kernel adds `'vision'`
-   * to the sensor capability requirement for this turn.
+   * Optional multimodal attachments (agreement scans, site photos,
+   * equipment / damage assessment images). When present, the kernel
+   * adds `'vision'` to the sensor capability requirement for this turn.
    */
   readonly attachments?: ReadonlyArray<ThoughtAttachment>;
   /**
@@ -142,9 +148,13 @@ export interface ThoughtRequest {
    * Deep-reasoning toggle. When `true` AND the kernel has a
    * `MultiLLMSynthesizerPort` wired, the sensor step (7) is replaced
    * with a mixture-of-agents fan-out across N proposer models followed
-   * by a Claude-Opus synthesis. Used for "I really need a calibrated
-   * answer" code paths: legal-adjacent advice, owner-payout strategy,
-   * rent-increase letters, eviction-letter drafting.
+   * by a Claude-Opus synthesis.
+   *
+   * Defaults to `false` so existing callers keep the single-shot sensor
+   * path. The synthesizer is a side-channel — when wired but flag is
+   * Used for "I really need a calibrated answer" code paths: legal-
+   * adjacent advice, owner-payout strategy, royalty-adjustment letters,
+   * licence-suspension-notice drafting.
    *
    * Defaults to `false` so existing callers keep the single-shot sensor
    * path. The synthesizer is a side-channel — when wired but flag is
@@ -165,10 +175,12 @@ export interface ThoughtRequest {
   readonly requireSynthesis?: boolean;
   /**
    * Wave-13 F2 — optional intended action namespace string (e.g.
-   * `md:create-lease`, `md:adjust-invoice`, `md:read-tenant`). When
-   * the kernel is wired with `BrainKernelDeps.tierPolicy`, this
-   * field is fed to `assertTierPolicy(role, action)` BEFORE the
-   * sensor call. Absent action ⇒ tier-policy gate is a no-op.
+   * `md:create-lease`, `md:adjust-invoice`, `md:read-tenant` — the
+   * `md:` action literals are policy-rule keys kept verbatim; see
+   * policy-gate). When the kernel is wired with
+   * `BrainKernelDeps.tierPolicy`, this field is fed to
+   * `assertTierPolicy(role, action)` BEFORE the sensor call. Absent
+   * action ⇒ tier-policy gate is a no-op.
    */
   readonly action?: string;
 }
@@ -516,8 +528,8 @@ export interface ProvenanceSink {
 // Grounding facts — domain-specific data points the kernel pre-fetches
 // and mixes into the system prompt so the sensor answers from real
 // state, not from training memory. Distinct from cohort signals: these
-// are tenant-internal (occupancy, arrears, work-orders), not DP-
-// aggregate cross-tenant statistics.
+// are tenant-internal (production, outstanding royalties, work-orders),
+// not DP-aggregate cross-tenant statistics.
 // ─────────────────────────────────────────────────────────────────────
 
 /**

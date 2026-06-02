@@ -40,66 +40,66 @@ function asActionPlan(items: ReadonlyArray<Omit<ActionItem, 'id'> & { idSuffix: 
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 1. Leasing financial performance
+// 1. Offtake financial performance
 // ────────────────────────────────────────────────────────────────────────────
 
-export const LEASING_FINANCIAL_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Leasing financial performance — ${ctx.spec.period.label}`,
+export const OFFTAKE_FINANCIAL_BLUEPRINT: ComposerBlueprint = {
+  title: (ctx) => `Offtake financial performance — ${ctx.spec.period.label}`,
   composerSystemNote:
-    'Compose a leasing-financial report. Sections: trend-headline, revenue-detail, occupancy-detail, collection-detail, scenario-outlook.',
+    'Compose an offtake-financial report. Sections: trend-headline, revenue-detail, production-detail, collection-detail, scenario-outlook.',
   sectionBlueprints: [
-    { id: 'trend-headline', title: 'Trend headline', heading: 1, fragmentPrefixes: ['lf-rev-', 'lf-occ-'] },
-    { id: 'revenue-detail', title: 'Revenue detail', heading: 2, fragmentPrefixes: ['lf-rev-'], tableIds: ['lf-revenue-table'], chartIds: ['lf-revenue-chart'] },
-    { id: 'occupancy-detail', title: 'Occupancy detail', heading: 2, fragmentPrefixes: ['lf-occ-'], chartIds: ['lf-occupancy-chart'] },
-    { id: 'collection-detail', title: 'Collection performance', heading: 2, fragmentPrefixes: ['lf-rev-'] },
-    { id: 'scenario-outlook', title: 'Scenario outlook', heading: 2, fragmentPrefixes: ['lf-rev-', 'lf-occ-'] },
+    { id: 'trend-headline', title: 'Trend headline', heading: 1, fragmentPrefixes: ['of-rev-', 'of-prod-'] },
+    { id: 'revenue-detail', title: 'Revenue detail', heading: 2, fragmentPrefixes: ['of-rev-'], tableIds: ['of-revenue-table'], chartIds: ['of-revenue-chart'] },
+    { id: 'production-detail', title: 'Production detail', heading: 2, fragmentPrefixes: ['of-prod-'], chartIds: ['of-production-chart'] },
+    { id: 'collection-detail', title: 'Collection performance', heading: 2, fragmentPrefixes: ['of-rev-'] },
+    { id: 'scenario-outlook', title: 'Scenario outlook', heading: 2, fragmentPrefixes: ['of-rev-', 'of-prod-'] },
   ],
   executiveSummary: (ctx) =>
-    `Leasing financial performance for ${ctx.spec.period.label}. ${ctx.evidence.fragments.length} evidence fragments triangulated across revenue, occupancy, and collection. Collection performance and arrears age form the leading indicators for the next two quarters; the scenario outlook stress-tests two paths around the central revenue trajectory.`,
+    `Offtake financial performance for ${ctx.spec.period.label}. ${ctx.evidence.fragments.length} evidence fragments triangulated across revenue, production, and collection. Collection performance and outstanding-royalty age form the leading indicators for the next two quarters; the scenario outlook stress-tests two paths around the central revenue trajectory.`,
   actionPlan: (ctx) =>
     asActionPlan([
       {
-        idSuffix: 'lf-1',
-        title: 'Close arrears > 60 days for the top-decile units',
-        description: 'Operations lead initiates structured engagement on units in the 61-90 + 91+ ageing buckets within 14 days.',
+        idSuffix: 'of-1',
+        title: 'Close outstanding royalties > 60 days for the top-decile sites',
+        description: 'Operations lead initiates structured engagement on sites in the 61-90 + 91+ ageing buckets within 14 days.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p0',
-        successCriterion: 'Top-decile arrears reduced ≥30% within 30 days.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('lf-rev-')).slice(0, 3).map((f) => f.id),
+        successCriterion: 'Top-decile outstanding royalties reduced ≥30% within 30 days.',
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('of-rev-')).slice(0, 3).map((f) => f.id),
       },
       {
-        idSuffix: 'lf-2',
-        title: 'Renew leases expiring inside 90 days',
-        description: 'Issue renewal terms to every lease expiring in the next 90 days with priority on top-quartile rent units.',
+        idSuffix: 'of-2',
+        title: 'Renew supply agreements expiring inside 90 days',
+        description: 'Issue renewal terms to every supply agreement expiring in the next 90 days with priority on top-quartile royalty sites.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 30),
         priority: 'p1',
         successCriterion: 'Renewal cover ratio ≥75% measured at +60 days.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('lf-occ-')).slice(0, 2).map((f) => f.id),
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('of-prod-')).slice(0, 2).map((f) => f.id),
       },
       {
-        idSuffix: 'lf-3',
+        idSuffix: 'of-3',
         title: 'Tighten the collection cadence',
         description: 'Move from a monthly to a weekly collection reconciliation; pair every aged invoice with an SMS + WhatsApp nudge.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 21),
         priority: 'p1',
         successCriterion: 'Collection ratio improves ≥3pp month-on-month.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('lf-rev-')).slice(0, 2).map((f) => f.id),
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('of-rev-')).slice(0, 2).map((f) => f.id),
       },
       {
-        idSuffix: 'lf-4',
-        title: 'Recalibrate the occupancy forecast',
-        description: 'Refresh the 12-month occupancy forecast using the latest trend; surface the variance to the Asset Committee.',
+        idSuffix: 'of-4',
+        title: 'Recalibrate the asset-utilisation forecast',
+        description: 'Refresh the 12-month asset-utilisation forecast using the latest trend; surface the variance to the Asset Committee.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 45),
         priority: 'p2',
         successCriterion: 'Forecast variance to actuals within ±3pp at the +90-day check.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('lf-occ-')).slice(0, 2).map((f) => f.id),
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('of-prod-')).slice(0, 2).map((f) => f.id),
       },
       {
-        idSuffix: 'lf-5',
+        idSuffix: 'of-5',
         title: 'Sign off the period MIS pack',
         description: 'Confirm the renderer-produced report against the source GL; sign off and archive the WORM-signed PDF.',
         owner: actorOwner(ctx),
@@ -116,9 +116,9 @@ export const LEASING_FINANCIAL_BLUEPRINT: ComposerBlueprint = {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const CONDITIONAL_SURVEY_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Conditional survey — ${ctx.spec.scope.kind === 'property' ? ctx.spec.scope.propertyId : 'portfolio'}`,
+  title: (ctx) => `Conditional survey — ${ctx.spec.scope.kind === 'site' ? ctx.spec.scope.siteId : 'portfolio'}`,
   composerSystemNote:
-    'Compose an RICS Building Survey Class 3 conditional survey. Sections: condition-overview, defect-register, prior-comparison, capex-prioritisation, recommended-actions.',
+    'Compose an asset-integrity conditional survey. Sections: condition-overview, defect-register, prior-comparison, capex-prioritisation, recommended-actions.',
   sectionBlueprints: [
     { id: 'condition-overview', title: 'Condition overview', heading: 1, fragmentPrefixes: ['cs-latest-overall'] },
     { id: 'defect-register', title: 'Defect register', heading: 2, fragmentPrefixes: ['cs-defect-'], tableIds: ['cs-defect-table'], chartIds: ['cs-capex-by-element'] },
@@ -127,13 +127,13 @@ export const CONDITIONAL_SURVEY_BLUEPRINT: ComposerBlueprint = {
     { id: 'recommended-actions', title: 'Recommended actions', heading: 2, fragmentPrefixes: ['cs-defect-'] },
   ],
   executiveSummary: (ctx) =>
-    `Conditional survey snapshot for ${ctx.spec.period.label}. ${ctx.evidence.fragments.length} defects and survey observations consolidated against the prior period. The recommended capex pathway prioritises envelope and mechanical-electrical defects ahead of cosmetic items; the prior-comparison section quantifies the velocity of grade decay.`,
+    `Conditional survey snapshot for ${ctx.spec.period.label}. ${ctx.evidence.fragments.length} defects and survey observations consolidated against the prior period. The recommended capex pathway prioritises processing-plant and mechanical-electrical defects ahead of cosmetic items; the prior-comparison section quantifies the velocity of grade decay.`,
   actionPlan: (ctx) =>
     asActionPlan([
       {
         idSuffix: 'cs-1',
-        title: 'Engage RICS-accredited assessor for critical defects',
-        description: 'Procure a quote within 14 days from an RICS-accredited assessor to scope the highest-severity defects.',
+        title: 'Engage accredited assessor for critical defects',
+        description: 'Procure a quote within 14 days from an accredited asset-integrity assessor to scope the highest-severity defects.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p0',
@@ -225,11 +225,11 @@ export const ACQUISITION_IC_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'ic-3',
         title: 'Source the title commitment',
-        description: 'Order an ALTA title commitment; resolve every Schedule B-II item before close.',
+        description: 'Order a mineral-title commitment; resolve every encumbrance item before close.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 21),
         priority: 'p1',
-        successCriterion: 'Clean Schedule B-II in 21 days.',
+        successCriterion: 'Clean mineral-title schedule in 21 days.',
         citationIds: ['ic-modelled'],
       },
       {
@@ -260,7 +260,7 @@ export const ACQUISITION_IC_BLUEPRINT: ComposerBlueprint = {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const DISPOSITION_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Disposition memo — ${ctx.spec.scope.kind === 'property' ? ctx.spec.scope.propertyId : 'portfolio'}`,
+  title: (ctx) => `Disposition memo — ${ctx.spec.scope.kind === 'site' ? ctx.spec.scope.siteId : 'portfolio'}`,
   composerSystemNote:
     'Compose a disposition memo + asset profile. Sections: exit-thesis, buyer-pool, pricing-range, sensitivities, marketing-plan.',
   sectionBlueprints: [
@@ -287,7 +287,7 @@ export const DISPOSITION_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'd-2',
         title: 'Finalise the Offering Memorandum',
-        description: 'Produce a 24-page OM with the property profile and the bidder-friendly model.',
+        description: 'Produce a 24-page OM with the site profile and the bidder-friendly model.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 30),
         priority: 'p1',
@@ -332,7 +332,7 @@ export const DISPOSITION_BLUEPRINT: ComposerBlueprint = {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const REFINANCING_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Refinancing memo — ${ctx.spec.scope.kind === 'property' ? ctx.spec.scope.propertyId : 'portfolio'}`,
+  title: (ctx) => `Refinancing memo — ${ctx.spec.scope.kind === 'site' ? ctx.spec.scope.siteId : 'portfolio'}`,
   composerSystemNote:
     'Compose a refinancing strategy memo. Sections: thesis, trade-space, lender-shortlist, stress-tests, execution-plan.',
   sectionBlueprints: [
@@ -441,7 +441,7 @@ export const SUSTAINABILITY_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'sus-3',
         title: 'Pilot the highest-priority NbS opportunity',
-        description: 'Pilot the top NbS opportunity on a single property; measure uplift on BNG net-gain.',
+        description: 'Pilot the top NbS opportunity on a single site; measure uplift on BNG net-gain.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 90),
         priority: 'p2',
@@ -493,7 +493,7 @@ export const EXPANSION_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'ex-1',
         title: 'Run a focused HBU on the top-ranked market',
-        description: 'Apply the Appraisal Institute four-test framework to the top-ranked market.',
+        description: 'Apply the four-test highest-and-best-use framework to the top-ranked market.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 30),
         priority: 'p1',
@@ -544,100 +544,100 @@ export const EXPANSION_BLUEPRINT: ComposerBlueprint = {
 };
 
 // ────────────────────────────────────────────────────────────────────────────
-// 8. Tenant credit + risk profile
+// 8. Buyer credit + risk profile
 // ────────────────────────────────────────────────────────────────────────────
 
-export const TENANT_CREDIT_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Tenant credit profile — ${ctx.spec.scope.kind === 'tenant' ? ctx.spec.scope.tenantPersonId : 'unknown'}`,
+export const BUYER_CREDIT_BLUEPRINT: ComposerBlueprint = {
+  title: (ctx) => `Buyer credit profile — ${ctx.spec.scope.kind === 'buyer' ? ctx.spec.scope.buyerPersonId : 'unknown'}`,
   composerSystemNote:
-    'Compose a tenant credit + risk profile. Sections: stage, payment-history, complaints, credit-signals, recommended-stance.',
+    'Compose a buyer credit + risk profile. Sections: stage, payment-history, complaints, credit-signals, recommended-stance.',
   sectionBlueprints: [
-    { id: 'stage', title: 'Lifecycle stage', heading: 1, fragmentPrefixes: ['tc-stage'] },
-    { id: 'payment-history', title: 'Payment history', heading: 2, fragmentPrefixes: ['tc-pay-'], tableIds: ['tc-pay-table'] },
-    { id: 'complaints', title: 'Complaints record', heading: 2, fragmentPrefixes: ['tc-cmp-'] },
-    { id: 'credit-signals', title: 'Credit signals', heading: 2, fragmentPrefixes: ['tc-sig-'], tableIds: ['tc-sig-table'] },
-    { id: 'recommended-stance', title: 'Recommended stance', heading: 2, fragmentPrefixes: ['tc-stage', 'tc-pay-', 'tc-sig-'] },
+    { id: 'stage', title: 'Lifecycle stage', heading: 1, fragmentPrefixes: ['bc-stage'] },
+    { id: 'payment-history', title: 'Payment history', heading: 2, fragmentPrefixes: ['bc-pay-'], tableIds: ['bc-pay-table'] },
+    { id: 'complaints', title: 'Complaints record', heading: 2, fragmentPrefixes: ['bc-cmp-'] },
+    { id: 'credit-signals', title: 'Credit signals', heading: 2, fragmentPrefixes: ['bc-sig-'], tableIds: ['bc-sig-table'] },
+    { id: 'recommended-stance', title: 'Recommended stance', heading: 2, fragmentPrefixes: ['bc-stage', 'bc-pay-', 'bc-sig-'] },
   ],
   executiveSummary: (ctx) =>
-    `Tenant credit profile for ${ctx.spec.period.label}. Payment cadence and complaint record triangulated with the credit-signal weights; recommended stance grounded in the lifecycle stage and the weighted signal score.`,
+    `Buyer credit profile for ${ctx.spec.period.label}. Payment cadence and complaint record triangulated with the credit-signal weights; recommended stance grounded in the lifecycle stage and the weighted signal score.`,
   actionPlan: (ctx) =>
     asActionPlan([
       {
-        idSuffix: 'tc-1',
-        title: 'Recalibrate the tenant risk band',
-        description: 'Apply the weighted credit-signal score to the tenant\'s risk band; update the CRM.',
+        idSuffix: 'bc-1',
+        title: 'Recalibrate the buyer risk band',
+        description: 'Apply the weighted credit-signal score to the buyer\'s risk band; update the CRM.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 7),
         priority: 'p1',
-        successCriterion: 'Risk band updated and visible in the tenant CRM inside 7 days.',
-        citationIds: ['tc-stage'],
+        successCriterion: 'Risk band updated and visible in the buyer CRM inside 7 days.',
+        citationIds: ['bc-stage'],
       },
       {
-        idSuffix: 'tc-2',
+        idSuffix: 'bc-2',
         title: 'Schedule a relationship call',
-        description: 'Relationship lead calls the tenant within 14 days; document the call in the CRM.',
+        description: 'Relationship lead calls the buyer within 14 days; document the call in the CRM.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p2',
         successCriterion: 'Call logged with summary inside 14 days.',
-        citationIds: ['tc-stage'],
+        citationIds: ['bc-stage'],
       },
       {
-        idSuffix: 'tc-3',
+        idSuffix: 'bc-3',
         title: 'Close open complaints',
         description: 'Close any open complaint older than 7 days.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p1',
         successCriterion: 'No open complaints older than 14 days.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('tc-cmp-')).slice(0, 1).map((f) => f.id),
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('bc-cmp-')).slice(0, 1).map((f) => f.id),
       },
       {
-        idSuffix: 'tc-4',
-        title: 'Activate proactive arrears nudges',
-        description: 'If the tenant has any arrears bucket activity, enable the proactive nudge sequence.',
+        idSuffix: 'bc-4',
+        title: 'Activate proactive outstanding-royalty nudges',
+        description: 'If the buyer has any outstanding-royalty bucket activity, enable the proactive nudge sequence.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 7),
         priority: 'p1',
         successCriterion: 'Nudge sequence enabled inside 7 days.',
-        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('tc-pay-')).slice(0, 1).map((f) => f.id),
+        citationIds: ctx.evidence.fragments.filter((f) => f.id.startsWith('bc-pay-')).slice(0, 1).map((f) => f.id),
       },
       {
-        idSuffix: 'tc-5',
+        idSuffix: 'bc-5',
         title: 'Plan the renewal conversation',
-        description: 'Brief the lease-renewal team on the credit profile before the renewal window opens.',
+        description: 'Brief the supply-agreement renewal team on the credit profile before the renewal window opens.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 30),
         priority: 'p2',
         successCriterion: 'Brief delivered to renewal team inside 30 days.',
-        citationIds: ['tc-stage'],
+        citationIds: ['bc-stage'],
       },
     ]),
 };
 
 // ────────────────────────────────────────────────────────────────────────────
-// 9. Rent-roll + arrears ledger
+// 9. Royalty-roll + outstanding-royalties ledger
 // ────────────────────────────────────────────────────────────────────────────
 
-export const RENT_ROLL_BLUEPRINT: ComposerBlueprint = {
-  title: (ctx) => `Rent-roll + arrears ledger — ${ctx.spec.period.label}`,
+export const ROYALTY_ROLL_BLUEPRINT: ComposerBlueprint = {
+  title: (ctx) => `Royalty-roll + outstanding ledger — ${ctx.spec.period.label}`,
   composerSystemNote:
-    'Compose a rent-roll and arrears ledger report. Sections: rent-roll-overview, ageing-waterfall, top-drivers, recovery-plan, gl-reconciliation.',
+    'Compose a royalty-roll and outstanding-royalties ledger report. Sections: royalty-roll-overview, ageing-waterfall, top-drivers, recovery-plan, gl-reconciliation.',
   sectionBlueprints: [
-    { id: 'rent-roll-overview', title: 'Rent-roll overview', heading: 1, fragmentPrefixes: ['rr-'], tableIds: ['rr-table'] },
+    { id: 'royalty-roll-overview', title: 'Royalty-roll overview', heading: 1, fragmentPrefixes: ['rr-'], tableIds: ['rr-table'] },
     { id: 'ageing-waterfall', title: 'Ageing-bucket waterfall', heading: 2, fragmentPrefixes: ['rr-'], tableIds: ['rr-ageing-table'], chartIds: ['rr-ageing-chart'] },
-    { id: 'top-drivers', title: 'Top arrears drivers', heading: 2, fragmentPrefixes: ['rr-'], tableIds: ['rr-top-drivers'] },
+    { id: 'top-drivers', title: 'Top outstanding-royalty drivers', heading: 2, fragmentPrefixes: ['rr-'], tableIds: ['rr-top-drivers'] },
     { id: 'recovery-plan', title: 'Recovery plan', heading: 2, fragmentPrefixes: ['rr-'] },
     { id: 'gl-reconciliation', title: 'GL reconciliation', heading: 2, fragmentPrefixes: ['rr-'] },
   ],
   executiveSummary: (ctx) =>
-    `Rent-roll + arrears ledger as of ${ctx.spec.period.label}. ${ctx.evidence.fragments.filter((f) => f.id.startsWith('rr-')).length} units reconciled. Ageing-bucket waterfall surfaces the recovery priority; the top-drivers list is the action-grid for the next 30 days.`,
+    `Royalty-roll + outstanding-royalties ledger as of ${ctx.spec.period.label}. ${ctx.evidence.fragments.filter((f) => f.id.startsWith('rr-')).length} sites reconciled. Ageing-bucket waterfall surfaces the recovery priority; the top-drivers list is the action-grid for the next 30 days.`,
   actionPlan: (ctx) =>
     asActionPlan([
       {
         idSuffix: 'rr-1',
-        title: 'Send formal arrears notices for the 91+ bucket',
-        description: 'Issue formal arrears notices for every unit in the 91+ days bucket.',
+        title: 'Send formal outstanding-royalty notices for the 91+ bucket',
+        description: 'Issue formal outstanding-royalty notices for every site in the 91+ days bucket.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 7),
         priority: 'p0',
@@ -647,7 +647,7 @@ export const RENT_ROLL_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'rr-2',
         title: 'Open payment-plan negotiations for the 61-90 bucket',
-        description: 'Offer a structured payment plan to every tenant in the 61-90 bucket.',
+        description: 'Offer a structured payment plan to every buyer in the 61-90 bucket.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p1',
@@ -657,7 +657,7 @@ export const RENT_ROLL_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'rr-3',
         title: 'Reconcile to the GL',
-        description: 'Reconcile the rent-roll arrears total to the GL receivables sub-ledger.',
+        description: 'Reconcile the royalty-roll outstanding total to the GL receivables sub-ledger.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 7),
         priority: 'p0',
@@ -677,7 +677,7 @@ export const RENT_ROLL_BLUEPRINT: ComposerBlueprint = {
       {
         idSuffix: 'rr-5',
         title: 'Escalate the top-decile cases',
-        description: 'Escalate the top-decile arrears cases to the asset-manager review.',
+        description: 'Escalate the top-decile outstanding-royalty cases to the asset-manager review.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p1',
@@ -694,17 +694,17 @@ export const RENT_ROLL_BLUEPRINT: ComposerBlueprint = {
 export const AOR_BLUEPRINT: ComposerBlueprint = {
   title: (ctx) => `Annual Estate Operating Review — ${ctx.spec.period.label}`,
   composerSystemNote:
-    'Compose the Annual Estate Operating Review for the Board. Sections: operating-verdict, leasing, sustainability, capex, capital-structure, expansion-pipeline.',
+    'Compose the Annual Estate Operating Review for the Board. Sections: operating-verdict, offtake, sustainability, capex, capital-structure, expansion-pipeline.',
   sectionBlueprints: [
-    { id: 'operating-verdict', title: 'Operating verdict', heading: 1, fragmentPrefixes: ['lf-lf-', 'sus-sus-', 'rr-rr-'] },
-    { id: 'leasing', title: 'Leasing performance', heading: 2, fragmentPrefixes: ['lf-lf-rev-', 'lf-lf-occ-'] },
+    { id: 'operating-verdict', title: 'Operating verdict', heading: 1, fragmentPrefixes: ['of-of-', 'sus-sus-', 'rr-rr-'] },
+    { id: 'offtake', title: 'Offtake performance', heading: 2, fragmentPrefixes: ['of-of-rev-', 'of-of-prod-'] },
     { id: 'sustainability', title: 'Sustainability and GHG', heading: 2, fragmentPrefixes: ['sus-sus-'] },
     { id: 'capex', title: 'Capex and conditional surveys', heading: 2, fragmentPrefixes: ['cs-cs-'] },
-    { id: 'capital-structure', title: 'Capital structure and arrears', heading: 2, fragmentPrefixes: ['rr-rr-'] },
+    { id: 'capital-structure', title: 'Capital structure and outstanding royalties', heading: 2, fragmentPrefixes: ['rr-rr-'] },
     { id: 'expansion-pipeline', title: 'Expansion pipeline', heading: 2, fragmentPrefixes: ['ex-ex-'] },
   ],
   executiveSummary: (ctx) =>
-    `Annual Estate Operating Review for ${ctx.spec.period.label}. The Board verdict integrates leasing, sustainability, capex, capital structure, and the expansion pipeline into a single defensible operating outcome for the fiscal year.`,
+    `Annual Estate Operating Review for ${ctx.spec.period.label}. The Board verdict integrates offtake, sustainability, capex, capital structure, and the expansion pipeline into a single defensible operating outcome for the fiscal year.`,
   actionPlan: (ctx) =>
     asActionPlan([
       {
@@ -749,8 +749,8 @@ export const AOR_BLUEPRINT: ComposerBlueprint = {
       },
       {
         idSuffix: 'aor-5',
-        title: 'Approve the arrears recovery plan',
-        description: 'Approve the structured arrears-recovery plan; track weekly to the Board.',
+        title: 'Approve the outstanding-royalty recovery plan',
+        description: 'Approve the structured outstanding-royalty recovery plan; track weekly to the Board.',
         owner: actorOwner(ctx),
         dueDateIso: isoDateAdd(ctx.spec.period.periodEnd, 14),
         priority: 'p0',

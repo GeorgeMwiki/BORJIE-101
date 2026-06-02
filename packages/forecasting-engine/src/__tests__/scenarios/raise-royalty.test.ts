@@ -1,24 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { simulate } from '../../orchestrator/simulate.js';
-import { raiseRentScenario } from '../../scenarios/library/raise-rent.js';
+import { raiseRoyaltyScenario } from '../../scenarios/library/raise-royalty.js';
 import { defaultIntentFor } from '../../world-model/business-archetype.js';
 import type { BusinessContext, ProposedAction } from '../../types.js';
 
-function makePortfolio(unitCount: number): BusinessContext {
-  const tenants = Array.from({ length: unitCount }, (_, i) => ({
-    tenantId: `t${i}`,
+function makeEstate(unitCount: number): BusinessContext {
+  const counterparties = Array.from({ length: unitCount }, (_, i) => ({
+    counterpartyId: `t${i}`,
     unitId: `u${i}`,
     tenureDays: 365 + i * 30,
-    monthlyRent: 45_000 + i * 1_000,
+    monthlyRoyalty: 45_000 + i * 1_000,
     paymentReliability: 0.92,
-    leaseEndsAt: Date.now() + 365 * 86_400_000,
+    offtakeEndsAt: Date.now() + 365 * 86_400_000,
   }));
   const units = Array.from({ length: unitCount }, (_, i) => ({
     unitId: `u${i}`,
-    propertyId: 'p1',
+    siteId: 'p1',
     microMarketId: 'mm1',
-    occupied: true,
-    listedRent: 45_000 + i * 1_000,
+    inProduction: true,
+    listedRoyalty: 45_000 + i * 1_000,
   }));
   const dayMs = 86_400_000;
   const historicalCashflow = Array.from({ length: 24 }, (_, i) => ({
@@ -27,7 +27,7 @@ function makePortfolio(unitCount: number): BusinessContext {
   }));
   return {
     orgId: 'org-test',
-    tenants,
+    counterparties,
     units,
     cashBalance: 2_000_000,
     horizonDays: 365,
@@ -37,16 +37,16 @@ function makePortfolio(unitCount: number): BusinessContext {
   };
 }
 
-describe('raise-rent scenario', () => {
-  it('produces ranked outcomes for a 10-unit portfolio', async () => {
-    const ctx = makePortfolio(10);
+describe('raise-royalty scenario', () => {
+  it('produces ranked outcomes for a 10-unit estate', async () => {
+    const ctx = makeEstate(10);
     const action: ProposedAction = {
-      kind: 'raise-rent',
+      kind: 'raise-royalty',
       payload: {
         unitIds: ctx.units.map((u) => u.unitId),
         pctIncrease: 0.07,
         effectiveDateMs: ctx.nowMs + 30 * 86_400_000,
-        microMarketVacancyRate: 0.05,
+        microMarketAvailableCapacityRate: 0.05,
         marketDemandIndex: 1,
       },
       riskTier: 'mutate',
@@ -56,15 +56,15 @@ describe('raise-rent scenario', () => {
       context: ctx,
       alternatives: [
         {
-          scenario: raiseRentScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
+          scenario: raiseRoyaltyScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
           input: { ...action.payload, pctIncrease: 0.03 },
         },
         {
-          scenario: raiseRentScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
+          scenario: raiseRoyaltyScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
           input: { ...action.payload, pctIncrease: 0.07 },
         },
         {
-          scenario: raiseRentScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
+          scenario: raiseRoyaltyScenario as unknown as import('../../scenarios/scenario.js').AnyScenario,
           input: { ...action.payload, pctIncrease: 0.15 },
         },
       ],
@@ -74,27 +74,27 @@ describe('raise-rent scenario', () => {
     const scores = result.ranked.map((r) => r.score);
     expect(scores[0]).toBeGreaterThanOrEqual(scores[1] ?? 0);
     expect(scores[1]).toBeGreaterThanOrEqual(scores[2] ?? 0);
-    expect(result.diffView.recommended).toBe('raise-rent');
+    expect(result.diffView.recommended).toBe('raise-royalty');
   });
 
   it('lower pctIncrease → higher retention', async () => {
-    const ctx = makePortfolio(5);
-    const lowOutcome = await raiseRentScenario.run(
+    const ctx = makeEstate(5);
+    const lowOutcome = await raiseRoyaltyScenario.run(
       {
         unitIds: ctx.units.map((u) => u.unitId),
         pctIncrease: 0.02,
         effectiveDateMs: ctx.nowMs,
-        microMarketVacancyRate: 0.05,
+        microMarketAvailableCapacityRate: 0.05,
         marketDemandIndex: 1,
       },
       { business: ctx, sandbox: stubSandbox(), seed: 1 },
     );
-    const highOutcome = await raiseRentScenario.run(
+    const highOutcome = await raiseRoyaltyScenario.run(
       {
         unitIds: ctx.units.map((u) => u.unitId),
         pctIncrease: 0.15,
         effectiveDateMs: ctx.nowMs,
-        microMarketVacancyRate: 0.05,
+        microMarketAvailableCapacityRate: 0.05,
         marketDemandIndex: 1,
       },
       { business: ctx, sandbox: stubSandbox(), seed: 1 },

@@ -93,11 +93,11 @@ export const marketingCampaignLaunchTemplate: ProposalTemplate = {
       tenantId: signal.tenantId,
       domain: 'marketing',
       templateId: 'marketing_campaign_launch',
-      title: 'Launch marketing campaign — unit is below market',
-      rationale: `Market-surveillance reports this unit rents ${(magnitude * 100).toFixed(1)}% below the 30-day market median. A targeted campaign should close the gap.`,
-      suggestedAction: 'Publish refreshed listing + send open-house invite wave for affected unit.',
+      title: 'Launch marketing campaign — pit output is below market',
+      rationale: `Market-surveillance reports this pit's offtake price is ${(magnitude * 100).toFixed(1)}% below the 30-day market median. A targeted campaign should close the gap.`,
+      suggestedAction: 'Publish refreshed listing + send buyer-outreach wave for affected pit.',
       estimatedImpact: {
-        metric: 'expected_rent_recovery_pct',
+        metric: 'expected_price_recovery_pct',
         magnitude,
         unit: 'percent',
       },
@@ -117,7 +117,7 @@ export const priceAdjustmentTemplate: ProposalTemplate = {
   templateId: 'price_adjustment',
   sourceId: 'market-surveillance',
   domain: 'offtake',
-  autonomyAction: 'adjust_asking_rent',
+  autonomyAction: 'adjust_asking_price',
   safetyCritical: false,
   matches(signal) {
     if (signal.source !== 'market-surveillance') return false;
@@ -136,7 +136,7 @@ export const priceAdjustmentTemplate: ProposalTemplate = {
       rationale: `Our offtake price is ${(Math.abs(deltaPct) * 100).toFixed(1)}% off the market median; a ${direction} aligns us with comps.`,
       suggestedAction: `Update next offtake-renewal draft with a ${direction} toward market median.`,
       estimatedImpact: {
-        metric: 'rent_delta_pct',
+        metric: 'price_delta_pct',
         magnitude: Math.abs(deltaPct),
         unit: 'percent',
       },

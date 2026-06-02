@@ -26,13 +26,13 @@ function makeCtx(): BusinessContext {
   const dayMs = 86_400_000;
   return {
     orgId: 'org-x',
-    tenants: [
-      { tenantId: 't1', unitId: 'u1', tenureDays: 200, monthlyRent: 50_000, paymentReliability: 0.9, leaseEndsAt: Date.now() + 365 * dayMs },
-      { tenantId: 't2', unitId: 'u2', tenureDays: 800, monthlyRent: 45_000, paymentReliability: 0.85, leaseEndsAt: Date.now() + 365 * dayMs },
+    counterparties: [
+      { counterpartyId: 't1', unitId: 'u1', tenureDays: 200, monthlyRoyalty: 50_000, paymentReliability: 0.9, offtakeEndsAt: Date.now() + 365 * dayMs },
+      { counterpartyId: 't2', unitId: 'u2', tenureDays: 800, monthlyRoyalty: 45_000, paymentReliability: 0.85, offtakeEndsAt: Date.now() + 365 * dayMs },
     ],
     units: [
-      { unitId: 'u1', propertyId: 'p1', microMarketId: 'mm1', occupied: true, listedRent: 50_000 },
-      { unitId: 'u2', propertyId: 'p1', microMarketId: 'mm1', occupied: true, listedRent: 45_000 },
+      { unitId: 'u1', siteId: 'p1', microMarketId: 'mm1', inProduction: true, listedRoyalty: 50_000 },
+      { unitId: 'u2', siteId: 'p1', microMarketId: 'mm1', inProduction: true, listedRoyalty: 45_000 },
     ],
     cashBalance: 500_000,
     horizonDays: 90,
@@ -43,20 +43,20 @@ function makeCtx(): BusinessContext {
 }
 
 describe('water-main-crisis scenario', () => {
-  it('produces negative first-month NOI and retention drop', async () => {
+  it('produces negative first-month net margin and retention drop', async () => {
     const ctx = makeCtx();
     const outcome = await waterMainCrisisScenario.run(
       {
         affectedUnitIds: ['u1', 'u2'],
         repairCost: 200_000,
         repairDays: 7,
-        abatementPctOfRent: 0.5,
+        abatementPctOfRoyalty: 0.5,
         vendorCount: 2,
       },
       { business: ctx, sandbox: stubSandbox(), seed: 11 },
     );
     expect(outcome.scenarioName).toBe('water-main-crisis');
-    expect(outcome.projectedNoi[0]?.p50).toBeLessThan(0);
+    expect(outcome.projectedNetMargin[0]?.p50).toBeLessThan(0);
     expect(outcome.retentionProbability).toBeLessThan(0.95);
     expect(outcome.notes.some((n) => /Repair/.test(n))).toBe(true);
   });
@@ -68,7 +68,7 @@ describe('water-main-crisis scenario', () => {
         affectedUnitIds: ['u1'],
         repairCost: 5_000_000,
         repairDays: 14,
-        abatementPctOfRent: 0.5,
+        abatementPctOfRoyalty: 0.5,
         vendorCount: 1,
       },
       { business: ctx, sandbox: stubSandbox(), seed: 11 },

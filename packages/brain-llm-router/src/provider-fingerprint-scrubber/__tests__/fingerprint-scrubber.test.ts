@@ -70,8 +70,8 @@ describe('scrubProviderFingerprints — pattern 4: "As an AI"', () => {
 
 describe('scrubProviderFingerprints — passthrough', () => {
   it('leaves clean text unchanged', () => {
-    const r = scrubProviderFingerprints('Your rent is due on the 1st.');
-    expect(r.text).toBe('Your rent is due on the 1st.');
+    const r = scrubProviderFingerprints('Your royalty is due on the 1st.');
+    expect(r.text).toBe('Your royalty is due on the 1st.');
     expect(r.scrubbed).toBe(false);
   });
 

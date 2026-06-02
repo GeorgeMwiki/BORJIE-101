@@ -1,7 +1,7 @@
 /**
  * Event subscribers — bridges the platform event bus to the process miner.
  *
- * Subscribes to maintenance.case.*, lease.renewal.*, arrears.case.*,
+ * Subscribes to maintenance.case.*, offtake.renewal.*, arrears.case.*,
  * payment.reconciled, approval.decided, tender.bid, inspection.completed,
  * letter.generated, training.completed.
  *
@@ -45,9 +45,9 @@ const EVENT_TO_PROCESS: ReadonlyArray<{
     stageFromEventType: (t) => t.replace('maintenance.case.', ''),
   },
   {
-    prefix: 'lease.renewal.',
-    processKind: 'lease_renewal',
-    stageFromEventType: (t) => t.replace('lease.renewal.', ''),
+    prefix: 'offtake.renewal.',
+    processKind: 'offtake_renewal',
+    stageFromEventType: (t) => t.replace('offtake.renewal.', ''),
   },
   {
     prefix: 'arrears.case.',
@@ -94,10 +94,10 @@ const ALL_SUBSCRIBED_TYPES: readonly string[] = [
   'maintenance.case.in_progress',
   'maintenance.case.resolved',
   'maintenance.case.reopened',
-  'lease.renewal.drafted',
-  'lease.renewal.sent',
-  'lease.renewal.accepted',
-  'lease.renewal.declined',
+  'offtake.renewal.drafted',
+  'offtake.renewal.sent',
+  'offtake.renewal.accepted',
+  'offtake.renewal.declined',
   'arrears.case.opened',
   'arrears.case.notice_sent',
   'arrears.case.escalated',
@@ -160,7 +160,7 @@ export function buildObservation(
   const processInstanceId =
     asString(payload.instanceId) ||
     asString(payload.caseId) ||
-    asString(payload.leaseId) ||
+    asString(payload.offtakeId) ||
     asString(payload.paymentId) ||
     asString(payload.approvalId) ||
     asString(payload.tenderId) ||
@@ -210,7 +210,7 @@ function asActorKind(v: unknown): ActorKind {
     'system',
     'ai',
     'vendor',
-    'tenant',
+    'counterparty',
   ];
   return allowed.includes(v as ActorKind) ? (v as ActorKind) : 'system';
 }

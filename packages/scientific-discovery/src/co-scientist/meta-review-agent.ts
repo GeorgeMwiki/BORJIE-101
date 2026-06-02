@@ -42,7 +42,7 @@ export async function metaReview(input: MetaReviewInput): Promise<MetaReview> {
   const completion = await input.llm.complete({
     system:
       'You are the Meta-Review agent of the Scientific Discovery loop for a ' +
-      'property-management SaaS. Write a 4-sentence executive summary of the round, ' +
+      'mining-estate SaaS. Write a 4-sentence executive summary of the round, ' +
       'then list 3 NEW seed ideas the system should investigate next. Reply in JSON: ' +
       '{"summary": string, "nextSeeds": string[]}.',
     prompt: [

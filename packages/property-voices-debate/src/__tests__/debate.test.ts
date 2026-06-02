@@ -6,14 +6,14 @@ function fakeSensor(
 ): SensorLike {
   return {
     async call({ system }) {
-      if (system.includes("CONSERVATIVE LANDLORD")) {
-        return { text: responses.landlord ?? "L" };
+      if (system.includes("CONSERVATIVE OWNER")) {
+        return { text: responses.owner ?? "L" };
       }
-      if (system.includes("PRO-TENANT")) {
-        return { text: responses.tenant ?? "T" };
+      if (system.includes("PRO-COUNTERPARTY")) {
+        return { text: responses.counterparty ?? "T" };
       }
-      if (system.includes("PRAGMATIC PROPERTY MANAGER")) {
-        return { text: responses.pm ?? "S" };
+      if (system.includes("PRAGMATIC OPERATIONS MANAGER")) {
+        return { text: responses.ops ?? "S" };
       }
       return { text: "" };
     },
@@ -23,27 +23,27 @@ function fakeSensor(
 describe("runPropertyVoicesDebate — happy path", () => {
   it("returns ok with all three voices on a clean run", async () => {
     const sensor = fakeSensor({
-      landlord: "Proceed with eviction notice under S-01.",
-      tenant: "Notice period was 7 days, statute requires 14. Restart.",
-      pm: "Hold eviction. Re-serve notice with correct 14-day window.",
+      owner: "Proceed with licence-suspension notice under S-01.",
+      counterparty: "Notice period was 7 days, statute requires 14. Restart.",
+      ops: "Hold suspension. Re-serve notice with correct 14-day window.",
     });
     const r = await runPropertyVoicesDebate({
-      question: "Should we evict tenant X for 2 months arrears?",
-      context: "Tenant X owes TSh 600,000. Notice served 2026-04-15.",
+      question: "Should we suspend counterparty X's licence for 2 months outstanding royalties?",
+      context: "Counterparty X owes TSh 600,000. Notice served 2026-04-15.",
       sensor,
     });
     expect(r.classification).toBe("ok");
-    expect(r.landlordVerdict).toMatch(/eviction/);
-    expect(r.tenantAnalysis).toMatch(/14/);
-    expect(r.synthesis).toMatch(/Hold eviction/);
+    expect(r.ownerVerdict).toMatch(/suspension/);
+    expect(r.counterpartyAnalysis).toMatch(/14/);
+    expect(r.synthesis).toMatch(/Hold suspension/);
     expect(r.degradationReason).toBeNull();
   });
 
   it("consumes a positive token budget", async () => {
     const sensor = fakeSensor({
-      landlord: "abc",
-      tenant: "def",
-      pm: "ghi",
+      owner: "abc",
+      counterparty: "def",
+      ops: "ghi",
     });
     const r = await runPropertyVoicesDebate({
       question: "x?",
@@ -55,7 +55,7 @@ describe("runPropertyVoicesDebate — happy path", () => {
 });
 
 describe("runPropertyVoicesDebate — degradation paths", () => {
-  it("returns failed if Landlord call throws", async () => {
+  it("returns failed if Owner call throws", async () => {
     const sensor: SensorLike = {
       async call() {
         throw new Error("provider_down");
@@ -67,16 +67,16 @@ describe("runPropertyVoicesDebate — degradation paths", () => {
       sensor,
     });
     expect(r.classification).toBe("failed");
-    expect(r.degradationReason).toMatch(/landlord_call_failed/);
+    expect(r.degradationReason).toMatch(/owner_call_failed/);
   });
 
-  it("degrades to landlord-only if Tenant call throws", async () => {
+  it("degrades to owner-only if Counterparty call throws", async () => {
     let calls = 0;
     const sensor: SensorLike = {
       async call() {
         calls += 1;
         if (calls === 1) return { text: "L" };
-        throw new Error("tenant_provider_down");
+        throw new Error("counterparty_provider_down");
       },
     };
     const r = await runPropertyVoicesDebate({
@@ -86,10 +86,10 @@ describe("runPropertyVoicesDebate — degradation paths", () => {
     });
     expect(r.classification).toBe("degraded");
     expect(r.synthesis).toBe("L");
-    expect(r.degradationReason).toMatch(/tenant_call_failed/);
+    expect(r.degradationReason).toMatch(/counterparty_call_failed/);
   });
 
-  it("degrades to tenant-analysis if PM call throws", async () => {
+  it("degrades to counterparty-analysis if Ops call throws", async () => {
     let calls = 0;
     const sensor: SensorLike = {
       async call() {
@@ -105,15 +105,15 @@ describe("runPropertyVoicesDebate — degradation paths", () => {
     });
     expect(r.classification).toBe("degraded");
     expect(r.synthesis).toBe("voice2");
-    expect(r.degradationReason).toMatch(/pm_call_failed/);
+    expect(r.degradationReason).toMatch(/ops_call_failed/);
   });
 
   it("flags token-budget exhaust as degradation reason when content is huge", async () => {
     const huge = "a".repeat(20_000);
     const sensor = fakeSensor({
-      landlord: huge,
-      tenant: "T",
-      pm: "S",
+      owner: huge,
+      counterparty: "T",
+      ops: "S",
     });
     const r = await runPropertyVoicesDebate({
       question: "x",
@@ -166,7 +166,7 @@ describe("runPropertyVoicesDebate — injection defence", () => {
 });
 
 describe("runPropertyVoicesDebate — statute clause surfacing", () => {
-  it("surfaces statute clauses to the Tenant voice", async () => {
+  it("surfaces statute clauses to the Counterparty voice", async () => {
     const captured: string[] = [];
     const sensor: SensorLike = {
       async call({ userMessage, system }) {
@@ -179,10 +179,10 @@ describe("runPropertyVoicesDebate — statute clause surfacing", () => {
       context: "c",
       sensor,
     });
-    const tenantMsg = captured.find((c) => c.includes("PRO-TENANT"));
-    expect(tenantMsg).toBeDefined();
-    expect(tenantMsg).toMatch(/S-01-NOTICE-PERIOD/);
-    expect(tenantMsg).toMatch(/S-02-HABITABILITY/);
+    const counterpartyMsg = captured.find((c) => c.includes("PRO-COUNTERPARTY"));
+    expect(counterpartyMsg).toBeDefined();
+    expect(counterpartyMsg).toMatch(/S-01-NOTICE-PERIOD/);
+    expect(counterpartyMsg).toMatch(/S-02-HABITABILITY/);
   });
 
   it("accepts an override clause list", async () => {
@@ -201,8 +201,8 @@ describe("runPropertyVoicesDebate — statute clause surfacing", () => {
         { id: "Z-99-CUSTOM", description: "Custom statute clause for the suite." },
       ],
     });
-    const tenantMsg = captured.find((c) => c.includes("PRO-TENANT"));
-    expect(tenantMsg).toMatch(/Z-99-CUSTOM/);
-    expect(tenantMsg).not.toMatch(/S-01-NOTICE-PERIOD/);
+    const counterpartyMsg = captured.find((c) => c.includes("PRO-COUNTERPARTY"));
+    expect(counterpartyMsg).toMatch(/Z-99-CUSTOM/);
+    expect(counterpartyMsg).not.toMatch(/S-01-NOTICE-PERIOD/);
   });
 });

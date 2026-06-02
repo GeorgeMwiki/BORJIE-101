@@ -55,7 +55,7 @@ export interface CalibratorOptions {
 
 /**
  * Produce a calibrator that uses signed absolute-residual scores.
- * Use this for real-valued forecasts (NOI, occupancy days, etc.).
+ * Use this for real-valued forecasts (net margin, idle-capacity days, etc.).
  *
  * For binary-risk (probability-of-event), use
  * `createProbabilityCalibrator` below which uses the signed
@@ -113,8 +113,9 @@ export function createAbsoluteResidualCalibrator(
 /**
  * Probability-aware calibrator using signed log-loss residuals.
  *
- * For binary classification-style forecasts (e.g. "will this tenant
- * default in 30 days?"), absolute residual isn't calibrated — a
+ * For binary classification-style forecasts (e.g. "will this
+ * counterparty default in 30 days?"), absolute residual isn't
+ * calibrated — a
  * prediction of 0.01 that turns out to be a 1 has residual 0.99,
  * same as a prediction of 0.99 that turns out to be 0. Log-loss
  * captures confidence correctly.

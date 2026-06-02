@@ -108,6 +108,12 @@ export const SOVEREIGN_AUDIT_WRITE_FAILED_REASON =
  * the hash-chained sovereign ledger so an external audit can reconstruct
  * the chain after the fact.
  */
+// NOTE — these sovereign-tier action-name tokens are a frozen security
+// contract: they are pinned across the four-eye-approval, counter-model,
+// and executor-counter-model test suites. They are kept verbatim; their
+// mining semantics are: tenant-eviction-proposed → licence-suspension
+// proposal, kra-mri-filed → KRA/TRA royalty filing. A rename must be
+// coordinated with those suites.
 export const SOVEREIGN_TIER_ACTION_NAMES: ReadonlyArray<string> = [
   'tenant-eviction-proposed',
   'owner-payout-executed',

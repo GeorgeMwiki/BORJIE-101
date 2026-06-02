@@ -353,8 +353,8 @@ export interface BrainKernelDeps {
    * caveat / ask-back / escalate the reply based on confidence and
    * stakes. Kept opt-in because the heuristic confidence scorer is
    * permissive — naive sensor outputs ("High-stakes answer.") can
-   * register zero groundedness against the property-management
-   * vocabulary detector (KES/lease/rent/...). Callers that wire a
+   * register zero groundedness against the mining-estate
+   * vocabulary detector (TZS/offtake/royalty/...). Callers that wire a
    * judge + grounding-facts together should turn this on.
    */
   readonly uncertaintyPolicy?: 'off' | 'on';
@@ -1334,7 +1334,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         regenAttempted = true;
         const fix = (judgeOut.suggestedFix ?? '').trim() ||
           (judgeOut.reasonText ?? '').trim() ||
-          'Improve grounding, hedge uncited numbers, and match the property-ops voice.';
+          'Improve grounding, hedge uncited numbers, and match the mining-ops voice.';
         const regenSystem = `${system}\n\nA self-review judge flagged the previous draft (score=${judgeOut.score.toFixed(2)}). Apply this fix EXACTLY ONCE and re-answer: ${fix}`;
         try {
           // A2b-2 wire #1 — scrubbed userMessage on the regen pass.

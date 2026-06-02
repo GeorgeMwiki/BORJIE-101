@@ -277,8 +277,8 @@ export function collectReportText(report: StrategicReport): string {
 
 export function orgIdFromScope(scope: ReportSpec['scope']): string {
   switch (scope.kind) {
-    case 'tenant':
-    case 'property':
+    case 'buyer':
+    case 'site':
     case 'deal':
     case 'portfolio':
       return scope.orgId;

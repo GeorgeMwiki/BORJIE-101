@@ -1,14 +1,14 @@
 /**
- * Portfolio Early Warning — scans an owner's property portfolio for
+ * Portfolio Early Warning — scans an owner's site portfolio for
  * early-warning signals.
  *
- * Translates LitFin's loan-portfolio early warning to property portfolios:
- * - rising arrears
+ * Translates LitFin's loan-portfolio early warning to site portfolios:
+ * - rising outstanding royalties
  * - maintenance cost spike
- * - occupancy dip
+ * - production dip
  * - compliance breach risk
- * - vacancy waterfall
- * - tenant churn probability
+ * - available-capacity waterfall
+ * - buyer churn probability
  *
  * Output is a structured health-check the dashboard consumes directly.
  *
@@ -19,17 +19,17 @@ import type {
   PaymentsSnapshot,
   MaintenanceSnapshot,
   ComplianceSnapshot,
-  LeasingSnapshot,
-  OccupancySnapshot,
+  OfftakeSnapshot,
+  ProductionSnapshot,
 } from './types.js';
 
 export type PortfolioAlertCategory =
   | 'arrears_rising'
   | 'maintenance_cost_spike'
-  | 'occupancy_dip'
+  | 'production_dip'
   | 'compliance_breach_risk'
-  | 'vacancy_waterfall'
-  | 'tenant_churn_elevated';
+  | 'available_capacity_waterfall'
+  | 'buyer_churn_elevated';
 
 export interface PortfolioAlert {
   readonly id: string;
@@ -42,9 +42,9 @@ export interface PortfolioAlert {
 }
 
 export interface PortfolioMetrics {
-  readonly propertyCount: number;
-  readonly totalUnits: number;
-  readonly occupiedUnits: number;
+  readonly siteCount: number;
+  readonly totalPits: number;
+  readonly activePits: number;
   readonly totalArrearsCents: number;
   readonly maintenanceSpendLast90dCents: number;
   readonly maintenanceSpendTrendPct: number;
@@ -53,7 +53,7 @@ export interface PortfolioMetrics {
 }
 
 export interface ConcentrationMetric {
-  readonly dimension: 'district' | 'block' | 'tenant_segment';
+  readonly dimension: 'district' | 'block' | 'counterparty_segment';
   readonly bucket: string;
   readonly sharePct: number;
   readonly riskLoad: number;
@@ -72,7 +72,7 @@ export interface PortfolioHealthCheck {
 export interface EarlyWarningConfig {
   readonly arrearsTotalRedCents: number;
   readonly maintenanceSpikePctRed: number;
-  readonly occupancyPctRed: number;
+  readonly productionPctRed: number;
   readonly churnProbabilityRed: number;
   readonly breachCountRed: number;
 }
@@ -80,23 +80,23 @@ export interface EarlyWarningConfig {
 export const DEFAULT_WARNING_CONFIG: EarlyWarningConfig = Object.freeze({
   arrearsTotalRedCents: 100_000_00,
   maintenanceSpikePctRed: 30,
-  occupancyPctRed: 85,
+  productionPctRed: 85,
   churnProbabilityRed: 0.5,
   breachCountRed: 1,
 });
 
 export interface PortfolioFeed {
-  readonly propertyCount: number;
-  readonly totalUnits: number;
-  readonly occupiedUnits: number;
-  readonly propertySnapshots: ReadonlyArray<{
-    readonly propertyId: string;
+  readonly siteCount: number;
+  readonly totalPits: number;
+  readonly activePits: number;
+  readonly siteSnapshots: ReadonlyArray<{
+    readonly siteId: string;
     readonly district: string;
     readonly payments: PaymentsSnapshot | null;
     readonly maintenance: MaintenanceSnapshot | null;
     readonly compliance: ComplianceSnapshot | null;
-    readonly leasing: LeasingSnapshot | null;
-    readonly occupancy: OccupancySnapshot | null;
+    readonly offtake: OfftakeSnapshot | null;
+    readonly production: ProductionSnapshot | null;
   }>;
 }
 
@@ -130,7 +130,7 @@ function aggregateMetrics(feed: PortfolioFeed): PortfolioMetrics {
   let churnSum = 0;
   let churnCount = 0;
 
-  for (const snap of feed.propertySnapshots) {
+  for (const snap of feed.siteSnapshots) {
     totalArrearsCents += snap.payments?.arrearsCents ?? 0;
     maintenanceSpendLast90dCents += snap.maintenance?.costLast90dCents ?? 0;
     if (snap.maintenance && snap.maintenance.costMomYoYPct !== 0) {
@@ -140,8 +140,8 @@ function aggregateMetrics(feed: PortfolioFeed): PortfolioMetrics {
       maintSpendPriorCents += prior;
     }
     openBreaches += snap.compliance?.criticalBreaches ?? 0;
-    if (snap.leasing) {
-      churnSum += snap.leasing.churnProbability;
+    if (snap.offtake) {
+      churnSum += snap.offtake.churnProbability;
       churnCount += 1;
     }
   }
@@ -154,9 +154,9 @@ function aggregateMetrics(feed: PortfolioFeed): PortfolioMetrics {
       : 0;
 
   return {
-    propertyCount: feed.propertyCount,
-    totalUnits: feed.totalUnits,
-    occupiedUnits: feed.occupiedUnits,
+    siteCount: feed.siteCount,
+    totalPits: feed.totalPits,
+    activePits: feed.activePits,
     totalArrearsCents,
     maintenanceSpendLast90dCents,
     maintenanceSpendTrendPct: trendPct,
@@ -179,10 +179,10 @@ function computeAlerts(
       category: 'arrears_rising',
       severity: 'high',
       title: 'Portfolio arrears above threshold',
-      description: `Total arrears ${(m.totalArrearsCents / 100).toLocaleString()} across ${m.propertyCount} propert(ies).`,
+      description: `Total arrears ${(m.totalArrearsCents / 100).toLocaleString()} across ${m.siteCount} site(s).`,
       metrics: { totalArrearsCents: m.totalArrearsCents },
       suggestedAction:
-        'Trigger bulk collection campaign; tier properties by risk.',
+        'Trigger bulk collection campaign; tier sites by risk.',
     });
   }
 
@@ -199,16 +199,16 @@ function computeAlerts(
     });
   }
 
-  const occupancyPct =
-    m.totalUnits === 0 ? 100 : (m.occupiedUnits / m.totalUnits) * 100;
-  if (occupancyPct < config.occupancyPctRed) {
+  const productionPct =
+    m.totalPits === 0 ? 100 : (m.activePits / m.totalPits) * 100;
+  if (productionPct < config.productionPctRed) {
     alerts.push({
       id: id(),
-      category: 'occupancy_dip',
+      category: 'production_dip',
       severity: 'high',
-      title: `Portfolio occupancy ${occupancyPct.toFixed(0)}%`,
-      description: `${m.totalUnits - m.occupiedUnits} vacant units.`,
-      metrics: { occupancyPct },
+      title: `Portfolio production ${productionPct.toFixed(0)}%`,
+      description: `${m.totalPits - m.activePits} idle pits.`,
+      metrics: { productionPct },
       suggestedAction:
         'Boost marketplace spend on under-performing districts.',
     });
@@ -229,13 +229,13 @@ function computeAlerts(
   if (m.avgChurnProbability >= config.churnProbabilityRed) {
     alerts.push({
       id: id(),
-      category: 'tenant_churn_elevated',
+      category: 'buyer_churn_elevated',
       severity: 'high',
       title: `Avg churn probability ${(m.avgChurnProbability * 100).toFixed(0)}%`,
       description: 'Retention intervention recommended.',
       metrics: { avgChurn: m.avgChurnProbability },
       suggestedAction:
-        'Trigger retention campaigns for at-risk tenant cohorts.',
+        'Trigger retention campaigns for at-risk buyer cohorts.',
     });
   }
 
@@ -246,9 +246,9 @@ function computeConcentrations(
   feed: PortfolioFeed,
 ): readonly ConcentrationMetric[] {
   const byDistrict = new Map<string, { share: number; risk: number }>();
-  const total = feed.propertyCount || 1;
+  const total = feed.siteCount || 1;
 
-  for (const snap of feed.propertySnapshots) {
+  for (const snap of feed.siteSnapshots) {
     const entry = byDistrict.get(snap.district) ?? { share: 0, risk: 0 };
     entry.share += 1 / total;
     entry.risk +=

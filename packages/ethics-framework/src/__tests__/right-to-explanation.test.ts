@@ -18,8 +18,8 @@ describe('RightToExplanationService — GDPR Art 22 + EU AI Act', () => {
       decisionId: 'd-1',
       subjectId: 'tenant-1',
       decision: 'deny-application',
-      model: 'rental-scoring/1.0',
-      inputs: { income: 1000, credit_score: 580, eviction_history: 'true' },
+      model: 'counterparty-scoring/1.0',
+      inputs: { income: 1000, credit_score: 580, default_history: 'true' },
       outputs: { decision: 'deny', score: 0.32 },
       confidence: 0.84,
       alternatives: [
@@ -54,7 +54,7 @@ describe('RightToExplanationService — GDPR Art 22 + EU AI Act', () => {
       decisionId: 'd-3',
       subjectId: 'tenant-3',
       decision: 'deny-application',
-      model: 'rental-scoring/1.0',
+      model: 'counterparty-scoring/1.0',
       inputs: { income: 1000, credit_score: 580 },
       outputs: { decision: 'deny' },
       confidence: 0.84,
@@ -65,7 +65,7 @@ describe('RightToExplanationService — GDPR Art 22 + EU AI Act', () => {
       subjectId: 'tenant-3',
       decisionId: 'd-3',
     });
-    expect(exp.summary).toContain('rental-scoring/1.0');
+    expect(exp.summary).toContain('counterparty-scoring/1.0');
     expect(exp.topFactors.length).toBeGreaterThan(0);
     expect(exp.counterfactual.wouldYield).toBe('approve');
     expect(typeof exp.counterfactual.description).toBe('string');

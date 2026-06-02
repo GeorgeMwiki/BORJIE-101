@@ -2,8 +2,8 @@
  * BORJIE MCP Types
  *
  * Shared type definitions for the MCP server. These bridge between
- * the Model Context Protocol and BORJIE's multi-tenant property
- * management domain.
+ * the Model Context Protocol and BORJIE's multi-tenant mining estate
+ * domain.
  *
  * Every type is readonly / immutable — we never mutate tenant-scoped
  * data in place.

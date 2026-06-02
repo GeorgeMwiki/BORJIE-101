@@ -1,29 +1,29 @@
 /**
- * Property Report - Property performance
+ * Site Report - Site performance
  */
 
 import type { ReportData } from '../generators/generator.interface.js';
 import type { DateRange } from './report-types.js';
 
-export interface PropertyPerformanceItem {
-  propertyId: string;
-  propertyName: string;
+export interface SitePerformanceItem {
+  siteId: string;
+  siteName: string;
   totalUnits: number;
-  occupiedUnits: number;
-  occupancyRate: number;
+  producingUnits: number;
+  assetUtilisationRate: number;
   revenue: number;
   expenses: number;
   netOperatingIncome: number;
   collectionRate: number;
 }
 
-export interface PropertyReportData {
+export interface SiteReportData {
   dateRange: DateRange;
-  properties: PropertyPerformanceItem[];
+  sites: SitePerformanceItem[];
   portfolioTotal: {
     totalUnits: number;
-    occupiedUnits: number;
-    occupancyRate: number;
+    producingUnits: number;
+    assetUtilisationRate: number;
     totalRevenue: number;
     totalExpenses: number;
     netOperatingIncome: number;
@@ -31,29 +31,29 @@ export interface PropertyReportData {
   };
 }
 
-export function propertyReportToReportData(
-  data: PropertyReportData
+export function siteReportToReportData(
+  data: SiteReportData
 ): ReportData {
   const sections: ReportData['sections'] = [];
 
   sections.push({
-    title: 'Property Performance',
+    title: 'Site Performance',
     table: {
       headers: [
-        'Property',
+        'Site',
         'Units',
-        'Occupied',
-        'Occupancy %',
+        'Producing',
+        'Asset Utilisation %',
         'Revenue',
         'Expenses',
         'NOI',
         'Collection %',
       ],
-      rows: data.properties.map((p) => [
-        p.propertyName,
+      rows: data.sites.map((p) => [
+        p.siteName,
         p.totalUnits,
-        p.occupiedUnits,
-        `${p.occupancyRate.toFixed(1)}%`,
+        p.producingUnits,
+        `${p.assetUtilisationRate.toFixed(1)}%`,
         p.revenue,
         p.expenses,
         p.netOperatingIncome,
@@ -66,8 +66,8 @@ export function propertyReportToReportData(
     sections,
     summary: {
       'Total Units': data.portfolioTotal.totalUnits,
-      'Occupied Units': data.portfolioTotal.occupiedUnits,
-      'Portfolio Occupancy': `${data.portfolioTotal.occupancyRate.toFixed(1)}%`,
+      'Producing Units': data.portfolioTotal.producingUnits,
+      'Portfolio Asset Utilisation': `${data.portfolioTotal.assetUtilisationRate.toFixed(1)}%`,
       'Total Revenue': data.portfolioTotal.totalRevenue,
       'Total Expenses': data.portfolioTotal.totalExpenses,
       'Net Operating Income': data.portfolioTotal.netOperatingIncome,

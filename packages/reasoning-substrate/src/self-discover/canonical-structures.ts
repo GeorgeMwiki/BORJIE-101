@@ -2,13 +2,14 @@
  * Canonical reasoning structures for BORJIE task classes.
  *
  * These are the seed structures the L1 audit §7 hand-derives for the
- * eviction-evaluation flow. Each is a valid ReasoningStructure that
- * could have been emitted by IMPLEMENT, and serves three roles:
+ * licence-suspension-evaluation flow. Each is a valid ReasoningStructure
+ * that could have been emitted by IMPLEMENT, and serves three roles:
  *
  *   1. Bootstrapping the TemporalKG cache before any live discovery
  *      has happened (warm start).
- *   2. Reference structures the L1 §7 hand-derives for the eviction
- *      flow, included here as executable JSON instead of prose.
+ *   2. Reference structures the L1 §7 hand-derives for the
+ *      licence-suspension flow, included here as executable JSON
+ *      instead of prose.
  *   3. Test fixtures for cache-hit / cache-invalidation tests.
  *
  * To regenerate from the audit, see comments above each structure.
@@ -20,20 +21,20 @@ import {
 } from './types.js';
 
 // ─────────────────────────────────────────────────────────────────────
-// Eviction (TZ-DSM) — the L1 audit §7 canonical example.
+// Licence suspension (TZ-DSM) — the L1 audit §7 canonical example.
 // ─────────────────────────────────────────────────────────────────────
 
-export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
+export const LICENCE_SUSPENSION_TZ_DSM_STRUCTURE: ReasoningStructure = {
   schemaVersion: REASONING_STRUCTURE_SCHEMA_VERSION,
-  taskClass: 'eviction',
+  taskClass: 'licence-suspension',
   jurisdiction: 'TZ-DSM',
   discoveredAt: '2026-05-19T00:00:00.000Z',
-  structureId: 'rs_seed_eviction_tz_dsm_v1',
+  structureId: 'rs_seed_licence_suspension_tz_dsm_v1',
   selectedPrimitives: [
     'gather-relevant-facts',
     'check-payment-history',
     'identify-relevant-rules',
-    'apply-tz-rental-act',
+    'apply-tz-mining-act',
     'check-mediation-clause',
     'consider-alternatives',
     'risks-and-drawbacks',
@@ -44,15 +45,15 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
     'check-output-format',
   ],
   adaptedNarrative:
-    '[gather-relevant-facts] Pull tenant identity, lease, and jurisdiction. ' +
-    '[check-payment-history] Verify the arrears claim against query_rent_history. ' +
-    '[identify-relevant-rules] [apply-tz-rental-act] Apply the 14-day notice requirement and any cure period. ' +
-    '[check-mediation-clause] If mediation_opt_in is true, eviction is blocked until mediation is offered. ' +
+    '[gather-relevant-facts] Pull counterparty identity, offtake, and jurisdiction. ' +
+    '[check-payment-history] Verify the outstanding-royalties claim against query_royalty_history. ' +
+    '[identify-relevant-rules] [apply-tz-mining-act] Apply the 14-day notice requirement and any cure period. ' +
+    '[check-mediation-clause] If mediation_opt_in is true, licence suspension is blocked until mediation is offered. ' +
     '[consider-alternatives] Enumerate alternatives — issue notice, offer payment plan, escalate to mediator, write-off & non-renew. ' +
-    '[risks-and-drawbacks] Weigh each alternative against the landlord\'s objective and the tenant\'s vulnerability. ' +
+    '[risks-and-drawbacks] Weigh each alternative against the owner\'s objective and the counterparty\'s vulnerability. ' +
     '[propose-and-verify] Draft the recommended action, then verify against the constraints. ' +
     '[check-pii-boundary] Ensure no PII from other tenants leaks. ' +
-    '[check-currency-chain] Convert amounts into the tenant\'s display currency. ' +
+    '[check-currency-chain] Convert amounts into the counterparty\'s display currency. ' +
     '[estimate-uncertainty] Surface a confidence score. ' +
     '[check-output-format] Confirm the response matches the required JSON contract.',
   steps: [
@@ -61,12 +62,12 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
       primitive: 'gather-relevant-facts',
       dependsOn: [],
       outputSchema: {
-        tenantId: 'string',
-        leaseId: 'string',
+        counterpartyId: 'string',
+        offtakeId: 'string',
         jurisdiction: 'string',
         currencyPref: 'string',
       },
-      narrative: 'Load tenant identity, lease, and currency preference from memory + tools.',
+      narrative: 'Load counterparty identity, offtake, and currency preference from memory + tools.',
     },
     {
       stepId: 's2',
@@ -77,7 +78,7 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
         unpaidAmountMinorUnits: 'number',
         lastPaidAt: 'string|null',
       },
-      narrative: 'Pull the 12-month payment history to verify the arrears claim.',
+      narrative: 'Pull the 12-month payment history to verify the outstanding-royalties claim.',
     },
     {
       stepId: 's3',
@@ -92,13 +93,13 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
     },
     {
       stepId: 's4',
-      primitive: 'apply-tz-rental-act',
+      primitive: 'apply-tz-mining-act',
       dependsOn: ['s2', 's3'],
       outputSchema: {
-        canEvict: 'boolean',
+        canSuspend: 'boolean',
         rationale: 'string',
       },
-      narrative: 'Apply TZ Rental Act §X — 14-day notice + cure period — to the facts.',
+      narrative: 'Apply TZ Mining Act §X — 14-day notice + cure period — to the facts.',
     },
     {
       stepId: 's5',
@@ -108,7 +109,7 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
         mediationOptIn: 'boolean',
         mediationInitiated: 'boolean',
       },
-      narrative: 'Check whether the lease has mediation opt-in and whether it has been initiated.',
+      narrative: 'Check whether the offtake has mediation opt-in and whether it has been initiated.',
     },
     {
       stepId: 's6',
@@ -126,7 +127,7 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
       outputSchema: {
         risks: 'Record<string, string>',
       },
-      narrative: 'Weigh risks of each alternative against landlord objectives + tenant vulnerability.',
+      narrative: 'Weigh risks of each alternative against owner objectives + counterparty vulnerability.',
     },
     {
       stepId: 's8',
@@ -155,7 +156,7 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
         displayCurrency: 'string',
         amountInDisplayCurrency: 'number',
       },
-      narrative: 'Convert all amounts to the tenant\'s display currency via currency_rates.',
+      narrative: 'Convert all amounts to the counterparty\'s display currency via currency_rates.',
     },
     {
       stepId: 's11',
@@ -173,21 +174,21 @@ export const EVICTION_TZ_DSM_STRUCTURE: ReasoningStructure = {
       outputSchema: {
         finalPayload: 'object',
       },
-      narrative: 'Validate the final output against the eviction-decision JSON contract.',
+      narrative: 'Validate the final output against the licence-suspension-decision JSON contract.',
     },
   ],
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// Tenant Dispute (GLOBAL) — simpler 5-step structure.
+// Counterparty Dispute (GLOBAL) — simpler 5-step structure.
 // ─────────────────────────────────────────────────────────────────────
 
-export const TENANT_DISPUTE_GLOBAL_STRUCTURE: ReasoningStructure = {
+export const COUNTERPARTY_DISPUTE_GLOBAL_STRUCTURE: ReasoningStructure = {
   schemaVersion: REASONING_STRUCTURE_SCHEMA_VERSION,
-  taskClass: 'tenant-dispute',
+  taskClass: 'counterparty-dispute',
   jurisdiction: 'GLOBAL',
   discoveredAt: '2026-05-19T00:00:00.000Z',
-  structureId: 'rs_seed_tenant_dispute_v1',
+  structureId: 'rs_seed_counterparty_dispute_v1',
   selectedPrimitives: [
     'gather-relevant-facts',
     'identify-core-issue',
@@ -197,7 +198,7 @@ export const TENANT_DISPUTE_GLOBAL_STRUCTURE: ReasoningStructure = {
   ],
   adaptedNarrative:
     '[gather-relevant-facts] Pull the dispute facts and prior messages. ' +
-    '[identify-core-issue] Identify what the tenant is actually disputing. ' +
+    '[identify-core-issue] Identify what the counterparty is actually disputing. ' +
     '[consider-alternatives] Propose 2-3 resolution paths. ' +
     '[propose-and-verify] Draft the response and verify it stays neutral. ' +
     '[check-pii-boundary] Confirm no PII from other tenants leaks.',
@@ -214,7 +215,7 @@ export const TENANT_DISPUTE_GLOBAL_STRUCTURE: ReasoningStructure = {
       primitive: 'identify-core-issue',
       dependsOn: ['s1'],
       outputSchema: { coreIssue: 'string' },
-      narrative: 'Identify what the tenant is actually disputing.',
+      narrative: 'Identify what the counterparty is actually disputing.',
     },
     {
       stepId: 's3',
@@ -241,6 +242,6 @@ export const TENANT_DISPUTE_GLOBAL_STRUCTURE: ReasoningStructure = {
 };
 
 export const SEED_STRUCTURES: ReadonlyArray<ReasoningStructure> = Object.freeze([
-  EVICTION_TZ_DSM_STRUCTURE,
-  TENANT_DISPUTE_GLOBAL_STRUCTURE,
+  LICENCE_SUSPENSION_TZ_DSM_STRUCTURE,
+  COUNTERPARTY_DISPUTE_GLOBAL_STRUCTURE,
 ]);

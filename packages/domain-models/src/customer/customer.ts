@@ -1,6 +1,6 @@
 /**
  * Customer domain model
- * Represents a tenant/renter in the system
+ * Represents a buyer / off-taker counterparty in the system
  */
 
 import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';

@@ -1,5 +1,5 @@
 /**
- * MaintenanceArrivalProcess — Poisson per property class.
+ * MaintenanceArrivalProcess — Poisson per asset class.
  *
  * Tickets arrive at a class-specific rate. The orchestrator queries
  * the rate, then the queue simulator generates the arrival stream.
@@ -7,9 +7,12 @@
 
 import { samplePoisson, mulberry32 } from '../../util/rng.js';
 
-export type PropertyClass = 'A' | 'B' | 'C' | 'D';
+export type AssetClass = 'A' | 'B' | 'C' | 'D';
 
-const DEFAULT_RATES: Record<PropertyClass, number> = {
+/** @deprecated Use {@link AssetClass}. */
+export type PropertyClass = AssetClass;
+
+const DEFAULT_RATES: Record<AssetClass, number> = {
   A: 0.05, // tickets / unit / day
   B: 0.08,
   C: 0.15,
@@ -17,18 +20,18 @@ const DEFAULT_RATES: Record<PropertyClass, number> = {
 };
 
 export interface MaintenanceArrivalParams {
-  readonly propertyClass: PropertyClass;
+  readonly assetClass: AssetClass;
   readonly ratePerUnitPerDay: number;
   readonly unitCount: number;
 }
 
 export function defaultArrivalParams(
-  propertyClass: PropertyClass,
+  assetClass: AssetClass,
   unitCount: number,
 ): MaintenanceArrivalParams {
   return {
-    propertyClass,
-    ratePerUnitPerDay: DEFAULT_RATES[propertyClass],
+    assetClass,
+    ratePerUnitPerDay: DEFAULT_RATES[assetClass],
     unitCount,
   };
 }

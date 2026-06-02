@@ -22,8 +22,8 @@ export function createExpansionStrategyGatherer(deps: ExpansionStrategyGathererD
     const charts: EvidencePack['charts'][number][] = [];
     const health: EvidencePack['sourceHealth'][number][] = [];
     const orgId =
-      spec.scope.kind === 'portfolio' || spec.scope.kind === 'tenant' ||
-      spec.scope.kind === 'property' || spec.scope.kind === 'deal'
+      spec.scope.kind === 'portfolio' || spec.scope.kind === 'buyer' ||
+      spec.scope.kind === 'site' || spec.scope.kind === 'deal'
         ? spec.scope.orgId
         : null;
 

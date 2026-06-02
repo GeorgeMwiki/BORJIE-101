@@ -2,8 +2,8 @@
  * @borjie/central-intelligence — kernel public surface.
  *
  * The disciplined cognitive layer above the streaming agent loop.
- * Mirrors LITFIN's brain-kernel patterns, scoped to property
- * management. See `.planning/litfin-parity-plan.md` for the gap
+ * Mirrors LITFIN's brain-kernel patterns, scoped to the mining
+ * estate. See `.planning/litfin-parity-plan.md` for the gap
  * analysis that motivated this module.
  *
  * Typical composition:
@@ -451,9 +451,11 @@ export type {
 
 /**
  * Graph kernel tools — Neo4j-backed query tools the agent loop can
- * invoke (portfolio concentration, connected parties, lease network,
- * vacancy clusters). Surfaced under a `tools` namespace so callers
- * write `tools.createGraphKernelTools(graphService)`.
+ * invoke (portfolio concentration, connected parties, agreement
+ * network, spare-capacity clusters). Surfaced under a `tools` namespace
+ * so callers write `tools.createGraphKernelTools(graphService)`. (The
+ * `leaseNetwork` / `vacancyClusters` symbol names are kept as
+ * graph-sync-aligned contracts.)
  */
 export * as tools from './tools/index.js';
 

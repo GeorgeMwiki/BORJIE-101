@@ -17,7 +17,7 @@ export const RENT_SEND_REMINDER_TOOL: ActionToolDef<
   { id: string }
 > = {
   name: 'rent.send-reminder',
-  description: 'Send a rent reminder to a lease via SMS or email.',
+  description: 'Send a royalty-payment reminder to an agreement via SMS or email.',
   stakes: 'low',
   inputSchema: {
     type: 'object',
@@ -43,7 +43,7 @@ export const WORK_ORDER_CREATE_TOOL: ActionToolDef<
   { id: string }
 > = {
   name: 'work-order.create',
-  description: 'Create a maintenance work-order for a property/unit.',
+  description: 'Create a maintenance work-order for a site/unit.',
   stakes: 'medium',
   inputSchema: {
     type: 'object',
@@ -91,7 +91,7 @@ export const ARREARS_ESCALATE_TOOL: ActionToolDef<
   { id: string }
 > = {
   name: 'arrears.escalate',
-  description: 'Escalate an arrears case to the next ladder step.',
+  description: 'Escalate an outstanding-royalties case to the next ladder step.',
   stakes: 'high',
   inputSchema: {
     type: 'object',
@@ -117,7 +117,7 @@ export const LISTING_PUBLISH_TOOL: ActionToolDef<
   { id: string }
 > = {
   name: 'listing.publish',
-  description: 'Publish a vacancy listing for a unit to a marketplace.',
+  description: 'Publish an available-capacity listing for a unit to a marketplace.',
   stakes: 'medium',
   inputSchema: {
     type: 'object',

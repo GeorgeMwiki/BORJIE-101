@@ -62,7 +62,7 @@ function deviceRule(
 const INDOOR_TYPES: ReadonlyArray<SurveillanceDeviceType> = [
   'indoor-camera',
   'audio-recorder',
-  'occupancy-sensor',
+  'presence-sensor',
 ];
 
 const OUTDOOR_TYPES: ReadonlyArray<SurveillanceDeviceType> = [
@@ -78,7 +78,7 @@ const ALL_TYPES: ReadonlyArray<SurveillanceDeviceType> = [
   'motion-sensor',
   'smart-lock',
   'smart-thermostat',
-  'occupancy-sensor',
+  'presence-sensor',
   'noise-sensor',
   'leak-sensor',
 ];

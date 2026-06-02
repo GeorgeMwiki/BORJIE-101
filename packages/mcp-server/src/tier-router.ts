@@ -2,7 +2,7 @@
  * Tier Router — standard / pro / enterprise gating.
  *
  * BORJIE SaaS subscriptions map 1:1 to MCP tiers:
- *   standard   — property basics (graph read, case list, letter read)
+ *   standard   — site basics (graph read, case list, letter read)
  *   pro        — writes, ai-cost insights, warehouse, taxonomy, IoT
  *   enterprise — everything, including skill-execution and compliance-plugin
  *                enumeration.

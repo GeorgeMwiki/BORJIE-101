@@ -1,14 +1,20 @@
 /**
  * World-model state vectors — typed snapshots of the four entities the
- * brain reasons over: properties, tenants/leases, owners, and the
- * agency/tenant-org as a whole. Each vector is observed at a moment
+ * brain reasons over: sites, counterparties/agreements, owners, and the
+ * mining-estate org as a whole. Each vector is observed at a moment
  * in time; an ordered series of vectors becomes the input to the
  * trajectory forecaster.
  *
  * Mirrors LITFIN's `/src/core/credit-mind/world-model/` borrower-state
- * pattern, scoped to property management. The forecasting module is a
+ * pattern, scoped to the mining estate. The forecasting module is a
  * deterministic linear extrapolator + uncertainty bands. A learned
  * model (JEPA-style) can be swapped behind the same shapes later.
+ *
+ * NOTE — the exported type names (`PropertyState`, `TenantState`,
+ * `OwnerState`) and their field names are a public contract
+ * (re-exported from `world-model/index.ts` and consumed by
+ * `world-model-tool.ts`). They are kept verbatim; only the prose
+ * carries the mining vocabulary.
  *
  * All numeric "rate" fields live on [0, 1]; currency-denominated fields
  * carry an ISO-4217 code so downstream FX-normalisation can pick them
@@ -16,11 +22,11 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────
-// PropertyState — a single property snapshot. The tenantId here is the
-// SaaS-tenant (estate-management org) that owns the data, NOT the
-// resident-tenant on a lease. (In this codebase "tenant" overloads
-// both senses; the tenant-state vector below uses leaseId + tenantId
-// for resident tenants.)
+// PropertyState — a single site snapshot. The tenantId here is the
+// SaaS-tenant (mining-estate org) that owns the data, NOT the
+// counterparty on an agreement. (In this codebase "tenant" overloads
+// both senses; the counterparty-state vector below uses leaseId +
+// tenantId for counterparties.)
 // ─────────────────────────────────────────────────────────────────────
 
 export interface PropertyState {
@@ -38,8 +44,8 @@ export interface PropertyState {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// TenantState — the state of one resident tenant on one lease. Used
-// for arrears-trajectory + default-probability forecasting.
+// TenantState — the state of one counterparty on one agreement. Used
+// for outstanding-royalty-trajectory + default-probability forecasting.
 // ─────────────────────────────────────────────────────────────────────
 
 export interface TenantState {
@@ -56,7 +62,7 @@ export interface TenantState {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// OwnerState — portfolio-level view from the property-owner's seat.
+// OwnerState — portfolio-level view from the site-owner's seat.
 // ─────────────────────────────────────────────────────────────────────
 
 export interface OwnerState {

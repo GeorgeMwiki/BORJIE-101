@@ -4,10 +4,10 @@
  */
 
 import type { FinancialReportData } from './reports/financial-report.js';
-import type { OccupancyReportData } from './reports/occupancy-report.js';
+import type { AssetUtilisationReportData } from './reports/asset-utilisation-report.js';
 import type { MaintenanceReportData } from './reports/maintenance-report.js';
-import type { TenantReportData } from './reports/tenant-report.js';
-import type { PropertyReportData } from './reports/property-report.js';
+import type { BuyerReportData } from './reports/buyer-report.js';
+import type { SiteReportData } from './reports/site-report.js';
 import type { ReportParams } from './reports/report-types.js';
 
 export interface IReportDataProvider {
@@ -16,22 +16,22 @@ export interface IReportDataProvider {
     params: ReportParams
   ): Promise<FinancialReportData>;
 
-  getOccupancyData(
+  getAssetUtilisationData(
     tenantId: string,
     params: ReportParams
-  ): Promise<OccupancyReportData>;
+  ): Promise<AssetUtilisationReportData>;
 
   getMaintenanceData(
     tenantId: string,
     params: ReportParams
   ): Promise<MaintenanceReportData>;
 
-  getTenantData(tenantId: string, params: ReportParams): Promise<TenantReportData>;
+  getBuyerData(tenantId: string, params: ReportParams): Promise<BuyerReportData>;
 
-  getPropertyData(
+  getSiteData(
     tenantId: string,
     params: ReportParams
-  ): Promise<PropertyReportData>;
+  ): Promise<SiteReportData>;
 }
 
 /**
@@ -52,11 +52,11 @@ export class MockReportDataProvider implements IReportDataProvider {
   ): Promise<FinancialReportData> {
     const dateRange = params.dateRange ?? this.defaultDateRange();
     return {
-      rentRoll: {
+      royaltyRoll: {
         units: [],
         totalUnits: 0,
-        occupiedUnits: 0,
-        totalMonthlyRent: 0,
+        producingUnits: 0,
+        totalMonthlyRoyalty: 0,
       },
       incomeStatement: {
         revenue: 0,
@@ -74,19 +74,19 @@ export class MockReportDataProvider implements IReportDataProvider {
     };
   }
 
-  async getOccupancyData(
+  async getAssetUtilisationData(
     _tenantId: string,
     params: ReportParams
-  ): Promise<OccupancyReportData> {
+  ): Promise<AssetUtilisationReportData> {
     const dateRange = params.dateRange ?? this.defaultDateRange();
     return {
       dateRange,
       totalUnits: 0,
-      occupiedUnits: 0,
-      vacantUnits: 0,
-      occupancyRate: 0,
-      byProperty: [],
-      vacancies: [],
+      producingUnits: 0,
+      idleUnits: 0,
+      assetUtilisationRate: 0,
+      bySite: [],
+      idleCapacity: [],
     };
   }
 
@@ -108,33 +108,33 @@ export class MockReportDataProvider implements IReportDataProvider {
     };
   }
 
-  async getTenantData(
+  async getBuyerData(
     _tenantId: string,
     params: ReportParams
-  ): Promise<TenantReportData> {
+  ): Promise<BuyerReportData> {
     const dateRange = params.dateRange ?? this.defaultDateRange();
     return {
       dateRange,
-      totalTenants: 0,
-      tenants: [],
-      arrears: [],
-      leaseExpiries: [],
-      totalArrears: 0,
+      totalBuyers: 0,
+      buyers: [],
+      outstanding: [],
+      supplyExpiries: [],
+      totalOutstanding: 0,
     };
   }
 
-  async getPropertyData(
+  async getSiteData(
     _tenantId: string,
     params: ReportParams
-  ): Promise<PropertyReportData> {
+  ): Promise<SiteReportData> {
     const dateRange = params.dateRange ?? this.defaultDateRange();
     return {
       dateRange,
-      properties: [],
+      sites: [],
       portfolioTotal: {
         totalUnits: 0,
-        occupiedUnits: 0,
-        occupancyRate: 0,
+        producingUnits: 0,
+        assetUtilisationRate: 0,
         totalRevenue: 0,
         totalExpenses: 0,
         netOperatingIncome: 0,

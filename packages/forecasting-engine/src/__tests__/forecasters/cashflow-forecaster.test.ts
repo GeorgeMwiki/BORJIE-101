@@ -5,15 +5,15 @@ import {
   updateCashflow,
 } from '../../forecasters/time-series/cashflow-forecaster.js';
 import {
-  fitOccupancy,
-  forecastOccupancy,
-  updateOccupancy,
-} from '../../forecasters/time-series/occupancy-forecaster.js';
+  fitUtilisation,
+  forecastUtilisation,
+  updateUtilisation,
+} from '../../forecasters/time-series/utilisation-forecaster.js';
 import {
-  fitArrears,
-  forecastArrears,
-  updateArrears,
-} from '../../forecasters/time-series/arrears-forecaster.js';
+  fitOutstandingRoyalties,
+  forecastOutstandingRoyalties,
+  updateOutstandingRoyalties,
+} from '../../forecasters/time-series/outstanding-royalties-forecaster.js';
 import type { TimePoint } from '../../types.js';
 
 function synthSeasonal(n: number, level: number, amp: number): TimePoint[] {
@@ -58,15 +58,15 @@ describe('CashflowForecaster (Holt-Winters)', () => {
   });
 });
 
-describe('OccupancyForecaster (Empirical Bayes)', () => {
+describe('UtilisationForecaster (Empirical Bayes)', () => {
   it('fits beta posteriors and forecasts within [0, 1]', () => {
     const obs = [
-      { microMarketId: 'mm1', occupied: 8, total: 10 },
-      { microMarketId: 'mm2', occupied: 18, total: 20 },
-      { microMarketId: 'mm3', occupied: 5, total: 8 },
+      { microMarketId: 'mm1', inProduction: 8, total: 10 },
+      { microMarketId: 'mm2', inProduction: 18, total: 20 },
+      { microMarketId: 'mm3', inProduction: 5, total: 8 },
     ];
-    const model = fitOccupancy(obs);
-    const fc = forecastOccupancy(model, 'mm1', 5);
+    const model = fitUtilisation(obs);
+    const fc = forecastUtilisation(model, 'mm1', 5);
     expect(fc.length).toBe(5);
     for (const b of fc) {
       expect(b.p10).toBeGreaterThanOrEqual(0);
@@ -77,16 +77,16 @@ describe('OccupancyForecaster (Empirical Bayes)', () => {
   });
 
   it('online update tightens posterior', () => {
-    const obs = [{ microMarketId: 'mm1', occupied: 5, total: 10 }];
-    const model = fitOccupancy(obs);
-    const updated = updateOccupancy(model, { microMarketId: 'mm1', occupied: 50, total: 50 });
-    const mean0 = forecastOccupancy(model, 'mm1', 1)[0]?.p50 ?? 0;
-    const mean1 = forecastOccupancy(updated, 'mm1', 1)[0]?.p50 ?? 0;
+    const obs = [{ microMarketId: 'mm1', inProduction: 5, total: 10 }];
+    const model = fitUtilisation(obs);
+    const updated = updateUtilisation(model, { microMarketId: 'mm1', inProduction: 50, total: 50 });
+    const mean0 = forecastUtilisation(model, 'mm1', 1)[0]?.p50 ?? 0;
+    const mean1 = forecastUtilisation(updated, 'mm1', 1)[0]?.p50 ?? 0;
     expect(mean1).toBeGreaterThan(mean0);
   });
 });
 
-describe('ArrearsForecaster (logistic growth)', () => {
+describe('OutstandingRoyaltiesForecaster (logistic growth)', () => {
   it('fits an S-curve and forecast saturates near K', () => {
     const dayMs = 86_400_000;
     const K = 1000;
@@ -98,10 +98,10 @@ describe('ArrearsForecaster (logistic growth)', () => {
       const y = K / (1 + Math.exp(-r * (x - t0)));
       hist.push({ t: i * dayMs, v: y });
     }
-    const model = fitArrears(hist);
+    const model = fitOutstandingRoyalties(hist);
     expect(model.sampleSize).toBe(60);
     expect(model.params.K).toBeGreaterThan(0);
-    const fc = forecastArrears(model, 30);
+    const fc = forecastOutstandingRoyalties(model, 30);
     expect(fc.length).toBe(30);
   });
 
@@ -112,11 +112,11 @@ describe('ArrearsForecaster (logistic growth)', () => {
     for (let i = 0; i < 5; i += 1) {
       hist.push({ t: startT + i * dayMs, v: 100 + i * 50 });
     }
-    const model = fitArrears(hist);
+    const model = fitOutstandingRoyalties(hist);
     expect(model.params.t0Anchor).toBe(startT);
   });
 
-  it('forecastArrears does NOT collapse to logistic(0,...) (H1)', () => {
+  it('forecastOutstandingRoyalties does NOT collapse to logistic(0,...) (H1)', () => {
     // Mid-curve logistic: history covers x in [0..60] days, inflection at
     // t0=30, growth r=0.1. The forecast for h=30 (i.e. x=90) should sit
     // near K — not anywhere near logistic(0, K, 0.1, 30) ≈ K/(1+e^3) ≈
@@ -131,8 +131,8 @@ describe('ArrearsForecaster (logistic growth)', () => {
       const y = K / (1 + Math.exp(-r * (i - t0)));
       hist.push({ t: i * dayMs, v: y });
     }
-    const model = fitArrears(hist);
-    const fc = forecastArrears(model, 30);
+    const model = fitOutstandingRoyalties(hist);
+    const fc = forecastOutstandingRoyalties(model, 30);
     // Forecast must grow (not flat near 0) AND saturate near K.
     expect(fc[fc.length - 1]!.p50).toBeGreaterThan(K * 0.9);
     expect(fc[0]!.p50).toBeGreaterThan(K * 0.5);
@@ -143,9 +143,9 @@ describe('ArrearsForecaster (logistic growth)', () => {
     }
   });
 
-  it('updateArrears computes residual at the correct x (H1)', () => {
+  it('updateOutstandingRoyalties computes residual at the correct x (H1)', () => {
     // Build a clean logistic history. The residual for a point that
-    // exactly lies on the curve must be ~0. Pre-fix, updateArrears
+    // exactly lies on the curve must be ~0. Pre-fix, updateOutstandingRoyalties
     // evaluated `logistic(0, K, r, t0)` regardless of the actual t →
     // residual ≈ actual.v - K/(1+e^(rt0)) which is NOT zero. The fix
     // computes residual against `logistic(xAct, …)`.
@@ -158,14 +158,14 @@ describe('ArrearsForecaster (logistic growth)', () => {
       const y = K / (1 + Math.exp(-r * (i - t0)));
       hist.push({ t: i * dayMs, v: y });
     }
-    const model = fitArrears(hist);
+    const model = fitOutstandingRoyalties(hist);
     // A point that lies exactly on the fitted curve at x = 70 days.
     const xNew = 70;
     const yNew = K / (1 + Math.exp(-r * (xNew - t0)));
     // residualStd before the update — must NOT explode after the
     // perfectly-on-curve update.
     const stdBefore = model.residualStd;
-    const updated = updateArrears(model, { t: xNew * dayMs, v: yNew });
+    const updated = updateOutstandingRoyalties(model, { t: xNew * dayMs, v: yNew });
     // The residual at xNew should be small (the model was fit to this
     // curve), so std grows by at most ~30% rather than exploding via
     // pre-fix bug (which would treat the point as off-curve by ~K).

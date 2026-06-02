@@ -1,20 +1,20 @@
 /**
- * PaymentTimingProcess — when does a tenant pay next?
+ * PaymentTimingProcess — when does a counterparty pay next?
  *
- * Per-tenant renewal process. We infer a log-normal inter-arrival
- * distribution from historical payments. Future arrivals are sampled
- * forward.
+ * Per-counterparty renewal process. We infer a log-normal
+ * inter-arrival distribution from historical payments. Future
+ * arrivals are sampled forward.
  */
 
 import { mulberry32 } from '../../util/rng.js';
 
 export interface PaymentObservation {
   readonly tMs: number;
-  readonly tenantId: string;
+  readonly counterpartyId: string;
 }
 
 export interface PaymentTimingParams {
-  readonly tenantId: string;
+  readonly counterpartyId: string;
   readonly meanLogIntervalMs: number;
   readonly stdLogIntervalMs: number;
   readonly lastObservedMs: number;
@@ -30,7 +30,7 @@ export function fitPaymentTiming(
     throw new Error('Need at least 2 payment observations');
   }
   const sorted = [...observations].sort((a, b) => a.tMs - b.tMs);
-  const tenantId = sorted[0]?.tenantId ?? 'unknown';
+  const counterpartyId = sorted[0]?.counterpartyId ?? 'unknown';
   const intervals: number[] = [];
   for (let i = 1; i < sorted.length; i += 1) {
     const cur = sorted[i];
@@ -46,7 +46,7 @@ export function fitPaymentTiming(
     Math.max(1, logIntervals.length);
   const lastObserved = sorted[sorted.length - 1]?.tMs ?? 0;
   return {
-    tenantId,
+    counterpartyId,
     meanLogIntervalMs: mean,
     stdLogIntervalMs: Math.max(MIN_LOG_STD, Math.sqrt(variance)),
     lastObservedMs: lastObserved,

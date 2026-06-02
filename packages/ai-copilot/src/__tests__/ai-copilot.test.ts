@@ -13,7 +13,7 @@ import {
   PredictionModelType,
 } from '../index.js';
 import type { MaintenanceTriageInput } from '../types/copilot.types.js';
-import type { ArrearsRiskInput, ChurnRiskInput, OccupancyHealthInput } from '../types/prediction.types.js';
+import type { RoyaltyArrearsRiskInput, BuyerChurnRiskInput, ProductionHealthInput } from '../types/prediction.types.js';
 import type { AITenantContext, AIActor, AIRequestContext } from '../types/core.types.js';
 
 describe('AICopilot', () => {
@@ -27,7 +27,7 @@ describe('AICopilot', () => {
     
     tenant = {
       tenantId: 'tenant-123',
-      tenantName: 'Test Property Management',
+      tenantName: 'Test Mining Estate',
       environment: 'development',
     };
     
@@ -77,18 +77,18 @@ describe('Prediction Engine', () => {
     copilot = createMockAICopilot();
     tenant = {
       tenantId: 'tenant-123',
-      tenantName: 'Test Property Management',
+      tenantName: 'Test Mining Estate',
       environment: 'development',
     };
   });
 
-  describe('arrears risk prediction', () => {
+  describe('royalty arrears risk prediction', () => {
     it('should predict low arrears risk for good payment history', async () => {
-      const input: ArrearsRiskInput = {
-        tenantId: 'ten-001',
-        leaseId: 'lease-001',
-        propertyId: 'prop-001',
-        unitId: 'unit-001',
+      const input: RoyaltyArrearsRiskInput = {
+        counterpartyId: 'cp-001',
+        supplyAgreementId: 'agr-001',
+        siteId: 'site-001',
+        pitId: 'pit-001',
         paymentHistory: {
           historyMonths: 24,
           onTimeRate: 0.98,
@@ -97,24 +97,24 @@ describe('Prediction Engine', () => {
           currentArrearsAmount: 0,
           arrearsCount12m: 0,
         },
-        tenantProfile: {
-          tenancyMonths: 24,
+        counterpartyProfile: {
+          relationshipMonths: 24,
           employmentStatus: 'employed',
           incomeVerified: true,
-          rentToIncomeRatio: 0.25,
+          paymentToRevenueRatio: 0.25,
         },
         currentContext: {
-          rentAmount: 50000,
+          paymentAmount: 50000,
           daysUntilNextDue: 15,
           hasAutoPay: true,
         },
       };
 
-      const result = await copilot.predictArrearsRisk(input, tenant);
-      
+      const result = await copilot.predictRoyaltyArrearsRisk(input, tenant);
+
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.modelType).toBe(PredictionModelType.ARREARS_RISK);
+        expect(result.data.modelType).toBe(PredictionModelType.ROYALTY_ARREARS_RISK);
         expect(result.data.prediction.riskTier).toBe('watch');
         expect(result.data.riskLevel).toBe(RiskLevel.LOW);
         expect(result.data.alertConfig.shouldAlert).toBe(false);
@@ -122,11 +122,11 @@ describe('Prediction Engine', () => {
     });
 
     it('should predict high arrears risk for poor payment history', async () => {
-      const input: ArrearsRiskInput = {
-        tenantId: 'ten-002',
-        leaseId: 'lease-002',
-        propertyId: 'prop-001',
-        unitId: 'unit-002',
+      const input: RoyaltyArrearsRiskInput = {
+        counterpartyId: 'cp-002',
+        supplyAgreementId: 'agr-002',
+        siteId: 'site-001',
+        pitId: 'pit-002',
         paymentHistory: {
           historyMonths: 12,
           onTimeRate: 0.6,
@@ -135,20 +135,20 @@ describe('Prediction Engine', () => {
           currentArrearsAmount: 25000,
           arrearsCount12m: 5,
         },
-        tenantProfile: {
-          tenancyMonths: 12,
+        counterpartyProfile: {
+          relationshipMonths: 12,
           employmentStatus: 'unknown',
           incomeVerified: false,
         },
         currentContext: {
-          rentAmount: 50000,
+          paymentAmount: 50000,
           daysUntilNextDue: 5,
           hasAutoPay: false,
         },
       };
 
-      const result = await copilot.predictArrearsRisk(input, tenant);
-      
+      const result = await copilot.predictRoyaltyArrearsRisk(input, tenant);
+
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.prediction.riskTier).toMatch(/at-risk|high-risk|critical/);
@@ -158,21 +158,21 @@ describe('Prediction Engine', () => {
     });
   });
 
-  describe('churn risk prediction', () => {
-    it('should predict low churn for satisfied long-term tenant', async () => {
-      const input: ChurnRiskInput = {
-        tenantId: 'ten-001',
-        leaseId: 'lease-001',
-        propertyId: 'prop-001',
-        unitId: 'unit-001',
-        leaseStatus: {
-          leaseStartDate: '2022-01-01',
-          leaseEndDate: '2026-12-31',
+  describe('buyer churn risk prediction', () => {
+    it('should predict low churn for satisfied long-term buyer', async () => {
+      const input: BuyerChurnRiskInput = {
+        counterpartyId: 'cp-001',
+        supplyAgreementId: 'agr-001',
+        siteId: 'site-001',
+        pitId: 'pit-001',
+        supplyAgreementStatus: {
+          agreementStartDate: '2022-01-01',
+          agreementEndDate: '2026-12-31',
           daysUntilExpiry: 300,
-          isMonthToMonth: false,
+          isSpotMarket: false,
           renewalsCompleted: 3,
         },
-        tenantEngagement: {
+        counterpartyEngagement: {
           loginFrequency30d: 5,
           maintenanceRequestCount12m: 2,
           maintenanceResolutionSatisfaction: 4.5,
@@ -180,44 +180,44 @@ describe('Prediction Engine', () => {
           complaintCount12m: 0,
         },
         marketFactors: {
-          currentRent: 50000,
+          currentPrice: 50000,
           marketRateEstimate: 55000,
-          rentIncreasePercent: 5,
-          localVacancyRate: 0.05,
+          priceIncreasePercent: 5,
+          localAvailableCapacityRate: 0.05,
         },
-        propertyFactors: {
-          propertyAge: 5,
-          lastMajorRenovation: '2023-01-01',
-          amenityScore: 8,
-          neighborhoodScore: 9,
+        siteFactors: {
+          siteAge: 5,
+          lastMajorUpgrade: '2023-01-01',
+          capabilityScore: 8,
+          locationScore: 9,
         },
       };
 
-      const result = await copilot.predictChurnRisk(input, tenant);
-      
+      const result = await copilot.predictBuyerChurnRisk(input, tenant);
+
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.modelType).toBe(PredictionModelType.CHURN_RISK);
+        expect(result.data.modelType).toBe(PredictionModelType.BUYER_CHURN_RISK);
         expect(result.data.prediction.riskTier).toBe('stable');
         expect(result.data.riskLevel).toBe(RiskLevel.LOW);
         expect(result.data.financialImpact.totalImpact).toBeGreaterThan(0);
       }
     });
 
-    it('should predict high churn for dissatisfied tenant near expiry', async () => {
-      const input: ChurnRiskInput = {
-        tenantId: 'ten-003',
-        leaseId: 'lease-003',
-        propertyId: 'prop-002',
-        unitId: 'unit-003',
-        leaseStatus: {
-          leaseStartDate: '2025-01-01',
-          leaseEndDate: '2026-03-01',
+    it('should predict high churn for dissatisfied buyer near expiry', async () => {
+      const input: BuyerChurnRiskInput = {
+        counterpartyId: 'cp-003',
+        supplyAgreementId: 'agr-003',
+        siteId: 'site-002',
+        pitId: 'pit-003',
+        supplyAgreementStatus: {
+          agreementStartDate: '2025-01-01',
+          agreementEndDate: '2026-03-01',
           daysUntilExpiry: 30,
-          isMonthToMonth: false,
+          isSpotMarket: false,
           renewalsCompleted: 0,
         },
-        tenantEngagement: {
+        counterpartyEngagement: {
           loginFrequency30d: 0,
           maintenanceRequestCount12m: 8,
           maintenanceResolutionSatisfaction: 2,
@@ -225,69 +225,69 @@ describe('Prediction Engine', () => {
           complaintCount12m: 4,
         },
         marketFactors: {
-          currentRent: 60000,
+          currentPrice: 60000,
           marketRateEstimate: 50000,
-          rentIncreasePercent: 10,
-          localVacancyRate: 0.15,
+          priceIncreasePercent: 10,
+          localAvailableCapacityRate: 0.15,
         },
-        propertyFactors: {
-          propertyAge: 25,
-          amenityScore: 4,
-          neighborhoodScore: 5,
+        siteFactors: {
+          siteAge: 25,
+          capabilityScore: 4,
+          locationScore: 5,
         },
       };
 
-      const result = await copilot.predictChurnRisk(input, tenant);
-      
+      const result = await copilot.predictBuyerChurnRisk(input, tenant);
+
       expect(result.success).toBe(true);
       if (result.success) {
         // Model evaluates multiple factors - verify it detects elevated risk
         expect(result.data.prediction.riskTier).toMatch(/watch|at-risk|likely-churning/);
         expect([RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL]).toContain(result.data.riskLevel);
-        // Should generate recommendations for tenant showing risk signals
+        // Should generate recommendations for buyer showing risk signals
         expect(result.data.retentionRecommendations.length).toBeGreaterThanOrEqual(0);
       }
     });
   });
 
-  describe('occupancy health scoring', () => {
+  describe('production health scoring', () => {
     it('should score healthy portfolio', async () => {
-      const input: OccupancyHealthInput = {
-        propertyId: 'prop-001',
+      const input: ProductionHealthInput = {
+        siteId: 'site-001',
         portfolio: {
-          totalUnits: 50,
-          occupiedUnits: 48,
-          vacantUnits: 2,
-          unitsUnderRenovation: 0,
-          avgDaysOnMarket: 15,
+          totalPits: 50,
+          activePits: 48,
+          idlePits: 2,
+          pitsUnderUpgrade: 0,
+          avgDaysToCommission: 15,
         },
         financialMetrics: {
-          grossPotentialRent: 2500000,
-          effectiveGrossRent: 2400000,
+          grossPotentialRevenue: 2500000,
+          effectiveGrossRevenue: 2400000,
           collectionRate: 0.98,
-          avgRentPerUnit: 50000,
+          avgRevenuePerPit: 50000,
           marketRateComparison: 0.05,
         },
-        tenantComposition: {
-          avgTenancyMonths: 18,
-          tenantTurnoverRate12m: 0.15,
+        counterpartyComposition: {
+          avgRelationshipMonths: 18,
+          counterpartyTurnoverRate12m: 0.15,
           renewalRate: 0.75,
           arrearsRate: 0.05,
         },
         marketContext: {
-          localVacancyRate: 0.08,
+          localAvailableCapacityRate: 0.08,
           marketTrend: 'stable',
         },
       };
 
-      const result = await copilot.scoreOccupancyHealth(input, tenant);
-      
+      const result = await copilot.scoreProductionHealth(input, tenant);
+
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.modelType).toBe(PredictionModelType.OCCUPANCY_HEALTH);
+        expect(result.data.modelType).toBe(PredictionModelType.PRODUCTION_HEALTH);
         expect(result.data.healthScore.overall).toBeGreaterThan(70);
         expect(['A', 'B']).toContain(result.data.healthScore.grade);
-        expect(result.data.componentScores.occupancy).toBeGreaterThan(90);
+        expect(result.data.componentScores.production).toBeGreaterThan(90);
         expect(result.data.insights.strengths.length).toBeGreaterThan(0);
       }
     });

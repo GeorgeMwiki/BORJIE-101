@@ -3,8 +3,8 @@
  *
  * Single failure → cost impact across N units. Models:
  *   - direct repair cost
- *   - rent abatement for affected tenants
- *   - elevated short-term move-out risk
+ *   - royalty abatement for affected counterparties
+ *   - elevated short-term walk-away risk
  *   - vendor queue saturation
  */
 
@@ -16,7 +16,7 @@ export const waterMainCrisisInputs = z.object({
   affectedUnitIds: z.array(z.string()).min(1),
   repairCost: z.number().min(0),
   repairDays: z.number().int().min(1),
-  abatementPctOfRent: z.number().min(0).max(1).default(0.5),
+  abatementPctOfRoyalty: z.number().min(0).max(1).default(0.5),
   vendorCount: z.number().int().min(1).default(2),
 });
 
@@ -26,12 +26,12 @@ export const waterMainCrisisScenario: Scenario<typeof waterMainCrisisInputs> = {
   inputs: waterMainCrisisInputs,
   async run(input, ctx) {
     const affected = new Set(input.affectedUnitIds);
-    const affectedTenants = ctx.business.tenants.filter((t) => affected.has(t.unitId));
-    const totalRent = affectedTenants.reduce((s, t) => s + t.monthlyRent, 0);
-    const abatement = totalRent * (input.repairDays / 30) * input.abatementPctOfRent;
+    const affectedCounterparties = ctx.business.counterparties.filter((c) => affected.has(c.unitId));
+    const totalRoyalty = affectedCounterparties.reduce((s, c) => s + c.monthlyRoyalty, 0);
+    const abatement = totalRoyalty * (input.repairDays / 30) * input.abatementPctOfRoyalty;
 
     const queue = simulateMaintenanceQueue({
-      arrivalRatePerDay: affectedTenants.length * 0.5,
+      arrivalRatePerDay: affectedCounterparties.length * 0.5,
       serviceRatePerDay: 0.8,
       vendorCount: input.vendorCount,
       vendorNoShowRate: 0.15,
@@ -41,10 +41,10 @@ export const waterMainCrisisScenario: Scenario<typeof waterMainCrisisInputs> = {
 
     const dayMs = 24 * 60 * 60 * 1000;
     const horizonMonths = Math.max(1, Math.floor(ctx.business.horizonDays / 30));
-    const noi: { t: number; p10: number; p50: number; p90: number }[] = [];
+    const margin: { t: number; p10: number; p50: number; p90: number }[] = [];
     for (let m = 1; m <= horizonMonths; m += 1) {
       const impact = m === 1 ? -(input.repairCost + abatement) : 0;
-      noi.push({
+      margin.push({
         t: ctx.business.nowMs + m * 30 * dayMs,
         p10: impact - Math.abs(impact) * 0.4,
         p50: impact,
@@ -54,9 +54,9 @@ export const waterMainCrisisScenario: Scenario<typeof waterMainCrisisInputs> = {
 
     return {
       scenarioName: 'water-main-crisis',
-      projectedNoi: noi,
+      projectedNetMargin: margin,
       retentionProbability: Math.max(0.5, 0.95 - queue.meanWaitDays * 0.05),
-      complianceScore: 0.85, // habitability concerns
+      complianceScore: 0.85, // operability concerns
       intentAlignment: 0.3, // crisis is never on-plan
       cashShortfallProbability:
         input.repairCost + abatement > ctx.business.cashBalance ? 0.8 : 0.2,

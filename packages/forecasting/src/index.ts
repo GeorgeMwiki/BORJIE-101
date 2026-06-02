@@ -113,20 +113,28 @@ export {
   type EnsembleOptions,
 } from './ensembles/index.js';
 export {
-  forecastRent,
-  forecastOccupancy,
+  forecastRoyalty,
+  forecastUtilisation,
   forecastChurn,
   forecastMaintenanceFailure,
   forecastEnergyConsumption,
   forecastMarketCycle,
+  royaltyCapFor,
+  applyRoyaltyCap,
+  // Deprecated real-estate-era aliases (retained for in-flight importers).
+  forecastRent,
+  forecastOccupancy,
   rentCapFor,
   applyRentCap,
-  type RentForecastInput,
-  type OccupancyForecastInput,
+  type RoyaltyForecastInput,
+  type UtilisationForecastInput,
   type ChurnForecastInput,
   type MaintenanceForecastInput,
   type EnergyForecastInput,
   type MarketCycleForecastInput,
+  type RoyaltyCapPolicy,
+  type RentForecastInput,
+  type OccupancyForecastInput,
   type RentCapPolicy,
 } from './re-forecasters/index.js';
 

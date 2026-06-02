@@ -150,42 +150,42 @@ export interface ApiVersion {
  * Default scopes for the platform
  */
 export const DefaultApiScopes: ApiScope[] = [
-  // Property scopes
+  // Site scopes
   {
-    id: 'properties:read',
-    name: 'Read Properties',
-    description: 'Read property and unit information',
+    id: 'sites:read',
+    name: 'Read Sites',
+    description: 'Read site and asset information',
     category: ApiScopeCategory.READ,
-    resources: ['properties', 'units'],
+    resources: ['sites', 'assets'],
     actions: ['list', 'get'],
     requiredTier: PartnerTier.DEVELOPER,
   },
   {
-    id: 'properties:write',
-    name: 'Write Properties',
-    description: 'Create and update property information',
+    id: 'sites:write',
+    name: 'Write Sites',
+    description: 'Create and update site information',
     category: ApiScopeCategory.WRITE,
-    resources: ['properties', 'units'],
+    resources: ['sites', 'assets'],
     actions: ['create', 'update'],
     requiredTier: PartnerTier.STANDARD,
   },
 
-  // Lease scopes
+  // Offtake scopes
   {
-    id: 'leases:read',
-    name: 'Read Leases',
-    description: 'Read lease information',
+    id: 'offtakes:read',
+    name: 'Read Offtakes',
+    description: 'Read offtake agreement information',
     category: ApiScopeCategory.READ,
-    resources: ['leases'],
+    resources: ['offtakes'],
     actions: ['list', 'get'],
     requiredTier: PartnerTier.DEVELOPER,
   },
   {
-    id: 'leases:write',
-    name: 'Write Leases',
-    description: 'Create and update leases',
+    id: 'offtakes:write',
+    name: 'Write Offtakes',
+    description: 'Create and update offtake agreements',
     category: ApiScopeCategory.WRITE,
-    resources: ['leases'],
+    resources: ['offtakes'],
     actions: ['create', 'update'],
     requiredTier: PartnerTier.STANDARD,
   },

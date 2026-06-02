@@ -12,7 +12,7 @@ import {
   assignWorkOrderCommitTool,
   HIGH_COST_THRESHOLD_KES,
 } from '../assign-work-order.js';
-import { approveLeaseRenewalTool } from '../approve-lease-renewal.js';
+import { approveOfftakeRenewalTool } from '../approve-lease-renewal.js';
 import { sendRentReminderTool } from '../send-rent-reminder.js';
 import { draftOwnerStatementAdminTool } from '../draft-owner-statement.js';
 import { approveTenderBidTool } from '../approve-tender-bid.js';
@@ -127,14 +127,14 @@ describe('skill.admin.assign_work_order', () => {
   });
 });
 
-describe('skill.admin.approve_lease_renewal', () => {
+describe('skill.admin.approve_offtake_renewal', () => {
   it('commits within policy (<=10%)', async () => {
-    const r = await approveLeaseRenewalTool.execute(
+    const r = await approveOfftakeRenewalTool.execute(
       {
         renewalId: 'r1',
-        leaseId: 'l1',
-        currentRentKes: 50_000,
-        proposedRentKes: 54_000,
+        offtakeId: 'o1',
+        currentPriceKes: 50_000,
+        proposedPriceKes: 54_000,
         newEndDateIso: '2027-01-01T00:00:00.000Z',
         termMonths: 12,
       },
@@ -144,13 +144,13 @@ describe('skill.admin.approve_lease_renewal', () => {
     expect(r.evidenceSummary).toContain('approved');
   });
 
-  it('proposes when rent delta > 10%', async () => {
-    const r = await approveLeaseRenewalTool.execute(
+  it('proposes when price delta > 10%', async () => {
+    const r = await approveOfftakeRenewalTool.execute(
       {
         renewalId: 'r1',
-        leaseId: 'l1',
-        currentRentKes: 50_000,
-        proposedRentKes: 65_000,
+        offtakeId: 'o1',
+        currentPriceKes: 50_000,
+        proposedPriceKes: 65_000,
         newEndDateIso: '2027-01-01T00:00:00.000Z',
         termMonths: 12,
       },
@@ -161,13 +161,13 @@ describe('skill.admin.approve_lease_renewal', () => {
   });
 
   it('rejects cross-tenant target', async () => {
-    const r = await approveLeaseRenewalTool.execute(
+    const r = await approveOfftakeRenewalTool.execute(
       {
         tenantId: TENANT_B,
         renewalId: 'r1',
-        leaseId: 'l1',
-        currentRentKes: 50_000,
-        proposedRentKes: 51_000,
+        offtakeId: 'o1',
+        currentPriceKes: 50_000,
+        proposedPriceKes: 51_000,
         newEndDateIso: '2027-01-01T00:00:00.000Z',
         termMonths: 12,
       },

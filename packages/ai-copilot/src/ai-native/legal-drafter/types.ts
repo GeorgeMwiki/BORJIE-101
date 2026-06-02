@@ -4,21 +4,21 @@
  * First-draft-only: every output is QUEUED for human review unless the
  * tenant's autonomy policy explicitly opts into auto-send for that document
  * kind. The compliance invariant `FORBIDDEN_AUTO_SEND` is enforced
- * independently — eviction notices are NEVER auto-sendable, regardless of
+ * independently — licence-suspension notices are NEVER auto-sendable, regardless of
  * policy.
  */
 
 import type { Citation } from '../phl-common/types.js';
 
 export type LegalDocumentKind =
-  | 'notice_to_vacate'
-  | 'lease_addendum'
+  | 'notice_to_cease'
+  | 'offtake_addendum'
   | 'demand_letter'
-  | 'eviction_notice'
+  | 'licence_suspension_notice'
   | 'renewal_offer'
-  | 'rent_increase_notice'
-  | 'cure_or_quit'
-  | 'move_out_statement'
+  | 'royalty_increase_notice'
+  | 'cure_or_cease'
+  | 'offboarding_statement'
   | 'other';
 
 /**
@@ -27,7 +27,7 @@ export type LegalDocumentKind =
  * `legal_drafts_eviction_must_review` check constraint.
  */
 export const FORBIDDEN_AUTO_SEND: readonly LegalDocumentKind[] = Object.freeze([
-  'eviction_notice',
+  'licence_suspension_notice',
 ]);
 
 export interface TenantContextForLegal {
@@ -36,9 +36,9 @@ export interface TenantContextForLegal {
   readonly subdivision?: string; // e.g. US state
   readonly languageCode?: string;
   readonly subjectCustomerId?: string;
-  readonly subjectLeaseId?: string;
-  readonly subjectPropertyId?: string;
-  readonly subjectUnitId?: string;
+  readonly subjectOfftakeId?: string;
+  readonly subjectSiteId?: string;
+  readonly subjectPitId?: string;
 }
 
 export interface DraftFacts {
@@ -54,14 +54,14 @@ export interface LegalLawSnapshot {
   readonly requiredClauses: readonly string[];
   readonly citations: readonly string[];
   readonly forbiddenClauses: readonly string[];
-  /** Country-level info string, e.g. "TZ-Rent-Restriction-Act-1984". */
+  /** Country-level info string, e.g. "TZ-Mining-Act-2010". */
   readonly sourceTag: string;
 }
 
-export interface LeaseLawDispatchPort {
+export interface LegalLawDispatchPort {
   /**
    * Global-first dispatch: the call site resolves the country plugin and
-   * returns the lease-law snapshot. Throws when the country is unknown
+   * returns the legal-law snapshot. Throws when the country is unknown
    * AND no fallback is configured — callers MUST pass a valid country.
    */
   resolve(
@@ -112,9 +112,9 @@ export interface LegalDraftRow {
   readonly countryCode: string;
   readonly jurisdictionMetadata: Readonly<Record<string, unknown>>;
   readonly subjectCustomerId: string | null;
-  readonly subjectLeaseId: string | null;
-  readonly subjectPropertyId: string | null;
-  readonly subjectUnitId: string | null;
+  readonly subjectOfftakeId: string | null;
+  readonly subjectSiteId: string | null;
+  readonly subjectPitId: string | null;
   readonly languageCode: string | null;
   readonly draftTitle: string;
   readonly draftBody: string;

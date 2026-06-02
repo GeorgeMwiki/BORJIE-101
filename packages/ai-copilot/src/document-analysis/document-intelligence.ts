@@ -2,9 +2,9 @@
  * Document Intelligence — domain-specific extractors.
  *
  * Six deterministic heuristic parsers:
- *   - lease agreement
- *   - rent roll
- *   - tenant application
+ *   - offtake agreement
+ *   - royalty roll
+ *   - counterparty application
  *   - maintenance invoice
  *   - compliance notice
  *   - government letter
@@ -17,9 +17,9 @@
 import { z } from 'zod';
 
 export const DocumentKindSchema = z.enum([
-  'lease_agreement',
-  'rent_roll',
-  'tenant_application',
+  'offtake_agreement',
+  'royalty_roll',
+  'counterparty_application',
   'maintenance_invoice',
   'compliance_notice',
   'government_letter',
@@ -41,10 +41,10 @@ export interface DocumentAnalysisResult {
 export function classifyDocument(text: string): { kind: DocumentKind; confidence: number } {
   const t = text.toLowerCase();
   const scores: Record<DocumentKind, number> = {
-    lease_agreement: count(t, ['lease', 'lessor', 'lessee', 'tenancy', 'rent per month']),
-    rent_roll: count(t, ['rent roll', 'unit label', 'arrears', 'monthly rent', 'occupied']),
-    tenant_application: count(t, ['application form', 'applicant', 'monthly income', 'references', 'employer']),
-    maintenance_invoice: count(t, ['invoice', 'repair', 'labour', 'materials', 'vat', 'plumbing']),
+    offtake_agreement: count(t, ['offtake', 'supplier', 'buyer', 'supply agreement', 'price per tonne']),
+    royalty_roll: count(t, ['royalty roll', 'pit label', 'arrears', 'monthly royalty', 'producing']),
+    counterparty_application: count(t, ['application form', 'applicant', 'monthly turnover', 'references', 'company']),
+    maintenance_invoice: count(t, ['invoice', 'repair', 'labour', 'materials', 'vat', 'pump']),
     compliance_notice: count(t, ['notice', 'section', 'act', 'tribunal', 'demand']),
     government_letter: count(t, ['republic of', 'ministry of', 'ref no.', 'official', 'authority']),
     unknown: 0,
@@ -65,24 +65,24 @@ function count(text: string, terms: readonly string[]): number {
   return terms.reduce((sum, t) => (text.includes(t) ? sum + 1 : sum), 0);
 }
 
-export function parseLeaseAgreement(text: string): DocumentAnalysisResult {
+export function parseOfftakeAgreement(text: string): DocumentAnalysisResult {
   const flags: string[] = [];
-  const parties = /lessor[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
-  const tenant = /lessee[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
-  const rent = /rent[^\n]{0,200}?(KES|TZS|UGX|RWF)\s*([\d,\.]+)/i.exec(text);
+  const supplier = /supplier[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
+  const buyer = /buyer[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
+  const price = /price[^\n]{0,200}?(KES|TZS|UGX|RWF)\s*([\d,\.]+)/i.exec(text);
   const start = /commencement\s+date[^\n]{0,60}?([\d]{1,2}[\/\-.][A-Za-z0-9]{1,10}[\/\-.][\d]{2,4})/i.exec(text)?.[1];
   const end = /(?:end|expiry)\s+date[^\n]{0,60}?([\d]{1,2}[\/\-.][A-Za-z0-9]{1,10}[\/\-.][\d]{2,4})/i.exec(text)?.[1];
-  if (!rent) flags.push('rent_not_detected');
-  if (!start || !end) flags.push('lease_dates_incomplete');
-  if (!tenant) flags.push('tenant_name_missing');
+  if (!price) flags.push('price_not_detected');
+  if (!start || !end) flags.push('offtake_dates_incomplete');
+  if (!buyer) flags.push('buyer_name_missing');
   return {
-    kind: 'lease_agreement',
+    kind: 'offtake_agreement',
     confidence: 0.8,
     extracted: {
-      landlord: parties,
-      tenant,
-      rentCurrency: rent?.[1],
-      rentAmount: rent ? Number((rent[2] ?? '').replace(/[,\s]/g, '')) : undefined,
+      supplier,
+      buyer,
+      priceCurrency: price?.[1],
+      priceAmount: price ? Number((price[2] ?? '').replace(/[,\s]/g, '')) : undefined,
       startDate: start,
       endDate: end,
     },
@@ -90,47 +90,47 @@ export function parseLeaseAgreement(text: string): DocumentAnalysisResult {
   };
 }
 
-export function parseRentRoll(text: string): DocumentAnalysisResult {
-  const rows: Array<{ unit: string; rent: number; status: string }> = [];
-  const lineRegex = /\b([A-Z0-9][A-Z0-9\-/]{0,8})\s+(?:KES|TZS|UGX|RWF)?\s*([\d,\.]+)\s+(occupied|vacant|notice|arrears)\b/gi;
+export function parseRoyaltyRoll(text: string): DocumentAnalysisResult {
+  const rows: Array<{ pit: string; royalty: number; status: string }> = [];
+  const lineRegex = /\b([A-Z0-9][A-Z0-9\-/]{0,8})\s+(?:KES|TZS|UGX|RWF)?\s*([\d,\.]+)\s+(producing|idle|notice|arrears)\b/gi;
   let m: RegExpExecArray | null;
   while ((m = lineRegex.exec(text)) !== null) {
-    const unit = m[1];
-    const rent = m[2];
+    const pit = m[1];
+    const royalty = m[2];
     const status = m[3];
-    if (unit === undefined || rent === undefined || status === undefined) continue;
+    if (pit === undefined || royalty === undefined || status === undefined) continue;
     rows.push({
-      unit,
-      rent: Number(rent.replace(/[,\s]/g, '')),
+      pit,
+      royalty: Number(royalty.replace(/[,\s]/g, '')),
       status: status.toLowerCase(),
     });
   }
   const flags: string[] = [];
   if (rows.length === 0) flags.push('no_rows_detected');
   return {
-    kind: 'rent_roll',
+    kind: 'royalty_roll',
     confidence: rows.length > 0 ? 0.75 : 0.3,
     extracted: { rowCount: rows.length, rows },
     flags,
   };
 }
 
-export function parseTenantApplication(text: string): DocumentAnalysisResult {
+export function parseCounterpartyApplication(text: string): DocumentAnalysisResult {
   const name = /applicant\s+name[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
-  const income = /(?:monthly|annual)\s+income[:\s]+(?:KES|TZS|UGX|RWF)?\s*([\d,\.]+)/i.exec(text);
-  const employer = /employer[:\s]+([A-Z][A-Za-z0-9 '&.-]{2,80})/i.exec(text)?.[1];
+  const turnover = /(?:monthly|annual)\s+turnover[:\s]+(?:KES|TZS|UGX|RWF)?\s*([\d,\.]+)/i.exec(text);
+  const company = /company[:\s]+([A-Z][A-Za-z0-9 '&.-]{2,80})/i.exec(text)?.[1];
   const references = Array.from(text.matchAll(/referee\s*\d*[:\s]+([A-Z][A-Za-z '&.-]{2,80})/gi)).map((r) => r[1]);
   const flags: string[] = [];
   if (!name) flags.push('applicant_name_missing');
-  if (!income) flags.push('income_missing');
+  if (!turnover) flags.push('turnover_missing');
   if (references.length < 2) flags.push('insufficient_references');
   return {
-    kind: 'tenant_application',
+    kind: 'counterparty_application',
     confidence: 0.7,
     extracted: {
       applicantName: name,
-      monthlyIncome: income ? Number((income[1] ?? '').replace(/[,\s]/g, '')) : undefined,
-      employer,
+      monthlyTurnover: turnover ? Number((turnover[1] ?? '').replace(/[,\s]/g, '')) : undefined,
+      company,
       references,
     },
     flags,
@@ -160,7 +160,7 @@ export function parseMaintenanceInvoice(text: string): DocumentAnalysisResult {
 }
 
 export function parseComplianceNotice(text: string): DocumentAnalysisResult {
-  const act = /(?:act|rent\s+restriction|landlord\s+and\s+tenant)[^\n]{0,80}/i.exec(text)?.[0];
+  const act = /(?:act|mining\s+act|licence\s+conditions)[^\n]{0,80}/i.exec(text)?.[0];
   const section = /section\s+([0-9]+[A-Za-z]?)/i.exec(text)?.[1];
   const partyServed = /to[:\s]+([A-Z][A-Za-z '&.-]{2,80})/i.exec(text)?.[1];
   const noticePeriod = /(\d{1,3})\s*(?:days?|months?)\s+notice/i.exec(text);
@@ -205,12 +205,12 @@ export function parseGovernmentLetter(text: string): DocumentAnalysisResult {
 export function analyzeDocument(text: string): DocumentAnalysisResult {
   const classification = classifyDocument(text);
   switch (classification.kind) {
-    case 'lease_agreement':
-      return parseLeaseAgreement(text);
-    case 'rent_roll':
-      return parseRentRoll(text);
-    case 'tenant_application':
-      return parseTenantApplication(text);
+    case 'offtake_agreement':
+      return parseOfftakeAgreement(text);
+    case 'royalty_roll':
+      return parseRoyaltyRoll(text);
+    case 'counterparty_application':
+      return parseCounterpartyApplication(text);
     case 'maintenance_invoice':
       return parseMaintenanceInvoice(text);
     case 'compliance_notice':

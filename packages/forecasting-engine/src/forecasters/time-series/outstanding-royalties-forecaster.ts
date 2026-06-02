@@ -1,15 +1,20 @@
 /**
- * ArrearsForecaster — logistic-growth fit to cumulative arrears.
+ * OutstandingRoyaltiesForecaster — logistic-growth fit to cumulative
+ * outstanding royalties.
  *
- * Cumulative arrears typically saturate (max ~ tenant rent × tenure).
- * Logistic curve: y(t) = K / (1 + exp(-r*(t - t0))). We fit (K, r, t0)
- * via grid + local refinement — no external optimisation library.
+ * Cumulative outstanding royalties typically saturate (max ~
+ * counterparty royalty × tenure). Logistic curve:
+ * y(t) = K / (1 + exp(-r*(t - t0))). We fit (K, r, t0) via grid +
+ * local refinement — no external optimisation library.
  *
- * H1 (audit): pre-fix, `forecastArrears` and `updateArrears` computed
- * `(t - t)/dayMs` which collapses to 0 — every projection used x=0 and
- * the residual was always `actual - logistic(0, …)`. We now persist
- * `t0Anchor` (the wall-clock t of `history[0]`) on the fitted model so
- * both forecast and update map t → days correctly.
+ * H1 (audit): pre-fix, the forecast/update computed `(t - t)/dayMs`
+ * which collapses to 0 — every projection used x=0 and the residual
+ * was always `actual - logistic(0, …)`. We now persist `t0Anchor`
+ * (the wall-clock t of `history[0]`) on the fitted model so both
+ * forecast and update map t → days correctly.
+ *
+ * NOTE: file renamed from `arrears-forecaster.ts`; deprecated
+ * `*Arrears` aliases are retained for any in-flight importer.
  */
 
 import type { TimePoint, ForecastBand, FittedModel } from '../../types.js';
@@ -22,7 +27,7 @@ export interface LogisticParams {
   readonly dtMs: number; // mean inter-sample spacing in ms
   /**
    * H1 — the wall-clock timestamp of `history[0]` used as the origin of
-   * the day-scale x-axis during fit. forecastArrears + updateArrears
+   * the day-scale x-axis during fit. The forecast + update functions
    * need this to project forward in the SAME x-scale used by `t0`/`r`.
    * Pre-fix this was lost and `(t - t)/dayMs` collapsed every projection
    * to x=0 → the forecaster returned a flat band at `logistic(0, …)`.
@@ -52,7 +57,7 @@ function rss(
   return s;
 }
 
-export function fitArrears(
+export function fitOutstandingRoyalties(
   history: ReadonlyArray<TimePoint>,
 ): FittedModel<LogisticParams> {
   if (history.length < 3) {
@@ -135,7 +140,10 @@ export function fitArrears(
   };
 }
 
-export function forecastArrears(
+/** @deprecated Use {@link fitOutstandingRoyalties}. */
+export const fitArrears = fitOutstandingRoyalties;
+
+export function forecastOutstandingRoyalties(
   model: FittedModel<LogisticParams>,
   horizonDays: number,
 ): ReadonlyArray<ForecastBand> {
@@ -161,7 +169,10 @@ export function forecastArrears(
   return out;
 }
 
-export function updateArrears(
+/** @deprecated Use {@link forecastOutstandingRoyalties}. */
+export const forecastArrears = forecastOutstandingRoyalties;
+
+export function updateOutstandingRoyalties(
   model: FittedModel<LogisticParams>,
   actual: TimePoint,
 ): FittedModel<LogisticParams> {
@@ -183,3 +194,6 @@ export function updateArrears(
     sampleSize: model.sampleSize + 1,
   };
 }
+
+/** @deprecated Use {@link updateOutstandingRoyalties}. */
+export const updateArrears = updateOutstandingRoyalties;

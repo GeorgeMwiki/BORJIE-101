@@ -2,20 +2,20 @@
  * Forecasting public types.
  *
  * The forecasting package produces calibrated risk + opportunity
- * predictions for every node in the property graph. Three layers
+ * predictions for every node in the mining-estate graph. Three layers
  * stack, each stronger than the last:
  *
  *   1. Local gradient-boosted baselines on tabular per-entity features
  *      — fast, cheap, the floor.
  *   2. Temporal Graph Network (TGN) that consumes the per-org subgraph
- *      — captures vendor ↔ tenant ↔ unit interactions no tabular
+ *      — captures vendor ↔ counterparty ↔ unit interactions no tabular
  *      model sees. Per-org; never touches another tenant's data.
  *   3. Geometric foundation model fine-tuned on the DP-aggregated
  *      PLATFORM graph — produces sector-level forecasts no individual
  *      operator could produce alone (Borjie's moat).
  *
  * Every forecast ships with a conformal-prediction interval, not a
- * point estimate. "70% occupancy next quarter" with no interval is
+ * point estimate. "70% utilisation next quarter" with no interval is
  * a lie; "68-72% at 90% confidence" is a usable forecast.
  *
  * This file contains ONLY types — pure contracts. No runtime.
@@ -29,14 +29,20 @@ import { z } from 'zod';
 // a typecheck error, not a silent miss.
 // ─────────────────────────────────────────────────────────────────────
 
+// NOTE: the RISK_KINDS string values are a FROZEN public contract —
+// `@borjie/ai-copilot` (graph-signals + proactive-insights) keys off
+// `void_risk` / `renewal_opportunity` / `arrears_risk` etc. directly.
+// Renaming a value here is a breaking change for a package this one
+// does not own, so the identifiers stay; only the comments are
+// re-pointed to the mining-estate domain.
 export const RISK_KINDS = [
-  'arrears_risk',           // tenant will be 30+ days late
-  'churn_risk',             // tenant will not renew
+  'arrears_risk',           // counterparty will be 30+ days late on royalty/payment
+  'churn_risk',             // counterparty will not renew the offtake
   'incident_risk',          // unit will raise an unresolved maintenance escalation
   'vendor_decay',           // vendor performance is trending down across tenants
-  'renewal_opportunity',    // above-market rent potential at next renewal
+  'renewal_opportunity',    // above-market royalty potential at next renewal
   'compliance_drift',       // policy/statute cadence will be breached
-  'void_risk',              // unit will sit vacant beyond market average
+  'void_risk',              // unit will sit idle (un-contracted) beyond market average
   'repair_recurrence',      // same incident type likely to re-open
   'payment_method_decay',   // card will expire / mandate will fail
   'litigation_exposure',    // case is likely to escalate to tribunal
@@ -55,7 +61,7 @@ export const RiskKindSchema = z.enum(RISK_KINDS);
 
 export interface ForecastScope {
   readonly tenantId: string;
-  readonly nodeLabel: string;     // Neo4j label, e.g. 'Unit', 'Tenant'
+  readonly nodeLabel: string;     // Neo4j label, e.g. 'Unit', 'Counterparty'
   readonly nodeId: string;        // graph node ID (usually a UUID)
   readonly horizonDays: number;   // e.g. 28, 60, 90
 }
@@ -164,17 +170,17 @@ export const ForecastSchema: z.ZodType<Forecast> = z.object({
 // ─────────────────────────────────────────────────────────────────────
 // Platform-scale forecast — aggregate, never per-node. Produced only
 // from the DP-aggregated platform graph. Has NO tenantId; scoped by
-// jurisdiction + property class + time bucket. This is the moat
+// jurisdiction + asset class + time bucket. This is the moat
 // product: industry forecasts only we can produce.
 // ─────────────────────────────────────────────────────────────────────
 
 export interface PlatformForecastScope {
   /** ISO-3166-1 alpha-2 + optional admin-1 code (e.g. 'KE', 'KE-30'). */
   readonly jurisdiction: string;
-  /** Class A / B / C / student / short-let / etc. */
-  readonly propertyClass: string;
+  /** Asset class (e.g. open-pit / underground / alluvial / processing). */
+  readonly assetClass: string;
   readonly horizonDays: number;
-  /** Aggregate metric (e.g. 'arrears_rate', 'vacancy_days', 'NOI_growth'). */
+  /** Aggregate metric (e.g. 'outstanding_royalty_rate', 'idle_capacity_days', 'net_margin_growth'). */
   readonly metric: string;
 }
 
@@ -273,7 +279,7 @@ export function assertExhaustiveRiskKind(value: never): never {
 // Time-series forecasting layer (added 2026-05-24)
 //
 // Complements the per-node graph forecaster above with a univariate
-// time-series layer: rent, occupancy, churn, maintenance, energy,
+// time-series layer: royalty, utilisation, churn, maintenance, energy,
 // market-cycle. Composes foundation-model adapters (Chronos/TimesFM/
 // TimeGPT) with local pure-TS baselines (naive, MA, Holt-Winters,
 // linear-regression) and a conformal-interval wrapper.
@@ -388,8 +394,8 @@ export const TIME_SERIES_FORECAST_KINDS = [
   'timegpt',
   'llm-zero-shot',
   'ensemble',
-  're-rent',
-  're-occupancy',
+  're-royalty',
+  're-utilisation',
   're-churn',
   're-maintenance',
   're-energy',

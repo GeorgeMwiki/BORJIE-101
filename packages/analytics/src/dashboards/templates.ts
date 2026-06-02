@@ -2,13 +2,13 @@
  * Pre-shipped SOTA dashboard templates.
  *
  * Each template is a function: `params` → `DashboardDef`. Templates are
- * tuned for property-management workflows; widgets emit cube queries
+ * tuned for mining estate workflows; widgets emit cube queries
  * that the composition root resolves against the right cube definition.
  *
  * Templates:
- *   1. leasing-financial-performance — revenue, occupancy, rent roll
+ *   1. offtake-financial-performance — revenue, asset utilisation, royalty roll
  *   2. maintenance-ops — ticket queue, MTTR, SLA breaches
- *   3. tenant-credit — credit score distribution, default rate
+ *   3. counterparty-credit — credit score distribution, default rate
  *   4. portfolio-overview — KPIs across all four pillars
  */
 
@@ -31,15 +31,15 @@ export interface ComposeFromTemplateParams {
 }
 
 export type TemplateName =
-  | 'leasing-financial-performance'
+  | 'offtake-financial-performance'
   | 'maintenance-ops'
-  | 'tenant-credit'
+  | 'counterparty-credit'
   | 'portfolio-overview';
 
 export const TEMPLATE_NAMES: readonly TemplateName[] = [
-  'leasing-financial-performance',
+  'offtake-financial-performance',
   'maintenance-ops',
-  'tenant-credit',
+  'counterparty-credit',
   'portfolio-overview',
 ];
 
@@ -48,12 +48,12 @@ export function composeFromTemplate(
   params: ComposeFromTemplateParams,
 ): DashboardDef {
   switch (template) {
-    case 'leasing-financial-performance':
-      return composeLeasingFinancial(params);
+    case 'offtake-financial-performance':
+      return composeOfftakeFinancial(params);
     case 'maintenance-ops':
       return composeMaintenanceOps(params);
-    case 'tenant-credit':
-      return composeTenantCredit(params);
+    case 'counterparty-credit':
+      return composeCounterpartyCredit(params);
     case 'portfolio-overview':
       return composePortfolioOverview(params);
   }
@@ -77,13 +77,13 @@ function baseDashboard(
   });
 }
 
-// ───────────────────── 1. Leasing & Financial ─────────────────────
+// ───────────────────── 1. Offtake & Financial ─────────────────────
 
-function composeLeasingFinancial(params: ComposeFromTemplateParams): DashboardDef {
+function composeOfftakeFinancial(params: ComposeFromTemplateParams): DashboardDef {
   const widgets: WidgetDef[] = [
     {
       id: 'kpi-gmv',
-      title: 'Gross Rental Income',
+      title: 'Gross Royalty Income',
       kind: 'kpi',
       query: {
         cube: 'leases',
@@ -95,7 +95,7 @@ function composeLeasingFinancial(params: ComposeFromTemplateParams): DashboardDe
     },
     {
       id: 'kpi-occupancy',
-      title: 'Occupancy Rate',
+      title: 'Asset Utilisation Rate',
       kind: 'kpi',
       query: {
         cube: 'units',
@@ -145,7 +145,7 @@ function composeLeasingFinancial(params: ComposeFromTemplateParams): DashboardDe
     },
     {
       id: 'chart-status-share',
-      title: 'Lease Status Share',
+      title: 'Offtake Status Share',
       kind: 'chart',
       query: {
         cube: 'leases',
@@ -158,9 +158,9 @@ function composeLeasingFinancial(params: ComposeFromTemplateParams): DashboardDe
     },
   ];
   return baseDashboard(
-    'tpl-leasing-financial',
-    'Leasing & Financial Performance',
-    'Revenue, occupancy, arrears, and renewal KPIs with monthly trend.',
+    'tpl-offtake-financial',
+    'Offtake & Financial Performance',
+    'Revenue, asset utilisation, outstanding royalties, and renewal KPIs with monthly trend.',
     params,
     widgets,
   );
@@ -238,9 +238,9 @@ function composeMaintenanceOps(params: ComposeFromTemplateParams): DashboardDef 
   );
 }
 
-// ───────────────────── 3. Tenant Credit ─────────────────────
+// ───────────────────── 3. Counterparty Credit ─────────────────────
 
-function composeTenantCredit(params: ComposeFromTemplateParams): DashboardDef {
+function composeCounterpartyCredit(params: ComposeFromTemplateParams): DashboardDef {
   const widgets: WidgetDef[] = [
     {
       id: 'kpi-default-rate',
@@ -295,8 +295,8 @@ function composeTenantCredit(params: ComposeFromTemplateParams): DashboardDef {
     },
   ];
   return baseDashboard(
-    'tpl-tenant-credit',
-    'Tenant Credit & Risk',
+    'tpl-counterparty-credit',
+    'Counterparty Credit & Risk',
     'Credit-band distribution, default-rate trend, and risk KPIs.',
     params,
     widgets,
@@ -325,7 +325,7 @@ function composePortfolioOverview(params: ComposeFromTemplateParams): DashboardD
     },
     {
       id: 'kpi-properties',
-      title: 'Properties Under Management',
+      title: 'Sites Under Management',
       kind: 'kpi',
       query: { cube: 'portfolio', tenantId: params.tenantId, metrics: ['property_count'] },
       spec: { kind: 'kpi', metric: 'property_count', format: 'number' },
@@ -333,7 +333,7 @@ function composePortfolioOverview(params: ComposeFromTemplateParams): DashboardD
     },
     {
       id: 'kpi-units',
-      title: 'Units Under Management',
+      title: 'Assets Under Management',
       kind: 'kpi',
       query: { cube: 'portfolio', tenantId: params.tenantId, metrics: ['unit_count'] },
       spec: { kind: 'kpi', metric: 'unit_count', format: 'number' },
@@ -371,7 +371,7 @@ function composePortfolioOverview(params: ComposeFromTemplateParams): DashboardD
       kind: 'markdown',
       spec: {
         kind: 'markdown',
-        markdown: '## Portfolio overview\n\nThis dashboard rolls up the four core BORJIE pillars: leasing, maintenance, credit, and capital. Each KPI updates against the active reporting period.',
+        markdown: '## Portfolio overview\n\nThis dashboard rolls up the four core BORJIE pillars: offtake, maintenance, credit, and capital. Each KPI updates against the active reporting period.',
       },
       position: { x: 0, y: 6, w: 12, h: 2 },
     },
@@ -379,7 +379,7 @@ function composePortfolioOverview(params: ComposeFromTemplateParams): DashboardD
   return baseDashboard(
     'tpl-portfolio-overview',
     'Portfolio Overview',
-    'Top-level KPIs across leasing, maintenance, credit, and capital.',
+    'Top-level KPIs across offtake, maintenance, credit, and capital.',
     params,
     widgets,
   );

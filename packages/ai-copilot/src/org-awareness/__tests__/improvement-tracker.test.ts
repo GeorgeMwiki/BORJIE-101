@@ -76,7 +76,7 @@ describe('improvement-tracker', () => {
   it('treats downward change on higher-is-better metric as worse', async () => {
     await tracker.recordSnapshot({
       tenantId: tenantA,
-      metric: 'occupancy_rate',
+      metric: 'production_rate',
       periodKind: 'monthly',
       periodStart: new Date('2026-01-01T00:00:00Z'),
       periodEnd: new Date('2026-01-31T23:59:59Z'),
@@ -85,14 +85,14 @@ describe('improvement-tracker', () => {
     });
     await tracker.recordSnapshot({
       tenantId: tenantA,
-      metric: 'occupancy_rate',
+      metric: 'production_rate',
       periodKind: 'monthly',
       periodStart: new Date('2026-04-01T00:00:00Z'),
       periodEnd: new Date('2026-04-30T23:59:59Z'),
       value: 0.85,
     });
     const report = await tracker.getImprovementReport(tenantA);
-    const delta = report.deltas.find((d) => d.metric === 'occupancy_rate');
+    const delta = report.deltas.find((d) => d.metric === 'production_rate');
     expect(delta?.isBetter).toBe(false);
   });
 

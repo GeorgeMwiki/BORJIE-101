@@ -1,18 +1,19 @@
 /**
- * Market regime detector — classifies the agency-level state vector
+ * Market regime detector — classifies the estate-level state vector
  * series into a coarse market regime: stable / tightening / loosening
  * / shock. The kernel uses this to choose between conservative and
- * aggressive recommendations (e.g. push rents in `loosening`, hold
- * rents flat in `tightening`).
+ * aggressive recommendations (e.g. push pricing in `loosening`, hold
+ * pricing flat in `tightening`).
  *
- * Heuristics:
- *   - tightening  occupancy down >5% over 90d  AND  rent stable/falling
- *   - loosening   occupancy up                 AND  arrears falling
- *   - shock       occupancy or rent moves >15% in either direction in 30d
+ * Heuristics (utilisation/price are proxied from the kept state-vector
+ * fields `vacancyRate` / `avgRentMajor`):
+ *   - tightening  utilisation down >5% over 90d  AND  price stable/falling
+ *   - loosening   utilisation up                 AND  outstanding royalties falling
+ *   - shock       utilisation or price moves >15% in either direction in 30d
  *   - stable      otherwise (also the default when history is too short)
  *
- * Inputs are deliberately the agency-level vector — a roll-up across
- * the whole tenant org. Per-property regimes are surfaced via the
+ * Inputs are deliberately the estate-level vector — a roll-up across
+ * the whole tenant org. Per-site regimes are surfaced via the
  * trajectory module's PropertyRegime instead.
  *
  * Pure module — no I/O, no clock dependency, no mutation. The caller

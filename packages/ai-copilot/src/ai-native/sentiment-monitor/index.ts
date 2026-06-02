@@ -3,8 +3,8 @@
  *
  * Consumes every `messages` / `complaints` / `feedback` row as it lands and
  * classifies sentiment + emotion + churn-signal + liability-signal +
- * fraud-signal. Rows stream into `ai_native_signals`. When a tenant's
- * rolling sentiment crosses a threshold, emits `TenantSentimentShift`.
+ * fraud-signal. Rows stream into `ai_native_signals`. When a counterparty's
+ * rolling sentiment crosses a threshold, emits `CounterpartySentimentShift`.
  *
  * WHY AI-NATIVE (vs human-playbook):
  *   Humans cannot read 10,000 messages/day across a portfolio. This does
@@ -66,7 +66,7 @@ export interface SentimentSignal {
 }
 
 export interface SentimentShiftEvent {
-  readonly type: 'TenantSentimentShift';
+  readonly type: 'CounterpartySentimentShift';
   readonly tenantId: string;
   readonly customerId: string | null;
   readonly previousAvg: number;
@@ -271,7 +271,7 @@ export function createSentimentMonitor(
     const delta = Math.abs(signal.sentimentScore - rolling.avg);
     if (delta >= threshold) {
       await deps.publisher.publishShift({
-        type: 'TenantSentimentShift',
+        type: 'CounterpartySentimentShift',
         tenantId: signal.tenantId,
         customerId: signal.customerId,
         previousAvg: rolling.avg,

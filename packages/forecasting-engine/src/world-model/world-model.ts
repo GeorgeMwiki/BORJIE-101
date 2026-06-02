@@ -1,15 +1,15 @@
 /**
  * WorldModel — the persistent business state representation.
  *
- * Immutable snapshot of the org's dynamics: tenant graph, cashflow
- * state, compliance state, market cache, and the owner's archetype.
- * Every state transition returns a new model — never mutates in
- * place — so simulators can fork freely.
+ * Immutable snapshot of the org's dynamics: counterparty graph,
+ * cashflow state, compliance state, market cache, and the owner's
+ * archetype. Every state transition returns a new model — never
+ * mutates in place — so simulators can fork freely.
  */
 
 import type {
   BusinessContext,
-  TenantNode,
+  CounterpartyNode,
   UnitNode,
   OwnerIntent,
   TimePoint,
@@ -17,7 +17,7 @@ import type {
 
 export interface WorldModelState {
   readonly orgId: string;
-  readonly tenants: ReadonlyArray<TenantNode>;
+  readonly counterparties: ReadonlyArray<CounterpartyNode>;
   readonly units: ReadonlyArray<UnitNode>;
   readonly cashBalance: number;
   readonly historicalCashflow: ReadonlyArray<TimePoint>;
@@ -36,7 +36,7 @@ export class WorldModel {
   static fromContext(ctx: BusinessContext): WorldModel {
     return new WorldModel({
       orgId: ctx.orgId,
-      tenants: ctx.tenants,
+      counterparties: ctx.counterparties,
       units: ctx.units,
       cashBalance: ctx.cashBalance,
       historicalCashflow: ctx.historicalCashflow,
@@ -65,13 +65,16 @@ export class WorldModel {
     });
   }
 
-  withTenant(tenantId: string, patch: Partial<TenantNode>): WorldModel {
-    const tenants = this.state.tenants.map((t) =>
-      t.tenantId === tenantId ? { ...t, ...patch } : t,
+  withCounterparty(
+    counterpartyId: string,
+    patch: Partial<CounterpartyNode>,
+  ): WorldModel {
+    const counterparties = this.state.counterparties.map((c) =>
+      c.counterpartyId === counterpartyId ? { ...c, ...patch } : c,
     );
     return new WorldModel({
       ...this.state,
-      tenants,
+      counterparties,
       version: this.state.version + 1,
     });
   }
@@ -84,13 +87,16 @@ export class WorldModel {
     });
   }
 
-  occupancyRate(): number {
+  utilisationRate(): number {
     if (this.state.units.length === 0) return 0;
-    const occupied = this.state.units.filter((u) => u.occupied).length;
-    return occupied / this.state.units.length;
+    const inProduction = this.state.units.filter((u) => u.inProduction).length;
+    return inProduction / this.state.units.length;
   }
 
-  monthlyRentRoll(): number {
-    return this.state.tenants.reduce((sum, t) => sum + t.monthlyRent, 0);
+  monthlyRoyaltyRoll(): number {
+    return this.state.counterparties.reduce(
+      (sum, c) => sum + c.monthlyRoyalty,
+      0,
+    );
   }
 }

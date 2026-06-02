@@ -3,8 +3,9 @@
  *
  * Central Command Phase A gap #6 closure (see
  * `.planning/research/central-command/2025-bn-internal-gap-audit.md`
- * §6): the wake-loop's three existing triggers (arrears, lease-expiry,
- * vacancy) are all tenant-scoped. HQ has zero autonomous source of
+ * §6): the wake-loop's three existing triggers (outstanding royalties,
+ * agreement-expiry, spare capacity) are all tenant-scoped. HQ has zero
+ * autonomous source of
  * goals around subscription health, AI cost, DLQ depth, or persona
  * drift. This trigger is the FIRST HQ-tier detector and the template
  * the other three follow.

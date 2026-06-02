@@ -2,7 +2,7 @@
  * Annual estate operating review (AOR) gatherer.
  *
  * The AOR is the one-document-for-the-Board: it composes every other
- * advisor port (leasing financial + sustainability + rent-roll + survey
+ * advisor port (offtake financial + sustainability + royalty-roll + survey
  * + expansion + lifecycle disposition/refi) into a single EvidencePack
  * for a fiscal-year operating verdict.
  *
@@ -12,9 +12,9 @@
 
 import type { EvidencePack, Gatherer, GathererContext } from '../types.js';
 import type { AdvisorPorts } from './ports.js';
-import { createLeasingFinancialGatherer } from './leasing-financial.js';
+import { createOfftakeFinancialGatherer } from './offtake-financial.js';
 import { createSustainabilityGatherer } from './sustainability.js';
-import { createRentRollGatherer } from './rent-roll.js';
+import { createRoyaltyRollGatherer } from './royalty-roll.js';
 import { createConditionalSurveyGatherer } from './conditional-survey.js';
 import { createExpansionStrategyGatherer } from './expansion-strategy.js';
 import { sourceHealth } from './ports.js';
@@ -35,10 +35,10 @@ export function createAnnualOperatingReviewGatherer(deps: AnnualOperatingReviewG
     // ids with the sub-gatherer name so duplicates from cross-report runs cannot
     // collide in the synthesizer's prompt or the renderer's citation table.
 
-    const subGatherers: ReadonlyArray<{ name: string; gatherer: ReturnType<typeof createLeasingFinancialGatherer> }> = [
-      { name: 'lf', gatherer: createLeasingFinancialGatherer({ ports: deps.ports }) },
+    const subGatherers: ReadonlyArray<{ name: string; gatherer: ReturnType<typeof createOfftakeFinancialGatherer> }> = [
+      { name: 'of', gatherer: createOfftakeFinancialGatherer({ ports: deps.ports }) },
       { name: 'sus', gatherer: createSustainabilityGatherer({ ports: deps.ports }) },
-      { name: 'rr', gatherer: createRentRollGatherer({ ports: deps.ports }) },
+      { name: 'rr', gatherer: createRoyaltyRollGatherer({ ports: deps.ports }) },
       { name: 'cs', gatherer: createConditionalSurveyGatherer({ ports: deps.ports }) },
       { name: 'ex', gatherer: createExpansionStrategyGatherer({ ports: deps.ports }) },
     ];

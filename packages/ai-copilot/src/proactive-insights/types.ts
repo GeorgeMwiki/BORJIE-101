@@ -15,7 +15,7 @@ export type InsightCategory =
   | 'compliance_reminder'
   | 'inspection_followup'
   | 'vendor_swap'
-  | 'tenant_satisfaction'
+  | 'counterparty_satisfaction'
   | 'workflow_unblock';
 
 export type InsightPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -23,11 +23,11 @@ export type InsightPriority = 'low' | 'medium' | 'high' | 'critical';
 export interface InsightContext {
   readonly tenantId: string;
   readonly userId: string;
-  readonly role: 'owner' | 'manager' | 'tenant' | 'admin' | 'agent';
+  readonly role: 'owner' | 'manager' | 'counterparty' | 'admin' | 'agent';
   readonly currentPage: string;
   readonly currentEntities?: Readonly<Record<string, string>>;
   readonly openArrearsCases?: number;
-  readonly leasesExpiring90?: number;
+  readonly offtakesExpiring90?: number;
   readonly overdueTickets?: number;
   readonly expiringCompliance?: number;
   readonly lastStallAt?: string;

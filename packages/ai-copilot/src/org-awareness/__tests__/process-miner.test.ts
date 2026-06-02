@@ -70,7 +70,7 @@ describe('process-miner', () => {
       processKind: 'maintenance_case',
       processInstanceId: 'case-0',
       stage: 'reopened',
-      actorKind: 'tenant',
+      actorKind: 'counterparty',
       isReopen: true,
     });
     const stats = await miner.getProcessStats(tenantA, 'maintenance_case');
@@ -102,7 +102,7 @@ describe('process-miner', () => {
   });
 
   it('returns zeroed stats when no observations exist', async () => {
-    const stats = await miner.getProcessStats(tenantA, 'lease_renewal');
+    const stats = await miner.getProcessStats(tenantA, 'offtake_renewal');
     expect(stats.totalObservations).toBe(0);
     expect(stats.distinctInstances).toBe(0);
     expect(stats.reopenRate).toBe(0);
@@ -136,7 +136,7 @@ describe('process-miner', () => {
       processKind: 'maintenance_case',
       processInstanceId: 'case-fire',
       stage: 'reported',
-      actorKind: 'tenant',
+      actorKind: 'counterparty',
       metadata: { priority: 'emergency' },
     });
     const variant = await miner.detectVariant(
@@ -153,7 +153,7 @@ describe('process-miner', () => {
       processKind: 'maintenance_case',
       processInstanceId: 'case-regular',
       stage: 'reported',
-      actorKind: 'tenant',
+      actorKind: 'counterparty',
     });
     const variant = await miner.detectVariant(
       tenantA,

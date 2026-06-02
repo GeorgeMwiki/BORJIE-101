@@ -4,9 +4,9 @@ import { composeFromTemplate, TEMPLATE_NAMES } from '../dashboards/index.js';
 describe('dashboards / templates', () => {
   it('TEMPLATE_NAMES lists exactly the 4 SOTA templates', () => {
     expect(TEMPLATE_NAMES).toEqual([
-      'leasing-financial-performance',
+      'offtake-financial-performance',
       'maintenance-ops',
-      'tenant-credit',
+      'counterparty-credit',
       'portfolio-overview',
     ]);
   });
@@ -25,8 +25,8 @@ describe('dashboards / templates', () => {
     });
   }
 
-  it('leasing template has 4 KPI tiles + 2 charts', () => {
-    const dash = composeFromTemplate('leasing-financial-performance', { tenantId: 't1' });
+  it('offtake template has 4 KPI tiles + 2 charts', () => {
+    const dash = composeFromTemplate('offtake-financial-performance', { tenantId: 't1' });
     expect(dash.widgets.filter((w) => w.kind === 'kpi')).toHaveLength(4);
     expect(dash.widgets.filter((w) => w.kind === 'chart')).toHaveLength(2);
   });
@@ -37,7 +37,7 @@ describe('dashboards / templates', () => {
   });
 
   it('honours defaultTimeRange', () => {
-    const dash = composeFromTemplate('leasing-financial-performance', {
+    const dash = composeFromTemplate('offtake-financial-performance', {
       tenantId: 't1',
       defaultTimeRange: { start: '2026-01-01', end: '2026-02-01' },
     });

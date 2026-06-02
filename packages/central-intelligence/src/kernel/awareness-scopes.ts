@@ -3,10 +3,15 @@
  * tenant/platform discriminator on ScopeContext is the security
  * boundary; tiers are richer reasoning lenses INSIDE the tenant scope.
  *
- * A request at tier=lease can talk about that lease and its parent
- * unit/block/property in summary form, but cannot see sibling leases
- * by id. A request at tier=portfolio can roll up across an owner's
- * properties but not name another owner.
+ * A request at tier=lease can talk about that offtake/supply agreement
+ * and its parent unit/block/site in summary form, but cannot see
+ * sibling agreements by id. A request at tier=portfolio can roll up
+ * across an owner's sites but not name another owner.
+ *
+ * (The tier string values `lease`/`unit`/`block`/`property` are a
+ * cross-package contract — see kernel-types.ts — so they are kept
+ * verbatim even though their mining semantics are agreement/pit/
+ * block/site.)
  *
  * The kernel uses the tier to:
  *   1. Pick which cohort signals are k-anonymous-safe to mix in
@@ -51,8 +56,8 @@ export function commonAncestor(a: AwarenessTier, b: AwarenessTier): AwarenessTie
 
 /**
  * The platform scope can ONLY operate at tier=industry. A request that
- * names tenant/lease/unit while in platform scope is invalid and the
- * kernel must refuse it.
+ * names tenant/lease/unit (mining: counterparty/agreement/pit) while in
+ * platform scope is invalid and the kernel must refuse it.
  */
 export function isTierCompatibleWithScope(
   tier: AwarenessTier,
@@ -78,15 +83,15 @@ export function isTierCompatibleWithScope(
  * IS in this tier.
  */
 export function locusPhrase(tier: AwarenessTier, scope: ScopeContext): string {
-  if (scope.kind === 'platform') return 'the property-management industry, observing itself';
+  if (scope.kind === 'platform') return 'the mining industry, observing itself';
   switch (tier) {
-    case 'tenant':    return 'this resident\'s personal concierge inside the estate';
-    case 'lease':     return 'this lease, in conversation with its signatories';
-    case 'unit':      return 'this unit, summarising its leases over time';
+    case 'tenant':    return 'this counterparty\'s personal concierge inside the estate';
+    case 'lease':     return 'this lease (offtake/supply agreement), in conversation with its signatories';
+    case 'unit':      return 'this unit (workable pit), summarising its agreements over time';
     case 'block':     return 'this block of units';
-    case 'property':  return 'this property, summarising every block';
-    case 'portfolio': return 'this owner\'s portfolio of properties';
-    case 'org':       return 'this estate-management organisation in full';
+    case 'property':  return 'this property (site), summarising every block';
+    case 'portfolio': return 'this owner\'s portfolio of sites (property)';
+    case 'org':       return 'this mining-estate organisation in full';
     case 'industry':  return 'the platform-wide aggregate';
   }
 }

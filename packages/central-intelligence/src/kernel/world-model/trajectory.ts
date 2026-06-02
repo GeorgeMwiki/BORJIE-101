@@ -1,7 +1,8 @@
 /**
  * Trajectory prediction — deterministic forward simulation of a
- * property / tenant / owner state vector. The implementation is a
- * least-squares linear extrapolator per numeric field plus an
+ * site / counterparty / owner state vector (the `forecast*` port and
+ * type names below are kept verbatim as a contract). The implementation
+ * is a least-squares linear extrapolator per numeric field plus an
  * uncertainty band that widens with horizon.
  *
  * Why so simple? The kernel needs a forecast it can ALWAYS produce —

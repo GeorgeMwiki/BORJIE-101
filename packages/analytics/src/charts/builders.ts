@@ -11,8 +11,8 @@
  *   - map: choropleth via the d3 projection module
  *   - funnel: conversion / sales-pipeline tooling
  *   - gauge: KPI tiles (single-value with target/threshold band)
- *   - sankey: flow visualisation (lease lifecycle, payment splits)
- *   - boxplot: distribution analysis for credit scoring + rent ranges
+ *   - sankey: flow visualisation (offtake lifecycle, payment splits)
+ *   - boxplot: distribution analysis for credit scoring + royalty ranges
  *
  * Every builder respects the package theme + always emits the v6 schema
  * URL so renderers (vega-embed, vega-lite Python, etc.) get the right

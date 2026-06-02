@@ -1,7 +1,7 @@
 /**
- * Occupancy Timeline Export Helper (NEW 22)
+ * Asset-utilisation Timeline Export Helper (NEW 22)
  *
- * Renders an occupancy timeline (unit or portfolio) through the
+ * Renders an asset-utilisation timeline (unit or portfolio) through the
  * existing reports generators — PDF via PdfGenerator (tabular), PNG via
  * InteractiveHtmlGenerator (headless-browser pipeline supplied by
  * infra).
@@ -16,38 +16,38 @@ import type {
   ReportGeneratorOptions,
 } from '../generators/generator.interface.js';
 
-export interface OccupancyTimelinePeriodInput {
+export interface AssetUtilisationTimelinePeriodInput {
   readonly customerName: string | null;
   readonly from: string;
   readonly to: string | null;
   readonly status: string;
-  readonly rent: { readonly amount: number; readonly currency: string } | null;
+  readonly royalty: { readonly amount: number; readonly currency: string } | null;
   readonly exitReason: string | null;
 }
 
-export interface OccupancyTimelineExportInput {
+export interface AssetUtilisationTimelineExportInput {
   readonly unitId: string;
-  readonly propertyId: string;
-  readonly periods: readonly OccupancyTimelinePeriodInput[];
+  readonly siteId: string;
+  readonly periods: readonly AssetUtilisationTimelinePeriodInput[];
   readonly title?: string;
 }
 
-export function buildOccupancyTimelineReport(
-  input: OccupancyTimelineExportInput
+export function buildAssetUtilisationTimelineReport(
+  input: AssetUtilisationTimelineExportInput
 ): { options: ReportGeneratorOptions; data: ReportData } {
   const options: ReportGeneratorOptions = {
-    title: input.title ?? `Occupancy timeline — unit ${input.unitId}`,
-    subtitle: `Property ${input.propertyId}`,
+    title: input.title ?? `Asset-utilisation timeline — unit ${input.unitId}`,
+    subtitle: `Site ${input.siteId}`,
     generatedAt: new Date(),
-    metadata: { unitId: input.unitId, propertyId: input.propertyId },
+    metadata: { unitId: input.unitId, siteId: input.siteId },
   };
 
   const rows: (string | number)[][] = input.periods.map((p) => [
-    p.customerName ?? 'Vacant',
+    p.customerName ?? 'Idle',
     p.from,
     p.to ?? 'present',
     p.status,
-    p.rent ? `${p.rent.amount} ${p.rent.currency}` : '—',
+    p.royalty ? `${p.royalty.amount} ${p.royalty.currency}` : '—',
     p.exitReason ?? '—',
   ]);
 
@@ -55,9 +55,9 @@ export function buildOccupancyTimelineReport(
     sections: [
       {
         title: 'Periods',
-        content: `${input.periods.length} occupancy period(s) recorded.`,
+        content: `${input.periods.length} asset-utilisation period(s) recorded.`,
         table: {
-          headers: ['Tenant', 'From', 'To', 'Status', 'Rent', 'Exit reason'],
+          headers: ['Buyer', 'From', 'To', 'Status', 'Royalty', 'Exit reason'],
           rows,
         },
       },

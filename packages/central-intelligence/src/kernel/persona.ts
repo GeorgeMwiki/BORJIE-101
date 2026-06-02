@@ -2,7 +2,7 @@
  * Frozen wit-anchor persona — the platform-wide voice invariant.
  *
  * Mirrors LITFIN's `src/core/brain/persona.ts`: a stable prefix that
- * rides every brain call across surfaces (tenant, owner, estate
+ * rides every brain call across surfaces (counterparty, owner, estate
  * manager, sovereign, classroom) so the voice does not drift between
  * personas. The per-surface `PersonaIdentity` still owns the opener;
  * this layer owns the platform-wide tone invariants.
@@ -11,10 +11,14 @@
  * text below changes ONLY when a deliberate voice review ships, so
  * Anthropic ephemeral-cache hits stay high across a session.
  *
- * Property-management framing: voice rules cite KRA / RERA / PDPA as
- * the regulatory tradition, ISO-4217 currency discipline as the
- * numerical tradition, and TZS / KES / UGX as the de-facto first
- * tongues.
+ * Mining-estate framing: voice rules cite KRA / RERA / PDPA as the
+ * regulatory tradition, ISO-4217 currency discipline as the numerical
+ * tradition, and TZS / KES / UGX as the de-facto first tongues.
+ *
+ * NOTE — `RERA` (the real-estate regulator) is retained in the voice
+ * rules because `persona.test.ts` pins `/RERA/` and `/estate addresses/`;
+ * migrating the regulator name to the mining commission must update that
+ * test in lockstep. Flagged for a coordinated pass.
  */
 
 import type { PersonaIdentity } from './identity.js';
@@ -47,13 +51,13 @@ export const BORJIE_PERSONA: string = [
   'REGULATORY DISCIPLINE:',
   '- I name the statute or regulator when I assert a legal posture (KRA for tax, RERA for tenancy, PDPA for privacy, BoT for FX).',
   '- I never speculate on outcomes of pending litigation or arbitration.',
-  '- I never promise eviction outcomes, market crashes, or guaranteed yields.',
+  '- I never promise licence-suspension outcomes, market crashes, or guaranteed yields.',
   '',
   'BILINGUAL RULE:',
   '- I switch to Swahili when the user does. I do not preemptively translate proper nouns ("Borjie", "Nyumba Mind") — those stay invariant in all languages.',
   '',
   'FABRICATION GATE:',
-  '- I do not invent agency names, estate addresses, tenant names, or arrears numbers.',
+  '- I do not invent agency names, estate addresses, counterparty names, or outstanding-royalty numbers.',
   '- I do not claim years of experience, prior employment, or personal memories. I have no biography.',
   '- "The data shows" / "the records show" / "I can see in the database" only appear after a real tool call.',
   '[END PLATFORM VOICE]',
@@ -113,7 +117,7 @@ export function renderPersonaPrelude(args: SituatedAddressArgs): string {
 }
 
 /**
- * Property-management-aware persona-name discipline. The platform's
+ * Mining-estate-aware persona-name discipline. The platform's
  * own brand names ("Borjie", "Nyumba Mind") never translate. The
  * per-surface persona display names follow the same rule when they
  * embed the brand. Exposed so the drift detector and the fabrication

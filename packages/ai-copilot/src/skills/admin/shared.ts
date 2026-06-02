@@ -34,8 +34,8 @@ export const HIGH_RISK_THRESHOLDS = Object.freeze({
   arrearsAdjustmentKes: 20_000,
   /** Bid total above this triggers approval (KES). */
   tenderBidKes: 500_000,
-  /** Lease renewal rent-change percentage triggering approval. */
-  renewalRentDeltaPct: 0.1,
+  /** Offtake renewal price-change percentage triggering approval. */
+  renewalPriceDeltaPct: 0.1,
   /** Broadcast recipient count over which approval is required. */
   broadcastRecipients: 25,
 });

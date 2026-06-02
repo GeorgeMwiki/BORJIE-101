@@ -16,11 +16,11 @@ import {
   type PaymentsSnapshot,
   type MaintenanceSnapshot,
   type ComplianceSnapshot,
-  type LeasingSnapshot,
+  type OfftakeSnapshot,
   type InspectionSnapshot,
   type FARSnapshot,
-  type TenantRiskSnapshot,
-  type OccupancySnapshot,
+  type CounterpartyRiskSnapshot,
+  type ProductionSnapshot,
   type CrossModuleInsight,
   type SynthesizedRecommendation,
 } from './types.js';
@@ -43,7 +43,7 @@ export class IntelligenceOrchestrator {
   }
 
   async generateContext(input: {
-    scopeKind: 'property' | 'unit' | 'tenant' | 'portfolio';
+    scopeKind: 'site' | 'pit' | 'counterparty' | 'portfolio';
     scopeId: string;
     tenantId: string;
   }): Promise<UnifiedEstateContext> {
@@ -54,20 +54,20 @@ export class IntelligenceOrchestrator {
       payments,
       maintenance,
       compliance,
-      leasing,
+      offtake,
       inspection,
       far,
-      tenantRisk,
-      occupancy,
+      counterpartyRisk,
+      production,
     ] = await Promise.all([
       this.safe(() => this.fetchers.fetchPayments(input.scopeKind, input.scopeId, input.tenantId)),
       this.safe(() => this.fetchers.fetchMaintenance(input.scopeKind, input.scopeId, input.tenantId)),
       this.safe(() => this.fetchers.fetchCompliance(input.scopeKind, input.scopeId, input.tenantId)),
-      this.safe(() => this.fetchers.fetchLeasing(input.scopeKind, input.scopeId, input.tenantId)),
+      this.safe(() => this.fetchers.fetchOfftake(input.scopeKind, input.scopeId, input.tenantId)),
       this.safe(() => this.fetchers.fetchInspection(input.scopeKind, input.scopeId, input.tenantId)),
       this.safe(() => this.fetchers.fetchFAR(input.scopeKind, input.scopeId, input.tenantId)),
-      this.safe(() => this.fetchers.fetchTenantRisk(input.scopeKind, input.scopeId, input.tenantId)),
-      this.safe(() => this.fetchers.fetchOccupancy(input.scopeKind, input.scopeId, input.tenantId)),
+      this.safe(() => this.fetchers.fetchCounterpartyRisk(input.scopeKind, input.scopeId, input.tenantId)),
+      this.safe(() => this.fetchers.fetchProduction(input.scopeKind, input.scopeId, input.tenantId)),
     ]);
 
     const crossModuleInsights = this.config.enableCrossModuleReasoning
@@ -75,11 +75,11 @@ export class IntelligenceOrchestrator {
           payments,
           maintenance,
           compliance,
-          leasing,
+          offtake,
           inspection,
           far,
-          tenantRisk,
-          occupancy,
+          counterpartyRisk,
+          production,
         })
       : [];
 
@@ -89,10 +89,10 @@ export class IntelligenceOrchestrator {
             payments,
             maintenance,
             compliance,
-            leasing,
+            offtake,
             inspection,
-            tenantRisk,
-            occupancy,
+            counterpartyRisk,
+            production,
             crossModuleInsights,
           },
           this.config.alertConfidenceThreshold,
@@ -103,9 +103,9 @@ export class IntelligenceOrchestrator {
       payments,
       maintenance,
       compliance,
-      leasing,
-      tenantRisk,
-      occupancy,
+      offtake,
+      counterpartyRisk,
+      production,
       crossModuleInsights,
     });
 
@@ -113,8 +113,8 @@ export class IntelligenceOrchestrator {
       payments,
       maintenance,
       compliance,
-      leasing,
-      occupancy,
+      offtake,
+      production,
     });
 
     return {
@@ -126,11 +126,11 @@ export class IntelligenceOrchestrator {
       payments,
       maintenance,
       compliance,
-      leasing,
+      offtake,
       inspection,
       far,
-      tenantRisk,
-      occupancy,
+      counterpartyRisk,
+      production,
       crossModuleInsights,
       proactiveAlerts,
       overallConfidence,
@@ -162,9 +162,9 @@ interface SynthesisInput {
   payments: PaymentsSnapshot | null;
   maintenance: MaintenanceSnapshot | null;
   compliance: ComplianceSnapshot | null;
-  leasing: LeasingSnapshot | null;
-  tenantRisk: TenantRiskSnapshot | null;
-  occupancy: OccupancySnapshot | null;
+  offtake: OfftakeSnapshot | null;
+  counterpartyRisk: CounterpartyRiskSnapshot | null;
+  production: ProductionSnapshot | null;
   crossModuleInsights: readonly CrossModuleInsight[];
 }
 
@@ -203,17 +203,17 @@ function synthesizeRecommendation(
       `${input.compliance.criticalBreaches} critical compliance breach(es)`,
     );
   }
-  if (input.leasing && input.leasing.churnProbability > 0.6) {
+  if (input.offtake && input.offtake.churnProbability > 0.6) {
     interveneSignals += 1;
     riskFactors.push(
-      `Churn probability ${(input.leasing.churnProbability * 100).toFixed(0)}%`,
+      `Churn probability ${(input.offtake.churnProbability * 100).toFixed(0)}%`,
     );
     conditions.push('Launch retention outreach');
   }
-  if (input.occupancy && input.occupancy.occupancyPct < 85) {
+  if (input.production && input.production.productionPct < 85) {
     interveneSignals += 1;
     riskFactors.push(
-      `Occupancy ${input.occupancy.occupancyPct.toFixed(0)}% below 85% target`,
+      `Production ${input.production.productionPct.toFixed(0)}% below 85% target`,
     );
   }
 
@@ -279,8 +279,8 @@ function computeOverallConfidence(input: {
   payments: PaymentsSnapshot | null;
   maintenance: MaintenanceSnapshot | null;
   compliance: ComplianceSnapshot | null;
-  leasing: LeasingSnapshot | null;
-  occupancy: OccupancySnapshot | null;
+  offtake: OfftakeSnapshot | null;
+  production: ProductionSnapshot | null;
 }): number {
   let confidence = 0;
   let weight = 0;
@@ -297,11 +297,11 @@ function computeOverallConfidence(input: {
     confidence += 0.85 * 0.2;
     weight += 0.2;
   }
-  if (input.leasing) {
+  if (input.offtake) {
     confidence += 0.75 * 0.15;
     weight += 0.15;
   }
-  if (input.occupancy) {
+  if (input.production) {
     confidence += 0.75 * 0.15;
     weight += 0.15;
   }

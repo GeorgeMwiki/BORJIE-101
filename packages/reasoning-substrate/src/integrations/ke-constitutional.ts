@@ -2,10 +2,10 @@
  * Integration shim — K-E constitutional checker.
  *
  * The K-E ConstitutionalCritic evaluates outputs against the BORJIE
- * constitution (TZ Rental Act, GDPR/PDPA, currency chain, inviolable
+ * constitution (TZ Mining Act, GDPR/PDPA, currency chain, inviolable
  * IP). When the MD has already worked through a Plan-and-Solve+ plan
  * and a Self-Discover reasoning structure, the critic should receive
- * the *structured plan* — not just the final tenant-facing text — so
+ * the *structured plan* — not just the final user-facing text — so
  * it can score the reasoning itself, not just the output.
  *
  * This shim shapes a `ReasoningStructure` plus the MD's per-step
@@ -52,7 +52,7 @@ export interface BuildReflectionArgs {
   readonly tenantId: string | null;
   readonly structure: ReasoningStructure;
   readonly stepOutputs: ReadonlyArray<StepOutput>;
-  /** The final MD response (tenant-facing text or decision). */
+  /** The final MD response (user-facing text or decision). */
   readonly finalResponse: string;
   /** Optional caller-supplied cluster id; defaults to structureId+turn hash. */
   readonly clusterId?: string;
@@ -64,9 +64,9 @@ export interface BuildReflectionArgs {
  *
  * Format:
  *
- *   Task class: eviction
+ *   Task class: licence-suspension
  *   Jurisdiction: TZ-DSM
- *   Step s1 (gather-relevant-facts) — Load tenant identity, lease...
+ *   Step s1 (gather-relevant-facts) — Load counterparty identity, offtake...
  *     output: { ... }
  *   Step s2 (check-payment-history) — Pull the 12-month payment...
  *     output: { ... }
@@ -154,8 +154,8 @@ export function constitutionallyRelevantSteps(
 }
 
 const CONSTITUTIONAL_RELEVANT_PRIMITIVES: ReadonlySet<string> = new Set([
-  'apply-tz-rental-act',
-  'apply-ke-tenancy-rules',
+  'apply-tz-mining-act',
+  'apply-ke-mining-rules',
   'check-currency-chain',
   'check-mediation-clause',
   'check-pii-boundary',

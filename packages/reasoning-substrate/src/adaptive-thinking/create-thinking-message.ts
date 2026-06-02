@@ -7,7 +7,7 @@
  *   1. Opus 4.7 returns HTTP 400 on `thinking: { type: 'enabled', ... }`
  *      (the legacy manual shape). The L1 audit calls this out explicitly
  *      and BORJIE's MD must NEVER hit that 400 — losing a high-stakes
- *      eviction turn to a 400 is unacceptable. By making the param's
+ *      licence-suspension turn to a 400 is unacceptable. By making the param's
  *      `type` literal `'adaptive'`, this shape is unrepresentable.
  *
  *   2. Adaptive thinking + interleaved tool use REQUIRES the caller to

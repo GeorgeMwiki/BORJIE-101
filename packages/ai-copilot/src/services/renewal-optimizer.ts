@@ -1,6 +1,6 @@
 /**
  * Renewal Optimizer Service
- * AI-powered lease renewal pricing optimization
+ * AI-powered offtake / supply-agreement renewal pricing optimization
  */
 
 import OpenAI from 'openai';
@@ -17,14 +17,14 @@ export const PricingStrategy = {
 
 export type PricingStrategy = (typeof PricingStrategy)[keyof typeof PricingStrategy];
 
-export interface LeaseData {
-  leaseId: string;
-  currentRent: number;
+export interface OfftakeData {
+  offtakeId: string;
+  currentPrice: number;
   currency: string;
-  leaseStartDate: string;
-  leaseEndDate: string;
+  offtakeStartDate: string;
+  offtakeEndDate: string;
   termMonths: number;
-  tenant: {
+  counterparty: {
     id: string;
     name: string;
     segment: 'premium' | 'standard' | 'at_risk';
@@ -32,12 +32,12 @@ export interface LeaseData {
     tenureDays: number;
     renewalHistory: number;
   };
-  property: { id: string; name: string; type: string; location: string; amenities: string[] };
-  unit: { id: string; type: string; bedrooms: number; bathrooms: number; sqft?: number | undefined };
+  site: { id: string; name: string; type: string; location: string; capabilities: string[] };
+  pit: { id: string; type: string; benches: number; faces: number; areaHa?: number | undefined };
   marketData?: {
-    averageRent: number;
-    rentRange: { min: number; max: number };
-    vacancyRate: number;
+    averagePrice: number;
+    priceRange: { min: number; max: number };
+    availableCapacityRate: number;
     demandLevel: 'high' | 'moderate' | 'low';
   } | undefined;
   constraints?: { maxIncreasePercent?: number | undefined; regulatoryLimit?: number | undefined; ownerMinimum?: number | undefined } | undefined;
@@ -48,10 +48,10 @@ export interface PricingOption {
   strategy: PricingStrategy;
   label: string;
   description: string;
-  proposedRent: number;
+  proposedPrice: number;
   changeAmount: number;
   changePercent: number;
-  termOptions: Array<{ months: number; rent: number; monthlyDiscount?: number; totalValue: number }>;
+  termOptions: Array<{ months: number; price: number; monthlyDiscount?: number; totalValue: number }>;
   incentives?: Array<{ type: string; description: string; value?: number; conditions?: string }>;
   projectedOutcome: {
     acceptanceProbability: number;
@@ -64,8 +64,8 @@ export interface PricingOption {
 }
 
 export interface RenewalOptimizationResult {
-  leaseId: string;
-  currentRent: number;
+  offtakeId: string;
+  currentPrice: number;
   recommendedOption: PricingOption;
   allOptions: PricingOption[];
   marketAnalysis: {
@@ -74,7 +74,7 @@ export interface RenewalOptimizationResult {
     competitivePosition: string;
     supplyDemandBalance: string;
   };
-  tenantAnalysis: {
+  counterpartyAnalysis: {
     retentionValue: number;
     churnRisk: number;
     priceElasticity: 'high' | 'medium' | 'low';
@@ -100,10 +100,10 @@ const PricingOptionSchema = z.object({
   strategy: z.enum(['RETENTION_FOCUSED', 'MARKET_RATE', 'VALUE_MAXIMIZATION', 'RELATIONSHIP_BALANCE', 'INCENTIVE_BASED']),
   label: z.string(),
   description: z.string(),
-  proposedRent: z.number(),
+  proposedPrice: z.number(),
   changeAmount: z.number(),
   changePercent: z.number(),
-  termOptions: z.array(z.object({ months: z.number(), rent: z.number(), monthlyDiscount: z.number().optional(), totalValue: z.number() })),
+  termOptions: z.array(z.object({ months: z.number(), price: z.number(), monthlyDiscount: z.number().optional(), totalValue: z.number() })),
   incentives: z.array(z.object({ type: z.string(), description: z.string(), value: z.number().optional(), conditions: z.string().optional() })).optional(),
   projectedOutcome: z.object({ acceptanceProbability: z.number().min(0).max(1), renewalLikelihood: z.number().min(0).max(1), revenueImpact: z.number() }),
   competitivePosition: z.object({ vsMarket: z.enum(['below', 'at', 'above']), percentile: z.number().min(0).max(100) }),
@@ -112,8 +112,8 @@ const PricingOptionSchema = z.object({
 });
 
 const RenewalOptimizationResultSchema = z.object({
-  leaseId: z.string(),
-  currentRent: z.number(),
+  offtakeId: z.string(),
+  currentPrice: z.number(),
   recommendedOption: PricingOptionSchema,
   allOptions: z.array(PricingOptionSchema),
   marketAnalysis: z.object({
@@ -122,7 +122,7 @@ const RenewalOptimizationResultSchema = z.object({
     competitivePosition: z.string(),
     supplyDemandBalance: z.string(),
   }),
-  tenantAnalysis: z.object({
+  counterpartyAnalysis: z.object({
     retentionValue: z.number(),
     churnRisk: z.number().min(0).max(1),
     priceElasticity: z.enum(['high', 'medium', 'low']),
@@ -163,14 +163,14 @@ export class RenewalOptimizerService {
     this.maxTokens = config.maxTokens ?? 3072;
   }
 
-  async generateRenewalOptions(leaseId: string, leaseData?: Partial<LeaseData>): Promise<RenewalOptimizationResult> {
-    const fullLeaseData = this.buildLeaseData(leaseId, leaseData);
+  async generateRenewalOptions(offtakeId: string, offtakeData?: Partial<OfftakeData>): Promise<RenewalOptimizationResult> {
+    const fullOfftakeData = this.buildOfftakeData(offtakeId, offtakeData);
 
     const response = await this.openai.chat.completions.create({
       model: this.model,
       messages: [
         { role: 'system', content: RENEWAL_OPTIMIZATION_PROMPT.system },
-        { role: 'user', content: `${RENEWAL_OPTIMIZATION_PROMPT.user}\n\nLease Data:\n${JSON.stringify(fullLeaseData, null, 2)}` },
+        { role: 'user', content: `${RENEWAL_OPTIMIZATION_PROMPT.user}\n\nOfftake Data:\n${JSON.stringify(fullOfftakeData, null, 2)}` },
       ],
       temperature: this.temperature,
       max_tokens: this.maxTokens,
@@ -183,32 +183,32 @@ export class RenewalOptimizerService {
     return RenewalOptimizationResultSchema.parse(JSON.parse(content)) as RenewalOptimizationResult;
   }
 
-  private buildLeaseData(leaseId: string, data?: Partial<LeaseData>): LeaseData {
+  private buildOfftakeData(offtakeId: string, data?: Partial<OfftakeData>): OfftakeData {
     // Renewal optimization is a governance-critical decision. Fabricating
-    // tenant/property/unit IDs from constants would cause the AI to emit
+    // counterparty/site/pit IDs from constants would cause the AI to emit
     // reasoning grounded in fake data — which would then surface in the
     // manager's UI as a recommendation. Require the caller to supply these.
-    if (!data?.tenant) throw new Error('renewal-optimizer: tenant data is required');
-    if (!data?.property) throw new Error('renewal-optimizer: property data is required');
-    if (!data?.unit) throw new Error('renewal-optimizer: unit data is required');
-    if (data.currentRent == null) throw new Error('renewal-optimizer: currentRent is required');
-    if (!data.leaseStartDate) throw new Error('renewal-optimizer: leaseStartDate is required');
-    if (!data.leaseEndDate) throw new Error('renewal-optimizer: leaseEndDate is required');
+    if (!data?.counterparty) throw new Error('renewal-optimizer: counterparty data is required');
+    if (!data?.site) throw new Error('renewal-optimizer: site data is required');
+    if (!data?.pit) throw new Error('renewal-optimizer: pit data is required');
+    if (data.currentPrice == null) throw new Error('renewal-optimizer: currentPrice is required');
+    if (!data.offtakeStartDate) throw new Error('renewal-optimizer: offtakeStartDate is required');
+    if (!data.offtakeEndDate) throw new Error('renewal-optimizer: offtakeEndDate is required');
     if (data.termMonths == null) throw new Error('renewal-optimizer: termMonths is required');
     if (!data.currency) throw new Error(
       'renewal-optimizer: currency is required — resolve from tenant region-config before calling'
     );
 
     return {
-      leaseId,
-      currentRent: data.currentRent,
+      offtakeId,
+      currentPrice: data.currentPrice,
       currency: data.currency,
-      leaseStartDate: data.leaseStartDate,
-      leaseEndDate: data.leaseEndDate,
+      offtakeStartDate: data.offtakeStartDate,
+      offtakeEndDate: data.offtakeEndDate,
       termMonths: data.termMonths,
-      tenant: data.tenant,
-      property: data.property,
-      unit: data.unit,
+      counterparty: data.counterparty,
+      site: data.site,
+      pit: data.pit,
       marketData: data.marketData,
       constraints: data.constraints,
     };
@@ -220,12 +220,12 @@ export function createRenewalOptimizerService(config: RenewalOptimizerConfig): R
 }
 
 export async function generateRenewalOptions(
-  leaseId: string,
-  leaseData?: Partial<LeaseData>,
+  offtakeId: string,
+  offtakeData?: Partial<OfftakeData>,
   config?: Partial<RenewalOptimizerConfig>
 ): Promise<RenewalOptimizationResult> {
   const apiKey = config?.openaiApiKey ?? process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OpenAI API key is required');
   const service = createRenewalOptimizerService({ openaiApiKey: apiKey, ...config });
-  return service.generateRenewalOptions(leaseId, leaseData);
+  return service.generateRenewalOptions(offtakeId, offtakeData);
 }

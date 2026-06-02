@@ -1,6 +1,6 @@
 ---
 name: monthly-owner-report
-description: Generate a monthly owner report for a single property owner in BORJIE. Pulls collections, vacancy, maintenance spend, NOI, and AI-narrated summary for the prior calendar month. Renders DOCX + PDF via Carbone, applies per-tenant brand, attaches Anthropic Citations span-IDs to every numeric figure. Triggered on a cron (1st of month 09:00 owner-local) or on demand from the owner portal.
+description: Generate a monthly owner report for a single mining owner in BORJIE. Pulls collections, idle-capacity, maintenance spend, NOI, and AI-narrated summary for the prior calendar month. Renders DOCX + PDF via Carbone, applies per-tenant brand, attaches Anthropic Citations span-IDs to every numeric figure. Triggered on a cron (1st of month 09:00 owner-local) or on demand from the owner portal.
 tools: Read, Write, Edit, Bash, Grep
 ---
 
@@ -20,18 +20,18 @@ tools: Read, Write, Edit, Bash, Grep
 
 ## Pipeline
 
-1. **Resolve** owner + properties + units + leases owned by `ownerId` in `tenantId`.
+1. **Resolve** owner + sites + units + supply agreements owned by `ownerId` in `tenantId`.
 2. **Pull period data** (deterministic — no AI in this stage):
-   - rent collected (per `rent-collected-metric.ts`)
-   - vacancy days per unit (vacancy-filled metric)
+   - royalty collected (per `royalty-collected-metric.ts`)
+   - idle days per unit (idle-capacity-filled metric)
    - maintenance spend (from `maintenance:list_*`)
-   - operating expenses + property tax accruals
-3. **Compute NOI, occupancy %, gross-yield, MoM deltas.**
+   - operating expenses + royalty accruals
+3. **Compute NOI, asset-utilisation %, gross-yield, MoM deltas.**
 4. **Narrative generation** via multi-LLM synthesizer (Opus + GPT-5 + DeepSeek), max 250 words, with the structured period data as the SINGLE source of truth. Every numeric claim must reference a row id (citation API).
 5. **Render** via Carbone template `monthly-owner-report/<jurisdiction>.docx` with brand-profile substitution.
 6. **Citation verification** — every numeric in the rendered DOCX must map to a citation; any orphan numeric ⇒ FAIL.
 7. **PDF derivative** via `pdf-from-html-renderer.ts` (Puppeteer headless) for emailing.
-8. **Hand to email** — queue via existing notifications service. Subject: "<Property Name> — <Month Year>".
+8. **Hand to email** — queue via existing notifications service. Subject: "<Site Name> — <Month Year>".
 9. **WORM audit** — append-only entry per generated report in `worm-audit.ts`.
 
 ## Hard rules

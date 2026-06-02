@@ -11,7 +11,7 @@
  */
 
 import type {
-  OccupancyStatus,
+  UtilisationStatus,
   ElementStatus,
   ElementCondition,
   MapLayerKind,
@@ -21,9 +21,9 @@ import type {
 // Per-status palettes
 // ============================================================================
 
-const OCCUPANCY_COLORS: Readonly<Record<OccupancyStatus, string>> = {
-  vacant: '#9CA3AF',           // gray-400
-  occupied: '#10B981',         // emerald-500
+const UTILISATION_COLORS: Readonly<Record<UtilisationStatus, string>> = {
+  available: '#9CA3AF',        // gray-400
+  in_production: '#10B981',    // emerald-500
   reserved: '#3B82F6',         // blue-500
   under_maintenance: '#F59E0B',// amber-500
   not_available: '#6B7280',    // gray-500
@@ -48,7 +48,7 @@ const CONDITION_COLORS: Readonly<Record<ElementCondition, string>> = {
   unknown: '#D1D5DB',          // gray-300
 };
 
-const ARREARS_COLORS = [
+const OUTSTANDING_ROYALTY_COLORS = [
   { upTo: 0, hex: '#10B981' },     // current
   { upTo: 7, hex: '#FCD34D' },     // 1-7 days
   { upTo: 30, hex: '#F59E0B' },    // 8-30 days
@@ -62,8 +62,8 @@ const FALLBACK = '#9CA3AF';
 // Public API
 // ============================================================================
 
-export function colorForOccupancy(status: OccupancyStatus): string {
-  return OCCUPANCY_COLORS[status] ?? FALLBACK;
+export function colorForUtilisation(status: UtilisationStatus): string {
+  return UTILISATION_COLORS[status] ?? FALLBACK;
 }
 
 export function colorForStatus(status: ElementStatus): string {
@@ -75,13 +75,14 @@ export function colorForCondition(condition: ElementCondition): string {
 }
 
 /**
- * Map an arrears age (in days) to a status hex. Negative values are
- * treated as zero (paid early). NaN/Infinity returns the fallback.
+ * Map an outstanding-royalty age (in days) to a status hex. Negative
+ * values are treated as zero (paid early). NaN/Infinity returns the
+ * fallback.
  */
-export function colorForArrearsDays(days: number): string {
+export function colorForOutstandingRoyaltyDays(days: number): string {
   if (!Number.isFinite(days)) return FALLBACK;
   const d = Math.max(0, days);
-  for (const band of ARREARS_COLORS) {
+  for (const band of OUTSTANDING_ROYALTY_COLORS) {
     if (d <= band.upTo) return band.hex;
   }
   return FALLBACK;
@@ -89,15 +90,15 @@ export function colorForArrearsDays(days: number): string {
 
 /**
  * Per-layer-kind dispatch. The `value` is the row-specific signal
- * (a status string for status/occupancy layers, a number for
- * arrears/maintenance). Unrecognised kinds and values fall back to a
- * neutral gray rather than throwing.
+ * (a status string for status/utilisation layers, a number for
+ * outstanding-royalties/maintenance). Unrecognised kinds and values
+ * fall back to a neutral gray rather than throwing.
  */
 export function colorForLayer(kind: MapLayerKind, value: unknown): string {
   switch (kind) {
-    case 'occupancy':
+    case 'utilisation':
       return typeof value === 'string'
-        ? colorForOccupancy(value as OccupancyStatus)
+        ? colorForUtilisation(value as UtilisationStatus)
         : FALLBACK;
     case 'status':
       return typeof value === 'string'
@@ -107,9 +108,9 @@ export function colorForLayer(kind: MapLayerKind, value: unknown): string {
       return typeof value === 'string'
         ? colorForCondition(value as ElementCondition)
         : FALLBACK;
-    case 'arrears':
+    case 'outstanding_royalties':
       return typeof value === 'number'
-        ? colorForArrearsDays(value)
+        ? colorForOutstandingRoyaltyDays(value)
         : FALLBACK;
     case 'maintenance':
       // 'maintenance' uses the same status palette as 'status'
@@ -122,8 +123,8 @@ export function colorForLayer(kind: MapLayerKind, value: unknown): string {
       if (value === 'expiring') return '#F59E0B';
       if (value === 'expired') return '#DC2626';
       return FALLBACK;
-    case 'rent_band':
-      // Numeric band: lower rent => lighter, higher rent => darker.
+    case 'royalty_band':
+      // Numeric band: lower royalty => lighter, higher royalty => darker.
       if (typeof value !== 'number' || !Number.isFinite(value)) return FALLBACK;
       if (value < 25000) return '#DBEAFE';
       if (value < 50000) return '#93C5FD';
@@ -140,7 +141,7 @@ export function colorForLayer(kind: MapLayerKind, value: unknown): string {
 }
 
 export const PALETTE = Object.freeze({
-  occupancy: OCCUPANCY_COLORS,
+  utilisation: UTILISATION_COLORS,
   status: STATUS_COLORS,
   condition: CONDITION_COLORS,
   fallback: FALLBACK,

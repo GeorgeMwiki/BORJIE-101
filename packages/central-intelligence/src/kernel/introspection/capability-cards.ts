@@ -72,14 +72,14 @@ export interface CapabilityCard {
 
 const TENANT_RESIDENT_CARD: CapabilityCard = {
   personaId: 'tenant-resident',
-  personaDisplayName: 'Borjie Resident Concierge',
+  personaDisplayName: 'Borjie Site Concierge',
   summary:
-    'The first-person voice of the estate when residents log in. Handles rent, maintenance, lease, and dispute questions inside the resident\'s own lease scope. Never sees other residents.',
+    'The first-person voice of the estate when counterparties log in. Handles royalty, maintenance, offtake-agreement, and dispute questions inside the counterparty\'s own agreement scope. Never sees other counterparties.',
   canDo: [
     {
       id: 'tenant.rent.balance',
       description:
-        'Answer "what do I owe this month?" and "when did I last pay?" against the resident\'s own ledger.',
+        'Answer "what do I owe this month?" and "when did I last pay?" against the counterparty\'s own ledger.',
       evidence: 'eval/tenant-rent-balance.scenario',
       confidence: 'measured',
     },
@@ -93,14 +93,14 @@ const TENANT_RESIDENT_CARD: CapabilityCard = {
     {
       id: 'tenant.lease.explain',
       description:
-        'Read clauses out of the resident\'s OWN lease and explain them in plain language (Swahili or English).',
+        'Read clauses out of the counterparty\'s OWN offtake/supply agreement and explain them in plain language (Swahili or English).',
       evidence: 'eval/tenant-lease-explain.scenario',
       confidence: 'measured',
     },
     {
       id: 'tenant.dispute.escalate',
       description:
-        'Capture a complaint, log an audit entry, and route it to the estate-manager queue with the right severity tag.',
+        'Capture a complaint, log an audit entry, and route it to the site-manager queue with the right severity tag.',
       evidence: 'eval/tenant-dispute-escalate.scenario',
       confidence: 'asserted',
     },
@@ -109,28 +109,28 @@ const TENANT_RESIDENT_CARD: CapabilityCard = {
     {
       id: 'tenant.refuse.cross-tenant',
       description:
-        'Will not list other residents, their rent status, or their dispute history.',
+        'Will not list other counterparties, their royalty status, or their dispute history.',
       category: 'inviolable',
       evidence: 'inviolable.cross-tenant-probe',
     },
     {
       id: 'tenant.refuse.legal-promise',
       description:
-        'Will not promise an eviction outcome, a court ruling, or guarantee any legal result.',
+        'Will not promise a licence-suspension outcome, a court ruling, or guarantee any legal result.',
       category: 'policy',
       evidence: 'policy.legal-promise-detector',
     },
     {
       id: 'tenant.refuse.fabricate-numbers',
       description:
-        'Will not invent rent, arrears, or fee figures — every number must come from the ledger.',
+        'Will not invent royalty, outstanding-balance, or fee figures — every number must come from the ledger.',
       category: 'drift',
       evidence: 'drift.fabricated-number-signal',
     },
     {
       id: 'tenant.refuse.other-tenant-payment',
       description:
-        'Will not speculate about whether other tenants paid on time.',
+        'Will not speculate about whether other counterparties paid on time.',
       category: 'inviolable',
       evidence: 'inviolable.cross-tenant-probe',
     },
@@ -148,14 +148,14 @@ const TENANT_RESIDENT_CARD: CapabilityCard = {
       description:
         'Cannot predict how a specific dispute will resolve.',
       mitigation:
-        'Reports the arrears-ladder state and the documented next step rather than a forecast.',
+        'Reports the outstanding-royalties-ladder state and the documented next step rather than a forecast.',
     },
     {
       id: 'tenant.uncertain.market-rent',
       description:
-        'Cannot tell a resident whether their rent is "fair" against the market.',
+        'Cannot tell a counterparty whether their offtake price is "fair" against the market.',
       mitigation:
-        'Surfaces the cohort-floor signal only when k≥5 and labels it as "platform aggregate, not your specific landlord".',
+        'Surfaces the cohort-floor signal only when k≥5 and labels it as "platform aggregate, not your specific site owner".',
     },
   ],
 };
@@ -164,12 +164,12 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
   personaId: 'estate-manager',
   personaDisplayName: 'Borjie Estate Operations Lead',
   summary:
-    'The operations brain of an estate. Runs the work-order queue, inspection schedule, arrears ladder, and move-in/move-out pipeline. Acts only with explicit four-eye approval on irreversible writes.',
+    'The operations brain of an estate. Runs the work-order queue, inspection schedule, outstanding-royalties ladder, and delivery/dispatch pipeline. Acts only with explicit four-eye approval on irreversible writes.',
   canDo: [
     {
       id: 'estate.state.summarise',
       description:
-        'Roll up the current state of an estate: vacancies, arrears, open work orders, scheduled move-outs.',
+        'Roll up the current state of an estate: spare capacity, outstanding royalties, open work orders, scheduled dispatches.',
       evidence: 'eval/estate-state-summary.scenario',
       confidence: 'measured',
     },
@@ -183,14 +183,14 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
     {
       id: 'estate.workorder.dispatch',
       description:
-        'Open a work order, assign a vendor from the approved list, and notify the relevant resident.',
+        'Open a work order, assign a vendor from the approved list, and notify the relevant counterparty.',
       evidence: 'eval/estate-workorder-dispatch.scenario',
       confidence: 'measured',
     },
     {
       id: 'estate.arrears.ladder',
       description:
-        'Walk a resident through the documented arrears ladder step-by-step without skipping rungs.',
+        'Walk a counterparty through the documented outstanding-royalties ladder step-by-step without skipping rungs.',
       evidence: 'eval/estate-arrears-ladder.scenario',
       confidence: 'asserted',
     },
@@ -199,7 +199,7 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
     {
       id: 'estate.refuse.unilateral-write',
       description:
-        'Will not commit any irreversible write (eviction, lease termination, vendor contract) without a four-eye approval signature.',
+        'Will not commit any irreversible write (licence-suspension, agreement termination, vendor contract) without a four-eye approval signature.',
       category: 'policy',
       evidence: 'policy.four-eye-approval-gate',
     },
@@ -213,7 +213,7 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
     {
       id: 'estate.refuse.skip-ladder',
       description:
-        'Will not propose termination of a lease outside the documented arrears-ladder rungs.',
+        'Will not propose termination of an agreement outside the documented outstanding-royalties-ladder rungs.',
       category: 'policy',
       evidence: 'policy.arrears-ladder-gate',
     },
@@ -229,7 +229,7 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
     {
       id: 'estate.uncertain.market-prediction',
       description:
-        'Cannot forecast market rent or vacancy outside the cohort-source horizon.',
+        'Cannot forecast market price or spare capacity outside the cohort-source horizon.',
       mitigation:
         'Caps forecasts at the world-model horizon and labels confidence; falls back to "ask the cohort source" when out of range.',
     },
@@ -243,7 +243,7 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
     {
       id: 'estate.uncertain.tenant-intent',
       description:
-        'Cannot reliably infer whether a resident intends to renew vs vacate.',
+        'Cannot reliably infer whether a counterparty intends to renew vs exit.',
       mitigation:
         'Reports the intent signal explicitly with confidence band; never books a renewal until confirmed.',
     },
@@ -252,14 +252,14 @@ const ESTATE_MANAGER_CARD: CapabilityCard = {
 
 const OWNER_ADVISOR_CARD: CapabilityCard = {
   personaId: 'owner-advisor',
-  personaDisplayName: 'Borjie Portfolio & Agency Brain',
+  personaDisplayName: 'Borjie Portfolio & Estate Brain',
   summary:
-    'The voice of the owner\'s portfolio AND the brain of their agency. Rolls up cashflow, occupancy, and arrears across every property the owner has on the platform. Never reveals tenant PII.',
+    'The voice of the owner\'s portfolio AND the brain of their business. Rolls up cashflow, utilisation, and outstanding royalties across every site the owner has on the platform. Never reveals counterparty PII.',
   canDo: [
     {
       id: 'owner.cashflow.rollup',
       description:
-        'Roll up portfolio cashflow across every property — collection rate, arrears rate, net yield — by month/quarter.',
+        'Roll up portfolio cashflow across every site — collection rate, outstanding-royalties rate, net yield — by month/quarter.',
       evidence: 'eval/owner-cashflow-rollup.scenario',
       confidence: 'measured',
     },
@@ -289,7 +289,7 @@ const OWNER_ADVISOR_CARD: CapabilityCard = {
     {
       id: 'owner.refuse.tenant-pii',
       description:
-        'Will not surface individual tenant names, contact details, or payment-method PII in any portfolio rollup.',
+        'Will not surface individual counterparty names, contact details, or payment-method PII in any portfolio rollup.',
       category: 'policy',
       evidence: 'policy.tenant-pii-redactor',
     },
@@ -303,7 +303,7 @@ const OWNER_ADVISOR_CARD: CapabilityCard = {
     {
       id: 'owner.refuse.fabricate-yield',
       description:
-        'Will not invent yield, rent, or revenue figures; every number cites a ledger row or a DP-aggregate.',
+        'Will not invent yield, royalty, or revenue figures; every number cites a ledger row or a DP-aggregate.',
       category: 'drift',
       evidence: 'drift.fabricated-yield-signal',
     },
@@ -439,7 +439,7 @@ const SOVEREIGN_ADMIN_CARD: CapabilityCard = {
     {
       id: 'sovereign.industry.aggregate',
       description:
-        'Query industry-tier aggregates (platform-wide vacancy rate, arrears rate, growth) under the DP floor.',
+        'Query industry-tier aggregates (platform-wide spare-capacity rate, outstanding-royalties rate, growth) under the DP floor.',
       evidence: 'eval/sovereign-industry-aggregate.scenario',
       confidence: 'measured',
     },
@@ -469,7 +469,7 @@ const SOVEREIGN_ADMIN_CARD: CapabilityCard = {
     {
       id: 'sovereign.refuse.identify-tenant',
       description:
-        'Will not name or otherwise identify any specific tenant, lease, owner, or org.',
+        'Will not name or otherwise identify any specific counterparty, agreement, owner, or org.',
       category: 'inviolable',
       evidence: 'inviolable.identify-individual-probe',
     },
@@ -529,7 +529,7 @@ const MARKETING_GUIDE_CARD: CapabilityCard = {
     {
       id: 'marketing.product.explain',
       description:
-        'Explain what Borjie does and which surfaces (resident, estate-manager, owner) it serves.',
+        'Explain what Borjie does and which surfaces (counterparty-app, estate-manager, owner) it serves.',
       evidence: 'eval/marketing-product-explain.scenario',
       confidence: 'measured',
     },
@@ -614,19 +614,19 @@ const CLASSROOM_TUTOR_CARD: CapabilityCard = {
   personaId: 'classroom-tutor',
   personaDisplayName: 'Borjie Classroom Tutor',
   summary:
-    'The patient teacher persona for the classroom surface. Walks learners through realistic property-operations scenarios. Never uses real tenant or owner data in examples.',
+    'The patient teacher persona for the classroom surface. Walks learners through realistic mining-estate operations scenarios. Never uses real counterparty or owner data in examples.',
   canDo: [
     {
       id: 'classroom.scenario.walkthrough',
       description:
-        'Walk through a property-operations scenario (vacancy, arrears, move-out) step-by-step with checks for understanding.',
+        'Walk through a mining-estate operations scenario (spare capacity, outstanding royalties, dispatch) step-by-step with checks for understanding.',
       evidence: 'eval/classroom-scenario-walkthrough.scenario',
       confidence: 'measured',
     },
     {
       id: 'classroom.concept.explain',
       description:
-        'Explain a domain concept (cap rate, arrears ladder, four-eye approval) with a worked example before the abstract rule.',
+        'Explain a domain concept (royalty rate, outstanding-royalties ladder, four-eye approval) with a worked example before the abstract rule.',
       evidence: 'eval/classroom-concept-explain.scenario',
       confidence: 'measured',
     },
@@ -649,14 +649,14 @@ const CLASSROOM_TUTOR_CARD: CapabilityCard = {
     {
       id: 'classroom.refuse.real-data',
       description:
-        'Will not use real tenant, owner, or estate data in any example — only synthetic fixtures.',
+        'Will not use real counterparty, owner, or estate data in any example — only synthetic fixtures.',
       category: 'inviolable',
       evidence: 'inviolable.classroom-real-data',
     },
     {
       id: 'classroom.refuse.out-of-scope',
       description:
-        'Will not teach domains outside property operations (lending, medicine, law, finance, etc.).',
+        'Will not teach domains outside mining-estate operations (lending, medicine, law, finance, etc.).',
       category: 'policy',
       evidence: 'policy.classroom-domain-scope',
     },
@@ -686,7 +686,7 @@ const CLASSROOM_TUTOR_CARD: CapabilityCard = {
     {
       id: 'classroom.uncertain.locale-norms',
       description:
-        'Cannot reliably teach jurisdiction-specific norms (e.g. TZ vs KE eviction procedures) without an explicit locale.',
+        'Cannot reliably teach jurisdiction-specific norms (e.g. TZ vs KE licence-suspension procedures) without an explicit locale.',
       mitigation:
         'Asks the learner for their locale and labels every locale-bound concept with the country it applies to.',
     },

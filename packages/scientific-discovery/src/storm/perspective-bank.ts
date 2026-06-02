@@ -3,11 +3,11 @@
  *
  * Stanford STORM (https://github.com/stanford-oval/storm) drives
  * hypothesis-generation by *surveying adjacent topics through the
- * eyes of multiple personas*. We bake in the 8 property-management
- * personas listed in §1.3 of the research report:
+ * eyes of multiple personas*. We bake in the 8 mining-estate
+ * personas adapted from §1.3 of the research report:
  *
- *   Owner, Tenant, Vendor, Caretaker, Auditor, Regulator,
- *   Underwriter, Diaspora-Investor.
+ *   Owner, Counterparty, Vendor, Site-Supervisor, Auditor,
+ *   Regulator, Underwriter, Diaspora-Investor.
  *
  * Each persona supplies:
  *   - `system` prompt — the voice / priorities the LLM should adopt.
@@ -32,28 +32,28 @@ export interface PerspectiveSpec {
 export const PERSPECTIVE_BANK: Readonly<Record<Perspective, PerspectiveSpec>> = {
   owner: {
     id: 'owner',
-    displayName: 'Property Owner',
+    displayName: 'Mining Owner',
     system:
-      'You are the property owner — capital-allocator, ROI-maximiser, ' +
-      'concerned with NOI, vacancy and reputational risk.',
-    concerns: ['noi', 'vacancy', 'capex_payback', 'tenant_quality'],
+      'You are the mining owner — capital-allocator, return-maximiser, ' +
+      'concerned with net margin, available capacity and reputational risk.',
+    concerns: ['net_margin', 'available_capacity', 'capex_payback', 'counterparty_quality'],
     seedQuestions: [
-      'Which units in my portfolio are under-renting versus market?',
-      'What is the marginal NOI lift of the next-best amenity investment?',
-      'Where am I trading short-term occupancy for long-term churn?',
+      'Which units in my estate are under-priced versus market?',
+      'What is the marginal margin lift of the next-best equipment investment?',
+      'Where am I trading short-term utilisation for long-term churn?',
     ],
   },
-  tenant: {
-    id: 'tenant',
-    displayName: 'Tenant',
+  counterparty: {
+    id: 'counterparty',
+    displayName: 'Buyer / Off-taker',
     system:
-      'You are the tenant — value-for-money, friction-averse, attuned to ' +
-      'service quality and predictability.',
-    concerns: ['rent_burden', 'service_quality', 'lease_clarity'],
+      'You are the buyer / off-taker counterparty — value-for-money, ' +
+      'friction-averse, attuned to ore quality and delivery predictability.',
+    concerns: ['royalty_burden', 'delivery_quality', 'offtake_clarity'],
     seedQuestions: [
-      'Which tenant cohorts are most price-elastic to a rent increase?',
-      'What service drops trigger renewal-cancellation 60 days later?',
-      'Which onboarding moments correlate with NPS swings?',
+      'Which counterparty cohorts are most price-elastic to a royalty increase?',
+      'What delivery drops trigger renewal-cancellation 60 days later?',
+      'Which onboarding moments correlate with satisfaction swings?',
     ],
   },
   vendor: {
@@ -69,17 +69,17 @@ export const PERSPECTIVE_BANK: Readonly<Record<Perspective, PerspectiveSpec>> = 
       'Where do vendor SLAs slip first when load spikes?',
     ],
   },
-  caretaker: {
-    id: 'caretaker',
-    displayName: 'On-Site Caretaker',
+  site_supervisor: {
+    id: 'site_supervisor',
+    displayName: 'On-Site Supervisor',
     system:
-      'You are the on-site caretaker — boots on the ground, first-responder ' +
-      'to tenant complaints, the front-line eyes on every unit.',
+      'You are the on-site supervisor — boots on the ground, first-responder ' +
+      'to operational faults, the front-line eyes on every unit.',
     concerns: ['ticket_load', 'tenure_continuity', 'safety'],
     seedQuestions: [
-      'Does caretaker tenure on a building predict tenant renewal?',
-      'What late-night ticket patterns precede an eviction?',
-      'Which staffing structures minimise complaint backlogs?',
+      'Does supervisor tenure on a site predict counterparty renewal?',
+      'What late-night ticket patterns precede a licence suspension?',
+      'Which staffing structures minimise fault backlogs?',
     ],
   },
   auditor: {
@@ -104,7 +104,7 @@ export const PERSPECTIVE_BANK: Readonly<Record<Perspective, PerspectiveSpec>> = 
     concerns: ['parity', 'statutory_compliance', 'sensitive_attributes'],
     seedQuestions: [
       'Which discoveries imply a protected-attribute disparity?',
-      'Do any pricing rules violate fair-housing equivalents?',
+      'Do any pricing rules violate fair-dealing equivalents?',
       'Are there compliance lags surfacing from the discoveries?',
     ],
   },
@@ -112,7 +112,7 @@ export const PERSPECTIVE_BANK: Readonly<Record<Perspective, PerspectiveSpec>> = 
     id: 'underwriter',
     displayName: 'Risk Underwriter',
     system:
-      'You are the credit / lease underwriter — probability of default, ' +
+      'You are the credit / offtake underwriter — probability of default, ' +
       'collateral value, expected loss are first-order.',
     concerns: ['default_prob', 'expected_loss', 'lifetime_value'],
     seedQuestions: [
@@ -129,9 +129,9 @@ export const PERSPECTIVE_BANK: Readonly<Record<Perspective, PerspectiveSpec>> = 
       'asynchronous approval loops and trust signals.',
     concerns: ['approval_latency', 'trust_signals', 'fx_drag'],
     seedQuestions: [
-      'Does owner approval latency hurt vacancy duration?',
+      'Does owner approval latency hurt available-capacity duration?',
       'Which time-zone bands incur the largest decision drag?',
-      'How does FX volatility interact with rent collection?',
+      'How does FX volatility interact with royalty collection?',
     ],
   },
 };

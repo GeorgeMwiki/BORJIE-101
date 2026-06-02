@@ -68,16 +68,16 @@ describe('scrubPiiText — PII patterns', () => {
   });
 
   it('leaves clean text unchanged', () => {
-    const input = 'Your rent is due on the 1st.';
+    const input = 'Your royalty is due on the 1st.';
     expect(scrubPiiText(input)).toBe(input);
   });
 });
 
 describe('safeText — 3-stage cascade', () => {
   it('redacts brand names (default)', () => {
-    const out = safeText('We migrated from AppFolio to Borjie');
+    const out = safeText('We migrated from Micromine to Borjie');
     expect(out).toContain('[REDACTED_BRAND]');
-    expect(out).not.toContain('AppFolio');
+    expect(out).not.toContain('Micromine');
   });
 
   it('honours an injected brandRedactor', () => {

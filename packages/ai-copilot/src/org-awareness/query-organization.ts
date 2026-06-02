@@ -238,7 +238,7 @@ export function extractProcessKind(
 ): ProcessKind | null {
   const q = question.toLowerCase();
   if (/maintenance|ticket|repair/.test(q)) return 'maintenance_case';
-  if (/renewal|renew/.test(q)) return 'lease_renewal';
+  if (/renewal|renew/.test(q)) return 'offtake_renewal';
   if (/arrear|overdue|collection/.test(q)) return 'arrears_case';
   if (/payment|reconcile/.test(q)) return 'payment_reconcile';
   if (/approval|approve/.test(q)) return 'approval_decision';

@@ -2,7 +2,7 @@
  * ConversationAuditRecorder — hashes every agent turn into the Wave-27
  * audit-trail chain.
  *
- * Purpose: when the Head of Estates or a Borjie staff member asks
+ * Purpose: when the estate owner or a Borjie staff member asks
  * a question, EVERY step — the question itself, the plan the agent
  * chose, every tool the agent called, every citation it returned,
  * every artifact it rendered, every privacy budget debit, every error
@@ -351,16 +351,23 @@ function citationAttachments(c: Citation): Readonly<Record<string, unknown>> {
   };
 }
 
+// NOTE — the returned `actionCategory` VALUES (`finance`, `legal`,
+// `leasing`, …) are the `@borjie/ai-copilot` audit-trail enum
+// (`AuditActionCategory`); they are a cross-package contract and are
+// kept verbatim. Mining tool-name patterns (offtake / royalty /
+// licence-suspension / mineral-price) are added ALONGSIDE the legacy
+// real-estate patterns so the mining tool registry routes to the right
+// category without changing the receiving enum.
 function categoryFromToolName(
   toolName: string,
 ): AuditSinkInput['actionCategory'] {
   const lower = toolName.toLowerCase();
-  if (lower.startsWith('finance.') || lower.includes('arrear') || lower.includes('invoice')) return 'finance';
-  if (lower.startsWith('legal.') || lower.includes('tribunal') || lower.includes('eviction')) return 'legal';
-  if (lower.startsWith('maintenance.') || lower.includes('work_order')) return 'maintenance';
+  if (lower.startsWith('finance.') || lower.includes('arrear') || lower.includes('royalt') || lower.includes('invoice')) return 'finance';
+  if (lower.startsWith('legal.') || lower.includes('tribunal') || lower.includes('eviction') || lower.includes('licence-suspension') || lower.includes('license-suspension')) return 'legal';
+  if (lower.startsWith('maintenance.') || lower.includes('work_order') || lower.includes('work-order')) return 'maintenance';
   if (lower.startsWith('compliance.')) return 'compliance';
   if (lower.startsWith('comm') || lower.includes('message')) return 'communications';
-  if (lower.startsWith('leasing.') || lower.includes('lease')) return 'leasing';
+  if (lower.startsWith('leasing.') || lower.startsWith('offtake.') || lower.includes('lease') || lower.includes('offtake') || lower.includes('supply-agreement')) return 'leasing';
   if (lower.startsWith('marketing.')) return 'marketing';
   if (lower.startsWith('hr.')) return 'hr';
   if (lower.startsWith('procurement.') || lower.includes('vendor') || lower.includes('payout')) return 'procurement';

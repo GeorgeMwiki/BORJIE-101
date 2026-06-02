@@ -27,14 +27,14 @@ const fakeCompile = (q: Query): CompiledQuery =>
 
 describe('dashboards / evaluateDashboard', () => {
   it('returns a rendered widget per definition widget', async () => {
-    const def = composeFromTemplate('leasing-financial-performance', { tenantId: 't1' });
+    const def = composeFromTemplate('offtake-financial-performance', { tenantId: 't1' });
     const r = await evaluateDashboard({ definition: def, fetcher: fakeFetcher, compile: fakeCompile });
     expect(r.widgets).toHaveLength(def.widgets.length);
     expect(r.tenantId).toBe('t1');
   });
 
   it('chart widgets get their fetched rows applied to data.values', async () => {
-    const def = composeFromTemplate('leasing-financial-performance', { tenantId: 't1' });
+    const def = composeFromTemplate('offtake-financial-performance', { tenantId: 't1' });
     const r = await evaluateDashboard({ definition: def, fetcher: fakeFetcher, compile: fakeCompile });
     const chartWidget = r.widgets.find((w) => w.kind === 'chart');
     expect(chartWidget).toBeDefined();
@@ -73,7 +73,7 @@ describe('dashboards / evaluateDashboard', () => {
   });
 
   it('uses dashboard defaultTimeRange when widget has none', async () => {
-    const def = composeFromTemplate('leasing-financial-performance', {
+    const def = composeFromTemplate('offtake-financial-performance', {
       tenantId: 't1',
       defaultTimeRange: { start: '2026-01-01', end: '2026-02-01' },
     });

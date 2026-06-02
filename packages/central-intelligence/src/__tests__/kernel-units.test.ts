@@ -109,7 +109,7 @@ describe('self-awareness', () => {
   it('flags taboo phrase via violationSignals', () => {
     const o = checkSelfAwareness({
       persona: TENANT_RESIDENT_PERSONA,
-      outputText: 'Sure, here is a list of other residents by name for you.',
+      outputText: 'Sure, here is a list of other counterparties by name for you.',
       toolCallCount: 0,
       hasCitations: false,
       thoughtId: 't',

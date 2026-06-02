@@ -13,7 +13,7 @@
 
 export type ProcessKind =
   | 'maintenance_case'
-  | 'lease_renewal'
+  | 'offtake_renewal'
   | 'arrears_case'
   | 'payment_reconcile'
   | 'approval_decision'
@@ -22,7 +22,7 @@ export type ProcessKind =
   | 'letter_generation'
   | 'training_completion';
 
-export type ActorKind = 'human' | 'system' | 'ai' | 'vendor' | 'tenant';
+export type ActorKind = 'human' | 'system' | 'ai' | 'vendor' | 'counterparty';
 
 export type ProcessVariant =
   | 'standard'
@@ -125,14 +125,14 @@ export interface NewBottleneckInput {
 }
 
 export type ImprovementMetric =
-  | 'occupancy_rate'
+  | 'production_rate'
   | 'arrears_ratio'
   | 'avg_days_to_collect'
   | 'avg_maintenance_resolution_hours'
   | 'renewal_rate'
-  | 'avg_vacancy_duration_days'
+  | 'avg_available_capacity_duration_days'
   | 'compliance_breach_count'
-  | 'avg_lease_drafting_hours'
+  | 'avg_offtake_drafting_hours'
   | 'operator_hours_saved_estimate';
 
 export type PeriodKind = 'weekly' | 'monthly';

@@ -1,73 +1,80 @@
 /**
- * Jurisdictional rent caps.
+ * Jurisdictional royalty caps.
  *
- * Real estate rent forecasts must respect statutory ceilings (e.g.
- * Tanzania Rent Restriction Act caps year-on-year rent rises;
- * Germany Mietpreisbremse caps to local Mietspiegel + 10%; many EU
- * member states have similar regimes). We codify the cap policy here
- * so every RE forecaster applies them uniformly.
+ * Mining royalty / ground-rent forecasts must respect statutory
+ * ceilings (e.g. the Tanzania Mining Act sets mineral-royalty rates by
+ * mineral class; Kenya's Mining Act + regulations set comparable
+ * rates; many jurisdictions cap year-on-year escalation of negotiated
+ * offtake consideration). We codify the cap policy here so every
+ * recurring-entity forecaster applies them uniformly.
  *
  * The cap policy is intentionally a pure data structure — adding a
  * jurisdiction is a one-line PR. Unknown jurisdictions default to a
  * permissive 50% YoY ceiling (effectively no cap).
  */
 
-export interface RentCapPolicy {
+export interface RoyaltyCapPolicy {
   /** Maximum YoY % growth allowed (as a decimal, e.g. 0.07 for 7%). */
   readonly maxYoYGrowthPct: number;
-  /** Optional max absolute rent (in series unit). */
+  /** Optional max absolute royalty (in series unit). */
   readonly absoluteMax?: number;
-  /** Free-text source for audit (e.g. "TZ Rent Restriction Act s.18"). */
+  /** Free-text source for audit (e.g. "TZ Mining Act royalty schedule"). */
   readonly source: string;
 }
 
-const RENT_CAPS: Readonly<Record<string, RentCapPolicy>> = Object.freeze({
+/** @deprecated Use {@link RoyaltyCapPolicy}. */
+export type RentCapPolicy = RoyaltyCapPolicy;
+
+const ROYALTY_CAPS: Readonly<Record<string, RoyaltyCapPolicy>> = Object.freeze({
   TZ: {
     maxYoYGrowthPct: 0.10,
-    source: 'TZ Rent Restriction Act (presumptive cap, requires per-LGA verification)',
+    source: 'TZ Mining Act royalty schedule (presumptive cap, requires per-mineral verification)',
   },
   KE: {
     maxYoYGrowthPct: 0.10,
-    source: 'KE Rent Restriction Act + Rent Tribunal Act',
+    source: 'KE Mining Act + Mining (Dealings in Minerals) Regulations',
   },
   UG: {
     maxYoYGrowthPct: 0.10,
-    source: 'UG Rent Restriction Act',
+    source: 'UG Mining and Minerals Act royalty schedule',
   },
   DE: {
     maxYoYGrowthPct: 0.10,
-    source: 'DE Mietpreisbremse (Mietspiegel + 10%)',
+    source: 'DE Bundesberggesetz (Förderabgabe escalation guidance)',
   },
   FR: {
     maxYoYGrowthPct: 0.035,
-    source: 'FR IRL ceiling (Loi ELAN)',
+    source: 'FR Code minier redevance ceiling',
   },
   // No cap: most US states, UK, JP, AU etc.
-  US: { maxYoYGrowthPct: 1.00, source: 'US no federal cap (some state/municipal caps apply)' },
-  GB: { maxYoYGrowthPct: 1.00, source: 'UK no statutory cap (free market)' },
+  US: { maxYoYGrowthPct: 1.00, source: 'US no federal cap (some state/lease-specific caps apply)' },
+  GB: { maxYoYGrowthPct: 1.00, source: 'UK no statutory cap (negotiated royalties)' },
 });
 
-const DEFAULT_POLICY: RentCapPolicy = Object.freeze({
+const DEFAULT_POLICY: RoyaltyCapPolicy = Object.freeze({
   maxYoYGrowthPct: 0.50,
   source: 'default permissive policy (unknown jurisdiction)',
 });
 
-export function rentCapFor(jurisdiction: string | undefined): RentCapPolicy {
+export function royaltyCapFor(jurisdiction: string | undefined): RoyaltyCapPolicy {
   if (!jurisdiction) return DEFAULT_POLICY;
   // Match by exact code, or by country prefix for sub-region codes.
   const code = jurisdiction.toUpperCase();
-  if (RENT_CAPS[code]) return RENT_CAPS[code]!;
+  if (ROYALTY_CAPS[code]) return ROYALTY_CAPS[code]!;
   const root = code.split('-')[0]!;
-  if (RENT_CAPS[root]) return RENT_CAPS[root]!;
+  if (ROYALTY_CAPS[root]) return ROYALTY_CAPS[root]!;
   return DEFAULT_POLICY;
 }
 
-/** Apply the rent cap policy to a forecast point. Returns the capped
+/** @deprecated Use {@link royaltyCapFor}. */
+export const rentCapFor = royaltyCapFor;
+
+/** Apply the royalty cap policy to a forecast point. Returns the capped
  *  value plus a flag indicating whether the cap was hit. */
-export function applyRentCap(args: {
+export function applyRoyaltyCap(args: {
   readonly forecast: number;
   readonly priorPeriodValue: number;
-  readonly policy: RentCapPolicy;
+  readonly policy: RoyaltyCapPolicy;
 }): { readonly value: number; readonly capped: boolean } {
   const { forecast, priorPeriodValue, policy } = args;
   const maxAllowed = priorPeriodValue * (1 + policy.maxYoYGrowthPct);
@@ -83,3 +90,6 @@ export function applyRentCap(args: {
   }
   return { value, capped };
 }
+
+/** @deprecated Use {@link applyRoyaltyCap}. */
+export const applyRentCap = applyRoyaltyCap;

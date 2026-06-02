@@ -2,7 +2,7 @@
  * Subgroup discovery — Slice Finder (Chung et al. ICDE 2019).
  *
  * Find slices where the model under-performs. Catches the
- * intersectional case (e.g. women-of-color renting bareland)
+ * intersectional case (e.g. women-of-color running artisanal mining sites)
  * that aggregate metrics miss.
  */
 

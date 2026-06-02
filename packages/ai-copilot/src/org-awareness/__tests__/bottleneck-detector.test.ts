@@ -108,7 +108,7 @@ describe('bottleneck-detector', () => {
         processKind: 'maintenance_case',
         processInstanceId: `c-${i}`,
         stage: 'reopened',
-        actorKind: 'tenant',
+        actorKind: 'counterparty',
         isReopen: true,
       });
     }

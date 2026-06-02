@@ -31,7 +31,7 @@ async function reflectOne(h: Hypothesis, llm: LLMClient): Promise<ReflectionVerd
   const completion = await llm.complete({
     system:
       'You are a senior causal-inference reviewer. Score the methodological soundness ' +
-      'of a property-management hypothesis from 0.00 to 1.00. Reply ONLY in JSON: ' +
+      'of a mining-estate hypothesis from 0.00 to 1.00. Reply ONLY in JSON: ' +
       '{"score": number, "critique": string}.',
     prompt: [
       `Statement: ${h.statement}`,

@@ -17,12 +17,12 @@ function clamp01(x: number): number {
 }
 
 function cashflowSubScore(outcome: ScenarioOutcome): number {
-  if (outcome.projectedNoi.length === 0) return 0.5;
-  const totalP50 = outcome.projectedNoi.reduce((s, b) => s + b.p50, 0);
+  if (outcome.projectedNetMargin.length === 0) return 0.5;
+  const totalP50 = outcome.projectedNetMargin.reduce((s, b) => s + b.p50, 0);
   // Normalize via a soft sigmoid centered on zero. We don't know the
   // scale a-priori, so we use tanh on (totalP50 / horizon) — produces
   // 0 = neutral, 1 = strongly positive.
-  const monthlyAvg = totalP50 / outcome.projectedNoi.length;
+  const monthlyAvg = totalP50 / outcome.projectedNetMargin.length;
   const norm = Math.tanh(monthlyAvg / 50_000);
   return clamp01(0.5 + norm * 0.5);
 }

@@ -1,17 +1,17 @@
 /**
- * Leasing financial performance gatherer.
+ * Offtake financial performance gatherer.
  *
- * Pulls revenue + occupancy trends from the leasing-financial port and
+ * Pulls revenue + production trends from the offtake-financial port and
  * shapes them into the EvidencePack the composer + Harvard-PhD persona
- * expect for the `leasing_financial_performance` report family.
+ * expect for the `offtake_financial_performance` report family.
  *
  * Section 13 of the questionnaire memo calls this out as the
  * "Senior-leader most-requested" report — daily / weekly / monthly /
- * quarterly / annual revenue + occupancy + collection performance.
+ * quarterly / annual revenue + production + collection performance.
  */
 
 import type { EvidencePack, Gatherer, GathererContext } from '../types.js';
-import type { AdvisorPorts, RevenueLine, OccupancyLine } from './ports.js';
+import type { AdvisorPorts, RevenueLine, ProductionLine } from './ports.js';
 import {
   buildEvidenceFragment,
   collectionPct,
@@ -20,21 +20,21 @@ import {
   sourceHealth,
 } from './ports.js';
 
-export interface LeasingFinancialGathererDeps {
+export interface OfftakeFinancialGathererDeps {
   readonly ports: AdvisorPorts;
 }
 
-export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDeps): Gatherer {
+export function createOfftakeFinancialGatherer(deps: OfftakeFinancialGathererDeps): Gatherer {
   return async function gather(ctx: GathererContext): Promise<EvidencePack> {
     const { spec } = ctx;
-    const port = deps.ports.leasingFinancial;
+    const port = deps.ports.offtakeFinancial;
     const fragments: EvidencePack['fragments'][number][] = [];
     const charts: EvidencePack['charts'][number][] = [];
     const tables: EvidencePack['tables'][number][] = [];
     const health: EvidencePack['sourceHealth'][number][] = [];
 
     if (!port) {
-      health.push(sourceHealth('leasing-financial', 'unavailable', 'leasingFinancial port not wired'));
+      health.push(sourceHealth('offtake-financial', 'unavailable', 'offtakeFinancial port not wired'));
       return Object.freeze({
         type: spec.type,
         spec,
@@ -47,7 +47,7 @@ export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDep
 
     const orgArgs = {
       orgId: extractOrgId(spec.scope),
-      ...(extractPropertyId(spec.scope) !== null ? { propertyId: extractPropertyId(spec.scope)! } : {}),
+      ...(extractSiteId(spec.scope) !== null ? { siteId: extractSiteId(spec.scope)! } : {}),
       ...periodWindow(spec),
     };
 
@@ -59,35 +59,35 @@ export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDep
       health.push(sourceHealth('revenue-trend', 'unavailable', stringifyErr(e)));
     }
 
-    let occupancy: ReadonlyArray<OccupancyLine> = [];
+    let production: ReadonlyArray<ProductionLine> = [];
     try {
-      occupancy = await port.fetchOccupancyTrend(orgArgs);
-      health.push(sourceHealth('occupancy-trend', occupancy.length > 0 ? 'ok' : 'partial'));
+      production = await port.fetchProductionTrend(orgArgs);
+      health.push(sourceHealth('production-trend', production.length > 0 ? 'ok' : 'partial'));
     } catch (e) {
-      health.push(sourceHealth('occupancy-trend', 'unavailable', stringifyErr(e)));
+      health.push(sourceHealth('production-trend', 'unavailable', stringifyErr(e)));
     }
 
     revenue.forEach((line, i) => {
-      const fragId = `lf-rev-${i + 1}`;
+      const fragId = `of-rev-${i + 1}`;
       const collPct = collectionPct(line).toFixed(1);
       fragments.push(
         buildEvidenceFragment({
           id: fragId,
-          summary: `${line.periodLabel}: billed ${formatMoney(line.billed)}, collected ${formatMoney(line.collected)} (${collPct}% collection), arrears ${formatMoney(line.arrears)}.`,
+          summary: `${line.periodLabel}: billed ${formatMoney(line.billed)}, collected ${formatMoney(line.collected)} (${collPct}% collection), outstanding ${formatMoney(line.outstanding)}.`,
           source: { kind: 'ledger_entry', ref: `revenue:${line.periodLabel}` },
           data: { line: { ...line } },
         }),
       );
     });
 
-    occupancy.forEach((line, i) => {
-      const fragId = `lf-occ-${i + 1}`;
-      const pct = line.totalUnits === 0 ? 0 : (line.leasedUnits / line.totalUnits) * 100;
+    production.forEach((line, i) => {
+      const fragId = `of-prod-${i + 1}`;
+      const pct = line.totalSites === 0 ? 0 : (line.producingSites / line.totalSites) * 100;
       fragments.push(
         buildEvidenceFragment({
           id: fragId,
-          summary: `${line.periodLabel}: ${line.leasedUnits}/${line.totalUnits} units leased (${pct.toFixed(1)}% occupancy).`,
-          source: { kind: 'ledger_entry', ref: `occupancy:${line.periodLabel}` },
+          summary: `${line.periodLabel}: ${line.producingSites}/${line.totalSites} sites producing (${pct.toFixed(1)}% asset utilisation).`,
+          source: { kind: 'ledger_entry', ref: `production:${line.periodLabel}` },
           data: { line: { ...line } },
         }),
       );
@@ -95,21 +95,21 @@ export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDep
 
     if (revenue.length > 0) {
       tables.push({
-        id: 'lf-revenue-table',
-        title: 'Revenue, collection, and arrears by period',
-        headers: ['Period', 'Billed', 'Collected', 'Collection %', 'Arrears'],
+        id: 'of-revenue-table',
+        title: 'Revenue, collection, and outstanding royalties by period',
+        headers: ['Period', 'Billed', 'Collected', 'Collection %', 'Outstanding'],
         rows: revenue.map((line) => [
           line.periodLabel,
           formatMoney(line.billed),
           formatMoney(line.collected),
           collectionPct(line).toFixed(1),
-          formatMoney(line.arrears),
+          formatMoney(line.outstanding),
         ]),
-        citationIds: revenue.map((_, i) => `lf-rev-${i + 1}`),
+        citationIds: revenue.map((_, i) => `of-rev-${i + 1}`),
       });
 
       charts.push({
-        id: 'lf-revenue-chart',
+        id: 'of-revenue-chart',
         title: 'Billed vs collected revenue',
         kind: 'bar',
         xLabels: revenue.map((l) => l.periodLabel),
@@ -118,26 +118,26 @@ export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDep
           { name: 'Collected', values: revenue.map((l) => l.collected.value) },
         ],
         yUnit: revenue[0]!.billed.currency,
-        citationIds: revenue.map((_, i) => `lf-rev-${i + 1}`),
+        citationIds: revenue.map((_, i) => `of-rev-${i + 1}`),
       });
     }
 
-    if (occupancy.length > 0) {
+    if (production.length > 0) {
       charts.push({
-        id: 'lf-occupancy-chart',
-        title: 'Occupancy trend',
+        id: 'of-production-chart',
+        title: 'Asset-utilisation trend',
         kind: 'line',
-        xLabels: occupancy.map((l) => l.periodLabel),
+        xLabels: production.map((l) => l.periodLabel),
         series: [
           {
-            name: 'Occupancy %',
-            values: occupancy.map((l) =>
-              l.totalUnits === 0 ? 0 : (l.leasedUnits / l.totalUnits) * 100,
+            name: 'Asset utilisation %',
+            values: production.map((l) =>
+              l.totalSites === 0 ? 0 : (l.producingSites / l.totalSites) * 100,
             ),
           },
         ],
         yUnit: '%',
-        citationIds: occupancy.map((_, i) => `lf-occ-${i + 1}`),
+        citationIds: production.map((_, i) => `of-prod-${i + 1}`),
       });
     }
 
@@ -154,8 +154,8 @@ export function createLeasingFinancialGatherer(deps: LeasingFinancialGathererDep
 
 function extractOrgId(scope: GathererContext['spec']['scope']): string {
   switch (scope.kind) {
-    case 'tenant':
-    case 'property':
+    case 'buyer':
+    case 'site':
     case 'deal':
       return scope.orgId;
     case 'portfolio':
@@ -163,13 +163,13 @@ function extractOrgId(scope: GathererContext['spec']['scope']): string {
   }
 }
 
-function extractPropertyId(scope: GathererContext['spec']['scope']): string | null {
+function extractSiteId(scope: GathererContext['spec']['scope']): string | null {
   switch (scope.kind) {
-    case 'property':
-      return scope.propertyId;
+    case 'site':
+      return scope.siteId;
     case 'deal':
-      return scope.propertyId ?? null;
-    case 'tenant':
+      return scope.siteId ?? null;
+    case 'buyer':
     case 'portfolio':
       return null;
   }

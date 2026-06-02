@@ -36,7 +36,7 @@ export interface EnrichInput {
   readonly turn: BrainTurnLike;
   readonly tenantId: string;
   readonly userText: string;
-  readonly scopeKind?: 'property' | 'unit' | 'tenant' | 'portfolio';
+  readonly scopeKind?: 'site' | 'pit' | 'counterparty' | 'portfolio';
   readonly scopeId?: string;
 }
 

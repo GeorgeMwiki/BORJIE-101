@@ -4,8 +4,8 @@
  * that prioritises the things the admin needs to know first.
  *
  * Composition strategy: gather a deterministic set of "briefing
- * inputs" from outside (forecasting, audit, vacancy pipeline, work
- * orders) and ask the kernel to render them through the admin's
+ * inputs" from outside (forecasting, audit, spare-capacity pipeline,
+ * work orders) and ask the kernel to render them through the admin's
  * personalised sovereign persona. The briefing function is a
  * provider-agnostic pure orchestrator; data sources are injected.
  */

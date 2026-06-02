@@ -7,10 +7,13 @@
  * intelligence package must not compile-time-depend on @borjie/
  * database) and emits zero or more `WakeTriggerDetectedGoal`s.
  *
- *   arrears.30d-threshold — leases with active arrears cases >=30d overdue
- *   lease.expiring-30d    — active leases ending within the next 30d
- *   vacancy.30d-vacant    — units vacant >=30d (using updatedAt as proxy
- *                           for last_vacated when no dedicated column)
+ * (The detector `id`s and the `*.*` tool names below are a registered
+ * contract — kept verbatim; only the prose carries mining vocabulary.)
+ *
+ *   arrears.30d-threshold — agreements with active outstanding-royalty cases >=30d overdue
+ *   lease.expiring-30d    — active agreements ending within the next 30d
+ *   vacancy.30d-vacant    — units idle/at spare capacity >=30d (using updatedAt as proxy
+ *                           for last_idle when no dedicated column)
  *
  * Each detector returns goal openers with multi-step plans the executor
  * can walk: an informational "review" step (toolName=null) followed by
@@ -141,19 +144,19 @@ export function createArrears30dDetector(
       return rows.map<WakeTriggerDetectedGoal>((row) => ({
         userId,
         threadId: `wake-arrears-${row.leaseId}`,
-        title: `Arrears review for ${row.unitCode ?? row.leaseId}`,
-        description: `Lease ${row.leaseId} is ${row.daysOverdue} days overdue.`,
+        title: `Outstanding-royalties review for ${row.unitCode ?? row.leaseId}`,
+        description: `Agreement ${row.leaseId} is ${row.daysOverdue} days overdue.`,
         priority: 'high',
         steps: [
           {
             seq: 1,
-            description: `Review arrears case for lease ${row.leaseId}`,
+            description: `Review outstanding-royalties case for agreement ${row.leaseId}`,
             toolName: null,
             toolPayload: null,
           },
           {
             seq: 2,
-            description: `Send first SMS reminder for lease ${row.leaseId}`,
+            description: `Send first SMS reminder for agreement ${row.leaseId}`,
             toolName: 'rent.send-reminder',
             toolPayload: {
               leaseId: row.leaseId,
@@ -162,7 +165,7 @@ export function createArrears30dDetector(
           },
           {
             seq: 3,
-            description: `Escalate arrears to ladder step 1 if reminder unanswered`,
+            description: `Escalate outstanding royalties to ladder step 1 if reminder unanswered`,
             toolName: 'arrears.escalate',
             toolPayload: {
               leaseId: row.leaseId,
@@ -186,7 +189,7 @@ export function createLeaseExpiring30dDetector(
   return {
     id: 'lease.expiring-30d',
     description:
-      'Find active leases ending in 30d with no renewal goal already open.',
+      'Find active agreements ending in 30d with no renewal goal already open.',
     async detect({
       tenantId,
       clock,
@@ -207,18 +210,18 @@ export function createLeaseExpiring30dDetector(
         userId,
         threadId: `wake-renewal-${row.leaseId}`,
         title: `Renewal review for ${row.unitCode ?? row.leaseId}`,
-        description: `Lease ${row.leaseId} ends ${row.endDate}; open the renewal window.`,
+        description: `Agreement ${row.leaseId} ends ${row.endDate}; open the renewal window.`,
         priority: 'medium',
         steps: [
           {
             seq: 1,
-            description: `Review renewal candidacy for lease ${row.leaseId}`,
+            description: `Review renewal candidacy for agreement ${row.leaseId}`,
             toolName: null,
             toolPayload: null,
           },
           {
             seq: 2,
-            description: `Send renewal-window email reminder to lease ${row.leaseId}`,
+            description: `Send renewal-window email reminder to agreement ${row.leaseId}`,
             toolName: 'rent.send-reminder',
             toolPayload: {
               leaseId: row.leaseId,
@@ -241,7 +244,7 @@ export function createVacancy30dDetector(
   const limit = deps.perTenantLimit ?? DEFAULT_PER_TENANT_LIMIT;
   return {
     id: 'vacancy.30d-vacant',
-    description: 'Find units vacant >=30d with no listing goal already open.',
+    description: 'Find units idle / at spare capacity >=30d with no listing goal already open.',
     async detect({
       tenantId,
       clock,
@@ -259,9 +262,9 @@ export function createVacancy30dDetector(
       const userId = await resolveAssignee(deps, tenantId);
 
       return rows.flatMap<WakeTriggerDetectedGoal>((row) => {
-        // Without a headline rent / currency we cannot emit the
+        // Without a headline price / currency we cannot emit the
         // listing.publish step safely. We still emit the review step
-        // so the operator surface is aware of the long vacancy.
+        // so the operator surface is aware of the long idle period.
         const canPublish =
           typeof row.headlineRent === 'number' &&
           row.headlineRent > 0 &&
@@ -270,7 +273,7 @@ export function createVacancy30dDetector(
 
         const reviewStep = {
           seq: 1,
-          description: `Review long-vacant unit ${row.unitCode ?? row.unitId}`,
+          description: `Review long-idle unit ${row.unitCode ?? row.unitId}`,
           toolName: null as string | null,
           toolPayload: null as Record<string, unknown> | null,
         };
@@ -292,8 +295,8 @@ export function createVacancy30dDetector(
           {
             userId,
             threadId: `wake-vacancy-${row.unitId}`,
-            title: `Vacancy listing for ${row.unitCode ?? row.unitId}`,
-            description: `Unit ${row.unitId} has been vacant ${row.daysVacant} days.`,
+            title: `Available-capacity listing for ${row.unitCode ?? row.unitId}`,
+            description: `Unit ${row.unitId} has been idle ${row.daysVacant} days.`,
             priority: 'medium',
             steps: publishStep ? [reviewStep, publishStep] : [reviewStep],
           },

@@ -20,20 +20,20 @@ export function createRefinancingGatherer(deps: RefinancingGathererDeps): Gather
     const tables: EvidencePack['tables'][number][] = [];
     const health: EvidencePack['sourceHealth'][number][] = [];
     const port = deps.ports.lifecycle;
-    const propertyId = spec.scope.kind === 'property' ? spec.scope.propertyId : null;
+    const siteId = spec.scope.kind === 'site' ? spec.scope.siteId : null;
 
     if (!port) {
       health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'lifecycle port not wired'));
       return packed(spec, fragments, [], tables, health);
     }
-    if (!propertyId) {
-      health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'refinancing memo requires property scope'));
+    if (!siteId) {
+      health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'refinancing memo requires site scope'));
       return packed(spec, fragments, [], tables, health);
     }
 
     let proposal: RefinancingProposal | null = null;
     try {
-      proposal = await port.fetchRefinancingProposal({ propertyId });
+      proposal = await port.fetchRefinancingProposal({ siteId });
       health.push(sourceHealth('lifecycle-advisor', proposal ? 'ok' : 'partial'));
     } catch (e) {
       health.push(sourceHealth('lifecycle-advisor', 'unavailable', e instanceof Error ? e.message : String(e)));
@@ -45,7 +45,7 @@ export function createRefinancingGatherer(deps: RefinancingGathererDeps): Gather
       buildEvidenceFragment({
         id: 'rf-current',
         summary: `Current loan principal ${formatMoney(proposal.currentLoan.principal)} at ${proposal.currentLoan.ratePct.toFixed(2)}%, maturity ${proposal.currentLoan.maturityIso}.`,
-        source: { kind: 'advisor_output', ref: `lifecycle:refi:${propertyId}:current` },
+        source: { kind: 'advisor_output', ref: `lifecycle:refi:${siteId}:current` },
       }),
     );
 
@@ -53,7 +53,7 @@ export function createRefinancingGatherer(deps: RefinancingGathererDeps): Gather
       buildEvidenceFragment({
         id: 'rf-proposed',
         summary: `Proposed: principal ${formatMoney(proposal.proposed.principal)} at ${proposal.proposed.ratePct.toFixed(2)}%, ${proposal.proposed.term_yrs}-yr term, LTV ${proposal.proposed.ltvPct.toFixed(1)}%, DSCR ${proposal.proposed.dscr.toFixed(2)}.`,
-        source: { kind: 'advisor_output', ref: `lifecycle:refi:${propertyId}:proposed` },
+        source: { kind: 'advisor_output', ref: `lifecycle:refi:${siteId}:proposed` },
       }),
     );
 

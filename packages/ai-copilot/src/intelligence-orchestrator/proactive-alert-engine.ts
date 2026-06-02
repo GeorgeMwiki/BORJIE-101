@@ -9,7 +9,7 @@
  *   {
  *     priority: 1,
  *     category: 'arrears_escalation',
- *     title: '3 units in District-East entering 91+ arrears bucket',
+ *     title: '3 pits in District-East entering 91+ arrears bucket',
  *     actionPlan: [
  *       'Issue soft demand (Swahili) within 48h',
  *       'Escalate to field visit if no response',
@@ -25,10 +25,10 @@ import type {
   PaymentsSnapshot,
   MaintenanceSnapshot,
   ComplianceSnapshot,
-  LeasingSnapshot,
+  OfftakeSnapshot,
   InspectionSnapshot,
-  TenantRiskSnapshot,
-  OccupancySnapshot,
+  CounterpartyRiskSnapshot,
+  ProductionSnapshot,
   CrossModuleInsight,
   ProactiveAlert,
 } from './types.js';
@@ -37,10 +37,10 @@ export interface AlertInput {
   readonly payments: PaymentsSnapshot | null;
   readonly maintenance: MaintenanceSnapshot | null;
   readonly compliance: ComplianceSnapshot | null;
-  readonly leasing: LeasingSnapshot | null;
+  readonly offtake: OfftakeSnapshot | null;
   readonly inspection: InspectionSnapshot | null;
-  readonly tenantRisk: TenantRiskSnapshot | null;
-  readonly occupancy: OccupancySnapshot | null;
+  readonly counterpartyRisk: CounterpartyRiskSnapshot | null;
+  readonly production: ProductionSnapshot | null;
   readonly crossModuleInsights: readonly CrossModuleInsight[];
 }
 
@@ -100,25 +100,25 @@ export function generateProactiveAlerts(
     });
   }
 
-  // P1: occupancy dip
-  if (input.occupancy && input.occupancy.occupancyPct < 80) {
+  // P1: production dip
+  if (input.production && input.production.productionPct < 80) {
     alerts.push({
       id: nextId(),
       priority: 1,
-      category: 'occupancy_dip',
-      title: `Occupancy below threshold: ${input.occupancy.occupancyPct.toFixed(0)}%`,
+      category: 'production_dip',
+      title: `Production below threshold: ${input.production.productionPct.toFixed(0)}%`,
       message:
-        `${input.occupancy.vacancyCount} vacant unit(s). Average vacancy days: ` +
-        `${input.occupancy.avgVacancyDays.toFixed(0)}. Time on market: ${input.occupancy.timeOnMarketDays.toFixed(0)}d.`,
-      evidenceRefs: ['occupancy.pct', 'occupancy.vacancy_count'],
+        `${input.production.availableCapacityCount} idle pit(s). Average available-capacity days: ` +
+        `${input.production.avgAvailableCapacityDays.toFixed(0)}. Time on market: ${input.production.timeToCommissionDays.toFixed(0)}d.`,
+      evidenceRefs: ['production.pct', 'production.available_capacity_count'],
       actionPlan: [
         'Review marketplace listings and pricing.',
-        'Trigger boosted campaigns for long-vacant units.',
-        'Consider rent adjustment for units >60 days on market.',
+        'Trigger boosted campaigns for long-idle pits.',
+        'Consider price adjustment for pits >60 days on market.',
       ],
       dataPoints: {
-        occupancyPct: input.occupancy.occupancyPct,
-        vacancies: input.occupancy.vacancyCount,
+        productionPct: input.production.productionPct,
+        vacancies: input.production.availableCapacityCount,
       },
       requiresOperatorAction: true,
     });
@@ -179,7 +179,7 @@ export function generateProactiveAlerts(
     alerts.push({
       id: nextId(),
       priority: 2,
-      category: 'tenant_churn',
+      category: 'buyer_churn',
       title: insight.title,
       message: insight.description,
       evidenceRefs: insight.sourceModules.map((m) => `${m}.snapshot`),
@@ -192,22 +192,22 @@ export function generateProactiveAlerts(
   }
 
   // P2: churn probability elevated
-  if (input.leasing && input.leasing.churnProbability > 0.6) {
+  if (input.offtake && input.offtake.churnProbability > 0.6) {
     alerts.push({
       id: nextId(),
       priority: 2,
-      category: 'tenant_churn',
-      title: `Tenant churn probability ${(input.leasing.churnProbability * 100).toFixed(0)}%`,
+      category: 'buyer_churn',
+      title: `Buyer churn probability ${(input.offtake.churnProbability * 100).toFixed(0)}%`,
       message:
-        `Upcoming lease ends: ${input.leasing.leaseEndWithin60d}; pending renewals: ${input.leasing.pendingRenewals}.`,
-      evidenceRefs: ['leasing.churn_probability', 'leasing.lease_end_60d'],
+        `Upcoming offtake ends: ${input.offtake.offtakeEndWithin60d}; pending renewals: ${input.offtake.pendingRenewals}.`,
+      evidenceRefs: ['offtake.churn_probability', 'offtake.offtake_end_60d'],
       actionPlan: [
-        'Send renewal offers 45 days before lease end.',
-        'Schedule satisfaction check-ins for at-risk units.',
+        'Send renewal offers 45 days before offtake end.',
+        'Schedule satisfaction check-ins for at-risk pits.',
       ],
       dataPoints: {
-        churnProbability: input.leasing.churnProbability,
-        upcomingEnds: input.leasing.leaseEndWithin60d,
+        churnProbability: input.offtake.churnProbability,
+        upcomingEnds: input.offtake.offtakeEndWithin60d,
       },
       requiresOperatorAction: false,
     });
@@ -234,22 +234,22 @@ export function generateProactiveAlerts(
     });
   }
 
-  // P3: tenant dispute pattern
-  if (input.tenantRisk && input.tenantRisk.disputeCount > 1) {
+  // P3: counterparty dispute pattern
+  if (input.counterpartyRisk && input.counterpartyRisk.disputeCount > 1) {
     alerts.push({
       id: nextId(),
       priority: 3,
-      category: 'tenant_churn',
-      title: `${input.tenantRisk.disputeCount} disputes on record`,
-      message: `Payment reliability: ${input.tenantRisk.paymentReliabilityPct.toFixed(0)}%.`,
-      evidenceRefs: ['tenant_risk.disputes', 'tenant_risk.payment_reliability'],
+      category: 'buyer_churn',
+      title: `${input.counterpartyRisk.disputeCount} disputes on record`,
+      message: `Payment reliability: ${input.counterpartyRisk.paymentReliabilityPct.toFixed(0)}%.`,
+      evidenceRefs: ['counterparty_risk.disputes', 'counterparty_risk.payment_reliability'],
       actionPlan: [
         'Review dispute resolution timelines.',
         'Document decisions for future audit trail.',
       ],
       dataPoints: {
-        disputes: input.tenantRisk.disputeCount,
-        reliability: input.tenantRisk.paymentReliabilityPct,
+        disputes: input.counterpartyRisk.disputeCount,
+        reliability: input.counterpartyRisk.paymentReliabilityPct,
       },
       requiresOperatorAction: false,
     });

@@ -2,11 +2,11 @@
  * Analytics and KPI Service
  */
 
-import type { TenantId, PropertyId } from '../types/index.js';
+import type { TenantId, SiteId } from '../types/index.js';
 
 export interface PortfolioKPIs {
   tenantId: TenantId;
-  occupancyRate: number;
+  assetUtilisationRate: number;
   collectionRate: number;
   maintenanceCosts: number;
   noi: number;
@@ -14,11 +14,11 @@ export interface PortfolioKPIs {
   totalExpenses: number;
 }
 
-export interface PropertyKPIs {
+export interface SiteKPIs {
   tenantId: TenantId;
-  propertyId: PropertyId;
-  propertyName: string;
-  occupancyRate: number;
+  siteId: SiteId;
+  siteName: string;
+  assetUtilisationRate: number;
   collectionRate: number;
   revenue: number;
   expenses: number;
@@ -42,35 +42,35 @@ export interface MaintenanceAnalytics {
   byCategory: Array<{ category: string; count: number; cost: number }>;
 }
 
-export interface TenantChurnAnalytics {
+export interface BuyerChurnAnalytics {
   tenantId: TenantId;
   period: string;
-  moveIns: number;
-  moveOuts: number;
+  onboarded: number;
+  offboarded: number;
   churnRate: number;
-  avgTenancyMonths: number;
+  avgRelationshipMonths: number;
 }
 
-export interface ArrearsAgingBucket {
+export interface OutstandingAgingBucket {
   bucket: string;
   count: number;
   amount: number;
 }
 
-export interface ArrearsAgingReport {
+export interface OutstandingAgingReport {
   tenantId: TenantId;
-  totalArrears: number;
-  buckets: ArrearsAgingBucket[];
-  byProperty: Array<{ propertyId: string; propertyName: string; amount: number }>;
+  totalOutstanding: number;
+  buckets: OutstandingAgingBucket[];
+  bySite: Array<{ siteId: string; siteName: string; amount: number }>;
 }
 
 export interface IAnalyticsDataProvider {
   getPortfolioKPIs(tenantId: TenantId): Promise<PortfolioKPIs>;
-  getPropertyKPIs(tenantId: TenantId, propertyId: PropertyId): Promise<PropertyKPIs>;
+  getSiteKPIs(tenantId: TenantId, siteId: SiteId): Promise<SiteKPIs>;
   getRevenueAnalytics(tenantId: TenantId, period: string): Promise<RevenueAnalytics>;
   getMaintenanceAnalytics(tenantId: TenantId, period: string): Promise<MaintenanceAnalytics>;
-  getTenantChurnAnalytics(tenantId: TenantId): Promise<TenantChurnAnalytics>;
-  getArrearsAgingReport(tenantId: TenantId): Promise<ArrearsAgingReport>;
+  getBuyerChurnAnalytics(tenantId: TenantId): Promise<BuyerChurnAnalytics>;
+  getOutstandingAgingReport(tenantId: TenantId): Promise<OutstandingAgingReport>;
 }
 
 export class AnalyticsService {
@@ -80,8 +80,8 @@ export class AnalyticsService {
     return this.dataProvider.getPortfolioKPIs(tenantId);
   }
 
-  async getPropertyKPIs(tenantId: TenantId, propertyId: PropertyId): Promise<PropertyKPIs> {
-    return this.dataProvider.getPropertyKPIs(tenantId, propertyId);
+  async getSiteKPIs(tenantId: TenantId, siteId: SiteId): Promise<SiteKPIs> {
+    return this.dataProvider.getSiteKPIs(tenantId, siteId);
   }
 
   async getRevenueAnalytics(tenantId: TenantId, period: string): Promise<RevenueAnalytics> {
@@ -92,11 +92,11 @@ export class AnalyticsService {
     return this.dataProvider.getMaintenanceAnalytics(tenantId, period);
   }
 
-  async getTenantChurnAnalytics(tenantId: TenantId): Promise<TenantChurnAnalytics> {
-    return this.dataProvider.getTenantChurnAnalytics(tenantId);
+  async getBuyerChurnAnalytics(tenantId: TenantId): Promise<BuyerChurnAnalytics> {
+    return this.dataProvider.getBuyerChurnAnalytics(tenantId);
   }
 
-  async getArrearsAgingReport(tenantId: TenantId): Promise<ArrearsAgingReport> {
-    return this.dataProvider.getArrearsAgingReport(tenantId);
+  async getOutstandingAgingReport(tenantId: TenantId): Promise<OutstandingAgingReport> {
+    return this.dataProvider.getOutstandingAgingReport(tenantId);
   }
 }

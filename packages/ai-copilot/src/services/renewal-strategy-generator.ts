@@ -36,13 +36,13 @@ export const RenewalStrategy = {
 export type RenewalStrategy = (typeof RenewalStrategy)[keyof typeof RenewalStrategy];
 
 export const IncentiveType = {
-  RENT_DISCOUNT: 'rent_discount',
-  RENT_FREEZE: 'rent_freeze',
+  PRICE_DISCOUNT: 'price_discount',
+  PRICE_FREEZE: 'price_freeze',
   FREE_MONTH: 'free_month',
   UPGRADE_INCLUDED: 'upgrade_included',
-  AMENITY_ACCESS: 'amenity_access',
+  CAPABILITY_ACCESS: 'capability_access',
   MAINTENANCE_PRIORITY: 'maintenance_priority',
-  PARKING_INCLUDED: 'parking_included',
+  LOGISTICS_INCLUDED: 'logistics_included',
   STORAGE_INCLUDED: 'storage_included',
   GIFT_CARD: 'gift_card',
   EARLY_RENEWAL_BONUS: 'early_renewal_bonus',
@@ -54,26 +54,26 @@ export type IncentiveType = (typeof IncentiveType)[keyof typeof IncentiveType];
 // Input Interfaces
 // ============================================================================
 
-export interface TenantRenewalData {
-  tenantId: string;
-  tenantName: string;
-  
-  // Current Lease
-  currentLease: {
-    monthlyRent: number;
+export interface CounterpartyRenewalData {
+  counterpartyId: string;
+  counterpartyName: string;
+
+  // Current Offtake / supply-agreement
+  currentOfftake: {
+    monthlyPayment: number;
     currency: string;
     startDate: string;
     endDate: string;
     termMonths: number;
-    originalRent: number; // Rent at move-in
-    lastRentIncrease?: {
+    originalPrice: number; // Price at agreement start
+    lastPriceIncrease?: {
       date: string;
       percentChange: number;
     };
   };
-  
-  // Tenant Quality Metrics
-  tenantMetrics: {
+
+  // Counterparty Quality Metrics
+  counterpartyMetrics: {
     paymentScore: number;          // 0-100
     onTimePaymentRate: number;     // 0-1
     maintenanceCostBurden: number; // Annual cost caused
@@ -101,36 +101,36 @@ export interface TenantRenewalData {
   preferences?: {
     priceSensitivity: 'low' | 'medium' | 'high';
     preferredTermLength?: number;
-    valuesPriority?: ('price' | 'location' | 'amenities' | 'service')[];
+    valuesPriority?: ('price' | 'location' | 'capabilities' | 'service')[];
   };
 }
 
 export interface MarketCompData {
-  propertyId: string;
-  unitId: string;
-  unitType: string;
-  
+  siteId: string;
+  pitId: string;
+  pitType: string;
+
   // Current Market Data
   marketData: {
-    avgMarketRent: number;
-    rentRange: { min: number; max: number };
-    medianRent: number;
-    rentTrend: 'increasing' | 'stable' | 'decreasing';
+    avgMarketPrice: number;
+    priceRange: { min: number; max: number };
+    medianPrice: number;
+    priceTrend: 'increasing' | 'stable' | 'decreasing';
     trendPercent?: number;
-    vacancyRate: number;
-    daysOnMarket: number;  // Avg for similar units
+    availableCapacityRate: number;
+    daysOnMarket: number;  // Avg for similar pits
   };
-  
+
   // Comparables
   comparables?: Array<{
     source: 'internal' | 'external';
-    unitType: string;
+    pitType: string;
     location: string;
-    rent: number;
-    amenities: string[];
+    price: number;
+    capabilities: string[];
     daysListed?: number;
   }>;
-  
+
   // Demand Signals
   demandSignals?: {
     inquiriesLast30Days: number;
@@ -140,19 +140,19 @@ export interface MarketCompData {
   };
 }
 
-export interface PropertyPolicies {
-  // Rent Policies
-  maxRentIncreasePercent: number;
-  minRentIncreasePercent?: number;
-  regulatoryRentCap?: number;
-  
+export interface SitePolicies {
+  // Price Policies
+  maxPriceIncreasePercent: number;
+  minPriceIncreasePercent?: number;
+  regulatoryPriceCap?: number;
+
   // Discount Policies
   maxDiscountPercent: number;
   maxIncentiveValue: number;
-  
+
   // Approval Requirements
   requiresApprovalAbove: number; // Percent change requiring approval
-  
+
   // Term Policies
   preferredTermMonths: number[];
   shortTermPremium?: number;    // Extra percent for short terms
@@ -172,18 +172,18 @@ export interface RenewalOption {
   
   // Pricing
   pricing: {
-    proposedRent: number;
+    proposedPrice: number;
     changeFromCurrent: number;
     changePercent: number;
-    effectiveRent: number;  // After incentives
+    effectivePrice: number;  // After incentives
     effectiveChangePercent: number;
   };
-  
+
   // Term Options
   termOptions: Array<{
     months: number;
-    rent: number;
-    effectiveRent: number;
+    price: number;
+    effectivePrice: number;
     discount?: number;
     totalContractValue: number;
   }>;
@@ -203,7 +203,7 @@ export interface RenewalOption {
     noiImpact: {
       year1: number;
       year2Projected: number;
-      vsVacancyScenario: number;
+      vsAvailableCapacityScenario: number;
       explanation: string;
     };
     
@@ -234,36 +234,36 @@ export interface RenewalOption {
   talkingPoints: string[];
 }
 
-export interface VacancyScenario {
+export interface AvailableCapacityScenario {
   probability: number;
-  expectedVacancyDays: number;
+  expectedAvailableCapacityDays: number;
   turnoverCost: number;
-  releaseRent: number;
+  recontractPrice: number;
   totalCostVsRenewal: number;
 }
 
 export interface RenewalStrategyResult {
-  tenantId: string;
-  propertyId: string;
-  unitId: string;
+  counterpartyId: string;
+  siteId: string;
+  pitId: string;
   generatedAt: string;
-  
+
   // Summary
   summary: {
-    currentRent: number;
-    marketRent: number;
+    currentPrice: number;
+    marketPrice: number;
     currentVsMarket: number; // Percentage difference
     recommendedOption: string;
     recommendedStrategy: RenewalStrategy;
     urgency: 'low' | 'medium' | 'high' | 'critical';
-    daysToLeaseEnd: number;
+    daysToOfftakeEnd: number;
   };
-  
+
   // Options
   options: RenewalOption[];
-  
-  // Tenant Analysis
-  tenantAnalysis: {
+
+  // Counterparty Analysis
+  counterpartyAnalysis: {
     valueAssessment: 'premium' | 'standard' | 'at_risk' | 'underperforming';
     lifetimeValue: number;
     retentionPriority: 'high' | 'medium' | 'low';
@@ -272,7 +272,7 @@ export interface RenewalStrategyResult {
     keyRetentionFactors: string[];
     keyChurnRisks: string[];
   };
-  
+
   // Financial Projections
   financialProjections: {
     scenarios: Array<{
@@ -283,7 +283,7 @@ export interface RenewalStrategyResult {
       year1NOI: number;
       year2ProjectedNOI: number;
     }>;
-    vacancyScenario: VacancyScenario;
+    availableCapacityScenario: AvailableCapacityScenario;
     breakEvenIncrease: number;
     maxIncreaseBeforeChurn: number;
   };
@@ -312,11 +312,11 @@ export interface RenewalStrategyResult {
   compsSummary: {
     internalComps: number;
     externalComps: number;
-    avgCompRent: number;
+    avgCompPrice: number;
     compRange: { min: number; max: number };
     dataConfidence: 'high' | 'medium' | 'low';
   };
-  
+
   confidence: number;
   reasoning: string;
 }
@@ -333,22 +333,22 @@ const RenewalOptionSchema = z.object({
   description: z.string(),
   recommended: z.boolean(),
   pricing: z.object({
-    proposedRent: z.number(),
+    proposedPrice: z.number(),
     changeFromCurrent: z.number(),
     changePercent: z.number(),
-    effectiveRent: z.number(),
+    effectivePrice: z.number(),
     effectiveChangePercent: z.number(),
   }),
   termOptions: z.array(z.object({
     months: z.number(),
-    rent: z.number(),
-    effectiveRent: z.number(),
+    price: z.number(),
+    effectivePrice: z.number(),
     discount: z.number().optional(),
     totalContractValue: z.number(),
   })),
   incentives: z.array(z.object({
-    type: z.enum(['rent_discount', 'rent_freeze', 'free_month', 'upgrade_included',
-      'amenity_access', 'maintenance_priority', 'parking_included', 'storage_included',
+    type: z.enum(['price_discount', 'price_freeze', 'free_month', 'upgrade_included',
+      'capability_access', 'maintenance_priority', 'logistics_included', 'storage_included',
       'gift_card', 'early_renewal_bonus']),
     description: z.string(),
     value: z.number(),
@@ -359,7 +359,7 @@ const RenewalOptionSchema = z.object({
     noiImpact: z.object({
       year1: z.number(),
       year2Projected: z.number(),
-      vsVacancyScenario: z.number(),
+      vsAvailableCapacityScenario: z.number(),
       explanation: z.string(),
     }),
     churnImpact: z.object({
@@ -383,22 +383,22 @@ const RenewalOptionSchema = z.object({
 });
 
 const RenewalStrategyResultSchema = z.object({
-  tenantId: z.string(),
-  propertyId: z.string(),
-  unitId: z.string(),
+  counterpartyId: z.string(),
+  siteId: z.string(),
+  pitId: z.string(),
   generatedAt: z.string(),
   summary: z.object({
-    currentRent: z.number(),
-    marketRent: z.number(),
+    currentPrice: z.number(),
+    marketPrice: z.number(),
     currentVsMarket: z.number(),
     recommendedOption: z.string(),
     recommendedStrategy: z.enum(['retention_priority', 'balanced', 'revenue_optimization',
       'market_alignment', 'relationship_building', 'value_add']),
     urgency: z.enum(['low', 'medium', 'high', 'critical']),
-    daysToLeaseEnd: z.number(),
+    daysToOfftakeEnd: z.number(),
   }),
   options: z.array(RenewalOptionSchema),
-  tenantAnalysis: z.object({
+  counterpartyAnalysis: z.object({
     valueAssessment: z.enum(['premium', 'standard', 'at_risk', 'underperforming']),
     lifetimeValue: z.number(),
     retentionPriority: z.enum(['high', 'medium', 'low']),
@@ -416,11 +416,11 @@ const RenewalStrategyResultSchema = z.object({
       year1NOI: z.number(),
       year2ProjectedNOI: z.number(),
     })),
-    vacancyScenario: z.object({
+    availableCapacityScenario: z.object({
       probability: z.number(),
-      expectedVacancyDays: z.number(),
+      expectedAvailableCapacityDays: z.number(),
       turnoverCost: z.number(),
-      releaseRent: z.number(),
+      recontractPrice: z.number(),
       totalCostVsRenewal: z.number(),
     }),
     breakEvenIncrease: z.number(),
@@ -445,7 +445,7 @@ const RenewalStrategyResultSchema = z.object({
   compsSummary: z.object({
     internalComps: z.number(),
     externalComps: z.number(),
-    avgCompRent: z.number(),
+    avgCompPrice: z.number(),
     compRange: z.object({ min: z.number(), max: z.number() }),
     dataConfidence: z.enum(['high', 'medium', 'low']),
   }),
@@ -510,19 +510,19 @@ export class RenewalStrategyGenerator {
    * unchanged so callers need no updates.
    */
   async generateStrategy(
-    tenant: TenantRenewalData,
+    counterparty: CounterpartyRenewalData,
     market: MarketCompData,
-    policies: PropertyPolicies
+    policies: SitePolicies
   ): Promise<RenewalStrategyResult> {
     const userPrompt = `${RENEWAL_STRATEGY_PROMPT.user}
 
-Tenant Data:
-${JSON.stringify(tenant, null, 2)}
+Counterparty Data:
+${JSON.stringify(counterparty, null, 2)}
 
 Market & Comparables Data:
 ${JSON.stringify(market, null, 2)}
 
-Property Policies:
+Site Policies:
 ${JSON.stringify(policies, null, 2)}
 
 Generate at least 3-4 distinct renewal options covering different strategies.
@@ -558,46 +558,46 @@ Include detailed NOI impact and churn risk analysis for each option.`;
   }
 
   /**
-   * Calculate ROI of renewal vs vacancy
+   * Calculate ROI of renewal vs available-capacity
    */
   calculateRenewalROI(result: RenewalStrategyResult): {
     bestOption: RenewalOption;
-    roiVsVacancy: number;
+    roiVsAvailableCapacity: number;
     breakEvenDays: number;
     recommendation: string;
   } {
-    const vacancy = result.financialProjections.vacancyScenario;
+    const availableCapacity = result.financialProjections.availableCapacityScenario;
     const recommended = this.getRecommendedOption(result);
-    
+
     if (!recommended) {
       throw new Error('No recommended option found');
     }
 
     const renewalNOI = recommended.impactAnalysis.noiImpact.year1;
-    const vacancyCost = vacancy.totalCostVsRenewal;
-    const roiVsVacancy = ((renewalNOI - vacancyCost) / Math.abs(vacancyCost)) * 100;
-    
+    const availableCapacityCost = availableCapacity.totalCostVsRenewal;
+    const roiVsAvailableCapacity = ((renewalNOI - availableCapacityCost) / Math.abs(availableCapacityCost)) * 100;
+
     // Calculate break-even days
-    const dailyRent = recommended.pricing.proposedRent / 30;
-    const breakEvenDays = Math.ceil(vacancy.turnoverCost / dailyRent);
+    const dailyPrice = recommended.pricing.proposedPrice / 30;
+    const breakEvenDays = Math.ceil(availableCapacity.turnoverCost / dailyPrice);
 
     return {
       bestOption: recommended,
-      roiVsVacancy,
+      roiVsAvailableCapacity,
       breakEvenDays,
-      recommendation: roiVsVacancy > 0 
+      recommendation: roiVsAvailableCapacity > 0
         ? `Renewal recommended. ${breakEvenDays} days to break even on turnover costs.`
-        : `Consider vacancy scenario. Market conditions may favor new tenant.`,
+        : `Consider available-capacity scenario. Market conditions may favor a new counterparty.`,
     };
   }
 
   /**
-   * Adjust strategy based on tenant response
+   * Adjust strategy based on counterparty response
    */
   async adjustForCounteroffer(
     originalResult: RenewalStrategyResult,
     counteroffer: {
-      requestedRent?: number;
+      requestedPrice?: number;
       requestedTerm?: number;
       requestedIncentives?: string[];
       concerns?: string[];
@@ -621,10 +621,10 @@ Include detailed NOI impact and churn risk analysis for each option.`;
       prompt: `Original Strategy:
 ${JSON.stringify(originalResult, null, 2)}
 
-Tenant Counteroffer:
+Counterparty Counteroffer:
 ${JSON.stringify(counteroffer, null, 2)}
 
-Provide adjusted options that balance tenant requests with property objectives.
+Provide adjusted options that balance counterparty requests with site objectives.
 Return JSON with: adjustedOptions (array), recommendation (string), maxConcession (number), walkAwayAdvice (string)`,
       schema: counterofferSchema,
       model: this.model,
@@ -652,9 +652,9 @@ export function createRenewalStrategyGenerator(
 }
 
 export async function generateRenewalStrategy(
-  tenant: TenantRenewalData,
+  counterparty: CounterpartyRenewalData,
   market: MarketCompData,
-  policies: PropertyPolicies,
+  policies: SitePolicies,
   config?: Partial<RenewalStrategyConfig>
 ): Promise<RenewalStrategyResult> {
   const anthropicApiKey =
@@ -667,16 +667,16 @@ export async function generateRenewalStrategy(
     anthropicApiKey,
     ...config,
   });
-  return generator.generateStrategy(tenant, market, policies);
+  return generator.generateStrategy(counterparty, market, policies);
 }
 
 // ============================================================================
 // Default Policies
 // ============================================================================
 
-export const DEFAULT_PROPERTY_POLICIES: PropertyPolicies = {
-  maxRentIncreasePercent: 10,
-  minRentIncreasePercent: 0,
+export const DEFAULT_SITE_POLICIES: SitePolicies = {
+  maxPriceIncreasePercent: 10,
+  minPriceIncreasePercent: 0,
   maxDiscountPercent: 5,
   maxIncentiveValue: 500,
   requiresApprovalAbove: 8,

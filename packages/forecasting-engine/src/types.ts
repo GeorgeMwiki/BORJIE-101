@@ -66,33 +66,41 @@ export type OwnerIntent = z.infer<typeof ownerIntentSchema>;
 // World model
 // -------------------------------------------------------------
 
-export interface TenantNode {
-  readonly tenantId: string;
+/**
+ * A buyer / off-taker counterparty operating a mining unit under an
+ * active offtake. (`tenantId` here is the renter-era field name kept
+ * for the persisted node id; semantically it is the counterparty id.)
+ */
+export interface CounterpartyNode {
+  readonly counterpartyId: string;
   readonly unitId: string;
   readonly tenureDays: number;
-  readonly monthlyRent: number;
+  readonly monthlyRoyalty: number;
   readonly paymentReliability: number; // 0..1
-  readonly leaseEndsAt: number; // ms
+  readonly offtakeEndsAt: number; // ms
 }
+
+/** @deprecated Use {@link CounterpartyNode}. */
+export type TenantNode = CounterpartyNode;
 
 export interface UnitNode {
   readonly unitId: string;
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly microMarketId: string;
-  readonly occupied: boolean;
-  readonly listedRent: number;
+  readonly inProduction: boolean;
+  readonly listedRoyalty: number;
 }
 
 export interface BusinessContext {
   readonly orgId: string;
-  readonly tenants: ReadonlyArray<TenantNode>;
+  readonly counterparties: ReadonlyArray<CounterpartyNode>;
   readonly units: ReadonlyArray<UnitNode>;
   readonly cashBalance: number;
   readonly horizonDays: number;
   readonly nowMs: number;
   readonly ownerIntent: OwnerIntent;
   readonly historicalCashflow: ReadonlyArray<TimePoint>;
-  readonly historicalOccupancy?: ReadonlyArray<TimePoint>;
+  readonly historicalUtilisation?: ReadonlyArray<TimePoint>;
 }
 
 // -------------------------------------------------------------
@@ -112,8 +120,8 @@ export type ProposedAction = z.infer<typeof proposedActionSchema>;
 
 export interface ScenarioOutcome {
   readonly scenarioName: string;
-  readonly projectedNoi: ReadonlyArray<ForecastBand>;
-  readonly retentionProbability: number; // 0..1, blended across tenants
+  readonly projectedNetMargin: ReadonlyArray<ForecastBand>;
+  readonly retentionProbability: number; // 0..1, blended across counterparties
   readonly complianceScore: number; // 0..1
   readonly intentAlignment: number; // 0..1
   readonly cashShortfallProbability: number; // 0..1

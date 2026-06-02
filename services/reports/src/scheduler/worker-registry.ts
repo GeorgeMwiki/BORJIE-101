@@ -96,7 +96,7 @@ export function createWorkerRegistry(
   return [
     {
       id: 'renewal-scheduler',
-      description: 'Daily T-90/60/30 lease renewal sweep',
+      description: 'Daily T-90/60/30 supply-agreement renewal sweep',
       cron: '0 2 * * *', // 02:00 daily
       handler: deps.runRenewalScheduler,
       timeoutMs: 5 * 60 * 1000,

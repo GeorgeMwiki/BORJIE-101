@@ -17,9 +17,9 @@
  * enforced asynchronously, so a noisy tenant cannot drop the current
  * request's trace.
  *
- * Property-management context: step summaries reference the entities
+ * Mining-estate context: step summaries reference the entities
  * the kernel actually touched (e.g. "policy gate redacted phone in
- * lease-arrears reply"), so when ops replays a trace they see real
+ * royalty-arrears reply"), so when ops replays a trace they see real
  * domain decisions, not opaque step numbers.
  */
 

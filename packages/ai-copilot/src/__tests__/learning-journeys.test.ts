@@ -33,10 +33,10 @@ describe('Journey registry', () => {
     expect(ids).toEqual([
       'admin-onboarding',
       'compliance-setup',
+      'counterparty-onboarding',
       'estate-officer-training',
       'migration-wizard',
-      'property-owner-onboarding',
-      'tenant-onboarding',
+      'owner-onboarding',
     ]);
   });
 
@@ -45,11 +45,11 @@ describe('Journey registry', () => {
   });
 
   it('property-owner journey has 5 steps', () => {
-    expect(getJourney('property-owner-onboarding')?.steps.length).toBe(5);
+    expect(getJourney('owner-onboarding')?.steps.length).toBe(5);
   });
 
   it('tenant journey has 4 steps', () => {
-    expect(getJourney('tenant-onboarding')?.steps.length).toBe(4);
+    expect(getJourney('counterparty-onboarding')?.steps.length).toBe(4);
   });
 
   it('estate officer training has 12 steps', () => {
@@ -57,9 +57,9 @@ describe('Journey registry', () => {
   });
 
   it('listJourneysForAudience filters correctly', () => {
-    const tenant = listJourneysForAudience('tenant');
+    const tenant = listJourneysForAudience('counterparty');
     expect(tenant.length).toBe(1);
-    expect(tenant[0]?.id).toBe('tenant-onboarding');
+    expect(tenant[0]?.id).toBe('counterparty-onboarding');
   });
 
   it('listJourneysForCountry includes TZA scope', () => {
@@ -73,12 +73,12 @@ describe('Journey runner lifecycle', () => {
     const { snapshot, events } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
-    expect(snapshot.currentStepId).toBe('tenant-welcome');
-    expect(snapshot.stepProgress['tenant-welcome']?.status).toBe('unlocked');
-    expect(snapshot.stepProgress['tenant-profile']?.status).toBe('locked');
+    expect(snapshot.currentStepId).toBe('counterparty-welcome');
+    expect(snapshot.stepProgress['counterparty-welcome']?.status).toBe('unlocked');
+    expect(snapshot.stepProgress['counterparty-profile']?.status).toBe('locked');
     expect(events[0]).toMatchObject({ kind: 'journey-started' });
   });
 
@@ -97,16 +97,16 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     const { snapshot: s2, events } = enterStep({
       snapshot,
-      stepId: 'tenant-welcome',
+      stepId: 'counterparty-welcome',
       tenantId: 't-1',
       now: LATER,
     });
-    expect(s2.stepProgress['tenant-welcome']?.status).toBe('in-progress');
+    expect(s2.stepProgress['counterparty-welcome']?.status).toBe('in-progress');
     expect(events[0]).toMatchObject({ kind: 'step-entered' });
   });
 
@@ -114,13 +114,13 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     expect(() =>
       enterStep({
         snapshot,
-        stepId: 'tenant-profile',
+        stepId: 'counterparty-profile',
         tenantId: 't-1',
         now: LATER,
       }),
@@ -131,27 +131,27 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     const { snapshot: s2 } = completeStep({
       snapshot,
-      stepId: 'tenant-welcome',
+      stepId: 'counterparty-welcome',
       tenantId: 't-1',
       now: LATER,
     });
-    expect(s2.stepProgress['tenant-welcome']?.status).toBe('completed');
-    expect(s2.stepProgress['tenant-profile']?.status).toBe('unlocked');
+    expect(s2.stepProgress['counterparty-welcome']?.status).toBe('completed');
+    expect(s2.stepProgress['counterparty-profile']?.status).toBe('unlocked');
   });
 
   it('completes a full journey and emits journey-completed', () => {
     let state = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     }).snapshot;
-    const stepIds = ['tenant-welcome', 'tenant-profile', 'tenant-lease-review', 'tenant-first-payment'];
+    const stepIds = ['counterparty-welcome', 'counterparty-profile', 'counterparty-offtake-review', 'counterparty-first-payment'];
     let lastEvents;
     for (const id of stepIds) {
       const r = completeStep({ snapshot: state, stepId: id, tenantId: 't-1', now: LATER });
@@ -166,13 +166,13 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     expect(() =>
       enterStep({
         snapshot,
-        stepId: 'tenant-welcome',
+        stepId: 'counterparty-welcome',
         tenantId: 't-2',
         now: LATER,
       }),
@@ -183,11 +183,11 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     expect(() =>
-      completeStep({ snapshot, stepId: 'tenant-welcome', tenantId: 't-2', now: LATER }),
+      completeStep({ snapshot, stepId: 'counterparty-welcome', tenantId: 't-2', now: LATER }),
     ).toThrow(/Tenant mismatch/);
   });
 
@@ -215,7 +215,7 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     const completed = { ...snapshot, completedAt: LATER };
@@ -227,7 +227,7 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     expect(() => resumeJourney(snapshot, 't-2')).toThrow(/Tenant mismatch/);
@@ -237,27 +237,27 @@ describe('Journey runner lifecycle', () => {
     const { snapshot } = startJourney({
       tenantId: 't-1',
       userId: 'u-1',
-      journeyId: 'tenant-onboarding',
+      journeyId: 'counterparty-onboarding',
       now: NOW,
     });
     expect(calculateCompletionPercent(snapshot)).toBe(0);
-    const s2 = completeStep({ snapshot, stepId: 'tenant-welcome', tenantId: 't-1', now: LATER }).snapshot;
+    const s2 = completeStep({ snapshot, stepId: 'counterparty-welcome', tenantId: 't-1', now: LATER }).snapshot;
     expect(calculateCompletionPercent(s2)).toBe(25);
   });
 
   it('getStep returns known step', () => {
-    expect(getStep('tenant-onboarding', 'tenant-welcome')).toBeDefined();
+    expect(getStep('counterparty-onboarding', 'counterparty-welcome')).toBeDefined();
   });
 
   it('getStep returns undefined for unknown', () => {
-    expect(getStep('tenant-onboarding', 'nope')).toBeUndefined();
+    expect(getStep('counterparty-onboarding', 'nope')).toBeUndefined();
   });
 });
 
 describe('Step dispatcher', () => {
   it('dispatches a video step', () => {
     const dispatcher = createStepDispatcher();
-    const step = getStep('tenant-onboarding', 'tenant-welcome')!;
+    const step = getStep('counterparty-onboarding', 'counterparty-welcome')!;
     const result = dispatcher.dispatch(step);
     expect(result.componentKey).toBe('VideoPlayer');
   });
@@ -274,7 +274,7 @@ describe('Step dispatcher', () => {
     const dispatcher = createStepDispatcher({
       video: () => ({ componentKey: 'CustomVideo', props: {} }),
     });
-    const step = getStep('tenant-onboarding', 'tenant-welcome')!;
+    const step = getStep('counterparty-onboarding', 'counterparty-welcome')!;
     expect(dispatcher.dispatch(step).componentKey).toBe('CustomVideo');
   });
 

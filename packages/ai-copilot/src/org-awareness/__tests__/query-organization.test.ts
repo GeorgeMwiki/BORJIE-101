@@ -86,7 +86,7 @@ describe('query-organization', () => {
     expect(extractProcessKind('maintenance case stats')).toBe(
       'maintenance_case',
     );
-    expect(extractProcessKind('renewal data')).toBe('lease_renewal');
+    expect(extractProcessKind('renewal data')).toBe('offtake_renewal');
     expect(extractProcessKind('tender bids')).toBe('tender_bid');
   });
 

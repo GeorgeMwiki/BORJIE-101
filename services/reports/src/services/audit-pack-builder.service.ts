@@ -5,7 +5,7 @@
  * and internal governance requirements.
  */
 
-import type { TenantId, PropertyId } from '../types/index.js';
+import type { TenantId, SiteId } from '../types/index.js';
 import type { ReportFormat } from '../generators/index.js';
 import type { IReportStorage, StoredReport } from '../storage/storage.js';
 import { logger } from '../logger.js';
@@ -19,7 +19,7 @@ export type AuditPackType =
   | 'compliance_audit' // Regulatory compliance audit
   | 'internal_audit' // Internal governance audit
   | 'tax_audit' // Tax-related documentation
-  | 'due_diligence' // For property sales/acquisitions
+  | 'due_diligence' // For site sales/acquisitions
   | 'insurance_audit' // Insurance claims/renewals
   | 'bank_audit'; // Bank/lender reporting
 
@@ -55,7 +55,7 @@ export interface AuditPackConfig {
   tenantId: TenantId;
   type: AuditPackType;
   period: AuditPackPeriod;
-  propertyIds?: PropertyId[];
+  siteIds?: SiteId[];
   sections: AuditPackSectionConfig[];
   requestedBy: string;
   recipient?: {
@@ -77,7 +77,7 @@ export interface AuditPack {
   tenantId: TenantId;
   type: AuditPackType;
   period: AuditPackPeriod;
-  propertyIds?: PropertyId[];
+  siteIds?: SiteId[];
   status: 'draft' | 'generating' | 'complete' | 'error';
   sections: AuditPackSection[];
   totalDocuments: number;
@@ -120,43 +120,43 @@ export interface AuditPackTemplateDocument {
 
 export interface IAuditPackDataProvider {
   // Financial data
-  getIncomeStatement(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getBalanceSheet(tenantId: TenantId, asOfDate: Date, propertyIds?: PropertyId[]): Promise<unknown>;
-  getCashFlowStatement(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getGeneralLedger(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getTrialBalance(tenantId: TenantId, asOfDate: Date, propertyIds?: PropertyId[]): Promise<unknown>;
+  getIncomeStatement(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getBalanceSheet(tenantId: TenantId, asOfDate: Date, siteIds?: SiteId[]): Promise<unknown>;
+  getCashFlowStatement(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getGeneralLedger(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getTrialBalance(tenantId: TenantId, asOfDate: Date, siteIds?: SiteId[]): Promise<unknown>;
   
-  // Rent roll and occupancy
-  getRentRoll(tenantId: TenantId, asOfDate: Date, propertyIds?: PropertyId[]): Promise<unknown>;
-  getOccupancyHistory(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getLeaseSchedule(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
+  // Royalty roll and asset utilisation
+  getRoyaltyRoll(tenantId: TenantId, asOfDate: Date, siteIds?: SiteId[]): Promise<unknown>;
+  getAssetUtilisationHistory(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getSupplyAgreementSchedule(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
   
   // AR/Collections
-  getAgingReport(tenantId: TenantId, asOfDate: Date, propertyIds?: PropertyId[]): Promise<unknown>;
-  getBadDebtSchedule(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getCollectionHistory(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
+  getOutstandingAgingReport(tenantId: TenantId, asOfDate: Date, siteIds?: SiteId[]): Promise<unknown>;
+  getBadDebtSchedule(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getCollectionHistory(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
   
   // AP/Expenses
-  getVendorPaymentSchedule(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getExpenseBreakdown(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
+  getVendorPaymentSchedule(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getExpenseBreakdown(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
   
   // Capital/Maintenance
-  getCapitalExpenditures(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getMaintenanceHistory(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getAssetRegister(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
+  getCapitalExpenditures(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getMaintenanceHistory(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getAssetRegister(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
   
   // Compliance
-  getLicenseRegister(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
-  getInsuranceCertificates(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
-  getComplianceChecklistStatus(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
+  getLicenseRegister(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
+  getInsuranceCertificates(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
+  getComplianceChecklistStatus(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
   
   // Operations
-  getKPISummary(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
-  getOperationalHighlights(tenantId: TenantId, period: AuditPackPeriod, propertyIds?: PropertyId[]): Promise<unknown>;
+  getKPISummary(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
+  getOperationalHighlights(tenantId: TenantId, period: AuditPackPeriod, siteIds?: SiteId[]): Promise<unknown>;
   
-  // Property data
-  getPropertySummary(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
-  getPropertyValuations(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<unknown>;
+  // Site data
+  getSiteSummary(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
+  getSiteValuations(tenantId: TenantId, siteIds?: SiteId[]): Promise<unknown>;
 }
 
 // ============================================================================
@@ -192,18 +192,18 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
       },
       {
         id: 'rent_roll',
-        name: 'Rent Roll & Occupancy',
-        description: 'Tenant and occupancy information',
+        name: 'Royalty Roll & Asset Utilisation',
+        description: 'Buyer and asset-utilisation information',
         required: true,
         documents: [
-          { id: 'rent_roll', name: 'Rent Roll', type: 'schedule', description: 'Current tenant listing with rent details', generatorId: 'rent_roll' },
-          { id: 'occupancy_report', name: 'Occupancy Report', type: 'report', description: 'Occupancy trends and analysis', generatorId: 'occupancy_report' },
-          { id: 'lease_expiry_schedule', name: 'Lease Expiry Schedule', type: 'schedule', description: 'Upcoming lease expirations', generatorId: 'lease_schedule' },
+          { id: 'royalty_roll', name: 'Royalty Roll', type: 'schedule', description: 'Current buyer listing with royalty details', generatorId: 'royalty_roll' },
+          { id: 'asset_utilisation_report', name: 'Asset Utilisation Report', type: 'report', description: 'Asset-utilisation trends and analysis', generatorId: 'asset_utilisation_report' },
+          { id: 'supply_agreement_expiry_schedule', name: 'Supply-Agreement Expiry Schedule', type: 'schedule', description: 'Upcoming supply-agreement expirations', generatorId: 'supply_agreement_schedule' },
         ],
       },
       {
         id: 'collections',
-        name: 'Collections & Arrears',
+        name: 'Collections & Outstanding Royalties',
         description: 'Payment collection performance',
         required: true,
         documents: [
@@ -214,7 +214,7 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
       {
         id: 'capital_maintenance',
         name: 'Capital & Maintenance',
-        description: 'Property improvement and maintenance',
+        description: 'Site improvement and maintenance',
         required: false,
         documents: [
           { id: 'capex_schedule', name: 'Capital Expenditure Schedule', type: 'schedule', description: 'CapEx projects and spending', generatorId: 'capex_schedule' },
@@ -228,7 +228,7 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
         required: false,
         documents: [
           { id: 'ops_highlights', name: 'Operational Highlights', type: 'report', description: 'Notable operational items', generatorId: 'ops_highlights' },
-          { id: 'property_summary', name: 'Property Summary', type: 'report', description: 'Individual property performance', generatorId: 'property_summary' },
+          { id: 'site_summary', name: 'Site Summary', type: 'report', description: 'Individual site performance', generatorId: 'site_summary' },
         ],
       },
     ],
@@ -281,12 +281,12 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
       },
       {
         id: 'tenant_records',
-        name: 'Tenant Records',
-        description: 'Tenant documentation and agreements',
+        name: 'Buyer Records',
+        description: 'Buyer documentation and agreements',
         required: true,
         documents: [
-          { id: 'lease_agreements', name: 'Lease Agreement Register', type: 'register', description: 'Active lease agreements', generatorId: 'lease_register' },
-          { id: 'tenant_correspondence', name: 'Tenant Correspondence Log', type: 'register', description: 'Key tenant communications', generatorId: 'correspondence_log' },
+          { id: 'supply_agreements', name: 'Supply-Agreement Register', type: 'register', description: 'Active supply agreements', generatorId: 'supply_agreement_register' },
+          { id: 'buyer_correspondence', name: 'Buyer Correspondence Log', type: 'register', description: 'Key buyer communications', generatorId: 'correspondence_log' },
         ],
       },
       {
@@ -313,8 +313,8 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
         required: true,
         documents: [
           { id: 'income_statement', name: 'Income Statement', type: 'statement', description: 'Revenue summary', generatorId: 'income_statement' },
-          { id: 'rent_collected', name: 'Rent Collection Schedule', type: 'schedule', description: 'Detailed rent receipts', generatorId: 'rent_collection' },
-          { id: 'other_income', name: 'Other Income Schedule', type: 'schedule', description: 'Non-rent income', generatorId: 'other_income' },
+          { id: 'royalty_collected', name: 'Royalty Collection Schedule', type: 'schedule', description: 'Detailed royalty receipts', generatorId: 'royalty_collection' },
+          { id: 'other_income', name: 'Other Income Schedule', type: 'schedule', description: 'Non-royalty income', generatorId: 'other_income' },
         ],
       },
       {
@@ -334,7 +334,7 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
         description: 'Fixed asset documentation',
         required: true,
         documents: [
-          { id: 'asset_register', name: 'Fixed Asset Register', type: 'register', description: 'Property and equipment list', generatorId: 'asset_register' },
+          { id: 'asset_register', name: 'Fixed Asset Register', type: 'register', description: 'Site and equipment list', generatorId: 'asset_register' },
           { id: 'depreciation_schedule', name: 'Depreciation Schedule', type: 'schedule', description: 'Asset depreciation', generatorId: 'depreciation' },
           { id: 'capex_schedule', name: 'Capital Expenditure Schedule', type: 'schedule', description: 'Capital improvements', generatorId: 'capex_schedule' },
         ],
@@ -364,17 +364,17 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
   {
     type: 'due_diligence',
     name: 'Due Diligence Pack',
-    description: 'Comprehensive pack for property acquisition/sale',
+    description: 'Comprehensive pack for site acquisition/sale',
     sections: [
       {
-        id: 'property_overview',
-        name: 'Property Overview',
-        description: 'Property details and characteristics',
+        id: 'site_overview',
+        name: 'Site Overview',
+        description: 'Site details and characteristics',
         required: true,
         documents: [
-          { id: 'property_summary', name: 'Property Summary', type: 'report', description: 'Property details and specs', generatorId: 'property_summary' },
-          { id: 'property_photos', name: 'Property Photos', type: 'report', description: 'Property photographs', generatorId: 'property_photos' },
-          { id: 'site_plan', name: 'Site Plan', type: 'report', description: 'Property site layout', generatorId: 'site_plan' },
+          { id: 'site_summary', name: 'Site Summary', type: 'report', description: 'Site details and specs', generatorId: 'site_summary' },
+          { id: 'site_photos', name: 'Site Photos', type: 'report', description: 'Site photographs', generatorId: 'site_photos' },
+          { id: 'site_plan', name: 'Site Plan', type: 'report', description: 'Site layout', generatorId: 'site_plan' },
         ],
       },
       {
@@ -391,23 +391,23 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
       },
       {
         id: 'tenant_analysis',
-        name: 'Tenant Analysis',
-        description: 'Tenant profile and lease details',
+        name: 'Buyer Analysis',
+        description: 'Buyer profile and supply-agreement details',
         required: true,
         documents: [
-          { id: 'rent_roll', name: 'Rent Roll', type: 'schedule', description: 'Current tenants', generatorId: 'rent_roll' },
-          { id: 'tenant_profile', name: 'Tenant Profile Analysis', type: 'report', description: 'Tenant credit analysis', generatorId: 'tenant_profile' },
-          { id: 'lease_abstracts', name: 'Lease Abstracts', type: 'schedule', description: 'Key lease terms', generatorId: 'lease_abstracts' },
+          { id: 'royalty_roll', name: 'Royalty Roll', type: 'schedule', description: 'Current buyers', generatorId: 'royalty_roll' },
+          { id: 'buyer_profile', name: 'Buyer Profile Analysis', type: 'report', description: 'Buyer credit analysis', generatorId: 'buyer_profile' },
+          { id: 'supply_agreement_abstracts', name: 'Supply-Agreement Abstracts', type: 'schedule', description: 'Key supply-agreement terms', generatorId: 'supply_agreement_abstracts' },
           { id: 'collection_history', name: 'Collection History', type: 'report', description: 'Payment performance', generatorId: 'collection_history' },
         ],
       },
       {
         id: 'physical_condition',
         name: 'Physical Condition',
-        description: 'Property condition and maintenance',
+        description: 'Site condition and maintenance',
         required: true,
         documents: [
-          { id: 'condition_report', name: 'Property Condition Report', type: 'report', description: 'Physical condition assessment', generatorId: 'condition_report' },
+          { id: 'condition_report', name: 'Site Condition Report', type: 'report', description: 'Physical condition assessment', generatorId: 'condition_report' },
           { id: 'maintenance_history', name: 'Maintenance History', type: 'report', description: 'Historical maintenance', generatorId: 'maintenance_history' },
           { id: 'capex_needs', name: 'CapEx Requirements', type: 'report', description: 'Future capital needs', generatorId: 'capex_needs' },
         ],
@@ -432,7 +432,7 @@ const AUDIT_PACK_TEMPLATES: AuditPackTemplate[] = [
         documents: [
           { id: 'market_overview', name: 'Market Overview', type: 'report', description: 'Local market analysis', generatorId: 'market_overview' },
           { id: 'comparable_analysis', name: 'Comparable Analysis', type: 'report', description: 'Market comparables', generatorId: 'comps' },
-          { id: 'valuation', name: 'Valuation Summary', type: 'report', description: 'Property valuation', generatorId: 'valuation' },
+          { id: 'valuation', name: 'Valuation Summary', type: 'report', description: 'Site valuation', generatorId: 'valuation' },
         ],
       },
     ],
@@ -507,7 +507,7 @@ export class AuditPackBuilderService {
       tenantId: config.tenantId,
       type: config.type,
       period: config.period,
-      ...(config.propertyIds !== undefined ? { propertyIds: config.propertyIds } : {}),
+      ...(config.siteIds !== undefined ? { siteIds: config.siteIds } : {}),
       status: 'draft',
       sections,
       totalDocuments,
@@ -549,7 +549,7 @@ export class AuditPackBuilderService {
               auditPack.tenantId,
               auditPack.period,
               doc.id,
-              auditPack.propertyIds
+              auditPack.siteIds
             );
 
             // Store document
@@ -684,33 +684,33 @@ export class AuditPackBuilderService {
     tenantId: TenantId,
     period: AuditPackPeriod,
     documentId: string,
-    propertyIds?: PropertyId[]
+    siteIds?: SiteId[]
   ): Promise<Buffer | string> {
     // In production, this would call the appropriate data provider method
     // and use the report generators to create the document.
     // For now, return a placeholder.
 
     const documentGenerators: Record<string, () => Promise<unknown>> = {
-      income_statement: () => this.dataProvider.getIncomeStatement(tenantId, period, propertyIds),
-      balance_sheet: () => this.dataProvider.getBalanceSheet(tenantId, period.end, propertyIds),
-      cash_flow: () => this.dataProvider.getCashFlowStatement(tenantId, period, propertyIds),
-      general_ledger: () => this.dataProvider.getGeneralLedger(tenantId, period, propertyIds),
-      trial_balance: () => this.dataProvider.getTrialBalance(tenantId, period.end, propertyIds),
-      rent_roll: () => this.dataProvider.getRentRoll(tenantId, period.end, propertyIds),
-      occupancy_report: () => this.dataProvider.getOccupancyHistory(tenantId, period, propertyIds),
-      lease_schedule: () => this.dataProvider.getLeaseSchedule(tenantId, propertyIds),
-      ar_aging: () => this.dataProvider.getAgingReport(tenantId, period.end, propertyIds),
-      bad_debt: () => this.dataProvider.getBadDebtSchedule(tenantId, period, propertyIds),
-      collection_history: () => this.dataProvider.getCollectionHistory(tenantId, period, propertyIds),
-      vendor_payments: () => this.dataProvider.getVendorPaymentSchedule(tenantId, period, propertyIds),
-      expense_breakdown: () => this.dataProvider.getExpenseBreakdown(tenantId, period, propertyIds),
-      capex_schedule: () => this.dataProvider.getCapitalExpenditures(tenantId, period, propertyIds),
-      maintenance_summary: () => this.dataProvider.getMaintenanceHistory(tenantId, period, propertyIds),
-      asset_register: () => this.dataProvider.getAssetRegister(tenantId, propertyIds),
-      license_register: () => this.dataProvider.getLicenseRegister(tenantId, propertyIds),
-      insurance_schedule: () => this.dataProvider.getInsuranceCertificates(tenantId, propertyIds),
-      kpi_dashboard: () => this.dataProvider.getKPISummary(tenantId, period, propertyIds),
-      property_summary: () => this.dataProvider.getPropertySummary(tenantId, propertyIds),
+      income_statement: () => this.dataProvider.getIncomeStatement(tenantId, period, siteIds),
+      balance_sheet: () => this.dataProvider.getBalanceSheet(tenantId, period.end, siteIds),
+      cash_flow: () => this.dataProvider.getCashFlowStatement(tenantId, period, siteIds),
+      general_ledger: () => this.dataProvider.getGeneralLedger(tenantId, period, siteIds),
+      trial_balance: () => this.dataProvider.getTrialBalance(tenantId, period.end, siteIds),
+      royalty_roll: () => this.dataProvider.getRoyaltyRoll(tenantId, period.end, siteIds),
+      asset_utilisation_report: () => this.dataProvider.getAssetUtilisationHistory(tenantId, period, siteIds),
+      supply_agreement_expiry_schedule: () => this.dataProvider.getSupplyAgreementSchedule(tenantId, siteIds),
+      ar_aging: () => this.dataProvider.getOutstandingAgingReport(tenantId, period.end, siteIds),
+      bad_debt: () => this.dataProvider.getBadDebtSchedule(tenantId, period, siteIds),
+      collection_history: () => this.dataProvider.getCollectionHistory(tenantId, period, siteIds),
+      vendor_payments: () => this.dataProvider.getVendorPaymentSchedule(tenantId, period, siteIds),
+      expense_breakdown: () => this.dataProvider.getExpenseBreakdown(tenantId, period, siteIds),
+      capex_schedule: () => this.dataProvider.getCapitalExpenditures(tenantId, period, siteIds),
+      maintenance_summary: () => this.dataProvider.getMaintenanceHistory(tenantId, period, siteIds),
+      asset_register: () => this.dataProvider.getAssetRegister(tenantId, siteIds),
+      license_register: () => this.dataProvider.getLicenseRegister(tenantId, siteIds),
+      insurance_schedule: () => this.dataProvider.getInsuranceCertificates(tenantId, siteIds),
+      kpi_dashboard: () => this.dataProvider.getKPISummary(tenantId, period, siteIds),
+      site_summary: () => this.dataProvider.getSiteSummary(tenantId, siteIds),
     };
 
     const generator = documentGenerators[documentId];

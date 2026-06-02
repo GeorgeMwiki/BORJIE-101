@@ -5,27 +5,27 @@
 
 import type { Gatherer, ReportType } from '../types.js';
 import type { AdvisorPorts } from './ports.js';
-import { createLeasingFinancialGatherer } from './leasing-financial.js';
+import { createOfftakeFinancialGatherer } from './offtake-financial.js';
 import { createConditionalSurveyGatherer } from './conditional-survey.js';
 import { createAcquisitionIcGatherer } from './acquisition-ic.js';
 import { createDispositionGatherer } from './disposition.js';
 import { createRefinancingGatherer } from './refinancing.js';
 import { createSustainabilityGatherer } from './sustainability.js';
 import { createExpansionStrategyGatherer } from './expansion-strategy.js';
-import { createTenantCreditGatherer } from './tenant-credit.js';
-import { createRentRollGatherer } from './rent-roll.js';
+import { createBuyerCreditGatherer } from './buyer-credit.js';
+import { createRoyaltyRollGatherer } from './royalty-roll.js';
 import { createAnnualOperatingReviewGatherer } from './annual-operating-review.js';
 
 export {
-  createLeasingFinancialGatherer,
+  createOfftakeFinancialGatherer,
   createConditionalSurveyGatherer,
   createAcquisitionIcGatherer,
   createDispositionGatherer,
   createRefinancingGatherer,
   createSustainabilityGatherer,
   createExpansionStrategyGatherer,
-  createTenantCreditGatherer,
-  createRentRollGatherer,
+  createBuyerCreditGatherer,
+  createRoyaltyRollGatherer,
   createAnnualOperatingReviewGatherer,
 };
 
@@ -39,20 +39,20 @@ export type {
   ExpansionRecommendation,
   GreenAngleAdvisorPort,
   GreenAngleSummary,
-  LeasingFinancialPort,
+  OfftakeFinancialPort,
   LifecycleAdvisorPort,
   MoneyAmount,
-  OccupancyLine,
+  ProductionLine,
   RefinancingProposal,
-  RentRollEntry,
-  RentRollPort,
+  RoyaltyRollEntry,
+  RoyaltyRollPort,
   RevenueLine,
   SurveyDefect,
   SurveySnapshot,
   SustainabilityAdvisorPort,
   SustainabilitySnapshot,
-  TenantContextPort,
-  TenantContextProfile,
+  BuyerContextPort,
+  BuyerContextProfile,
 } from './ports.js';
 
 /**
@@ -64,8 +64,8 @@ export type {
  */
 export function gathererFor(type: ReportType, ports: AdvisorPorts): Gatherer {
   switch (type) {
-    case 'leasing_financial_performance':
-      return createLeasingFinancialGatherer({ ports });
+    case 'offtake_financial_performance':
+      return createOfftakeFinancialGatherer({ ports });
     case 'conditional_survey_of_assets':
       return createConditionalSurveyGatherer({ ports });
     case 'acquisition_deal_ic_memo':
@@ -78,10 +78,10 @@ export function gathererFor(type: ReportType, ports: AdvisorPorts): Gatherer {
       return createSustainabilityGatherer({ ports });
     case 'expansion_strategy_memo':
       return createExpansionStrategyGatherer({ ports });
-    case 'tenant_credit_risk_profile':
-      return createTenantCreditGatherer({ ports });
-    case 'rent_roll_arrears_ledger':
-      return createRentRollGatherer({ ports });
+    case 'buyer_credit_risk_profile':
+      return createBuyerCreditGatherer({ ports });
+    case 'royalty_roll_outstanding_ledger':
+      return createRoyaltyRollGatherer({ ports });
     case 'annual_estate_operating_review':
       return createAnnualOperatingReviewGatherer({ ports });
   }

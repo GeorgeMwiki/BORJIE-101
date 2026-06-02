@@ -72,12 +72,12 @@ const ASILOMAR_JUDICIAL_TRANSPARENCY: EthicsPrinciple = {
   source: 'Asilomar AI Principles (FLI, 2017), Principle 8',
   jurisdiction: 'GLOBAL',
   severity: 'high',
-  applicableContext: ['ai-decision', 'eviction', 'tenant-screening'],
+  applicableContext: ['ai-decision', 'licence-suspension', 'counterparty-screening'],
   evaluator: (input) => {
     const i = input as { auditableExplanation?: unknown };
     return require(
       typeof i?.auditableExplanation === 'string' && i.auditableExplanation.length > 0,
-      'Asilomar #8 — eviction / screening decisions must carry a human-auditable explanation.',
+      'Asilomar #8 — licence-suspension / screening decisions must carry a human-auditable explanation.',
     );
   },
 };
@@ -123,7 +123,7 @@ const NIST_MEASURE_BIAS_AUDIT: EthicsPrinciple = {
   source: 'NIST AI RMF 1.0 (2023), Measure 2.11',
   jurisdiction: 'GLOBAL',
   severity: 'high',
-  applicableContext: ['ai-decision', 'tenant-screening', 'pricing'],
+  applicableContext: ['ai-decision', 'counterparty-screening', 'pricing'],
   evaluator: (input) => {
     const i = input as { biasAuditDate?: string };
     return require(
@@ -175,7 +175,7 @@ const EU_AI_ACT_ART_9_RISK_MGMT: EthicsPrinciple = {
   source: 'EU AI Act (Reg. 2024/1689), Article 9',
   jurisdiction: 'EU',
   severity: 'critical',
-  applicableContext: ['ai-decision', 'tenant-screening', 'eviction'],
+  applicableContext: ['ai-decision', 'counterparty-screening', 'licence-suspension'],
   evaluator: (input) => {
     const i = input as { riskManagementProgrammeId?: string };
     return require(
@@ -199,7 +199,7 @@ const EU_AI_ACT_ART_14_HUMAN_OVERSIGHT: EthicsPrinciple = {
   source: 'EU AI Act (Reg. 2024/1689), Article 14',
   jurisdiction: 'EU',
   severity: 'critical',
-  applicableContext: ['ai-decision', 'eviction', 'tenant-screening'],
+  applicableContext: ['ai-decision', 'licence-suspension', 'counterparty-screening'],
   evaluator: (input) => {
     const i = input as { humanOverseerId?: string };
     return require(
@@ -225,7 +225,7 @@ const GDPR_ART_22_AUTOMATION_RIGHT: EthicsPrinciple = {
   source: 'GDPR (Reg. EU 2016/679), Article 22',
   jurisdiction: 'EU',
   severity: 'critical',
-  applicableContext: ['ai-decision', 'eviction', 'tenant-screening'],
+  applicableContext: ['ai-decision', 'licence-suspension', 'counterparty-screening'],
   evaluator: (input) => {
     const i = input as {
       hasHumanReview?: boolean;
@@ -309,7 +309,7 @@ const MS_RAI_V2_FAIRNESS_F1: EthicsPrinciple = {
   source: 'Microsoft Responsible AI Standard v2 (2022), Fairness Goal F1',
   jurisdiction: 'GLOBAL',
   severity: 'high',
-  applicableContext: ['ai-decision', 'tenant-screening', 'pricing'],
+  applicableContext: ['ai-decision', 'counterparty-screening', 'pricing'],
   evaluator: (input) => {
     const i = input as { fairnessReportId?: string };
     return require(

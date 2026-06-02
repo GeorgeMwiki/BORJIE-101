@@ -21,7 +21,7 @@ import {
 import { buildHarvardPhdPersona } from '../personas/harvard-phd-persona.js';
 
 async function buildReport() {
-  const spec = buildSpec('leasing_financial_performance');
+  const spec = buildSpec('offtake_financial_performance');
   const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date() });
   const persona = buildHarvardPhdPersona({ type: spec.type, audience: spec.audience, jurisdiction: spec.jurisdiction });
   const compose = composerFor(createFakeBrain());
@@ -62,8 +62,8 @@ describe('Typst template', () => {
 
   it('escapes Typst control characters', () => {
     const fakeReport = {
-      type: 'leasing_financial_performance' as const,
-      spec: buildSpec('leasing_financial_performance'),
+      type: 'offtake_financial_performance' as const,
+      spec: buildSpec('offtake_financial_performance'),
       title: 'A title with # hash and $ dollar',
       executiveSummary: 'Has # and $ inside.',
       sections: [],

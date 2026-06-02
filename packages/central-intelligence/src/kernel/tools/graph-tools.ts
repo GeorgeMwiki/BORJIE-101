@@ -2,14 +2,23 @@
  * Graph kernel tools — Neo4j-backed knowledge-graph queries the
  * agent-loop can invoke on a user's behalf. Mirrors LITFIN's
  * portfolio-concentration / connected-parties / fraud-detection
- * pattern, scoped to property management on the Borjie CPG.
+ * pattern, scoped to the mining estate on the Borjie CPG.
+ *
+ * NOTE — the Cypher node labels (`Property`, `Unit`, `Lease`,
+ * `TenantProfile`) and the output field names mirroring them are the
+ * canonical schema of `@borjie/graph-sync` (see its
+ * `schema/node-labels.ts` + `schema/constraints.ts`). They are a
+ * cross-package contract that must stay byte-identical to the graph
+ * schema; renaming them here would break the live queries. The
+ * mining-domain migration of those labels belongs upstream in
+ * graph-sync, coordinated with a graph migration — out of scope here.
  *
  * Four tools, all tenant-scoped:
  *
  *   - graph.portfolioConcentration   Owner HHI + top concentration
  *   - graph.connectedParties         Multi-hop related-party graph
- *   - graph.leaseNetwork             Active-lease network for a property
- *   - graph.vacancyClusters          Properties with elevated vacancy
+ *   - graph.leaseNetwork             Active-agreement network for a site
+ *   - graph.vacancyClusters          Sites with elevated spare capacity
  *
  * Tenant isolation is enforced INSIDE the Cypher query — every MATCH
  * gates on `_tenantId = $tenantId`. We never trust the LLM to pass
@@ -201,9 +210,10 @@ function errorOutcome(message: string, retryable = false): ToolOutcome<never> {
  *
  * Uses (Property)-[:OWNED_BY]->(User) edges from the CPG schema. The
  * "owner" is a User node (the schema models corporate / staff owners
- * via the User label). Property "value" is approximated as
- * sum-of-active-monthly-rent across its units (the CPG does not
- * carry a Valuation node yet — see report).
+ * via the User label). Site "value" is approximated as
+ * sum-of-active-monthly-payment across its units (the CPG does not
+ * carry a Valuation node yet — see report). The `:Property`/`:Unit`/
+ * `:Lease` labels are graph-sync schema tokens — do not rename here.
  */
 const PORTFOLIO_CONCENTRATION_CYPHER = `
   MATCH (p:Property {_tenantId: $tenantId})-[:OWNED_BY]->(o:User {_tenantId: $tenantId})
@@ -255,10 +265,11 @@ const CONNECTED_PARTIES_CYPHER = `
 `;
 
 /**
- * Lease network for a property.
+ * Agreement network for a site.
  *
  * Walks Property→Unit→Lease. "Active" means lease.status = 'active'.
  * Term in months is computed from startDate/endDate when both are set.
+ * (Graph labels are graph-sync schema tokens — kept verbatim.)
  */
 const LEASE_NETWORK_CYPHER = `
   MATCH (p:Property {_tenantId: $tenantId, _id: $propertyId})
@@ -287,12 +298,13 @@ const LEASE_NETWORK_CYPHER = `
 `;
 
 /**
- * Vacancy clusters — properties with elevated vacancy.
+ * Spare-capacity clusters — sites with elevated idle/available capacity.
  *
- * Identifies (Property|Block) anchors where vacant units exceed
- * `minVacancyPct` and the oldest unit has been vacant for at least
- * `minDaysVacant`. The CPG models vacancy via Unit.status = 'vacant'
- * with an optional Unit.vacantSince timestamp.
+ * Identifies (Property|Block) anchors where idle units exceed
+ * `minVacancyPct` and the oldest unit has been idle for at least
+ * `minDaysVacant`. The CPG models idle capacity via Unit.status =
+ * 'vacant' with an optional Unit.vacantSince timestamp (graph-sync
+ * schema enum values — kept verbatim).
  */
 const VACANCY_CLUSTERS_CYPHER = `
   MATCH (p:Property {_tenantId: $tenantId})
@@ -342,9 +354,9 @@ export function createPortfolioConcentrationTool(
     name: 'graph.portfolioConcentration',
     description:
       'Compute the Herfindahl-Hirschman concentration index (HHI) of an owner\'s ' +
-      'property portfolio. Returns the HHI, the top-N most-concentrated properties, ' +
-      'and a low/moderate/high flag. Useful for risk officers and head-of-estates ' +
-      'reviewing exposure to single-property failure.',
+      'site portfolio. Returns the HHI, the top-N most-concentrated sites, ' +
+      'and a low/moderate/high flag. Useful for risk officers and estate leadership ' +
+      'reviewing exposure to single-site failure.',
     inputJsonSchema: {
       type: 'object',
       properties: {
@@ -359,7 +371,7 @@ export function createPortfolioConcentrationTool(
           minimum: 1,
           maximum: 50,
           default: 5,
-          description: 'How many top-concentration properties to return.',
+          description: 'How many top-concentration sites to return.',
         },
       },
       additionalProperties: false,
@@ -475,8 +487,8 @@ export function createConnectedPartiesTool(
     name: 'graph.connectedParties',
     description:
       'Return the multi-hop neighbourhood graph of related parties around a ' +
-      'starting node id (typically a TenantProfile, Customer, User/owner, or ' +
-      'Vendor). Useful for KYC, fraud screening, conflict-of-interest checks, ' +
+      'starting node id (typically a counterparty profile, buyer, User/owner, or ' +
+      'supplier). Useful for KYC, fraud screening, conflict-of-interest checks, ' +
       'and disclosure reviews.',
     inputJsonSchema: {
       type: 'object',
@@ -612,10 +624,10 @@ export function createLeaseNetworkTool(
   return {
     name: 'graph.leaseNetwork',
     description:
-      'For a given property, return the network of currently-active leases ' +
-      'with tenant-resident counts, mean rent, and lease-term distribution ' +
+      'For a given site, return the network of currently-active agreements ' +
+      'with counterparty counts, mean payment, and term distribution ' +
       '(median + 90th percentile term in months). Useful for revenue ' +
-      'concentration and lease-roll-off analysis.',
+      'concentration and agreement-roll-off analysis.',
     inputJsonSchema: {
       type: 'object',
       required: ['propertyId'],
@@ -623,7 +635,7 @@ export function createLeaseNetworkTool(
         propertyId: {
           type: 'string',
           minLength: 1,
-          description: 'CPG Property._id.',
+          description: 'CPG Property._id (graph-sync node label — kept).',
         },
       },
       additionalProperties: false,
@@ -724,9 +736,9 @@ export function createVacancyClustersTool(
   return {
     name: 'graph.vacancyClusters',
     description:
-      'Find blocks/properties with elevated vacancy — by default, more than ' +
-      '20% of units empty for at least 30 days. Returns a ranked list. ' +
-      'Useful for identifying leasing-pipeline failures and revenue leak.',
+      'Find blocks/sites with elevated spare capacity — by default, more than ' +
+      '20% of units idle for at least 30 days. Returns a ranked list. ' +
+      'Useful for identifying offtake-pipeline failures and revenue leak.',
     inputJsonSchema: {
       type: 'object',
       properties: {

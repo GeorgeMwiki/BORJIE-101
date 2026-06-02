@@ -10,7 +10,7 @@ import type { ScenarioOutcome } from '../../types.js';
 function mkOutcome(name: string, opts: Partial<ScenarioOutcome>): ScenarioOutcome {
   return {
     scenarioName: name,
-    projectedNoi: [
+    projectedNetMargin: [
       { t: 0, p10: 0, p50: 50_000, p90: 100_000 },
       { t: 1, p10: 0, p50: 50_000, p90: 100_000 },
     ],
@@ -35,14 +35,14 @@ describe('outcome-scorer', () => {
   it('ranks higher-cashflow outcome first under cashflow-first intent', () => {
     const intent = defaultIntentFor('cashflow-first');
     const a = mkOutcome('high-cash', {
-      projectedNoi: [
+      projectedNetMargin: [
         { t: 0, p10: 0, p50: 250_000, p90: 500_000 },
         { t: 1, p10: 0, p50: 250_000, p90: 500_000 },
       ],
       retentionProbability: 0.5,
     });
     const b = mkOutcome('high-retention', {
-      projectedNoi: [
+      projectedNetMargin: [
         { t: 0, p10: 0, p50: 10_000, p90: 20_000 },
         { t: 1, p10: 0, p50: 10_000, p90: 20_000 },
       ],

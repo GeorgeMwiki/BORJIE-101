@@ -1,19 +1,20 @@
 /**
- * Real-estate composers — each composer wraps an ensemble over the
- * generic forecasters and adds domain-specific bounds + a textual
- * recommendation. Tests assert the bounds and the model-kind label.
+ * Recurring-entity composers — each composer wraps an ensemble over
+ * the generic forecasters and adds mining-estate domain bounds + a
+ * textual recommendation. Tests assert the bounds and the model-kind
+ * label.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
-  forecastRent,
-  forecastOccupancy,
+  forecastRoyalty,
+  forecastUtilisation,
   forecastChurn,
   forecastMaintenanceFailure,
   forecastEnergyConsumption,
   forecastMarketCycle,
-  rentCapFor,
-  applyRentCap,
+  royaltyCapFor,
+  applyRoyaltyCap,
   type TimeSeries,
 } from '../index.js';
 
@@ -47,21 +48,21 @@ function makeSeries(args: {
   return series;
 }
 
-describe('re-forecasters / rent', () => {
-  it('returns a forecast with model kind re-rent', async () => {
-    const fc = await forecastRent({
+describe('re-forecasters / royalty', () => {
+  it('returns a forecast with model kind re-royalty', async () => {
+    const fc = await forecastRoyalty({
       unit: { id: 'u1', jurisdiction: 'TZ' },
       history: makeSeries({ values: [1000, 1010, 1020, 1030, 1050, 1070, 1080, 1090] }),
       horizon: { steps: 3 },
     });
-    expect(fc.modelKind).toBe('re-rent');
+    expect(fc.modelKind).toBe('re-royalty');
     expect(fc.points).toHaveLength(3);
   });
 
   it('caps forecast growth at the TZ jurisdictional ceiling', async () => {
     // Use a long, very steep ramp so the ensemble's median forecast
     // certainly exceeds the cap (10% YoY off 1900).
-    const fc = await forecastRent({
+    const fc = await forecastRoyalty({
       unit: { id: 'u-cap', jurisdiction: 'TZ' },
       history: makeSeries({ values: [
         100, 300, 500, 700, 900, 1100, 1300, 1500, 1700, 1900,
@@ -76,7 +77,7 @@ describe('re-forecasters / rent', () => {
   it('reports capped=true when comparables shrink the forecast above the cap', async () => {
     // With a baseline near 100, a giant comparable (10000) shrinks the
     // forecast far above the 10% cap, guaranteeing cap-trigger.
-    const fc = await forecastRent({
+    const fc = await forecastRoyalty({
       unit: { id: 'u-cap-on', jurisdiction: 'TZ' },
       history: makeSeries({ values: [100, 100, 100, 100, 100, 100, 100, 100] }),
       comparables: [makeSeries({ values: [10000, 10000, 10000, 10000] })],
@@ -88,7 +89,7 @@ describe('re-forecasters / rent', () => {
   });
 
   it('does not cap when jurisdiction is US (permissive)', async () => {
-    const fc = await forecastRent({
+    const fc = await forecastRoyalty({
       unit: { id: 'u-us', jurisdiction: 'US' },
       history: makeSeries({ values: [
         100, 200, 400, 600, 800, 1000, 1500, 2000,
@@ -100,12 +101,12 @@ describe('re-forecasters / rent', () => {
   });
 
   it('uses comparables when supplied to shrink the point estimate', async () => {
-    const histA = await forecastRent({
+    const histA = await forecastRoyalty({
       unit: { id: 'u-noComp', jurisdiction: 'KE' },
       history: makeSeries({ values: [500, 510, 520, 530, 540, 550, 560, 570] }),
       horizon: { steps: 2 },
     });
-    const histB = await forecastRent({
+    const histB = await forecastRoyalty({
       unit: { id: 'u-withComp', jurisdiction: 'KE' },
       history: makeSeries({ values: [500, 510, 520, 530, 540, 550, 560, 570] }),
       comparables: [makeSeries({ values: [1000, 1010, 1020, 1030] })],
@@ -117,7 +118,7 @@ describe('re-forecasters / rent', () => {
   });
 
   it('rejects insufficient history', async () => {
-    await expect(forecastRent({
+    await expect(forecastRoyalty({
       unit: { id: 'u-short', jurisdiction: 'TZ' },
       history: makeSeries({ values: [100, 200] }),
       horizon: { steps: 1 },
@@ -125,10 +126,10 @@ describe('re-forecasters / rent', () => {
   });
 });
 
-describe('re-forecasters / occupancy', () => {
+describe('re-forecasters / utilisation', () => {
   it('clamps every forecast point into [0,1]', async () => {
-    const fc = await forecastOccupancy({
-      property: { id: 'p1' },
+    const fc = await forecastUtilisation({
+      site: { id: 'p1' },
       history: makeSeries({
         frequency: 'monthly',
         values: [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0, 0.95],
@@ -141,23 +142,23 @@ describe('re-forecasters / occupancy', () => {
       expect(p.lower).toBeGreaterThanOrEqual(0);
       expect(p.upper).toBeLessThanOrEqual(1);
     }
-    expect(fc.modelKind).toBe('re-occupancy');
+    expect(fc.modelKind).toBe('re-utilisation');
   });
 
-  it('recommends marketing review when occupancy projects below 0.7', async () => {
-    const fc = await forecastOccupancy({
-      property: { id: 'p-low' },
+  it('recommends a pipeline review when utilisation projects below 0.7', async () => {
+    const fc = await forecastUtilisation({
+      site: { id: 'p-low' },
       history: makeSeries({ values: [0.5, 0.45, 0.4, 0.42, 0.4, 0.38] }),
       horizon: { steps: 3 },
     });
-    expect(String(fc.meta?.['recommendation'] ?? '')).toMatch(/marketing/i);
+    expect(String(fc.meta?.['recommendation'] ?? '')).toMatch(/pipeline|pricing/i);
   });
 });
 
 describe('re-forecasters / churn', () => {
   it('clamps to [0,1] and reports max-churn', async () => {
     const fc = await forecastChurn({
-      tenant: { id: 't1' },
+      counterparty: { id: 't1' },
       history: makeSeries({ values: [0.1, 0.15, 0.2, 0.22, 0.25, 0.3] }),
       horizon: { steps: 4 },
     });
@@ -264,31 +265,31 @@ describe('re-forecasters / market cycle', () => {
 
 describe('re-forecasters / jurisdictional cap helpers', () => {
   it('looks up the TZ cap', () => {
-    const policy = rentCapFor('TZ');
+    const policy = royaltyCapFor('TZ');
     expect(policy.maxYoYGrowthPct).toBeLessThanOrEqual(0.20);
     expect(policy.source).toMatch(/TZ/i);
   });
 
   it('falls back to default for unknown jurisdiction', () => {
-    const policy = rentCapFor('ATLANTIS');
+    const policy = royaltyCapFor('ATLANTIS');
     expect(policy.source).toMatch(/default/i);
   });
 
   it('falls back to country prefix for sub-region codes', () => {
-    const policy = rentCapFor('KE-30');
+    const policy = royaltyCapFor('KE-30');
     expect(policy.source).toMatch(/KE/i);
   });
 
   it('returns capped=true when forecast exceeds the cap', () => {
-    const policy = rentCapFor('TZ');
-    const res = applyRentCap({ forecast: 2000, priorPeriodValue: 1000, policy });
+    const policy = royaltyCapFor('TZ');
+    const res = applyRoyaltyCap({ forecast: 2000, priorPeriodValue: 1000, policy });
     expect(res.capped).toBe(true);
     expect(res.value).toBeLessThanOrEqual(1100);
   });
 
   it('returns capped=false when forecast is within bounds', () => {
-    const policy = rentCapFor('TZ');
-    const res = applyRentCap({ forecast: 1050, priorPeriodValue: 1000, policy });
+    const policy = royaltyCapFor('TZ');
+    const res = applyRoyaltyCap({ forecast: 1050, priorPeriodValue: 1000, policy });
     expect(res.capped).toBe(false);
     expect(res.value).toBe(1050);
   });

@@ -130,7 +130,7 @@ describe('signal-sources — adapter normalisation', () => {
 
   it('sentiment-monitor — emits tenant_welfare signal', () => {
     const raw = {
-      type: 'TenantSentimentShift',
+      type: 'CounterpartySentimentShift',
       tenantId: TENANT,
       customerId: 'c1',
       previousAvg: 0.3,

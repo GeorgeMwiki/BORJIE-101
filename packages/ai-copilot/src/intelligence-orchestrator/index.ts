@@ -1,7 +1,7 @@
 /**
  * Intelligence Orchestrator — public surface.
  *
- * BORJIE port of LitFin's intelligence-orchestrator, translated from
+ * Borjie port of LitFin's intelligence-orchestrator, translated from
  * lending to estate management. Ties together module fetchers, cross-module
  * reasoning, proactive alerts, portfolio early-warning, operator-feedback
  * learning, LLM-free routing, and cross-persona memory.
@@ -76,11 +76,11 @@ export type {
   PaymentsSnapshot,
   MaintenanceSnapshot,
   ComplianceSnapshot,
-  LeasingSnapshot,
+  OfftakeSnapshot,
   InspectionSnapshot,
   FARSnapshot,
-  TenantRiskSnapshot,
-  OccupancySnapshot,
+  CounterpartyRiskSnapshot,
+  ProductionSnapshot,
   CrossModuleInsight,
   CrossModuleInsightType,
   ProactiveAlert,

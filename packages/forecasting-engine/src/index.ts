@@ -19,8 +19,8 @@ export * from './types.js';
 // World model
 export { WorldModel } from './world-model/world-model.js';
 export type { WorldModelState } from './world-model/world-model.js';
-export { TenantGraph } from './world-model/tenant-graph.js';
-export type { TenantGraphNode } from './world-model/tenant-graph.js';
+export { CounterpartyGraph, TenantGraph } from './world-model/tenant-graph.js';
+export type { CounterpartyGraphNode, TenantGraphNode } from './world-model/tenant-graph.js';
 export { CashflowState } from './world-model/cashflow-state.js';
 export type {
   CashflowEvent,
@@ -66,27 +66,42 @@ export type {
   FitOptions,
 } from './forecasters/time-series/cashflow-forecaster.js';
 export {
+  fitUtilisation,
+  forecastUtilisation,
+  updateUtilisation,
+  // Deprecated real-estate-era aliases.
   fitOccupancy,
   forecastOccupancy,
   updateOccupancy,
-} from './forecasters/time-series/occupancy-forecaster.js';
+} from './forecasters/time-series/utilisation-forecaster.js';
 export type {
+  UtilisationObservation,
+  UtilisationParams,
   OccupancyObservation,
   OccupancyParams,
-} from './forecasters/time-series/occupancy-forecaster.js';
+} from './forecasters/time-series/utilisation-forecaster.js';
 export {
+  fitOutstandingRoyalties,
+  forecastOutstandingRoyalties,
+  updateOutstandingRoyalties,
+  // Deprecated real-estate-era aliases.
   fitArrears,
   forecastArrears,
   updateArrears,
-} from './forecasters/time-series/arrears-forecaster.js';
-export type { LogisticParams } from './forecasters/time-series/arrears-forecaster.js';
+} from './forecasters/time-series/outstanding-royalties-forecaster.js';
+export type { LogisticParams } from './forecasters/time-series/outstanding-royalties-forecaster.js';
 
 // Discrete-event
-export { simulateLeaseLifecycle } from './forecasters/discrete-event/lease-lifecycle-sim.js';
+export {
+  simulateOfftakeLifecycle,
+  simulateLeaseLifecycle,
+} from './forecasters/discrete-event/offtake-lifecycle-sim.js';
 export type {
+  OfftakeEvent,
+  OfftakeLifecycleInputs,
   LeaseEvent,
   LeaseLifecycleInputs,
-} from './forecasters/discrete-event/lease-lifecycle-sim.js';
+} from './forecasters/discrete-event/offtake-lifecycle-sim.js';
 export { simulateMaintenanceQueue } from './forecasters/discrete-event/maintenance-queue-sim.js';
 export type {
   MaintenanceQueueInputs,
@@ -137,6 +152,7 @@ export {
   expectedArrivalsOverHorizon,
 } from './forecasters/stochastic/maintenance-arrival-process.js';
 export type {
+  AssetClass,
   PropertyClass,
   MaintenanceArrivalParams,
 } from './forecasters/stochastic/maintenance-arrival-process.js';
@@ -144,12 +160,12 @@ export type {
 // Scenarios
 export type { Scenario, AnyScenario, ScenarioRunContext } from './scenarios/scenario.js';
 export { asAnyScenario } from './scenarios/scenario.js';
-export { raiseRentScenario } from './scenarios/library/raise-rent.js';
-export { acquirePropertyScenario } from './scenarios/library/acquire-property.js';
+export { raiseRoyaltyScenario, raiseRentScenario } from './scenarios/library/raise-royalty.js';
+export { acquireSiteScenario, acquirePropertyScenario } from './scenarios/library/acquire-site.js';
 export { refinanceScenario } from './scenarios/library/refinance.js';
 export { fireVendorScenario } from './scenarios/library/fire-vendor.js';
 export { waterMainCrisisScenario } from './scenarios/library/water-main-crisis.js';
-export { leaseRenewalBatchScenario } from './scenarios/library/lease-renewal-batch.js';
+export { offtakeRenewalBatchScenario, leaseRenewalBatchScenario } from './scenarios/library/offtake-renewal-batch.js';
 export {
   listScenarios,
   getScenario,

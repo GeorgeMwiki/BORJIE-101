@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "Three-voice property-management debate preset (PO-7). Conservative-Landlord / Pro-Tenant / Pragmatic-PM voices for contested decisions (eviction, lease termination, complaint triage, deposit dispute). Pure orchestration over an injected SensorLike port.",
+  "description": "Three-voice mining-offtake / licence debate preset (PO-7). Conservative-Owner / Pro-Counterparty / Pragmatic-Ops voices for contested decisions (licence suspension, offtake termination, grievance triage, performance-bond dispute). Pure orchestration over an injected SensorLike port. NOTE: dir + public export identifiers retain historical 'property' names for api-gateway typeof-bundle stability; semantics are mining.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

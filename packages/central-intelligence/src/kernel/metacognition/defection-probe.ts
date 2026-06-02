@@ -4,10 +4,10 @@
  * A "defection" is when the agent's output diverges from the persona's
  * expected behaviour distribution. Examples:
  *
- *   - Owner-portal persona suddenly speaks in tenant first-person
- *     ("I'd like to pay my rent").
+ *   - Owner-portal persona suddenly speaks in counterparty first-person
+ *     ("I'd like to pay my royalty").
  *   - Estate-manager persona offers legal opinions outside its scope.
- *   - Marketing-guide persona name-drops a real tenant's address.
+ *   - Marketing-guide persona name-drops a real counterparty's site.
  *
  * This module is a deterministic heuristic + an optional model-backed
  * deep probe. The heuristic returns a signal in O(token-count) without
@@ -52,11 +52,15 @@ export interface DefectionProbe {
  * is also "I" — the slippage we care about is BETWEEN personas.
  */
 const PERSONA_FORBIDDEN_FIRST_PERSON: Record<string, ReadonlyArray<string>> = {
-  // Owner uses "we" — slipping to a tenant-style "I'd like" is a defection.
+  // Owner uses "we" — slipping to a counterparty-style "I'd like" is a defection.
+  // Mining-vocabulary phrases are added alongside the legacy ones (additive —
+  // catching more cross-persona slips never weakens the probe).
   'owner-advisor': [
     /\bi'?d like to pay\b/i.source,
     /\bmy rent\b/i.source,
+    /\bmy royalty\b/i.source,
     /\bmy lease\b/i.source,
+    /\bmy offtake\b/i.source,
     /\bmy maintenance request\b/i.source,
   ],
   // Tenant-resident uses "I" — slipping to a portfolio "we collected" is a defection.
@@ -64,6 +68,7 @@ const PERSONA_FORBIDDEN_FIRST_PERSON: Record<string, ReadonlyArray<string>> = {
     /\bwe collected\b/i.source,
     /\bour portfolio\b/i.source,
     /\bour tenants\b/i.source,
+    /\bour counterparties\b/i.source,
   ],
   // Estate-manager — slipping to first-person plural marketing language.
   'estate-manager': [

@@ -1,7 +1,7 @@
 /**
  * @borjie/enterprise-hardening
- * 
- * Enterprise hardening package for the BORJIE property management SaaS platform.
+ *
+ * Enterprise hardening package for the BORJIE mining estate operating system.
  * Provides compliance, resilience, performance, and enterprise integration capabilities.
  * 
  * ## Modules
