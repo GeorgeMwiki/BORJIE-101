@@ -149,7 +149,10 @@ export function parseIssueUrl(url: string): IssueRef | null {
 export function extractFilePathsFromBody(body: string): ReadonlyArray<string> {
   const seen = new Set<string>();
   const order: string[] = [];
-  const re = /\(([^():\s]+(?:\/[^():\s]+)+)(?::\d+)?\)/g;
+  // Flat quantifier: match `path/segments` as one run of non-special chars
+  // that must contain at least one slash (the leading [^...]+\/ prefix
+  // ensures that), eliminating the nested-+ ReDoS on no-closing-paren input.
+  const re = /\(([^():\s]+\/[^():\s/]*(?:\/[^():\s/]*)*)(?::\d+)?\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
     const path = m[1];

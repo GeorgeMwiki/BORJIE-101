@@ -74,9 +74,17 @@ function resolveMigrationPath(baseDir: string, name: string): string {
  * Exported for unit-test coverage.
  */
 export function stripWrappingTransaction(content: string): string {
+  // Migration files are bounded — reject pathologically large inputs early
+  // so the alternation-heavy `leadingNoise` regex cannot be exploited.
+  // A real migration is at most a few MB; 10 MB is a safe ceiling.
+  if (content.length > 10_000_000) {
+    throw new Error('Migration file exceeds 10 MB safety limit');
+  }
   // Leading: any mix of whitespace + `-- line comment` lines + `/* block */`
   // comments, then `BEGIN;` or `BEGIN WORK;` or `START TRANSACTION;`.
-  const leadingNoise = `(?:\\s|--[^\\n]*\\n|/\\*[\\s\\S]*?\\*/)*`;
+  // Alternation order: most specific first (block comment > line comment >
+  // whitespace) to minimise backtracking.
+  const leadingNoise = `(?:/\\*[\\s\\S]*?\\*/|--[^\\n]*\\n|\\s)*`;
   const beginRe = new RegExp(
     `^(${leadingNoise})(?:BEGIN(?:\\s+WORK)?|START\\s+TRANSACTION)\\s*;\\s*`,
     'i',
