@@ -376,6 +376,10 @@ import platformOverviewRouter from './routes/platform-overview.router';
 import taskAgentsRouter from './routes/task-agents.router';
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity overrides)
 import tenantBrandingRouter from './routes/tenant-branding.router';
+// Phase D D7 — Persona Registry admin surface (SUPER_ADMIN / ADMIN only).
+// Reads `services.personaRegistry` (kernel PersonaRegistry hydrated from
+// the Drizzle-backed store). Returns 503 NOT_IMPLEMENTED when slot is null.
+import personaRegistryRouter from './routes/persona-registry.router';
 // Wave 27 Agent C — Audit Trail v2 (cryptographically-verifiable append-only log)
 import auditTrailRouter from './routes/audit-trail.router';
 // Wave-K Tier-3 — Sovereign action-ledger admin surface (tail + verify).
@@ -1937,6 +1941,10 @@ api.route('/platform/overview', platformOverviewRouter);
 api.route('/task-agents', taskAgentsRouter);
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity)
 api.route('/tenant-branding', tenantBrandingRouter);
+// Phase D D7 — Persona Registry admin CRUD (SUPER_ADMIN / ADMIN only).
+// Reads `services.personaRegistry` (kernel PersonaRegistry from
+// the Drizzle-backed store); returns 503 NOT_IMPLEMENTED when null.
+api.route('/persona-registry', personaRegistryRouter);
 // Wave 27 Agent C — Audit Trail v2 (record / verify / bundle / entries)
 api.route('/audit-trail', auditTrailRouter);
 // Wave-K Tier-3 — Sovereign action-ledger admin (tail + verify).

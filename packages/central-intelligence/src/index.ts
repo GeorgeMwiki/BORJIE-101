@@ -108,3 +108,16 @@ export * from './handoff/index.js';
 // `extractTabTags(...)` and pipes the result to the owner-tabs route
 // for persistence + cockpit bus broadcast. See sse-tags/tab-tags.ts.
 export * from './sse-tags/index.js';
+
+// Persona registry — the kernel factory + its store port, surfaced on the
+// package barrel so the api-gateway composition root can wire the
+// persona-registry admin router to the REAL Drizzle-backed store
+// (`createPersonaRegistryService` from @borjie/database). See
+// kernel/persona/persona-registry.ts.
+export {
+  createPersonaRegistry,
+  createInMemoryPersonaRegistryStore,
+  type PersonaRegistry,
+  type PersonaRegistryStore,
+  type CreatePersonaRegistryArgs,
+} from './kernel/persona/persona-registry.js';

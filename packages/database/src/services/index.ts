@@ -651,6 +651,19 @@ export {
   type TaskStore as A2aTaskStorePort,
 } from './a2a-task-store.service.js';
 
+// Persona registry (migration 0184) — Drizzle-backed persistence for the
+// kernel's `PersonaRegistryStore` port. Adapts to the central-intelligence
+// `createPersonaRegistry({ store })` factory at the api-gateway composition
+// root so the persona-registry admin router writes to the REAL table instead
+// of returning 503. `PersistedPersonaIdentity` is structurally identical to
+// the kernel's `PersonaIdentity`, so the service satisfies the store port
+// directly (no adapter).
+export {
+  createPersonaRegistryService,
+  type PersonaRegistryService,
+  type PersistedPersonaIdentity,
+} from './persona-registry.service.js';
+
 // Carbon-market book (migration 0170) — Drizzle-backed
 // `BookEntryRepository` from `packages/carbon-market/src/types.ts`.
 // Widens the P6 port (save/findById/findByTenant) with operational

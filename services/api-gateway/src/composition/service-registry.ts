@@ -191,7 +191,9 @@ import {
   createKernelGoalsService,
   createPrivacyBudgetComposerService,
   createSensorRoutingService,
+  createPersonaRegistryService,
 } from '@borjie/database';
+import { createPersonaRegistry } from '@borjie/central-intelligence';
 type PrivacyBudgetComposerService = ReturnType<typeof createPrivacyBudgetComposerService>;
 import {
   createArrearsService,
@@ -422,6 +424,7 @@ import {
   type ConversationMemory,
   type ConversationAuditReader,
   type ConversationAuditRecorder,
+  type PersonaRegistry,
 } from '@borjie/central-intelligence';
 // PO-port wave-5 wiring #1 — six-layer cognitive memory (episodic, narrative,
 // procedural, reflective, topic-files, cohort cache). Lives ALONGSIDE the
@@ -1292,6 +1295,16 @@ export interface ServiceRegistry {
    * back to `LocalStorageProvider` when Supabase env is unset.
    */
   readonly documentStorage: DocumentStorageWiring;
+
+  /**
+   * Phase D D7 — Persona Registry admin surface. Kernel `PersonaRegistry`
+   * hydrated from the Drizzle-backed `createPersonaRegistryService` store.
+   * Null in degraded mode (no DB); the persona-registry router returns 503
+   * NOT_IMPLEMENTED when this slot is null. Built asynchronously in
+   * `buildServices` after the service object is constructed (mirrors the
+   * `mcp` post-construction patch pattern).
+   */
+  personaRegistry: PersonaRegistry | null;
 }
 
 export interface BuildServicesInput {
@@ -1761,6 +1774,11 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // back. The wiring stays a real `DocumentStorageWiring` so consumers
     // can switch on `mode` without null-checks.
     documentStorage: createDocumentStorageWiring(),
+    // Phase D D7 — persona registry is null in degraded mode (no DB to
+    // read personas from). The router returns 503 NOT_IMPLEMENTED when
+    // this slot is null. Async hydration in `buildServices` fills the
+    // slot when a DB client is available.
+    personaRegistry: null,
   };
 }
 
@@ -1778,6 +1796,26 @@ export function buildServices(input: BuildServicesInput): ServiceRegistry {
     registry,
     registry.agentCertification,
   );
+  // Phase D D7 — Persona Registry. `createPersonaRegistry` is async
+  // (hydrates from the store at construction) so it cannot be built
+  // inside the synchronous object literal. Mirrors the `mcp` patch
+  // pattern above: we start the hydration Promise here and patch the
+  // slot when it resolves. The router tolerates null (returns 503
+  // NOT_IMPLEMENTED) so the gateway is fully operable during the
+  // brief window before the Promise settles.
+  if (registry.db) {
+    const db = registry.db;
+    createPersonaRegistry({ store: createPersonaRegistryService(db) })
+      .then((pr) => {
+        (registry as { personaRegistry: typeof pr }).personaRegistry = pr;
+      })
+      .catch((err: unknown) => {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          'persona-registry: async hydration failed — slot stays null',
+        );
+      });
+  }
   return registry;
 }
 
@@ -2802,6 +2840,10 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // P54 — live mode: production path picks up Supabase env when set,
     // otherwise falls back to LocalStorageProvider transparently.
     documentStorage: createDocumentStorageWiring(),
+    // Phase D D7 — persona registry starts as null in the live object
+    // literal; `buildServices` patches it asynchronously after
+    // construction, mirroring the `mcp` post-construction patch pattern.
+    personaRegistry: null,
   };
 }
 
