@@ -7,6 +7,8 @@
  * + responses and carries the static UI copy per control id.
  */
 
+import { getCsrfHeaders } from '@/lib/csrf';
+
 export type ControlState = 'on' | 'off' | 'unknown';
 export type ControlCategory = 'kill' | 'autonomy' | 'rate';
 
@@ -128,7 +130,11 @@ export async function fetchControls(): Promise<ReadonlyArray<ControlRow>> {
 export async function postToggle(req: ToggleRequest): Promise<ToggleResult> {
   const res = await fetch('/api/platform/control-tower', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...getCsrfHeaders(),
+    },
     credentials: 'include',
     body: JSON.stringify(req),
   });
