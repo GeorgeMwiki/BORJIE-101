@@ -20,8 +20,18 @@ import DOMPurify from 'dompurify';
 export function toSafeText(value: string | null | undefined): string {
   if (!value) return '';
   if (typeof window === 'undefined') {
-    // No DOM on the server — drop anything that looks like a tag.
-    return value.replace(/<[^>]*>/g, '');
+    // No DOM on the server — strip angle-bracket tags to fixpoint so that
+    // nested constructs like `<<script>` cannot survive a single pass
+    // (js/incomplete-multi-character-sanitization defense-in-depth).
+    // The client re-sanitises with DOMPurify after hydration; this SSR path
+    // is the belt-and-suspenders layer only.
+    let prev = value;
+    let next = prev.replace(/<[^>]*>/g, '');
+    while (next !== prev) {
+      prev = next;
+      next = prev.replace(/<[^>]*>/g, '');
+    }
+    return next;
   }
   return DOMPurify.sanitize(value, {
     ALLOWED_TAGS: [],
