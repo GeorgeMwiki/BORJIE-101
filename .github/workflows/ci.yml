@@ -72,7 +72,7 @@ jobs:
       # exist (some apps/packages import via the `import` condition,
       # which requires `dist/` per package.json `exports`).
       - name: Build internal packages
-        run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+        run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
 
       - name: Run TypeScript type check
         run: pnpm typecheck
@@ -107,7 +107,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build internal packages
-        run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+        run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
 
       - name: Run unit tests (${{ matrix.workspace }})
         run: pnpm -r --filter="./${{ matrix.workspace }}/*" test
