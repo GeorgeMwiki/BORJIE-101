@@ -16,7 +16,7 @@
  * authMiddleware uses the same HS256 secret as `generateToken` below.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { Hono } from 'hono';
 
 process.env.JWT_SECRET =
@@ -24,9 +24,13 @@ process.env.JWT_SECRET =
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
 process.env.BORJIE_SKIP_DOTENV = 'true';
 
-import { miningBrainVisionRouter } from '../brain-vision.hono';
+import {
+  miningBrainVisionRouter,
+  setBrainResolver,
+} from '../brain-vision.hono';
 import { generateToken } from '../../../middleware/auth';
 import { UserRole } from '../../../types/user-role';
+import { createBrainForTesting } from '@borjie/ai-copilot';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,6 +121,7 @@ afterAll(() => {
   } else {
     process.env.ANTHROPIC_VISION_ENABLED = ORIGINAL_VISION_FLAG;
   }
+  setBrainResolver(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -219,16 +224,93 @@ describe('mining brain-vision router — vision capability flag', () => {
     expect(payload.code).toBe('VISION_CAPABILITY_DISABLED');
   });
 
-  it('returns 503 BRAIN_MULTIMODAL_NOT_WIRED when ANTHROPIC_VISION_ENABLED is ON but orchestrator is not yet wired', async () => {
+  it('returns 503 BRAIN_NOT_CONFIGURED when ANTHROPIC_VISION_ENABLED is ON but no brain resolver is wired', async () => {
+    setBrainResolver(null);
     process.env.ANTHROPIC_VISION_ENABLED = 'true';
     const res = await postJson(bareApp(), '/brain/vision-turn', validBody(), {
       authorization: bearer({ userId: 'user_brain_wired', tenantId: 'tenant_brain_wired' }),
     });
     expect(res.status).toBe(503);
-    const payload = (await res.json()) as { error?: string; code?: string; message?: string };
+    const payload = (await res.json()) as { error?: string; code?: string };
     expect(payload.error).toBe('BACKEND_VISION_UNAVAILABLE');
-    expect(payload.code).toBe('BRAIN_MULTIMODAL_NOT_WIRED');
-    expect(payload.message).toContain('multimodal');
+    expect(payload.code).toBe('BRAIN_NOT_CONFIGURED');
+  });
+});
+
+describe('mining brain-vision router — orchestrator wired', () => {
+  afterEach(() => {
+    setBrainResolver(null);
+  });
+
+  it('returns 200 with PhotoAdvisorResponse shape when a brain is injected', async () => {
+    process.env.ANTHROPIC_VISION_ENABLED = 'true';
+    const brain = createBrainForTesting();
+    setBrainResolver(() => brain);
+    const res = await postJson(
+      bareApp(),
+      '/brain/vision-turn',
+      validBody(),
+      { authorization: bearer({ userId: 'user_ok', tenantId: 'tenant_ok' }) },
+    );
+    expect(res.status).toBe(200);
+    const payload = (await res.json()) as {
+      summary?: string;
+      reasoning?: string;
+      suggestions?: ReadonlyArray<string>;
+      citations?: ReadonlyArray<{ evidenceId?: string }>;
+      sessionId?: string;
+    };
+    expect(typeof payload.summary).toBe('string');
+    expect(typeof payload.reasoning).toBe('string');
+    expect(Array.isArray(payload.suggestions)).toBe(true);
+    expect(Array.isArray(payload.citations)).toBe(true);
+    expect((payload.citations?.length ?? 0)).toBeGreaterThan(0);
+    expect(typeof payload.sessionId).toBe('string');
+    expect((payload.sessionId ?? '').length).toBeGreaterThan(0);
+  });
+
+  it('returns 503 BRAIN_RESOLVE_FAILED when the resolver throws', async () => {
+    process.env.ANTHROPIC_VISION_ENABLED = 'true';
+    setBrainResolver(() => {
+      throw new Error('boom');
+    });
+    const res = await postJson(
+      bareApp(),
+      '/brain/vision-turn',
+      validBody(),
+      {
+        authorization: bearer({
+          userId: 'user_resolver_threw',
+          tenantId: 'tenant_resolver_threw',
+        }),
+      },
+    );
+    expect(res.status).toBe(503);
+    const payload = (await res.json()) as { code?: string };
+    expect(payload.code).toBe('BRAIN_RESOLVE_FAILED');
+  });
+
+  it('always includes at least one citation even if the persona drops the JSON envelope', async () => {
+    process.env.ANTHROPIC_VISION_ENABLED = 'true';
+    const brain = createBrainForTesting();
+    setBrainResolver(() => brain);
+    const res = await postJson(
+      bareApp(),
+      '/brain/vision-turn',
+      validBody(),
+      {
+        authorization: bearer({
+          userId: 'user_citation',
+          tenantId: 'tenant_citation',
+        }),
+      },
+    );
+    expect(res.status).toBe(200);
+    const payload = (await res.json()) as {
+      citations?: ReadonlyArray<{ evidenceId?: string }>;
+    };
+    expect((payload.citations?.length ?? 0)).toBeGreaterThan(0);
+    expect(payload.citations?.[0]?.evidenceId).toMatch(/brain-thread:/);
   });
 });
 
