@@ -11,6 +11,11 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { Hono } from 'hono';
+// Pre-warm the heavy @borjie/database barrel during module-init so the in-body
+// `await import('../superpowers.hono')` does not trip the 10s test timeout on a
+// cold vitest worker (a STATIC import runs outside the per-test clock). Without
+// this the first few cases flaked on a cold-barrel import exceeding 10s.
+import '@borjie/database';
 
 // Pin env BEFORE any router import so config loaders succeed.
 process.env.JWT_SECRET =
