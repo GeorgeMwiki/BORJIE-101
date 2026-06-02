@@ -14,23 +14,49 @@ import postgres from 'postgres';
 import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** Hand-authored delta migrations (0077+) — property→mining era and after. */
 const MIGRATIONS_DIR = resolve(join(__dirname, 'migrations'));
+
+/**
+ * drizzle-kit-generated baseline (0000–0076). Creates the core mining schema
+ * — including `incidents`, which `src/migrations/0082` ALTERs. This dir MUST
+ * apply BEFORE `src/migrations/` or 0082 fails on a fresh DB with
+ * "relation incidents does not exist" (INT-4).
+ *
+ * Historically this baseline was applied by a separate shim
+ * (`scripts/apply-borjie-mining-migration.mjs`) before the canonical runner,
+ * so the standalone runner / fresh-CI apply of `src/migrations/` alone broke.
+ * Folding it in here makes EVERY from-scratch bootstrap through this runner
+ * baseline-first and forward-only. Both phases share the
+ * `drizzle.__drizzle_migrations` ledger; the two dirs use disjoint number
+ * ranges so filename hashes never collide. The legacy `_legacy_*.sql.skip`
+ * baseline files are excluded by the `.sql` extension filter, matching
+ * `scripts/apply-borjie-mining-migration.mjs`.
+ */
+const BASELINE_DIR = resolve(join(__dirname, '..', 'drizzle'));
+
+/**
+ * Ordered apply phases. The BASELINE schema lands first, then the deltas.
+ * Within each phase files apply in lexical (== numeric) order.
+ */
+const MIGRATION_PHASES: readonly string[] = [BASELINE_DIR, MIGRATIONS_DIR];
 
 /** Strict allowlist: files must be `<digits-or-letters>.sql` with no path chars. */
 const SAFE_MIGRATION_NAME = /^[A-Za-z0-9_.-]+\.sql$/;
 
 /**
- * Resolve a migration filename to an absolute path that is guaranteed to live
- * inside MIGRATIONS_DIR. Rejects traversal, absolute paths, and names that do
- * not match the allowlist. Prevents the `detect-non-literal-fs-filename` risk.
+ * Resolve a migration filename to an absolute path guaranteed to live inside
+ * `baseDir`. Rejects traversal, absolute paths, and names that do not match
+ * the allowlist. Prevents the `detect-non-literal-fs-filename` risk.
  */
-function resolveMigrationPath(name: string): string {
+function resolveMigrationPath(baseDir: string, name: string): string {
   if (!SAFE_MIGRATION_NAME.test(name)) {
     throw new Error(`Rejected unsafe migration filename: ${name}`);
   }
-  const abs = resolve(MIGRATIONS_DIR, name);
-  const rel = relative(MIGRATIONS_DIR, abs);
-  if (rel.startsWith('..') || rel.includes('..') || abs === MIGRATIONS_DIR) {
+  const abs = resolve(baseDir, name);
+  const rel = relative(baseDir, abs);
+  if (rel.startsWith('..') || rel.includes('..') || abs === baseDir) {
     throw new Error(`Migration path escapes migrations dir: ${name}`);
   }
   return abs;
@@ -88,6 +114,63 @@ function resolveDatabaseUrl(opts?: RunMigrationsOptions): string {
   return url;
 }
 
+type MigrationLogger = Pick<Console, 'warn' | 'error'>;
+
+/**
+ * Apply every `*.sql` file in `baseDir` (lex == numeric order) that is not yet
+ * recorded in `drizzle.__drizzle_migrations`, tracking each by its bare
+ * filename. Returns the per-phase applied/skipped counts. Shared by every
+ * phase so the baseline + delta dirs go through identical safety + ledger
+ * logic.
+ */
+async function applyPhase(
+  sql: ReturnType<typeof postgres>,
+  baseDir: string,
+  logger: MigrationLogger,
+): Promise<RunMigrationsResult> {
+  const files = await readdir(baseDir);
+  const migrations = files
+    .filter((f) => f.endsWith('.sql'))
+    .sort((a, b) => a.localeCompare(b));
+
+  let applied = 0;
+  let skipped = 0;
+
+  for (const file of migrations) {
+    const name = file.replace('.sql', '');
+    const alreadyApplied = await sql`
+      SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = ${name}
+    `;
+    if (alreadyApplied.length > 0) {
+      logger.warn('Skipping ' + file + ' (already applied)');
+      skipped += 1;
+      continue;
+    }
+
+    logger.warn('Running ' + file + '...');
+    const safePath = resolveMigrationPath(baseDir, file);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- path validated by resolveMigrationPath()
+    const content = await readFile(safePath, 'utf-8');
+    // postgres-js's `sql.unsafe()` rejects explicit transaction control
+    // (`BEGIN;` / `COMMIT;`) inside the script. Many of our shipped
+    // migrations wrap themselves in `BEGIN; … COMMIT;` for psql-compat,
+    // so strip the wrapper before handing the body to postgres-js.
+    // Atomicity is preserved by wrapping the call in our own `sql.begin()`.
+    const body = stripWrappingTransaction(content);
+    await sql.begin(async (tx) => {
+      await tx.unsafe(body);
+      await tx`
+        INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+        VALUES (${name}, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
+      `;
+    });
+    logger.warn('Applied ' + file);
+    applied += 1;
+  }
+
+  return { applied, skipped };
+}
+
 export async function runMigrations(
   opts?: RunMigrationsOptions,
 ): Promise<RunMigrationsResult> {
@@ -108,41 +191,13 @@ export async function runMigrations(
       )
     `);
 
-    const files = await readdir(MIGRATIONS_DIR);
-    const migrations = files
-      .filter((f) => f.endsWith('.sql'))
-      .sort((a, b) => a.localeCompare(b));
-
-    for (const file of migrations) {
-      const name = file.replace('.sql', '');
-      const alreadyApplied = await sql`
-        SELECT 1 FROM drizzle.__drizzle_migrations WHERE hash = ${name}
-      `;
-      if (alreadyApplied.length > 0) {
-        logger.warn('Skipping ' + file + ' (already applied)');
-        skipped += 1;
-        continue;
-      }
-
-      logger.warn('Running ' + file + '...');
-      const safePath = resolveMigrationPath(file);
-      // eslint-disable-next-line security/detect-non-literal-fs-filename -- path validated by resolveMigrationPath()
-      const content = await readFile(safePath, 'utf-8');
-      // postgres-js's `sql.unsafe()` rejects explicit transaction control
-      // (`BEGIN;` / `COMMIT;`) inside the script. Many of our shipped
-      // migrations wrap themselves in `BEGIN; … COMMIT;` for psql-compat,
-      // so strip the wrapper before handing the body to postgres-js.
-      // Atomicity is preserved by wrapping the call in our own `sql.begin()`.
-      const body = stripWrappingTransaction(content);
-      await sql.begin(async (tx) => {
-        await tx.unsafe(body);
-        await tx`
-          INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
-          VALUES (${name}, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
-        `;
-      });
-      logger.warn('Applied ' + file);
-      applied += 1;
+    // Baseline (drizzle/) first, then deltas (src/migrations/). Baseline-first
+    // is what makes a from-scratch bootstrap succeed: `incidents` is created in
+    // the baseline (drizzle/0003) before `src/migrations/0082` ALTERs it.
+    for (const dir of MIGRATION_PHASES) {
+      const phase = await applyPhase(sql, dir, logger);
+      applied += phase.applied;
+      skipped += phase.skipped;
     }
 
     logger.warn('All migrations completed');
