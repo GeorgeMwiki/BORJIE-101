@@ -66,7 +66,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build internal packages
-        run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+        run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
 
       - name: Lint
         run: pnpm lint
