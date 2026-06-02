@@ -286,6 +286,7 @@ export function createIdempotencyStore(input: {
   // Lazy require so dev tooling that doesn't have ioredis installed
   // can still import this module.
   const ioredisModule = (
+    // eslint-disable-next-line no-eval -- lazy require of optional ioredis; literal 'require', no user input
     eval('require') as (id: string) => unknown
   )('ioredis') as {
     default?: new (url: string) => RedisLikeClient;

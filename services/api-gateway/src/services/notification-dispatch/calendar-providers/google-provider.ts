@@ -28,6 +28,7 @@ import type {
 const GCAL_BASE = 'https://www.googleapis.com/calendar/v3';
 
 /** base32hex alphabet Google requires for a client-set event id. */
+// eslint-disable-next-line no-secrets/no-secrets -- base32hex alphabet constant, not a secret
 const BASE32HEX = '0123456789abcdefghijklmnopqrstuv';
 
 /**
