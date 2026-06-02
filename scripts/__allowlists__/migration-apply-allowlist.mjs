@@ -198,6 +198,20 @@ export const MIGRATION_APPLY_ALLOWLIST = new Map([
     '0194_entity_ext_person.sql',
     'RLS depends on 0175 coercion — pre-existing on fresh DB.',
   ],
+  // ─── 0082 (INT-4) — baseline-dir dependency, not a forward-reference
+  //     bug. `ALTER TABLE incidents` (close-out columns) depends on the
+  //     drizzle/ baseline (drizzle/0003_mining_domain.sql CREATEs
+  //     `incidents`), which the standalone src/migrations apply-check
+  //     deliberately excludes. The canonical runner
+  //     packages/database/src/run-migrations.ts now applies the drizzle/
+  //     baseline BEFORE src/migrations (commit ffa5ec75; see
+  //     MIGRATION_RECONCILIATION.md §DR-T4), so production + the canonical
+  //     runner always have `incidents`. Remove this entry once the
+  //     standalone apply-check is itself migrated to baseline-first.
+  [
+    '0082_misc_pre_launch_tables.sql',
+    'ALTER TABLE incidents depends on the drizzle/ baseline (0003_mining_domain.sql) excluded by the standalone src/migrations apply-check. Canonical run-migrations.ts is baseline-first (INT-4, ffa5ec75); production + canonical runner have incidents. next_review: 2026-09-01 (or when apply-check goes baseline-first).',
+  ],
   // ─── 0205-0226 — Wave 17+ migrations all RLS-coercion-dependent.
   [
     '0205_ui_artifacts.sql',
