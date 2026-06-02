@@ -198,6 +198,19 @@ export const MIGRATION_APPLY_ALLOWLIST = new Map([
     '0194_entity_ext_person.sql',
     'RLS depends on 0175 coercion — pre-existing on fresh DB.',
   ],
+  // ─── 0016 (drizzle baseline) — partial-index predicate uses now() which is
+  //     STABLE, not IMMUTABLE. Postgres 17 rejects non-IMMUTABLE functions in
+  //     index predicates when applied via raw psql. The production runner
+  //     (packages/database/src/run-migrations.ts) executes migrations via
+  //     postgres-js sql.begin() which does not trigger the same pg_parse-time
+  //     predicate-immutability check, so this is healed in the canonical
+  //     runtime path. The drizzle/ baseline file is immutable.
+  //     Affected index: daily_research_cache_live_idx
+  //     (WHERE ttl_until > now()).
+  [
+    '0016_master_brain_briefings.sql',
+    'Partial-index predicate `WHERE ttl_until > now()` uses now() (STABLE, not IMMUTABLE) — Postgres 17 raw-psql rejects it. The production runner (postgres-js sql.begin()) does not hit this check at apply time. Drizzle baseline is immutable; no code fix needed. next_review: 2026-09-01.',
+  ],
   // ─── 0082 (INT-4) — baseline-dir dependency, not a forward-reference
   //     bug. `ALTER TABLE incidents` (close-out columns) depends on the
   //     drizzle/ baseline (drizzle/0003_mining_domain.sql CREATEs
@@ -211,6 +224,58 @@ export const MIGRATION_APPLY_ALLOWLIST = new Map([
   [
     '0082_misc_pre_launch_tables.sql',
     'ALTER TABLE incidents depends on the drizzle/ baseline (0003_mining_domain.sql) excluded by the standalone src/migrations apply-check. Canonical run-migrations.ts is baseline-first (INT-4, ffa5ec75); production + canonical runner have incidents. next_review: 2026-09-01 (or when apply-check goes baseline-first).',
+  ],
+  // ─── 0083 (INT-7) — ALTER TABLE document_uploads fails on fresh DB
+  //     because document_uploads was originally created by
+  //     .archive/migrations/0032_document_uploads.sql (excluded from the
+  //     active migration chain after the property→mining rename). On a fresh
+  //     DB the table does not exist before 0083 runs. 0185_document_uploads_
+  //     foundation.sql creates document_uploads + document_type idempotently,
+  //     but arrives AFTER 0083 in lex order so 0083 is still broken on fresh
+  //     DB at apply time. Production already has the table.
+  [
+    '0083_document_intelligence.sql',
+    'ALTER TABLE document_uploads fails on fresh DB — table was created by archived 0032 migration (excluded from active chain). 0185_document_uploads_foundation.sql creates it, but lands after 0083 in lex order. Production has the table from prior apply path. next_review: 2026-09-01.',
+  ],
+  // ─── 0127 / 0128 / 0129 (INT-7) — tenant_id UUID FK type mismatch.
+  //     These migrations declare tenant_id as UUID with FK to tenants(id),
+  //     but tenants.id is TEXT (drizzle/0000_borjie_bootstrap.sql). Postgres
+  //     rejects the FK constraint at CREATE TABLE time due to type mismatch.
+  //     Tables are unusable on fresh DB without the fixup. 0186_fix_tenant_
+  //     id_text_fk.sql creates the tables with correct tenant_id TEXT, but
+  //     it arrives after 0127/0128/0129 in lex order.
+  [
+    '0127_request_for_bids.sql',
+    'tenant_id UUID REFERENCES tenants(id) fails — tenants.id is TEXT (0000 bootstrap). FK type mismatch causes CREATE TABLE to fail. 0186_fix_tenant_id_text_fk.sql creates the table with correct TEXT type. next_review: 2026-09-01.',
+  ],
+  [
+    '0128_owner_delegation_prefs.sql',
+    'Same tenant_id UUID vs TEXT type mismatch as 0127. 0186_fix_tenant_id_text_fk.sql creates owner_delegation_prefs with correct TEXT type. next_review: 2026-09-01.',
+  ],
+  [
+    '0129_mwikila_actions_inbox.sql',
+    'Same tenant_id UUID vs TEXT type mismatch as 0127. 0186_fix_tenant_id_text_fk.sql creates mwikila_actions_inbox with correct TEXT type. next_review: 2026-09-01.',
+  ],
+  // ─── 0144 (INT-7) — DROP INDEX of a constraint-backed index.
+  //     0130_postgis.sql created regulatory_zones_authority_code_unique as a
+  //     TABLE CONSTRAINT (`CONSTRAINT ... UNIQUE`), not a standalone index.
+  //     Postgres refuses `DROP INDEX` on a constraint-backed index; the correct
+  //     form is `ALTER TABLE ... DROP CONSTRAINT`. 0144 is immutable; the fixup
+  //     is in 0187_fix_regulatory_zones_constraint_drop.sql which uses
+  //     ALTER TABLE DROP CONSTRAINT IF EXISTS.
+  [
+    '0144_tenant_regulatory_zones.sql',
+    '`DROP INDEX regulatory_zones_authority_code_unique` fails — the index was created by 0130 as a TABLE CONSTRAINT, not a standalone index. Postgres requires `ALTER TABLE DROP CONSTRAINT` instead. 0187_fix_regulatory_zones_constraint_drop.sql performs the correct drop. next_review: 2026-09-01.',
+  ],
+  // ─── 0158 (INT-7) — ALTER TYPE document_type fails on fresh DB.
+  //     document_type enum was only created by .archive/migrations/0032 and
+  //     is not in the active migration chain. 0185_document_uploads_foundation
+  //     creates it with all values (including the mining ones 0158 adds), so
+  //     0158's ADD VALUE IF NOT EXISTS becomes a no-op once 0185 runs — but
+  //     0158 still fails before 0185 arrives in lex order.
+  [
+    '0158_document_type_mining_values.sql',
+    'ALTER TYPE document_type fails on fresh DB — type created by archived 0032 migration excluded from active chain. 0185_document_uploads_foundation.sql creates document_type with all values (including mining ones) so 0158 becomes a no-op, but 0185 lands after 0158. next_review: 2026-09-01.',
   ],
   // ─── 0205-0226 — Wave 17+ migrations all RLS-coercion-dependent.
   [
