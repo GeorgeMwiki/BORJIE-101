@@ -13,4 +13,10 @@ export const queryKeys = {
   // Commercial chain L7 — buyer notifications.
   buyerNotifications: (unreadOnly: boolean) =>
     ['buyer-notifications', unreadOnly ? 'unread' : 'all'] as const,
+  // WS-2 — bid chat thread per RFB response + seller reputation.
+  thread: (responseId: string) => ['thread', responseId] as const,
+  sellerReputation: (sellerTenantId: string) =>
+    ['seller-reputation', sellerTenantId] as const,
+  marketIntel: (commodity: string, region: string | undefined) =>
+    ['market-intel', commodity, region ?? 'all'] as const,
 } as const
