@@ -8,6 +8,7 @@
  */
 
 import { createClient, type SupabaseClient, type SupabaseClientOptions } from '@supabase/supabase-js';
+import WebSocketImpl from 'ws';
 import { SupabaseConfigError, SupabaseConfigSchema, type SupabaseConfig } from './types.js';
 
 export interface UserClientOptions {
@@ -62,6 +63,11 @@ export function createSupabaseUserClient(
         'X-Client-Info': 'borjie-user/0.1.0',
       },
     },
+    // supabase-realtime-js requires a WebSocket constructor at client
+    // construction (even for server clients that never subscribe). Node <22
+    // has no global WebSocket, so supply the `ws` polyfill — works on the
+    // Node-20 CI runners + any Node-20 runtime.
+    realtime: { transport: WebSocketImpl },
   };
   // db.schema is typed `string & keyof Database['schema']` — Supabase
   // wants the consumer-typed Database parameter to make `string` legal.

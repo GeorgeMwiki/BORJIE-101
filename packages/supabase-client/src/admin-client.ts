@@ -13,6 +13,7 @@
  */
 
 import { createClient, type SupabaseClient, type SupabaseClientOptions } from '@supabase/supabase-js';
+import WebSocketImpl from 'ws';
 import { SupabaseConfigError, SupabaseConfigSchema, type SupabaseConfig } from './types.js';
 
 export interface AdminClientOptions {
@@ -68,6 +69,11 @@ export function createSupabaseAdminClient(
         'X-Client-Info': 'borjie-admin/0.1.0',
       },
     },
+    // supabase-realtime-js requires a WebSocket constructor at client
+    // construction (even for server clients that never subscribe). Node <22
+    // has no global WebSocket, so supply the `ws` polyfill — works on the
+    // Node-20 CI runners + any Node-20 runtime.
+    realtime: { transport: WebSocketImpl },
   };
   // db.schema is typed against the consumer's Database typing; cast
   // through unknown so a runtime schema name is accepted without us

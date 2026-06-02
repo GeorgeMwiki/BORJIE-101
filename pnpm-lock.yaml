@@ -4753,6 +4753,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.106.1
         version: 2.106.2
+      ws:
+        specifier: ^8.18.0
+        version: 8.20.1
       zod:
         specifier: ^3.25.76
         version: 3.25.76
