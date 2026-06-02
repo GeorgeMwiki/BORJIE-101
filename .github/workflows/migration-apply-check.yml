@@ -34,7 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        # pgvector image so the `vector` type used by embedding tables resolves.
+        # (postgis is attempted best-effort below; the baseline geometry tables
+        # need it — when absent those specific migrations are reported.)
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: borjie
           POSTGRES_PASSWORD: borjie
@@ -70,11 +73,13 @@ jobs:
           echo "::error::Postgres did not become ready within 30s"
           exit 1
 
-      - name: Try CREATE EXTENSION vector (best-effort)
+      - name: Try CREATE EXTENSION vector + postgis (best-effort)
         run: |
-          PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check \
-            -c "CREATE EXTENSION IF NOT EXISTS vector" 2>&1 | tail -3 || \
-            echo "::warning::pgvector not available — migrations that depend on it may fail"
+          for ext in vector postgis postgis_topology pgcrypto "uuid-ossp" pg_trgm citext btree_gist; do
+            PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check \
+              -c "CREATE EXTENSION IF NOT EXISTS \"${ext}\"" 2>&1 | tail -1 || \
+              echo "::warning::extension ${ext} not available — migrations depending on it may fail"
+          done
 
       - name: Seed Supabase roles (authenticated, anon, service_role)
         env:
