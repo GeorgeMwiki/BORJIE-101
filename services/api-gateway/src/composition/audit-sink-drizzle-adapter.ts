@@ -83,16 +83,52 @@ function mapActorKind(
 }
 
 /**
+ * Canonical set of every `AuditActionCategory` value the audit-trail v2
+ * chain accepts (mirrors the union in
+ * `@borjie/ai-copilot/audit-trail/types.ts`). Used as a runtime allowlist
+ * so a category that drifts out of the source union — or arrives through
+ * a structural `any`-cast upstream — can NEVER write an unrecognised value
+ * into the immutable, hash-chained audit row. Unknown values map to
+ * `'other'` (the safe, always-valid bucket) rather than being cast blind.
+ */
+const AUDIT_ACTION_CATEGORIES: ReadonlySet<AuditActionCategory> = new Set([
+  'finance',
+  'offtake',
+  'royalty_collection',
+  'counterparty_welfare',
+  'licence_suspension',
+  'maintenance',
+  'compliance',
+  'communications',
+  'marketing',
+  'hr',
+  'procurement',
+  'insurance',
+  'legal',
+  'other',
+  // Deprecated property-domain aliases — accepted for chain integrity.
+  'leasing',
+  'rent_collection',
+  'tenant_welfare',
+  'eviction',
+]);
+
+/**
  * Translate the central-intelligence action category onto the
- * audit-trail v2 vocabulary. Today the two unions are structurally
- * identical (both ship 12 named categories ending in `other`); this
- * adapter is preserved as a translation hook in case the unions
- * diverge in a future release.
+ * audit-trail v2 vocabulary. Validates against the canonical allowlist at
+ * this trust boundary: a value outside the known set is coerced to
+ * `'other'` (and logged) instead of being cast unchecked into the
+ * append-only audit chain.
  */
 function mapActionCategory(
   category: AuditSinkInput['actionCategory'],
+  onUnknown?: (received: string) => void,
 ): AuditActionCategory {
-  return category as AuditActionCategory;
+  if (AUDIT_ACTION_CATEGORIES.has(category as AuditActionCategory)) {
+    return category as AuditActionCategory;
+  }
+  onUnknown?.(String(category));
+  return 'other';
 }
 
 export interface CreateDrizzleAuditSinkAndReaderArgs {
@@ -185,7 +221,16 @@ export function createDrizzleAuditSinkAndReader(
             : {}),
         },
         actionKind: input.actionKind,
-        actionCategory: mapActionCategory(input.actionCategory),
+        actionCategory: mapActionCategory(input.actionCategory, (received) =>
+          args.logger?.warn?.(
+            {
+              wiring: 'drizzle-audit-sink',
+              receivedCategory: received,
+              coercedTo: 'other',
+            },
+            'audit-sink: unrecognised actionCategory coerced to "other" at boundary',
+          ),
+        ),
         ...(input.subject ? { subject: input.subject } : {}),
         ...(input.ai ? { ai: input.ai } : {}),
         ...(input.decision ? { decision: input.decision } : {}),

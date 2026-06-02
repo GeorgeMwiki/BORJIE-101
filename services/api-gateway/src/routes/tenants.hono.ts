@@ -1,10 +1,36 @@
 
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+// Runtime validation at the trust boundary. PATCH /current previously
+// trusted arbitrary JSON for name/contact fields; PATCH /current/settings
+// spread the raw body into the persisted settings blob (unbounded
+// mass-assignment). Both are now schema-gated.
+const UpdateTenantSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    contactEmail: z.string().email().max(320).optional(),
+    contactPhone: z.string().max(40).optional(),
+  })
+  .strict();
+
+// Settings is an operator-controlled key/value blob. We bound it to a
+// flat record of JSON primitives so a caller cannot smuggle deeply
+// nested / oversized structures into the persisted settings column.
+const UpdateTenantSettingsSchema = z
+  .record(
+    z.string().max(120),
+    z.union([z.string().max(4000), z.number(), z.boolean(), z.null()]),
+  )
+  .refine((obj) => Object.keys(obj).length <= 100, {
+    message: 'settings supports at most 100 keys',
+  });
 type TenantRow = {
   id: string;
   name: string;
@@ -57,10 +83,10 @@ app.get('/current', async (c) => {
   return c.json({ success: true, data: mapTenant(tenant) });
 });
 
-app.patch('/current', withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c) => {
+app.patch('/current', zValidator('json', UpdateTenantSchema), withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos')!;
-  const body = await c.req.json();
+  const body = c.req.valid('json');
   const tenant = await repos.tenants.update(
     auth.tenantId,
     {
@@ -83,10 +109,10 @@ app.get('/current/settings', async (c) => {
   return c.json({ success: true, data: tenant.settings ?? {} });
 });
 
-app.patch('/current/settings', withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c) => {
+app.patch('/current/settings', zValidator('json', UpdateTenantSettingsSchema), withSecurityEvents({ action: 'tenant.update', resource: 'tenant', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos')!;
-  const body = await c.req.json();
+  const body = c.req.valid('json');
   // nosemgrep: missing-tenant-id-arg reason: the `tenants` repository is keyed by tenantId — `auth.tenantId` IS the tenant identifier.
   const existing = await repos.tenants.findById(auth.tenantId);
   const tenant = await repos.tenants.update(
