@@ -33,6 +33,16 @@
 
 BEGIN;
 
+-- ─── §0. Add the columns 0144 intended (regulator_set, country_code).
+-- 0144 added these (NOT NULL DEFAULT) but its whole transaction rolled back on a
+-- fresh DB due to its DROP INDEX failure, so the §2 wider index below would have
+-- no `regulator_set` column to reference. Add them idempotently first (these
+-- carry defaults, so they are safe non-blocking backfills).
+ALTER TABLE regulatory_zones
+  ADD COLUMN IF NOT EXISTS regulator_set text NOT NULL DEFAULT 'TZ-set';
+ALTER TABLE regulatory_zones
+  ADD COLUMN IF NOT EXISTS country_code text NOT NULL DEFAULT 'TZ';
+
 -- ─── §1. Drop the old narrower constraint (authority, code) if it still exists.
 -- On a fresh DB where 0144 rolled back, this constraint was created by 0130.
 -- On production where 0144 partial-succeeded (unlikely but possible), it may
