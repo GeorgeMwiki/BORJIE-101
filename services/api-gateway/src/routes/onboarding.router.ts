@@ -8,9 +8,9 @@
  *   1. POST /signup                — email + password + country + business
  *                                    name → returns sessionToken + tenantId
  *                                    + ownerUserId
- *   2. POST /first-property        — adds the first property (address,
- *                                    unit count, rent estimate)
- *   3. POST /first-tenant-import   — bulk import OR manual one-tenant
+ *   2. POST /first-site            — adds the first mining site (name,
+ *                                    mineral, licence number, region)
+ *   3. POST /first-workforce-import — bulk import OR manual one-worker
  *                                    entry
  *   4. POST /first-md-chat         — kicks off the first MD conversation
  *                                    with a curated welcome prompt; spawns
@@ -90,8 +90,8 @@ const credentials: OwnerCredentialStore = {
 type OnboardingFlowStepId =
   | 'account_created'
   | 'verify_email'
-  | 'first_property'
-  | 'first_tenant_import'
+  | 'first_site'
+  | 'first_workforce_import'
   | 'first_md_chat'
   | 'owner_intent'
   | 'install_starter_skills'
@@ -117,7 +117,7 @@ interface OnboardingFlowSession {
   readonly createdAt: string;
   readonly steps: ReadonlyArray<OnboardingFlowStep>;
   readonly intent?: 'cashflow' | 'growth' | 'exit';
-  readonly firstPropertyId?: string;
+  readonly firstSiteId?: string;
   readonly firstChatThreadId?: string;
   readonly suggestedSkills?: ReadonlyArray<string>;
 }
@@ -146,21 +146,21 @@ const DEFAULT_STEPS: ReadonlyArray<OnboardingFlowStep> = Object.freeze([
     completed: false,
   },
   {
-    id: 'first_property',
-    label: 'Add your first property',
-    description: 'Tell us the address, unit count, and rent estimate.',
+    id: 'first_site',
+    label: 'Add your first mining site',
+    description: 'Tell us the site name, mineral, and licence number.',
     completed: false,
   },
   {
-    id: 'first_tenant_import',
-    label: 'Import your tenants',
-    description: 'CSV upload or add one tenant manually.',
+    id: 'first_workforce_import',
+    label: 'Import your workforce',
+    description: 'CSV upload or add one worker manually.',
     completed: false,
   },
   {
     id: 'first_md_chat',
     label: 'Chat with the MD for the first time',
-    description: 'Meet Mr. Mwikila — your portfolio concierge.',
+    description: 'Meet Mr. Mwikila — your mining-estate concierge.',
     completed: false,
   },
   {
@@ -247,25 +247,26 @@ const SignupSchema = z.object({
   businessName: z.string().min(1).max(200),
 });
 
-const FirstPropertySchema = z.object({
-  address: z.string().min(1).max(500),
-  unitCount: z.number().int().min(1).max(10_000),
-  rentEstimate: z.number().nonnegative().max(1_000_000_000),
-  currency: z.string().min(3).max(3).default('KES'),
+const FirstSiteSchema = z.object({
+  siteName: z.string().min(1).max(200),
+  mineral: z.string().min(1).max(80), // e.g. gold, copper, tanzanite
+  licenceNumber: z.string().min(1).max(120),
+  region: z.string().min(1).max(120),
 });
 
-const FirstTenantImportSchema = z.object({
+const FirstWorkforceImportSchema = z.object({
   mode: z.enum(['manual', 'csv']),
-  // Manual: a single tenant row. CSV: a parsed list (the FE parses
+  // Manual: a single worker row. CSV: a parsed list (the FE parses
   // client-side before posting).
-  tenants: z
+  workers: z
     .array(
       z.object({
         firstName: z.string().min(1).max(100),
         lastName: z.string().min(1).max(100),
         phone: z.string().min(5).max(40),
         email: z.string().email().max(255).optional(),
-        unitLabel: z.string().min(1).max(100),
+        role: z.string().min(1).max(100), // e.g. driller, hauler, supervisor
+        siteLabel: z.string().min(1).max(120),
       }),
     )
     .min(1)
@@ -470,10 +471,10 @@ app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEve
   });
 }));
 
-// 2. POST /first-property ---------------------------------------------------
+// 2. POST /first-site -------------------------------------------------------
 app.post(
-  '/first-property',
-  zValidator('json', FirstPropertySchema),
+  '/first-site',
+  zValidator('json', FirstSiteSchema),
   withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
     const session = resolveSession(c);
     if (!session) {
@@ -489,34 +490,34 @@ app.post(
       );
     }
     const body = c.req.valid('json');
-    const propertyId = newId('prop');
-    const nextSteps = markStep(session.steps, 'first_property', {
-      propertyId,
-      address: body.address,
-      unitCount: body.unitCount,
-      rentEstimate: body.rentEstimate,
-      currency: body.currency,
+    const siteId = newId('site');
+    const nextSteps = markStep(session.steps, 'first_site', {
+      siteId,
+      siteName: body.siteName,
+      mineral: body.mineral,
+      licenceNumber: body.licenceNumber,
+      region: body.region,
     });
     const updated: OnboardingFlowSession = {
       ...session,
-      firstPropertyId: propertyId,
+      firstSiteId: siteId,
       steps: nextSteps,
     };
     sessions.set(session.tenantId, updated);
     return c.json({
       success: true,
       data: {
-        propertyId,
+        siteId,
         steps: nextSteps,
       },
     });
   }),
 );
 
-// 3. POST /first-tenant-import ---------------------------------------------
+// 3. POST /first-workforce-import ------------------------------------------
 app.post(
-  '/first-tenant-import',
-  zValidator('json', FirstTenantImportSchema),
+  '/first-workforce-import',
+  zValidator('json', FirstWorkforceImportSchema),
   withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
     const session = resolveSession(c);
     if (!session) {
@@ -532,11 +533,11 @@ app.post(
       );
     }
     const body = c.req.valid('json');
-    const imported = body.tenants.map((t) => ({
-      ...t,
-      id: newId('cust'),
+    const imported = body.workers.map((w) => ({
+      ...w,
+      id: newId('emp'),
     }));
-    const nextSteps = markStep(session.steps, 'first_tenant_import', {
+    const nextSteps = markStep(session.steps, 'first_workforce_import', {
       mode: body.mode,
       count: imported.length,
     });
@@ -549,7 +550,7 @@ app.post(
       success: true,
       data: {
         imported: imported.length,
-        tenants: imported,
+        workers: imported,
         steps: nextSteps,
       },
     });

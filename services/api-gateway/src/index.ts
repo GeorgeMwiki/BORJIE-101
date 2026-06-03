@@ -1527,7 +1527,7 @@ api.route('/tenants', tenantsRouter);
 api.route('/users', usersRouter);
 api.route('/notifications', notificationsRouter);
 // Phase F.5 tenant-signup flow mounts FIRST so specific paths
-// (/signup, /first-property, /first-tenant-import, /first-md-chat,
+// (/signup, /first-site, /first-workforce-import, /first-md-chat,
 // /checklist) match before the legacy customer move-in router.
 api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
