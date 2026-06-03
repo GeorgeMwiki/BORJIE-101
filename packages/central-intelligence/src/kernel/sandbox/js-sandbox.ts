@@ -569,11 +569,17 @@ async function runInVmFallback(
       const ctx = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
       const wrapped = '(function(){ ' + workerData.code + ' })()';
       const result = vm.runInContext(wrapped, ctx, { timeout: workerData.timeoutMs, displayErrors: false });
-      // Strip non-clonable values via JSON round-trip.
-      let safe;
-      try { safe = JSON.parse(JSON.stringify(result === undefined ? null : result)); }
-      catch { safe = null; }
-      parentPort.postMessage({ ok: true, result: safe });
+      // Marshal the result via JSON round-trip. A function / symbol /
+      // otherwise non-serializable TOP-LEVEL result must be REJECTED — not
+      // silently coerced to null — so the node:vm fallback upholds the same
+      // "only structured-clonable values cross" guarantee as the isolated-vm
+      // boundary. JSON.stringify returns undefined for such values.
+      const serialized = JSON.stringify(result === undefined ? null : result);
+      if (serialized === undefined) {
+        parentPort.postMessage({ ok: false, notClonable: true });
+      } else {
+        parentPort.postMessage({ ok: true, result: JSON.parse(serialized) });
+      }
     } catch (err) {
       const msg = err && err.message ? String(err.message) : '(non-error throw)';
       const timedOut = /Script execution timed out|timeout/i.test(msg);
@@ -631,10 +637,20 @@ async function runInVmFallback(
 
     worker.once(
       'message',
-      (msg: { ok: boolean; result?: unknown; message?: string; timedOut?: boolean }) => {
+      (msg: { ok: boolean; result?: unknown; message?: string; timedOut?: boolean; notClonable?: boolean }) => {
         clearTimeout(killTimer);
         void worker.terminate();
-        if (msg.ok) {
+        if (msg.notClonable) {
+          settle({
+            ok: false,
+            error: {
+              code: 'SANDBOX_RESULT_NOT_CLONABLE',
+              message: 'Result is not structured-clonable (functions/proxies forbidden)',
+            },
+            durationMs: Date.now() - started,
+            memoryUsedBytes: 0,
+          });
+        } else if (msg.ok) {
           const scrubbed = scrubForReturn(msg.result, 0);
           settle({
             ok: true,
