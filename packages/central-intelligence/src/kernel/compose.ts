@@ -239,9 +239,9 @@ export interface ComposeSovereignConfig {
   /**
    * Optional resolver for per-action role-group approval policies.
    * Passed through to `createApprovalGate` so high-stakes write
-   * actions (eviction.propose, owner_payout.disburse, etc.) consult
-   * a DB-backed policy table at propose-time instead of the legacy
-   * "any 2 distinct admins" default.
+   * actions (licence_suspension.propose, royalty_payout.disburse, etc.)
+   * consult a DB-backed policy table at propose-time instead of the
+   * legacy "any 2 distinct admins" default.
    */
   readonly approvalPolicyResolver?: ApprovalPolicyResolver;
   /**

@@ -26,6 +26,10 @@
 export type KernelStepName =
   | 'killswitch'
   | 'cache'
+  // LP-03 — embedding-keyed semantic cache underlay (read/write-through).
+  | 'semantic-cache'
+  // LP-04 — pre-exec intent verification of sensor-proposed tool calls.
+  | 'intent-verify'
   | 'inviolable'
   | 'public-inviolable'
   | 'tier-compat'

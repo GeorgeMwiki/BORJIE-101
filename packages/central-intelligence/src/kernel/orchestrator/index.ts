@@ -286,3 +286,23 @@ export {
   type DispatchedPlannerKind,
   type PlannerStakes,
 } from './planner-dispatcher.js';
+
+// LP-07 — typed stage-event bus over the main loop (OTel / learning seam).
+export {
+  createStageEventBus,
+  createTurnStageEmitter,
+  STAGE_NAMES,
+  STAGE_ORDER,
+  type StageName,
+  type StageEvent,
+  type StageEventBus,
+  type StageEventSubscriber,
+  type IntentStageEvent,
+  type MegapromptStageEvent,
+  type PlanStageEvent,
+  type StepStageEvent,
+  type OutcomeStageEvent,
+  type LearningStageEvent,
+  type CreateStageEventBusDeps,
+  type StageEmitterContext,
+} from './stage-event-bus.js';

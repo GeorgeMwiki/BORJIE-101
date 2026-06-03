@@ -713,3 +713,66 @@ export {
  * orchestrator routes `power_tool.<id>` calls through.
  */
 export * as powerTools from './power-tools/index.js';
+
+/**
+ * TTC allocator — multi-dimensional test-time-compute selector. Exported
+ * so the api-gateway composition root (LP-01 cognitive composer) can route
+ * a turn to the right reasoning depth (Self-Discover vs LATS) from the
+ * same allocation the kernel uses for `wantsThinking`.
+ */
+export {
+  allocateTtc,
+  TTC_DEFAULTS,
+  type CognitionMode,
+  type TtcAllocation,
+  type TtcAllocatorInput,
+} from './ttc-allocator.js';
+
+/**
+ * LP-06 / LP-09 — deterministic megaprompt assembly + always-on
+ * IP-protection / security-boundary terminal layers.
+ */
+export {
+  assembleSystemPrompt,
+  systemFragmentOrderSignature,
+  SYSTEM_FRAGMENT_SLOTS,
+  SYSTEM_FRAGMENT_ORDER_VERSION,
+  IP_PROTECTION_LAYER,
+  SECURITY_BOUNDARY_LAYER,
+  SECURITY_LAYERS,
+  type SystemFragmentSlot,
+  type SystemFragments,
+  type AssembleSystemPromptOptions,
+} from './prompt-layers.js';
+
+/**
+ * LP-04 — intent verification port (post-LLM / pre-exec tool-call gate).
+ * The composition root binds the port to `@borjie/autonomy-governance`.
+ */
+export {
+  verifyToolCalls,
+  type IntentVerifierPort,
+  type IntentVerifierRequest,
+  type IntentVerifierVerdict,
+  type IntentVerifierSessionContext,
+  type ProposedToolCall,
+  type VerifyToolCallsArgs,
+  type VerifyToolCallsResult,
+  type ToolCallVerdict,
+} from './intent-verification.js';
+
+/**
+ * LP-03 — semantic-cache read-through / write-through underlay port.
+ * The composition root binds `SemanticCachePort` to the concrete cache
+ * from `./semantic-cache/`.
+ */
+export {
+  buildSemanticScope,
+  semanticCacheRead,
+  semanticCacheWrite,
+  type SemanticCachePort,
+  type SemanticScope,
+  type SemanticCacheReadArgs,
+  type SemanticCacheReadResult,
+  type SemanticCacheWriteArgs,
+} from './semantic-cache-port.js';

@@ -133,10 +133,11 @@ describe('wireCognitive', () => {
     expect(typeof wired.persistent?.skillLookup).toBe('function');
   });
 
-  it('keeps the composition slot null (12-wire pipeline deferred)', () => {
+  it('leaves the composition slot null when no compositionDeps are supplied (LP-01)', () => {
     const wired = wireCognitive({ db: null, logger: silentLogger() });
-    // Per CLAUDE.md hard rule + file header: the 12-wire composer is
-    // deferred. Guard the slot so an accidental rewire is loud.
+    // LP-01 wires a real composer ONLY when the caller supplies
+    // `compositionDeps`. The common boot path (no deps) still yields null,
+    // so consumers must null-check and fall back to memory-recall-only.
     expect(wired.composition).toBeNull();
   });
 
@@ -146,6 +147,7 @@ describe('wireCognitive', () => {
     const info = entries.filter((e) => e.level === 'info');
     expect(info.length).toBeGreaterThanOrEqual(1);
     expect(info[0]!.message).toMatch(/cognitive-wiring: bundles constructed/);
+    // No compositionDeps → composer not constructed → composition=false.
     expect(info[0]!.meta?.composition).toBe(false);
   });
 

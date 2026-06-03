@@ -18,14 +18,19 @@
  *                                       pending-thread tracker, MemGPT
  *                                       summariser (temporal continuity
  *                                       substrate).
- *   - `@borjie/cognitive-composition` — only the *types* are consumed
- *                                       here. The 12-wire `compose()`
- *                                       pipeline requires the heavy
- *                                       cognitive-engine + brain-router
- *                                       + calibration ports to be wired
- *                                       and is deferred until those
- *                                       adapters land (see "Deferred"
- *                                       section below).
+ *   - `@borjie/cognitive-composition` — LP-01: the 12-wire `compose()`
+ *                                       pipeline is now WIRED (no longer
+ *                                       pinned `null`). When the caller
+ *                                       supplies `compositionDeps`, the
+ *                                       composer is built + exposed on
+ *                                       `WiredCognitive.composition`,
+ *                                       TTC-routed to Self-Discover / LATS
+ *                                       and gated by
+ *                                       `BORJIE_COGNITIVE_COMPOSER_ENABLED`.
+ *                                       The deep execution of the reasoning
+ *                                       packages is injected via the
+ *                                       `CompositionDeps` ports (see
+ *                                       `cognitive-composer-wiring.ts`).
  *
  * Public API summary (discovered from each package's `src/index.ts`):
  *
@@ -114,10 +119,13 @@
  *   - Drizzle-backed adapters for `cognitive_memory_cells` (mig 0027)
  *     and `session_memory` (mig 0029). Land alongside the embedding-
  *     service Drizzle cache port.
- *   - The 12-wire `cognitive-composition.compose()` pipeline. Requires
- *     `cognitive-engine.infer`, `brain-llm-router.cascade`,
- *     `calibration-monitor`, `conformal-calibration-online`, and the
- *     `cognitive_wiring_health` Postgres writer.
+ *   - LP-01 deep-execution binding: the composer pipeline now RUNS, but
+ *     binding the literal `@borjie/extended-reasoning` `runLATS` and
+ *     `@borjie/reasoning-substrate` `discoverReasoningStructure` calls
+ *     into the `CompositionDeps` substrate/cot ports requires adding those
+ *     two workspace deps to `services/api-gateway/package.json` + an
+ *     install. The TTC strategy ROUTING (`routeReasoning`) is wired and
+ *     tested now; the serial pass swaps in the real reasoning executors.
  *
  * @module services/api-gateway/src/composition/cognitive-wiring
  */
@@ -147,6 +155,16 @@ import {
   type UpstreamEmbedder,
   type ReinforcementRepository,
 } from '@borjie/cognitive-memory';
+
+// LP-01 — the TTC-routed deep-reasoning composer wiring. Replaces the
+// historical `composition: null` slot with a real, flag-gated, fail-safe
+// composer. The heavy `CompositionDeps` are supplied by the caller; this
+// module stays free of the cognitive-engine / brain-router adapters.
+import {
+  wireCognitiveComposer,
+  type WiredCognitiveComposer,
+  type WireCognitiveComposerDeps,
+} from './cognitive-composer-wiring.js';
 
 import {
   // Session
@@ -197,13 +215,15 @@ export interface WiredCognitive {
   /** Session-memory, skills, pending-threads. `null` on boot failure. */
   readonly persistent: PersistentMemoryBundle | null;
   /**
-   * The 12-wire `cognitive-composition.compose()` pipeline is deferred
-   * (requires several heavy ports that are not yet wired). The slot is
-   * always `null` in this PR; a follow-up wave will replace it with the
-   * real composer once the inference / brain-router / calibration ports
-   * land. Consumers that read `wired.composition` MUST null-check.
+   * LP-01 — the 12-wire `cognitive-composition.compose()` pipeline,
+   * TTC-routed to Self-Discover / LATS and env-flag-gated by
+   * `BORJIE_COGNITIVE_COMPOSER_ENABLED`. `null` when no `compositionDeps`
+   * were supplied to {@link wireCognitive} (the common boot path until the
+   * heavy cognitive-engine / brain-router adapters land) or when composer
+   * construction failed. Consumers MUST null-check and fall back to the
+   * memory-recall-only enrichment. `runForTurn` is itself fail-safe.
    */
-  readonly composition: null;
+  readonly composition: WiredCognitiveComposer | null;
   /** Whether at least one bundle was constructed. False means full
    *  degradation — the enrichment function will return empty. */
   readonly isLive: boolean;
@@ -242,6 +262,17 @@ export interface WireCognitiveDeps {
    *  zero-vector embedder is used so the wiring still boots without
    *  any LLM provider configured. */
   readonly upstreamEmbedder?: UpstreamEmbedder;
+  /**
+   * LP-01 — optional cognitive-composition ports. When supplied, the
+   * 12-wire deep-reasoning composer is constructed and exposed on
+   * `WiredCognitive.composition`, TTC-routed to Self-Discover / LATS and
+   * gated by `BORJIE_COGNITIVE_COMPOSER_ENABLED`. When omitted the slot is
+   * `null` and consumers fall back to memory-recall-only enrichment.
+   */
+  readonly compositionDeps?: WireCognitiveComposerDeps['compositionDeps'];
+  /** Env source for the composer flag. Defaults to an empty record
+   *  (flag OFF) so tests and degraded boots never read `process.env`. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -388,12 +419,27 @@ function buildPersistentMemoryBundle(
 export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
   const cognitiveMemory = buildCognitiveMemoryBundle(deps);
   const persistent = buildPersistentMemoryBundle(deps);
+
+  // LP-01 — build the TTC-routed deep-reasoning composer when the caller
+  // supplied the cognitive-composition ports. `wireCognitiveComposer` is
+  // itself fail-safe (returns null on construction failure) so a composer
+  // problem never blocks the gateway boot.
+  let composition: WiredCognitiveComposer | null = null;
+  if (deps.compositionDeps !== undefined) {
+    composition = wireCognitiveComposer({
+      compositionDeps: deps.compositionDeps,
+      env: deps.env ?? {},
+      logger: deps.logger,
+    });
+  }
+
   const isLive = cognitiveMemory !== null || persistent !== null;
   if (isLive) {
     deps.logger.info('cognitive-wiring: bundles constructed', {
       cognitiveMemory: cognitiveMemory !== null,
       persistent: persistent !== null,
-      composition: false, // 12-wire pipeline deferred (see file header).
+      composition: composition !== null,
+      composerEnabled: composition?.enabled ?? false,
     });
   } else {
     deps.logger.warn(
@@ -403,7 +449,7 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
   return Object.freeze({
     cognitiveMemory,
     persistent,
-    composition: null,
+    composition,
     isLive,
   });
 }

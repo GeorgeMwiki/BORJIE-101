@@ -92,6 +92,18 @@ import { renderModuleInventoryBlock } from './self-awareness.js';
 import { scoreConfidence } from './confidence.js';
 import { normalize } from './normalizer.js';
 import { type BrainCache, thoughtCacheKey, createBrainCache } from './brain-cache.js';
+// LP-06 / LP-09 — deterministic megaprompt assembly + always-on
+// IP-protection / security-boundary terminal layers.
+import { assembleSystemPrompt } from './prompt-layers.js';
+// LP-04 — pre-exec intent verification port (post-LLM, pre-dispatch).
+import { type IntentVerifierPort, verifyToolCalls } from './intent-verification.js';
+// LP-03 — semantic-cache read-through / write-through underlay port.
+import {
+  type SemanticCachePort,
+  buildSemanticScope,
+  semanticCacheRead,
+  semanticCacheWrite,
+} from './semantic-cache-port.js';
 import { type SensorRouter, createSensorRouter } from './sensor-failover.js';
 import type { CotReservoir } from './cot-reservoir.js';
 import { buildCohortMixin, type CohortSource } from './cohort-signal.js';
@@ -500,6 +512,33 @@ export interface BrainKernelDeps {
    * the side-channel never breaks the turn.
    */
   readonly reflexionLoader?: ReflexionLoaderPort;
+  // ── LP-03 / LP-04 — Wave-0 wiring-debt closure ──────────────────────
+  /**
+   * LP-04 — intent verifier. When wired AND
+   * `intentVerificationEnabled !== false`, the kernel checks every
+   * sensor-proposed `tool_use` call against the user ask at the
+   * post-LLM / pre-dispatch seam (step 7b). A `permitted:false` verdict
+   * blocks that tool call; verifier errors fail-OPEN (the call runs) so a
+   * verifier bug never bricks the brain. The composition root binds this
+   * to `@borjie/autonomy-governance` `verifyIntent`.
+   */
+  readonly intentVerifier?: IntentVerifierPort;
+  /** Master flag for LP-04. Defaults to true when `intentVerifier` is
+   *  wired; the api-gateway resolves it from
+   *  `BORJIE_INTENT_VERIFIER_ENABLED`. */
+  readonly intentVerificationEnabled?: boolean;
+  /**
+   * LP-03 — semantic-cache underlay. When wired AND
+   * `semanticCacheEnabled !== false`, the kernel reads through the
+   * embedding-keyed cache after an L1 brain-cache miss, and writes
+   * through fresh `answer` decisions. Scoped per (tenantId, surface,
+   * personaId). The composition root builds the concrete cache from
+   * `./semantic-cache/`.
+   */
+  readonly semanticCache?: SemanticCachePort;
+  /** Master flag for LP-03. Defaults to true when `semanticCache` is
+   *  wired; resolved from `BORJIE_SEMANTIC_CACHE_ENABLED`. */
+  readonly semanticCacheEnabled?: boolean;
 }
 
 export interface BrainKernel {
@@ -778,7 +817,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         );
       }
 
-      // 1) brain-side cache
+      // 1) brain-side cache (L1 exact-key, ~0ms)
       const cacheStart = clock().getTime();
       const cached = cache.get(cacheKey);
       if (cached) {
@@ -787,6 +826,44 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         return cached;
       }
       traceStep('cache', cacheStart, 'miss');
+
+      // 1b) LP-03 — semantic cache (L2 embedding-keyed underlay). On an
+      // embedding-cosine hit we replay the cached BrainDecision without
+      // spending a sensor call. On a miss we keep the query embedding so
+      // the write-through (step after `cache.set`) re-uses it instead of
+      // re-embedding. Scoped per (tenantId, surface, personaId); NEVER
+      // throws. The miss embedding is held on a closure variable.
+      const semanticCacheEnabled = deps.semanticCacheEnabled !== false;
+      const semanticScope = buildSemanticScope({
+        tenantId: memTenantIdEarly,
+        surface: req.surface,
+        personaId: req.scope.personaId,
+      });
+      let semanticMissEmbedding: ReadonlyArray<number> | null = null;
+      if (deps.semanticCache && semanticCacheEnabled) {
+        const semStart = clock().getTime();
+        const semRead = await semanticCacheRead({
+          cache: deps.semanticCache,
+          enabled: semanticCacheEnabled,
+          scope: semanticScope,
+          userMessage: req.userMessage,
+          answeringModelId: deps.sensors[0]?.modelId ?? 'unknown',
+        });
+        if (semRead.hit !== null) {
+          traceStep(
+            'semantic-cache',
+            semStart,
+            `hit sim=${(semRead.similarity ?? 0).toFixed(3)}`,
+          );
+          // Promote the semantic hit into the L1 exact-key cache so the
+          // next identical turn short-circuits at step 1.
+          cache.set(cacheKey, semRead.hit);
+          finaliseTrace(semRead.hit.kind);
+          return semRead.hit;
+        }
+        semanticMissEmbedding = semRead.missEmbedding;
+        traceStep('semantic-cache', semStart, 'miss');
+      }
 
       // 2) inviolable
       const invStart = clock().getTime();
@@ -1088,46 +1165,34 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           ? await loadTaskScopedReflexions(deps.reflexionLoader, memTenantId, memUserId)
           : '';
 
-      const system = [
+      // LP-06 + LP-09 — deterministic megaprompt ordering + always-on
+      // IP-protection / security-boundary terminal layers. The fragment
+      // map is rendered through `assembleSystemPrompt` which pins the
+      // slot order (prompt-cache stability) and appends the two security
+      // layers unconditionally as the final block. See `prompt-layers.ts`.
+      const system = assembleSystemPrompt({
         personaPrelude,
-        '',
-        // Wave-13 F11 — "Recent self-critiques" sits at the top of the
-        // system prompt (just below the persona anchor) so the model
-        // reads the crystallised lessons BEFORE the rest of the
-        // context. Empty string is filtered out below.
-        taskScopedReflexionFragment
+        // Wave-13 F11 — "Recent self-critiques" sits high in the prompt
+        // (just below the persona anchor) so the model reads the
+        // crystallised lessons before the rest of the context.
+        taskScopedReflexion: taskScopedReflexionFragment
           ? `**Recent self-critiques**\n${taskScopedReflexionFragment}`
           : '',
-        '',
         identity,
-        '',
-        rolloutPromptFragment,
-        '',
+        rolloutPrompt: rolloutPromptFragment,
         moduleInventory,
-        '',
-        `Locus: ${locusPhrase(req.tier, req.scope)}.`,
-        '',
-        `Behavioural directive: ${mindDirective}`,
-        `Verbosity directive: ${loadDirective}`,
-        '',
-        renderSemanticMemoryFragment(semanticFacts),
-        '',
-        renderReflectiveDigestFragment(reflectiveDigest),
-        '',
-        reflexionFragment,
-        '',
-        renderFeedbackFragment(feedbackRecent),
-        '',
-        renderActiveGoalsFragment(activeGoals),
-        '',
-        renderGroundingFragment(groundingFacts),
-        '',
-        learnedSkillsFragment,
-        '',
-        cohortMix.promptFragment,
-      ]
-        .filter(Boolean)
-        .join('\n');
+        locus: `Locus: ${locusPhrase(req.tier, req.scope)}.`,
+        behaviouralDirective: `Behavioural directive: ${mindDirective}`,
+        verbosityDirective: `Verbosity directive: ${loadDirective}`,
+        semanticMemory: renderSemanticMemoryFragment(semanticFacts),
+        reflectiveDigest: renderReflectiveDigestFragment(reflectiveDigest),
+        reflexion: reflexionFragment,
+        feedback: renderFeedbackFragment(feedbackRecent),
+        activeGoals: renderActiveGoalsFragment(activeGoals),
+        grounding: renderGroundingFragment(groundingFacts),
+        learnedSkills: learnedSkillsFragment,
+        cohortMix: cohortMix.promptFragment,
+      });
 
       // 7) sensor call (failover). When attachments are present we add
       // 'vision' to the required-capabilities array so only vision-capable
@@ -1313,15 +1378,47 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // post-sensor pipeline never null-derefs downstream.
       sensorResult = normaliseSensorResult(sensorResult);
 
+      // 7a-IV) LP-04 — intent verification (post-LLM, pre-exec). Each
+      // sensor-proposed tool call is checked against the user ask BEFORE
+      // it can be dispatched. A `permitted:false` verdict drops that call;
+      // verifier errors fail-OPEN. No-op when no verifier is wired.
+      const ivStart = clock().getTime();
+      const intentVerdict = await verifyToolCalls({
+        verifier: deps.intentVerifier,
+        enabled: deps.intentVerificationEnabled !== false,
+        proposed: sensorResult.toolCalls.map((tc) => ({
+          toolName: tc.toolName,
+          input: tc.input,
+          callId: tc.callId,
+        })),
+        userMessage: req.userMessage,
+        sessionContext: {
+          recentTools: [],
+          recentTopics: [],
+          escalationCount: 0,
+          ...(memTenantIdEarly !== null ? { tenantId: memTenantIdEarly } : {}),
+          ...(memUserId !== null ? { userId: memUserId } : {}),
+        },
+      });
+      if (intentVerdict.blocked.length > 0) {
+        const blockedSummary = intentVerdict.blocked
+          .map((b) => `${b.toolName}:${b.matchedRule ?? 'blocked'}`)
+          .join(',');
+        traceStep('intent-verify', ivStart, `blocked ${blockedSummary}`);
+      } else if (deps.intentVerifier && deps.intentVerificationEnabled !== false) {
+        traceStep('intent-verify', ivStart, `pass n=${String(intentVerdict.allowed.length)}`);
+      }
+
       // 7b) tool dispatch — when the sensor emitted a `tool_use` call
       // matching a seed PM tool AND a registry is wired, resolve it
       // deterministically. The result is recorded on the trace so ops
       // can audit which deterministic resolution backed which sensor
       // suggestion. The kernel does NOT loop sensor↔tool here — the
-      // streaming agent-loop owns that.
+      // streaming agent-loop owns that. Only intent-verified calls reach
+      // the dispatcher (LP-04).
       const toolDispatchResults = await dispatchKernelTools(
         deps.toolRegistry,
-        sensorResult.toolCalls.map((tc) => ({
+        intentVerdict.allowed.map((tc) => ({
           toolName: tc.toolName,
           input: tc.input,
         })),
@@ -1725,6 +1822,21 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       });
 
       cache.set(cacheKey, decision);
+      // LP-03 — semantic cache write-through. Best-effort, never blocks
+      // the caller, and only persists `answer` decisions (refusals /
+      // softened replies are request-frame-specific). Re-uses the miss
+      // embedding from the read step so we don't embed twice.
+      if (deps.semanticCache && semanticCacheEnabled) {
+        void semanticCacheWrite({
+          cache: deps.semanticCache,
+          enabled: semanticCacheEnabled,
+          scope: semanticScope,
+          userMessage: req.userMessage,
+          decision,
+          missEmbedding: semanticMissEmbedding,
+          cacheId: thoughtId,
+        });
+      }
       if (deps.provenanceSink) {
         // Fire-and-forget; never block the caller on persistence.
         void deps.provenanceSink.record(provenance).catch(() => undefined);
@@ -2041,34 +2153,25 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         ? renderLoadDirectiveWithProfile(loadOut, loadProfile)
         : renderLoadDirective(loadOut);
 
-      const system = [
+      // LP-06 + LP-09 — same deterministic ordering + terminal security
+      // layers as the non-streaming `think()` path. Kept in lock-step so
+      // a turn served over SSE and one served buffered share the same
+      // cacheable prefix.
+      const system = assembleSystemPrompt({
         personaPrelude,
-        '',
         identity,
-        '',
-        rolloutPromptFragment,
-        '',
+        rolloutPrompt: rolloutPromptFragment,
         moduleInventory,
-        '',
-        `Locus: ${locusPhrase(req.tier, req.scope)}.`,
-        '',
-        `Behavioural directive: ${mindDirective}`,
-        `Verbosity directive: ${loadDirective}`,
-        '',
-        renderSemanticMemoryFragment(semanticFacts),
-        '',
-        renderReflectiveDigestFragment(reflectiveDigest),
-        '',
-        renderFeedbackFragment(feedbackRecent),
-        '',
-        renderActiveGoalsFragment(activeGoals),
-        '',
-        renderGroundingFragment(groundingFacts),
-        '',
-        cohortMix.promptFragment,
-      ]
-        .filter(Boolean)
-        .join('\n');
+        locus: `Locus: ${locusPhrase(req.tier, req.scope)}.`,
+        behaviouralDirective: `Behavioural directive: ${mindDirective}`,
+        verbosityDirective: `Verbosity directive: ${loadDirective}`,
+        semanticMemory: renderSemanticMemoryFragment(semanticFacts),
+        reflectiveDigest: renderReflectiveDigestFragment(reflectiveDigest),
+        feedback: renderFeedbackFragment(feedbackRecent),
+        activeGoals: renderActiveGoalsFragment(activeGoals),
+        grounding: renderGroundingFragment(groundingFacts),
+        cohortMix: cohortMix.promptFragment,
+      });
 
       // 7) sensor selection. Prefer `callStream` when an eligible sensor
       // exposes it; otherwise fall back to `router.call(...)` and emit
