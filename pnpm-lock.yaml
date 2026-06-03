@@ -1483,6 +1483,9 @@ importers:
       '@borjie/audit-hash-chain':
         specifier: workspace:*
         version: link:../audit-hash-chain
+      '@borjie/belief-engine':
+        specifier: workspace:*
+        version: link:../belief-engine
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../brain-llm-router
@@ -1495,6 +1498,12 @@ importers:
       '@borjie/graph-sync':
         specifier: workspace:*
         version: link:../graph-sync
+      '@borjie/learning-signal-emitter':
+        specifier: workspace:*
+        version: link:../learning-signal-emitter
+      '@borjie/memory-port-extensions':
+        specifier: workspace:*
+        version: link:../memory-port-extensions
       '@borjie/owner-os-tabs':
         specifier: workspace:*
         version: link:../owner-os-tabs
@@ -2156,6 +2165,9 @@ importers:
 
   packages/document-quality-guarantor:
     dependencies:
+      '@borjie/document-reconciliation':
+        specifier: workspace:*
+        version: link:../document-reconciliation
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -5151,6 +5163,9 @@ importers:
       '@borjie/authz-policy':
         specifier: workspace:*
         version: link:../../packages/authz-policy
+      '@borjie/autonomy-governance':
+        specifier: workspace:*
+        version: link:../../packages/autonomy-governance
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../../packages/brain-llm-router
@@ -5160,6 +5175,9 @@ importers:
       '@borjie/central-intelligence':
         specifier: workspace:*
         version: link:../../packages/central-intelligence
+      '@borjie/channel-gateway':
+        specifier: workspace:*
+        version: link:../../packages/channel-gateway
       '@borjie/cognitive-composition':
         specifier: workspace:*
         version: link:../../packages/cognitive-composition
@@ -5211,6 +5229,9 @@ importers:
       '@borjie/executive-brief-engine':
         specifier: workspace:*
         version: link:../../packages/executive-brief-engine
+      '@borjie/extended-reasoning':
+        specifier: workspace:*
+        version: link:../../packages/extended-reasoning
       '@borjie/fairness-eval':
         specifier: workspace:*
         version: link:../../packages/fairness-eval
@@ -5313,6 +5334,9 @@ importers:
       '@borjie/portal-genui':
         specifier: workspace:*
         version: link:../../packages/portal-genui
+      '@borjie/privacy-router':
+        specifier: workspace:*
+        version: link:../../packages/privacy-router
       '@borjie/probe-runners':
         specifier: workspace:*
         version: link:../../packages/probe-runners
@@ -5328,6 +5352,9 @@ importers:
       '@borjie/realtime-rooms':
         specifier: workspace:*
         version: link:../../packages/realtime-rooms
+      '@borjie/reasoning-substrate':
+        specifier: workspace:*
+        version: link:../../packages/reasoning-substrate
       '@borjie/role-aware-advisor':
         specifier: workspace:*
         version: link:../../packages/role-aware-advisor
@@ -5358,6 +5385,9 @@ importers:
       '@borjie/user-context-store':
         specifier: workspace:*
         version: link:../../packages/user-context-store
+      '@borjie/ussd-engine':
+        specifier: workspace:*
+        version: link:../../packages/ussd-engine
       '@borjie/workflow-engine':
         specifier: workspace:*
         version: link:../../packages/workflow-engine
@@ -5569,6 +5599,9 @@ importers:
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@borjie/ledger-attestor':
+        specifier: workspace:*
+        version: link:../../packages/ledger-attestor
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
@@ -6171,6 +6204,9 @@ importers:
 
   services/sleep-pass-orchestrator:
     dependencies:
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
       fastify:
         specifier: '>=5.8.3'
         version: 5.8.5

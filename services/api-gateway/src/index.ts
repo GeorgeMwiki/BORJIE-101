@@ -223,6 +223,10 @@ import { pilotFeedbackRouter } from './routes/pilot-feedback.hono';
 // `services.sentryToGithubBridge`; when unbound the route returns 503
 // with a clear "not wired" body.
 import { sentryWebhookRouter } from './routes/sentry-webhook.hono';
+// LP-25 / LP-30 — unified channel ingress (whatsapp/sms/voice/email/web)
+// + feature-phone USSD session webhook. Signature-verify-first, then
+// sender->tier resolution and cross-channel state-sync. See route file.
+import { createChannelsRouter } from './routes/channels.hono';
 // Piece L brain↔tab loop — module update proposals (CRUD + approval).
 import proposalsRouter from './routes/proposals.hono';
 // Scope segmentation taxonomy + nodes (Wave SCOPE-SEGMENTATION).
@@ -605,6 +609,12 @@ import {
   createCognitiveContextMiddleware,
   type WiredCognitive,
 } from './composition/cognitive-wiring';
+// LP-30 — composer deep-execution deps. Builds the 10-port CompositionDeps
+// whose `cot` + `substrate` ports run the real `runLATS` +
+// `discoverReasoningStructure` executors. Threaded into `wireCognitive` so
+// the TTC-routed deep composer is live (flag default ON, fail-safe).
+import { buildCognitiveCompositionDeps } from './composition/cognitive-composition-deps-wiring';
+import { resolveSkillEmbedder } from './composition/sovereign';
 import {
   createHeartbeatSupervisor,
   createBackgroundSupervisor,
@@ -1031,10 +1041,17 @@ wireTranslation({ db: getDb(), logger });
 // ----------------------------------------------------------------------------
 // R8 wiring follow-up — construct the cognitive-memory + persistent-memory
 // bundles so brain-turn handlers can prepend recalled context to the system
-// prompt. The 12-wire cognitive-composition.compose() pipeline is deferred
-// until the cognitive-engine / brain-llm-router / calibration ports land
-// (see composition/cognitive-wiring.ts file header). Construction is
-// fail-soft: a broken bundle degrades to null and enrichment short-circuits.
+// prompt.
+//
+// LP-30 — the 12-wire cognitive-composition.compose() pipeline is now LIVE:
+// `compositionDeps` supplies the 10 ports, whose `cot` + `substrate` ports run
+// the real `@borjie/extended-reasoning` `runLATS` and
+// `@borjie/reasoning-substrate` `discoverReasoningStructure` executors. The
+// composer is TTC-routed (Self-Discover / LATS) and gated by
+// `BORJIE_COGNITIVE_COMPOSER_ENABLED` (default ON; only '0'/'false'/'off'
+// disables). Construction is fail-soft: a broken bundle degrades to null,
+// `runForTurn` returns null on any error, and enrichment falls back to
+// memory-recall-only — the gateway always boots and always serves the turn.
 // ----------------------------------------------------------------------------
 const wiredCognitive: WiredCognitive = wireCognitive({
   db: getDb(),
@@ -1044,6 +1061,17 @@ const wiredCognitive: WiredCognitive = wireCognitive({
     warn: (message, meta) => logger.warn(meta ?? {}, message),
     error: (message, meta) => logger.error(meta ?? {}, message),
   },
+  // LP-30 — turn the deep composer on. The embedder is shared with the kernel
+  // + skill retriever; the inference port falls back to a deterministic
+  // degraded stub when no Anthropic key is present so the pipeline still runs.
+  compositionDeps: buildCognitiveCompositionDeps({
+    embedder: resolveSkillEmbedder(),
+    logger: {
+      info: (meta, msg) => logger.info(meta, msg),
+      warn: (meta, msg) => logger.warn(meta, msg),
+    },
+  }),
+  env: process.env,
 });
 
 // Wave 12 — heartbeat engine + Wave 27 Agent F risk-recompute dispatcher.
@@ -1703,6 +1731,14 @@ api.route('/pilot/feedback', pilotFeedbackRouter);
 // returns 503 with a clear "not wired" body. HMAC signature verified
 // via SENTRY_WEBHOOK_SECRET env var (see route file).
 api.route('/webhooks/sentry', sentryWebhookRouter);
+// LP-25 / LP-30 — unified channel ingress + USSD. Mounted at
+// /api/v1/webhooks/channels/:channel (POST) and
+// /api/v1/webhooks/channels/ussd/session (POST). Signature is verified
+// FIRST on the raw body (fail-closed); an invalid signature returns 400
+// and never reaches the brain. Sender->tier is fail-soft (anonymous on
+// no match). In-memory stores by default; production injects Redis-backed
+// conversation + USSD session stores.
+api.route('/webhooks/channels', createChannelsRouter());
 // Piece L brain↔tab loop — module update proposals CRUD + audit.
 // Tenant-scoped via the route's auth middleware; RLS belt-and-braces.
 api.route('/proposals', proposalsRouter);

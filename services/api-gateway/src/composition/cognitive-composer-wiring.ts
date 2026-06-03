@@ -149,15 +149,19 @@ function clamp01(n: number): number {
 export const COGNITIVE_COMPOSER_FLAG = 'BORJIE_COGNITIVE_COMPOSER_ENABLED';
 
 /**
- * Resolve the composer flag from an env-like record. Defaults OFF — the
- * deep composer is opt-in until the reasoning packages are installed and
- * the serial pass flips the default. `'1'` / `'true'` enable it.
+ * Resolve the composer flag from an env-like record. LP-30 flipped the
+ * default to ON now that the reasoning packages (`@borjie/extended-reasoning`
+ * + `@borjie/reasoning-substrate`) are wired and the executor is fail-safe
+ * (any composer error falls back to memory-recall-only enrichment — see
+ * `wireCognitiveComposer.runForTurn`). Only the literal `'0'` / `'false'` /
+ * `'off'` disables it, so operators can still kill the deep composer without
+ * a redeploy.
  */
 export function isCognitiveComposerEnabled(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
-  const raw = env[COGNITIVE_COMPOSER_FLAG];
-  return raw === '1' || raw === 'true';
+  const raw = env[COGNITIVE_COMPOSER_FLAG]?.trim().toLowerCase();
+  return !(raw === '0' || raw === 'false' || raw === 'off');
 }
 
 // ---------------------------------------------------------------------------
