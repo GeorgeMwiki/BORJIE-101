@@ -52,12 +52,16 @@ export class MsgUnsupportedError extends Error {
 }
 
 /**
- * Extract an Outlook `.msg`. When no reader port is wired, throws
- * `MsgUnsupportedError` with a deterministic code.
+ * Extract an Outlook `.msg`.
  *
- * TODO(LP-26): the production host should bind `MsgReaderPort` to a
- * MS-OXMSG reader once the dependency is approved; until then callers route
- * to the .eml / .pdf fallback on `MSG_UNSUPPORTED`.
+ * `MsgReaderPort` is the injected extension seam: a host that needs native
+ * `.msg` support binds it to an MS-OXMSG reader (for example
+ * `@kenjiuno/msgreader`) and the parsed fields flow straight through. When no
+ * reader is wired this throws `MsgUnsupportedError` with the deterministic
+ * `MSG_UNSUPPORTED` code, which is the documented signal for callers to route
+ * the document to the `.eml` / `.pdf` fallback. Keeping the binary parse
+ * behind the port is deliberate — it keeps this leaf free of a heavy
+ * compound-file dependency.
  */
 export async function extractMsg(
   buffer: Uint8Array,

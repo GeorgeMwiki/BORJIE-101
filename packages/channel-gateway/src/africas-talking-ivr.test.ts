@@ -63,6 +63,46 @@ describe('IVR state machine', () => {
     expect(r.xml).toContain('Asante');
   });
 
+  it('emits a Record callbackUrl when one is threaded through', () => {
+    const r = stepIvr({
+      sessionId: 's',
+      callerNumber: '+255700111222',
+      state: 'report_amount',
+      language: 'en',
+      digits: '50',
+      recordCallbackUrl: 'https://hooks.example/ivr/rec/s',
+    });
+    expect(r.nextState).toBe('report_capture');
+    expect(r.xml).toContain('<Record');
+    expect(r.xml).toContain('callbackUrl="https://hooks.example/ivr/rec/s"');
+  });
+
+  it('omits callbackUrl when none is provided', () => {
+    const r = stepIvr({
+      sessionId: 's',
+      callerNumber: '+255700111222',
+      state: 'report_amount',
+      language: 'en',
+      digits: '50',
+    });
+    expect(r.xml).toContain('<Record');
+    expect(r.xml).not.toContain('callbackUrl=');
+  });
+
+  it('escapes an attacker-influenced callback URL inside the attribute', () => {
+    const r = stepIvr({
+      sessionId: 's',
+      callerNumber: '+255700111222',
+      state: 'report_amount',
+      language: 'en',
+      digits: '50',
+      recordCallbackUrl: 'https://e.example/"><Hangup/><Say>pwn',
+    });
+    // The injected quote/angle-brackets must be escaped, never break out.
+    expect(r.xml).not.toContain('"><Hangup/>');
+    expect(r.xml).toContain('&quot;&gt;&lt;Hangup/&gt;');
+  });
+
   it('escapes XML in spoken text', () => {
     // All canned strings are safe; assert the helper escapes by checking a
     // step that includes an apostrophe-free string still well-forms.

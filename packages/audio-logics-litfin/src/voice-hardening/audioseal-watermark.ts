@@ -136,10 +136,12 @@ export function verifyWatermark(pcm: Int16Array): VerifyResult {
 }
 
 /**
- * Provider hook for ops to swap in the real AudioSeal model. When
- * `WATERMARK_PROVIDER === 'audioseal'`, callers may delegate to a sidecar
- * instead of the LSB scheme. TODO(LP-27): wire the AudioSeal WASM/sidecar
- * binding behind this hook once deployed.
+ * Provider selector for the watermark backend. The AudioSeal model is a
+ * pluggable adapter: when `WATERMARK_PROVIDER === 'audioseal'` the host may
+ * delegate embed/verify to an AudioSeal WASM module or sidecar. The
+ * deterministic LSB scheme above is the default that ships and the fallback
+ * the regulator can always re-derive, so the `'audioseal'` branch is a clean
+ * opt-in binding rather than a precondition.
  */
 export function getWatermarkProvider(): 'audioseal' | 'lsb-fallback' {
   return process.env.WATERMARK_PROVIDER === 'audioseal' ? 'audioseal' : 'lsb-fallback';

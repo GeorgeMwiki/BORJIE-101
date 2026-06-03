@@ -7,19 +7,21 @@
  * TZ/KE/UG/RW voice gateway (TCRA-licensed); the IVR is modelled as a pure
  * state machine that returns the XML AT expects per step.
  *
- * What is REAL here:
+ * What this leaf owns:
  *   - The IVR state machine (`stepIvr`) — fully implemented + tested,
  *     bilingual, mining-re-skinned (report output / hear royalty).
  *   - The inline STT path (`transcribeRecording`) reusing an injected STT
  *     port (the `@borjie/audio-capture` STTPort shape) + the SSRF-safe fetch
  *     port for the attacker-influenceable recording URL.
+ *   - The `<Response>` XML builder, which emits the common AT verb set
+ *     (`<Say>`, `<GetDigits>`, `<Record>` with its `callbackUrl`, `<Dial>`,
+ *     `<Hangup>`, `<Redirect>`) for the steps the state machine drives.
  *
- * What is SCAFFOLDED (TODO(LP-25)):
- *   - The exact AT `<Response>` verb attributes and the callback parameter
- *     names (`isActive`, `recordingUrl`, `dtmfDigits`, ...) are AT-specific;
- *     the helpers below emit the common subset and mark the gaps. Outbound
- *     call placement + AT HMAC-SHA1 signature live behind the gateway's
- *     SignatureVerifier and the host's HTTP client, not in this leaf.
+ * Where the host extends:
+ *   - Inbound webhook signature verification (AT HMAC-SHA1) and outbound call
+ *     placement are not leaf concerns. They live behind the gateway's
+ *     injected `SignatureVerifier` and the host's HTTP client, so this module
+ *     stays a pure, network-free state machine + XML serialiser.
  *
  * @module @borjie/channel-gateway/africas-talking-ivr
  */
@@ -69,6 +71,13 @@ export interface IvrInput {
   readonly language?: IvrLanguage;
   /** DTMF digits from the prior step, if any. */
   readonly digits?: string;
+  /**
+   * Absolute HTTPS URL AT posts the finished recording to. The host derives
+   * it per session (webhook base + sessionId) and threads it through so the
+   * `report_capture` step can emit `<Record callbackUrl=...>`. When absent,
+   * AT posts the recording to the same `action` URL as the call.
+   */
+  readonly recordCallbackUrl?: string;
 }
 
 export interface IvrStepResponse {
@@ -171,7 +180,11 @@ export function stepIvr(input: IvrInput): IvrStepResponse {
               ? saySw('Eleza maelezo ya uzalishaji baada ya mlio. Bonyeza nyota ukimaliza.')
               : sayEn('Describe the output after the beep. Press star when done.'),
           ],
-          { record: true, finishOnKey: '*' },
+          {
+            record: true,
+            finishOnKey: '*',
+            ...(input.recordCallbackUrl ? { recordCallbackUrl: input.recordCallbackUrl } : {}),
+          },
         ),
       };
     }
@@ -277,7 +290,7 @@ export async function transcribeRecording(
 }
 
 // ----------------------------------------------------------------------------
-// XML helpers (AT subset; TODO(LP-25) for full verb attribute coverage)
+// XML helpers (Africa's Talking `<Response>` serialiser)
 // ----------------------------------------------------------------------------
 
 interface ResponseOptions {
@@ -285,17 +298,24 @@ interface ResponseOptions {
   readonly finishOnKey?: string;
   readonly hangup?: boolean;
   readonly record?: boolean;
+  /**
+   * Absolute HTTPS URL AT posts the finished `recordingUrl` to. Emitted as
+   * the `<Record callbackUrl=...>` attribute. Omitted when absent so AT
+   * defaults to the call's `action` URL.
+   */
+  readonly recordCallbackUrl?: string;
+  /** When set, emit a `<Dial phoneNumbers=...>` to bridge to a human/queue. */
+  readonly dialTo?: string;
+  /** When set, emit a `<Redirect>` to hand control to another webhook step. */
+  readonly redirectTo?: string;
 }
 
 /**
- * Build an AT `<Response>` body. Emits the common subset of verbs
- * (`<Say>`, `<GetDigits>`, `<Record>`, `<Hangup>`).
- *
- * TODO(LP-25): AT supports additional verbs + attributes (`<Dial>`,
- * `<Enqueue>`, `callbackUrl`, `playBeep`, `maxLength` tuning, `<Redirect>`).
- * Wire the full attribute set + the `action` callback URL once the AT voice
- * number and webhook host are provisioned. The state machine above is the
- * stable contract; only the XML surface needs completing.
+ * Build an AT `<Response>` body for the verbs the IVR drives: `<Say>`,
+ * `<GetDigits>`, `<Record>` (with its `callbackUrl`), `<Dial>`, `<Redirect>`,
+ * and `<Hangup>`. All caller-supplied URLs are XML-escaped, so an injected
+ * callback/redirect URL cannot break out of its attribute. The state machine
+ * above is the stable contract; this serialiser is its only XML surface.
  */
 function buildResponse(children: string[], opts: ResponseOptions = {}): string {
   const body: string[] = ['<?xml version="1.0"?>', '<Response>'];
@@ -305,12 +325,22 @@ function buildResponse(children: string[], opts: ResponseOptions = {}): string {
     body.push(...children);
     body.push('</GetDigits>');
   } else if (opts.record) {
-    // TODO(LP-25): add `callbackUrl` so AT posts the finished recordingUrl.
-    body.push(`<Record finishOnKey="${opts.finishOnKey ?? '*'}" maxLength="60" trimSilence="true">`);
+    const callback = opts.recordCallbackUrl
+      ? ` callbackUrl="${escapeXml(opts.recordCallbackUrl)}"`
+      : '';
+    body.push(
+      `<Record finishOnKey="${opts.finishOnKey ?? '*'}" maxLength="60" trimSilence="true" playBeep="true"${callback}>`,
+    );
     body.push(...children);
     body.push('</Record>');
   } else {
     body.push(...children);
+  }
+  if (opts.dialTo) {
+    body.push(`<Dial phoneNumbers="${escapeXml(opts.dialTo)}"/>`);
+  }
+  if (opts.redirectTo) {
+    body.push(`<Redirect>${escapeXml(opts.redirectTo)}</Redirect>`);
   }
   if (opts.hangup) body.push('<Hangup/>');
   body.push('</Response>');

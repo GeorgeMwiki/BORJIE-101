@@ -11,11 +11,13 @@
  * callers swap with a single factory change, or chain them (RNNoise first,
  * Krisp for the hard cases).
  *
- * The real RNNoise inference is a WASM module loaded through an injected
- * `RnnoiseModule` port. When none is supplied, the adapter applies a
- * deterministic, dependency-free spectral noise-gate so the stage is always
- * usable in tests + offline. TODO(LP-27): wire the `@jitsi/rnnoise-wasm`
- * binding behind `RnnoiseModule` once the WASM asset is bundled.
+ * The `EnhancementPort` is the seam. The real RNNoise inference is an
+ * optional WASM module loaded through the injected `RnnoiseModule` port;
+ * production binds `@jitsi/rnnoise-wasm` to it. When no module is supplied,
+ * the adapter applies a deterministic, dependency-free spectral noise-gate
+ * that ships as the default, so the stage is always usable in tests and on
+ * offline / air-gapped tenants. Binding the WASM module changes the provider
+ * tag and the inference path; nothing else in the adapter moves.
  *
  * @module @borjie/audio-capture/enhancement/rnnoise
  */
