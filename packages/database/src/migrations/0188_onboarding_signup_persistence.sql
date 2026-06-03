@@ -178,4 +178,26 @@ BEGIN
   END IF;
 END $$;
 
+-- ─── Lock down: SERVICE-MANAGED ONLY (never exposed via the Supabase REST API).
+-- These pre-tenant tables hold password hashes + verification secrets, and the
+-- RLS policy above is permissive (USING true) because there is no tenant GUC to
+-- gate on. Isolation therefore MUST come from table-level grants: revoke all
+-- access from the PostgREST API roles (anon, authenticated) so a `USING(true)`
+-- policy can never serve a password hash over the public API. Only the gateway's
+-- privileged DB connection (and BYPASSRLS service_role) may touch these rows.
+-- Guarded by role existence so the migration also applies on a vanilla PG.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON owner_onboarding_credentials   FROM anon;
+    REVOKE ALL ON onboarding_signup_sessions      FROM anon;
+    REVOKE ALL ON onboarding_email_verifications  FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON owner_onboarding_credentials   FROM authenticated;
+    REVOKE ALL ON onboarding_signup_sessions      FROM authenticated;
+    REVOKE ALL ON onboarding_email_verifications  FROM authenticated;
+  END IF;
+END $$;
+
 COMMIT;
