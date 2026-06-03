@@ -183,4 +183,17 @@ export interface OrchestratorOptions {
   readonly resultSink?: (result: PassResult) => void;
   /** Sink — orchestrator calls this for every heartbeat tick decision. */
   readonly tickSink?: (tick: HeartbeatTick) => void;
+  /**
+   * Optional durable execution seam. When provided, the orchestrator
+   * DELEGATES execution of the dispatched passes to this runner instead of
+   * invoking them inline. The production composition root supplies a runner
+   * backed by {@link runSleepTick} + a {@link SleepRunStore} so every pass run
+   * is bookended by a durable `brain_sleep_runs` row (and its emissions
+   * persisted). Each `PassResult` the runner returns is still forwarded to
+   * {@link resultSink}. When omitted, the orchestrator runs passes inline (the
+   * in-process default — used by unit tests and the no-DB fallback path).
+   */
+  readonly runDispatched?: (
+    passes: ReadonlyArray<SleepPass>,
+  ) => Promise<ReadonlyArray<PassResult>>;
 }

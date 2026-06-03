@@ -58,6 +58,11 @@ import {
   runOcrExtractionPollWithGatewayAdapters,
   type OcrExtractionDb,
 } from './tasks/ocr-extraction-task.js';
+import {
+  buildLedgerAttestorCronDeps,
+  runLedgerAttestorCron,
+  type AttestorDbLike,
+} from './tasks/ledger-attestor-cron.js';
 
 // Async per-upload OCR + full-text extraction poll cadence. Documents that
 // flip to `ingestion_status='ready'` are picked up here; default every 30s,
@@ -77,6 +82,17 @@ function resolveOrchestratorIntervalMs(): number {
   const raw = Number(process.env.CONSOLIDATION_ORCHESTRATOR_INTERVAL_MS);
   if (!Number.isFinite(raw) || raw <= 0) return 24 * 60 * 60 * 1000;
   return Math.min(Math.max(Math.floor(raw), 60_000), 7 * 24 * 60 * 60 * 1000);
+}
+
+// Ledger / audit hash-chain attestor cadence (LP-19). The attestor is a
+// read-only periodic job that signs a Merkle root over the ledger + audit
+// chains and publishes the checkpoint to a WORM sink. Documented default is
+// HOURLY; env-tunable + clamped to [5min, 24h] so a deploy can dial it for
+// staging without letting it run unboundedly often.
+function resolveAttestorIntervalMs(): number {
+  const raw = Number(process.env.LEDGER_ATTEST_INTERVAL_MS);
+  if (!Number.isFinite(raw) || raw <= 0) return 60 * 60 * 1000;
+  return Math.min(Math.max(Math.floor(raw), 5 * 60 * 1000), 24 * 60 * 60 * 1000);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -597,6 +613,13 @@ export async function main(options: MainOptions = {}): Promise<void> {
     }
   }
 
+  // Read-only client for the ledger attestor (it MUST never write ledger
+  // rows). Prefer the gateway's read-replica accessor; alias the primary
+  // `db` when no distinct replica is configured or the accessor is absent
+  // (test-injected db, fresh checkout). Failure to resolve a readonly client
+  // is non-fatal — the attestor falls back to the primary connection.
+  const attestorDb = await resolveReadonlyDb(db, options);
+
   const source = createReservoirSource(db);
   const sink = createSemanticAdapter(db);
   const consolidator = createStubConsolidator();
@@ -718,6 +741,50 @@ export async function main(options: MainOptions = {}): Promise<void> {
   // not wait a full interval. Fire-and-forget — the tick is self-guarding.
   void runOrchestratorTick();
 
+  // ───────────────────────────────────────────────────────────────────
+  // Ledger / audit hash-chain attestor (LP-19). Read-only periodic job:
+  // computes + signs a Merkle root over `ledger_entries` and
+  // `ai_audit_chain`, publishes the signed checkpoint to a WORM sink
+  // (in-memory always; env-gated S3 object-lock when LEDGER_ATTEST_BUCKET
+  // is set). Built ONCE so the checkpoint store chains prevRoot across
+  // ticks; fires hourly + once on boot.
+  //
+  // Fail-safe at three layers: `runAttestation` isolates per-chain
+  // failures, `runLedgerAttestorCron` warns when failed>0, and the
+  // tick wrapper try/catches so a source/DB error degrades to a logged
+  // no-op — a cron error never crashes the supervisor. Ticks never
+  // overlap.
+  const attestorIntervalMs = resolveAttestorIntervalMs();
+  const attestorDeps = await buildLedgerAttestorCronDeps(
+    attestorDb as AttestorDbLike,
+  );
+  let attestorTickInFlight = false;
+  const runAttestorTick = async (): Promise<void> => {
+    if (attestorTickInFlight) return; // never overlap ticks
+    attestorTickInFlight = true;
+    try {
+      await runLedgerAttestorCron(attestorDeps);
+    } catch (err) {
+      logger.warn(
+        { reason: asMessage(err) },
+        'consolidation-worker: ledger-attestor tick failed',
+      );
+    } finally {
+      attestorTickInFlight = false;
+    }
+  };
+  const attestorHandle = setInterval(
+    () => void runAttestorTick(),
+    attestorIntervalMs,
+  );
+  attestorHandle.unref();
+  logger.info(
+    { attestorIntervalMs, sinks: attestorDeps.sinks.length },
+    'consolidation-worker: ledger-attestor started',
+  );
+  // Fire once on boot so a fresh deploy has an immediate signed checkpoint.
+  void runAttestorTick();
+
   // SIGTERM-safe shutdown.
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {
@@ -727,6 +794,7 @@ export async function main(options: MainOptions = {}): Promise<void> {
     loop.stop();
     clearInterval(ocrPollHandle);
     clearInterval(orchestratorHandle);
+    clearInterval(attestorHandle);
     // Give in-flight tick room to finish (the loop's safeTick is
     // already guarded; we just want to flush pending logs before exit).
     setTimeout(() => process.exit(0), 50).unref();
@@ -811,4 +879,31 @@ function normaliseSignalType(v: unknown): ImplicitSignalEntry['signalType'] {
 
 function asMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Resolve a read-only Drizzle client for the ledger attestor. A test-injected
+ * `options.db` is used as-is (one client serves both roles in tests).
+ * Otherwise the gateway's `getDbReadonly()` is preferred (routes to the read
+ * replica when DATABASE_URL_READONLY is distinct, else aliases the primary
+ * pool). Any failure falls back to the already-resolved primary `db` — the
+ * attestor query is read-only either way, so the replica is an optimisation,
+ * not a correctness requirement.
+ */
+async function resolveReadonlyDb(
+  primary: DrizzleLikeClient,
+  options: MainOptions,
+): Promise<DrizzleLikeClient> {
+  if (options.db) return primary;
+  try {
+    const mod = (await import(
+      // @ts-expect-error — sibling-service import resolved by pnpm symlink
+      '../../api-gateway/dist/composition/db-client.js'
+    )) as { getDbReadonly?: () => unknown };
+    const ro = (mod.getDbReadonly?.() ?? null) as DrizzleLikeClient | null;
+    return ro ?? primary;
+  } catch (error) {
+    logger.warn('[consolidation-worker] readonly db-client import failed — attestor uses primary connection', { value: asMessage(error) });
+    return primary;
+  }
 }
