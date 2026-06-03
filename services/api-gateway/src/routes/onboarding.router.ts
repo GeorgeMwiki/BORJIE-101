@@ -20,20 +20,15 @@
  *   5. GET  /checklist             — returns the 8-step onboarding
  *                                    checklist + per-step completion state
  *
- * Storage is in-memory pilot-grade. The shape matches the final HTTP
- * contract so mobile/web can dev against it; swapping to Drizzle is a
- * follow-up (tracked at KI-013, see Docs/KNOWN_ISSUES.md).
+ * Storage: Drizzle when a db handle is present (DATABASE_URL configured);
+ * in-process in-memory store when DATABASE_URL is missing (dev/test mode).
+ * This pattern mirrors brain-tab-loop-wiring.ts and calendar-wiring.ts.
+ * KI-013 is closed by this change.
  *
- * HIGH-1 (audit .audit/post-pr90-api-mcp-bug-sweep.md): For single-pod
- * deploys this is correct. For multi-pod deploys email-verification
- * links routed to a different pod cannot resolve. The audit-recommended
- * fix is a `onboarding_sessions` + `onboarding_verifications` drizzle
- * migration; until that lands, callers must scale to exactly one
- * onboarding pod OR enable sticky sessions on the load-balancer for
- * `/onboarding/*` paths. The one immediate hardening shipped here is
- * to NOT burn the verification token before the credential lookup
- * succeeds — that bug compounded the multi-pod failure by stranding
- * the user with no retry option.
+ * HIGH-1 (audit .audit/post-pr90-api-mcp-bug-sweep.md): The multi-pod
+ * email-verification split-brain risk is fully resolved by Drizzle
+ * persistence — all pods share the same Postgres rows. The one-shot
+ * token hardening (don't burn before credential lookup) is preserved.
  *
  * Mounted in index.ts BEFORE the existing /onboarding (customer move-in)
  * router so the specific paths above match first. Anything that doesn't
@@ -48,12 +43,19 @@ import { randomUUID, randomBytes } from 'crypto';
 import { runWelcomeCoordinator } from '../composition/onboarding-welcome-md';
 
 import { withSecurityEvents } from '@borjie/observability';
+import { logger } from '../utils/logger';
+import {
+  createInMemoryOnboardingStore,
+  createDrizzleOnboardingStore,
+  DuplicateEmailError,
+  type OnboardingStore,
+  type OnboardingSession,
+  type OnboardingFlowStep,
+  type OnboardingFlowStepId,
+} from './onboarding-store';
+
 // ---------------------------------------------------------------------------
-// Crypto-grade ID generation (replaces former Math.random() usage).
-//
-// CRITICAL #2: session tokens MUST be unguessable; `Math.random()` is
-// trivially predictable and leaks credentials via signup-replay. Use
-// crypto.randomBytes for tokens, crypto.randomUUID for other IDs.
+// Crypto helpers
 // ---------------------------------------------------------------------------
 
 /** Cryptographically-strong session token (32 bytes → 43 base64url chars). */
@@ -64,73 +66,20 @@ function newSessionToken(): string {
 /** Bcrypt cost factor — kept at 10 for parity with auth.ts. */
 const BCRYPT_COST = 10;
 
-interface OwnerCredentialStore {
-  emailToTenantId: Map<string, string>; // normalized email → tenantId
-  tenantIdToCredential: Map<
-    string,
-    {
-      ownerUserId: string;
-      email: string;
-      passwordHash: string;
-      emailVerifiedAt: string | null;
-      createdAt: string;
-    }
-  >;
-}
-
-const credentials: OwnerCredentialStore = {
-  emailToTenantId: new Map(),
-  tenantIdToCredential: new Map(),
-};
+/** Module-singleton in-memory store. Used when DATABASE_URL is absent. */
+const sharedInMemoryStore: OnboardingStore = createInMemoryOnboardingStore();
 
 // ---------------------------------------------------------------------------
-// Types + in-memory store
+// ID generation
 // ---------------------------------------------------------------------------
 
-type OnboardingFlowStepId =
-  | 'account_created'
-  | 'verify_email'
-  | 'first_site'
-  | 'first_workforce_import'
-  | 'first_md_chat'
-  | 'owner_intent'
-  | 'install_starter_skills'
-  | 'schedule_daily_briefing';
-
-interface OnboardingFlowStep {
-  readonly id: OnboardingFlowStepId;
-  readonly label: string;
-  readonly description: string;
-  readonly completed: boolean;
-  readonly completedAt?: string;
-  readonly meta?: Readonly<Record<string, unknown>>;
+function newId(prefix: string): string {
+  return `${prefix}_${randomUUID()}`;
 }
 
-interface OnboardingFlowSession {
-  readonly id: string;
-  readonly tenantId: string;
-  readonly ownerUserId: string;
-  readonly email: string;
-  readonly businessName: string;
-  readonly country: string;
-  readonly sessionToken: string;
-  readonly createdAt: string;
-  readonly steps: ReadonlyArray<OnboardingFlowStep>;
-  readonly intent?: 'cashflow' | 'growth' | 'exit';
-  readonly firstSiteId?: string;
-  readonly firstChatThreadId?: string;
-  readonly suggestedSkills?: ReadonlyArray<string>;
-}
-
-const sessions = new Map<string, OnboardingFlowSession>(); // keyed by tenantId
-const sessionsByToken = new Map<string, string>(); // sessionToken → tenantId
-
-// Pending email-verification tokens. Burned on first use. In production
-// composition this lands in a Drizzle row with a short TTL + audit trail.
-const pendingEmailVerifications = new Map<
-  string,
-  { tenantId: string; email: string; issuedAtMs: number }
->();
+// ---------------------------------------------------------------------------
+// Step helpers
+// ---------------------------------------------------------------------------
 
 const DEFAULT_STEPS: ReadonlyArray<OnboardingFlowStep> = Object.freeze([
   {
@@ -183,12 +132,6 @@ const DEFAULT_STEPS: ReadonlyArray<OnboardingFlowStep> = Object.freeze([
   },
 ]);
 
-function newId(prefix: string): string {
-  // crypto.randomUUID() (122 bits of entropy) replaces the predictable
-  // Math.random()-based generator. Used for tenantId / ownerUserId / etc.
-  return `${prefix}_${randomUUID()}`;
-}
-
 function markStep(
   steps: ReadonlyArray<OnboardingFlowStep>,
   id: OnboardingFlowStepId,
@@ -206,33 +149,40 @@ function markStep(
   );
 }
 
-function getSessionByTenant(tenantId: string): OnboardingFlowSession | null {
-  return sessions.get(tenantId) ?? null;
+// ---------------------------------------------------------------------------
+// Store resolver
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the right store for this request context.
+ * If a db handle is in context, use Drizzle. Otherwise fall back to the
+ * process-level in-memory singleton (dev / test mode).
+ */
+function resolveStore(c: { get(key: string): unknown }): OnboardingStore {
+  const db = c.get('db');
+  if (db != null) {
+    return createDrizzleOnboardingStore(db);
+  }
+  return sharedInMemoryStore;
 }
 
-function getSessionByToken(token: string): OnboardingFlowSession | null {
-  const tenantId = sessionsByToken.get(token);
-  if (!tenantId) return null;
-  return getSessionByTenant(tenantId);
-}
+// ---------------------------------------------------------------------------
+// Session resolver (header-first; auth fallback)
+// ---------------------------------------------------------------------------
 
-// Best-effort header-or-body resolver: signup returns a sessionToken; we
-// accept either a bearer in `Authorization` (after the owner is logged in
-// via auth.ts) OR `x-onboarding-session` so the still-anonymous post-signup
-// page can drive the remaining endpoints before email verification.
-function resolveSession(c: any): OnboardingFlowSession | null {
+async function resolveSession(
+  c: any,
+  store: OnboardingStore,
+): Promise<OnboardingSession | null> {
   const tokenHeader =
     c.req.header('x-onboarding-session') ??
     (c.req.header('authorization')?.replace(/^Bearer\s+/i, '') ?? '');
   if (tokenHeader) {
-    const byToken = getSessionByToken(tokenHeader);
+    const byToken = await store.getSessionByToken(tokenHeader);
     if (byToken) return byToken;
   }
-  // Fallback: callers wired through the post-login authMiddleware will set
-  // `c.var.auth` — we can resolve by tenantId. We keep this best-effort and
-  // gateway-agnostic so unit tests don't have to mount the full middleware.
   const auth = c.get?.('auth');
-  if (auth?.tenantId) return getSessionByTenant(String(auth.tenantId));
+  if (auth?.tenantId) return store.getSessionByTenant(String(auth.tenantId));
   return null;
 }
 
@@ -243,21 +193,19 @@ function resolveSession(c: any): OnboardingFlowSession | null {
 const SignupSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(200),
-  country: z.string().min(2).max(3), // ISO-3166 alpha-2 or alpha-3
+  country: z.string().min(2).max(3),
   businessName: z.string().min(1).max(200),
 });
 
 const FirstSiteSchema = z.object({
   siteName: z.string().min(1).max(200),
-  mineral: z.string().min(1).max(80), // e.g. gold, copper, tanzanite
+  mineral: z.string().min(1).max(80),
   licenceNumber: z.string().min(1).max(120),
   region: z.string().min(1).max(120),
 });
 
 const FirstWorkforceImportSchema = z.object({
   mode: z.enum(['manual', 'csv']),
-  // Manual: a single worker row. CSV: a parsed list (the FE parses
-  // client-side before posting).
   workers: z
     .array(
       z.object({
@@ -265,7 +213,7 @@ const FirstWorkforceImportSchema = z.object({
         lastName: z.string().min(1).max(100),
         phone: z.string().min(5).max(40),
         email: z.string().email().max(255).optional(),
-        role: z.string().min(1).max(100), // e.g. driller, hauler, supervisor
+        role: z.string().min(1).max(100),
         siteLabel: z.string().min(1).max(120),
       }),
     )
@@ -283,81 +231,70 @@ const FirstMdChatSchema = z.object({
 
 const app = new Hono();
 
-// 1. POST /signup -----------------------------------------------------------
+// 1. POST /signup -------------------------------------------------------------
 //
-// CRITICAL #1 + #2 fix:
-//   * Password is bcrypt-hashed (cost 10) and persisted in the credential
-//     store (Phase D wire — pluggable to UserRepository at composition
-//     root).
-//   * Duplicate-email signup returns 409 Conflict with `loginUrl`. We
-//     NEVER return the existing tenant's session token because that
-//     would leak credentials to anyone who knows the email
-//     (signup-replay → account takeover).
+// CRITICAL #1 + #2:
+//   * Password is bcrypt-hashed (cost 10).
+//   * Duplicate-email signup returns 409 Conflict with `loginUrl`.
 //   * Until email is confirmed via `/verify-email`, no session-token is
-//     issued. The response carries `pendingEmailConfirmation: true` and
-//     a one-shot `verificationToken` the FE can wire to the confirm
-//     screen for E2E testability (in production this lands via an
-//     email link, NOT in the HTTP response).
+//     issued. The response carries `pendingEmailConfirmation: true`.
 app.post('/signup', zValidator('json', SignupSchema), withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
   const body = c.req.valid('json');
   const normalizedEmail = body.email.trim().toLowerCase();
-
-  // Duplicate-email defence (CRITICAL #2). Return 409 with a login URL
-  // instead of leaking the existing session token.
-  if (credentials.emailToTenantId.has(normalizedEmail)) {
-    return c.json(
-      {
-        success: false,
-        error: {
-          code: 'email-already-registered',
-          message:
-            'An account with this email already exists. Please sign in instead.',
-          loginUrl: '/auth/login',
-        },
-      },
-      409,
-    );
-  }
+  const store = resolveStore(c);
 
   const passwordHash = await bcrypt.hash(body.password, BCRYPT_COST);
   const tenantId = newId('tn');
   const ownerUserId = newId('usr');
   const createdAt = new Date().toISOString();
 
-  // Persist the credential atomically with the onboarding session. In
-  // production composition the userRepo.create() insert lands here too,
-  // wrapped in the same transaction.
-  credentials.emailToTenantId.set(normalizedEmail, tenantId);
-  credentials.tenantIdToCredential.set(tenantId, {
-    ownerUserId,
-    email: normalizedEmail,
-    passwordHash,
-    emailVerifiedAt: null,
-    createdAt,
-  });
+  try {
+    await store.createCredential({
+      tenantId,
+      ownerUserId,
+      email: normalizedEmail,
+      passwordHash,
+      emailVerifiedAt: null,
+      createdAt,
+    });
+  } catch (err) {
+    if (err instanceof DuplicateEmailError) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'email-already-registered',
+            message:
+              'An account with this email already exists. Please sign in instead.',
+            loginUrl: '/auth/login',
+          },
+        },
+        409,
+      );
+    }
+    logger.error({ err, email: normalizedEmail }, 'signup credential insert failed');
+    throw err;
+  }
 
-  // Email-verification token. Until consumed, no sessionToken is issued.
   const verificationToken = newSessionToken();
-  pendingEmailVerifications.set(verificationToken, {
+  await store.createVerification(verificationToken, {
     tenantId,
     email: normalizedEmail,
     issuedAtMs: Date.now(),
   });
 
-  // Stage the onboarding session WITHOUT issuing a sessionToken. The
-  // session row exists so we can resume after email confirmation.
-  const session: OnboardingFlowSession = {
+  const session: OnboardingSession = {
     id: newId('sess'),
     tenantId,
     ownerUserId,
     email: normalizedEmail,
     businessName: body.businessName.trim(),
     country: body.country.toUpperCase(),
-    sessionToken: '', // empty until email confirmed
+    sessionToken: '',
     createdAt,
     steps: DEFAULT_STEPS,
   };
-  sessions.set(tenantId, session);
+  await store.createSession(session);
 
   return c.json(
     {
@@ -368,10 +305,6 @@ app.post('/signup', zValidator('json', SignupSchema), withSecurityEvents({ actio
         email: normalizedEmail,
         businessName: session.businessName,
         pendingEmailConfirmation: true,
-        // In production, this is sent ONLY via the email-link channel.
-        // The HTTP-response copy is gated behind NODE_ENV !== production
-        // so test suites + the local-dev FE can drive the confirm step
-        // without scraping mailcatcher.
         ...(process.env.NODE_ENV !== 'production'
           ? { verificationToken }
           : {}),
@@ -382,19 +315,22 @@ app.post('/signup', zValidator('json', SignupSchema), withSecurityEvents({ actio
   );
 }));
 
-// 1b. POST /verify-email ----------------------------------------------------
+// 1b. POST /verify-email ------------------------------------------------------
 //
-// Consumes the one-shot verification token from /signup, marks the
-// owner-credential row as email-verified, and ONLY then mints a
-// crypto-grade session token the FE can use to drive the rest of the
-// onboarding flow.
+// Consumes the one-shot verification token, marks the credential
+// email-verified, and ONLY then mints a crypto-grade session token.
 const VerifyEmailSchema = z.object({
   verificationToken: z.string().min(16).max(256),
 });
 
 app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
   const body = c.req.valid('json');
-  const pending = pendingEmailVerifications.get(body.verificationToken);
+  const store = resolveStore(c);
+
+  // HIGH-1 fix: look up WITHOUT burning first, so a miss doesn't strand
+  // the user (multi-pod race on old in-memory code; now irrelevant with
+  // Drizzle, but preserved as defence-in-depth).
+  const pending = await store.getVerification(body.verificationToken);
   if (!pending) {
     return c.json(
       {
@@ -407,12 +343,8 @@ app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEve
       400,
     );
   }
-  // HIGH-1 fix: do NOT burn the token before the credential lookup.
-  // If the lookup misses (e.g. the user signed up on pod A and verified
-  // on pod B in a multi-replica deploy where the in-memory store is
-  // process-local), burning here strands the user — they cannot retry.
-  // We burn ONLY AFTER we know the lookup will succeed.
-  const credential = credentials.tenantIdToCredential.get(pending.tenantId);
+
+  const credential = await store.getCredentialByTenant(pending.tenantId);
   if (!credential) {
     return c.json(
       {
@@ -425,15 +357,29 @@ app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEve
       404,
     );
   }
-  // One-shot — burn the token only after we have committed to using it.
-  pendingEmailVerifications.delete(body.verificationToken);
-  // Immutable update — replace the credential row with verifiedAt set.
-  credentials.tenantIdToCredential.set(pending.tenantId, {
-    ...credential,
-    emailVerifiedAt: new Date().toISOString(),
-  });
 
-  const session = sessions.get(pending.tenantId);
+  // Burn the token only AFTER confirming the credential exists.
+  const consumed = await store.consumeVerification(body.verificationToken);
+  if (!consumed) {
+    // Race: another request consumed it between our getVerification and here.
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'invalid-or-expired-verification-token',
+          message: 'Verification link is invalid or has expired.',
+        },
+      },
+      400,
+    );
+  }
+
+  await store.markCredentialEmailVerified(
+    pending.tenantId,
+    new Date().toISOString(),
+  );
+
+  const session = await store.getSessionByTenant(pending.tenantId);
   if (!session) {
     return c.json(
       {
@@ -446,22 +392,32 @@ app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEve
       404,
     );
   }
-  // Mint a crypto-grade session token NOW (post-confirmation).
+
   const sessionToken = newSessionToken();
-  const updated: OnboardingFlowSession = {
-    ...session,
+  const updated = await store.updateSession(pending.tenantId, {
     sessionToken,
     steps: markStep(session.steps, 'verify_email', {
       verifiedAt: new Date().toISOString(),
     }),
-  };
-  sessions.set(pending.tenantId, updated);
-  sessionsByToken.set(sessionToken, pending.tenantId);
+  });
+
+  if (!updated) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'session-not-found',
+          message: 'Onboarding session missing.',
+        },
+      },
+      404,
+    );
+  }
 
   return c.json({
     success: true,
     data: {
-      sessionToken,
+      sessionToken: updated.sessionToken,
       tenantId: updated.tenantId,
       ownerUserId: updated.ownerUserId,
       email: updated.email,
@@ -471,12 +427,13 @@ app.post('/verify-email', zValidator('json', VerifyEmailSchema), withSecurityEve
   });
 }));
 
-// 2. POST /first-site -------------------------------------------------------
+// 2. POST /first-site ---------------------------------------------------------
 app.post(
   '/first-site',
   zValidator('json', FirstSiteSchema),
   withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
-    const session = resolveSession(c);
+    const store = resolveStore(c);
+    const session = await resolveSession(c, store);
     if (!session) {
       return c.json(
         {
@@ -498,12 +455,10 @@ app.post(
       licenceNumber: body.licenceNumber,
       region: body.region,
     });
-    const updated: OnboardingFlowSession = {
-      ...session,
+    await store.updateSession(session.tenantId, {
       firstSiteId: siteId,
       steps: nextSteps,
-    };
-    sessions.set(session.tenantId, updated);
+    });
     return c.json({
       success: true,
       data: {
@@ -514,12 +469,13 @@ app.post(
   }),
 );
 
-// 3. POST /first-workforce-import ------------------------------------------
+// 3. POST /first-workforce-import ---------------------------------------------
 app.post(
   '/first-workforce-import',
   zValidator('json', FirstWorkforceImportSchema),
   withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
-    const session = resolveSession(c);
+    const store = resolveStore(c);
+    const session = await resolveSession(c, store);
     if (!session) {
       return c.json(
         {
@@ -541,11 +497,7 @@ app.post(
       mode: body.mode,
       count: imported.length,
     });
-    const updated: OnboardingFlowSession = {
-      ...session,
-      steps: nextSteps,
-    };
-    sessions.set(session.tenantId, updated);
+    await store.updateSession(session.tenantId, { steps: nextSteps });
     return c.json({
       success: true,
       data: {
@@ -557,13 +509,10 @@ app.post(
   }),
 );
 
-// 4. POST /first-md-chat ----------------------------------------------------
-//   Kicks off the first MD conversation. Spawns the inline
-//   welcome.coordinator sub-MD which greets the owner, surveys intent,
-//   and suggests 3 starter Skills. This is the owner's first "wow"
-//   moment — keep latency tight (<20s in E2E budget).
+// 4. POST /first-md-chat ------------------------------------------------------
 app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
-  const session = resolveSession(c);
+  const store = resolveStore(c);
+  const session = await resolveSession(c, store);
   if (!session) {
     return c.json(
       {
@@ -585,7 +534,8 @@ app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEv
     ownerPrompt: body.prompt,
   };
   if (session.intent !== undefined) {
-    (welcomeInput as { previousIntent?: typeof session.intent }).previousIntent = session.intent;
+    (welcomeInput as { previousIntent?: typeof session.intent }).previousIntent =
+      session.intent;
   }
   const result = await runWelcomeCoordinator(welcomeInput);
   const threadId = session.firstChatThreadId ?? newId('thr');
@@ -593,13 +543,11 @@ app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEv
     threadId,
     welcomeMessageId: result.messageId,
   });
-  const updated: OnboardingFlowSession = {
-    ...session,
+  await store.updateSession(session.tenantId, {
     firstChatThreadId: threadId,
     suggestedSkills: result.suggestedSkills.map((s) => s.slug),
     steps: nextSteps,
-  };
-  sessions.set(session.tenantId, updated);
+  });
 
   return c.json({
     success: true,
@@ -615,9 +563,10 @@ app.post('/first-md-chat', zValidator('json', FirstMdChatSchema), withSecurityEv
   });
 }));
 
-// 5. GET /checklist ---------------------------------------------------------
+// 5. GET /checklist -----------------------------------------------------------
 app.get('/checklist', async (c) => {
-  const session = resolveSession(c);
+  const store = resolveStore(c);
+  const session = await resolveSession(c, store);
   if (!session) {
     return c.json(
       {
@@ -649,16 +598,11 @@ app.get('/checklist', async (c) => {
   });
 });
 
-// Internal test surface — let tests force a known session into the store.
-// Guarded by NODE_ENV so production never exposes it. This keeps the
-// in-memory pilot store testable without exposing a private API.
+// Internal test surface — resets the in-memory singleton.
+// Guarded by NODE_ENV so production never exposes it.
 if (process.env.NODE_ENV !== 'production') {
-  app.post('/__test__/reset', withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, (c) => {
-    sessions.clear();
-    sessionsByToken.clear();
-    pendingEmailVerifications.clear();
-    credentials.emailToTenantId.clear();
-    credentials.tenantIdToCredential.clear();
+  app.post('/__test__/reset', withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
+    await sharedInMemoryStore.reset();
     return c.json({ success: true });
   }));
 }
