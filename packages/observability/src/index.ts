@@ -335,6 +335,17 @@ export {
 export * from './decision-trace/index.js';
 
 // ============================================================================
+// Model cards — Mitchell et al. 2019 renderer (LP-22b)
+//
+// Pure (record) → Markdown renderer covering intended use, metrics, and
+// disaggregated fairness slices (four-fifths gate). Complements the existing
+// coverage *auditor* (scripts/audit-model-card-coverage.mjs), which only
+// checks card-file existence.
+// ============================================================================
+
+export * from './model-card/index.js';
+
+// ============================================================================
 // Re-exports
 // ============================================================================
 

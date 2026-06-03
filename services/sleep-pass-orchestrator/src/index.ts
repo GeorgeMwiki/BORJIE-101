@@ -31,6 +31,25 @@ export {
   nextDueFrom,
   type Orchestrator,
 } from './orchestrator.js';
+export {
+  runSleepTick,
+  effectiveOverallDurationMs,
+  DEFAULT_OVERALL_DURATION_MS,
+  SERVERLESS_OVERALL_DURATION_MS,
+  type RunSleepTickArgs,
+} from './sleep-tick.js';
+export {
+  raceAgainstAbort,
+  isAbortError,
+  ABORT_REASONS,
+} from './race-against-abort.js';
+export {
+  createDrizzleSleepRunStore,
+  type DrizzleSleepRunStoreOpts,
+  type SleepRunDbClient,
+  type SleepRunDbRow,
+  type SleepRunStoreLogger,
+} from './drizzle-sleep-run-store.js';
 export * from './passes/index.js';
 export {
   buildStandaloneOrchestrator,
