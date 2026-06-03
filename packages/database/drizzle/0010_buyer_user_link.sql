@@ -23,7 +23,13 @@ UPDATE buyers
    SET linked_user_id = contact_name
  WHERE linked_user_id IS NULL
    AND contact_name IS NOT NULL
-   AND contact_name <> '';
+   AND contact_name <> ''
+   -- Only promote contact_name when it is ACTUALLY a valid users.id (the old
+   -- heuristic stored the id verbatim). A real contact name (e.g. a person's
+   -- name like 'Procurement Lead') is NOT a user id; promoting it would make
+   -- the FK below reject the row. Such buyers keep linked_user_id NULL and
+   -- link via KYC. On a fresh/empty buyers table this is a 0-row no-op.
+   AND contact_name IN (SELECT id FROM users);
 
 -- Add FK + uniqueness *after* backfill so the constraints don't reject
 -- pre-existing rows.
