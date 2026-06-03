@@ -10,70 +10,100 @@
       "down": "down/0252_down_land_areas.sql",
       "reverses": "CREATE TABLE land_areas + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0253_parcels.sql",
       "down": "down/0253_down_parcels.sql",
       "reverses": "CREATE TABLE parcels + RLS (CASCADEs 0254..0260)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0264_layout_overrides.sql",
       "down": "down/0264_down_layout_overrides.sql",
       "reverses": "CREATE TABLE layout_overrides + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0266_agency_missions.sql",
       "down": "down/0266_down_agency_missions.sql",
       "reverses": "CREATE TABLE agency_missions + RLS (CASCADEs 0267..0270)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0267_mission_steps.sql",
       "down": "down/0267_down_mission_steps.sql",
       "reverses": "CREATE TABLE mission_steps + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0268_mission_checkpoints.sql",
       "down": "down/0268_down_mission_checkpoints.sql",
       "reverses": "CREATE TABLE mission_checkpoints + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0269_mission_outcomes.sql",
       "down": "down/0269_down_mission_outcomes.sql",
       "reverses": "CREATE TABLE mission_outcomes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0270_mission_drift_log.sql",
       "down": "down/0270_down_mission_drift_log.sql",
       "reverses": "CREATE TABLE mission_drift_log + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0272_tenant_llm_budgets.sql",
       "down": "down/0272_down_tenant_llm_budgets.sql",
       "reverses": "CREATE TABLE tenant_llm_budgets + tenant_llm_budget_caps + index",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0273_payment_event_store.sql",
       "down": "down/0273_down_payment_event_store.sql",
       "reverses": "CREATE TABLE payment_event_store + triggers + functions + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"],
+      "envs": [
+        "dev",
+        "staging"
+      ],
       "criticality": "high",
       "notes": "Event store is audit substrate for rent + arrears. Production down requires export-then-restore plan."
     },
@@ -82,105 +112,180 @@
       "down": "down/0111_down_share_links.sql",
       "reverses": "CREATE TABLE share_links + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0112_undo_journal.sql",
       "down": "down/0112_down_undo_journal.sql",
       "reverses": "CREATE TABLE undo_journal + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0113_pinned_items.sql",
       "down": "down/0113_down_pinned_items.sql",
       "reverses": "CREATE TABLE pinned_items + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0114_outcome_telemetry.sql",
       "down": "down/0114_down_outcome_telemetry.sql",
       "reverses": "CREATE TABLE outcome_predictions + outcome_observations + outcome_reconciliations + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0116_decision_journal.sql",
       "down": "down/0116_down_decision_journal.sql",
       "reverses": "CREATE TABLE decisions + decision_outcomes + decision_links + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0118_oauth_agent_tokens.sql",
       "down": "down/0118_down_oauth_agent_tokens.sql",
       "reverses": "CREATE TABLE oauth_agent_tokens + oauth_device_codes + indexes + RLS",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0119_draft_revisions_provenance_catchup.sql",
       "down": "down/0119_down_draft_revisions_provenance_catchup.sql",
       "reverses": "ADD COLUMN provenance + draft_revisions_provenance_gin (catch-up for the only 0101 table that didn't exist when 0101 ran)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0120_mcp_sessions.sql",
       "down": "down/0120_down_mcp_sessions.sql",
       "reverses": "CREATE TABLE mcp_sessions + indexes + RLS (public MCP server session resume/checkpoint)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0121_oauth_action_approvals.sql",
       "down": "down/0121_down_oauth_action_approvals.sql",
       "reverses": "CREATE TABLE oauth_action_approvals + indexes + RLS (four-eye approval gate for sovereign tool prefixes)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0139_device_push_tokens.sql",
       "down": "down/0139_down_device_push_tokens.sql",
       "reverses": "CREATE TABLE device_push_tokens + uniqueness + RLS (push token registry for the bidirectional notification receiver loop)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0140_corpus_doc_uploads.sql",
       "down": "down/0140_down_corpus_doc_uploads.sql",
       "reverses": "CREATE TABLE corpus_doc_uploads + corpus_doc_summaries + RLS (Company-Brain lossless ingestion — Wave COMPANY-BRAIN C-1)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0148_discovered_jurisdictions.sql",
       "down": "down/0148_down_discovered_jurisdictions.sql",
       "reverses": "CREATE TABLE discovered_jurisdictions + RLS (JC-3 discovery cache — Mr. Mwikila on-demand jurisdiction lookup)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0149_lock_tenant_jurisdiction.sql",
       "down": "down/0149_down_lock_tenant_jurisdiction.sql",
       "reverses": "DROP COLUMN tenants.jurisdiction_locked_at + jurisdiction_locked_by_user_id + FK (JC-4 lock-at-signup invariant)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0150_fix_tenant_id_text_drift.sql",
       "down": "down/0150_down_fix_tenant_id_text_drift.sql",
       "reverses": "CREATE TABLE request_for_bids + request_for_bid_responses + owner_delegation_prefs + mwikila_actions_inbox + RLS (text/uuid tenant_id drift repair after 0127/0128/0129 silently failed on dev DB where tenants.id is text)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
     },
     {
       "up": "0152_restore_audit_chain_append_only.sql",
       "down": "down/0152_down_restore_audit_chain_append_only.sql",
       "reverses": "CREATE TABLE ai_audit_chain + RLS + append-only triggers (BN 0037 + 0127 parity restoration — CLAUDE.md hard rule: hash-chained, append-only AI audit chain)",
       "dataLoss": true,
-      "envs": ["dev", "staging"]
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0274_litfin_belief_learning.sql",
+      "down": "down/0274_down_litfin_belief_learning.sql",
+      "reverses": "CREATE TABLE brain_beliefs + belief_revisions + belief_review_queue + learning_signals + preference_pairs + preference_head_weights + correlation_findings + RLS FORCE + service-managed policy + revoke anon/authenticated (LP-17/18 epistemic belief layer + learning loop)",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0275_ledger_roles.sql",
+      "down": "down/0275_down_ledger_roles.sql",
+      "reverses": "DROP ROLE borjie_ledger_writer + borjie_ledger_reader + their grants (LP-20c ledger role separation — no table/data loss; grants/roles only)",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0276_brain_sleep_runs.sql",
+      "down": "down/0276_down_brain_sleep_runs.sql",
+      "reverses": "CREATE TABLE brain_sleep_runs + brain_sleep_emissions + RLS FORCE + service-managed policy + revoke anon/authenticated (LP-21a sleep-pass durability — replaces the in-memory Map in services/sleep-pass-orchestrator)",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
