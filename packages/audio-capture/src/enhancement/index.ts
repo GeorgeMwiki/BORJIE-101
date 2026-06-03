@@ -16,5 +16,7 @@ export interface EnhancementPort {
 
 export { createResembleEnhanceAdapter } from './resemble.js';
 export { createKrispAdapter } from './krisp.js';
+export { createRnnoiseAdapter } from './rnnoise.js';
+export type { RnnoiseModule, RnnoiseAdapterOptions } from './rnnoise.js';
 export { createMockEnhancement } from './mock.js';
 export { normaliseToLufs } from './loudness.js';

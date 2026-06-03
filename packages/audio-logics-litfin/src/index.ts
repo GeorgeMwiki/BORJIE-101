@@ -12,6 +12,9 @@
  *   7. waveform-ui           — data-only waveform peaks + speaker timeline
  *   8. talk-time-meter       — per-minute talk-time metering
  *   9. quality-scoring       — PESQ-like MOS scoring
+ *  10. voice-hardening       — adversarial/replay classifier + nonce challenge,
+ *                              AI-voice disclosure, AudioSeal watermark,
+ *                              P95-TTFB TTS auto-failover decision (LP-27)
  *
  *   + factory: createAudioLogicsLitfin() composes everything with shared
  *              adapters and a single brain port.
@@ -27,6 +30,7 @@ export * from './emotion-escalation/index.js';
 export * from './waveform-ui/index.js';
 export * from './talk-time-meter/index.js';
 export * from './quality-scoring/index.js';
+export * from './voice-hardening/index.js';
 export {
   createAudioLogicsLitfin,
   type AudioLogicsLitfin,
