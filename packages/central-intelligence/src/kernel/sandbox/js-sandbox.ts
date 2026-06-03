@@ -148,6 +148,33 @@ function warnFallbackOnce(reason: string): void {
       `Snippet isolation is REDUCED: shared V8 heap, weaker timeout enforcement.`);
 }
 
+let _ivmConfirmed = false;
+function confirmIsolatedVmOnce(): void {
+  if (_ivmConfirmed) return;
+  _ivmConfirmed = true;
+  logger.info(
+    `[central-intelligence/sandbox] Backend active: isolated-vm — full V8-isolate ` +
+      `isolation (hard per-context memory cap + structured-clone boundary).`,
+  );
+}
+
+/**
+ * One-shot probe of which sandbox backend THIS process will use, WITHOUT
+ * running a snippet. `'isolated-vm'` = full isolation; `'node-vm-fallback'` =
+ * the reduced shared-heap path (no hard memory cap). Call at service boot to
+ * log / assert the sandbox security posture — a silent fallback in production
+ * means untrusted code runs with weaker isolation. Cheap + memoised (delegates
+ * to loadIvm's own cache).
+ */
+export function probeSandboxBackend(): SandboxBackend {
+  try {
+    loadIvm();
+    return 'isolated-vm';
+  } catch {
+    return 'node-vm-fallback';
+  }
+}
+
 /**
  * Run a JS snippet in a fresh V8 isolate.
  *
@@ -204,6 +231,7 @@ export async function runInSandbox(
   let ivmRuntime: IvmModule;
   try {
     ivmRuntime = loadIvm();
+    confirmIsolatedVmOnce();
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'unknown';
     warnFallbackOnce(reason);

@@ -9,7 +9,7 @@
  *     wrapper. Preferred for all kernel-internal callers.
  */
 
-export { runInSandbox } from './js-sandbox.js';
+export { runInSandbox, probeSandboxBackend } from './js-sandbox.js';
 export {
   runInSandboxWithPolicy,
   makeConsoleAuditAdapter,
