@@ -59,11 +59,14 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/services ./services
 
-# Build api-gateway and every workspace package it transitively
-# depends on. With the per-package node_modules symlinks now present,
-# pnpm's topological order is enough to satisfy the cross-package tsc
-# imports (the previous "topo bug" was actually missing symlinks).
-RUN pnpm --filter=@borjie/api-gateway... --workspace-concurrency=1 build
+# Build api-gateway + its dependency closure AND every workspace package.
+# The extra `--filter=./packages/*` is REQUIRED: several packages declare
+# their @borjie/* imports as `peerDependencies` (to break dep cycles), and
+# `pkg...` only follows `dependencies` — so peer deps never get built and
+# tsc fails with TS2307 (e.g. executive-brief-engine → @borjie/persona-runtime).
+# Building all packages mirrors the (green) workspace CI build and guarantees
+# every peer's dist/types exist before its consumer compiles.
+RUN pnpm --filter='./packages/*' --filter=@borjie/api-gateway... --workspace-concurrency=1 build
 
 # NOTE: production-only pruning (`pnpm deploy --prod`) is intentionally not
 # performed here — in a pnpm workspace with `workspace:*` symlinks, deploy

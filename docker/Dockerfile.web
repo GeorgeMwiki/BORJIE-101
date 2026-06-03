@@ -61,10 +61,56 @@ COPY --from=deps /app/apps ./apps
 # repo at `Docs/api/`. Copy it explicitly so api-sdk's generate runs.
 COPY Docs/api ./Docs/api
 
-# Build the target app + every workspace package it transitively
-# depends on. The per-package node_modules symlinks (preserved by the
-# COPY --from=deps above) make pnpm's topological order sufficient.
-RUN pnpm --filter=@borjie/${APP_NAME}... --workspace-concurrency=1 build
+# Next.js apps assert required NEXT_PUBLIC_* env at BUILD time (e.g. marketing's
+# /robots.txt asserts NEXT_PUBLIC_MARKETING_SITE_URL). Declare them as build-args
+# with unresolvable-placeholder defaults so the image BUILDS in the Docker Build
+# Check (which passes no NEXT_PUBLIC values); real deploys (cd-*.yml) override via
+# `--build-arg`. `.invalid` is a guaranteed-unresolvable host, never fetched.
+ARG NEXT_PUBLIC_APP_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_API_URL=https://ci-build.borjie.invalid/api
+ARG NEXT_PUBLIC_API_GATEWAY_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_API_BASE_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_MARKETING_SITE_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_MARKETING_ORIGIN=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_OWNER_WEB_ORIGIN=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_ADMIN_WEB_ORIGIN=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_OWNER_PORTAL_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_PDFJS_WORKER_URL=https://ci-build.borjie.invalid/pdf.worker.js
+ARG NEXT_PUBLIC_SUPABASE_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-build-anon-key-placeholder
+ARG NEXT_PUBLIC_MAPBOX_TOKEN=pk.ci-build-placeholder
+ARG NEXT_PUBLIC_WORKFORCE_APP_IOS_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_WORKFORCE_APP_ANDROID_URL=https://ci-build.borjie.invalid
+ARG NEXT_PUBLIC_BORJIE_ENV=production
+ARG NEXT_PUBLIC_TENANT_CURRENCY=TZS
+ARG NEXT_PUBLIC_TENANT_LOCALE=en
+ARG NEXT_PUBLIC_TENANT_COUNTRY=TZ
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_API_GATEWAY_URL=${NEXT_PUBLIC_API_GATEWAY_URL} \
+    NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+    NEXT_PUBLIC_MARKETING_SITE_URL=${NEXT_PUBLIC_MARKETING_SITE_URL} \
+    NEXT_PUBLIC_MARKETING_ORIGIN=${NEXT_PUBLIC_MARKETING_ORIGIN} \
+    NEXT_PUBLIC_OWNER_WEB_ORIGIN=${NEXT_PUBLIC_OWNER_WEB_ORIGIN} \
+    NEXT_PUBLIC_ADMIN_WEB_ORIGIN=${NEXT_PUBLIC_ADMIN_WEB_ORIGIN} \
+    NEXT_PUBLIC_OWNER_PORTAL_URL=${NEXT_PUBLIC_OWNER_PORTAL_URL} \
+    NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL=${NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL} \
+    NEXT_PUBLIC_PDFJS_WORKER_URL=${NEXT_PUBLIC_PDFJS_WORKER_URL} \
+    NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL} \
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY} \
+    NEXT_PUBLIC_MAPBOX_TOKEN=${NEXT_PUBLIC_MAPBOX_TOKEN} \
+    NEXT_PUBLIC_WORKFORCE_APP_IOS_URL=${NEXT_PUBLIC_WORKFORCE_APP_IOS_URL} \
+    NEXT_PUBLIC_WORKFORCE_APP_ANDROID_URL=${NEXT_PUBLIC_WORKFORCE_APP_ANDROID_URL} \
+    NEXT_PUBLIC_BORJIE_ENV=${NEXT_PUBLIC_BORJIE_ENV} \
+    NEXT_PUBLIC_TENANT_CURRENCY=${NEXT_PUBLIC_TENANT_CURRENCY} \
+    NEXT_PUBLIC_TENANT_LOCALE=${NEXT_PUBLIC_TENANT_LOCALE} \
+    NEXT_PUBLIC_TENANT_COUNTRY=${NEXT_PUBLIC_TENANT_COUNTRY}
+
+# Build the target app + its dependency closure AND all workspace packages.
+# The extra `--filter=./packages/*` builds peerDependency packages too (they
+# are skipped by `pkg...`, which only follows `dependencies`) — see Dockerfile.api.
+RUN pnpm --filter='./packages/*' --filter=@borjie/${APP_NAME}... --workspace-concurrency=1 build
 
 # =============================================================================
 # Stage 3a: Vite (SPA) - Nginx serves static files
