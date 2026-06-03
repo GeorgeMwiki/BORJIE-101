@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-neverBuiltDependencies:
-  - isolated-vm
-
 overrides:
   fast-xml-parser: '>=5.5.6'
   fast-xml-builder: '>=1.1.7'
@@ -25940,6 +25937,7 @@ packages:
   /isolated-vm@6.1.2:
     resolution: {integrity: sha512-GGfsHqtlZiiurZaxB/3kY7LLAXR3sgzDul0fom4cSyBjx6ZbjpTrFWiH3z/nUfLJGJ8PIq9LQmQFiAxu24+I7A==}
     engines: {node: '>=22.0.0'}
+    requiresBuild: true
     dependencies:
       node-gyp-build: 4.8.4
     dev: false
