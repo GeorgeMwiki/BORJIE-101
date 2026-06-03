@@ -29,7 +29,9 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS owner_delegation_prefs (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id                  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  -- tenant_id is TEXT to match tenants.id TEXT PRIMARY KEY (0000 bootstrap);
+  -- a UUID FK to a TEXT PK is rejected at CREATE TABLE time.
+  tenant_id                  TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   category                   TEXT NOT NULL,
   tier                       TEXT NOT NULL DEFAULT 'T0',
   -- Reversal window in hours for T2. NULL means use category default

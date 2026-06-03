@@ -53,41 +53,53 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- 1) document_uploads — add intelligence pipeline columns
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE document_uploads
-  ADD COLUMN IF NOT EXISTS kind              text NOT NULL DEFAULT 'other',
-  ADD COLUMN IF NOT EXISTS ingestion_status  text NOT NULL DEFAULT 'queued',
-  ADD COLUMN IF NOT EXISTS ingestion_error   text,
-  ADD COLUMN IF NOT EXISTS ingested_at       timestamptz;
-
+-- Fresh-DB guard: on a fresh database document_uploads does not exist yet —
+-- it is created (with ALL of these columns, constraints, and indexes) by
+-- 0185_document_uploads_foundation.sql, which lands later in lex order. The
+-- bare ALTER / CREATE INDEX statements below would abort with "relation
+-- document_uploads does not exist". Guarding on table existence makes this a
+-- no-op on a fresh DB (0185 supplies the canonical shape) while staying fully
+-- idempotent on production (where the table already exists from the prior
+-- apply path). The new tables in sections 2 and 3 below only soft-reference
+-- document_uploads, so they are created unconditionally.
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-     WHERE conname = 'document_uploads_kind_chk'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = 'document_uploads'
   ) THEN
     ALTER TABLE document_uploads
-      ADD CONSTRAINT document_uploads_kind_chk
-      CHECK (kind IN ('contract', 'rfp', 'letter', 'report', 'other'));
-  END IF;
+      ADD COLUMN IF NOT EXISTS kind              text NOT NULL DEFAULT 'other',
+      ADD COLUMN IF NOT EXISTS ingestion_status  text NOT NULL DEFAULT 'queued',
+      ADD COLUMN IF NOT EXISTS ingestion_error   text,
+      ADD COLUMN IF NOT EXISTS ingested_at       timestamptz;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-     WHERE conname = 'document_uploads_ingestion_status_chk'
-  ) THEN
-    ALTER TABLE document_uploads
-      ADD CONSTRAINT document_uploads_ingestion_status_chk
-      CHECK (ingestion_status IN ('queued', 'processing', 'ready', 'failed'));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'document_uploads_kind_chk'
+    ) THEN
+      ALTER TABLE document_uploads
+        ADD CONSTRAINT document_uploads_kind_chk
+        CHECK (kind IN ('contract', 'rfp', 'letter', 'report', 'other'));
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint WHERE conname = 'document_uploads_ingestion_status_chk'
+    ) THEN
+      ALTER TABLE document_uploads
+        ADD CONSTRAINT document_uploads_ingestion_status_chk
+        CHECK (ingestion_status IN ('queued', 'processing', 'ready', 'failed'));
+    END IF;
+
+    -- Index for the documents-tab inbox query: per-tenant, newest first.
+    CREATE INDEX IF NOT EXISTS idx_document_uploads_tenant_created
+      ON document_uploads (tenant_id, created_at DESC);
+
+    -- Index for the ingestion worker poll: queued|processing rows only.
+    CREATE INDEX IF NOT EXISTS idx_document_uploads_ingestion_status
+      ON document_uploads (tenant_id, ingestion_status)
+      WHERE ingestion_status IN ('queued', 'processing');
   END IF;
 END $$;
-
--- Index for the documents-tab inbox query: per-tenant, newest first.
-CREATE INDEX IF NOT EXISTS idx_document_uploads_tenant_created
-  ON document_uploads (tenant_id, created_at DESC);
-
--- Index for the ingestion worker poll: queued|processing rows only.
-CREATE INDEX IF NOT EXISTS idx_document_uploads_ingestion_status
-  ON document_uploads (tenant_id, ingestion_status)
-  WHERE ingestion_status IN ('queued', 'processing');
 
 -- -----------------------------------------------------------------------------
 -- 2) document_intelligence_sessions — user-bound chat sessions with one or
