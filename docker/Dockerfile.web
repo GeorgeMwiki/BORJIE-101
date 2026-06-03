@@ -23,7 +23,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json tsconfig.json ./
+COPY tsconfig.base.json tsconfig.json turbo.json ./
 COPY .npmrc ./
 COPY packages ./packages
 COPY services ./services
@@ -50,7 +50,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./
 COPY --from=deps /app/pnpm-lock.yaml ./
 COPY --from=deps /app/pnpm-workspace.yaml ./
-COPY tsconfig.base.json tsconfig.json ./
+COPY tsconfig.base.json tsconfig.json turbo.json ./
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/services ./services
 COPY --from=deps /app/apps ./apps
@@ -107,10 +107,11 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
     NEXT_PUBLIC_TENANT_LOCALE=${NEXT_PUBLIC_TENANT_LOCALE} \
     NEXT_PUBLIC_TENANT_COUNTRY=${NEXT_PUBLIC_TENANT_COUNTRY}
 
-# Build the target app + its dependency closure AND all workspace packages.
-# The extra `--filter=./packages/*` builds peerDependency packages too (they
-# are skipped by `pkg...`, which only follows `dependencies`) — see Dockerfile.api.
-RUN pnpm --filter='./packages/*' --filter=@borjie/${APP_NAME}... --workspace-concurrency=1 build
+# Build the target app + its FULL dependency closure with TURBO (not raw pnpm).
+# pnpm's `--filter` build order does NOT topologically sort peerDependencies, so
+# it builds a peer-consumer before its peer and tsc fails TS2307. turbo's task
+# graph orders peers (`build.dependsOn: ["^build"]`), like the green CI build.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/${APP_NAME} --no-daemon
 
 # =============================================================================
 # Stage 3a: Vite (SPA) - Nginx serves static files
