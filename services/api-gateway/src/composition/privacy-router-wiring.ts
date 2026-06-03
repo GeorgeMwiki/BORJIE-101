@@ -27,8 +27,10 @@
  * The router itself is a pure leaf; everything here is the wire side.
  *
  * Fail-safe posture: a classify/route error resolves to a CONSERVATIVE
- * decision (treat as CONFIDENTIAL -> strip + cloud) rather than leaking
- * unclassified data; a `DENIED` decision is surfaced so the dispatch path
+ * decision (treat as CONFIDENTIAL -> PII-strip + cloud); the original
+ * un-stripped text is NEVER forwarded on error. If PII stripping ALSO throws,
+ * the turn is DENIED outright so no raw data can egress. An explicit `DENIED`
+ * decision (RESTRICTED data, no local model) is surfaced so the dispatch path
  * refuses the turn. Pino logger only.
  *
  * @module services/api-gateway/src/composition/privacy-router-wiring
@@ -157,6 +159,12 @@ export interface WiredPrivacyRouter {
   readonly router: PrivacyRouter;
   /** Whether privacy routing is enabled (default ON; '0'/'false'/'off' off). */
   readonly enabled: boolean;
+  /**
+   * The PII stripper the router was built with. Held here so the guarded
+   * dispatch path can fail CONSERVATIVE on a routing error — strip PII before
+   * any cloud egress rather than passing raw text through.
+   */
+  readonly pii: PiiStripperPort;
 }
 
 export const PRIVACY_ROUTER_FLAG = 'BORJIE_PRIVACY_ROUTER_ENABLED';
@@ -179,15 +187,16 @@ export function buildPrivacyRouter(
 ): WiredPrivacyRouter {
   const env = args.env ?? process.env;
   const enabled = flagDefaultOn(env, PRIVACY_ROUTER_FLAG);
+  const pii = buildPiiStripperPort();
   const router = createPrivacyRouter({
-    pii: buildPiiStripperPort(),
+    pii,
     localHealth: buildLocalEndpointHealthPort({
       env,
       ...(args.logger ? { logger: args.logger } : {}),
       ...(args.fetchImpl ? { fetchImpl: args.fetchImpl } : {}),
     }),
   });
-  return Object.freeze({ router, enabled });
+  return Object.freeze({ router, enabled, pii });
 }
 
 // ---------------------------------------------------------------------------
@@ -208,11 +217,17 @@ export interface PrivacyDispatchDecision {
  * `{ allowed:false }` when the router DENIED the turn (RESTRICTED data with
  * no local model) — the caller MUST refuse and NOT call the cloud provider.
  *
- * Fail-safe: when the router is disabled OR throws, the original text is
- * returned with `allowed:true` (the gateway falls back to its existing
- * behaviour rather than blocking all traffic). The DENIED path itself is the
- * ONLY hard block, and only fires on an explicit RESTRICTED-without-local
- * classification.
+ * Fail-safe posture:
+ *   - DISABLED flag: passthrough with the original text (privacy routing is
+ *     off; the gateway keeps its prior behaviour). This is the ONLY path that
+ *     forwards original text without classification, and it is operator-
+ *     controlled, not error-driven.
+ *   - ROUTING ERROR: fail CONSERVATIVE — the text is treated as CONFIDENTIAL,
+ *     PII-stripped, and routed to cloud. The original, un-stripped text is
+ *     NEVER forwarded on error. If the stripper ALSO throws, the turn is
+ *     DENIED (`allowed:false`) so raw PII can never egress.
+ *   - RESTRICTED-without-local: explicit DENY (the only classification-driven
+ *     hard block).
  */
 export async function consultPrivacyRouter(
   wired: WiredPrivacyRouter,
@@ -245,29 +260,96 @@ export async function consultPrivacyRouter(
       result,
     });
   } catch (err) {
-    logger?.warn?.(
-      {
-        wiring: 'privacy-router',
-        error: err instanceof Error ? err.message : String(err),
-      },
-      'privacy-router: route failed; allowing turn with original text (fail-open)',
-    );
-    return Object.freeze({
-      allowed: true,
-      processedText: request.text,
-      result: passthroughResult(request.text),
-    });
+    // Fail CONSERVATIVE (never fail-open): a routing error must NOT leak the
+    // original, un-stripped text to a cloud LLM. Treat the turn as
+    // CONFIDENTIAL — PII-strip the text and route to cloud. If the stripper
+    // itself throws, DENY the turn outright (allowed:false) so raw text can
+    // never egress.
+    try {
+      const strip = wired.pii.stripPii(request.text, request.knownNames);
+      logger?.warn?.(
+        {
+          wiring: 'privacy-router',
+          error: err instanceof Error ? err.message : String(err),
+          strippedFieldCount: Object.keys(strip.mappings).length,
+        },
+        'privacy-router: route failed; failing conservative (PII-strip + cloud)',
+      );
+      return Object.freeze({
+        allowed: true,
+        processedText: strip.stripped,
+        result: conservativeResult(strip.stripped, Object.keys(strip.mappings)),
+      });
+    } catch (stripErr) {
+      logger?.warn?.(
+        {
+          wiring: 'privacy-router',
+          error: err instanceof Error ? err.message : String(err),
+          stripError:
+            stripErr instanceof Error ? stripErr.message : String(stripErr),
+        },
+        'privacy-router: route AND strip failed; DENYING turn (no raw egress)',
+      );
+      return Object.freeze({
+        allowed: false,
+        processedText: '',
+        result: deniedOnErrorResult(),
+      });
+    }
   }
 }
 
+/**
+ * Result used ONLY when privacy routing is disabled by flag. Forwards the
+ * original text (operator opted out of routing). Never used on an error path.
+ */
 function passthroughResult(text: string): PrivacyRoutingResult {
   return Object.freeze({
     endpoint: 'claude',
     piiStripped: false,
     strippedFields: Object.freeze([]),
     classification: 'INTERNAL',
-    reason: 'privacy-router disabled or errored; passthrough',
+    reason: 'privacy-router disabled; passthrough',
     timestamp: new Date().toISOString(),
     processedText: text,
+  });
+}
+
+/**
+ * Result used when routing threw but PII stripping succeeded — the turn is
+ * treated as CONFIDENTIAL (stripped + cloud) so no raw text leaves on error.
+ */
+function conservativeResult(
+  strippedText: string,
+  strippedFields: ReadonlyArray<string>,
+): PrivacyRoutingResult {
+  return Object.freeze({
+    endpoint: 'claude',
+    piiStripped: true,
+    strippedFields: Object.freeze([...strippedFields]),
+    classification: 'CONFIDENTIAL',
+    reason:
+      'privacy-router route failed; failed conservative (treated as ' +
+      'CONFIDENTIAL, PII-stripped before cloud egress)',
+    timestamp: new Date().toISOString(),
+    processedText: strippedText,
+  });
+}
+
+/**
+ * Result used when routing AND PII stripping both threw — the turn is DENIED
+ * so no text (raw or stripped) is forwarded.
+ */
+function deniedOnErrorResult(): PrivacyRoutingResult {
+  return Object.freeze({
+    endpoint: 'DENIED',
+    piiStripped: false,
+    strippedFields: Object.freeze([]),
+    classification: 'RESTRICTED',
+    reason:
+      'privacy-router route and PII strip both failed; turn DENIED to ' +
+      'prevent any raw data egress',
+    timestamp: new Date().toISOString(),
+    processedText: '',
   });
 }

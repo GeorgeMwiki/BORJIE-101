@@ -21,6 +21,13 @@
  * Security-first contract (CLAUDE.md):
  *   - Signature verify is fail-CLOSED: an unknown channel or a missing
  *     provider secret rejects the event (400). No reflective trust.
+ *   - Africa's-Talking inbound (sms/voice/ussd) is authenticated only by a
+ *     shared-secret token (the provider does not HMAC-sign callbacks), so it
+ *     is hardened in depth: an optional IP-allowlist gate
+ *     (`BORJIE_AT_IP_ALLOWLIST`) runs ahead of the secret check, and the
+ *     channel-resolved tier is CLAMPED to a non-privileged member tier
+ *     before it reaches the brain (a forgeable phone can never inherit
+ *     owner/manager authority — the directory tier is a display hint only).
  *   - Tier resolution is fail-SOFT: an unresolved sender becomes
  *     `tier: 'anonymous'` with null scope (the brain can still answer
  *     public questions) — it is never an error.
@@ -83,6 +90,37 @@ function isChannelKind(value: string): value is ChannelKind {
 // Env helpers — mirror notification-webhooks.router.ts conventions so the
 // ops surface is consistent (no new secret names introduced here).
 // ---------------------------------------------------------------------------
+
+/** Parse a comma-separated allowlist into a frozen Set of trimmed entries. */
+function parseCsvSet(envValue: string | undefined): ReadonlySet<string> {
+  if (!envValue || envValue.trim().length === 0) return new Set();
+  const out = new Set<string>();
+  for (const raw of envValue.split(',')) {
+    const v = raw.trim();
+    if (v.length > 0) out.add(v);
+  }
+  return out;
+}
+
+/**
+ * Extract the client source IP from edge headers, mirroring the convention
+ * used elsewhere in the gateway (cf-connecting-ip, then the left-most
+ * x-forwarded-for hop). Returns null when neither header is present.
+ */
+function clientIpOf(
+  headers: Readonly<Record<string, string>>,
+): string | null {
+  const cf = headers['cf-connecting-ip']?.trim();
+  if (cf && cf.length > 0) return cf;
+  const fwd = headers['x-forwarded-for'];
+  if (fwd) {
+    const first = fwd.split(',')[0]?.trim();
+    if (first && first.length > 0) return first;
+  }
+  const real = headers['x-real-ip']?.trim();
+  if (real && real.length > 0) return real;
+  return null;
+}
 
 /** Parse `"k1=v1,k2=v2"` -> Map(k1->v1, ...). Empty input -> empty map. */
 function parseEnvMap(envValue: string | undefined): ReadonlyMap<string, string> {
@@ -185,9 +223,14 @@ function verifyAfricasTalking(
 ): boolean {
   const secret = env.AFRICASTALKING_WEBHOOK_SECRET;
   if (!secret) return false;
-  // Africa's Talking does not HMAC-sign USSD/SMS callbacks; the canonical
-  // hardening is a shared-secret token on a dedicated header (configured on
-  // the gateway's callback URL). Compared in constant time.
+  // Africa's Talking does not HMAC-sign USSD/SMS callbacks; the shared-secret
+  // token below is NECESSARY-NOT-SUFFICIENT. It is one constant-time check in
+  // a defence-in-depth stack: an optional IP-allowlist gate
+  // (`BORJIE_AT_IP_ALLOWLIST`) runs ahead of it, and a channel-resolved phone
+  // is tier-clamped (see `clampChannelTier`) so a leaked token can never
+  // confer owner/manager authority on a brain turn. The canonical hardening
+  // is a shared-secret token on a dedicated header (configured on the
+  // gateway's callback URL). Compared in constant time.
   const token =
     headerOf(input.headers, 'x-at-signature') ??
     headerOf(input.headers, 'x-africastalking-key') ??
@@ -231,6 +274,30 @@ function coerceTier(raw: string | undefined): ActorTier {
     return raw as ActorTier;
   }
   return 'anonymous';
+}
+
+/**
+ * Privileged tiers that confer owner/manager authority on a brain turn. A
+ * tier resolved purely from a (forgeable) channel sender address must NEVER
+ * be one of these.
+ */
+const PRIVILEGED_TIERS: ReadonlySet<ActorTier> = new Set<ActorTier>([
+  'owner',
+  'manager',
+]);
+
+/**
+ * Clamp a directory-resolved tier to the lowest non-privileged tier for the
+ * brain turn. Inbound channel identity (SMS / USSD / voice / WhatsApp) is a
+ * forgeable phone number authenticated only by a shared provider secret, so a
+ * channel-resolved phone is treated as a member at most: `owner` / `manager`
+ * are demoted to `employee`. Already-non-privileged tiers (`employee`,
+ * `buyer`, `anonymous`) pass through unchanged. The original directory tier
+ * is retained separately as a display-only hint and is never used for
+ * authorization.
+ */
+function clampChannelTier(directoryTier: ActorTier): ActorTier {
+  return PRIVILEGED_TIERS.has(directoryTier) ? 'employee' : directoryTier;
 }
 
 /**
@@ -283,7 +350,17 @@ function buildTierResolver(
       (sender.email ? emailDir.get(sender.email) : undefined) ??
       (sender.webUserId ? webDir.get(sender.webUserId) : undefined);
     if (hit) {
-      return { tenantId: hit.tenantId, actorId: hit.actorId, tier: hit.tier };
+      // SECURITY (channel spoof): the sender address is forgeable and is
+      // authenticated only by a shared provider secret, so the directory
+      // tier is NOT trusted for authorization. Clamp owner/manager down to
+      // a member tier for the brain turn; a spoofed phone can never inherit
+      // privileged authority. Scope (tenant/actor) is still resolved so
+      // cross-channel state stays coherent.
+      return {
+        tenantId: hit.tenantId,
+        actorId: hit.actorId,
+        tier: clampChannelTier(hit.tier),
+      };
     }
     return { tenantId: null, actorId: null, tier: 'anonymous' };
   };
@@ -352,10 +429,13 @@ function buildUssdDeps(
       resolve: async (phoneNumber: string) => {
         const hit = phoneDir.get(phoneNumber);
         if (hit) {
+          // SECURITY (channel spoof): a USSD MSISDN is forgeable, so the
+          // directory tier is clamped to a member tier before it reaches the
+          // menu tree. A spoofed phone can never open owner/manager screens.
           return {
             tenantId: hit.tenantId,
             actorId: hit.actorId,
-            tier: ussdTierFrom(hit.tier),
+            tier: ussdTierFrom(clampChannelTier(hit.tier)),
           };
         }
         return { tenantId: null, actorId: null, tier: 'anonymous' as UssdTier };
@@ -425,6 +505,41 @@ function parseUssdForm(form: RawUssdForm): UssdRequest | null {
 }
 
 // ---------------------------------------------------------------------------
+// Africa's Talking IP-allowlist gate.
+// ---------------------------------------------------------------------------
+
+/** Channels delivered by Africa's Talking (subject to the IP-allowlist gate). */
+const AFRICAS_TALKING_CHANNELS: ReadonlySet<ChannelKind> = new Set<ChannelKind>([
+  'sms',
+  'voice',
+  'ussd',
+]);
+
+/**
+ * Decide whether an Africa's-Talking inbound request passes the optional
+ * IP-allowlist. Returns `true` (pass) when:
+ *   - the allowlist is empty (feature disabled), OR
+ *   - the channel is not an Africa's-Talking channel, OR
+ *   - the resolved source IP is in the allowlist.
+ *
+ * Returns `false` (reject) when the allowlist is set for an Africa's-Talking
+ * channel and the source IP is absent or not listed. This is a defence-in-
+ * depth layer in front of the shared-secret check; it is fail-closed only
+ * when explicitly configured.
+ */
+function passesAtIpAllowlist(args: {
+  readonly channel: ChannelKind;
+  readonly allowlist: ReadonlySet<string>;
+  readonly headers: Readonly<Record<string, string>>;
+}): boolean {
+  if (args.allowlist.size === 0) return true;
+  if (!AFRICAS_TALKING_CHANNELS.has(args.channel)) return true;
+  const ip = clientIpOf(args.headers);
+  if (ip === null) return false;
+  return args.allowlist.has(ip);
+}
+
+// ---------------------------------------------------------------------------
 // Router factory.
 // ---------------------------------------------------------------------------
 
@@ -449,6 +564,11 @@ export function createChannelsRouter(deps: ChannelsRouterDeps = {}): Hono {
   const env = deps.env ?? process.env;
   const signature = buildSignatureVerifier(env);
   const tier = buildTierResolver(env);
+  // Optional IP-allowlist for Africa's Talking inbound (sms/voice/ussd). When
+  // `BORJIE_AT_IP_ALLOWLIST` is set, a request whose source IP is not listed
+  // is rejected BEFORE the shared-secret check. When unset, the gate is a
+  // no-op (the shared-secret check still applies).
+  const atIpAllowlist = parseCsvSet(env.BORJIE_AT_IP_ALLOWLIST);
   const gateway = createChannelGateway({ signature, tier });
   const stateSync = createStateSync({
     store: deps.conversationStore ?? createInMemoryConversationStore(),
@@ -468,6 +588,14 @@ export function createChannelsRouter(deps: ChannelsRouterDeps = {}): Hono {
     // Signature-verify FIRST on the raw body (fail-closed), before parse.
     const rawBody = await c.req.raw.text();
     const headers = lowerCaseHeaders(c.req.raw.headers);
+    // Optional IP-allowlist gate (defence in depth ahead of the shared secret).
+    if (!passesAtIpAllowlist({ channel: 'ussd', allowlist: atIpAllowlist, headers })) {
+      logger.warn(
+        { route: 'channels', channel: 'ussd' },
+        'channels: ussd source IP not in BORJIE_AT_IP_ALLOWLIST; rejecting',
+      );
+      return ussdText(c, 'END Service unavailable. Please try again later.');
+    }
     const verified = await Promise.resolve(
       signature.verify({ channel: 'ussd', rawBody, headers }),
     ).catch(() => false);
@@ -521,6 +649,27 @@ export function createChannelsRouter(deps: ChannelsRouterDeps = {}): Hono {
 
     const rawBody = await c.req.raw.text();
     const headers = lowerCaseHeaders(c.req.raw.headers);
+
+    // Optional IP-allowlist gate for Africa's-Talking channels (sms/voice/
+    // ussd), ahead of the in-gateway shared-secret signature check.
+    if (
+      !passesAtIpAllowlist({ channel: channelParam, allowlist: atIpAllowlist, headers })
+    ) {
+      logger.warn(
+        { route: 'channels', channel: channelParam },
+        'channels: source IP not in BORJIE_AT_IP_ALLOWLIST; rejecting (403)',
+      );
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'CHANNEL_IP_NOT_ALLOWED',
+            message: 'source IP not permitted for this channel',
+          },
+        },
+        403,
+      );
+    }
 
     let payload: unknown = {};
     if (rawBody.trim().length > 0) {
@@ -640,3 +789,16 @@ function parseAfricasTalkingForm(rawBody: string): RawUssdForm {
 function ussdText(c: Context, body: string): Response {
   return c.text(body, 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 }
+
+// ---------------------------------------------------------------------------
+// Internal exports for tests (pure security helpers).
+// ---------------------------------------------------------------------------
+
+export const __testables = Object.freeze({
+  buildTierResolver,
+  clampChannelTier,
+  passesAtIpAllowlist,
+  parseCsvSet,
+  clientIpOf,
+  PRIVILEGED_TIERS,
+});

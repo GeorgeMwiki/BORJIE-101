@@ -612,7 +612,8 @@ import {
 // LP-30 — composer deep-execution deps. Builds the 10-port CompositionDeps
 // whose `cot` + `substrate` ports run the real `runLATS` +
 // `discoverReasoningStructure` executors. Threaded into `wireCognitive` so
-// the TTC-routed deep composer is live (flag default ON, fail-safe).
+// the TTC-routed deep composer is available (flag default OFF, fail-safe;
+// opt-in via env after a staging canary).
 import { buildCognitiveCompositionDeps } from './composition/cognitive-composition-deps-wiring';
 import { resolveSkillEmbedder } from './composition/sovereign';
 import {
@@ -1048,8 +1049,9 @@ wireTranslation({ db: getDb(), logger });
 // the real `@borjie/extended-reasoning` `runLATS` and
 // `@borjie/reasoning-substrate` `discoverReasoningStructure` executors. The
 // composer is TTC-routed (Self-Discover / LATS) and gated by
-// `BORJIE_COGNITIVE_COMPOSER_ENABLED` (default ON; only '0'/'false'/'off'
-// disables). Construction is fail-soft: a broken bundle degrades to null,
+// `BORJIE_COGNITIVE_COMPOSER_ENABLED` (default OFF; opt-in via env after a
+// staging canary — set to '1'/'true'/'on' to enable). Construction is
+// fail-soft: a broken bundle degrades to null,
 // `runForTurn` returns null on any error, and enrichment falls back to
 // memory-recall-only — the gateway always boots and always serves the turn.
 // ----------------------------------------------------------------------------

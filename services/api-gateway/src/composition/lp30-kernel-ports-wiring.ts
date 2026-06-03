@@ -16,8 +16,9 @@
  *     personaId). Reuses the SAME `EmbedderPort` the kernel + skill
  *     retriever use (OpenAI when keyed; the always-rejects null embedder
  *     otherwise, in which case the cache degrades to a permanent miss).
- *     Default ENABLED; a miss falls through to the normal sensor path so
- *     the worst case is "no cache", never a wrong answer.
+ *     Default OFF (opt-in via env after staging canary); a miss falls through
+ *     to the normal sensor path so the worst case is "no cache", never a
+ *     wrong answer.
  *
  *   - `buildIntentVerifierPort` — adapts `@borjie/autonomy-governance`
  *     `verifyIntent` (a pure rule-based fn) to the kernel's
