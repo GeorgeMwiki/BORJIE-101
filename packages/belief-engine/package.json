@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/belief-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Epistemic belief layer (LP-17/18). Pure belief store + convince-loop (revise only when confidence delta > 0.25; split 0.05-0.25; no-op below), DPO preference-learner, LinUCB contextual bandit, Mem0 ADD/UPDATE/DELETE/NOOP semantics, and a nightly Pearson belief×outcome correlation pass. Ports-based — inject a store; never writes beliefs directly. Ported from LITFIN litfin-ai/learning + learning.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}
