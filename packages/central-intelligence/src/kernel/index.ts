@@ -776,3 +776,42 @@ export {
   type SemanticCacheReadResult,
   type SemanticCacheWriteArgs,
 } from './semantic-cache-port.js';
+
+/**
+ * LP-05 / LP-17 — learning-loop port. The live call path that turns each
+ * turn's `learning` stage event into a real `emitSignal({ action, outcome,
+ * sinks })`, fanning out to the reflexion store (memory-v2) and the
+ * 0.25-gated `reviseBelief` convince-loop (@borjie/belief-engine). Before
+ * this, both packages were built + tested but never invoked at runtime.
+ *
+ * Wire `createLearningLoopSubscriber(...)` onto the orchestrator's
+ * `stageBus`; the composition root binds the real `emitSignal`,
+ * `reviseBelief` (via `buildBeliefSink`), and `createReflectiveSignalSink`.
+ * In-memory store ports ship for local dev + tests.
+ */
+export {
+  createLearningLoopSubscriber,
+  mapLearningSignalToEvents,
+  buildBeliefSink,
+  createInMemoryBeliefStorePort,
+  createInMemoryReflectiveStorePort,
+  type LearningLoopDeps,
+  type LearningLoopLogger,
+  type TurnLearningFacts,
+  type BeliefSinkDeps,
+  type EmitSignalFn,
+  type ReviseBeliefFn,
+  type EmitInputLike,
+  type EmissionResultLike,
+  type ActionEventLike,
+  type OutcomeEventLike,
+  type LearningSignalLike,
+  type SignalSinksLike,
+  type LearningActionKind,
+  type ExtractedClaimLike,
+  type BeliefValueLike,
+  type ConvinceResultLike,
+  type BeliefStorePort as LearningBeliefStorePort,
+  type ReflectiveStorePort,
+  type ReflectiveNoteLike,
+} from './learning-loop-port.js';
