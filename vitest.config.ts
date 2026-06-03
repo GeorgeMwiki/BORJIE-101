@@ -23,5 +23,9 @@ export default defineConfig({
       exclude: ['**/*.test.ts', '**/index.ts'],
     },
     testTimeout: 10000,
+    // CI runs all packages' tests in parallel; some suites flake intermittently
+    // under CPU contention (pass per-package, fail in the combined run). Retry in
+    // CI to absorb load-induced flakiness — a real failure still fails all retries.
+    retry: process.env.CI ? 2 : 0,
   },
 });
