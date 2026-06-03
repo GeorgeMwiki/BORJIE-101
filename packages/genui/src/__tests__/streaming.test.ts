@@ -110,6 +110,112 @@ describe("artifact-stream-parser", () => {
     }
   });
 
+  it("entity-encodes a <script> payload in the safe body projection", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    parser.feed(
+      '<artifact id="x" type="md">hi <script>alert(1)</script> bye</artifact>',
+    );
+    parser.flush();
+    const close = events.find((e) => e.type === "close");
+    expect(close && close.type === "close").toBe(true);
+    if (close && close.type === "close") {
+      // Raw content is preserved verbatim (UNSAFE projection).
+      expect(close.content).toContain("<script>");
+      // Safe projection must NOT contain an executable tag.
+      expect(close.safeContent).not.toContain("<script>");
+      expect(close.safeContent).toContain("&lt;script&gt;");
+    }
+  });
+
+  it("entity-encodes an <img onerror> payload across delta + close", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    parser.feed('<artifact id="y" type="md">');
+    parser.feed('<img src=x onerror=alert(1)>');
+    parser.feed("</artifact>");
+    parser.flush();
+
+    const delta = events.find((e) => e.type === "delta");
+    if (delta && delta.type === "delta") {
+      expect(delta.safeDelta).not.toContain("<img");
+      expect(delta.safeDelta).toContain("&lt;img");
+      expect(delta.safeDelta).not.toContain('"');
+    }
+    const close = events.find((e) => e.type === "close");
+    if (close && close.type === "close") {
+      expect(close.safeContent).not.toContain("<img");
+      expect(close.safeContent).toContain("&lt;img");
+    }
+  });
+
+  it("encodes ampersands and stray closing tags so nothing renders as markup", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    parser.feed('<artifact id="z" type="md">a & b </div></artifact>');
+    parser.flush();
+    const close = events.find((e) => e.type === "close");
+    if (close && close.type === "close") {
+      expect(close.safeContent).toContain("&amp;");
+      expect(close.safeContent).not.toContain("</div>");
+      expect(close.safeContent).toContain("&lt;/div&gt;");
+    }
+  });
+
+  it("rejects a title that tries to break out of the title attribute", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    // A double-quote in the title would break `title="..."`; the tightened
+    // charset rejects it, so the title falls back to the type, and the
+    // emitted title carries no raw quote regardless.
+    parser.feed(
+      '<artifact id="t1" type="kpi" title=\'x" onmouseover="alert(1)\'>body</artifact>',
+    );
+    parser.flush();
+    const open = events.find((e) => e.type === "open");
+    expect(open && open.type === "open").toBe(true);
+    if (open && open.type === "open") {
+      expect(open.title).not.toContain('"');
+      expect(open.title).not.toContain("onmouseover");
+      // Rejected -> falls back to the artifact type.
+      expect(open.title).toBe("kpi");
+    }
+  });
+
+  it("entity-encodes angle-bracket attempts inside an otherwise-valid title flow", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    // Title with a quote is rejected (falls back to type); assert the
+    // emitted title never carries a raw quote or bracket on open OR close.
+    parser.feed(
+      '<artifact id="t2" type="comparison_table" title=\'A">B\'>body</artifact>',
+    );
+    parser.flush();
+    const open = events.find((e) => e.type === "open");
+    const close = events.find((e) => e.type === "close");
+    if (open && open.type === "open") {
+      expect(open.title).not.toContain('"');
+      expect(open.title).not.toContain(">");
+    }
+    if (close && close.type === "close") {
+      expect(close.title).not.toContain('"');
+      expect(close.title).not.toContain(">");
+    }
+  });
+
+  it("preserves a clean title unchanged through entity encoding", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    parser.feed(
+      '<artifact id="t3" type="kpi" title="Licence options (2026)">body</artifact>',
+    );
+    parser.flush();
+    const open = events.find((e) => e.type === "open");
+    if (open && open.type === "open") {
+      expect(open.title).toBe("Licence options (2026)");
+    }
+  });
+
   it("implicitly closes an unclosed artifact at flush", () => {
     const { events, sink } = collect();
     const parser = createChatArtifactStreamParser(sink);

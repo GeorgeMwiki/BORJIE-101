@@ -99,7 +99,10 @@ describe('translate()', () => {
     expect(second.provider).toBe('cache');
   });
 
-  it('fails open with source text when runner throws', async () => {
+  it('NEVER ships wrong-language source when the runner throws and nothing clean is available', async () => {
+    // Zero-mix: with no rewriter and no safeFallback, the facade must NOT
+    // surface the English source on a Swahili surface. It returns an empty
+    // string (a blank is never a zero-mix violation) and logs the gap.
     const cache = createInMemoryTranslationCache();
     const broken = {
       async run() {
@@ -121,9 +124,39 @@ describe('translate()', () => {
       tenantId: 't1',
       surface: 'email.welcome.subject',
     });
-    expect(out.text).toBe('Welcome to Borjie');
+    expect(out.text).not.toBe('Welcome to Borjie');
+    expect(out.text).toBe('');
     expect(out.provider).toBe('passthrough');
     expect(logger.error).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('ships the supplied safe fallback (not source) when the runner throws without a rewriter', async () => {
+    const cache = createInMemoryTranslationCache();
+    const broken = {
+      async run() {
+        throw new Error('all providers exhausted');
+      },
+    };
+    const translate = createTranslate({
+      cache,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runner: broken as any,
+      logger: makeLogger(),
+    });
+
+    const out = await translate(
+      {
+        text: 'Welcome to Borjie',
+        sourceLang: 'en',
+        targetLang: 'sw',
+        tenantId: 't1',
+        surface: 'email.welcome.subject',
+      },
+      { safeFallback: 'Tafadhali jaribu tena.' },
+    );
+    expect(out.text).toBe('Tafadhali jaribu tena.');
+    expect(out.text).not.toBe('Welcome to Borjie');
   });
 
   it('repairs a contaminated provider result via the rewriter before caching', async () => {

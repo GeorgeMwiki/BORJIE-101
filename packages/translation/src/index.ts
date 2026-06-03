@@ -60,6 +60,7 @@ export {
   checkContamination,
   assertNoContamination,
   offTargetRatio,
+  hasOffTargetLeak,
   ContaminationError,
   type ContaminationCheckResult,
   type ContaminationCheckOptions,

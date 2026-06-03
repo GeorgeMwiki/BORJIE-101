@@ -7,7 +7,7 @@
  *
  * References:
  *  - Sacks, Schegloff, Jefferson, "Turn-Taking" (1974, 2024 reissue).
- *  - Brennan + Clark, "Conceptual pacts" (1996) — variation in turns.
+ *  - Brennan + Clark, "Conceptual pacts" (1996) - variation in turns.
  *
  * Ported from sibling-port style-audit/rhythm-analyzer.ts onto Borjie's
  * RecentTurn + RhythmScore types.
@@ -15,7 +15,10 @@
 
 import type { RecentTurn, RhythmScore } from "../types";
 
-const PAUSE_SIGNAL_RX = /(\bhmm,?\b|\.\.\.|—|--|\bwait,?\b|\blet me check\b)/i;
+// Pause signals the model may legitimately use. The em-dash is
+// deliberately NOT a recognised pause signal: Borjie forbids em-dashes
+// in customer-facing text, so we never reward or suggest one.
+const PAUSE_SIGNAL_RX = /(\bhmm,?\b|\.\.\.|\bwait,?\b|\blet me check\b)/i;
 const QUESTION_BACK_RX = /\?\s*$/m;
 
 function wordCount(text: string): number {
@@ -84,7 +87,8 @@ export function rhythmInjection(score: RhythmScore): string | null {
     "Conversation rhythm has flatlined. Break the pattern this turn:",
     "either (a) vary length sharply versus your last reply,",
     "(b) end with a real question to the user,",
-    "or (c) signal a pause (hmm, brief reflection) when honesty calls for it.",
+    "or (c) signal a brief pause in words (for example \"hmm\" or a short",
+    "reflective aside) when honesty calls for it; do not use dashes for this.",
     "Do not stack all three; pick one and use it naturally.",
   ].join(" ");
 }

@@ -12,12 +12,12 @@
  *
  * Zero-mix mandate (LP-23): on provider success the result is checked
  * for cross-language contamination and, when it leaks, repaired by the
- * injected fail-FIXED `rewriter`. On provider FAILURE the facade no
- * longer fails OPEN to source text (which would ship the WRONG language
- * to the recipient) — it asks the rewriter for a safe single-language
- * string, or, absent a rewriter, falls back to source ONLY when source
- * and target share a language family is impossible, so it surfaces the
- * source with an explicit warning. Callers that need a hard error set
+ * injected fail-FIXED `rewriter`. On provider FAILURE the facade NEVER
+ * falls open to source text (which would ship the WRONG language to the
+ * recipient). It asks the rewriter for a safe single-language string;
+ * absent a rewriter it ships the caller's safe (target-language)
+ * fallback; absent that it ships an EMPTY string rather than the
+ * wrong-language source. Callers that need a hard error set
  * `strict: true`.
  *
  * The cache + rewriter ports are injected so tests pass fakes and
@@ -234,10 +234,12 @@ export function createTranslate(deps: TranslateDeps): TranslateFn {
         throw new Error(`translate(${surface}): ${message}`);
       }
 
-      // Fail-FIXED: the provider chain failed. Returning source text here
-      // would ship the WRONG language to the recipient — a zero-mix
-      // violation. When a rewriter + safe fallback are wired, ship the
-      // safe single-language string instead.
+      // Fail-FIXED: the provider chain failed. We are past the
+      // same-language passthrough (step 1), so `input.text` is in the
+      // SOURCE language and shipping it on a TARGET-language surface is a
+      // zero-mix violation. We therefore NEVER return source text here.
+      // When a rewriter + safe fallback are wired, ship the safe
+      // single-language string instead.
       if (deps.rewriter !== undefined && options?.safeFallback !== undefined) {
         const rewrite = await deps.rewriter({
           text: options.safeFallback,
@@ -254,14 +256,29 @@ export function createTranslate(deps: TranslateDeps): TranslateFn {
         });
       }
 
-      // No safe fallback available. Surface source text but log the
-      // zero-mix risk so the gap is visible in telemetry.
+      // No rewriter wired but a safe (target-language) fallback was
+      // supplied: ship it verbatim; it is already clean for the target.
+      if (options?.safeFallback !== undefined) {
+        return Object.freeze({
+          text: options.safeFallback,
+          sourceLang: input.sourceLang,
+          targetLang: input.targetLang,
+          cacheHit: false,
+          provider: 'passthrough',
+          latencyMs: now() - t0,
+        });
+      }
+
+      // Nothing clean to ship. Prefer an EMPTY string over wrong-language
+      // source text. A blank is never a zero-mix violation, a mixed /
+      // wrong-language string is. Log so the missing-safeFallback gap is
+      // visible in telemetry and gets a real fallback wired.
       deps.logger.warn('translation.failed.no-safe-fallback', {
         surface,
         targetLang: input.targetLang,
       });
       return Object.freeze({
-        text: input.text,
+        text: '',
         sourceLang: input.sourceLang,
         targetLang: input.targetLang,
         cacheHit: false,

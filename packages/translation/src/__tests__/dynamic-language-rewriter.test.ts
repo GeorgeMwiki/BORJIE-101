@@ -152,6 +152,49 @@ describe('createDynamicLanguageRewriter', () => {
     expect(port.rewrite).toHaveBeenCalledTimes(1);
   });
 
+  it('fires a rewrite on a lone CONTENT-word leak whose ratio is tiny', async () => {
+    // One Swahili content word ("biashara") inside a long English string.
+    // Its leak ratio rounds toward zero, but the hard-leak signal must
+    // still trigger the AI rewrite (fail-closed fire decision).
+    const contaminated =
+      'The mining royalty report for the quarter is ready and the account ' +
+      'balance is available for review by the officer biashara.';
+    const port = portReturning(
+      'The mining royalty report for the quarter is ready and the account ' +
+        'balance is available for review by the officer.',
+    );
+    const rewrite = createDynamicLanguageRewriter({ port, logger: makeLogger() });
+
+    const out = await rewrite({
+      text: contaminated,
+      targetLang: 'en',
+      safeFallback: 'The report is ready.',
+    });
+
+    expect(port.rewrite).toHaveBeenCalledTimes(1);
+    expect(out.source).toBe('brain');
+    expect(out.text).not.toContain('biashara');
+  });
+
+  it('NEVER ships a candidate that still leaks a content word', async () => {
+    // Model "rewrote" but left a Swahili content word in an English target.
+    // The fail-closed recheck must reject it and ship the safe fallback,
+    // never the mixed candidate.
+    const contaminated = 'AI Credit biashara Officer summary for the owner today.';
+    const port = portReturning('AI Credit biashara Officer report.');
+    const rewrite = createDynamicLanguageRewriter({ port, logger: makeLogger() });
+
+    const out = await rewrite({
+      text: contaminated,
+      targetLang: 'en',
+      safeFallback: 'Your summary is ready.',
+    });
+
+    expect(out.source).toBe('safe-fallback');
+    expect(out.text).toBe('Your summary is ready.');
+    expect(out.text).not.toContain('biashara');
+  });
+
   it('skips empty / whitespace-only input', async () => {
     const port = portReturning('x');
     const rewrite = createDynamicLanguageRewriter({ port, logger: makeLogger() });

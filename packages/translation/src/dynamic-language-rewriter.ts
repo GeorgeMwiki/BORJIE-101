@@ -28,7 +28,11 @@
  * Reference: LITFIN src/core/language-intelligence/dynamic-language-rewriter.ts.
  */
 
-import { offTargetRatio, checkContamination } from './contamination.js';
+import {
+  offTargetRatio,
+  hasOffTargetLeak,
+  checkContamination,
+} from './contamination.js';
 import type { Locale } from './types.js';
 
 /**
@@ -230,8 +234,14 @@ export function createDynamicLanguageRewriter(deps: RewriterDeps): RewriteFn {
     }
 
     const ratio = offTargetRatio(trimmed, input.targetLang);
-    if (ratio <= minLeakRatio) {
-      // Already clean (or within tolerance) — no AI call, ship verbatim.
+    // Fail-closed fire decision: a SINGLE confidently-wrong-language token
+    // (e.g. one leaked content word) can round to a near-zero ratio, so we
+    // also consult the hard-leak signal. We skip the AI call ONLY when the
+    // ratio is within tolerance AND there is no hard leak, i.e. only when
+    // we are confident the text is already single-language.
+    const hardLeak = hasOffTargetLeak(trimmed, input.targetLang);
+    if (ratio <= minLeakRatio && !hardLeak) {
+      // Confirmed clean (or within tolerance): no AI call, ship verbatim.
       return Object.freeze({
         text: input.text,
         rewritten: false,
