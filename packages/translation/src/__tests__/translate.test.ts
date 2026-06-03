@@ -126,6 +126,104 @@ describe('translate()', () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
+  it('repairs a contaminated provider result via the rewriter before caching', async () => {
+    const cache = createInMemoryTranslationCache();
+    // Runner leaks English function words into a Swahili target.
+    const runner = makeFakeRunner('Karibu the mgodi and wako with leseni mpya.');
+    const rewriter = vi.fn(async () => ({
+      text: 'Karibu kwenye mgodi wako wenye leseni mpya.',
+      rewritten: true,
+      offTargetRatio: 0.3,
+      source: 'brain' as const,
+    }));
+    const translate = createTranslate({
+      cache,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runner: runner as any,
+      rewriter,
+      logger: makeLogger(),
+    });
+
+    const out = await translate({
+      text: 'Welcome to your mine',
+      sourceLang: 'en',
+      targetLang: 'sw',
+      tenantId: 't1',
+      surface: 'email.welcome',
+    });
+
+    expect(rewriter).toHaveBeenCalledTimes(1);
+    expect(out.text).toBe('Karibu kwenye mgodi wako wenye leseni mpya.');
+    // Repaired strings must NOT poison the shared cache.
+    expect(cache.stats().size).toBe(0);
+  });
+
+  it('does NOT call the rewriter when the provider result is clean', async () => {
+    const cache = createInMemoryTranslationCache();
+    const runner = makeFakeRunner('Karibu kwenye mgodi wako.');
+    const rewriter = vi.fn(async () => ({
+      text: 'SHOULD NOT BE USED',
+      rewritten: true,
+      offTargetRatio: 1,
+      source: 'brain' as const,
+    }));
+    const translate = createTranslate({
+      cache,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runner: runner as any,
+      rewriter,
+      logger: makeLogger(),
+    });
+
+    const out = await translate({
+      text: 'Welcome to your mine',
+      sourceLang: 'en',
+      targetLang: 'sw',
+      tenantId: 't1',
+    });
+
+    expect(rewriter).not.toHaveBeenCalled();
+    expect(out.text).toBe('Karibu kwenye mgodi wako.');
+    expect(cache.stats().size).toBe(1);
+  });
+
+  it('ships the SAFE fallback (not source text) when the runner fails and a rewriter is wired', async () => {
+    const cache = createInMemoryTranslationCache();
+    const broken = {
+      async run() {
+        throw new Error('all providers exhausted');
+      },
+    };
+    const rewriter = vi.fn(async (i: { safeFallback: string }) => ({
+      text: i.safeFallback,
+      rewritten: false,
+      offTargetRatio: 0,
+      source: 'safe-fallback' as const,
+    }));
+    const translate = createTranslate({
+      cache,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runner: broken as any,
+      rewriter,
+      logger: makeLogger(),
+    });
+
+    const out = await translate(
+      {
+        text: 'Welcome to Borjie',
+        sourceLang: 'en',
+        targetLang: 'sw',
+        tenantId: 't1',
+        surface: 'email.welcome.subject',
+      },
+      { safeFallback: 'Tafadhali jaribu tena.' },
+    );
+
+    // Zero-mix: never the English source on a Swahili surface.
+    expect(out.text).toBe('Tafadhali jaribu tena.');
+    expect(out.text).not.toBe('Welcome to Borjie');
+  });
+
   it('throws when strict=true and runner fails', async () => {
     const cache = createInMemoryTranslationCache();
     const broken = {

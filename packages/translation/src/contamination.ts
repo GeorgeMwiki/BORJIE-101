@@ -137,6 +137,24 @@ export function checkContamination(
   });
 }
 
+/**
+ * Off-target ratio for the dynamic rewriter (LP-23). Same heuristic as
+ * `checkContamination` but returns the bare ratio in [0,1] so the
+ * rewriter can decide whether to fire a live AI rewrite. 0 means the
+ * text is already clean for the target language.
+ *
+ * Pure — never throws. Mirrors the LITFIN `offTargetRatio` contract
+ * (src/core/language-intelligence/dynamic-language-rewriter.ts) but
+ * reuses Borjie's own lexicon detector instead of a separate engine.
+ */
+export function offTargetRatio(
+  text: string,
+  targetLang: Locale,
+  options?: ContaminationCheckOptions,
+): number {
+  return checkContamination(text, targetLang, options).leakRatio;
+}
+
 export class ContaminationError extends Error {
   readonly leakedTokens: ReadonlyArray<string>;
   readonly leakRatio: number;

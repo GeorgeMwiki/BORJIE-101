@@ -299,3 +299,42 @@ export {
 } from './UiArtifact';
 
 export { projectArtifactToUiPart } from './projector';
+
+// ─────────────────────────────────────────────────────────────────────
+// LP-24b — framework-free streaming-artifact contract. Pure logic (no
+// React/DOM), re-exported here for client hooks and also available from
+// the node-safe `@borjie/genui/server` entry.
+// ─────────────────────────────────────────────────────────────────────
+export {
+  createChatArtifactStreamParser,
+  createArtifactWriter,
+  createInMemoryArtifactTransport,
+  reduceArtifactChunk,
+  assembleArtifact,
+  sortRevealsByTime,
+  totalChoreographyMs,
+  initChoreographyState,
+  tickChoreography,
+  applyInteraction,
+  type ChatArtifactStreamParser,
+  type ArtifactStreamEvent,
+  type ArtifactStreamEventType,
+  type ArtifactOpenEvent,
+  type ArtifactDeltaEvent,
+  type ArtifactCloseEvent,
+  type ArtifactStreamSink,
+  type ArtifactChunk,
+  type ArtifactChunkKind,
+  type ArtifactTransport,
+  type ArtifactWriter,
+  type ArtifactWriterClock,
+  type StreamingArtifact,
+  type StreamingArtifactStatus,
+  type BlackboardChoreography,
+  type RevealCue,
+  type VoiceMarker,
+  type StoryShape,
+  type InteractionResponse,
+  type ChoreographyState,
+  type ChoreographyTickEvent,
+} from './streaming/index';

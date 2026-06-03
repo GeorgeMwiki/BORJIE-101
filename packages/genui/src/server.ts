@@ -68,3 +68,41 @@ export {
 } from './validate-artifact';
 export { PART_SCHEMAS, type PartKind } from './schemas';
 export type { AgUiUiPart } from './types';
+
+// LP-24b: framework-free streaming-artifact contract (stream parser,
+// typed StreamingArtifact<T> writer/reducer, choreography state machine).
+// Pure + dependency-free, so it is safe on this node-side entry and is
+// also re-exported from the React index for client hooks.
+export {
+  createChatArtifactStreamParser,
+  createArtifactWriter,
+  createInMemoryArtifactTransport,
+  reduceArtifactChunk,
+  assembleArtifact,
+  sortRevealsByTime,
+  totalChoreographyMs,
+  initChoreographyState,
+  tickChoreography,
+  applyInteraction,
+  type ChatArtifactStreamParser,
+  type ArtifactStreamEvent,
+  type ArtifactStreamEventType,
+  type ArtifactOpenEvent,
+  type ArtifactDeltaEvent,
+  type ArtifactCloseEvent,
+  type ArtifactStreamSink,
+  type ArtifactChunk,
+  type ArtifactChunkKind,
+  type ArtifactTransport,
+  type ArtifactWriter,
+  type ArtifactWriterClock,
+  type StreamingArtifact,
+  type StreamingArtifactStatus,
+  type BlackboardChoreography,
+  type RevealCue,
+  type VoiceMarker,
+  type StoryShape,
+  type InteractionResponse,
+  type ChoreographyState,
+  type ChoreographyTickEvent,
+} from './streaming/index';
