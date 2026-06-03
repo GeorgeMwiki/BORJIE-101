@@ -41,3 +41,21 @@ export {
   type Reducer,
   type ReducerMap,
 } from "./projector.js";
+
+// CDC projection router (LP-20b) — transport-agnostic change fan-out.
+export {
+  createProjectionRouter,
+  startProjectionStream,
+  eventMatches,
+  parseCdcPayload,
+  DEFAULT_WATCHED_TABLES,
+  type ProjectionRouter,
+  type ProjectionStreamDeps,
+  type CdcLogger,
+  type CdcEvent,
+  type CdcConsumer,
+  type CdcOperation,
+  type CdcWatchedTable,
+  type CdcListenerHandle,
+  type CdcStats,
+} from "./cdc/index.js";
