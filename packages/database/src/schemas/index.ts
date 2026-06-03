@@ -55,6 +55,13 @@ export * from './corpus-doc-uploads.schema.js';
 // Append-only memory table (upsert-only at the app layer).
 export * from './onboarding-state.schema.js';
 
+// Tenant-signup onboarding persistence (migration 0188 / KI-013 closure).
+// Three pre-tenant system tables: owner_onboarding_credentials,
+// onboarding_signup_sessions, onboarding_email_verifications.
+// RLS FORCE-enabled with service-managed policy — see schema file for
+// the full security-model rationale.
+export * from './onboarding-signup.schema.js';
+
 // Mining-domain extensions (migration 0005)
 export * from './buyer-extensions.schema.js';
 export * from './bid-negotiations.schema.js';
