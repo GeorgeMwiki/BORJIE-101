@@ -32,6 +32,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type { CompositionDeps, WireProbeFn } from '@borjie/cognitive-composition';
 import {
   wireCognitive,
   enrichBrainTurnWithCognitive,
@@ -113,6 +114,54 @@ async function seedMemoryWithFacts(
       },
     );
   }
+}
+
+const okProbe: WireProbeFn = async () => ({ status: 'up' });
+
+/**
+ * Minimal happy-path `CompositionDeps` — every wire resolves
+ * deterministically. The `brainRouter.cascade` text is what surfaces as
+ * the composer's final answer, so we tag it so the enrichment test can
+ * assert the deep-reasoning block contains it.
+ */
+function fakeCompositionDeps(): CompositionDeps {
+  const memTier = (
+    tier: 'episodic' | 'semantic' | 'procedural' | 'reflective',
+  ) => ({
+    tier,
+    recall: async () => [{ cellId: `${tier}-1`, text: `${tier} fact` }],
+    probe: okProbe,
+  });
+  return {
+    inference: {
+      infer: async () => ({ text: 'draft', confidence: 0.82 }),
+      probe: okProbe,
+    },
+    memoryTiers: {
+      episodic: memTier('episodic'),
+      semantic: memTier('semantic'),
+      procedural: memTier('procedural'),
+      reflective: memTier('reflective'),
+    },
+    cot: { cot: async () => ({ trace: ['step-1'] }), probe: okProbe },
+    substrate: { compile: async () => ({ programId: 'prog-1' }), probe: okProbe },
+    kernel: { hook: async () => undefined, probe: okProbe },
+    calibration: { observe: async () => ({ driftScore: 0.1 }), probe: okProbe },
+    conformal: { update: async () => ({ alpha: 0.1 }), probe: okProbe },
+    audit: {
+      append: async () => ({ rowHash: 'h1', prevHash: 'h0' }),
+      verify: async () => ({ ok: true, firstBrokenIndex: null }),
+      probe: okProbe,
+    },
+    brainRouter: {
+      cascade: async () => ({ text: 'DEEP_ANSWER_TOKEN', modelId: 'sonnet-4-6' }),
+      probe: okProbe,
+    },
+    healthStore: {
+      upsert: async () => undefined,
+      list: async () => [],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -363,6 +412,148 @@ describe('enrichBrainTurnWithCognitive — happy paths', () => {
     );
     expect(block).toMatch(/^# RELEVANT MEMORIES \(top 1\)/);
     expect(block).toMatch(/1\. \[fact\|score=0\.782\] hello world/);
+  });
+});
+
+describe('enrichBrainTurnWithCognitive — deep composer call-site (LP-01 / LP-30)', () => {
+  it('runs the composer and folds a DEEP REASONING block into the prompt when enabled + routed', async () => {
+    // Build the composer ENABLED (flag on) with deterministic deps and a
+    // high-stakes route so the TTC allocator escalates off the fast path.
+    const wired = wireCognitive({
+      db: null,
+      logger: silentLogger(),
+      compositionDeps: fakeCompositionDeps(),
+      env: { BORJIE_COGNITIVE_COMPOSER_ENABLED: '1' },
+    });
+    expect(wired.composition).not.toBeNull();
+    expect(wired.composition?.enabled).toBe(true);
+
+    const result = await enrichBrainTurnWithCognitive({
+      wired,
+      tenantId: TEST_TENANT,
+      userId: TEST_USER,
+      userText: 'Should we suspend the licence given the arrears?',
+      personaId: TEST_PERSONA,
+      // critical stakes -> LATS hard edge (non-fast) so the composer spins.
+      composer: { stakes: 'critical', surface: 'owner-portal' },
+    });
+
+    // The deep-reasoning block is present, surfaces the composed answer,
+    // and the composer result is exposed for telemetry.
+    expect(result.enrichedSystemPrompt).toMatch(/DEEP REASONING/);
+    expect(result.enrichedSystemPrompt).toContain('DEEP_ANSWER_TOKEN');
+    expect(result.composer).not.toBeNull();
+    expect(result.composer?.route.strategy).toBe('lats');
+  });
+
+  it('does NOT run the composer when the flag is disabled (default OFF) — composer result is null', async () => {
+    const wired = wireCognitive({
+      db: null,
+      logger: silentLogger(),
+      compositionDeps: fakeCompositionDeps(),
+      // No env → flag OFF by default.
+    });
+    // The slot is constructed but disabled.
+    expect(wired.composition).not.toBeNull();
+    expect(wired.composition?.enabled).toBe(false);
+
+    const result = await enrichBrainTurnWithCognitive({
+      wired,
+      tenantId: TEST_TENANT,
+      userId: TEST_USER,
+      userText: 'Should we suspend the licence?',
+      personaId: TEST_PERSONA,
+      composer: { stakes: 'critical', surface: 'owner-portal' },
+    });
+    expect(result.composer).toBeNull();
+    expect(result.enrichedSystemPrompt).not.toMatch(/DEEP REASONING/);
+  });
+
+  it('does NOT run the composer on a low-stakes (fast) route even when enabled', async () => {
+    const wired = wireCognitive({
+      db: null,
+      logger: silentLogger(),
+      compositionDeps: fakeCompositionDeps(),
+      env: { BORJIE_COGNITIVE_COMPOSER_ENABLED: '1' },
+    });
+    const result = await enrichBrainTurnWithCognitive({
+      wired,
+      tenantId: TEST_TENANT,
+      userId: TEST_USER,
+      userText: 'hello',
+      personaId: TEST_PERSONA,
+      composer: { stakes: 'low', surface: 'tenant-app' },
+    });
+    // Fast path → runForTurn returns null → no deep block.
+    expect(result.composer).toBeNull();
+    expect(result.enrichedSystemPrompt).not.toMatch(/DEEP REASONING/);
+  });
+
+  it('leaves the composer null + enrichment unchanged when no compositionDeps were supplied', async () => {
+    const wired = wireCognitive({ db: null, logger: silentLogger() });
+    expect(wired.composition).toBeNull();
+    await seedMemoryWithFacts(wired, [
+      { text: 'Licence renewal due 2026-09-01' },
+    ]);
+    const result = await enrichBrainTurnWithCognitive({
+      wired,
+      tenantId: TEST_TENANT,
+      userId: TEST_USER,
+      userText: 'licence renewal',
+      personaId: TEST_PERSONA,
+      composer: { stakes: 'critical', surface: 'owner-portal' },
+    });
+    // Memory recall still works; composer is absent.
+    expect(result.composer).toBeNull();
+    expect(result.enrichedSystemPrompt).toMatch(/RELEVANT MEMORIES/);
+    expect(result.enrichedSystemPrompt).not.toMatch(/DEEP REASONING/);
+  });
+
+  it('safeComposeDeep returns null when the composition slot is null', async () => {
+    const wired = wireCognitive({ db: null, logger: silentLogger() });
+    const out = await __testables.safeComposeDeep({
+      wired,
+      tenantId: TEST_TENANT,
+      userText: 'anything',
+      logger: __testables.createSilentLogger(),
+    });
+    expect(out).toBeNull();
+  });
+
+  it('safeComposeDeep never throws even if runForTurn rejects (defence-in-depth)', async () => {
+    const base = wireCognitive({
+      db: null,
+      logger: silentLogger(),
+      compositionDeps: fakeCompositionDeps(),
+      env: { BORJIE_COGNITIVE_COMPOSER_ENABLED: '1' },
+    });
+    // Sabotage runForTurn to throw — the wrapper must swallow it.
+    const sabotaged: WiredCognitive = Object.freeze({
+      ...base,
+      composition:
+        base.composition === null
+          ? null
+          : Object.freeze({
+              ...base.composition,
+              runForTurn: async (): Promise<never> => {
+                throw new Error('synthetic composer failure');
+              },
+            }),
+    });
+    const out = await __testables.safeComposeDeep({
+      wired: sabotaged,
+      tenantId: TEST_TENANT,
+      userText: 'anything',
+      composer: { stakes: 'critical', surface: 'owner-portal' },
+      logger: __testables.createSilentLogger(),
+    });
+    expect(out).toBeNull();
+  });
+});
+
+describe('formatComposerBlock', () => {
+  it('returns empty string for a null composer result', () => {
+    expect(__testables.formatComposerBlock(null)).toBe('');
   });
 });
 

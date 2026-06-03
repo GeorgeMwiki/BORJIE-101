@@ -164,6 +164,8 @@ import {
   wireCognitiveComposer,
   type WiredCognitiveComposer,
   type WireCognitiveComposerDeps,
+  type RunComposerArgs,
+  type ComposerTurnResult,
 } from './cognitive-composer-wiring.js';
 
 import {
@@ -475,6 +477,36 @@ export interface EnrichArgs {
   readonly now?: () => Date;
   /** Optional logger; defaults to a silent logger. */
   readonly logger?: CognitiveLogger;
+  /**
+   * LP-01 / LP-30 — optional deep-reasoning composer inputs. When the
+   * `wired.composition` slot is present AND its env flag enabled, the
+   * composer is TTC-routed (Self-Discover / LATS) over these signals and a
+   * deep-reasoning block is folded into the enriched prompt. Omit them to
+   * keep memory-recall-only enrichment (the composer is also skipped when
+   * its slot is null / disabled / a fast route is chosen — all fail-safe).
+   */
+  readonly composer?: ComposerEnrichInput;
+}
+
+/**
+ * Optional inputs that route the deep composer for this turn. All fields
+ * carry conservative defaults so a caller can opt in with `{}` and still
+ * get a safe (low-stakes, owner-portal) routing decision — the composer
+ * only spins on a non-fast route AND when its env flag is on.
+ */
+export interface ComposerEnrichInput {
+  /** Stakes signal for the TTC allocator. Default 'low'. */
+  readonly stakes?: RunComposerArgs['stakes'];
+  /** Surface signal for the TTC allocator. Default 'owner-portal'. */
+  readonly surface?: RunComposerArgs['surface'];
+  /** Ambiguity / difficulty score in [0,1] from the normaliser. */
+  readonly ambiguityScore?: number;
+  /** Per-tenant / per-tier cost ceiling forwarded to the allocator. */
+  readonly costCeilingUsd?: number;
+  /** Force the cross-provider judge on the composed answer. */
+  readonly requireJudge?: boolean;
+  /** Turn id for the composer's hash-chained provenance. Default derived. */
+  readonly turnId?: string;
 }
 
 export interface EnrichResult {
@@ -487,6 +519,15 @@ export interface EnrichResult {
   /** Recall results in case the caller wants to display them in a
    *  side-channel (e.g. the "what I remembered" debug panel). */
   readonly recallResults: ReadonlyArray<RecallResult>;
+  /**
+   * LP-01 / LP-30 — the deep-reasoning composer result, when the composer
+   * ran (non-fast route + flag enabled + no error). `null` on the common
+   * path so the caller can tell the composer apart from memory recall for
+   * telemetry. Its `route.strategy` + `output.confidenceLabel` are useful
+   * on an ops dashboard. The composer's text is ALSO folded into
+   * `enrichedSystemPrompt` as an additive block — never replaces recall.
+   */
+  readonly composer: ComposerTurnResult | null;
 }
 
 const EMPTY_CITATIONS: ReadonlyArray<string> = Object.freeze([]);
@@ -496,6 +537,7 @@ const EMPTY_RESULT: EnrichResult = Object.freeze({
   enrichedSystemPrompt: '',
   citations: EMPTY_CITATIONS,
   recallResults: EMPTY_RECALL_RESULTS,
+  composer: null,
 });
 
 const DEFAULT_TOP_K = 3;
@@ -533,6 +575,20 @@ function formatSessionBlock(
   const text = summary.summary_md.trim();
   if (text.length === 0) return '';
   return ['# RECENT SESSION CONTEXT', text].join('\n');
+}
+
+/**
+ * Format the deep-reasoning composer output into an additive prompt block.
+ * Returns '' when the composer did not run or produced no usable text (the
+ * caller then keeps memory-recall-only enrichment). Tagged with the routed
+ * strategy + confidence so the persona model can weight the scaffold.
+ */
+function formatComposerBlock(result: ComposerTurnResult | null): string {
+  if (result === null) return '';
+  const text = result.output.text.trim();
+  if (text.length === 0) return '';
+  const header = `# DEEP REASONING (${result.route.strategy}|confidence=${result.output.confidenceLabel})`;
+  return [header, text].join('\n');
 }
 
 /**
@@ -588,9 +644,28 @@ export async function enrichBrainTurnWithCognitive(
   if (args.now !== undefined) sessionRecallArgs.now = args.now;
   const sessionSummary = await safeSessionRecall(sessionRecallArgs);
 
+  // LP-01 / LP-30 — deep-reasoning composer. Fail-safe + null-guarded: runs
+  // ONLY when the composer slot is present, its env flag is on, and the TTC
+  // route is non-fast. `runForTurn` never throws (returns null on disabled /
+  // fast / error), and this helper double-guards so the hot path is never
+  // broken by the composer. When it returns null the enrichment is exactly
+  // the prior memory-recall-only behaviour.
+  const composeArgs: { -readonly [K in keyof SafeComposeDeepArgs]: SafeComposeDeepArgs[K] } = {
+    wired: args.wired,
+    tenantId: args.tenantId,
+    userText: trimmedText,
+    logger,
+  };
+  if (args.threadId !== undefined) composeArgs.threadId = args.threadId;
+  if (args.composer !== undefined) composeArgs.composer = args.composer;
+  const composerResult = await safeComposeDeep(composeArgs);
+
   const memoryBlock = formatRecallBlock(recallResults, args.personaId);
   const sessionBlock = formatSessionBlock(sessionSummary);
-  const parts = [memoryBlock, sessionBlock].filter((p) => p.length > 0);
+  const composerBlock = formatComposerBlock(composerResult);
+  const parts = [memoryBlock, sessionBlock, composerBlock].filter(
+    (p) => p.length > 0,
+  );
 
   if (parts.length === 0) {
     return EMPTY_RESULT;
@@ -603,6 +678,7 @@ export async function enrichBrainTurnWithCognitive(
     enrichedSystemPrompt,
     citations,
     recallResults: Object.freeze(recallResults.slice()),
+    composer: composerResult,
   });
 }
 
@@ -717,6 +793,72 @@ async function safeSessionRecall(
   }
 }
 
+// Conservative composer-routing defaults. Owner-portal + low stakes keep the
+// TTC allocator from over-firing the deep composer on ordinary chat; the
+// composer only escalates above these when the caller passes higher stakes /
+// ambiguity. Mirrors the kernel-preflight conservative posture in brain.hono.
+const COMPOSER_DEFAULT_STAKES: RunComposerArgs['stakes'] = 'low';
+const COMPOSER_DEFAULT_SURFACE: RunComposerArgs['surface'] = 'owner-portal';
+
+interface SafeComposeDeepArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  readonly userText: string;
+  readonly threadId?: string;
+  readonly composer?: ComposerEnrichInput;
+  readonly logger: CognitiveLogger;
+}
+
+/**
+ * Invoke the deep-reasoning composer for a turn. NEVER throws — triple
+ * fail-safe:
+ *   1. `wired.composition === null` (no compositionDeps / construction
+ *      failed) → returns null, memory-recall-only enrichment is used.
+ *   2. `runForTurn` is itself fail-safe — returns null on a disabled flag,
+ *      a fast TTC route, or any compose error.
+ *   3. This wrapper try/catches defensively so even a contract violation in
+ *      the composer can never break the brain turn.
+ */
+async function safeComposeDeep(
+  args: SafeComposeDeepArgs,
+): Promise<ComposerTurnResult | null> {
+  const composition = args.wired.composition;
+  if (composition === null) return null;
+  try {
+    const input = args.composer ?? {};
+    const runArgs: { -readonly [K in keyof RunComposerArgs]: RunComposerArgs[K] } = {
+      tenantId: args.tenantId,
+      turnId:
+        input.turnId ??
+        (args.threadId !== undefined
+          ? `brain-turn-compose:${args.threadId}`
+          : `brain-turn-compose:${args.tenantId}`),
+      userMessage: args.userText,
+      stakes: input.stakes ?? COMPOSER_DEFAULT_STAKES,
+      surface: input.surface ?? COMPOSER_DEFAULT_SURFACE,
+      logger: args.logger,
+    };
+    if (input.ambiguityScore !== undefined) {
+      runArgs.ambiguityScore = input.ambiguityScore;
+    }
+    if (input.costCeilingUsd !== undefined) {
+      runArgs.costCeilingUsd = input.costCeilingUsd;
+    }
+    if (input.requireJudge !== undefined) {
+      runArgs.requireJudge = input.requireJudge;
+    }
+    return await composition.runForTurn(runArgs);
+  } catch (err) {
+    // Defence-in-depth: `runForTurn` should already swallow everything, but
+    // a contract violation must NEVER break the turn. Skip the deep block.
+    args.logger.warn(
+      'cognitive-wiring: deep composer threw unexpectedly; skipping deep-reasoning block',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Hono middleware factory — sets `c.set('cognitive', wired)` so routes
 // can read the bundle via `c.get('cognitive')`. The composition root
@@ -760,8 +902,12 @@ export const __testables = Object.freeze({
   createFixedVectorEmbedder,
   formatRecallBlock,
   formatSessionBlock,
+  formatComposerBlock,
+  safeComposeDeep,
   clampTopK,
   createSilentLogger,
   DEFAULT_TOP_K,
   EMPTY_RESULT,
+  COMPOSER_DEFAULT_STAKES,
+  COMPOSER_DEFAULT_SURFACE,
 });
