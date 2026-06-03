@@ -342,29 +342,3 @@ export {
   DEFAULT_EFFORT,
 } from './effort/index.js';
 export type { ReasoningEffort } from './effort/index.js';
-
-// Speculative decoding — SCAFFOLD (LP-12, experimental tail)
-export {
-  speculativeDecode,
-  isSpeculativeDecodingEnabled,
-} from './speculative-decoding/index.js';
-export type {
-  SpeculativeModelClient,
-  SpeculativeDecodeArgs,
-  SpeculativeDecodeStats,
-  SpeculativeDecodeResult,
-} from './speculative-decoding/index.js';
-
-// KV-cache prefix registry — SCAFFOLD (LP-12, experimental tail)
-export {
-  KvPrefixRegistry,
-  prefixKey,
-  isKvCacheHotSwapEnabled,
-} from './kv-cache/index.js';
-export type {
-  PrefixCacheEntry,
-  PrefixLookupArgs,
-  PrefixAssignArgs,
-  PrefixHitOrMiss,
-  PrefixRegistryStats,
-} from './kv-cache/index.js';
