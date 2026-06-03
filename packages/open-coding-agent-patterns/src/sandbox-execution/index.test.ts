@@ -43,7 +43,11 @@ describe('sandbox-execution :: createLocalSubprocessSandbox', () => {
       allowedCommands: ['printf'],
     });
     const res = await sandbox.exec({
-      cmd: 'printf "%s" "$(printf %.s. {1..200})"',
+      // 200 literal bytes, generated in JS so the command is shell-PORTABLE.
+      // The old `{1..200}` relied on bash brace-expansion, which /bin/sh = dash
+      // (the default shell on CI runners, used by spawn({ shell: true })) does
+      // NOT expand — so output stayed under the cap and `truncated` was false.
+      cmd: `printf "%s" "${'.'.repeat(200)}"`,
       outputCapBytes: 50,
     });
     expect(res.truncated).toBe(true);
