@@ -243,3 +243,31 @@ entries in `Docs/ROADMAP.md`.
 frontend, voice, Borjie-verifier). Wiring-debt + correctness claims independently
 verified by grep against the working tree on branch `rls-connection-pinning`
 (2026-06-03); LITFIN source pointers are agent-sourced from `Claude Projects/LITFIN PROJECT/`.
+
+## 8. LP-02 resolution — orphan-package triage (2026-06-03)
+
+The 7 orphan packages were triaged (branch `litfin-port-waves-2026-06-03`):
+
+- **KEPT — `memory-port-extensions`**: no longer an orphan; Agent D's
+  `reflective-signal-sink.ts` (LP-05) wired it into the learning loop, so it now
+  has a live consumer.
+- **RETIRED (removed) — the 6 `litfin-port-*` packages**: each was a 0-importer
+  duplicate of capability Borjie already has wired natively, so they were
+  removed (`git rm`) rather than wired:
+  - `litfin-port-data-infra` → duplicates `tenant-isolation-guard` + `payments-ledger` + error codes.
+  - `litfin-port-learning-shape` → superseded by the new `belief-engine` + `learning-signal-emitter` (LP-17/18) and existing `learning-amplification`/`outcomes`/`proactive-intel`.
+  - `litfin-port-observability-extra` → duplicates the canonical `observability` package.
+  - `litfin-port-security-extra` → duplicates `autonomy-governance` (constitution), `data-protection` (GDPR), `webhooks`/`payments-ledger` (signatures), `audit-hash-chain` (signed events).
+  - `litfin-port-tools-extra` → duplicates `agent-platform` (A2A), `mcp-server` (MCP), `action-runtime` (saga — Borjie's is ahead), `connectors` (retry/backoff).
+  - `litfin-port-ui-extra` → duplicates `design-system`, `genui` (render-tree already ported), `animations`.
+
+  **Recovery:** all code remains in git history at pre-removal commit `6bd793c4`
+  — restore any module with `git checkout 6bd793c4 -- packages/litfin-port-<name>`.
+  The stale `scripts/__allowlists__/hardcoded-bank-coverage-allowlist.mjs` entry
+  for `litfin-port-security-extra` was removed; `pnpm-lock.yaml` resynced
+  (`--frozen-lockfile` clean). No consumer referenced any of the 6 (verified 0
+  importers across services/apps/packages).
+
+Net: the May-2026 `litfin-port-*-extra` orphan wave is fully resolved — 1 wired,
+6 retired with a recovery path. The "built-but-dark" debt from the original
+finding is closed.
