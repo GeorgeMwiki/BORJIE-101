@@ -144,6 +144,59 @@ describe('EML extractor', () => {
     expect(result.bodyText).toContain('Hello');
     expect(result.bodyText).not.toContain('<b>');
   });
+
+  const htmlEml = (htmlBody: string): string =>
+    ['Subject: x', 'Content-Type: text/html', '', htmlBody].join('\r\n');
+
+  it('drops the body of <script> and <style> raw-text elements', () => {
+    const result = extractEml(
+      new TextEncoder().encode(
+        htmlEml('<style>.x{color:red}</style><script>alert(1)</script><p>Visible</p>'),
+      ),
+    );
+    expect(result.bodyText).toBe('Visible');
+    expect(result.bodyText).not.toContain('alert');
+    expect(result.bodyText).not.toContain('color:red');
+  });
+
+  it('fully strips a nested <scr<script>ipt> injection (incomplete-sanitization guard)', () => {
+    const result = extractEml(
+      new TextEncoder().encode(htmlEml('<scr<script>ipt>alert(1)</script> Hello <b>world</b>')),
+    );
+    // No reconstituted tag of any kind may survive the single structural scan.
+    expect(/<script/i.test(result.bodyText)).toBe(false);
+    expect(/<[^>]*>/.test(result.bodyText)).toBe(false);
+    expect(result.bodyText).toContain('Hello');
+    expect(result.bodyText).toContain('world');
+  });
+
+  it('decodes HTML entities exactly once — no double-escaping', () => {
+    const result = extractEml(
+      new TextEncoder().encode(htmlEml('<p>A &amp;lt; B and 5 &lt; 6 &amp; ok &#65; &#x42;</p>')),
+    );
+    // &amp;lt; must decode to the literal text "&lt;", NOT collapse to "<".
+    expect(result.bodyText).toContain('&lt;');
+    // A genuine single &lt; / &gt; / &amp; / numeric refs decode once.
+    expect(result.bodyText).toContain('5 < 6');
+    expect(result.bodyText).toContain('& ok');
+    expect(result.bodyText).toContain('A B'); // &#65; -> A, &#x42; -> B
+  });
+
+  it('returns quickly on ReDoS-style pathological HTML input', () => {
+    const pathological = [
+      '<' + '\t'.repeat(60_000), // unterminated tag with whitespace run
+      '<script' + ' '.repeat(60_000), // unterminated raw-text element
+      '&' + 'a'.repeat(100_000), // long entity-like token without ';'
+      '<scr'.repeat(40_000) + 'ipt>', // overlapping near-tag prefixes
+      '<a>'.repeat(50_000), // many tiny tags
+    ];
+    for (const body of pathological) {
+      const started = performance.now();
+      extractEml(new TextEncoder().encode(htmlEml(body)));
+      // Linear scanner: comfortably sub-second even on 100k-char adversarial input.
+      expect(performance.now() - started).toBeLessThan(1_000);
+    }
+  });
 });
 
 // ----------------------------------------------------------------------------

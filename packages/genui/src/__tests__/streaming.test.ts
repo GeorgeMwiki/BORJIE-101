@@ -226,6 +226,93 @@ describe("artifact-stream-parser", () => {
     expect(close).toBeDefined();
     expect(parser.isInsideArtifact()).toBe(false);
   });
+
+  it("parses attributes in any order, first occurrence winning", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    parser.feed(
+      '<artifact title="First" type="kpi" id="ord" id="ignored">b</artifact>',
+    );
+    parser.flush();
+    const open = events.find((e) => e.type === "open");
+    expect(open).toMatchObject({
+      artifactId: "ord",
+      artifactType: "kpi",
+      title: "First",
+    });
+  });
+
+  it("handles a pathological open tag without super-linear blow-up (ReDoS guard)", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    // A long run of attribute-name characters that never reaches a value
+    // would force quadratic backtracking under the old regex. The bounded,
+    // sticky tokenizer must chew through it in linear time.
+    const evil =
+      "<artifact " + "a".repeat(100_000) + " " + " ".repeat(100_000) + ">body";
+    const start = Date.now();
+    parser.feed(evil);
+    parser.flush();
+    const elapsed = Date.now() - start;
+    // Linear scan of ~200k chars is microseconds; allow generous slack.
+    expect(elapsed).toBeLessThan(500);
+    // Over-long / value-less tag yields no valid open (missing id+type).
+    expect(events.filter((e) => e.type === "open")).toHaveLength(0);
+  });
+
+  it("stays linear when a quoted value is pathologically unterminated", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    // An unterminated quote whose huge body contains the first `>` makes
+    // the whole open tag exceed the length cap; it must be rejected in
+    // linear time, never triggering a quadratic scan.
+    const evil =
+      '<artifact id="ok" type="kpi" title="' + "x".repeat(100_000) + ">tail";
+    const start = Date.now();
+    parser.feed(evil);
+    parser.flush();
+    expect(Date.now() - start).toBeLessThan(500);
+    // Over the MAX_OPEN_TAG_LENGTH cap -> no valid open emitted.
+    expect(events.filter((e) => e.type === "open")).toHaveLength(0);
+  });
+
+  it("still emits an open when id+type precede a bounded title flow", () => {
+    const { events, sink } = collect();
+    const parser = createChatArtifactStreamParser(sink);
+    // A normal-length tag with all three attributes still parses cleanly
+    // after the rewrite (behavior preserved for the happy path).
+    parser.feed('<artifact id="ok" type="kpi" title="Bounded">body</artifact>');
+    parser.flush();
+    const open = events.find((e) => e.type === "open");
+    expect(open).toMatchObject({
+      artifactId: "ok",
+      artifactType: "kpi",
+      title: "Bounded",
+    });
+  });
+
+  it("tokenizes an under-cap adversarial attribute soup in linear time", () => {
+    // This input is UNDER the open-tag length cap, so it exercises the
+    // tokenizer regex directly (not the length short-circuit). It is a
+    // dense run of name-only tokens with no `=value` — the exact shape that
+    // forced quadratic backtracking before. Parsing it thousands of times
+    // must stay fast, proving the bounded sticky regex is linear.
+    const soup =
+      "<artifact " + "ab ".repeat(300) + 'id="z" type="kpi">b</artifact>';
+    expect(soup.indexOf(">")).toBeLessThan(1024); // header within the cap
+    const start = Date.now();
+    let opens = 0;
+    for (let i = 0; i < 2000; i += 1) {
+      const { events, sink } = collect();
+      const parser = createChatArtifactStreamParser(sink);
+      parser.feed(soup);
+      parser.flush();
+      if (events.some((e) => e.type === "open")) opens += 1;
+    }
+    expect(Date.now() - start).toBeLessThan(1000);
+    // The trailing id+type are still recovered despite the leading soup.
+    expect(opens).toBe(2000);
+  });
 });
 
 describe("streaming-artifact writer + reducer", () => {

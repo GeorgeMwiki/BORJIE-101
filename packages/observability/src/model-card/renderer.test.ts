@@ -133,6 +133,36 @@ describe('renderModelCard — determinism + safety', () => {
     expect(markdown).toContain('x\\|y');
   });
 
+  it('escapes the backslash escape-char BEFORE the pipe (complete, ordered)', () => {
+    // A literal backslash directly before a pipe must NOT recombine into a
+    // single escape: `\|` -> `\\\|` (escaped backslash + escaped pipe), so
+    // the pipe is still neutralised and the cell boundary holds.
+    const record: ModelCardRecord = {
+      ...BASE,
+      features: [
+        { name: 'c\\|d', type: 'text', source: 's\\', nullable: false, sensitive: false },
+      ],
+    };
+    const { markdown } = renderModelCard(record);
+    // input `c\|d` -> `\` doubled -> `c\\|d` -> `|` escaped -> `c\\\|d`.
+    expect(markdown).toContain('c\\\\\\|d');
+    // A trailing lone backslash is doubled, never left dangling.
+    expect(markdown).toContain('s\\\\');
+  });
+
+  it('table-cell escaping leaves already-safe content verbatim (idempotent)', () => {
+    // Text containing no `\` or `|` must pass through unchanged, proving the
+    // escape can't silently mangle clean values.
+    const record: ModelCardRecord = {
+      ...BASE,
+      features: [
+        { name: 'plain name', type: 'text', source: 'corpus:site', nullable: false, sensitive: false },
+      ],
+    };
+    const { markdown } = renderModelCard(record);
+    expect(markdown).toContain('| plain name | text | corpus:site | no | no |');
+  });
+
   it('handles empty optional sections gracefully', () => {
     const sparse = modelCardRecordSchema.parse({
       id: 'm',

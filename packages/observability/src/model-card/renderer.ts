@@ -27,9 +27,26 @@ import {
   type RenderedModelCard,
 } from './types.js';
 
-/** Escape a value for safe inclusion in a Markdown table cell. */
+/**
+ * Escape a value for safe inclusion in a Markdown table cell.
+ *
+ * Complete, ordered escaping (fixes `js/incomplete-sanitization`): the
+ * escape character `\` MUST be doubled FIRST, otherwise escaping `|` to
+ * `\|` would corrupt — and be bypassable through — any pre-existing
+ * backslash in the input (e.g. a literal `\` directly before a `|` could
+ * recombine into an unintended escape). After `\` → `\\` and `|` → `\|`,
+ * the only structural Markdown-table metacharacters are neutralised and
+ * the function is safe to apply: a value that contains no `\` or `|` is
+ * returned unchanged, so re-escaping already-escaped text never silently
+ * mangles it. Newlines are then folded to a single space (a table cell is
+ * one line) and surrounding whitespace trimmed.
+ */
 function cell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/\r\n|\r|\n/g, ' ')
+    .trim();
 }
 
 /** Format a metric value with sensible precision. */
