@@ -92,6 +92,17 @@ export {
   type WorkflowEnginePort,
 } from './escalation/index.js';
 
+export {
+  runReconciliationStage,
+  voteExtractionShots,
+  calibrateFieldConfidence,
+  RECONCILIATION_GATE_ID,
+  DEFAULT_MIN_BATCH_CONSISTENCY,
+  type ReconciliationStageInput,
+  type ReconciliationStageOptions,
+  type ReconciliationStageResult,
+} from './reconciliation/index.js';
+
 // ─────────────────────────────────────────────────────────────────────
 // createDocumentQualityGuarantor — the assembled façade.
 // ─────────────────────────────────────────────────────────────────────
