@@ -173,6 +173,13 @@ export interface ReconciliationReport {
 // ----------------------------------------------------------------------------
 
 export const NAME_LEVENSHTEIN_SOFT_THRESHOLD = 2;
+/**
+ * Max extra-token gap for a token-subset name match to count as the SAME
+ * person (a single missing/extra middle name). A larger gap (e.g.
+ * 'Juma Kessy' vs 'Juma Hassan Kessy Mwita') is too much unexplained name
+ * material to treat as a match — it surfaces as a mismatch instead.
+ */
+export const NAME_SUBSET_MAX_TOKEN_DELTA = 1;
 export const ADDRESS_SIMILARITY_MATCH_THRESHOLD = 0.6;
 export const ADDRESS_SIMILARITY_STRICT_BELOW = 0.25;
 export const LOW_CONFIDENCE_DOWNGRADE_THRESHOLD = 0.7;

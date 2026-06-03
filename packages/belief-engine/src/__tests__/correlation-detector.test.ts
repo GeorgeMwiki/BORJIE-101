@@ -1,6 +1,7 @@
 /**
  * Correlation-detector tests (LP-18). Verifies the pure Pearson + p-value math
- * and the nightly pass gating (|r|>0.4, p<0.05, n>=30).
+ * and the nightly pass gating (|r|>0.4, p<0.05, n>=30) over the co-observed
+ * belief series that each outcome row carries.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -63,7 +64,7 @@ describe('findCorrelations', () => {
     ]);
     const out = await findCorrelations(
       {},
-      { store, outcomeFetcher: async () => buildOutcomes(40) },
+      { store, outcomeFetcher: async () => correlatedOutcomes(40) },
     );
     expect(out).toEqual([]);
   });
@@ -81,33 +82,78 @@ describe('findCorrelations', () => {
     const store = createInMemoryBeliefStore([numericBelief]);
     const out = await findCorrelations(
       {},
-      { store, outcomeFetcher: async () => buildOutcomes(DEFAULT_MIN_SAMPLE - 1) },
+      { store, outcomeFetcher: async () => correlatedOutcomes(DEFAULT_MIN_SAMPLE - 1) },
     );
     expect(out).toEqual([]);
   });
 
-  it('surfaces a finding when the gate passes (n>=30, varying outcomes)', async () => {
+  it('drops rows that carry no co-observed belief value (no constant broadcast)', async () => {
     const store = createInMemoryBeliefStore([numericBelief]);
-    // A belief projected as a constant vs a high-variance outcome series:
-    // Pearson of a constant against anything is 0 (no finding). To get a
-    // finding we need the OUTCOME to vary AND correlate — but the belief is
-    // constant, so by design this projection yields r=0. Confirm the pass
-    // runs end-to-end and returns [] (documents the projection limitation).
+    // Outcomes vary but never carry a beliefValue → no aligned pairs → no
+    // finding (this is the bug-regression guard: the old code broadcast the
+    // belief central value as a constant and could never produce a finding,
+    // now an unattributed-without-beliefValue row simply contributes nothing).
     const out = await findCorrelations(
       {},
-      { store, outcomeFetcher: async () => buildOutcomes(40) },
+      {
+        store,
+        outcomeFetcher: async () =>
+          Array.from({ length: 40 }, (_, i) => ({
+            sector: 'gold',
+            region: 'geita',
+            metric: 'throughput',
+            value: i % 7,
+          })),
+      },
     );
-    // Constant belief projection → r=0 → no finding. The pass completed
-    // without throwing, which is the contract we assert here.
-    expect(Array.isArray(out)).toBe(true);
+    expect(out).toEqual([]);
+  });
+
+  it('DETECTS a real belief×outcome correlation (|r|>0.4, p<0.05)', async () => {
+    const store = createInMemoryBeliefStore([numericBelief]);
+    const out = await findCorrelations(
+      {},
+      { store, outcomeFetcher: async () => correlatedOutcomes(40) },
+    );
+    expect(out.length).toBe(1);
+    const finding = out[0];
+    expect(finding.beliefSubject).toBe('geita-recovery-rate');
+    expect(finding.outcomeMetric).toBe('throughput');
+    expect(Math.abs(finding.r)).toBeGreaterThan(0.4);
+    expect(finding.p).toBeLessThan(0.05);
+    expect(finding.n).toBe(40);
+  });
+
+  it('attributes a row only to its named belief subject', async () => {
+    const other: Belief = { ...numericBelief, id: 'b-2', subject: 'mwanza-ore-grade' };
+    const store = createInMemoryBeliefStore([numericBelief, other]);
+    // All rows are attributed to geita-recovery-rate, so only that belief
+    // should yield a finding; mwanza-ore-grade gets zero aligned pairs.
+    const out = await findCorrelations(
+      {},
+      { store, outcomeFetcher: async () => correlatedOutcomes(40, 'geita-recovery-rate') },
+    );
+    expect(out.length).toBe(1);
+    expect(out[0].beliefSubject).toBe('geita-recovery-rate');
   });
 });
 
-function buildOutcomes(n: number): OutcomeRow[] {
-  return Array.from({ length: n }, (_, i) => ({
-    sector: 'gold',
-    region: 'geita',
-    metric: 'throughput',
-    value: i % 5,
-  }));
+/**
+ * Build outcomes whose co-observed belief value rises with the outcome value
+ * (a genuine positive correlation), plus a little deterministic wobble so the
+ * series is not a degenerate straight line.
+ */
+function correlatedOutcomes(n: number, beliefSubject?: string): OutcomeRow[] {
+  return Array.from({ length: n }, (_, i) => {
+    const beliefValue = 0.5 + i * 0.01;
+    const wobble = i % 3 === 0 ? 0.4 : 0; // breaks perfect collinearity
+    return {
+      sector: 'gold',
+      region: 'geita',
+      metric: 'throughput',
+      value: beliefValue * 10 + wobble,
+      beliefValue,
+      ...(beliefSubject ? { beliefSubject } : {}),
+    };
+  });
 }

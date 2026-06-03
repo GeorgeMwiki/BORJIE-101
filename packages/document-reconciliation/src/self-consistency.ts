@@ -35,6 +35,29 @@ export interface VoteResult {
 
 const DEFAULT_DISAGREEMENT_THRESHOLD = 0.33;
 
+/**
+ * Recursive canonical JSON: object keys are sorted at EVERY nesting level so
+ * that two structurally-equal values (keys in any order, nested or not) hash
+ * to the same string. Array order is preserved (order is semantically
+ * meaningful). This replaces `JSON.stringify(value, keys.sort())`, which
+ * misused the second argument as a top-level REPLACER whitelist — it dropped
+ * keys not in the list and never recursed, so key-reordered nested objects
+ * produced spurious disagreements.
+ */
+function canonicalStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value) ?? 'null';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalStringify).join(',')}]`;
+  }
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  const body = keys
+    .map((k) => `${JSON.stringify(k)}:${canonicalStringify((value as Record<string, unknown>)[k])}`)
+    .join(',');
+  return `{${body}}`;
+}
+
 function stableValueKey(value: unknown): string {
   if (value === null || value === undefined) return '__null__';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -42,7 +65,7 @@ function stableValueKey(value: unknown): string {
   }
   if (value instanceof Date) return `date:${value.toISOString()}`;
   try {
-    return `json:${JSON.stringify(value, Object.keys(value as object).sort())}`;
+    return `json:${canonicalStringify(value)}`;
   } catch {
     return 'unhashable';
   }

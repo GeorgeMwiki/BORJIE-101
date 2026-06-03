@@ -96,6 +96,35 @@ describe('convince-loop — overlap → strengthen', () => {
     // A revision row was recorded.
     expect(store.revisions.length).toBe(1);
   });
+
+  it('never reports a strengthen with a negative delta (confidence floored at prior)', async () => {
+    // High-confidence prior backed by an internal-data source; a low-authority
+    // worker user-claim agrees with the value. Recomputing the weighted
+    // average would DRAG confidence below the prior — a 'strengthen' must not
+    // reduce confidence, so the delta is floored at >= 0.
+    const prior = priorBelief({
+      confidence: 0.9,
+      sources: [
+        { kind: 'internal-data', authority: 0.99, capturedAt: '2026-05-01T00:00:00.000Z' },
+      ],
+    });
+    const store = createInMemoryBeliefStore([prior]);
+    const result = await convinceLoop(
+      {
+        claim: claim({
+          portal: 'worker', // low-authority user-claim source (0.45)
+          confidence: 0.4,
+          proposedValue: { kind: 'scalar', scalar: 3.05, unit: 'g/t' }, // overlaps 3.0
+        }),
+        priorBelief: prior,
+      },
+      { store, now: () => FIXED_NOW },
+    );
+    expect(result.action).toBe('strengthen');
+    expect(result.confidenceDelta).toBeGreaterThanOrEqual(0);
+    // Confidence is not reduced below the prior.
+    expect(result.newBelief.confidence).toBeGreaterThanOrEqual(prior.confidence);
+  });
 });
 
 describe('convince-loop — heavy pass thresholds', () => {

@@ -44,6 +44,15 @@ describe('reward-model', () => {
     expect(r.reward).toBeGreaterThan(0);
   });
 
+  it('saturates a hard SLA miss (slaHit false, no measured delay) at -1', () => {
+    const r = scoreAction({
+      action: action(),
+      outcome: outcome({ slaHit: false }),
+    });
+    expect(r.components.sla).toBe(-1);
+    expect(r.reward).toBeCloseTo(-DEFAULT_WEIGHTS.sla, 5);
+  });
+
   it('penalises a manager override hard', () => {
     const r = scoreAction({
       action: action(),

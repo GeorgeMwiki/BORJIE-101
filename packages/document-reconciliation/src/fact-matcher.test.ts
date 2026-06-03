@@ -41,6 +41,11 @@ describe('matchNames', () => {
   it('rejects completely different names', () => {
     expect(matchNames(name('Juma Kessy'), name('Asha Mollel')).matched).toBe(false);
   });
+  it('rejects a token-subset that drops more than one name part (different people)', () => {
+    // 'Juma Kessy' is a strict subset of 'Juma Hassan Kessy Mwita' (delta 2)
+    // but two extra unexplained tokens make them plausibly different people.
+    expect(matchNames(name('Juma Kessy'), name('Juma Hassan Kessy Mwita')).matched).toBe(false);
+  });
 });
 
 describe('normalizePhone / matchPhones', () => {
@@ -137,6 +142,37 @@ describe('reconcileDocBatch', () => {
     expect(report.softFlags.some((s) => s.field === 'primaryName')).toBe(true);
     expect(report.blockers).toHaveLength(0);
   });
+
+  it('soft-flags an amount conflict across royalty documents (lowers consistency)', () => {
+    const matched = reconcileDocBatch([
+      richBag('r1', 'royalty-receipt', { name: 'Juma Kessy', amount: 1_000_000 }),
+      richBag('r2', 'royalty-receipt', { name: 'Juma Kessy', amount: 1_000_000 }),
+    ]);
+    const conflicting = reconcileDocBatch([
+      richBag('r1', 'royalty-receipt', { name: 'Juma Kessy', amount: 1_000_000 }),
+      richBag('r2', 'royalty-receipt', { name: 'Juma Kessy', amount: 2_500_000 }),
+    ]);
+    expect(conflicting.softFlags.some((f) => f.field === 'amount')).toBe(true);
+    expect(conflicting.overallConsistency).toBeLessThan(matched.overallConsistency);
+  });
+
+  it('blocks on a different payout bank account across documents', () => {
+    const report = reconcileDocBatch([
+      richBag('b1', 'bank-statement', { name: 'Juma Kessy', bank: { bank: 'CRDB', accountNumber: '0150123456' } }),
+      richBag('b2', 'royalty-receipt', { name: 'Juma Kessy', bank: { bank: 'CRDB', accountNumber: '0150999999' } }),
+    ]);
+    expect(report.blockers.some((b) => b.field === 'bankAccounts')).toBe(true);
+    expect(report.overallConsistency).toBeLessThan(1);
+  });
+
+  it('matches a fuzzy address across documents (raises consistency, no flag)', () => {
+    const report = reconcileDocBatch([
+      richBag('a1', 'nida', { name: 'Juma Kessy', address: 'P.O. Box 123, Geita, Geita Region' }),
+      richBag('a2', 'lease-agreement', { name: 'Juma Kessy', address: 'PO Box 123 Geita Geita Region' }),
+    ]);
+    expect(report.matches.some((m) => m.field === 'addresses')).toBe(true);
+    expect(report.softFlags.some((f) => f.field === 'addresses')).toBe(false);
+  });
 });
 
 // ----------------------------------------------------------------------------
@@ -146,6 +182,38 @@ describe('reconcileDocBatch', () => {
 function name(full: string) {
   const parts = full.split(' ');
   return { first: parts[0] ?? full, last: parts[parts.length - 1] ?? full, full: full.toUpperCase() };
+}
+
+function richBag(
+  id: string,
+  docType: MiningDocType,
+  fields: {
+    name?: string;
+    amount?: number;
+    bank?: { bank: string; accountNumber: string };
+    address?: string;
+  },
+  conf = 1,
+): FactBag {
+  return {
+    ...(fields.name ? { primaryName: name(fields.name) } : {}),
+    ...(fields.amount !== undefined ? { amount: fields.amount } : {}),
+    phones: [],
+    addresses: fields.address ? [{ raw: fields.address }] : [],
+    bankAccounts: fields.bank ? [fields.bank] : [],
+    sourceDocId: id,
+    sourceDocType: docType,
+    fieldConfidences: {
+      primaryName: conf,
+      dateOfBirth: conf,
+      nationalId: conf,
+      tin: conf,
+      phones: conf,
+      addresses: conf,
+      bankAccounts: conf,
+      amount: conf,
+    },
+  };
 }
 
 function bag(

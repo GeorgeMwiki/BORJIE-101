@@ -93,10 +93,20 @@ async function strengthenPass(
   const nowIso = new Date(now(deps)).toISOString();
   const newSource = buildClaimSource(args.claim, nowIso);
   const sources = [...args.priorBelief.sources, newSource];
+  // A corroborating claim must never REDUCE confidence: appending a
+  // low-authority source can drag the weighted average below the prior, but
+  // agreement is evidence FOR the belief, so we floor the strengthened
+  // confidence at the prior. This keeps the 'strengthen' label honest — the
+  // delta is always >= 0 (never a reported strengthen with a negative delta).
+  const recomputed = computeConfidence(sources);
+  const strengthenedConfidence = Math.max(
+    args.priorBelief.confidence,
+    recomputed,
+  );
   const newBelief: Belief = {
     ...args.priorBelief,
     sources,
-    confidence: computeConfidence(sources),
+    confidence: strengthenedConfidence,
     revisedAt: nowIso,
     revisionCount: args.priorBelief.revisionCount + 1,
     subjectUserId: args.priorBelief.subjectUserId ?? null,

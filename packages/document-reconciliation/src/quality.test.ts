@@ -125,4 +125,30 @@ describe('self-consistency vote', () => {
   it('returns empty for no shots', () => {
     expect(voteOnFields([]).merged).toHaveLength(0);
   });
+
+  it('treats key-reordered nested objects as the SAME value (canonical hash)', () => {
+    // Two shots extract a structurally identical nested address, but the keys
+    // are in a different order (and nested differently). The canonical
+    // stringify must collapse them to one value — the old replacer-based key
+    // misuse produced two distinct buckets and a spurious disagreement.
+    const shotA = [
+      {
+        field_name: 'address',
+        value: { region: 'Geita', detail: { poBox: '123', street: 'Main' } },
+        confidence: 90,
+      },
+    ];
+    const shotB = [
+      {
+        field_name: 'address',
+        value: { detail: { street: 'Main', poBox: '123' }, region: 'Geita' },
+        confidence: 88,
+      },
+    ];
+    const result = voteOnFields([shotA, shotB]);
+    const vote = result.votes.find((v) => v.fieldName === 'address');
+    expect(vote?.distinctValues).toBe(1);
+    expect(vote?.agreement).toBe(1);
+    expect(vote?.flaggedDisagreement).toBe(false);
+  });
 });

@@ -59,7 +59,13 @@ function scoreSla(outcome: OutcomeEvent): number {
   if (outcome.slaHit === undefined && outcome.slaDelaySeconds === undefined) {
     return 0;
   }
-  const delay = outcome.slaDelaySeconds ?? (outcome.slaHit ? 0 : 600);
+  // A hard miss with no measured delay is the worst SLA signal — saturate at
+  // -1 rather than defaulting to a mid-range delay (the old `?? 600` capped
+  // the penalty at ~-0.67 and never reached the floor).
+  if (outcome.slaHit === false && outcome.slaDelaySeconds === undefined) {
+    return -1;
+  }
+  const delay = outcome.slaDelaySeconds ?? 0;
   if (delay <= -300) return 1;
   if (delay >= 900) return -1;
   if (delay <= 0) return clamp(-delay / 300, 0, 1);

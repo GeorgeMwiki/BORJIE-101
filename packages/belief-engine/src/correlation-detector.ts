@@ -2,10 +2,19 @@
  * Correlation detector — nightly belief × outcome Pearson pass.
  *
  * For each (sector, region, metric) cell, compute Pearson r between a numeric
- * belief's central value and an anonymised estate-outcome series. Surface
+ * belief's co-observed series and an anonymised estate-outcome series. Surface
  * findings where:
  *
  *     |r| > R_THRESHOLD (0.4) AND p < P_THRESHOLD (0.05) AND n >= minSampleSize (30)
+ *
+ * A belief is a single scalar/range at rest, but the warehouse co-observes the
+ * belief-aligned quantity at the moment each outcome is recorded (e.g. the
+ * believed ore-grade / royalty-cap / recovery-rate in force when that estate
+ * outcome landed). Each {@link OutcomeRow} therefore carries the co-observed
+ * `beliefValue` for that row, and the detector correlates that genuinely
+ * varying series against the outcome series. Rows are bound to a belief by
+ * `beliefSubject` (falling back to every numeric belief in the cell when the
+ * row leaves it unset, so a fetcher that cannot attribute still works).
  *
  * The belief-engine never reads the outcome warehouse directly — the caller
  * injects an `outcomeFetcher` + the belief list (or a `BeliefStorePort`). The
@@ -32,6 +41,20 @@ export interface OutcomeRow {
   readonly region: string | null;
   readonly metric: string;
   readonly value: number;
+  /**
+   * The belief this row's `beliefValue` was co-observed against. When unset,
+   * the row applies to every numeric belief in the cell (the fetcher could
+   * not attribute it to one subject).
+   */
+  readonly beliefSubject?: string | null;
+  /**
+   * The belief-aligned quantity in force when this outcome was recorded
+   * (e.g. the believed ore-grade at that time). This is the VARYING series
+   * the Pearson pass correlates against `value`. When unset, the belief's
+   * central value is used — that row then contributes no variance and is
+   * filtered out before correlation.
+   */
+  readonly beliefValue?: number | null;
 }
 
 /** Injected outcome source — returns anonymised estate-outcome rows. */
@@ -74,11 +97,15 @@ export async function findCorrelations(
   for (const [cellKey, rows] of grouped.entries()) {
     if (rows.length < minSample) continue;
     const [sector, region, metric] = cellKey.split('|');
-    const outcomeSeries = rows.map((r) => r.value);
 
     for (const belief of numericBeliefs) {
-      const beliefSeries = projectBeliefAsSeries(belief, rows.length);
-      if (beliefSeries.length !== outcomeSeries.length) continue;
+      // Pair each outcome whose belief series is co-observed for THIS belief
+      // (or left unattributed) into aligned (beliefValue, outcomeValue) points.
+      const pairs = alignedPairs(belief, rows);
+      if (pairs.length < minSample) continue;
+
+      const beliefSeries = pairs.map((pt) => pt.beliefValue);
+      const outcomeSeries = pairs.map((pt) => pt.outcomeValue);
       const { r, p } = pearson(beliefSeries, outcomeSeries);
       if (
         Number.isFinite(r) &&
@@ -94,8 +121,8 @@ export async function findCorrelations(
           outcomeMetric: metric,
           r,
           p,
-          n: rows.length,
-          summary: summariseFinding(belief, sector, region, metric, r, p, rows.length),
+          n: pairs.length,
+          summary: summariseFinding(belief, sector, region, metric, r, p, pairs.length),
           generatedAt: nowIso,
         });
       }
@@ -117,12 +144,39 @@ function hasNumericValue(b: Belief): boolean {
   );
 }
 
-function projectBeliefAsSeries(b: Belief, n: number): number[] {
-  const v =
-    b.value.kind === 'scalar'
-      ? (b.value.scalar ?? 0)
-      : ((b.value.rangeMin ?? 0) + (b.value.rangeMax ?? 0)) / 2;
-  return new Array<number>(n).fill(v);
+interface AlignedPoint {
+  readonly beliefValue: number;
+  readonly outcomeValue: number;
+}
+
+/**
+ * Build aligned (beliefValue, outcomeValue) points for one belief. A row
+ * contributes when it is either unattributed or attributed to this belief's
+ * subject AND it carries a finite co-observed `beliefValue`. Rows without a
+ * co-observed belief value carry no variance and are dropped, so the Pearson
+ * input is never a constant broadcast.
+ */
+function alignedPairs(belief: Belief, rows: ReadonlyArray<OutcomeRow>): AlignedPoint[] {
+  const points: AlignedPoint[] = [];
+  for (const row of rows) {
+    if (row.beliefSubject != null && row.beliefSubject !== belief.subject) {
+      continue;
+    }
+    const beliefValue = row.beliefValue;
+    if (typeof beliefValue !== 'number' || !Number.isFinite(beliefValue)) {
+      continue;
+    }
+    if (!Number.isFinite(row.value)) continue;
+    points.push({ beliefValue, outcomeValue: row.value });
+  }
+  return points;
+}
+
+/** Central numeric value of a belief — used only for the human summary. */
+function beliefCentralValue(b: Belief): number {
+  return b.value.kind === 'scalar'
+    ? (b.value.scalar ?? 0)
+    : ((b.value.rangeMin ?? 0) + (b.value.rangeMax ?? 0)) / 2;
 }
 
 function groupOutcomes(
@@ -207,5 +261,6 @@ function summariseFinding(
 ): string {
   const dir = r > 0 ? 'positively' : 'negatively';
   const where = [sector, region].filter(Boolean).join(' / ') || 'platform-wide';
-  return `Belief '${belief.subject}' correlates ${dir} (r=${r.toFixed(2)}, p=${p.toFixed(3)}) with '${metric}' in ${where} (n=${n}).`;
+  const central = beliefCentralValue(belief).toFixed(2);
+  return `Belief '${belief.subject}' (≈${central}) correlates ${dir} (r=${r.toFixed(2)}, p=${p.toFixed(3)}) with '${metric}' in ${where} (n=${n}).`;
 }

@@ -10,6 +10,7 @@
 
 import {
   NAME_LEVENSHTEIN_SOFT_THRESHOLD,
+  NAME_SUBSET_MAX_TOKEN_DELTA,
   ADDRESS_SIMILARITY_MATCH_THRESHOLD,
   REASON_CODES,
   DEFAULT_COUNTRY_CODE,
@@ -143,7 +144,21 @@ export function matchNames(
   const aSubset = tokensA.every((t) => setB.has(t));
   const bSubset = tokensB.every((t) => setA.has(t));
   if (aSubset || bSubset) {
-    return { matched: true, distance, reasons: [REASON_CODES.MIDDLE_NAME_DIFFERS], swapDetected: false };
+    // A subset is only a STRICT same-person match when the size gap is small
+    // (one missing/extra middle name). A larger gap leaves too many
+    // unexplained tokens — e.g. 'Juma Kessy' is a subset of 'Juma Hassan
+    // Kessy Mwita' but they may be different people — so it is a mismatch
+    // rather than a silent match.
+    const tokenDelta = Math.abs(tokensA.length - tokensB.length);
+    if (tokenDelta <= NAME_SUBSET_MAX_TOKEN_DELTA) {
+      return { matched: true, distance, reasons: [REASON_CODES.MIDDLE_NAME_DIFFERS], swapDetected: false };
+    }
+    return {
+      matched: false,
+      distance,
+      reasons: Object.freeze([REASON_CODES.MIDDLE_NAME_DIFFERS, REASON_CODES.COMPLETELY_DIFFERENT]),
+      swapDetected: false,
+    };
   }
 
   return { matched: false, distance, reasons: [REASON_CODES.COMPLETELY_DIFFERENT], swapDetected: false };
@@ -333,6 +348,10 @@ function severityFor(field: FactField, leftConf: number, rightConf: number): Mis
   const strictByField = STRICT_IDENTITY_FIELDS.includes(field);
   if (strictByField && conf >= LOW_CONFIDENCE_DOWNGRADE_THRESHOLD) return 'STRICT_MISMATCH';
   if (field === 'primaryName' && conf >= LOW_CONFIDENCE_DOWNGRADE_THRESHOLD) return 'STRICT_MISMATCH';
+  // A different payout bank account across documents is a hard block (a high
+  // criticality fraud/mis-pay signal), not a soft flag, when both reads are
+  // confident.
+  if (field === 'bankAccounts' && conf >= LOW_CONFIDENCE_DOWNGRADE_THRESHOLD) return 'STRICT_MISMATCH';
   return 'SOFT_MISMATCH';
 }
 
@@ -418,6 +437,89 @@ function reconcilePhones(a: FactBag, b: FactBag, matches: Match[], mismatches: M
   }
 }
 
+function reconcileAddresses(a: FactBag, b: FactBag, matches: Match[], mismatches: Mismatch[]): void {
+  if (a.addresses.length === 0 || b.addresses.length === 0) return;
+  let best: AddressMatchResult | null = null;
+  for (const aa of a.addresses) {
+    for (const ba of b.addresses) {
+      const result = matchAddresses(aa, ba);
+      if (result.matched) {
+        matches.push({
+          field: 'addresses',
+          leftValue: aa.raw,
+          rightValue: ba.raw,
+          left: src(a, 'addresses'),
+          right: src(b, 'addresses'),
+        });
+        return;
+      }
+      if (!best || result.similarity > best.similarity) best = result;
+    }
+  }
+  mismatches.push({
+    field: 'addresses',
+    severity: severityFor('addresses', a.fieldConfidences.addresses ?? 1, b.fieldConfidences.addresses ?? 1),
+    leftValue: a.addresses.map((x) => x.raw).join(' | '),
+    rightValue: b.addresses.map((x) => x.raw).join(' | '),
+    left: src(a, 'addresses'),
+    right: src(b, 'addresses'),
+    reasonCodes: best ? best.reasons : [REASON_CODES.COMPLETELY_DIFFERENT],
+    explanation: `no matching address between ${a.sourceDocType} and ${b.sourceDocType}`,
+  });
+}
+
+function reconcileBankAccounts(a: FactBag, b: FactBag, matches: Match[], mismatches: Mismatch[]): void {
+  if (a.bankAccounts.length === 0 || b.bankAccounts.length === 0) return;
+  for (const aa of a.bankAccounts) {
+    for (const ba of b.bankAccounts) {
+      if (matchBankAccounts(aa, ba)) {
+        matches.push({
+          field: 'bankAccounts',
+          leftValue: `${aa.bank} ${aa.accountNumber}`,
+          rightValue: `${ba.bank} ${ba.accountNumber}`,
+          left: src(a, 'bankAccounts'),
+          right: src(b, 'bankAccounts'),
+        });
+        return;
+      }
+    }
+  }
+  mismatches.push({
+    field: 'bankAccounts',
+    severity: severityFor('bankAccounts', a.fieldConfidences.bankAccounts ?? 1, b.fieldConfidences.bankAccounts ?? 1),
+    leftValue: a.bankAccounts.map((x) => `${x.bank} ${x.accountNumber}`).join(' | '),
+    rightValue: b.bankAccounts.map((x) => `${x.bank} ${x.accountNumber}`).join(' | '),
+    left: src(a, 'bankAccounts'),
+    right: src(b, 'bankAccounts'),
+    reasonCodes: [REASON_CODES.COMPLETELY_DIFFERENT],
+    explanation: `different bank account between ${a.sourceDocType} and ${b.sourceDocType}`,
+  });
+}
+
+function reconcileAmount(a: FactBag, b: FactBag, matches: Match[], mismatches: Mismatch[]): void {
+  if (a.amount === undefined || b.amount === undefined) return;
+  if (matchAmounts(a.amount, b.amount)) {
+    matches.push({
+      field: 'amount',
+      leftValue: String(a.amount),
+      rightValue: String(b.amount),
+      left: src(a, 'amount'),
+      right: src(b, 'amount'),
+    });
+    return;
+  }
+  mismatches.push({
+    field: 'amount',
+    severity: severityFor('amount', a.fieldConfidences.amount ?? 1, b.fieldConfidences.amount ?? 1),
+    leftValue: String(a.amount),
+    rightValue: String(b.amount),
+    left: src(a, 'amount'),
+    right: src(b, 'amount'),
+    reasonCodes: [REASON_CODES.COMPLETELY_DIFFERENT],
+    explanation: `amount differs between ${a.sourceDocType} and ${b.sourceDocType}`,
+  });
+}
+
 /**
  * Run every pairwise reconciliation across a batch of FactBags and summarise
  * matches + mismatches. STRICT mismatches become blockers; SOFT mismatches
@@ -442,6 +544,9 @@ export function reconcileDocBatch(facts: readonly FactBag[]): ReconciliationRepo
       reconcileScalar(a, b, 'nationalId', (x) => x.nationalId ?? '', matches, mismatches);
       reconcileScalar(a, b, 'tin', (x) => x.tin ?? '', matches, mismatches);
       reconcilePhones(a, b, matches, mismatches);
+      reconcileAddresses(a, b, matches, mismatches);
+      reconcileBankAccounts(a, b, matches, mismatches);
+      reconcileAmount(a, b, matches, mismatches);
     }
   }
 
