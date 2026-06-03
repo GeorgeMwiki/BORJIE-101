@@ -149,19 +149,17 @@ function clamp01(n: number): number {
 export const COGNITIVE_COMPOSER_FLAG = 'BORJIE_COGNITIVE_COMPOSER_ENABLED';
 
 /**
- * Resolve the composer flag from an env-like record. LP-30 flipped the
- * default to ON now that the reasoning packages (`@borjie/extended-reasoning`
- * + `@borjie/reasoning-substrate`) are wired and the executor is fail-safe
- * (any composer error falls back to memory-recall-only enrichment — see
- * `wireCognitiveComposer.runForTurn`). Only the literal `'0'` / `'false'` /
- * `'off'` disables it, so operators can still kill the deep composer without
- * a redeploy.
+ * Resolve the composer flag from an env-like record. Default OFF for the
+ * initial production rollout: the deep composer (LATS / Self-Discover) is
+ * wired and fail-safe, but it adds real LLM cost + latency on every qualifying
+ * turn and has not yet been runtime-canaried. It stays opt-in; enable per
+ * environment with `BORJIE_COGNITIVE_COMPOSER_ENABLED=1` after a staging canary.
  */
 export function isCognitiveComposerEnabled(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
   const raw = env[COGNITIVE_COMPOSER_FLAG]?.trim().toLowerCase();
-  return !(raw === '0' || raw === 'false' || raw === 'off');
+  return raw === '1' || raw === 'true' || raw === 'on';
 }
 
 // ---------------------------------------------------------------------------

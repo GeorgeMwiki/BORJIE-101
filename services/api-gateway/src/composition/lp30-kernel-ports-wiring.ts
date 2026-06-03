@@ -154,7 +154,8 @@ export interface BuildSemanticCacheArgs {
 export interface BuiltSemanticCache {
   /** The port to thread into `composeSovereign({ semanticCache })`. */
   readonly port: SemanticCachePort;
-  /** Whether the master flag enabled the cache (default ON). */
+  /** Whether the master flag enabled the cache (default OFF; opt-in via
+   * `BORJIE_SEMANTIC_CACHE_ENABLED=1` after a staging canary). */
   readonly enabled: boolean;
 }
 
@@ -169,7 +170,7 @@ export function buildSemanticCachePort(
   args: BuildSemanticCacheArgs,
 ): BuiltSemanticCache {
   const env = args.env ?? process.env;
-  const enabled = flagDefaultOn(env, SEMANTIC_CACHE_FLAG);
+  const enabled = flagDefaultOff(env, SEMANTIC_CACHE_FLAG);
   const clock = args.now ?? Date.now;
   const threshold = args.similarityThreshold ?? DEFAULT_SIMILARITY_THRESHOLD;
   // Null embedder (no OpenAI key) cannot produce meaningful vectors; in that
