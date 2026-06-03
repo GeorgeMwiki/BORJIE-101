@@ -86,6 +86,16 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
+// LP-30 — composition-root activation of the kernel's semantic-cache (LP-03)
+// and intent-verifier (LP-04) seams. Both ports are constructed fail-safe and
+// threaded into `composeSovereign(...)` so the kernel's `think()` pipeline
+// reads them. Semantic cache default ENABLED (miss -> normal sensor path);
+// intent verifier default ENABLED in ADVISORY posture (logs, never blocks)
+// with `BORJIE_INTENT_VERIFY_STRICT=1` to enforce.
+import {
+  buildSemanticCachePort,
+  buildIntentVerifierPort,
+} from './lp30-kernel-ports-wiring.js';
 // See gh-issue #29: `@borjie/market-intelligence` was a property-vertical
 // package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
 // prices, Argus DRC tin index, etc.) will live under a new
@@ -559,6 +569,46 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // only set when the DB is up (the retriever needs the registry reader).
   if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
+
+  // LP-30 — wire the semantic-cache (LP-03) + intent-verifier (LP-04) ports
+  // onto the `composeSovereign` config. The kernel CONSUMES both
+  // (`BrainKernelDeps.semanticCache` / `.intentVerifier` + their `*Enabled`
+  // flags — see `packages/central-intelligence/src/kernel/kernel.ts`). These
+  // four keys ride the `composeSovereign` config object below, which is the
+  // canonical composition-root seam for kernel deps.
+  //
+  // Both ports are fail-safe:
+  //   - semantic cache: embedding-keyed read-through/write-through scoped per
+  //     (tenant, surface, persona). Reuses the SAME embedder the skill
+  //     retriever uses; with no OpenAI key the embedder is the null sentinel
+  //     and every lookup skips (cache inert, never wrong). Default ENABLED.
+  //   - intent verifier: adapts autonomy-governance `verifyIntent`. ADVISORY
+  //     by default (logs what WOULD block; never blocks). Flip
+  //     `BORJIE_INTENT_VERIFY_STRICT=1` for fail-closed enforcement.
+  const lp30Logger = {
+    info: (meta: object, msg: string) => logger.info(meta as Record<string, unknown>, msg),
+    warn: (meta: object, msg: string) => logger.warn(meta as Record<string, unknown>, msg),
+  };
+  const semanticCache = buildSemanticCachePort({
+    embedder: resolveSkillEmbedder(),
+    logger: lp30Logger,
+  });
+  mutable.semanticCache = semanticCache.port;
+  mutable.semanticCacheEnabled = semanticCache.enabled;
+
+  const intentVerifier = buildIntentVerifierPort({ logger: lp30Logger });
+  mutable.intentVerifier = intentVerifier.port;
+  mutable.intentVerificationEnabled = intentVerifier.enabled;
+
+  logger.info(
+    {
+      wiring: 'lp30',
+      semanticCacheEnabled: semanticCache.enabled,
+      intentVerifierEnabled: intentVerifier.enabled,
+      intentVerifierPosture: intentVerifier.posture,
+    },
+    'lp30: semantic-cache + intent-verifier ports wired into kernel deps',
+  );
 
   return composeSovereign(mutable as Parameters<typeof composeSovereign>[0]);
 }

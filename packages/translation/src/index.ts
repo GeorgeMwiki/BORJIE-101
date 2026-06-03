@@ -59,10 +59,28 @@ export {
 export {
   checkContamination,
   assertNoContamination,
+  offTargetRatio,
+  hasOffTargetLeak,
   ContaminationError,
   type ContaminationCheckResult,
   type ContaminationCheckOptions,
 } from './contamination.js';
+
+export {
+  createDynamicLanguageRewriter,
+  createInMemoryRewriteCache,
+  buildRewriterSystemPrompt,
+  BORJIE_PRESERVE_TOKENS,
+  type RewriteFn,
+  type RewriteInput,
+  type RewriteResult,
+  type RewriteSource,
+  type RewriterDeps,
+  type RewriterLogger,
+  type RewriteCachePort,
+  type LanguageRewriterPort,
+  type RewriterPortInput,
+} from './dynamic-language-rewriter.js';
 
 export type {
   Locale,

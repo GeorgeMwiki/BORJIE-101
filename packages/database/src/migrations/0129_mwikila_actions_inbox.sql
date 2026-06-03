@@ -36,7 +36,9 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS mwikila_actions_inbox (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id             UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  -- tenant_id is TEXT to match tenants.id TEXT PRIMARY KEY (0000 bootstrap);
+  -- a UUID FK to a TEXT PK is rejected at CREATE TABLE time.
+  tenant_id             TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   -- Owner the action is being taken on behalf of. Always the tenant
   -- owner; carried explicitly for forensic replay.
   acting_on_user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

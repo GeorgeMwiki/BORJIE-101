@@ -170,10 +170,6 @@ export const HARDCODED_BANK_ALLOWLIST = new Map([
     'Document classifier weight matrix uses gepg/nida as detection keywords for KE/TZ compliance documents — text-detection patterns, not provider routing.',
   ],
   [
-    'packages/litfin-port-security-extra/src/webhook-signatures.ts',
-    'LITFIN-port webhook-signature verifier dispatches by provider vendor (mpesa/gepg) to the matching HMAC scheme — signature-verification dispatch, not provider routing.',
-  ],
-  [
     'packages/payments-event-store/src/events.ts',
     'Payments event-store provider field is the schema-level enumeration of supported payment rails (mpesa|stripe|bank-transfer) — domain-model Zod enum, not provider routing.',
   ],

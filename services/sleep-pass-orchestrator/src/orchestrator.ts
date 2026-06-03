@@ -92,21 +92,43 @@ export function createOrchestrator(opts: OrchestratorOptions): Orchestrator {
   }> {
     const decision = decide();
     opts.tickSink?.(decision);
-    const results: PassResult[] = [];
+
+    const dispatchedPasses: SleepPass[] = [];
     for (const id of decision.dispatched) {
       const pass = passById.get(id);
-      if (!pass) continue;
-      const t = now();
-      const result = await runPassWithTimeout(pass, t, now);
-      state.set(pass.id, {
+      if (pass) dispatchedPasses.push(pass);
+    }
+
+    // Durable seam: delegate execution + per-run persistence to the injected
+    // runner (production wires runSleepTick + a SleepRunStore). Otherwise run
+    // each pass inline under its own timeout (the in-process default).
+    const t = now();
+    const results: ReadonlyArray<PassResult> = opts.runDispatched
+      ? await opts.runDispatched(dispatchedPasses)
+      : await runInline(dispatchedPasses, t, now);
+
+    for (const result of results) {
+      const pass = passById.get(result.passId);
+      state.set(result.passId, {
         lastRunAt: result.startedAt,
         lastResult: result,
-        nextDueAt: nextDueFrom(pass, t),
+        nextDueAt: pass ? nextDueFrom(pass, t) : t.toISOString(),
       });
-      results.push(result);
       opts.resultSink?.(result);
     }
     return { tick: decision, results };
+  }
+
+  async function runInline(
+    passes: ReadonlyArray<SleepPass>,
+    t: Date,
+    clock: () => Date,
+  ): Promise<ReadonlyArray<PassResult>> {
+    const out: PassResult[] = [];
+    for (const pass of passes) {
+      out.push(await runPassWithTimeout(pass, t, clock));
+    }
+    return out;
   }
 
   function start(): void {

@@ -31,6 +31,25 @@ export {
   nextDueFrom,
   type Orchestrator,
 } from './orchestrator.js';
+export {
+  runSleepTick,
+  effectiveOverallDurationMs,
+  DEFAULT_OVERALL_DURATION_MS,
+  SERVERLESS_OVERALL_DURATION_MS,
+  type RunSleepTickArgs,
+} from './sleep-tick.js';
+export {
+  raceAgainstAbort,
+  isAbortError,
+  ABORT_REASONS,
+} from './race-against-abort.js';
+export {
+  createDrizzleSleepRunStore,
+  type DrizzleSleepRunStoreOpts,
+  type SleepRunDbClient,
+  type SleepRunDbRow,
+  type SleepRunStoreLogger,
+} from './drizzle-sleep-run-store.js';
 export * from './passes/index.js';
 export {
   buildStandaloneOrchestrator,
@@ -63,6 +82,7 @@ async function buildApp(args: {
   readonly recentTicks: () => ReadonlyArray<HeartbeatTick>;
   readonly recentResults: () => ReadonlyArray<PassResult>;
   readonly mode: 'memory' | 'production';
+  readonly runStoreMode: 'drizzle' | 'memory';
 }): Promise<BuildAppResult> {
   const app = Fastify({ logger: false });
 
@@ -79,6 +99,7 @@ async function buildApp(args: {
     ready: true,
     service: 'sleep-pass-orchestrator',
     mode: args.mode,
+    runStore: args.runStoreMode,
   }));
 
   app.get('/metrics', async (_req, reply) => {
@@ -89,6 +110,7 @@ async function buildApp(args: {
   app.get('/admin/passes/status', async () => ({
     service: 'sleep-pass-orchestrator',
     mode: args.mode,
+    runStore: args.runStoreMode,
     recentTicks: args.recentTicks(),
     recentResults: args.recentResults(),
   }));
@@ -122,11 +144,12 @@ function installSignalHandlers(args: {
 }
 
 async function main(): Promise<void> {
-  const bundle = buildStandaloneOrchestrator();
+  const bundle = await buildStandaloneOrchestrator();
   const { app } = await buildApp({
     recentTicks: bundle.recentTicks,
     recentResults: bundle.recentResults,
     mode: bundle.mode,
+    runStoreMode: bundle.runStoreMode,
   });
 
   const port = Number(process.env.PORT ?? 3040);
@@ -135,7 +158,9 @@ async function main(): Promise<void> {
   logger.info(`[sleep-pass-orchestrator] listening on http://${host}:${port}`);
 
   bundle.orchestrator.start();
-  logger.info(`[sleep-pass-orchestrator] heartbeat loop started (mode=${bundle.mode})`);
+  logger.info(
+    `[sleep-pass-orchestrator] heartbeat loop started (mode=${bundle.mode}, runStore=${bundle.runStoreMode})`,
+  );
 
   installSignalHandlers({ app, orchestrator: bundle.orchestrator });
 }

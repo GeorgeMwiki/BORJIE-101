@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/privacy-router",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Privacy-aware AI routing (LP-15 / PO-17). Routes inference requests by data-sensitivity tier: RESTRICTED -> local/deny, CONFIDENTIAL -> cloud + mandatory PII strip, INTERNAL/PUBLIC -> cloud. YAML-driven policy (BOT Act / PDPA). Wire-agnostic pure functions; PII stripping + local-endpoint health are injected ports. Ported from LITFIN security/privacy-router.ts.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

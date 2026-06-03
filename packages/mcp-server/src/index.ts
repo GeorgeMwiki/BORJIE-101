@@ -60,6 +60,21 @@ export {
   type CostBatcherConfig,
 } from './cost-persistence.js';
 
+// Per-tenant calls/day meter (calls axis — separate from cost/token spend)
+export {
+  reserveCall,
+  snapshotMeter,
+  getTierCallCap,
+  currentUtcDay,
+  InMemoryMeterStore,
+  type MeterStore,
+  type MeterArgs,
+  type MeterDecision,
+  type MeterDecisionOk,
+  type MeterDecisionBlocked,
+  type MeterSnapshot,
+} from './per-tenant-meter.js';
+
 // Resources
 export {
   BORJIE_STATIC_RESOURCES,

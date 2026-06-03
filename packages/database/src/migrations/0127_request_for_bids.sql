@@ -29,7 +29,10 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS request_for_bids (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id        UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  -- tenant_id is TEXT to match tenants.id TEXT PRIMARY KEY
+  -- (drizzle/0000_borjie_bootstrap.sql). A UUID FK to a TEXT PK is rejected
+  -- at CREATE TABLE time ("foreign key constraint cannot be implemented").
+  tenant_id        TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   buyer_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   mineral_kind     TEXT NOT NULL,
   grade_min        TEXT,
@@ -89,7 +92,8 @@ CREATE INDEX IF NOT EXISTS request_for_bids_expires_at_idx
 CREATE TABLE IF NOT EXISTS request_for_bid_responses (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   rfb_id           UUID NOT NULL REFERENCES request_for_bids(id) ON DELETE CASCADE,
-  tenant_id        UUID NOT NULL,
+  -- TEXT to match tenants.id; the RLS policy casts via tenant_id::text.
+  tenant_id        TEXT NOT NULL,
   seller_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   offered_tonnage  NUMERIC(10,3) NOT NULL,
   offered_price_tzs NUMERIC(15,2) NOT NULL,

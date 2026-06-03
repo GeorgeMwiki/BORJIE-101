@@ -147,9 +147,14 @@ CREATE INDEX IF NOT EXISTS daily_research_cache_tenant_source_ttl_idx
   ON daily_research_cache(tenant_id, source, ttl_until DESC);
 CREATE INDEX IF NOT EXISTS daily_research_cache_fetched_at_idx
   ON daily_research_cache(tenant_id, fetched_at DESC);
+-- NOTE: a partial-index predicate `WHERE ttl_until > now()` is invalid —
+-- now() is STABLE (not IMMUTABLE) and Postgres rejects non-IMMUTABLE
+-- functions in index predicates (SQLSTATE 42P17). A full index on the same
+-- columns serves the live-rows lookup (the planner uses it for the
+-- `ttl_until > now()` query predicate via the trailing range column) without
+-- the illegal partial clause.
 CREATE INDEX IF NOT EXISTS daily_research_cache_live_idx
-  ON daily_research_cache(tenant_id, source, ttl_until)
-  WHERE ttl_until > now();
+  ON daily_research_cache(tenant_id, source, ttl_until);
 
 -- -----------------------------------------------------------------------------
 -- 5. Row Level Security — every table tenant-scoped on `app.tenant_id`.

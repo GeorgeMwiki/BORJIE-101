@@ -34,6 +34,8 @@ overrides:
   brace-expansion@>=2.0.0 <2.0.3: '>=2.0.3'
   follow-redirects: '>=1.16.0'
   postcss: '>=8.5.10'
+  '@remix-run/server-runtime@<2.17.5': '>=2.17.5'
+  '@remix-run/node@<2.17.5': '>=2.17.5'
   next-intl: '>=4.9.1'
   ip-address: '>=10.1.1'
   '@tootallnate/once': '>=3.0.1'
@@ -1130,6 +1132,18 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/belief-engine:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/bias-handling:
     devDependencies:
       '@types/node':
@@ -1246,6 +1260,18 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.8.0)(jsdom@24.1.3)(vite@6.4.2)
+
+  packages/blind-review:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/borjie-cli:
     dependencies:
@@ -1459,6 +1485,9 @@ importers:
       '@borjie/audit-hash-chain':
         specifier: workspace:*
         version: link:../audit-hash-chain
+      '@borjie/belief-engine':
+        specifier: workspace:*
+        version: link:../belief-engine
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../brain-llm-router
@@ -1471,6 +1500,12 @@ importers:
       '@borjie/graph-sync':
         specifier: workspace:*
         version: link:../graph-sync
+      '@borjie/learning-signal-emitter':
+        specifier: workspace:*
+        version: link:../learning-signal-emitter
+      '@borjie/memory-port-extensions':
+        specifier: workspace:*
+        version: link:../memory-port-extensions
       '@borjie/owner-os-tabs':
         specifier: workspace:*
         version: link:../owner-os-tabs
@@ -1484,6 +1519,18 @@ importers:
       isolated-vm:
         specifier: ^6.1.2
         version: 6.1.2
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/channel-gateway:
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -1715,6 +1762,9 @@ importers:
       typescript:
         specifier: ^5.3.0
         version: 5.3.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.41)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/conversation-threads:
     dependencies:
@@ -2117,9 +2167,24 @@ importers:
 
   packages/document-quality-guarantor:
     dependencies:
+      '@borjie/document-reconciliation':
+        specifier: workspace:*
+        version: link:../document-reconciliation
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/document-reconciliation:
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -3237,6 +3302,34 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/learning-signal-emitter:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/ledger-attestor:
+    dependencies:
+      '@borjie/audit-hash-chain':
+        specifier: workspace:*
+        version: link:../audit-hash-chain
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/legibility:
     dependencies:
       '@borjie/audit-hash-chain':
@@ -3245,94 +3338,6 @@ importers:
       '@borjie/observability':
         specifier: workspace:*
         version: link:../observability
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-data-infra:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-learning-shape:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-observability-extra:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-security-extra:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-tools-extra:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/litfin-port-ui-extra:
-    dependencies:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -3879,6 +3884,9 @@ importers:
       uuid:
         specifier: '>=14.0.0'
         version: 14.0.0
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -4192,6 +4200,28 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/privacy-router:
+    dependencies:
+      js-yaml:
+        specifier: ^4.1.0
+        version: 4.1.1
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/proactive-intel:
     dependencies:
       zod:
@@ -4373,6 +4403,18 @@ importers:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
+
+  packages/regulator-sim:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/regulatory-tz-mining:
     dependencies:
@@ -4963,6 +5005,18 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/ussd-engine:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/vertical-profile-mining-tz:
     dependencies:
       '@borjie/vertical-profiles':
@@ -5111,6 +5165,9 @@ importers:
       '@borjie/authz-policy':
         specifier: workspace:*
         version: link:../../packages/authz-policy
+      '@borjie/autonomy-governance':
+        specifier: workspace:*
+        version: link:../../packages/autonomy-governance
       '@borjie/brain-llm-router':
         specifier: workspace:*
         version: link:../../packages/brain-llm-router
@@ -5120,6 +5177,9 @@ importers:
       '@borjie/central-intelligence':
         specifier: workspace:*
         version: link:../../packages/central-intelligence
+      '@borjie/channel-gateway':
+        specifier: workspace:*
+        version: link:../../packages/channel-gateway
       '@borjie/cognitive-composition':
         specifier: workspace:*
         version: link:../../packages/cognitive-composition
@@ -5171,6 +5231,9 @@ importers:
       '@borjie/executive-brief-engine':
         specifier: workspace:*
         version: link:../../packages/executive-brief-engine
+      '@borjie/extended-reasoning':
+        specifier: workspace:*
+        version: link:../../packages/extended-reasoning
       '@borjie/fairness-eval':
         specifier: workspace:*
         version: link:../../packages/fairness-eval
@@ -5273,6 +5336,9 @@ importers:
       '@borjie/portal-genui':
         specifier: workspace:*
         version: link:../../packages/portal-genui
+      '@borjie/privacy-router':
+        specifier: workspace:*
+        version: link:../../packages/privacy-router
       '@borjie/probe-runners':
         specifier: workspace:*
         version: link:../../packages/probe-runners
@@ -5288,6 +5354,9 @@ importers:
       '@borjie/realtime-rooms':
         specifier: workspace:*
         version: link:../../packages/realtime-rooms
+      '@borjie/reasoning-substrate':
+        specifier: workspace:*
+        version: link:../../packages/reasoning-substrate
       '@borjie/role-aware-advisor':
         specifier: workspace:*
         version: link:../../packages/role-aware-advisor
@@ -5318,6 +5387,9 @@ importers:
       '@borjie/user-context-store':
         specifier: workspace:*
         version: link:../../packages/user-context-store
+      '@borjie/ussd-engine':
+        specifier: workspace:*
+        version: link:../../packages/ussd-engine
       '@borjie/workflow-engine':
         specifier: workspace:*
         version: link:../../packages/workflow-engine
@@ -5529,6 +5601,9 @@ importers:
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@borjie/ledger-attestor':
+        specifier: workspace:*
+        version: link:../../packages/ledger-attestor
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
@@ -6131,6 +6206,9 @@ importers:
 
   services/sleep-pass-orchestrator:
     dependencies:
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
       fastify:
         specifier: '>=5.8.3'
         version: 5.8.5
@@ -9887,7 +9965,7 @@ packages:
   /@expo/server@0.4.4(typescript@5.3.3):
     resolution: {integrity: sha512-q9ADBzMN5rZ/fgQ2mz5YIJuZ8gelQlhG2CQqToD+UvBLZvbaHCNxTTSs2KI1LzJvAaW5CWgWMatGvGF6iUQ0LA==}
     dependencies:
-      '@remix-run/node': 2.17.4(typescript@5.3.3)
+      '@remix-run/node': 2.17.5(typescript@5.3.3)
       abort-controller: 3.0.0
       debug: 4.4.3(supports-color@10.2.2)
       source-map-support: 0.5.21
@@ -16289,8 +16367,8 @@ packages:
       - supports-color
     dev: true
 
-  /@remix-run/node@2.17.4(typescript@5.3.3):
-    resolution: {integrity: sha512-9A29JaYiGHDEmaiQuD1IlO/TrQxnnkj98GpytihU+Nz6yTt6RwzzyMMqTAoasRd1dPD4OeSaSqbwkcim/eE76Q==}
+  /@remix-run/node@2.17.5(typescript@5.3.3):
+    resolution: {integrity: sha512-CwOUCDJqh9o8r/n5N1l+vz4Jh7DFU52/jo7MN56+OL9gM+14aQKdq1aLAh+4V6GuI/qtki9PPk02GmULimmDkw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       typescript: ^5.1.0
@@ -16298,7 +16376,7 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@remix-run/server-runtime': 2.17.4(typescript@5.3.3)
+      '@remix-run/server-runtime': 2.17.5(typescript@5.3.3)
       '@remix-run/web-fetch': 4.4.2
       '@web3-storage/multipart-parser': 1.0.0
       cookie-signature: 1.2.2
@@ -16308,13 +16386,13 @@ packages:
       undici: 6.26.0
     dev: false
 
-  /@remix-run/router@1.23.2:
-    resolution: {integrity: sha512-Ic6m2U/rMjTkhERIa/0ZtXJP17QUi2CbWE7cqx4J58M8aA3QTfW+2UlQ4psvTX9IO1RfNVhK3pcpdjej7L+t2w==}
+  /@remix-run/router@1.23.3:
+    resolution: {integrity: sha512-4An71tdz9X8+3sI4Qqqd2LWd9vS39J7sqd9EU4Scw7TJE/qB10Flv/UuqbPVgfQV9XoK8Np6jNquZitnZq5i+Q==}
     engines: {node: '>=14.0.0'}
     dev: false
 
-  /@remix-run/server-runtime@2.17.4(typescript@5.3.3):
-    resolution: {integrity: sha512-oCsFbPuISgh8KpPKsfBChzjcntvTz5L+ggq9VNYWX8RX3yA7OgQpKspRHOSxb05bw7m0Hx+L1KRHXjf3juKX8w==}
+  /@remix-run/server-runtime@2.17.5(typescript@5.3.3):
+    resolution: {integrity: sha512-SyJ5n2pQyo4ERGvjjLvL2PpRWBzlC2qzO5KkkOE2ygOiNcgOu9WQnnom9GI8KgsTRCO8JnIeLHFRcmxZnVBjfw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       typescript: ^5.1.0
@@ -16322,7 +16400,7 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@remix-run/router': 1.23.2
+      '@remix-run/router': 1.23.3
       '@types/cookie': 0.6.0
       '@web3-storage/multipart-parser': 1.0.0
       cookie: 0.7.2

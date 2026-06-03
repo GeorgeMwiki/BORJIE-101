@@ -61,7 +61,7 @@ export {
 
 // Kernel — disciplined cognitive layer above the streaming agent loop.
 // See kernel/index.ts for the full surface; mirrors LITFIN's brain-
-// kernel patterns scoped to property management. Flat-exported so
+// kernel patterns re-skinned to mining-estate management. Flat-exported so
 // consumers can `import { composeSovereign, createAnthropicSensor,
 // SOVEREIGN_ADMIN_PERSONA } from '@borjie/central-intelligence'`
 // without a namespace hop.

@@ -165,13 +165,37 @@ async function applyPhase(
     // so strip the wrapper before handing the body to postgres-js.
     // Atomicity is preserved by wrapping the call in our own `sql.begin()`.
     const body = stripWrappingTransaction(content);
-    await sql.begin(async (tx) => {
+    // Per-migration client-side deadline. A driver-level wedge (a postgres-js
+    // promise that never settles even though the server connection is idle)
+    // is NOT caught by server GUCs like statement_timeout, so bound the apply
+    // on the client too: if one migration does not settle in time, reject with
+    // an attributable error instead of hanging container boot forever. The
+    // ceiling is far above any legitimate fresh-DB migration.
+    const apply = sql.begin(async (tx) => {
       await tx.unsafe(body);
       await tx`
         INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
         VALUES (${name}, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT)
       `;
     });
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      deadlineTimer = setTimeout(
+        () =>
+          reject(
+            new Error(
+              `Migration ${file} did not settle within 300000ms — aborting ` +
+                `(apply via psql if the driver wedged).`,
+            ),
+          ),
+        300_000,
+      );
+    });
+    try {
+      await Promise.race([apply, deadline]);
+    } finally {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
+    }
     logger.warn('Applied ' + file);
     applied += 1;
   }
@@ -184,7 +208,26 @@ export async function runMigrations(
 ): Promise<RunMigrationsResult> {
   const databaseUrl = resolveDatabaseUrl(opts);
   const logger = opts?.logger ?? console;
-  const sql = postgres(databaseUrl);
+  // Bound every migration so a pathological statement or a driver-level wedge
+  // can never hang the runner indefinitely — a from-scratch apply that stalls
+  // would otherwise block container boot forever with no diagnostic. The
+  // ceilings are far above any legitimate fresh-DB migration (the full chain
+  // applies in minutes, each statement in well under a second), so they never
+  // false-trip; they only convert an unbounded hang into a loud, attributable
+  // error. `max: 1` keeps the sequential apply on a single connection so these
+  // session GUCs always apply to the connection doing the work.
+  const sql = postgres(databaseUrl, {
+    max: 1,
+    // Migrations are one-shot DDL scripts: prepared-statement caching buys
+    // nothing and can wedge a long-lived single connection after many DDL
+    // statements (the apply of a late migration never settles even though the
+    // server is idle). Disabling prepare keeps every apply on a clean path.
+    prepare: false,
+    connection: {
+      statement_timeout: 600_000, // 10 min per-statement ceiling
+      idle_in_transaction_session_timeout: 300_000, // 5 min idle-in-txn ceiling
+    },
+  });
 
   let applied = 0;
   let skipped = 0;
@@ -214,7 +257,8 @@ export async function runMigrations(
     logger.error('Migration failed:', err);
     throw err;
   } finally {
-    await sql.end();
+    // Bound teardown too: a wedged connection must not block process exit.
+    await sql.end({ timeout: 5 });
   }
 }
 

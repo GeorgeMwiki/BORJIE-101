@@ -23,6 +23,13 @@ test-results/
 playwright-report/
 .blob/
 
+# Eval-ops release-gate run artifacts (LP-22): the run-capability-evals /
+# run-sota-validation CLIs emit dated `YYYY-MM-DD/` report dirs under
+# Docs/parity-tests/*/results/ on every run. Those dated dirs are
+# regenerated, not source — ignore them while keeping the results/ dir
+# (its .gitkeep + the suite README) tracked.
+Docs/parity-tests/*/results/20*/
+
 # IDE
 .idea/
 .vscode/

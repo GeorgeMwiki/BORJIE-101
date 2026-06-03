@@ -17,10 +17,10 @@
  * historical "any 2 distinct admins" baseline so existing callers keep
  * working.
  *
- * Role-group examples for property management:
- *   - eviction.propose:    1 compliance + 1 owner-relations + 1 property-manager
- *   - owner_payout.disburse: 1 ops + 1 compliance
- *   - kra.file_mri_return: 1 compliance + 1 owner-relations
+ * Role-group examples for mining-estate management:
+ *   - licence_suspension.propose: 1 compliance + 1 owner-relations + 1 site-manager
+ *   - royalty_payout.disburse:     1 treasury-ops + 1 compliance
+ *   - tra.file_royalty_return:     1 compliance + 1 owner-relations
  *
  * Each approval is bound to a specific actor user id; the SAME user
  * cannot satisfy two slots. The proposer is also disqualified unless

@@ -1,11 +1,13 @@
 /**
  * Routing-override port — abstraction over the storage backend.
  *
- * The composition root binds either:
+ * The composition root binds a concrete adapter behind this port:
  *   - the in-memory adapter (`InMemoryOverrideAdapter`) for tests +
  *     standalone bootstrap, OR
- *   - a Drizzle-backed adapter (NOT YET IMPLEMENTED — follow-up task)
- *     that reads from a `llm_routing_overrides` table.
+ *   - a Drizzle-backed adapter, owned by the api-gateway composition
+ *     root, that reads from a `llm_routing_overrides` table.
+ * This package ships the port and the in-memory adapter; the DB-backed
+ * adapter lives at the gateway so this package stays storage-agnostic.
  *
  * The repository (`RoutingOverrideRepository`) wraps the adapter with
  * an in-memory LRU cache and invalidation on writes so the resolver

@@ -100,7 +100,13 @@ BEGIN
      WHERE schemaname = 'public'
        AND indexname  = 'regulatory_zones_authority_code_unique'
   ) THEN
-    DROP INDEX regulatory_zones_authority_code_unique;
+    -- This unique was created by 0130 as a TABLE CONSTRAINT, so its backing
+    -- index is constraint-owned and a bare DROP INDEX is rejected ("cannot
+    -- drop index ... because constraint ... requires it"). Drop the
+    -- constraint (which removes its index); fall back to DROP INDEX for any
+    -- environment where it exists as a plain standalone index.
+    ALTER TABLE regulatory_zones DROP CONSTRAINT IF EXISTS regulatory_zones_authority_code_unique;
+    DROP INDEX IF EXISTS regulatory_zones_authority_code_unique;
   END IF;
 END $$;
 

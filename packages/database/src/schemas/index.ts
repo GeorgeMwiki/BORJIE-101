@@ -62,6 +62,20 @@ export * from './onboarding-state.schema.js';
 // the full security-model rationale.
 export * from './onboarding-signup.schema.js';
 
+// Brain sleep-pass durability (migration 0276 / LP-21a). Two SYSTEM tables —
+// brain_sleep_runs + brain_sleep_emissions — replacing the in-memory Map in
+// services/sleep-pass-orchestrator. Cross-tenant brain-job rows written under
+// the service-role connection (no per-tenant GUC); RLS FORCE-enabled with a
+// service-managed policy + REVOKE anon/authenticated — see schema file.
+export * from './brain-sleep-runs.schema.js';
+
+// Epistemic belief layer + learning loop (migration 0274 / LP-17/18). Seven
+// tenant-scoped tables — brain_beliefs, belief_revisions, belief_review_queue,
+// learning_signals, preference_pairs, preference_head_weights,
+// correlation_findings. RLS FORCE-enabled + REVOKE anon/authenticated — see
+// schema file. Belief writes flow only through the convince-loop guard.
+export * from './belief-learning.schema.js';
+
 // Mining-domain extensions (migration 0005)
 export * from './buyer-extensions.schema.js';
 export * from './bid-negotiations.schema.js';

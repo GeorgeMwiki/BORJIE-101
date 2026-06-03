@@ -42,6 +42,14 @@ import {
   type SynthesizerProposerRegistration,
 } from '@borjie/ai-copilot/providers';
 import type { BrainPort, BrainRequest, BrainResponse, BrainCitation } from '@borjie/role-aware-advisor';
+// LP-15 / LP-30 — privacy-router consult BEFORE the LLM provider dispatch.
+// Classifies the payload by data-sensitivity tier and either strips PII
+// (CONFIDENTIAL/RESTRICTED) or refuses (RESTRICTED data + no local model).
+import {
+  buildPrivacyRouter,
+  consultPrivacyRouter,
+  type WiredPrivacyRouter,
+} from './privacy-router-wiring.js';
 
 export interface WireMultiLLMBrainOpts {
   /** Env source — defaults to `process.env`. Tests pass overrides. */
@@ -146,6 +154,19 @@ export function wireMultiLLMBrain(opts: WireMultiLLMBrainOpts = {}): BrainPort |
       : {}),
   });
 
+  // LP-15 / LP-30 — build the privacy router once. Consulted per-request
+  // BEFORE dispatch (see respond()). Default ENABLED; fail-open on errors so
+  // a router glitch never blocks all traffic — only an explicit DENIED (
+  // RESTRICTED data + no local model) refuses.
+  const privacyLogger = {
+    info: (meta: object, msg: string) => logger?.info?.(msg, meta as Record<string, unknown>),
+    warn: (meta: object, msg: string) => logger?.warn?.(msg, meta as Record<string, unknown>),
+  };
+  const privacy: WiredPrivacyRouter = buildPrivacyRouter({
+    env,
+    logger: privacyLogger,
+  });
+
   return {
     async respond(req: BrainRequest): Promise<BrainResponse> {
       // Compose an AICompletionRequest from the advisor's BrainRequest.
@@ -164,10 +185,28 @@ export function wireMultiLLMBrain(opts: WireMultiLLMBrainOpts = {}): BrainPort |
               .join('\n\n');
 
       const userPrompt = `${req.question}${evidenceBlock}`;
+
+      // LP-15 / LP-30 — privacy-router consult BEFORE dispatch. On DENIED
+      // (RESTRICTED data + no local model) we refuse rather than send the
+      // payload to a cloud provider. Otherwise we send the (possibly
+      // PII-stripped) text so CONFIDENTIAL/RESTRICTED payloads never egress
+      // raw. Fail-open on router errors (allowed:true with original text).
+      const privacyDecision = await consultPrivacyRouter(
+        privacy,
+        { text: userPrompt },
+        privacyLogger,
+      );
+      if (!privacyDecision.allowed) {
+        throw new Error(
+          `multi-llm-brain-adapter: privacy router refused dispatch [${privacyDecision.result.classification}]: ${privacyDecision.result.reason}`,
+        );
+      }
+      const dispatchUserPrompt = privacyDecision.processedText;
+
       const synthRequest = {
         prompt: {
           systemPrompt: req.systemPrompt,
-          userPrompt,
+          userPrompt: dispatchUserPrompt,
           compiledAt: new Date(),
           templateId: 'role-aware-advisor',
           version: 1,
