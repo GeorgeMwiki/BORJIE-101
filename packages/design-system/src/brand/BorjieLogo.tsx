@@ -69,6 +69,10 @@ export interface BorjieLogoProps extends React.HTMLAttributes<HTMLSpanElement> {
   readonly label?: string;
   /** Accessible title — falls back to the canonical brand name. */
   readonly title?: string;
+  /** Mark "lit" pulse — the warm bloom breathes (alive-at-rest). Defaults
+   *  on for the gradient tone; pass false to freeze. Honours
+   *  prefers-reduced-motion. */
+  readonly pulse?: boolean;
 }
 
 /**
@@ -149,13 +153,25 @@ function BorjieMarkSvg({
   size,
   tone,
   title,
+  pulse,
 }: {
   readonly size: number;
   readonly tone: BorjieLogoTone;
   readonly title: string;
+  readonly pulse?: boolean;
 }): JSX.Element {
   const uid = React.useId().replace(/:/g, '');
   const palette = resolveTone(tone);
+
+  // The "lit" pulse rides on the warm bloom, so it only exists for the
+  // gradient tone. Default-on there; salted class + keyframes avoid any
+  // cross-mark clash; reduced-motion pins it to a calm static glow.
+  const shouldPulse = (pulse ?? true) && palette.useGradient;
+  const litClass = `borjie-lit-${uid}`;
+  const litCss =
+    `@keyframes ${litClass}{0%,100%{opacity:.42}50%{opacity:1}}` +
+    `.${litClass}{animation:${litClass} 3.4s ease-in-out infinite}` +
+    `@media(prefers-reduced-motion:reduce){.${litClass}{animation:none;opacity:.85}}`;
 
   const spineId = `borjie-spine-${uid}`;
   const upperId = `borjie-upper-${uid}`;
@@ -180,6 +196,7 @@ function BorjieMarkSvg({
       style={{ display: 'block', flexShrink: 0 }}
     >
       <title>{title}</title>
+      {shouldPulse ? <style dangerouslySetInnerHTML={{ __html: litCss }} /> : null}
       {palette.useGradient ? (
         <defs>
           <linearGradient id={spineId} x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
@@ -200,15 +217,21 @@ function BorjieMarkSvg({
             <stop offset="100%" stopColor="#FFF8E6" stopOpacity="0" />
           </linearGradient>
           <radialGradient id={bloomId} cx="32" cy="32" r="22" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#F7CC85" stopOpacity="0.32" />
-            <stop offset="65%" stopColor="#E5B26B" stopOpacity="0.06" />
+            <stop offset="0%" stopColor="#F7CC85" stopOpacity="0.42" />
+            <stop offset="65%" stopColor="#E5B26B" stopOpacity="0.07" />
             <stop offset="100%" stopColor="#E5B26B" stopOpacity="0" />
           </radialGradient>
         </defs>
       ) : null}
 
       {palette.useGradient ? (
-        <circle cx="32" cy="32" r="20" fill={`url(#${bloomId})`} />
+        <circle
+          cx="32"
+          cy="32"
+          r="20"
+          fill={`url(#${bloomId})`}
+          className={shouldPulse ? litClass : undefined}
+        />
       ) : null}
 
       {/* Spine of the B — left vertical bar, full-height with rounded
@@ -340,6 +363,7 @@ export function BorjieLogo({
   tone = 'full',
   label = 'Borjie',
   title = 'Borjie',
+  pulse,
   style,
   ...rest
 }: BorjieLogoProps): JSX.Element {
@@ -357,7 +381,7 @@ export function BorjieLogo({
         aria-label={title}
         {...rest}
       >
-        <BorjieMarkSvg size={size} tone={tone} title={title} />
+        <BorjieMarkSvg size={size} tone={tone} title={title} pulse={pulse} />
       </span>
     );
   }
@@ -391,7 +415,7 @@ export function BorjieLogo({
         aria-label={title}
         {...rest}
       >
-        <BorjieMarkSvg size={Math.round(size * 1.35)} tone={tone} title={title} />
+        <BorjieMarkSvg size={Math.round(size * 1.35)} tone={tone} title={title} pulse={pulse} />
         <BorjieWordmarkText size={size} tone={tone} label={label} />
       </span>
     );
