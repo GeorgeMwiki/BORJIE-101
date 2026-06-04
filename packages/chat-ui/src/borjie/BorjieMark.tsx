@@ -54,6 +54,15 @@ export function BorjieMark({
   const hiId = `borjie-hi-${uid}`;
   const bloomId = `borjie-bloom-${uid}`;
 
+  // "Lit" pulse — the warm bloom breathes (alive-at-rest), matching the
+  // canonical BorjieLogo. Self-contained inline keyframes, reduced-motion
+  // safe. The chat mark is always the gradient brand mark, so it's on.
+  const litClass = `borjie-lit-${uid}`;
+  const litCss =
+    `@keyframes ${litClass}{0%,100%{opacity:.42}50%{opacity:1}}` +
+    `.${litClass}{animation:${litClass} 3.4s ease-in-out infinite}` +
+    `@media(prefers-reduced-motion:reduce){.${litClass}{animation:none;opacity:.85}}`;
+
   return (
     <svg
       width={size}
@@ -64,6 +73,7 @@ export function BorjieMark({
       aria-label={ariaLabel ?? undefined}
       style={{ display: 'block', flexShrink: 0, ...style }}
     >
+      <style dangerouslySetInnerHTML={{ __html: litCss }} />
       <defs>
         <linearGradient id={spineId} x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#FFE2B4" />
@@ -83,12 +93,12 @@ export function BorjieMark({
           <stop offset="100%" stopColor="#FFF8E6" stopOpacity="0" />
         </linearGradient>
         <radialGradient id={bloomId} cx="32" cy="32" r="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#F7CC85" stopOpacity="0.32" />
-          <stop offset="65%" stopColor="#E5B26B" stopOpacity="0.06" />
+          <stop offset="0%" stopColor="#F7CC85" stopOpacity="0.42" />
+          <stop offset="65%" stopColor="#E5B26B" stopOpacity="0.07" />
           <stop offset="100%" stopColor="#E5B26B" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <circle cx="32" cy="32" r="20" fill={`url(#${bloomId})`} />
+      <circle cx="32" cy="32" r="20" fill={`url(#${bloomId})`} className={litClass} />
       <rect x="14" y="12" width="8" height="40" rx="2" fill={`url(#${spineId})`} />
       <path
         d="M22 14 H38 a8 8 0 0 1 8 8 v3 a8 8 0 0 1 -8 8 H22 z"
