@@ -42,7 +42,7 @@ const KEYWORDS: Array<{ personaId: string; patterns: RegExp[] }> = [
     ],
   },
   {
-    personaId: PERSONA_IDS.JUNIOR_LEASING,
+    personaId: PERSONA_IDS.JUNIOR_OFFTAKE,
     patterns: [
       /\b(lease|renew(al)?|applicant|viewing|move[- ]in|move[- ]out|vacancy|listing|applicant)\b/i,
     ],

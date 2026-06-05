@@ -10,7 +10,7 @@ import { Persona, PERSONA_IDS } from './persona.js';
 import { RiskLevel } from '../types/core.types.js';
 import {
   ESTATE_MANAGER_PROMPT,
-  JUNIOR_LEASING_PROMPT,
+  JUNIOR_OFFTAKE_PROMPT,
   JUNIOR_MAINTENANCE_PROMPT,
   JUNIOR_FINANCE_PROMPT,
   JUNIOR_COMPLIANCE_PROMPT,
@@ -98,7 +98,7 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   ],
   minReviewRiskLevel: RiskLevel.MEDIUM,
   delegatesTo: [
-    PERSONA_IDS.JUNIOR_LEASING,
+    PERSONA_IDS.JUNIOR_OFFTAKE,
     PERSONA_IDS.JUNIOR_MAINTENANCE,
     PERSONA_IDS.JUNIOR_FINANCE,
     PERSONA_IDS.JUNIOR_COMPLIANCE,
@@ -107,13 +107,13 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   ],
 };
 
-export const JUNIOR_LEASING_TEMPLATE: Persona = {
-  id: PERSONA_IDS.JUNIOR_LEASING,
+export const JUNIOR_OFFTAKE_TEMPLATE: Persona = {
+  id: PERSONA_IDS.JUNIOR_OFFTAKE,
   kind: 'junior',
   displayName: 'Offtake Junior',
   missionStatement:
     'Domain expert for offtake: prospective buyers, site visits, supply-agreement drafting, renewals, consignment handover/dispatch.',
-  systemPrompt: JUNIOR_LEASING_PROMPT,
+  systemPrompt: JUNIOR_OFFTAKE_PROMPT,
   allowedTools: [
     GRAPH_TOOLS.GET_SITE_ROLLUP,
     GRAPH_TOOLS.GET_PIT_HEALTH,
@@ -523,7 +523,7 @@ YOU CANNOT
  */
 export const DEFAULT_PERSONAE: Persona[] = [
   ESTATE_MANAGER_TEMPLATE,
-  JUNIOR_LEASING_TEMPLATE,
+  JUNIOR_OFFTAKE_TEMPLATE,
   JUNIOR_MAINTENANCE_TEMPLATE,
   JUNIOR_FINANCE_TEMPLATE,
   JUNIOR_COMPLIANCE_TEMPLATE,

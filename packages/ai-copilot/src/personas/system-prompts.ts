@@ -146,7 +146,7 @@ ${SHARED_OUTPUT_RULES}
 `.trim();
 }
 
-export const JUNIOR_LEASING_PROMPT = juniorPrompt({
+export const JUNIOR_OFFTAKE_PROMPT = juniorPrompt({
   role: 'Offtake',
   domain:
     'offtake operations — prospective buyers, site visits, supply-agreement drafting, renewals, consignment handover and dispatch',

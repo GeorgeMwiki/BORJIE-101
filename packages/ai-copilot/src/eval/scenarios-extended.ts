@@ -22,21 +22,21 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'New buyer inquiry via WhatsApp',
     category: 'leasing',
     turns: [{ userText: 'A new buyer sent a WhatsApp asking about doré availability at the Geita site.' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
     id: 'offtake.site_visit_no_show_followup',
     name: 'Site-visit no-show follow-up',
     category: 'leasing',
     turns: [{ userText: 'Buyer missed the site visit yesterday. How should we follow up?' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
     id: 'offtake.counterparty_due_diligence',
     name: 'Counterparty qualification check',
     category: 'leasing',
     turns: [{ userText: 'Run a counterparty qualification check for buyer ID BUY-332.' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
     id: 'offtake.performance_bond_negotiation',
@@ -46,7 +46,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
       { userText: 'Buyer for consignment D-4 asks if they can post the performance bond in two installments — advise.' },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectProposedAction: { riskAtLeast: 'MEDIUM' },
     },
   },
@@ -56,7 +56,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     category: 'leasing',
     turns: [{ userText: 'Please abstract the supply agreement A-99 I just uploaded (47 data points).' }],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectToolCalls: ['skill.offtake.abstract'],
     },
   },

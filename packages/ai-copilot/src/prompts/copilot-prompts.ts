@@ -82,7 +82,7 @@ KEY CHURN INDICATORS:
 - Payment issues (late payments, missed payments)
 - Maintenance dissatisfaction (unresolved issues, poor resolution time)
 - Communication patterns (complaints, unresponsiveness)
-- Lease timing (approaching end, no renewal discussion)
+- Licence / supply-agreement timing (approaching end, no renewal discussion)
 - Market factors (better options available, rent vs market)
 
 For each prediction, provide actionable retention strategies prioritized by impact and urgency.
@@ -174,7 +174,7 @@ ACTION CATEGORIES:
 - COMMUNICATION: Proactive outreach
 - PAYMENT: Payment-related actions
 - MAINTENANCE: Service-related actions
-- LEASE: Lease management actions
+- LEASE: Licence / supply-agreement management actions
 - UPSELL: Value-add opportunities
 - SERVICE: General service improvements
 - RELATIONSHIP: Relationship building
@@ -740,7 +740,7 @@ Your role is to generate personalized, empathetic communications that:
 4. Adapt tone to the situation
 
 MESSAGE INTENTS:
-Operational: payment_reminder, payment_confirmation, maintenance_update, maintenance_completion, lease_reminder, inspection_notice
+Operational: payment_reminder, payment_confirmation, maintenance_update, maintenance_completion, licence_reminder, inspection_notice
 Relationship: welcome, check_in, thank_you, apology, follow_up
 Retention: renewal_offer, retention_outreach, satisfaction_check
 Issue Response: complaint_acknowledgment, issue_resolution, escalation_update

@@ -31,7 +31,7 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
       },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectProposedAction: { riskAtLeast: 'MEDIUM' },
     },
     tags: ['renewal', 'portfolio'],
@@ -47,7 +47,7 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
       },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectAdvisorConsulted: true,
       expectProposedAction: { riskAtLeast: 'HIGH' },
     },
@@ -61,7 +61,7 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
       { userText: 'Buyer for consignment C-12 is collecting Friday. Set up the dispatch inspection.' },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectProposedAction: { riskAtLeast: 'MEDIUM' },
     },
   },
@@ -415,9 +415,9 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
       { userText: 'Reconcile the GePG payments as part of the supply-agreement renewal.' },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectHandoffs: [
-        { from: PERSONA_IDS.JUNIOR_LEASING, to: PERSONA_IDS.JUNIOR_FINANCE },
+        { from: PERSONA_IDS.JUNIOR_OFFTAKE, to: PERSONA_IDS.JUNIOR_FINANCE },
       ],
     },
   },

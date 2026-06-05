@@ -8,7 +8,7 @@
  *  - `visibilityBudget` caps the width of artifacts it produces
  *  - `modelTier` + `advisorCategory` drive the Advisor pattern
  *
- * The shared Thread Store + Canonical Property Graph are its memory. No
+ * The shared Thread Store + Canonical Mining Graph are its memory. No
  * persona owns private state.
  */
 
@@ -29,7 +29,7 @@ import { AdvisorHardCategory } from '../providers/advisor.js';
  */
 export const PERSONA_IDS = {
   ESTATE_MANAGER: 'estate-manager',
-  JUNIOR_LEASING: 'junior.leasing',
+  JUNIOR_OFFTAKE: 'junior.offtake',
   JUNIOR_MAINTENANCE: 'junior.maintenance',
   JUNIOR_FINANCE: 'junior.finance',
   JUNIOR_COMPLIANCE: 'junior.compliance',
