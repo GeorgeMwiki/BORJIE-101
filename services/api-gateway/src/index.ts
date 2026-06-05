@@ -523,6 +523,10 @@ import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
 // site.rehabilitation.approve_plan brain tools. Ported from the BN dispute /
 // damage-deduction + conditional-survey stack, retargeted real-estate → mining.
 import { damageClaimsRouter } from './routes/damage-claims.hono';
+// Org / team-management (migration 0280) — staff create / KPI / task /
+// escalation / bulk-CSV write surface. Backs the staff.* brain tools. Ported
+// from the BN org/team-management stack, retargeted real-estate → mining.
+import { orgAdminRouter } from './routes/org-admin.hono';
 // Admin Control Tower — cross-tenant toggles wired to REAL platform state
 // (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
 import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
@@ -2072,6 +2076,10 @@ api.route('/admin/superpowers', adminSuperpowersRouter);
 // action-plans/:actionPlanId/approve. Wraps the site.damage_claim.* /
 // site.rehabilitation.approve_plan brain tools' real routes.
 api.route('/damage-claims', damageClaimsRouter);
+// Org / team-management (migration 0280) — POST /staff, POST /staff/kpis,
+// POST /tasks, POST /escalations, POST /staff/bulk-csv. Wraps the staff.*
+// brain tools' real routes (owner / admin role only; full audit + provenance).
+api.route('/org-admin', orgAdminRouter);
 // Admin Control Tower — GET /controls + POST /toggle (+ /toggle/:id/approve).
 // Each toggle drives a real platform control; HIGH-impact ones are four-eye
 // gated and only mutate state on the second-eye approval. SOC2-audited.

@@ -125,6 +125,14 @@ import { CHAT_KING_FOLLOWUP_TOOLS } from './chat-king-followup-tools';
 // tools, retargeted real-estate → mining. Real-DB writes against
 // /damage-claims/* via the loopback client; full audit trail + provenance.
 import { DAMAGE_SETTLEMENT_TOOLS } from './damage-settlement-tools';
+// Org / team-management (migration 0280) — 5 owner/admin WRITE tools
+// (staff.create / assign_kpi / schedule_task / escalate_to_human /
+// bulk_ingest_csv) backing /org-admin/* via the loopback client. Ported from
+// the BN org/team-management chat tools, retargeted real-estate → mining
+// (caretaker / leasing_assistant → site_supervisor / pit_foreman /
+// safety_officer). Honest-degrade: a typed 'unavailable' shape when no client
+// is bound — never a fabricated row.
+import { ORG_ADMIN_TOOLS } from './org-admin-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -185,6 +193,7 @@ export function buildPersonaToolHandlers(
       REASON_STRATEGIZE_TOOLS,
       CHAT_KING_FOLLOWUP_TOOLS,
       DAMAGE_SETTLEMENT_TOOLS,
+      ORG_ADMIN_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -246,6 +255,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       REASON_STRATEGIZE_TOOLS,
       CHAT_KING_FOLLOWUP_TOOLS,
       DAMAGE_SETTLEMENT_TOOLS,
+      ORG_ADMIN_TOOLS,
     ],
     undefined,
   );
@@ -388,3 +398,12 @@ export {
   siteDamageClaimRespondTool,
   siteRehabilitationApprovePlanTool,
 } from './damage-settlement-tools';
+// Org / team-management (migration 0280) — re-exports for tests + audit walker.
+export {
+  ORG_ADMIN_TOOLS,
+  staffCreateTool,
+  staffAssignKpiTool,
+  staffScheduleTaskTool,
+  staffEscalateToHumanTool,
+  staffBulkIngestCsvTool,
+} from './org-admin-tools';
