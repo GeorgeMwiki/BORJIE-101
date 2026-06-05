@@ -155,6 +155,12 @@ import { brainRouter } from './routes/brain.hono';
 // chain. Sibling mount under /brain so Hono composes it next to the
 // existing /turn route without touching the kernel.
 import { brainTeachRouter } from './routes/brain-teach.hono';
+// Gap 6 — VP department-head dispatch. /api/v1/brain/dispatch resolves one
+// of the five VPs by name via the central-intelligence registry, orchestrates
+// a free-form owner/admin instruction into a line-worker plan, and runs each
+// sub-MD's four-stage pipeline fail-soft (honest-degrade, never fabricated).
+// Sibling /brain mount; the only path it claims is /dispatch.
+import { brainDispatchRouter } from './routes/brain-dispatch.hono';
 // SOTA realtime-voice BACKEND — a WS endpoint at /api/v1/brain/voice/stream
 // that bridges the owner's mic to a duplex model (Gemini Live) in front of
 // the real Borjie brain (mining persona + tool-calling + tenant binding).
@@ -1638,6 +1644,10 @@ api.route('/brain', brainRouter);
 // /threads, /personae, /migrate so the only path brainTeachRouter
 // claims is /teach. Additive: NEVER touches /turn behaviour.
 api.route('/brain', brainTeachRouter);
+// Gap 6 — sibling /brain mount for VP department-head dispatch. brainRouter
+// owns /turn, /threads, /personae, /migrate; brainTeachRouter owns /teach;
+// brainDispatchRouter claims only /dispatch. Additive: NEVER touches /turn.
+api.route('/brain', brainDispatchRouter);
 // REMOVED (borjie hard-fork): api.route('/maintenance', maintenanceRouter);
 //   Replaced by /api/v1/mining/maintenance (asset maintenance events) plus
 //   /api/v1/mining/tasks (covers all mining task types including equipment
