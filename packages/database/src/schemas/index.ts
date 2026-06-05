@@ -1449,3 +1449,14 @@ export * from './leave-requests.schema.js';
 // money path STILL goes through LedgerService.post() (these are read/commit
 // surfaces, never a direct ledger write).
 export * from './payroll-runs.schema.js';
+
+// contractor_damage_claims + site_rehabilitation_plans +
+// rehabilitation_action_plans (migration 0279). Ported from the BN dispute /
+// damage-deduction + conditional-survey stack, retargeted real-estate ->
+// mining: a licence holder files a damage claim against a contractor for site
+// damage, negotiates (respond), then settles (settle) an agreed amount as
+// STATE (no ledger posting); rehabilitation plans + action plans drive the
+// approve_plan flow. Amounts in minor units + explicit currency. Tenant-scoped
+// FORCE RLS on app.current_tenant_id. Consumed by routes/damage-claims.hono.ts
+// + the site.damage_claim.* / site.rehabilitation.approve_plan brain tools.
+export * from './site-damage-settlement.schema.js';

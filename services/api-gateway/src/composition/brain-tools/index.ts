@@ -119,6 +119,12 @@ import { REASON_STRATEGIZE_TOOLS } from './reason-strategize-tool';
 // against existing routes (ops/external-parties, buyer/notifications).
 // No mocks, no fallback stubs. See file header for the audit reference.
 import { CHAT_KING_FOLLOWUP_TOOLS } from './chat-king-followup-tools';
+// Damage-settlement (migration 0279) — 3 HIGH-stakes owner WRITE tools
+// (site.damage_claim.settle / respond, site.rehabilitation.approve_plan)
+// ported from the BN dispute / damage-deduction + conditional-survey chat
+// tools, retargeted real-estate → mining. Real-DB writes against
+// /damage-claims/* via the loopback client; full audit trail + provenance.
+import { DAMAGE_SETTLEMENT_TOOLS } from './damage-settlement-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -178,6 +184,7 @@ export function buildPersonaToolHandlers(
       JURISDICTION_TOOLS,
       REASON_STRATEGIZE_TOOLS,
       CHAT_KING_FOLLOWUP_TOOLS,
+      DAMAGE_SETTLEMENT_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -238,6 +245,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       JURISDICTION_TOOLS,
       REASON_STRATEGIZE_TOOLS,
       CHAT_KING_FOLLOWUP_TOOLS,
+      DAMAGE_SETTLEMENT_TOOLS,
     ],
     undefined,
   );
@@ -373,3 +381,10 @@ export {
   opsPartiesCreateTool,
   buyerNotificationsMarkReadTool,
 } from './chat-king-followup-tools';
+// Damage-settlement (migration 0279) — re-exports for tests + audit walker.
+export {
+  DAMAGE_SETTLEMENT_TOOLS,
+  siteDamageClaimSettleTool,
+  siteDamageClaimRespondTool,
+  siteRehabilitationApprovePlanTool,
+} from './damage-settlement-tools';

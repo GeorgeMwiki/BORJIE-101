@@ -518,6 +518,11 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 // Admin-side bulk-action surface — distinct whitelist + 4-eye approval
 // for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
+// Damage-settlement (migration 0279) — contractor / site damage claims +
+// mine-rehabilitation action-plan approval. Backs the site.damage_claim.* /
+// site.rehabilitation.approve_plan brain tools. Ported from the BN dispute /
+// damage-deduction + conditional-survey stack, retargeted real-estate → mining.
+import { damageClaimsRouter } from './routes/damage-claims.hono';
 // Admin Control Tower — cross-tenant toggles wired to REAL platform state
 // (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
 import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
@@ -2062,6 +2067,11 @@ api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
 // Admin counterpart — only the bulk-action verb-set differs.
 api.route('/admin/superpowers', adminSuperpowersRouter);
+// Damage-settlement (migration 0279) — POST / (file), GET /open, GET /:id,
+// POST /:id/respond, POST /:id/settle, POST /rehabilitation-plans/:planId/
+// action-plans/:actionPlanId/approve. Wraps the site.damage_claim.* /
+// site.rehabilitation.approve_plan brain tools' real routes.
+api.route('/damage-claims', damageClaimsRouter);
 // Admin Control Tower — GET /controls + POST /toggle (+ /toggle/:id/approve).
 // Each toggle drives a real platform control; HIGH-impact ones are four-eye
 // gated and only mutate state on the second-eye approval. SOC2-audited.
