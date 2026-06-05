@@ -101,7 +101,36 @@ const chatModeStrings = {
   },
 } as const satisfies Record<string, BilingualString>;
 
+/**
+ * Follow-up owner messages posted from in-layout actions (choosing a quiz
+ * option, "next concept", raising a hand). These are sent into the brain
+ * as the owner's next turn, so they live here too — keeping ChatModeSurface
+ * free of any Swahili literal while staying single-language per locale.
+ */
+const chatModeFollowUps = {
+  /** Quiz answer prefix — joined with the chosen option id ("… A"). */
+  quizAnswer: { sw: 'Jibu langu ni', en: 'My answer is' },
+  reviewNext: {
+    sw: 'Tuendelee na dhana inayofuata.',
+    en: "Let's move to the next concept.",
+  },
+  reviewRedo: {
+    sw: 'Naomba turudie kipindi hiki.',
+    en: "Let's redo this session.",
+  },
+  raiseHand: { sw: 'Nina swali.', en: 'I have a question.' },
+} as const satisfies Record<string, BilingualString>;
+
 export type ChatModeStringKey = keyof typeof chatModeStrings;
+export type ChatModeFollowUpKey = keyof typeof chatModeFollowUps;
+
+/** Resolve a follow-up owner message for the active locale (no interpolation). */
+export function chatModeFollowUp(
+  key: ChatModeFollowUpKey,
+  locale: ChatModeLocale,
+): string {
+  return chatModeFollowUps[key][locale];
+}
 
 function isChatModeKey(key: string): key is ChatModeStringKey {
   return Object.prototype.hasOwnProperty.call(chatModeStrings, key);

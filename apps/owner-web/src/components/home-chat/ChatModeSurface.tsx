@@ -28,7 +28,7 @@ import {
   type ChatModeState,
   type Language,
 } from '@borjie/chat-ui';
-import { makeChatModeTranslator } from '@/i18n/strings/chat-modes';
+import { makeChatModeTranslator, chatModeFollowUp } from '@/i18n/strings/chat-modes';
 
 export interface ChatModeSurfaceProps {
   readonly state: ChatModeState;
@@ -57,15 +57,12 @@ export function ChatModeSurface({
 }: ChatModeSurfaceProps): ReactElement | null {
   const t = useMemo(() => makeChatModeTranslator(language), [language]);
 
-  const isSw = language === 'sw';
-
   const onQuizAnswer = useCallback(
     (optionId: string) => {
       if (disabled) return;
-      const verb = isSw ? 'Jibu langu ni' : 'My answer is';
-      onFollowUp(`${verb} ${optionId}`);
+      onFollowUp(`${chatModeFollowUp('quizAnswer', language)} ${optionId}`);
     },
-    [disabled, isSw, onFollowUp],
+    [disabled, language, onFollowUp],
   );
 
   const onQuizTimeUp = useCallback(() => {
@@ -74,18 +71,18 @@ export function ChatModeSurface({
 
   const onReviewNext = useCallback(() => {
     if (disabled) return;
-    onFollowUp(isSw ? 'Tuendelee na dhana inayofuata.' : "Let's move to the next concept.");
-  }, [disabled, isSw, onFollowUp]);
+    onFollowUp(chatModeFollowUp('reviewNext', language));
+  }, [disabled, language, onFollowUp]);
 
   const onReviewRedo = useCallback(() => {
     if (disabled) return;
-    onFollowUp(isSw ? 'Naomba turudie kipindi hiki.' : "Let's redo this session.");
-  }, [disabled, isSw, onFollowUp]);
+    onFollowUp(chatModeFollowUp('reviewRedo', language));
+  }, [disabled, language, onFollowUp]);
 
   const onRaiseHand = useCallback(() => {
     if (disabled) return;
-    onFollowUp(isSw ? 'Nina swali.' : 'I have a question.');
-  }, [disabled, isSw, onFollowUp]);
+    onFollowUp(chatModeFollowUp('raiseHand', language));
+  }, [disabled, language, onFollowUp]);
 
   if (state.mode === 'teaching' && state.teachingData) {
     return (

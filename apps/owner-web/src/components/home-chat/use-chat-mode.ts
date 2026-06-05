@@ -100,10 +100,14 @@ function firstLine(text: string): string {
   return '';
 }
 
-/** First sentence / line as a discussion topic seed. */
+/**
+ * First line of the reply as the discussion topic seed. Falls back to an
+ * empty string (never a hardcoded label) — the layout's own bilingual
+ * "Discussion" heading carries the framing, and the reply text is always
+ * non-empty when this surface mounts.
+ */
 function topicFrom(text: string): string {
-  const line = firstLine(text);
-  return line.length > 0 ? line : 'Discussion';
+  return firstLine(text);
 }
 
 // Field-wise merge (not a `Partial` spread) so the result is provably
