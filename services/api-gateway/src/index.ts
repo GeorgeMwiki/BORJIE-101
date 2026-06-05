@@ -123,6 +123,10 @@ import { personalKbRouter } from './routes/personal-kb.hono';
 // Roadmap R9 — smart-compose ghost text endpoint
 // (POST /brain/compose/suggest).
 import { brainComposeRouter } from './routes/brain-compose.hono';
+// Wave MD-INTELLIGENCE — Managing-Director cross-domain HTTP surface
+// (POST /md/correlations, /md/causation/trace, /md/baselines/compare,
+// /md/insights/emit) backing the four MD brain super-power tools.
+import { mdRouter } from './routes/md/index.hono';
 import { pnlTableRouter } from './routes/bff/pnl-table.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
@@ -1596,6 +1600,8 @@ api.route('/', personalKbRouter);
 // Roadmap R9 — smart-compose ghost-text suggestions
 // (POST /brain/compose/suggest).
 api.route('/brain', brainComposeRouter);
+// Wave MD-INTELLIGENCE — MD cross-domain super-power tools surface.
+api.route('/md', mdRouter);
 // R-FUTURE-3 — PnL BFF for owner-web finance surface
 // (GET /owner/finance/pnl?month=YYYY-MM).
 api.route('/owner/finance', pnlTableRouter);
