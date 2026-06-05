@@ -286,6 +286,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0278_admin_four_eye_pending.sql",
+      "down": "down/0278_down_admin_four_eye_pending.sql",
+      "reverses": "CREATE TABLE admin_superpower_pending_approvals + same-actor/status/role CHECK constraints + indexes + FORCE RLS tenant-isolation policy on app.current_tenant_id + revoke anon (admin four-eye superpowers queue; ported from BN 0301, retargeted real-estate -> mining). DATA LOSS: discards in-flight pending HIGH-risk admin proposals",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

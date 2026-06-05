@@ -9,8 +9,11 @@
  * approval flow).
  *
  * Routes:
- *   POST /bulk-action            chat-callable bulk operation surface
- *   POST /bulk-action/:journalId/approve   second-eye approval for HIGH actions
+ *   POST /bulk-action                       chat-callable bulk surface
+ *   POST /bulk-action/:journalId/approve    LEGACY second-eye approval
+ *   POST /approve/:journalId                queue second-eye approval (HIGH)
+ *   POST /reject/:journalId                 reject a pending HIGH proposal
+ *   GET  /pending                           list pending approvals
  *
  * Auth: Supabase JWT + `requireRole(SUPER_ADMIN | ADMIN | SUPPORT)`.
  *       The journal entry pins both the proposing and approving actor
@@ -21,13 +24,44 @@
  * via the Supabase JWT. Admins act inside their own admin tenant scope
  * for those superpowers; only bulk-action carries cross-tenant impact
  * and therefore needs its own admin route.
+ *
+ * FOUR-EYE QUEUE (ported from BossNyumba migration 0301, retargeted real-
+ * estate → mining). The legacy `/bulk-action/:journalId/approve` path
+ * stamped `provenance.requires_four_eye` on `undo_journal` only, with no
+ * reject / list-pending surface and no DB-level same-actor guard. This file
+ * now ALSO records every HIGH-risk proposal in
+ * `admin_superpower_pending_approvals` and exposes the generic
+ * propose → approve → reject → list_pending queue
+ * (`/approve/:journalId`, `/reject/:journalId`, `/pending`). The mining
+ * verbs (suspend_licence_holder / reactivate_licence_holder /
+ * export_regulator_pack / force_supply_agreement_termination /
+ * force_password_reset / bulk_archive_inspection_cases) join the legacy
+ * platform verbs in the whitelist; the same-actor guard refuses approval
+ * by the proposing admin with a 409 FOUR_EYE_SAME_ACTOR (the
+ * `admin_four_eye_distinct_actors_chk` CHECK constraint is the DB safety
+ * net).
+ *
+ * Honest-degraded note: the actual entity-side mutation a queue verb
+ * proposes (e.g. the real licence-holder suspension write) is NOT wired —
+ * Borjie does not yet expose those admin mutation surfaces. On approval the
+ * pending row transitions to `applied` and the verb + target ref are
+ * returned (`mutationApplied: false`) so an operator / sweeper carries out
+ * the side effect. The legacy `export_regulator_pack` path DOES still build
+ * its verifiable bundle on `/bulk-action/:journalId/approve` (below). We
+ * never fabricate a mutation that does not exist.
  */
 
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 
-import { undoJournal } from '@borjie/database';
+import {
+  undoJournal,
+  adminSuperpowerPendingApprovals,
+  ADMIN_HIGH_RISK_ACTIONS,
+  ADMIN_ALL_ACTIONS,
+  ADMIN_BULK_ARCHIVE_HIGH_THRESHOLD,
+} from '@borjie/database';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
@@ -35,6 +69,7 @@ import { UserRole } from '../../types/user-role';
 import { buildRegulatorPack } from './regulator-pack';
 import { fetchRegulatorPackSources } from './regulator-pack-fetch';
 import { resolveRegulatorPackSigningSecret } from './regulator-pack-secret';
+import { registerFourEyeQueueRoutes } from './superpowers-four-eye-queue';
 
 const moduleLogger = createLogger('admin-superpowers');
 
@@ -52,23 +87,75 @@ const moduleLogger = createLogger('admin-superpowers');
 const ADMIN_BULK_WHITELIST: Readonly<
   Record<string, ReadonlyArray<string>>
 > = Object.freeze({
+  // ── Legacy admin-platform verbs (provenance-flag flow on undo_journal). ──
   tenant_orgs: ['suspend', 'reactivate', 'export_regulator_pack'],
   intelligence_corpus: ['archive', 'reindex'],
   feature_flags: ['enable', 'disable'],
   killswitch_targets: ['activate'],
+  // ── Four-eye QUEUE verbs (ported from BN 0301, retargeted real-estate →
+  // mining; recorded in admin_superpower_pending_approvals). ──
+  licence_holder: [
+    'suspend_licence_holder',
+    'reactivate_licence_holder',
+    'export_regulator_pack',
+  ],
+  supply_agreement: ['force_supply_agreement_termination'],
+  user: ['force_password_reset'],
+  inspection_case: ['bulk_archive_inspection_cases'],
+  royalty_invoice: ['bulk_archive_old_royalty_invoices'],
+  site: ['bulk_re_tag_sites'],
+  announcement_target: ['bulk_send_announcement'],
 });
 
 /**
- * HIGH-impact verbs need 4-eye. Anything that suspends a tenant,
- * activates kill-switch targets, or exports regulator packs cannot
- * land on a single admin's say-so.
+ * Entity types whose HIGH-risk proposals are recorded in the four-eye
+ * QUEUE table (`admin_superpower_pending_approvals`) and approved via
+ * `/approve/:journalId`. The legacy platform entity types keep their
+ * provenance-flag flow and the legacy `/bulk-action/:journalId/approve`
+ * path (which still builds the regulator pack on approval).
  */
-const HIGH_IMPACT_ACTIONS: ReadonlySet<string> = new Set([
+const QUEUE_ENTITY_TYPES: ReadonlySet<string> = new Set([
+  'licence_holder',
+  'supply_agreement',
+  'user',
+  'inspection_case',
+  'royalty_invoice',
+  'site',
+  'announcement_target',
+]);
+
+/**
+ * HIGH-impact verbs need 4-eye. The legacy platform verbs (suspend /
+ * reactivate / activate / export_regulator_pack) plus every mining queue
+ * HIGH verb (ADMIN_HIGH_RISK_ACTIONS) cannot land on a single admin's
+ * say-so.
+ */
+const HIGH_IMPACT_ACTIONS: ReadonlySet<string> = new Set<string>([
   'suspend',
   'reactivate',
   'activate',
   'export_regulator_pack',
+  ...ADMIN_HIGH_RISK_ACTIONS,
 ]);
+
+/**
+ * Auto-elevate a MEDIUM queue verb to HIGH on volume:
+ * bulk_archive_inspection_cases >50 rows is HIGH because mass archival of
+ * inspection evidence has a regulator-disclosure impact.
+ */
+function requiresFourEyeFor(
+  action: string,
+  ids: ReadonlyArray<string>,
+): boolean {
+  if (HIGH_IMPACT_ACTIONS.has(action)) return true;
+  if (
+    action === 'bulk_archive_inspection_cases' &&
+    ids.length > ADMIN_BULK_ARCHIVE_HIGH_THRESHOLD
+  ) {
+    return true;
+  }
+  return false;
+}
 
 const adminBulkSchema = z
   .object({
@@ -77,9 +164,17 @@ const adminBulkSchema = z
       'intelligence_corpus',
       'feature_flags',
       'killswitch_targets',
+      'licence_holder',
+      'supply_agreement',
+      'user',
+      'inspection_case',
+      'royalty_invoice',
+      'site',
+      'announcement_target',
     ]),
-    ids: z.array(z.string().min(1).max(120)).min(1).max(100),
+    ids: z.array(z.string().min(1).max(200)).min(1).max(500),
     action: z.enum([
+      // Legacy platform verbs.
       'suspend',
       'reactivate',
       'export_regulator_pack',
@@ -88,6 +183,8 @@ const adminBulkSchema = z
       'enable',
       'disable',
       'activate',
+      // Mining queue verbs.
+      ...(ADMIN_ALL_ACTIONS as readonly [string, ...string[]]),
     ]),
     payload: z.record(z.string(), z.unknown()).optional().default({}),
     reason: z.string().min(8).max(2000),
@@ -154,15 +251,25 @@ app.post('/bulk-action', async (c: any) => {
     );
   }
   const input = parsed.data;
-  const requiresFourEye = HIGH_IMPACT_ACTIONS.has(input.action);
+  const requiresFourEye = requiresFourEyeFor(input.action, input.ids);
+  // Queue-entity HIGH proposals ALSO land a row in the four-eye queue table
+  // so they can be approved via /approve/:journalId, rejected, and listed.
+  const recordsInQueue =
+    requiresFourEye && QUEUE_ENTITY_TYPES.has(input.entityType);
 
   // Append one undo journal entry per id so the admin's Undo chip can
   // reverse the whole batch. For HIGH-impact actions the entry lands
   // as pending_approval and the actual mutation is deferred to the
   // approval endpoint.
   const undoIds: string[] = [];
+  const pendingIds: string[] = [];
   const processedIds: string[] = [];
   const failedRows: Array<{ readonly id: string; readonly reason: string }> = [];
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const targetTenantId =
+    ((input.payload as Record<string, unknown> | undefined)
+      ?.targetTenantId as string | undefined) ?? null;
 
   for (const id of input.ids) {
     try {
@@ -185,11 +292,33 @@ app.post('/bulk-action', async (c: any) => {
             reason: input.reason,
             requires_four_eye: requiresFourEye,
             status: requiresFourEye ? 'pending_approval' : 'applied',
+            target_tenant_id: targetTenantId,
           },
         })
         .returning();
       undoIds.push(row.id);
       processedIds.push(id);
+
+      if (recordsInQueue) {
+        const [pendingRow] = await db
+          .insert(adminSuperpowerPendingApprovals)
+          .values({
+            journalId: row.id,
+            proposedByTenantId: auth.tenantId,
+            targetTenantId,
+            targetEntityRef: `${input.entityType}:${id}`,
+            action: input.action,
+            payload: input.payload,
+            reason: input.reason,
+            status: 'pending',
+            proposedByActorId: auth.userId,
+            proposedByRole: auth.role,
+            expiresAt,
+            auditChainIds: [],
+          })
+          .returning();
+        pendingIds.push(pendingRow.id);
+      }
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
       failedRows.push({ id, reason });
@@ -209,7 +338,9 @@ app.post('/bulk-action', async (c: any) => {
     entityType: input.entityType,
     action: input.action,
     requiresFourEye,
+    queued: recordsInQueue,
     processed: processedIds.length,
+    pending: pendingIds.length,
     failed: failedRows.length,
   });
 
@@ -224,6 +355,7 @@ app.post('/bulk-action', async (c: any) => {
       processedIds,
       failedIds: failedRows,
       undoJournalIds: undoIds,
+      pendingApprovalIds: pendingIds,
     },
   });
 });
@@ -464,6 +596,12 @@ function parseIsoOr(value: unknown, fallback: Date): Date {
   }
   return fallback;
 }
+
+// Register the four-eye QUEUE routes (/approve/:journalId, /reject/:journalId,
+// /pending) on the SAME app + base path. Extracted to a sibling module to keep
+// this file under the 800-line ceiling; the routes read the same auth + db
+// context this router's middleware binds.
+registerFourEyeQueueRoutes(app);
 
 export const adminSuperpowersRouter = app;
 export default adminSuperpowersRouter;
