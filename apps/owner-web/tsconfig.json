@@ -25,7 +25,7 @@
         "./src/*"
       ],
       "@borjie/api-client/training-types": [
-        "../../packages/api-client/src/services/training-scenarios.ts"
+        "../../packages/api-client/src/services/training-scenarios.types.ts"
       ]
     },
     "allowJs": true,
