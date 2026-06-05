@@ -93,6 +93,7 @@ const UI: Readonly<Record<string, SwEn>> = {
   navLabel: { en: 'Training sections', sw: 'Sehemu za mafunzo' },
   navScenarios: { en: 'Scenarios', sw: 'Hali' },
   navCheckpoint: { en: 'Checkpoint', sw: 'Ukaguzi' },
+  navCreateCourse: { en: 'Create course', sw: 'Tengeneza kozi' },
   // filters
   filters: { en: 'Filters', sw: 'Vichujio' },
   all: { en: 'All', sw: 'Zote' },

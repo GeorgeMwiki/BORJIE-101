@@ -12,7 +12,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, Award } from 'lucide-react';
+import { GraduationCap, Award, Sparkles } from 'lucide-react';
 import type { ScenarioLanguage } from '@borjie/api-client/training-types';
 import { trainingT } from '@/i18n/strings/training';
 
@@ -23,6 +23,7 @@ interface TrainingNavProps {
 const ITEMS = [
   { href: '/training/scenarios', icon: GraduationCap, key: 'navScenarios' as const },
   { href: '/training/checkpoint', icon: Award, key: 'navCheckpoint' as const },
+  { href: '/training/create-course', icon: Sparkles, key: 'navCreateCourse' as const },
 ];
 
 export function TrainingNav({ locale }: TrainingNavProps) {

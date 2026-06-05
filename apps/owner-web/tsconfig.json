@@ -26,6 +26,9 @@
       ],
       "@borjie/api-client/training-types": [
         "../../packages/api-client/src/services/training-scenarios.types.ts"
+      ],
+      "@borjie/api-client/courses-types": [
+        "../../packages/api-client/src/services/courses.types.ts"
       ]
     },
     "allowJs": true,

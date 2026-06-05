@@ -76,3 +76,11 @@ export * from './services/head-briefing';
 // alias (→ ./services/training-scenarios.ts) so a NodeNext consumer can import
 // types without the barrel's runtime-resolution pitfall.
 export * from './services/training-scenarios';
+
+// AI course-generation (migration 0284). VALUE (coursesService) is consumed
+// through this barrel; the TYPE shapes are also reachable via the
+// `@borjie/api-client/courses-types` tsconfig path alias (→
+// ./services/courses.types.ts, a pure-type module with zero client imports) so
+// the owner-web cockpit — which fetches natively — can import types without
+// dragging ./client into its strict exactOptionalPropertyTypes typecheck.
+export * from './services/courses';
