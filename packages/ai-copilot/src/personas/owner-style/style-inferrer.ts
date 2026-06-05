@@ -68,11 +68,11 @@ export const lexicalClassifier: StyleClassifier = {
     };
     for (const t of turns) {
       const ev = extractEvidence(t);
-      result.verbosity = mergeVotes(result.verbosity, ev.verbosity);
-      result.detail = mergeVotes(result.detail, ev.detail);
-      result.language = mergeVotes(result.language, ev.language);
-      result.formality = mergeVotes(result.formality, ev.formality);
-      result.posture = mergeVotes(result.posture, ev.posture);
+      result.verbosity = mergeVotes(result.verbosity, ev.verbosity ?? {});
+      result.detail = mergeVotes(result.detail, ev.detail ?? {});
+      result.language = mergeVotes(result.language, ev.language ?? {});
+      result.formality = mergeVotes(result.formality, ev.formality ?? {});
+      result.posture = mergeVotes(result.posture, ev.posture ?? {});
     }
     return result;
   },
