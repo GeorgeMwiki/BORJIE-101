@@ -1494,3 +1494,17 @@ export * from './md-agentic.schema.js';
 // @borjie/ai-copilot orchestrator's owner-style seam. Ported from the BN
 // owner_style_profiles table.
 export * from './owner-style.schema.js';
+
+// training scenarios + learning progress (migration 0283). Wave
+// TRAINING-DELIVERY / gaps 9+10+13. Three tenant-scoped tables backing the
+// owner-cockpit rehearsal surfaces: `scenarios` (one generated template per
+// kind, built deterministically from the concept catalog — never fabricated),
+// `scenario_sessions` (append-only learner-run transcript + per-concept
+// coverage), and `learning_progress` (per (tenant, user, concept) BKT mastery
+// snapshot; a 0.7 pass gates the next phase). Mining scenario kinds:
+// licence_renewal_negotiation / royalty_dispute / safety_incident_triage /
+// offtake_negotiation / contractor_damage_claim. tenant_id TEXT, FORCE RLS on
+// app.current_tenant_id. Backs routes/scenarios.hono.ts +
+// composition/scenario-repository.ts. Ported from the BN training-scenarios
+// stack, retargeted real-estate → mining.
+export * from './training-scenarios.schema.js';
