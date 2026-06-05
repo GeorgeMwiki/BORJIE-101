@@ -675,6 +675,51 @@ export * as orchestrator from './orchestrator/index.js';
 export * as vpPersonas from './vp-personas/index.js';
 
 /**
+ * Gap 6 — VP dispatch wiring. `createVpByName` + registry resolve any of
+ * the five VPs by string; the registry-backed catalogue answers each VP's
+ * line-worker availability from the sub-MD registry; the sub-MD registry
+ * maps line-worker ids -> the eight shipped sub-MD factories (with hyphen
+ * aliases). Named exports (not just the namespace above) so the api-gateway
+ * `/brain/dispatch` route imports the factory + catalogue directly.
+ */
+export {
+  createVpByName,
+  isVpName,
+  VP_REGISTRY_NAMES,
+  type VpName,
+} from './vp-personas/registry.js';
+export { createRegistryLineWorkerCatalogue } from './vp-personas/catalogue.js';
+export type {
+  OwnerIntent,
+  OwnerIntentKind,
+  VpCapabilityGap,
+  VpDepartmentHead,
+  VpDeps,
+  VpLineWorkerCatalogue,
+  VpOrchestrationPlan,
+} from './vp-personas/shared/vp-base.js';
+export {
+  getSubMdFactory,
+  hasSubMd,
+  REGISTERED_SUB_MD_IDS,
+  type SubMdFactory,
+} from './sub-mds/registry.js';
+export type {
+  ScopeFilter,
+  SubMd,
+  SubMdContext,
+  SubMdLlmPort,
+  ObservedEvent,
+  ProcessGraph,
+  RedesignProposal,
+  AutomationArtifact,
+  PredictedOutcome,
+  ActualOutcome,
+  SubMdBudget,
+} from './sub-mds/shared/sub-md-base.js';
+export { DEFAULT_SUB_MD_BUDGET } from './sub-mds/shared/sub-md-base.js';
+
+/**
  * Wave 12 — LITFIN reflexion port.
  *
  * Verbal RL self-critique (Shinn et al., NeurIPS 2023) plus the 4-pass
