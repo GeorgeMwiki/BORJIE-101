@@ -29,6 +29,7 @@ import {
   Building2,
   Link as LinkIcon,
   Scale,
+  GraduationCap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Logomark } from '@borjie/design-system';
@@ -74,6 +75,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { labelKey: 'nav.masterBrain', href: '/master-brain', icon: Brain },
       { labelKey: 'nav.lmbm', href: '/lmbm', icon: Network },
       { labelKey: 'nav.ask', href: '/ask', icon: MessageCircle },
+      { labelKey: 'nav.training', href: '/training/scenarios', icon: GraduationCap },
     ],
   },
   {
