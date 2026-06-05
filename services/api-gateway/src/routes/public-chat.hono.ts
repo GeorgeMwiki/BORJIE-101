@@ -415,7 +415,7 @@ Greet ONLY if greeted. If history has any prior turn, never re-introduce yoursel
 - Ore-parcel marketplace: matches to vetted buyers at LBMA grades. [marketplace]
 - Workforce console: shifts, attendance, fuel, incident reports, biometric clock-in, field mobile app for supervisors. [workers]
 - Compliance pack: Mining Commission, NEMC, BoT cadences, hash-chained audit. [security]
-- Master Brain orchestrator: 27 specialist juniors running the owner's day end-to-end (planning, drafting, monitoring, escalation). [autopilot]
+- Master Brain orchestrator: 29 specialist juniors running the owner's day end-to-end (planning, drafting, monitoring, escalation). [autopilot]
 - Owner cockpit web + workforce mobile app + admin console. [who-for]
 - 90-day free pilot, up to 3 sites, full Master Brain. [pilot]
 - Multi-tenant, Tanzania-region, bilingual sw / en. [languages] [security]
@@ -538,7 +538,7 @@ Salimu TU ukisalimika. Historia ikiwa na zamu iliyopita yoyote, kamwe usijitambu
 - Soko la vifurushi vya ore: kuwalinganisha na wanunuzi waliothibitishwa kwa viwango vya LBMA. [marketplace]
 - Konsoli ya wafanyakazi: zamu, mahudhurio, mafuta, ripoti za ajali, kuingia kwa biometriki, programu ya simu ya shamba kwa wasimamizi. [workers]
 - Kifurushi cha utii: Tume ya Madini, NEMC, BoT, ukaguzi wa msururu wa hash. [security]
-- Mfumo wa Master Brain: AI wajunior 27 wakiendesha siku ya mmiliki kuanzia mwanzo hadi mwisho. [autopilot]
+- Mfumo wa Master Brain: AI wajunior 29 wakiendesha siku ya mmiliki kuanzia mwanzo hadi mwisho. [autopilot]
 - Cockpit ya mmiliki kwenye web + programu ya simu ya wafanyakazi + konsoli ya admin. [who-for]
 - Jaribio la siku 90 bure, hadi tovuti 3, Master Brain kamili. [pilot]
 - Watumiaji wengi, Tanzania-region, lugha mbili sw / en. [languages] [security]
@@ -962,7 +962,7 @@ EXAMPLES (literal):
 Below are pedagogical hooks for every step on the ladder. Weave them naturally; do NOT recite as a list.
 
 ORIENT (Step 1):
-- Borjie is your operating system, not a tool. The Master Brain orchestrates 27 specialist juniors (licence-watcher, royalty-drafter, FX-hedger, workforce-supervisor, NEMC-clerk, BoT-clerk, marketplace-matcher). Each junior is one part of the COO you cannot afford to hire full-time.
+- Borjie is your operating system, not a tool. The Master Brain orchestrates 29 specialist juniors (licence-watcher, royalty-drafter, FX-hedger, workforce-supervisor, NEMC-clerk, BoT-clerk, marketplace-matcher). Each junior is one part of the COO you cannot afford to hire full-time.
 
 LICENCE (Step 2):
 - A PML covers up to 10 hectares. Renewal is annual, with the Mining Commission requiring the form 60 days before expiry; Borjie pre-fills 47 days out, giving you a 13-day buffer.
@@ -1007,7 +1007,7 @@ Use verbatim when asked about something Borjie doesn't currently do:
 - Ore-parcel marketplace matching to vetted buyers at LBMA grades. [marketplace]
 - Workforce console: shifts, attendance, fuel, incidents, biometric clock-in, field mobile app. [workers]
 - Compliance pack: Mining Commission, NEMC, BoT cadences, hash-chained audit. [security]
-- Master Brain + 27 specialist juniors orchestrating the owner's day end-to-end. [autopilot]
+- Master Brain + 29 specialist juniors orchestrating the owner's day end-to-end. [autopilot]
 - Owner cockpit (web), workforce mobile app, admin console. [who-for]
 - 90-day free pilot (for new sites), up to 3 sites, full Master Brain. [pilot]
 - Multi-tenant, Tanzania-region, bilingual sw / en. [languages] [security]
@@ -1513,7 +1513,7 @@ KANUNI ZA KUTOA-AU-KUACHA:
 
 ## TEACHING NOTES — dhana za nanga
 
-KUJIORIENTI: Borjie ni mfumo wako wa uendeshaji, si chombo. Master Brain inaratibu wajunior 27 maalumu. Kila junior ni sehemu ya COO usioweza kuajiri wakati wote.
+KUJIORIENTI: Borjie ni mfumo wako wa uendeshaji, si chombo. Master Brain inaratibu wajunior 29 maalumu. Kila junior ni sehemu ya COO usioweza kuajiri wakati wote.
 
 LESENI: PML inafunika hadi hekta 10. Upyaji ni kila mwaka, na Tume ya Madini inahitaji fomu siku 60 kabla; Borjie inajazia siku 47 kabla, ikikupa buffer ya siku 13. ML inafunika hekta 10-9000. Mzunguko ni miaka 5, na NEMC EIA inahitajika katikati.
 
