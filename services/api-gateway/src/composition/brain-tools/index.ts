@@ -79,6 +79,13 @@ import { UNDO_CHAIN_TOOLS } from './undo-chain-tools';
 // audit-export / tenant-suspend surfaces. Each is sovereign-prefixed
 // and `requiresPolicyRuleLiteral: true` per CLAUDE.md hard rule.
 import { ADMIN_INVIOLABLE_TOOLS } from './admin-inviolable-tools';
+// Admin four-eye superpowers QUEUE — 4 HIGH-risk admin-only tools wrapping
+// the generic propose → approve → reject → list_pending bulk-action queue
+// (ported from BossNyumba migration 0301, retargeted real-estate → mining).
+// Backed by /api/v1/admin/superpowers/* + admin_superpower_pending_approvals.
+// COMPLEMENTS the token-based admin.four_eye.* tools above; both stay live.
+// Each is `requiresPolicyRuleLiteral: true` per CLAUDE.md hard rule.
+import { ADMIN_SUPERPOWERS_TOOLS } from './admin-superpowers-tools';
 // Capability disclosure CSA-3 + CSA-4 2026-05-29 — two LOW-stakes
 // read-only tools (`mwikila.capabilities.what_can_you_do`,
 // `mwikila.about`) that surface the canonical capability registry from
@@ -165,6 +172,7 @@ export function buildPersonaToolHandlers(
       OWNER_TABS_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
+      ADMIN_SUPERPOWERS_TOOLS,
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
@@ -224,6 +232,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       OWNER_TABS_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
+      ADMIN_SUPERPOWERS_TOOLS,
       CAPABILITY_TOOLS,
       JURISDICTION_DISCOVERY_TOOLS,
       JURISDICTION_TOOLS,
@@ -334,6 +343,14 @@ export {
   adminAuditExportTool,
   adminTenantSuspendTool,
 } from './admin-inviolable-tools';
+// Admin four-eye superpowers QUEUE — re-exports for tests + audit walker.
+export {
+  ADMIN_SUPERPOWERS_TOOLS,
+  adminBulkActionTool,
+  adminApproveTool,
+  adminRejectTool,
+  adminListPendingTool,
+} from './admin-superpowers-tools';
 // Capability disclosure CSA-3 + CSA-4 — re-exports for tests + audit walker.
 export {
   CAPABILITY_TOOLS,
