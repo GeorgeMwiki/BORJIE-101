@@ -1483,3 +1483,14 @@ export * from './org-team-management.schema.js';
 // fabricates results). Tenant-scoped FORCE RLS on app.current_tenant_id.
 // Consumed by routes/md-agentic.hono.ts + the plan.* / sandbox.* brain tools.
 export * from './md-agentic.schema.js';
+
+// owner_style_profiles (migration 0282). Wave OWNER-STYLE / gap-8. One
+// tenant-scoped row capturing HOW Mr. Mwikila should speak to each mining
+// owner — verbosity / detail / language / formality / posture — learned online
+// via a Bayesian feedback loop (decay 0.98 + reaction-boost). Headline category
+// + per-dimension confidence in typed columns; the full Dirichlet posterior in
+// profile_json. tenant_id TEXT, FORCE RLS on app.current_tenant_id. Backs the
+// OwnerStyleProfileStore port (createPgOwnerStyleProfileStore) consumed by the
+// @borjie/ai-copilot orchestrator's owner-style seam. Ported from the BN
+// owner_style_profiles table.
+export * from './owner-style.schema.js';

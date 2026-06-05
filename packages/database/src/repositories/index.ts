@@ -40,6 +40,16 @@ export {
   type ProposedAction as PgProposedAction,
 } from './sovereign-approvals.repository.js';
 
+// Owner-style profile store (migration 0282 / gap-8). Postgres adapter for the
+// OwnerStyleProfileStore port in @borjie/ai-copilot. Round-trips the full
+// Dirichlet posterior through profile_json; typed columns are a queryable
+// projection. Honest-degrade: never fabricates a profile.
+export {
+  createPgOwnerStyleProfileStore,
+  type OwnerStyleProfile as PgOwnerStyleProfile,
+  type OwnerStyleProfileStore as PgOwnerStyleProfileStore,
+} from './owner-style.repository.js';
+
 // Piece A (Universal Asset & Entity Model) — polymorphic root + per-type
 // extension repositories. Single public class CoreEntityRepository covers
 // insert / find / recursive descent / custom-field validation / hybrid
