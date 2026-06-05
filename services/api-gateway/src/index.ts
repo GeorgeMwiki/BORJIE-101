@@ -540,6 +540,13 @@ import { orgAdminRouter } from './routes/org-admin.hono';
 // client is unset. Backs owner-web /training/scenarios + /training/checkpoint.
 // Ported from the BN training-scenarios stack, retargeted real-estate → mining.
 import { scenariosRouter } from './routes/scenarios.hono';
+// AI course-generation (migration 0284) — owner-cockpit create-course surface.
+// POST /generate (202 + detached generation), GET /, GET /:id. Honest-degrades
+// to a typed 503 when the DB client is unset, and to the deterministic concept-
+// catalog sequencer when no LLM key is configured (provenance 'deterministic').
+// Backs owner-web /training/create-course + /training/course/[id]. Ported from
+// the BN course-gen stack, retargeted real-estate → mining.
+import { coursesRouter } from './routes/courses.hono';
 // Agentic plan / subagent + sandbox-preview (migration 0281) — plan-mode /
 // agent-teams / worktree-style sandbox write surface. Backs the plan.* /
 // sandbox.* brain tools. Ported from the BN md-agentic stack, retargeted
@@ -2108,6 +2115,11 @@ api.route('/org-admin', orgAdminRouter);
 // degrades to a typed 503 when the DB client is unset (gap 13). Backs
 // owner-web /training/scenarios + /training/checkpoint.
 api.route('/scenarios', scenariosRouter);
+// AI course-generation (migration 0284) — POST /generate (202 + detached
+// generation), GET /, GET /:id. Owner-scoped on top of RLS; honest-degrades to
+// the deterministic concept-catalog sequencer when no LLM key is configured.
+// Backs owner-web /training/create-course + /training/course/[id].
+api.route('/courses', coursesRouter);
 // Agentic plan / subagent + sandbox (migration 0281) — POST /plans, POST
 // /subagents/dispatch, GET /subagents/:teamRunId/aggregate, POST /sandbox/
 // writes, GET /sandbox/writes, POST /sandbox/writes/:id/commit, POST /sandbox/
