@@ -527,6 +527,11 @@ import { damageClaimsRouter } from './routes/damage-claims.hono';
 // escalation / bulk-CSV write surface. Backs the staff.* brain tools. Ported
 // from the BN org/team-management stack, retargeted real-estate → mining.
 import { orgAdminRouter } from './routes/org-admin.hono';
+// Agentic plan / subagent + sandbox-preview (migration 0281) — plan-mode /
+// agent-teams / worktree-style sandbox write surface. Backs the plan.* /
+// sandbox.* brain tools. Ported from the BN md-agentic stack, retargeted
+// real-estate → mining.
+import { mdAgenticRouter } from './routes/md-agentic.hono';
 // Admin Control Tower — cross-tenant toggles wired to REAL platform state
 // (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
 import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
@@ -2080,6 +2085,12 @@ api.route('/damage-claims', damageClaimsRouter);
 // POST /tasks, POST /escalations, POST /staff/bulk-csv. Wraps the staff.*
 // brain tools' real routes (owner / admin role only; full audit + provenance).
 api.route('/org-admin', orgAdminRouter);
+// Agentic plan / subagent + sandbox (migration 0281) — POST /plans, POST
+// /subagents/dispatch, GET /subagents/:teamRunId/aggregate, POST /sandbox/
+// writes, GET /sandbox/writes, POST /sandbox/writes/:id/commit, POST /sandbox/
+// writes/:id/reject. Wraps the plan.* / sandbox.* brain tools' real routes
+// (owner / admin role only; commit validates payload + FK before atomic write).
+api.route('/md-agentic', mdAgenticRouter);
 // Admin Control Tower — GET /controls + POST /toggle (+ /toggle/:id/approve).
 // Each toggle drives a real platform control; HIGH-impact ones are four-eye
 // gated and only mutate state on the second-eye approval. SOC2-audited.

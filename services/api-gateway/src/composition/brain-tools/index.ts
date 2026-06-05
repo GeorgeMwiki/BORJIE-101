@@ -133,6 +133,14 @@ import { DAMAGE_SETTLEMENT_TOOLS } from './damage-settlement-tools';
 // safety_officer). Honest-degrade: a typed 'unavailable' shape when no client
 // is bound — never a fabricated row.
 import { ORG_ADMIN_TOOLS } from './org-admin-tools';
+// Agentic plan / subagent + sandbox-preview (migration 0281) — 7 owner/admin
+// tools (plan.propose / dispatch_subagents / aggregate_results +
+// sandbox.write / list / commit / reject) backing /md-agentic/* via the
+// loopback client. Claude-Code-parity "plan mode" + "agent teams" + a
+// worktree-style sandbox over the gap-2 org/team tables. Honest-degrade:
+// subagent dispatch persists 'pending' runs and aggregate reports
+// 'unavailable' with no executor wired — output is NEVER fabricated.
+import { MD_AGENTIC_TOOLS } from './md-agentic-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -194,6 +202,7 @@ export function buildPersonaToolHandlers(
       CHAT_KING_FOLLOWUP_TOOLS,
       DAMAGE_SETTLEMENT_TOOLS,
       ORG_ADMIN_TOOLS,
+      MD_AGENTIC_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -256,6 +265,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       CHAT_KING_FOLLOWUP_TOOLS,
       DAMAGE_SETTLEMENT_TOOLS,
       ORG_ADMIN_TOOLS,
+      MD_AGENTIC_TOOLS,
     ],
     undefined,
   );
@@ -407,3 +417,15 @@ export {
   staffEscalateToHumanTool,
   staffBulkIngestCsvTool,
 } from './org-admin-tools';
+// Agentic plan / subagent + sandbox (migration 0281) — re-exports for tests +
+// audit walker.
+export {
+  MD_AGENTIC_TOOLS,
+  planProposeTool,
+  planDispatchSubagentsTool,
+  planAggregateResultsTool,
+  sandboxWriteTool,
+  sandboxListTool,
+  sandboxCommitTool,
+  sandboxRejectTool,
+} from './md-agentic-tools';
