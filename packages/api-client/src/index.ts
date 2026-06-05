@@ -70,3 +70,9 @@ export * from './services/messaging';
 export * from './services/scheduling';
 export * from './services/sla';
 export * from './services/head-briefing';
+// Training scenarios + mastery checkpoint (migration 0283). VALUE
+// (trainingScenariosService) is consumed through this barrel; the TYPE shapes
+// are also reachable via the `@borjie/api-client/training-types` tsconfig path
+// alias (→ ./services/training-scenarios.ts) so a NodeNext consumer can import
+// types without the barrel's runtime-resolution pitfall.
+export * from './services/training-scenarios';
