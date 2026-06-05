@@ -166,11 +166,8 @@ function buildSubMdLlmPort(): { readonly port: SubMdLlmPort; readonly degraded: 
         });
         const text = Array.isArray(response.content)
           ? response.content
-              .filter(
-                (b: { type?: string; text?: string }) =>
-                  b.type === 'text' && typeof b.text === 'string',
-              )
-              .map((b: { text?: string }) => b.text ?? '')
+              .filter((b) => b.type === 'text' && typeof b.text === 'string')
+              .map((b) => b.text as string)
               .join('')
           : '';
         return { text };
