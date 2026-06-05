@@ -297,7 +297,6 @@ import sessionReplayRouter from './routes/session-replay.router';
 // Wave 12 — MCP server + agent platform
 import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 // Wave 11 — public marketing (Mr. Mwikila), workflows
-import publicMarketingRouter from './routes/public-marketing.router';
 import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
 // Borjie marketing-widget public chat — unauthenticated SSE stream of
@@ -1885,11 +1884,13 @@ api.route('/mcp', mcpRouter);
 // .well-known/ path would require mounting at the express root; this variant
 // is still discoverable by A2A clients that follow our OpenAPI spec).
 api.route('/.well-known/agent.json', agentCardRouter);
-// Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine
-// Borjie public chat mounts FIRST so its /chat handler wins lookup over
-// the legacy pre-Borjie marketing-brain /chat under the same prefix.
+// Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine.
+// The mining public chat owns /public/chat. The legacy real-estate
+// marketing-brain router (public-marketing.router.ts) was REMOVED: its /chat
+// only shadow-collided with this one (a reorder would have silently reverted
+// the marketing chat to canned property text), and its /pricing-advice +
+// /demo-estate + /waitlist routes were unreferenced by any app.
 api.route('/public', publicChatRouter);
-api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
 api.route('/public/status', publicStatusRouter);
