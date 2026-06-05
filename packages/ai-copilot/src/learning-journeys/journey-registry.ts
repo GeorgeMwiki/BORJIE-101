@@ -3,7 +3,7 @@
  *
  * Estate-management edition: admin onboarding, site-owner onboarding,
  * counterparty onboarding, estate-officer training, migration wizard, compliance
- * setup. Each journey's steps map to concepts in classroom/concepts-catalog
+ * setup. Each journey's steps map to concepts in training/concepts-catalog
  * so the Professor sub-persona can teach + assess along the way.
  *
  * Pure data + lookup helpers. No I/O.

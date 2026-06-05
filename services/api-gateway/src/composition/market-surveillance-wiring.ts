@@ -34,8 +34,7 @@
  *      drift events; no guard = unbudgeted).
  *
  * Returns `null` when `db` is null so callers can branch cleanly in
- * degraded / no-db modes (mirrors classroom-wiring.ts and
- * intelligence-history-wiring.ts).
+ * degraded / no-db modes (mirrors intelligence-history-wiring.ts).
  *
  * Currency / jurisdiction policy: the unit's currency is read from the
  * active lease (`rent_currency`, ISO-4217 free-form TEXT). NEVER
@@ -81,8 +80,7 @@ import {
 /**
  * `DatabaseClient` is derived via `ReturnType<typeof createDatabaseClient>`
  * so we sidestep the package-barrel `TS2709 Cannot use namespace ... as
- * a type` drift (see service-registry.ts for the full explanation, mirrored
- * by classroom-wiring.ts).
+ * a type` drift (see service-registry.ts for the full explanation).
  */
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 

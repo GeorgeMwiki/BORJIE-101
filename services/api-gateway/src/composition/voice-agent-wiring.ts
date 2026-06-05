@@ -47,8 +47,7 @@ import {
 /**
  * DatabaseClient + VoiceTurnsService types derived via `ReturnType<typeof
  * factory>` to sidestep the package-barrel namespace/type drift
- * (TS2709) — see `service-registry.ts` and `classroom-wiring.ts` for
- * the full explanation.
+ * (TS2709) — see `service-registry.ts` for the full explanation.
  */
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 type VoiceTurnsService = ReturnType<typeof createVoiceTurnsService>;

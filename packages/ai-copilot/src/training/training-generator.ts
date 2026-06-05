@@ -12,7 +12,7 @@
  * repository guarantees re-running produces the same logical path row.
  */
 
-import { ESTATE_CONCEPTS, type Concept } from '../classroom/concepts-catalog.js';
+import { ESTATE_CONCEPTS, type Concept } from './concepts-catalog.js';
 import { PROFESSOR_PROMPT_LAYER } from '../personas/sub-personas/professor-persona.js';
 import type {
   GenerateTrainingPathOpts,

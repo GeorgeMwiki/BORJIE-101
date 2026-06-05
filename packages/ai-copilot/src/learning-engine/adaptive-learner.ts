@@ -2,8 +2,8 @@
  * Adaptive Learner — tracks each user's mastery trajectory and adapts
  * content delivery to their detected learning style.
  *
- * Feeds off BKT mastery snapshots from classroom/group-bkt + style profiles
- * from learning-style-detector.
+ * Feeds off BKT mastery snapshots from the training delivery service +
+ * style profiles from learning-style-detector.
  */
 
 import type { LearningStyle, LearningStyleProfile } from './learning-style-detector.js';
