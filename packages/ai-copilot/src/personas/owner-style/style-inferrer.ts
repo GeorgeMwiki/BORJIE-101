@@ -59,7 +59,10 @@ function mergeVotes(
 
 export const lexicalClassifier: StyleClassifier = {
   async classify(turns) {
-    const result: Required<ClassifierResult> = {
+    const result: Record<
+      'verbosity' | 'detail' | 'language' | 'formality' | 'posture',
+      Record<string, number>
+    > = {
       verbosity: {},
       detail: {},
       language: {},
