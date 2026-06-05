@@ -138,6 +138,25 @@ function pick(copy: { readonly en: string; readonly sw: string }, lang: Lang): s
   return lang === 'sw' ? copy.sw : copy.en;
 }
 
+// ── error responders (c: any to sidestep Hono's status-literal widening, the
+// same convention org-admin.hono.ts / md-agentic.hono.ts use) ────────────────
+
+function forbidden(c: any) {
+  // The gate runs before the body is validated, so fall back to EN here; the
+  // per-request language toggle governs the post-validation copy.
+  return c.json(
+    { success: false, error: { code: 'FORBIDDEN', message: COPY.forbidden.en } },
+    403,
+  );
+}
+
+function badRequest(c: any, message: string) {
+  return c.json(
+    { success: false, error: { code: 'BAD_REQUEST', message } },
+    400,
+  );
+}
+
 // ── Anthropic-backed sub-MD LLM port ─────────────────────────────────────────
 // Honest-degrade: when no key is set (or the call throws) the port returns
 // empty text, so the redesign stage's deterministic fallback proposal takes
@@ -318,17 +337,10 @@ const app = new Hono();
 app.use('*', authMiddleware);
 
 // Owner/admin role gate on every endpoint in this router (defense in depth on
-// top of authMiddleware).
-app.use('*', async (c: any, next: () => Promise<void>) => {
+// top of authMiddleware). Mirrors md-agentic.hono.ts / org-admin.hono.ts.
+app.use('*', async (c, next) => {
   const auth = c.get('auth') as { role?: string } | undefined;
-  if (!auth || !DISPATCH_ROLES.has(String(auth.role))) {
-    // The gate runs before the body is validated, so fall back to EN here;
-    // the per-request language toggle governs the post-validation copy.
-    return c.json(
-      { success: false, error: { code: 'FORBIDDEN', message: COPY.forbidden.en } },
-      403,
-    );
-  }
+  if (!auth || !DISPATCH_ROLES.has(String(auth.role))) return forbidden(c);
   await next();
 });
 
@@ -346,10 +358,7 @@ app.post(
       // Defensive: schema already constrains `vp`, but keep the registry as
       // the single source of truth.
       if (!isVpName(vp)) {
-        return c.json(
-          { success: false, error: { code: 'BAD_REQUEST', message: pick(COPY.unknownVp, lang) } },
-          400,
-        );
+        return badRequest(c, pick(COPY.unknownVp, lang));
       }
 
       const correlationId = threadId ?? `dispatch-${Date.now()}`;
