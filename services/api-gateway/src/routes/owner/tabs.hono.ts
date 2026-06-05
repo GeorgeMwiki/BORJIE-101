@@ -237,17 +237,23 @@ function patchTab(
   prev: PersistedTab,
   patch: z.infer<typeof patchTabSchema>,
 ): PersistedTab {
-  return {
+  // Build via explicit conditional assignment (mirrors projectTab) so the
+  // result stays exactOptionalPropertyTypes-exact — conditional spreads widen
+  // optional keys to `T | undefined` and trip TS2375.
+  const out: { -readonly [K in keyof PersistedTab]: PersistedTab[K] } = {
     ...prev,
-    ...(patch.title !== undefined && { title: patch.title }),
-    ...(patch.augmentedAt !== undefined && { augmentedAt: patch.augmentedAt }),
-    ...(patch.pendingUpdates !== undefined && {
-      pendingUpdates: patch.pendingUpdates,
-    }),
-    ...(patch.context !== undefined && {
-      context: mergeContext(prev.context, patch.context),
-    }),
   };
+  if (patch.title !== undefined) out.title = patch.title;
+  if (patch.augmentedAt !== undefined) out.augmentedAt = patch.augmentedAt;
+  if (patch.pendingUpdates !== undefined) out.pendingUpdates = patch.pendingUpdates;
+  if (patch.context !== undefined) {
+    // mergeContext only returns undefined when BOTH inputs are undefined;
+    // patch.context is defined here, so the guard always holds at runtime —
+    // it just narrows away the `| undefined` for the exact-optional target.
+    const merged = mergeContext(prev.context, patch.context);
+    if (merged !== undefined) out.context = merged;
+  }
+  return out;
 }
 
 async function loadState(
