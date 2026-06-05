@@ -73,6 +73,8 @@ import { CompiledPrompt } from '../types/prompt.types.js';
 import { asPromptId } from '../types/core.types.js';
 import { ReviewService } from '../services/review-service.js';
 import { AIGovernanceService } from '../governance/ai-governance.js';
+import type { OwnerStyleService } from '../personas/owner-style/index.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -156,6 +158,16 @@ export interface OrchestratorConfig {
   advisorProvider: AIProvider;
   /** Default token budget per turn. */
   defaultTokenBudget?: number;
+  /**
+   * Optional owner-style learning loop (gap-8). When wired, the orchestrator:
+   *   - folds the learned style hint into the persona system prompt before
+   *     each turn (how to speak — verbosity/detail/language/formality/posture);
+   *   - refines the profile from the latest user turn AFTER the turn completes.
+   * Entirely OPTIONAL and guarded: a missing service or an unavailable
+   * `owner_style_profiles` table NEVER breaks a turn (honest-degrade — see
+   * the pre-turn + post-turn seams in `executePersona`).
+   */
+  ownerStyle?: OwnerStyleService;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,10 +434,20 @@ export class Orchestrator {
       }
     }
 
+    // Owner-style (gap-8): fold the learned style hint into the system prompt
+    // so future turns adapt HOW Mr. Mwikila speaks (verbosity / detail /
+    // language / formality / posture). Strictly additive + guarded: if the
+    // service is absent or unavailable we keep the base prompt unchanged
+    // (honest-degrade — never fabricate, never break the turn).
+    const systemPrompt = await this.applyOwnerStyleHint(
+      persona.systemPrompt,
+      req.tenant.tenantId
+    );
+
     const compiled: CompiledPrompt = {
       promptId: asPromptId(`persona:${persona.id}`),
       version: '1.0.0',
-      systemPrompt: persona.systemPrompt,
+      systemPrompt,
       userPrompt,
       modelConfig: {
         modelId: resolvedModelId,
@@ -652,6 +674,18 @@ export class Orchestrator {
           });
       });
 
+    // Owner-style (gap-8): refine the learned profile from the user's turn
+    // AFTER the persona has responded. Mirrors where other post-turn effects
+    // happen (governance log above). Only at depth 0 — the top-level turn is
+    // the owner's actual message; handoff sub-turns are internal and must not
+    // double-count. Fully guarded + honest-degrades: the service itself never
+    // throws out of refine, and we still wrap defensively so an unexpected
+    // error (or a missing `owner_style_profiles` table surfaced through the
+    // store) can never break the turn. We never fabricate a profile.
+    if (depth === 0) {
+      await this.refineOwnerStyle(req.tenant.tenantId, req.userText);
+    }
+
     // Parse directives emitted by the persona.
     const proposed = parseProposedAction(responseText);
     const handoff = parseHandoffDirective(responseText);
@@ -798,6 +832,66 @@ export class Orchestrator {
           }
         : undefined,
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Owner-style learning loop (gap-8) — optional + guarded.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Fold the learned owner-style hint into the persona system prompt. Returns
+   * the base prompt unchanged when the service is absent or unavailable, or
+   * when the profile is not yet confident enough to specialise. Never throws —
+   * a missing `owner_style_profiles` table can't break a turn.
+   */
+  private async applyOwnerStyleHint(
+    baseSystemPrompt: string,
+    tenantId: string
+  ): Promise<string> {
+    const svc = this.cfg.ownerStyle;
+    if (!svc) return baseSystemPrompt;
+    try {
+      const hint = await svc.getStyleHint(tenantId);
+      if (!hint) return baseSystemPrompt;
+      return `${baseSystemPrompt.trimEnd()}\n\n${hint}`;
+    } catch (err) {
+      logger.debug('owner-style.hint.skipped', {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return baseSystemPrompt;
+    }
+  }
+
+  /**
+   * Refine the learned owner-style profile from the latest user turn. No-op
+   * when the service is absent. The service honest-degrades internally (it
+   * never throws from `refine`); we still wrap defensively so nothing here can
+   * break the turn. Never fabricates a profile.
+   */
+  private async refineOwnerStyle(
+    tenantId: string,
+    userText: string
+  ): Promise<void> {
+    const svc = this.cfg.ownerStyle;
+    if (!svc) return;
+    try {
+      const result = await svc.refine(tenantId, [
+        { text: userText, tsMs: Date.now() },
+      ]);
+      logger.debug('owner-style.refined', {
+        tenantId,
+        changeNote: result.changeNote,
+        posture: result.profile.posture.value,
+        confidence: result.profile.confidence,
+        degraded: result.degraded,
+      });
+    } catch (err) {
+      logger.debug('owner-style.refine.skipped', {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 }
 
