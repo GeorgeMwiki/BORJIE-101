@@ -63,6 +63,12 @@ import { GEO_TOOLS } from './geo-tools';
 // Lifts owner-cockpit coverage from 91.8% to 100% of shippable surface
 // (admin / estate / payroll gaps stay sibling-owned).
 import { CHAT_EVERYWHERE_TOOLS } from './chat-everywhere-tools';
+// Owner-tabs OWNER-OS-DURABLE — 3 server-persisted per-tab tools
+// (mining.ui.tabs.spawn / close / update) that write owner_tabs.state
+// directly via /api/v1/owner/tabs, so a chat-driven tab op survives a
+// dropped chip / a different device / a script and syncs cross-device.
+// Complement (do not replace) the CLIENT-chip pin/reorder/remove tools.
+import { OWNER_TABS_TOOLS } from './owner-tabs-tools';
 // Undo-chain CE-5 2026-05-29 — undo.last_n + undo.by_id wrap the
 // existing single-action /owner/undo-journal/undo-last endpoint into
 // a multi-action chain. See Docs/research/CHAT_HANDLES_EVERYTHING_
@@ -156,6 +162,7 @@ export function buildPersonaToolHandlers(
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
+      OWNER_TABS_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
       CAPABILITY_TOOLS,
@@ -214,6 +221,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       RISK_SCANNER_TOOLS,
       GEO_TOOLS,
       CHAT_EVERYWHERE_TOOLS,
+      OWNER_TABS_TOOLS,
       UNDO_CHAIN_TOOLS,
       ADMIN_INVIOLABLE_TOOLS,
       CAPABILITY_TOOLS,
@@ -301,6 +309,13 @@ export {
   uiMarkNotificationReadTool,
   ownerConnectedAgentRevokeTool,
 } from './chat-everywhere-tools';
+// Owner-tabs OWNER-OS-DURABLE — re-exports for tests + audit walker.
+export {
+  OWNER_TABS_TOOLS,
+  ownerTabsSpawnTool,
+  ownerTabsCloseTool,
+  ownerTabsUpdateTool,
+} from './owner-tabs-tools';
 // Undo-chain CE-5 2026-05-29 — re-exports.
 export {
   UNDO_CHAIN_TOOLS,
