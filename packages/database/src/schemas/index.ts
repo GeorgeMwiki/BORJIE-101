@@ -1070,6 +1070,18 @@ export * from './share-links.schema.js';
 export * from './undo-journal.schema.js';
 export * from './pinned-items.schema.js';
 
+// Admin four-eye superpowers queue (migration 0278). Ported from the
+// BossNyumba admin-superpowers stack (BN 0301), retargeted real-estate →
+// mining. The PENDING half of the two-phase admin bulk-action ledger:
+// HIGH-risk verbs (suspend_licence_holder / export_regulator_pack /
+// force_supply_agreement_termination / …) land as `pending` rows that a
+// SECOND distinct admin must approve. The DB CHECK constraint
+// `admin_four_eye_distinct_actors_chk` is the canonical same-actor guard.
+// Tenant-scoped FORCE RLS on app.current_tenant_id. Consumed by
+// services/api-gateway routes/admin/superpowers.hono.ts + the
+// admin.superpowers.* brain tools.
+export * from './admin-superpower-pending-approvals.schema.js';
+
 // H2 deferral closure — server-side hard idempotency uniqueness
 // (migration 0154). Backs services/api-gateway/src/middleware/
 // db-idempotency.middleware.ts: partial unique indexes per tenant
