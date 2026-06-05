@@ -214,6 +214,7 @@ export const sw = {
     "masterBrain": "Akili Kuu",
     "lmbm": "LMBM",
     "ask": "Uliza Borjie",
+    "training": "Mafunzo",
     "portfolioMap": "Ramani ya mkusanyiko",
     "sites": "Maeneo",
     "siteCockpit": "Kokpiti ya eneo",

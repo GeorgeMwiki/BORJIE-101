@@ -237,6 +237,7 @@ export const en = {
     masterBrain: 'Master Brain',
     lmbm: 'LMBM',
     ask: 'Ask Borjie',
+    training: 'Training',
     portfolioMap: 'Portfolio map',
     sites: 'Sites',
     siteCockpit: 'Site cockpit',

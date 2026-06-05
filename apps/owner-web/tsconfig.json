@@ -23,6 +23,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@borjie/api-client/training-types": [
+        "../../packages/api-client/src/services/training-scenarios.ts"
       ]
     },
     "allowJs": true,

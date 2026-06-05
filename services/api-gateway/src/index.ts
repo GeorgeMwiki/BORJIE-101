@@ -533,6 +533,13 @@ import { damageClaimsRouter } from './routes/damage-claims.hono';
 // escalation / bulk-CSV write surface. Backs the staff.* brain tools. Ported
 // from the BN org/team-management stack, retargeted real-estate → mining.
 import { orgAdminRouter } from './routes/org-admin.hono';
+// Training scenarios + mastery checkpoint (migration 0283) — owner-cockpit
+// rehearsal surface. GET /, POST /generate, POST /sessions(+/:id/turn,
+// /:id/complete), GET /checkpoint, POST /checkpoint/submit. Concept-catalog-
+// grounded (never fabricated); honest-degrades to a typed 503 when the DB
+// client is unset. Backs owner-web /training/scenarios + /training/checkpoint.
+// Ported from the BN training-scenarios stack, retargeted real-estate → mining.
+import { scenariosRouter } from './routes/scenarios.hono';
 // Agentic plan / subagent + sandbox-preview (migration 0281) — plan-mode /
 // agent-teams / worktree-style sandbox write surface. Backs the plan.* /
 // sandbox.* brain tools. Ported from the BN md-agentic stack, retargeted
@@ -2095,6 +2102,12 @@ api.route('/damage-claims', damageClaimsRouter);
 // POST /tasks, POST /escalations, POST /staff/bulk-csv. Wraps the staff.*
 // brain tools' real routes (owner / admin role only; full audit + provenance).
 api.route('/org-admin', orgAdminRouter);
+// Training scenarios + mastery checkpoint (migration 0283) — GET /, POST
+// /generate, POST /sessions(+/:id/turn, /:id/complete), GET /checkpoint, POST
+// /checkpoint/submit. Concept-catalog-grounded rehearsal surface; honest-
+// degrades to a typed 503 when the DB client is unset (gap 13). Backs
+// owner-web /training/scenarios + /training/checkpoint.
+api.route('/scenarios', scenariosRouter);
 // Agentic plan / subagent + sandbox (migration 0281) — POST /plans, POST
 // /subagents/dispatch, GET /subagents/:teamRunId/aggregate, POST /sandbox/
 // writes, GET /sandbox/writes, POST /sandbox/writes/:id/commit, POST /sandbox/
