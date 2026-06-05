@@ -141,6 +141,14 @@ import { ORG_ADMIN_TOOLS } from './org-admin-tools';
 // subagent dispatch persists 'pending' runs and aggregate reports
 // 'unavailable' with no executor wired — output is NEVER fabricated.
 import { MD_AGENTIC_TOOLS } from './md-agentic-tools';
+// Set-chat-mode (gap-12) — 1 LOW-stakes read-only training tool
+// (mwikila.training.set_chat_mode) ported from LitFin's set-chat-mode action.
+// Gives Mr. Mwikila an explicit lever to transition the pedagogical chat
+// surface (gap-18 chat-modes mounted on owner-web HomeChatTeach) between
+// conversation / teaching / quiz / discussion / review / classroom. Scoped to
+// the training context (T1 owner / T2 admin / T3 manager). No DB write, no
+// audit entry — returns a directive the surface applies.
+import { SET_CHAT_MODE_TOOLS } from './set-chat-mode-tools';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
@@ -203,6 +211,7 @@ export function buildPersonaToolHandlers(
       DAMAGE_SETTLEMENT_TOOLS,
       ORG_ADMIN_TOOLS,
       MD_AGENTIC_TOOLS,
+      SET_CHAT_MODE_TOOLS,
     ],
     options?.onDuplicate,
   );
@@ -266,6 +275,7 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       DAMAGE_SETTLEMENT_TOOLS,
       ORG_ADMIN_TOOLS,
       MD_AGENTIC_TOOLS,
+      SET_CHAT_MODE_TOOLS,
     ],
     undefined,
   );
