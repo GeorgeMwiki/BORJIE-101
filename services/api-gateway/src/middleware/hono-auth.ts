@@ -83,13 +83,23 @@ function coerceVerifiedJwtPayload(verified: unknown): JWTPayload {
   const p = verified as Record<string, unknown>;
   const userId = typeof p.userId === 'string' ? p.userId : '';
   const tenantId = typeof p.tenantId === 'string' ? p.tenantId : '';
-  if (userId.length === 0 || tenantId.length === 0) {
-    throw new Error('jwt payload missing userId/tenantId claim');
+  const role = p.role as UserRole;
+  // The PUBLIC role is the anonymous marketing visitor — intentionally
+  // tenant-less (the marketing widget mints { role: 'PUBLIC', tenantId: null }).
+  // Every OTHER role MUST carry a tenantId so the RLS GUC + authz checks are
+  // never mis-scoped by a signature-valid token that would otherwise flow
+  // downstream as tenantId: undefined. PUBLIC reaches only public routes,
+  // which touch no tenant data, so a tenant-less PUBLIC token is safe.
+  if (userId.length === 0) {
+    throw new Error('jwt payload missing userId claim');
+  }
+  if (String(role) !== 'PUBLIC' && tenantId.length === 0) {
+    throw new Error('jwt payload missing tenantId claim');
   }
   return {
     userId,
     tenantId,
-    role: p.role as UserRole,
+    role,
     permissions: Array.isArray(p.permissions)
       ? (p.permissions as string[])
       : [],
