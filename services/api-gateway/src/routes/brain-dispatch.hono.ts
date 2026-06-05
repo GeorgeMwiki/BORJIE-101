@@ -1,0 +1,455 @@
+/**
+ * /api/v1/brain/dispatch — VP department-head dispatch (Gap 6).
+ *
+ * Owner/admin chat-only command surface. The mining operator tells Mr.
+ * Mwikila "VP Operations, chase the open maintenance tickets on the north
+ * bench" or "VP Finance, where are my outstanding royalties" and this route:
+ *   1. Resolves the VP via `createVpByName` (the five orphan VPs are now
+ *      wired behind the kernel registry).
+ *   2. Asks the VP to `orchestrate()` the instruction into a plan of
+ *      line-worker spawns + capability gaps.
+ *   3. Runs each spawn's sub-MD through its full four-stage pipeline
+ *      (observe -> map -> redesign -> automate) with an Anthropic-backed LLM
+ *      port (honest-degrade to the deterministic fallback when no key).
+ *   4. Returns the plan + per-sub-MD results + the gaps the VP recorded.
+ *
+ * Request body (Zod-validated):
+ *   {
+ *     vp: "vp.operations" | "vp.finance" | "vp.growth" | "vp.people"
+ *         | "vp.risk-compliance",
+ *     instruction: string,           // 1..4000 chars
+ *     threadId?: string,             // optional chat-thread continuity id
+ *     kind?: "status-check" | "investigate" | "remediate"
+ *            | "weekly-report-request" | "wake-from-monitor",
+ *     language?: "en" | "sw"         // EN default; toggle is ABSOLUTE
+ *   }
+ *
+ * Guards (mirrors md-agentic.hono.ts / org-admin.hono.ts):
+ *   - `authMiddleware` verifies the JWT and binds tenant/actor on the ctx.
+ *   - Owner/admin tier gate on the dispatch surface (403 otherwise) — a
+ *     tenant or staff role cannot fan out the VP cluster.
+ *
+ * Honest-degrade everywhere (CLAUDE.md hard rule): a line-worker with no
+ * sub-MD is reported `skipped` with `unknown_sub_md`; a sub-MD that throws is
+ * reported `failed` with its error; nothing is fabricated. Pino logger only.
+ *
+ * Bilingual (CLAUDE.md hard rule): every user-facing string renders in EXACTLY
+ * one language per the `language` toggle — no EN/SW mixing.
+ *
+ * Mounted ADDITIVELY in services/api-gateway/src/index.ts under /brain; does
+ * NOT touch the base brain router.
+ *
+ * Ported from the BN /brain/dispatch route and retargeted real-estate ->
+ * mining (the VP roster + sub-MD line-workers already carry mining names).
+ */
+
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import pino from 'pino';
+import { withSecurityEvents } from '@borjie/observability';
+import {
+  createVpByName,
+  isVpName,
+  createRegistryLineWorkerCatalogue,
+  getSubMdFactory,
+  VP_REGISTRY_NAMES,
+  DEFAULT_SUB_MD_BUDGET,
+} from '@borjie/central-intelligence';
+import type {
+  VpName,
+  OwnerIntent,
+  OwnerIntentKind,
+  VpOrchestrationPlan,
+  ScopeContext,
+  ScopeFilter,
+  SubMdContext,
+  SubMdLlmPort,
+  ObservedEvent,
+} from '@borjie/central-intelligence';
+
+import { authMiddleware } from '../middleware/hono-auth';
+import { routeCatch } from '../utils/safe-error';
+import {
+  createBrainLlmClient,
+  BRAIN_LLM_MODELS,
+} from '../services/brain/llm-call';
+
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  name: 'brain-dispatch',
+});
+
+// ── role gate ──────────────────────────────────────────────────────────────
+// Tier-gate (task spec): owner / admin only. Mirrors org-admin.hono.ts and
+// md-agentic.hono.ts — central-command dispatch is reserved for the owner and
+// admin tiers; a tenant or staff role cannot fan out the VP cluster.
+const DISPATCH_ROLES = new Set([
+  'OWNER',
+  'TENANT_ADMIN',
+  'ADMIN',
+  'SUPER_ADMIN',
+]);
+
+type Lang = 'en' | 'sw';
+
+type AuthShape = { readonly tenantId: string; readonly userId: string; readonly role: string };
+
+// ── request schema ─────────────────────────────────────────────────────────
+
+const DispatchBodySchema = z.object({
+  vp: z.enum(VP_REGISTRY_NAMES),
+  instruction: z.string().min(1).max(4000),
+  threadId: z.string().min(1).max(128).optional(),
+  kind: z
+    .enum([
+      'status-check',
+      'investigate',
+      'remediate',
+      'weekly-report-request',
+      'wake-from-monitor',
+    ])
+    .default('remediate'),
+  language: z.enum(['en', 'sw']).default('en'),
+});
+
+// ── bilingual copy (single-language per active locale; no mixing) ────────────
+
+const COPY = {
+  forbidden: {
+    en: 'Central-command dispatch requires the owner or admin role.',
+    sw: 'Uongozi mkuu unahitaji jukumu la mmiliki au msimamizi.',
+  },
+  unknownVp: {
+    en: 'Unknown VP. Pick one of the registered department heads.',
+    sw: 'Mkurugenzi huyu hajulikani. Chagua mmoja wa wakuu wa idara waliosajiliwa.',
+  },
+  orchestrateFailed: {
+    en: 'The VP could not turn that instruction into a plan. Please rephrase and try again.',
+    sw: 'Mkurugenzi ameshindwa kugeuza maelekezo hayo kuwa mpango. Tafadhali yaandike upya ujaribu tena.',
+  },
+  degraded: {
+    en: 'Running in degraded mode: no AI key is configured, so each line-worker used its deterministic fallback. Nothing was fabricated.',
+    sw: 'Inafanya kazi katika hali iliyopungua: hakuna ufunguo wa AI uliowekwa, hivyo kila mfanyakazi alitumia njia mbadala ya uhakika. Hakuna lililobuniwa.',
+  },
+} as const;
+
+function pick(copy: { readonly en: string; readonly sw: string }, lang: Lang): string {
+  return lang === 'sw' ? copy.sw : copy.en;
+}
+
+// ── error responders (c: any to sidestep Hono's status-literal widening, the
+// same convention org-admin.hono.ts / md-agentic.hono.ts use) ────────────────
+
+function forbidden(c: any) {
+  // The gate runs before the body is validated, so fall back to EN here; the
+  // per-request language toggle governs the post-validation copy.
+  return c.json(
+    { success: false, error: { code: 'FORBIDDEN', message: COPY.forbidden.en } },
+    403,
+  );
+}
+
+function badRequest(c: any, message: string) {
+  return c.json(
+    { success: false, error: { code: 'BAD_REQUEST', message } },
+    400,
+  );
+}
+
+// ── Anthropic-backed sub-MD LLM port ─────────────────────────────────────────
+// Honest-degrade: when no key is set (or the call throws) the port returns
+// empty text, so the redesign stage's deterministic fallback proposal takes
+// over rather than fabricating output.
+
+function buildSubMdLlmPort(): { readonly port: SubMdLlmPort; readonly degraded: boolean } {
+  const client = createBrainLlmClient({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    model: BRAIN_LLM_MODELS.SONNET,
+    logger,
+  });
+  const port: SubMdLlmPort = Object.freeze({
+    async generate(args: {
+      readonly system: string;
+      readonly user: string;
+      readonly maxTokens?: number;
+    }): Promise<{ readonly text: string }> {
+      if (!client) return { text: '' };
+      try {
+        const response = await client.sdk.messages.create({
+          model: client.model,
+          max_tokens: args.maxTokens ?? 800,
+          temperature: 0.3,
+          system: args.system,
+          messages: [{ role: 'user', content: args.user }],
+        });
+        const text = Array.isArray(response.content)
+          ? response.content
+              .filter((b) => b.type === 'text' && typeof b.text === 'string')
+              .map((b) => b.text as string)
+              .join('')
+          : '';
+        return { text };
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'brain-dispatch: sub-MD LLM call failed — using deterministic fallback',
+        );
+        return { text: '' };
+      }
+    },
+  });
+  return { port, degraded: client === null };
+}
+
+// ── ScopeContext (brain auth) -> ScopeFilter (sub-MD bubble) ─────────────────
+
+function toScopeFilter(scope: ScopeContext): ScopeFilter {
+  // Only tenant-scoped dispatch reaches here (the gate enforces a tenant
+  // principal); platform scope has no tenantId so it cannot run line-workers.
+  if (scope.kind !== 'tenant') {
+    throw new Error('dispatch_requires_tenant_scope');
+  }
+  return Object.freeze({ tenantId: scope.tenantId });
+}
+
+// ── sub-MD chain executor ────────────────────────────────────────────────────
+// Runs each spawn's four-stage pipeline. Fail-soft per step: an unknown
+// line-worker is `skipped`, a throwing sub-MD is `failed`, and the remaining
+// spawns still run.
+
+interface SubMdStepResult {
+  readonly subMdId: string;
+  readonly status: 'completed' | 'failed' | 'skipped';
+  readonly description?: string;
+  readonly proposal?: {
+    readonly summary: string;
+    readonly steps: ReadonlyArray<{
+      readonly id: string;
+      readonly description: string;
+      readonly expectedImpact: string;
+    }>;
+    readonly predicted: {
+      readonly metric: string;
+      readonly value: number;
+      readonly unit: string;
+    };
+  };
+  readonly artifact?: {
+    readonly skillName: string;
+    readonly cronExpression?: string;
+    readonly draftStatus: 'draft' | 'review-requested';
+  };
+  readonly error?: string;
+}
+
+async function runSubMdChain(args: {
+  readonly plan: VpOrchestrationPlan;
+  readonly scope: ScopeContext;
+  readonly llm: SubMdLlmPort;
+  readonly correlationId: string;
+}): Promise<ReadonlyArray<SubMdStepResult>> {
+  const { plan, scope, llm, correlationId } = args;
+  const scopeFilter = toScopeFilter(scope);
+  const results: SubMdStepResult[] = [];
+
+  for (const spawn of plan.spawns) {
+    const factory = getSubMdFactory(spawn.subMdId);
+    if (!factory) {
+      results.push(
+        Object.freeze({
+          subMdId: spawn.subMdId,
+          status: 'skipped',
+          ...(spawn.description ? { description: spawn.description } : {}),
+          error: `unknown_sub_md:${spawn.subMdId}`,
+        }),
+      );
+      continue;
+    }
+    try {
+      const subMd = factory({ scope: scopeFilter });
+      const initialCorrelation = spawn.initialInput?.['correlationId'];
+      const ctx: SubMdContext = Object.freeze({
+        scope: scopeFilter,
+        nowMs: Date.now(),
+        correlationId:
+          typeof initialCorrelation === 'string'
+            ? initialCorrelation
+            : correlationId,
+        budget: DEFAULT_SUB_MD_BUDGET,
+        llm,
+      });
+
+      // Four-stage pipeline. With no event-bus port the observe stage yields
+      // an empty in-scope window; map produces an empty graph; redesign still
+      // calls the LLM port (real or degraded); automate compiles a DRAFT
+      // artifact — never auto-promoted.
+      const events: ObservedEvent[] = [];
+      for await (const evt of subMd.observe(ctx)) events.push(evt);
+      const graph = await subMd.map(Object.freeze(events), ctx);
+      const proposal = await subMd.redesign(graph, ctx);
+      const artifact = await subMd.automate(proposal, ctx);
+
+      results.push(
+        Object.freeze({
+          subMdId: spawn.subMdId,
+          status: 'completed',
+          ...(spawn.description ? { description: spawn.description } : {}),
+          proposal: Object.freeze({
+            summary: proposal.summary,
+            steps: proposal.steps,
+            predicted: proposal.predicted,
+          }),
+          artifact: Object.freeze({
+            skillName: artifact.skillName,
+            ...(artifact.cronExpression
+              ? { cronExpression: artifact.cronExpression }
+              : {}),
+            draftStatus: artifact.draftStatus,
+          }),
+        }),
+      );
+    } catch (err) {
+      logger.error(
+        {
+          subMdId: spawn.subMdId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain-dispatch: sub-MD pipeline failed (fail-soft)',
+      );
+      results.push(
+        Object.freeze({
+          subMdId: spawn.subMdId,
+          status: 'failed',
+          ...(spawn.description ? { description: spawn.description } : {}),
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
+  }
+
+  return Object.freeze(results);
+}
+
+// ── route ────────────────────────────────────────────────────────────────────
+
+const app = new Hono();
+app.use('*', authMiddleware);
+
+// Owner/admin role gate on every endpoint in this router (defense in depth on
+// top of authMiddleware). Mirrors md-agentic.hono.ts / org-admin.hono.ts.
+app.use('*', async (c, next) => {
+  const auth = c.get('auth') as { role?: string } | undefined;
+  if (!auth || !DISPATCH_ROLES.has(String(auth.role))) return forbidden(c);
+  await next();
+});
+
+app.post(
+  '/dispatch',
+  zValidator('json', DispatchBodySchema),
+  withSecurityEvents(
+    { action: 'brain.dispatch', resource: 'vp_dispatch', severity: 'info' },
+    async (c: any) => {
+      const auth = c.get('auth') as AuthShape;
+      const body = c.req.valid('json');
+      const { vp, instruction, threadId, kind, language } = body;
+      const lang: Lang = language === 'sw' ? 'sw' : 'en';
+
+      // Defensive: schema already constrains `vp`, but keep the registry as
+      // the single source of truth.
+      if (!isVpName(vp)) {
+        return badRequest(c, pick(COPY.unknownVp, lang));
+      }
+
+      const correlationId = threadId ?? `dispatch-${Date.now()}`;
+      const scope: ScopeContext = Object.freeze({
+        kind: 'tenant',
+        tenantId: auth.tenantId,
+        actorUserId: auth.userId,
+        roles: [auth.role],
+        personaId: 'manager-chat',
+      });
+
+      // 1) Build the VP + orchestrate the instruction into a plan.
+      let plan: VpOrchestrationPlan;
+      try {
+        const head = createVpByName(vp as VpName, {
+          lineWorkerCatalogue: createRegistryLineWorkerCatalogue(),
+        });
+        const intent: OwnerIntent = {
+          kind: kind as OwnerIntentKind,
+          text: instruction,
+          scope,
+          correlationId,
+        };
+        plan = await head.orchestrate(intent);
+      } catch (err) {
+        logger.error(
+          { vp, err: err instanceof Error ? err.message : String(err) },
+          'brain-dispatch: VP orchestrate failed',
+        );
+        return c.json(
+          {
+            success: false,
+            error: { code: 'ORCHESTRATE_FAILED', message: pick(COPY.orchestrateFailed, lang) },
+          },
+          500,
+        );
+      }
+
+      // 2) Run the sub-MD chain (fail-soft per step).
+      const { port: llm, degraded } = buildSubMdLlmPort();
+      let subMdResults: ReadonlyArray<SubMdStepResult> = Object.freeze([]);
+      try {
+        subMdResults = await runSubMdChain({
+          plan,
+          scope,
+          llm,
+          correlationId,
+        });
+      } catch (err) {
+        return routeCatch(c, err, {
+          code: 'DISPATCH_SUBMD_CHAIN_FAILED',
+          status: 500,
+          fallback: 'Failed to run the line-worker chain',
+        });
+      }
+
+      const completed = subMdResults.filter((r) => r.status === 'completed').length;
+      const skipped = subMdResults.filter((r) => r.status === 'skipped').length;
+      const failed = subMdResults.filter((r) => r.status === 'failed').length;
+
+      return c.json(
+        {
+          success: true,
+          data: {
+            vp,
+            correlationId,
+            plan: {
+              vpName: plan.vpName,
+              intentKind: plan.intentKind,
+              rationale: plan.rationale,
+              spawnCount: plan.spawns.length,
+              ...(plan.summary ? { summary: plan.summary } : {}),
+            },
+            gaps: plan.gaps,
+            subMdResults,
+            summary: {
+              spawns: plan.spawns.length,
+              completed,
+              skipped,
+              failed,
+              gaps: plan.gaps.length,
+            },
+            knownVps: VP_REGISTRY_NAMES,
+            ...(degraded ? { degradedNotice: pick(COPY.degraded, lang) } : {}),
+          },
+        },
+        200,
+      );
+    },
+  ),
+);
+
+export const brainDispatchRouter = app;
+export default brainDispatchRouter;
