@@ -1508,3 +1508,16 @@ export * from './owner-style.schema.js';
 // composition/scenario-repository.ts. Ported from the BN training-scenarios
 // stack, retargeted real-estate → mining.
 export * from './training-scenarios.schema.js';
+
+// AI-generated mining courses (migration 0284). Wave COURSE-GEN / gap 11.
+// Three tenant-scoped tables backing the owner-cockpit create-course surface:
+// `courses` (one generated course per operator request; the validated
+// curriculum snapshot lives in ai_generated_curriculum jsonb; generated_via
+// records 'llm' | 'deterministic' — honest-degrade, never fabricated),
+// `course_lessons` (normalised per-lesson rows), and `course_documents` (the
+// grounding documents the learner attached). tenant_id TEXT, FORCE RLS on
+// app.current_tenant_id; every row also carries created_by_user_id for
+// defence-in-depth owner scoping. Backs services/courses/* +
+// routes/courses.hono.ts. Ported from the BN course-gen stack, retargeted
+// real-estate → mining.
+export * from './courses.schema.js';
